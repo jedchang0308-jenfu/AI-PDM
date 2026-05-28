@@ -13,6 +13,7 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Added `src/lib/repositories/release-repository.ts` for release packages, read-only shares, supplier portal responses, and procurement sync runs.
 - Added `src/lib/repositories/sandbox-repository.ts` for sandbox branch listing, merge preview, create, status transition, and merge operations.
 - Added `src/lib/repositories/approval-repository.ts` for approval decisions, approval summaries, and approval matrix workflows.
+- Added `src/lib/repositories/submission-file-repository.ts` for submission file lookup, GDrive upload status, upload queue lookup, and Released filename conflict checks.
 - Kept `src/lib/db.ts` re-export compatibility so existing route handlers and libraries do not need a broad import rewrite in this checkpoint.
 
 ## Second Batch QA Plan
@@ -45,12 +46,18 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Risk: matrix refresh could stop satisfying requirements after reviewer approvals if decision aggregation changes during relocation.
 - Pass criteria: repository split gate covers approval ownership and `db.ts` no longer owns approval functions, lint/build pass, and API regression covers approve/reject/two-reviewer/approval-matrix paths.
 
+## Seventh Batch QA Plan
+- Scope: verify submission file/status extraction preserves file download/preview lookup, GDrive upload queue behavior, and Released filename conflict detection.
+- Risk: file routes could fail if the lookup moves out of `db.ts` but route imports still rely on public re-exports.
+- Risk: Released filename conflict checks must still exclude the current submission and same item when blocking duplicate filenames.
+- Pass criteria: repository split gate covers submission-file ownership and `db.ts` no longer owns file/status functions, lint/build pass, and API regression covers file download/preview, upload retry, and duplicate Released filename risk paths.
+
 ## Evidence
-- `npm.cmd run qc:db-repository-split`: PASS with 89 checks.
+- `npm.cmd run qc:db-repository-split`: PASS with 96 checks.
 - `npm.cmd run lint`: PASS.
 - `npm.cmd run build`: PASS with existing Next Turbopack NFT trace warning from dynamic path resolution in `src/lib/llm-usage.ts`.
 - `npm.cmd run qc:api`: PASS with 391 checks.
-- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third, fourth, fifth, and sixth batches used narrower validation to avoid redundant compute.
+- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third through seventh batches used narrower validation to avoid redundant compute.
 
 ## Result
-PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, release/share/procurement, sandbox, and approval repositories are split; submissions, items, BOM, users/auth, and file-status repositories remain for later passes.
+PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, release/share/procurement, sandbox, approval, and submission-file repositories are split; submissions, items, BOM, and users/auth repositories remain for later passes.
