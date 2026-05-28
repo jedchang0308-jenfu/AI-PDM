@@ -15,6 +15,7 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Added `src/lib/repositories/approval-repository.ts` for approval decisions, approval summaries, and approval matrix workflows.
 - Added `src/lib/repositories/submission-file-repository.ts` for submission file lookup, GDrive upload status, upload queue lookup, and Released filename conflict checks.
 - Added `src/lib/repositories/user-repository.ts` for auth mode, demo/bootstrap user seed, user lookup, user create, and password update workflows.
+- Added `src/lib/repositories/item-repository.ts` for item current revision reconcile, item revision history, submission revision uniqueness, and item find/create workflows.
 - Kept `src/lib/db.ts` re-export compatibility so existing route handlers and libraries do not need a broad import rewrite in this checkpoint.
 
 ## Second Batch QA Plan
@@ -59,12 +60,18 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Risk: `DbUser` and `DbUserWithPassword` must remain re-exported from `@/lib/db` for auth, permission, chat, and AI tool modules.
 - Pass criteria: repository split gate covers user ownership and `db.ts` no longer owns auth/user functions, lint/build pass, and API regression covers auth/login/token/me and role scoping paths.
 
+## Ninth Batch QA Plan
+- Scope: verify item core extraction preserves item current revision reconcile, item revision history API behavior, submission revision uniqueness, and create submission item linking.
+- Risk: moving `findOrCreateItem()` out of `db.ts` could break submission creation if circular imports initialize before `getDb()` is ready.
+- Risk: current revision reconcile must still run during DB initialization before API responses depend on item state.
+- Pass criteria: repository split gate covers item ownership and `db.ts` no longer owns item functions, lint/build pass, and API regression covers submission create, duplicate revision rejection, and item revision history paths.
+
 ## Evidence
-- `npm.cmd run qc:db-repository-split`: PASS with 106 checks.
+- `npm.cmd run qc:db-repository-split`: PASS with 112 checks.
 - `npm.cmd run lint`: PASS.
 - `npm.cmd run build`: PASS with existing Turbopack dynamic path tracing warnings in `src/lib/config.ts` and `src/lib/llm-usage.ts`.
 - `npm.cmd run qc:api`: PASS with 391 checks.
-- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third through eighth batches used narrower validation to avoid redundant compute.
+- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third through ninth batches used narrower validation to avoid redundant compute.
 
 ## Result
-PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, release/share/procurement, sandbox, approval, submission-file, and users/auth repositories are split; submissions, items, and BOM repositories remain for later passes.
+PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, release/share/procurement, sandbox, approval, submission-file, users/auth, and item core repositories are split; submissions and BOM repositories remain for later passes.

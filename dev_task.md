@@ -319,7 +319,7 @@ Status: [!]
 Reduce risk in the 3000+ line data layer by moving one feature at a time.
 
 ### RD Tasks
-- [!] Split submissions, items, and bom repositories incrementally; dashboard, AI, system settings, collaboration, notifications, item locks, release packages, read-only shares, supplier portal responses, procurement sync runs, sandbox branches, approval workflows, submission file/status workflows, and users/auth workflows are split.
+- [!] Split submissions and bom repositories incrementally; dashboard, AI, system settings, collaboration, notifications, item locks, release packages, read-only shares, supplier portal responses, procurement sync runs, sandbox branches, approval workflows, submission file/status workflows, users/auth workflows, and item core workflows are split.
 - [x] Move queries and mappers without behavior changes for the extracted low-coupling repositories.
 - [x] Move discussion comments, review issues, change requests, phase gates, and PDF markups into `src/lib/repositories/collaboration-repository.ts`.
 - [x] Move notification aggregation and role scoping into `src/lib/repositories/notification-repository.ts`.
@@ -329,6 +329,7 @@ Reduce risk in the 3000+ line data layer by moving one feature at a time.
 - [x] Move approval decisions, summaries, and approval matrix workflows into `src/lib/repositories/approval-repository.ts`.
 - [x] Move submission file lookup, GDrive status updates, upload queue lookup, and Released filename conflict checks into `src/lib/repositories/submission-file-repository.ts`.
 - [x] Move auth mode, demo/bootstrap user seed, user lookup, user create, and password update workflows into `src/lib/repositories/user-repository.ts`.
+- [x] Move item current revision reconcile, item revision history, submission revision uniqueness, and item find/create workflows into `src/lib/repositories/item-repository.ts`.
 - [x] Run validation after each feature move.
 
 ### QA Validation Plan
@@ -340,16 +341,17 @@ Reduce risk in the 3000+ line data layer by moving one feature at a time.
 - [x] Scope: sixth batch verifies approval extraction, approve/reject behavior, approval matrix initialize/refresh/waive behavior, and build-time circular-import safety.
 - [x] Scope: seventh batch verifies submission file/status extraction, file download/preview behavior, GDrive status queue behavior, Released filename conflict detection, and build-time circular-import safety.
 - [x] Scope: eighth batch verifies users/auth extraction, demo/bootstrap user seed behavior, login/token auth flow, user lookup, and build-time circular-import safety.
+- [x] Scope: ninth batch verifies item core extraction, item current revision reconcile, item revision history API behavior, submission revision uniqueness, create submission item linking, and build-time circular-import safety.
 - [!] Pass criteria: lint/build/API regression pass for first extraction batch; remaining high-coupling repositories still need later extraction.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 106 checks.
+- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 112 checks.
 - [x] Evidence command: `npm.cmd run lint` passed.
 - [x] Evidence command: `npm.cmd run build` passed; observed existing Turbopack dynamic path tracing warnings in `src/lib/config.ts` and `src/lib/llm-usage.ts`.
 - [x] Evidence command: `npm.cmd run qc:api` passed with 391 checks.
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps after the second repository batch; third through eighth batches used narrower validation to avoid redundant compute.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps after the second repository batch; third through ninth batches used narrower validation to avoid redundant compute.
 - [x] Evidence artifact: `docs/industrialization/db-repository-split-verification-2026-05-28.md`.
-- [!] Result: PARTIAL PASS. Eighth repository batch passed; remaining high-coupling repository extraction is deferred to later passes.
+- [!] Result: PARTIAL PASS. Ninth repository batch passed; remaining high-coupling repository extraction is deferred to later passes.
 
 ## DEV-IND-009: Split Dashboard UI giant component
 
