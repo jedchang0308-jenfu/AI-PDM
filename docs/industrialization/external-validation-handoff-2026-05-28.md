@@ -210,4 +210,4 @@ npm.cmd run qc:production-readiness:report
 Expected current result:
 
 - Local preflight passes, with an administrator warning expected on machines that are not running elevated PowerShell.
-- Production readiness remains open because external evidence reports are still draft/not ready.
+- Production readiness remains open because external evidence reports are still draft/not ready and `DEV-IND-007` still lacks a disposable Supabase shadow target.

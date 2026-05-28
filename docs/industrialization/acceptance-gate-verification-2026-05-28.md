@@ -10,6 +10,7 @@
 - Added package script `qc:industrialization`.
 - Documented the gate in `README.md`.
 - Added runbook `docs/runbooks/industrialization-acceptance-gate.md`.
+- Added production readiness blocker coverage for the industrialization backlog.
 
 ## QA Validation Plan
 
@@ -17,11 +18,12 @@
 - Verify it includes lint, build, API, UI, file hash integrity, asset manifest, AI/API cost gate, and Postgres shadow checks.
 - Verify UI runs against a local production `next start` server.
 - Verify known external/runtime blockers are not hidden as false passes.
+- Verify `DEV-IND-007` remains visible in production readiness until a disposable Supabase shadow target exists.
 
 ## QC Evidence
 
 - `npm.cmd run qc:industrialization`
-  - PASS: 17 gate steps.
+  - PASS: 18 gate steps.
   - Included:
     - source boundary
     - data boundary
@@ -30,6 +32,7 @@
     - DB provider contract
     - DB repository split
     - Postgres shadow
+    - production readiness blocker coverage
     - Dashboard component split
     - CSS boundary
     - document paths
@@ -44,6 +47,7 @@
 ## Known Exclusions
 
 - Live Supabase advisor checks remain outside the local gate until a disposable Supabase project or branch is configured.
+- The local gate verifies that the live Supabase blocker is still visible in production readiness; it does not execute live migration/advisor checks.
 
 ## Result
 

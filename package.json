@@ -87,6 +87,7 @@
     "qc:policy-confirmation:report": "node scripts/qc-policy-confirmation.mjs --allow-open",
     "qc:production-readiness": "node scripts/qc-production-readiness-test.mjs",
     "qc:production-readiness:report": "node scripts/qc-production-readiness-test.mjs --allow-open",
+    "qc:production-readiness-industrialization-gate": "node scripts/qc-production-readiness-industrialization-gate.mjs",
     "qc:submissions-pagination": "node scripts/qc-submissions-pagination-test.mjs",
     "qc:release-config": "node scripts/qc-release-config-test.mjs",
     "qc:release-folders": "node scripts/qc-release-folder-selection-test.mjs",

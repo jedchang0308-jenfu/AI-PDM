@@ -123,6 +123,7 @@
 - 2026-05-28：整理剩餘外部驗證 blocker 交接文件，明確列出 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001`、`DEV-IND-007` 的解除條件與避免浪費 API/算力的檢核順序。
 - 2026-05-28：補強 Document Manager / equivalent extractor probe 證據遮蔽，新增 `qc:document-manager-probe-redaction` 並納入 `qc:industrialization` / `qc:full`。
 - 2026-05-28：補強 Supabase/Postgres shadow target guard，pre-migration 僅接受空 public schema，compare 僅接受完整 AI_PDM schema 且 RLS forced。
+- 2026-05-28：補強 production readiness 解析 Industrialization Task Overview，避免漏報 `DEV-IND-007` Supabase live gate blocker。
 
 ---
 
@@ -442,7 +443,7 @@ Make documents, validation plans, reports, and runbooks traceable.
 ### QC Fact Report
 - [x] Evidence command: `npm.cmd run qc:doc-paths` passed with 20 checks.
 - [x] Evidence command: `npm.cmd run qa:dev-task:sync` passed and now defaults to `dev_task.md`.
-- [x] Evidence command: `npm.cmd run qc:production-readiness:report` passed in allow-open mode, read `dev_task.md`, tracked 25 P0/P1 tasks, and reported 4 external evidence blockers.
+- [x] Evidence command: `npm.cmd run qc:production-readiness:report` passed in allow-open mode, read `dev_task.md`, tracked the P0/P1 tables plus Industrialization Task Overview, and reported the four external evidence blockers plus `DEV-IND-007`.
 - [x] Evidence command: `npm.cmd run field-test:preflight -- --profile all` passed with 19 checks and 1 administrator warning.
 - [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run sw-addin:report:new` wrote JSON/MD under the configured report root.
 - [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run document-manager:report:new` wrote JSON/MD under the configured report root.
@@ -469,10 +470,11 @@ Create one final gate for this industrialization round.
 - [x] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 17 gate steps.
-- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, Document Manager probe redaction, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 18 gate steps.
+- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, production readiness blocker coverage, Dashboard component split, CSS boundary, document paths, Document Manager probe redaction, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
 - [x] Evidence artifact: `docs/industrialization/acceptance-gate-verification-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/document-manager-probe-redaction-verification-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/production-readiness-industrialization-gate-verification-2026-05-28.md`.
 - [x] Result: PASS.
 
 ## Dependencies

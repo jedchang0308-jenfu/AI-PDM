@@ -79,6 +79,25 @@ function getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, document
   };
 }
 
+function getSupabaseShadowEvidence() {
+  const evidenceDocs = [
+    "docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
+    "docs/industrialization/supabase-live-probe-2026-05-28.md",
+    "docs/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
+    "docs/industrialization/external-validation-handoff-2026-05-28.md"
+  ].map((docPath) => ({
+    path: docPath,
+    exists: fs.existsSync(path.join(root, docPath))
+  }));
+
+  return {
+    ready: false,
+    requiredTarget: "Disposable AI_PDM Supabase project or branch",
+    issues: [{ type: "missing_disposable_supabase_target" }],
+    evidenceDocs
+  };
+}
+
 function classify(task) {
   if (/Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取器|等效授權元件/i.test(task)) {
     return "external_document_manager";
@@ -99,6 +118,9 @@ function classify(task) {
 }
 
 function classifyReadinessTask(task) {
+  if (/DEV-IND-007|Supabase|Postgres\/Supabase shadow|Postgres shadow/i.test(task)) {
+    return "external_supabase_shadow";
+  }
   if (/DEV-CAD-001|Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取|custom[- ]property/i.test(task)) {
     return "external_document_manager";
   }
@@ -115,6 +137,13 @@ function classifyReadinessTask(task) {
     return "release_readiness_gate";
   }
   return "open_task";
+}
+
+function classifyIndustrializationTask(task) {
+  if (/DEV-IND-007|Supabase|Postgres\/Supabase shadow|Postgres shadow/i.test(task)) {
+    return "external_supabase_shadow";
+  }
+  return "industrialization_gate";
 }
 
 function readinessStatusFromToken(token) {
@@ -163,11 +192,49 @@ function parseTableReadinessTask(line, index, priority) {
   };
 }
 
+function parseIndustrializationOverviewTask(line, index) {
+  const match = line.match(/^- \[(x| |\/|!)\]\s+(DEV-IND-\d+):\s+(.+)$/);
+  if (!match) return null;
+
+  const task = `${match[2]} | ${match[3].trim()}`;
+  return {
+    line: index + 1,
+    priority: "P0",
+    status: readinessStatusFromToken(match[1]),
+    task,
+    category: classifyIndustrializationTask(task)
+  };
+}
+
 function parseReadinessTasks(markdown) {
   const tasks = [];
   let currentPriority = null;
+  let inIndustrializationBacklog = false;
+  let inIndustrializationOverview = false;
 
   markdown.split(/\r?\n/).forEach((line, index) => {
+    if (/^#\s+Industrialization Optimization Backlog\b/i.test(line)) {
+      inIndustrializationBacklog = true;
+      inIndustrializationOverview = false;
+      currentPriority = null;
+      return;
+    }
+
+    if (inIndustrializationBacklog && /^##\s+Task Overview\b/i.test(line)) {
+      inIndustrializationOverview = true;
+      return;
+    }
+
+    if (inIndustrializationOverview && /^##\s+(?!Task Overview\b)/i.test(line)) {
+      inIndustrializationOverview = false;
+    }
+
+    if (inIndustrializationOverview) {
+      const industrializationTask = parseIndustrializationOverviewTask(line, index);
+      if (industrializationTask) tasks.push(industrializationTask);
+      return;
+    }
+
     const headingPriority = line.match(/^##\s+(P[0-2])\b/i)?.[1]?.toUpperCase();
     if (headingPriority) currentPriority = headingPriority;
 
@@ -194,6 +261,7 @@ const solidWorksEvidence = getSolidWorksReportEvidence();
 const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
 const documentManagerEvidence = getDocumentManagerReportEvidence();
 const fieldTestEvidence = getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence);
+const supabaseShadowEvidence = getSupabaseShadowEvidence();
 const defectEvidence = evaluateDefectRegister(root);
 const blockers = tasks
   .filter((task) => task.status !== "done" && ["P0", "P1"].includes(task.priority))
@@ -202,6 +270,7 @@ const blockers = tasks
     if (task.category === "external_restore_drill") return { ...task, evidence: restoreDrillEvidence };
     if (task.category === "external_document_manager") return { ...task, evidence: documentManagerEvidence };
     if (task.category === "external_field_test") return { ...task, evidence: fieldTestEvidence };
+    if (task.category === "external_supabase_shadow") return { ...task, evidence: supabaseShadowEvidence };
     if (task.category === "release_readiness_gate") return { ...task, evidence: defectEvidence };
     return task;
   });
@@ -240,6 +309,7 @@ const report = {
     restoreDrillEvidenceReady: restoreDrillEvidence.ready,
     documentManagerEvidenceReady: documentManagerEvidence.ready,
     fieldTestEvidenceReady: fieldTestEvidence.ready,
+    supabaseShadowEvidenceReady: supabaseShadowEvidence.ready,
     policyConfirmationRequired: false,
     defectsZeroReady: defectEvidence.ready,
     activeP0P1Defects: defectEvidence.summary.activeP0P1

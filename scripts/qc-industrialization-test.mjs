@@ -130,6 +130,7 @@ try {
   await runNpmStep("DB provider contract", "qc:db-provider-contract");
   await runNpmStep("DB repository split", "qc:db-repository-split");
   await runNpmStep("Postgres shadow", "qc:postgres-shadow");
+  await runNpmStep("Production readiness blocker coverage", "qc:production-readiness-industrialization-gate");
   await runNpmStep("Dashboard component split", "qc:dashboard-component-split");
   await runNpmStep("CSS boundary", "qc:css-boundary");
   await runNpmStep("Document paths", "qc:doc-paths");

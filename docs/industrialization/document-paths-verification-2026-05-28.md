@@ -14,7 +14,7 @@
   - `docs/runbooks/`
 - Added `docs/report-path-index.md` to map legacy root-level `docs/rd-*`, `docs/qa-*`, and `docs/qc-*` files to the new directories.
 - Updated `scripts/qa-sync-dev-task-evidence.mjs` so it prefers `dev_task.md` and falls back to `PDM_dev_task.md`.
-- Updated `scripts/qc-production-readiness-test.mjs` so production readiness reporting also prefers `dev_task.md`, preserves the legacy fallback, and parses the current P0/P1 task tables.
+- Updated `scripts/qc-production-readiness-test.mjs` so production readiness reporting also prefers `dev_task.md`, preserves the legacy fallback, parses the current P0/P1 task tables, and now also includes the Industrialization Task Overview.
 - Added `scripts/qc-doc-paths-test.mjs` and `npm.cmd run qc:doc-paths`.
 
 ## QA Validation Plan
@@ -34,7 +34,7 @@
   - PASS: default task file is `dev_task.md`.
   - Result remains `readyToApply=false` because external evidence is still open.
 - `npm.cmd run qc:production-readiness:report`
-  - PASS in allow-open mode: report used `dev_task.md`, tracked 25 P0/P1 tasks, and reported 4 external evidence blockers.
+  - PASS in allow-open mode: report used `dev_task.md`, tracked the P0/P1 tables plus Industrialization Task Overview, and reported 5 blockers including `DEV-IND-007`.
 - `npm.cmd run field-test:preflight -- --profile all`
   - PASS: 19 checks, 1 administrator warning for COM registration context.
 - `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run sw-addin:report:new`
