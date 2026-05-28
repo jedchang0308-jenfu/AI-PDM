@@ -131,7 +131,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-003: Clean generated/dependency output boundaries
 - [!] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [x] DEV-IND-005: Add AI/API cost gates and usage logging
-- [ ] DEV-IND-006: Extract DB provider and repository contracts
+- [x] DEV-IND-006: Extract DB provider and repository contracts
 - [ ] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 - [ ] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [ ] DEV-IND-009: Split Dashboard UI giant component
@@ -264,24 +264,27 @@ Prevent unnecessary LLM/API calls and make compute cost measurable.
 
 ## DEV-IND-006: Extract DB provider and repository contracts
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Prepare for SQLite/Postgres dual support without changing CAD Add-in API contracts.
 
 ### RD Tasks
-- [ ] Add `DatabaseProvider` and feature repository interfaces.
-- [ ] Keep route handlers focused on auth, validation, and response mapping.
-- [ ] Keep SQLite adapter as local fallback.
+- [x] Add `DatabaseProvider` and feature repository interfaces.
+- [x] Keep route handlers focused on auth, validation, and response mapping.
+- [x] Keep SQLite adapter as local fallback.
 
 ### QA Validation Plan
-- [ ] Scope: verify HTTP API compatibility and repository contract behavior.
-- [ ] Pass criteria: API response shape remains compatible.
+- [x] Scope: verify HTTP API compatibility and repository contract behavior.
+- [x] Pass criteria: API response shape remains compatible.
 
 ### QC Fact Report
-- [ ] Evidence command: `npm.cmd run build`.
-- [ ] Evidence command: `npm.cmd run qc:api`.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:db-provider-contract` passed with 20 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence command: `npm.cmd run build` passed; observed existing Next tracing warning from dynamic path resolution in `src/lib/llm-usage.ts`.
+- [x] Evidence command: `npm.cmd run qc:api` passed with 391 checks.
+- [x] Evidence artifact: `docs/industrialization/db-provider-contract-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 

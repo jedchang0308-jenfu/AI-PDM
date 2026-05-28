@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import Database from "better-sqlite3";
+import { createDefaultDatabaseProvider, type DatabaseProvider, type SqliteDatabase } from "@/lib/db-provider";
 import { hashPassword } from "@/lib/password";
 import type {
   BomDetail,
@@ -30,11 +30,9 @@ import type {
   WhereUsedEntry
 } from "@/lib/types";
 
-type SqliteDatabase = import("better-sqlite3").Database;
-
 type UserRole = "Engineer" | "R&D Manager" | "Admin";
 
-let db: SqliteDatabase | null = null;
+let dbProvider: DatabaseProvider | null = null;
 
 const DEMO_PASSWORD = "pdm-demo";
 
@@ -305,14 +303,17 @@ function reconcileItemCurrentRevisions(database: SqliteDatabase) {
 
 
 export function getDb() {
-  if (!db) {
+  if (!dbProvider) {
     const dataDir = getDataDir();
-    fs.mkdirSync(dataDir, { recursive: true });
-    fs.mkdirSync(getRepositoryDir(), { recursive: true });
-    db = new Database(path.join(dataDir, "ai-pdm.sqlite"));
-    initDatabase(db);
+    dbProvider = createDefaultDatabaseProvider({
+      provider: process.env.PDM_DB_PROVIDER,
+      dataDir,
+      repositoryDir: getRepositoryDir(),
+      databasePath: path.join(dataDir, "ai-pdm.sqlite"),
+      initialize: initDatabase
+    });
   }
-  return db;
+  return dbProvider.getConnection();
 }
 
 function resolveAppPath(value: string | undefined, fallback: string) {
