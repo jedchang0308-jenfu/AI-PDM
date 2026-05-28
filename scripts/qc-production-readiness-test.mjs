@@ -1,0 +1,180 @@
+#!/usr/bin/env node
+
+import fs from "node:fs";
+import path from "node:path";
+import { evaluateDefectRegister } from "./defect-register-utils.mjs";
+import { getRestoreDrillReportEvidence } from "./restore-drill-report-utils.mjs";
+import { findLatestReport, readReport, validateReport } from "./sw-addin-report-utils.mjs";
+import {
+  findLatestReport as findLatestDocumentManagerReport,
+  readReport as readDocumentManagerReport,
+  validateReport as validateDocumentManagerReport
+} from "./document-manager-report-utils.mjs";
+
+const root = process.cwd();
+const taskPath = path.join(root, "PDM_dev_task.md");
+const args = new Set(process.argv.slice(2));
+const allowOpen = args.has("--allow-open");
+
+function getSolidWorksReportEvidence() {
+  const reportPath = findLatestReport(root);
+  if (!reportPath) {
+    return {
+      ready: false,
+      reportPath: null,
+      issues: [{ type: "missing_report" }]
+    };
+  }
+
+  const validation = validateReport(readReport(reportPath));
+  return {
+    ...validation,
+    reportPath
+  };
+}
+
+function getDocumentManagerReportEvidence() {
+  const reportPath = findLatestDocumentManagerReport(root);
+  if (!reportPath) {
+    return {
+      ready: false,
+      reportPath: null,
+      issues: [{ type: "missing_report" }]
+    };
+  }
+
+  const validation = validateDocumentManagerReport(readDocumentManagerReport(reportPath));
+  return {
+    ...validation,
+    reportPath
+  };
+}
+
+function getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence) {
+  return {
+    ready: solidWorksEvidence.ready && restoreDrillEvidence.ready && documentManagerEvidence.ready,
+    solidWorks: {
+      ready: solidWorksEvidence.ready,
+      reportPath: solidWorksEvidence.reportPath,
+      issues: solidWorksEvidence.issues
+    },
+    restore: {
+      ready: restoreDrillEvidence.ready,
+      reportPath: restoreDrillEvidence.reportPath,
+      issues: restoreDrillEvidence.issues
+    },
+    documentManager: {
+      ready: documentManagerEvidence.ready,
+      reportPath: documentManagerEvidence.reportPath,
+      issues: documentManagerEvidence.issues
+    }
+  };
+}
+
+function classify(task) {
+  if (/Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取器|等效授權元件/i.test(task)) {
+    return "external_document_manager";
+  }
+  if (/正式現場測試|field-test|現場測試/i.test(task)) {
+    return "external_field_test";
+  }
+  if (/SolidWorks|Add-in|CAD/i.test(task) && /實機|註冊|編譯|測試|machine|registration|compile/i.test(task)) {
+    return "external_solidworks_machine";
+  }
+  if (/還原|備份|restore|backup/i.test(task) && /獨立測試機|實測|演練|test machine|drill/i.test(task)) {
+    return "external_restore_drill";
+  }
+  if (/P0\s*\/\s*P1|缺陷清零|defect/i.test(task)) {
+    return "release_readiness_gate";
+  }
+  return "open_task";
+}
+
+function parseTasks(markdown) {
+  return markdown.split(/\r?\n/).flatMap((line, index) => {
+    const match = line.match(/^- \[(x| |\/)\]\s+`(P[0-2])`\s+(.+)$/);
+    if (!match) return [];
+
+    const statusToken = match[1];
+    const priority = match[2];
+    const task = match[3].trim();
+    const status = statusToken === "x" ? "done" : statusToken === "/" ? "partial" : "open";
+
+    return [{
+      line: index + 1,
+      priority,
+      status,
+      task,
+      category: classify(task)
+    }];
+  });
+}
+
+if (!fs.existsSync(taskPath)) {
+  console.error(`Task file not found: ${path.relative(root, taskPath)}`);
+  process.exit(1);
+}
+
+const tasks = parseTasks(fs.readFileSync(taskPath, "utf8"));
+const solidWorksEvidence = getSolidWorksReportEvidence();
+const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
+const documentManagerEvidence = getDocumentManagerReportEvidence();
+const fieldTestEvidence = getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence);
+const defectEvidence = evaluateDefectRegister(root);
+const blockers = tasks
+  .filter((task) => task.status !== "done" && ["P0", "P1"].includes(task.priority))
+  .map((task) => {
+    if (task.category === "external_solidworks_machine") return { ...task, evidence: solidWorksEvidence };
+    if (task.category === "external_restore_drill") return { ...task, evidence: restoreDrillEvidence };
+    if (task.category === "external_document_manager") return { ...task, evidence: documentManagerEvidence };
+    if (task.category === "external_field_test") return { ...task, evidence: fieldTestEvidence };
+    if (task.category === "release_readiness_gate") return { ...task, evidence: defectEvidence };
+    return task;
+  });
+
+if (!defectEvidence.ready && !blockers.some((task) => task.category === "release_readiness_gate")) {
+  blockers.push({
+    line: null,
+    priority: "P0",
+    status: "open",
+    task: "P0/P1 defect register is not clear",
+    category: "release_readiness_gate",
+    evidence: defectEvidence
+  });
+}
+
+const byPriority = blockers.reduce((acc, blocker) => {
+  acc[blocker.priority] = (acc[blocker.priority] ?? 0) + 1;
+  return acc;
+}, {});
+
+const byCategory = blockers.reduce((acc, blocker) => {
+  acc[blocker.category] = (acc[blocker.category] ?? 0) + 1;
+  return acc;
+}, {});
+
+const report = {
+  ready: blockers.length === 0,
+  allowOpen,
+  taskFile: "PDM_dev_task.md",
+  summary: {
+    trackedTasks: tasks.length,
+    blockers: blockers.length,
+    byPriority,
+    byCategory,
+    solidWorksEvidenceReady: solidWorksEvidence.ready,
+    restoreDrillEvidenceReady: restoreDrillEvidence.ready,
+    documentManagerEvidenceReady: documentManagerEvidence.ready,
+    fieldTestEvidenceReady: fieldTestEvidence.ready,
+    policyConfirmationRequired: false,
+    defectsZeroReady: defectEvidence.ready,
+    activeP0P1Defects: defectEvidence.summary.activeP0P1
+  },
+  blockers
+};
+
+console.log(JSON.stringify(report, null, 2));
+
+if (blockers.length > 0 && !allowOpen) {
+  process.exitCode = 1;
+}

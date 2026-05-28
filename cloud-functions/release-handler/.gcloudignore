@@ -1,0 +1,18 @@
+# This file specifies files and directories to be ignored by gcloud during deployment.
+# It uses the same syntax as .gitignore.
+
+# Ignore common system/editor files
+.gcloudignore
+.git
+.gitignore
+
+# Ignore node_modules directory
+node_modules/
+
+# Ignore local env/secret files
+.env
+.env.*
+secrets/
+
+# Ignore logs
+*.log

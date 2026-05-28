@@ -1,0 +1,139 @@
+<Window x:Class="AiPdmAddin.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AI PDM 系統登入" Height="380" Width="420"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#1E1E2E"
+        BorderBrush="#313244"
+        BorderThickness="1">
+    
+    <Window.Resources>
+        <!-- Custom button template with modern hover style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#11111B"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" CornerRadius="8" Background="{TemplateBinding Background}" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#A6E3A1"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Background" Value="#45475A"/>
+                                <Setter Property="Foreground" Value="#7F849C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Custom textbox template with modern round corners -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="CaretBrush" Value="#F5E0DC"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Border" CornerRadius="6" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="2,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#89B4FA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModernPasswordBox" TargetType="PasswordBox">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="CaretBrush" Value="#F5E0DC"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="Border" CornerRadius="6" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="2,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#89B4FA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title and Logo section -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,25">
+            <TextBlock Text="AI PDM SYSTEM" FontSize="24" FontWeight="Bold" Foreground="#89B4FA" HorizontalAlignment="Center"/>
+            <TextBlock Text="SolidWorks 設計工程端送審登入" FontSize="12" Foreground="#A6ADC8" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Email field -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,15">
+            <TextBlock Text="電子郵件 (Email)" FontSize="12" FontWeight="SemiBold" Foreground="#BAC2DE" Margin="0,0,0,6"/>
+            <TextBox x:Name="TxtEmail" Style="{StaticResource ModernTextBox}"/>
+        </StackPanel>
+
+        <!-- Password field -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,20">
+            <TextBlock Text="密碼 (Password)" FontSize="12" FontWeight="SemiBold" Foreground="#BAC2DE" Margin="0,0,0,6"/>
+            <PasswordBox x:Name="TxtPassword" Style="{StaticResource ModernPasswordBox}"/>
+        </StackPanel>
+
+        <!-- Error message display -->
+        <TextBlock x:Name="LblError" Grid.Row="3" Text="" Foreground="#F38BA8" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,15" HorizontalAlignment="Center" Visibility="Collapsed"/>
+
+        <!-- Action buttons -->
+        <Grid Grid.Row="4" VerticalAlignment="Bottom">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto" SharedSizeGroup="Btn"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BtnLogin" Content="登入系統" Style="{StaticResource ModernButton}" Click="BtnLogin_Click" Grid.ColumnSpan="2"/>
+            
+            <ProgressBar x:Name="ProgressIndicator" Height="6" Background="#313244" Foreground="#A6E3A1" IsIndeterminate="True" 
+                         VerticalAlignment="Bottom" Visibility="Collapsed" Grid.ColumnSpan="2" Margin="0,0,0,-15"/>
+        </Grid>
+    </Grid>
+</Window>

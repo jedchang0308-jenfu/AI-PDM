@@ -1,0 +1,522 @@
+export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete";
+export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
+
+export type SubmissionSummary = {
+  id: string;
+  item_id: string;
+  part_number: string;
+  part_name: string;
+  drawing_number: string;
+  revision: string;
+  product_line: string;
+  customer: string;
+  project_code: string;
+  process_name: string;
+  machine: string;
+  material: string;
+  surface_finish: string;
+  document_type: string;
+  change_description: string;
+  status: SubmissionStatus;
+  submitted_by: string;
+  submitted_by_name: string;
+  approval_required: number;
+  file_count: number;
+  file_roles?: string | null;
+  has_release_package?: number;
+  has_active_lock?: number;
+  created_at: string;
+  updated_at: string;
+  released_at: string | null;
+  rejected_at: string | null;
+  reject_reason: string | null;
+  release_error: string | null;
+  superseded_by_submission_id: string | null;
+  obsolete_at: string | null;
+  obsolete_by: string | null;
+};
+
+export type SubmissionFile = {
+  id: string;
+  submission_id: string;
+  file_role: FileRole;
+  original_filename: string;
+  local_path: string;
+  gdrive_file_id: string | null;
+  gdrive_status: "none" | "uploading" | "uploaded" | "failed" | "moved";
+  sha256: string;
+  file_size: number;
+  created_at: string;
+};
+
+export type FileReference = {
+  id: string;
+  submission_id: string;
+  source_file_id: string | null;
+  source_filename: string;
+  source_file_role: FileRole;
+  referenced_filename: string;
+  referenced_part_number: string | null;
+  referenced_drawing_number: string | null;
+  referenced_revision: string | null;
+  reference_type: "assembly_component" | "drawing_model" | "derived" | "unknown";
+  quantity: number;
+  extraction_method: string;
+  confidence: "high" | "medium" | "low";
+  created_at: string;
+};
+
+export type BomLine = {
+  id: string;
+  bom_header_id: string;
+  line_no: number;
+  child_part_number: string;
+  child_revision: string | null;
+  quantity: number;
+  source_file_id: string | null;
+  source_reference_id: string | null;
+  source_filename: string | null;
+  child_submission_id?: string | null;
+  child_drawing_number?: string | null;
+  child_part_name?: string | null;
+  child_material?: string | null;
+  child_surface_finish?: string | null;
+  child_submission_revision?: string | null;
+  child_status?: SubmissionStatus | null;
+  child_latest_revision?: string | null;
+  child_latest_released_revision?: string | null;
+  created_at: string;
+};
+
+export type BomHeader = {
+  id: string;
+  parent_item_id: string;
+  parent_submission_id: string;
+  parent_revision: string;
+  status: "Draft" | "ReleasedSnapshot";
+  source: "cad_references" | "manual" | "imported";
+  line_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BomDetail = BomHeader & {
+  parent_part_number: string;
+  parent_part_name: string;
+  parent_drawing_number: string;
+  parent_material: string;
+  parent_surface_finish: string;
+  parent_status: SubmissionStatus;
+  lines: BomLine[];
+};
+
+export type BomDiffChangeType = "added" | "removed" | "changed" | "unchanged";
+
+export type BomDiffLine = {
+  key: string;
+  change_type: BomDiffChangeType;
+  child_part_number: string;
+  from_revision: string | null;
+  to_revision: string | null;
+  from_quantity: number | null;
+  to_quantity: number | null;
+  from_source_filename: string | null;
+  to_source_filename: string | null;
+};
+
+export type BomDiffResult = {
+  base_submission_id: string;
+  target_submission_id: string;
+  base_revision: string;
+  target_revision: string;
+  base_created_at: string;
+  target_created_at: string;
+  added_count: number;
+  removed_count: number;
+  changed_count: number;
+  unchanged_count: number;
+  lines: BomDiffLine[];
+};
+
+export type WhereUsedEntry = {
+  parent_submission_id: string;
+  parent_item_id: string;
+  parent_part_number: string;
+  parent_part_name: string;
+  parent_drawing_number: string;
+  parent_revision: string;
+  parent_status: SubmissionStatus;
+  parent_submitted_by: string;
+  parent_submitted_by_name: string;
+  bom_header_id: string;
+  bom_status: BomHeader["status"];
+  child_part_number: string;
+  child_revision: string | null;
+  child_submission_id?: string | null;
+  child_drawing_number?: string | null;
+  child_status?: SubmissionStatus | null;
+  child_latest_released_revision?: string | null;
+  child_is_outdated?: number;
+  quantity: number;
+  source_filename: string | null;
+  parent_created_at: string;
+  parent_released_at: string | null;
+};
+
+export type DesignReuseCandidate = SubmissionSummary & {
+  score: number;
+  match_reasons: string[];
+  matched_files: string[];
+};
+
+export type DuplicateGeometryCandidate = SubmissionSummary & {
+  fingerprint_score: number;
+  duplicate_level: "exact" | "strong" | "possible";
+  fingerprint_signals: string[];
+  matched_files: string[];
+};
+
+export type SandboxBranch = {
+  id: string;
+  source_submission_id: string;
+  sandbox_submission_id: string;
+  branch_name: string;
+  reason: string;
+  status: "active" | "promoted" | "closed";
+  created_by: string;
+  created_by_name: string;
+  promoted_by: string | null;
+  promoted_by_name: string | null;
+  closed_by: string | null;
+  closed_by_name: string | null;
+  merged_by: string | null;
+  merged_by_name: string | null;
+  merge_summary_json: string | null;
+  promoted_at: string | null;
+  closed_at: string | null;
+  merged_at: string | null;
+  created_at: string;
+  updated_at: string;
+  source_drawing_number: string;
+  source_revision: string;
+  sandbox_drawing_number: string;
+  sandbox_revision: string;
+  sandbox_status: SubmissionStatus;
+};
+
+export type ItemLock = {
+  id: string;
+  item_id: string;
+  part_number: string;
+  part_name: string;
+  locked_by: string;
+  locked_by_name: string;
+  lock_reason: string;
+  expires_at: string;
+  released_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReleasePackage = {
+  id: string;
+  submission_id: string;
+  package_filename: string;
+  local_path: string;
+  sha256: string;
+  file_size: number;
+  manifest_json: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ReadonlyShare = {
+  id: string;
+  submission_id: string;
+  label: string;
+  expires_at: string;
+  created_by: string;
+  created_by_name: string;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revoked_by_name: string | null;
+  access_count: number;
+  last_accessed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  status: "active" | "expired" | "revoked";
+  response_count: number;
+  open_response_count: number;
+  latest_response_at: string | null;
+};
+
+export type SupplierPortalResponse = {
+  id: string;
+  share_id: string;
+  submission_id: string;
+  share_label: string;
+  response_kind: "acknowledgement" | "question";
+  supplier_name: string;
+  supplier_email: string;
+  message: string;
+  status: "open" | "closed";
+  closed_by: string | null;
+  closed_by_name: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProcurementSyncRun = {
+  id: string;
+  submission_id: string;
+  drawing_number: string;
+  revision: string;
+  part_number: string;
+  part_name: string;
+  target_system: "ERP" | "inventory" | "procurement";
+  status: "sent" | "acknowledged" | "failed";
+  payload_json: string;
+  response_json: string;
+  external_reference: string | null;
+  created_by: string;
+  created_by_name: string;
+  acknowledged_by: string | null;
+  acknowledged_by_name: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DiscussionComment = {
+  id: string;
+  submission_id: string;
+  file_id: string | null;
+  file_original_filename: string | null;
+  author_id: string;
+  author_name: string;
+  body: string;
+  status: "open" | "resolved";
+  resolved_by: string | null;
+  resolved_by_name: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReviewIssue = {
+  id: string;
+  submission_id: string;
+  file_id: string | null;
+  file_original_filename: string | null;
+  title: string;
+  description: string;
+  status: "open" | "resolved";
+  raised_by: string;
+  raised_by_name: string;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  resolved_by: string | null;
+  resolved_by_name: string | null;
+  resolution: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChangeRequest = {
+  id: string;
+  submission_id: string;
+  kind: "ECR" | "ECO" | "ECN";
+  title: string;
+  reason: string;
+  impact: string;
+  status: "open" | "approved" | "rejected" | "closed";
+  requested_by: string;
+  requested_by_name: string;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decision_comment: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PhaseGateCheck = {
+  id: string;
+  submission_id: string;
+  gate_code: "concept" | "design" | "verification" | "release";
+  gate_name: string;
+  checklist_item: string;
+  required: 0 | 1;
+  status: "open" | "completed" | "waived";
+  created_by: string;
+  created_by_name: string;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decision_comment: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ApprovalMatrixRequirement = {
+  id: string;
+  submission_id: string;
+  required_role: "R&D Manager" | "Admin";
+  min_count: number;
+  status: "open" | "satisfied" | "waived";
+  created_by: string;
+  created_by_name: string;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decision_comment: string | null;
+  decided_at: string | null;
+  approved_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PdfMarkup = {
+  id: string;
+  submission_id: string;
+  file_id: string;
+  file_original_filename: string;
+  page_number: number;
+  x_percent: number;
+  y_percent: number;
+  body: string;
+  status: "open" | "resolved";
+  author_id: string;
+  author_name: string;
+  resolved_by: string | null;
+  resolved_by_name: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubmissionDetail = SubmissionSummary & {
+  files: SubmissionFile[];
+  references: FileReference[];
+  bom: BomDetail | null;
+  active_lock: ItemLock | null;
+  release_package: ReleasePackage | null;
+  approvals: Array<{
+    id: string;
+    reviewer_id: string;
+    reviewer_name: string;
+    sequence_no: number;
+    decision: string;
+    comment: string | null;
+    decided_at: string;
+  }>;
+  audit_logs: Array<{
+    id: string;
+    actor_id: string | null;
+    action: string;
+    detail_json: string;
+    created_at: string;
+  }>;
+};
+
+export type ItemRevisionHistoryEntry = {
+  submission_id: string;
+  item_id: string;
+  part_number: string;
+  part_name: string;
+  drawing_number: string;
+  revision: string;
+  status: SubmissionStatus;
+  submitted_by: string;
+  submitted_by_name: string;
+  approval_required: number;
+  created_at: string;
+  released_at: string | null;
+  rejected_at: string | null;
+  superseded_by_submission_id: string | null;
+  obsolete_at: string | null;
+  obsolete_by: string | null;
+};
+
+export type NotificationSeverity = "critical" | "warning" | "info";
+export type NotificationKind =
+  | "release_failed"
+  | "pending_review"
+  | "awaiting_review"
+  | "active_lock"
+  | "drive_upload_failed"
+  | "release_package_missing";
+
+export type NotificationItem = {
+  id: string;
+  kind: NotificationKind;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  submission_id: string | null;
+  drawing_number: string | null;
+  revision: string | null;
+  part_number: string | null;
+  part_name: string | null;
+  created_at: string;
+  action_url: string | null;
+};
+
+export type NotificationSummary = {
+  total: number;
+  critical: number;
+  warning: number;
+  info: number;
+};
+
+export type AiSubmissionSummarySource = {
+  type: "submission" | "file" | "revision" | "bom" | "where_used";
+  label: string;
+  detail: string;
+};
+
+export type AiSubmissionSummarySection = {
+  key: "change_reason" | "files" | "revision_history" | "bom_diff" | "where_used" | "missing_files";
+  title: string;
+  body: string;
+  facts: string[];
+  severity: "info" | "warning" | "critical";
+};
+
+export type AiSubmissionSummary = {
+  submission_id: string;
+  title: string;
+  generated_at: string;
+  sections: AiSubmissionSummarySection[];
+  missing_file_roles: FileRole[];
+  source_count: number;
+  sources: AiSubmissionSummarySource[];
+};
+
+export type AiRiskCode =
+  | "missing_handoff_file"
+  | "newer_revision_exists"
+  | "where_used_impact"
+  | "released_filename_conflict"
+  | "bom_child_missing"
+  | "bom_child_not_released"
+  | "bom_child_outdated"
+  | "bom_duplicate_child_part"
+  | "submission_required_fields_missing";
+
+export type AiRiskHint = {
+  code: AiRiskCode;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  message: string;
+  action: string;
+  sources: AiSubmissionSummarySource[];
+};
+
+export type AiRiskReport = {
+  submission_id: string;
+  generated_at: string;
+  risk_count: number;
+  risks: AiRiskHint[];
+};

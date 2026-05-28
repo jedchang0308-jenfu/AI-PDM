@@ -1,0 +1,33 @@
+.next/
+node_modules/
+data/
+*.log
+.env
+.env*.local
+!.env.example
+secrets/
+tsconfig.tsbuildinfo
+
+# Generated build outputs
+sw-addin/bin/
+sw-addin/obj/
+cloud-functions/**/node_modules/
+
+# External installer/runtime media kept out of source control.
+*.cab
+*.msi
+*.msp
+*.mzz
+*.exe
+*.dll
+*.bmp
+*.ico
+*.rtf
+ParameterInfo.xml
+UiInfo.xml
+Strings.xml
+DHtmlHeader.html
+SetupUi.xsd
+Graphics/
+NetFx*/
+[0-9][0-9][0-9][0-9]/
