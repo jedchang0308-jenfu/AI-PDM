@@ -29,6 +29,7 @@ const repositories = {
   itemLock: "src/lib/repositories/item-lock-repository.ts",
   release: "src/lib/repositories/release-repository.ts",
   sandbox: "src/lib/repositories/sandbox-repository.ts",
+  approval: "src/lib/repositories/approval-repository.ts",
   contracts: "src/lib/repositories/contracts.ts"
 };
 
@@ -44,6 +45,7 @@ record("REPO-006 db.ts re-exports notification repository", db.includes("@/lib/r
 record("REPO-007 db.ts re-exports item-lock repository", db.includes("@/lib/repositories/item-lock-repository"), "src/lib/db.ts");
 record("REPO-008 db.ts re-exports release repository", db.includes("@/lib/repositories/release-repository"), "src/lib/db.ts");
 record("REPO-009 db.ts re-exports sandbox repository", db.includes("@/lib/repositories/sandbox-repository"), "src/lib/db.ts");
+record("REPO-010 db.ts re-exports approval repository", db.includes("@/lib/repositories/approval-repository"), "src/lib/db.ts");
 
 for (const symbol of [
   "getDashboardMetrics",
@@ -96,9 +98,18 @@ for (const symbol of [
   "getActiveSandboxBranchForSubmission",
   "createSandboxBranch",
   "updateSandboxBranchStatus",
-  "mergeSandboxBranch"
+  "mergeSandboxBranch",
+  "addApproval",
+  "reviewerHasDecision",
+  "getApprovalSummary",
+  "listApprovalMatrixRequirements",
+  "getApprovalMatrixRequirement",
+  "initializeApprovalMatrixRequirements",
+  "refreshApprovalMatrixRequirements",
+  "waiveApprovalMatrixRequirement",
+  "listOpenApprovalMatrixRequirements"
 ]) {
-  record(`REPO-010 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
+  record(`REPO-011 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
 }
 
 const aiRepository = read(repositories.ai);
@@ -109,30 +120,31 @@ const notificationRepository = read(repositories.notification);
 const itemLockRepository = read(repositories.itemLock);
 const releaseRepository = read(repositories.release);
 const sandboxRepository = read(repositories.sandbox);
-record("REPO-011 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
-record("REPO-012 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
-record("REPO-013 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
+const approvalRepository = read(repositories.approval);
+record("REPO-012 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
+record("REPO-013 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
+record("REPO-014 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
 record(
-  "REPO-014 collaboration repository owns review workflow tables",
+  "REPO-015 collaboration repository owns review workflow tables",
   ["discussion_comments", "review_issues", "change_requests", "phase_gate_checks", "pdf_markups"].every((table) =>
     collaborationRepository.includes(table)
   ),
   repositories.collaboration
 );
 record(
-  "REPO-015 notification repository owns notification queries",
+  "REPO-016 notification repository owns notification queries",
   ["release_failed", "pending_review", "drive_upload_failed", "release_package_missing", "active_lock"].every((kind) =>
     notificationRepository.includes(kind)
   ),
   repositories.notification
 );
 record(
-  "REPO-016 item-lock repository owns checkout locking",
+  "REPO-017 item-lock repository owns checkout locking",
   ["item_locks", "CheckoutLockCreated", "CheckoutLockReleased"].every((marker) => itemLockRepository.includes(marker)),
   repositories.itemLock
 );
 record(
-  "REPO-017 release repository owns release/share/procurement workflows",
+  "REPO-018 release repository owns release/share/procurement workflows",
   [
     "release_packages",
     "readonly_shares",
@@ -145,13 +157,20 @@ record(
   repositories.release
 );
 record(
-  "REPO-018 sandbox repository owns sandbox branch workflows",
+  "REPO-019 sandbox repository owns sandbox branch workflows",
   ["sandbox_branches", "SandboxBranchCreated", "SandboxBranchMerged", "merge_summary_json"].every((marker) =>
     sandboxRepository.includes(marker)
   ),
   repositories.sandbox
 );
-record("REPO-019 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
+record(
+  "REPO-020 approval repository owns approval matrix workflows",
+  ["approval_steps", "approval_matrix_requirements", "ApprovalMatrixInitialized", "ApprovalMatrixWaived"].every((marker) =>
+    approvalRepository.includes(marker)
+  ),
+  repositories.approval
+);
+record("REPO-021 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
 
 const failed = results.filter((result) => !result.passed);
 console.log(
