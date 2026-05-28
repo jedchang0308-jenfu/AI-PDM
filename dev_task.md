@@ -131,7 +131,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-001: Establish repo baseline and current-state inventory
 - [x] DEV-IND-002: Create external large-asset manifest and relocation rules
 - [x] DEV-IND-003: Clean generated/dependency output boundaries
-- [!] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
+- [x] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [x] DEV-IND-005: Add AI/API cost gates and usage logging
 - [x] DEV-IND-006: Extract DB provider and repository contracts
 - [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
@@ -232,15 +232,16 @@ Separate runtime DB/repository, fixtures, quality evidence, and generated report
 
 ### QA Validation Plan
 - [x] Scope: verify backup, restore, field-test, QC, and evidence paths.
-- [!] Pass criteria: path-sensitive scripts resolve required files, but current runtime file-hash integrity is blocked by existing ignored data.
+- [x] Pass criteria: path-sensitive scripts resolve required files, QC fixtures clean their own residue, and runtime file-hash integrity passes.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:data-boundary` passed with 36 checks.
+- [x] Evidence command: `npm.cmd run qc:data-boundary` passed with 39 checks.
+- [x] Evidence command: `npm.cmd run qc:search-indexes` passed with 17 checks and cleaned the stale `SUB-IDX-*` QC seed residue.
 - [x] Evidence command: `npm.cmd run backup:verify` passed against latest backup snapshot.
 - [x] Evidence command: `npm.cmd run field-test:preflight -- --profile restore` passed.
-- [!] Evidence command: `npm.cmd run qc:file-hashes` failed because DB row `file-idx-473870` references missing `data/repository/IDX-473870.pdf` and stores invalid hash `idx-hash`.
+- [x] Evidence command: `npm.cmd run qc:file-hashes` passed with 2580 checked / 2580 ok after API/UI regression generated additional runtime files.
 - [x] Evidence artifact: `docs/industrialization/data-boundary-verification-2026-05-28.md`.
-- [!] Result: PARTIAL PASS / BLOCKED by pre-existing runtime data integrity issue. Source-path boundary changes are complete; runtime data repair is deferred.
+- [x] Result: PASS. Source-path boundary changes are complete, QC fixture residue is cleaned, and runtime DB/repository file hash integrity is restored.
 
 ## DEV-IND-005: Add AI/API cost gates and usage logging
 
@@ -447,7 +448,7 @@ Create one final gate for this industrialization round.
 
 ### RD Tasks
 - [x] Add `qc:industrialization` or equivalent gate.
-- [x] Include lint, build, API, UI, asset manifest, AI cost mock, and Postgres shadow checks where available.
+- [x] Include lint, build, API, UI, final file hash integrity, asset manifest, AI cost mock, and Postgres shadow checks where available.
 - [x] Document the gate in README/runbook.
 
 ### QA Validation Plan
@@ -455,8 +456,8 @@ Create one final gate for this industrialization round.
 - [x] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15 gate steps.
-- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, lint, build, API regression, production server start, and UI E2E.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 16 gate steps.
+- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
 - [x] Evidence artifact: `docs/industrialization/acceptance-gate-verification-2026-05-28.md`.
 - [x] Result: PASS.
 

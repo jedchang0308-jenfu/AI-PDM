@@ -14,14 +14,14 @@
 ## QA Validation Plan
 
 - Verify the gate is a single command.
-- Verify it includes lint, build, API, UI, asset manifest, AI/API cost gate, and Postgres shadow checks.
+- Verify it includes lint, build, API, UI, file hash integrity, asset manifest, AI/API cost gate, and Postgres shadow checks.
 - Verify UI runs against a local production `next start` server.
 - Verify known external/runtime blockers are not hidden as false passes.
 
 ## QC Evidence
 
 - `npm.cmd run qc:industrialization`
-  - PASS: 15 gate steps.
+  - PASS: 16 gate steps.
   - Included:
     - source boundary
     - data boundary
@@ -38,12 +38,12 @@
     - API regression
     - production server start
     - UI E2E
+    - final file hash integrity
 
 ## Known Exclusions
 
-- `qc:file-hashes` is intentionally not part of this gate because current ignored runtime data has a known missing file/hash blocker tracked under DEV-IND-004.
 - Live Supabase advisor checks remain outside the local gate until a disposable Supabase project or branch is configured.
 
 ## Result
 
-PASS. DEV-IND-012 is complete. The gate gives one command for this local industrialization acceptance round while keeping known external/runtime blockers explicit.
+PASS. DEV-IND-012 is complete. The gate gives one command for this local industrialization acceptance round while keeping known external blockers explicit.

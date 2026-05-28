@@ -6,8 +6,8 @@ Run this gate before marking an industrialization round complete:
 npm.cmd run qc:industrialization
 ```
 
-The gate runs source/data boundary checks, external asset manifest verification, AI/API cost gates, database contract and repository checks, Postgres shadow checks, Dashboard/CSS/document boundary checks, lint, build, API regression, and UI E2E.
+The gate runs source/data boundary checks, external asset manifest verification, AI/API cost gates, database contract and repository checks, Postgres shadow checks, Dashboard/CSS/document boundary checks, lint, build, API regression, UI E2E, and final file hash integrity.
 
-UI E2E is executed against a temporary production `next start` server on a free local port. The gate intentionally does not run `qc:file-hashes` because current ignored runtime data has a known missing file/hash blocker tracked under DEV-IND-004.
+UI E2E is executed against a temporary production `next start` server on a free local port. Runtime DB and repository files stay ignored, but `qc:file-hashes` must pass before the local industrialization round can be accepted.
 
 If a step fails, the JSON summary identifies the failing step and the command output directly above it contains the detailed evidence.

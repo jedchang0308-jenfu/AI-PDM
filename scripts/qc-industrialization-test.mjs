@@ -144,6 +144,7 @@ try {
   await waitForApp(baseUrl, app.getOutput);
   record("start production server", true, baseUrl);
   await runNpmStep("UI E2E", "qc:ui", { env: { PDM_BASE_URL: baseUrl } });
+  await runNpmStep("file hash integrity", "qc:file-hashes");
 
   console.log(JSON.stringify({ passed: steps.filter((step) => step.passed).length, failed: 0, steps }, null, 2));
 } catch (error) {

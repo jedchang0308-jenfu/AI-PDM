@@ -100,12 +100,25 @@ const pathSensitiveScripts = [
   "scripts/seed.mjs",
   "scripts/create-user.mjs",
   "scripts/verify-file-hashes.mjs",
+  "scripts/qc-search-indexes-test.mjs",
   "scripts/migrate-v2.mjs"
 ];
 
 for (const script of pathSensitiveScripts) {
   record(`DATA-BOUNDARY script uses central paths: ${script}`, read(script).includes("./pdm-paths.mjs"), script);
 }
+
+const searchIndexesTest = read("scripts/qc-search-indexes-test.mjs");
+record(
+  "DATA-BOUNDARY search index QC avoids invalid fixture hashes",
+  !searchIndexesTest.includes("idx-hash") && searchIndexesTest.includes("createHash(\"sha256\")"),
+  "scripts/qc-search-indexes-test.mjs"
+);
+record(
+  "DATA-BOUNDARY search index QC cleans fixture residue",
+  searchIndexesTest.includes("cleanupIndexedRows") && searchIndexesTest.includes("QC seed rows cleaned after run"),
+  "scripts/qc-search-indexes-test.mjs"
+);
 
 const nextConfig = read("next.config.mjs");
 record("DATA-BOUNDARY Next standalone excludes runtime data", nextConfig.includes('"./data/**/*"'), "next.config.mjs");
