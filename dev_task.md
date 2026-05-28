@@ -96,6 +96,7 @@
 - [!] `DEV-SW-001` 需要真實 SolidWorks 電腦與管理員權限。
 - [!] `DEV-BACKUP-001` 需要獨立測試機。
 - [/] `DEV-FIELD-001` 已產生現場測試 handoff package，但正式現場測試報告與 issue closure 仍需外部實測回填。
+- [!] 外部驗證交接文件：`docs/industrialization/external-validation-handoff-2026-05-28.md`。
 
 ## 暫緩 / 不做範圍
 
@@ -117,6 +118,7 @@
 - 2026-05-28：依 ZUMEN 功能評估、設計思考與效用理論分析，新增圖面資產化導入計畫與自訂搜尋、AI/OCR、組合圖、BOM 產品化任務。
 - 2026-05-28：主檔重寫為 active backlog；舊版完整內容封存至 `dev_task_archive_2026-05.md`。
 - 2026-05-28：產生 `data/field-test-handoffs/20260528-203401` 現場測試交接包；`field-test:preflight -- --profile all` 通過，正式現場測試報告仍待外部回填。
+- 2026-05-28：整理剩餘外部驗證 blocker 交接文件，明確列出 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001`、`DEV-IND-007` 的解除條件與避免浪費 API/算力的檢核順序。
 
 ---
 
@@ -314,6 +316,7 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 - [!] Evidence command: live Supabase migration/advisor/RLS gate not executed because no disposable AI_PDM Supabase project or branch is configured.
 - [x] Evidence artifact: `docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/supabase-live-probe-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/external-validation-handoff-2026-05-28.md`.
 - [!] Result: PARTIAL PASS / BLOCKED for live Supabase advisor only.
 
 ## DEV-IND-008: Split `src/lib/db.ts` by feature repository
