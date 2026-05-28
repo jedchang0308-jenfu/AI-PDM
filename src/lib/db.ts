@@ -30,6 +30,10 @@ import type {
   WhereUsedEntry
 } from "@/lib/types";
 
+export { getDashboardMetrics } from "@/lib/repositories/dashboard-repository";
+export { addLlmMessage, createLlmConversation, getLlmConversation, type LlmConversation } from "@/lib/repositories/ai-repository";
+export { getAllSystemSettings, getSystemSetting, setSystemSetting } from "@/lib/repositories/system-repository";
+
 type UserRole = "Engineer" | "R&D Manager" | "Admin";
 
 let dbProvider: DatabaseProvider | null = null;
@@ -3238,53 +3242,6 @@ export function listOpenApprovalMatrixRequirements(submissionId: string) {
   return refreshApprovalMatrixRequirements(submissionId).filter((requirement) => requirement.status === "open");
 }
 
-export function getDashboardMetrics(submittedBy?: string) {
-  const database = getDb();
-  const statuses = (
-    submittedBy
-      ? database.prepare("SELECT status, COUNT(*) as count FROM submissions WHERE submitted_by = ? GROUP BY status").all(submittedBy)
-      : database.prepare("SELECT status, COUNT(*) as count FROM submissions GROUP BY status").all()
-  ) as Array<{ status: string; count: number }>;
-  return {
-    pending: statuses.find((row) => row.status === "Pending")?.count ?? 0,
-    released: statuses.find((row) => row.status === "Released")?.count ?? 0,
-    rejected: statuses.find((row) => row.status === "Rejected")?.count ?? 0,
-    failed: statuses.find((row) => row.status === "ReleaseFailed")?.count ?? 0
-  };
-}
-
-export type LlmConversation = {
-  id: string;
-  user_id: string | null;
-  title: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export function createLlmConversation(input: { userId: string; title: string }) {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  getDb()
-    .prepare("INSERT INTO llm_conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-    .run(id, input.userId, input.title, now, now);
-  return id;
-}
-
-export function getLlmConversation(id: string) {
-  return getDb()
-    .prepare("SELECT id, user_id, title, created_at, updated_at FROM llm_conversations WHERE id = ?")
-    .get(id) as LlmConversation | undefined;
-}
-
-export function addLlmMessage(input: { conversationId: string; role: "user" | "assistant" | "system"; content: string }) {
-  const now = new Date().toISOString();
-  const database = getDb();
-  database
-    .prepare("INSERT INTO llm_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(crypto.randomUUID(), input.conversationId, input.role, input.content, now);
-  database.prepare("UPDATE llm_conversations SET updated_at = ? WHERE id = ?").run(now, input.conversationId);
-}
-
 export function ensureDemoUser(input: {
   id: string;
   displayName: string;
@@ -3308,33 +3265,6 @@ export function ensureDemoUser(input: {
 }
 
 // ─── System Settings ────────────────────────────────────────────────────
-
-export function getSystemSetting(key: string): string | null {
-  const row = getDb()
-    .prepare("SELECT value FROM system_settings WHERE key = ?")
-    .get(key) as { value: string } | undefined;
-  return row?.value ?? null;
-}
-
-export function setSystemSetting(key: string, value: string, updatedBy: string) {
-  const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      `INSERT INTO system_settings (key, value, updated_at, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`
-    )
-    .run(key, value, now, updatedBy);
-}
-
-export function getAllSystemSettings(): Record<string, string> {
-  const rows = getDb()
-    .prepare("SELECT key, value FROM system_settings")
-    .all() as Array<{ key: string; value: string }>;
-  const result: Record<string, string> = {};
-  for (const row of rows) result[row.key] = row.value;
-  return result;
-}
 
 // ─── Google Drive File Status ───────────────────────────────────────────
 

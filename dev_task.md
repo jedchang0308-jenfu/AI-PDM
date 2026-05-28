@@ -133,7 +133,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-005: Add AI/API cost gates and usage logging
 - [x] DEV-IND-006: Extract DB provider and repository contracts
 - [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
-- [ ] DEV-IND-008: Split `src/lib/db.ts` by feature repository
+- [!] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [ ] DEV-IND-009: Split Dashboard UI giant component
 - [ ] DEV-IND-010: Split global CSS and design tokens
 - [ ] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
@@ -313,25 +313,27 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 
 ## DEV-IND-008: Split `src/lib/db.ts` by feature repository
 
-Status: [ ]
+Status: [!]
 
 ### Goal
 Reduce risk in the 3000+ line data layer by moving one feature at a time.
 
 ### RD Tasks
-- [ ] Split submissions, items, release, bom, shares, notifications, and ai repositories incrementally.
-- [ ] Move queries and mappers without behavior changes.
-- [ ] Run validation after each feature move.
+- [!] Split submissions, items, release, bom, shares, notifications, and ai repositories incrementally; dashboard, AI, and system settings repositories are split first.
+- [x] Move queries and mappers without behavior changes for the extracted low-coupling repositories.
+- [x] Run validation after the first feature move.
 
 ### QA Validation Plan
-- [ ] Scope: verify behavior-preserving extraction.
-- [ ] Pass criteria: lint/build/API regression pass after extraction.
+- [x] Scope: verify behavior-preserving extraction.
+- [!] Pass criteria: lint/build/API regression pass for first extraction batch; remaining high-coupling repositories still need later extraction.
 
 ### QC Fact Report
-- [ ] Evidence command: `npm.cmd run lint`.
-- [ ] Evidence command: `npm.cmd run build`.
-- [ ] Evidence command: `npm.cmd run qc:api`.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence command: `npm.cmd run build` passed; observed existing Next tracing warning from dynamic path resolution in `src/lib/llm-usage.ts`.
+- [x] Evidence command: `npm.cmd run qc:api` passed with 391 checks.
+- [x] Evidence artifact: `docs/industrialization/db-repository-split-verification-2026-05-28.md`.
+- [!] Result: PARTIAL PASS. Remaining repository extraction is deferred to later passes.
 
 ## DEV-IND-009: Split Dashboard UI giant component
 

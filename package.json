@@ -55,6 +55,7 @@
     "qc:dashboard-transition": "node scripts/qc-dashboard-transition-test.mjs",
     "qc:data-boundary": "node scripts/qc-data-boundary-test.mjs",
     "qc:db-provider-contract": "node scripts/qc-db-provider-contract-test.mjs",
+    "qc:db-repository-split": "node scripts/qc-db-repository-split-test.mjs",
     "qc:dashboard-custom-finder": "node scripts/qc-dashboard-custom-finder-test.mjs",
     "qc:dashboard-detail-loading": "node scripts/qc-dashboard-detail-loading-test.mjs",
     "qc:dashboard-assembly-hierarchy": "node scripts/qc-dashboard-assembly-hierarchy-test.mjs",
