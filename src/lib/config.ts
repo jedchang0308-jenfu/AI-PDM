@@ -24,6 +24,9 @@ export const config = {
   openAiModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
   openAiApiBaseUrl: process.env.OPENAI_API_BASE_URL ?? "https://api.openai.com/v1",
   openAiTimeoutMs: parsePositiveInt(process.env.OPENAI_TIMEOUT_MS, 30000),
+  openAiMaxContextChars: parsePositiveInt(process.env.OPENAI_MAX_CONTEXT_CHARS, 12000),
+  openAiCacheTtlMs: parsePositiveInt(process.env.OPENAI_CACHE_TTL_MS, 300000),
+  openAiRateLimitPerMinute: parsePositiveInt(process.env.OPENAI_RATE_LIMIT_PER_MINUTE, 20),
   googleServiceAccountKeyPath: resolveAppPath(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH, path.join("secrets", "sa-key.json")),
   googleDrivePendingFolderId: process.env.GOOGLE_DRIVE_PENDING_FOLDER_ID ?? "",
   googleDriveReleasedFolderId: process.env.GOOGLE_DRIVE_RELEASED_FOLDER_ID ?? ""

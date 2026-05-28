@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
@@ -64,7 +65,7 @@ function startMockOpenAi() {
   });
 }
 
-function startApp(port, openAiBaseUrl) {
+function startApp(port, openAiBaseUrl, usageDir) {
   const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
   const child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
@@ -74,7 +75,12 @@ function startApp(port, openAiBaseUrl) {
       OPENAI_API_KEY: mockApiKey,
       OPENAI_MODEL: mockModel,
       OPENAI_API_BASE_URL: openAiBaseUrl,
-      OPENAI_TIMEOUT_MS: "5000"
+      OPENAI_TIMEOUT_MS: "5000",
+      OPENAI_CACHE_TTL_MS: "600000",
+      OPENAI_RATE_LIMIT_PER_MINUTE: "10",
+      OPENAI_MAX_CONTEXT_CHARS: "12000",
+      PDM_AI_USAGE_DIR: usageDir,
+      PDM_AI_USAGE_LOG: "on"
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -127,8 +133,31 @@ async function login(baseUrl) {
   return response.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
 
+async function postChat(baseUrl, cookie, message) {
+  const response = await fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ message })
+  });
+  return { response, body: await response.json().catch(() => ({})) };
+}
+
 function expect(name, actual, expected) {
   return { name, passed: actual === expected, actual, expected };
+}
+
+function expectTrue(name, actual) {
+  return { name, passed: Boolean(actual), actual: Boolean(actual), expected: true };
+}
+
+function readUsageEvents(usageDir) {
+  const usagePath = path.join(usageDir, "llm-usage.jsonl");
+  if (!fs.existsSync(usagePath)) return [];
+  return fs.readFileSync(usagePath, "utf8")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
 }
 
 let mockOpenAi;
@@ -139,31 +168,43 @@ try {
   mockOpenAi = await startMockOpenAi();
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  app = startApp(port, mockOpenAi.baseUrl);
+  const usageDir = path.join(root, "data", "qc-openai-usage", String(Date.now()));
+  app = startApp(port, mockOpenAi.baseUrl, usageDir);
   await waitForApp(baseUrl, app.getOutput);
   const cookie = await login(baseUrl);
 
-  const response = await fetch(`${baseUrl}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ message: "summary" })
-  });
-  const body = await response.json().catch(() => ({}));
+  const localChat = await postChat(baseUrl, cookie, "summary");
+  results.push(expect("OPENAI-001 local-first chat returns 200", localChat.response.status, 200));
+  results.push(expect("OPENAI-002 local summary makes zero OpenAI calls", mockOpenAi.state.requests.length, 0));
+  results.push(expectTrue("OPENAI-003 local summary keeps sources", Array.isArray(localChat.body.sources) && localChat.body.sources.length > 0));
+
+  const openAiQuestion = "請依目前 PDM context 產出一段管理觀察";
+  const openAiChat = await postChat(baseUrl, cookie, openAiQuestion);
   const request = mockOpenAi.state.requests[0];
   const userPayload = request?.body?.input?.find((item) => item.role === "user")?.content ?? "";
+  results.push(expect("OPENAI-004 fallback chat returns 200", openAiChat.response.status, 200));
+  results.push(expect("OPENAI-005 fallback calls mock OpenAI once", mockOpenAi.state.requests.length, 1));
+  results.push(expect("OPENAI-006 provider uses Responses API", request?.path, "/v1/responses"));
+  results.push(expect("OPENAI-007 provider uses bearer API key", request?.authorization, `Bearer ${mockApiKey}`));
+  results.push(expect("OPENAI-008 provider uses configured model", request?.body?.model, mockModel));
+  results.push(expect("OPENAI-009 prompt includes read-only instruction", request?.body?.input?.[0]?.content?.includes("read-only"), true));
+  results.push(expect("OPENAI-010 prompt includes dashboard metrics", userPayload.includes("metrics"), true));
+  results.push(expect("OPENAI-011 answer comes from mock OpenAI", openAiChat.body.answer?.includes("Mock OpenAI PDM answer"), true));
 
-  results.push(expect("OPENAI-001 chat returns 200", response.status, 200));
-  results.push(expect("OPENAI-002 mock OpenAI was called once", mockOpenAi.state.requests.length, 1));
-  results.push(expect("OPENAI-003 provider uses Responses API", request?.path, "/v1/responses"));
-  results.push(expect("OPENAI-004 provider uses bearer API key", request?.authorization, `Bearer ${mockApiKey}`));
-  results.push(expect("OPENAI-005 provider uses configured model", request?.body?.model, mockModel));
-  results.push(expect("OPENAI-006 prompt includes read-only instruction", request?.body?.input?.[0]?.content?.includes("read-only"), true));
-  results.push(expect("OPENAI-007 prompt includes dashboard metrics", userPayload.includes("metrics"), true));
-  results.push(expect("OPENAI-008 answer comes from mock OpenAI", body.answer?.includes("Mock OpenAI PDM answer"), true));
-  results.push(expect("OPENAI-009 response keeps sources", Array.isArray(body.sources) && body.sources.length > 0, true));
+  const cachedChat = await postChat(baseUrl, cookie, openAiQuestion);
+  results.push(expect("OPENAI-012 cached fallback returns 200", cachedChat.response.status, 200));
+  results.push(expect("OPENAI-013 repeated fallback uses cache", mockOpenAi.state.requests.length, 1));
+
+  const usageEvents = readUsageEvents(usageDir);
+  const usageText = JSON.stringify(usageEvents);
+  results.push(expectTrue("OPENAI-014 usage log records local event", usageEvents.some((event) => event.provider === "local" && event.apiCall === false)));
+  results.push(expectTrue("OPENAI-015 usage log records OpenAI API event", usageEvents.some((event) => event.provider === "openai" && event.apiCall === true)));
+  results.push(expectTrue("OPENAI-016 usage log records cache hit", usageEvents.some((event) => event.provider === "openai" && event.cacheHit === true)));
+  results.push(expect("OPENAI-017 usage log does not include API key", usageText.includes(mockApiKey), false));
+  results.push(expect("OPENAI-018 usage log does not include raw prompt", usageText.includes(openAiQuestion), false));
 
   const failed = results.filter((result) => !result.passed);
-  console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
+  console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, usageDir, results }, null, 2));
   if (failed.length > 0) process.exitCode = 1;
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);

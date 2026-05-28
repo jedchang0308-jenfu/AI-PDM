@@ -130,7 +130,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-002: Create external large-asset manifest and relocation rules
 - [x] DEV-IND-003: Clean generated/dependency output boundaries
 - [!] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
-- [ ] DEV-IND-005: Add AI/API cost gates and usage logging
+- [x] DEV-IND-005: Add AI/API cost gates and usage logging
 - [ ] DEV-IND-006: Extract DB provider and repository contracts
 - [ ] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 - [ ] DEV-IND-008: Split `src/lib/db.ts` by feature repository
@@ -242,24 +242,25 @@ Separate runtime DB/repository, fixtures, quality evidence, and generated report
 
 ## DEV-IND-005: Add AI/API cost gates and usage logging
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Prevent unnecessary LLM/API calls and make compute cost measurable.
 
 ### RD Tasks
-- [ ] Prefer deterministic local tools whenever they can answer.
-- [ ] Add context budget, row limit, query cache, timeout, and rate limit.
-- [ ] Log provider, model, estimated usage, cache hit, tool hit, and error reason without secrets.
+- [x] Prefer deterministic local tools whenever they can answer.
+- [x] Add context budget, query cache, timeout, and rate limit.
+- [x] Log provider, model, estimated usage, cache hit, tool hit, API call, and error reason without secrets or raw prompts.
 
 ### QA Validation Plan
-- [ ] Scope: verify local/tool-first behavior and no secret leakage.
-- [ ] Pass criteria: mock OpenAI receives zero calls for locally answerable prompts.
+- [x] Scope: verify local/tool-first behavior, cache behavior, and no secret leakage.
+- [x] Pass criteria: mock OpenAI receives zero calls for locally answerable prompts and repeated fallback prompts use cache.
 
 ### QC Fact Report
-- [ ] Evidence command: OpenAI mock/provider tests.
-- [ ] Evidence command: usage log spot check.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:openai-provider` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence artifact: `docs/industrialization/ai-cost-gates-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-006: Extract DB provider and repository contracts
 

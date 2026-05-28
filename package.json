@@ -70,6 +70,7 @@
     "qc:list-summary-payload": "node scripts/qc-list-summary-payload-test.mjs",
     "qc:managed-auth": "node scripts/qc-managed-auth-test.mjs",
     "qc:native-cad-extractor-contract": "node scripts/qc-native-cad-extractor-contract.mjs",
+    "qc:ai-cost-gates": "node scripts/qc-openai-provider-test.mjs",
     "qc:openai-provider": "node scripts/qc-openai-provider-test.mjs",
     "qc:policy-alignment": "node scripts/qc-policy-alignment-test.mjs",
     "qc:policy-confirmation": "node scripts/qc-policy-confirmation.mjs",
