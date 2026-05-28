@@ -128,7 +128,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 
 - [x] DEV-IND-001: Establish repo baseline and current-state inventory
 - [x] DEV-IND-002: Create external large-asset manifest and relocation rules
-- [ ] DEV-IND-003: Clean generated/dependency output boundaries
+- [x] DEV-IND-003: Clean generated/dependency output boundaries
 - [ ] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [ ] DEV-IND-005: Add AI/API cost gates and usage logging
 - [ ] DEV-IND-006: Extract DB provider and repository contracts
@@ -193,25 +193,28 @@ Move CAB/MSI/MSP/MZZ/DLL/language runtime assets out of the source boundary whil
 
 ## DEV-IND-003: Clean generated/dependency output boundaries
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Exclude build outputs and dependency products from the source boundary.
 
 ### RD Tasks
-- [ ] Ensure `.next`, `node_modules`, `cloud-functions/release-handler/node_modules`, `sw-addin/bin`, `sw-addin/obj`, and `tsconfig.tsbuildinfo` are ignored.
-- [ ] Update related documentation.
-- [ ] Confirm Cloud Function and Add-in outputs can be rebuilt from source.
+- [x] Ensure `.next`, `node_modules`, `cloud-functions/release-handler/node_modules`, `sw-addin/bin`, `sw-addin/obj`, and `tsconfig.tsbuildinfo` are ignored.
+- [x] Update related documentation in `docs/industrialization/source-boundary-policy-2026-05-28.md`.
+- [x] Confirm Cloud Function and Add-in outputs can be rebuilt from source-level inputs.
 
 ### QA Validation Plan
-- [ ] Scope: verify clean source boundary without breaking build/test flows.
-- [ ] Pass criteria: ignored output is not staged, lint passes, and source-level Add-in QC can run.
+- [x] Scope: verify clean source boundary without breaking build/test flows.
+- [x] Pass criteria: ignored output is not staged, lint passes, Cloud Function dependency dry-run passes, and source-level Add-in QC can run.
 
 ### QC Fact Report
-- [ ] Evidence command: `git status --short`.
-- [ ] Evidence command: `npm.cmd run lint`.
-- [ ] Evidence command: `npm.cmd run qc:sw-addin-source`.
-- [ ] Result:
+- [x] Evidence command: `git status --short --ignored`.
+- [x] Evidence command: `npm.cmd run qc:source-boundary` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence command: `npm.cmd run qc:sw-addin-source` passed with 63 checks.
+- [x] Evidence command: `npm.cmd --prefix cloud-functions/release-handler ci --dry-run --ignore-scripts` passed with a local Node engine warning.
+- [x] Evidence artifact: `docs/industrialization/source-boundary-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 

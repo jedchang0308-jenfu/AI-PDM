@@ -81,6 +81,7 @@
     "qc:release-failure": "node scripts/qc-release-failure-test.mjs",
     "qc:revision-lifecycle": "node scripts/qc-revision-lifecycle-test.mjs",
     "qc:search-indexes": "node scripts/qc-search-indexes-test.mjs",
+    "qc:source-boundary": "node scripts/qc-source-boundary-test.mjs",
     "qc:restore-drill-report": "node scripts/qc-restore-drill-report.mjs",
     "qc:restore-drill-report:report": "node scripts/qc-restore-drill-report.mjs --allow-open",
     "qc:sw-addin-source": "node scripts/qc-sw-addin-source-test.mjs",
