@@ -136,7 +136,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [!] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [x] DEV-IND-009: Split Dashboard UI giant component
 - [x] DEV-IND-010: Split global CSS and design tokens
-- [ ] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
+- [x] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
 - [ ] DEV-IND-012: Add industrialization acceptance gate
 
 ## DEV-IND-001: Establish repo baseline and current-state inventory
@@ -385,24 +385,30 @@ Turn the 2000+ line global CSS into controlled style layers.
 
 ## DEV-IND-011: Reorganize RD/QA/QC documents and report paths
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Make documents, validation plans, reports, and runbooks traceable.
 
 ### RD Tasks
-- [ ] Plan `docs/reports/{rd,qa,qc}`, `docs/validation-plans`, and `docs/runbooks`.
-- [ ] Update report generation and evidence sync scripts.
-- [ ] Keep old path index or redirect documentation.
+- [x] Plan `docs/reports/{rd,qa,qc}`, `docs/validation-plans`, and `docs/runbooks`.
+- [x] Update report generation and evidence sync scripts.
+- [x] Keep old path index or redirect documentation.
 
 ### QA Validation Plan
-- [ ] Scope: verify report generation and evidence links.
-- [ ] Pass criteria: scripts find the new paths and do not lose evidence references.
+- [x] Scope: verify report generation and evidence links.
+- [x] Pass criteria: scripts find the new paths and do not lose evidence references.
 
 ### QC Fact Report
-- [ ] Evidence command: report generation scripts.
-- [ ] Evidence command: `npm.cmd run qa:dev-task:sync`.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:doc-paths` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run qa:dev-task:sync` passed and now defaults to `dev_task.md`.
+- [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run sw-addin:report:new` wrote JSON/MD under the configured report root.
+- [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run document-manager:report:new` wrote JSON/MD under the configured report root.
+- [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run backup:restore-drill-report:new` wrote JSON/MD under the configured report root.
+- [x] Evidence command: `npm.cmd run qc:dev-task-evidence-sync` passed with 11 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence artifact: `docs/industrialization/document-paths-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-012: Add industrialization acceptance gate
 

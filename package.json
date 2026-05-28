@@ -42,6 +42,7 @@
     "qc:ai-ocr-candidates": "node scripts/qc-ai-ocr-candidates-test.mjs",
     "qc:defects-zero": "node scripts/qc-defects-zero.mjs",
     "qc:defects-zero:report": "node scripts/qc-defects-zero.mjs --allow-open",
+    "qc:doc-paths": "node scripts/qc-doc-paths-test.mjs",
     "qc:bom-diff-productized": "node scripts/qc-bom-diff-productized-test.mjs",
     "qc:bom-productized": "node scripts/qc-bom-productized-export-test.mjs",
     "qc:dashboard-find-first": "node scripts/qc-dashboard-find-first-test.mjs",

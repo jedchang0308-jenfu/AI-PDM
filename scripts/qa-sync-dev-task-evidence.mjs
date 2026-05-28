@@ -12,6 +12,12 @@ import {
 
 const root = process.cwd();
 
+function getDefaultTaskFile() {
+  const preferredTaskFile = path.join(root, "dev_task.md");
+  if (fs.existsSync(preferredTaskFile)) return preferredTaskFile;
+  return path.join(root, "PDM_dev_task.md");
+}
+
 const targets = [
   {
     key: "solidworks_real_machine",
@@ -53,7 +59,7 @@ const targets = [
 
 function parseArgs(argv) {
   const options = {
-    taskFile: path.join(root, "PDM_dev_task.md"),
+    taskFile: getDefaultTaskFile(),
     output: "",
     evidenceFixture: "",
     apply: false
