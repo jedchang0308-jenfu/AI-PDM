@@ -1,9 +1,9 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Archive, Bell, Check, Copy, Download, Eye, Factory, FileText, Filter, GitBranch, Lock, LogOut, MessageSquare, RefreshCcw, Search, Send, Share2, Star, Unlock, X } from "lucide-react";
+import { AlertTriangle, Archive, Check, Copy, Download, Eye, Factory, FileText, Filter, GitBranch, Lock, LogOut, MessageSquare, RefreshCcw, Search, Share2, Unlock, X } from "lucide-react";
+import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -201,81 +201,6 @@ function getWhereUsedState(entry: WhereUsedEntry) {
   return { className: "released", label: "Released" };
 }
 
-type SubmissionRowProps = {
-  submission: SubmissionSummary;
-  selected: boolean;
-  favorite: boolean;
-  onSelect: (id: string) => void;
-  onToggleFavorite: (submission: SubmissionSummary) => void;
-};
-
-const SubmissionRow = memo(function SubmissionRow({ submission, selected, favorite, onSelect, onToggleFavorite }: SubmissionRowProps) {
-  return (
-    <tr key={submission.id} className={selected ? "selected-row" : undefined} aria-selected={selected} onClick={() => onSelect(submission.id)}>
-      <td>
-        <strong>{submission.drawing_number}</strong>
-      </td>
-      <td>{submission.part_number}</td>
-      <td>{submission.part_name}</td>
-      <td>{submission.revision}</td>
-      <td>
-        <span className={`badge ${submission.status}`}>{statusLabels[submission.status]}</span>
-      </td>
-      <td>{formatFileAvailability(submission)}</td>
-      <td>{new Date(latestActivityAt(submission)).toLocaleString()}</td>
-      <td>
-        <button
-          className={favorite ? "icon-button favorite active" : "icon-button favorite"}
-          type="button"
-          title="收藏圖面"
-          aria-label={`收藏 ${submission.drawing_number}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleFavorite(submission);
-          }}
-        >
-          <Star size={14} aria-hidden="true" />
-        </button>
-        <button
-          className="icon-button"
-          type="button"
-          title="開啟圖面"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelect(submission.id);
-          }}
-        >
-          <Eye size={14} aria-hidden="true" />
-        </button>
-      </td>
-    </tr>
-  );
-});
-
-function DashboardComponentBoundary({ children }: { children: ReactNode }) {
-  return <div className="dashboard-component-boundary">{children}</div>;
-}
-
-function FinderToolbar({ children }: { children: ReactNode }) {
-  return <DashboardComponentBoundary>{children}</DashboardComponentBoundary>;
-}
-
-function SubmissionTable({ children }: { children: ReactNode }) {
-  return <DashboardComponentBoundary>{children}</DashboardComponentBoundary>;
-}
-
-function SubmissionDetailPanel({ children }: { children: ReactNode }) {
-  return <DashboardComponentBoundary>{children}</DashboardComponentBoundary>;
-}
-
-function NotificationDropdown({ children }: { children: ReactNode }) {
-  return <DashboardComponentBoundary>{children}</DashboardComponentBoundary>;
-}
-
-function AssistantPanel({ children }: { children: ReactNode }) {
-  return <DashboardComponentBoundary>{children}</DashboardComponentBoundary>;
-}
-
 function readStringList(key: string) {
   if (typeof window === "undefined") return [];
   try {
@@ -410,18 +335,6 @@ const emptyNotificationSummary: NotificationSummary = {
   critical: 0,
   warning: 0,
   info: 0
-};
-
-type ChatSource = {
-  type: "submission" | "metric" | "policy" | "file" | "bom" | "where_used";
-  label: string;
-  detail: string;
-};
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  sources?: ChatSource[];
 };
 
 type CurrentUser = {
@@ -1643,40 +1556,14 @@ export function Dashboard() {
           <Metric label="失敗" value={metrics.failed} />
         </section>
 
-        <NotificationDropdown>
-        <details className="panel notification-center compact-notifications" ref={notificationDropdownRef}>
-          <summary className="panel-header" aria-label="通知摘要下拉選單">
-            <h2>
-              <Bell size={16} aria-hidden="true" /> 通知摘要
-            </h2>
-            <span className={notificationSummary.critical > 0 ? "notification-count critical" : "notification-count"}>
-              {notificationSummary.total} 件
-            </span>
-          </summary>
-          {notifications.length === 0 ? (
-            <div className="empty compact">目前沒有需要立即處理的提醒。</div>
-          ) : (
-            <div className="notification-list">
-              {notifications.slice(0, 6).map((notification) => (
-                <button
-                  className={`notification-item ${notification.severity}`}
-                  type="button"
-                  key={notification.id}
-                  onClick={(event) => {
-                    event.currentTarget.closest("details")?.removeAttribute("open");
-                    openNotification(notification).catch(console.error);
-                  }}
-                  title="開啟對應送審明細"
-                >
-                  <span>{notification.title}</span>
-                  <strong>{notification.message}</strong>
-                  <small>{new Date(notification.created_at).toLocaleString()}</small>
-                </button>
-              ))}
-            </div>
-          )}
-        </details>
-        </NotificationDropdown>
+        <NotificationDropdown
+          notificationDropdownRef={notificationDropdownRef}
+          notificationSummary={notificationSummary}
+          notifications={notifications}
+          onOpenNotification={(notification) => {
+            openNotification(notification).catch(console.error);
+          }}
+        />
       </section>
       {searchFocused && autocompleteSuggestions.length > 0 ? (
         <section className="search-suggestions" aria-label="搜尋建議">
@@ -1886,104 +1773,33 @@ export function Dashboard() {
       </FinderToolbar>
 
       <div className="grid">
-        <SubmissionTable>
-        <section className="panel">
-          <div className="panel-header">
-            <h2>圖面資料</h2>
-          </div>
-          {loading ? (
-            <>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>圖號</th>
-                      <th>料號</th>
-                      <th>品名</th>
-                      <th>版次</th>
-                      <th>狀態</th>
-                      <th>檔案狀態</th>
-                      <th>最近更新</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                </table>
-              </div>
-            <div className="empty">載入中...</div>
-            </>
-          ) : visibleSubmissions.length === 0 ? (
-            <div className="empty">目前沒有可查看的送審資料。</div>
-          ) : (
-            <div
-              className="table-wrap virtual-table-wrap"
-              ref={submissionTableWrapRef}
-              onScroll={(event) => setSubmissionTableScrollTop(event.currentTarget.scrollTop)}
-              data-rendered-rows={virtualTable.renderedCount}
-              data-total-rows={visibleSubmissions.length}
-              data-transition-pending={isSubmissionTransitionPending}
-            >
-              <table>
-                <thead>
-                  <tr>
-                    <th>圖號</th>
-                    <th>料號</th>
-                    <th>品名</th>
-                    <th>版次</th>
-                    <th>狀態</th>
-                    <th>檔案狀態</th>
-                    <th>最近更新</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {virtualTable.topHeight > 0 ? (
-                    <tr className="virtual-spacer" aria-hidden="true">
-                      <td colSpan={8} style={{ height: virtualTable.topHeight }} />
-                    </tr>
-                  ) : null}
-                  {virtualTable.rows.map((submission) => (
-                    <SubmissionRow
-                      key={submission.id}
-                      submission={submission}
-                      selected={submission.id === selectedId}
-                      favorite={favoriteDrawings.some((drawing) => drawing.id === submission.id)}
-                      onSelect={setSelectedId}
-                      onToggleFavorite={toggleFavoriteDrawing}
-                    />
-                  ))}
-                  {virtualTable.bottomHeight > 0 ? (
-                    <tr className="virtual-spacer" aria-hidden="true">
-                      <td colSpan={8} style={{ height: virtualTable.bottomHeight }} />
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-              {hasMoreSubmissions ? (
-                <div className="pagination-actions">
-                  <button className="secondary-button" type="button" onClick={() => loadMoreSubmissions().catch(console.error)} disabled={loadingMoreSubmissions}>
-                    {loadingMoreSubmissions ? "載入中..." : "載入更多"}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </section>
+        <SubmissionTable
+          loading={loading}
+          visibleSubmissions={visibleSubmissions}
+          virtualTable={virtualTable}
+          selectedId={selectedId}
+          favoriteDrawings={favoriteDrawings}
+          submissionTableWrapRef={submissionTableWrapRef}
+          isSubmissionTransitionPending={isSubmissionTransitionPending}
+          hasMoreSubmissions={hasMoreSubmissions}
+          loadingMoreSubmissions={loadingMoreSubmissions}
+          statusLabels={statusLabels}
+          formatFileAvailability={formatFileAvailability}
+          latestActivityAt={latestActivityAt}
+          onScrollTopChange={setSubmissionTableScrollTop}
+          onSelect={setSelectedId}
+          onToggleFavorite={toggleFavoriteDrawing}
+          onLoadMore={() => {
+            loadMoreSubmissions().catch(console.error);
+          }}
+        />
 
-                </SubmissionTable>
-
-        <SubmissionDetailPanel>
-        <aside className={isDetailLoading ? "panel detail-panel loading-detail" : "panel detail-panel"} ref={detailPanelRef} aria-busy={isDetailLoading}>
-          <div className="panel-header">
-            <h2>圖面明細</h2>
-            {selectedSummary ? <span className={`badge ${selectedSummary.status}`}>{statusLabels[selectedSummary.status]}</span> : null}
-          </div>
-          {isDetailLoading ? (
-            <div className="detail-loading" data-testid="detail-loading">
-              <span>載入選取圖面...</span>
-              <div className="detail-skeleton-line" />
-              <div className="detail-skeleton-line short" />
-            </div>
-          ) : null}
+        <SubmissionDetailPanel
+          detailPanelRef={detailPanelRef}
+          isDetailLoading={isDetailLoading}
+          selectedSummary={selectedSummary}
+          statusLabels={statusLabels}
+        >
           {detail ? (
             <div className="detail">
               <div className="detail-row">
@@ -3064,79 +2880,20 @@ export function Dashboard() {
           ) : (
             <div className="empty">請選擇一筆圖面資料查看明細。</div>
           )}
-        </aside>
         </SubmissionDetailPanel>
       </div>
 
-      <AssistantPanel>
-      <button
-        className="mobile-chat-toggle"
-        type="button"
-        onClick={() => setMobileChatOpen(true)}
-        aria-label="開啟 AI 助手"
-        title="AI 助手"
-      >
-        <MessageSquare size={18} aria-hidden="true" />
-        AI
-      </button>
-
-      <section className={`panel chat ${mobileChatOpen ? "mobile-open" : ""}`}>
-        <div className="panel-header">
-          <h2>
-            <MessageSquare size={16} aria-hidden="true" /> AI 助手
-          </h2>
-          <button
-            className="icon-button mobile-chat-close"
-            type="button"
-            onClick={() => setMobileChatOpen(false)}
-            aria-label="關閉 AI 助手"
-            title="關閉"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
-        <div className="chat-messages">
-          {chatMessages.map((message, index) => (
-            <div className={`message ${message.role}`} key={`${message.role}-${index}`}>
-              <div>{message.content}</div>
-              {message.role === "assistant" && message.sources && message.sources.length > 0 ? (
-                <div className="message-sources" aria-label="回答來源">
-                  <strong>來源</strong>
-                  <ul>
-                    {message.sources.map((source, sourceIndex) => (
-                      <li key={`${source.label}-${sourceIndex}`}>
-                        <span>{source.label}</span>
-                        <small>
-                          {(sourceTypeLabels as Record<string, string>)[source.type] ?? source.type} - {source.detail}
-                        </small>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ))}
-          {chatLoading ? <div className="message assistant">思考中...</div> : null}
-        </div>
-        <div className="chat-form">
-          <textarea
-            value={chatInput}
-            placeholder="輸入問題，例如：目前有哪些待審？"
-            onChange={(event) => setChatInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                submitChat().catch(console.error);
-              }
-            }}
-          />
-          <button className="primary-button" onClick={() => submitChat()} disabled={chatLoading || !chatInput.trim()}>
-            <Send size={16} aria-hidden="true" />
-            送出
-          </button>
-        </div>
-      </section>
-      </AssistantPanel>
+      <AssistantPanel
+        chatMessages={chatMessages}
+        chatInput={chatInput}
+        chatLoading={chatLoading}
+        mobileChatOpen={mobileChatOpen}
+        sourceTypeLabels={sourceTypeLabels}
+        onOpenMobileChat={() => setMobileChatOpen(true)}
+        onCloseMobileChat={() => setMobileChatOpen(false)}
+        onChatInputChange={setChatInput}
+        onSubmitChat={submitChat}
+      />
     </>
   );
 }

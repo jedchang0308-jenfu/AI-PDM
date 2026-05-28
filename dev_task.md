@@ -134,7 +134,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-006: Extract DB provider and repository contracts
 - [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 - [!] DEV-IND-008: Split `src/lib/db.ts` by feature repository
-- [ ] DEV-IND-009: Split Dashboard UI giant component
+- [x] DEV-IND-009: Split Dashboard UI giant component
 - [ ] DEV-IND-010: Split global CSS and design tokens
 - [ ] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
 - [ ] DEV-IND-012: Add industrialization acceptance gate
@@ -337,24 +337,27 @@ Reduce risk in the 3000+ line data layer by moving one feature at a time.
 
 ## DEV-IND-009: Split Dashboard UI giant component
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Split Dashboard UI into maintainable components while preserving behavior.
 
 ### RD Tasks
-- [ ] Extract FinderToolbar, SubmissionTable, SubmissionDetailPanel, NotificationDropdown, and AssistantPanel.
-- [ ] Preserve current API calls and user interactions.
-- [ ] Avoid broad state-management rewrites in the first pass.
+- [x] Extract FinderToolbar, SubmissionTable, SubmissionDetailPanel, NotificationDropdown, and AssistantPanel.
+- [x] Preserve current API calls and user interactions.
+- [x] Avoid broad state-management rewrites in the first pass.
 
 ### QA Validation Plan
-- [ ] Scope: verify UI behavior and no layout regression.
-- [ ] Pass criteria: dashboard QC scripts pass and UI remains usable.
+- [x] Scope: verify UI behavior and no layout regression.
+- [x] Pass criteria: dashboard QC scripts pass and UI remains usable.
 
 ### QC Fact Report
-- [ ] Evidence command: dashboard QC scripts.
-- [ ] Evidence command: desktop/mobile UI spot checks.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:dashboard-component-split` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence command: `npm.cmd run build` passed; observed existing Next tracing warning from dynamic path resolution in `src/lib/llm-usage.ts`.
+- [x] Evidence command: `PDM_BASE_URL=http://127.0.0.1:3100 npm.cmd run qc:ui` passed with 26 checks after desktop/mobile UI E2E.
+- [x] Evidence artifact: `docs/industrialization/dashboard-component-split-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-010: Split global CSS and design tokens
 

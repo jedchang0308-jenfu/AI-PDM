@@ -87,8 +87,12 @@ async function authenticatedPage(browser, email, options = {}) {
   ]);
   const page = await context.newPage();
   await page.goto(`${browserBaseUrl}/`);
-  await page.getByText("PDM 審核工作台").waitFor({ timeout: 15000 });
+  await page.locator('section[aria-label="PDM search"]').waitFor({ timeout: 15000 });
   return { context, page };
+}
+
+async function openSubmissionByDrawing(page, drawingNumber) {
+  await page.locator("tbody tr", { hasText: drawingNumber }).first().click();
 }
 
 async function run() {
@@ -106,7 +110,7 @@ async function run() {
 
     const { context: managerContext, page: managerPage } = await authenticatedPage(browser, "manager@example.com");
     record("UI-002 manager dashboard loads", await managerPage.locator('section[aria-label="送審統計"]').count().then((count) => count === 1));
-    await managerPage.getByText(`UIE2E-${unique}`).first().click();
+    await openSubmissionByDrawing(managerPage, `UIE2E-${unique}`);
     await managerPage.getByText(submissionId).first().waitFor({ timeout: 15000 });
     record("UI-003 manager can open seeded submission detail", await managerPage.getByText(submissionId).count().then((count) => count > 0));
     record("UI-004 revision history is visible", await managerPage.getByText("版次紀錄").count().then((count) => count > 0));
@@ -125,11 +129,11 @@ async function run() {
 
     await managerPage.goto(`${browserBaseUrl}/settings`);
     await managerPage.getByText("需要系統管理員權限").waitFor({ timeout: 15000 });
-    record("UI-009 manager is blocked from settings", await managerPage.getByText("只有 Admin 使用者可以管理系統設定。").count().then((count) => count > 0));
+    record("UI-009 manager is blocked from settings", await managerPage.getByText("只有系統管理員可以管理系統設定。").count().then((count) => count > 0));
     await managerContext.close();
 
     const { context: engineerContext, page: engineerPage } = await authenticatedPage(browser, "engineer@example.com");
-    await engineerPage.getByText(`UIE2E-${unique}`).first().click();
+    await openSubmissionByDrawing(engineerPage, `UIE2E-${unique}`);
     await engineerPage.getByText(submissionId).first().waitFor({ timeout: 15000 });
     record("UI-010 engineer can see own submission", await engineerPage.getByText(submissionId).count().then((count) => count > 0));
     record("UI-011 engineer does not see approve control", await engineerPage.getByRole("button", { name: /核准/ }).count().then((count) => count === 0));

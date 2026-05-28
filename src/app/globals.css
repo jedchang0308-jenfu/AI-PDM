@@ -2775,9 +2775,11 @@ select.dropdown-select:focus-visible,
 
   .mobile-chat-toggle {
     position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 30;
+    left: calc(100dvw - 88px);
+    right: auto;
+    top: calc(100dvh - 64px);
+    bottom: auto;
+    z-index: 1000;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2794,11 +2796,17 @@ select.dropdown-select:focus-visible,
 
   .chat {
     position: fixed;
-    inset: auto 0 0;
-    z-index: 40;
+    top: max(72px, 18dvh);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: 100dvw;
+    max-width: 100dvw;
+    z-index: 1010;
     display: none;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    max-height: min(82vh, 680px);
+    height: min(82dvh, 680px);
+    max-height: none;
     margin: 0;
     border-right: 0;
     border-bottom: 0;
