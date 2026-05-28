@@ -1,17 +1,3 @@
-:root {
-  --bg: #f7f8fa;
-  --panel: #ffffff;
-  --panel-2: #eef2f6;
-  --text: #17202a;
-  --muted: #667085;
-  --line: #d9e0e8;
-  --accent: #0f766e;
-  --accent-2: #2563eb;
-  --danger: #b42318;
-  --warning: #b54708;
-  --success: #027a48;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -22,7 +8,7 @@ body {
   min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: var(--font-sans);
 }
 
 button,
@@ -405,7 +391,7 @@ a {
 
 .filter-menu-panel {
   position: absolute;
-  z-index: 40;
+  z-index: var(--z-filter-menu);
   top: calc(100% + 6px);
   left: 0;
   display: grid;
@@ -655,7 +641,7 @@ a {
 .compact-notifications {
   position: relative;
   overflow: visible;
-  z-index: 30;
+  z-index: var(--z-notification);
 }
 
 .panel.compact-notifications {
@@ -717,7 +703,7 @@ a {
   max-height: min(420px, calc(100vh - 132px));
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 20;
+  z-index: var(--z-notification-panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -875,7 +861,7 @@ a {
 .virtual-table-wrap thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-table-header);
 }
 
 .virtual-spacer td {
@@ -1388,7 +1374,7 @@ tr.selected-row td:first-child {
 .readonly-share-url input {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
@@ -2595,301 +2581,4 @@ select.dropdown-select:focus-visible,
   outline: 2px solid rgba(37, 99, 235, 0.3);
   outline-offset: 2px;
   border-color: var(--accent-2);
-}
-
-@media (max-width: 560px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    padding: 14px 16px;
-  }
-
-  .brand {
-    margin-bottom: 12px;
-  }
-
-  .nav {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    overflow-x: auto;
-    padding-bottom: 2px;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .finder-summary-row {
-    grid-template-columns: 1fr;
-  }
-
-  .finder-summary-row .notification-center {
-    min-width: 0;
-  }
-
-  .quick-access {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-groups,
-  .quick-filter-list,
-  .recent-access {
-    flex-wrap: wrap;
-    overflow: visible;
-  }
-
-  .status-filter-group {
-    border-right: 0;
-    padding-right: 0;
-  }
-
-  .recent-access {
-    justify-content: flex-start;
-  }
-
-  .detail-panel {
-    position: static;
-    max-height: none;
-    display: block;
-  }
-
-  .detail-panel .detail {
-    overflow: visible;
-  }
-
-  .upload-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .notification-list {
-    grid-template-columns: 1fr;
-  }
-
-  .compact-notifications .notification-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .handoff-summary,
-  .handoff-grid,
-  .handoff-columns,
-  .public-share-grid,
-  .public-share-columns {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .main {
-    padding: 16px 16px 88px;
-  }
-
-  .topbar {
-    display: grid;
-  }
-
-  .handoff-card-header {
-    display: grid;
-  }
-
-  .metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .notification-center .panel-header {
-    align-items: center;
-    flex-direction: row;
-  }
-
-  .search-bar {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .primary-search {
-    padding: 14px;
-  }
-
-  .primary-search input {
-    min-height: 46px;
-    font-size: 16px;
-  }
-
-  .search-bar .secondary-button {
-    grid-column: 1 / -1;
-  }
-
-  .upload-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .markup-form {
-    grid-template-columns: 1fr;
-  }
-
-  .readonly-share-header,
-  .readonly-share-row,
-  .readonly-share-form,
-  .readonly-share-url,
-  .public-share-info {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .readonly-share-form input,
-  .readonly-share-url input,
-  .readonly-share-form input[type="number"],
-  .readonly-share-form input[type="text"] {
-    width: 100%;
-  }
-
-  .public-share-page {
-    width: min(100% - 24px, 1120px);
-    padding-top: 18px;
-  }
-
-  .public-share-info strong {
-    text-align: left;
-  }
-
-  .panel-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .status-tabs {
-    width: 100%;
-    overflow-x: auto;
-    padding-bottom: 2px;
-  }
-
-  .status-tabs button {
-    flex: 0 0 auto;
-  }
-
-  .mobile-chat-toggle {
-    position: fixed;
-    left: calc(100dvw - 88px);
-    right: auto;
-    top: calc(100dvh - 64px);
-    bottom: auto;
-    z-index: 1000;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 48px;
-    min-width: 72px;
-    border: 1px solid var(--accent);
-    border-radius: 999px;
-    background: var(--accent);
-    color: #ffffff;
-    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.24);
-    font-weight: 700;
-  }
-
-  .chat {
-    position: fixed;
-    top: max(72px, 18dvh);
-    right: 0;
-    bottom: auto;
-    left: 0;
-    width: 100dvw;
-    max-width: 100dvw;
-    z-index: 1010;
-    display: none;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    height: min(82dvh, 680px);
-    max-height: none;
-    margin: 0;
-    border-right: 0;
-    border-bottom: 0;
-    border-left: 0;
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -18px 38px rgba(23, 32, 42, 0.18);
-  }
-
-  .chat.mobile-open {
-    display: grid;
-  }
-
-  .chat .panel-header {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .mobile-chat-close {
-    display: inline-flex;
-    min-width: 36px;
-    padding: 0;
-  }
-
-  .chat-messages {
-    max-height: calc(82vh - 160px);
-  }
-
-  .chat-form {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-  }
-
-  .chat-form textarea {
-    min-height: 48px;
-    max-height: 120px;
-  }
-}
-
-@media print {
-  body {
-    background: #ffffff;
-  }
-
-  .app-shell {
-    display: block;
-  }
-
-  .sidebar,
-  .topbar .actions,
-  .search-bar,
-  .mobile-chat-toggle,
-  .chat,
-  .primary-button,
-  .secondary-button,
-  .danger-button {
-    display: none !important;
-  }
-
-  .main {
-    padding: 0;
-  }
-
-  .topbar {
-    display: block;
-    margin-bottom: 14px;
-  }
-
-  .panel,
-  .handoff-summary div,
-  .handoff-info,
-  .handoff-package,
-  .handoff-file {
-    box-shadow: none;
-    break-inside: avoid;
-  }
-
-  .handoff-summary,
-  .handoff-grid,
-  .handoff-columns {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .handoff-card {
-    page-break-inside: avoid;
-  }
 }

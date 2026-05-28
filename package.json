@@ -60,6 +60,7 @@
     "qc:dashboard-detail-loading": "node scripts/qc-dashboard-detail-loading-test.mjs",
     "qc:dashboard-assembly-hierarchy": "node scripts/qc-dashboard-assembly-hierarchy-test.mjs",
     "qc:dashboard-component-split": "node scripts/qc-dashboard-component-split-test.mjs",
+    "qc:css-boundary": "node scripts/qc-css-boundary-test.mjs",
     "qc:document-manager-report": "node scripts/qc-document-manager-report.mjs",
     "qc:document-manager-report:report": "node scripts/qc-document-manager-report.mjs --allow-open",
     "qc:document-manager-extractor-probe": "node scripts/qc-document-manager-extractor-probe.mjs",

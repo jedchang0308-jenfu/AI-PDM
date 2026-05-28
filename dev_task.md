@@ -135,7 +135,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 - [!] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [x] DEV-IND-009: Split Dashboard UI giant component
-- [ ] DEV-IND-010: Split global CSS and design tokens
+- [x] DEV-IND-010: Split global CSS and design tokens
 - [ ] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
 - [ ] DEV-IND-012: Add industrialization acceptance gate
 
@@ -361,24 +361,27 @@ Split Dashboard UI into maintainable components while preserving behavior.
 
 ## DEV-IND-010: Split global CSS and design tokens
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Turn the 2000+ line global CSS into controlled style layers.
 
 ### RD Tasks
-- [ ] Extract color, spacing, typography, and z-index tokens.
-- [ ] Move feature styles to scoped modules or clear sections.
-- [ ] Preserve current visual design.
+- [x] Extract color, spacing, typography, and z-index tokens.
+- [x] Move feature styles to scoped modules or clear sections.
+- [x] Preserve current visual design.
 
 ### QA Validation Plan
-- [ ] Scope: verify visual stability across main pages.
-- [ ] Pass criteria: no major visual regressions and UI QC passes.
+- [x] Scope: verify visual stability across main pages.
+- [x] Pass criteria: no major visual regressions and UI QC passes.
 
 ### QC Fact Report
-- [ ] Evidence command: `npm.cmd run qc:ui`.
-- [ ] Evidence: screenshots or visual spot-check notes.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:css-boundary` passed with 14 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Evidence command: `npm.cmd run build` passed; observed existing Next tracing warning from dynamic path resolution in `src/lib/llm-usage.ts`.
+- [x] Evidence command: `PDM_BASE_URL=http://127.0.0.1:3100 npm.cmd run qc:ui` passed with 26 checks after fixing CSS import order.
+- [x] Evidence artifact: `docs/industrialization/css-boundary-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## DEV-IND-011: Reorganize RD/QA/QC documents and report paths
 

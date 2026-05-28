@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { SidebarNav } from "@/components/sidebar-nav";
+import "./styles/tokens.css";
 import "./globals.css";
+import "./styles/responsive.css";
 
 export const metadata: Metadata = {
   title: "AI PDM",

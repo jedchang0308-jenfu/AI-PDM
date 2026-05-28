@@ -1,0 +1,29 @@
+:root {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --panel-2: #eef2f6;
+  --text: #17202a;
+  --muted: #667085;
+  --line: #d9e0e8;
+  --accent: #0f766e;
+  --accent-2: #2563eb;
+  --danger: #b42318;
+  --warning: #b54708;
+  --success: #027a48;
+  --font-sans: Arial, "Microsoft JhengHei", sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --z-table-header: 2;
+  --z-filter-menu: 40;
+  --z-notification: 30;
+  --z-notification-panel: 20;
+  --z-mobile-chat-toggle: 1000;
+  --z-mobile-chat-panel: 1010;
+}
