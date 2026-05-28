@@ -69,6 +69,7 @@
     "qc:document-manager-probe-redaction": "node scripts/qc-document-manager-probe-redaction.mjs",
     "qc:document-manager-probe-path-gate": "node scripts/qc-document-manager-probe-path-gate.mjs",
     "qc:dev-task-evidence-sync": "node scripts/qc-dev-task-evidence-sync.mjs",
+    "qc:dev-task-completion-audit": "node scripts/qc-dev-task-completion-audit.mjs",
     "qc:gdrive": "node scripts/qc-gdrive-integration-test.mjs",
     "qc:full": "node scripts/qc-full-test.mjs",
     "qc:file-hashes": "node scripts/verify-file-hashes.mjs",

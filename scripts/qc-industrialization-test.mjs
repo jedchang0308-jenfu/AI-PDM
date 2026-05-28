@@ -134,6 +134,7 @@ try {
   await runNpmStep("Dashboard component split", "qc:dashboard-component-split");
   await runNpmStep("CSS boundary", "qc:css-boundary");
   await runNpmStep("Document paths", "qc:doc-paths");
+  await runNpmStep("Dev task completion audit", "qc:dev-task-completion-audit");
   await runNpmStep("Document Manager probe redaction", "qc:document-manager-probe-redaction");
   await runNpmStep("lint", "lint");
   await runNpmStep("build", "build");

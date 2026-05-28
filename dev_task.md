@@ -124,6 +124,7 @@
 - 2026-05-28：補強 Document Manager / equivalent extractor probe 證據遮蔽，新增 `qc:document-manager-probe-redaction` 並納入 `qc:industrialization` / `qc:full`。
 - 2026-05-28：補強 Supabase/Postgres shadow target guard，pre-migration 僅接受空 public schema，compare 僅接受完整 AI_PDM schema 且 RLS forced。
 - 2026-05-28：補強 production readiness 解析 Industrialization Task Overview，避免漏報 `DEV-IND-007` Supabase live gate blocker。
+- 2026-05-28：新增 `qc:dev-task-completion-audit`，確認未完成任務只剩已交接的外部 blocker。
 
 ---
 
@@ -470,11 +471,12 @@ Create one final gate for this industrialization round.
 - [x] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 18 gate steps.
-- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, production readiness blocker coverage, Dashboard component split, CSS boundary, document paths, Document Manager probe redaction, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 19 gate steps.
+- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, production readiness blocker coverage, Dashboard component split, CSS boundary, document paths, dev task completion audit, Document Manager probe redaction, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
 - [x] Evidence artifact: `docs/industrialization/acceptance-gate-verification-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/document-manager-probe-redaction-verification-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/production-readiness-industrialization-gate-verification-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/dev-task-completion-audit-verification-2026-05-28.md`.
 - [x] Result: PASS.
 
 ## Dependencies

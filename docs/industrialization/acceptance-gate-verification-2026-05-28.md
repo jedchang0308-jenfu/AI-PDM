@@ -11,6 +11,7 @@
 - Documented the gate in `README.md`.
 - Added runbook `docs/runbooks/industrialization-acceptance-gate.md`.
 - Added production readiness blocker coverage for the industrialization backlog.
+- Added completion audit coverage for `dev_task.md`.
 
 ## QA Validation Plan
 
@@ -19,11 +20,12 @@
 - Verify UI runs against a local production `next start` server.
 - Verify known external/runtime blockers are not hidden as false passes.
 - Verify `DEV-IND-007` remains visible in production readiness until a disposable Supabase shadow target exists.
+- Verify no local or unclassified `dev_task.md` item remains open.
 
 ## QC Evidence
 
 - `npm.cmd run qc:industrialization`
-  - PASS: 18 gate steps.
+  - PASS: 19 gate steps.
   - Included:
     - source boundary
     - data boundary
@@ -36,6 +38,7 @@
     - Dashboard component split
     - CSS boundary
     - document paths
+    - dev task completion audit
     - Document Manager probe redaction
     - lint
     - build
