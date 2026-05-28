@@ -133,7 +133,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-005: Add AI/API cost gates and usage logging
 - [x] DEV-IND-006: Extract DB provider and repository contracts
 - [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
-- [!] DEV-IND-008: Split `src/lib/db.ts` by feature repository
+- [x] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [x] DEV-IND-009: Split Dashboard UI giant component
 - [x] DEV-IND-010: Split global CSS and design tokens
 - [x] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
@@ -218,7 +218,7 @@ Exclude build outputs and dependency products from the source boundary.
 
 ## DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 
-Status: [!]
+Status: [x]
 
 ### Goal
 Separate runtime DB/repository, fixtures, quality evidence, and generated reports.
@@ -313,13 +313,13 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 
 ## DEV-IND-008: Split `src/lib/db.ts` by feature repository
 
-Status: [!]
+Status: [x]
 
 ### Goal
 Reduce risk in the 3000+ line data layer by moving one feature at a time.
 
 ### RD Tasks
-- [!] Split submissions repository incrementally; dashboard, AI, system settings, collaboration, notifications, item locks, release packages, read-only shares, supplier portal responses, procurement sync runs, sandbox branches, approval workflows, submission file/status workflows, users/auth workflows, item core workflows, and BOM/where-used workflows are split.
+- [x] Split dashboard, AI, system settings, collaboration, notifications, item locks, release packages, read-only shares, supplier portal responses, procurement sync runs, sandbox branches, approval workflows, submission file/status workflows, users/auth workflows, item core workflows, BOM/where-used workflows, and submission workflows into feature repositories.
 - [x] Move queries and mappers without behavior changes for the extracted low-coupling repositories.
 - [x] Move discussion comments, review issues, change requests, phase gates, and PDF markups into `src/lib/repositories/collaboration-repository.ts`.
 - [x] Move notification aggregation and role scoping into `src/lib/repositories/notification-repository.ts`.
@@ -331,6 +331,7 @@ Reduce risk in the 3000+ line data layer by moving one feature at a time.
 - [x] Move auth mode, demo/bootstrap user seed, user lookup, user create, and password update workflows into `src/lib/repositories/user-repository.ts`.
 - [x] Move item current revision reconcile, item revision history, submission revision uniqueness, and item find/create workflows into `src/lib/repositories/item-repository.ts`.
 - [x] Move BOM detail, CAD reference materialization, BOM diff, and where-used workflows into `src/lib/repositories/bom-repository.ts`.
+- [x] Move submission list/detail/search, reuse candidate, duplicate geometry, manufacturing handoff, create/update status, and release/obsolete workflows into `src/lib/repositories/submission-repository.ts`.
 - [x] Run validation after each feature move.
 
 ### QA Validation Plan
@@ -344,16 +345,17 @@ Reduce risk in the 3000+ line data layer by moving one feature at a time.
 - [x] Scope: eighth batch verifies users/auth extraction, demo/bootstrap user seed behavior, login/token auth flow, user lookup, and build-time circular-import safety.
 - [x] Scope: ninth batch verifies item core extraction, item current revision reconcile, item revision history API behavior, submission revision uniqueness, create submission item linking, and build-time circular-import safety.
 - [x] Scope: tenth batch verifies BOM extraction, BOM detail/materialization/diff behavior, where-used behavior, AI summary/risk BOM sources, and build-time circular-import safety.
-- [!] Pass criteria: lint/build/API regression pass for first extraction batch; remaining high-coupling repositories still need later extraction.
+- [x] Scope: eleventh batch verifies submission extraction, list/detail/search behavior, reuse and duplicate geometry, manufacturing handoff, create/update status, release/obsolete behavior, and build-time circular-import safety.
+- [x] Pass criteria: repository split gate, lint, build, API regression, and final industrialization gate pass after all feature repositories are extracted.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 120 checks.
+- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 132 checks.
 - [x] Evidence command: `npm.cmd run lint` passed.
 - [x] Evidence command: `npm.cmd run build` passed; observed existing Turbopack dynamic path tracing warnings in `src/lib/config.ts` and `src/lib/llm-usage.ts`.
 - [x] Evidence command: `npm.cmd run qc:api` passed with 391 checks.
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps after the second repository batch; third through tenth batches used narrower validation to avoid redundant compute.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps after the final submission repository batch.
 - [x] Evidence artifact: `docs/industrialization/db-repository-split-verification-2026-05-28.md`.
-- [!] Result: PARTIAL PASS. Tenth repository batch passed; remaining high-coupling repository extraction is deferred to later passes.
+- [x] Result: PASS. `src/lib/db.ts` is reduced to DB provider/init/audit/re-export responsibilities; feature data access lives under `src/lib/repositories/`.
 
 ## DEV-IND-009: Split Dashboard UI giant component
 

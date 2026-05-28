@@ -17,6 +17,7 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Added `src/lib/repositories/user-repository.ts` for auth mode, demo/bootstrap user seed, user lookup, user create, and password update workflows.
 - Added `src/lib/repositories/item-repository.ts` for item current revision reconcile, item revision history, submission revision uniqueness, and item find/create workflows.
 - Added `src/lib/repositories/bom-repository.ts` for BOM detail, CAD reference materialization, BOM diff, and where-used workflows.
+- Added `src/lib/repositories/submission-repository.ts` for submission list/detail/search, reuse and duplicate geometry, manufacturing handoff, create/update status, and release/obsolete workflows.
 - Kept `src/lib/db.ts` re-export compatibility so existing route handlers and libraries do not need a broad import rewrite in this checkpoint.
 
 ## Second Batch QA Plan
@@ -73,12 +74,18 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Risk: materializing BOM drafts must continue writing audit logs after relocation.
 - Pass criteria: repository split gate covers BOM ownership and `db.ts` no longer owns BOM/where-used functions, lint/build pass, and API regression covers BOM, where-used, AI summary, AI risk, and handoff/procurement payload paths.
 
+## Eleventh Batch QA Plan
+- Scope: verify submission extraction preserves list/detail/search, reuse and duplicate geometry, manufacturing handoff, create/update status, and release/obsolete behavior.
+- Risk: `src/lib/repositories/submission-repository.ts` imports BOM, item, item-lock, and release repositories while still using `createAuditLog()` and `getDb()` through `@/lib/db`, so build and API regression must catch circular initialization issues.
+- Risk: release/obsolete flow must continue updating item current revision and audit history after relocation.
+- Pass criteria: repository split gate covers submission ownership and `db.ts` no longer owns submission functions, lint/build pass, API regression covers submission/create/search/release/handoff paths, and the final industrialization gate remains green.
+
 ## Evidence
-- `npm.cmd run qc:db-repository-split`: PASS with 120 checks.
+- `npm.cmd run qc:db-repository-split`: PASS with 132 checks.
 - `npm.cmd run lint`: PASS.
 - `npm.cmd run build`: PASS with existing Turbopack dynamic path tracing warnings in `src/lib/config.ts` and `src/lib/llm-usage.ts`.
 - `npm.cmd run qc:api`: PASS with 391 checks.
-- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third through tenth batches used narrower validation to avoid redundant compute.
+- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the final submission repository batch.
 
 ## Result
-PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, release/share/procurement, sandbox, approval, submission-file, users/auth, item core, and BOM repositories are split; submissions repository remains for later passes.
+PASS. `src/lib/db.ts` is now the provider/init/audit/re-export layer; feature data access is split under `src/lib/repositories/`.
