@@ -137,7 +137,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-009: Split Dashboard UI giant component
 - [x] DEV-IND-010: Split global CSS and design tokens
 - [x] DEV-IND-011: Reorganize RD/QA/QC documents and report paths
-- [ ] DEV-IND-012: Add industrialization acceptance gate
+- [x] DEV-IND-012: Add industrialization acceptance gate
 
 ## DEV-IND-001: Establish repo baseline and current-state inventory
 
@@ -412,23 +412,25 @@ Make documents, validation plans, reports, and runbooks traceable.
 
 ## DEV-IND-012: Add industrialization acceptance gate
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Create one final gate for this industrialization round.
 
 ### RD Tasks
-- [ ] Add `qc:industrialization` or equivalent gate.
-- [ ] Include lint, build, API, UI, asset manifest, AI cost mock, and Postgres shadow checks where available.
-- [ ] Document the gate in README/runbook.
+- [x] Add `qc:industrialization` or equivalent gate.
+- [x] Include lint, build, API, UI, asset manifest, AI cost mock, and Postgres shadow checks where available.
+- [x] Document the gate in README/runbook.
 
 ### QA Validation Plan
-- [ ] Scope: verify that one command proves the round is complete.
-- [ ] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
+- [x] Scope: verify that one command proves the round is complete.
+- [x] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
 
 ### QC Fact Report
-- [ ] Evidence command: industrialization gate.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15 gate steps.
+- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, lint, build, API regression, production server start, and UI E2E.
+- [x] Evidence artifact: `docs/industrialization/acceptance-gate-verification-2026-05-28.md`.
+- [x] Result: PASS.
 
 ## Dependencies
 

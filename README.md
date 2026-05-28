@@ -76,6 +76,7 @@ npm.cmd run qc:api
 npm.cmd run qc:defects-zero
 npm.cmd run qc:ui
 npm.cmd run qc:full
+npm.cmd run qc:industrialization
 npm.cmd run qc:file-hashes
 ```
 
@@ -84,6 +85,14 @@ npm.cmd run qc:file-hashes
 ```powershell
 npm.cmd run qc:full
 ```
+
+工業化整理任務完成前，使用：
+
+```powershell
+npm.cmd run qc:industrialization
+```
+
+`qc:industrialization` 聚焦 source/data boundary、asset manifest、AI/API cost gate、DB contract、Postgres shadow、Dashboard/CSS/document boundary、lint、build、API regression 與 UI E2E。詳細流程見 `docs/runbooks/industrialization-acceptance-gate.md`。
 
 `qc:full` 會依序執行：
 

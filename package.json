@@ -72,6 +72,7 @@
     "qc:file-hashes": "node scripts/verify-file-hashes.mjs",
     "qc:field-test-preflight": "node scripts/field-test-preflight.mjs",
     "qc:local-gdrive-compensation": "node scripts/qc-local-gdrive-compensation-test.mjs",
+    "qc:industrialization": "node scripts/qc-industrialization-test.mjs",
     "qc:list-summary-payload": "node scripts/qc-list-summary-payload-test.mjs",
     "qc:managed-auth": "node scripts/qc-managed-auth-test.mjs",
     "qc:native-cad-extractor-contract": "node scripts/qc-native-cad-extractor-contract.mjs",
