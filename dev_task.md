@@ -132,7 +132,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [!] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [x] DEV-IND-005: Add AI/API cost gates and usage logging
 - [x] DEV-IND-006: Extract DB provider and repository contracts
-- [ ] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
+- [!] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 - [ ] DEV-IND-008: Split `src/lib/db.ts` by feature repository
 - [ ] DEV-IND-009: Split Dashboard UI giant component
 - [ ] DEV-IND-010: Split global CSS and design tokens
@@ -288,25 +288,28 @@ Prepare for SQLite/Postgres dual support without changing CAD Add-in API contrac
 
 ## DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
 
-Status: [ ]
+Status: [!]
 
 ### Goal
 Validate schema, data consistency, RLS, and rollback before production provider switch.
 
 ### RD Tasks
-- [ ] Draft Postgres migration.
-- [ ] Add row count and key hash comparison tooling.
-- [ ] Plan Supabase RLS without `user_metadata` authorization decisions.
+- [x] Draft Postgres migration.
+- [x] Add row count and key hash comparison tooling.
+- [x] Plan Supabase RLS without `user_metadata` authorization decisions.
 
 ### QA Validation Plan
-- [ ] Scope: verify repeatable migration and security posture.
-- [ ] Pass criteria: migration can rerun, row counts/hashes align, and advisors/RLS checks have no P0/P1 issues.
+- [x] Scope: verify repeatable migration and security posture.
+- [!] Pass criteria: local migration generation, static RLS, and SQLite row count/key hashes pass; live Supabase advisor requires a disposable Supabase project or branch.
 
 ### QC Fact Report
-- [ ] Evidence command: shadow migration run.
-- [ ] Evidence command: consistency compare.
-- [ ] Evidence command: Supabase advisor/RLS check.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run db:postgres:migration` generated 24-table Postgres migration and RLS plan.
+- [x] Evidence command: `npm.cmd run db:postgres:compare` passed local static/table coverage and SQLite row count/key hash capture.
+- [x] Evidence command: `npm.cmd run qc:postgres-shadow` passed with 16 checks.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [!] Evidence command: live Supabase advisor/RLS check not executed because no disposable Supabase project or branch is configured.
+- [x] Evidence artifact: `docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md`.
+- [!] Result: PARTIAL PASS / BLOCKED for live Supabase advisor only.
 
 ## DEV-IND-008: Split `src/lib/db.ts` by feature repository
 
