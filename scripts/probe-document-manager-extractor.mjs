@@ -30,6 +30,22 @@ const probeId = makeProbeId();
 const outputDir = resolveMaybe(args.output || path.join(root, "data", "document-manager-probes", probeId));
 const nativeExtensions = new Set([".sldprt", ".sldasm", ".slddrw"]);
 const requiredMetadataFields = ["drawing_number", "part_number", "part_name", "revision", "document_type"];
+const redactedValue = "<redacted>";
+const sensitiveArgNames = new Set([
+  "api-key",
+  "api_key",
+  "client-secret",
+  "client_secret",
+  "license",
+  "license-key",
+  "license_key",
+  "password",
+  "pwd",
+  "secret",
+  "sw-dm-license-key",
+  "sw_document_manager_license",
+  "token"
+]);
 
 function parseArgs(argv) {
   const parsed = {
@@ -103,6 +119,69 @@ function parseCommandArgs(raw, filePath) {
     throw new Error("Extractor args must be a JSON string array.");
   }
   return parsed.map((item) => item.replaceAll("{file}", filePath));
+}
+
+function normalizeArgName(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^-+/u, "")
+    .replace(/=.*$/u, "")
+    .toLowerCase();
+}
+
+function isSensitiveArgName(value) {
+  const normalized = normalizeArgName(value);
+  return sensitiveArgNames.has(normalized) || /(?:license|password|pwd|secret|token|api[_-]?key|client[_-]?secret)/u.test(normalized);
+}
+
+function redactInlineSecrets(value) {
+  return String(value ?? "")
+    .replace(/((?:password|pwd|secret|token|api[_-]?key|client[_-]?secret|license[_-]?key|license)\s*[=:]\s*)([^;,\s"']+)/giu, `$1${redactedValue}`)
+    .replace(/("(?:password|pwd|secret|token|api[_-]?key|client[_-]?secret|license[_-]?key|license)"\s*:\s*")([^"]+)(")/giu, `$1${redactedValue}$3`);
+}
+
+function redactArgArray(items) {
+  const redacted = [];
+  let redactNext = false;
+
+  for (const item of items) {
+    const value = String(item);
+    if (redactNext) {
+      redacted.push(redactedValue);
+      redactNext = false;
+      continue;
+    }
+
+    const equalsIndex = value.indexOf("=");
+    if (equalsIndex > 0 && isSensitiveArgName(value.slice(0, equalsIndex))) {
+      redacted.push(`${value.slice(0, equalsIndex + 1)}${redactedValue}`);
+      continue;
+    }
+
+    redacted.push(redactInlineSecrets(value));
+    redactNext = isSensitiveArgName(value);
+  }
+
+  return redacted;
+}
+
+function redactExtractorArgs(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+      return JSON.stringify(redactArgArray(parsed));
+    }
+  } catch {
+    // Fall through to text redaction for non-JSON operator input.
+  }
+
+  return redactInlineSecrets(trimmed).replace(
+    /(--?(?:license|license-key|license_key|password|pwd|secret|token|api-key|api_key|client-secret|client_secret)(?:\s+|=))("[^"]*"|'[^']*'|[^\s]+)/giu,
+    `$1${redactedValue}`
+  );
 }
 
 async function runExtractor(kind, command, rawArgs, filePath) {
@@ -253,10 +332,14 @@ const result = {
   reportPath: reportPath ? relative(reportPath) : "",
   outputDir: relative(outputDir),
   commands: {
-    metadataCommand,
-    metadataArgs,
-    referenceCommand,
-    referenceArgs
+    metadataCommand: redactInlineSecrets(metadataCommand),
+    metadataArgs: redactExtractorArgs(metadataArgs),
+    referenceCommand: redactInlineSecrets(referenceCommand),
+    referenceArgs: redactExtractorArgs(referenceArgs)
+  },
+  redaction: {
+    applied: true,
+    sensitiveArgNames: Array.from(sensitiveArgNames).sort()
   },
   sampleFilesPath: relative(sampleFilesPath),
   passed: checks.length - failedChecks.length,

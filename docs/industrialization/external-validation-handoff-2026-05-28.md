@@ -59,6 +59,7 @@ Pass criteria:
 
 - All required Document Manager report cases pass.
 - Environment fields, extractor command contract, final result, and signoff are filled.
+- Probe evidence redacts license keys, tokens, passwords, secrets, API keys, and client secrets before `probe.json` is shared.
 - Native metadata is read directly from `.sldprt`, `.sldasm`, and `.slddrw`.
 - Assembly and drawing references are proven through the CAD reference adapter or an approved equivalent.
 - No pass is allowed if metadata only comes from sidecar files, filenames, or manual inference.

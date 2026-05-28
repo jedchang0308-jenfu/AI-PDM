@@ -65,6 +65,7 @@
     "qc:document-manager-report": "node scripts/qc-document-manager-report.mjs",
     "qc:document-manager-report:report": "node scripts/qc-document-manager-report.mjs --allow-open",
     "qc:document-manager-extractor-probe": "node scripts/qc-document-manager-extractor-probe.mjs",
+    "qc:document-manager-probe-redaction": "node scripts/qc-document-manager-probe-redaction.mjs",
     "qc:document-manager-probe-path-gate": "node scripts/qc-document-manager-probe-path-gate.mjs",
     "qc:dev-task-evidence-sync": "node scripts/qc-dev-task-evidence-sync.mjs",
     "qc:gdrive": "node scripts/qc-gdrive-integration-test.mjs",

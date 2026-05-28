@@ -151,6 +151,7 @@ try {
   await runNpmStep("release folder selection", "qc:release-folders");
   await runNpmStep("managed auth integration", "qc:managed-auth");
   await runNpmStep("openai provider integration", "qc:openai-provider");
+  await runNpmStep("document manager probe redaction", "qc:document-manager-probe-redaction");
 
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;

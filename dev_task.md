@@ -91,6 +91,7 @@
 ## 阻塞 / 待確認
 
 - [!] `DEV-CAD-001` 需要確認 SolidWorks Document Manager 授權、部署方式與測試檔來源。
+- [x] `DEV-CAD-001` 本機 extractor probe 證據已遮蔽 license/token/password/secret 類參數，避免現場回傳 `probe.json` 洩漏機密。
 - [x] `DEV-AIOCR-001` 已以本地 AI/OCR adapter contract 完成候選欄位、信心分數、來源片段與人工套用驗證；正式模型供應與資料外傳政策可作為後續營運設定。
 - [!] `DEV-ASM-001` / `DEV-BOM-001` 若要直接讀 native SolidWorks reference，需要依賴 `DEV-CAD-001` 或 Add-in 端匯出 reference / BOM sidecar。
 - [!] `DEV-SW-001` 需要真實 SolidWorks 電腦與管理員權限。
@@ -119,6 +120,7 @@
 - 2026-05-28：主檔重寫為 active backlog；舊版完整內容封存至 `dev_task_archive_2026-05.md`。
 - 2026-05-28：產生 `data/field-test-handoffs/20260528-203401` 現場測試交接包；`field-test:preflight -- --profile all` 通過，正式現場測試報告仍待外部回填。
 - 2026-05-28：整理剩餘外部驗證 blocker 交接文件，明確列出 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001`、`DEV-IND-007` 的解除條件與避免浪費 API/算力的檢核順序。
+- 2026-05-28：補強 Document Manager / equivalent extractor probe 證據遮蔽，新增 `qc:document-manager-probe-redaction` 並納入 `qc:industrialization` / `qc:full`。
 
 ---
 
@@ -461,9 +463,10 @@ Create one final gate for this industrialization round.
 - [x] Pass criteria: gate is runnable in a clean environment and failures identify a concrete task.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 16 gate steps.
-- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 17 gate steps.
+- [x] Gate included source boundary, data boundary, asset manifest, AI/API cost gates, DB provider contract, DB repository split, Postgres shadow, Dashboard component split, CSS boundary, document paths, Document Manager probe redaction, lint, build, API regression, production server start, UI E2E, and final file hash integrity.
 - [x] Evidence artifact: `docs/industrialization/acceptance-gate-verification-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/document-manager-probe-redaction-verification-2026-05-28.md`.
 - [x] Result: PASS.
 
 ## Dependencies

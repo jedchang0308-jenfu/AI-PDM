@@ -92,7 +92,7 @@ npm.cmd run qc:full
 npm.cmd run qc:industrialization
 ```
 
-`qc:industrialization` 聚焦 source/data boundary、asset manifest、AI/API cost gate、DB contract、Postgres shadow、Dashboard/CSS/document boundary、lint、build、API regression 與 UI E2E。詳細流程見 `docs/runbooks/industrialization-acceptance-gate.md`。
+`qc:industrialization` 聚焦 source/data boundary、asset manifest、AI/API cost gate、DB contract、Postgres shadow、Dashboard/CSS/document boundary、Document Manager probe redaction、lint、build、API regression 與 UI E2E。詳細流程見 `docs/runbooks/industrialization-acceptance-gate.md`。
 
 `qc:full` 會依序執行：
 

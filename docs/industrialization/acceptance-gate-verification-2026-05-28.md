@@ -21,7 +21,7 @@
 ## QC Evidence
 
 - `npm.cmd run qc:industrialization`
-  - PASS: 16 gate steps.
+  - PASS: 17 gate steps.
   - Included:
     - source boundary
     - data boundary
@@ -33,6 +33,7 @@
     - Dashboard component split
     - CSS boundary
     - document paths
+    - Document Manager probe redaction
     - lint
     - build
     - API regression
