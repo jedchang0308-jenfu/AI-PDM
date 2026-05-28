@@ -22,6 +22,13 @@
   - `ProJED_TEST` (`fhisnnufoeulxqrchldf`) is ACTIVE_HEALTHY, Postgres 17.
 - Branch listing:
   - `_list_branches` returned an MCP permission/argument error: `Project reference is missing when validating permissions`.
+- 2026-05-28 21:35 Asia/Taipei re-check:
+  - `_list_projects` still returned only `ProJED` and `ProJED_TEST`.
+  - `_list_branches` still did not return a usable development branch for either project.
+  - No project or branch was created, and no DDL/migration command was executed.
+- `ProJED` public table inspection:
+  - 20 public tables were found and all reported `rls_enabled=true`.
+  - The table set is not the generated AI_PDM 24-table schema; observed tables include `profiles`, `tenants`, `projects`, `wbs_items`, `documents`, RAG-related tables, and calendar/board tables.
 - `ProJED_TEST` public table inspection:
   - 19 public tables were found and all reported `rls_enabled=true`.
   - The table set is not the generated AI_PDM 24-table schema; observed tables include `profiles`, `tenants`, `projects`, `wbs_items`, `documents`, and RAG-related tables.
