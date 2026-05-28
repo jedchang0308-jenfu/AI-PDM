@@ -26,6 +26,7 @@ const repositories = {
   system: "src/lib/repositories/system-repository.ts",
   collaboration: "src/lib/repositories/collaboration-repository.ts",
   notification: "src/lib/repositories/notification-repository.ts",
+  itemLock: "src/lib/repositories/item-lock-repository.ts",
   contracts: "src/lib/repositories/contracts.ts"
 };
 
@@ -38,6 +39,7 @@ record("REPO-003 db.ts re-exports ai repository", db.includes("@/lib/repositorie
 record("REPO-004 db.ts re-exports system repository", db.includes("@/lib/repositories/system-repository"), "src/lib/db.ts");
 record("REPO-005 db.ts re-exports collaboration repository", db.includes("@/lib/repositories/collaboration-repository"), "src/lib/db.ts");
 record("REPO-006 db.ts re-exports notification repository", db.includes("@/lib/repositories/notification-repository"), "src/lib/db.ts");
+record("REPO-007 db.ts re-exports item-lock repository", db.includes("@/lib/repositories/item-lock-repository"), "src/lib/db.ts");
 
 for (const symbol of [
   "getDashboardMetrics",
@@ -63,9 +65,14 @@ for (const symbol of [
   "createPdfMarkup",
   "resolvePdfMarkup",
   "listNotifications",
-  "summarizeNotifications"
+  "summarizeNotifications",
+  "getActiveItemLock",
+  "findActiveItemLockForSubmissionIdentifiers",
+  "expireItemLocks",
+  "createItemLock",
+  "releaseItemLock"
 ]) {
-  record(`REPO-007 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
+  record(`REPO-008 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
 }
 
 const aiRepository = read(repositories.ai);
@@ -73,24 +80,30 @@ const dashboardRepository = read(repositories.dashboard);
 const systemRepository = read(repositories.system);
 const collaborationRepository = read(repositories.collaboration);
 const notificationRepository = read(repositories.notification);
-record("REPO-008 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
-record("REPO-009 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
-record("REPO-010 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
+const itemLockRepository = read(repositories.itemLock);
+record("REPO-009 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
+record("REPO-010 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
+record("REPO-011 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
 record(
-  "REPO-011 collaboration repository owns review workflow tables",
+  "REPO-012 collaboration repository owns review workflow tables",
   ["discussion_comments", "review_issues", "change_requests", "phase_gate_checks", "pdf_markups"].every((table) =>
     collaborationRepository.includes(table)
   ),
   repositories.collaboration
 );
 record(
-  "REPO-012 notification repository owns notification queries",
+  "REPO-013 notification repository owns notification queries",
   ["release_failed", "pending_review", "drive_upload_failed", "release_package_missing", "active_lock"].every((kind) =>
     notificationRepository.includes(kind)
   ),
   repositories.notification
 );
-record("REPO-013 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
+record(
+  "REPO-014 item-lock repository owns checkout locking",
+  ["item_locks", "CheckoutLockCreated", "CheckoutLockReleased"].every((marker) => itemLockRepository.includes(marker)),
+  repositories.itemLock
+);
+record("REPO-015 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
 
 const failed = results.filter((result) => !result.passed);
 console.log(

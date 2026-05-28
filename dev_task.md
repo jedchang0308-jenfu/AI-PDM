@@ -319,25 +319,27 @@ Status: [!]
 Reduce risk in the 3000+ line data layer by moving one feature at a time.
 
 ### RD Tasks
-- [!] Split submissions, items, release, bom, shares, procurement, sandbox, item locks, approvals, users/auth, and file-status repositories incrementally; dashboard, AI, system settings, collaboration, and notifications are split.
+- [!] Split submissions, items, release, bom, shares, procurement, sandbox, approvals, users/auth, and file-status repositories incrementally; dashboard, AI, system settings, collaboration, notifications, and item locks are split.
 - [x] Move queries and mappers without behavior changes for the extracted low-coupling repositories.
 - [x] Move discussion comments, review issues, change requests, phase gates, and PDF markups into `src/lib/repositories/collaboration-repository.ts`.
 - [x] Move notification aggregation and role scoping into `src/lib/repositories/notification-repository.ts`.
+- [x] Move checkout lock lookup, preflight matching, expiration, create, and release logic into `src/lib/repositories/item-lock-repository.ts`.
 - [x] Run validation after each feature move.
 
 ### QA Validation Plan
 - [x] Scope: verify behavior-preserving extraction.
 - [x] Scope: second batch verifies collaboration/notification extraction, `db.ts` re-export compatibility, and route behavior for discussions, issues, changes, phase gates, PDF markups, and notifications.
+- [x] Scope: third batch verifies item-lock extraction, checkout/preflight API behavior, active lock notification behavior, and circular-import safety through build/API regression.
 - [!] Pass criteria: lint/build/API regression pass for first extraction batch; remaining high-coupling repositories still need later extraction.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 41 checks.
+- [x] Evidence command: `npm.cmd run qc:db-repository-split` passed with 49 checks.
 - [x] Evidence command: `npm.cmd run lint` passed.
 - [x] Evidence command: `npm.cmd run build` passed; observed existing Next tracing warning from dynamic path resolution in `src/lib/llm-usage.ts`.
 - [x] Evidence command: `npm.cmd run qc:api` passed with 391 checks.
-- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps.
+- [x] Evidence command: `npm.cmd run qc:industrialization` passed with 15/15 steps after the second repository batch; third item-lock batch used narrower validation to avoid redundant compute.
 - [x] Evidence artifact: `docs/industrialization/db-repository-split-verification-2026-05-28.md`.
-- [!] Result: PARTIAL PASS. Second repository batch passed; remaining high-coupling repository extraction is deferred to later passes.
+- [!] Result: PARTIAL PASS. Third repository batch passed; remaining high-coupling repository extraction is deferred to later passes.
 
 ## DEV-IND-009: Split Dashboard UI giant component
 
