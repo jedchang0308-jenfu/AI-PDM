@@ -147,6 +147,7 @@ Current evidence:
 
 - `docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md`
 - `docs/industrialization/supabase-live-probe-2026-05-28.md`
+- `docs/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md`
 
 Local static and SQLite comparison gates pass. The remaining live gate is blocked because no disposable AI_PDM Supabase project or branch is configured.
 
@@ -162,6 +163,7 @@ Commands after a disposable target exists:
 
 ```powershell
 npm.cmd run db:postgres:migration
+npm.cmd run db:postgres:guard -- --phase pre-migration
 node .\scripts\compare-sqlite-postgres-shadow.mjs --require-postgres
 npm.cmd run qc:postgres-shadow
 ```
@@ -169,6 +171,7 @@ npm.cmd run qc:postgres-shadow
 Additional Supabase checks:
 
 - Apply the generated migration to the disposable target.
+- Apply the RLS plan to the disposable target before compare.
 - Confirm row count and key hash comparison against SQLite.
 - Run Supabase security advisors and performance advisors.
 - Confirm RLS policies do not depend on `user_metadata`.
@@ -177,6 +180,8 @@ Additional Supabase checks:
 Pass criteria:
 
 - Generated migration applies cleanly on the disposable target.
+- Pre-migration target guard rejects any non-empty public schema before DDL.
+- Compare target guard rejects non-AI_PDM, partial, or non-forced-RLS schemas.
 - SQLite and Postgres shadow row counts/key hashes match for covered tables.
 - Supabase security advisor has no unresolved high-risk finding relevant to the AI_PDM schema.
 - Supabase performance advisor findings are either remediated or explicitly accepted with rationale.

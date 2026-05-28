@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { getDataDir, getQualityDir } from "./pdm-paths.mjs";
+import { collectPostgresTargetSnapshot, evaluateShadowTarget } from "./postgres-shadow-target-guard-utils.mjs";
 
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
@@ -110,8 +111,21 @@ const missingInPostgres = sqliteTables.filter((tableName) => !postgresTables.inc
 const sqliteStats = collectSqliteStats(sqliteTables);
 let postgresStats = null;
 let postgresCompareError = null;
+let postgresTargetGuard = null;
 
 try {
+  if (postgresUrl) {
+    const snapshot = collectPostgresTargetSnapshot(postgresUrl, sqliteTables, root);
+    postgresTargetGuard = evaluateShadowTarget({
+      publicTables: snapshot.publicTables,
+      expectedTables: sqliteTables,
+      rlsRows: snapshot.rlsRows,
+      phase: "compare"
+    });
+    if (!postgresTargetGuard.safe) {
+      throw new Error(`Postgres shadow target guard failed: ${postgresTargetGuard.issues.map((issue) => issue.type).join(", ")}`);
+    }
+  }
   postgresStats = collectPostgresStats(sqliteStats);
 } catch (error) {
   postgresCompareError = error instanceof Error ? error.message : String(error);
@@ -138,6 +152,7 @@ const report = {
   missingInPostgres,
   rlsMissingTables,
   sqliteStats,
+  postgresTargetGuard,
   postgresStats,
   postgresCompareError,
   mismatches

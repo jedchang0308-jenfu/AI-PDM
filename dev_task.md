@@ -92,6 +92,7 @@
 
 - [!] `DEV-CAD-001` 需要確認 SolidWorks Document Manager 授權、部署方式與測試檔來源。
 - [x] `DEV-CAD-001` 本機 extractor probe 證據已遮蔽 license/token/password/secret 類參數，避免現場回傳 `probe.json` 洩漏機密。
+- [x] `DEV-IND-007` 已新增 Supabase/Postgres shadow target guard，避免把 migration/compare 誤跑到非空或非 AI_PDM schema 的既有專案。
 - [x] `DEV-AIOCR-001` 已以本地 AI/OCR adapter contract 完成候選欄位、信心分數、來源片段與人工套用驗證；正式模型供應與資料外傳政策可作為後續營運設定。
 - [!] `DEV-ASM-001` / `DEV-BOM-001` 若要直接讀 native SolidWorks reference，需要依賴 `DEV-CAD-001` 或 Add-in 端匯出 reference / BOM sidecar。
 - [!] `DEV-SW-001` 需要真實 SolidWorks 電腦與管理員權限。
@@ -121,6 +122,7 @@
 - 2026-05-28：產生 `data/field-test-handoffs/20260528-203401` 現場測試交接包；`field-test:preflight -- --profile all` 通過，正式現場測試報告仍待外部回填。
 - 2026-05-28：整理剩餘外部驗證 blocker 交接文件，明確列出 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001`、`DEV-IND-007` 的解除條件與避免浪費 API/算力的檢核順序。
 - 2026-05-28：補強 Document Manager / equivalent extractor probe 證據遮蔽，新增 `qc:document-manager-probe-redaction` 並納入 `qc:industrialization` / `qc:full`。
+- 2026-05-28：補強 Supabase/Postgres shadow target guard，pre-migration 僅接受空 public schema，compare 僅接受完整 AI_PDM schema 且 RLS forced。
 
 ---
 
@@ -304,6 +306,7 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 - [x] Draft Postgres migration.
 - [x] Add row count and key hash comparison tooling.
 - [x] Plan Supabase RLS without `user_metadata` authorization decisions.
+- [x] Add a Supabase/Postgres shadow target guard so migration and compare steps fail closed on existing non-AI_PDM or partial schemas.
 
 ### QA Validation Plan
 - [x] Scope: verify repeatable migration and security posture.
@@ -312,12 +315,15 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 ### QC Fact Report
 - [x] Evidence command: `npm.cmd run db:postgres:migration` generated 24-table Postgres migration and RLS plan.
 - [x] Evidence command: `npm.cmd run db:postgres:compare` passed local static/table coverage and SQLite row count/key hash capture.
-- [x] Evidence command: `npm.cmd run qc:postgres-shadow` passed with 16 checks.
+- [x] Evidence command: `npm.cmd run qc:postgres-shadow-target-guard` passed with 10 checks.
+- [x] Evidence command: `npm.cmd run db:postgres:compare -- --no-write` passed local static/table coverage and reported `postgresTargetGuard: null` with no live Postgres URL.
+- [x] Evidence command: `npm.cmd run qc:postgres-shadow` passed with 20 checks.
 - [x] Evidence command: `npm.cmd run lint` passed.
 - [x] Evidence command: read-only Supabase probe found `ProJED_TEST`, but it is not the generated AI_PDM shadow schema and advisor returned security/performance warnings.
 - [!] Evidence command: live Supabase migration/advisor/RLS gate not executed because no disposable AI_PDM Supabase project or branch is configured.
 - [x] Evidence artifact: `docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/supabase-live-probe-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md`.
 - [x] Evidence artifact: `docs/industrialization/external-validation-handoff-2026-05-28.md`.
 - [!] Result: PARTIAL PASS / BLOCKED for live Supabase advisor only.
 

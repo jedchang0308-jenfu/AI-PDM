@@ -37,6 +37,9 @@ record("PG-001 migration generator exits successfully", generate.status === 0, g
 const compare = runNode("scripts/compare-sqlite-postgres-shadow.mjs", ["--no-write"]);
 record("PG-002 shadow compare exits successfully", compare.status === 0, compare.stderr || compare.stdout);
 
+const targetGuard = runNode("scripts/qc-postgres-shadow-target-guard.mjs");
+record("PG-002A target guard exits successfully", targetGuard.status === 0, targetGuard.stderr || targetGuard.stdout);
+
 const sqliteSchema = read("db/schema.sql");
 const postgresSchema = read("db/postgres/001_initial_schema.sql");
 const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
@@ -66,6 +69,8 @@ record("PG-012 plan document records Supabase advisor gate", planDoc.includes("S
 record("PG-013 package exposes generation command", packageJson.scripts?.["db:postgres:migration"] === "node scripts/generate-postgres-migration.mjs", "package.json");
 record("PG-014 package exposes compare command", packageJson.scripts?.["db:postgres:compare"] === "node scripts/compare-sqlite-postgres-shadow.mjs", "package.json");
 record("PG-015 package exposes QC command", packageJson.scripts?.["qc:postgres-shadow"] === "node scripts/qc-postgres-shadow-test.mjs", "package.json");
+record("PG-015A package exposes target guard command", packageJson.scripts?.["db:postgres:guard"] === "node scripts/guard-postgres-shadow-target.mjs", "package.json");
+record("PG-015B package exposes target guard QC command", packageJson.scripts?.["qc:postgres-shadow-target-guard"] === "node scripts/qc-postgres-shadow-target-guard.mjs", "package.json");
 
 let compareReport = null;
 try {
@@ -74,6 +79,7 @@ try {
   compareReport = null;
 }
 record("PG-016 compare report has row counts and key hashes", Array.isArray(compareReport?.sqliteStats) && compareReport.sqliteStats.every((item) => typeof item.count === "number" && typeof item.keyHash === "string"), "scripts/compare-sqlite-postgres-shadow.mjs");
+record("PG-017 compare report includes target guard field", Object.hasOwn(compareReport ?? {}, "postgresTargetGuard"), "scripts/compare-sqlite-postgres-shadow.mjs");
 
 const failed = results.filter((result) => !result.passed);
 console.log(

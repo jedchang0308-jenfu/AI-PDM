@@ -25,6 +25,9 @@
 - `ProJED_TEST` public table inspection:
   - 19 public tables were found and all reported `rls_enabled=true`.
   - The table set is not the generated AI_PDM 24-table schema; observed tables include `profiles`, `tenants`, `projects`, `wbs_items`, `documents`, and RAG-related tables.
+- Target guard implication:
+  - `scripts/guard-postgres-shadow-target.mjs --phase pre-migration` would fail closed for this shape because the target is not empty.
+  - `scripts/guard-postgres-shadow-target.mjs --phase compare` would fail closed because the public table set is not the complete generated AI_PDM schema.
 - `ProJED_TEST` security advisor:
   - WARN findings include mutable function search path, public execution of SECURITY DEFINER functions, signed-in execution of SECURITY DEFINER functions, and leaked password protection disabled.
 - `ProJED_TEST` performance advisor:
