@@ -33,6 +33,7 @@ const repositories = {
   submissionFile: "src/lib/repositories/submission-file-repository.ts",
   user: "src/lib/repositories/user-repository.ts",
   item: "src/lib/repositories/item-repository.ts",
+  bom: "src/lib/repositories/bom-repository.ts",
   contracts: "src/lib/repositories/contracts.ts"
 };
 
@@ -52,6 +53,7 @@ record("REPO-010 db.ts re-exports approval repository", db.includes("@/lib/repos
 record("REPO-011 db.ts re-exports submission-file repository", db.includes("@/lib/repositories/submission-file-repository"), "src/lib/db.ts");
 record("REPO-012 db.ts re-exports user repository", db.includes("@/lib/repositories/user-repository"), "src/lib/db.ts");
 record("REPO-013 db.ts re-exports item repository", db.includes("@/lib/repositories/item-repository"), "src/lib/db.ts");
+record("REPO-014 db.ts re-exports bom repository", db.includes("@/lib/repositories/bom-repository"), "src/lib/db.ts");
 
 for (const symbol of [
   "getDashboardMetrics",
@@ -127,9 +129,14 @@ for (const symbol of [
   "ensureDemoUser",
   "listItemRevisionHistory",
   "submissionRevisionExists",
-  "findOrCreateItem"
+  "findOrCreateItem",
+  "getBomBySubmissionId",
+  "materializeBomDraftFromReferences",
+  "findPreviousBomSubmissionId",
+  "getBomDiffBetweenSubmissions",
+  "listWhereUsed"
 ]) {
-  record(`REPO-014 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
+  record(`REPO-015 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
 }
 
 const aiRepository = read(repositories.ai);
@@ -144,30 +151,31 @@ const approvalRepository = read(repositories.approval);
 const submissionFileRepository = read(repositories.submissionFile);
 const userRepository = read(repositories.user);
 const itemRepository = read(repositories.item);
-record("REPO-015 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
-record("REPO-016 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
-record("REPO-017 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
+const bomRepository = read(repositories.bom);
+record("REPO-016 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
+record("REPO-017 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
+record("REPO-018 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
 record(
-  "REPO-018 collaboration repository owns review workflow tables",
+  "REPO-019 collaboration repository owns review workflow tables",
   ["discussion_comments", "review_issues", "change_requests", "phase_gate_checks", "pdf_markups"].every((table) =>
     collaborationRepository.includes(table)
   ),
   repositories.collaboration
 );
 record(
-  "REPO-019 notification repository owns notification queries",
+  "REPO-020 notification repository owns notification queries",
   ["release_failed", "pending_review", "drive_upload_failed", "release_package_missing", "active_lock"].every((kind) =>
     notificationRepository.includes(kind)
   ),
   repositories.notification
 );
 record(
-  "REPO-020 item-lock repository owns checkout locking",
+  "REPO-021 item-lock repository owns checkout locking",
   ["item_locks", "CheckoutLockCreated", "CheckoutLockReleased"].every((marker) => itemLockRepository.includes(marker)),
   repositories.itemLock
 );
 record(
-  "REPO-021 release repository owns release/share/procurement workflows",
+  "REPO-022 release repository owns release/share/procurement workflows",
   [
     "release_packages",
     "readonly_shares",
@@ -180,37 +188,44 @@ record(
   repositories.release
 );
 record(
-  "REPO-022 sandbox repository owns sandbox branch workflows",
+  "REPO-023 sandbox repository owns sandbox branch workflows",
   ["sandbox_branches", "SandboxBranchCreated", "SandboxBranchMerged", "merge_summary_json"].every((marker) =>
     sandboxRepository.includes(marker)
   ),
   repositories.sandbox
 );
 record(
-  "REPO-023 approval repository owns approval matrix workflows",
+  "REPO-024 approval repository owns approval matrix workflows",
   ["approval_steps", "approval_matrix_requirements", "ApprovalMatrixInitialized", "ApprovalMatrixWaived"].every((marker) =>
     approvalRepository.includes(marker)
   ),
   repositories.approval
 );
 record(
-  "REPO-024 submission-file repository owns file status workflows",
+  "REPO-025 submission-file repository owns file status workflows",
   ["submission_files", "gdrive_status", "gdrive_file_id", "Released"].every((marker) => submissionFileRepository.includes(marker)),
   repositories.submissionFile
 );
 record(
-  "REPO-025 user repository owns auth and user workflows",
+  "REPO-026 user repository owns auth and user workflows",
   ["users", "PDM_BOOTSTRAP_USERS", "DEMO_PASSWORD", "password_hash", "seedConfiguredUsers"].every((marker) =>
     userRepository.includes(marker)
   ),
   repositories.user
 );
 record(
-  "REPO-026 item repository owns item core workflows",
+  "REPO-027 item repository owns item core workflows",
   ["items", "current_revision", "part_number", "revision"].every((marker) => itemRepository.includes(marker)),
   repositories.item
 );
-record("REPO-027 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
+record(
+  "REPO-028 bom repository owns BOM and where-used workflows",
+  ["bom_headers", "bom_lines", "ReleasedSnapshot", "child_part_number", "parent_submission_id"].every((marker) =>
+    bomRepository.includes(marker)
+  ),
+  repositories.bom
+);
+record("REPO-029 package exposes repository split QC", packageJson.scripts?.["qc:db-repository-split"] === "node scripts/qc-db-repository-split-test.mjs", "package.json");
 
 const failed = results.filter((result) => !result.passed);
 console.log(
