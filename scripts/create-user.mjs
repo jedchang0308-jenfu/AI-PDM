@@ -17,11 +17,10 @@ import path from "node:path";
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import { parseArgs } from "node:util";
+import { getDataDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const dataDir = process.env.PDM_DATA_DIR
-  ? path.resolve(root, process.env.PDM_DATA_DIR)
-  : path.join(root, "data");
+const dataDir = getDataDir(root);
 const dbPath = path.join(dataDir, "ai-pdm.sqlite");
 const schemaPath = path.join(root, "db", "schema.sql");
 

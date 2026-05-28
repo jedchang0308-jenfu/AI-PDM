@@ -3,21 +3,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { getBackupDir, getRestoreHandoffsDir, resolveUserPath } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const backupRoot = resolveAppPath(process.env.PDM_BACKUP_DIR, path.join("data", "backups"));
+const backupRoot = getBackupDir(root);
 const args = parseArgs(process.argv.slice(2));
 const snapshotDir = resolveSnapshotDir(args.snapshot);
 const manifestPath = path.join(snapshotDir, "manifest.json");
 const manifest = readManifest();
-const outputRoot = args.output ? resolveAppPath(args.output, args.output) : path.join(root, "data", "restore-handoffs");
+const outputRoot = args.output ? resolveUserPath(root, args.output) : getRestoreHandoffsDir(root);
 const outputDir = path.join(outputRoot, manifest.snapshotId ?? path.basename(snapshotDir));
-
-function resolveAppPath(value, fallback) {
-  const configured = value?.trim();
-  if (!configured) return path.join(root, fallback);
-  return path.isAbsolute(configured) ? configured : path.join(root, configured);
-}
 
 function parseArgs(argv) {
   const parsed = {
@@ -44,7 +39,7 @@ function parseArgs(argv) {
 
 function resolveSnapshotDir(snapshotArg) {
   if (snapshotArg && snapshotArg !== "--latest") {
-    return path.isAbsolute(snapshotArg) ? snapshotArg : path.join(root, snapshotArg);
+    return resolveUserPath(root, snapshotArg);
   }
 
   if (!fs.existsSync(backupRoot)) {

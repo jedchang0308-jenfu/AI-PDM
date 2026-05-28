@@ -3,10 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createBlankReport, makeReportId } from "./sw-addin-report-utils.mjs";
+import { getReportRoot } from "./pdm-paths.mjs";
 
 const root = process.cwd();
 const reportId = makeReportId();
-const outputDir = path.join(root, "data", "sw-addin-test-reports", reportId);
+const outputDir = path.join(getReportRoot(root, "sw-addin-test-reports"), reportId);
 const report = createBlankReport(reportId);
 
 function groupCases(cases) {

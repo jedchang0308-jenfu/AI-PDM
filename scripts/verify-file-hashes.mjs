@@ -5,16 +5,11 @@ import fs from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { getDataDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const dbPath = resolveAppPath(process.env.PDM_DATA_DIR, "data", "ai-pdm.sqlite");
+const dbPath = path.join(getDataDir(root), "ai-pdm.sqlite");
 const maxIssues = parsePositiveInt(process.env.PDM_HASH_CHECK_MAX_ISSUES) ?? 50;
-
-function resolveAppPath(configuredDir, fallbackDir, filename) {
-  const configured = configuredDir?.trim();
-  const dir = configured ? (path.isAbsolute(configured) ? configured : path.join(root, configured)) : path.join(root, fallbackDir);
-  return path.join(dir, filename);
-}
 
 function parsePositiveInt(value) {
   const parsed = Number.parseInt(value ?? "", 10);

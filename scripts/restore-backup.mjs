@@ -4,20 +4,22 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import {
+  getBackupDir,
+  getDataDir,
+  getRepositoryDir,
+  getRestoreDrillsDir,
+  getRestoreTargetsDir,
+  resolveUserPath
+} from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const dataDir = resolveAppPath(process.env.PDM_DATA_DIR, "data");
-const repositoryDir = resolveAppPath(process.env.PDM_REPOSITORY_DIR, path.join("data", "repository"));
-const backupRoot = resolveAppPath(process.env.PDM_BACKUP_DIR, path.join("data", "backups"));
+const dataDir = getDataDir(root);
+const repositoryDir = getRepositoryDir(root);
+const backupRoot = getBackupDir(root);
 const args = parseArgs(process.argv.slice(2));
 const snapshotDir = resolveSnapshotDir(args.snapshot);
 const manifestPath = path.join(snapshotDir, "manifest.json");
-
-function resolveAppPath(value, fallback) {
-  const configured = value?.trim();
-  if (!configured) return path.join(root, fallback);
-  return path.isAbsolute(configured) ? configured : path.join(root, configured);
-}
 
 function parseArgs(argv) {
   const parsed = {
@@ -50,7 +52,7 @@ function parseArgs(argv) {
 
 function resolveSnapshotDir(snapshotArg) {
   if (snapshotArg && snapshotArg !== "--latest") {
-    return path.isAbsolute(snapshotArg) ? snapshotArg : path.join(root, snapshotArg);
+    return resolveUserPath(root, snapshotArg);
   }
 
   if (!fs.existsSync(backupRoot)) {
@@ -115,8 +117,8 @@ function verifySnapshot(manifest) {
 function ensureSafeDelete(targetPath) {
   const resolved = path.resolve(targetPath);
   const safeRoots = [
-    path.resolve(root, "data", "restore-drills"),
-    path.resolve(root, "data", "restore-targets")
+    getRestoreDrillsDir(root),
+    getRestoreTargetsDir(root)
   ];
 
   if (args.inPlace) {
@@ -201,7 +203,7 @@ if (args.inPlace && !args.force) {
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 verifySnapshot(manifest);
 
-const restoreRoot = args.inPlace ? root : path.resolve(args.target);
+const restoreRoot = args.inPlace ? root : resolveUserPath(root, args.target);
 const targetDataDir = args.inPlace ? dataDir : path.join(restoreRoot, "data");
 const targetRepositoryDir = args.inPlace ? repositoryDir : path.join(targetDataDir, "repository");
 const targetDbPath = path.join(targetDataDir, "ai-pdm.sqlite");

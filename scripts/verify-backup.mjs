@@ -3,22 +3,17 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { getBackupDir, resolveUserPath } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const backupRoot = resolveAppPath(process.env.PDM_BACKUP_DIR, path.join("data", "backups"));
+const backupRoot = getBackupDir(root);
 const snapshotDir = resolveSnapshotDir();
 const manifestPath = path.join(snapshotDir, "manifest.json");
-
-function resolveAppPath(value, fallback) {
-  const configured = value?.trim();
-  if (!configured) return path.join(root, fallback);
-  return path.isAbsolute(configured) ? configured : path.join(root, configured);
-}
 
 function resolveSnapshotDir() {
   const arg = process.argv[2];
   if (arg && arg !== "--latest") {
-    return path.isAbsolute(arg) ? arg : path.join(root, arg);
+    return resolveUserPath(root, arg);
   }
 
   if (!fs.existsSync(backupRoot)) {

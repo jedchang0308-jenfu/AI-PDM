@@ -18,6 +18,7 @@ import {
   readReport as readDocumentManagerReport,
   validateReport as validateDocumentManagerReport
 } from "./document-manager-report-utils.mjs";
+import { getRestoreHandoffsDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
 const args = parseArgs(process.argv.slice(2));
@@ -141,7 +142,7 @@ function versionOfWindowsBatch(command, commandArgs) {
 }
 
 function latestRestoreHandoff() {
-  const handoffRoot = path.join(root, "data", "restore-handoffs");
+  const handoffRoot = getRestoreHandoffsDir(root);
   if (!dirExists(handoffRoot)) return "";
 
   return fs.readdirSync(handoffRoot, { withFileTypes: true })

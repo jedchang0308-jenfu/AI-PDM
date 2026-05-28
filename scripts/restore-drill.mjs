@@ -5,9 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
+import { getRestoreDrillsDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const drillRoot = path.join(root, "data", "restore-drills", makeDrillId(new Date()));
+const drillRoot = path.join(getRestoreDrillsDir(root), makeDrillId(new Date()));
 
 function makeDrillId(date) {
   const pad = (value) => String(value).padStart(2, "0");

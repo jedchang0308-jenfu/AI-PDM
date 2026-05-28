@@ -129,7 +129,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 - [x] DEV-IND-001: Establish repo baseline and current-state inventory
 - [x] DEV-IND-002: Create external large-asset manifest and relocation rules
 - [x] DEV-IND-003: Clean generated/dependency output boundaries
-- [ ] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
+- [!] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [ ] DEV-IND-005: Add AI/API cost gates and usage logging
 - [ ] DEV-IND-006: Extract DB provider and repository contracts
 - [ ] DEV-IND-007: Prepare SQLite to Postgres/Supabase shadow migration
@@ -218,24 +218,27 @@ Exclude build outputs and dependency products from the source boundary.
 
 ## DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 
-Status: [ ]
+Status: [!]
 
 ### Goal
 Separate runtime DB/repository, fixtures, quality evidence, and generated reports.
 
 ### RD Tasks
-- [ ] Define ownership for runtime data, QC fixtures, quality records, and reports.
-- [ ] Update scripts with any changed paths.
-- [ ] Keep formal DB/repository ignored from source control.
+- [x] Define ownership for runtime data, QC fixtures, quality records, evidence, and reports.
+- [x] Update path-sensitive scripts to use centralized `scripts/pdm-paths.mjs` while preserving current defaults.
+- [x] Keep formal DB/repository ignored from source control.
 
 ### QA Validation Plan
-- [ ] Scope: verify backup, restore, field-test, QC, and evidence sync paths.
-- [ ] Pass criteria: path-sensitive scripts still resolve required files.
+- [x] Scope: verify backup, restore, field-test, QC, and evidence paths.
+- [!] Pass criteria: path-sensitive scripts resolve required files, but current runtime file-hash integrity is blocked by existing ignored data.
 
 ### QC Fact Report
-- [ ] Evidence command: backup/restore path checks.
-- [ ] Evidence command: `npm.cmd run qc:file-hashes`.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run qc:data-boundary` passed with 36 checks.
+- [x] Evidence command: `npm.cmd run backup:verify` passed against latest backup snapshot.
+- [x] Evidence command: `npm.cmd run field-test:preflight -- --profile restore` passed.
+- [!] Evidence command: `npm.cmd run qc:file-hashes` failed because DB row `file-idx-473870` references missing `data/repository/IDX-473870.pdf` and stores invalid hash `idx-hash`.
+- [x] Evidence artifact: `docs/industrialization/data-boundary-verification-2026-05-28.md`.
+- [!] Result: PARTIAL PASS / BLOCKED by pre-existing runtime data integrity issue. Source-path boundary changes are complete; runtime data repair is deferred.
 
 ## DEV-IND-005: Add AI/API cost gates and usage logging
 

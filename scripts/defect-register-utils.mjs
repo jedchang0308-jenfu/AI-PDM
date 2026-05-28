@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getQualityDir } from "./pdm-paths.mjs";
 
 export const BLOCKING_PRIORITIES = new Set(["P0", "P1"]);
 export const CLOSED_STATUSES = new Set(["closed", "verified"]);
@@ -7,7 +8,7 @@ export const VALID_PRIORITIES = new Set(["P0", "P1", "P2", "P3"]);
 export const VALID_STATUSES = new Set(["open", "in_progress", "reopened", "deferred", "closed", "verified"]);
 
 export function getDefectRegisterPath(root = process.cwd()) {
-  return path.join(root, "data", "quality", "defect-register.json");
+  return path.join(getQualityDir(root), "defect-register.json");
 }
 
 export function readDefectRegister(registerPath = getDefectRegisterPath()) {

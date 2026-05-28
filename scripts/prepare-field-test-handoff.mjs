@@ -5,11 +5,12 @@ import path from "node:path";
 import { findLatestRestoreDrillReport, readRestoreDrillReport } from "./restore-drill-report-utils.mjs";
 import { findLatestReport as findLatestSwReport, readReport as readSwReport } from "./sw-addin-report-utils.mjs";
 import { findLatestReport as findLatestDocumentManagerReport, readReport as readDocumentManagerReport } from "./document-manager-report-utils.mjs";
+import { getFieldTestHandoffsDir, getRestoreHandoffsDir, resolveUserPath } from "./pdm-paths.mjs";
 
 const root = process.cwd();
 const args = parseArgs(process.argv.slice(2));
 const handoffId = makeHandoffId();
-const outputRoot = args.output ? resolveAppPath(args.output) : path.join(root, "data", "field-test-handoffs");
+const outputRoot = args.output ? resolveUserPath(root, args.output) : getFieldTestHandoffsDir(root);
 const outputDir = path.join(outputRoot, handoffId);
 const restoreReportPath = args.restoreReport ? path.resolve(args.restoreReport) : findLatestRestoreDrillReport(root);
 const swReportPath = args.swReport ? path.resolve(args.swReport) : findLatestSwReport(root);
@@ -17,7 +18,7 @@ const documentManagerReportPath = args.documentManagerReport
   ? path.resolve(args.documentManagerReport)
   : findLatestDocumentManagerReport(root);
 const restoreHandoffPath = args.restoreHandoff
-  ? resolveAppPath(args.restoreHandoff)
+  ? resolveUserPath(root, args.restoreHandoff)
   : findLatestRestoreHandoff(root);
 
 function parseArgs(argv) {
@@ -58,10 +59,6 @@ function makeHandoffId(date = new Date()) {
   ].join("");
 }
 
-function resolveAppPath(value) {
-  return path.isAbsolute(value) ? value : path.join(root, value);
-}
-
 function toPortableSlash(value) {
   return value.replaceAll(path.sep, "/");
 }
@@ -81,7 +78,7 @@ function assertDirectory(dirPath, message) {
 }
 
 function findLatestRestoreHandoff(appRoot) {
-  const handoffRoot = path.join(appRoot, "data", "restore-handoffs");
+  const handoffRoot = getRestoreHandoffsDir(appRoot);
   if (!fs.existsSync(handoffRoot)) return "";
 
   return fs.readdirSync(handoffRoot, { withFileTypes: true })

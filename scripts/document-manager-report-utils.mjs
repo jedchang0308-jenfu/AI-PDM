@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getReportRoot } from "./pdm-paths.mjs";
 
 export const DOCUMENT_MANAGER_SCHEMA_VERSION = 3;
 
@@ -163,7 +164,7 @@ export function buildReportMarkdown(input) {
 }
 
 export function findLatestReport(root) {
-  const reportRoot = path.join(root, "data", "document-manager-reports");
+  const reportRoot = getReportRoot(root, "document-manager-reports");
   if (!fs.existsSync(reportRoot)) return null;
 
   const reports = [];

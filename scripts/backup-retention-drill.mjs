@@ -5,9 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
+import { getRetentionDrillsDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
-const drillRoot = path.join(root, "data", "retention-drills", makeDrillId(new Date()));
+const drillRoot = path.join(getRetentionDrillsDir(root), makeDrillId(new Date()));
 const sourceDataDir = path.join(drillRoot, "source", "data");
 const sourceRepositoryDir = path.join(sourceDataDir, "repository");
 const backupDir = path.join(drillRoot, "backups");

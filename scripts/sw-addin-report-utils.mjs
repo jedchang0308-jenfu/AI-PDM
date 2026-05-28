@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getReportRoot } from "./pdm-paths.mjs";
 
 export const SW_ADDIN_CASES = [
   { id: "SW-INST-001", section: "Installation And Registration", priority: "P0", required: true, expected: "Build/install completes without error." },
@@ -164,7 +165,7 @@ export function validateReport(report) {
 }
 
 export function findLatestReport(root) {
-  const reportRoot = path.join(root, "data", "sw-addin-test-reports");
+  const reportRoot = getReportRoot(root, "sw-addin-test-reports");
   if (!fs.existsSync(reportRoot)) return null;
 
   const reports = [];

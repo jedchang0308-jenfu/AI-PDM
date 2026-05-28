@@ -3,10 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createBlankReport, makeReportId, writeReport } from "./document-manager-report-utils.mjs";
+import { getReportRoot } from "./pdm-paths.mjs";
 
 const root = process.cwd();
 const reportId = makeReportId();
-const outputDir = path.join(root, "data", "document-manager-reports", reportId);
+const outputDir = path.join(getReportRoot(root, "document-manager-reports"), reportId);
 const report = createBlankReport(reportId);
 
 fs.mkdirSync(outputDir, { recursive: true });

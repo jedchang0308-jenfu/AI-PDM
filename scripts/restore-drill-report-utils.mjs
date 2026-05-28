@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getReportRoot } from "./pdm-paths.mjs";
 
 export const RESTORE_DRILL_CASES = [
   {
@@ -138,7 +139,7 @@ export function createBlankRestoreDrillReport(reportId = makeRestoreDrillReportI
 }
 
 export function getRestoreDrillReportRoot(root = process.cwd()) {
-  return path.join(root, "data", "restore-drill-reports");
+  return getReportRoot(root, "restore-drill-reports");
 }
 
 export function findLatestRestoreDrillReport(root = process.cwd()) {
