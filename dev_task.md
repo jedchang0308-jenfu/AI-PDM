@@ -415,15 +415,19 @@ Make documents, validation plans, reports, and runbooks traceable.
 ### RD Tasks
 - [x] Plan `docs/reports/{rd,qa,qc}`, `docs/validation-plans`, and `docs/runbooks`.
 - [x] Update report generation and evidence sync scripts.
+- [x] Update production readiness reporting to prefer `dev_task.md`, keep the legacy `PDM_dev_task.md` fallback, and parse the current P0/P1 task tables.
 - [x] Keep old path index or redirect documentation.
 
 ### QA Validation Plan
 - [x] Scope: verify report generation and evidence links.
+- [x] Scope: verify readiness reporting uses the current task file and reports open external blockers instead of failing on the removed legacy filename.
 - [x] Pass criteria: scripts find the new paths and do not lose evidence references.
 
 ### QC Fact Report
-- [x] Evidence command: `npm.cmd run qc:doc-paths` passed with 18 checks.
+- [x] Evidence command: `npm.cmd run qc:doc-paths` passed with 20 checks.
 - [x] Evidence command: `npm.cmd run qa:dev-task:sync` passed and now defaults to `dev_task.md`.
+- [x] Evidence command: `npm.cmd run qc:production-readiness:report` passed in allow-open mode, read `dev_task.md`, tracked 25 P0/P1 tasks, and reported 4 external evidence blockers.
+- [x] Evidence command: `npm.cmd run field-test:preflight -- --profile all` passed with 19 checks and 1 administrator warning.
 - [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run sw-addin:report:new` wrote JSON/MD under the configured report root.
 - [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run document-manager:report:new` wrote JSON/MD under the configured report root.
 - [x] Evidence command: `PDM_REPORT_DIR=data/dev-ind-011-report-route npm.cmd run backup:restore-drill-report:new` wrote JSON/MD under the configured report root.

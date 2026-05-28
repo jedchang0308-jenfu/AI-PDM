@@ -25,6 +25,10 @@ const qaSync = read("scripts/qa-sync-dev-task-evidence.mjs");
 record("DOCS-006 evidence sync prefers dev_task.md", qaSync.includes('path.join(root, "dev_task.md")'));
 record("DOCS-007 evidence sync keeps PDM_dev_task fallback", qaSync.includes('path.join(root, "PDM_dev_task.md")'));
 
+const productionReadiness = read("scripts/qc-production-readiness-test.mjs");
+record("DOCS-009 production readiness prefers dev_task.md", productionReadiness.includes('path.join(root, "dev_task.md")'));
+record("DOCS-010 production readiness keeps PDM_dev_task fallback", productionReadiness.includes('path.join(root, "PDM_dev_task.md")'));
+
 for (const script of [
   "scripts/generate-sw-addin-test-report.mjs",
   "scripts/generate-document-manager-report.mjs",

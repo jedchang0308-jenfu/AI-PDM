@@ -12,9 +12,17 @@ import {
 } from "./document-manager-report-utils.mjs";
 
 const root = process.cwd();
-const taskPath = path.join(root, "PDM_dev_task.md");
 const args = new Set(process.argv.slice(2));
 const allowOpen = args.has("--allow-open");
+const taskPath = resolveTaskFile();
+
+function resolveTaskFile() {
+  const candidates = [
+    path.join(root, "dev_task.md"),
+    path.join(root, "PDM_dev_task.md")
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+}
 
 function getSolidWorksReportEvidence() {
   const reportPath = findLatestReport(root);
@@ -90,24 +98,90 @@ function classify(task) {
   return "open_task";
 }
 
-function parseTasks(markdown) {
-  return markdown.split(/\r?\n/).flatMap((line, index) => {
-    const match = line.match(/^- \[(x| |\/)\]\s+`(P[0-2])`\s+(.+)$/);
-    if (!match) return [];
+function classifyReadinessTask(task) {
+  if (/DEV-CAD-001|Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取|custom[- ]property/i.test(task)) {
+    return "external_document_manager";
+  }
+  if (/DEV-FIELD-001|field-test|現場測試|field validation/i.test(task)) {
+    return "external_field_test";
+  }
+  if (/DEV-SW-001/i.test(task) || (/SolidWorks|Add-in|CAD/i.test(task) && /實機|註冊|COM|machine|registration|compile/i.test(task))) {
+    return "external_solidworks_machine";
+  }
+  if (/DEV-BACKUP-001/i.test(task) || (/restore|backup|備份|還原/i.test(task) && /獨立測試機|test machine|drill/i.test(task))) {
+    return "external_restore_drill";
+  }
+  if (/P0\s*\/\s*P1|defect/i.test(task)) {
+    return "release_readiness_gate";
+  }
+  return "open_task";
+}
 
-    const statusToken = match[1];
-    const priority = match[2];
-    const task = match[3].trim();
-    const status = statusToken === "x" ? "done" : statusToken === "/" ? "partial" : "open";
+function readinessStatusFromToken(token) {
+  if (token === "x") return "done";
+  if (token === "/") return "partial";
+  if (token === "!") return "blocked";
+  return "open";
+}
 
-    return [{
-      line: index + 1,
-      priority,
-      status,
-      task,
-      category: classify(task)
-    }];
+function parseLegacyReadinessTask(line, index) {
+  const match = line.match(/^- \[(x| |\/|!)\]\s+`(P[0-2])`\s+(.+)$/);
+  if (!match) return null;
+
+  const task = match[3].trim();
+  return {
+    line: index + 1,
+    priority: match[2],
+    status: readinessStatusFromToken(match[1]),
+    task,
+    category: classifyReadinessTask(task)
+  };
+}
+
+function parseTableReadinessTask(line, index, priority) {
+  if (!priority || !line.trim().startsWith("|")) return null;
+
+  const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+  if (cells.length < 3) return null;
+
+  const statusMatch = cells[0].match(/^\[(x| |\/|!)\]$/);
+  if (!statusMatch) return null;
+
+  const task = [
+    cells[1] ?? "",
+    cells[2] ?? "",
+    cells[3] ?? "",
+    cells[4] ?? ""
+  ].filter(Boolean).join(" | ");
+
+  return {
+    line: index + 1,
+    priority,
+    status: readinessStatusFromToken(statusMatch[1]),
+    task,
+    category: classifyReadinessTask(task)
+  };
+}
+
+function parseReadinessTasks(markdown) {
+  const tasks = [];
+  let currentPriority = null;
+
+  markdown.split(/\r?\n/).forEach((line, index) => {
+    const headingPriority = line.match(/^##\s+(P[0-2])\b/i)?.[1]?.toUpperCase();
+    if (headingPriority) currentPriority = headingPriority;
+
+    const legacyTask = parseLegacyReadinessTask(line, index);
+    if (legacyTask) {
+      tasks.push(legacyTask);
+      return;
+    }
+
+    const tableTask = parseTableReadinessTask(line, index, currentPriority);
+    if (tableTask) tasks.push(tableTask);
   });
+
+  return tasks;
 }
 
 if (!fs.existsSync(taskPath)) {
@@ -115,7 +189,7 @@ if (!fs.existsSync(taskPath)) {
   process.exit(1);
 }
 
-const tasks = parseTasks(fs.readFileSync(taskPath, "utf8"));
+const tasks = parseReadinessTasks(fs.readFileSync(taskPath, "utf8"));
 const solidWorksEvidence = getSolidWorksReportEvidence();
 const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
 const documentManagerEvidence = getDocumentManagerReportEvidence();
@@ -156,7 +230,7 @@ const byCategory = blockers.reduce((acc, blocker) => {
 const report = {
   ready: blockers.length === 0,
   allowOpen,
-  taskFile: "PDM_dev_task.md",
+  taskFile: path.relative(root, taskPath).replaceAll(path.sep, "/"),
   summary: {
     trackedTasks: tasks.length,
     blockers: blockers.length,
