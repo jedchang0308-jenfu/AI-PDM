@@ -10,6 +10,7 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Added `src/lib/repositories/collaboration-repository.ts` for discussion comments, review issues, change requests, phase gates, and PDF markups.
 - Added `src/lib/repositories/notification-repository.ts` for notification aggregation and role-scoped notification queries.
 - Added `src/lib/repositories/item-lock-repository.ts` for checkout lock lookup, preflight matching, expiration, create, and release operations.
+- Added `src/lib/repositories/release-repository.ts` for release packages, read-only shares, supplier portal responses, and procurement sync runs.
 - Kept `src/lib/db.ts` re-export compatibility so existing route handlers and libraries do not need a broad import rewrite in this checkpoint.
 
 ## Second Batch QA Plan
@@ -24,12 +25,18 @@ Start splitting the 3000+ line `src/lib/db.ts` data layer into feature repositor
 - Risk: lock create/release could regress if the repository depends on full submission hydration instead of only the submission item identity.
 - Pass criteria: repository split gate covers item-lock ownership and `db.ts` no longer owns lock functions, lint/build pass, and API regression covers checkout/preflight/notification paths.
 
+## Fourth Batch QA Plan
+- Scope: verify release/share/procurement extraction preserves release package metadata, read-only public share access, supplier response lifecycle, and ERP sync lifecycle.
+- Risk: `getSubmission()` still needs release package metadata after the exported release functions move out of `db.ts`.
+- Risk: public share response must continue excluding local paths, token hashes, and audit logs after repository relocation.
+- Pass criteria: repository split gate covers release ownership and `db.ts` no longer owns release/share/procurement functions, lint/build pass, and API regression covers package/share/supplier/procurement paths.
+
 ## Evidence
-- `npm.cmd run qc:db-repository-split`: PASS with 49 checks.
+- `npm.cmd run qc:db-repository-split`: PASS with 67 checks.
 - `npm.cmd run lint`: PASS.
 - `npm.cmd run build`: PASS with existing Next Turbopack NFT trace warning from dynamic path resolution in `src/lib/llm-usage.ts`.
 - `npm.cmd run qc:api`: PASS with 391 checks.
-- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third item-lock batch used narrower validation to avoid redundant compute.
+- `npm.cmd run qc:industrialization`: PASS with 15/15 steps after the second repository batch. The third and fourth batches used narrower validation to avoid redundant compute.
 
 ## Result
-PARTIAL PASS. Low-coupling repositories plus collaboration, notification, and item-lock repositories are split; submissions, items, release, BOM, shares, procurement, sandbox, approvals, users/auth, and file-status repositories remain for later passes.
+PARTIAL PASS. Low-coupling repositories plus collaboration, notification, item-lock, and release/share/procurement repositories are split; submissions, items, BOM, sandbox, approvals, users/auth, and file-status repositories remain for later passes.
