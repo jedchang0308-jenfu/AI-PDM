@@ -77,7 +77,7 @@
 | [x] | DEV-ASM-002 | 組合圖搜尋與 Where-used 強化 | 搜尋支援上層組合圖、子件圖號、子件料號、是否含未 Released / 舊版子件；Where-used 顯示受影響組合 | 使用子件料號可找到使用它的組合圖；子件新版發布時可列出受影響 parent |
 | [x] | DEV-BOM-002 | BOM diff 產品化 | 將既有 BOM diff 轉成明細 UI 與匯出；清楚列出新增、刪除、數量變更、版次變更 | 比較兩個 revision 時結果可驗證；差異匯出可被 Excel 開啟；無 BOM 時顯示明確原因 |
 | [x] | DEV-AIRISK-001 | AI BOM / 組合圖風險摘要 | AI 讀取 BOM、Where-used、組合狀態後產出只讀風險摘要；包含舊版、未 Released、缺圖、料號重複、欄位缺漏 | AI 摘要必須附資料來源；不得建立或修改 PDM 紀錄；無資料時不得編造風險 |
-| [ ] | DEV-FIELD-001 | 正式現場測試閉環 | 執行 `field-test:preflight -- --profile all`、`field-test:handoff` 並整理實測問題 | 現場測試報告完成，未通過項目轉為新 task |
+| [/] | DEV-FIELD-001 | 正式現場測試閉環 | 執行 `field-test:preflight -- --profile all`、`field-test:handoff` 並整理實測問題 | 現場測試報告完成，未通過項目轉為新 task |
 
 ## P2 待辦
 
@@ -95,6 +95,7 @@
 - [!] `DEV-ASM-001` / `DEV-BOM-001` 若要直接讀 native SolidWorks reference，需要依賴 `DEV-CAD-001` 或 Add-in 端匯出 reference / BOM sidecar。
 - [!] `DEV-SW-001` 需要真實 SolidWorks 電腦與管理員權限。
 - [!] `DEV-BACKUP-001` 需要獨立測試機。
+- [/] `DEV-FIELD-001` 已產生現場測試 handoff package，但正式現場測試報告與 issue closure 仍需外部實測回填。
 
 ## 暫緩 / 不做範圍
 
@@ -115,6 +116,7 @@
 
 - 2026-05-28：依 ZUMEN 功能評估、設計思考與效用理論分析，新增圖面資產化導入計畫與自訂搜尋、AI/OCR、組合圖、BOM 產品化任務。
 - 2026-05-28：主檔重寫為 active backlog；舊版完整內容封存至 `dev_task_archive_2026-05.md`。
+- 2026-05-28：產生 `data/field-test-handoffs/20260528-203401` 現場測試交接包；`field-test:preflight -- --profile all` 通過，正式現場測試報告仍待外部回填。
 
 ---
 
