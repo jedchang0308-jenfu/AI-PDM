@@ -310,8 +310,10 @@ Validate schema, data consistency, RLS, and rollback before production provider 
 - [x] Evidence command: `npm.cmd run db:postgres:compare` passed local static/table coverage and SQLite row count/key hash capture.
 - [x] Evidence command: `npm.cmd run qc:postgres-shadow` passed with 16 checks.
 - [x] Evidence command: `npm.cmd run lint` passed.
-- [!] Evidence command: live Supabase advisor/RLS check not executed because no disposable Supabase project or branch is configured.
+- [x] Evidence command: read-only Supabase probe found `ProJED_TEST`, but it is not the generated AI_PDM shadow schema and advisor returned security/performance warnings.
+- [!] Evidence command: live Supabase migration/advisor/RLS gate not executed because no disposable AI_PDM Supabase project or branch is configured.
 - [x] Evidence artifact: `docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md`.
+- [x] Evidence artifact: `docs/industrialization/supabase-live-probe-2026-05-28.md`.
 - [!] Result: PARTIAL PASS / BLOCKED for live Supabase advisor only.
 
 ## DEV-IND-008: Split `src/lib/db.ts` by feature repository
