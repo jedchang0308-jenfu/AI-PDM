@@ -33,6 +33,7 @@
     "field-test:preflight": "node scripts/field-test-preflight.mjs",
     "field-test:handoff": "node scripts/prepare-field-test-handoff.mjs",
     "qa:dev-task:sync": "node scripts/qa-sync-dev-task-evidence.mjs",
+    "assets:verify": "node scripts/verify-external-assets.mjs",
     "files:verify-hashes": "node scripts/verify-file-hashes.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "qc:api": "node scripts/qc-api-test.mjs",

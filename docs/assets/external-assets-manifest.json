@@ -1,0 +1,2227 @@
+﻿{
+    "schemaVersion":  1,
+    "generatedAt":  "2026-05-28T09:44:13.0446750Z",
+    "sourceRoot":  "C:\\VIBE CODING\\AI_PDM",
+    "externalRoot":  "C:\\VIBE CODING\\AI_PDM_external_assets",
+    "relocationPolicy":  {
+                             "sourceBoundary":  "Keep application source, scripts, docs, config, and small fixtures in the repository. Keep legacy installer/runtime payloads outside the repository.",
+                             "externalTargetRoot":  "C:\\VIBE CODING\\AI_PDM_external_assets",
+                             "restoreRule":  "Restore only the required top-level asset path from externalRoot back to sourceRoot when rebuilding legacy installer media.",
+                             "blockedFromSource":  [
+                                                       "*.cab",
+                                                       "*.msi",
+                                                       "*.msp",
+                                                       "*.mzz",
+                                                       "*.exe",
+                                                       "*.dll",
+                                                       "*.bmp",
+                                                       "*.ico",
+                                                       "*.rtf",
+                                                       "DHtmlHeader.html",
+                                                       "Graphics/",
+                                                       "NetFx*/",
+                                                       "[0-9][0-9][0-9][0-9]/"
+                                                   ]
+                         },
+    "dependencyScan":  {
+                           "command":  "rg -n \"NetFx|Setup\\.exe|ParameterInfo|Graphics|DHtmlHeader|UiInfo|Strings|\\.cab|\\.msi|\\.msp|\\.mzz|DisplayIcon|SplashScreen|watermark|header\\.bmp\" README.md .env.example package.json next.config.mjs tsconfig.json eslint.config.mjs scripts src sw-addin cloud-functions docs",
+                           "result":  "No product-code references to the moved external asset paths were found; matches were documentation or unrelated wording."
+                       },
+    "summary":  {
+                    "topLevelItems":  69,
+                    "files":  146,
+                    "bytes":  2532241225
+                },
+    "entries":  [
+                    {
+                        "id":  "asset-0001",
+                        "parentItem":  "1025",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1025/eula.rtf",
+                        "targetRelativePath":  "1025/eula.rtf",
+                        "bytes":  13401,
+                        "sha256":  "aabccc5b9e9fb2a2759c634cd94b8b5808bf9d32a46014c2f01e245405b84fea",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0002",
+                        "parentItem":  "1025",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1025/LocalizedData.xml",
+                        "targetRelativePath":  "1025/LocalizedData.xml",
+                        "bytes":  82394,
+                        "sha256":  "b092668e0825f7f498acdc1bf10e1d2cb6ca99497389142cf9af815f25a4b712",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0003",
+                        "parentItem":  "1025",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1025/SetupResources.dll",
+                        "targetRelativePath":  "1025/SetupResources.dll",
+                        "bytes":  25632,
+                        "sha256":  "a67d7e484ae94cbdd6290e7e286435c7f6aeac0b67a24db3d535aafc2d43dbe0",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:46.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0004",
+                        "parentItem":  "1028",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1028/eula.rtf",
+                        "targetRelativePath":  "1028/eula.rtf",
+                        "bytes":  12092,
+                        "sha256":  "4db6d43c560ccc02d0adb570d4675223286d7b1949fac1c5a16ffd1c8835a814",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0005",
+                        "parentItem":  "1028",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1028/LocalizedData.xml",
+                        "targetRelativePath":  "1028/LocalizedData.xml",
+                        "bytes":  70962,
+                        "sha256":  "53742293b25149b19d8677b15f6424fc71e308014b1bcf883e6949d1dab3961c",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0006",
+                        "parentItem":  "1028",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1028/SetupResources.dll",
+                        "targetRelativePath":  "1028/SetupResources.dll",
+                        "bytes":  22560,
+                        "sha256":  "97ed0f22beb2355dc11518c3e9ac63b9a03f3c9746c476307f3792a37c867af9",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0007",
+                        "parentItem":  "1029",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1029/eula.rtf",
+                        "targetRelativePath":  "1029/eula.rtf",
+                        "bytes":  7930,
+                        "sha256":  "03e8ede8a900d1e25414a5767980f8c2715b53d29cbfc40ce1b42075b175b0e1",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0008",
+                        "parentItem":  "1029",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1029/LocalizedData.xml",
+                        "targetRelativePath":  "1029/LocalizedData.xml",
+                        "bytes":  88026,
+                        "sha256":  "cbb0da2d1efa7de6736e67c978848d53acf8b502bf3daf43ce40b05076145a7c",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0009",
+                        "parentItem":  "1029",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1029/SetupResources.dll",
+                        "targetRelativePath":  "1029/SetupResources.dll",
+                        "bytes":  27168,
+                        "sha256":  "7838a51b0508ab8691d4c3b575fb7982d27ac137f913397f3bf3f8b6b25c305c",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0010",
+                        "parentItem":  "1030",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1030/eula.rtf",
+                        "targetRelativePath":  "1030/eula.rtf",
+                        "bytes":  5814,
+                        "sha256":  "271152060662ccceb3d2f6edcaeaa9e003391975aadc6dd6b26648b8a084dbe1",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0011",
+                        "parentItem":  "1030",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1030/LocalizedData.xml",
+                        "targetRelativePath":  "1030/LocalizedData.xml",
+                        "bytes":  85600,
+                        "sha256":  "59884541554376a26143b105fa924b9f9961254d22db8dedf7de7f3495d7a1dd",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0012",
+                        "parentItem":  "1030",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1030/SetupResources.dll",
+                        "targetRelativePath":  "1030/SetupResources.dll",
+                        "bytes":  26664,
+                        "sha256":  "d99bda5be6c9f61790de1c21663703276a6922f1f9aff1b6cebeba502521da18",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0013",
+                        "parentItem":  "1031",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1031/eula.rtf",
+                        "targetRelativePath":  "1031/eula.rtf",
+                        "bytes":  6346,
+                        "sha256":  "992280eea0cb8cd63878356a350801632a63ca669c1720f361ff2922243e701a",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0014",
+                        "parentItem":  "1031",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1031/LocalizedData.xml",
+                        "targetRelativePath":  "1031/LocalizedData.xml",
+                        "bytes":  90342,
+                        "sha256":  "961efe11e9e3e553269cb14dc1b942e9ac68b86740d59aa35e4ff6e5913532dd",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0015",
+                        "parentItem":  "1031",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1031/SetupResources.dll",
+                        "targetRelativePath":  "1031/SetupResources.dll",
+                        "bytes":  27680,
+                        "sha256":  "429d864e7fbdc03fa721e20d92a0259c49e26530f397e33bfcdfe99dd6c96c3e",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0016",
+                        "parentItem":  "1032",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1032/eula.rtf",
+                        "targetRelativePath":  "1032/eula.rtf",
+                        "bytes":  16781,
+                        "sha256":  "83d0876b44402760c3d31e58022ac84376cb9364f7e73984c8cadc9f18ba725c",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0017",
+                        "parentItem":  "1032",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1032/LocalizedData.xml",
+                        "targetRelativePath":  "1032/LocalizedData.xml",
+                        "bytes":  92532,
+                        "sha256":  "6c5a6e11a85c9e172e7748a9a9f19f8598870a63a103a7ac18cbbd0cdf026475",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0018",
+                        "parentItem":  "1032",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1032/SetupResources.dll",
+                        "targetRelativePath":  "1032/SetupResources.dll",
+                        "bytes":  28200,
+                        "sha256":  "6ec4c1b981c86e3f000f353f2c6e2f395898489a73d0477e5b9ba304e0529743",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0019",
+                        "parentItem":  "1033",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1033/eula.rtf",
+                        "targetRelativePath":  "1033/eula.rtf",
+                        "bytes":  4965,
+                        "sha256":  "4399b24e28becfb3bb2820daa09965860001492145fd7e2466da7b740c31855d",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0020",
+                        "parentItem":  "1033",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1033/LocalizedData.xml",
+                        "targetRelativePath":  "1033/LocalizedData.xml",
+                        "bytes":  85180,
+                        "sha256":  "05fc9352b918a710d51f68873fc522528265455b77014e8b0cd66c5e7aa71dc3",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0021",
+                        "parentItem":  "1033",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1033/SetupResources.dll",
+                        "targetRelativePath":  "1033/SetupResources.dll",
+                        "bytes":  25640,
+                        "sha256":  "59f44127c0fa37033d9a145e9c578285dd533b2a35031c80f9948a0ce767efaa",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0022",
+                        "parentItem":  "1035",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1035/eula.rtf",
+                        "targetRelativePath":  "1035/eula.rtf",
+                        "bytes":  6581,
+                        "sha256":  "ce98922719450764d7b2d8778db5a267bf244b39599bb9699e9c15742e15baa2",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0023",
+                        "parentItem":  "1035",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1035/LocalizedData.xml",
+                        "targetRelativePath":  "1035/LocalizedData.xml",
+                        "bytes":  86088,
+                        "sha256":  "1e828840ae8728ac809624845597406d4025d6da7797b38f02946a30a48bfe7c",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0024",
+                        "parentItem":  "1035",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1035/SetupResources.dll",
+                        "targetRelativePath":  "1035/SetupResources.dll",
+                        "bytes":  27168,
+                        "sha256":  "d1712808fc0887e4f6b414db8ec42479f48ebf470a000961e42008585846a373",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0025",
+                        "parentItem":  "1036",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1036/eula.rtf",
+                        "targetRelativePath":  "1036/eula.rtf",
+                        "bytes":  6871,
+                        "sha256":  "93fef896b04650014f4a869d853e030ee3b00ced642fed928141f29123ae8140",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0026",
+                        "parentItem":  "1036",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1036/LocalizedData.xml",
+                        "targetRelativePath":  "1036/LocalizedData.xml",
+                        "bytes":  89940,
+                        "sha256":  "ab3d5571b57b7bb705bffe13f37bd73894b0d12d09cc1fb1b438493a863c324c",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0027",
+                        "parentItem":  "1036",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1036/SetupResources.dll",
+                        "targetRelativePath":  "1036/SetupResources.dll",
+                        "bytes":  27680,
+                        "sha256":  "93f7bf452007b4b6d07349ed4ceab5b201416a098a7443acf35b6164f4d82d0a",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0028",
+                        "parentItem":  "1037",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1037/eula.rtf",
+                        "targetRelativePath":  "1037/eula.rtf",
+                        "bytes":  12839,
+                        "sha256":  "a90eb5e94f3a7ca6d30f849c47dd6c35b0599fe66af50a29c029520b81b2b434",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0029",
+                        "parentItem":  "1037",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1037/LocalizedData.xml",
+                        "targetRelativePath":  "1037/LocalizedData.xml",
+                        "bytes":  80592,
+                        "sha256":  "e9877973bef23498b586a9cf03230fc45a9ea8a3f75decfa062b03bd31974b06",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0030",
+                        "parentItem":  "1037",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1037/SetupResources.dll",
+                        "targetRelativePath":  "1037/SetupResources.dll",
+                        "bytes":  25120,
+                        "sha256":  "826196bde23ba89196ce5e7278f42aac6a753cfec46cba884014de2bef8004d1",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0031",
+                        "parentItem":  "1038",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1038/eula.rtf",
+                        "targetRelativePath":  "1038/eula.rtf",
+                        "bytes":  7518,
+                        "sha256":  "50a534d5b14c6be2c9ab6d538c7bd201a82504d34fca379d7c52c49cd127efc6",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0032",
+                        "parentItem":  "1038",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1038/LocalizedData.xml",
+                        "targetRelativePath":  "1038/LocalizedData.xml",
+                        "bytes":  89028,
+                        "sha256":  "e4261c9b8c779d58883820a531a19594d238f0ca9ecac399505c569b0cccdbc7",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0033",
+                        "parentItem":  "1038",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1038/SetupResources.dll",
+                        "targetRelativePath":  "1038/SetupResources.dll",
+                        "bytes":  27680,
+                        "sha256":  "2eed552e26588c8de5bfe54cd68af4b3b77c6f49e11ba672cc3fdc32186f87da",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0034",
+                        "parentItem":  "1040",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1040/eula.rtf",
+                        "targetRelativePath":  "1040/eula.rtf",
+                        "bytes":  6343,
+                        "sha256":  "8374535e147ab71b9f149e74e77fccf3282ffa9257565cd4af6db471c47e9231",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0035",
+                        "parentItem":  "1040",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1040/LocalizedData.xml",
+                        "targetRelativePath":  "1040/LocalizedData.xml",
+                        "bytes":  87876,
+                        "sha256":  "2ec36fb871853f60085bc972e08156483384f8c1d6e000f5db1cc8cccad05f8c",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0036",
+                        "parentItem":  "1040",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1040/SetupResources.dll",
+                        "targetRelativePath":  "1040/SetupResources.dll",
+                        "bytes":  27160,
+                        "sha256":  "95b318b95a8541243a5048d6e4f310b3820694294d2de648d2f3bf6d15ab2559",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:46.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0037",
+                        "parentItem":  "1041",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1041/eula.rtf",
+                        "targetRelativePath":  "1041/eula.rtf",
+                        "bytes":  17981,
+                        "sha256":  "3be9621f436874877d799a19ea638955616ef2b5b20a121c3e2105a82569d83c",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0038",
+                        "parentItem":  "1041",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1041/LocalizedData.xml",
+                        "targetRelativePath":  "1041/LocalizedData.xml",
+                        "bytes":  76966,
+                        "sha256":  "ae28910c1ef16ce70a5e97c5d02390ad8d64f80966e2be3c4a56db0c4038442d",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0039",
+                        "parentItem":  "1041",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1041/SetupResources.dll",
+                        "targetRelativePath":  "1041/SetupResources.dll",
+                        "bytes":  23600,
+                        "sha256":  "22c437259ea1423f1378da237ccca83daa41d18acfa0e3e68f22cf425006cf99",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0040",
+                        "parentItem":  "1042",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1042/eula.rtf",
+                        "targetRelativePath":  "1042/eula.rtf",
+                        "bytes":  17193,
+                        "sha256":  "824c88479ff2a887e23838a03bd41c5c6f5c20f9cd3031ff2b2897529a1f39f6",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0041",
+                        "parentItem":  "1042",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1042/LocalizedData.xml",
+                        "targetRelativePath":  "1042/LocalizedData.xml",
+                        "bytes":  75218,
+                        "sha256":  "e86656ef2092c0e6caf5b8b0bca2d6ce5def273609c22187ae91236605d2e273",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0042",
+                        "parentItem":  "1042",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1042/SetupResources.dll",
+                        "targetRelativePath":  "1042/SetupResources.dll",
+                        "bytes":  23584,
+                        "sha256":  "3b28677f2d682657c783169d8a8aef743c5c426b09124bc48392353809fdc029",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0043",
+                        "parentItem":  "1043",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1043/eula.rtf",
+                        "targetRelativePath":  "1043/eula.rtf",
+                        "bytes":  5965,
+                        "sha256":  "d6547d3047f7b606cf84ccbed44c5047c0e3f6feecfeb7f0a87ee451fc2ff7a7",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0044",
+                        "parentItem":  "1043",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1043/LocalizedData.xml",
+                        "targetRelativePath":  "1043/LocalizedData.xml",
+                        "bytes":  87426,
+                        "sha256":  "8afdf3d2c0fd2370889e3fd96bc2742831cdc6041af0a407123c27f8d76d68a6",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0045",
+                        "parentItem":  "1043",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1043/SetupResources.dll",
+                        "targetRelativePath":  "1043/SetupResources.dll",
+                        "bytes":  28192,
+                        "sha256":  "f705b8c9c28f0eba8ede93ff72492b297e780ceed226cf9c616a8db2fec6c040",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0046",
+                        "parentItem":  "1044",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1044/eula.rtf",
+                        "targetRelativePath":  "1044/eula.rtf",
+                        "bytes":  5649,
+                        "sha256":  "91d3d81f8e0663200d4a6fa6689cc6936c50db001514fe803a638b861196997a",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0047",
+                        "parentItem":  "1044",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1044/LocalizedData.xml",
+                        "targetRelativePath":  "1044/LocalizedData.xml",
+                        "bytes":  86910,
+                        "sha256":  "3c309a5509d42e6485e9123bc6af5ec43cf2faa8afead5062676e85ab7f96add",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0048",
+                        "parentItem":  "1044",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1044/SetupResources.dll",
+                        "targetRelativePath":  "1044/SetupResources.dll",
+                        "bytes":  26160,
+                        "sha256":  "9dd34dd81292710009fe15f7504573c87e2b34357a8ffa6c1a9e50cebbc92117",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:46.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0049",
+                        "parentItem":  "1045",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1045/eula.rtf",
+                        "targetRelativePath":  "1045/eula.rtf",
+                        "bytes":  7595,
+                        "sha256":  "0e931904c4c9bede08bee5985a5912351efb927787941e33e174ec9373f81476",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0050",
+                        "parentItem":  "1045",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1045/LocalizedData.xml",
+                        "targetRelativePath":  "1045/LocalizedData.xml",
+                        "bytes":  89824,
+                        "sha256":  "2f0beba8a56cccaddfe6e0ecc3130d0efafb7f84cc0fa4e8db9d85c840e24241",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0051",
+                        "parentItem":  "1045",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1045/SetupResources.dll",
+                        "targetRelativePath":  "1045/SetupResources.dll",
+                        "bytes":  27176,
+                        "sha256":  "b31149583895387835d174e78e89df5c9f24d36c50bb8788564542054596da37",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0052",
+                        "parentItem":  "1046",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1046/eula.rtf",
+                        "targetRelativePath":  "1046/eula.rtf",
+                        "bytes":  6166,
+                        "sha256":  "f714f0963e1ce7c6a73b27585eb6b197e29875e195b97885737817e51ded42ad",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0053",
+                        "parentItem":  "1046",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1046/LocalizedData.xml",
+                        "targetRelativePath":  "1046/LocalizedData.xml",
+                        "bytes":  86684,
+                        "sha256":  "aadbd1df74fc82a43f86f1f40d5065a802b2db71652525a78d258fda3197a743",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0054",
+                        "parentItem":  "1046",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1046/SetupResources.dll",
+                        "targetRelativePath":  "1046/SetupResources.dll",
+                        "bytes":  27168,
+                        "sha256":  "a7356eeb4f8f3b66984111653da054551abfbd367ad83be26de90e88b2071214",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0055",
+                        "parentItem":  "1049",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1049/eula.rtf",
+                        "targetRelativePath":  "1049/eula.rtf",
+                        "bytes":  17877,
+                        "sha256":  "1ea50fa040f7fe2e420039646c1a3f6f99756d7b1159ce1002a148c639761650",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0056",
+                        "parentItem":  "1049",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1049/LocalizedData.xml",
+                        "targetRelativePath":  "1049/LocalizedData.xml",
+                        "bytes":  88486,
+                        "sha256":  "a787b2f493c3248991877f61e210bb0231d357d06aa2671917d2ad4e528c9f67",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0057",
+                        "parentItem":  "1049",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1049/SetupResources.dll",
+                        "targetRelativePath":  "1049/SetupResources.dll",
+                        "bytes":  27160,
+                        "sha256":  "004c87496b065a987943e9f7d65f51224022d9054383ad5e42fd2a1aa40f541d",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0058",
+                        "parentItem":  "1053",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1053/eula.rtf",
+                        "targetRelativePath":  "1053/eula.rtf",
+                        "bytes":  5745,
+                        "sha256":  "c920e7cd21db8ff2822048023b6530815ca4537b5557b1482e8b8ca4a7798a70",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0059",
+                        "parentItem":  "1053",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1053/LocalizedData.xml",
+                        "targetRelativePath":  "1053/LocalizedData.xml",
+                        "bytes":  85610,
+                        "sha256":  "874e5d7e45603ad70ca353e8dc6bf42944594f911d17c79be8966dc01d27eb73",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0060",
+                        "parentItem":  "1053",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1053/SetupResources.dll",
+                        "targetRelativePath":  "1053/SetupResources.dll",
+                        "bytes":  26656,
+                        "sha256":  "ab7d661ad50a7ffa8fc9de1f45316a96e438d9af77c7bb0ab5dc6a5eb2b1ce1a",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0061",
+                        "parentItem":  "1055",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1055/eula.rtf",
+                        "targetRelativePath":  "1055/eula.rtf",
+                        "bytes":  8089,
+                        "sha256":  "50c95114d6340431fac2f752844b9e5c08024a88e464b1d4afde460545a3a3cf",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0062",
+                        "parentItem":  "1055",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1055/LocalizedData.xml",
+                        "targetRelativePath":  "1055/LocalizedData.xml",
+                        "bytes":  85564,
+                        "sha256":  "8ce790eca06bae1b01f40f732580adea86d4c22b28d1e701e033c6c9983500c2",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0063",
+                        "parentItem":  "1055",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "1055/SetupResources.dll",
+                        "targetRelativePath":  "1055/SetupResources.dll",
+                        "bytes":  26672,
+                        "sha256":  "0f96c55b7d98208e7364398fa30640666ba13abb5b7e6cffdadcaff21ffe5da3",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0064",
+                        "parentItem":  "2052",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2052/eula.rtf",
+                        "targetRelativePath":  "2052/eula.rtf",
+                        "bytes":  9626,
+                        "sha256":  "f2508d347bbc11784ad33c9fae913c243198f9517cc9743be56c74f28587b9a9",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0065",
+                        "parentItem":  "2052",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2052/LocalizedData.xml",
+                        "targetRelativePath":  "2052/LocalizedData.xml",
+                        "bytes":  70900,
+                        "sha256":  "93e519e8cc173a3f1aa8dd8113ad4a1be0b5b8d40e1d0a1563dba2054b50433a",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0066",
+                        "parentItem":  "2052",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2052/SetupResources.dll",
+                        "targetRelativePath":  "2052/SetupResources.dll",
+                        "bytes":  22048,
+                        "sha256":  "73852a792b8f1e42db01844f09ffe800933fb430cea626e8cfdc59babe59105d",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:46.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0067",
+                        "parentItem":  "2070",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2070/eula.rtf",
+                        "targetRelativePath":  "2070/eula.rtf",
+                        "bytes":  6284,
+                        "sha256":  "803c4739d74b27a72754607ad69c41a4c311cfdbada1a6bfe8fa47b31a9e74c6",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0068",
+                        "parentItem":  "2070",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2070/LocalizedData.xml",
+                        "targetRelativePath":  "2070/LocalizedData.xml",
+                        "bytes":  88388,
+                        "sha256":  "193090f4472f1a1c5ed10ab97fa4bf77bd4ff3f172f380ef4a53fef39989159a",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0069",
+                        "parentItem":  "2070",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "2070/SetupResources.dll",
+                        "targetRelativePath":  "2070/SetupResources.dll",
+                        "bytes":  27072,
+                        "sha256":  "6bcedca1a987303740ed72958e81c60997e23dc70bf3ad662d5fce227f09dc0f",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0070",
+                        "parentItem":  "3082",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "3082/eula.rtf",
+                        "targetRelativePath":  "3082/eula.rtf",
+                        "bytes":  6114,
+                        "sha256":  "5ed152a56e2e0fef7827864d5b7998cf95ccc5492250e419b0d29027b8af512c",
+                        "lastWriteTimeUtc":  "2019-11-21T03:05:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0071",
+                        "parentItem":  "3082",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "3082/LocalizedData.xml",
+                        "targetRelativePath":  "3082/LocalizedData.xml",
+                        "bytes":  87662,
+                        "sha256":  "9e224a5f7a5c83df1ab31743520a05252c3cdcc9e97526264da716166d2b29f9",
+                        "lastWriteTimeUtc":  "2019-12-13T08:20:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0072",
+                        "parentItem":  "3082",
+                        "assetClass":  "language-runtime-directory",
+                        "originalRelativePath":  "3082/SetupResources.dll",
+                        "targetRelativePath":  "3082/SetupResources.dll",
+                        "bytes":  27056,
+                        "sha256":  "b6817e2292776a4c5e17b430958aa1dd3dbbacf3cfd88cff769d96f69032ceb1",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0073",
+                        "parentItem":  "DHtmlHeader.html",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "DHtmlHeader.html",
+                        "targetRelativePath":  "DHtmlHeader.html",
+                        "bytes":  16118,
+                        "sha256":  "e139af8858fe90127095ac1c4685bcd849437ef0df7c416033554703f5d864bb",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:00.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0074",
+                        "parentItem":  "DisplayIcon.ico",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "DisplayIcon.ico",
+                        "targetRelativePath":  "DisplayIcon.ico",
+                        "bytes":  88533,
+                        "sha256":  "b74ad253b9b8f9fcade725336509143828ee739cc2b24782be3ecff26f229160",
+                        "lastWriteTimeUtc":  "2019-06-26T22:24:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0075",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Print.ico",
+                        "targetRelativePath":  "Graphics/Print.ico",
+                        "bytes":  126132,
+                        "sha256":  "d80ffeb020927f047c11fc4d9f34f985e0c7e5dfea9fb23f2bc134874070e4e6",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0076",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate1.ico",
+                        "targetRelativePath":  "Graphics/Rotate1.ico",
+                        "bytes":  143901,
+                        "sha256":  "18226b9d56d2b1c070a2c606428892773cb00b5b4b95397e79d01de26685ccd4",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0077",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate10.ico",
+                        "targetRelativePath":  "Graphics/Rotate10.ico",
+                        "bytes":  143932,
+                        "sha256":  "b94e68c711b3b06d9a63c80ad013c7c7bbdb5f8e82cbc866b246ff22d99b03fe",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0078",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate2.ico",
+                        "targetRelativePath":  "Graphics/Rotate2.ico",
+                        "bytes":  144110,
+                        "sha256":  "d15a6f1eefefe4f9cd51b7b22e9c7b07c7acad72fd53e5f277e6d4e0976036c3",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0079",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate3.ico",
+                        "targetRelativePath":  "Graphics/Rotate3.ico",
+                        "bytes":  144151,
+                        "sha256":  "c2f6faa18b16f728ae5536d5992cc76a4b83530a1ea74b9d11bebdf871cf3b4e",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0080",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate4.ico",
+                        "targetRelativePath":  "Graphics/Rotate4.ico",
+                        "bytes":  144033,
+                        "sha256":  "303989b692a57fe34b47bb2f926b91ac605f288ae6c9479b33eaf15a14eb33ac",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0081",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate5.ico",
+                        "targetRelativePath":  "Graphics/Rotate5.ico",
+                        "bytes":  143871,
+                        "sha256":  "ce2afc0aa52b3d459d6d8d7c551f7b8fbf323e2260326908c37a13f21fee423e",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0082",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate6.ico",
+                        "targetRelativePath":  "Graphics/Rotate6.ico",
+                        "bytes":  143881,
+                        "sha256":  "ee387d9642df93e4240361077af6051c1b7e643c3cf110f43da42e0efe29a375",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0083",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate7.ico",
+                        "targetRelativePath":  "Graphics/Rotate7.ico",
+                        "bytes":  144084,
+                        "sha256":  "995c9f4ea0d98c0c4e5037ede43fc44a680d85cb1e37c782adab775915e975b8",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0084",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate8.ico",
+                        "targetRelativePath":  "Graphics/Rotate8.ico",
+                        "bytes":  143835,
+                        "sha256":  "fde052efe70c27d8023065f0859627fc88bf86e166016e9cb00185c21de52742",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0085",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Rotate9.ico",
+                        "targetRelativePath":  "Graphics/Rotate9.ico",
+                        "bytes":  144064,
+                        "sha256":  "0203c7d678464641c016dc3d658aba0a68f20b9a141d6e3ee1820c5b8b6401db",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0086",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Save.ico",
+                        "targetRelativePath":  "Graphics/Save.ico",
+                        "bytes":  126548,
+                        "sha256":  "1372c7f132595ddad210c617e44fedff7a990a9e8974cc534ca80d897dd15abd",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0087",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/Setup.ico",
+                        "targetRelativePath":  "Graphics/Setup.ico",
+                        "bytes":  126246,
+                        "sha256":  "a0c7b4b17a69775e1d94123dfceec824744901d55b463ba9dca9301088f12ea5",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0088",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/stop.ico",
+                        "targetRelativePath":  "Graphics/stop.ico",
+                        "bytes":  190199,
+                        "sha256":  "bfb0332df9fa20dea30f0db53ceaa389df2722fd1acf37f40af954237717532d",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0089",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/SysReqMet.ico",
+                        "targetRelativePath":  "Graphics/SysReqMet.ico",
+                        "bytes":  136313,
+                        "sha256":  "c9ca53f83a5cc10f726248d47ff82981b584b3ff62ee591229a8237c11340991",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0090",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/SysReqNotMet.ico",
+                        "targetRelativePath":  "Graphics/SysReqNotMet.ico",
+                        "bytes":  143990,
+                        "sha256":  "deba0a7a6e2ca99d3380d35ae33f8d266806fdbcbf75fb06b5718be5873258f6",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0091",
+                        "parentItem":  "Graphics",
+                        "assetClass":  "installer-graphics-directory",
+                        "originalRelativePath":  "Graphics/warn.ico",
+                        "targetRelativePath":  "Graphics/warn.ico",
+                        "bytes":  199341,
+                        "sha256":  "4bb9ea033f4e93dbf42fc74e6faf94fe8b777a34836f7d537436cbe409fd743f",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:02.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0092",
+                        "parentItem":  "header.bmp",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "header.bmp",
+                        "targetRelativePath":  "header.bmp",
+                        "bytes":  9660,
+                        "sha256":  "255025a0d79ef2dac04bd610363f966ef58328400bf31e1f8915e676478cd750",
+                        "lastWriteTimeUtc":  "2019-06-26T22:16:52.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0093",
+                        "parentItem":  "netfx_core_x64.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_core_x64.msi",
+                        "targetRelativePath":  "netfx_core_x64.msi",
+                        "bytes":  1901056,
+                        "sha256":  "33032b7e5acb3d549c8d3d1ca67f03f9fe821b334db6aa2dc29f0d515c847634",
+                        "lastWriteTimeUtc":  "2021-03-10T04:16:40.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0094",
+                        "parentItem":  "netfx_core_x86.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_core_x86.msi",
+                        "targetRelativePath":  "netfx_core_x86.msi",
+                        "bytes":  1164288,
+                        "sha256":  "916de9e60438e46050ae86883403fb594ed38e79ad188e6729560205764acc0a",
+                        "lastWriteTimeUtc":  "2021-03-10T03:01:30.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0095",
+                        "parentItem":  "netfx_extended_x64.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_extended_x64.msi",
+                        "targetRelativePath":  "netfx_extended_x64.msi",
+                        "bytes":  872448,
+                        "sha256":  "7e0868b96ec8612aef984b2081fd350165329e2a43779f2e8d282338b00bad23",
+                        "lastWriteTimeUtc":  "2021-03-10T04:34:28.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0096",
+                        "parentItem":  "netfx_extended_x86.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_extended_x86.msi",
+                        "targetRelativePath":  "netfx_extended_x86.msi",
+                        "bytes":  496128,
+                        "sha256":  "f05add2cc3b76723e0f23d97c46990a47c84e0d105864f685a335d0fa4565df4",
+                        "lastWriteTimeUtc":  "2021-03-10T04:34:20.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0097",
+                        "parentItem":  "netfx_Full.mzz",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_Full.mzz",
+                        "targetRelativePath":  "netfx_Full.mzz",
+                        "bytes":  228093604,
+                        "sha256":  "edaa2735a9dca7ef7409f00e5ca6c5014557c972e63cacdb3e27befed28c0d5a",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:38.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0098",
+                        "parentItem":  "netfx_Full_x64.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_Full_x64.msi",
+                        "targetRelativePath":  "netfx_Full_x64.msi",
+                        "bytes":  1806336,
+                        "sha256":  "b65c7faaa8b4899c21931dcf780dd798591cc1d48e4c808720b91c9809d6a6da",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:42.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0099",
+                        "parentItem":  "netfx_Full_x86.msi",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_Full_x86.msi",
+                        "targetRelativePath":  "netfx_Full_x86.msi",
+                        "bytes":  1056768,
+                        "sha256":  "fac0d5f4a978a6e7ec8292d4c521a122f2043e5f412859813e820fcb18d428a3",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0100",
+                        "parentItem":  "netfx_Patch_x64.msp",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_Patch_x64.msp",
+                        "targetRelativePath":  "netfx_Patch_x64.msp",
+                        "bytes":  35827712,
+                        "sha256":  "6e72ea01f8b3fbd1c1623cb5f812460d63df44503ee3ef2ae593c04bc70875d5",
+                        "lastWriteTimeUtc":  "2021-03-25T18:27:04.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0101",
+                        "parentItem":  "netfx_Patch_x86.msp",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "netfx_Patch_x86.msp",
+                        "targetRelativePath":  "netfx_Patch_x86.msp",
+                        "bytes":  22233088,
+                        "sha256":  "f36561173845fb65e1078e9e53e9de8a06fa6c1836e8d3fad8389169d142366b",
+                        "lastWriteTimeUtc":  "2021-03-25T18:27:04.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0102",
+                        "parentItem":  "NetFx45",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx45/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx45/netfx_Full_x64.msi",
+                        "bytes":  1531904,
+                        "sha256":  "25c48722471ab2ca4947e160d9a955a30838f5584cdda4a0add550ead3c3aad1",
+                        "lastWriteTimeUtc":  "2021-03-10T03:38:26.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0103",
+                        "parentItem":  "NetFx45",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx45/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx45/netfx_Full_x86.msi",
+                        "bytes":  901120,
+                        "sha256":  "2964c9a13d1af9379846a5ebf4b603d06e83c2629e094620a93827191fc65543",
+                        "lastWriteTimeUtc":  "2021-03-10T04:46:56.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0104",
+                        "parentItem":  "NetFx451",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx451/netfx_Full_GDR_x64.msi",
+                        "targetRelativePath":  "NetFx451/netfx_Full_GDR_x64.msi",
+                        "bytes":  1548288,
+                        "sha256":  "1f4a09444e3ed01bba1165c4e39237ccaeb5b261d8ccda725888219041f65b76",
+                        "lastWriteTimeUtc":  "2021-03-10T03:51:28.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0105",
+                        "parentItem":  "NetFx451",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx451/netfx_Full_GDR_x86.msi",
+                        "targetRelativePath":  "NetFx451/netfx_Full_GDR_x86.msi",
+                        "bytes":  925696,
+                        "sha256":  "6e96d285fd9412b5754644cc12c4eeb662d509e0926eb2254f8b57ad3a2d73ca",
+                        "lastWriteTimeUtc":  "2021-03-10T03:01:40.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0106",
+                        "parentItem":  "NetFx451",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx451/netfx_Full_LDR_x64.msi",
+                        "targetRelativePath":  "NetFx451/netfx_Full_LDR_x64.msi",
+                        "bytes":  1552384,
+                        "sha256":  "2a68a22561e61201a1cb51d52430ea5b82f81c77fd979a20957b3a1ea8c5beb6",
+                        "lastWriteTimeUtc":  "2021-03-10T04:46:56.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0107",
+                        "parentItem":  "NetFx451",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx451/netfx_Full_LDR_x86.msi",
+                        "targetRelativePath":  "NetFx451/netfx_Full_LDR_x86.msi",
+                        "bytes":  929792,
+                        "sha256":  "489b12aaed6b6a54d519988786f76db0fc0a8ddc0aea4b8413aac2f7e37e0f38",
+                        "lastWriteTimeUtc":  "2021-03-10T03:26:12.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0108",
+                        "parentItem":  "NetFx452",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx452/netfx_Full_GDR_x64.msi",
+                        "targetRelativePath":  "NetFx452/netfx_Full_GDR_x64.msi",
+                        "bytes":  1576960,
+                        "sha256":  "f600356bf0afe3df91f32d4d9315efc24d50244fcb138b24273e6ba29b915d70",
+                        "lastWriteTimeUtc":  "2021-03-10T03:25:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0109",
+                        "parentItem":  "NetFx452",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx452/netfx_Full_GDR_x86.msi",
+                        "targetRelativePath":  "NetFx452/netfx_Full_GDR_x86.msi",
+                        "bytes":  937984,
+                        "sha256":  "d49a6f1e90b16a2631d6d6aa64f4a0ae89322956589ae25d17eaf651c6651f04",
+                        "lastWriteTimeUtc":  "2021-03-10T04:46:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0110",
+                        "parentItem":  "NetFx452",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx452/netfx_Full_LDR_x64.msi",
+                        "targetRelativePath":  "NetFx452/netfx_Full_LDR_x64.msi",
+                        "bytes":  1581056,
+                        "sha256":  "868b2b8c209337eacf2f80efc4e5cc1a118c152f8d5c1d130018ca172cd888b9",
+                        "lastWriteTimeUtc":  "2021-03-10T04:05:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0111",
+                        "parentItem":  "NetFx452",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx452/netfx_Full_LDR_x86.msi",
+                        "targetRelativePath":  "NetFx452/netfx_Full_LDR_x86.msi",
+                        "bytes":  942080,
+                        "sha256":  "e73c2160cf7af9b36aa8bd960c23ba928591d1b4231b1009deb147fa77c8cfd2",
+                        "lastWriteTimeUtc":  "2021-03-10T03:26:18.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0112",
+                        "parentItem":  "NetFx46",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx46/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx46/netfx_Full_x64.msi",
+                        "bytes":  1585152,
+                        "sha256":  "043e729465460f8cbd4a685fdba38f174b16be74865610acc321f7caeee3a6bc",
+                        "lastWriteTimeUtc":  "2021-03-10T03:54:12.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0113",
+                        "parentItem":  "NetFx46",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx46/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx46/netfx_Full_x86.msi",
+                        "bytes":  942080,
+                        "sha256":  "db4925a2e2e04a4817b52739e1e11a5fd3e7a492eea05577ac9fcd9622623c6c",
+                        "lastWriteTimeUtc":  "2021-03-10T03:54:18.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0114",
+                        "parentItem":  "NetFx461",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx461/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx461/netfx_Full_x64.msi",
+                        "bytes":  1593344,
+                        "sha256":  "b2d7b47ec4bbae58c892e27e3326ea90d3b3e854c3480c1d6601c5d38f4dc19c",
+                        "lastWriteTimeUtc":  "2021-03-10T04:05:18.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0115",
+                        "parentItem":  "NetFx461",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx461/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx461/netfx_Full_x86.msi",
+                        "bytes":  942080,
+                        "sha256":  "48d3cb4a27725a2d528224cf7c56580fabe9ec66af1ee9a93ccbd6ef304721fe",
+                        "lastWriteTimeUtc":  "2021-03-10T03:26:06.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0116",
+                        "parentItem":  "NetFx462",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx462/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx462/netfx_Full_x64.msi",
+                        "bytes":  1609728,
+                        "sha256":  "fb455b4a602fda73e9541ff3eedeb813a7b40b624e3a535fc9398c31a385a3f8",
+                        "lastWriteTimeUtc":  "2021-03-25T18:27:00.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0117",
+                        "parentItem":  "NetFx462",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx462/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx462/netfx_Full_x86.msi",
+                        "bytes":  950272,
+                        "sha256":  "8689c9f8eaee6579cece7542182ff75c7532907fd44ecac9be5f914ea2880b51",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:58.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0118",
+                        "parentItem":  "NetFx47",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx47/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx47/netfx_Full_x64.msi",
+                        "bytes":  1609728,
+                        "sha256":  "48c7db64907b4269bee6b5b561598959e03c53508252582e3fcd2b87cc617106",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:58.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0119",
+                        "parentItem":  "NetFx47",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx47/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx47/netfx_Full_x86.msi",
+                        "bytes":  950272,
+                        "sha256":  "e37e6e48cc1b020b699f32fdada8a83605327d11365a93ae0b9915b4c43c35bd",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:44.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0120",
+                        "parentItem":  "NetFx471",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx471/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx471/netfx_Full_x64.msi",
+                        "bytes":  1753088,
+                        "sha256":  "9f9e4db853b1d882a633078e56ec24360987c854da491666d0aa88b7f422fc01",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:46.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0121",
+                        "parentItem":  "NetFx471",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx471/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx471/netfx_Full_x86.msi",
+                        "bytes":  1040384,
+                        "sha256":  "ab3bcbd0feae6b9c3f7c030719dd9df14cb740e939c62cb8514db10b79295de1",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:54.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0122",
+                        "parentItem":  "NetFx472",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx472/netfx_Full_x64.msi",
+                        "targetRelativePath":  "NetFx472/netfx_Full_x64.msi",
+                        "bytes":  1753088,
+                        "sha256":  "54f851b11e64784a2ba09acf87e4b3be3420fdf8994e3bd3747499e8b4c77004",
+                        "lastWriteTimeUtc":  "2021-03-25T18:26:54.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0123",
+                        "parentItem":  "NetFx472",
+                        "assetClass":  "dotnet-runtime-directory",
+                        "originalRelativePath":  "NetFx472/netfx_Full_x86.msi",
+                        "targetRelativePath":  "NetFx472/netfx_Full_x86.msi",
+                        "bytes":  1040384,
+                        "sha256":  "ba269e7e90963414358af1a202e4127f9a88cdc4aa4b0363ed0cc049554c7424",
+                        "lastWriteTimeUtc":  "2021-03-25T18:27:00.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0124",
+                        "parentItem":  "ParameterInfo.xml",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "ParameterInfo.xml",
+                        "targetRelativePath":  "ParameterInfo.xml",
+                        "bytes":  2785936,
+                        "sha256":  "3dbf5ef577ea2d96461dcfd31d5be2f3066519a154a5000691e9596ff438d3e7",
+                        "lastWriteTimeUtc":  "2019-12-14T05:11:00.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0125",
+                        "parentItem":  "Setup.exe",
+                        "assetClass":  "installer-binary-file",
+                        "originalRelativePath":  "Setup.exe",
+                        "targetRelativePath":  "Setup.exe",
+                        "bytes":  123856,
+                        "sha256":  "12576b01fe787d4621670f78885b3b2b06f249c8af3f1665ed471a8227dd45e0",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0126",
+                        "parentItem":  "SetupEngine.dll",
+                        "assetClass":  "installer-binary-file",
+                        "originalRelativePath":  "SetupEngine.dll",
+                        "targetRelativePath":  "SetupEngine.dll",
+                        "bytes":  916008,
+                        "sha256":  "818101fc9bdc9acfd169bc492ebed3167ed3e3c6882d4dde81f8141728e68e39",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:50.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0127",
+                        "parentItem":  "SetupUi.dll",
+                        "assetClass":  "installer-binary-file",
+                        "originalRelativePath":  "SetupUi.dll",
+                        "targetRelativePath":  "SetupUi.dll",
+                        "bytes":  345632,
+                        "sha256":  "b0324ceb6d3477fefe783d036b60c5b61a3ef9e7d72931befa9aa6e8cbf3db02",
+                        "lastWriteTimeUtc":  "2024-07-08T11:40:48.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0128",
+                        "parentItem":  "SetupUi.xsd",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "SetupUi.xsd",
+                        "targetRelativePath":  "SetupUi.xsd",
+                        "bytes":  32572,
+                        "sha256":  "aaf8cb1a9af89d250cbc0893a172e2c406043b1f81a211cb93604f165b051848",
+                        "lastWriteTimeUtc":  "2019-11-08T23:42:56.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0129",
+                        "parentItem":  "SetupUtility.exe",
+                        "assetClass":  "installer-binary-file",
+                        "originalRelativePath":  "SetupUtility.exe",
+                        "targetRelativePath":  "SetupUtility.exe",
+                        "bytes":  304608,
+                        "sha256":  "cd813b295fe7f09ae6f5b334fe4ab6e9019face4e19c9eb471732fbfe858dacd",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:54.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0130",
+                        "parentItem":  "SplashScreen.bmp",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "SplashScreen.bmp",
+                        "targetRelativePath":  "SplashScreen.bmp",
+                        "bytes":  120056,
+                        "sha256":  "b05141dbc71669a7872a8e735e5e43a7f9713d4363b7a97543e1e05dcd7470a7",
+                        "lastWriteTimeUtc":  "2019-06-26T22:24:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0131",
+                        "parentItem":  "sqmapi.dll",
+                        "assetClass":  "installer-binary-file",
+                        "originalRelativePath":  "sqmapi.dll",
+                        "targetRelativePath":  "sqmapi.dll",
+                        "bytes":  228752,
+                        "sha256":  "048d51885874d62952e150d69489bcfb643a5131ce8b70a49f10dfb34832702c",
+                        "lastWriteTimeUtc":  "2021-04-26T18:32:04.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0132",
+                        "parentItem":  "Strings.xml",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "Strings.xml",
+                        "targetRelativePath":  "Strings.xml",
+                        "bytes":  14084,
+                        "sha256":  "2a7a44fb25476886617a1ec294a20a37552fd0824907f5284fade3e496ed609b",
+                        "lastWriteTimeUtc":  "2019-06-26T22:24:22.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0133",
+                        "parentItem":  "UiInfo.xml",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "UiInfo.xml",
+                        "targetRelativePath":  "UiInfo.xml",
+                        "bytes":  65404,
+                        "sha256":  "b879f9bc5b79349fa7b0bdbe63167be399c5278454c96773885bd70fbfe7c81d",
+                        "lastWriteTimeUtc":  "2019-11-21T03:10:14.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0134",
+                        "parentItem":  "watermark.bmp",
+                        "assetClass":  "installer-support-file",
+                        "originalRelativePath":  "watermark.bmp",
+                        "targetRelativePath":  "watermark.bmp",
+                        "bytes":  104072,
+                        "sha256":  "ab18374b3aab10e5979e080d0410579f9771db888ba1b80a5d81ba8896e2d33a",
+                        "lastWriteTimeUtc":  "2019-06-26T22:16:52.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0135",
+                        "parentItem":  "Windows10.0-KB4486129-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows10.0-KB4486129-x86.cab",
+                        "targetRelativePath":  "Windows10.0-KB4486129-x86.cab",
+                        "bytes":  177434945,
+                        "sha256":  "b36e371c66959f6965fe0271e6ef469425cdac715e3d41869e8fa6781717f2f0",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:14.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0136",
+                        "parentItem":  "Windows10.0-KB4486153-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows10.0-KB4486153-x86.cab",
+                        "targetRelativePath":  "Windows10.0-KB4486153-x86.cab",
+                        "bytes":  177520226,
+                        "sha256":  "9fa15969db8a9c35405e155103b41e42ef5d48aeb1bd1dfa08d254198ae1a462",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:28.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0137",
+                        "parentItem":  "Windows6.1-KB4019990-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows6.1-KB4019990-x64.cab",
+                        "targetRelativePath":  "Windows6.1-KB4019990-x64.cab",
+                        "bytes":  2692317,
+                        "sha256":  "8037fabdccfeaac88987581abcd28fbe4b77b4fcc7d0bd2fc28c99c44143411c",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:38.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0138",
+                        "parentItem":  "Windows6.1-KB4019990-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows6.1-KB4019990-x86.cab",
+                        "targetRelativePath":  "Windows6.1-KB4019990-x86.cab",
+                        "bytes":  1244492,
+                        "sha256":  "d4f8b91b209103d3d1151593d19a5edcb8463581c68876b9ec10336206c579fa",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:40.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0139",
+                        "parentItem":  "Windows8.1-KB4486105-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows8.1-KB4486105-x86.cab",
+                        "targetRelativePath":  "Windows8.1-KB4486105-x86.cab",
+                        "bytes":  177332323,
+                        "sha256":  "9b5db5e2ae2f39277568c785bbea48e903053f77ad80138d6f4bf3862f395fcc",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:52.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0140",
+                        "parentItem":  "Windows8-RT-KB4019990-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows8-RT-KB4019990-x64.cab",
+                        "targetRelativePath":  "Windows8-RT-KB4019990-x64.cab",
+                        "bytes":  2698921,
+                        "sha256":  "8ab449ebc16841c3047a848774dc964a63746f1a77727cca639892af0042a2e3",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:36.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0141",
+                        "parentItem":  "Windows8-RT-KB4019990-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows8-RT-KB4019990-x86.cab",
+                        "targetRelativePath":  "Windows8-RT-KB4019990-x86.cab",
+                        "bytes":  1246722,
+                        "sha256":  "ccc12250d9d5d012cb37ddd1c653d488a789a91432326b3668790756ae07f26a",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:54.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0142",
+                        "parentItem":  "Windows8-RT-KB4486081-x86.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "Windows8-RT-KB4486081-x86.cab",
+                        "targetRelativePath":  "Windows8-RT-KB4486081-x86.cab",
+                        "bytes":  177279227,
+                        "sha256":  "65d19430bd32cbfefa4ad703985428f5d0c7c99213f19d17b1375573f1fbd4fe",
+                        "lastWriteTimeUtc":  "2024-07-08T11:47:54.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0143",
+                        "parentItem":  "x64-Windows10.0-KB4486129-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "x64-Windows10.0-KB4486129-x64.cab",
+                        "targetRelativePath":  "x64-Windows10.0-KB4486129-x64.cab",
+                        "bytes":  444426583,
+                        "sha256":  "96ed28b4f7b7d5ab082257e6f499bba41a506806049ceb1d625c01ae00211ade",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:38.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0144",
+                        "parentItem":  "x64-Windows10.0-KB4486153-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "x64-Windows10.0-KB4486153-x64.cab",
+                        "targetRelativePath":  "x64-Windows10.0-KB4486153-x64.cab",
+                        "bytes":  345928167,
+                        "sha256":  "dadda2bc2f975cde7d7459c68b721b52e09f0517697ccafd3f5a599ccbf4f768",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:20.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0145",
+                        "parentItem":  "x64-Windows8.1-KB4486105-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "x64-Windows8.1-KB4486105-x64.cab",
+                        "targetRelativePath":  "x64-Windows8.1-KB4486105-x64.cab",
+                        "bytes":  345606686,
+                        "sha256":  "8b57f8fdbdb588c699cf4259d453519b66ac91509022bfb478df29fd28c9173b",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:28.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    },
+                    {
+                        "id":  "asset-0146",
+                        "parentItem":  "x64-Windows8-RT-KB4486081-x64.cab",
+                        "assetClass":  "installer-payload-file",
+                        "originalRelativePath":  "x64-Windows8-RT-KB4486081-x64.cab",
+                        "targetRelativePath":  "x64-Windows8-RT-KB4486081-x64.cab",
+                        "bytes":  346647543,
+                        "sha256":  "f0a8847c8dafc8d77ed9ad7511477e3d187f6b25136835030a2c7c4aae64e1ff",
+                        "lastWriteTimeUtc":  "2024-07-08T11:48:08.0000000Z",
+                        "purpose":  "Legacy installer/runtime payload externalized from the source boundary.",
+                        "dependencyReferences":  [
+
+                                                 ],
+                        "dependencyScan":  "DEV-IND-002 rg scan on 2026-05-28 found no product-code references to the externalized root asset paths."
+                    }
+                ]
+}

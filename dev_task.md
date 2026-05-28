@@ -127,7 +127,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 ## Task Overview
 
 - [x] DEV-IND-001: Establish repo baseline and current-state inventory
-- [ ] DEV-IND-002: Create external large-asset manifest and relocation rules
+- [x] DEV-IND-002: Create external large-asset manifest and relocation rules
 - [ ] DEV-IND-003: Clean generated/dependency output boundaries
 - [ ] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
 - [ ] DEV-IND-005: Add AI/API cost gates and usage logging
@@ -170,25 +170,26 @@ Create a recoverable baseline and authoritative current-state inventory before a
 
 ## DEV-IND-002: Create external large-asset manifest and relocation rules
 
-Status: [ ]
+Status: [x]
 
 ### Goal
 Move CAB/MSI/MSP/MZZ/DLL/language runtime assets out of the source boundary while keeping checksum traceability.
 
 ### RD Tasks
-- [ ] Define `docs/assets/manifest.json` schema.
-- [ ] Compute SHA256, original path, target path, purpose, and dependency references for each large asset.
-- [ ] Plan external target root as `C:\VIBE CODING\AI_PDM_external_assets\`.
+- [x] Define `docs/assets/external-assets-manifest.json` schema.
+- [x] Compute SHA256, original path, target path, purpose, and dependency references for each large asset.
+- [x] Plan and apply external target root as `C:\VIBE CODING\AI_PDM_external_assets\`.
 
 ### QA Validation Plan
-- [ ] Scope: verify traceability, checksum stability, and dependency-safe relocation.
-- [ ] Check every moved asset has manifest metadata and SHA256.
-- [ ] Pass criteria: manifest verifier proves hashes match before/after relocation.
+- [x] Scope: verify traceability, checksum stability, and dependency-safe relocation.
+- [x] Check every moved asset has manifest metadata and SHA256.
+- [x] Pass criteria: manifest verifier proves hashes match after relocation and source copies no longer remain in the workspace.
 
 ### QC Fact Report
-- [ ] Evidence command: manifest verifier.
-- [ ] Evidence command: dependency scan for moved paths.
-- [ ] Result:
+- [x] Evidence command: `npm.cmd run assets:verify -- --manifest docs/assets/external-assets-manifest.json` passed with `146 ok`, `0` missing, `0` hash mismatches, and `0` original files remaining in the workspace.
+- [x] Evidence command: dependency scan for moved paths returned no matches in product source/config/script paths.
+- [x] Evidence artifact: `docs/assets/external-assets-verification-2026-05-28.md`.
+- [x] Result: PASS. Moved 69 top-level installer/runtime asset items containing 146 files and 2,532,241,225 bytes to `C:\VIBE CODING\AI_PDM_external_assets\`.
 
 ## DEV-IND-003: Clean generated/dependency output boundaries
 
