@@ -126,7 +126,7 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 
 ## Task Overview
 
-- [ ] DEV-IND-001: Establish repo baseline and current-state inventory
+- [x] DEV-IND-001: Establish repo baseline and current-state inventory
 - [ ] DEV-IND-002: Create external large-asset manifest and relocation rules
 - [ ] DEV-IND-003: Clean generated/dependency output boundaries
 - [ ] DEV-IND-004: Split `data/` runtime, fixture, and evidence management policy
@@ -141,32 +141,32 @@ Status legend: `[ ]` todo, `[/]` in progress, `[x]` done, `[!]` blocked or defer
 
 ## DEV-IND-001: Establish repo baseline and current-state inventory
 
-Status: [/]
+Status: [x]
 
 ### Goal
 Create a recoverable baseline and authoritative current-state inventory before any large move, delete, or refactor.
 
 ### RD Tasks
-- [ ] Confirm the real Git repo root; if no Git repo exists, initialize one without committing generated output or large external installer media.
-- [ ] Generate current-state inventory for root items, file counts, file sizes, file extensions, and top-level ownership.
-- [ ] Scan package scripts, README, env examples, csproj files, Cloud Function config, and scripts for path dependencies.
-- [ ] Save the inventory as a reviewable artifact under `docs/industrialization/`.
+- [x] Confirm the real Git repo root; if no Git repo exists, initialize one without committing generated output or large external installer media.
+- [x] Generate current-state inventory for root items, file counts, file sizes, file extensions, and top-level ownership.
+- [x] Scan package scripts, README, env examples, csproj files, Cloud Function config, and scripts for path dependencies.
+- [x] Save the inventory as a reviewable artifact under `docs/industrialization/`.
 
 ### QA Validation Plan
-- [ ] Scope: verify baseline creation, inventory coverage, and no product behavior changes.
-- [ ] Check no runtime data, dependency output, or large external installer media is accidentally staged for source control.
-- [ ] Check inventory includes root item summary, extension summary, top-level directory size summary, and dependency references.
-- [ ] Pass criteria: inventory exists, Git status is inspectable, and `npm.cmd run lint` passes.
+- [x] Scope: verify baseline creation, inventory coverage, and no product behavior changes.
+- [x] Check no runtime data, dependency output, or large external installer media is accidentally staged for source control.
+- [x] Check inventory includes root item summary, extension summary, top-level directory size summary, and dependency references.
+- [x] Pass criteria: inventory exists, Git status is inspectable, and `npm.cmd run lint` passes.
 
 ### QC Fact Report
-- [ ] Evidence command: `git status --short`.
-- [ ] Evidence command: inventory file path and contents spot check.
-- [ ] Evidence command: `npm.cmd run lint`.
-- [ ] Result:
+- [x] Evidence command: `git status --short --ignored` showed only ignored external/generated/runtime paths after baseline commit.
+- [x] Evidence command: inventory spot check confirmed root item summary, extension summary, top-level directory size summary, and dependency scan sections in `docs/industrialization/current-state-inventory-2026-05-28.md`.
+- [x] Evidence command: `npm.cmd run lint` passed.
+- [x] Result: PASS. Baseline commit `40a79cc` created without staging large external installer media, runtime data, dependency directories, or generated outputs.
 
 ### Risks / Notes
-- [ ] The current workspace was not a Git repository at task start.
-- [ ] Root contains large installer/runtime files that must not be blindly committed as source.
+- [x] The current workspace was not a Git repository at task start.
+- [x] Root contains large installer/runtime files that must not be blindly committed as source.
 
 ## DEV-IND-002: Create external large-asset manifest and relocation rules
 
