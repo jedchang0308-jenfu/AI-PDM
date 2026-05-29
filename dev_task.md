@@ -130,6 +130,7 @@
 - 2026-05-29：恢復後第二輪 QC blocker audit 完成，阻塞條件未變；尚未達三輪 blocked audit 門檻，goal 保持 active。
 - 2026-05-29：恢復後第三輪 QC blocker audit 完成，阻塞條件第三次重現；已達 blocked audit 門檻，需外部證據或 disposable Supabase target 才能繼續。
 - 2026-05-29：goal 重新啟動後第一輪 QC blocker audit 完成，外部 evidence 仍未解除；Supabase connector 目前回報 `token_expired`，尚無法確認 disposable target。
+- 2026-05-29：goal 重新啟動後第二輪 QC blocker audit 完成，外部 evidence 與 Supabase connector 狀態未變；goal 保持 active。
 
 ---
 
