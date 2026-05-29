@@ -42,3 +42,30 @@
 ## Result
 
 BLOCKED FOR EXTERNAL INPUTS. This is the first resumed audit after the goal was reactivated, so the goal remains active. No task was marked complete because the remaining work still requires licensed Document Manager/native CAD evidence, a real SolidWorks workstation, an independent restore-drill machine, field-test closure, or a disposable AI_PDM Supabase shadow target.
+
+## Second Resumed Audit
+
+Checked at 2026-05-29 08:42-08:43 Asia/Taipei.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 37 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers are unchanged: `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- Supabase read-only inspection
+  - Current projects remain `ProJED` and `ProJED_TEST`.
+  - `ProJED` and `ProJED_TEST` still have ProJED/WBS/RAG public schemas, not the generated AI_PDM 24-table shadow schema.
+  - `_list_branches` still returned the MCP error `Project reference is missing when validating permissions`; no usable disposable branch was available.
+  - No project, branch, migration, DDL, or data import was created or executed.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on the same evidence gates:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the second resumed audit after reactivation, so the goal remains active under the three-turn blocked-audit rule. No task was marked complete.
