@@ -128,6 +128,7 @@
 - 2026-05-28：本輪唯讀複查 Supabase 專案，`ProJED` 與 `ProJED_TEST` 皆為既有非 AI_PDM schema，仍不得作為 `DEV-IND-007` disposable shadow target。
 - 2026-05-29：恢復後第一輪 QC blocker audit 完成，5 個未完成任務仍全數需要外部證據或 disposable Supabase target；證據見 `docs/reports/qc/resumed-blocker-audit-2026-05-29.md`。
 - 2026-05-29：恢復後第二輪 QC blocker audit 完成，阻塞條件未變；尚未達三輪 blocked audit 門檻，goal 保持 active。
+- 2026-05-29：恢復後第三輪 QC blocker audit 完成，阻塞條件第三次重現；已達 blocked audit 門檻，需外部證據或 disposable Supabase target 才能繼續。
 
 ---
 
