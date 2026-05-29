@@ -126,6 +126,7 @@
 - 2026-05-28：補強 production readiness 解析 Industrialization Task Overview，避免漏報 `DEV-IND-007` Supabase live gate blocker。
 - 2026-05-28：新增 `qc:dev-task-completion-audit`，確認未完成任務只剩已交接的外部 blocker。
 - 2026-05-28：本輪唯讀複查 Supabase 專案，`ProJED` 與 `ProJED_TEST` 皆為既有非 AI_PDM schema，仍不得作為 `DEV-IND-007` disposable shadow target。
+- 2026-05-29：恢復後第一輪 QC blocker audit 完成，5 個未完成任務仍全數需要外部證據或 disposable Supabase target；證據見 `docs/reports/qc/resumed-blocker-audit-2026-05-29.md`。
 
 ---
 
