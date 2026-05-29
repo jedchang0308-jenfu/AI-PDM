@@ -148,3 +148,29 @@ Checked at 2026-05-29 09:54 Asia/Taipei.
   - No project, branch, migration, DDL, or data import was created or executed.
 
 Result: BLOCKED FOR EXTERNAL INPUTS. This is the second resumed audit after the goal was reactivated from the prior blocked state, so the goal remains active under the three-turn blocked-audit rule.
+
+## Post-Block Resume Audit 3
+
+Checked at 2026-05-29 09:57 Asia/Taipei.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 37 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers remain `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+- Supabase connector inspection
+  - `_list_projects`, `_list_tables`, and `_list_branches` still failed with `token_expired`.
+  - No current disposable AI_PDM Supabase project or branch could be confirmed.
+  - No project, branch, migration, DDL, or data import was created or executed.
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the third consecutive resumed audit after the goal was reactivated from the prior blocked state. The same external blocking condition has repeated for three consecutive resumed goal turns, no local or unclassified task remains, and no meaningful progress is possible without external evidence, Supabase connector re-authentication, or explicit disposable target approval.
