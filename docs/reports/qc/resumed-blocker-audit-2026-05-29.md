@@ -96,3 +96,29 @@ Checked at 2026-05-29 08:45-08:46 Asia/Taipei.
     - `DM-EVIDENCE-001`: `ready=false issues=27`
 
 Result: BLOCKED FOR EXTERNAL INPUTS. This is the third resumed audit after reactivation. The same external blocking condition has repeated for three consecutive resumed goal turns, no local or unclassified task remains, and no meaningful progress is possible without external inputs or explicit cost/target approval.
+
+## Post-Block Resume Audit 1
+
+Checked at 2026-05-29 09:50-09:51 Asia/Taipei.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 37 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers remain `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+- Supabase connector inspection
+  - `_list_projects`, `_list_tables`, and `_list_branches` all failed with `token_expired`.
+  - No current disposable AI_PDM Supabase project or branch could be confirmed.
+  - No project, branch, migration, DDL, or data import was created or executed.
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the first resumed audit after the goal was reactivated from the prior blocked state. The goal remains active under the three-turn blocked-audit rule.
