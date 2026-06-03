@@ -3,7 +3,9 @@ import { type SqliteDatabase } from "@/lib/db-provider";
 import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 
-type UserRole = "Engineer" | "R&D Manager" | "Admin";
+type UserRole = "Engineer" | "R&D Manager" | "Admin" | "Manufacturing" | "Procurement";
+
+const validUserRoles: UserRole[] = ["Engineer", "R&D Manager", "Admin", "Manufacturing", "Procurement"];
 
 const DEMO_PASSWORD = "pdm-demo";
 
@@ -42,7 +44,7 @@ function parseBootstrapUsers(): Array<{
     const password = String(value.password ?? "");
     const role = String(value.role ?? "") as UserRole;
 
-    if (!displayName || !email || !password || !["Engineer", "R&D Manager", "Admin"].includes(role)) {
+    if (!displayName || !email || !password || !validUserRoles.includes(role)) {
       throw new Error(`INVALID_BOOTSTRAP_USERS: entry ${index} requires displayName, email, password, and valid role`);
     }
 
@@ -94,6 +96,24 @@ export function seedConfiguredUsers(database: SqliteDatabase) {
       now,
       database
     });
+    upsertUser({
+      id: "user-manufacturing-demo",
+      displayName: "Demo Manufacturing",
+      email: "manufacturing@example.com",
+      passwordHash: demoHash,
+      role: "Manufacturing",
+      now,
+      database
+    });
+    upsertUser({
+      id: "user-procurement-demo",
+      displayName: "Demo Procurement",
+      email: "procurement@example.com",
+      passwordHash: demoHash,
+      role: "Procurement",
+      now,
+      database
+    });
   }
 
   for (const user of parseBootstrapUsers()) {
@@ -113,7 +133,7 @@ export type DbUser = {
   id: string;
   display_name: string;
   email: string | null;
-  role: "Engineer" | "R&D Manager" | "Admin";
+  role: UserRole;
 };
 
 export type DbUserWithPassword = DbUser & { password_hash: string | null };

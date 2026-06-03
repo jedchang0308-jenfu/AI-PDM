@@ -5,8 +5,8 @@ import path from "node:path";
 import { createBlankReport, validateReport } from "./document-manager-report-utils.mjs";
 
 const root = process.cwd();
-const probePath = path.join(root, "data", "document-manager-probes", "qc-contract", "probe.json");
-const badProbeDir = path.join(root, "data", "document-manager-probes", "qc-bad");
+const probePath = path.join(root, ".tmp", "document-manager-probes", "qc-contract", "probe.json");
+const badProbeDir = path.join(root, ".tmp", "document-manager-probes", "qc-bad");
 const badProbePath = path.join(badProbeDir, "probe.json");
 const results = [];
 
@@ -31,7 +31,7 @@ function completedReport(extractorProbePath) {
     referenceExtractorArgs: "[]",
     extractorProbePath,
     backendUrl: "http://127.0.0.1:3000",
-    sampleFilesPath: "data/qc-fixtures/document-manager-extractor-probe"
+    sampleFilesPath: ".tmp/qc-fixtures/document-manager-extractor-probe"
   };
   report.summary = {
     finalResult: "pass",
@@ -43,7 +43,7 @@ function completedReport(extractorProbePath) {
     ...testCase,
     result: "pass",
     evidence: "QC fixture evidence.",
-    sampleFile: "data/qc-fixtures/document-manager-extractor-probe",
+    sampleFile: ".tmp/qc-fixtures/document-manager-extractor-probe",
     backendSubmissionId: "QC"
   }));
   return report;
@@ -53,7 +53,7 @@ record("DMPATH-001 ready probe fixture exists", fs.existsSync(probePath), probeP
 const valid = validateReport(completedReport(path.relative(root, probePath).replaceAll(path.sep, "/")));
 record("DMPATH-002 valid ready probe path allows completed report", valid.ready, JSON.stringify(valid.issues));
 
-const missing = validateReport(completedReport("data/document-manager-probes/missing/probe.json"));
+const missing = validateReport(completedReport(".tmp/document-manager-probes/missing/probe.json"));
 record("DMPATH-003 missing probe path is blocked", missing.issues.some((issue) => issue.type === "probe_not_found"), JSON.stringify(missing.issues));
 
 fs.mkdirSync(badProbeDir, { recursive: true });

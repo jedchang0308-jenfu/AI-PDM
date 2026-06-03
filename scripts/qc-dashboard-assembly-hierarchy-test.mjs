@@ -189,13 +189,17 @@ async function run() {
     await page.locator(".primary-search input").fill(parent.drawingNumber);
     await page.locator("tr", { hasText: parent.drawingNumber }).first().waitFor({ timeout: 15000 });
     await page.locator("tr", { hasText: parent.drawingNumber }).first().click();
+    await page.locator(".engineering-context > summary").click();
+    await page.locator(".engineering-context .bom-list").waitFor({ timeout: 15000 });
     await page.getByText(oldPartNumber).first().waitFor({ timeout: 15000 });
     record("ASM-006 Dashboard shows old child part", await page.getByText(oldPartNumber).count().then((count) => count > 0));
     record("ASM-007 Dashboard marks missing child", await page.getByText("缺件").count().then((count) => count > 0));
     record("ASM-008 Dashboard marks outdated child", await page.getByText("舊版；最新版 B").count().then((count) => count > 0));
     await page.locator(".bom-child-link", { hasText: oldPartNumber }).click();
-    await page.getByText(oldChildA.submissionId).first().waitFor({ timeout: 15000 });
-    record("ASM-009 clicking child opens child detail", await page.getByText(oldChildA.submissionId).count().then((count) => count > 0));
+    const childDetailTitle = page.locator(".detail-title-stack", { hasText: oldChildA.drawingNumber });
+    await childDetailTitle.waitFor({ timeout: 15000 });
+    const childTitleText = (await childDetailTitle.textContent()) ?? "";
+    record("ASM-009 clicking child opens child detail by business identity", childTitleText.includes("A"), childTitleText);
     await context.close();
   } finally {
     await browser.close();

@@ -8,7 +8,7 @@
  * Options:
  *   --email     (required) User email address
  *   --name      (required) Display name
- *   --role      (required) One of: Engineer, "R&D Manager", Admin
+ *   --role      (required) One of: Engineer, "R&D Manager", Admin, Manufacturing, Procurement
  *   --password  (required) Plaintext password (will be hashed with scrypt)
  */
 
@@ -24,7 +24,7 @@ const dataDir = getDataDir(root);
 const dbPath = path.join(dataDir, "ai-pdm.sqlite");
 const schemaPath = path.join(root, "db", "schema.sql");
 
-const VALID_ROLES = ["Engineer", "R&D Manager", "Admin"];
+const VALID_ROLES = ["Engineer", "R&D Manager", "Admin", "Manufacturing", "Procurement"];
 
 // ─── Parse arguments ────────────────────────────────────────────────────
 const { values } = parseArgs({

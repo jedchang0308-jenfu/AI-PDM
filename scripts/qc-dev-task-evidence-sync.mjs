@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const fixtureRoot = path.join(root, "data", "qc-fixtures", "dev-task-evidence-sync");
+const fixtureRoot = path.join(root, ".tmp", "qc-fixtures", `dev-task-evidence-sync-${process.pid}`);
 const fixtureTaskPath = path.join(fixtureRoot, "PDM_dev_task.fixture.md");
 const outputTaskPath = path.join(fixtureRoot, "PDM_dev_task.synced.md");
 const evidenceBlockedPath = path.join(fixtureRoot, "evidence-blocked.json");
@@ -15,10 +15,14 @@ const syncScript = path.join(root, "scripts", "qa-sync-dev-task-evidence.mjs");
 const fixtureMarkdown = [
   "# Fixture",
   "",
+  "| [!] | DEV-CAD-001 | SolidWorks Document Manager 或等效讀取元件 | fixture | fixture |",
+  "| [!] | DEV-IND-007 | SQLite 到 Postgres / Supabase shadow migration | fixture | fixture |",
   "- [/] `P0` SolidWorks Add-in 實機驗證：fixture",
   "- [/] `P0` 離線單向備份與還原：fixture",
   "- [ ] `P0` SolidWorks Document Manager API 或等效授權元件：fixture",
   "- [ ] `P1` 正式現場測試：fixture",
+  "- [ ] 取得 disposable Supabase / Postgres shadow target。",
+  "- [ ] `npm.cmd run qc:postgres-shadow` 在 disposable target 通過。",
   "- [ ] `P0` 整合 SolidWorks Document Manager API 或等效讀取元件。",
   "- [ ] `P0` 確認 SolidWorks Document Manager 授權與可部署方式。",
   ""
@@ -54,12 +58,14 @@ fs.writeFileSync(fixtureTaskPath, fixtureMarkdown, "utf8");
 fs.writeFileSync(evidenceBlockedPath, `${JSON.stringify({
   solidWorksReady: false,
   restoreReady: false,
-  documentManagerReady: false
+  documentManagerReady: false,
+  supabaseShadowReady: false
 }, null, 2)}\n`, "utf8");
 fs.writeFileSync(evidenceReadyPath, `${JSON.stringify({
   solidWorksReady: true,
   restoreReady: true,
-  documentManagerReady: true
+  documentManagerReady: true,
+  supabaseShadowReady: true
 }, null, 2)}\n`, "utf8");
 if (fs.existsSync(outputTaskPath)) fs.rmSync(outputTaskPath);
 
@@ -68,7 +74,7 @@ const results = [];
 const dryRunBlocked = runSync(["--task-file", fixtureTaskPath, "--evidence-fixture", evidenceBlockedPath]);
 record(results, "QASYNC-001 blocked fixture exits 0", dryRunBlocked.status === 0, dryRunBlocked.stderr);
 record(results, "QASYNC-002 blocked fixture has no eligible changes", dryRunBlocked.parsed?.changes?.length === 0, JSON.stringify(dryRunBlocked.parsed?.changes ?? null));
-record(results, "QASYNC-003 blocked fixture reports six blocked target tasks", dryRunBlocked.parsed?.blocked?.length === 6, JSON.stringify(dryRunBlocked.parsed?.blocked ?? null));
+record(results, "QASYNC-003 blocked fixture reports ten blocked target tasks", dryRunBlocked.parsed?.blocked?.length === 10, JSON.stringify(dryRunBlocked.parsed?.blocked ?? null));
 record(results, "QASYNC-004 dry-run does not write output file", !fs.existsSync(outputTaskPath), outputTaskPath);
 
 const applyReady = runSync([
@@ -81,11 +87,13 @@ const applyReady = runSync([
   "--apply"
 ]);
 record(results, "QASYNC-005 ready fixture exits 0", applyReady.status === 0, applyReady.stderr);
-record(results, "QASYNC-006 ready fixture applies six changes", applyReady.parsed?.changes?.length === 6 && applyReady.parsed?.applied === true, JSON.stringify(applyReady.parsed ?? null));
+record(results, "QASYNC-006 ready fixture applies ten changes", applyReady.parsed?.changes?.length === 10 && applyReady.parsed?.applied === true, JSON.stringify(applyReady.parsed ?? null));
 
 const syncedMarkdown = fs.existsSync(outputTaskPath) ? fs.readFileSync(outputTaskPath, "utf8") : "";
 const checkedTargetCount = (syncedMarkdown.match(/^- \[x\]/gmu) ?? []).length;
-record(results, "QASYNC-007 output has all six target lines checked", checkedTargetCount === 6, syncedMarkdown);
+record(results, "QASYNC-007 output has all eight target list lines checked", checkedTargetCount === 8, syncedMarkdown);
+record(results, "QASYNC-007A output has table target checked", syncedMarkdown.includes("| [x] | DEV-CAD-001 |"), syncedMarkdown);
+record(results, "QASYNC-007B output has Supabase table target checked", syncedMarkdown.includes("| [x] | DEV-IND-007 |"), syncedMarkdown);
 const sourceFixtureUnchanged = fs.readFileSync(fixtureTaskPath, "utf8") === fixtureMarkdown;
 record(results, "QASYNC-008 source fixture remains unchanged", sourceFixtureUnchanged, sourceFixtureUnchanged ? "" : "source fixture mutated");
 

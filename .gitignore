@@ -1,6 +1,7 @@
 .next/
 node_modules/
 data/
+.tmp/
 *.log
 .env
 .env*.local

@@ -104,8 +104,7 @@ export default function LoginPage() {
                 <p>{account.note}</p>
                 <a
                   className="secondary-button"
-                  href={`/login?account=${encodeURIComponent(account.role)}`}
-                  role="button"
+                  href={`/api/auth/login?account=${encodeURIComponent(account.role)}`}
                   onPointerDown={() => fillTestAccount(account)}
                   onClick={(event) => {
                     event.preventDefault();

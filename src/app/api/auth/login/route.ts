@@ -5,6 +5,53 @@ import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
+const demoAccounts = [
+  { role: "Engineer", email: "engineer@example.com", id: "user-engineer-demo", displayName: "Demo Engineer", dbRole: "Engineer" },
+  { role: "R&D Manager", email: "manager@example.com", id: "user-manager-demo", displayName: "Demo Manager", dbRole: "R&D Manager" },
+  { role: "Admin", email: "admin@example.com", id: "user-admin-demo", displayName: "Demo Admin", dbRole: "Admin" },
+  {
+    role: "Manufacturing",
+    email: "manufacturing@example.com",
+    id: "user-manufacturing-demo",
+    displayName: "Demo Manufacturing",
+    dbRole: "Manufacturing"
+  },
+  {
+    role: "Procurement",
+    email: "procurement@example.com",
+    id: "user-procurement-demo",
+    displayName: "Demo Procurement",
+    dbRole: "Procurement"
+  }
+] as const;
+
+export async function GET(request: Request) {
+  if (getAuthMode() !== "demo") {
+    return NextResponse.json({ error: "Demo login is disabled" }, { status: 404 });
+  }
+
+  const url = new URL(request.url);
+  const accountKey = String(url.searchParams.get("account") ?? "").trim().toLowerCase();
+  const account = demoAccounts.find((item) => item.role.toLowerCase() === accountKey || item.email.toLowerCase() === accountKey);
+  if (!account) return NextResponse.json({ error: "Unknown demo account" }, { status: 400 });
+
+  ensureDemoUser({
+    id: account.id,
+    displayName: account.displayName,
+    email: account.email,
+    role: account.dbRole
+  });
+  createAuditLog({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
+
+  const redirectUrl = new URL("/", url.origin);
+  return NextResponse.redirect(redirectUrl, {
+    status: 303,
+    headers: {
+      "set-cookie": createSessionCookie(account.id)
+    }
+  });
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const email = String(body.email ?? "").trim();

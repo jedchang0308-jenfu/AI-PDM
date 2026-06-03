@@ -110,6 +110,125 @@ export type BomDetail = BomHeader & {
   lines: BomLine[];
 };
 
+export type BomWorkbenchDraftStatus = "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
+export type BomWorkbenchSource = "cad_reference" | "solidworks_xls" | "manual";
+export type BomWorkbenchNodeType = "item" | "group";
+
+export type BomWorkbenchDraftSummary = {
+  id: string;
+  parent_item_id: string;
+  parent_submission_id: string;
+  parent_revision: string;
+  draft_name: string;
+  status: BomWorkbenchDraftStatus;
+  source: BomWorkbenchSource;
+  is_active: number;
+  line_count: number;
+  review_attempt: number;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BomWorkbenchLine = {
+  id: string;
+  bom_draft_id: string;
+  parent_line_id: string | null;
+  node_type: BomWorkbenchNodeType;
+  item_id: string | null;
+  part_number: string | null;
+  part_name?: string | null;
+  revision: string | null;
+  group_name: string | null;
+  quantity: number | null;
+  sequence_no: number;
+  source: BomWorkbenchSource;
+  source_priority: number;
+  source_ref_id: string | null;
+  source_filename: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
+  lines: BomWorkbenchLine[];
+};
+
+export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";
+
+export type BomImportProfile = {
+  id: string;
+  profile_name: string;
+  source_type: "solidworks_xls";
+  version: string;
+  mapping_json: string;
+  is_active: number;
+  created_at: string;
+};
+
+export type BomImportJob = {
+  id: string;
+  bom_draft_id: string | null;
+  parent_submission_id: string;
+  import_profile_id: string;
+  source_asset_id: string | null;
+  original_filename: string;
+  status: BomImportJobStatus;
+  row_count: number;
+  error_json: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type BomWorkbenchSummary = {
+  parent_submission_id: string;
+  parent_item_id: string;
+  parent_part_number: string;
+  parent_part_name: string;
+  parent_drawing_number: string;
+  parent_revision: string;
+  parent_status: SubmissionStatus;
+  drafts: BomWorkbenchDraftSummary[];
+  active_draft: BomWorkbenchDraftDetail | null;
+};
+
+export type BomReleaseGateIssueCode =
+  | "missing_child_item"
+  | "missing_child_revision"
+  | "child_not_released"
+  | "child_outdated_revision";
+
+export type BomReleaseGateIssue = {
+  code: BomReleaseGateIssueCode;
+  line_id: string;
+  part_number: string;
+  revision: string | null;
+  child_status?: string | null;
+  latest_released_revision?: string | null;
+  message: string;
+};
+
+export type BomReleaseSnapshotDetail = {
+  id: string;
+  bom_draft_id: string;
+  parent_item_id: string;
+  parent_submission_id: string;
+  parent_revision: string;
+  parent_part_number: string;
+  parent_part_name: string;
+  parent_drawing_number: string;
+  line_count: number;
+  released_by: string;
+  released_by_name: string | null;
+  released_at: string;
+  obsolete_at: string | null;
+  obsolete_by: string | null;
+  lines: BomWorkbenchLine[];
+};
+
 export type BomDiffChangeType = "added" | "removed" | "changed" | "unchanged";
 
 export type BomDiffLine = {

@@ -164,11 +164,19 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
       <section className="public-share-hero">
         <span className="section-label">唯讀分享</span>
         <h1>
-          {data.submission.drawing_number} 版次 {data.submission.revision}
+          <span className="identity-primary">{data.submission.drawing_number}</span>
+          <span className="metadata-badge">版次 {data.submission.revision}</span>
         </h1>
-        <p>
-          {data.submission.part_number} · {data.submission.part_name}
-        </p>
+        <div className="metadata-list">
+          <span className="metadata-pair">
+            <span className="metadata-label">料號</span>
+            <span className="metadata-value">{data.submission.part_number}</span>
+          </span>
+          <span className="metadata-pair">
+            <span className="metadata-label">品名</span>
+            <span className="metadata-value">{data.submission.part_name}</span>
+          </span>
+        </div>
       </section>
 
       <section className="public-share-grid">
@@ -176,12 +184,23 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <span className="section-label">發布包</span>
           {data.package ? (
             <>
-              <strong>
-                <Archive size={16} aria-hidden="true" /> {data.package.filename}
+              <strong className="file-title">
+                <Archive size={16} aria-hidden="true" />
+                <span className="file-kind-badge" aria-label="檔案格式 ZIP">
+                  ZIP
+                </span>
+                <span className="file-name">{data.package.filename}</span>
               </strong>
-              <small>
-                ZIP · {(data.package.file_size / 1024).toFixed(1)} KB · SHA256 {data.package.sha256}
-              </small>
+              <div className="metadata-list">
+                <span className="metadata-pair">
+                  <span className="metadata-label">大小</span>
+                  <span className="metadata-value">{(data.package.file_size / 1024).toFixed(1)} KB</span>
+                </span>
+              </div>
+              <details className="integrity-details">
+                <summary>完整性資訊</summary>
+                <span className="diagnostic-value">SHA256 {data.package.sha256}</span>
+              </details>
               <a className="primary-button" href={data.package.download_url}>
                 <Download size={16} aria-hidden="true" />
                 下載
@@ -245,12 +264,20 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <div className="public-share-list">
             {data.supplier_responses.map((response) => (
               <div className="public-share-list-item" key={response.id}>
-                <strong>
-                  {response.response_kind === "acknowledgement" ? "確認" : "提問"} / {response.supplier_name}
-                </strong>
-                <small>
-                  {formatPublicStatus(response.status)} / {response.created_at}
-                </small>
+                <div className="identity-line">
+                  <span className="metadata-badge">{response.response_kind === "acknowledgement" ? "確認" : "提問"}</span>
+                  <strong className="identity-primary">{response.supplier_name}</strong>
+                </div>
+                <div className="metadata-list">
+                  <span className="metadata-pair">
+                    <span className="metadata-label">狀態</span>
+                    <span className="metadata-value">{formatPublicStatus(response.status)}</span>
+                  </span>
+                  <span className="metadata-pair">
+                    <span className="metadata-label">時間</span>
+                    <span className="metadata-value">{response.created_at}</span>
+                  </span>
+                </div>
                 <p>{response.message}</p>
               </div>
             ))}
@@ -264,12 +291,23 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <div className="public-share-list">
             {data.files.map((file) => (
               <div className="public-share-list-item" key={file.id}>
-                <strong>
-                  <FileText size={14} aria-hidden="true" /> {file.role.toUpperCase()} {file.filename}
+                <strong className="file-title">
+                  <FileText size={14} aria-hidden="true" />
+                  <span className="file-kind-badge" aria-label={`檔案格式 ${file.role.toUpperCase()}`}>
+                    {file.role.toUpperCase()}
+                  </span>
+                  <span className="file-name">{file.filename}</span>
                 </strong>
-                <small>
-                  {(file.size / 1024).toFixed(1)} KB · SHA256 {file.sha256}
-                </small>
+                <div className="metadata-list">
+                  <span className="metadata-pair">
+                    <span className="metadata-label">大小</span>
+                    <span className="metadata-value">{(file.size / 1024).toFixed(1)} KB</span>
+                  </span>
+                </div>
+                <details className="integrity-details">
+                  <summary>完整性資訊</summary>
+                  <span className="diagnostic-value">SHA256 {file.sha256}</span>
+                </details>
               </div>
             ))}
           </div>
@@ -281,12 +319,26 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
             <div className="public-share-list">
               {data.bom.lines.map((line) => (
                 <div className="public-share-list-item" key={`${line.line_no}-${line.child_part_number}`}>
-                  <strong>
-                    #{line.line_no} {line.child_part_number}
-                  </strong>
-                  <small>
-                    版次 {line.child_revision ?? "-"} · 數量 {line.quantity} · {line.source_filename ?? "-"}
-                  </small>
+                  <div className="identity-line">
+                    <span className="metadata-badge">#{line.line_no}</span>
+                    <strong className="identity-primary">{line.child_part_number}</strong>
+                  </div>
+                  <div className="metadata-list">
+                    <span className="metadata-pair">
+                      <span className="metadata-label">版次</span>
+                      <span className="metadata-value">{line.child_revision ?? "-"}</span>
+                    </span>
+                    <span className="metadata-pair">
+                      <span className="metadata-label">數量</span>
+                      <span className="metadata-value">{line.quantity}</span>
+                    </span>
+                  </div>
+                  {line.source_filename ? (
+                    <details className="integrity-details">
+                      <summary>來源資訊</summary>
+                      <span className="diagnostic-value">來源檔案 {line.source_filename}</span>
+                    </details>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -302,9 +354,13 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           {data.approvals.map((approval) => (
             <div className="public-share-list-item" key={`${approval.reviewer_name}-${approval.decided_at}`}>
               <strong>{approval.reviewer_name}</strong>
-              <small>
-                {approval.decision} · {approval.decided_at}
-              </small>
+              <div className="metadata-list">
+                <span className="metadata-badge">{approval.decision}</span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">時間</span>
+                  <span className="metadata-value">{approval.decided_at}</span>
+                </span>
+              </div>
             </div>
           ))}
         </div>

@@ -53,6 +53,10 @@ export function getFieldTestHandoffsDir(root = process.cwd(), env = process.env)
   return resolveConfiguredPath(root, env.PDM_FIELD_TEST_HANDOFF_DIR, path.join(getEvidenceRoot(root, env), "field-test-handoffs"));
 }
 
+export function getPostgresShadowHandoffsDir(root = process.cwd(), env = process.env) {
+  return resolveConfiguredPath(root, env.PDM_POSTGRES_SHADOW_HANDOFF_DIR, path.join(getEvidenceRoot(root, env), "postgres-shadow-handoffs"));
+}
+
 export function resolveUserPath(root, value) {
   return path.isAbsolute(value) ? value : path.resolve(root, value);
 }

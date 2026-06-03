@@ -174,3 +174,87 @@ Checked at 2026-05-29 09:57 Asia/Taipei.
   - No project, branch, migration, DDL, or data import was created or executed.
 
 Result: BLOCKED FOR EXTERNAL INPUTS. This is the third consecutive resumed audit after the goal was reactivated from the prior blocked state. The same external blocking condition has repeated for three consecutive resumed goal turns, no local or unclassified task remains, and no meaningful progress is possible without external evidence, Supabase connector re-authentication, or explicit disposable target approval.
+
+## Post-DEV-UX Audit 1
+
+Checked at 2026-05-29 12:29-12:30 Asia/Taipei, after `DEV-UX-001` was completed and checked in `dev_task.md`.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 38 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+  - Open blockers remain `DEV-CAD-001`, `DEV-SW-001`, `DEV-BACKUP-001`, `DEV-FIELD-001`, and `DEV-IND-007`.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers remain categorized as `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all`: `ready=true`, 19 passed, 0 failed, 1 administrator warning.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+- Supabase connector inspection
+  - `_list_projects` failed with `token_expired`.
+  - No current disposable AI_PDM Supabase project or branch could be confirmed.
+  - No project, branch, migration, DDL, or data import was created or executed.
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the first blocker audit after completing `DEV-UX-001`; the goal remains active under the three-turn blocked-audit rule. No remaining task was marked complete.
+
+## Post-DEV-UX Audit 2
+
+Checked at 2026-05-29 12:31-12:32 Asia/Taipei.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 38 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+  - Open blockers remain `DEV-CAD-001`, `DEV-SW-001`, `DEV-BACKUP-001`, `DEV-FIELD-001`, and `DEV-IND-007`.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers remain categorized as `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all`: `ready=true`, 19 passed, 0 failed, 1 administrator warning.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+- Supabase connector inspection
+  - `_list_projects` failed with `token_expired`.
+  - No current disposable AI_PDM Supabase project or branch could be confirmed.
+  - No project, branch, migration, DDL, or data import was created or executed.
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the second consecutive blocker audit after completing `DEV-UX-001`; the goal remains active under the three-turn blocked-audit rule. No remaining task was marked complete.
+
+## Post-DEV-UX Audit 3
+
+Checked at 2026-05-29 12:33-12:34 Asia/Taipei.
+
+- `npm.cmd run qc:dev-task-completion-audit`
+  - PASS: 38 tracked tasks, 5 open blockers.
+  - PASS: no local or unclassified open task remains.
+  - Open blockers remain `DEV-CAD-001`, `DEV-SW-001`, `DEV-BACKUP-001`, `DEV-FIELD-001`, and `DEV-IND-007`.
+- `npm.cmd run qc:production-readiness:report`
+  - PASS in allow-open report mode.
+  - Current state remains `ready=false`.
+  - Blockers remain categorized as `external_document_manager`, `external_solidworks_machine`, `external_restore_drill`, `external_field_test`, and `external_supabase_shadow`.
+- External evidence checks
+  - `npm.cmd run qc:document-manager-report:report`: `ready=false`, draft report, 15 total cases, 0 passed.
+  - `npm.cmd run qc:sw-addin-real-machine-report:report`: `ready=false`, draft report, 42 total cases, 0 passed.
+  - `npm.cmd run qc:restore-drill-report:report`: `ready=false`, draft report, 12 total cases, 0 passed.
+  - `npm.cmd run field-test:preflight -- --profile all`: `ready=true`, 19 passed, 0 failed, 1 administrator warning.
+  - `npm.cmd run field-test:preflight -- --profile all --require-evidence`: failed as expected on:
+    - `CAD-EVIDENCE-001`: `ready=false issues=51`
+    - `RESTORE-EVIDENCE-001`: `ready=false issues=24`
+    - `DM-EVIDENCE-001`: `ready=false issues=27`
+- Supabase connector inspection
+  - `_list_projects` failed with `token_expired`.
+  - No current disposable AI_PDM Supabase project or branch could be confirmed.
+  - No project, branch, migration, DDL, or data import was created or executed.
+
+Result: BLOCKED FOR EXTERNAL INPUTS. This is the third consecutive blocker audit after completing `DEV-UX-001`. The same external blocking condition has repeated for three consecutive goal turns, no local or unclassified task remains, and no meaningful progress is possible without external evidence, Supabase connector re-authentication, or explicit disposable target approval.

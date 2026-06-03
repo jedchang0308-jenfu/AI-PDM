@@ -18,6 +18,7 @@ const taskPath = resolveTaskFile();
 
 function resolveTaskFile() {
   const candidates = [
+    path.join(root, ".ai-doc", "dev_task.md"),
     path.join(root, "dev_task.md"),
     path.join(root, "PDM_dev_task.md")
   ];
@@ -235,7 +236,7 @@ function parseReadinessTasks(markdown) {
       return;
     }
 
-    const headingPriority = line.match(/^##\s+(P[0-2])\b/i)?.[1]?.toUpperCase();
+    const headingPriority = line.match(/^#{2,4}\s+(P[0-2])\b/i)?.[1]?.toUpperCase();
     if (headingPriority) currentPriority = headingPriority;
 
     const legacyTask = parseLegacyReadinessTask(line, index);

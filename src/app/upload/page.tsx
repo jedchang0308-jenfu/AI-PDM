@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileSearch, Send, UploadCloud, X } from "lucide-react";
+import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
 
 const emptyMetadata: PdmMetadata = {
@@ -143,6 +144,17 @@ export default function UploadPage() {
         </div>
       </div>
 
+      <WorkflowStrip
+        title="送審流程"
+        description="先確認圖料號，再補檔案與 PDM 屬性，送出後進入待辦與審核。"
+        steps={["領號", "上傳送審", "審核", "發行", "交接"]}
+        currentStep="上傳送審"
+        actions={[
+          { href: "/numbering/request", label: "先領號" },
+          { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
+        ]}
+      />
+
       <form className="upload-layout" onSubmit={submit}>
         <section className="panel">
           <div className="panel-header">
@@ -181,8 +193,22 @@ export default function UploadPage() {
                   <div className="upload-file-item" key={`${file.name}-${file.size}-${file.lastModified}`}>
                     <FileSearch size={16} aria-hidden="true" />
                     <div>
-                      <strong>{file.name}</strong>
-                      <span>{formatBytes(file.size)} {isMetadataSidecar(file.name) ? "屬性檔，不會送入 PDM 檔案庫" : "送審檔"}</span>
+                      <strong className="file-title">
+                        <span className="file-kind-badge" aria-label={`檔案格式 ${fileExtensionLabel(file.name)}`}>
+                          {fileExtensionLabel(file.name)}
+                        </span>
+                        <span className="file-name">{file.name}</span>
+                      </strong>
+                      <div className="metadata-list">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">大小</span>
+                          <span className="metadata-value">{formatBytes(file.size)}</span>
+                        </span>
+                        <span className="metadata-pair">
+                          <span className="metadata-label">用途</span>
+                          <span className="metadata-value">{isMetadataSidecar(file.name) ? "屬性檔，不送入 PDM 檔案庫" : "送審檔"}</span>
+                        </span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -239,11 +265,21 @@ export default function UploadPage() {
                     key={`${candidate.field}-${candidate.value}-${index}`}
                     onClick={() => applyCandidate(candidate.field, candidate.value)}
                   >
-                    <strong>
-                      {fieldLabels[candidate.field]}：{candidate.value}
+                    <strong className="identity-stack">
+                      <span className="identity-line">
+                        <span className="metadata-badge">{fieldLabels[candidate.field]}</span>
+                        <span className="identity-primary">{candidate.value}</span>
+                      </span>
                     </strong>
-                    <span>
-                      信心度 {candidate.confidence} · {candidate.source}
+                    <span className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">信心度</span>
+                        <span className="metadata-value">{candidate.confidence}</span>
+                      </span>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">來源</span>
+                        <span className="metadata-value">{candidate.source}</span>
+                      </span>
                     </span>
                     <small>{candidate.snippet}</small>
                   </button>
@@ -293,9 +329,17 @@ export default function UploadPage() {
                 <div>
                   <p>{message.text}</p>
                   {message.submissionId ? (
-                    <Link href="/" className="inline-link">
-                      回審核工作台查看 {message.submissionId}
-                    </Link>
+                    <>
+                      <span className="diagnostic-value">送審 ID {message.submissionId}</span>
+                      <div className="next-step-inline-actions">
+                        <Link className="primary-button" href="/numbering/tasks">
+                          看待辦
+                        </Link>
+                        <Link className="secondary-button" href="/">
+                          回工作台
+                        </Link>
+                      </div>
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -321,6 +365,11 @@ function isMetadataSidecar(filename: string) {
   const lower = filename.toLowerCase();
   const isPropertyExt = /\.(json|txt|properties|csv)$/u.test(lower);
   return isPropertyExt && (lower.includes("pdm") || lower.includes("property") || lower.includes("properties") || lower.includes("屬性"));
+}
+
+function fileExtensionLabel(filename: string) {
+  const extension = filename.split(".").pop()?.trim();
+  return extension ? extension.toUpperCase() : "FILE";
 }
 
 function formatBytes(bytes: number) {

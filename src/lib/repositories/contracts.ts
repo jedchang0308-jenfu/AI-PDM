@@ -2,6 +2,10 @@ import type {
   ApprovalMatrixRequirement,
   BomDetail,
   BomDiffResult,
+  BomImportJob,
+  BomReleaseSnapshotDetail,
+  BomWorkbenchDraftDetail,
+  BomWorkbenchSummary,
   ChangeRequest,
   DiscussionComment,
   ItemLock,
@@ -95,6 +99,39 @@ export interface ReviewRepository {
 export interface BomRepository {
   getBySubmissionId(submissionId: string): BomDetail | null;
   materializeDraftFromReferences(submissionId: string): BomDetail | null;
+  createWorkbenchDraftFromAssembly(input: { submissionId: string; actorId: string | null; draftName?: string; setActive?: boolean }): BomWorkbenchDraftDetail | null;
+  createWorkbenchDraftFromSolidWorksXls(input: {
+    submissionId: string;
+    actorId: string | null;
+    draftName?: string;
+    setActive?: boolean;
+    originalFilename: string;
+    fileBuffer: Uint8Array;
+    contentType?: string | null;
+  }): { draft: BomWorkbenchDraftDetail; importJob: BomImportJob } | null;
+  getImportJobById(importJobId: string): BomImportJob | null;
+  saveWorkbenchDraftTree(input: {
+    draftId: string;
+    actorId: string | null;
+    reason?: string;
+    lines: Array<{
+      id?: string;
+      parentLineId?: string | null;
+      nodeType: "item" | "group";
+      partNumber?: string | null;
+      revision?: string | null;
+      groupName?: string | null;
+      quantity?: number | null;
+      sequenceNo?: number | null;
+    }>;
+  }): BomWorkbenchDraftDetail | null;
+  setWorkbenchActiveDraft(input: { draftId: string; actorId: string | null }): BomWorkbenchDraftDetail | null;
+  submitWorkbenchDraftReview(input: { draftId: string; actorId: string; changeReason: string }): unknown;
+  approveWorkbenchReview(input: { reviewId: string; actorId: string; decisionReason?: string }): unknown;
+  rejectWorkbenchReview(input: { reviewId: string; actorId: string; decisionReason?: string }): unknown;
+  getWorkbenchBySubmissionId(submissionId: string): BomWorkbenchSummary | null;
+  getWorkbenchDraftById(draftId: string): BomWorkbenchDraftDetail | null;
+  getReleaseSnapshotById(snapshotId: string): BomReleaseSnapshotDetail | null;
   findPreviousSubmissionId(targetSubmissionId: string): string | null;
   diff(input: { baseSubmissionId: string; targetSubmissionId: string }): BomDiffResult | null;
   whereUsed(input: { partNumber: string; submittedBy?: string }): WhereUsedEntry[];

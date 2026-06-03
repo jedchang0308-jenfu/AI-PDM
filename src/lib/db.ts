@@ -95,11 +95,186 @@ export {
 } from "@/lib/repositories/user-repository";
 export { findOrCreateItem, listItemRevisionHistory, submissionRevisionExists } from "@/lib/repositories/item-repository";
 export {
+  addDrawingNumberToRoot,
+  addPartNumberToRoot,
+  analyzeMainDrawingObsolescence,
+  applyNumberingRuleTemplate,
+  checkNumberingDuplicates,
+  checkNumberingPermission,
+  confirmNumberingImportBatch,
+  createNumberingApprovalBatch,
+  createNumberingExportJob,
+  createNumberingImportBatch,
+  createNumberingRecord,
+  decideNumberingApprovalBatch,
+  decideNumberingApproval,
+  evaluateApprovalRules,
+  evaluateNumberingGate,
+  listDvtPromotionCandidates,
+  getNumberingRootDetail,
+  getNumberingApprovalBatch,
+  getNumberingExportJob,
+  getNumberingImportBatch,
+  getNumberingRootBundle,
+  generateMonthlyNumberingAuditReport,
+  getMonthlyNumberingAuditReport,
+  listNumberingApprovalBatches,
+  listMonthlyNumberingAuditReports,
+  listNumberingAdminMatrix,
+  listNumberingExportJobs,
+  listNumberingImportBatches,
+  listNumberingNotifications,
+  listNumberingTasks,
+  linkPartNumberToDrawing,
+  markOverdueDraftNumberingRecords,
+  obsoleteDraftNumberingRecord,
+  resubmitRejectedNumberingApprovalBatchItems,
+  requestMainDrawingRestoreApproval,
+  requestNumberingApproval,
+  requestSameDrawingVariantApproval,
+  revokeNumberingApprovalDelegation,
+  revokeNumberingUserRoleAssignment,
+  saveNumberingRolePriority,
+  searchNumberingRecords,
+  submitDvtPromotionDecisions,
+  updateDraftNumberingRecord,
+  upsertNumberingAdminRole,
+  upsertNumberingApprovalDelegation,
+  upsertNumberingApprovalRule,
+  upsertNumberingRolePermission,
+  upsertNumberingRoleScope,
+  upsertNumberingUserRoleAssignment,
+  updateNumberingNotificationState,
+  updateNumberingTaskStatus,
+  type AddDrawingNumberInput,
+  type AddPartNumberInput,
+  type ApplyNumberingRuleTemplateInput,
+  type CreateNumberingRecordInput,
+  type DecideNumberingApprovalInput,
+  type DvtPromotionCandidateRecord,
+  type DvtPromotionCandidateStatus,
+  type DvtPromotionDecisionAction,
+  type DvtPromotionDecisionResult,
+  type DvtPromotionSubmissionRecord,
+  type DrawingPurposeCode,
+  type DrawingNumberRecord,
+  type ApprovalRuleEvaluation,
+  type CreateNumberingApprovalBatchInput,
+  type CreateNumberingExportJobInput,
+  type CreateNumberingImportBatchInput,
+  type EvaluateApprovalRuleInput,
+  type DecideNumberingApprovalBatchInput,
+  type DuplicateCheckInput,
+  type EvaluateNumberingGateInput,
+  type LinkPartNumberToDrawingInput,
+  type ListMonthlyNumberingAuditReportsInput,
+  type ListNumberingApprovalBatchesInput,
+  type ListDvtPromotionCandidatesInput,
+  type ListNumberingExportJobsInput,
+  type ListNumberingImportBatchesInput,
+  type MarkOverdueDraftNumberingInput,
+  type MarkOverdueDraftNumberingResult,
+  type MainDrawingImpactInput,
+  type NumberingAuditTrailRecord,
+  type NumberingAttentionMarkerRecord,
+  type NumberingApprovalRecord,
+  type NumberingApprovalActionCode,
+  type NumberingApprovalBatchRecord,
+  type NumberingApprovalReviewBatchRecord,
+  type NumberingApprovalReviewBatchItemRecord,
+  type NumberingApprovalReviewRequestRecord,
+  type NumberingApprovalDecisionRecord,
+  type NumberingApprovalEntitySummaryRecord,
+  type NumberingPhase,
+  type NumberingNotificationRecord,
+  type NumberingImportBatchRecord,
+  type NumberingItemKind,
+  type NumberingExportJobRecord,
+  type NumberingLinkRecord,
+  type NumberingAdminApprovalRuleRecord,
+  type NumberingAdminRoleScopeRecord,
+  type NumberingAdminUserRecord,
+  type NumberingApprovalDelegationRecord,
+  type NumberingAdminMatrixRecord,
+  type NumberingAdminPermissionRecord,
+  type NumberingAdminRoleRecord,
+  type NumberingApprovalHardRuleCatalogItem,
+  type NumberingPermissionCheckResult,
+  type NumberingPermissionKind,
+  type NumberingAdminRuleTemplateRecord,
+  type NumberingUserRoleAssignmentRecord,
+  type NumberingRolePriorityVersionRecord,
+  type NumberingRoleScopeKind,
+  type NumberingRuleVersionRecord,
+  type NumberingRecordStatus,
+  type NumberingRootDetailRecord,
+  type NumberingSearchEntityType,
+  type NumberingSearchInput,
+  type NumberingSearchResultRecord,
+  type MonthlyAuditReportRecord,
+  type NumberingTaskRecord,
+  type NumberingUserScope,
+  type NumberingVariantRecord,
+  type NumberingWarningRecord,
+  type ObsoleteDraftNumberingRecordInput,
+  type RevokeNumberingApprovalDelegationInput,
+  type RevokeNumberingUserRoleAssignmentInput,
+  type RequestMainDrawingRestoreApprovalInput,
+  type RequestNumberingApprovalInput,
+  type ResubmitRejectedNumberingApprovalBatchItemsInput,
+  type ConfirmNumberingImportBatchInput,
+  type CheckNumberingPermissionInput,
+  type GenerateMonthlyNumberingAuditReportInput,
+  type SaveNumberingRolePriorityInput,
+  type UpdateNumberingNotificationStateInput,
+  type UpdateNumberingTaskStatusInput,
+  type UpsertNumberingAdminRoleInput,
+  type UpsertNumberingApprovalDelegationInput,
+  type UpsertNumberingApprovalRuleInput,
+  type UpsertNumberingRolePermissionInput,
+  type UpsertNumberingRoleScopeInput,
+  type UpsertNumberingUserRoleAssignmentInput,
+  type UpdateDraftNumberingRecordInput,
+  type RequestSameDrawingVariantApprovalInput,
+  type SubmitDvtPromotionDecision,
+  type SubmitDvtPromotionInput,
+  type PartNumberRecord,
+  type PartRootRecord
+} from "@/lib/repositories/numbering-repository";
+export {
+  createBomWorkbenchDraftFromSolidWorksXls,
+  createBomWorkbenchDraftFromAssembly,
+  approveBomWorkbenchReview,
+  BomReleaseGateError,
+  BomXlsImportError,
+  evaluateBomReleaseGate,
   findPreviousBomSubmissionId,
   getBomBySubmissionId,
   getBomDiffBetweenSubmissions,
+  getBomImportJobById,
+  getBomReleaseSnapshotById,
+  getBomWorkbenchBySubmissionId,
+  getBomWorkbenchDraftDiff,
+  getBomWorkbenchDraftById,
+  getBomWorkbenchReviewById,
+  listPendingBomWorkbenchReviews,
+  listBomWorkbenchDraftsBySubmissionId,
   listWhereUsed,
-  materializeBomDraftFromReferences
+  materializeBomDraftFromReferences,
+  rejectBomWorkbenchReview,
+  saveBomWorkbenchDraftTree,
+  setBomWorkbenchActiveDraft,
+  submitBomWorkbenchDraftReview,
+  type CreateBomWorkbenchDraftFromAssemblyInput,
+  type CreateBomWorkbenchDraftFromSolidWorksXlsInput,
+  type CreateBomWorkbenchDraftFromSolidWorksXlsResult,
+  type DecideBomWorkbenchReviewInput,
+  type BomWorkbenchDraftDiffResult,
+  type BomWorkbenchLineDiffChange,
+  type BomWorkbenchPendingReview,
+  type SaveBomWorkbenchDraftTreeInput,
+  type SetBomWorkbenchActiveDraftInput,
+  type SubmitBomWorkbenchDraftReviewInput
 } from "@/lib/repositories/bom-repository";
 export {
   createSubmissionRecord,
@@ -120,13 +295,49 @@ function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
+  ensureUsersRoleSchema(database);
   ensureSubmissionsLifecycleSchema(database);
   reconcileItemCurrentRevisions(database);
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
+  ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   seedConfiguredUsers(database);
+}
+
+function ensureUsersRoleSchema(database: SqliteDatabase) {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'")
+    .get() as { sql?: string } | undefined;
+  if (!row?.sql || row.sql.includes("'Manufacturing'") || row.sql.includes('"Manufacturing"')) return;
+
+  database.exec("PRAGMA foreign_keys = OFF;");
+  try {
+    database.exec(`
+      BEGIN;
+      CREATE TABLE users_new (
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        password_hash TEXT,
+        role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO users_new (id, display_name, email, password_hash, role, created_at, updated_at)
+      SELECT id, display_name, email, password_hash, role, created_at, updated_at
+      FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+      COMMIT;
+    `);
+  } catch (error) {
+    database.exec("ROLLBACK;");
+    throw error;
+  } finally {
+    database.exec("PRAGMA foreign_keys = ON;");
+  }
 }
 
 function ensureColumn(database: SqliteDatabase, table: string, column: string, definition: string) {

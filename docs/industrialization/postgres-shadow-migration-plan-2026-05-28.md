@@ -6,7 +6,7 @@ Prepare a repeatable SQLite to PostgreSQL/Supabase shadow migration without swit
 ## Current Implementation
 - `scripts/generate-postgres-migration.mjs` generates `db/postgres/001_initial_schema.sql` from `db/schema.sql`.
 - `db/postgres/002_supabase_rls_plan.sql` enables and forces RLS for every public table, revokes direct `anon` and `authenticated` table access, and keeps Data API access denied by default until explicit policies are approved.
-- `scripts/compare-sqlite-postgres-shadow.mjs` compares SQLite table coverage, row counts, and primary-key hashes. If `PDM_POSTGRES_SHADOW_URL` is configured and `psql` is available, it can also compare against a real Postgres shadow database.
+- `scripts/compare-sqlite-postgres-shadow.mjs` compares SQLite table coverage, row counts, and primary-key hashes. It writes `migrationTrace` SHA-256 hashes for the SQLite schema, generated Postgres migration, and RLS plan so compare evidence is tied to the exact migration inputs. If `PDM_POSTGRES_SHADOW_URL` is configured and `psql` is available, it can also compare against a real Postgres shadow database.
 - `scripts/guard-postgres-shadow-target.mjs` fails closed unless the target is an empty disposable public schema before migration, or a complete generated AI_PDM shadow schema with forced RLS during compare.
 - `scripts/qc-postgres-shadow-test.mjs` verifies generated migration coverage, RLS baseline coverage, target guard behavior, and the no-user-editable-auth-metadata rule.
 

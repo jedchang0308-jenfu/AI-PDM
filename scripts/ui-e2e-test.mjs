@@ -111,20 +111,23 @@ async function run() {
     const { context: managerContext, page: managerPage } = await authenticatedPage(browser, "manager@example.com");
     record("UI-002 manager dashboard loads", await managerPage.locator('section[aria-label="送審統計"]').count().then((count) => count === 1));
     await openSubmissionByDrawing(managerPage, `UIE2E-${unique}`);
-    await managerPage.getByText(submissionId).first().waitFor({ timeout: 15000 });
-    record("UI-003 manager can open seeded submission detail", await managerPage.getByText(submissionId).count().then((count) => count > 0));
-    record("UI-004 revision history is visible", await managerPage.getByText("版次紀錄").count().then((count) => count > 0));
+    await managerPage.locator(".detail-quick-actions").waitFor({ timeout: 15000 });
+    record("UI-003 manager can open seeded submission detail", await managerPage.locator(".detail-quick-actions").isVisible());
+    await managerPage.locator(".engineering-context > summary").click();
+    record("UI-004 revision history is visible", await managerPage.locator(".engineering-context .revision-history").isVisible());
+    await managerPage.locator(".collaboration-review > summary").click();
     record("UI-005 manager sees approve control", await managerPage.getByRole("button", { name: /核准/ }).count().then((count) => count > 0));
     record("UI-006 manager sees reject control", await managerPage.locator('button.danger-button:has-text("駁回")').count().then((count) => count > 0));
     record("UI-007 file preview link is visible", await managerPage.getByRole("link", { name: /預覽/ }).count().then((count) => count > 0));
     record("UI-008 file download link is visible", await managerPage.getByRole("link", { name: /下載/ }).count().then((count) => count > 0));
     record("UI-018 Drive preview link is visible", await managerPage.getByRole("link", { name: /Drive 預覽/ }).count().then((count) => count > 0));
+    await managerPage.locator(".system-diagnostics > summary").click();
+    await managerPage.locator(".system-diagnostics .file-diagnostic-item > summary").first().click();
     record(
       "UI-019 Drive PDF iframe uses mock file id",
       await managerPage
         .locator(`iframe[src="https://drive.google.com/file/d/${driveFileId}/preview"]`)
-        .count()
-        .then((count) => count === 1)
+        .isVisible()
     );
 
     await managerPage.goto(`${browserBaseUrl}/settings`);
@@ -134,8 +137,9 @@ async function run() {
 
     const { context: engineerContext, page: engineerPage } = await authenticatedPage(browser, "engineer@example.com");
     await openSubmissionByDrawing(engineerPage, `UIE2E-${unique}`);
-    await engineerPage.getByText(submissionId).first().waitFor({ timeout: 15000 });
-    record("UI-010 engineer can see own submission", await engineerPage.getByText(submissionId).count().then((count) => count > 0));
+    await engineerPage.locator(".detail-quick-actions").waitFor({ timeout: 15000 });
+    record("UI-010 engineer can see own submission", await engineerPage.locator(".detail-quick-actions").isVisible());
+    await engineerPage.locator(".collaboration-review > summary").click();
     record("UI-011 engineer does not see approve control", await engineerPage.getByRole("button", { name: /核准/ }).count().then((count) => count === 0));
     record("UI-012 engineer does not see reject control", await engineerPage.locator('button.danger-button:has-text("駁回")').count().then((count) => count === 0));
     await engineerContext.close();

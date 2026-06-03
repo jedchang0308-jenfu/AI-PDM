@@ -92,8 +92,11 @@ async function run() {
     );
 
     await suggestion.click();
-    await page.getByText(submissionId).first().waitFor({ timeout: 15000 });
-    record("DSA-003 clicking suggestion opens drawing detail", await page.getByText(submissionId).count().then((count) => count > 0));
+    await page.locator(".detail-title-stack", { hasText: `ASSIST-${unique}` }).waitFor({ timeout: 15000 });
+    record(
+      "DSA-003 clicking suggestion opens drawing detail by business identity",
+      await page.locator(".detail-title-stack", { hasText: `ASSIST-${unique}` }).count().then((count) => count > 0)
+    );
     record("DSA-004 suggestion fills search with drawing number", (await input.inputValue()) === `ASSIST-${unique}`);
 
     await page.locator("tr", { hasText: `ASSIST-${unique}` }).getByRole("button", { name: `收藏 ASSIST-${unique}` }).click();
@@ -102,6 +105,8 @@ async function run() {
     const favoriteGroup = page.locator(".recent-access > div", { hasText: "常用圖面" });
     record("DSA-006 favorite drawing chip is recorded", await favoriteGroup.getByRole("button", { name: `ASSIST-${unique} Rev A` }).isVisible());
 
+    await page.locator(".detail-close-button").click();
+    await page.locator(".detail-panel").waitFor({ state: "detached", timeout: 5000 });
     await favoriteGroup.getByRole("button", { name: `ASSIST-${unique} Rev A` }).click();
     await page.locator("tr", { hasText: `ASSIST-${unique}` }).first().waitFor({ timeout: 15000 });
     record("DSA-007 favorite chip restores drawing search", (await input.inputValue()) === `ASSIST-${unique}`);

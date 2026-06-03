@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Archive, Download, FileCheck2, FileDown, Printer, RefreshCcw, ShieldAlert } from "lucide-react";
+import { NextStepState } from "@/components/next-step-state";
+import { WorkflowStrip } from "@/components/workflow-strip";
 
 type HandoffEntry = {
   id: string;
@@ -106,6 +108,17 @@ export default function ManufacturingHandoffPage() {
         </div>
       </div>
 
+      <WorkflowStrip
+        title="交接流程"
+        description="只取 Released 圖料與交接包，讓製造、採購與外部協作使用一致版本。"
+        steps={["Released", "交接包", "製造取用", "報表", "稽核"]}
+        currentStep="交接包"
+        actions={[
+          { href: "/numbering/reports", label: "看報表", variant: "primary" },
+          { href: "/numbering/search", label: "查圖料" }
+        ]}
+      />
+
       {state.status === "loading" ? (
         <section className="panel">
           <div className="empty">讀取製造交接資料...</div>
@@ -166,7 +179,15 @@ export default function ManufacturingHandoffPage() {
           <section className="handoff-list" aria-label="released handoff entries">
             {filteredEntries.length === 0 ? (
               <div className="panel">
-                <div className="empty">目前沒有符合條件的已發布交接資料。</div>
+                <NextStepState
+                  eyebrow="沒有交接資料"
+                  title={query ? "目前沒有符合條件的已發布交接資料" : "目前沒有可交接的已發布資料"}
+                  body={query ? "請調整搜尋條件，或回圖料查詢確認圖號、料號與發行狀態。" : "完成圖號審核與 BOM 發行後，交接包會出現在這裡供製造端下載。"}
+                  actions={[
+                    { href: "/numbering/search", label: "回圖料查詢", variant: "primary" },
+                    { href: "/numbering/reports", label: "看報表" }
+                  ]}
+                />
               </div>
             ) : (
               filteredEntries.map((entry) => <HandoffCard entry={entry} key={entry.id} />)
@@ -183,13 +204,21 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
     <article className="panel handoff-card">
       <div className="handoff-card-header">
         <div>
-          <span className="section-label">圖號 / 版次</span>
+          <span className="section-label">圖號</span>
           <h2>
-            {entry.drawing_number} 版次 {entry.revision}
+            <span className="identity-primary">{entry.drawing_number}</span>
+            <span className="metadata-badge">版次 {entry.revision}</span>
           </h2>
-          <p>
-            {entry.part_number} · {entry.part_name}
-          </p>
+          <div className="metadata-list">
+            <span className="metadata-pair">
+              <span className="metadata-label">料號</span>
+              <span className="metadata-value">{entry.part_number}</span>
+            </span>
+            <span className="metadata-pair">
+              <span className="metadata-label">品名</span>
+              <span className="metadata-value">{entry.part_name}</span>
+            </span>
+          </div>
         </div>
         {entry.package ? (
           <a className="primary-button" href={entry.package.download_url}>
@@ -217,26 +246,48 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
         <div className="handoff-package">
           <Archive size={16} aria-hidden="true" />
           <div>
-            <strong>{entry.package.filename}</strong>
-            <small>
-              {(entry.package.file_size / 1024).toFixed(1)} KB · SHA256 {entry.package.sha256}
-            </small>
+            <strong className="file-title">
+              <span className="file-kind-badge" aria-label="檔案格式 ZIP">
+                ZIP
+              </span>
+              <span className="file-name">{entry.package.filename}</span>
+            </strong>
+            <div className="metadata-list">
+              <span className="metadata-pair">
+                <span className="metadata-label">大小</span>
+                <span className="metadata-value">{(entry.package.file_size / 1024).toFixed(1)} KB</span>
+              </span>
+            </div>
+            <details className="integrity-details">
+              <summary>完整性資訊</summary>
+              <span className="diagnostic-value">SHA256 {entry.package.sha256}</span>
+            </details>
           </div>
         </div>
       ) : null}
 
       <div className="handoff-columns">
         <div>
-          <span className="section-label">檔案與 hash</span>
+          <span className="section-label">檔案</span>
           <div className="handoff-file-list">
             {entry.files.map((file) => (
               <div className="handoff-file" key={`${entry.id}-${file.role}-${file.filename}`}>
-                <strong>
-                  {file.role.toUpperCase()} {file.filename}
+                <strong className="file-title">
+                  <span className="file-kind-badge" aria-label={`檔案格式 ${file.role.toUpperCase()}`}>
+                    {file.role.toUpperCase()}
+                  </span>
+                  <span className="file-name">{file.filename}</span>
                 </strong>
-                <small>
-                  {(file.size / 1024).toFixed(1)} KB · {file.sha256}
-                </small>
+                <div className="metadata-list">
+                  <span className="metadata-pair">
+                    <span className="metadata-label">大小</span>
+                    <span className="metadata-value">{(file.size / 1024).toFixed(1)} KB</span>
+                  </span>
+                </div>
+                <details className="integrity-details">
+                  <summary>完整性資訊</summary>
+                  <span className="diagnostic-value">SHA256 {file.sha256}</span>
+                </details>
               </div>
             ))}
           </div>
@@ -246,10 +297,14 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
           <div className="handoff-file-list">
             {entry.approvals.map((approval) => (
               <div className="handoff-file" key={`${entry.id}-${approval.reviewer_name}-${approval.decided_at}`}>
-                <strong>
-                  {approval.reviewer_name} · {approval.decision}
-                </strong>
-                <small>{new Date(approval.decided_at).toLocaleString()}</small>
+                <strong>{approval.reviewer_name}</strong>
+                <div className="metadata-list">
+                  <span className="metadata-badge">{approval.decision}</span>
+                  <span className="metadata-pair">
+                    <span className="metadata-label">時間</span>
+                    <span className="metadata-value">{new Date(approval.decided_at).toLocaleString()}</span>
+                  </span>
+                </div>
               </div>
             ))}
           </div>

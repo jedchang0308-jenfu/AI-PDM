@@ -80,6 +80,7 @@ async function run() {
     const { context, page } = await authenticatedPage(browser, managerCookie, older.submissionId);
     await page.locator(".primary-search input").fill(`PERF10-${token}`);
     await page.locator("tbody tr", { hasText: newer.drawingNumber }).first().waitFor({ timeout: 15000 });
+    await page.locator("tbody tr", { hasText: newer.drawingNumber }).first().click();
     await page.locator(".detail", { hasText: newer.drawingNumber }).waitFor({ timeout: 15000 });
 
     const olderRow = page.locator("tbody tr", { hasText: older.drawingNumber }).first();

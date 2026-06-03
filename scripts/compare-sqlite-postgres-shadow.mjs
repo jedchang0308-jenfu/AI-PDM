@@ -146,6 +146,20 @@ const rlsMissingTables = sqliteTables.filter((tableName) => !postgresRls.include
 const report = {
   checkedAt: new Date().toISOString(),
   sqlitePath,
+  migrationTrace: {
+    sqliteSchema: {
+      path: path.relative(root, sqliteSchemaPath).replaceAll(path.sep, "/"),
+      sha256: sha256(sqliteSchema)
+    },
+    postgresSchema: {
+      path: path.relative(root, postgresSchemaPath).replaceAll(path.sep, "/"),
+      sha256: sha256(postgresSchema)
+    },
+    postgresRlsPlan: {
+      path: path.relative(root, postgresRlsPath).replaceAll(path.sep, "/"),
+      sha256: sha256(postgresRls)
+    }
+  },
   postgresShadowConfigured: Boolean(postgresUrl),
   sqliteTables: sqliteTables.length,
   postgresTables: postgresTables.length,

@@ -5,8 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const sampleDir = path.join(root, "data", "qc-fixtures", "document-manager-extractor-probe");
-const outputDir = path.join(root, "data", "document-manager-probes", "qc-contract");
+const sampleDir = path.join(root, ".tmp", "qc-fixtures", "document-manager-extractor-probe");
+const outputDir = path.join(root, ".tmp", "document-manager-probes", "qc-contract");
 const mockExtractor = path.join(root, "scripts", "mock-native-cad-extractor.mjs");
 const probeScript = path.join(root, "scripts", "probe-document-manager-extractor.mjs");
 const results = [];

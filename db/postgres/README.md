@@ -38,6 +38,7 @@ node scripts/compare-sqlite-postgres-shadow.mjs --require-postgres
 ```
 
 The compare guard only accepts the complete generated AI_PDM public schema with RLS enabled and forced on every table.
+The compare report includes a `migrationTrace` block with SHA-256 hashes for `db/schema.sql`, `db/postgres/001_initial_schema.sql`, and `db/postgres/002_supabase_rls_plan.sql` so row-count/key-hash evidence can be traced back to the exact migration inputs.
 
 Notes:
 

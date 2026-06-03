@@ -84,7 +84,7 @@ async function run() {
     const quickAccess = page.locator(".quick-access");
     record("DQA-001 quick access area is visible", await quickAccess.isVisible());
 
-    for (const label of ["全部圖面", "最近發布", "我建立的", "Checkout 中", "缺交接檔", "Release 失敗"]) {
+    for (const label of ["全部", "待審核", "已發布", "已廢止", "已駁回", "發布失敗"]) {
       record(`DQA-002 quick chip ${label}`, await quickAccess.getByRole("button", { name: label }).isVisible());
     }
 
@@ -92,20 +92,30 @@ async function run() {
     await searchInput.fill(`QUICK-${unique}`);
     await page.getByText(`QUICK-${unique}`).first().waitFor({ timeout: 15000 });
     await page.waitForTimeout(700);
-    record("DQA-003 recent search chip is recorded", await quickAccess.getByRole("button", { name: `QUICK-${unique}`, exact: true }).isVisible());
+    const recentSearchSelect = page.locator(".recent-access select.recent-select").nth(0);
+    record(
+      "DQA-003 recent search select is recorded",
+      await recentSearchSelect.locator("option", { hasText: `QUICK-${unique}` }).count().then((count) => count > 0)
+    );
 
     await page.locator("tr", { hasText: `QUICK-${unique}` }).first().click();
-    await page.getByText(submissionId).first().waitFor({ timeout: 15000 });
-    record("DQA-004 recent drawing chip is recorded", await quickAccess.getByRole("button", { name: `QUICK-${unique} Rev A` }).isVisible());
+    await page.locator(".detail-title-stack", { hasText: `QUICK-${unique}` }).waitFor({ timeout: 15000 });
+    const recentDrawingSelect = page.locator(".recent-access select.recent-select").nth(1);
+    record(
+      "DQA-004 recent drawing select is recorded",
+      await recentDrawingSelect.locator("option", { hasText: `QUICK-${unique}` }).count().then((count) => count > 0)
+    );
+    await page.locator(".detail-close-button").click();
+    await page.locator(".detail-panel").waitFor({ state: "detached", timeout: 5000 });
 
-    await quickAccess.getByRole("button", { name: "Release 失敗" }).click();
-    record("DQA-005 release failed quick chip becomes active", await page.locator(".quick-chip.active", { hasText: "Release 失敗" }).isVisible());
+    await quickAccess.getByRole("button", { name: "發布失敗" }).click();
+    record("DQA-005 release failed quick chip becomes active", await page.locator(".quick-chip.active", { hasText: "發布失敗" }).isVisible());
     record("DQA-006 release failed quick chip drives status tab", ((await page.locator(".status-tabs button.active").textContent()) ?? "").trim() === "發布失敗");
 
-    await quickAccess.getByRole("button", { name: "缺交接檔" }).click();
-    record("DQA-007 missing handoff quick chip becomes active", await page.locator(".quick-chip.active", { hasText: "缺交接檔" }).isVisible());
+    await quickAccess.getByRole("button", { name: "待審核" }).click();
+    record("DQA-007 pending quick chip becomes active", await page.locator(".quick-chip.active", { hasText: "待審核" }).isVisible());
 
-    await quickAccess.getByRole("button", { name: `QUICK-${unique}`, exact: true }).click();
+    await recentSearchSelect.selectOption(`QUICK-${unique}`);
     await page.getByText(`QUICK-${unique}`).first().waitFor({ timeout: 15000 });
     record("DQA-008 recent search chip restores search", (await searchInput.inputValue()) === `QUICK-${unique}`);
 

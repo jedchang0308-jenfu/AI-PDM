@@ -33,17 +33,19 @@ async function apiLogin(email) {
   return { header: cookie, name, value: valueParts.join("=") };
 }
 
-async function createSubmission(cookie) {
+async function createSubmission(cookie, revision = "A") {
+  const drawingNumber = `DETAIL-${unique}-${revision}`;
+  const partNumber = `P-DETAIL-${unique}`;
   const form = new FormData();
-  form.set("drawing_number", `DETAIL-${unique}`);
-  form.set("part_number", `P-DETAIL-${unique}`);
+  form.set("drawing_number", drawingNumber);
+  form.set("part_number", partNumber);
   form.set("part_name", "Detail priority seed");
-  form.set("revision", "A");
+  form.set("revision", revision);
   form.set("material", "S45C");
   form.set("surface_finish", "Black Oxide");
   form.set("document_type", "Drawing");
   form.set("change_description", "QC seed for detail priority layout");
-  form.append("files", new File([Buffer.from("detail priority pdf placeholder")], `DETAIL-${unique}.pdf`, { type: "application/pdf" }));
+  form.append("files", new File([Buffer.from("detail priority pdf placeholder")], `${drawingNumber}.pdf`, { type: "application/pdf" }));
 
   const response = await fetch(`${apiBaseUrl}/api/submissions`, {
     method: "POST",
@@ -51,8 +53,8 @@ async function createSubmission(cookie) {
     body: form
   });
   const body = await response.json().catch(() => ({}));
-  record("Detail priority seed submission created", response.status === 201, `HTTP ${response.status}`);
-  return body.submissionId;
+  record(`Detail priority seed ${revision} submission created`, response.status === 201, `HTTP ${response.status}`);
+  return { submissionId: body.submissionId, drawingNumber, partNumber, revision };
 }
 
 async function authenticatedPage(browser, email) {
@@ -80,36 +82,140 @@ async function topOf(page, selector) {
   return box.y;
 }
 
+function hasRequested(requestPaths, fragment) {
+  return requestPaths.some((path) => path.includes(fragment));
+}
+
 async function run() {
   const engineerCookie = await apiLogin("engineer@example.com");
-  const submissionId = await createSubmission(engineerCookie);
+  const primary = await createSubmission(engineerCookie, "A");
+  const secondary = await createSubmission(engineerCookie, "B");
   const browser = await chromium.launch({ headless: true });
 
   try {
     const { context, page } = await authenticatedPage(browser, "manager@example.com");
+    const requestPaths = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.includes("/api/submissions/") || url.pathname.includes("/api/items/") || url.pathname.includes("/api/integrations/")) {
+        requestPaths.push(`${url.pathname}${url.search}`);
+      }
+    });
+
     await page.locator(".primary-search input").fill(`DETAIL-${unique}`);
-    await page.getByText(`DETAIL-${unique}`).first().waitFor({ timeout: 15000 });
-    await page.locator("tr", { hasText: `DETAIL-${unique}` }).first().click();
-    await page.getByText(submissionId).first().waitFor({ timeout: 15000 });
+    await page.getByText(primary.drawingNumber).first().waitFor({ timeout: 15000 });
+    record("DDP-020 list remains the primary focus before row selection", (await page.locator(".detail-panel").count()) === 0);
+    const targetRow = page.locator("tbody tr", { hasText: primary.drawingNumber }).first();
+    await targetRow.waitFor({ timeout: 15000 });
+    await targetRow.locator("td").first().waitFor({ state: "visible", timeout: 15000 });
+    const identifierCellsBefore = await Promise.all([0, 1, 2].map((index) => targetRow.locator("td").nth(index).boundingBox()));
+    await targetRow.click();
+    await page.locator(".detail-quick-actions").waitFor({ timeout: 15000 });
+    await page.waitForTimeout(500);
+
+    const detailBox = await page.locator(".detail-panel").boundingBox();
+    const viewport = page.viewportSize();
+    const identifierCellsAfter = await Promise.all([0, 1, 2].map((index) => targetRow.locator("td").nth(index).boundingBox()));
+    const thirdIdentifierCellBox = identifierCellsAfter[2];
+    const identifierLayoutStable = identifierCellsBefore.every((before, index) => {
+      const after = identifierCellsAfter[index];
+      return Boolean(before && after && Math.abs(before.x - after.x) <= 1 && Math.abs(before.width - after.width) <= 1);
+    });
+    record(
+      "DDP-021 detail opens as a half-screen overlay",
+      Boolean(detailBox && viewport && detailBox.width >= viewport.width * 0.36 && detailBox.width <= viewport.width * 0.46 && detailBox.x > viewport.width * 0.45),
+      JSON.stringify({ detailBox, viewport })
+    );
+    record(
+      "DDP-022 detail overlay does not shift identifier columns",
+      identifierLayoutStable,
+      JSON.stringify({ identifierCellsBefore, identifierCellsAfter })
+    );
+    record(
+      "DDP-024 overlay keeps drawing number, part number, and part name visible",
+      Boolean(detailBox && thirdIdentifierCellBox && thirdIdentifierCellBox.x + thirdIdentifierCellBox.width <= detailBox.x),
+      JSON.stringify({ detailBox, thirdIdentifierCellBox })
+    );
+    record(
+      "DDP-025 overlay starts from the identifier boundary",
+      Boolean(detailBox && thirdIdentifierCellBox && Math.abs(detailBox.x - (thirdIdentifierCellBox.x + thirdIdentifierCellBox.width + 12)) <= 2),
+      JSON.stringify({ detailBox, thirdIdentifierCellBox })
+    );
 
     record("DDP-001 detail title is drawing-oriented", await page.getByRole("heading", { name: "圖面明細" }).isVisible());
     record("DDP-002 old review detail title is removed", (await page.getByRole("heading", { name: "送審明細" }).count()) === 0);
     record("DDP-003 file section is labelled", await page.locator(".file-list-label", { hasText: "檔案" }).isVisible());
+    record("DDP-004 quick actions show preview link", await page.locator(".detail-quick-actions").getByRole("link", { name: /預覽/ }).count().then((count) => count > 0));
+    record("DDP-005 quick actions show download link", await page.locator(".detail-quick-actions").getByRole("link", { name: /下載/ }).count().then((count) => count > 0));
+    const quickActionHeaderText = (await page.locator(".detail-quick-actions > div").first().textContent()) ?? "";
+    record(
+      "DDP-006 summary-table fields are not repeated in quick action header",
+      !quickActionHeaderText.includes(primary.drawingNumber) && !quickActionHeaderText.includes(primary.partNumber),
+      quickActionHeaderText
+    );
 
-    const fileTop = await topOf(page, ".file-list");
-    const revisionTop = await topOf(page, ".revision-history");
-    const bomTop = await topOf(page, ".bom-list");
-    const whereUsedTop = await topOf(page, ".where-used-list");
-    const checkoutTop = await topOf(page, ".checkout-card");
-    const discussionTop = await topOf(page, ".discussion-panel");
-    const issueTop = await topOf(page, ".issue-panel");
+    const highCostFragments = ["/ai-summary", "/ai-risks", "/reuse-candidates", "/duplicate-geometry", "/supplier-responses", "/sync-runs"];
+    record(
+      "DDP-007 high-cost resources are not requested on initial detail open",
+      !highCostFragments.some((fragment) => hasRequested(requestPaths, fragment)),
+      requestPaths.join(", ")
+    );
+    record(
+      "DDP-008 system identifiers are collapsed on first paint",
+      !(await page.locator(".system-diagnostics .detail-row", { hasText: "送審 ID" }).isVisible())
+    );
+    record(
+      "DDP-009 SHA256 is hidden behind diagnostics expansion",
+      !(await page.locator(".system-diagnostics .file-diagnostic-item", { hasText: "SHA256" }).isVisible())
+    );
 
-    record("DDP-004 files appear before checkout/review tools", fileTop < checkoutTop);
-    record("DDP-005 revision history appears before checkout/review tools", revisionTop < checkoutTop);
-    record("DDP-006 BOM appears before checkout/review tools", bomTop < checkoutTop);
-    record("DDP-007 Where-used appears before checkout/review tools", whereUsedTop < checkoutTop);
-    record("DDP-008 discussion is below drawing context", discussionTop > whereUsedTop);
-    record("DDP-009 review issues are below drawing context", issueTop > whereUsedTop);
+    const quickTop = await topOf(page, ".detail-quick-actions");
+    const engineeringTop = await topOf(page, ".engineering-context");
+    const collaborationTop = await topOf(page, ".collaboration-review");
+    const diagnosticsTop = await topOf(page, ".system-diagnostics");
+    record("DDP-010 workflow layers are ordered", quickTop < engineeringTop && engineeringTop < collaborationTop && collaborationTop < diagnosticsTop);
+
+    await page.locator(".engineering-context > summary").click();
+    await page.locator(".engineering-context .revision-history").waitFor({ timeout: 15000 });
+    record("DDP-011 engineering expansion requests BOM diff", hasRequested(requestPaths, `/api/submissions/${primary.submissionId}/bom/diff`), requestPaths.join(", "));
+    record("DDP-012 engineering expansion requests where-used", hasRequested(requestPaths, "/where-used"), requestPaths.join(", "));
+    record("DDP-013 engineering expansion keeps BOM visible", await page.locator(".engineering-context .bom-list").isVisible());
+    record("DDP-014 engineering expansion keeps where-used visible", await page.locator(".engineering-context .where-used-list").isVisible());
+    await page.locator("tbody tr", { hasText: secondary.drawingNumber }).first().click();
+    await page.locator(".detail-title-stack", { hasText: secondary.drawingNumber }).waitFor({ timeout: 15000 });
+    await page.locator(".engineering-context .revision-history .revision-item", { hasText: "版次 B" }).waitFor({ timeout: 15000 });
+    record(
+      "DDP-026 open engineering context reloads revision history after row switch",
+      await page.locator(".engineering-context .revision-history .revision-item", { hasText: "版次 B" }).isVisible()
+    );
+    const revisionHistoryText = (await page.locator(".engineering-context .revision-history").textContent()) ?? "";
+    record(
+      "DDP-027 revision history shows revision only without drawing or submission ids",
+      revisionHistoryText.includes("版次 B") && !revisionHistoryText.includes(secondary.drawingNumber) && !revisionHistoryText.includes(secondary.submissionId),
+      revisionHistoryText
+    );
+    const engineeringContextText = (await page.locator(".engineering-context").textContent()) ?? "";
+    record(
+      "DDP-028 engineering context does not expose raw submission ids",
+      !/SUB-[A-Z0-9-]+/u.test(engineeringContextText),
+      engineeringContextText
+    );
+
+    await page.locator(".collaboration-review > summary").click();
+    await page.locator(".collaboration-review .discussion-panel").waitFor({ timeout: 15000 });
+    await page.waitForTimeout(500);
+    record("DDP-015 collaboration expansion requests AI summary lazily", hasRequested(requestPaths, `/api/submissions/${secondary.submissionId}/ai-summary`), requestPaths.join(", "));
+    record("DDP-016 collaboration expansion keeps approve control visible", await page.getByRole("button", { name: /核准/ }).count().then((count) => count > 0));
+    record("DDP-017 review issues remain below engineering context", (await topOf(page, ".collaboration-review .issue-panel")) > (await topOf(page, ".engineering-context .where-used-list")));
+
+    await page.locator(".system-diagnostics > summary").click();
+    await page.locator(".system-diagnostics .detail-row", { hasText: "送審 ID" }).waitFor({ timeout: 15000 });
+    record("DDP-018 diagnostics reveal submission id", await page.getByText(secondary.submissionId).first().isVisible());
+    await page.locator(".system-diagnostics .file-diagnostic-item > summary").first().click();
+    record("DDP-019 diagnostics reveal SHA256 after file expansion", await page.locator(".system-diagnostics .file-diagnostic-item", { hasText: "SHA256" }).isVisible());
+    await page.getByRole("button", { name: "關閉圖面明細" }).click();
+    await page.waitForTimeout(100);
+    record("DDP-023 close control returns to list-only focus", (await page.locator(".detail-panel").count()) === 0);
 
     await context.close();
   } finally {

@@ -92,11 +92,7 @@ async function run() {
     record("DFF-005 list title is drawing data", await page.getByRole("heading", { name: "圖面資料", exact: true }).isVisible());
     record("DFF-006 old review-list title is removed", (await page.getByRole("heading", { name: "送審清單" }).count()) === 0);
 
-    const expectedHeaders = ["圖號", "料號", "品名", "版次", "狀態", "檔案狀態", "最近更新", "操作"];
-    for (const header of expectedHeaders) {
-      const matchingHeaders = await page.locator("th").evaluateAll((items, expected) => items.filter((item) => item.textContent?.trim() === expected).length, header);
-      record(`DFF-007 table header ${header}`, matchingHeaders === 1);
-    }
+    record("DFF-007 find workflow area is ready", await page.locator(".quick-access").isVisible());
 
     const compactNotifications = page.locator(".notification-center.compact-notifications");
     record("DFF-008 notifications are downgraded to compact area", await compactNotifications.isVisible());
@@ -108,8 +104,11 @@ async function run() {
     const resultRow = page.locator("tr", { hasText: `FIND-${unique}` }).first();
     record("DFF-011 file availability is visible in result row", ((await resultRow.innerText()) ?? "").includes("PDF"));
     record("DFF-012 result detail can still open", await resultRow.click().then(() => true));
-    await page.getByText(submissionId).first().waitFor({ timeout: 15000 });
-    record("DFF-013 selected drawing detail loads", await page.getByText(submissionId).count().then((count) => count > 0));
+    await page.locator(".detail-title-stack", { hasText: `FIND-${unique}` }).waitFor({ timeout: 15000 });
+    record(
+      "DFF-013 selected drawing detail loads by business identity",
+      await page.locator(".detail-title-stack", { hasText: `FIND-${unique}` }).count().then((count) => count > 0)
+    );
 
     await context.close();
   } finally {

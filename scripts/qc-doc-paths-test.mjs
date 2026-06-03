@@ -22,12 +22,12 @@ record("DOCS-004 path index maps QA validation plans", pathIndex.includes("docs/
 record("DOCS-005 path index maps QC reports", pathIndex.includes("docs/qc-*.md") && pathIndex.includes("docs/reports/qc/"));
 
 const qaSync = read("scripts/qa-sync-dev-task-evidence.mjs");
-record("DOCS-006 evidence sync prefers dev_task.md", qaSync.includes('path.join(root, "dev_task.md")'));
-record("DOCS-007 evidence sync keeps PDM_dev_task fallback", qaSync.includes('path.join(root, "PDM_dev_task.md")'));
+record("DOCS-006 evidence sync prefers .ai-doc/dev_task.md", qaSync.includes('path.join(root, ".ai-doc", "dev_task.md")'));
+record("DOCS-007 evidence sync keeps legacy task fallbacks", qaSync.includes('path.join(root, "dev_task.md")') && qaSync.includes('path.join(root, "PDM_dev_task.md")'));
 
 const productionReadiness = read("scripts/qc-production-readiness-test.mjs");
-record("DOCS-009 production readiness prefers dev_task.md", productionReadiness.includes('path.join(root, "dev_task.md")'));
-record("DOCS-010 production readiness keeps PDM_dev_task fallback", productionReadiness.includes('path.join(root, "PDM_dev_task.md")'));
+record("DOCS-009 production readiness prefers .ai-doc/dev_task.md", productionReadiness.includes('path.join(root, ".ai-doc", "dev_task.md")'));
+record("DOCS-010 production readiness keeps legacy task fallbacks", productionReadiness.includes('path.join(root, "dev_task.md")') && productionReadiness.includes('path.join(root, "PDM_dev_task.md")'));
 
 for (const script of [
   "scripts/generate-sw-addin-test-report.mjs",

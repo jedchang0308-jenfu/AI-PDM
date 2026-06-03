@@ -1,9 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
-import { AlertTriangle, Archive, Check, Copy, Download, Eye, Factory, FileText, Filter, GitBranch, Lock, LogOut, MessageSquare, RefreshCcw, Search, Share2, Unlock, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  Bell,
+  Check,
+  ClipboardList,
+  Copy,
+  Download,
+  Eye,
+  Factory,
+  FileText,
+  Filter,
+  GitBranch,
+  GitPullRequestArrow,
+  ListTree,
+  Lock,
+  LogOut,
+  MessageSquare,
+  RefreshCcw,
+  Search,
+  Share2,
+  ShieldAlert,
+  Unlock,
+  UploadCloud,
+  X,
+  type LucideIcon
+} from "lucide-react";
 import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
+import { NextStepState } from "@/components/next-step-state";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -108,6 +135,15 @@ type SavedFinderSearch = {
   created_at: string;
 };
 
+type DetailResourceGroup = "engineering" | "insights" | "collaboration" | "handoff";
+
+const emptyDetailResourceFlags: Record<DetailResourceGroup, boolean> = {
+  engineering: false,
+  insights: false,
+  collaboration: false,
+  handoff: false
+};
+
 const recentSearchesStorageKey = "pdm.recentSearches";
 const recentDrawingsStorageKey = "pdm.recentDrawings";
 const favoriteDrawingsStorageKey = "pdm.favoriteDrawings";
@@ -174,6 +210,105 @@ const conditionFilters: ConditionFilterConfig[] = [
   { key: "locked", label: "編輯預約中" },
   { key: "missing_handoff", label: "缺交接檔" }
 ];
+
+type WorkbenchLink = {
+  href: string;
+  label: string;
+  detail: string;
+  icon: LucideIcon;
+};
+
+type WorkbenchSection = {
+  title: string;
+  description: string;
+  badge: string;
+  icon: LucideIcon;
+  links: WorkbenchLink[];
+};
+
+function getPlatformWorkbenchSections({
+  currentUser,
+  notificationSummary,
+  recentDrawings,
+  favoriteDrawings
+}: {
+  currentUser: CurrentUser;
+  notificationSummary: NotificationSummary;
+  recentDrawings: RecentDrawing[];
+  favoriteDrawings: RecentDrawing[];
+}): WorkbenchSection[] {
+  const recommendedLinks: WorkbenchLink[] =
+    currentUser.role === "Engineer"
+      ? [
+          { href: "/upload", label: "上傳送審", detail: "建立新的圖料送審", icon: UploadCloud },
+          { href: "/numbering/request", label: "領號申請", detail: "先取得料號 / 圖號", icon: ClipboardList },
+          { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM Draft", icon: ListTree }
+        ]
+      : [
+          { href: "/bom/reviews", label: "BOM 審核", detail: "處理待審 BOM 差異", icon: ListTree },
+          { href: "/numbering/approvals", label: "發行審核", detail: "審 DVT / Release gate", icon: GitPullRequestArrow },
+          { href: "/numbering/reports", label: "圖號報表", detail: "檢視審核與稽核摘要", icon: FileText }
+        ];
+
+  return [
+    {
+      title: "我的待辦",
+      description: "集中處理審核、通知與阻塞，不必先判斷功能位置。",
+      badge: `${notificationSummary.total} 通知`,
+      icon: Bell,
+      links: [
+        {
+          href: "/numbering/tasks",
+          label: "待辦中心",
+          detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} warning`,
+          icon: Bell
+        },
+        { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門 BOM gate", icon: ListTree },
+        { href: "/numbering/approvals", label: "發行審核", detail: "DVT / Release 決策", icon: GitPullRequestArrow }
+      ]
+    },
+    {
+      title: "我要開始",
+      description: "從建立資料開始，覆蓋 RD、PM 協調與 PDM 管理的常見入口。",
+      badge: "建立",
+      icon: UploadCloud,
+      links: [
+        { href: "/upload", label: "上傳送審", detail: "圖面 / 文件 / CAD 檔", icon: UploadCloud },
+        { href: "/numbering/request", label: "領號申請", detail: "料號、圖號、用途", icon: ClipboardList },
+        { href: "/numbering/imports", label: "圖號總表匯入", detail: "既有主檔 staging", icon: FileText }
+      ]
+    },
+    {
+      title: "我要追蹤",
+      description: "以物件為中心回到圖號、料號、BOM、影響範圍與近期活動。",
+      badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
+      icon: Search,
+      links: [
+        { href: "/numbering/search", label: "圖料查詢", detail: "圖號、料號、同圖多料號", icon: Search },
+        { href: "/numbering/impact", label: "MA 影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
+        { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
+      ]
+    },
+    {
+      title: "我要交接輸出",
+      description: "讓製造、採購、供應商與管理者從 Released 狀態取得可用資料。",
+      badge: "交接",
+      icon: Factory,
+      links: [
+        { href: "/handoff", label: "製造交接", detail: "Released 圖料與交接包", icon: Factory },
+        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM snapshot / 匯出", icon: ListTree },
+        { href: "/numbering/reports", label: "報表輸出", detail: "跨角色狀態彙整", icon: FileText }
+      ]
+    },
+    {
+      title: "系統建議",
+      description: "依目前角色先給高價值入口；後續可升級為自適應任務路由。",
+      badge: roleLabels[currentUser.role],
+      icon: MessageSquare,
+      links: recommendedLinks
+    }
+  ];
+}
 
 function parseFileRoles(submission: SubmissionSummary) {
   return new Set((submission.file_roles ?? "").split(",").filter(Boolean));
@@ -323,13 +458,6 @@ function describeBomDiffLine(line: BomDiffResult["lines"][number]) {
   return "未變更";
 }
 
-type Metrics = {
-  pending: number;
-  released: number;
-  rejected: number;
-  failed: number;
-};
-
 const emptyNotificationSummary: NotificationSummary = {
   total: 0,
   critical: 0,
@@ -371,8 +499,12 @@ export function Dashboard() {
   const [submissionTableScrollTop, setSubmissionTableScrollTop] = useState(0);
   const [submissionTableViewportHeight, setSubmissionTableViewportHeight] = useState(640);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailOverlayLeft, setDetailOverlayLeft] = useState<number | null>(null);
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SubmissionDetail | null>(null);
+  const [detailLayerOpen, setDetailLayerOpen] = useState({ engineering: false, collaboration: false });
+  const [detailResourcesLoaded, setDetailResourcesLoaded] = useState<Record<DetailResourceGroup, boolean>>({ ...emptyDetailResourceFlags });
+  const [detailResourceLoading, setDetailResourceLoading] = useState<Record<DetailResourceGroup, boolean>>({ ...emptyDetailResourceFlags });
   const [revisionHistory, setRevisionHistory] = useState<ItemRevisionHistoryEntry[]>([]);
   const [bomDiff, setBomDiff] = useState<BomDiffResult | null>(null);
   const [bomDiffMessage, setBomDiffMessage] = useState("");
@@ -422,7 +554,6 @@ export function Dashboard() {
   const [sandboxBranchName, setSandboxBranchName] = useState("原型試作");
   const [sandboxReason, setSandboxReason] = useState("工程試作分支");
   const [sandboxLoading, setSandboxLoading] = useState(false);
-  const [metrics, setMetrics] = useState<Metrics>({ pending: 0, released: 0, rejected: 0, failed: 0 });
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationSummary, setNotificationSummary] = useState<NotificationSummary>(emptyNotificationSummary);
   const [loading, setLoading] = useState(true);
@@ -472,10 +603,14 @@ export function Dashboard() {
       .slice(0, 6);
   }, [searchQuery, submissions]);
   const selectedSummary = useMemo(
-    () => submissions.find((submission) => submission.id === selectedId) ?? null,
-    [selectedId, submissions]
+    () => submissions.find((submission) => submission.id === selectedId) ?? (detail?.id === selectedId ? detail : null),
+    [detail, selectedId, submissions]
   );
   const isDetailLoading = Boolean(loadingDetailId);
+  const detailFocusStyle = useMemo(
+    () => (detailOverlayLeft ? ({ "--detail-overlay-left": `${detailOverlayLeft}px` } as CSSProperties) : undefined),
+    [detailOverlayLeft]
+  );
   const virtualTable = useMemo(() => {
     const visibleCount = Math.ceil(submissionTableViewportHeight / virtualRowHeight) + virtualOverscan * 2;
     const startIndex = Math.max(Math.floor(submissionTableScrollTop / virtualRowHeight) - virtualOverscan, 0);
@@ -529,11 +664,8 @@ export function Dashboard() {
     startSubmissionTransition(() => {
       setSubmissions(nextSubmissions);
       setHasMoreSubmissions(endpoint === "/api/submissions" ? Boolean(data.pagination?.hasMore) : false);
-      if (data.metrics) {
-        setMetrics(data.metrics);
-      }
       setSelectedId((current) =>
-        nextSubmissions.some((submission: SubmissionSummary) => submission.id === current) ? current : nextSubmissions[0]?.id ?? null
+        current && nextSubmissions.some((submission: SubmissionSummary) => submission.id === current) ? current : null
       );
     });
     setLoading(false);
@@ -608,49 +740,9 @@ export function Dashboard() {
     setCurrentSandboxBranch(null);
     setSandboxBranchName("原型試作");
     setSandboxReason("工程試作分支");
+    setDetailResourcesLoaded({ ...emptyDetailResourceFlags });
+    setDetailResourceLoading({ ...emptyDetailResourceFlags });
   }, []);
-
-  const applyDetailResources = useCallback(
-    (resources: {
-      diffData: { diff?: BomDiffResult | null } | null;
-      summaryData: { summary?: AiSubmissionSummary | null } | null;
-      riskData: { report?: AiRiskReport | null } | null;
-      reuseData: { candidates?: DesignReuseCandidate[] } | null;
-      duplicateGeometryData: { candidates?: DuplicateGeometryCandidate[] } | null;
-      sandboxData: { branches?: SandboxBranch[]; current_branch?: SandboxBranch | null } | null;
-      discussionData: { comments?: DiscussionComment[] } | null;
-      issueData: { issues?: ReviewIssue[] } | null;
-      changeData: { changes?: ChangeRequest[] } | null;
-      phaseGateData: { checks?: PhaseGateCheck[] } | null;
-      approvalMatrixData: { requirements?: ApprovalMatrixRequirement[] } | null;
-      markupData: { markups?: PdfMarkup[] } | null;
-      shareData: { shares?: ReadonlyShare[] } | null;
-      supplierData: { responses?: SupplierPortalResponse[] } | null;
-      procurementSyncData: { runs?: ProcurementSyncRun[] } | null;
-      whereUsedData: { whereUsed?: WhereUsedEntry[] } | null;
-      historyData: { revisions?: ItemRevisionHistoryEntry[] } | null;
-    }) => {
-      setBomDiff(resources.diffData?.diff ?? null);
-      setAiSummary(resources.summaryData?.summary ?? null);
-      setAiRiskReport(resources.riskData?.report ?? null);
-      setReuseCandidates(resources.reuseData?.candidates ?? []);
-      setDuplicateGeometryCandidates(resources.duplicateGeometryData?.candidates ?? []);
-      setSandboxBranches(resources.sandboxData?.branches ?? []);
-      setCurrentSandboxBranch(resources.sandboxData?.current_branch ?? null);
-      setDiscussionComments(resources.discussionData?.comments ?? []);
-      setReviewIssues(resources.issueData?.issues ?? []);
-      setChangeRequests(resources.changeData?.changes ?? []);
-      setPhaseGateChecks(resources.phaseGateData?.checks ?? []);
-      setApprovalMatrixRequirements(resources.approvalMatrixData?.requirements ?? []);
-      setPdfMarkups(resources.markupData?.markups ?? []);
-      setReadonlyShares(resources.shareData?.shares ?? []);
-      setSupplierResponses(resources.supplierData?.responses ?? []);
-      setProcurementSyncRuns(resources.procurementSyncData?.runs ?? []);
-      setWhereUsed(resources.whereUsedData?.whereUsed ?? []);
-      setRevisionHistory(resources.historyData?.revisions ?? []);
-    },
-    []
-  );
 
   const loadDetail = useCallback(async (id: string | null) => {
     detailAbortRef.current?.abort();
@@ -661,103 +753,24 @@ export function Dashboard() {
     const isCurrentRequest = () => detailRequestIdRef.current === requestId && !controller.signal.aborted;
 
     try {
-    async function fetchDetailJson<T>(url: string): Promise<T | null> {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!isCurrentRequest() || !response.ok) return null;
-      const result = (await response.json()) as T;
-      return isCurrentRequest() ? result : null;
-    }
-
-    async function fetchBomDiffJson(url: string): Promise<{ diff?: BomDiffResult | null } | null> {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!isCurrentRequest()) return null;
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setBomDiffMessage(typeof result?.error === "string" ? result.error : "BOM diff 尚無可比較資料");
-        return null;
+      if (!id) {
+        setLoadingDetailId(null);
+        setDetail(null);
+        resetDetailSideState();
+        return;
       }
-      return isCurrentRequest() ? (result as { diff?: BomDiffResult | null }) : null;
-    }
-
-    if (!id) {
-      setLoadingDetailId(null);
-      setDetail(null);
+      setLoadingDetailId(id);
+      const response = await fetch(`/api/submissions/${id}`, { signal: controller.signal });
+      if (!isCurrentRequest()) return;
+      if (!response.ok) {
+        setDetail(null);
+        resetDetailSideState();
+        return;
+      }
+      const data = await response.json();
+      if (!isCurrentRequest()) return;
+      setDetail(data.submission ?? null);
       resetDetailSideState();
-      return;
-    }
-    setLoadingDetailId(id);
-    const response = await fetch(`/api/submissions/${id}`, { signal: controller.signal });
-    if (!isCurrentRequest()) return;
-    if (!response.ok) {
-      setDetail(null);
-      resetDetailSideState();
-      return;
-    }
-    const data = await response.json();
-    if (!isCurrentRequest()) return;
-    const nextDetail = data.submission ?? null;
-    setDetail(nextDetail);
-    resetDetailSideState();
-    const encodedPartNumber = nextDetail?.part_number ? encodeURIComponent(nextDetail.part_number) : null;
-    const [
-      diffData,
-      summaryData,
-      riskData,
-      reuseData,
-      duplicateGeometryData,
-      sandboxData,
-      discussionData,
-      issueData,
-      changeData,
-      phaseGateData,
-      approvalMatrixData,
-      markupData,
-      shareData,
-      supplierData,
-      procurementSyncData,
-      whereUsedData,
-      historyData
-    ] = await Promise.all([
-      fetchBomDiffJson(`/api/submissions/${id}/bom/diff`),
-      fetchDetailJson<{ summary?: AiSubmissionSummary | null }>(`/api/submissions/${id}/ai-summary`),
-      fetchDetailJson<{ report?: AiRiskReport | null }>(`/api/submissions/${id}/ai-risks`),
-      fetchDetailJson<{ candidates?: DesignReuseCandidate[] }>(`/api/submissions/${id}/reuse-candidates`),
-      fetchDetailJson<{ candidates?: DuplicateGeometryCandidate[] }>(`/api/submissions/${id}/duplicate-geometry`),
-      fetchDetailJson<{ branches?: SandboxBranch[]; current_branch?: SandboxBranch | null }>(`/api/submissions/${id}/sandbox`),
-      fetchDetailJson<{ comments?: DiscussionComment[] }>(`/api/submissions/${id}/discussions`),
-      fetchDetailJson<{ issues?: ReviewIssue[] }>(`/api/submissions/${id}/issues`),
-      fetchDetailJson<{ changes?: ChangeRequest[] }>(`/api/submissions/${id}/changes`),
-      fetchDetailJson<{ checks?: PhaseGateCheck[] }>(`/api/submissions/${id}/phase-gates`),
-      fetchDetailJson<{ requirements?: ApprovalMatrixRequirement[] }>(`/api/submissions/${id}/approval-matrix`),
-      fetchDetailJson<{ markups?: PdfMarkup[] }>(`/api/submissions/${id}/pdf-markups`),
-      fetchDetailJson<{ shares?: ReadonlyShare[] }>(`/api/submissions/${id}/shares`),
-      fetchDetailJson<{ responses?: SupplierPortalResponse[] }>(`/api/submissions/${id}/supplier-responses`),
-      fetchDetailJson<{ runs?: ProcurementSyncRun[] }>(`/api/integrations/procurement/sync-runs?submissionId=${encodeURIComponent(id)}`),
-      encodedPartNumber ? fetchDetailJson<{ whereUsed?: WhereUsedEntry[] }>(`/api/items/${encodedPartNumber}/where-used`) : Promise.resolve(null),
-      encodedPartNumber
-        ? fetchDetailJson<{ revisions?: ItemRevisionHistoryEntry[] }>(`/api/items/${encodedPartNumber}/revisions`)
-        : Promise.resolve(null)
-    ]);
-    if (!isCurrentRequest()) return;
-    applyDetailResources({
-      diffData,
-      summaryData,
-      riskData,
-      reuseData,
-      duplicateGeometryData,
-      sandboxData,
-      discussionData,
-      issueData,
-      changeData,
-      phaseGateData,
-      approvalMatrixData,
-      markupData,
-      shareData,
-      supplierData,
-      procurementSyncData,
-      whereUsedData,
-      historyData
-    });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       console.error(error);
@@ -767,7 +780,140 @@ export function Dashboard() {
         setLoadingDetailId(null);
       }
     }
-  }, [applyDetailResources, resetDetailSideState]);
+  }, [resetDetailSideState]);
+
+  const fetchResourceJson = useCallback(async <T,>(requestId: number, url: string): Promise<T | null> => {
+    const response = await fetch(url);
+    if (detailRequestIdRef.current !== requestId || !response.ok) return null;
+    const result = (await response.json()) as T;
+    return detailRequestIdRef.current === requestId ? result : null;
+  }, []);
+
+  const loadEngineeringResources = useCallback(async (id = selectedId) => {
+    if (!id || !detail || detail.id !== id || detailResourcesLoaded.engineering || detailResourceLoading.engineering) return;
+    const requestId = detailRequestIdRef.current;
+    const encodedPartNumber = encodeURIComponent(detail.part_number);
+    setDetailResourceLoading((current) => ({ ...current, engineering: true }));
+    try {
+      const [diffData, whereUsedData, historyData] = await Promise.all([
+        fetch(`/api/submissions/${id}/bom/diff`)
+          .then(async (response) => {
+            const result = await response.json().catch(() => ({}));
+            if (detailRequestIdRef.current !== requestId) return null;
+            if (!response.ok) {
+              setBomDiffMessage(typeof result?.error === "string" ? result.error : "BOM diff 尚無可比較資料");
+              return null;
+            }
+            return result as { diff?: BomDiffResult | null };
+          })
+          .catch(() => null),
+        fetchResourceJson<{ whereUsed?: WhereUsedEntry[] }>(requestId, `/api/items/${encodedPartNumber}/where-used`),
+        fetchResourceJson<{ revisions?: ItemRevisionHistoryEntry[] }>(requestId, `/api/items/${encodedPartNumber}/revisions`)
+      ]);
+      if (detailRequestIdRef.current !== requestId) return;
+      setBomDiff(diffData?.diff ?? null);
+      setWhereUsed(whereUsedData?.whereUsed ?? []);
+      setRevisionHistory(historyData?.revisions ?? []);
+      setDetailResourcesLoaded((current) => ({ ...current, engineering: true }));
+    } finally {
+      if (detailRequestIdRef.current === requestId) {
+        setDetailResourceLoading((current) => ({ ...current, engineering: false }));
+      }
+    }
+  }, [detail, detailResourceLoading.engineering, detailResourcesLoaded.engineering, fetchResourceJson, selectedId]);
+
+  const loadInsightResources = useCallback(async (id = selectedId) => {
+    if (!id || detailResourcesLoaded.insights || detailResourceLoading.insights) return;
+    const requestId = detailRequestIdRef.current;
+    setDetailResourceLoading((current) => ({ ...current, insights: true }));
+    try {
+      const [summaryData, riskData, reuseData, duplicateGeometryData] = await Promise.all([
+        fetchResourceJson<{ summary?: AiSubmissionSummary | null }>(requestId, `/api/submissions/${id}/ai-summary`),
+        fetchResourceJson<{ report?: AiRiskReport | null }>(requestId, `/api/submissions/${id}/ai-risks`),
+        fetchResourceJson<{ candidates?: DesignReuseCandidate[] }>(requestId, `/api/submissions/${id}/reuse-candidates`),
+        fetchResourceJson<{ candidates?: DuplicateGeometryCandidate[] }>(requestId, `/api/submissions/${id}/duplicate-geometry`)
+      ]);
+      if (detailRequestIdRef.current !== requestId) return;
+      setAiSummary(summaryData?.summary ?? null);
+      setAiRiskReport(riskData?.report ?? null);
+      setReuseCandidates(reuseData?.candidates ?? []);
+      setDuplicateGeometryCandidates(duplicateGeometryData?.candidates ?? []);
+      setDetailResourcesLoaded((current) => ({ ...current, insights: true }));
+    } finally {
+      if (detailRequestIdRef.current === requestId) {
+        setDetailResourceLoading((current) => ({ ...current, insights: false }));
+      }
+    }
+  }, [detailResourceLoading.insights, detailResourcesLoaded.insights, fetchResourceJson, selectedId]);
+
+  const loadCollaborationResources = useCallback(async (id = selectedId) => {
+    if (!id || detailResourcesLoaded.collaboration || detailResourceLoading.collaboration) return;
+    const requestId = detailRequestIdRef.current;
+    setDetailResourceLoading((current) => ({ ...current, collaboration: true }));
+    try {
+      const [sandboxData, discussionData, issueData, changeData, phaseGateData, approvalMatrixData, markupData] = await Promise.all([
+        fetchResourceJson<{ branches?: SandboxBranch[]; current_branch?: SandboxBranch | null }>(requestId, `/api/submissions/${id}/sandbox`),
+        fetchResourceJson<{ comments?: DiscussionComment[] }>(requestId, `/api/submissions/${id}/discussions`),
+        fetchResourceJson<{ issues?: ReviewIssue[] }>(requestId, `/api/submissions/${id}/issues`),
+        fetchResourceJson<{ changes?: ChangeRequest[] }>(requestId, `/api/submissions/${id}/changes`),
+        fetchResourceJson<{ checks?: PhaseGateCheck[] }>(requestId, `/api/submissions/${id}/phase-gates`),
+        fetchResourceJson<{ requirements?: ApprovalMatrixRequirement[] }>(requestId, `/api/submissions/${id}/approval-matrix`),
+        fetchResourceJson<{ markups?: PdfMarkup[] }>(requestId, `/api/submissions/${id}/pdf-markups`)
+      ]);
+      if (detailRequestIdRef.current !== requestId) return;
+      setSandboxBranches(sandboxData?.branches ?? []);
+      setCurrentSandboxBranch(sandboxData?.current_branch ?? null);
+      setDiscussionComments(discussionData?.comments ?? []);
+      setReviewIssues(issueData?.issues ?? []);
+      setChangeRequests(changeData?.changes ?? []);
+      setPhaseGateChecks(phaseGateData?.checks ?? []);
+      setApprovalMatrixRequirements(approvalMatrixData?.requirements ?? []);
+      setPdfMarkups(markupData?.markups ?? []);
+      setDetailResourcesLoaded((current) => ({ ...current, collaboration: true }));
+    } finally {
+      if (detailRequestIdRef.current === requestId) {
+        setDetailResourceLoading((current) => ({ ...current, collaboration: false }));
+      }
+    }
+  }, [detailResourceLoading.collaboration, detailResourcesLoaded.collaboration, fetchResourceJson, selectedId]);
+
+  const loadHandoffResources = useCallback(async (id = selectedId) => {
+    if (!id || detailResourcesLoaded.handoff || detailResourceLoading.handoff) return;
+    if (!canReview || detail?.status !== "Released" || !detail.release_package) {
+      setDetailResourcesLoaded((current) => ({ ...current, handoff: true }));
+      return;
+    }
+    const requestId = detailRequestIdRef.current;
+    setDetailResourceLoading((current) => ({ ...current, handoff: true }));
+    try {
+      const [shareData, supplierData, procurementSyncData] = await Promise.all([
+        fetchResourceJson<{ shares?: ReadonlyShare[] }>(requestId, `/api/submissions/${id}/shares`),
+        fetchResourceJson<{ responses?: SupplierPortalResponse[] }>(requestId, `/api/submissions/${id}/supplier-responses`),
+        fetchResourceJson<{ runs?: ProcurementSyncRun[] }>(requestId, `/api/integrations/procurement/sync-runs?submissionId=${encodeURIComponent(id)}`)
+      ]);
+      if (detailRequestIdRef.current !== requestId) return;
+      setReadonlyShares(shareData?.shares ?? []);
+      setSupplierResponses(supplierData?.responses ?? []);
+      setProcurementSyncRuns(procurementSyncData?.runs ?? []);
+      setDetailResourcesLoaded((current) => ({ ...current, handoff: true }));
+    } finally {
+      if (detailRequestIdRef.current === requestId) {
+        setDetailResourceLoading((current) => ({ ...current, handoff: false }));
+      }
+    }
+  }, [canReview, detail?.release_package, detail?.status, detailResourceLoading.handoff, detailResourcesLoaded.handoff, fetchResourceJson, selectedId]);
+
+  useEffect(() => {
+    if (!detail || !detailLayerOpen.engineering) return;
+    loadEngineeringResources(detail.id).catch(console.error);
+  }, [detail, detailLayerOpen.engineering, loadEngineeringResources]);
+
+  useEffect(() => {
+    if (!detail || !detailLayerOpen.collaboration) return;
+    loadCollaborationResources(detail.id).catch(console.error);
+    loadInsightResources(detail.id).catch(console.error);
+    loadHandoffResources(detail.id).catch(console.error);
+  }, [detail, detailLayerOpen.collaboration, loadCollaborationResources, loadHandoffResources, loadInsightResources]);
 
   const loadNotifications = useCallback(async () => {
     const response = await fetch("/api/notifications");
@@ -791,7 +937,7 @@ export function Dashboard() {
     setRecentSearches(next);
   }, [recentSearches]);
 
-  const rememberDrawing = useCallback((submission: SubmissionDetail) => {
+  const rememberDrawing = useCallback((submission: SubmissionSummary | SubmissionDetail) => {
     if (typeof window === "undefined") return;
     const entry = toRecentDrawing(submission);
     const current = readRecentDrawings();
@@ -966,7 +1112,7 @@ export function Dashboard() {
 
   useEffect(() => {
     setSelectedId((current) =>
-      visibleSubmissions.some((submission) => submission.id === current) ? current : visibleSubmissions[0]?.id ?? null
+      current && visibleSubmissions.some((submission) => submission.id === current) ? current : null
     );
   }, [visibleSubmissions]);
 
@@ -977,8 +1123,51 @@ export function Dashboard() {
   }, [currentUser, loadDetail, selectedId]);
 
   useEffect(() => {
-    if (detail) rememberDrawing(detail);
-  }, [detail, rememberDrawing]);
+    if (!selectedId) return;
+    function closeDetailOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedId(null);
+      }
+    }
+    window.addEventListener("keydown", closeDetailOnEscape);
+    return () => window.removeEventListener("keydown", closeDetailOnEscape);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetailLayerOpen({ engineering: false, collaboration: false });
+    }
+  }, [selectedId]);
+
+  useLayoutEffect(() => {
+    if (!selectedId) {
+      setDetailOverlayLeft(null);
+      return;
+    }
+
+    function updateDetailOverlayLeft() {
+      const selectedRow = submissionTableWrapRef.current?.querySelector("tr.selected-row");
+      const identifierCell = selectedRow?.querySelectorAll("td").item(2);
+      const identifierRight = identifierCell?.getBoundingClientRect().right;
+      const viewportWidth = window.innerWidth;
+      const gap = 12;
+      const minPanelWidth = viewportWidth <= 1180 ? 420 : 520;
+      const maxLeft = Math.max(viewportWidth - minPanelWidth - 20, 12);
+      setDetailOverlayLeft(identifierRight ? Math.min(Math.ceil(identifierRight + gap), maxLeft) : null);
+    }
+
+    updateDetailOverlayLeft();
+    const frame = window.requestAnimationFrame(updateDetailOverlayLeft);
+    window.addEventListener("resize", updateDetailOverlayLeft);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateDetailOverlayLeft);
+    };
+  }, [selectedId, virtualTable.rows]);
+
+  useLayoutEffect(() => {
+    if (selectedSummary) rememberDrawing(selectedSummary);
+  }, [rememberDrawing, selectedSummary]);
 
   useEffect(() => {
     function closeNotificationDropdown(event: PointerEvent) {
@@ -1498,6 +1687,13 @@ export function Dashboard() {
     );
   }
 
+  const platformWorkbenchSections = getPlatformWorkbenchSections({
+    currentUser,
+    notificationSummary,
+    recentDrawings,
+    favoriteDrawings
+  });
+
   return (
     <>
       <div className="topbar">
@@ -1532,6 +1728,53 @@ export function Dashboard() {
         </div>
       </div>
 
+      <section className="platform-workbench" aria-label="AI PDM multi-role workbench">
+        <div className="platform-workbench-header">
+          <div>
+            <span className="section-label">多角色工作台</span>
+            <h2>依任務、物件與阻塞決定下一步</h2>
+            <p>從待辦、建立、追蹤、交接與角色建議進入，不再依賴功能清單記憶。</p>
+          </div>
+          <div className="platform-workbench-meta">
+            <span className="metadata-badge">目前視角：{roleLabels[currentUser.role]}</span>
+            <span className="metadata-badge">{visibleSubmissions.length} 筆目前清單</span>
+          </div>
+        </div>
+        <div className="platform-workbench-grid">
+          {platformWorkbenchSections.map((section) => {
+            const Icon = section.icon;
+            return (
+              <article className="platform-workbench-card" key={section.title}>
+                <div className="platform-workbench-card-header">
+                  <span className="workbench-card-icon">
+                    <Icon size={18} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <span className="metadata-badge">{section.badge}</span>
+                    <h3>{section.title}</h3>
+                  </div>
+                </div>
+                <p>{section.description}</p>
+                <div className="workbench-link-list">
+                  {section.links.map((link) => {
+                    const LinkIcon = link.icon;
+                    return (
+                      <Link className="workbench-link" href={link.href} key={`${section.title}-${link.href}-${link.label}`}>
+                        <LinkIcon size={15} aria-hidden="true" />
+                        <span>
+                          <strong>{link.label}</strong>
+                          <small>{link.detail}</small>
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       <FinderToolbar>
       <section className="finder-summary-row" aria-label="找圖與摘要">
         <section className="search-bar primary-search" aria-label="PDM search">
@@ -1547,13 +1790,6 @@ export function Dashboard() {
               清除
             </button>
           ) : null}
-        </section>
-
-        <section className="metrics" aria-label="送審統計">
-          <Metric label="待審核" value={metrics.pending} />
-          <Metric label="已發布" value={metrics.released} />
-          <Metric label="已駁回" value={metrics.rejected} />
-          <Metric label="失敗" value={metrics.failed} />
         </section>
 
         <NotificationDropdown
@@ -1574,11 +1810,20 @@ export function Dashboard() {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => chooseSuggestion(submission)}
             >
-              <strong>
-                {submission.drawing_number} 版次 {submission.revision}
+              <strong className="identity-line">
+                <span className="identity-primary">{submission.drawing_number}</span>
+                <span className="metadata-badge">版次 {submission.revision}</span>
+                <span className={`badge ${submission.status}`}>{statusLabels[submission.status]}</span>
               </strong>
-              <span>
-                {submission.part_number} · {submission.part_name} · {statusLabels[submission.status]}
+              <span className="metadata-list">
+                <span className="metadata-pair">
+                  <span className="metadata-label">料號</span>
+                  <span className="metadata-value">{submission.part_number}</span>
+                </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">品名</span>
+                  <span className="metadata-value">{submission.part_name}</span>
+                </span>
               </span>
             </button>
           ))}
@@ -1696,8 +1941,9 @@ export function Dashboard() {
                   </div>
                 ) : null}
               </div>
-            </div>
-          </details>
+                </div>
+              </details>
+
         </div>
         <div className="recent-access">
           <div>
@@ -1772,7 +2018,7 @@ export function Dashboard() {
       </section>
       </FinderToolbar>
 
-      <div className="grid">
+      <div className={selectedId ? "grid detail-focus-mode" : "grid"} style={detailFocusStyle}>
         <SubmissionTable
           loading={loading}
           visibleSubmissions={visibleSubmissions}
@@ -1794,523 +2040,748 @@ export function Dashboard() {
           }}
         />
 
-        <SubmissionDetailPanel
-          detailPanelRef={detailPanelRef}
-          isDetailLoading={isDetailLoading}
-          selectedSummary={selectedSummary}
-          statusLabels={statusLabels}
-        >
+        {selectedId ? (
+          <SubmissionDetailPanel
+            detailPanelRef={detailPanelRef}
+            isDetailLoading={isDetailLoading}
+            selectedSummary={selectedSummary}
+            statusLabels={statusLabels}
+            onClose={() => setSelectedId(null)}
+          >
           {detail ? (
             <div className="detail">
-              <div className="detail-row">
-                <span>送審 ID</span>
-                <strong>{detail.id}</strong>
-              </div>
-              <div className="detail-row">
-                <span>圖號 / 版次</span>
-                <strong>
-                  {detail.drawing_number} 版次 {detail.revision}
-                </strong>
-              </div>
-              <div className="detail-row">
-                <span>料號 / 品名</span>
-                <strong>
-                  {detail.part_number} / {detail.part_name}
-                </strong>
-              </div>
-              <div className="detail-row">
-                <span>材質 / 表面處理</span>
-                <strong>
-                  {detail.material} / {detail.surface_finish}
-                </strong>
-              </div>
-              <div className="detail-row">
-                <span>變更原因</span>
-                <p>{detail.change_description}</p>
-              </div>
-              <div className={detail.active_lock ? "checkout-card locked" : "checkout-card"}>
+              <section className="detail-workflow-layer detail-quick-actions" aria-label="快速動作">
                 <div>
-                  <span className="section-label">編輯預約</span>
-                  {detail.active_lock ? (
-                    <>
-                      <strong>{detail.active_lock.locked_by_name}</strong>
-                      <small>
-                        {detail.active_lock.lock_reason} · 到期 {new Date(detail.active_lock.expires_at).toLocaleString()}
-                      </small>
-                    </>
-                  ) : (
-                    <small>目前沒有人預約編輯此料號。</small>
-                  )}
+                  <span className="section-label">快速動作</span>
+                  <strong>檔案與發布包</strong>
+                  <small>{detail.files.length} 個檔案可操作</small>
                 </div>
-                {canCheckout ? (
-                  detail.active_lock?.locked_by === currentUser.id || currentUser.role === "Admin" ? (
-                    <button className="secondary-button" type="button" onClick={() => runCheckout("unlock")} disabled={checkoutLoading}>
-                      <Unlock size={14} aria-hidden="true" />
-                      解除預約
-                    </button>
-                  ) : detail.active_lock ? null : (
-                    <button className="secondary-button" type="button" onClick={() => runCheckout("lock")} disabled={checkoutLoading}>
-                      <Lock size={14} aria-hidden="true" />
-                      預約編輯
-                    </button>
-                  )
-                ) : null}
-              </div>
-              <div className="readonly-share-panel">
-                <div className="readonly-share-header">
-                  <div className="readonly-share-title">
-                    <span className="section-label">試作分支</span>
-                    {currentSandboxBranch ? (
-                      <strong>
-                        {currentSandboxBranch.branch_name} · {formatWorkflowStatus(currentSandboxBranch.status)}
+                <div className="file-list detail-file-actions" aria-label="檔案">
+                  <div className="section-label file-list-label">檔案</div>
+                  {detail.files.map((file) => (
+                    <div className="file-item" key={file.id}>
+                      <strong className="file-title">
+                        <FileText size={14} aria-hidden="true" />
+                        <span className="file-kind-badge" aria-label={`檔案格式 ${file.file_role.toUpperCase()}`}>
+                          {file.file_role.toUpperCase()}
+                        </span>
+                        <span className="file-name">{file.original_filename}</span>
                       </strong>
-                    ) : (
-                      <strong>試作分支</strong>
-                    )}
-                    <small>啟用中的試作送審需先合併，才可進入核准與發布。</small>
-                  </div>
-                  <GitBranch size={18} aria-hidden="true" />
+                      <div className="file-actions">
+                        {file.file_role === "pdf" ? (
+                          <a
+                            className="secondary-button"
+                            href={`/api/submissions/${detail.id}/files/preview/${file.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="預覽 PDF"
+                          >
+                            <Eye size={14} aria-hidden="true" />
+                            預覽
+                          </a>
+                        ) : null}
+                        {file.file_role === "pdf" && file.gdrive_file_id ? (
+                          <a
+                            className="secondary-button"
+                            href={drivePdfPreviewUrl(file.gdrive_file_id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="開啟 Google Drive PDF 預覽"
+                          >
+                            <Eye size={14} aria-hidden="true" />
+                            Drive 預覽
+                          </a>
+                        ) : null}
+                        <a className="secondary-button" href={`/api/submissions/${detail.id}/files/${file.id}`} title="下載檔案">
+                          <Download size={14} aria-hidden="true" />
+                          下載
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {currentSandboxBranch?.status === "active" ? (
-                  <div className="readonly-share-row">
-                    <small>
-                      來源 {currentSandboxBranch.source_drawing_number} 版次 {currentSandboxBranch.source_revision}
-                    </small>
-                    {currentSandboxBranch.created_by === currentUser.id || currentUser.role === "Admin" ? (
-                      <button
-                        className="primary-button"
-                        type="button"
-                        onClick={() => mergeSandboxBranch(currentSandboxBranch.id)}
-                        disabled={sandboxLoading}
-                      >
-                        <Check size={14} aria-hidden="true" />
-                        合併
-                      </button>
-                    ) : null}
+                {detail.release_package ? (
+                  <div className="release-package-card">
+                    <div>
+                      <span className="section-label">發布包</span>
+                      <strong className="file-title">
+                        <Archive size={14} aria-hidden="true" />
+                        <span className="file-kind-badge" aria-label="檔案格式 ZIP">
+                          ZIP
+                        </span>
+                        <span className="file-name">{detail.release_package.package_filename}</span>
+                      </strong>
+                      <div className="metadata-list">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">大小</span>
+                          <span className="metadata-value">{(detail.release_package.file_size / 1024).toFixed(1)} KB</span>
+                        </span>
+                      </div>
+                    </div>
+                    <a className="secondary-button" href={`/api/submissions/${detail.id}/release-package`} title="下載發布包">
+                      <Archive size={14} aria-hidden="true" />
+                      發布包
+                    </a>
                   </div>
-                ) : canCheckout ? (
-                  <div className="readonly-share-form">
-                    <label>
-                      分支名稱
-                      <input value={sandboxBranchName} onChange={(event) => setSandboxBranchName(event.target.value)} type="text" maxLength={60} />
-                    </label>
-                    <label>
-                      原因
-                      <input value={sandboxReason} onChange={(event) => setSandboxReason(event.target.value)} type="text" maxLength={240} />
-                    </label>
-                    <button className="secondary-button" type="button" onClick={createSandboxBranchFromDetail} disabled={sandboxLoading}>
-                      <GitBranch size={14} aria-hidden="true" />
-                      建立分支
-                    </button>
+                ) : detail.status === "Released" ? (
+                  <div className="release-package-card missing">
+                    <div>
+                      <span className="section-label">發布包</span>
+                      <small>此筆已發布資料尚未產生 ZIP 發布包。</small>
+                    </div>
                   </div>
                 ) : null}
-                <div className="readonly-share-list">
-                  {sandboxBranches.length === 0 ? (
-                    <small>目前沒有試作分支。</small>
-                  ) : (
-                    sandboxBranches.map((branch) => (
-                      <div className="readonly-share-item" key={branch.id}>
-                        <div className="readonly-share-row">
-                          <strong>{branch.branch_name}</strong>
-                          <span className={`readonly-share-status ${branch.status}`}>{branch.merged_at ? "已合併" : formatWorkflowStatus(branch.status)}</span>
-                        </div>
-                        <small>
-                          {branch.source_drawing_number} 版次 {branch.source_revision} - 試作版次 {branch.sandbox_revision}
-                        </small>
-                        <small>建立者 {branch.created_by_name}</small>
-                        <div className="file-actions">
-                          <button className="secondary-button" type="button" onClick={() => setSelectedId(branch.sandbox_submission_id)}>
-                            <Eye size={14} aria-hidden="true" />
-                            開啟試作
-                          </button>
-                          {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
-                            <button
-                              className="primary-button"
-                              type="button"
-                              onClick={() => mergeSandboxBranch(branch.id)}
-                              disabled={sandboxLoading}
-                            >
-                              <Check size={14} aria-hidden="true" />
-                              合併
-                            </button>
-                          ) : null}
-                          {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
-                            <button
-                              className="secondary-button"
-                              type="button"
-                              onClick={() => updateSandboxBranch(branch.id, "close")}
-                              disabled={sandboxLoading}
-                            >
-                              <X size={14} aria-hidden="true" />
-                              關閉
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-              {aiSummary ? (
-                <div className="ai-summary-panel">
-                  <div>
-                    <span className="section-label">AI 審核摘要</span>
-                    <strong>{aiSummary.title}</strong>
+              </section>
+
+              <details
+                className="detail-workflow-layer engineering-context"
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setDetailLayerOpen((current) => ({ ...current, engineering: isOpen }));
+                  if (isOpen) loadEngineeringResources(detail.id).catch(console.error);
+                }}
+              >
+                <summary>
+                  <span>工程上下文</span>
+                  <small>變更原因、材質、版次、BOM、Where-used</small>
+                </summary>
+                <div className="detail-section-body">
+                  <div className="detail-row">
+                    <span>變更原因</span>
+                    <p>{detail.change_description}</p>
                   </div>
-                  <div className="ai-summary-sections">
-                    {aiSummary.sections.map((section) => (
-                      <div className={`ai-summary-section ${section.severity}`} key={section.key}>
-                        <strong>{section.title}</strong>
-                        <p>{section.body}</p>
-                        <ul>
-                          {section.facts.slice(0, 4).map((fact, index) => (
-                            <li key={`${section.key}-${index}`}>{fact}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="ai-summary-sources">
-                    <span>來源（{aiSummary.source_count}）</span>
-                    {aiSummary.sources.slice(0, 8).map((source) => (
-                      <small key={`${source.type}-${source.label}-${source.detail}`}>
-                        {source.type}: {source.label} - {source.detail}
-                      </small>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {aiRiskReport ? (
-                <div className="ai-risk-panel">
-                  <div>
-                    <span className="section-label">AI 風險提示</span>
-                    <strong>{aiRiskReport.risk_count > 0 ? `發現 ${aiRiskReport.risk_count} 項風險` : "未發現明確風險"}</strong>
-                  </div>
-                  {aiRiskReport.risks.length === 0 ? (
-                    <small>未偵測到缺少交接檔、新版次、多上層使用或已發布檔名衝突。</small>
-                  ) : (
-                    <div className="ai-risk-list">
-                      {aiRiskReport.risks.map((risk) => (
-                        <div className={`ai-risk-item ${risk.severity}`} key={risk.code}>
-                          <strong>{risk.title}</strong>
-                          <p>{risk.message}</p>
-                          <small>建議動作：{risk.action}</small>
-                          {risk.sources.slice(0, 4).map((source) => (
-                            <small key={`${risk.code}-${source.type}-${source.label}`}>
-                              {source.type}: {source.label} - {source.detail}
-                            </small>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-              <div className="reuse-panel">
-                <div>
-                  <span className="section-label">設計沿用候選</span>
-                  <strong>{reuseCandidates.length > 0 ? `${reuseCandidates.length} 筆中繼資料相符` : "沒有沿用候選"}</strong>
-                </div>
-                {reuseCandidates.length === 0 ? (
-                  <small>目前可見範圍內沒有相似中繼資料候選。</small>
-                ) : (
-                  <div className="reuse-list">
-                    {reuseCandidates.map((candidate) => (
-                      <button className="reuse-item" type="button" key={candidate.id} onClick={() => setSelectedId(candidate.id)}>
-                        <strong>
-                          <Copy size={14} aria-hidden="true" /> {candidate.part_number} · 版次 {candidate.revision}
-                        </strong>
-                        <span>
-                          分數 {candidate.score} · {candidate.drawing_number} · {statusLabels[candidate.status]}
-                        </span>
-                        <small>{candidate.part_name}</small>
-                        <small>{candidate.match_reasons.slice(0, 3).join(" / ")}</small>
-                        {candidate.matched_files.length > 0 ? <small>檔案：{candidate.matched_files.join(", ")}</small> : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="reuse-panel">
-                <div>
-                  <span className="section-label">重複幾何搜尋</span>
-                  <strong>
-                    {duplicateGeometryCandidates.length > 0
-                      ? `${duplicateGeometryCandidates.length} 筆指紋相符`
-                      : "沒有重複指紋"}
-                  </strong>
-                </div>
-                {duplicateGeometryCandidates.length === 0 ? (
-                  <small>目前可見範圍內沒有找到檔案指紋重複。</small>
-                ) : (
-                  <div className="reuse-list">
-                    {duplicateGeometryCandidates.map((candidate) => (
-                      <button className="reuse-item" type="button" key={candidate.id} onClick={() => setSelectedId(candidate.id)}>
-                        <strong>
-                          <Copy size={14} aria-hidden="true" /> {candidate.part_number} · {candidate.duplicate_level}
-                        </strong>
-                        <span>
-                          指紋 {candidate.fingerprint_score} · {candidate.drawing_number} · {statusLabels[candidate.status]}
-                        </span>
-                        <small>{candidate.fingerprint_signals.slice(0, 3).join(" / ")}</small>
-                        {candidate.matched_files.length > 0 ? <small>檔案：{candidate.matched_files.join(", ")}</small> : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="revision-history">
-                <div className="section-label">版次紀錄</div>
-                {revisionHistory.length === 0 ? (
-                  <small>目前沒有可查看的版次紀錄。</small>
-                ) : (
-                  <div className="revision-list">
-                    {revisionHistory.map((entry) => (
-                      <div className="revision-item" key={entry.submission_id}>
-                        <div>
-                          <strong>
-                            {entry.drawing_number} 版次 {entry.revision}
-                          </strong>
-                          <small>{entry.submission_id}</small>
-                        </div>
-                        <div className="revision-status">
-                          <span className={`badge ${entry.status}`}>{statusLabels[entry.status]}</span>
-                          {entry.status === "Obsolete" ? (
-                            <small>
-                              取代來源 {entry.superseded_by_submission_id ?? "-"} · 廢止時間 {entry.obsolete_at ?? "-"}
-                            </small>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="reference-list">
-                <div className="section-label">CAD 引用關係</div>
-                {detail.references.length === 0 ? (
-                  <small>尚未擷取 CAD 引用；Document Manager 介面卡就緒後會自動顯示組立件與圖面關聯。</small>
-                ) : (
-                  detail.references.map((reference) => (
-                    <div className="reference-item" key={reference.id}>
-                      <strong>{reference.source_filename}</strong>
-                      <span>
-                        {reference.reference_type} → {reference.referenced_filename}
+                  <div className="detail-row">
+                    <span>材質 / 表面處理</span>
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">材質</span>
+                        <span className="metadata-value">{detail.material}</span>
                       </span>
-                      <small>
-                        數量 {reference.quantity} · {reference.extraction_method} · {reference.confidence}
-                      </small>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">表面處理</span>
+                        <span className="metadata-value">{detail.surface_finish}</span>
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
-              <div className="bom-list">
-                <div className="bom-header-row">
-                  <div className="section-label">工程 BOM</div>
-                  {detail.bom ? (
-                    <div className="bom-export-actions">
-                      <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=csv`} title="匯出 BOM CSV">
-                        <Download size={14} />
-                        CSV
-                      </a>
-                      <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=xls`} title="匯出 BOM Excel">
-                        <Download size={14} />
-                        Excel
-                      </a>
-                    </div>
-                  ) : null}
-                </div>
-                {!detail.bom ? (
-                  <small>尚未產生 BOM 草稿；可由組立件 CAD 引用關係產生。</small>
-                ) : detail.bom.lines.length === 0 ? (
-                  <small>BOM 草稿已建立，但目前沒有子件行。</small>
-                ) : (
-                  detail.bom.lines.map((line) => {
-                    const lineState = getBomLineState(line);
-                    const content = (
-                      <>
-                        <div className="bom-item-title">
-                          <strong>
-                            {line.line_no}. {line.child_part_number}
-                          </strong>
-                          <span className={`bom-line-state ${lineState.className}`}>{lineState.label}</span>
-                        </div>
-                        <span>
-                          版次 {line.child_revision ?? line.child_submission_revision ?? "-"} · 數量 {line.quantity}
-                        </span>
-                        {line.child_part_name || line.child_drawing_number ? (
-                          <small>
-                            {line.child_part_name ?? "-"} · {line.child_drawing_number ?? "-"}
-                          </small>
-                        ) : null}
-                        <small>{line.source_filename ?? "沒有來源檔案"}</small>
-                      </>
-                    );
-                    return line.child_submission_id ? (
-                      <button
-                        className="bom-item bom-child-link"
-                        type="button"
-                        key={line.id}
-                        onClick={() => {
-                          openChildSubmission(line.child_submission_id).catch(console.error);
-                        }}
-                      >
-                        {content}
-                      </button>
+                  </div>
+                  {detailResourceLoading.engineering ? <small>載入工程上下文...</small> : null}
+                  <div className="revision-history">
+                    <div className="section-label">版次紀錄</div>
+                    {revisionHistory.length === 0 ? (
+                      <small>{detailResourcesLoaded.engineering ? "目前沒有可查看的版次紀錄。" : "展開後載入版次紀錄。"}</small>
                     ) : (
-                      <div className="bom-item" key={line.id}>
-                        {content}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {bomDiff ? (
-                <div className="bom-diff-list">
-                  <div className="section-label">BOM 差異</div>
-                  <div className="bom-diff-summary">
-                    <span>版次 {bomDiff.base_revision} → 版次 {bomDiff.target_revision}</span>
-                    <strong>
-                      +{bomDiff.added_count} / -{bomDiff.removed_count} / Δ{bomDiff.changed_count} / ={bomDiff.unchanged_count}
-                    </strong>
-                  </div>
-                  <div className="bom-export-actions">
-                    <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=csv`} title="匯出 BOM diff CSV">
-                      <Download size={14} />
-                      Diff CSV
-                    </a>
-                    <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=xls`} title="匯出 BOM diff Excel">
-                      <Download size={14} />
-                      Diff Excel
-                    </a>
-                  </div>
-                  {bomDiff.lines
-                    .filter((line) => line.change_type !== "unchanged")
-                    .map((line) => (
-                      <div className={`bom-diff-item ${line.change_type}`} key={`${line.change_type}-${line.key}`}>
-                        <strong>
-                          {bomDiffLabels[line.change_type]} · {describeBomDiffLine(line)} · {line.child_part_number}
-                        </strong>
-                        <span>
-                          版次 {line.from_revision ?? "-"} / 數量 {line.from_quantity ?? "-"} → 版次 {line.to_revision ?? "-"} / 數量{" "}
-                          {line.to_quantity ?? "-"}
-                        </span>
-                        <small>
-                          來源 {line.from_source_filename ?? "-"} → {line.to_source_filename ?? "-"}
-                        </small>
-                      </div>
-                    ))}
-                </div>
-              ) : detail.bom ? (
-                <div className="bom-diff-list">
-                  <div className="section-label">BOM 差異</div>
-                  <small>{bomDiffMessage || "尚無可比較的前一版 BOM。"}</small>
-                </div>
-              ) : null}
-              <div className="where-used-list">
-                <div className="section-label">使用處</div>
-                {whereUsed.length === 0 ? (
-                  <small>目前沒有上層 BOM 使用此料號。</small>
-                ) : (
-                  whereUsed.slice(0, 6).map((entry) => {
-                    const whereUsedState = getWhereUsedState(entry);
-                    return (
-                      <div className="where-used-item" key={`${entry.parent_submission_id}-${entry.bom_header_id}`}>
-                        <strong>
-                          {entry.parent_part_number} · 版次 {entry.parent_revision}
-                        </strong>
-                        <span>
-                          {entry.parent_drawing_number} · 數量 {entry.quantity} · 子件版次 {entry.child_revision ?? "-"}
-                        </span>
-                        <small>
-                          {statusLabels[entry.parent_status]} · {entry.parent_submission_id}
-                        </small>
-                        <span className={`bom-line-state ${whereUsedState.className}`}>{whereUsedState.label}</span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {detail.release_package ? (
-                <div className="release-package-card">
-                  <div>
-                    <span className="section-label">發布包</span>
-                    <strong>{detail.release_package.package_filename}</strong>
-                    <small>
-                      ZIP · {(detail.release_package.file_size / 1024).toFixed(1)} KB · SHA256 {detail.release_package.sha256}
-                    </small>
-                  </div>
-                  <a className="secondary-button" href={`/api/submissions/${detail.id}/release-package`} title="下載發布包">
-                    <Archive size={14} aria-hidden="true" />
-                    發布包
-                  </a>
-                </div>
-              ) : detail.status === "Released" ? (
-                <div className="release-package-card missing">
-                  <div>
-                    <span className="section-label">發布包</span>
-                    <small>此筆已發布資料尚未產生 ZIP 發布包。</small>
-                  </div>
-                </div>
-              ) : null}
-              {canReview && detail.status === "Released" && detail.release_package ? (
-                <div className="readonly-share-panel">
-                  <div className="readonly-share-header">
-                    <div className="readonly-share-title">
-                      <span className="section-label">ERP / 庫存 / 採購同步</span>
-                      <strong>{procurementSyncRuns.filter((run) => run.status === "sent").length} 筆待確認同步</strong>
-                      <small>將已發布的發布包中繼資料送到外部系統，並追蹤確認回覆。</small>
-                    </div>
-                  </div>
-                  <div className="readonly-share-form">
-                    <label>
-                      目標系統
-                      <select
-                        className="dropdown-select"
-                        value={procurementSyncTarget}
-                        onChange={(event) => setProcurementSyncTarget(event.target.value as ProcurementSyncRun["target_system"])}
-                      >
-                        <option value="procurement">採購</option>
-                        <option value="inventory">庫存</option>
-                        <option value="ERP">ERP</option>
-                      </select>
-                    </label>
-                    <button className="primary-button" type="button" onClick={createProcurementSyncRun} disabled={shareLoading}>
-                      <Factory size={14} aria-hidden="true" />
-                      送出同步
-                    </button>
-                  </div>
-                  <div className="readonly-share-list">
-                    {procurementSyncRuns.length === 0 ? (
-                      <small>目前沒有同步紀錄。</small>
-                    ) : (
-                      procurementSyncRuns.map((run) => (
-                        <div className="readonly-share-item" key={run.id}>
-                          <div className="readonly-share-row">
-                            <strong>
-                              {run.target_system} / {run.external_reference ?? run.id}
-                            </strong>
-                            <span className={`readonly-share-status ${run.status}`}>{formatWorkflowStatus(run.status)}</span>
+                      <div className="revision-list">
+                        {revisionHistory.map((entry) => (
+                          <div className="revision-item" key={entry.submission_id}>
+                            <div>
+                              <strong>版次 {entry.revision}</strong>
+                            </div>
+                            <div className="revision-status">
+                              <span className={`badge ${entry.status}`}>{statusLabels[entry.status]}</span>
+                              {entry.status === "Obsolete" ? (
+                                <small>廢止時間 {entry.obsolete_at ?? "-"}</small>
+                              ) : null}
+                            </div>
                           </div>
-                          <small>
-                            送出時間 {run.created_at}，送出者 {run.created_by_name}
-                          </small>
-                          {run.status === "sent" ? (
-                            <button className="secondary-button" type="button" onClick={() => acknowledgeProcurementSyncRun(run.id)} disabled={shareLoading}>
-                              <Check size={14} aria-hidden="true" />
-                              確認
-                            </button>
-                          ) : (
-                            <small>
-                              結案時間 {run.acknowledged_at ?? "-"}，結案者 {run.acknowledged_by_name ?? "-"}
-                            </small>
-                          )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="reference-list">
+                    <div className="section-label">CAD 引用關係</div>
+                    {detail.references.length === 0 ? (
+                      <small>尚未擷取 CAD 引用；Document Manager 介面卡就緒後會自動顯示組立件與圖面關聯。</small>
+                    ) : (
+                      detail.references.map((reference) => (
+                        <div className="reference-item" key={reference.id}>
+                          <strong className="identity-line">
+                            <span className="identity-primary">{reference.source_filename}</span>
+                            <span className="metadata-badge">{reference.reference_type}</span>
+                          </strong>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">引用檔</span>
+                              <span className="metadata-value">{reference.referenced_filename}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">數量</span>
+                              <span className="metadata-value">{reference.quantity}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">擷取</span>
+                              <span className="metadata-value">{reference.extraction_method}</span>
+                            </span>
+                            <span className="metadata-badge">{reference.confidence}</span>
+                          </div>
                         </div>
                       ))
                     )}
                   </div>
+                  <div className="bom-list">
+                    <div className="bom-header-row">
+                      <div className="section-label">工程 BOM</div>
+                      {detail.bom ? (
+                        <div className="bom-export-actions">
+                          <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=csv`} title="匯出 BOM CSV">
+                            <Download size={14} />
+                            CSV
+                          </a>
+                          <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=xls`} title="匯出 BOM Excel">
+                            <Download size={14} />
+                            Excel
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
+                    {!detail.bom ? (
+                      <small>尚未產生 BOM 草稿；可由組立件 CAD 引用關係產生。</small>
+                    ) : detail.bom.lines.length === 0 ? (
+                      <small>BOM 草稿已建立，但目前沒有子件行。</small>
+                    ) : (
+                      detail.bom.lines.map((line) => {
+                        const lineState = getBomLineState(line);
+                        const content = (
+                          <>
+                            <div className="bom-item-title">
+                              <strong>
+                                {line.line_no}. {line.child_part_number}
+                              </strong>
+                              <span className={`bom-line-state ${lineState.className}`}>{lineState.label}</span>
+                            </div>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">版次</span>
+                                <span className="metadata-value">{line.child_revision ?? line.child_submission_revision ?? "-"}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">數量</span>
+                                <span className="metadata-value">{line.quantity}</span>
+                              </span>
+                            </div>
+                            {line.child_part_name || line.child_drawing_number ? (
+                              <div className="metadata-list">
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">品名</span>
+                                  <span className="metadata-value">{line.child_part_name ?? "-"}</span>
+                                </span>
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">圖號</span>
+                                  <span className="metadata-value">{line.child_drawing_number ?? "-"}</span>
+                                </span>
+                              </div>
+                            ) : null}
+                            <small>
+                              <span className="metadata-label">來源</span> {line.source_filename ?? "沒有來源檔案"}
+                            </small>
+                          </>
+                        );
+                        return line.child_submission_id ? (
+                          <button
+                            className="bom-item bom-child-link"
+                            type="button"
+                            key={line.id}
+                            onClick={() => {
+                              openChildSubmission(line.child_submission_id).catch(console.error);
+                            }}
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <div className="bom-item" key={line.id}>
+                            {content}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                  {bomDiff ? (
+                    <div className="bom-diff-list">
+                      <div className="section-label">BOM 差異</div>
+                      <div className="bom-diff-summary">
+                        <span className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">基準版次</span>
+                            <span className="metadata-value">{bomDiff.base_revision}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">目標版次</span>
+                            <span className="metadata-value">{bomDiff.target_revision}</span>
+                          </span>
+                        </span>
+                        <strong>
+                          +{bomDiff.added_count} / -{bomDiff.removed_count} / Δ{bomDiff.changed_count} / ={bomDiff.unchanged_count}
+                        </strong>
+                      </div>
+                      <div className="bom-export-actions">
+                        <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=csv`} title="匯出 BOM diff CSV">
+                          <Download size={14} />
+                          Diff CSV
+                        </a>
+                        <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=xls`} title="匯出 BOM diff Excel">
+                          <Download size={14} />
+                          Diff Excel
+                        </a>
+                      </div>
+                      {bomDiff.lines
+                        .filter((line) => line.change_type !== "unchanged")
+                        .map((line) => (
+                          <div className={`bom-diff-item ${line.change_type}`} key={`${line.change_type}-${line.key}`}>
+                            <strong className="identity-line">
+                              <span className="metadata-badge">{bomDiffLabels[line.change_type]}</span>
+                              <span className="identity-primary">{line.child_part_number}</span>
+                            </strong>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">變更</span>
+                                <span className="metadata-value">{describeBomDiffLine(line)}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">原版次/數量</span>
+                                <span className="metadata-value">
+                                  {line.from_revision ?? "-"} / {line.from_quantity ?? "-"}
+                                </span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">新版次/數量</span>
+                                <span className="metadata-value">
+                                  {line.to_revision ?? "-"} / {line.to_quantity ?? "-"}
+                                </span>
+                              </span>
+                            </div>
+                            <small>
+                              <span className="metadata-label">來源</span> {line.from_source_filename ?? "-"} → {line.to_source_filename ?? "-"}
+                            </small>
+                          </div>
+                        ))}
+                    </div>
+                  ) : detail.bom ? (
+                    <div className="bom-diff-list">
+                      <div className="section-label">BOM 差異</div>
+                      <small>{detailResourcesLoaded.engineering ? bomDiffMessage || "尚無可比較的前一版 BOM。" : "展開後載入 BOM 差異。"}</small>
+                    </div>
+                  ) : null}
+                  <div className="where-used-list">
+                    <div className="section-label">使用處</div>
+                    {whereUsed.length === 0 ? (
+                      <small>{detailResourcesLoaded.engineering ? "目前沒有上層 BOM 使用此料號。" : "展開後載入上層使用處。"}</small>
+                    ) : (
+                      whereUsed.slice(0, 6).map((entry) => {
+                        const whereUsedState = getWhereUsedState(entry);
+                        return (
+                          <div className="where-used-item" key={`${entry.parent_submission_id}-${entry.bom_header_id}`}>
+                            <strong className="identity-line">
+                              <span className="identity-primary">{entry.parent_part_number}</span>
+                              <span className={`badge ${entry.parent_status}`}>{statusLabels[entry.parent_status]}</span>
+                            </strong>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">上層圖號</span>
+                                <span className="metadata-value">{entry.parent_drawing_number}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">上層版次</span>
+                                <span className="metadata-value">{entry.parent_revision}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">數量</span>
+                                <span className="metadata-value">{entry.quantity}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">子件版次</span>
+                                <span className="metadata-value">{entry.child_revision ?? "-"}</span>
+                              </span>
+                            </div>
+                            <span className={`bom-line-state ${whereUsedState.className}`}>{whereUsedState.label}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              ) : null}
+              </details>
+
+              <details
+                className="detail-workflow-layer collaboration-review"
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setDetailLayerOpen((current) => ({ ...current, collaboration: isOpen }));
+                  if (isOpen) {
+                    loadCollaborationResources(detail.id).catch(console.error);
+                    loadInsightResources(detail.id).catch(console.error);
+                    loadHandoffResources(detail.id).catch(console.error);
+                  }
+                }}
+              >
+                <summary>
+                  <span>協作 / 審核</span>
+                  <small>編輯預約、AI 風險、標註、討論、問題、簽核</small>
+                </summary>
+                <div className="detail-section-body">
+                  {detailResourceLoading.collaboration || detailResourceLoading.insights || detailResourceLoading.handoff ? (
+                    <small>載入協作與審核資料...</small>
+                  ) : null}
+                  <div className={detail.active_lock ? "checkout-card locked" : "checkout-card"}>
+                    <div>
+                      <span className="section-label">編輯預約</span>
+                      {detail.active_lock ? (
+                        <>
+                          <strong>{detail.active_lock.locked_by_name}</strong>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">原因</span>
+                              <span className="metadata-value">{detail.active_lock.lock_reason}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">到期</span>
+                              <span className="metadata-value">{new Date(detail.active_lock.expires_at).toLocaleString()}</span>
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <small>目前沒有人預約編輯此料號。</small>
+                      )}
+                    </div>
+                    {canCheckout ? (
+                      detail.active_lock?.locked_by === currentUser.id || currentUser.role === "Admin" ? (
+                        <button className="secondary-button" type="button" onClick={() => runCheckout("unlock")} disabled={checkoutLoading}>
+                          <Unlock size={14} aria-hidden="true" />
+                          解除預約
+                        </button>
+                      ) : detail.active_lock ? null : (
+                        <button className="secondary-button" type="button" onClick={() => runCheckout("lock")} disabled={checkoutLoading}>
+                          <Lock size={14} aria-hidden="true" />
+                          預約編輯
+                        </button>
+                      )
+                    ) : null}
+                  </div>
+                  <div className="readonly-share-panel">
+                    <div className="readonly-share-header">
+                      <div className="readonly-share-title">
+                        <span className="section-label">試作分支</span>
+                        {currentSandboxBranch ? (
+                          <div className="identity-line">
+                            <strong className="identity-primary">{currentSandboxBranch.branch_name}</strong>
+                            <span className="metadata-badge">{formatWorkflowStatus(currentSandboxBranch.status)}</span>
+                          </div>
+                        ) : (
+                          <strong>試作分支</strong>
+                        )}
+                        <small>啟用中的試作送審需先合併，才可進入核准與發布。</small>
+                      </div>
+                      <GitBranch size={18} aria-hidden="true" />
+                    </div>
+                    {currentSandboxBranch?.status === "active" ? (
+                      <div className="readonly-share-row">
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">來源圖號</span>
+                            <span className="metadata-value">{currentSandboxBranch.source_drawing_number}</span>
+                          </span>
+                          <span className="metadata-badge">Rev {currentSandboxBranch.source_revision}</span>
+                        </div>
+                        {currentSandboxBranch.created_by === currentUser.id || currentUser.role === "Admin" ? (
+                          <button
+                            className="primary-button"
+                            type="button"
+                            onClick={() => mergeSandboxBranch(currentSandboxBranch.id)}
+                            disabled={sandboxLoading}
+                          >
+                            <Check size={14} aria-hidden="true" />
+                            合併
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : canCheckout ? (
+                      <div className="readonly-share-form">
+                        <label>
+                          分支名稱
+                          <input value={sandboxBranchName} onChange={(event) => setSandboxBranchName(event.target.value)} type="text" maxLength={60} />
+                        </label>
+                        <label>
+                          原因
+                          <input value={sandboxReason} onChange={(event) => setSandboxReason(event.target.value)} type="text" maxLength={240} />
+                        </label>
+                        <button className="secondary-button" type="button" onClick={createSandboxBranchFromDetail} disabled={sandboxLoading}>
+                          <GitBranch size={14} aria-hidden="true" />
+                          建立分支
+                        </button>
+                      </div>
+                    ) : null}
+                    <div className="readonly-share-list">
+                      {sandboxBranches.length === 0 ? (
+                        <small>{detailResourcesLoaded.collaboration ? "目前沒有試作分支。" : "展開後載入試作分支。"}</small>
+                      ) : (
+                        sandboxBranches.map((branch) => (
+                          <div className="readonly-share-item" key={branch.id}>
+                            <div className="readonly-share-row">
+                              <strong className="identity-primary">{branch.branch_name}</strong>
+                              <span className={`readonly-share-status ${branch.status}`}>{branch.merged_at ? "已合併" : formatWorkflowStatus(branch.status)}</span>
+                            </div>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">來源圖號</span>
+                                <span className="metadata-value">{branch.source_drawing_number}</span>
+                              </span>
+                              <span className="metadata-badge">來源 Rev {branch.source_revision}</span>
+                              <span className="metadata-badge">試作 Rev {branch.sandbox_revision}</span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">建立者</span>
+                                <span className="metadata-value">{branch.created_by_name}</span>
+                              </span>
+                            </div>
+                            <div className="file-actions">
+                              <button className="secondary-button" type="button" onClick={() => setSelectedId(branch.sandbox_submission_id)}>
+                                <Eye size={14} aria-hidden="true" />
+                                開啟試作
+                              </button>
+                              {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
+                                <button
+                                  className="primary-button"
+                                  type="button"
+                                  onClick={() => mergeSandboxBranch(branch.id)}
+                                  disabled={sandboxLoading}
+                                >
+                                  <Check size={14} aria-hidden="true" />
+                                  合併
+                                </button>
+                              ) : null}
+                              {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
+                                <button
+                                  className="secondary-button"
+                                  type="button"
+                                  onClick={() => updateSandboxBranch(branch.id, "close")}
+                                  disabled={sandboxLoading}
+                                >
+                                  <X size={14} aria-hidden="true" />
+                                  關閉
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  {aiSummary ? (
+                    <div className="ai-summary-panel">
+                      <div>
+                        <span className="section-label">AI 審核摘要</span>
+                        <strong>{aiSummary.title}</strong>
+                      </div>
+                      <div className="ai-summary-sections">
+                        {aiSummary.sections.map((section) => (
+                          <div className={`ai-summary-section ${section.severity}`} key={section.key}>
+                            <strong>{section.title}</strong>
+                            <p>{section.body}</p>
+                            <ul>
+                              {section.facts.slice(0, 4).map((fact, index) => (
+                                <li key={`${section.key}-${index}`}>{fact}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="ai-summary-sources">
+                        <span>來源（{aiSummary.source_count}）</span>
+                        {aiSummary.sources.slice(0, 8).map((source) => (
+                          <small key={`${source.type}-${source.label}-${source.detail}`}>
+                            {source.type}: {source.label} - {source.detail}
+                          </small>
+                        ))}
+                      </div>
+                    </div>
+                  ) : detailResourcesLoaded.insights ? null : (
+                    <small>展開後載入 AI 摘要與風險提示，不在選圖時預先消耗算力。</small>
+                  )}
+                  {aiRiskReport ? (
+                    <div className="ai-risk-panel">
+                      <div>
+                        <span className="section-label">AI 風險提示</span>
+                        <strong>{aiRiskReport.risk_count > 0 ? `發現 ${aiRiskReport.risk_count} 項風險` : "未發現明確風險"}</strong>
+                      </div>
+                      {aiRiskReport.risks.length === 0 ? (
+                        <small>未偵測到缺少交接檔、新版次、多上層使用或已發布檔名衝突。</small>
+                      ) : (
+                        <div className="ai-risk-list">
+                          {aiRiskReport.risks.map((risk) => (
+                            <div className={`ai-risk-item ${risk.severity}`} key={risk.code}>
+                              <strong>{risk.title}</strong>
+                              <p>{risk.message}</p>
+                              <small>建議動作：{risk.action}</small>
+                              {risk.sources.slice(0, 4).map((source) => (
+                                <small key={`${risk.code}-${source.type}-${source.label}`}>
+                                  {source.type}: {source.label} - {source.detail}
+                                </small>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="reuse-panel">
+                    <div>
+                      <span className="section-label">設計沿用候選</span>
+                      <strong>{reuseCandidates.length > 0 ? `${reuseCandidates.length} 筆中繼資料相符` : "沒有沿用候選"}</strong>
+                    </div>
+                    {reuseCandidates.length === 0 ? (
+                      <small>{detailResourcesLoaded.insights ? "目前可見範圍內沒有相似中繼資料候選。" : "展開後載入沿用候選。"}</small>
+                    ) : (
+                      <div className="reuse-list">
+                        {reuseCandidates.map((candidate) => (
+                          <button className="reuse-item" type="button" key={candidate.id} onClick={() => setSelectedId(candidate.id)}>
+                            <strong className="identity-line">
+                              <Copy size={14} aria-hidden="true" />
+                              <span className="identity-primary">{candidate.part_number}</span>
+                              <span className="metadata-badge">版次 {candidate.revision}</span>
+                              <span className={`badge ${candidate.status}`}>{statusLabels[candidate.status]}</span>
+                            </strong>
+                            <div className="metadata-list">
+                              <span className="score-badge">分數 {candidate.score}</span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">圖號</span>
+                                <span className="metadata-value">{candidate.drawing_number}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">品名</span>
+                                <span className="metadata-value">{candidate.part_name}</span>
+                              </span>
+                            </div>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">原因</span>
+                                <span className="metadata-value">{candidate.match_reasons.slice(0, 3).join("、")}</span>
+                              </span>
+                            </div>
+                            {candidate.matched_files.length > 0 ? (
+                              <div className="metadata-list">
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">檔案</span>
+                                  <span className="metadata-value">{candidate.matched_files.join(", ")}</span>
+                                </span>
+                              </div>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="reuse-panel">
+                    <div>
+                      <span className="section-label">重複幾何搜尋</span>
+                      <strong>{duplicateGeometryCandidates.length > 0 ? `${duplicateGeometryCandidates.length} 筆指紋相符` : "沒有重複指紋"}</strong>
+                    </div>
+                    {duplicateGeometryCandidates.length === 0 ? (
+                      <small>{detailResourcesLoaded.insights ? "目前可見範圍內沒有找到檔案指紋重複。" : "展開後載入重複幾何搜尋。"}</small>
+                    ) : (
+                      <div className="reuse-list">
+                        {duplicateGeometryCandidates.map((candidate) => (
+                          <button className="reuse-item" type="button" key={candidate.id} onClick={() => setSelectedId(candidate.id)}>
+                            <strong className="identity-line">
+                              <Copy size={14} aria-hidden="true" />
+                              <span className="identity-primary">{candidate.part_number}</span>
+                              <span className="metadata-badge">{candidate.duplicate_level}</span>
+                              <span className={`badge ${candidate.status}`}>{statusLabels[candidate.status]}</span>
+                            </strong>
+                            <div className="metadata-list">
+                              <span className="score-badge">指紋 {candidate.fingerprint_score}</span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">圖號</span>
+                                <span className="metadata-value">{candidate.drawing_number}</span>
+                              </span>
+                            </div>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">訊號</span>
+                                <span className="metadata-value">{candidate.fingerprint_signals.slice(0, 3).join("、")}</span>
+                              </span>
+                            </div>
+                            {candidate.matched_files.length > 0 ? (
+                              <div className="metadata-list">
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">檔案</span>
+                                  <span className="metadata-value">{candidate.matched_files.join(", ")}</span>
+                                </span>
+                              </div>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {canReview && detail.status === "Released" && detail.release_package ? (
+                    <div className="readonly-share-panel">
+                      <div className="readonly-share-header">
+                        <div className="readonly-share-title">
+                          <span className="section-label">ERP / 庫存 / 採購同步</span>
+                          <strong>{procurementSyncRuns.filter((run) => run.status === "sent").length} 筆待確認同步</strong>
+                          <small>將已發布的發布包中繼資料送到外部系統，並追蹤確認回覆。</small>
+                        </div>
+                      </div>
+                      <div className="readonly-share-form">
+                        <label>
+                          目標系統
+                          <select
+                            className="dropdown-select"
+                            value={procurementSyncTarget}
+                            onChange={(event) => setProcurementSyncTarget(event.target.value as ProcurementSyncRun["target_system"])}
+                          >
+                            <option value="procurement">採購</option>
+                            <option value="inventory">庫存</option>
+                            <option value="ERP">ERP</option>
+                          </select>
+                        </label>
+                        <button className="primary-button" type="button" onClick={createProcurementSyncRun} disabled={shareLoading}>
+                          <Factory size={14} aria-hidden="true" />
+                          送出同步
+                        </button>
+                      </div>
+                      <div className="readonly-share-list">
+                        {procurementSyncRuns.length === 0 ? (
+                          <small>{detailResourcesLoaded.handoff ? "目前沒有同步紀錄。" : "展開後載入同步紀錄。"}</small>
+                        ) : (
+                          procurementSyncRuns.map((run) => (
+                            <div className="readonly-share-item" key={run.id}>
+                              <div className="readonly-share-row">
+                                <strong className="identity-line">
+                                  <span className="metadata-badge">{run.target_system}</span>
+                                  <span className="identity-primary">{run.external_reference ?? run.id}</span>
+                                </strong>
+                                <span className={`readonly-share-status ${run.status}`}>{formatWorkflowStatus(run.status)}</span>
+                              </div>
+                              <div className="metadata-list">
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">送出時間</span>
+                                  <span className="metadata-value">{run.created_at}</span>
+                                </span>
+                                <span className="metadata-pair">
+                                  <span className="metadata-label">送出者</span>
+                                  <span className="metadata-value">{run.created_by_name}</span>
+                                </span>
+                              </div>
+                              {run.status === "sent" ? (
+                                <button className="secondary-button" type="button" onClick={() => acknowledgeProcurementSyncRun(run.id)} disabled={shareLoading}>
+                                  <Check size={14} aria-hidden="true" />
+                                  確認
+                                </button>
+                              ) : (
+                                <div className="metadata-list">
+                                  <span className="metadata-pair">
+                                    <span className="metadata-label">結案時間</span>
+                                    <span className="metadata-value">{run.acknowledged_at ?? "-"}</span>
+                                  </span>
+                                  <span className="metadata-pair">
+                                    <span className="metadata-label">結案者</span>
+                                    <span className="metadata-value">{run.acknowledged_by_name ?? "-"}</span>
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
               {canReview && detail.status === "Released" && detail.release_package ? (
                 <div className="readonly-share-panel">
                   <div className="readonly-share-header">
@@ -2355,15 +2826,41 @@ export function Dashboard() {
                             <strong>{share.label}</strong>
                             <span className={`readonly-share-status ${share.status}`}>{formatWorkflowStatus(share.status)}</span>
                           </div>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">到期</span>
+                              <span className="metadata-value">{share.expires_at}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">存取</span>
+                              <span className="metadata-value">{share.access_count}</span>
+                            </span>
+                            {share.last_accessed_at ? (
+                              <span className="metadata-pair">
+                                <span className="metadata-label">最近</span>
+                                <span className="metadata-value">{share.last_accessed_at}</span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">供應商回覆</span>
+                              <span className="metadata-value">{share.response_count}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">未結</span>
+                              <span className="metadata-value">{share.open_response_count}</span>
+                            </span>
+                            {share.latest_response_at ? (
+                              <span className="metadata-pair">
+                                <span className="metadata-label">最新</span>
+                                <span className="metadata-value">{share.latest_response_at}</span>
+                              </span>
+                            ) : null}
+                          </div>
                           <small>
-                            到期 {share.expires_at} · 存取 {share.access_count}
-                            {share.last_accessed_at ? ` · 最近 ${share.last_accessed_at}` : ""}
+                            <span className="metadata-label">建立者</span> {share.created_by_name}
                           </small>
-                          <small>
-                            供應商回覆 {share.response_count} / 未結 {share.open_response_count}
-                            {share.latest_response_at ? ` / 最新 ${share.latest_response_at}` : ""}
-                          </small>
-                          <small>建立者 {share.created_by_name}</small>
                           {share.status === "active" ? (
                             <button className="secondary-button" type="button" onClick={() => revokeReadonlyShare(share.id)} disabled={shareLoading}>
                               <X size={14} aria-hidden="true" />
@@ -2382,14 +2879,28 @@ export function Dashboard() {
                       supplierResponses.map((response) => (
                         <div className="readonly-share-item" key={response.id}>
                           <div className="readonly-share-row">
-                            <strong>
-                              {response.response_kind === "acknowledgement" ? "確認" : "提問"} / {response.supplier_name}
-                            </strong>
+                            <div className="identity-stack">
+                              <div className="identity-line">
+                                <span className="metadata-badge">{response.response_kind === "acknowledgement" ? "確認" : "提問"}</span>
+                                <strong className="identity-primary">{response.supplier_name}</strong>
+                              </div>
+                            </div>
                             <span className={`readonly-share-status ${response.status}`}>{formatWorkflowStatus(response.status)}</span>
                           </div>
-                          <small>
-                            {response.supplier_email} / {response.share_label} / {response.created_at}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">Email</span>
+                              <span className="metadata-value">{response.supplier_email}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">入口</span>
+                              <span className="metadata-value">{response.share_label}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">時間</span>
+                              <span className="metadata-value">{response.created_at}</span>
+                            </span>
+                          </div>
                           <p>{response.message}</p>
                           {response.status === "open" ? (
                             <button className="secondary-button" type="button" onClick={() => closeSupplierResponse(response.id)} disabled={shareLoading}>
@@ -2397,9 +2908,16 @@ export function Dashboard() {
                               關閉
                             </button>
                           ) : (
-                            <small>
-                              結案時間 {response.closed_at ?? "-"}，結案者 {response.closed_by_name ?? "-"}
-                            </small>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">結案時間</span>
+                                <span className="metadata-value">{response.closed_at ?? "-"}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">結案者</span>
+                                <span className="metadata-value">{response.closed_by_name ?? "-"}</span>
+                              </span>
+                            </div>
                           )}
                         </div>
                       ))
@@ -2407,58 +2925,6 @@ export function Dashboard() {
                   </div>
                 </div>
               ) : null}
-              <div className="file-list" aria-label="檔案">
-                <div className="section-label file-list-label">檔案</div>
-                {detail.files.map((file) => (
-                  <div className="file-item" key={file.id}>
-                    <strong>
-                      <FileText size={14} aria-hidden="true" /> {file.file_role.toUpperCase()} {file.original_filename}
-                    </strong>
-                    <div className="file-actions">
-                      {file.file_role === "pdf" ? (
-                        <a
-                          className="secondary-button"
-                          href={`/api/submissions/${detail.id}/files/preview/${file.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="預覽 PDF"
-                        >
-                          <Eye size={14} aria-hidden="true" />
-                          預覽
-                        </a>
-                      ) : null}
-                      {file.file_role === "pdf" && file.gdrive_file_id ? (
-                        <a
-                          className="secondary-button"
-                          href={drivePdfPreviewUrl(file.gdrive_file_id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="開啟 Google Drive PDF 預覽"
-                        >
-                          <Eye size={14} aria-hidden="true" />
-                          Drive 預覽
-                        </a>
-                      ) : null}
-                      <a className="secondary-button" href={`/api/submissions/${detail.id}/files/${file.id}`} title="下載檔案">
-                        <Download size={14} aria-hidden="true" />
-                        下載
-                      </a>
-                    </div>
-                    <small>{file.local_path}</small>
-                    {file.gdrive_file_id ? (
-                      <div className="drive-preview" aria-label={`Google Drive PDF 預覽：${file.original_filename}`}>
-                        <iframe
-                          src={drivePdfPreviewUrl(file.gdrive_file_id)}
-                          title={`Google Drive PDF 預覽 - ${file.original_filename}`}
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    ) : null}
-                    <small>SHA256 {file.sha256}</small>
-                  </div>
-                ))}
-              </div>
               <div className="markup-panel">
                 <div className="section-label">PDF 標註</div>
                 {pdfMarkups.length === 0 ? (
@@ -2468,20 +2934,53 @@ export function Dashboard() {
                     {pdfMarkups.map((markup) => (
                       <div className={`markup-item ${markup.status}`} key={markup.id}>
                         <div className="markup-heading">
-                          <strong>
-                            頁次 {markup.page_number} · X {markup.x_percent}% · Y {markup.y_percent}%
-                          </strong>
-                          <span>{markup.status === "resolved" ? "已結案" : "未結案"}</span>
+                          <div className="identity-stack">
+                            <strong className="identity-primary">PDF 標註</strong>
+                            <div className="metadata-list">
+                              <span className="metadata-pair">
+                                <span className="metadata-label">頁次</span>
+                                <span className="metadata-value">{markup.page_number}</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">X</span>
+                                <span className="metadata-value">{markup.x_percent}%</span>
+                              </span>
+                              <span className="metadata-pair">
+                                <span className="metadata-label">Y</span>
+                                <span className="metadata-value">{markup.y_percent}%</span>
+                              </span>
+                            </div>
+                          </div>
+                          <span className="metadata-badge">{markup.status === "resolved" ? "已結案" : "未結案"}</span>
                         </div>
                         <p>{markup.body}</p>
-                        <small>
-                          檔案：{markup.file_original_filename} · 建立者 {markup.author_name} · {new Date(markup.created_at).toLocaleString()}
-                        </small>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">檔案</span>
+                            <span className="metadata-value">{markup.file_original_filename}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">建立者</span>
+                            <span className="metadata-value">{markup.author_name}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">時間</span>
+                            <span className="metadata-value">{new Date(markup.created_at).toLocaleString()}</span>
+                          </span>
+                        </div>
                         {markup.status === "resolved" ? (
-                          <small>
-                            結案者 {markup.resolved_by_name ?? "-"} ·{" "}
-                            {markup.resolved_at ? new Date(markup.resolved_at).toLocaleString() : "-"}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">結案者</span>
+                              <span className="metadata-value">{markup.resolved_by_name ?? "-"}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">結案時間</span>
+                              <span className="metadata-value">
+                                {markup.resolved_at ? new Date(markup.resolved_at).toLocaleString() : "-"}
+                              </span>
+                            </span>
+                          </div>
                         ) : (
                           <button className="secondary-button" type="button" onClick={() => resolvePdfMarkup(markup.id)} disabled={markupLoading}>
                             <Check size={14} aria-hidden="true" />
@@ -2556,13 +3055,19 @@ export function Dashboard() {
                       <div className={`discussion-item ${comment.status}`} key={comment.id}>
                         <div>
                           <strong>{comment.author_name}</strong>
-                          <span>{comment.status === "resolved" ? "已結案" : "未結案"}</span>
+                          <span className="metadata-badge">{comment.status === "resolved" ? "已結案" : "未結案"}</span>
                         </div>
                         <p>{comment.body}</p>
-                        <small>
-                          {comment.file_original_filename ? `檔案：${comment.file_original_filename}` : "送審資料"} ·{" "}
-                          {new Date(comment.created_at).toLocaleString()}
-                        </small>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">對象</span>
+                            <span className="metadata-value">{comment.file_original_filename ?? "送審資料"}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">時間</span>
+                            <span className="metadata-value">{new Date(comment.created_at).toLocaleString()}</span>
+                          </span>
+                        </div>
                         {comment.status === "open" ? (
                           <button className="secondary-button" type="button" onClick={() => resolveDiscussion(comment.id)} disabled={discussionLoading}>
                             <Check size={14} aria-hidden="true" />
@@ -2607,18 +3112,38 @@ export function Dashboard() {
                           <strong>
                             <AlertTriangle size={14} aria-hidden="true" /> {issue.title}
                           </strong>
-                          <span>{issue.status === "resolved" ? "已結案" : "未結案"}</span>
+                          <span className="metadata-badge">{issue.status === "resolved" ? "已結案" : "未結案"}</span>
                         </div>
                         <p>{issue.description}</p>
-                        <small>
-                          {issue.file_original_filename ? `檔案：${issue.file_original_filename}` : "送審資料"} · 提出者 {issue.raised_by_name} ·{" "}
-                          負責人 {issue.assignee_name ?? "-"} ·{" "}
-                          {new Date(issue.created_at).toLocaleString()}
-                        </small>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">對象</span>
+                            <span className="metadata-value">{issue.file_original_filename ?? "送審資料"}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">提出者</span>
+                            <span className="metadata-value">{issue.raised_by_name}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">負責人</span>
+                            <span className="metadata-value">{issue.assignee_name ?? "-"}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">時間</span>
+                            <span className="metadata-value">{new Date(issue.created_at).toLocaleString()}</span>
+                          </span>
+                        </div>
                         {issue.status === "resolved" ? (
-                          <small>
-                            結案說明：{issue.resolution ?? "-"} · {issue.resolved_by_name ?? "-"}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">結案說明</span>
+                              <span className="metadata-value">{issue.resolution ?? "-"}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">結案者</span>
+                              <span className="metadata-value">{issue.resolved_by_name ?? "-"}</span>
+                            </span>
+                          </div>
                         ) : (
                           <div className="issue-resolve">
                             <textarea
@@ -2700,12 +3225,16 @@ export function Dashboard() {
                           <strong>
                             <Archive size={14} aria-hidden="true" /> {check.gate_name}
                           </strong>
-                          <span>{formatWorkflowStatus(check.status)}</span>
+                          <span className="metadata-badge">{formatWorkflowStatus(check.status)}</span>
                         </div>
                         <p>{check.checklist_item}</p>
-                        <small>
-                          {check.required === 1 ? "必要" : "選用"} · 建立者 {check.created_by_name}
-                        </small>
+                        <div className="metadata-list">
+                          <span className="metadata-badge">{check.required === 1 ? "必要" : "選用"}</span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">建立者</span>
+                            <span className="metadata-value">{check.created_by_name}</span>
+                          </span>
+                        </div>
                         {check.status === "open" && canReview ? (
                           <div className="file-actions">
                             <button className="secondary-button" type="button" onClick={() => decidePhaseGate(check.id, "complete")} disabled={phaseGateLoading}>
@@ -2718,9 +3247,16 @@ export function Dashboard() {
                             </button>
                           </div>
                         ) : check.status !== "open" ? (
-                          <small>
-                            決議：{check.decision_comment ?? "-"} · {check.decided_by_name ?? "-"}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議</span>
+                              <span className="metadata-value">{check.decision_comment ?? "-"}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議者</span>
+                              <span className="metadata-value">{check.decided_by_name ?? "-"}</span>
+                            </span>
+                          </div>
                         ) : null}
                       </div>
                     ))}
@@ -2756,12 +3292,17 @@ export function Dashboard() {
                           <strong>
                             <Lock size={14} aria-hidden="true" /> {requirement.required_role}
                           </strong>
-                          <span>{formatWorkflowStatus(requirement.status)}</span>
+                          <span className="metadata-badge">{formatWorkflowStatus(requirement.status)}</span>
                         </div>
                         <p>
                           {requirement.approved_count}/{requirement.min_count} 位審核者已核准
                         </p>
-                        <small>建立者 {requirement.created_by_name}</small>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">建立者</span>
+                            <span className="metadata-value">{requirement.created_by_name}</span>
+                          </span>
+                        </div>
                         {requirement.status === "open" && canReview ? (
                           <div className="file-actions">
                             <button
@@ -2775,9 +3316,16 @@ export function Dashboard() {
                             </button>
                           </div>
                         ) : requirement.status !== "open" ? (
-                          <small>
-                            決議：{requirement.decision_comment ?? "-"} - {requirement.decided_by_name ?? "-"}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議</span>
+                              <span className="metadata-value">{requirement.decision_comment ?? "-"}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議者</span>
+                              <span className="metadata-value">{requirement.decided_by_name ?? "-"}</span>
+                            </span>
+                          </div>
                         ) : null}
                       </div>
                     ))}
@@ -2796,13 +3344,23 @@ export function Dashboard() {
                           <strong>
                             <Archive size={14} aria-hidden="true" /> {change.kind} - {change.title}
                           </strong>
-                          <span>{formatWorkflowStatus(change.status)}</span>
+                          <span className="metadata-badge">{formatWorkflowStatus(change.status)}</span>
                         </div>
                         <p>{change.reason}</p>
-                        <small>影響：{change.impact}</small>
-                        <small>
-                          申請者 {change.requested_by_name} · {new Date(change.created_at).toLocaleString()}
-                        </small>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">影響</span>
+                            <span className="metadata-value">{change.impact}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">申請者</span>
+                            <span className="metadata-value">{change.requested_by_name}</span>
+                          </span>
+                          <span className="metadata-pair">
+                            <span className="metadata-label">時間</span>
+                            <span className="metadata-value">{new Date(change.created_at).toLocaleString()}</span>
+                          </span>
+                        </div>
                         {change.status === "open" && canReview ? (
                           <div className="issue-resolve">
                             <textarea
@@ -2824,9 +3382,16 @@ export function Dashboard() {
                             </div>
                           </div>
                         ) : change.status !== "open" ? (
-                          <small>
-                            決議：{change.decision_comment ?? "-"} · {change.decided_by_name ?? "-"}
-                          </small>
+                          <div className="metadata-list">
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議</span>
+                              <span className="metadata-value">{change.decision_comment ?? "-"}</span>
+                            </span>
+                            <span className="metadata-pair">
+                              <span className="metadata-label">決議者</span>
+                              <span className="metadata-value">{change.decided_by_name ?? "-"}</span>
+                            </span>
+                          </div>
                         ) : null}
                       </div>
                     ))}
@@ -2876,11 +3441,132 @@ export function Dashboard() {
                   </button>
                 </div>
               ) : null}
+                </div>
+              </details>
+
+              <details className="detail-workflow-layer system-diagnostics">
+                <summary>
+                  <span>系統診斷</span>
+                  <small>送審 ID、完整欄位、檔案路徑、SHA256、Drive iframe</small>
+                </summary>
+                <div className="detail-section-body">
+                  <div className="detail-row">
+                    <span>送審 ID</span>
+                    <strong className="diagnostic-value">{detail.id}</strong>
+                  </div>
+                  <div className="detail-row">
+                    <span>圖號與版次</span>
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">圖號</span>
+                        <span className="metadata-value">{detail.drawing_number}</span>
+                      </span>
+                      <span className="metadata-badge">版次 {detail.revision}</span>
+                    </div>
+                  </div>
+                  <div className="detail-row">
+                    <span>料號與品名</span>
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">料號</span>
+                        <span className="metadata-value">{detail.part_number}</span>
+                      </span>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">品名</span>
+                        <span className="metadata-value">{detail.part_name}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="detail-row">
+                    <span>提交資訊</span>
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">提交者</span>
+                        <span className="metadata-value">{detail.submitted_by_name}</span>
+                      </span>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">時間</span>
+                        <span className="metadata-value">{new Date(detail.created_at).toLocaleString()}</span>
+                      </span>
+                    </div>
+                  </div>
+                  {detail.release_package ? (
+                    <div className="release-package-card">
+                      <div>
+                        <span className="section-label">發布包診斷</span>
+                        <strong className="file-title">
+                          <Archive size={14} aria-hidden="true" />
+                          <span className="file-kind-badge" aria-label="檔案格式 ZIP">
+                            ZIP
+                          </span>
+                          <span className="file-name">{detail.release_package.package_filename}</span>
+                        </strong>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">大小</span>
+                            <span className="metadata-value">{(detail.release_package.file_size / 1024).toFixed(1)} KB</span>
+                          </span>
+                        </div>
+                        <span className="diagnostic-value">SHA256 {detail.release_package.sha256}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="file-list system-file-list" aria-label="檔案診斷">
+                    <div className="section-label">檔案診斷</div>
+                    {detail.files.map((file) => (
+                      <details className="file-item file-diagnostic-item" key={file.id}>
+                        <summary>
+                          <strong className="file-title">
+                            <FileText size={14} aria-hidden="true" />
+                            <span className="file-kind-badge" aria-label={`檔案格式 ${file.file_role.toUpperCase()}`}>
+                              {file.file_role.toUpperCase()}
+                            </span>
+                            <span className="file-name">{file.original_filename}</span>
+                          </strong>
+                          <span className="metadata-badge">{file.gdrive_status}</span>
+                        </summary>
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">大小</span>
+                            <span className="metadata-value">{(file.file_size / 1024).toFixed(1)} KB</span>
+                          </span>
+                        </div>
+                        <span className="diagnostic-value">本機路徑 {file.local_path}</span>
+                        <span className="diagnostic-value">SHA256 {file.sha256}</span>
+                        {file.gdrive_file_id ? (
+                          <>
+                            <span className="diagnostic-value">Google Drive ID {file.gdrive_file_id}</span>
+                            <div className="drive-preview" aria-label={`Google Drive PDF 預覽：${file.original_filename}`}>
+                              <iframe
+                                src={drivePdfPreviewUrl(file.gdrive_file_id)}
+                                title={`Google Drive PDF 預覽 - ${file.original_filename}`}
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          </>
+                        ) : null}
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              </details>
             </div>
-          ) : (
-            <div className="empty">請選擇一筆圖面資料查看明細。</div>
-          )}
-        </SubmissionDetailPanel>
+          ) : !isDetailLoading ? (
+            <div className="empty">
+              <NextStepState
+                eyebrow="物件脈絡"
+                title="請選擇一筆圖面資料查看明細"
+                body="明細會串接版次、BOM、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
+                actions={[
+                  { href: "/numbering/search", label: "圖料查詢", variant: "primary" },
+                  { href: "/upload", label: "上傳送審" }
+                ]}
+              />
+            </div>
+          ) : null}
+          </SubmissionDetailPanel>
+        ) : null}
       </div>
 
       <AssistantPanel
@@ -2895,15 +3581,6 @@ export function Dashboard() {
         onSubmitChat={submitChat}
       />
     </>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 

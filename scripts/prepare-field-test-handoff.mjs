@@ -118,6 +118,8 @@ function buildCommands(restoreReport, swReport, documentManagerReport) {
   const restoreJson = rel(restoreReport.path);
   const swJson = rel(swReport.path);
   const documentManagerJson = rel(documentManagerReport.path);
+  const fieldIssuesTemplate = rel(path.join(outputDir, "field-issues-template.json"));
+  const fieldIssuesActual = rel(path.join(outputDir, "field-issues.json"));
   const documentManagerUpgrade = [
     "npm.cmd run document-manager:report:upgrade --",
     `  --report ${powershellSingleQuoted(documentManagerJson)}`
@@ -191,6 +193,14 @@ function buildCommands(restoreReport, swReport, documentManagerReport) {
       "npm.cmd run document-manager:extractor:probe -- --latest-report",
       ""
     ].join("\r\n"),
+    fieldIssuesImport: [
+      '$ErrorActionPreference = "Stop"',
+      `$IssueFile = ${powershellSingleQuoted(fieldIssuesActual)}`,
+      `if (-not (Test-Path $IssueFile)) { $IssueFile = ${powershellSingleQuoted(fieldIssuesTemplate)} }`,
+      "npm.cmd run field-test:issues:import -- --issues $IssueFile --write",
+      "npm.cmd run qc:defects-zero",
+      ""
+    ].join("\r\n"),
     swBuildAndRegister: [
       '$ErrorActionPreference = "Stop"',
       "npm.cmd run field-test:preflight -- --profile cad",
@@ -219,6 +229,39 @@ function buildCommands(restoreReport, swReport, documentManagerReport) {
       "npm.cmd run field-test:preflight -- --profile restore",
       ""
     ].join("\r\n")
+  };
+}
+
+function buildFieldIssuesTemplate(id) {
+  return {
+    schemaVersion: "1.0",
+    fieldTestId: id,
+    source: "Formal field test execution",
+    instructions: [
+      "Copy this file to field-issues.json when field testing finds issues.",
+      "Leave issues empty if no field issues were found.",
+      "Active P0/P1 issues require reproductionSteps, expected, actual, owner, and evidence.",
+      "Run commands/field-issues-import.ps1 from the project root after editing field-issues.json."
+    ],
+    issues: [],
+    exampleIssue: {
+      id: `FIELD-${id}-001`,
+      defectId: `DEF-FIELD-${id}-001`,
+      title: "<short issue title>",
+      priority: "P1",
+      status: "open",
+      owner: "<owner>",
+      evidence: "<report path, screenshot path, log path, or signed finding>",
+      reproductionSteps: [
+        "<step 1>",
+        "<step 2>",
+        "<step 3>"
+      ],
+      expected: "<expected result>",
+      actual: "<actual result>",
+      environment: "<machine / OS / role / browser or SolidWorks version>",
+      relatedEvidence: []
+    }
   };
 }
 
@@ -258,6 +301,8 @@ function buildReadme(handoff) {
     "- `commands/document-manager-preflight.ps1`: Document Manager evidence template preflight and upgrade.",
     "- `commands/document-manager-probe.ps1`: run the deployed extractor against the report sample folder.",
     "- `commands/document-manager-fill-template.ps1`: copy/edit command for Document Manager evidence report fill.",
+    "- `field-issues-template.json`: template for field issues that must become defect-register items.",
+    "- `commands/field-issues-import.ps1`: imports field issues into `data/quality/defect-register.json` and runs the P0/P1 defect-zero gate.",
     "- `qc-checklist.ps1`: final QC commands after all evidence reports are filled.",
     "",
     "## Step 1: Independent Restore Drill",
@@ -271,7 +316,7 @@ function buildReadme(handoff) {
     "Run the existing restore handoff on a separate Windows test machine. After it passes, run this from the project root and edit placeholders:",
     "",
     "```powershell",
-    `.\\${handoff.restoreHandoff.copy.replaceAll("/", "\\")}\\restore-on-test-machine.ps1`,
+    `.\\${handoff.commands.restoreExecutionFromRoot.replaceAll("/", "\\")}`,
     "```",
     "",
     "Then fill the readiness report from the project root:",
@@ -322,24 +367,36 @@ function buildReadme(handoff) {
     `.\\${handoff.commands.documentManagerFillTemplateFromRoot.replaceAll("/", "\\")}`,
     "```",
     "",
-    "## Step 4: Final QC",
+    "## Step 4: Field Issue Intake",
+    "",
+    "If the field execution finds issues, copy `field-issues-template.json` to `field-issues.json`, fill every issue, then run:",
+    "",
+    "```powershell",
+    `.\\${handoff.commands.fieldIssuesImportFromRoot.replaceAll("/", "\\")}`,
+    "```",
+    "",
+    "Active P0/P1 field issues intentionally make `qc:defects-zero` fail until the defect is closed or verified.",
+    "",
+    "## Step 5: Final QC",
     "",
     "```powershell",
     `.\\${handoff.commands.qcChecklistFromRoot.replaceAll("/", "\\")}`,
     "```",
     "",
-    "Production readiness is expected to remain blocked until both source reports are filled with real evidence.",
+    "Production readiness is expected to remain blocked until all external evidence reports are filled with real evidence.",
     ""
   ].join("\n");
 }
 
-function buildQcChecklist() {
+function buildQcChecklist(fieldIssuesCommandFromRoot) {
   return [
     '$ErrorActionPreference = "Stop"',
     "npm.cmd run qc:restore-drill-report",
     "npm.cmd run qc:sw-addin-real-machine-report",
     "npm.cmd run document-manager:extractor:probe -- --latest-report",
     "npm.cmd run qc:document-manager-report",
+    `.\\${fieldIssuesCommandFromRoot.replaceAll("/", "\\")}`,
+    "npm.cmd run qc:defects-zero",
     "npm.cmd run field-test:preflight -- --profile all --require-evidence",
     "npm.cmd run qc:production-readiness:report",
     ""
@@ -384,7 +441,9 @@ fs.writeFileSync(path.join(outputDir, "commands", "sw-addin-unregister.ps1"), co
 fs.writeFileSync(path.join(outputDir, "commands", "document-manager-preflight.ps1"), commands.documentManagerPreflight, "utf8");
 fs.writeFileSync(path.join(outputDir, "commands", "document-manager-probe.ps1"), commands.documentManagerProbe, "utf8");
 fs.writeFileSync(path.join(outputDir, "commands", "document-manager-fill-template.ps1"), `${commands.documentManagerFillTemplate}\r\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "qc-checklist.ps1"), buildQcChecklist(), "utf8");
+fs.writeFileSync(path.join(outputDir, "commands", "field-issues-import.ps1"), commands.fieldIssuesImport, "utf8");
+fs.writeFileSync(path.join(outputDir, "field-issues-template.json"), `${JSON.stringify(buildFieldIssuesTemplate(handoffId), null, 2)}\n`, "utf8");
+fs.writeFileSync(path.join(outputDir, "qc-checklist.ps1"), buildQcChecklist(rel(path.join(outputDir, "commands", "field-issues-import.ps1"))), "utf8");
 
 const handoff = {
   handoffId,
@@ -412,6 +471,10 @@ const handoff = {
     source: rel(documentManagerReportPath),
     copy: handoffRel(copiedDocumentManagerJson)
   },
+  fieldIssues: {
+    template: handoffRel(path.join(outputDir, "field-issues-template.json")),
+    expectedRuntimeFile: "field-issues.json"
+  },
   commands: {
     restorePreflight: handoffRel(path.join(outputDir, "commands", "restore-preflight.ps1")),
     restoreFillTemplate: handoffRel(path.join(outputDir, "commands", "restore-fill-template.ps1")),
@@ -422,9 +485,11 @@ const handoff = {
     documentManagerPreflight: handoffRel(path.join(outputDir, "commands", "document-manager-preflight.ps1")),
     documentManagerProbe: handoffRel(path.join(outputDir, "commands", "document-manager-probe.ps1")),
     documentManagerFillTemplate: handoffRel(path.join(outputDir, "commands", "document-manager-fill-template.ps1")),
+    fieldIssuesImport: handoffRel(path.join(outputDir, "commands", "field-issues-import.ps1")),
     qcChecklist: handoffRel(path.join(outputDir, "qc-checklist.ps1")),
     restorePreflightFromRoot: rel(path.join(outputDir, "commands", "restore-preflight.ps1")),
     restoreFillTemplateFromRoot: rel(path.join(outputDir, "commands", "restore-fill-template.ps1")),
+    restoreExecutionFromRoot: rel(path.join(outputDir, "restore-handoff", "restore-on-test-machine.ps1")),
     swAddinPreflightFromRoot: rel(path.join(outputDir, "commands", "sw-addin-preflight.ps1")),
     swAddinBuildAndRegisterFromRoot: rel(path.join(outputDir, "commands", "sw-addin-build-and-register.ps1")),
     swAddinFillTemplateFromRoot: rel(path.join(outputDir, "commands", "sw-addin-fill-template.ps1")),
@@ -432,6 +497,7 @@ const handoff = {
     documentManagerPreflightFromRoot: rel(path.join(outputDir, "commands", "document-manager-preflight.ps1")),
     documentManagerProbeFromRoot: rel(path.join(outputDir, "commands", "document-manager-probe.ps1")),
     documentManagerFillTemplateFromRoot: rel(path.join(outputDir, "commands", "document-manager-fill-template.ps1")),
+    fieldIssuesImportFromRoot: rel(path.join(outputDir, "commands", "field-issues-import.ps1")),
     qcChecklistFromRoot: rel(path.join(outputDir, "qc-checklist.ps1"))
   }
 };
@@ -454,6 +520,8 @@ console.log(JSON.stringify({
     rel(path.join(outputDir, "commands", "document-manager-preflight.ps1")),
     rel(path.join(outputDir, "commands", "document-manager-probe.ps1")),
     rel(path.join(outputDir, "commands", "document-manager-fill-template.ps1")),
+    rel(path.join(outputDir, "commands", "field-issues-import.ps1")),
+    rel(path.join(outputDir, "field-issues-template.json")),
     rel(path.join(outputDir, "qc-checklist.ps1"))
   ],
   reports: {
@@ -473,6 +541,7 @@ console.log(JSON.stringify({
     documentManagerPreflight: handoff.commands.documentManagerPreflight,
     documentManagerProbe: handoff.commands.documentManagerProbe,
     documentManagerReportFill: handoff.commands.documentManagerFillTemplate,
+    fieldIssuesImport: handoff.commands.fieldIssuesImport,
     finalQc: handoff.commands.qcChecklist
   }
 }, null, 2));

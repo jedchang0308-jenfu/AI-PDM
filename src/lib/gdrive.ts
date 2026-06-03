@@ -4,6 +4,34 @@ import { GoogleAuth } from "google-auth-library";
 
 let authClient: any = null;
 
+const driveFolderMimeType = "application/vnd.google-apps.folder";
+
+export type DriveFolderListItem = {
+  id: string;
+  name: string;
+  mimeType: string;
+  driveId: string | null;
+  hasChildren: boolean;
+  webViewLink: string;
+};
+
+export type VerifiedDriveFolder = {
+  valid: boolean;
+  folder: {
+    id: string;
+    name: string;
+    path: string;
+    webViewLink: string;
+    driveId: string | null;
+  };
+  capabilities: {
+    canRead: boolean;
+    canUpload: boolean;
+    canMoveInto: boolean;
+  };
+  verifiedAt: string;
+};
+
 async function getAuthClient() {
   if (authClient) return authClient;
 
@@ -57,6 +85,14 @@ function getDriveUploadBaseUrl() {
   return process.env.GOOGLE_DRIVE_UPLOAD_BASE_URL?.trim() || "https://www.googleapis.com/upload/drive/v3";
 }
 
+export function isGoogleDriveServiceConfigured() {
+  return Boolean(
+    process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH?.trim() ||
+      process.env.GOOGLE_DRIVE_MOCK_ACCESS_TOKEN?.trim() ||
+      process.env.GOOGLE_DRIVE_API_BASE_URL?.trim()
+  );
+}
+
 async function requestDriveApi(path: string, options: { method?: string; body?: any; headers?: any } = {}) {
   const token = await getAccessToken();
 
@@ -77,6 +113,100 @@ async function requestDriveApi(path: string, options: { method?: string; body?: 
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+export async function listDriveFolders(parentId = "root"): Promise<DriveFolderListItem[]> {
+  const normalizedParentId = parentId.trim() || "root";
+  const params = new URLSearchParams({
+    q: `'${escapeDriveQueryValue(normalizedParentId)}' in parents and mimeType = '${driveFolderMimeType}' and trashed = false`,
+    fields: "files(id,name,mimeType,driveId,webViewLink,capabilities(canAddChildren),parents)",
+    pageSize: "100",
+    orderBy: "folder,name",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true"
+  });
+  const result = await requestDriveApi(`/files?${params.toString()}`);
+  const files = Array.isArray(result.files) ? result.files : [];
+  return files.map(mapDriveFolderListItem);
+}
+
+export async function verifyDriveFolder(folderId: string): Promise<VerifiedDriveFolder> {
+  const normalizedFolderId = folderId.trim();
+  if (!normalizedFolderId) {
+    throw new Error("Google Drive folder ID is required");
+  }
+
+  const folder = await getDriveFolderMetadata(normalizedFolderId);
+  if (folder.mimeType !== driveFolderMimeType) {
+    throw new Error("Google Drive target is not a folder");
+  }
+
+  const canUpload = folder.capabilities?.canAddChildren !== false;
+  const pathText = await buildDriveFolderPath(folder);
+
+  return {
+    valid: true,
+    folder: {
+      id: folder.id,
+      name: folder.name,
+      path: pathText,
+      webViewLink: folder.webViewLink || driveFolderUrl(folder.id),
+      driveId: folder.driveId ?? null
+    },
+    capabilities: {
+      canRead: true,
+      canUpload,
+      canMoveInto: canUpload
+    },
+    verifiedAt: new Date().toISOString()
+  };
+}
+
+async function getDriveFolderMetadata(folderId: string): Promise<any> {
+  const params = new URLSearchParams({
+    fields: "id,name,mimeType,driveId,parents,webViewLink,capabilities(canAddChildren,canEdit,canShare)",
+    supportsAllDrives: "true"
+  });
+  return requestDriveApi(`/files/${encodeURIComponent(folderId)}?${params.toString()}`);
+}
+
+async function buildDriveFolderPath(folder: any) {
+  const segments = [folder.name || folder.id];
+  let current = folder;
+  const visited = new Set<string>([folder.id]);
+
+  for (let depth = 0; depth < 12; depth += 1) {
+    const parentId = Array.isArray(current.parents) ? current.parents[0] : "";
+    if (!parentId || parentId === "root" || visited.has(parentId)) break;
+    visited.add(parentId);
+    try {
+      current = await getDriveFolderMetadata(parentId);
+      segments.unshift(current.name || current.id);
+    } catch {
+      break;
+    }
+  }
+
+  return ["Google Drive", ...segments].join(" / ");
+}
+
+function mapDriveFolderListItem(file: any): DriveFolderListItem {
+  return {
+    id: String(file.id ?? ""),
+    name: String(file.name ?? ""),
+    mimeType: String(file.mimeType ?? driveFolderMimeType),
+    driveId: file.driveId ? String(file.driveId) : null,
+    hasChildren: true,
+    webViewLink: String(file.webViewLink ?? driveFolderUrl(String(file.id ?? "")))
+  };
+}
+
+function driveFolderUrl(folderId: string) {
+  return `https://drive.google.com/drive/folders/${encodeURIComponent(folderId)}`;
+}
+
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 /**

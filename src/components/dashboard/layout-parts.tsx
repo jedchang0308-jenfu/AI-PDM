@@ -1,5 +1,6 @@
 import { memo, type ReactNode, type RefObject } from "react";
 import { Bell, Eye, MessageSquare, Send, Star, X } from "lucide-react";
+import { NextStepState } from "@/components/next-step-state";
 import type { NotificationItem, NotificationSummary, SubmissionStatus, SubmissionSummary } from "@/lib/types";
 
 export type ChatSource = {
@@ -53,7 +54,16 @@ export function NotificationDropdown({
           </span>
         </summary>
         {notifications.length === 0 ? (
-          <div className="empty compact">目前沒有待處理通知。</div>
+          <NextStepState
+            compact
+            eyebrow="通知"
+            title="目前沒有待處理通知"
+            body="可先回待辦中心查看已處理項目，或從圖料查詢追蹤特定物件。"
+            actions={[
+              { href: "/numbering/tasks", label: "待辦中心", variant: "primary" },
+              { href: "/numbering/search", label: "查圖料" }
+            ]}
+          />
         ) : (
           <div className="notification-list">
             {notifications.slice(0, 6).map((notification) => (
@@ -129,16 +139,29 @@ const SubmissionRow = memo(function SubmissionRow({
   return (
     <tr key={submission.id} className={selected ? "selected-row" : undefined} aria-selected={selected} onClick={() => onSelect(submission.id)}>
       <td>
-        <strong>{submission.drawing_number}</strong>
+        <strong className="identity-primary">{submission.drawing_number}</strong>
       </td>
-      <td>{submission.part_number}</td>
-      <td>{submission.part_name}</td>
-      <td>{submission.revision}</td>
+      <td>
+        <span className="metadata-value">{submission.part_number}</span>
+      </td>
+      <td>
+        <span className="metadata-value">{submission.part_name}</span>
+      </td>
+      <td>
+        <span className="metadata-badge">Rev {submission.revision}</span>
+      </td>
       <td>
         <span className={`badge ${submission.status}`}>{statusLabels[submission.status]}</span>
       </td>
-      <td>{formatFileAvailability(submission)}</td>
-      <td>{new Date(latestActivityAt(submission)).toLocaleString()}</td>
+      <td>
+        <span className="metadata-badge">{formatFileAvailability(submission)}</span>
+      </td>
+      <td>
+        <span className="metadata-pair">
+          <span className="metadata-label">更新</span>
+          <span className="metadata-value">{new Date(latestActivityAt(submission)).toLocaleString()}</span>
+        </span>
+      </td>
       <td>
         <button
           className={favorite ? "icon-button favorite active" : "icon-button favorite"}
@@ -200,7 +223,17 @@ export function SubmissionTable({
             <div className="empty">載入中...</div>
           </>
         ) : visibleSubmissions.length === 0 ? (
-          <div className="empty">目前沒有符合條件的圖面資料。</div>
+          <div className="empty">
+            <NextStepState
+              eyebrow="找不到資料"
+              title="目前沒有符合條件的圖面資料"
+              body="可放寬篩選條件、建立新送審，或先領號後再補圖面檔案。"
+              actions={[
+                { href: "/upload", label: "上傳送審", variant: "primary" },
+                { href: "/numbering/request", label: "領號申請" }
+              ]}
+            />
+          </div>
         ) : (
           <div
             className="table-wrap virtual-table-wrap"
@@ -211,6 +244,7 @@ export function SubmissionTable({
             data-transition-pending={isSubmissionTransitionPending}
           >
             <table>
+              <SubmissionTableColumns />
               <SubmissionTableHead />
               <tbody>
                 {virtualTable.topHeight > 0 ? (
@@ -255,8 +289,24 @@ export function SubmissionTable({
 function SubmissionTableHeader() {
   return (
     <table>
+      <SubmissionTableColumns />
       <SubmissionTableHead />
     </table>
+  );
+}
+
+function SubmissionTableColumns() {
+  return (
+    <colgroup>
+      <col className="submission-col-drawing" />
+      <col className="submission-col-part" />
+      <col className="submission-col-name" />
+      <col className="submission-col-revision" />
+      <col className="submission-col-status" />
+      <col className="submission-col-files" />
+      <col className="submission-col-activity" />
+      <col className="submission-col-actions" />
+    </colgroup>
   );
 }
 
@@ -282,6 +332,7 @@ type SubmissionDetailPanelProps = {
   isDetailLoading: boolean;
   selectedSummary: SubmissionSummary | null;
   statusLabels: StatusLabels;
+  onClose: () => void;
   children: ReactNode;
 };
 
@@ -290,14 +341,39 @@ export function SubmissionDetailPanel({
   isDetailLoading,
   selectedSummary,
   statusLabels,
+  onClose,
   children
 }: SubmissionDetailPanelProps) {
   return (
     <DashboardComponentBoundary>
-      <aside className={isDetailLoading ? "panel detail-panel loading-detail" : "panel detail-panel"} ref={detailPanelRef} aria-busy={isDetailLoading}>
-        <div className="panel-header">
-          <h2>圖面明細</h2>
-          {selectedSummary ? <span className={`badge ${selectedSummary.status}`}>{statusLabels[selectedSummary.status]}</span> : null}
+      <aside className={isDetailLoading ? "panel detail-panel loading-detail" : "panel detail-panel"} ref={detailPanelRef} aria-busy={isDetailLoading} aria-label="圖面明細覆蓋層">
+        <div className="panel-header detail-overlay-header">
+          <div className="detail-title-stack">
+            <h2>圖面明細</h2>
+            {selectedSummary ? (
+              <div className="metadata-list detail-title-meta" aria-label="目前選取圖面摘要">
+                <span className="metadata-pair">
+                  <span className="metadata-label">圖號</span>
+                  <span className="metadata-value">{selectedSummary.drawing_number}</span>
+                </span>
+                <span className="metadata-badge">Rev {selectedSummary.revision}</span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">料號</span>
+                  <span className="metadata-value">{selectedSummary.part_number}</span>
+                </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">品名</span>
+                  <span className="metadata-value">{selectedSummary.part_name}</span>
+                </span>
+              </div>
+            ) : null}
+          </div>
+          <div className="detail-header-actions">
+            {selectedSummary ? <span className={`badge ${selectedSummary.status}`}>{statusLabels[selectedSummary.status]}</span> : null}
+            <button className="icon-button detail-close-button" type="button" onClick={onClose} title="關閉明細" aria-label="關閉圖面明細">
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         {isDetailLoading ? (
           <div className="detail-loading" data-testid="detail-loading">
@@ -305,9 +381,8 @@ export function SubmissionDetailPanel({
             <div className="detail-skeleton-line" />
             <div className="detail-skeleton-line short" />
           </div>
-        ) : (
-          children
-        )}
+        ) : null}
+        {children}
       </aside>
     </DashboardComponentBoundary>
   );

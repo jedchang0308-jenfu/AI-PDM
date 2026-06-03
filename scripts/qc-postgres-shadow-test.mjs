@@ -80,6 +80,19 @@ try {
 }
 record("PG-016 compare report has row counts and key hashes", Array.isArray(compareReport?.sqliteStats) && compareReport.sqliteStats.every((item) => typeof item.count === "number" && typeof item.keyHash === "string"), "scripts/compare-sqlite-postgres-shadow.mjs");
 record("PG-017 compare report includes target guard field", Object.hasOwn(compareReport ?? {}, "postgresTargetGuard"), "scripts/compare-sqlite-postgres-shadow.mjs");
+record(
+  "PG-018 compare report is traceable to migration files",
+  compareReport?.migrationTrace?.sqliteSchema?.path === "db/schema.sql" &&
+    typeof compareReport?.migrationTrace?.sqliteSchema?.sha256 === "string" &&
+    compareReport.migrationTrace.sqliteSchema.sha256.length === 64 &&
+    compareReport?.migrationTrace?.postgresSchema?.path === "db/postgres/001_initial_schema.sql" &&
+    typeof compareReport?.migrationTrace?.postgresSchema?.sha256 === "string" &&
+    compareReport.migrationTrace.postgresSchema.sha256.length === 64 &&
+    compareReport?.migrationTrace?.postgresRlsPlan?.path === "db/postgres/002_supabase_rls_plan.sql" &&
+    typeof compareReport?.migrationTrace?.postgresRlsPlan?.sha256 === "string" &&
+    compareReport.migrationTrace.postgresRlsPlan.sha256.length === 64,
+  JSON.stringify(compareReport?.migrationTrace ?? null)
+);
 
 const failed = results.filter((result) => !result.passed);
 console.log(

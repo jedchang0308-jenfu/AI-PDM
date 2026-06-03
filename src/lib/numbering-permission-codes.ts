@@ -1,0 +1,58 @@
+export const NUMBERING_PAGE_PERMISSION_CODES = [
+  "numbering.request",
+  "numbering.search",
+  "numbering.dvt",
+  "numbering.approvals",
+  "numbering.impact",
+  "numbering.tasks",
+  "numbering.imports",
+  "numbering.reports",
+  "settings.admin_matrix"
+] as const;
+
+export const NUMBERING_ACTION_PERMISSION_CODES = [
+  "numbering.create",
+  "numbering.draft.update",
+  "numbering.draft.obsolete",
+  "numbering.draft.admin_confirm",
+  "numbering.duplicate_check",
+  "numbering.link_variant",
+  "numbering.dvt.submit",
+  "numbering.approval.request",
+  "numbering.approval.batch.create",
+  "numbering.approval.batch.decide",
+  "numbering.approval.batch.resubmit",
+  "numbering.impact.analyze",
+  "numbering.impact.apply",
+  "numbering.import.stage",
+  "numbering.import.confirm",
+  "numbering.export.create",
+  "numbering.audit_report.generate",
+  "numbering.task.update",
+  "numbering.notification.update",
+  "settings.admin_matrix",
+  "update_name",
+  "update_spec",
+  "obsolete_part_number",
+  "obsolete_ma_drawing",
+  "merge_part_number",
+  "dvt_missing_ma_override",
+  "dvt_promotion",
+  "release_missing_ma_confirm",
+  "release",
+  "post_release_change",
+  "same_drawing_variant_after_release",
+  "main_drawing_restore"
+] as const;
+
+export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
+  "/numbering/request": "numbering.request",
+  "/numbering/search": "numbering.search",
+  "/numbering/dvt": "numbering.dvt",
+  "/numbering/approvals": "numbering.approvals",
+  "/numbering/impact": "numbering.impact",
+  "/numbering/tasks": "numbering.tasks",
+  "/numbering/imports": "numbering.imports",
+  "/numbering/reports": "numbering.reports",
+  "/settings": "settings.admin_matrix"
+};
