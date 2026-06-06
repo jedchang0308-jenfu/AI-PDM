@@ -680,9 +680,9 @@ export default function BomWorkbenchPage() {
                   compact
                   eyebrow="沒有可加入項目"
                   title="目前沒有可加入 BOM 的圖料"
-                  body="輸入至少 2 個字搜尋，或回圖料查詢確認主件與子件資料。"
+                  body="輸入至少 2 個字搜尋，或回圖料模組確認主件與子件資料。"
                   actions={[
-                    { href: "/numbering/search", label: "回圖料查詢", variant: "primary" },
+                    { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
                     { href: "/upload", label: "上傳送審" }
                   ]}
                 />

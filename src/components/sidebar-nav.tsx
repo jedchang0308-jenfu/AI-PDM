@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   Boxes,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   Factory,
@@ -14,6 +16,7 @@ import {
   GitPullRequestArrow,
   ListTree,
   LogIn,
+  PackageSearch,
   Search,
   Settings,
   ShieldAlert,
@@ -45,7 +48,9 @@ const navSections: NavSection[] = [
   {
     label: "專案 / 圖料",
     items: [
-      { href: "/numbering/search", label: "圖料查詢", icon: Search },
+      { href: "/numbering/search", label: "圖料模組", icon: Search },
+      { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
+      { href: "/parts", label: "料號模組", icon: PackageSearch },
       { href: "/upload", label: "上傳送審", icon: UploadCloud },
       { href: "/numbering/request", label: "領號申請", icon: ClipboardList },
       { href: "/numbering/imports", label: "圖號總表匯入", icon: FileUp }
@@ -90,6 +95,7 @@ function isVisibleItem(item: NavItem, pagePermissions: Record<string, boolean> |
 export function SidebarNav() {
   const pathname = usePathname() || "/";
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,13 +112,35 @@ export function SidebarNav() {
     };
   }, []);
 
+  useEffect(() => {
+    const saved = window.localStorage.getItem("ai-pdm-sidebar-collapsed");
+    if (saved === "true") setCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    window.localStorage.setItem("ai-pdm-sidebar-collapsed", String(collapsed));
+    return () => {
+      document.body.classList.remove("sidebar-collapsed");
+    };
+  }, [collapsed]);
+
   return (
-    <aside className="sidebar">
+    <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       <div className="brand">
         <span className="brand-mark">
           <Boxes size={19} aria-hidden="true" />
         </span>
-        <span>AI PDM</span>
+        <span className="brand-name">AI PDM</span>
+        <button
+          className="sidebar-toggle"
+          type="button"
+          aria-label={collapsed ? "展開左側導覽" : "收合左側導覽"}
+          title={collapsed ? "展開左側導覽" : "收合左側導覽"}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          {collapsed ? <ChevronRight size={17} aria-hidden="true" /> : <ChevronLeft size={17} aria-hidden="true" />}
+        </button>
       </div>
       <nav className="nav" aria-label="主導覽">
         {navSections.map((section) => {
@@ -128,7 +156,7 @@ export function SidebarNav() {
                   const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                   return (
-                    <Link className={active ? "active" : undefined} href={item.href} aria-current={active ? "page" : undefined} key={item.href}>
+                    <Link className={active ? "active" : undefined} href={item.href} aria-current={active ? "page" : undefined} title={item.label} key={item.href}>
                       <Icon size={18} aria-hidden="true" />
                       <span>{item.label}</span>
                     </Link>

@@ -1,6 +1,6 @@
 # AI PDM Dev Task Backlog
 
-更新日期：2026-06-03
+更新日期：2026-06-05
 維護規則：主檔只保留未完成、進行中、阻塞與近期規格導向任務；完成任務以索引方式保留，詳細證據回到 RD/QA/QC 文件與 archive。
 狀態圖例：`[ ]` 待辦、`[/]` 進行中、`[x]` 已完成、`[!]` 阻塞或外部等待。
 
@@ -31,6 +31,10 @@
 | [x] | DEV-UX-PLATFORM-001 | 多角色 AI PDM 平台 UX 架構優化 | 將首頁、導覽與物件頁從 RD 功能清單升級為多角色、物件中心、任務路由的平台 UX | Phase 1A/1B 已完成首頁工作台、sidebar 分群、主要流程 CTA、空狀態/完成狀態與 UI 驗證；自適應任務引擎另列 DEV-UX-PLATFORM-002 |
 | [x] | DEV-BOM-WORKBENCH-001 | BOM 工作台獨立模組 | 建立獨立 BOM 工作台，支援 CAD 自動 Draft、SolidWorks BOM XLS、人工拖拉、多 Draft、Active Draft、主管審核與 Released Snapshot | 第一版完成；BOM 工作台 UI、主管 diff 審核、Released Snapshot、匯出、權限與 regression QC 通過 |
 | [x] | DEV-PDM-NUMBERING-001 | 圖號與料號自動化管理 | 將圖號、料號、主根號、同圖多料號、DVT/發行審核、override、audit 與月報轉為 PDM 模組 | RD 可先領號後補文件；DVT/發行管制可設定；總表可匯入/匯出；audit 與 QC 通過 |
+| [x] | DEV-PDM-DRAWING-001 | 圖號管理模組補齊 | 將圖號從圖料查詢中拆出為 PDM 主資料模組，支援圖號清單、MA/OT、狀態/階段、關聯料號、提醒與影響/追溯入口 | `/numbering/drawings`、`/api/numbering/drawings`、sidebar、權限矩陣與 QC static checks 已完成；圖料查詢保留跨物件追溯角色 |
+| [x] | DEV-PDM-MASTER-WORKBENCH-001 | 圖料三頁主資料工作台一致化 | 將圖料查詢、圖號管理、料號模組三頁改為同權重主資料入口，統一 topbar、filter、左側總表與右側固定明細 | 已完成；三頁共用 `pdm-master-*` layout，桌機左右工作台、手機上下排列、總表主視覺與 runtime QC 通過 |
+| [x] | DEV-PDM-IDENTITY-LIST-001 | 圖料三頁主識別清單 UI/UX 優化 | 將圖料查詢、圖號管理、料號模組清單主畫面調整為圖號 / 品名 / 料號優先，其他資訊降級為 compact meta | 已完成；三頁清單表頭統一、主識別三欄 81.9%、其他欄 18.0%、手機卡片堆疊無水平溢出，右側明細動作仍可用 |
+| [x] | DEV-PDM-DRAWING-SHORTCUTS-001 | 圖號模組清單安全快捷鍵 | 依 `ui-design-principles` 管理系統清單頁模板補齊圖號清單 Excel 類安全查閱快捷鍵 | 已完成；支援 Arrow/Home/Page/Enter/Escape/Ctrl+C，保留瀏覽器快捷鍵與輸入框原生行為，QC 169/169 通過 |
 | [x] | DEV-GDRIVE-001 | Google Drive 資料夾樹狀設定 | 將 `/settings` 的手動 Folder ID 輸入改為 Windows Explorer 式資料夾樹與驗證流程 | Admin 可用樹狀圖指定 pending/released folders；阻擋同資料夾與非資料夾；舊 Folder ID POST 相容 QC 通過 |
 | [x] | DEV-UX-005 | 全系統 UI 屬性視覺層級一致化 | 建立一致的識別、狀態、metadata、系統診斷資訊呈現規則 | 主要頁面 100% 縮放無重疊；dashboard/upload/handoff/share 視覺 QC 通過 |
 
@@ -41,7 +45,9 @@
 | [x] | SPEC-UX-PLATFORM-001 | DEV-UX-PLATFORM-001 | [.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md) | Phase 1A/1B Implemented；首頁工作台、平台導覽、流程定位、空狀態/完成狀態 CTA 已落地 |
 | [x] | SPEC-BOM-WORKBENCH-001 | DEV-BOM-WORKBENCH-001 | [.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md) | Implemented；BOM 工作台第一版 QC 通過 |
 | [x] | SPEC-PDM-NUMBERING-001 | DEV-PDM-NUMBERING-001 | [.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md) | Implemented；圖號料號自動化第一版 QC 通過 |
-| [x] | SPEC-PDM-PART-COST-001 | DEV-PDM-PART-COST-001 | [.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md) | Spec document created；implementation backlog；主根號自動關聯圖號/料號與料號成本版本、數量級距、採購變更、主管審核 |
+| [x] | SPEC-PDM-PART-COST-001 | DEV-PDM-PART-COST-001 | [.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md) | Spec document created；第一版料號模組開發中；已落地料號變體、成本 profile/tier/standard/change request schema、`/parts` 工作台與 QC |
+| [x] | SPEC-PDM-MASTER-WORKBENCH-001 | DEV-PDM-MASTER-WORKBENCH-001 | [.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md) | Implemented；三頁一致化主資料工作台與 QC script 已落地 |
+| [x] | SPEC-PDM-IDENTITY-LIST-001 | DEV-PDM-IDENTITY-LIST-001 | [.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md) | Spec document created；延伸三頁主資料工作台，定義圖號 / 品名 / 料號主識別清單與欄寬驗收 |
 | [x] | Google Drive Folder Tree Settings Spec | DEV-GDRIVE-001 | [docs/google-drive-folder-tree-settings-spec-2026-05-30.md](C:/VIBE%20CODING/AI_PDM/docs/google-drive-folder-tree-settings-spec-2026-05-30.md) | Implemented；保留於既有 docs 位置 |
 
 ## DEV-UX-PLATFORM-001：多角色 AI PDM 平台 UX 架構優化
@@ -97,7 +103,7 @@
 
 ## DEV-UX-PLATFORM-002：自適應任務路由與角色視角模型
 
-狀態：[ ]
+狀態：[/]
 優先級：P2
 關聯 spec：[.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md)
 
@@ -125,6 +131,156 @@
 - [ ] 新增或更新對應 QC script，覆蓋主要角色與桌機/手機 viewport。
 - [ ] QC 報告記錄角色輸入、排序結果、證據與殘留風險。
 
+## DEV-PDM-MASTER-WORKBENCH-001：圖料三頁主資料工作台一致化
+
+狀態：[x]
+優先級：P1
+關聯 spec：[.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md)
+
+## 任務目標
+
+將 `/numbering/search`、`/numbering/drawings`、`/parts` 改成相同主資料工作台版型：topbar、filter row、左側總表、右側固定明細，手機版總表在上、明細在下。三頁同權重，總表為主畫面，compact summary 不搶主視覺。
+
+## 已定案決策
+
+- [x] 三頁同權重。
+- [x] 桌機採左右工作台。
+- [x] 左側為總表主畫面。
+- [x] 右側為固定明細檢視。
+- [x] 手機改為總表在上、明細在下。
+- [x] 本次不改 API、schema、權限矩陣或 sidebar 資訊架構。
+
+## RD 執行項目
+
+- [x] 建立共用 layout CSS class：`pdm-master-workbench`、`pdm-master-toolbar`、`pdm-master-grid`、`pdm-master-table-panel`、`pdm-master-detail-panel`。
+- [x] 調整 `/numbering/search` 為左側跨物件總表、右側主根明細。
+- [x] 調整 `/numbering/drawings` 為左側圖號總表、右側圖號治理明細，移除大型 stats cards 的主視覺優先權。
+- [x] 調整 `/parts` 為左側料號總表、右側料號屬性、圖號、成本明細，避免右側明細比總表更強。
+- [x] 統一未登入、錯誤、載入、空狀態位置與文案層級。
+- [x] 確保手機版無頁面層水平溢出。
+
+## QA 驗證計畫
+
+- [x] 驗證三頁桌機版皆呈現 `topbar -> filter -> left table / right detail`。
+- [x] 驗證三頁手機版皆呈現 `topbar -> filter -> table -> detail`。
+- [x] 驗證點選總表列後右側明細更新且選取列高亮一致。
+- [x] 驗證 compact summary 不會將總表推到第二視覺層。
+- [x] 驗證不需 API、schema、權限矩陣或 sidebar 變更即可完成。
+
+## QC 驗收標準
+
+- [x] `npm.cmd run lint` 通過。
+- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
+- [x] `npm.cmd run qc:pdm-numbering-core` 通過。
+- [x] `npm.cmd run qc:pdm-numbering-search-ui` 通過。
+- [x] `npm.cmd run qc:part-number-module` 通過。
+- [x] 新增 `npm.cmd run qc:pdm-master-workbench-layout`，覆蓋三頁共用 layout class、桌機左右工作台、手機上下排列、點選列更新明細、四個 URL 回 200。
+
+## 風險 / 注意事項
+
+- [x] 目前 dev server 建議使用 `next dev --webpack`，避免 Turbopack dev 對大型首頁卡死。
+- [x] 文件與 UI 若遇終端亂碼，需以實際 source UTF-8 與瀏覽器呈現為準。
+- [x] 不得在此任務中順手重構 API、權限矩陣或 sidebar。
+
+## DEV-PDM-IDENTITY-LIST-001：圖料三頁主識別清單 UI/UX 優化
+
+狀態：[x]
+優先級：P1
+類型：UX / PDM 主資料清單優化
+關聯 spec：[.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md)
+關聯任務：`DEV-PDM-MASTER-WORKBENCH-001`
+
+## 任務目標
+
+將 `/numbering/search`、`/numbering/drawings`、`/parts` 的左側清單從平均欄位配置調整為主識別優先配置。三頁清單第一視覺應服務 RD 掃描 `圖號 / 品名 / 料號`，狀態、階段、用途、成本、提醒、關聯數量與動作降級為 compact meta 或右側明細，避免資訊爆炸造成疲勞。
+
+## 已定案決策
+
+- [x] 三頁清單表頭統一為 `圖號 / 品名 / 料號 / 其他`。
+- [x] `品名` 是最大彈性欄。
+- [x] `圖號` 與 `料號` 以內容容納寬度為主。
+- [x] 次要資訊降級為 compact badge、icon hint 或右側明細。
+- [x] 圖號管理清單不保留大型動作欄，追溯與 MA 影響分析入口放右側固定明細。
+- [x] 手機版使用卡片式堆疊，避免頁面層水平溢出。
+- [x] 本輪只寫專案文件，不執行 UI 開發。
+
+## RD 執行項目
+
+- [x] 建立共用 identity list CSS class：`pdm-identity-table`、`pdm-identity-code`、`pdm-identity-name`、`pdm-identity-meta`、`pdm-meta-strip`。
+- [x] 調整 `/numbering/search` 清單為圖號、品名、料號、其他四欄，並允許 backward-compatible `coreName` 擴充供 drawing/root row 顯示品名。
+- [x] 調整 `/numbering/drawings` 清單為 `drawingNumber / coreName / linkedPartNumbers / compact meta`，移除清單大型動作欄。
+- [x] 調整 `/parts` 清單為 `primaryDrawingNumber / partName / partNumber / compact meta`，材質、顏色、成本摘要降級為其他欄或右側明細。
+- [x] 手機版將 identity row 改為卡片式堆疊：圖號、品名、料號、其他 chips。
+- [x] 保留現有 row click、selected-row 高亮、右側固定明細更新流程。
+
+## QA 驗證計畫
+
+- [x] 驗證三頁表頭順序皆為 `圖號 / 品名 / 料號 / 其他`。
+- [x] 驗證桌機版主識別三欄合計寬度 >= 清單可視寬度 70%。
+- [x] 驗證 `其他` 欄寬 <= 清單可視寬度 22%。
+- [x] 驗證狀態、階段、用途、成本、提醒與關聯數量不再形成大型獨立欄位。
+- [x] 驗證圖號管理清單移除動作欄後，右側明細仍提供追溯與 MA 影響分析入口。
+- [x] 驗證手機版無 page-level horizontal overflow，且 identity row 可讀。
+
+## QC 驗收標準
+
+- [x] `npm.cmd run lint` 通過。
+- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
+- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過，125/125。
+- [x] `npm.cmd run qc:pdm-numbering-search-ui` 通過，26/26。
+- [x] `npm.cmd run qc:part-number-module` 通過，41/41。
+- [x] 新增或擴充 UI QC，覆蓋 identity table class、表頭順序、欄寬比例、手機無水平溢出與圖號管理右側動作入口。
+
+## 風險 / 注意事項
+
+- [x] 不得重開或覆蓋已完成的 `DEV-PDM-MASTER-WORKBENCH-001`。
+- [x] 不得順手修改圖號 / 料號 / 主根號命名規則。
+- [x] 不得修改審核矩陣、BOM 關聯或成本審核流程。
+- [x] 若圖料查詢需 `coreName`，僅允許 backward-compatible response 擴充，不做 DB schema migration。
+
+## DEV-PDM-DRAWING-SHORTCUTS-001：圖號模組清單安全快捷鍵
+
+狀態：[x]
+優先級：P1
+節點類型：開發點
+父交付點：`DEV-PDM-DRAWING-001`、`DEV-PDM-IDENTITY-LIST-001`
+是否計入產品交付完成：否
+關聯 skill：`ui-design-principles`
+
+## 任務目標
+
+依管理系統清單頁模板，讓 `/numbering/drawings` 圖號清單具備 Excel 類查閱肌肉記憶，同時不覆蓋瀏覽器原生快捷鍵、不啟用資料異動快捷鍵。
+
+## RD 執行項目
+
+- [x] 圖號清單區加入 focusable region 與 `aria-keyshortcuts`，不在主畫面顯示大量快捷鍵說明。
+- [x] 支援 `ArrowUp / ArrowDown` 上下移動選取列。
+- [x] 支援 `Enter` 開啟目前選取圖號明細。
+- [x] 支援 `Escape` 關閉右側 drawer。
+- [x] 支援 `PageUp / PageDown` 清單翻頁、`Home / End` 第一筆 / 最後一筆。
+- [x] 支援 `Ctrl+C` 在沒有文字反白時複製目前選取圖號。
+- [x] 焦點在 `input`、`textarea`、`select`、contenteditable、modal 或確認流程時不攔截清單快捷鍵。
+- [x] 未啟用 `Ctrl+F`、`Ctrl+R/F5`、`Ctrl+S`、`Ctrl+N`、`Ctrl+A`、`Delete`、`F2` 等瀏覽器或資料異動快捷鍵。
+
+## QA 驗證計畫
+
+- [x] 驗證清單 focus 時 `Home`、`End`、`ArrowDown`、`PageUp/PageDown` 會改變選取列。
+- [x] 驗證 `Enter` 會開啟目前選取列右側明細，`Escape` 可關閉。
+- [x] 驗證 `Ctrl+C` 會複製目前選取圖號。
+- [x] 驗證輸入框 focus 時不攔截清單快捷鍵。
+- [x] 驗證有文字反白時 `Ctrl+C` 保留瀏覽器原生複製。
+
+## QC 驗收標準
+
+- [x] `npm.cmd run lint` 通過。
+- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
+- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過，169/169。
+
+## 風險 / 注意事項
+
+- [x] 本任務只補圖號模組查閱型快捷鍵，不擴大到料號模組或圖料查詢。
+- [x] 不啟用任何資料異動快捷鍵；若未來要在 inline edit 頁使用，需頁面級 opt-in、權限、確認、防誤觸設計與 QC。
+
 ## DEV-PDM-PART-COST-001：主根號關聯圖號料號與料號成本模組
 
 狀態：[ ]
@@ -137,28 +293,28 @@
 
 ## 使用者已定案決策
 
-- [ ] 一圖多料號的主要原因是不同材質、不同顏色。
-- [ ] 成本以標準成本為主，但同一料號需保留其他成本 profile，例如委外加工、自行製作、採購或試算。
-- [ ] 成本會隨數量改變，需支援數量級距。
-- [ ] 採購可提出成本變更，主管審核後才生效。
-- [ ] 圖面改版不需要觸發成本重審。
-- [ ] 系統需同時有圖號模組及料號模組，兩者透過相同主根號自動關聯。
+- [x] 一圖多料號的主要原因是不同材質、不同顏色。
+- [x] 成本以標準成本為主，但同一料號需保留其他成本 profile，例如委外加工、自行製作、採購或試算。
+- [x] 成本會隨數量改變，需支援數量級距。
+- [x] 採購可提出成本變更，主管審核後才生效。
+- [x] 圖面改版不需要觸發成本重審。
+- [x] 系統需同時有圖號模組及料號模組，兩者透過相同主根號自動關聯。
 
 ## RD 執行項目
 
 ### 資料模型 / Migration
-- [ ] 評估既有 `part_roots`、`drawing_numbers`、`part_numbers`、`drawing_part_links`、`same_drawing_variants` 是否足以承接主根號自動關聯與一圖多料號變體。
-- [ ] 新增或延伸料號變體屬性，至少支援材質、顏色、表面處理與差異說明。
-- [ ] 新增 `part_cost_profiles`，支援 `outsource`、`in_house`、`purchase`、`trial` 等成本情境與版本狀態。
-- [ ] 新增 `part_cost_tiers`，支援數量級距、單價、設定費、交期與備註。
-- [ ] 新增 `part_standard_costs`，以 approved cost profile 與基準數量指定 current standard cost。
-- [ ] 新增 `part_cost_change_requests`，保存採購提出、主管審核、退回、核准與異動前後 snapshot。
-- [ ] 成本主關聯必須掛在 `part_number_id`，不得以 `drawing_number_id` 作正式成本主關聯。
+- [x] 評估既有 `part_roots`、`drawing_numbers`、`part_numbers`、`drawing_part_links`、`same_drawing_variants` 是否足以承接主根號自動關聯與一圖多料號變體。
+- [x] 新增或延伸料號變體屬性，至少支援材質、顏色、表面處理與差異說明。
+- [x] 新增 `part_cost_profiles`，支援 `outsource`、`in_house`、`purchase`、`trial` 等成本情境與版本狀態。
+- [x] 新增 `part_cost_tiers`，支援數量級距、單價、設定費、交期與備註。
+- [x] 新增 `part_standard_costs`，以 approved cost profile 與基準數量指定 current standard cost。
+- [x] 新增 `part_cost_change_requests`，保存採購提出、主管審核、退回、核准與異動前後 snapshot。
+- [x] 成本主關聯必須掛在 `part_number_id`，不得以 `drawing_number_id` 作正式成本主關聯。
 
 ### 後端服務 / API
 - [ ] 實作同主根號自動關聯規則：相同 `part_root_id` 才可自動關聯，MA 圖可作 primary manufacturing link，OT 圖只能作 reference link。
 - [ ] 實作一圖多料號的變體完整性檢查，DVT / Release 起材質、顏色或差異說明不得缺漏。
-- [ ] 實作成本 profile CRUD，採購可建立 draft / pending review，但不可直接改變 approved standard cost。
+- [x] 實作成本 profile CRUD，採購可建立 draft / pending review，但不可直接改變 approved standard cost。
 - [ ] 實作成本級距驗證，避免數量區間重疊，查詢時可明確回報無級距或級距衝突。
 - [ ] 實作標準成本解析演算法：輸入料號、數量與日期，解析有效標準成本 profile 與對應級距。
 - [ ] 實作指定成本情境解析演算法：可查委外、自製、採購等 approved profile 的有效成本。
@@ -168,20 +324,20 @@
 
 ### UI / UX
 - [ ] 圖號明細頁顯示同主根號料號清單、材質、顏色、料號狀態、標準成本狀態與 primary MA link。
-- [ ] 料號明細頁顯示同主根號圖號、材質、顏色、差異說明、BOM 使用狀態、成本 profile、數量級距與標準成本。
+- [x] 料號明細頁顯示同主根號圖號、材質、顏色、差異說明、BOM 使用狀態、成本 profile、數量級距與標準成本。
 - [ ] 成本審核中心顯示採購送審、異動前後、影響料號、核准 / 退回與審核意見。
-- [ ] 一圖多料號清單需讓使用者能比較同主根號下不同材質、顏色與成本差異。
+- [x] 一圖多料號清單需讓使用者能比較同主根號下不同材質、顏色與成本差異。
 - [ ] 若圖面 title block 寫死材質或顏色，UI 需提醒同圖多料號可能不成立，需改用「依料號規格」或建立變體表。
 
 ## QA 驗證計畫
 
 - [ ] 驗證圖號模組可從 MA 圖看到同主根號下多個料號。
-- [ ] 驗證料號模組可從料號看到同主根號下可關聯 MA / OT 圖。
+- [x] 驗證料號模組可從料號看到同主根號下可關聯 MA / OT 圖。
 - [ ] 驗證同一 MA 圖可對應不同材質 / 顏色料號，且 DVT / Release 起缺少差異欄位會被阻擋。
-- [ ] 驗證成本只能掛料號，不會因同圖多料號而共用錯誤成本。
+- [x] 驗證成本只能掛料號，不會因同圖多料號而共用錯誤成本。
 - [ ] 驗證採購建立成本 profile 後，在主管核准前不會影響標準成本。
 - [ ] 驗證主管核准後，標準成本依指定基準數量與數量級距解析。
-- [ ] 驗證同一料號可同時保留委外、自製、採購等成本情境。
+- [x] 驗證同一料號可同時保留委外、自製、採購等成本情境。
 - [ ] 驗證圖面改版不會自動觸發成本重審或改變標準成本。
 - [ ] 驗證 audit log 可追溯成本異動前後、申請人、審核人與理由。
 
@@ -189,8 +345,8 @@
 
 - [ ] `npm.cmd run lint` 通過。
 - [ ] `npm.cmd run build` 通過。
-- [ ] 新增或更新資料模型 / repository 單元測試，覆蓋主根號自動關聯與一圖多料號變體。
-- [ ] 新增或更新成本 profile / tier / standard cost API 測試。
+- [x] 新增或更新資料模型 / repository 單元測試，覆蓋主根號自動關聯與一圖多料號變體。
+- [x] 新增或更新成本 profile / tier / standard cost API 測試。
 - [ ] 新增或更新採購送審與主管審核 E2E 測試。
 - [ ] 新增或更新 UI QC，覆蓋圖號明細、料號明細與成本審核中心。
 - [ ] QC 報告需記錄測試資料中的圖號、料號、材質、顏色、成本級距、審核結果與 audit evidence。
@@ -740,10 +896,18 @@
 - DEV-GDRIVE-001 should preserve current `gdrive_pending_folder_id` and `gdrive_released_folder_id` compatibility.
 - DEV-PDM-NUMBERING-001 depends on DEV-IND-007 for production Supabase/Postgres readiness, and should remain compatible with J drive path/hash indexing before any future Supabase Storage migration.
 - DEV-PDM-PART-COST-001 extends DEV-PDM-NUMBERING-001 and should reuse `part_roots` / `drawing_part_links`; it must not re-open completed numbering behavior unless schema compatibility requires a scoped extension.
+- DEV-PDM-IDENTITY-LIST-001 extends DEV-PDM-MASTER-WORKBENCH-001 and must preserve the existing left-table/right-detail layout while changing only list information hierarchy.
 - DEV-UX-PLATFORM-001 depends on current Dashboard / sidebar / numbering / BOM / handoff UI shape, and should not introduce schema changes until a later task defines the adaptive task routing model.
 
 ## Update Log
 
+- 2026-06-05：`DEV-PDM-DRAWING-SHORTCUTS-001` 完成 RD 實作。依 `ui-design-principles` 管理系統清單頁模板，為 `/numbering/drawings` 補上查閱型安全快捷鍵：`ArrowUp/Down`、`Enter`、`Escape`、`PageUp/PageDown`、`Home/End`、`Ctrl+C`；焦點在輸入框、下拉欄位、contenteditable 或有文字反白時不攔截；未覆蓋 `Ctrl+F`、`Ctrl+R/F5`、`Ctrl+S`、`Ctrl+N`、`Ctrl+A`，也未啟用 `Delete` / `F2`。擴充 `qc:pdm-master-workbench-layout`，驗證快捷鍵導覽、開關 drawer、複製選取圖號、輸入框不攔截與文字反白原生複製。驗證：`lint`、`build`、`qc:pdm-master-workbench-layout` 169/169 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
+- 2026-06-04：`DEV-PDM-IDENTITY-LIST-001` 完成 RD 實作。新增共用 `pdm-identity-*` / `pdm-meta-strip` 清單樣式，將 `/numbering/search`、`/numbering/drawings`、`/parts` 清單統一為 `圖號 / 品名 / 料號 / 其他`；圖號管理清單移除大型動作欄，追溯與 MA 影響分析保留於右側明細；料號模組將材質、成本、狀態降級為 compact meta；圖料查詢以 backward-compatible `coreName` response 擴充補足 drawing/root row 品名。擴充 `qc:pdm-master-workbench-layout` 與 `qc:pdm-numbering-search-ui`，驗證三頁 identity class、表頭順序、桌機主識別欄 81.9%、其他欄 18.0%、手機卡片堆疊、無水平溢出與右側動作入口。驗證：`lint`、`build`、`qc:pdm-numbering-core` 238/238、`qc:pdm-master-workbench-layout` 125/125、`qc:pdm-numbering-search-ui` 26/26、`qc:part-number-module` 41/41 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
+- 2026-06-04：建立 `SPEC-PDM-IDENTITY-LIST-001` 與 `DEV-PDM-IDENTITY-LIST-001`，將圖料查詢、圖號管理、料號模組清單主畫面優化定義為 P1 UX / PDM 主識別清單任務。決策：三頁表頭統一為 `圖號 / 品名 / 料號 / 其他`，品名為最大彈性欄，圖號與料號以內容容納寬度為主，次要資訊降級為 compact meta 或右側明細；本輪僅寫入專案文件，未執行 UI 開發。
+- 2026-06-04：`DEV-PDM-MASTER-WORKBENCH-001` 完成 RD 實作。新增共用 `pdm-master-*` layout CSS，將 `/numbering/search`、`/numbering/drawings`、`/parts` 統一為 topbar、filter row、左側總表、右側固定明細；圖號頁移除大型 stats cards 主視覺，改 compact summary；料號頁新增類型篩選位置但不改 API / schema / 權限 / sidebar。新增 `qc:pdm-master-workbench-layout`，驗證三頁共用 layout class、桌機左右工作台、手機上下排列、四個 URL 回 200 與無水平溢出。驗證：`lint`、`build`、`qc:pdm-numbering-core` 238/238、`qc:pdm-numbering-search-ui` 24/24、`qc:part-number-module` 41/41、`qc:pdm-master-workbench-layout` 76/76 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
+- 2026-06-04：建立 `SPEC-PDM-MASTER-WORKBENCH-001` 與 `DEV-PDM-MASTER-WORKBENCH-001`，將圖料查詢、圖號管理、料號模組三頁一致化定義為 P1 UX / PDM 主資料工作台任務。決策：三頁同權重、桌機左右工作台、左側總表為主畫面、右側固定明細、手機上下排列；本輪僅寫入專案文件，未修改 UI 程式。
+- 2026-06-03：`DEV-PDM-DRAWING-001` 完成圖號管理模組補齊。新增 `listDrawingModuleRecords`、`/api/numbering/drawings`、`/numbering/drawings`、sidebar 入口、`numbering.drawings.view` 頁面權限與預設 seed；圖號頁支援關鍵字、MA/OT、狀態、階段篩選，顯示關聯料號、未處理提醒、追溯與 MA 影響入口；圖料查詢保留跨圖號/料號/主根號搜尋角色。驗證：`qc:pdm-numbering-core` 238/238、`lint`、`build` 通過；build 仍有既有 Turbopack dynamic path warning，與本輪無關。
+- 2026-06-03：`DEV-PDM-PART-COST-001` 完成第一版料號模組切片。新增 SQLite / Postgres `part_variant_attributes`、`part_cost_profiles`、`part_cost_tiers`、`part_standard_costs`、`part_cost_change_requests` 與 Supabase RLS baseline 清單；新增料號 repository、`/api/parts`、`/api/parts/[partNumber]`、變體更新、成本 profile 送審 API；新增 `/parts` 料號工作台與 sidebar 入口；新增 `qc:part-number-module`。任務狀態改為 `[/]`，保留完整成本級距衝突檢查、標準成本解析演算法、主管核准生效流程、圖號明細反向呈現與成本審核中心為後續項目。
 - 2026-06-03：新增 `SPEC-PDM-PART-COST-001` 與 `DEV-PDM-PART-COST-001`，將一圖多料號、材質 / 顏色變體、料號成本 profile、數量級距、標準成本、採購變更、主管審核與圖面改版不觸發成本重審寫成正式專案文件。Spec Index 標記為文件已建立，實作任務仍列為 backlog 詳細 task，未加入 Active Task Overview，避免與已完成任務盤點混淆。
 - 2026-06-02：`DEV-UX-PLATFORM-001` 完成 Phase 1B。新增共用 `NextStepState`，補齊首頁、待辦中心、匯入中心、領號結果、上傳完成、MA 影響分析、BOM 工作台、BOM 審核與製造交接的空狀態 / 完成狀態下一步入口；修正匯入中心、MA 影響分析與 BOM 審核頁的 heading/text 重複，避免 Playwright strict locator 不穩。`DEV-UX-PLATFORM-001` 改為 `[x]`，自適應任務路由另開 `DEV-UX-PLATFORM-002`。驗證：`lint`、`build`、`git diff --check`、`qc:dashboard-quick-access` 16/16、`qc:dashboard-find-first` 16/16、`qc:pdm-numbering-task-center-ui` 22/22、`qc:pdm-numbering-import-center-ui` 22/22、`qc:pdm-numbering-impact-ui` 24/24、`qc:bom-workbench-ui` 35/35、`qc:bom-workbench-review-ui` 32/32、handoff Playwright smoke 16/16。
 - 2026-06-02：`DEV-UX-PLATFORM-001` 完成 Phase 1A RD 實作。新增 sidebar 平台分群、首頁多角色工作台、共用 `WorkflowStrip`，並接入 `/upload`、`/numbering/request`、`/numbering/tasks`、`/numbering/imports`、`/numbering/impact`、`/bom/workbench`、`/bom/reviews`、`/handoff`；修正首頁搜尋 placeholder 與最近圖號同步。新增 RD/QC 文件：`docs/rd-ux-platform-report-2026-06-02.md`、`docs/qc-ux-platform-validation-report-2026-06-02.md`。驗證：`lint`、`build`、`qc:dashboard-quick-access` 16/16、`qc:dashboard-find-first` 16/16、`qc:pdm-numbering-task-center-ui` 22/22、`qc:pdm-numbering-import-center-ui` 22/22、`qc:pdm-numbering-impact-ui` 24/24、`qc:bom-workbench-ui` 35/35、Playwright smoke check 首頁 5 cards / 6 nav sections / overflow 0。任務維持 `[/]`，剩餘逐頁空狀態/完成狀態文案與完整自適應任務引擎另切。

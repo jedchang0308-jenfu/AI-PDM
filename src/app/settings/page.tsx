@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   UserCog
 } from "lucide-react";
+import { InfoHint } from "@/components/compact-hints";
 
 type SettingsState =
   | { status: "loading" }
@@ -1932,25 +1933,7 @@ function MatrixSelect({
 }
 
 function InfoMark({ text }: { text: string }) {
-  return (
-    <button
-      type="button"
-      title={text}
-      aria-label={text}
-      style={{
-        width: "20px",
-        height: "20px",
-        border: "1px solid var(--line)",
-        borderRadius: "50%",
-        background: "var(--panel-2)",
-        color: "var(--muted)",
-        fontWeight: 700,
-        lineHeight: 1
-      }}
-    >
-      !
-    </button>
-  );
+  return <InfoHint title={text} className="settings-info-marker" />;
 }
 
 function emptyToNull(value: string) {
@@ -1968,6 +1951,7 @@ function permissionLabel(code: string) {
   const labels: Record<string, string> = {
     "numbering.request": "申請",
     "numbering.search": "查詢",
+    "numbering.drawings.view": "圖號模組",
     "numbering.dvt": "DVT",
     "numbering.approvals": "審核",
     "numbering.impact": "影響",

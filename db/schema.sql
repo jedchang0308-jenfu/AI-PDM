@@ -637,6 +637,99 @@ CREATE TABLE IF NOT EXISTS same_drawing_variants (
   UNIQUE (drawing_number_id, part_number_id, field_name)
 );
 
+CREATE TABLE IF NOT EXISTS part_variant_attributes (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL UNIQUE,
+  material_code TEXT,
+  material_label TEXT,
+  color_code TEXT,
+  color_label TEXT,
+  surface_treatment TEXT,
+  variant_note TEXT,
+  updated_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_cost_profiles (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  cost_type TEXT NOT NULL CHECK (cost_type IN ('outsourced', 'in_house', 'purchase', 'trial', 'other')),
+  profile_name TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'TWD',
+  uom TEXT NOT NULL DEFAULT 'pcs',
+  supplier_name TEXT,
+  process_name TEXT,
+  cost_basis TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'retired')),
+  effective_from TEXT,
+  effective_to TEXT,
+  created_by TEXT,
+  approved_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_cost_tiers (
+  id TEXT PRIMARY KEY,
+  cost_profile_id TEXT NOT NULL,
+  min_qty INTEGER NOT NULL DEFAULT 1 CHECK (min_qty > 0),
+  max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= min_qty),
+  unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
+  setup_cost REAL NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
+  lead_time_days INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE CASCADE,
+  UNIQUE (cost_profile_id, min_qty)
+);
+
+CREATE TABLE IF NOT EXISTS part_standard_costs (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  cost_profile_id TEXT NOT NULL,
+  basis_qty INTEGER NOT NULL DEFAULT 1 CHECK (basis_qty > 0),
+  standard_reason TEXT,
+  selected_by TEXT,
+  approved_by TEXT,
+  effective_from TEXT NOT NULL DEFAULT (datetime('now')),
+  effective_to TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE RESTRICT,
+  FOREIGN KEY (selected_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
+ON part_standard_costs(part_number_id)
+WHERE effective_to IS NULL;
+
+CREATE TABLE IF NOT EXISTS part_cost_change_requests (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  proposed_cost_profile_id TEXT,
+  request_type TEXT NOT NULL CHECK (request_type IN ('set_standard', 'update_profile', 'retire_profile')),
+  change_reason TEXT NOT NULL,
+  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  requested_by TEXT,
+  reviewed_by TEXT,
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reviewed_at TEXT,
+  review_comment TEXT,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (proposed_cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE SET NULL,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS duplicate_check_events (
   id TEXT PRIMARY KEY,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'mixed')),
@@ -869,6 +962,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
   VALUES
     ('system_admin', 'page', 'numbering.request', 1),
     ('system_admin', 'page', 'numbering.search', 1),
+    ('system_admin', 'page', 'numbering.drawings.view', 1),
     ('system_admin', 'page', 'numbering.dvt', 1),
     ('system_admin', 'page', 'numbering.approvals', 1),
     ('system_admin', 'page', 'numbering.impact', 1),
@@ -910,6 +1004,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'main_drawing_restore', 1),
     ('pdm_admin', 'page', 'numbering.request', 1),
     ('pdm_admin', 'page', 'numbering.search', 1),
+    ('pdm_admin', 'page', 'numbering.drawings.view', 1),
     ('pdm_admin', 'page', 'numbering.dvt', 1),
     ('pdm_admin', 'page', 'numbering.approvals', 1),
     ('pdm_admin', 'page', 'numbering.impact', 1),
@@ -951,6 +1046,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'main_drawing_restore', 1),
     ('rd_manager', 'page', 'numbering.request', 1),
     ('rd_manager', 'page', 'numbering.search', 1),
+    ('rd_manager', 'page', 'numbering.drawings.view', 1),
     ('rd_manager', 'page', 'numbering.dvt', 1),
     ('rd_manager', 'page', 'numbering.approvals', 1),
     ('rd_manager', 'page', 'numbering.impact', 1),
@@ -977,6 +1073,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'action', 'post_release_change', 1),
     ('rd', 'page', 'numbering.request', 1),
     ('rd', 'page', 'numbering.search', 1),
+    ('rd', 'page', 'numbering.drawings.view', 1),
     ('rd', 'page', 'numbering.dvt', 1),
     ('rd', 'page', 'numbering.impact', 1),
     ('rd', 'page', 'numbering.tasks', 1),
@@ -995,11 +1092,13 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'action', 'numbering.task.update', 1),
     ('rd', 'action', 'numbering.notification.update', 1),
     ('document_admin', 'page', 'numbering.search', 1),
+    ('document_admin', 'page', 'numbering.drawings.view', 1),
     ('document_admin', 'page', 'numbering.tasks', 1),
     ('document_admin', 'page', 'numbering.reports', 1),
     ('document_admin', 'action', 'numbering.task.update', 1),
     ('document_admin', 'action', 'numbering.notification.update', 1),
     ('qa', 'page', 'numbering.search', 1),
+    ('qa', 'page', 'numbering.drawings.view', 1),
     ('qa', 'page', 'numbering.tasks', 1),
     ('qa', 'page', 'numbering.reports', 1),
     ('qa', 'action', 'numbering.task.update', 1),
@@ -1220,6 +1319,9 @@ CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_r
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status_phase ON drawing_numbers(record_status, development_phase);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
+CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
+CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
+CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_duplicate_check_events_created_at ON duplicate_check_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_entity ON warning_events(entity_type, entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_code ON warning_events(warning_code, severity, created_at DESC);

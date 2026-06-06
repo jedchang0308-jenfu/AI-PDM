@@ -609,6 +609,99 @@ CREATE TABLE IF NOT EXISTS same_drawing_variants (
   UNIQUE (drawing_number_id, part_number_id, field_name)
 );
 
+CREATE TABLE IF NOT EXISTS part_variant_attributes (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL UNIQUE,
+  material_code TEXT,
+  material_label TEXT,
+  color_code TEXT,
+  color_label TEXT,
+  surface_treatment TEXT,
+  variant_note TEXT,
+  updated_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_cost_profiles (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  cost_type TEXT NOT NULL CHECK (cost_type IN ('outsourced', 'in_house', 'purchase', 'trial', 'other')),
+  profile_name TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'TWD',
+  uom TEXT NOT NULL DEFAULT 'pcs',
+  supplier_name TEXT,
+  process_name TEXT,
+  cost_basis TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'retired')),
+  effective_from TIMESTAMPTZ,
+  effective_to TIMESTAMPTZ,
+  created_by TEXT,
+  approved_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_cost_tiers (
+  id TEXT PRIMARY KEY,
+  cost_profile_id TEXT NOT NULL,
+  min_qty INTEGER NOT NULL DEFAULT 1 CHECK (min_qty > 0),
+  max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= min_qty),
+  unit_cost NUMERIC NOT NULL CHECK (unit_cost >= 0),
+  setup_cost NUMERIC NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
+  lead_time_days INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE CASCADE,
+  UNIQUE (cost_profile_id, min_qty)
+);
+
+CREATE TABLE IF NOT EXISTS part_standard_costs (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  cost_profile_id TEXT NOT NULL,
+  basis_qty INTEGER NOT NULL DEFAULT 1 CHECK (basis_qty > 0),
+  standard_reason TEXT,
+  selected_by TEXT,
+  approved_by TEXT,
+  effective_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+  effective_to TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE RESTRICT,
+  FOREIGN KEY (selected_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
+ON part_standard_costs(part_number_id)
+WHERE effective_to IS NULL;
+
+CREATE TABLE IF NOT EXISTS part_cost_change_requests (
+  id TEXT PRIMARY KEY,
+  part_number_id TEXT NOT NULL,
+  proposed_cost_profile_id TEXT,
+  request_type TEXT NOT NULL CHECK (request_type IN ('set_standard', 'update_profile', 'retire_profile')),
+  change_reason TEXT NOT NULL,
+  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  requested_by TEXT,
+  reviewed_by TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at TIMESTAMPTZ,
+  review_comment TEXT,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (proposed_cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE SET NULL,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS duplicate_check_events (
   id TEXT PRIMARY KEY,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'mixed')),
@@ -1009,6 +1102,9 @@ CREATE INDEX IF NOT EXISTS idx_warning_events_entity ON warning_events(entity_ty
 CREATE INDEX IF NOT EXISTS idx_warning_events_code ON warning_events(warning_code, severity, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_numbering_task_items_scope ON numbering_task_items(task_status, assigned_role, assigned_to, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_numbering_notifications_scope ON numbering_notifications(recipient_role, recipient_id, read_at, handled_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
+CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
+CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_rules_version_action ON approval_rules(rule_version_id, action_code);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_entity ON approval_requests(entity_type, entity_id, request_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_action ON approval_requests(action_code, request_status, created_at DESC);
@@ -1180,6 +1276,26 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_approval_batch_items_updated_at ON approval_batch_items;
 CREATE TRIGGER trg_approval_batch_items_updated_at
 BEFORE UPDATE ON approval_batch_items
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_variant_attributes_updated_at ON part_variant_attributes;
+CREATE TRIGGER trg_part_variant_attributes_updated_at
+BEFORE UPDATE ON part_variant_attributes
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_cost_profiles_updated_at ON part_cost_profiles;
+CREATE TRIGGER trg_part_cost_profiles_updated_at
+BEFORE UPDATE ON part_cost_profiles
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
+CREATE TRIGGER trg_part_cost_tiers_updated_at
+BEFORE UPDATE ON part_cost_tiers
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_standard_costs_updated_at ON part_standard_costs;
+CREATE TRIGGER trg_part_standard_costs_updated_at
+BEFORE UPDATE ON part_standard_costs
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_roles_updated_at ON roles;

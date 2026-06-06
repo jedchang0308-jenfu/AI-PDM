@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, XCircle } from "lucide-react";
+import { InfoHint, RiskHint } from "@/components/compact-hints";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
@@ -456,18 +457,14 @@ function ApprovalItemTable({
                 <td>
                   <div style={markerStackStyle}>
                     <span>{actionLabel(request.actionCode)}</span>
-                    {exception ? <span style={warningMarkerStyle}>異常/Override</span> : null}
+                    {exception ? <RiskHint title="異常或 override 項目，主管審核時需確認影響範圍。" className="approval-marker-exception" /> : null}
                     <MarkerList markers={request.markers ?? []} />
                   </div>
                 </td>
                 <td>
                   {request.requestedByName}
                   <p style={mutedTextStyle}>{formatDateTime(request.requestedAt)}</p>
-                  {request.isProxySubmission ? (
-                    <button type="button" title={request.proxyReason ?? "代送審"} aria-label={request.proxyReason ?? "代送審"} style={proxyMarkerStyle}>
-                      代送審
-                    </button>
-                  ) : null}
+                  {request.isProxySubmission ? <InfoHint title={request.proxyReason ?? "代送審"} className="approval-marker-proxy" /> : null}
                 </td>
                 <td>
                   <span className={`badge ${item.itemStatus === "approved" ? "Released" : item.itemStatus === "rejected" ? "Rejected" : "Pending"}`}>
@@ -517,9 +514,12 @@ function MarkerList({ markers }: { markers: AttentionMarker[] }) {
   return (
     <div style={markerListStyle}>
       {markers.map((marker) => (
-        <span key={`${marker.code}-${marker.label}`} style={markerStyle(marker.severity)} title={marker.detail ?? marker.label}>
-          {marker.label}
-        </span>
+        <RiskHint
+          title={marker.detail ?? marker.label}
+          tone={marker.severity === "critical" ? "danger" : marker.severity === "warning" ? "warning" : "info"}
+          className={`approval-marker-${marker.code}`}
+          key={`${marker.code}-${marker.label}`}
+        />
       ))}
     </div>
   );
@@ -696,45 +696,4 @@ const markerListStyle = {
   gap: "0.35rem",
   flexWrap: "wrap",
   alignItems: "center"
-} as const;
-
-function markerStyle(severity: AttentionMarker["severity"]) {
-  const palette =
-    severity === "critical"
-      ? { background: "#fee2e2", color: "#991b1b", border: "#fecaca" }
-      : severity === "warning"
-        ? { background: "#fef3c7", color: "#92400e", border: "#fde68a" }
-        : { background: "#e0f2fe", color: "#075985", border: "#bae6fd" };
-  return {
-    display: "inline-flex",
-    borderRadius: "999px",
-    border: `1px solid ${palette.border}`,
-    padding: "0.18rem 0.52rem",
-    background: palette.background,
-    color: palette.color,
-    fontSize: "0.76rem",
-    fontWeight: 800,
-    cursor: "help"
-  } as const;
-}
-
-const warningMarkerStyle = {
-  display: "inline-flex",
-  borderRadius: "999px",
-  padding: "0.2rem 0.55rem",
-  background: "#fef3c7",
-  color: "#92400e",
-  fontSize: "0.76rem",
-  fontWeight: 800
-} as const;
-
-const proxyMarkerStyle = {
-  border: "0",
-  borderRadius: "999px",
-  padding: "0.2rem 0.55rem",
-  background: "#e0f2fe",
-  color: "#075985",
-  fontSize: "0.76rem",
-  fontWeight: 800,
-  cursor: "help"
 } as const;

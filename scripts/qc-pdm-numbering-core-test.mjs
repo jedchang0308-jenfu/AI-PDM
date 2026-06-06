@@ -45,6 +45,10 @@ const numberingSearchRouteSource = fs.readFileSync(
   path.join(root, "src", "app", "api", "numbering", "search", "route.ts"),
   "utf8"
 );
+const numberingDrawingsRouteSource = fs.readFileSync(
+  path.join(root, "src", "app", "api", "numbering", "drawings", "route.ts"),
+  "utf8"
+);
 const numberingRootDetailRouteSource = fs.readFileSync(
   path.join(root, "src", "app", "api", "numbering", "roots", "[rootCode]", "route.ts"),
   "utf8"
@@ -128,6 +132,7 @@ const numberingRequestPageSource = fs.readFileSync(path.join(root, "src", "app",
 const numberingDvtPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "dvt", "page.tsx"), "utf8");
 const numberingApprovalPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "approvals", "page.tsx"), "utf8");
 const numberingSearchPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "search", "page.tsx"), "utf8");
+const numberingDrawingsPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "drawings", "page.tsx"), "utf8");
 const numberingImpactPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "impact", "page.tsx"), "utf8");
 const numberingImportPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "imports", "page.tsx"), "utf8");
 const numberingTaskCenterPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "tasks", "page.tsx"), "utf8");
@@ -644,6 +649,13 @@ record(
   "src/lib/db.ts"
 );
 record(
+  "NUM-REPO db.ts re-exports drawing module workflow",
+  dbExports.includes("listDrawingModuleRecords") &&
+    dbExports.includes("DrawingModuleListRecord") &&
+    repositorySource.includes("export function listDrawingModuleRecords"),
+  "src/lib/db.ts"
+);
+record(
   "NUM-REPO db.ts re-exports DVT promotion workflow",
   dbExports.includes("listDvtPromotionCandidates") && dbExports.includes("submitDvtPromotionDecisions"),
   "src/lib/db.ts"
@@ -718,6 +730,11 @@ record(
   "NUM-API numbering search route calls search repository through page guard",
   numberingSearchRouteSource.includes("searchNumberingRecords") && numberingSearchRouteSource.includes("numbering.search"),
   "search/route.ts"
+);
+record(
+  "NUM-API numbering drawings route calls drawing module repository through page guard",
+  numberingDrawingsRouteSource.includes("listDrawingModuleRecords") && numberingDrawingsRouteSource.includes("numbering.drawings.view"),
+  "drawings/route.ts"
 );
 record(
   "NUM-API numbering root detail route calls detail repository through page guard",
@@ -861,6 +878,8 @@ record(
     permissionCodesSource.includes("numbering.draft.update") &&
     permissionCodesSource.includes("numbering.draft.obsolete") &&
     permissionCodesSource.includes("numbering.draft.admin_confirm") &&
+    permissionCodesSource.includes("numbering.drawings.view") &&
+    permissionCodesSource.includes("/numbering/drawings") &&
     permissionCodesSource.includes("numbering.import.confirm") &&
     permissionCodesSource.includes("NUMBERING_NAV_PERMISSION_BY_PATH"),
   "numbering-permission-codes.ts"
@@ -968,7 +987,7 @@ record(
 );
 record(
   "NUM-UI numbering search page renders query and detail workflow",
-  numberingSearchPageSource.includes("圖料查詢") &&
+  numberingSearchPageSource.includes("圖料模組") &&
     numberingSearchPageSource.includes("/api/numbering/search") &&
     numberingSearchPageSource.includes("/api/numbering/roots/"),
   "numbering/search/page.tsx"
@@ -979,6 +998,15 @@ record(
     numberingSearchPageSource.includes("影響範圍") &&
     numberingSearchPageSource.includes("MA 圖作廢影響頁"),
   "numbering/search/page.tsx"
+);
+record(
+  "NUM-UI drawing management page renders module workflow",
+  numberingDrawingsPageSource.includes("圖號模組") &&
+    numberingDrawingsPageSource.includes("/api/numbering/drawings") &&
+    numberingDrawingsPageSource.includes("/numbering/search") &&
+    numberingDrawingsPageSource.includes("/numbering/impact") &&
+    numberingDrawingsPageSource.includes("numbering.drawings.view"),
+  "numbering/drawings/page.tsx"
 );
 record(
   "NUM-UI numbering impact page renders MA impact workflow",
@@ -1020,7 +1048,8 @@ record(
   sidebarNavSource.includes("/numbering/approvals") && (sidebarNavSource.includes("DVT/發行審核") || sidebarNavSource.includes("發行審核")),
   "sidebar-nav.tsx"
 );
-record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料查詢"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號模組"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("MA 影響"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering import center", sidebarNavSource.includes("/numbering/imports") && sidebarNavSource.includes("總表匯入"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");

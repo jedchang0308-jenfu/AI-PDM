@@ -240,10 +240,10 @@ async function verifyDesktopFlow(page, seeded) {
   record("Same-project batch is visible", (await page.getByText(`QCAPPR-${unique}`).count()) >= 1);
   record("DVT part is visible", await page.getByText(seeded.dvt.partNumber).isVisible());
   record("Release override part is visible", await page.getByText(seeded.releaseOverride.partNumber).isVisible());
-  record("Proxy submission marker is visible", (await page.getByText("代送審").count()) >= 1);
-  record("Delegated review marker is visible", (await page.getByText("代理審核").count()) >= 1);
-  record("Exception marker is visible", (await page.getByText("異常/Override").count()) >= 1);
-  record("Impact scope marker is visible", (await page.getByText("! 影響範圍").count()) >= 1);
+  record("Proxy submission marker is visible", (await page.locator(".approval-marker-proxy").count()) >= 1);
+  record("Delegated review marker is visible", (await page.locator(".approval-marker-delegated_review").count()) >= 1);
+  record("Exception marker is visible", (await page.locator(".approval-marker-exception").count()) >= 1);
+  record("Impact scope marker is visible", (await page.locator(".approval-marker-impact_scope").count()) >= 1);
 
   await page.getByLabel(`${seeded.releaseOverride.partNumber} 個別意見`).fill("QC exception item note");
   await page.getByLabel("共用意見").fill("QC shared approval comment");

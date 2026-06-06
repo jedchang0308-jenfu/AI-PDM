@@ -58,6 +58,24 @@ export type DrawingNumberRecord = {
   ruleVersionId: string;
 };
 
+export type DrawingModuleListRecord = DrawingNumberRecord & {
+  rootCode: string;
+  coreName: string;
+  itemKind: NumberingItemKind;
+  linkedPartCount: number;
+  linkedPartNumbers: string[];
+  warningCount: number;
+  updatedAt: string;
+};
+
+export type DrawingModuleListInput = {
+  query?: string;
+  recordStatus?: NumberingRecordStatus;
+  developmentPhase?: NumberingPhase;
+  purposeCode?: DrawingPurposeCode;
+  limit?: number;
+};
+
 export type NumberingSearchEntityType = "all" | "part_root" | "part_number" | "drawing_number";
 
 export type NumberingSearchInput = {
@@ -72,6 +90,7 @@ export type NumberingSearchResultRecord = {
   entityType: Exclude<NumberingSearchEntityType, "all">;
   entityId: string;
   rootCode: string;
+  coreName: string;
   displayCode: string;
   displayName: string;
   itemKind: NumberingItemKind;
@@ -148,6 +167,134 @@ export type NumberingRootDetailRecord = {
     warningCount: number;
     hasMainDrawingInvalid: boolean;
   };
+};
+
+export type PartCostType = "outsourced" | "in_house" | "purchase" | "trial" | "other";
+export type PartCostProfileStatus = "draft" | "pending_review" | "approved" | "rejected" | "retired";
+export type PartCostChangeRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export type PartVariantAttributesRecord = {
+  id: string;
+  partNumberId: string;
+  materialCode: string | null;
+  materialLabel: string | null;
+  colorCode: string | null;
+  colorLabel: string | null;
+  surfaceTreatment: string | null;
+  variantNote: string | null;
+  updatedAt: string;
+};
+
+export type PartCostTierRecord = {
+  id: string;
+  costProfileId: string;
+  minQty: number;
+  maxQty: number | null;
+  unitCost: number;
+  setupCost: number;
+  leadTimeDays: number | null;
+  note: string | null;
+};
+
+export type PartCostProfileRecord = {
+  id: string;
+  partNumberId: string;
+  costType: PartCostType;
+  profileName: string;
+  currency: string;
+  uom: string;
+  supplierName: string | null;
+  processName: string | null;
+  costBasis: string | null;
+  status: PartCostProfileStatus;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  tiers: PartCostTierRecord[];
+};
+
+export type PartStandardCostRecord = {
+  id: string;
+  partNumberId: string;
+  costProfileId: string;
+  basisQty: number;
+  standardReason: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  profileName: string;
+  costType: PartCostType;
+  currency: string;
+  uom: string;
+  unitCost: number | null;
+};
+
+export type PartCostChangeRequestRecord = {
+  id: string;
+  partNumberId: string;
+  proposedCostProfileId: string | null;
+  requestType: "set_standard" | "update_profile" | "retire_profile";
+  changeReason: string;
+  reviewStatus: PartCostChangeRequestStatus;
+  requestedAt: string;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+};
+
+export type PartModuleListRecord = PartNumberRecord & {
+  rootCode: string;
+  coreName: string;
+  variant: PartVariantAttributesRecord | null;
+  primaryDrawingNumber: string | null;
+  drawingCount: number;
+  standardCost: PartStandardCostRecord | null;
+  pendingCostRequestCount: number;
+};
+
+export type PartModuleListInput = {
+  query?: string;
+  recordStatus?: NumberingRecordStatus;
+  developmentPhase?: NumberingPhase;
+  limit?: number;
+};
+
+export type PartModuleDetailRecord = PartModuleListRecord & {
+  linkedDrawings: NumberingLinkRecord[];
+  sameDrawingVariants: NumberingVariantRecord[];
+  costProfiles: PartCostProfileRecord[];
+  costChangeRequests: PartCostChangeRequestRecord[];
+};
+
+export type UpsertPartVariantAttributesInput = {
+  partNumber: string;
+  materialCode?: string | null;
+  materialLabel?: string | null;
+  colorCode?: string | null;
+  colorLabel?: string | null;
+  surfaceTreatment?: string | null;
+  variantNote?: string | null;
+  updatedBy?: string | null;
+};
+
+export type CreatePartCostProfileInput = {
+  partNumber: string;
+  costType: PartCostType;
+  profileName: string;
+  currency?: string;
+  uom?: string;
+  supplierName?: string | null;
+  processName?: string | null;
+  costBasis?: string | null;
+  status?: PartCostProfileStatus;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  createdBy?: string | null;
+  tiers: Array<{
+    minQty?: number;
+    maxQty?: number | null;
+    unitCost: number;
+    setupCost?: number;
+    leadTimeDays?: number | null;
+    note?: string | null;
+  }>;
 };
 
 export type CreateNumberingRecordInput = {
@@ -982,6 +1129,7 @@ type NumberingSearchRow = {
   entity_type: Exclude<NumberingSearchEntityType, "all">;
   entity_id: string;
   root_code: string;
+  core_name: string;
   display_code: string;
   display_name: string;
   item_kind: NumberingItemKind;
@@ -995,6 +1143,16 @@ type NumberingSearchRow = {
   drawing_count: number | null;
   linked_part_count: number | null;
   warning_count: number | null;
+};
+
+type DrawingModuleListRow = DrawingNumberRow & {
+  root_code: string;
+  core_name: string;
+  item_kind: NumberingItemKind;
+  linked_part_count: number | null;
+  linked_part_numbers: string | null;
+  warning_count: number | null;
+  updated_at: string;
 };
 
 type NumberingLinkRow = {
@@ -1016,6 +1174,98 @@ type NumberingVariantRow = {
   field_name: string;
   field_value: string;
   created_at: string;
+};
+
+type PartVariantAttributesRow = {
+  id: string;
+  part_number_id: string;
+  material_code: string | null;
+  material_label: string | null;
+  color_code: string | null;
+  color_label: string | null;
+  surface_treatment: string | null;
+  variant_note: string | null;
+  updated_at: string;
+};
+
+type PartCostTierRow = {
+  id: string;
+  cost_profile_id: string;
+  min_qty: number;
+  max_qty: number | null;
+  unit_cost: number;
+  setup_cost: number;
+  lead_time_days: number | null;
+  note: string | null;
+};
+
+type PartCostProfileRow = {
+  id: string;
+  part_number_id: string;
+  cost_type: PartCostType;
+  profile_name: string;
+  currency: string;
+  uom: string;
+  supplier_name: string | null;
+  process_name: string | null;
+  cost_basis: string | null;
+  status: PartCostProfileStatus;
+  effective_from: string | null;
+  effective_to: string | null;
+};
+
+type PartStandardCostRow = {
+  id: string;
+  part_number_id: string;
+  cost_profile_id: string;
+  basis_qty: number;
+  standard_reason: string | null;
+  effective_from: string;
+  effective_to: string | null;
+  profile_name: string;
+  cost_type: PartCostType;
+  currency: string;
+  uom: string;
+  unit_cost: number | null;
+};
+
+type PartCostChangeRequestRow = {
+  id: string;
+  part_number_id: string;
+  proposed_cost_profile_id: string | null;
+  request_type: "set_standard" | "update_profile" | "retire_profile";
+  change_reason: string;
+  review_status: PartCostChangeRequestStatus;
+  requested_at: string;
+  reviewed_at: string | null;
+  review_comment: string | null;
+};
+
+type PartModuleListRow = PartNumberRow & {
+  root_code: string;
+  core_name: string;
+  primary_drawing_number: string | null;
+  drawing_count: number | null;
+  pending_cost_request_count: number | null;
+  variant_id: string | null;
+  material_code: string | null;
+  material_label: string | null;
+  color_code: string | null;
+  color_label: string | null;
+  surface_treatment: string | null;
+  variant_note: string | null;
+  variant_updated_at: string | null;
+  standard_cost_id: string | null;
+  standard_cost_profile_id: string | null;
+  standard_basis_qty: number | null;
+  standard_reason: string | null;
+  standard_effective_from: string | null;
+  standard_effective_to: string | null;
+  standard_profile_name: string | null;
+  standard_cost_type: PartCostType | null;
+  standard_currency: string | null;
+  standard_uom: string | null;
+  standard_unit_cost: number | null;
 };
 
 type NumberingWarningRow = {
@@ -1442,11 +1692,25 @@ function mapDrawingNumber(row: DrawingNumberRow): DrawingNumberRecord {
   };
 }
 
+function mapDrawingModuleListRow(row: DrawingModuleListRow): DrawingModuleListRecord {
+  return {
+    ...mapDrawingNumber(row),
+    rootCode: row.root_code,
+    coreName: row.core_name,
+    itemKind: row.item_kind,
+    linkedPartCount: row.linked_part_count ?? 0,
+    linkedPartNumbers: row.linked_part_numbers ? row.linked_part_numbers.split(",").filter(Boolean) : [],
+    warningCount: row.warning_count ?? 0,
+    updatedAt: row.updated_at
+  };
+}
+
 function mapNumberingSearchRow(row: NumberingSearchRow): NumberingSearchResultRecord {
   return {
     entityType: row.entity_type,
     entityId: row.entity_id,
     rootCode: row.root_code,
+    coreName: row.core_name,
     displayCode: row.display_code,
     displayName: row.display_name,
     itemKind: row.item_kind,
@@ -1485,6 +1749,120 @@ function mapNumberingVariant(row: NumberingVariantRow): NumberingVariantRecord {
     fieldName: row.field_name,
     fieldValue: row.field_value,
     createdAt: row.created_at
+  };
+}
+
+function mapPartVariantAttributes(row: PartVariantAttributesRow | null | undefined): PartVariantAttributesRecord | null {
+  if (!row?.id) return null;
+  return {
+    id: row.id,
+    partNumberId: row.part_number_id,
+    materialCode: row.material_code,
+    materialLabel: row.material_label,
+    colorCode: row.color_code,
+    colorLabel: row.color_label,
+    surfaceTreatment: row.surface_treatment,
+    variantNote: row.variant_note,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapPartCostTier(row: PartCostTierRow): PartCostTierRecord {
+  return {
+    id: row.id,
+    costProfileId: row.cost_profile_id,
+    minQty: row.min_qty,
+    maxQty: row.max_qty,
+    unitCost: Number(row.unit_cost),
+    setupCost: Number(row.setup_cost),
+    leadTimeDays: row.lead_time_days,
+    note: row.note
+  };
+}
+
+function mapPartCostProfile(row: PartCostProfileRow, tiers: PartCostTierRecord[] = []): PartCostProfileRecord {
+  return {
+    id: row.id,
+    partNumberId: row.part_number_id,
+    costType: row.cost_type,
+    profileName: row.profile_name,
+    currency: row.currency,
+    uom: row.uom,
+    supplierName: row.supplier_name,
+    processName: row.process_name,
+    costBasis: row.cost_basis,
+    status: row.status,
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to,
+    tiers
+  };
+}
+
+function mapPartStandardCost(row: PartStandardCostRow | null | undefined): PartStandardCostRecord | null {
+  if (!row?.id || !row.cost_profile_id) return null;
+  return {
+    id: row.id,
+    partNumberId: row.part_number_id,
+    costProfileId: row.cost_profile_id,
+    basisQty: row.basis_qty,
+    standardReason: row.standard_reason,
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to,
+    profileName: row.profile_name,
+    costType: row.cost_type,
+    currency: row.currency,
+    uom: row.uom,
+    unitCost: row.unit_cost === null ? null : Number(row.unit_cost)
+  };
+}
+
+function mapPartCostChangeRequest(row: PartCostChangeRequestRow): PartCostChangeRequestRecord {
+  return {
+    id: row.id,
+    partNumberId: row.part_number_id,
+    proposedCostProfileId: row.proposed_cost_profile_id,
+    requestType: row.request_type,
+    changeReason: row.change_reason,
+    reviewStatus: row.review_status,
+    requestedAt: row.requested_at,
+    reviewedAt: row.reviewed_at,
+    reviewComment: row.review_comment
+  };
+}
+
+function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
+  return {
+    ...mapPartNumber(row),
+    rootCode: row.root_code,
+    coreName: row.core_name,
+    primaryDrawingNumber: row.primary_drawing_number,
+    drawingCount: row.drawing_count ?? 0,
+    pendingCostRequestCount: row.pending_cost_request_count ?? 0,
+    variant: mapPartVariantAttributes({
+      id: row.variant_id ?? "",
+      part_number_id: row.id,
+      material_code: row.material_code,
+      material_label: row.material_label,
+      color_code: row.color_code,
+      color_label: row.color_label,
+      surface_treatment: row.surface_treatment,
+      variant_note: row.variant_note,
+      updated_at: row.variant_updated_at ?? ""
+    }),
+    standardCost: mapPartStandardCost({
+      id: row.standard_cost_id ?? "",
+      part_number_id: row.id,
+      cost_profile_id: row.standard_cost_profile_id ?? "",
+      basis_qty: row.standard_basis_qty ?? 1,
+      standard_reason: row.standard_reason,
+      effective_from: row.standard_effective_from ?? "",
+      effective_to: row.standard_effective_to,
+      profile_name: row.standard_profile_name ?? "",
+      cost_type: row.standard_cost_type ?? "other",
+      currency: row.standard_currency ?? "TWD",
+      uom: row.standard_uom ?? "pcs",
+      unit_cost: row.standard_unit_cost
+    })
   };
 }
 
@@ -5562,6 +5940,7 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
         'part_root' AS entity_type,
         r.id AS entity_id,
         r.root_code,
+        r.core_name,
         r.root_code AS display_code,
         r.core_name AS display_name,
         r.item_kind,
@@ -5618,6 +5997,7 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
         'part_number' AS entity_type,
         p.id AS entity_id,
         r.root_code,
+        r.core_name,
         p.part_number AS display_code,
         p.part_name AS display_name,
         p.item_kind,
@@ -5680,6 +6060,7 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
         'drawing_number' AS entity_type,
         d.id AS entity_id,
         r.root_code,
+        r.core_name,
         d.drawing_number AS display_code,
         d.purpose_description AS display_name,
         r.item_kind,
@@ -5727,6 +6108,81 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
     .map(mapNumberingSearchRow)
     .sort((a, b) => b.warningCount - a.warningCount || a.rootCode.localeCompare(b.rootCode) || a.displayCode.localeCompare(b.displayCode))
     .slice(0, normalizedInput.limit);
+}
+
+export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
+  const database = getDb();
+  const query = input.query?.trim() ?? "";
+  const filters: string[] = [];
+  const params: unknown[] = [];
+
+  if (query) {
+    const like = escapeLikeQuery(query);
+    filters.push(`(
+      d.drawing_number LIKE ? ESCAPE '\\'
+      OR d.purpose_description LIKE ? ESCAPE '\\'
+      OR r.root_code LIKE ? ESCAPE '\\'
+      OR r.core_name LIKE ? ESCAPE '\\'
+      OR EXISTS (
+        SELECT 1
+        FROM drawing_part_links ql
+        JOIN part_numbers qp ON qp.id = ql.part_number_id
+        WHERE ql.drawing_number_id = d.id
+          AND (qp.part_number LIKE ? ESCAPE '\\' OR qp.part_name LIKE ? ESCAPE '\\')
+      )
+    )`);
+    params.push(like, like, like, like, like, like);
+  }
+  if (input.recordStatus) {
+    filters.push("d.record_status = ?");
+    params.push(input.recordStatus);
+  }
+  if (input.developmentPhase) {
+    filters.push("d.development_phase = ?");
+    params.push(input.developmentPhase);
+  }
+  if (input.purposeCode) {
+    filters.push("d.purpose_code = ?");
+    params.push(input.purposeCode);
+  }
+
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const rows = database
+    .prepare(
+      `
+      SELECT
+        d.*,
+        r.root_code,
+        r.core_name,
+        r.item_kind,
+        (
+          SELECT COUNT(*)
+          FROM drawing_part_links l
+          WHERE l.drawing_number_id = d.id
+        ) AS linked_part_count,
+        (
+          SELECT GROUP_CONCAT(p.part_number)
+          FROM drawing_part_links l
+          JOIN part_numbers p ON p.id = l.part_number_id
+          WHERE l.drawing_number_id = d.id
+        ) AS linked_part_numbers,
+        (
+          SELECT COUNT(*)
+          FROM warning_events w
+          WHERE w.entity_type = 'drawing_number'
+            AND w.entity_id = d.id
+            AND w.acknowledged_at IS NULL
+        ) AS warning_count
+      FROM drawing_numbers d
+      JOIN part_roots r ON r.id = d.part_root_id
+      ${where}
+      ORDER BY d.updated_at DESC, d.drawing_number ASC
+      LIMIT ?
+    `
+    )
+    .all(...params, clampListLimit(input.limit, 50)) as DrawingModuleListRow[];
+
+  return rows.map(mapDrawingModuleListRow);
 }
 
 function selectNumberingLinksForRoot(database: SqliteDatabase, rootId: string) {
@@ -5856,6 +6312,383 @@ export function getNumberingRootDetail(rootCode: string): NumberingRootDetailRec
       hasMainDrawingInvalid: root.recordStatus === "MainDrawingInvalid" || partNumbers.some((partNumber) => partNumber.recordStatus === "MainDrawingInvalid")
     }
   };
+}
+
+function normalizeNullableText(value: string | null | undefined) {
+  const text = value?.trim();
+  return text ? text : null;
+}
+
+function normalizeCostType(value: PartCostType) {
+  const allowed = new Set<PartCostType>(["outsourced", "in_house", "purchase", "trial", "other"]);
+  if (!allowed.has(value)) throw new Error(`INVALID_PART_COST_TYPE: ${value}`);
+  return value;
+}
+
+function normalizeCostProfileStatus(value: PartCostProfileStatus | undefined) {
+  const status = value ?? "pending_review";
+  const allowed = new Set<PartCostProfileStatus>(["draft", "pending_review", "approved", "rejected", "retired"]);
+  if (!allowed.has(status)) throw new Error(`INVALID_PART_COST_PROFILE_STATUS: ${status}`);
+  return status;
+}
+
+function buildPartModuleWhere(input: PartModuleListInput) {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  const query = input.query?.trim();
+  if (query) {
+    where.push(
+      "(p.part_number LIKE ? OR p.part_name LIKE ? OR r.root_code LIKE ? OR r.core_name LIKE ? OR va.material_label LIKE ? OR va.color_label LIKE ?)"
+    );
+    const token = `%${query}%`;
+    params.push(token, token, token, token, token, token);
+  }
+  if (input.recordStatus) {
+    where.push("p.record_status = ?");
+    params.push(input.recordStatus);
+  }
+  if (input.developmentPhase) {
+    where.push("p.development_phase = ?");
+    params.push(input.developmentPhase);
+  }
+  return {
+    sql: where.length ? `WHERE ${where.join(" AND ")}` : "",
+    params
+  };
+}
+
+function selectPartModuleRows(database: SqliteDatabase, input: PartModuleListInput) {
+  const normalizedInput = {
+    ...input,
+    limit: clampListLimit(input.limit, 50)
+  };
+  const where = buildPartModuleWhere(normalizedInput);
+  return database
+    .prepare(
+      `
+      SELECT
+        p.*,
+        r.root_code,
+        r.core_name,
+        va.id AS variant_id,
+        va.material_code,
+        va.material_label,
+        va.color_code,
+        va.color_label,
+        va.surface_treatment,
+        va.variant_note,
+        va.updated_at AS variant_updated_at,
+        (
+          SELECT d.drawing_number
+          FROM drawing_part_links l
+          JOIN drawing_numbers d ON d.id = l.drawing_number_id
+          WHERE l.part_number_id = p.id AND l.link_type = 'primary_manufacturing'
+          ORDER BY d.drawing_number ASC
+          LIMIT 1
+        ) AS primary_drawing_number,
+        (
+          SELECT COUNT(*)
+          FROM drawing_part_links l
+          WHERE l.part_number_id = p.id
+        ) AS drawing_count,
+        (
+          SELECT COUNT(*)
+          FROM part_cost_change_requests cr
+          WHERE cr.part_number_id = p.id AND cr.review_status = 'pending'
+        ) AS pending_cost_request_count,
+        sc.id AS standard_cost_id,
+        sc.cost_profile_id AS standard_cost_profile_id,
+        sc.basis_qty AS standard_basis_qty,
+        sc.standard_reason,
+        sc.effective_from AS standard_effective_from,
+        sc.effective_to AS standard_effective_to,
+        cp.profile_name AS standard_profile_name,
+        cp.cost_type AS standard_cost_type,
+        cp.currency AS standard_currency,
+        cp.uom AS standard_uom,
+        (
+          SELECT t.unit_cost
+          FROM part_cost_tiers t
+          WHERE t.cost_profile_id = sc.cost_profile_id
+            AND t.min_qty <= sc.basis_qty
+            AND (t.max_qty IS NULL OR t.max_qty >= sc.basis_qty)
+          ORDER BY t.min_qty DESC
+          LIMIT 1
+        ) AS standard_unit_cost
+      FROM part_numbers p
+      JOIN part_roots r ON r.id = p.part_root_id
+      LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
+      LEFT JOIN part_standard_costs sc ON sc.part_number_id = p.id AND sc.effective_to IS NULL
+      LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
+      ${where.sql}
+      ORDER BY r.root_code ASC, p.sequence_no ASC, p.part_number ASC
+      LIMIT ?
+    `
+    )
+    .all(...where.params, normalizedInput.limit) as PartModuleListRow[];
+}
+
+export function listPartModuleRecords(input: PartModuleListInput = {}) {
+  const database = getDb();
+  return selectPartModuleRows(database, input).map(mapPartModuleListRow);
+}
+
+function selectLinkedDrawingsForPart(database: SqliteDatabase, partNumberId: string) {
+  return database
+    .prepare(
+      `
+      SELECT
+        l.id,
+        l.drawing_number_id,
+        l.part_number_id,
+        d.drawing_number,
+        p.part_number,
+        l.link_type,
+        l.created_at
+      FROM drawing_part_links l
+      JOIN drawing_numbers d ON d.id = l.drawing_number_id
+      JOIN part_numbers p ON p.id = l.part_number_id
+      WHERE l.part_number_id = ?
+      ORDER BY l.link_type ASC, d.drawing_number ASC
+    `
+    )
+    .all(partNumberId) as NumberingLinkRow[];
+}
+
+function selectSameDrawingVariantsForPart(database: SqliteDatabase, partNumberId: string) {
+  return database
+    .prepare(
+      `
+      SELECT
+        v.id,
+        v.drawing_number_id,
+        v.part_number_id,
+        d.drawing_number,
+        p.part_number,
+        v.field_name,
+        v.field_value,
+        v.created_at
+      FROM same_drawing_variants v
+      JOIN drawing_numbers d ON d.id = v.drawing_number_id
+      JOIN part_numbers p ON p.id = v.part_number_id
+      WHERE v.part_number_id = ?
+      ORDER BY d.drawing_number ASC, v.field_name ASC
+    `
+    )
+    .all(partNumberId) as NumberingVariantRow[];
+}
+
+function selectCostProfilesForPart(database: SqliteDatabase, partNumberId: string) {
+  const profileRows = database
+    .prepare(
+      `
+      SELECT *
+      FROM part_cost_profiles
+      WHERE part_number_id = ?
+      ORDER BY
+        CASE status
+          WHEN 'approved' THEN 0
+          WHEN 'pending_review' THEN 1
+          WHEN 'draft' THEN 2
+          WHEN 'rejected' THEN 3
+          ELSE 4
+        END,
+        updated_at DESC,
+        profile_name ASC
+    `
+    )
+    .all(partNumberId) as PartCostProfileRow[];
+  if (profileRows.length === 0) return [];
+  const placeholders = profileRows.map(() => "?").join(", ");
+  const tierRows = database
+    .prepare(
+      `
+      SELECT *
+      FROM part_cost_tiers
+      WHERE cost_profile_id IN (${placeholders})
+      ORDER BY cost_profile_id ASC, min_qty ASC
+    `
+    )
+    .all(...profileRows.map((profile) => profile.id)) as PartCostTierRow[];
+  const tiersByProfile = new Map<string, PartCostTierRecord[]>();
+  for (const tier of tierRows.map(mapPartCostTier)) {
+    const list = tiersByProfile.get(tier.costProfileId) ?? [];
+    list.push(tier);
+    tiersByProfile.set(tier.costProfileId, list);
+  }
+  return profileRows.map((profile) => mapPartCostProfile(profile, tiersByProfile.get(profile.id) ?? []));
+}
+
+function selectCostChangeRequestsForPart(database: SqliteDatabase, partNumberId: string) {
+  return database
+    .prepare(
+      `
+      SELECT *
+      FROM part_cost_change_requests
+      WHERE part_number_id = ?
+      ORDER BY requested_at DESC
+      LIMIT 50
+    `
+    )
+    .all(partNumberId) as PartCostChangeRequestRow[];
+}
+
+export function getPartModuleDetail(partNumber: string): PartModuleDetailRecord | null {
+  const database = getDb();
+  const row = selectPartModuleRows(database, { query: partNumber, limit: 100 }).find((item) => item.part_number === partNumber.trim());
+  if (!row) return null;
+  return {
+    ...mapPartModuleListRow(row),
+    linkedDrawings: selectLinkedDrawingsForPart(database, row.id).map(mapNumberingLink),
+    sameDrawingVariants: selectSameDrawingVariantsForPart(database, row.id).map(mapNumberingVariant),
+    costProfiles: selectCostProfilesForPart(database, row.id),
+    costChangeRequests: selectCostChangeRequestsForPart(database, row.id).map(mapPartCostChangeRequest)
+  };
+}
+
+export function upsertPartVariantAttributes(input: UpsertPartVariantAttributesInput) {
+  const database = getDb();
+  return database.transaction(() => {
+    const partRow = selectPartNumberByNumber(database, input.partNumber.trim());
+    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
+    const existing = database
+      .prepare("SELECT * FROM part_variant_attributes WHERE part_number_id = ?")
+      .get(partRow.id) as PartVariantAttributesRow | undefined;
+    const now = new Date().toISOString();
+    const values = {
+      materialCode: normalizeNullableText(input.materialCode),
+      materialLabel: normalizeNullableText(input.materialLabel),
+      colorCode: normalizeNullableText(input.colorCode),
+      colorLabel: normalizeNullableText(input.colorLabel),
+      surfaceTreatment: normalizeNullableText(input.surfaceTreatment),
+      variantNote: normalizeNullableText(input.variantNote)
+    };
+    if (existing) {
+      database
+        .prepare(
+          `
+          UPDATE part_variant_attributes
+          SET material_code = ?, material_label = ?, color_code = ?, color_label = ?, surface_treatment = ?, variant_note = ?, updated_by = ?, updated_at = ?
+          WHERE id = ?
+        `
+        )
+        .run(
+          values.materialCode,
+          values.materialLabel,
+          values.colorCode,
+          values.colorLabel,
+          values.surfaceTreatment,
+          values.variantNote,
+          input.updatedBy ?? null,
+          now,
+          existing.id
+        );
+    } else {
+      database
+        .prepare(
+          `
+          INSERT INTO part_variant_attributes (
+            id, part_number_id, material_code, material_label, color_code, color_label, surface_treatment, variant_note, updated_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        )
+        .run(
+          crypto.randomUUID(),
+          partRow.id,
+          values.materialCode,
+          values.materialLabel,
+          values.colorCode,
+          values.colorLabel,
+          values.surfaceTreatment,
+          values.variantNote,
+          input.updatedBy ?? null,
+          now,
+          now
+        );
+    }
+    insertAudit(database, {
+      actorId: input.updatedBy,
+      action: "numbering.part_variant.upsert",
+      detail: { partNumber: partRow.part_number, ...values }
+    });
+    return getPartModuleDetail(partRow.part_number);
+  })();
+}
+
+export function createPartCostProfile(input: CreatePartCostProfileInput) {
+  const database = getDb();
+  return database.transaction(() => {
+    const partRow = selectPartNumberByNumber(database, input.partNumber.trim());
+    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
+    if (input.tiers.length === 0) throw new Error("PART_COST_PROFILE_REQUIRES_TIER");
+    const now = new Date().toISOString();
+    const profileId = crypto.randomUUID();
+    const status = normalizeCostProfileStatus(input.status);
+    database
+      .prepare(
+        `
+        INSERT INTO part_cost_profiles (
+          id, part_number_id, cost_type, profile_name, currency, uom, supplier_name, process_name, cost_basis, status, effective_from, effective_to, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
+      )
+      .run(
+        profileId,
+        partRow.id,
+        normalizeCostType(input.costType),
+        input.profileName.trim(),
+        input.currency?.trim() || "TWD",
+        input.uom?.trim() || "pcs",
+        normalizeNullableText(input.supplierName),
+        normalizeNullableText(input.processName),
+        normalizeNullableText(input.costBasis),
+        status,
+        normalizeNullableText(input.effectiveFrom),
+        normalizeNullableText(input.effectiveTo),
+        input.createdBy ?? null,
+        now,
+        now
+      );
+    input.tiers.forEach((tier, index) => {
+      const minQty = Math.max(1, Math.floor(tier.minQty ?? (index === 0 ? 1 : index + 1)));
+      const maxQty = tier.maxQty === null || tier.maxQty === undefined ? null : Math.max(minQty, Math.floor(tier.maxQty));
+      if (!Number.isFinite(tier.unitCost) || tier.unitCost < 0) throw new Error("INVALID_PART_COST_TIER_UNIT_COST");
+      database
+        .prepare(
+          `
+          INSERT INTO part_cost_tiers (id, cost_profile_id, min_qty, max_qty, unit_cost, setup_cost, lead_time_days, note, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        )
+        .run(
+          crypto.randomUUID(),
+          profileId,
+          minQty,
+          maxQty,
+          tier.unitCost,
+          Math.max(0, tier.setupCost ?? 0),
+          tier.leadTimeDays ?? null,
+          normalizeNullableText(tier.note),
+          now,
+          now
+        );
+    });
+    database
+      .prepare(
+        `
+        INSERT INTO part_cost_change_requests (
+          id, part_number_id, proposed_cost_profile_id, request_type, change_reason, review_status, requested_by, requested_at
+        ) VALUES (?, ?, ?, 'set_standard', ?, 'pending', ?, ?)
+      `
+      )
+      .run(crypto.randomUUID(), partRow.id, profileId, "新增成本設定檔，待主管確認是否列為標準成本。", input.createdBy ?? null, now);
+    insertAudit(database, {
+      actorId: input.createdBy,
+      action: "numbering.part_cost_profile.create",
+      detail: { partNumber: partRow.part_number, costProfileId: profileId, status, tierCount: input.tiers.length }
+    });
+    return getPartModuleDetail(partRow.part_number);
+  })();
 }
 
 export function createNumberingRecord(input: CreateNumberingRecordInput) {

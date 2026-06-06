@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import { chromium } from "playwright";
 import path from "node:path";
 
-const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
+const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3000";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
 const unique = Date.now().toString().slice(-8);
@@ -129,8 +129,11 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/search`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "圖料查詢" }).waitFor({ timeout: 10_000 });
-  record(`Search page renders at ${viewport.width}px`, await page.getByText("查詢條件").isVisible());
+  await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
+  await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
+  record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar", { hasText: "查詢條件" }).isVisible());
+  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+  record(`Identity headers render in required order at ${viewport.width}px`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(["主根號", "品名", "料號", "其他"]), JSON.stringify(headers));
 
   await page.getByLabel("關鍵字").fill(rootCode);
   await page.getByRole("button", { name: "查詢" }).click();
@@ -138,10 +141,10 @@ async function verifyViewport(browser, viewport) {
   record(`Part number result renders at ${viewport.width}px`, await page.getByText(partNumberA).first().isVisible());
   record(`Drawing number result renders at ${viewport.width}px`, await page.getByText(drawingNumber).first().isVisible());
 
-  await page.getByRole("button", { name: partNumberA }).click();
+  await page.locator(".pdm-identity-table tbody tr", { hasText: partNumberA }).first().click();
   await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
   record(`Root detail opens at ${viewport.width}px`, await page.getByText("QC 查詢同圖件").first().isVisible());
-  record(`Warning markers render at ${viewport.width}px`, (await page.locator("button", { hasText: "!" }).count()) >= 1);
+  record(`Warning markers render at ${viewport.width}px`, (await page.locator(".search-warning-marker").count()) >= 1);
 
   const impactResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/api/numbering/impact-analysis") && response.request().method() === "POST"
@@ -151,6 +154,10 @@ async function verifyViewport(browser, viewport) {
   record(`Impact analysis API succeeds at ${viewport.width}px`, impactResponse.ok(), `HTTP ${impactResponse.status()}`);
   await page.getByRole("heading", { name: "MA 圖作廢影響頁" }).waitFor({ timeout: 10_000 });
   record(`Impact panel shows affected part at ${viewport.width}px`, await page.getByText(partNumberB).first().isVisible());
+
+  await page.keyboard.press("Escape");
+  await page.locator(".pdm-detail-drawer").waitFor({ state: "hidden", timeout: 10_000 });
+  record(`Search detail drawer closes before changing filters at ${viewport.width}px`, await page.locator(".pdm-detail-drawer").count() === 0);
 
   await page.getByLabel("類型").selectOption("drawing_number");
   await page.getByRole("button", { name: "查詢" }).click();

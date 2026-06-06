@@ -182,9 +182,9 @@ export default function ManufacturingHandoffPage() {
                 <NextStepState
                   eyebrow="沒有交接資料"
                   title={query ? "目前沒有符合條件的已發布交接資料" : "目前沒有可交接的已發布資料"}
-                  body={query ? "請調整搜尋條件，或回圖料查詢確認圖號、料號與發行狀態。" : "完成圖號審核與 BOM 發行後，交接包會出現在這裡供製造端下載。"}
+                  body={query ? "請調整搜尋條件，或回圖料模組確認圖號、料號與發行狀態。" : "完成圖號審核與 BOM 發行後，交接包會出現在這裡供製造端下載。"}
                   actions={[
-                    { href: "/numbering/search", label: "回圖料查詢", variant: "primary" },
+                    { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
                     { href: "/numbering/reports", label: "看報表" }
                   ]}
                 />

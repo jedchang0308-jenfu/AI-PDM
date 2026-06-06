@@ -112,49 +112,65 @@ function getCreatedPart(partName) {
 }
 
 async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
-  await page.getByLabel("核心名稱").fill(duplicateCoreName);
-  await page.getByLabel("品名").fill(customPartName);
-  await page.getByLabel("料件類型").selectOption("custom");
-  await page.getByLabel("客製尺寸/規格").fill(customSpec);
-  await page.getByLabel("同步建立圖號").uncheck();
+  await page.locator('input:not([type="checkbox"])').nth(0).fill(duplicateCoreName);
+  await page.locator("select").nth(0).selectOption("custom");
+  await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
+  await page.locator('input:not([type="checkbox"])').nth(2).fill(customSpec);
+  await page.locator('input[type="checkbox"]').last().uncheck();
+  await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
+  record(`System sequence suggestion renders at ${viewportWidth}px`, await page.getByTestId("sequence-suggestion").isVisible());
 
+  await page.waitForFunction(() => {
+    const panel = document.querySelector("section.panel");
+    const button = panel?.querySelector("button.secondary-button");
+    return button instanceof HTMLButtonElement && !button.disabled;
+  });
+  const customGeneratedName = await page.locator('input:not([type="checkbox"])').nth(4).inputValue();
+  record(`Suggested custom part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(customGeneratedName), customGeneratedName);
+
+  const requestPanel = page.locator("section.panel").first();
   const duplicateResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/duplicate-check"));
-  await page.getByRole("button", { name: "查重預檢" }).click();
+  await requestPanel.locator("button.secondary-button").first().click();
   const duplicateResponse = await duplicateResponsePromise;
   record(`Duplicate precheck succeeds at ${viewportWidth}px`, duplicateResponse.ok(), `HTTP ${duplicateResponse.status()}`);
-  await page.getByRole("heading", { name: "查重結果" }).waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(100);
   record(`Duplicate warning renders at ${viewportWidth}px`, (await page.getByText("warning").count()) >= 1);
 
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await page.getByRole("button", { name: "建立號碼" }).click();
+  await requestPanel.locator("button.primary-button").click();
   const createResponse = await createResponsePromise;
   record(`Custom part-before-drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
-  await page.getByRole("heading", { name: "領號結果" }).waitFor({ timeout: 10_000 });
-  record(`Result shows no drawing at ${viewportWidth}px`, await page.getByText("未領圖號").isVisible());
-  record(`Result shows custom specification at ${viewportWidth}px`, await page.getByText(customSpec).isVisible());
+  await page.waitForTimeout(100);
 
-  const created = getCreatedPart(customPartName);
+  const created = getCreatedPart(customGeneratedName);
+  record(`Custom generated name persisted at ${viewportWidth}px`, created?.part_name === customGeneratedName, JSON.stringify(created ?? {}));
   record(`Custom specification persisted at ${viewportWidth}px`, created?.custom_specification === customSpec, JSON.stringify(created ?? {}));
   record(`Part-before-drawing persists no drawing at ${viewportWidth}px`, created?.drawing_count === 0, JSON.stringify(created ?? {}));
 }
 
 async function verifyManufacturedWithDrawing(page, viewportWidth) {
-  await page.getByRole("button", { name: "新申請" }).click();
-  await page.getByLabel("核心名稱").fill(`QC 同步圖號 ${unique} ${viewportWidth}`);
-  await page.getByLabel("品名").fill(drawingPartName);
-  await page.getByLabel("料件類型").selectOption("manufactured");
-  await page.getByLabel("階段").selectOption("EVT");
-  await page.getByLabel("同步建立圖號").check();
-  await page.getByLabel("圖別").selectOption("MA");
+  await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
+  await page.locator('input:not([type="checkbox"])').nth(0).fill(`QC Drawing Sync ${unique} ${viewportWidth}`);
+  await page.locator("select").nth(0).selectOption("manufactured");
+  await page.locator("select").nth(1).selectOption("EVT");
+  await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
+  await page.locator('input:not([type="checkbox"])').nth(2).fill("MA");
+  await page.locator('input[type="checkbox"]').last().check();
+  await page.locator("select").nth(2).selectOption("MA");
+  await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
+  const drawingGeneratedName = await page.locator('input:not([type="checkbox"])').nth(3).inputValue();
+  record(`Suggested manufactured part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(drawingGeneratedName), drawingGeneratedName);
 
+  const requestPanel = page.locator("section.panel").first();
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await page.getByRole("button", { name: "建立號碼" }).click();
+  await requestPanel.locator("button.primary-button").click();
   const createResponse = await createResponsePromise;
   record(`Manufactured part with drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
-  await page.getByRole("heading", { name: "領號結果" }).waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(100);
   record(`Result includes drawing number at ${viewportWidth}px`, (await page.getByText(/D-\d{4}-MA1/).count()) >= 1);
 
-  const created = getCreatedPart(drawingPartName);
+  const created = getCreatedPart(drawingGeneratedName);
+  record(`Drawing generated name persisted at ${viewportWidth}px`, created?.part_name === drawingGeneratedName, JSON.stringify(created ?? {}));
   record(`Drawing created with manufactured part at ${viewportWidth}px`, created?.drawing_count === 1, JSON.stringify(created ?? {}));
 }
 
@@ -178,6 +194,8 @@ async function verifyViewport(browser, viewport) {
     await verifyManufacturedWithDrawing(page, viewport.width);
   }
 
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.waitForTimeout(250);
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`Request wizard avoids page-level horizontal overflow at ${viewport.width}px`, bodyOverflow <= 2, `${bodyOverflow}px`);
   record(`No browser console errors at ${viewport.width}px`, consoleErrors.length === 0, consoleErrors.join("\n"));

@@ -1,6 +1,7 @@
 export const NUMBERING_PAGE_PERMISSION_CODES = [
   "numbering.request",
   "numbering.search",
+  "numbering.drawings.view",
   "numbering.dvt",
   "numbering.approvals",
   "numbering.impact",
@@ -48,6 +49,8 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
 export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
   "/numbering/request": "numbering.request",
   "/numbering/search": "numbering.search",
+  "/numbering/drawings": "numbering.drawings.view",
+  "/parts": "numbering.search",
   "/numbering/dvt": "numbering.dvt",
   "/numbering/approvals": "numbering.approvals",
   "/numbering/impact": "numbering.impact",

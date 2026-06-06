@@ -143,7 +143,7 @@ async function verifyViewport(browser, viewport) {
   record(`Affected active part renders at ${viewport.width}px`, await page.getByText(partNumberA).isVisible());
   record(`Affected released part renders at ${viewport.width}px`, await page.getByText(partNumberB).isVisible());
   record(`Revision task list renders at ${viewport.width}px`, (await page.getByText("Released PDF package").count()) >= 1);
-  record(`Warning markers render at ${viewport.width}px`, (await page.locator("button", { hasText: "!" }).count()) >= 2);
+  record(`Warning markers render at ${viewport.width}px`, (await page.locator(".impact-warning-marker").count()) >= 2);
 
   await page.getByLabel("已確認影響料號、文件進版待辦與作廢原因").check();
   const applyResponsePromise = page.waitForResponse(

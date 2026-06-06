@@ -284,7 +284,7 @@ function getPlatformWorkbenchSections({
       badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
       icon: Search,
       links: [
-        { href: "/numbering/search", label: "圖料查詢", detail: "圖號、料號、同圖多料號", icon: Search },
+        { href: "/numbering/search", label: "圖料模組", detail: "圖號、料號、同圖多料號", icon: Search },
         { href: "/numbering/impact", label: "MA 影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
         { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
       ]
@@ -3559,7 +3559,7 @@ export function Dashboard() {
                 title="請選擇一筆圖面資料查看明細"
                 body="明細會串接版次、BOM、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
                 actions={[
-                  { href: "/numbering/search", label: "圖料查詢", variant: "primary" },
+                  { href: "/numbering/search", label: "圖料模組", variant: "primary" },
                   { href: "/upload", label: "上傳送審" }
                 ]}
               />

@@ -49,13 +49,15 @@ async function verifyViewport(browser, viewport) {
   await page.goto(`${apiBaseUrl}/settings`, { waitUntil: "networkidle" });
   await page.getByText("審核矩陣設定台").waitFor({ timeout: 10_000 });
 
-  const matrixRows = await page.locator("table").first().locator("tbody tr").count();
+  const approvalMatrix = page.locator("table").first();
+  await approvalMatrix.locator("tbody tr").first().waitFor({ timeout: 10_000 });
+  const matrixRows = await approvalMatrix.locator("tbody tr").count();
   record(`Approval matrix rows render at ${viewport.width}px`, matrixRows >= 2, `${matrixRows} rows`);
   record(`Hard-rule table renders at ${viewport.width}px`, (await page.getByText("不可關閉硬限制").count()) >= 1);
   record(`Rule templates render at ${viewport.width}px`, (await page.getByText("規則模板").count()) >= 1);
   record(`Rule version history renders at ${viewport.width}px`, (await page.getByText("規則版本").count()) >= 1);
   record(`Rule simulator renders at ${viewport.width}px`, (await page.getByText("規則模擬器").count()) >= 1);
-  record(`Warning markers render at ${viewport.width}px`, (await page.locator("button[title]").filter({ hasText: "!" }).count()) >= 1);
+  record(`Compact info hints render at ${viewport.width}px`, (await page.locator(".settings-info-marker").count()) >= 1);
 
   await page.getByRole("button", { name: "模擬" }).click();
   await page.locator("pre").last().waitFor({ timeout: 10_000 });

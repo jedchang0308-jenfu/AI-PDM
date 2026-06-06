@@ -3,6 +3,10 @@
     grid-template-columns: 1fr;
   }
 
+  body.sidebar-collapsed .app-shell {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     position: static;
     height: auto;
@@ -15,8 +19,32 @@
     padding: 14px 16px;
   }
 
+  body.sidebar-collapsed .sidebar {
+    padding: 14px 16px;
+  }
+
   .brand {
     margin-bottom: 12px;
+  }
+
+  body.sidebar-collapsed .brand {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 0 2px 10px;
+  }
+
+  body.sidebar-collapsed .brand-name,
+  body.sidebar-collapsed .nav a span {
+    display: inline;
+  }
+
+  body.sidebar-collapsed .nav-section-label {
+    display: none;
+  }
+
+  body.sidebar-collapsed .sidebar-toggle {
+    margin-left: auto;
   }
 
   .nav {
@@ -45,6 +73,12 @@
   .nav a {
     min-height: 38px;
     white-space: nowrap;
+  }
+
+  body.sidebar-collapsed .nav a {
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px 10px 14px;
   }
 
   .login-page {

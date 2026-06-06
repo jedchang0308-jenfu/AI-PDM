@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, RotateCcw, Search, ShieldAlert } from "lucide-react";
+import { RiskHint } from "@/components/compact-hints";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -53,6 +54,11 @@ export default function NumberingImpactPage() {
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [busy, setBusy] = useState<"analyze" | "apply" | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const initialDrawingNumber = new URLSearchParams(window.location.search).get("drawingNumber")?.trim();
+    if (initialDrawingNumber) setDrawingNumber(initialDrawingNumber);
+  }, []);
 
   async function analyze(applyInvalidation = false) {
     setBusy(applyInvalidation ? "apply" : "analyze");
@@ -109,7 +115,7 @@ export default function NumberingImpactPage() {
         currentStep="影響分析"
         actions={[
           { href: "/numbering/tasks", label: "看影響待辦", variant: "primary" },
-          { href: "/numbering/search", label: "回圖料查詢" }
+          { href: "/numbering/search", label: "回圖料模組" }
         ]}
       />
 
@@ -164,7 +170,7 @@ function ImpactResult({
           title="尚未產生 MA 圖作廢影響分析"
           body="輸入 MA 圖號與作廢原因後先分析影響範圍；確認後才可套用失效。"
           actions={[
-            { href: "/numbering/search", label: "回圖料查詢", variant: "primary" },
+            { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
             { href: "/numbering/tasks", label: "看待辦" }
           ]}
         />
@@ -201,8 +207,8 @@ function ImpactResult({
               compact
               eyebrow="沒有關聯"
               title="目前沒有主要製造圖關聯料號"
-              body="可回圖料查詢確認 MA 圖關聯，或改查另一張 MA 圖。"
-              actions={[{ href: "/numbering/search", label: "回圖料查詢", variant: "primary" }]}
+              body="可回圖料模組確認 MA 圖關聯，或改查另一張 MA 圖。"
+              actions={[{ href: "/numbering/search", label: "回圖料模組", variant: "primary" }]}
             />
           ) : (
             <div className="table-wrap">
@@ -287,11 +293,7 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 }
 
 function WarningDot({ title }: { title: string }) {
-  return (
-    <button type="button" title={title} aria-label={title} style={warningDotStyle}>
-      !
-    </button>
-  );
+  return <RiskHint title={title} className="impact-warning-marker" />;
 }
 
 function AccessPanel({ title, message }: { title: string; message: string }) {
@@ -395,13 +397,4 @@ const confirmStyle = {
   display: "flex",
   alignItems: "center",
   gap: "0.5rem"
-};
-const warningDotStyle = {
-  width: "26px",
-  height: "26px",
-  borderRadius: "999px",
-  border: "1px solid #f59e0b",
-  color: "#92400e",
-  background: "#fffbeb",
-  fontWeight: 800
 };
