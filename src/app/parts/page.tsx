@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
+import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -681,6 +682,8 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
           <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
         </div>
       </section>
+
+      <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} />
 
       <section className="panel">
         <div className="panel-header">

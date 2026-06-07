@@ -197,6 +197,8 @@ type FolderChildrenState =
   | { status: "ready"; folders: GDriveFolderNode[] }
   | { status: "error"; message: string };
 
+type DriveFolderUse = "pending" | "released" | "master_attachments";
+
 const emptyRuleDraft: RuleDraft = {
   ruleVersionId: "numbering-rule-v1",
   ruleName: "",
@@ -287,8 +289,10 @@ function AccessPanel({ title, message }: { title: string; message: string }) {
 function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean | string>; onSaved: () => void }) {
   const [pendingFolder, setPendingFolder] = useState(String(settings.gdrive_pending_folder_id ?? ""));
   const [releasedFolder, setReleasedFolder] = useState(String(settings.gdrive_released_folder_id ?? ""));
+  const [masterAttachmentsFolder, setMasterAttachmentsFolder] = useState(String(settings.gdrive_master_attachments_folder_id ?? ""));
   const [pendingSnapshot, setPendingSnapshot] = useState<VerifiedFolderSnapshot | null>(() => snapshotFromSettings(settings, "pending"));
   const [releasedSnapshot, setReleasedSnapshot] = useState<VerifiedFolderSnapshot | null>(() => snapshotFromSettings(settings, "released"));
+  const [masterAttachmentsSnapshot, setMasterAttachmentsSnapshot] = useState<VerifiedFolderSnapshot | null>(() => snapshotFromSettings(settings, "master_attachments"));
   const [selectedFolder, setSelectedFolder] = useState<GDriveFolderNode | null>(null);
   const [childrenByParent, setChildrenByParent] = useState<Record<string, FolderChildrenState>>({ root: { status: "idle" } });
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ root: true });
@@ -330,7 +334,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
     }
   }
 
-  async function verifyAndAssign(use: "pending" | "released", folder = selectedFolder) {
+  async function verifyAndAssign(use: DriveFolderUse, folder = selectedFolder) {
     if (!folder) {
       setMessage({ type: "error", text: "請先選取 Google Drive 資料夾" });
       return;
@@ -359,15 +363,18 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
     if (use === "pending") {
       setPendingFolder(snapshot.id);
       setPendingSnapshot(snapshot);
-    } else {
+    } else if (use === "released") {
       setReleasedFolder(snapshot.id);
       setReleasedSnapshot(snapshot);
+    } else {
+      setMasterAttachmentsFolder(snapshot.id);
+      setMasterAttachmentsSnapshot(snapshot);
     }
-    setMessage({ type: "success", text: `${snapshot.name} 已驗證並指定為${use === "pending" ? "待審核暫存區" : "正式發布區"}` });
+    setMessage({ type: "success", text: `${snapshot.name} 已驗證並指定為${folderUseLabel(use)}` });
   }
 
-  async function verifyManualFolder(use: "pending" | "released") {
-    const folderId = use === "pending" ? pendingFolder : releasedFolder;
+  async function verifyManualFolder(use: DriveFolderUse) {
+    const folderId = use === "pending" ? pendingFolder : use === "released" ? releasedFolder : masterAttachmentsFolder;
     if (!folderId.trim()) {
       setMessage({ type: "error", text: "請先輸入 Folder ID" });
       return;
@@ -393,7 +400,13 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
       setMessage({ type: "error", text: "待審核暫存區與正式發布區不可指向同一個資料夾" });
       return;
     }
-    if ((pendingFolder && !pendingSnapshot) || (releasedFolder && !releasedSnapshot)) {
+    const configuredFolders = [pendingFolder, releasedFolder, masterAttachmentsFolder].map((folderId) => folderId.trim()).filter(Boolean);
+    if (new Set(configuredFolders).size !== configuredFolders.length) {
+      setLoading(false);
+      setMessage({ type: "error", text: "三個 Google Drive 用途資料夾不可重複指定" });
+      return;
+    }
+    if ((pendingFolder && !pendingSnapshot) || (releasedFolder && !releasedSnapshot) || (masterAttachmentsFolder && !masterAttachmentsSnapshot)) {
       setLoading(false);
       setMessage({ type: "error", text: "請先驗證選取的 Google Drive 資料夾，再儲存設定" });
       return;
@@ -407,6 +420,8 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
         ...folderSnapshotPayload("pending", pendingSnapshot),
         gdrive_released_folder_id: releasedFolder,
         ...folderSnapshotPayload("released", releasedSnapshot),
+        gdrive_master_attachments_folder_id: masterAttachmentsFolder,
+        ...folderSnapshotPayload("master_attachments", masterAttachmentsSnapshot),
         gdrive_require_verified: true
       })
     });
@@ -423,10 +438,21 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
   }
 
   const readonlySettings = Object.entries(settings).filter(
-    ([key]) => !key.startsWith("gdrive_pending_folder_") && !key.startsWith("gdrive_released_folder_")
+    ([key]) =>
+      !key.startsWith("gdrive_pending_folder_") &&
+      !key.startsWith("gdrive_released_folder_") &&
+      !key.startsWith("gdrive_master_attachments_folder_")
   );
   const selectedSnapshot =
-    selectedFolder && pendingSnapshot?.id === selectedFolder.id ? pendingSnapshot : selectedFolder && releasedSnapshot?.id === selectedFolder.id ? releasedSnapshot : null;
+    selectedFolder && pendingSnapshot?.id === selectedFolder.id
+      ? pendingSnapshot
+      : selectedFolder && releasedSnapshot?.id === selectedFolder.id
+        ? releasedSnapshot
+        : selectedFolder && masterAttachmentsSnapshot?.id === selectedFolder.id
+          ? masterAttachmentsSnapshot
+          : null;
+  const selectedUse: DriveFolderUse =
+    selectedFolder?.id === releasedFolder ? "released" : selectedFolder?.id === masterAttachmentsFolder ? "master_attachments" : "pending";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -508,13 +534,16 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
                 <button className="secondary-button" type="button" disabled={!selectedFolder || loading} onClick={() => verifyAndAssign("released")}>
                   設為正式發布區
                 </button>
+                <button className="secondary-button" type="button" disabled={!selectedFolder || loading} onClick={() => verifyAndAssign("master_attachments")}>
+                  設為主檔附件庫
+                </button>
                 <button
                   className="secondary-button"
                   type="button"
                   disabled={!selectedFolder || loading}
                   onClick={() => {
                     if (!selectedFolder) return;
-                    verifyAndAssign(selectedFolder.id === releasedFolder ? "released" : "pending", selectedFolder);
+                    verifyAndAssign(selectedUse, selectedFolder);
                   }}
                 >
                   <RefreshCw size={16} />
@@ -527,6 +556,10 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
           <div className="settings-drive-summary">
             <FolderAssignmentCard title="待審核暫存區" folderId={pendingFolder} snapshot={pendingSnapshot} />
             <FolderAssignmentCard title="正式發布區" folderId={releasedFolder} snapshot={releasedSnapshot} />
+          </div>
+
+          <div className="settings-drive-summary">
+            <FolderAssignmentCard title="主檔附件庫" folderId={masterAttachmentsFolder} snapshot={masterAttachmentsSnapshot} />
           </div>
 
           <details className="settings-drive-manual">
@@ -561,6 +594,23 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
                 />
                 <button className="secondary-button" type="button" onClick={() => verifyManualFolder("released")} disabled={loading}>
                   驗證手動 ID
+                </button>
+              </label>
+            </div>
+            <div className="settings-drive-manual-grid">
+              <label style={labelStyle}>
+                主檔附件庫 Folder ID
+                <input
+                  value={masterAttachmentsFolder}
+                  onChange={(e) => {
+                    setMasterAttachmentsFolder(e.target.value);
+                    setMasterAttachmentsSnapshot(null);
+                  }}
+                  placeholder="貼上主檔附件庫 Google Drive Folder ID"
+                  style={fieldStyle}
+                />
+                <button className="secondary-button" type="button" onClick={() => verifyManualFolder("master_attachments")} disabled={loading}>
+                  驗證此 ID
                 </button>
               </label>
             </div>
@@ -745,7 +795,7 @@ function FolderAssignmentCard({ title, folderId, snapshot }: { title: string; fo
   );
 }
 
-function snapshotFromSettings(settings: Record<string, boolean | string>, use: "pending" | "released"): VerifiedFolderSnapshot | null {
+function snapshotFromSettings(settings: Record<string, boolean | string>, use: DriveFolderUse): VerifiedFolderSnapshot | null {
   const id = String(settings[`gdrive_${use}_folder_id`] ?? "").trim();
   const name = String(settings[`gdrive_${use}_folder_name`] ?? "").trim();
   const path = String(settings[`gdrive_${use}_folder_path`] ?? "").trim();
@@ -754,12 +804,18 @@ function snapshotFromSettings(settings: Record<string, boolean | string>, use: "
   return { id, name, path, verifiedAt };
 }
 
-function folderSnapshotPayload(use: "pending" | "released", snapshot: VerifiedFolderSnapshot | null) {
+function folderSnapshotPayload(use: DriveFolderUse, snapshot: VerifiedFolderSnapshot | null) {
   return {
     [`gdrive_${use}_folder_name`]: snapshot?.name ?? "",
     [`gdrive_${use}_folder_path`]: snapshot?.path ?? "",
     [`gdrive_${use}_folder_verified_at`]: snapshot?.verifiedAt ?? ""
   };
+}
+
+function folderUseLabel(use: DriveFolderUse) {
+  if (use === "pending") return "待審核暫存區";
+  if (use === "released") return "正式發布區";
+  return "主檔附件庫";
 }
 
 function ApprovalMatrixSettings() {

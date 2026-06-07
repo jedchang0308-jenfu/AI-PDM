@@ -236,8 +236,22 @@ async function loginAsEngineer(context) {
 async function verifyDesktopFlow(page, seeded) {
   await page.goto(`${apiBaseUrl}/numbering/approvals`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "DVT/發行審核" }).waitFor({ timeout: 10_000 });
+  const batchApiResponse = await page.request.get(`${apiBaseUrl}/api/numbering/approval-batches?scope=dvt_release&status=active&limit=50`);
+  const batchApiBody = await batchApiResponse.json().catch(() => ({}));
+  record("Approval batch API returns seeded batch", JSON.stringify(batchApiBody).includes(`NB-QCAPPR-${unique}`), JSON.stringify(batchApiBody).slice(0, 1000));
+  try {
+    await page.getByText(`NB-QCAPPR-${unique}`).first().waitFor({ timeout: 10_000 });
+  } catch (error) {
+    const bodyText = (await page.locator("body").textContent()) ?? "";
+    record("Seeded approval batch renders in UI", false, bodyText.slice(0, 1200));
+    throw error;
+  }
   record("Approval review page renders desktop", (await page.getByText(`NB-QCAPPR-${unique}`).count()) >= 1);
   record("Same-project batch is visible", (await page.getByText(`QCAPPR-${unique}`).count()) >= 1);
+  await page.locator("[data-approval-batch-row='true']", { hasText: `NB-QCAPPR-${unique}` }).click();
+  await page.locator(".pdm-detail-drawer").waitFor({ timeout: 10_000 });
+  const backdropColor = await page.locator(".pdm-detail-drawer-backdrop").evaluate((element) => getComputedStyle(element).backgroundColor);
+  record("Approval detail opens as non-dark drawer", backdropColor === "rgba(0, 0, 0, 0)" || backdropColor === "transparent", backdropColor);
   record("DVT part is visible", await page.getByText(seeded.dvt.partNumber).isVisible());
   record("Release override part is visible", await page.getByText(seeded.releaseOverride.partNumber).isVisible());
   record("Proxy submission marker is visible", (await page.locator(".approval-marker-proxy").count()) >= 1);

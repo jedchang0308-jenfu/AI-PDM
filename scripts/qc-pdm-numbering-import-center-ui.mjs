@@ -87,7 +87,7 @@ async function verifyViewport(browser, viewport) {
   await page.goto(`${apiBaseUrl}/numbering/imports`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "總表匯入" }).waitFor({ timeout: 10_000 });
   await page.getByRole("heading", { name: "建立 Staging" }).waitFor({ timeout: 10_000 });
-  record(`Import center page renders at ${viewport.width}px`, await page.getByText("Staging 檢查報告").isVisible());
+  record(`Import center page renders at ${viewport.width}px`, await page.getByText("近期匯入批次").isVisible());
 
   const csv = [
     "主根號,品名,料號,圖號,料件類型,圖別",
@@ -104,6 +104,9 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "產生檢查報告" }).click();
   const stageResponse = await stageResponsePromise;
   record(`Staging batch creation succeeds at ${viewport.width}px`, stageResponse.ok(), `HTTP ${stageResponse.status()}`);
+  await page.locator(".pdm-detail-drawer").waitFor({ timeout: 10_000 });
+  const backdropColor = await page.locator(".pdm-detail-drawer-backdrop").evaluate((element) => getComputedStyle(element).backgroundColor);
+  record(`Import detail opens as non-dark drawer at ${viewport.width}px`, backdropColor === "rgba(0, 0, 0, 0)" || backdropColor === "transparent", backdropColor);
   await page.getByText("可匯入").first().waitFor({ timeout: 10_000 });
   record(`Conflict row renders at ${viewport.width}px`, (await page.getByText("衝突").count()) >= 1);
   record(`Need-info row renders at ${viewport.width}px`, (await page.getByText("待補").count()) >= 1);

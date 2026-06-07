@@ -106,7 +106,7 @@ async function run() {
       await recentDrawingSelect.locator("option", { hasText: `QUICK-${unique}` }).count().then((count) => count > 0)
     );
     await page.locator(".detail-close-button").click();
-    await page.locator(".detail-panel").waitFor({ state: "detached", timeout: 5000 });
+    await page.locator(".pdm-detail-drawer").waitFor({ state: "detached", timeout: 5000 });
 
     await quickAccess.getByRole("button", { name: "發布失敗" }).click();
     record("DQA-005 release failed quick chip becomes active", await page.locator(".quick-chip.active", { hasText: "發布失敗" }).isVisible());

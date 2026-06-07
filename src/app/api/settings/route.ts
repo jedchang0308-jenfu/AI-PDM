@@ -13,10 +13,14 @@ const ALLOWED_SETTINGS = [
   "gdrive_released_folder_id",
   "gdrive_released_folder_name",
   "gdrive_released_folder_path",
-  "gdrive_released_folder_verified_at"
+  "gdrive_released_folder_verified_at",
+  "gdrive_master_attachments_folder_id",
+  "gdrive_master_attachments_folder_name",
+  "gdrive_master_attachments_folder_path",
+  "gdrive_master_attachments_folder_verified_at"
 ];
 
-const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folder_id"]);
+const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folder_id", "gdrive_master_attachments_folder_id"]);
 const folderSnapshotKeys = [...ALLOWED_SETTINGS];
 
 export async function GET(request: Request) {
@@ -36,6 +40,10 @@ export async function GET(request: Request) {
       gdrive_released_folder_name: dbSettings.gdrive_released_folder_name ?? "",
       gdrive_released_folder_path: dbSettings.gdrive_released_folder_path ?? "",
       gdrive_released_folder_verified_at: dbSettings.gdrive_released_folder_verified_at ?? "",
+      gdrive_master_attachments_folder_id: dbSettings.gdrive_master_attachments_folder_id ?? "",
+      gdrive_master_attachments_folder_name: dbSettings.gdrive_master_attachments_folder_name ?? "",
+      gdrive_master_attachments_folder_path: dbSettings.gdrive_master_attachments_folder_path ?? "",
+      gdrive_master_attachments_folder_verified_at: dbSettings.gdrive_master_attachments_folder_verified_at ?? "",
       // Environment-backed (read-only) settings
       authMode: process.env.PDM_AUTH_MODE ?? "demo",
       releaseMode: process.env.PDM_RELEASE_MODE ?? "auto",
@@ -71,12 +79,16 @@ export async function POST(request: Request) {
 
   const pendingFolder = updates.gdrive_pending_folder_id ?? currentSettings.gdrive_pending_folder_id ?? "";
   const releasedFolder = updates.gdrive_released_folder_id ?? currentSettings.gdrive_released_folder_id ?? "";
+  const masterAttachmentsFolder = updates.gdrive_master_attachments_folder_id ?? currentSettings.gdrive_master_attachments_folder_id ?? "";
   if (pendingFolder && releasedFolder && pendingFolder === releasedFolder) {
     errors.push("gdrive_pending_folder_id and gdrive_released_folder_id cannot be the same folder");
   }
+  if (masterAttachmentsFolder && [pendingFolder, releasedFolder].includes(masterAttachmentsFolder)) {
+    errors.push("gdrive_master_attachments_folder_id must be separate from pending and released folders");
+  }
 
   if (body.gdrive_require_verified === true) {
-    for (const use of ["pending", "released"] as const) {
+    for (const use of ["pending", "released", "master_attachments"] as const) {
       const id = String(body[`gdrive_${use}_folder_id`] ?? "").trim();
       if (!id) continue;
       const name = String(body[`gdrive_${use}_folder_name`] ?? "").trim();

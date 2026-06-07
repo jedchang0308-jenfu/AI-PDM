@@ -31,6 +31,7 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
   "numbering.audit_report.generate",
   "numbering.task.update",
   "numbering.notification.update",
+  "numbering.attachments.manage",
   "settings.admin_matrix",
   "update_name",
   "update_spec",

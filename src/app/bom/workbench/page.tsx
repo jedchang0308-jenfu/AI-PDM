@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type DragEvent as ReactDragEvent } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -22,7 +22,25 @@ import {
   Undo2,
   UploadCloud
 } from "lucide-react";
+import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  MiniMap,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type OnNodeDrag,
+  type XYPosition
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { FileDropzone } from "@/components/file-dropzone";
 import { NextStepState } from "@/components/next-step-state";
+import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
 type SubmissionSummary = {
@@ -106,12 +124,54 @@ type CompareRow = {
   after: string;
 };
 
+type BomFlowNodeData = {
+  kind: "root" | "line";
+  label: string;
+  subtitle: string;
+  meta: string;
+  source?: BomWorkbenchSource;
+  nodeType?: BomWorkbenchNodeType;
+  selected: boolean;
+  mutable: boolean;
+};
+
+type BomFlowNode = Node<BomFlowNodeData, "bomNode">;
+
 const ROOT_PARENT = "__root__";
+const ROOT_FLOW_NODE_ID = "__bom_parent__";
+const BOM_DRAWER_WIDTH_STORAGE_KEY = "pdm-bom-node-detail-drawer-width";
+const FLOW_NODE_WIDTH = 220;
+const FLOW_NODE_HEIGHT = 88;
+const FLOW_COLUMN_GAP = 280;
+const FLOW_ROW_GAP = 118;
 const SOURCE_LABELS: Record<BomWorkbenchSource, string> = {
   cad_reference: "CAD Reference",
   solidworks_xls: "SolidWorks XLS",
   manual: "Manual"
 };
+
+const bomNodeTypes = {
+  bomNode: BomFlowNodeCard
+};
+
+function BomFlowNodeCard({ id, data }: NodeProps<BomFlowNode>) {
+  return (
+    <div
+      className={`bom-flow-node ${data.kind} ${data.nodeType ?? ""} ${data.selected ? "selected" : ""}`}
+      data-bom-flow-node-id={id}
+      title={data.mutable ? "拖曳可調整 BOM 關係" : "此 Draft 目前不可編輯"}
+    >
+      {data.kind === "line" ? <Handle type="target" position={Position.Left} isConnectable={false} /> : null}
+      <div className="bom-flow-node-topline">
+        <strong>{data.label}</strong>
+        {data.source ? <span className="bom-source-pill">{SOURCE_LABELS[data.source]}</span> : null}
+      </div>
+      <span>{data.subtitle}</span>
+      <small>{data.meta}</small>
+      <Handle type="source" position={Position.Right} isConnectable={false} />
+    </div>
+  );
+}
 
 export default function BomWorkbenchPage() {
   const [query, setQuery] = useState("");
@@ -124,7 +184,6 @@ export default function BomWorkbenchPage() {
   const [compareDraft, setCompareDraft] = useState<BomWorkbenchDraftDetail | null>(null);
   const [reviewReason, setReviewReason] = useState("");
   const [xlsText, setXlsText] = useState("");
-  const [draggedLineId, setDraggedLineId] = useState<string | null>(null);
   const [draggedSubmissionId, setDraggedSubmissionId] = useState<string | null>(null);
   const [history, setHistory] = useState<BomWorkbenchLine[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -132,13 +191,22 @@ export default function BomWorkbenchPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
+    storageKey: BOM_DRAWER_WIDTH_STORAGE_KEY,
+    defaultWidth: 520,
+    minWidth: 400
+  });
 
   const isMutable = selectedDraft?.status === "Draft" || selectedDraft?.status === "Rejected";
   const rows = useMemo(() => buildTreeRows(selectedDraft?.lines ?? []), [selectedDraft?.lines]);
   const selectedLine = useMemo(
     () => selectedDraft?.lines.find((line) => line.id === selectedLineId) ?? null,
     [selectedDraft?.lines, selectedLineId]
+  );
+  const { nodes: flowNodes, edges: flowEdges } = useMemo(
+    () => buildFlowElements(rows, workbench, selectedLineId, Boolean(isMutable)),
+    [isMutable, rows, selectedLineId, workbench]
   );
   const comparison = useMemo(() => buildCompareRows(compareDraft, selectedDraft), [compareDraft, selectedDraft]);
 
@@ -155,6 +223,7 @@ export default function BomWorkbenchPage() {
       setSelectedLineId(draft?.lines[0]?.id ?? null);
       setCompareDraft(null);
       setCompareDraftId("");
+      setIsDetailOpen(false);
       resetHistory(draft?.lines ?? []);
     },
     [resetHistory]
@@ -417,24 +486,99 @@ export default function BomWorkbenchPage() {
     updateLine(lineId, { parent_line_id: parent?.parent_line_id ?? null });
   }
 
-  function handleTreeDrop(targetLine: BomWorkbenchLine | null) {
+  function openLineDetail(lineId: string) {
+    setSelectedLineId(lineId);
+    setIsDetailOpen(true);
+  }
+
+  function moveLineToParent(lineId: string, parentLineId: string | null) {
     if (!selectedDraft || !isMutable) return;
-    const parentLineId = targetLine?.node_type === "group" ? targetLine.id : targetLine?.parent_line_id ?? null;
-    if (draggedSubmissionId) {
-      const submission = submissions.find((item) => item.id === draggedSubmissionId);
-      if (submission) addSubmissionAsLine(submission, parentLineId);
-      setDraggedSubmissionId(null);
+    if (lineId === parentLineId || (parentLineId && isDescendant(selectedDraft.lines, lineId, parentLineId))) {
+      setError("不能把節點移到自己的子層，請改選其他父節點。");
       return;
     }
-    if (draggedLineId) {
-      if (draggedLineId === parentLineId || (parentLineId && isDescendant(selectedDraft.lines, draggedLineId, parentLineId))) {
-        setError("不可把節點移到自己的下層");
-        setDraggedLineId(null);
-        return;
-      }
-      updateLine(draggedLineId, { parent_line_id: parentLineId, sequence_no: nextSequence(selectedDraft.lines, parentLineId) });
-      setDraggedLineId(null);
+    pushLines(
+      selectedDraft.lines.map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              parent_line_id: parentLineId,
+              sequence_no: nextSequence(selectedDraft.lines, parentLineId),
+              source: "manual",
+              source_priority: 30
+            }
+          : line
+      ),
+      lineId
+    );
+  }
+
+  function reorderLineByPosition(lineId: string, yPosition: number) {
+    if (!selectedDraft || !isMutable) return;
+    const line = selectedDraft.lines.find((item) => item.id === lineId);
+    if (!line) return;
+    const siblings = selectedDraft.lines
+      .filter((item) => item.id !== lineId && (item.parent_line_id ?? ROOT_PARENT) === (line.parent_line_id ?? ROOT_PARENT))
+      .sort((a, b) => a.sequence_no - b.sequence_no);
+    const siblingNodes = siblings
+      .map((sibling) => flowNodes.find((node) => node.id === sibling.id))
+      .filter((node): node is BomFlowNode => Boolean(node))
+      .sort((a, b) => a.position.y - b.position.y);
+    const insertIndex = siblingNodes.findIndex((node) => yPosition < node.position.y + FLOW_NODE_HEIGHT / 2);
+    const nextIndex = insertIndex === -1 ? siblings.length : insertIndex;
+    const ordered = [...siblings];
+    ordered.splice(nextIndex, 0, line);
+    pushLines(
+      selectedDraft.lines.map((item) => {
+        const nextSequenceNo = ordered.findIndex((sibling) => sibling.id === item.id) + 1;
+        if (nextSequenceNo <= 0) return item;
+        return {
+          ...item,
+          sequence_no: nextSequenceNo,
+          source: item.id === lineId ? "manual" : item.source,
+          source_priority: item.id === lineId ? 30 : item.source_priority
+        };
+      }),
+      lineId
+    );
+  }
+
+  const handleFlowNodeDragStop: OnNodeDrag<BomFlowNode> = (_, node) => {
+    if (!selectedDraft || !isMutable || node.id === ROOT_FLOW_NODE_ID) return;
+    const dropTarget = findNearestFlowTarget(node.position, flowNodes, node.id);
+    if (dropTarget?.id === ROOT_FLOW_NODE_ID) {
+      moveLineToParent(node.id, null);
+      return;
     }
+    if (dropTarget?.id) {
+      moveLineToParent(node.id, dropTarget.id);
+      return;
+    }
+    reorderLineByPosition(node.id, node.position.y);
+  };
+
+  function handleFlowDrop(event: ReactDragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const submissionId = event.dataTransfer.getData("application/x-pdm-submission-id") || event.dataTransfer.getData("text/plain") || draggedSubmissionId;
+    if (!selectedDraft || !isMutable || !submissionId) return;
+    const submission = submissions.find((item) => item.id === submissionId);
+    if (!submission) return;
+    const target = event.target instanceof Element ? event.target.closest("[data-bom-flow-node-id]") : null;
+    const targetId = target?.getAttribute("data-bom-flow-node-id") ?? ROOT_FLOW_NODE_ID;
+    addSubmissionAsLine(submission, targetId === ROOT_FLOW_NODE_ID ? null : targetId);
+    setDraggedSubmissionId(null);
+  }
+
+  function handleFlowDragOver(event: ReactDragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function startSubmissionDrag(event: ReactDragEvent<Element>, submissionId: string) {
+    setDraggedSubmissionId(submissionId);
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("application/x-pdm-submission-id", submissionId);
+    event.dataTransfer.setData("text/plain", submissionId);
   }
 
   async function createCadDraft() {
@@ -662,10 +806,19 @@ export default function BomWorkbenchPage() {
                   className={submission.id === selectedSubmission?.id ? "bom-search-result active" : "bom-search-result"}
                   draggable
                   key={submission.id}
-                  onDragStart={() => setDraggedSubmissionId(submission.id)}
+                  onDragStart={(event) => startSubmissionDrag(event, submission.id)}
                   onDragEnd={() => setDraggedSubmissionId(null)}
                 >
-                  <button type="button" onClick={() => loadWorkbench(submission.id)}>
+                  <span
+                    className="bom-search-drag-handle"
+                    draggable
+                    title="拖曳加入 BOM"
+                    aria-label={`拖曳加入 ${submission.part_number}`}
+                    onDragStart={(event) => startSubmissionDrag(event, submission.id)}
+                  >
+                    <GripVertical size={15} aria-hidden="true" />
+                  </span>
+                  <button type="button" draggable onDragStart={(event) => startSubmissionDrag(event, submission.id)} onClick={() => loadWorkbench(submission.id)}>
                     <strong>{submission.part_number}</strong>
                     <span>{submission.drawing_number} Rev {submission.revision}</span>
                     <small>{submission.part_name || "未填品名"} · {submission.status}</small>
@@ -726,11 +879,20 @@ export default function BomWorkbenchPage() {
                 <GitBranch size={16} aria-hidden="true" />
                 CAD Draft
               </button>
-              <button className="secondary-button" type="button" onClick={() => fileInputRef.current?.click()} disabled={!selectedSubmission || loading}>
-                <UploadCloud size={16} aria-hidden="true" />
-                XLS
-              </button>
-              <input ref={fileInputRef} type="file" accept=".xls,.xlsx,.csv,.tsv,.txt,.html" hidden onChange={(event) => event.target.files?.[0] && importXlsFile(event.target.files[0])} />
+              <FileDropzone
+                accept=".xls,.xlsx,.csv,.tsv,.txt,.html"
+                disabled={!selectedSubmission || loading}
+                icon={<UploadCloud size={18} aria-hidden="true" />}
+                label="拖曳或選擇 XLS"
+                description="匯入 SolidWorks BOM"
+                variant="compact"
+                onFilesSelected={(selected) => {
+                  if (selected[0]) void importXlsFile(selected[0]);
+                }}
+                onReject={(reason) => {
+                  if (reason === "single_file_only") setError("BOM XLS 匯入一次只能選擇一個檔案");
+                }}
+              />
             </div>
 
             <div className="bom-draft-strip" aria-label="Draft 清單">
@@ -769,56 +931,33 @@ export default function BomWorkbenchPage() {
               </button>
             </div>
 
-            <div
-              className="bom-tree-list"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleTreeDrop(null)}
-              aria-label="Windows 樹狀 BOM 編輯區"
-            >
-              {rows.map((row) => (
-                <div
-                  className={row.line.id === selectedLineId ? "bom-tree-row active" : "bom-tree-row"}
-                  draggable={isMutable}
-                  key={row.line.id}
-                  onClick={() => setSelectedLineId(row.line.id)}
-                  onDragStart={() => setDraggedLineId(row.line.id)}
-                  onDragEnd={() => setDraggedLineId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.stopPropagation();
-                    handleTreeDrop(row.line);
-                  }}
-                  style={{ paddingLeft: `${row.depth * 18 + 8}px` }}
-                >
-                  <GripVertical size={14} aria-hidden="true" />
-                  <div className="bom-tree-main">
-                    <strong>{row.line.node_type === "group" ? row.line.group_name : row.line.part_number}</strong>
-                    <span>
-                      {row.line.node_type === "group"
-                        ? "Virtual group"
-                        : `${row.line.part_name ?? "未填品名"} · Rev ${row.line.revision ?? "-"} · Qty ${row.line.quantity ?? 1}`}
-                    </span>
-                  </div>
-                  <span className="bom-source-pill">{SOURCE_LABELS[row.line.source]}</span>
-                  <div className="bom-row-actions">
-                    <button className="icon-button" type="button" onClick={(event) => { event.stopPropagation(); moveLine(row.line.id, -1); }} disabled={!isMutable} aria-label="上移">
-                      <ArrowUp size={14} aria-hidden="true" />
-                    </button>
-                    <button className="icon-button" type="button" onClick={(event) => { event.stopPropagation(); moveLine(row.line.id, 1); }} disabled={!isMutable} aria-label="下移">
-                      <ArrowDown size={14} aria-hidden="true" />
-                    </button>
-                    <button className="icon-button" type="button" onClick={(event) => { event.stopPropagation(); indentLine(row.line.id); }} disabled={!isMutable} aria-label="縮排">
-                      <ArrowRight size={14} aria-hidden="true" />
-                    </button>
-                    <button className="icon-button" type="button" onClick={(event) => { event.stopPropagation(); outdentLine(row.line.id); }} disabled={!isMutable} aria-label="取消縮排">
-                      <ArrowLeft size={14} aria-hidden="true" />
-                    </button>
-                    <button className="icon-button danger" type="button" onClick={(event) => { event.stopPropagation(); deleteLine(row.line.id); }} disabled={!isMutable} aria-label="刪除">
-                      <Trash2 size={14} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="bom-flow-canvas" onDragOver={handleFlowDragOver} onDrop={handleFlowDrop} aria-label="XMind 式 BOM 圖像化編輯區" data-testid="bom-flow-canvas">
+              {flowNodes.length > 1 ? (
+                <ReactFlowProvider>
+                  <ReactFlow
+                    nodes={flowNodes}
+                    edges={flowEdges}
+                    nodeTypes={bomNodeTypes}
+                    fitView
+                    minZoom={0.35}
+                    maxZoom={1.35}
+                    nodesDraggable={Boolean(isMutable)}
+                    nodesConnectable={false}
+                    elementsSelectable
+                    onDragOver={handleFlowDragOver}
+                    onDrop={handleFlowDrop}
+                    onNodeClick={(_, node) => {
+                      if (node.id === ROOT_FLOW_NODE_ID) return;
+                      openLineDetail(node.id);
+                    }}
+                    onNodeDragStop={handleFlowNodeDragStop}
+                  >
+                    <Background gap={18} size={1} />
+                    <Controls showInteractive={false} />
+                    <MiniMap pannable zoomable nodeStrokeWidth={3} />
+                  </ReactFlow>
+                </ReactFlowProvider>
+              ) : null}
               {rows.length === 0 && (
                 <div className="bom-tree-dropzone">
                   <ListTree size={24} aria-hidden="true" />
@@ -829,120 +968,156 @@ export default function BomWorkbenchPage() {
           </div>
         </section>
 
-        <aside className="panel bom-properties-panel" aria-label="節點屬性與送審">
-          <div className="panel-header">
-            <h2>節點屬性</h2>
-            <FileSpreadsheet size={16} aria-hidden="true" />
-          </div>
-          <div className="bom-panel-body">
-            {selectedLine ? (
-              <div className="bom-property-form">
-                <div className="bom-property-title">
-                  <strong>{selectedLine.node_type === "group" ? selectedLine.group_name : selectedLine.part_number}</strong>
-                  <span>{SOURCE_LABELS[selectedLine.source]} · Priority {selectedLine.source_priority}</span>
-                </div>
-                {selectedLine.node_type === "group" ? (
-                  <label className="bom-field">
-                    <span>群組名稱</span>
-                    <input value={selectedLine.group_name ?? ""} onChange={(event) => updateLine(selectedLine.id, { group_name: event.target.value })} disabled={!isMutable} />
-                  </label>
-                ) : (
-                  <>
-                    <label className="bom-field">
-                      <span>料號</span>
-                      <input value={selectedLine.part_number ?? ""} onChange={(event) => updateLine(selectedLine.id, { part_number: event.target.value })} disabled={!isMutable} />
-                    </label>
-                    <label className="bom-field">
-                      <span>版次</span>
-                      <input value={selectedLine.revision ?? ""} onChange={(event) => updateLine(selectedLine.id, { revision: event.target.value })} disabled={!isMutable} />
-                    </label>
-                    <label className="bom-field">
-                      <span>數量</span>
-                      <input
-                        type="number"
-                        min="0.0001"
-                        step="0.0001"
-                        value={selectedLine.quantity ?? 1}
-                        onChange={(event) => updateLine(selectedLine.id, { quantity: Number(event.target.value) || 1 })}
-                        disabled={!isMutable}
-                      />
-                    </label>
-                  </>
-                )}
-              </div>
-            ) : (
-              <NextStepState
-                compact
-                eyebrow="尚未選取節點"
-                title="選擇 BOM 節點後可編輯內容"
-                body="先在左側樹狀結構選一個群組或料號，再調整階層、數量與顯示資訊。"
-                actions={[
-                  { href: "/bom/reviews", label: "看 BOM 審核", variant: "primary" },
-                  { href: "/numbering/search", label: "查圖料" }
-                ]}
-              />
-            )}
-
-            <div className="bom-xls-paste">
-              <label className="bom-field">
-                <span>貼上 SolidWorks BOM XLS / TSV</span>
-                <textarea value={xlsText} onChange={(event) => setXlsText(event.target.value)} placeholder={"ITEM NO.\tPART NUMBER\tQTY\n1\tP-1001\t2"} />
-              </label>
-              <button className="secondary-button" type="button" onClick={importXlsText} disabled={!selectedSubmission || !xlsText.trim() || loading}>
-                <UploadCloud size={16} aria-hidden="true" />
-                匯入貼上內容
-              </button>
-            </div>
-
-            <div className="bom-review-box">
-              <label className="bom-field">
-                <span>送審原因</span>
-                <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="描述本次 BOM 變更原因" />
-              </label>
-              <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading}>
-                <Send size={16} aria-hidden="true" />
-                送主管審核
-              </button>
-            </div>
-
-            <div className="bom-compare-box">
-              <label className="bom-field">
-                <span>比較 Draft</span>
-                <select value={compareDraftId} onChange={(event) => loadCompareDraft(event.target.value)} disabled={!selectedDraft}>
-                  <option value="">選擇 Draft 進行比較</option>
-                  {workbench?.drafts
-                    .filter((draft) => draft.id !== selectedDraft?.id)
-                    .map((draft) => (
-                      <option value={draft.id} key={draft.id}>
-                        {draft.draft_name} · {draft.status}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <div className="bom-compare-list">
-                {comparison.map((row) => (
-                  <div className={`bom-compare-row ${row.change}`} key={row.key}>
-                    <strong>{row.label}</strong>
-                    <span>{row.before} → {row.after}</span>
-                  </div>
-                ))}
-                {compareDraftId && comparison.length === 0 && (
-                  <NextStepState
-                    compact
-                    eyebrow="差異比對"
-                    title="兩份 Draft 沒有差異"
-                    body="若內容已確認，可填寫送審原因後送出 BOM 審核，或回交接頁查看 Released 輸出。"
-                    actions={[
-                      { href: "/bom/reviews", label: "看 BOM 審核", variant: "primary" },
-                      { href: "/handoff", label: "看交接" }
-                    ]}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </aside>
       </div>
+      <PdmDetailDrawer
+        open={isDetailOpen}
+        width={drawerWidth}
+        ariaLabel="BOM 節點屬性"
+        resizeLabel="調整 BOM 節點屬性寬度"
+        resizeTitle="拖曳調整 BOM 節點屬性寬度"
+        onClose={() => setIsDetailOpen(false)}
+        onStartResize={startDrawerResize}
+        className="bom-node-detail-drawer"
+      >
+        <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉 BOM 節點屬性" onClick={() => setIsDetailOpen(false)}>
+          ×
+        </button>
+        <div className="pdm-master-detail-panel pdm-master-detail-stack bom-node-detail-stack">
+          <section className="panel bom-properties-panel" aria-label="節點屬性與送審">
+            <div className="panel-header">
+              <div>
+                <h2>節點屬性</h2>
+                <p>{selectedLine ? "調整此節點的 BOM 關係與工程屬性。" : "請先在畫布選擇節點。"}</p>
+              </div>
+              <FileSpreadsheet size={16} aria-hidden="true" />
+            </div>
+            <div className="bom-panel-body">
+              {selectedLine ? (
+                <div className="bom-property-form">
+                  <div className="bom-property-title">
+                    <strong>{selectedLine.node_type === "group" ? selectedLine.group_name : selectedLine.part_number}</strong>
+                    <span>{SOURCE_LABELS[selectedLine.source]} · Priority {selectedLine.source_priority}</span>
+                  </div>
+                  <div className="bom-row-actions">
+                    <button className="icon-button" type="button" onClick={() => moveLine(selectedLine.id, -1)} disabled={!isMutable} aria-label="上移">
+                      <ArrowUp size={14} aria-hidden="true" />
+                    </button>
+                    <button className="icon-button" type="button" onClick={() => moveLine(selectedLine.id, 1)} disabled={!isMutable} aria-label="下移">
+                      <ArrowDown size={14} aria-hidden="true" />
+                    </button>
+                    <button className="icon-button" type="button" onClick={() => indentLine(selectedLine.id)} disabled={!isMutable} aria-label="縮排">
+                      <ArrowRight size={14} aria-hidden="true" />
+                    </button>
+                    <button className="icon-button" type="button" onClick={() => outdentLine(selectedLine.id)} disabled={!isMutable} aria-label="取消縮排">
+                      <ArrowLeft size={14} aria-hidden="true" />
+                    </button>
+                    <button className="icon-button danger" type="button" onClick={() => deleteLine(selectedLine.id)} disabled={!isMutable} aria-label="刪除">
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
+                  </div>
+                  {selectedLine.node_type === "group" ? (
+                    <label className="bom-field">
+                      <span>群組名稱</span>
+                      <input value={selectedLine.group_name ?? ""} onChange={(event) => updateLine(selectedLine.id, { group_name: event.target.value })} disabled={!isMutable} />
+                    </label>
+                  ) : (
+                    <>
+                      <label className="bom-field">
+                        <span>料號</span>
+                        <input value={selectedLine.part_number ?? ""} onChange={(event) => updateLine(selectedLine.id, { part_number: event.target.value })} disabled={!isMutable} />
+                      </label>
+                      <label className="bom-field">
+                        <span>版次</span>
+                        <input value={selectedLine.revision ?? ""} onChange={(event) => updateLine(selectedLine.id, { revision: event.target.value })} disabled={!isMutable} />
+                      </label>
+                      <label className="bom-field">
+                        <span>數量</span>
+                        <input
+                          type="number"
+                          min="0.0001"
+                          step="0.0001"
+                          value={selectedLine.quantity ?? 1}
+                          onChange={(event) => updateLine(selectedLine.id, { quantity: Number(event.target.value) || 1 })}
+                          disabled={!isMutable}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <NextStepState
+                  compact
+                  eyebrow="尚未選取節點"
+                  title="選擇 BOM 節點後可編輯內容"
+                  body="先在中央畫布選一個群組或料號，再調整階層、數量與顯示資訊。"
+                  actions={[
+                    { href: "/bom/reviews", label: "看 BOM 審核", variant: "primary" },
+                    { href: "/numbering/search", label: "查圖料" }
+                  ]}
+                />
+              )}
+
+              <div className="bom-xls-paste">
+                <label className="bom-field">
+                  <span>貼上 SolidWorks BOM XLS / TSV</span>
+                  <textarea value={xlsText} onChange={(event) => setXlsText(event.target.value)} placeholder={"ITEM NO.\tPART NUMBER\tQTY\n1\tP-1001\t2"} />
+                </label>
+                <button className="secondary-button" type="button" onClick={importXlsText} disabled={!selectedSubmission || !xlsText.trim() || loading}>
+                  <UploadCloud size={16} aria-hidden="true" />
+                  匯入貼上內容
+                </button>
+              </div>
+
+              <div className="bom-review-box">
+                <label className="bom-field">
+                  <span>送審原因</span>
+                  <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="描述本次 BOM 變更原因" />
+                </label>
+                <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading}>
+                  <Send size={16} aria-hidden="true" />
+                  送主管審核
+                </button>
+              </div>
+
+              <div className="bom-compare-box">
+                <label className="bom-field">
+                  <span>比較 Draft</span>
+                  <select value={compareDraftId} onChange={(event) => loadCompareDraft(event.target.value)} disabled={!selectedDraft}>
+                    <option value="">選擇 Draft 進行比較</option>
+                    {workbench?.drafts
+                      .filter((draft) => draft.id !== selectedDraft?.id)
+                      .map((draft) => (
+                        <option value={draft.id} key={draft.id}>
+                          {draft.draft_name} · {draft.status}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="bom-compare-list">
+                  {comparison.map((row) => (
+                    <div className={`bom-compare-row ${row.change}`} key={row.key}>
+                      <strong>{row.label}</strong>
+                      <span>{row.before} → {row.after}</span>
+                    </div>
+                  ))}
+                  {compareDraftId && comparison.length === 0 && (
+                    <NextStepState
+                      compact
+                      eyebrow="差異比對"
+                      title="兩份 Draft 沒有差異"
+                      body="若內容已確認，可填寫送審原因後送出 BOM 審核，或回交接頁查看 Released 輸出。"
+                      actions={[
+                        { href: "/bom/reviews", label: "看 BOM 審核", variant: "primary" },
+                        { href: "/handoff", label: "看交接" }
+                      ]}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </PdmDetailDrawer>
     </section>
   );
 }
@@ -995,6 +1170,95 @@ function buildTreeRows(lines: BomWorkbenchLine[]) {
     if (!rows.some((row) => row.line.id === line.id)) rows.push({ line, depth: 0 });
   }
   return rows;
+}
+
+function buildFlowElements(
+  rows: TreeRow[],
+  workbench: BomWorkbenchSummary | null,
+  selectedLineId: string | null,
+  mutable: boolean
+): { nodes: BomFlowNode[]; edges: Edge[] } {
+  const rootLabel = workbench?.parent_part_number ?? "Parent Assembly";
+  const rootSubtitle = workbench ? `${workbench.parent_part_name || "未填品名"} · Rev ${workbench.parent_revision}` : "請先選擇主件";
+  const nodes: BomFlowNode[] = [
+    {
+      id: ROOT_FLOW_NODE_ID,
+      type: "bomNode",
+      position: { x: 0, y: Math.max(0, Math.floor(rows.length / 2) * FLOW_ROW_GAP) },
+      draggable: false,
+      selectable: false,
+      data: {
+        kind: "root",
+        label: rootLabel,
+        subtitle: rootSubtitle,
+        meta: workbench?.parent_drawing_number ?? "BOM root",
+        selected: false,
+        mutable
+      }
+    }
+  ];
+  const edges: Edge[] = [];
+
+  rows.forEach((row, index) => {
+    const line = row.line;
+    const isGroup = line.node_type === "group";
+    const label = isGroup ? line.group_name ?? "未命名群組" : line.part_number ?? "未填料號";
+    const subtitle = isGroup ? "Virtual group" : `${line.part_name ?? "未填品名"} · Rev ${line.revision ?? "-"}`;
+    const meta = isGroup ? `Level ${row.depth + 1}` : `Qty ${line.quantity ?? 1} · Level ${row.depth + 1}`;
+    nodes.push({
+      id: line.id,
+      type: "bomNode",
+      position: {
+        x: (row.depth + 1) * FLOW_COLUMN_GAP,
+        y: index * FLOW_ROW_GAP
+      },
+      draggable: mutable,
+      data: {
+        kind: "line",
+        label,
+        subtitle,
+        meta,
+        source: line.source,
+        nodeType: line.node_type,
+        selected: line.id === selectedLineId,
+        mutable
+      }
+    });
+    edges.push({
+      id: `${line.parent_line_id ?? ROOT_FLOW_NODE_ID}-${line.id}`,
+      source: line.parent_line_id ?? ROOT_FLOW_NODE_ID,
+      target: line.id,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed },
+      className: line.id === selectedLineId ? "selected" : undefined
+    });
+  });
+
+  return { nodes, edges };
+}
+
+function findNearestFlowTarget(position: XYPosition, nodes: BomFlowNode[], draggedNodeId: string) {
+  const draggedCenter = {
+    x: position.x + FLOW_NODE_WIDTH / 2,
+    y: position.y + FLOW_NODE_HEIGHT / 2
+  };
+  let nearest: BomFlowNode | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const node of nodes) {
+    if (node.id === draggedNodeId) continue;
+    const center = {
+      x: node.position.x + FLOW_NODE_WIDTH / 2,
+      y: node.position.y + FLOW_NODE_HEIGHT / 2
+    };
+    const distance = Math.hypot(center.x - draggedCenter.x, center.y - draggedCenter.y);
+    if (distance < nearestDistance) {
+      nearest = node;
+      nearestDistance = distance;
+    }
+  }
+
+  return nearestDistance <= 150 ? nearest : null;
 }
 
 function nextSequence(lines: BomWorkbenchLine[], parentLineId: string | null) {

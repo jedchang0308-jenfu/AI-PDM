@@ -47,6 +47,9 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "重產月報" }).click();
   const reportResponse = await reportResponsePromise;
   record(`Manual monthly report regenerate succeeds at ${viewport.width}px`, reportResponse.ok(), `HTTP ${reportResponse.status()}`);
+  await page.locator(".pdm-detail-drawer").waitFor({ timeout: 10_000 });
+  const backdropColor = await page.locator(".pdm-detail-drawer-backdrop").evaluate((element) => getComputedStyle(element).backgroundColor);
+  record(`Monthly report detail opens as non-dark drawer at ${viewport.width}px`, backdropColor === "rgba(0, 0, 0, 0)" || backdropColor === "transparent", backdropColor);
   await page.getByRole("button", { name: "研發" }).waitFor({ timeout: 10_000 });
   record(`Department tabs render at ${viewport.width}px`, (await page.getByRole("button", { name: "研發" }).count()) >= 1);
   await page.getByRole("button", { name: "PDM 管理" }).click();
@@ -54,6 +57,8 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "專案分頁" }).click();
   record(`Project page renders at ${viewport.width}px`, (await page.getByText(/專案|目前沒有專案待辦資料/).count()) >= 1);
 
+  await page.keyboard.press("Escape");
+  await page.locator(".pdm-detail-drawer").waitFor({ state: "detached", timeout: 10_000 });
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "匯出下載" }).click();
   const download = await downloadPromise;

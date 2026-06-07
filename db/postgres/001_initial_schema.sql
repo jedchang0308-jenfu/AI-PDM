@@ -636,8 +636,8 @@ CREATE TABLE IF NOT EXISTS part_cost_profiles (
   process_name TEXT,
   cost_basis TEXT,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'retired')),
-  effective_from TIMESTAMPTZ,
-  effective_to TIMESTAMPTZ,
+  effective_from TEXT,
+  effective_to TEXT,
   created_by TEXT,
   approved_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -652,8 +652,8 @@ CREATE TABLE IF NOT EXISTS part_cost_tiers (
   cost_profile_id TEXT NOT NULL,
   min_qty INTEGER NOT NULL DEFAULT 1 CHECK (min_qty > 0),
   max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= min_qty),
-  unit_cost NUMERIC NOT NULL CHECK (unit_cost >= 0),
-  setup_cost NUMERIC NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
+  unit_cost DOUBLE PRECISION NOT NULL CHECK (unit_cost >= 0),
+  setup_cost DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
   lead_time_days INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -670,8 +670,8 @@ CREATE TABLE IF NOT EXISTS part_standard_costs (
   standard_reason TEXT,
   selected_by TEXT,
   approved_by TEXT,
-  effective_from TIMESTAMPTZ NOT NULL DEFAULT now(),
-  effective_to TIMESTAMPTZ,
+  effective_from TEXT NOT NULL DEFAULT now(),
+  effective_to TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
@@ -679,10 +679,6 @@ CREATE TABLE IF NOT EXISTS part_standard_costs (
   FOREIGN KEY (selected_by) REFERENCES users(id),
   FOREIGN KEY (approved_by) REFERENCES users(id)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
-ON part_standard_costs(part_number_id)
-WHERE effective_to IS NULL;
 
 CREATE TABLE IF NOT EXISTS part_cost_change_requests (
   id TEXT PRIMARY KEY,
@@ -984,12 +980,24 @@ CREATE TABLE IF NOT EXISTS file_assets (
   storage_key TEXT,
   file_name TEXT NOT NULL,
   file_ext TEXT NOT NULL DEFAULT '',
+  mime_type TEXT,
   file_size BIGINT,
   content_hash TEXT,
   hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
   linked_entity_type TEXT NOT NULL,
   linked_entity_id TEXT NOT NULL,
+  document_category TEXT NOT NULL DEFAULT 'other',
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
   revision TEXT,
+  uploaded_by TEXT,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT,
+  deleted_reason TEXT,
+  gdrive_file_id TEXT,
+  gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed')),
+  gdrive_error TEXT,
+  gdrive_synced_at TIMESTAMPTZ,
   sync_status TEXT NOT NULL DEFAULT 'local_only' CHECK (sync_status IN ('local_only', 'migrated', 'missing', 'hash_mismatch')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1097,14 +1105,14 @@ CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_r
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status_phase ON drawing_numbers(record_status, development_phase);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
+CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
+CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
+CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_duplicate_check_events_created_at ON duplicate_check_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_entity ON warning_events(entity_type, entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_code ON warning_events(warning_code, severity, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_numbering_task_items_scope ON numbering_task_items(task_status, assigned_role, assigned_to, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_numbering_notifications_scope ON numbering_notifications(recipient_role, recipient_id, read_at, handled_at, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
-CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
-CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_rules_version_action ON approval_rules(rule_version_id, action_code);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_entity ON approval_requests(entity_type, entity_id, request_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_action ON approval_requests(action_code, request_status, created_at DESC);
@@ -1243,6 +1251,26 @@ CREATE TRIGGER trg_drawing_numbers_updated_at
 BEFORE UPDATE ON drawing_numbers
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_part_variant_attributes_updated_at ON part_variant_attributes;
+CREATE TRIGGER trg_part_variant_attributes_updated_at
+BEFORE UPDATE ON part_variant_attributes
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_cost_profiles_updated_at ON part_cost_profiles;
+CREATE TRIGGER trg_part_cost_profiles_updated_at
+BEFORE UPDATE ON part_cost_profiles
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
+CREATE TRIGGER trg_part_cost_tiers_updated_at
+BEFORE UPDATE ON part_cost_tiers
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_part_standard_costs_updated_at ON part_standard_costs;
+CREATE TRIGGER trg_part_standard_costs_updated_at
+BEFORE UPDATE ON part_standard_costs
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_numbering_task_items_updated_at ON numbering_task_items;
 CREATE TRIGGER trg_numbering_task_items_updated_at
 BEFORE UPDATE ON numbering_task_items
@@ -1276,26 +1304,6 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_approval_batch_items_updated_at ON approval_batch_items;
 CREATE TRIGGER trg_approval_batch_items_updated_at
 BEFORE UPDATE ON approval_batch_items
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_variant_attributes_updated_at ON part_variant_attributes;
-CREATE TRIGGER trg_part_variant_attributes_updated_at
-BEFORE UPDATE ON part_variant_attributes
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_cost_profiles_updated_at ON part_cost_profiles;
-CREATE TRIGGER trg_part_cost_profiles_updated_at
-BEFORE UPDATE ON part_cost_profiles
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
-CREATE TRIGGER trg_part_cost_tiers_updated_at
-BEFORE UPDATE ON part_cost_tiers
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_standard_costs_updated_at ON part_standard_costs;
-CREATE TRIGGER trg_part_standard_costs_updated_at
-BEFORE UPDATE ON part_standard_costs
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_roles_updated_at ON roles;

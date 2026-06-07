@@ -95,6 +95,18 @@ export {
 } from "@/lib/repositories/user-repository";
 export { findOrCreateItem, listItemRevisionHistory, submissionRevisionExists } from "@/lib/repositories/item-repository";
 export {
+  createMasterAttachment,
+  getMasterAttachment,
+  getMasterAttachmentBytes,
+  listMasterAttachments,
+  softDeleteMasterAttachment,
+  syncMasterAttachmentToDrive,
+  type MasterAttachmentCategory,
+  type MasterAttachmentDriveStatus,
+  type MasterAttachmentEntityType,
+  type MasterAttachmentRecord
+} from "@/lib/repositories/master-attachment-repository";
+export {
   addDrawingNumberToRoot,
   addPartNumberToRoot,
   analyzeMainDrawingObsolescence,
@@ -313,6 +325,7 @@ function initDatabase(database: SqliteDatabase) {
   reconcileItemCurrentRevisions(database);
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
   ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
+  ensureFileAssetsMasterAttachmentSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -358,6 +371,21 @@ function ensureColumn(database: SqliteDatabase, table: string, column: string, d
   if (!columns.some((item) => item.name === column)) {
     database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
+}
+
+function ensureFileAssetsMasterAttachmentSchema(database: SqliteDatabase) {
+  ensureColumn(database, "file_assets", "mime_type", "TEXT");
+  ensureColumn(database, "file_assets", "document_category", "TEXT NOT NULL DEFAULT 'other'");
+  ensureColumn(database, "file_assets", "display_name", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, "file_assets", "description", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, "file_assets", "uploaded_by", "TEXT");
+  ensureColumn(database, "file_assets", "deleted_at", "TEXT");
+  ensureColumn(database, "file_assets", "deleted_by", "TEXT");
+  ensureColumn(database, "file_assets", "deleted_reason", "TEXT");
+  ensureColumn(database, "file_assets", "gdrive_file_id", "TEXT");
+  ensureColumn(database, "file_assets", "gdrive_status", "TEXT NOT NULL DEFAULT 'none'");
+  ensureColumn(database, "file_assets", "gdrive_error", "TEXT");
+  ensureColumn(database, "file_assets", "gdrive_synced_at", "TEXT");
 }
 
 const submissionLifecycleColumns = [

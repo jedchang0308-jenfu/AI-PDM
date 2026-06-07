@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
+import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -633,6 +634,8 @@ function DrawingDetailDrawer({
               <InfoBlock icon={<Workflow size={16} />} title="規則版本" value={drawing.ruleVersionId} />
             </div>
           </section>
+
+          <MasterAttachmentPanel entityType="drawing_number" entityCode={drawing.drawingNumber} />
 
           <section className="panel">
             <div className="panel-header">

@@ -4,7 +4,7 @@ import { verifyDriveFolder } from "@/lib/gdrive";
 
 export const runtime = "nodejs";
 
-const intendedUses = new Set(["pending", "released"]);
+const intendedUses = new Set(["pending", "released", "master_attachments"]);
 
 export async function POST(request: Request) {
   const auth = requireRole(request, ["Admin"]);

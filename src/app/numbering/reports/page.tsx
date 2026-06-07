@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Building2, Download, Eye, FileText, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Download, Eye, FileText, RefreshCw, RotateCcw, ShieldAlert, X } from "lucide-react";
+import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ExportMode = "no_audit" | "last_change_summary" | "full_change_summary";
@@ -77,16 +79,19 @@ export default function NumberingReportsPage() {
   const [reports, setReports] = useState<MonthlyAuditReport[]>([]);
   const [exportJobs, setExportJobs] = useState<NumberingExportJob[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const reportListRef = useRef<HTMLDivElement | null>(null);
+  const [isReportDetailOpen, setIsReportDetailOpen] = useState(false);
   const [reportMonth, setReportMonth] = useState(currentMonth());
   const [exportMode, setExportMode] = useState<ExportMode>("last_change_summary");
   const [activeTab, setActiveTab] = useState<ReportTab>("company");
   const [busy, setBusy] = useState<"report" | "export" | null>(null);
   const [error, setError] = useState("");
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-report-detail-drawer-width" });
 
-  const selectedReport = useMemo(() => reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null, [reports, selectedReportId]);
+  const selectedReport = useMemo(() => (selectedReportId ? reports.find((report) => report.id === selectedReportId) ?? null : null), [reports, selectedReportId]);
   const selectedDepartmentPage = selectedReport?.query.departmentPages?.find((page) => page.key === activeTab) ?? null;
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setState("loading");
     setError("");
     const [reportResponse, exportResponse] = await Promise.all([
@@ -109,14 +114,60 @@ export default function NumberingReportsPage() {
     }
     const nextReports = (reportBody.reports ?? []) as MonthlyAuditReport[];
     setReports(nextReports);
-    setSelectedReportId((current) => current ?? nextReports[0]?.id ?? null);
+    setSelectedReportId((current) => {
+      const nextSelection = current && nextReports.some((report) => report.id === current) ? current : null;
+      setIsReportDetailOpen((open) => open && Boolean(nextSelection));
+      return nextSelection;
+    });
     setExportJobs((exportBody.jobs ?? []) as NumberingExportJob[]);
     setState("ready");
-  }
+  }, []);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  const openReportDetail = useCallback((report: MonthlyAuditReport) => {
+    setSelectedReportId(report.id);
+    setIsReportDetailOpen(true);
   }, []);
+
+  const selectReport = useCallback((report: MonthlyAuditReport, options: { openDetail: boolean }) => {
+    setSelectedReportId(report.id);
+    if (options.openDetail) setIsReportDetailOpen(true);
+  }, []);
+
+  const closeReportDetail = useCallback(() => {
+    setIsReportDetailOpen(false);
+  }, []);
+
+  const reportShortcuts = useListKeyboardShortcuts({
+    items: reports,
+    selectedKey: selectedReportId,
+    listRef: reportListRef,
+    rowSelector: "[data-monthly-report-row='true']",
+    getKey: (report) => report.id,
+    getCopyText: (report) => report.reportMonth,
+    onSelect: selectReport,
+    onOpenDetail: openReportDetail,
+    onCloseDetail: closeReportDetail,
+    isDetailOpen: isReportDetailOpen
+  });
+
+  useEffect(() => {
+    if (!isReportDetailOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".pdm-detail-drawer")) return;
+      if (target.closest("[data-monthly-report-row='true']")) return;
+      setIsReportDetailOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isReportDetailOpen]);
 
   async function regenerateReport() {
     setBusy("report");
@@ -134,6 +185,7 @@ export default function NumberingReportsPage() {
     }
     setReports((current) => [body as MonthlyAuditReport, ...current.filter((report) => report.id !== body.id)]);
     setSelectedReportId(body.id);
+    setIsReportDetailOpen(true);
     setState("ready");
   }
 
@@ -201,7 +253,6 @@ export default function NumberingReportsPage() {
                 </button>
               </div>
             </div>
-            <ReportOverview report={selectedReport} activeTab={activeTab} selectedDepartmentPage={selectedDepartmentPage} onTabChange={setActiveTab} />
           </section>
 
           <section className="panel">
@@ -234,8 +285,38 @@ export default function NumberingReportsPage() {
                 <p style={mutedTextStyle}>切換查看歷次月報，主管可直接下載 JSON 證據。</p>
               </div>
             </div>
-            <MonthlyReportTable reports={reports} selectedId={selectedReport?.id ?? null} onSelect={setSelectedReportId} />
+            <div
+              aria-keyshortcuts={reportShortcuts.shortcuts}
+              aria-label="近期月報清單"
+              onKeyDown={reportShortcuts.handleKeyDown}
+              ref={reportListRef}
+              role="region"
+              tabIndex={0}
+            >
+              <MonthlyReportTable reports={reports} selectedId={selectedReportId} onSelect={openReportDetail} />
+            </div>
           </section>
+
+          <PdmDetailDrawer
+            open={isReportDetailOpen && Boolean(selectedReport)}
+            width={drawerWidth}
+            ariaLabel="月報明細"
+            onClose={closeReportDetail}
+            onStartResize={startDrawerResize}
+          >
+            <section className="panel pdm-master-detail-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>{selectedReport ? `${selectedReport.reportMonth} 月報明細` : "月報明細"}</h2>
+                  <p style={mutedTextStyle}>依部門、專案與主資料數量檢視月報內容。</p>
+                </div>
+                <button className="icon-button" type="button" aria-label="關閉月報明細" onClick={closeReportDetail}>
+                  <X size={16} />
+                </button>
+              </div>
+              <ReportOverview report={selectedReport} activeTab={activeTab} selectedDepartmentPage={selectedDepartmentPage} onTabChange={setActiveTab} />
+            </section>
+          </PdmDetailDrawer>
         </div>
       ) : null}
     </>
@@ -384,7 +465,7 @@ function MonthlyReportTable({
 }: {
   reports: MonthlyAuditReport[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (report: MonthlyAuditReport) => void;
 }) {
   if (reports.length === 0) {
     return <EmptyBlock icon="report" text="尚未產生月報" />;
@@ -403,7 +484,12 @@ function MonthlyReportTable({
         </thead>
         <tbody>
           {reports.map((report) => (
-            <tr className={selectedId === report.id ? "selected-row" : undefined} key={report.id}>
+            <tr
+              className={selectedId === report.id ? "selected-row" : undefined}
+              data-monthly-report-row="true"
+              key={report.id}
+              onClick={() => onSelect(report)}
+            >
               <td>{report.reportMonth}</td>
               <td>
                 <span className={`badge ${report.status === "failed" ? "Rejected" : "Released"}`}>{report.status}</span>
@@ -412,7 +498,7 @@ function MonthlyReportTable({
               <td>{formatDateTime(report.createdAt)}</td>
               <td>
                 <div style={actionGroupStyle}>
-                  <button className="secondary-button" type="button" onClick={() => onSelect(report.id)}>
+                  <button className="secondary-button" type="button" onClick={() => onSelect(report)}>
                     <Eye size={16} />
                     查看
                   </button>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, Eye, FileUp, RotateCcw, ShieldAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, Download, Eye, FileUp, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
+import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -36,16 +38,19 @@ export default function NumberingImportsPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [batches, setBatches] = useState<NumberingImportBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const batchListRef = useRef<HTMLDivElement | null>(null);
+  const [isBatchDetailOpen, setIsBatchDetailOpen] = useState(false);
   const [sourceFilename, setSourceFilename] = useState(`legacy-numbering-${currentDate()}.csv`);
   const [sourceHash, setSourceHash] = useState("");
   const [rawInput, setRawInput] = useState(sampleCsv);
   const [busy, setBusy] = useState<"stage" | "confirm" | null>(null);
   const [error, setError] = useState("");
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-import-detail-drawer-width" });
 
-  const selectedBatch = useMemo(() => batches.find((batch) => batch.id === selectedBatchId) ?? batches[0] ?? null, [batches, selectedBatchId]);
+  const selectedBatch = useMemo(() => (selectedBatchId ? batches.find((batch) => batch.id === selectedBatchId) ?? null : null), [batches, selectedBatchId]);
   const parsedRows = useMemo(() => parseImportRows(rawInput), [rawInput]);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setState("loading");
     setError("");
     const response = await fetch("/api/numbering/import-batches?limit=20");
@@ -65,13 +70,59 @@ export default function NumberingImportsPage() {
     }
     const nextBatches = (body.batches ?? []) as NumberingImportBatch[];
     setBatches(nextBatches);
-    setSelectedBatchId((current) => current ?? nextBatches[0]?.id ?? null);
+    setSelectedBatchId((current) => {
+      const nextSelection = current && nextBatches.some((batch) => batch.id === current) ? current : null;
+      setIsBatchDetailOpen((open) => open && Boolean(nextSelection));
+      return nextSelection;
+    });
     setState("ready");
-  }
+  }, []);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  const openBatchDetail = useCallback((batch: NumberingImportBatch) => {
+    setSelectedBatchId(batch.id);
+    setIsBatchDetailOpen(true);
   }, []);
+
+  const selectBatch = useCallback((batch: NumberingImportBatch, options: { openDetail: boolean }) => {
+    setSelectedBatchId(batch.id);
+    if (options.openDetail) setIsBatchDetailOpen(true);
+  }, []);
+
+  const closeBatchDetail = useCallback(() => {
+    setIsBatchDetailOpen(false);
+  }, []);
+
+  const batchShortcuts = useListKeyboardShortcuts({
+    items: batches,
+    selectedKey: selectedBatchId,
+    listRef: batchListRef,
+    rowSelector: "[data-import-batch-row='true']",
+    getKey: (batch) => batch.id,
+    getCopyText: (batch) => batch.sourceFilename,
+    onSelect: selectBatch,
+    onOpenDetail: openBatchDetail,
+    onCloseDetail: closeBatchDetail,
+    isDetailOpen: isBatchDetailOpen
+  });
+
+  useEffect(() => {
+    if (!isBatchDetailOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".pdm-detail-drawer")) return;
+      if (target.closest("[data-import-batch-row='true']")) return;
+      setIsBatchDetailOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isBatchDetailOpen]);
 
   async function createBatch() {
     if (!parsedRows.ok) {
@@ -99,6 +150,7 @@ export default function NumberingImportsPage() {
     const batch = body as NumberingImportBatch;
     setBatches((current) => [batch, ...current.filter((item) => item.id !== batch.id)]);
     setSelectedBatchId(batch.id);
+    setIsBatchDetailOpen(true);
     setState("ready");
   }
 
@@ -115,6 +167,7 @@ export default function NumberingImportsPage() {
     const nextBatch = body as NumberingImportBatch;
     setBatches((current) => [nextBatch, ...current.filter((item) => item.id !== nextBatch.id)]);
     setSelectedBatchId(nextBatch.id);
+    setIsBatchDetailOpen(true);
     setState("ready");
   }
 
@@ -185,35 +238,55 @@ export default function NumberingImportsPage() {
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2>Staging 檢查報告</h2>
-                <p style={mutedTextStyle}>衝突與待補資料不會寫入正式主檔；確認時只套用 valid rows。</p>
-              </div>
-              {selectedBatch ? (
-                <div style={actionGroupStyle}>
-                  <button className="secondary-button" type="button" onClick={() => downloadJson(selectedBatch, `numbering-import-report-${selectedBatch.id}.json`)}>
-                    <Download size={16} />
-                    下載檢查報告
-                  </button>
-                  <button className="primary-button" type="button" disabled={busy === "confirm" || selectedBatch.status !== "staged"} onClick={() => confirmBatch(selectedBatch)}>
-                    <CheckCircle2 size={16} />
-                    管理員確認
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <BatchSummary batch={selectedBatch} />
-            <StagingRowsTable batch={selectedBatch} />
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
                 <h2>近期匯入批次</h2>
                 <p style={mutedTextStyle}>可切換查看歷次 staging 與確認結果。</p>
               </div>
             </div>
-            <BatchTable batches={batches} selectedId={selectedBatch?.id ?? null} onSelect={setSelectedBatchId} />
+            <div
+              aria-keyshortcuts={batchShortcuts.shortcuts}
+              aria-label="匯入批次清單"
+              onKeyDown={batchShortcuts.handleKeyDown}
+              ref={batchListRef}
+              role="region"
+              tabIndex={0}
+            >
+              <BatchTable batches={batches} selectedId={selectedBatchId} onSelect={openBatchDetail} />
+            </div>
           </section>
+
+          <PdmDetailDrawer
+            open={isBatchDetailOpen && Boolean(selectedBatch)}
+            width={drawerWidth}
+            ariaLabel="匯入批次檢查明細"
+            onClose={closeBatchDetail}
+            onStartResize={startDrawerResize}
+          >
+            <section className="panel pdm-master-detail-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Staging 檢查報告</h2>
+                  <p style={mutedTextStyle}>衝突與待補資料不會寫入正式主檔；確認時只套用 valid rows。</p>
+                </div>
+                {selectedBatch ? (
+                  <div className="pdm-drawer-header-actions">
+                    <button className="secondary-button" type="button" onClick={() => downloadJson(selectedBatch, `numbering-import-report-${selectedBatch.id}.json`)}>
+                      <Download size={16} />
+                      下載檢查報告
+                    </button>
+                    <button className="primary-button" type="button" disabled={busy === "confirm" || selectedBatch.status !== "staged"} onClick={() => confirmBatch(selectedBatch)}>
+                      <CheckCircle2 size={16} />
+                      管理員確認
+                    </button>
+                    <button className="icon-button" type="button" aria-label="關閉匯入批次明細" onClick={closeBatchDetail}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <BatchSummary batch={selectedBatch} />
+              <StagingRowsTable batch={selectedBatch} />
+            </section>
+          </PdmDetailDrawer>
         </div>
       ) : null}
     </>
@@ -300,7 +373,7 @@ function BatchTable({
 }: {
   batches: NumberingImportBatch[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (batch: NumberingImportBatch) => void;
 }) {
   if (batches.length === 0) {
     return (
@@ -329,7 +402,12 @@ function BatchTable({
         </thead>
         <tbody>
           {batches.map((batch) => (
-            <tr className={selectedId === batch.id ? "selected-row" : undefined} key={batch.id}>
+            <tr
+              className={selectedId === batch.id ? "selected-row" : undefined}
+              data-import-batch-row="true"
+              key={batch.id}
+              onClick={() => onSelect(batch)}
+            >
               <td>
                 <strong>{batch.sourceFilename}</strong>
                 <p style={bodyTextStyle}>{batch.sourceHash || "無 hash"}</p>
@@ -342,7 +420,7 @@ function BatchTable({
               </td>
               <td>{batch.confirmedAt ? formatDateTime(batch.confirmedAt) : "尚未確認"}</td>
               <td>
-                <button className="secondary-button" type="button" onClick={() => onSelect(batch.id)}>
+                <button className="secondary-button" type="button" onClick={() => onSelect(batch)}>
                   <Eye size={16} />
                   查看
                 </button>

@@ -28,6 +28,7 @@
 
 | 狀態 | ID | 任務 | 目標 | 通過標準 |
 |---|---|---|---|---|
+| [x] | DEV-BOM-VISUAL-EDITOR-001 | BOM XMind 式圖像化編輯器 | 將 BOM 工作台主編輯區升級為 React Flow 混合畫布，支援父子件與同層排序拖拉，右側屬性改用圖號模組同款 drawer | 已完成；工程師可用圖像化樹狀畫布編輯 BOM 關係；資料仍以 parentLineId + sequenceNo 為準；UI/QC 驗證無 overflow、無 console error |
 | [x] | DEV-UX-PLATFORM-001 | 多角色 AI PDM 平台 UX 架構優化 | 將首頁、導覽與物件頁從 RD 功能清單升級為多角色、物件中心、任務路由的平台 UX | Phase 1A/1B 已完成首頁工作台、sidebar 分群、主要流程 CTA、空狀態/完成狀態與 UI 驗證；自適應任務引擎另列 DEV-UX-PLATFORM-002 |
 | [x] | DEV-BOM-WORKBENCH-001 | BOM 工作台獨立模組 | 建立獨立 BOM 工作台，支援 CAD 自動 Draft、SolidWorks BOM XLS、人工拖拉、多 Draft、Active Draft、主管審核與 Released Snapshot | 第一版完成；BOM 工作台 UI、主管 diff 審核、Released Snapshot、匯出、權限與 regression QC 通過 |
 | [x] | DEV-PDM-NUMBERING-001 | 圖號與料號自動化管理 | 將圖號、料號、主根號、同圖多料號、DVT/發行審核、override、audit 與月報轉為 PDM 模組 | RD 可先領號後補文件；DVT/發行管制可設定；總表可匯入/匯出；audit 與 QC 通過 |
@@ -35,20 +36,66 @@
 | [x] | DEV-PDM-MASTER-WORKBENCH-001 | 圖料三頁主資料工作台一致化 | 將圖料查詢、圖號管理、料號模組三頁改為同權重主資料入口，統一 topbar、filter、左側總表與右側固定明細 | 已完成；三頁共用 `pdm-master-*` layout，桌機左右工作台、手機上下排列、總表主視覺與 runtime QC 通過 |
 | [x] | DEV-PDM-IDENTITY-LIST-001 | 圖料三頁主識別清單 UI/UX 優化 | 將圖料查詢、圖號管理、料號模組清單主畫面調整為圖號 / 品名 / 料號優先，其他資訊降級為 compact meta | 已完成；三頁清單表頭統一、主識別三欄 81.9%、其他欄 18.0%、手機卡片堆疊無水平溢出，右側明細動作仍可用 |
 | [x] | DEV-PDM-DRAWING-SHORTCUTS-001 | 圖號模組清單安全快捷鍵 | 依 `ui-design-principles` 管理系統清單頁模板補齊圖號清單 Excel 類安全查閱快捷鍵 | 已完成；支援 Arrow/Home/Page/Enter/Escape/Ctrl+C，保留瀏覽器快捷鍵與輸入框原生行為，QC 169/169 通過 |
+| [x] | DEV-PDM-DETAIL-DRAWER-001 | 全系統右側明細 Drawer 一致化 | 將點選清單列後出現的右側明細欄統一為圖號模組同款 drawer，支援不暗幕、ESC/外部關閉、切換列、拖拉寬度記憶與安全快捷鍵 | 已完成；共用 drawer、寬度記憶與安全快捷鍵工具已落地，dashboard 與 numbering 明細頁完成一致化，BOM 工具面板與高風險固定 decision panel 保持排除 |
 | [x] | DEV-GDRIVE-001 | Google Drive 資料夾樹狀設定 | 將 `/settings` 的手動 Folder ID 輸入改為 Windows Explorer 式資料夾樹與驗證流程 | Admin 可用樹狀圖指定 pending/released folders；阻擋同資料夾與非資料夾；舊 Folder ID POST 相容 QC 通過 |
+| [x] | DEV-UX-FILE-DROPZONE-001 | 全系統拖曳上傳 UX | 將送審、BOM XLS、圖號附件庫與料號附件庫上傳入口統一為可拖曳/可點擊的 dropzone | 已完成；共用 FileDropzone 落地；單檔區多檔拖入會拒絕；QC、tsc、lint、build 與 browser smoke 通過 |
 | [x] | DEV-UX-005 | 全系統 UI 屬性視覺層級一致化 | 建立一致的識別、狀態、metadata、系統診斷資訊呈現規則 | 主要頁面 100% 縮放無重疊；dashboard/upload/handoff/share 視覺 QC 通過 |
 
 ## Spec Index
 
 | 狀態 | Spec | 關聯任務 | 位置 | 備註 |
 |---|---|---|---|---|
+| [x] | SPEC-BOM-VISUAL-EDITOR-001 | DEV-BOM-VISUAL-EDITOR-001 | [.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md) | Implemented；BOM 工作台升級為 XMind 式混合畫布與圖號模組同款 drawer，QC 通過 |
 | [x] | SPEC-UX-PLATFORM-001 | DEV-UX-PLATFORM-001 | [.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md) | Phase 1A/1B Implemented；首頁工作台、平台導覽、流程定位、空狀態/完成狀態 CTA 已落地 |
 | [x] | SPEC-BOM-WORKBENCH-001 | DEV-BOM-WORKBENCH-001 | [.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md) | Implemented；BOM 工作台第一版 QC 通過 |
 | [x] | SPEC-PDM-NUMBERING-001 | DEV-PDM-NUMBERING-001 | [.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md) | Implemented；圖號料號自動化第一版 QC 通過 |
 | [x] | SPEC-PDM-PART-COST-001 | DEV-PDM-PART-COST-001 | [.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md) | Spec document created；第一版料號模組開發中；已落地料號變體、成本 profile/tier/standard/change request schema、`/parts` 工作台與 QC |
 | [x] | SPEC-PDM-MASTER-WORKBENCH-001 | DEV-PDM-MASTER-WORKBENCH-001 | [.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md) | Implemented；三頁一致化主資料工作台與 QC script 已落地 |
 | [x] | SPEC-PDM-IDENTITY-LIST-001 | DEV-PDM-IDENTITY-LIST-001 | [.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md) | Spec document created；延伸三頁主資料工作台，定義圖號 / 品名 / 料號主識別清單與欄寬驗收 |
+| [x] | SPEC-PDM-DETAIL-DRAWER-001 | DEV-PDM-DETAIL-DRAWER-001 | [.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md) | Implemented；全系統資料明細 drawer 模板、排除範圍與 QC 檢查已落地 |
+| [x] | SPEC-UX-FILE-DROPZONE-001 | DEV-UX-FILE-DROPZONE-001 | [.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md) | Implemented；全系統上傳入口統一拖曳 UX |
 | [x] | Google Drive Folder Tree Settings Spec | DEV-GDRIVE-001 | [docs/google-drive-folder-tree-settings-spec-2026-05-30.md](C:/VIBE%20CODING/AI_PDM/docs/google-drive-folder-tree-settings-spec-2026-05-30.md) | Implemented；保留於既有 docs 位置 |
+
+## DEV-BOM-VISUAL-EDITOR-001：BOM XMind 式圖像化編輯器
+
+狀態：[x]
+優先級：P1
+類型：UX / BOM 關係編輯器
+關聯 spec：[.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md)
+
+## 任務目標
+
+將 `/bom/workbench` 從清單型樹狀編輯升級為混合式圖像畫布：中央使用 React Flow 呈現 parent assembly、group、item 與 BOM edge；左側保留料件搜尋/拖入；右側節點屬性改用圖號模組同款 `PdmDetailDrawer`。拖拉操作必須能改父子件與同層排序，但 BOM 真實資料仍只由 `parentLineId` 與 `sequenceNo` 決定。
+
+## RD 實作項目
+
+- [x] 引入 `@xyflow/react` 並在 BOM 工作台建立自訂 BOM node / edge 畫布。
+- [x] 將 `selectedDraft.lines` 轉換為 deterministic flow nodes/edges，不保存自由座標。
+- [x] 支援節點選取、節點拖拉改 parent、同層排序、搜尋結果拖入畫布與空白區回 root。
+- [x] 以 `PdmDetailDrawer` 取代常駐右側屬性 panel，保留節點編輯、XLS 貼上、送審與 draft compare。
+- [x] 保留既有 save / active / clone / submit review API contract。
+
+## QA 驗證計畫
+
+- [x] 桌面 1440px 驗證畫布節點、edge、toolbar、左側料件庫與 drawer 資訊層級。
+- [x] 手機 390px 驗證不水平溢出，drawer 可開關。
+- [x] 驗證拖入料件、拖成子件、同層排序、非法循環阻擋與 save 後 hierarchy 保留。
+- [x] 驗證 Undo/Redo 與 drawer 編輯流程；快捷鍵完整化保留後續 keyboard interaction slice。
+
+## QC 驗證項目
+
+- [x] `npm.cmd run lint`
+- [x] `npm.cmd run build`
+- [x] `npm.cmd run qc:bom-workbench-tree-rules`
+- [x] `npm.cmd run qc:bom-workbench-ui`
+- [x] `npm.cmd run qc:pdm-system-detail-drawer-ui`
+
+## PM evidence
+
+- SPEC：`SPEC-BOM-VISUAL-EDITOR-001`
+- DEV：`DEV-BOM-VISUAL-EDITOR-001`
+- RD 證據：BOM 工作台 React Flow 畫布與 drawer 實作 diff；[docs/rd-qc-bom-visual-editor-report-2026-06-07.md](C:/VIBE%20CODING/AI_PDM/docs/rd-qc-bom-visual-editor-report-2026-06-07.md)
+- QA/QC 證據：`lint`、`build`、`qc:bom-workbench-tree-rules` 22/22、`qc:bom-workbench-ui` 34/34、`qc:pdm-system-detail-drawer-ui` 53/53 通過
 
 ## DEV-UX-PLATFORM-001：多角色 AI PDM 平台 UX 架構優化
 
@@ -103,7 +150,7 @@
 
 ## DEV-UX-PLATFORM-002：自適應任務路由與角色視角模型
 
-狀態：[/]
+狀態：[x]
 優先級：P2
 關聯 spec：[.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md)
 
@@ -280,6 +327,109 @@
 
 - [x] 本任務只補圖號模組查閱型快捷鍵，不擴大到料號模組或圖料查詢。
 - [x] 不啟用任何資料異動快捷鍵；若未來要在 inline edit 頁使用，需頁面級 opt-in、權限、確認、防誤觸設計與 QC。
+
+## DEV-PDM-DETAIL-DRAWER-001：全系統右側明細 Drawer 一致化
+
+狀態：[x]
+優先級：P1
+類型：UX / 管理系統清單頁明細互動一致化
+關聯 spec：[.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md)
+關聯 skill：`ui-design-principles`
+關聯任務：`DEV-PDM-DRAWING-SHORTCUTS-001`、`DEV-PDM-MASTER-WORKBENCH-001`
+
+## 任務目標
+
+以圖號模組右側 drawer 作為全系統清單頁明細模板，將「點選清單列後出現的資料明細欄」改為一致互動：右側浮出、不暗化底頁、可直接切換列、可用 `Escape` 或點擊外部關閉、可拖拉寬度並記憶，同步補齊安全查閱快捷鍵。
+
+## 已定案範圍
+
+- [x] 首頁 / 工作台圖面送審明細。
+- [x] `/numbering/approvals` 審核批次明細。
+- [x] `/numbering/imports` 匯入批次 / staging 檢查明細。
+- [x] `/numbering/reports` 月報明細。
+- [x] 保留 `/numbering/search`、`/numbering/drawings`、`/parts` 既有圖號模組同款 drawer 行為，必要時抽共用邏輯。
+
+## 不納入本次
+
+- [x] 不改全域左側 sidebar。
+- [x] 不改 BOM 工作台左側搜尋 / 樹狀面板。
+- [x] 不改 BOM 工作台節點屬性面板。
+- [x] 不改 BOM 審核頁固定 decision panel。
+- [x] 不改 API、DB schema、權限矩陣或 sidebar 資訊架構。
+
+## RD 執行項目
+
+- [x] 建立共用 drawer / width memory / outside close / Escape close 工具。
+- [x] 建立或抽出共用清單安全快捷鍵工具。
+- [x] 將首頁工作台明細改為右側 drawer，底頁保持可讀且可直接切換列。
+- [x] 將 `/numbering/approvals` 批次明細改為右側 drawer。
+- [x] 將 `/numbering/imports` staging 檢查明細改為右側 drawer。
+- [x] 將 `/numbering/reports` 月報明細改為右側 drawer。
+- [x] 確認 drawer 寬度可拖拉並用 localStorage 記憶。
+- [x] 確認清單快捷鍵不攔截輸入欄位、下拉欄位、contenteditable 與文字反白。
+
+## QA 驗證計畫
+
+- [x] 驗證每個納入頁面點選列會開啟右側 drawer。
+- [x] 驗證 drawer 開啟後可直接點其他列切換明細。
+- [x] 驗證 `Escape` 與點擊外部可關閉 drawer。
+- [x] 驗證 drawer 不使用深色遮罩，底頁清單仍可讀。
+- [x] 驗證拖拉 drawer 寬度後重新整理仍保留寬度。
+- [x] 驗證 `ArrowUp/Down`、`Enter`、`Escape`、`PageUp/PageDown`、`Home/End`、`Ctrl+C` 的安全查閱行為。
+- [x] 驗證 desktop / laptop / mobile 無水平 overflow、重疊、裁切或按鈕擠壓。
+
+## QC 驗收標準
+
+- [x] `npm.cmd run lint` 通過。
+- [x] `npm.cmd run build` 通過。
+- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過。
+- [x] `npm.cmd run qc:dashboard-detail-priority` 通過。
+- [x] `npm.cmd run qc:pdm-numbering-approval-review-ui` 通過。
+- [x] `npm.cmd run qc:pdm-numbering-import-center-ui` 通過。
+- [x] `npm.cmd run qc:pdm-numbering-report-center-ui` 通過。
+- [x] `npm.cmd run qc:dashboard-quick-access` 通過。
+- [x] `npm.cmd run qc:dashboard-search-assist` 通過。
+- [x] 新增或更新 UI QC，覆蓋全系統資料明細 drawer 一致化。
+
+## 風險 / 注意事項
+
+- [x] 固定工具面板與資料明細 drawer 的用途不同，不應為追求一致而誤改。
+- [x] 若某頁沒有資料，QC 需驗證空狀態位置一致，但不可因此略過有資料時的 drawer 行為。
+- [x] drawer 不暗化底頁，但仍需用陰影、邊線與 z-index 做出足夠視覺區隔。
+
+## DEV-UX-FILE-DROPZONE-001：全系統拖曳上傳 UX
+
+狀態：[x]
+優先級：P1
+關聯 spec：[.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md)
+
+## 任務目標
+
+將系統內既有上傳入口統一為可拖曳、可點擊、可鍵盤操作的 dropzone，降低從 Windows 檔案總管上傳送審檔、BOM XLS、圖號附件與料號附件的 UX 摩擦。
+
+## RD 執行項目
+
+- [x] 新增共用 `FileDropzone` client component，支援 multiple/single、accept、disabled、drag-over、reject callback 與 keyboard focus。
+- [x] `/upload` 改用共用 dropzone，保留多檔、metadata detection、sidecar 分類、移除檔案與送審流程。
+- [x] BOM 工作台 XLS 匯入改用 compact single-file dropzone，拖入多檔時拒絕。
+- [x] 圖號/料號附件庫改用 single-file dropzone，顯示已選檔案與清除動作。
+- [x] 新增全域樣式，確保 drawer 與 mobile viewport 不 overflow、不重疊。
+
+## QA 驗證計畫
+
+- [x] 多檔送審可拖曳、多檔清單與 metadata detection 不回退。
+- [x] BOM XLS 單檔拖曳可匯入，多檔拖入拒絕並提示。
+- [x] 圖號/料號附件單檔拖曳可選取，多檔拖入拒絕並提示。
+- [x] disabled/loading 狀態不接受 drop/click。
+- [x] desktop/mobile 與 drawer 內無文字重疊、按鈕跳動或水平 overflow。
+
+## QC 驗收標準
+
+- [x] `npm.cmd run qc:file-dropzone-ux` 通過。
+- [x] `npx.cmd tsc --noEmit` 通過。
+- [x] `npm.cmd run lint` 通過。
+- [x] `node node_modules/next/dist/bin/next build` 通過。
+- [x] Browser smoke 確認 `/upload`、BOM 工作台、圖號附件庫、料號附件庫皆顯示 dropzone。
 
 ## DEV-PDM-PART-COST-001：主根號關聯圖號料號與料號成本模組
 
@@ -901,6 +1051,10 @@
 
 ## Update Log
 
+- 2026-06-07：`DEV-BOM-VISUAL-EDITOR-001` 完成 BOM XMind 式圖像化編輯器。`/bom/workbench` 中央主編輯區改為 React Flow 混合畫布，parent assembly、group、item 以節點與 edge 呈現；左側搜尋結果新增明確 drag handle 與標準 `DataTransfer` payload；節點可拖曳改 parent / root / 同層排序；右側屬性改用圖號模組同款 `PdmDetailDrawer`，保留 Qty、group、XLS 貼上、送審與 compare 操作。新增 `@xyflow/react` 與更新 `qc:bom-workbench-ui` 視覺化 QC；`lint`、`build`、`qc:bom-workbench-tree-rules` 22/22、`qc:bom-workbench-ui` 34/34、`qc:pdm-system-detail-drawer-ui` 53/53 通過；build 僅保留既有 Turbopack dynamic path / NFT trace warnings。
+- 2026-06-07：`DEV-UX-FILE-DROPZONE-001` 完成 RD 實作。新增共用 `FileDropzone`，將 `/upload` 多檔送審、`/bom/workbench` BOM XLS 匯入、圖號附件庫與料號附件庫統一為可拖曳/可點擊 dropzone；單檔入口支援多檔拒絕提示，附件庫顯示已選檔案與清除動作，後端 API 與 Google Drive 同步流程不變。驗證：`npm.cmd run qc:file-dropzone-ux` 23/23、`npx.cmd tsc --noEmit`、`npm.cmd run lint`、`node node_modules/next/dist/bin/next build` 通過；Browser smoke 確認 `/upload`、BOM 工作台、圖號附件 drawer、料號附件 drawer 皆顯示 dropzone，附件 API 回 200。`npm.cmd run build` 因既有 dev server 鎖定 `.next/dev-3000.err.log` 未採用，改以 direct Next build 驗證。
+- 2026-06-06：`DEV-PDM-DETAIL-DRAWER-001` 完成 RD 實作。新增共用 `PdmDetailDrawer`、`useRememberedDrawerWidth` 與 `useListKeyboardShortcuts`，將首頁工作台圖面送審明細、`/numbering/approvals`、`/numbering/imports`、`/numbering/reports` 的資料明細改為圖號模組同款右側 drawer；支援不暗幕、`Escape`/外部關閉、列切換、拖拉寬度記憶與安全查閱快捷鍵；保留 BOM 工具面板、固定 decision panel、API、DB schema 與權限矩陣不變。驗證：`tsc --noEmit`、`lint`、`build`、`qc:pdm-system-detail-drawer-ui` 53/53、`qc:dashboard-detail-priority` 32/32、`qc:dashboard-quick-access` 16/16、`qc:dashboard-search-assist` 10/10、`qc:pdm-numbering-approval-review-ui` 27/27、`qc:pdm-numbering-import-center-ui` 24/24、`qc:pdm-numbering-report-center-ui` 22/22、`qc:pdm-master-workbench-layout` 224/224 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
+- 2026-06-06：建立 `SPEC-PDM-DETAIL-DRAWER-001` 與 `DEV-PDM-DETAIL-DRAWER-001`，將圖號模組右側明細 drawer 抽象為全系統資料明細欄模板。決策：範圍限點選清單列後出現的資料明細 drawer；同步要求不暗幕、ESC/外部關閉、切換列、拖拉寬度記憶與安全查閱快捷鍵；不納入 sidebar、BOM 工具面板、高風險固定 decision panel、API、DB schema 或權限矩陣。本輪文件建立後接續 RD 實作。
 - 2026-06-05：`DEV-PDM-DRAWING-SHORTCUTS-001` 完成 RD 實作。依 `ui-design-principles` 管理系統清單頁模板，為 `/numbering/drawings` 補上查閱型安全快捷鍵：`ArrowUp/Down`、`Enter`、`Escape`、`PageUp/PageDown`、`Home/End`、`Ctrl+C`；焦點在輸入框、下拉欄位、contenteditable 或有文字反白時不攔截；未覆蓋 `Ctrl+F`、`Ctrl+R/F5`、`Ctrl+S`、`Ctrl+N`、`Ctrl+A`，也未啟用 `Delete` / `F2`。擴充 `qc:pdm-master-workbench-layout`，驗證快捷鍵導覽、開關 drawer、複製選取圖號、輸入框不攔截與文字反白原生複製。驗證：`lint`、`build`、`qc:pdm-master-workbench-layout` 169/169 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
 - 2026-06-04：`DEV-PDM-IDENTITY-LIST-001` 完成 RD 實作。新增共用 `pdm-identity-*` / `pdm-meta-strip` 清單樣式，將 `/numbering/search`、`/numbering/drawings`、`/parts` 清單統一為 `圖號 / 品名 / 料號 / 其他`；圖號管理清單移除大型動作欄，追溯與 MA 影響分析保留於右側明細；料號模組將材質、成本、狀態降級為 compact meta；圖料查詢以 backward-compatible `coreName` response 擴充補足 drawing/root row 品名。擴充 `qc:pdm-master-workbench-layout` 與 `qc:pdm-numbering-search-ui`，驗證三頁 identity class、表頭順序、桌機主識別欄 81.9%、其他欄 18.0%、手機卡片堆疊、無水平溢出與右側動作入口。驗證：`lint`、`build`、`qc:pdm-numbering-core` 238/238、`qc:pdm-master-workbench-layout` 125/125、`qc:pdm-numbering-search-ui` 26/26、`qc:part-number-module` 41/41 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
 - 2026-06-04：建立 `SPEC-PDM-IDENTITY-LIST-001` 與 `DEV-PDM-IDENTITY-LIST-001`，將圖料查詢、圖號管理、料號模組清單主畫面優化定義為 P1 UX / PDM 主識別清單任務。決策：三頁表頭統一為 `圖號 / 品名 / 料號 / 其他`，品名為最大彈性欄，圖號與料號以內容容納寬度為主，次要資訊降級為 compact meta 或右側明細；本輪僅寫入專案文件，未執行 UI 開發。

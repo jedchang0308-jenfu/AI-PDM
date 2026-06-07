@@ -1,6 +1,7 @@
 import { memo, type ReactNode, type RefObject } from "react";
 import { Bell, Eye, MessageSquare, Send, Star, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
+import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
 import type { NotificationItem, NotificationSummary, SubmissionStatus, SubmissionSummary } from "@/lib/types";
 
 export type ChatSource = {
@@ -137,7 +138,13 @@ const SubmissionRow = memo(function SubmissionRow({
   onToggleFavorite
 }: SubmissionRowProps) {
   return (
-    <tr key={submission.id} className={selected ? "selected-row" : undefined} aria-selected={selected} onClick={() => onSelect(submission.id)}>
+    <tr
+      key={submission.id}
+      className={selected ? "selected-row" : undefined}
+      aria-selected={selected}
+      data-dashboard-submission-row="true"
+      onClick={() => onSelect(submission.id)}
+    >
       <td>
         <strong className="identity-primary">{submission.drawing_number}</strong>
       </td>
@@ -329,24 +336,34 @@ function SubmissionTableHead() {
 
 type SubmissionDetailPanelProps = {
   detailPanelRef: RefObject<HTMLElement | null>;
+  drawerWidth: number;
   isDetailLoading: boolean;
   selectedSummary: SubmissionSummary | null;
   statusLabels: StatusLabels;
   onClose: () => void;
+  onStartResize: (clientX: number) => void;
   children: ReactNode;
 };
 
 export function SubmissionDetailPanel({
   detailPanelRef,
+  drawerWidth,
   isDetailLoading,
   selectedSummary,
   statusLabels,
   onClose,
+  onStartResize,
   children
 }: SubmissionDetailPanelProps) {
   return (
     <DashboardComponentBoundary>
-      <aside className={isDetailLoading ? "panel detail-panel loading-detail" : "panel detail-panel"} ref={detailPanelRef} aria-busy={isDetailLoading} aria-label="圖面明細覆蓋層">
+      <PdmDetailDrawer open width={drawerWidth} ariaLabel="圖面明細" onClose={onClose} onStartResize={onStartResize}>
+      <section
+        className={isDetailLoading ? "panel dashboard-detail-drawer-panel loading-detail" : "panel dashboard-detail-drawer-panel"}
+        ref={detailPanelRef}
+        aria-busy={isDetailLoading}
+        aria-label="圖面明細"
+      >
         <div className="panel-header detail-overlay-header">
           <div className="detail-title-stack">
             <h2>圖面明細</h2>
@@ -383,7 +400,8 @@ export function SubmissionDetailPanel({
           </div>
         ) : null}
         {children}
-      </aside>
+      </section>
+      </PdmDetailDrawer>
     </DashboardComponentBoundary>
   );
 }

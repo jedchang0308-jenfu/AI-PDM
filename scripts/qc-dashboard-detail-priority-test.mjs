@@ -104,7 +104,7 @@ async function run() {
 
     await page.locator(".primary-search input").fill(`DETAIL-${unique}`);
     await page.getByText(primary.drawingNumber).first().waitFor({ timeout: 15000 });
-    record("DDP-020 list remains the primary focus before row selection", (await page.locator(".detail-panel").count()) === 0);
+    record("DDP-020 list remains the primary focus before row selection", (await page.locator(".pdm-detail-drawer").count()) === 0);
     const targetRow = page.locator("tbody tr", { hasText: primary.drawingNumber }).first();
     await targetRow.waitFor({ timeout: 15000 });
     await targetRow.locator("td").first().waitFor({ state: "visible", timeout: 15000 });
@@ -113,7 +113,7 @@ async function run() {
     await page.locator(".detail-quick-actions").waitFor({ timeout: 15000 });
     await page.waitForTimeout(500);
 
-    const detailBox = await page.locator(".detail-panel").boundingBox();
+    const detailBox = await page.locator(".pdm-detail-drawer").boundingBox();
     const viewport = page.viewportSize();
     const identifierCellsAfter = await Promise.all([0, 1, 2].map((index) => targetRow.locator("td").nth(index).boundingBox()));
     const thirdIdentifierCellBox = identifierCellsAfter[2];
@@ -122,8 +122,8 @@ async function run() {
       return Boolean(before && after && Math.abs(before.x - after.x) <= 1 && Math.abs(before.width - after.width) <= 1);
     });
     record(
-      "DDP-021 detail opens as a half-screen overlay",
-      Boolean(detailBox && viewport && detailBox.width >= viewport.width * 0.36 && detailBox.width <= viewport.width * 0.46 && detailBox.x > viewport.width * 0.45),
+      "DDP-021 detail opens as right-side drawer",
+      Boolean(detailBox && viewport && detailBox.width >= 380 && detailBox.width <= viewport.width * 0.72 && detailBox.x > viewport.width * 0.5),
       JSON.stringify({ detailBox, viewport })
     );
     record(
@@ -136,10 +136,11 @@ async function run() {
       Boolean(detailBox && thirdIdentifierCellBox && thirdIdentifierCellBox.x + thirdIdentifierCellBox.width <= detailBox.x),
       JSON.stringify({ detailBox, thirdIdentifierCellBox })
     );
+    const backdropColor = await page.locator(".pdm-detail-drawer-backdrop").evaluate((element) => getComputedStyle(element).backgroundColor);
     record(
-      "DDP-025 overlay starts from the identifier boundary",
-      Boolean(detailBox && thirdIdentifierCellBox && Math.abs(detailBox.x - (thirdIdentifierCellBox.x + thirdIdentifierCellBox.width + 12)) <= 2),
-      JSON.stringify({ detailBox, thirdIdentifierCellBox })
+      "DDP-025 drawer does not darken the list backdrop",
+      backdropColor === "rgba(0, 0, 0, 0)" || backdropColor === "transparent",
+      backdropColor
     );
 
     record("DDP-001 detail title is drawing-oriented", await page.getByRole("heading", { name: "圖面明細" }).isVisible());
@@ -213,9 +214,9 @@ async function run() {
     record("DDP-018 diagnostics reveal submission id", await page.getByText(secondary.submissionId).first().isVisible());
     await page.locator(".system-diagnostics .file-diagnostic-item > summary").first().click();
     record("DDP-019 diagnostics reveal SHA256 after file expansion", await page.locator(".system-diagnostics .file-diagnostic-item", { hasText: "SHA256" }).isVisible());
-    await page.getByRole("button", { name: "關閉圖面明細" }).click();
+    await page.locator("button[aria-label='關閉圖面明細']").click();
     await page.waitForTimeout(100);
-    record("DDP-023 close control returns to list-only focus", (await page.locator(".detail-panel").count()) === 0);
+    record("DDP-023 close control returns to list-only focus", (await page.locator(".pdm-detail-drawer").count()) === 0);
 
     await context.close();
   } finally {

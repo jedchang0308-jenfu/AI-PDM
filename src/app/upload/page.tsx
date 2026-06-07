@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, FileSearch, Send, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSearch, Send, X } from "lucide-react";
+import { FileDropzone } from "@/components/file-dropzone";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
 
@@ -56,7 +57,6 @@ export default function UploadPage() {
   const [approvalRequired, setApprovalRequired] = useState<"1" | "2">("1");
   const [detecting, setDetecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
   const submissionFiles = useMemo(() => files.filter((file) => !isMetadataSidecar(file.name)), [files]);
@@ -161,31 +161,14 @@ export default function UploadPage() {
             <h2>1. 選擇檔案</h2>
           </div>
           <div className="upload-panel-body">
-            <label
-              className={dragOver ? "dropzone drag-over" : "dropzone"}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragOver(true);
+            <FileDropzone
+              multiple
+              label="拖拉檔案到這裡，或點選從 Windows 總管選檔"
+              description="送審檔支援 .sldprt、.sldasm、.slddrw、.pdf、.dwg；屬性 sidecar 支援 .pdm.json / .properties / .txt。"
+              onFilesSelected={(selected) => {
+                handleFiles(selected).catch(console.error);
               }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragOver(false);
-                handleFiles(event.dataTransfer.files).catch(console.error);
-              }}
-            >
-              <UploadCloud size={28} aria-hidden="true" />
-              <strong>拖拉檔案到這裡，或點選從 Windows 總管選檔</strong>
-              <span>送審檔支援 .sldprt、.sldasm、.slddrw、.pdf、.dwg；屬性 sidecar 支援 .pdm.json / .properties / .txt。</span>
-              <input
-                type="file"
-                multiple
-                onChange={(event) => {
-                  handleFiles(event.target.files ?? []).catch(console.error);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
+            />
 
             {files.length > 0 ? (
               <div className="upload-file-list">

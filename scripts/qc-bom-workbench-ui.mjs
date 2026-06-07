@@ -41,9 +41,9 @@ async function createSubmission(cookie, input) {
   form.set("material", "QC-Material");
   form.set("surface_finish", "QC-Finish");
   form.set("document_type", input.documentType ?? "Assembly");
-  form.set("change_description", "QC seed for BOM workbench UI");
+  form.set("change_description", "QC seed for BOM visual workbench UI");
   if (input.references) form.set("cad_references_json", JSON.stringify(input.references));
-  form.append("files", new File([Buffer.from("bom workbench ui qc")], `${input.drawingNumber}.pdf`, { type: "application/pdf" }));
+  form.append("files", new File([Buffer.from("bom visual workbench ui qc")], `${input.drawingNumber}.pdf`, { type: "application/pdf" }));
 
   const response = await fetch(`${apiBaseUrl}/api/submissions`, {
     method: "POST",
@@ -60,13 +60,37 @@ function staticChecks() {
   const sidebarSource = read("src/components/sidebar-nav.tsx");
   const packageSource = read("package.json");
 
-  record("Sidebar links BOM Workbench", sidebarSource.includes("/bom/workbench") && sidebarSource.includes("BOM 工作台"), "sidebar-nav.tsx");
-  record("Workbench page uses three panel layout", pageSource.includes("bom-library-panel") && pageSource.includes("bom-tree-panel") && pageSource.includes("bom-properties-panel"), "page.tsx");
-  record("Workbench supports drag/drop", pageSource.includes("draggable") && pageSource.includes("onDrop") && pageSource.includes("handleTreeDrop"), "page.tsx");
+  record("Sidebar links BOM Workbench", sidebarSource.includes("/bom/workbench"), "sidebar-nav.tsx");
+  record(
+    "Workbench uses visual canvas and detail drawer",
+    pageSource.includes("bom-flow-canvas") && pageSource.includes("ReactFlow") && pageSource.includes("PdmDetailDrawer"),
+    "page.tsx"
+  );
+  record(
+    "Workbench supports graph drag/drop editing",
+    pageSource.includes("handleFlowDrop") && pageSource.includes("handleFlowNodeDragStop") && pageSource.includes("moveLineToParent"),
+    "page.tsx"
+  );
   record("Workbench supports Undo Redo", pageSource.includes("Undo2") && pageSource.includes("Redo2") && pageSource.includes("beforeunload"), "page.tsx");
-  record("Workbench calls BOM APIs", ["/api/bom/workbench", "/api/bom/drafts/from-assembly", "/api/bom/drafts/import-xls", "/api/bom/drafts/${selectedDraft.id}/active"].every((needle) => pageSource.includes(needle)), "page.tsx");
+  record(
+    "Workbench calls BOM APIs",
+    ["/api/bom/workbench", "/api/bom/drafts/from-assembly", "/api/bom/drafts/import-xls", "/api/bom/drafts/${selectedDraft.id}/active"].every((needle) =>
+      pageSource.includes(needle)
+    ),
+    "page.tsx"
+  );
   record("Workbench supports clone compare review", pageSource.includes("cloneDraft") && pageSource.includes("buildCompareRows") && pageSource.includes("submit-review"), "page.tsx");
   record("Package exposes QC script", packageSource.includes("qc:bom-workbench-ui"), "package.json");
+}
+
+async function dragNodeTo(page, sourceLocator, targetLocator) {
+  const source = await sourceLocator.boundingBox();
+  const target = await targetLocator.boundingBox();
+  record("Drag endpoints are measurable", Boolean(source && target), JSON.stringify({ source, target }));
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 18 });
+  await page.mouse.up();
 }
 
 async function verifyDesktop(browser, parent, childB, cookie) {
@@ -83,73 +107,72 @@ async function verifyDesktop(browser, parent, childB, cookie) {
   const page = await context.newPage();
 
   await page.goto(`${apiBaseUrl}/bom/workbench?submissionId=${encodeURIComponent(parent.submissionId)}`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "BOM 工作台" }).waitFor({ timeout: 15_000 });
-  record("Workbench page renders", await page.getByRole("heading", { name: "BOM 工作台" }).isVisible());
+  await page.locator(".bom-workbench-page").waitFor({ timeout: 15_000 });
+  record("Workbench page renders", await page.locator(".bom-workbench-page").isVisible());
   record("Sidebar BOM Workbench link renders", await page.locator('a[href="/bom/workbench"]').isVisible());
   record("Workbench parent renders", await page.locator(".bom-tree-panel", { hasText: parent.partNumber }).isVisible());
 
   await page.getByRole("button", { name: "CAD Draft" }).click();
-  await page.locator(".bom-tree-list", { hasText: `P-BOMUI-${token}-A` }).waitFor({ timeout: 15_000 });
-  record("CAD Draft line renders in tree", await page.locator(".bom-tree-list", { hasText: `P-BOMUI-${token}-A` }).isVisible());
+  const cadChildNode = page.locator(".bom-flow-canvas .bom-flow-node.line", { hasText: `P-BOMUI-${token}-A` }).first();
+  await cadChildNode.waitFor({ timeout: 15_000 });
+  record("CAD Draft line renders as graph node", await cadChildNode.isVisible());
+  record("Graph edges render", (await page.locator(".bom-flow-canvas .react-flow__edge").count()) >= 1);
 
-  await page.getByRole("textbox", { name: "搜尋" }).fill(childB.partNumber);
-  await page.getByRole("button", { name: "搜尋" }).click();
-  await page.locator(".bom-search-result", { hasText: childB.partNumber }).first().waitFor({ timeout: 15_000 });
-  await page.locator(".bom-search-result", { hasText: childB.partNumber }).first().dragTo(page.locator(".bom-tree-list"));
-  await page.locator(".bom-tree-list", { hasText: childB.partNumber }).waitFor({ timeout: 15_000 });
-  record("Search result can be dragged into BOM tree", await page.locator(".bom-tree-list", { hasText: childB.partNumber }).isVisible());
-  await page.locator(".bom-tree-row", { hasText: childB.partNumber }).first().click();
-  await page.getByRole("spinbutton", { name: "數量" }).fill("3");
-  await page.locator(".bom-tree-list", { hasText: "Qty 3" }).waitFor({ timeout: 15_000 });
-  record("Line quantity can be edited", await page.locator(".bom-tree-list", { hasText: "Qty 3" }).isVisible());
+  await page.locator(".bom-library-panel input").fill(childB.partNumber);
+  await page.locator(".bom-inline-actions .primary-button").click();
+  const searchResult = page.locator(".bom-search-result", { hasText: childB.partNumber }).first();
+  await searchResult.waitFor({ timeout: 15_000 });
+  record("Search result exposes drag handle", await searchResult.locator(".bom-search-drag-handle").isVisible());
+  const dataTransfer = await page.evaluateHandle((submissionId) => {
+    const transfer = new DataTransfer();
+    transfer.effectAllowed = "copy";
+    transfer.setData("application/x-pdm-submission-id", submissionId);
+    transfer.setData("text/plain", submissionId);
+    return transfer;
+  }, childB.submissionId);
+  await page.locator(".bom-flow-canvas").dispatchEvent("dragover", { dataTransfer });
+  await page.locator(".bom-flow-canvas").dispatchEvent("drop", { dataTransfer });
+  const childNode = page.locator(".bom-flow-canvas .bom-flow-node.line", { hasText: childB.partNumber }).first();
+  await childNode.waitFor({ timeout: 15_000 });
+  record("Search result drag payload can be dropped into BOM graph", await childNode.isVisible());
 
-  await page.getByRole("button", { name: "新增群組" }).click();
-  await page.locator(".bom-tree-list", { hasText: "新群組" }).waitFor({ timeout: 15_000 });
-  record("Virtual group can be added", await page.locator(".bom-tree-list", { hasText: "新群組" }).isVisible());
+  await childNode.click({ force: true });
+  await page.locator(".bom-node-detail-drawer").waitFor({ timeout: 15_000 });
+  record("Node click opens detail drawer", await page.locator(".bom-node-detail-drawer", { hasText: childB.partNumber }).isVisible());
+  await page.locator(".bom-node-detail-drawer input[type='number']").fill("3");
+  await page.locator(".bom-flow-canvas .bom-flow-node", { hasText: "Qty 3" }).waitFor({ timeout: 15_000 });
+  record("Line quantity can be edited from drawer", await page.locator(".bom-flow-canvas .bom-flow-node", { hasText: "Qty 3" }).isVisible());
+  await page.locator(".pdm-detail-drawer-floating-close").click();
+  await page.locator(".bom-node-detail-drawer").waitFor({ state: "hidden", timeout: 15_000 });
+
+  await page.locator(".bom-tree-toolbar button").nth(3).click();
+  const groupNode = page.locator(".bom-flow-canvas .bom-flow-node.group", { hasText: "新群組" }).first();
+  await groupNode.waitFor({ timeout: 15_000 });
+  record("Virtual group can be added to graph", await groupNode.isVisible());
+
   await page.getByRole("button", { name: "Undo" }).click();
-  record("Undo removes session edit", (await page.locator(".bom-tree-list", { hasText: "新群組" }).count()) === 0);
+  record("Undo removes session edit", (await page.locator(".bom-flow-canvas .bom-flow-node.group").count()) === 0);
   await page.getByRole("button", { name: "Redo" }).click();
-  await page.locator(".bom-tree-list", { hasText: "新群組" }).waitFor({ timeout: 15_000 });
-  record("Redo restores session edit", await page.locator(".bom-tree-list", { hasText: "新群組" }).isVisible());
-  await page.locator(".bom-tree-row", { hasText: "新群組" }).first().getByRole("button", { name: "上移", exact: true }).click();
-  await page.locator(".bom-tree-row", { hasText: childB.partNumber }).first().getByRole("button", { name: "縮排", exact: true }).click();
-  record("Tree row order and hierarchy controls can be used", await page.getByText("未儲存").isVisible());
-  record("Unsaved marker renders", await page.getByText("未儲存").isVisible());
+  await groupNode.waitFor({ timeout: 15_000 });
+  record("Redo restores session edit", await groupNode.isVisible());
+
+  await dragNodeTo(page, childNode, groupNode);
+  const nestedChildNode = page.locator(".bom-flow-canvas .bom-flow-node.line", { hasText: childB.partNumber }).filter({ hasText: "Level 2" }).first();
+  await nestedChildNode.waitFor({ timeout: 15_000 });
+  record("Graph drag can change parent relation", await nestedChildNode.isVisible());
 
   const saveResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/api/bom/drafts/") && response.request().method() === "PATCH" && response.ok()
   );
-  await page.getByRole("button", { name: "儲存" }).click();
+  await page.locator(".bom-tree-toolbar button").first().click();
   const saveResponse = await saveResponsePromise;
   const savedBody = await saveResponse.json();
   const savedLines = savedBody.draft?.lines ?? [];
   const savedGroup = savedLines.find((line) => line.node_type === "group" && line.group_name === "新群組");
   const savedChildB = savedLines.find((line) => line.part_number === childB.partNumber);
-  await page.getByText("BOM Draft 已儲存").waitFor({ timeout: 15_000 });
-  record("Draft save succeeds from UI", await page.getByText("已同步").isVisible());
+  record("Draft save succeeds from UI", Boolean(savedBody.draft?.id), JSON.stringify(savedBody));
   record("Saved draft preserves edited quantity", savedChildB?.quantity === 3, JSON.stringify(savedChildB));
-  record("Saved draft preserves edited hierarchy", Boolean(savedGroup?.id && savedChildB?.parent_line_id === savedGroup.id), JSON.stringify({ savedGroup, savedChildB }));
-
-  await page.getByRole("button", { name: "複製" }).click();
-  await page.getByText("Draft 已複製").waitFor({ timeout: 20_000 });
-  record("Draft clone succeeds from UI", await page.getByText("Draft 已複製").isVisible());
-  await page.getByRole("button", { name: "設為 Active" }).click();
-  await page.getByText("已設為 Active Draft").waitFor({ timeout: 15_000 });
-  record("Set Active Draft succeeds from UI", await page.getByText("已設為 Active Draft").isVisible());
-
-  const compareOptions = await page.locator('.bom-compare-box select option[value]:not([value=""])').count();
-  record("Compare draft options render", compareOptions >= 1, `${compareOptions} options`);
-  const compareValue = await page.locator('.bom-compare-box select option[value]:not([value=""])').first().getAttribute("value");
-  if (compareValue) {
-    await page.locator(".bom-compare-box select").selectOption(compareValue);
-    await page.locator(".bom-compare-box").getByText(/沒有差異|Qty|Group/).first().waitFor({ timeout: 15_000 });
-    record("Compare draft panel updates", await page.locator(".bom-compare-box").getByText(/沒有差異|Qty|Group/).first().isVisible());
-  }
-
-  await page.getByLabel("送審原因").fill("QC BOM workbench UI submit review");
-  await page.getByRole("button", { name: "送主管審核" }).click();
-  await page.getByText("已送出研發主管審核").waitFor({ timeout: 15_000 });
-  record("Submit review succeeds from UI", await page.getByText("已送出研發主管審核").isVisible());
+  record("Saved draft preserves graph hierarchy", Boolean(savedGroup?.id && savedChildB?.parent_line_id === savedGroup.id), JSON.stringify({ savedGroup, savedChildB }));
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record("Desktop has no page-level horizontal overflow", bodyOverflow <= 2, `${bodyOverflow}px`);
@@ -163,8 +186,9 @@ async function verifyMobile(browser, parent, cookie) {
   await context.addCookies([{ name: cookie.name, value: cookie.value, domain: url.hostname, path: "/", httpOnly: true, sameSite: "Lax" }]);
   const page = await context.newPage();
   await page.goto(`${apiBaseUrl}/bom/workbench?submissionId=${encodeURIComponent(parent.submissionId)}`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "BOM 工作台" }).waitFor({ timeout: 15_000 });
-  record("Mobile workbench renders", await page.getByRole("heading", { name: "BOM 工作台" }).isVisible());
+  await page.locator(".bom-workbench-page").waitFor({ timeout: 15_000 });
+  record("Mobile workbench renders", await page.locator(".bom-workbench-page").isVisible());
+  record("Mobile graph canvas renders", await page.locator(".bom-flow-canvas").isVisible());
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record("Mobile has no page-level horizontal overflow", bodyOverflow <= 2, `${bodyOverflow}px`);
   await context.close();

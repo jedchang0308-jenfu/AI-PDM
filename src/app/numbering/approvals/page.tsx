@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, X, XCircle } from "lucide-react";
 import { InfoHint, RiskHint } from "@/components/compact-hints";
+import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
@@ -107,14 +109,17 @@ export default function NumberingApprovalsPage() {
   const [batches, setBatches] = useState<ApprovalBatch[]>([]);
   const [statusFilter, setStatusFilter] = useState<(typeof statusFilters)[number]["value"]>("active");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const batchListRef = useRef<HTMLDivElement | null>(null);
+  const [isBatchDetailOpen, setIsBatchDetailOpen] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
   const [commonComment, setCommonComment] = useState("");
   const [itemComments, setItemComments] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<ApprovalDecision | "reload" | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-approval-detail-drawer-width" });
 
-  const selectedBatch = useMemo(() => batches.find((batch) => batch.id === selectedBatchId) ?? batches[0] ?? null, [batches, selectedBatchId]);
+  const selectedBatch = useMemo(() => (selectedBatchId ? batches.find((batch) => batch.id === selectedBatchId) ?? null : null), [batches, selectedBatchId]);
   const selectedItems = useMemo(
     () => selectedBatch?.items.filter((item) => selectedRequestIds.has(item.approvalRequestId) && item.itemStatus === "pending") ?? [],
     [selectedBatch, selectedRequestIds]
@@ -151,9 +156,10 @@ export default function NumberingApprovalsPage() {
     }
     const nextBatches = body.batches ?? [];
     setBatches(nextBatches);
-    setSelectedBatchId((current) => (current && nextBatches.some((batch) => batch.id === current) ? current : nextBatches[0]?.id ?? null));
+    setSelectedBatchId((current) => (current && nextBatches.some((batch) => batch.id === current) ? current : null));
+    setIsBatchDetailOpen((current) => current && nextBatches.some((batch) => batch.id === selectedBatchId));
     setState("ready");
-  }, [statusFilter]);
+  }, [selectedBatchId, statusFilter]);
 
   useEffect(() => {
     loadBatches(statusFilter);
@@ -168,6 +174,48 @@ export default function NumberingApprovalsPage() {
     setCommonComment("");
     setItemComments({});
   }, [selectedBatch]);
+
+  const openBatchDetail = useCallback((batch: ApprovalBatch) => {
+    setSelectedBatchId(batch.id);
+    setIsBatchDetailOpen(true);
+  }, []);
+
+  const selectBatch = useCallback((batch: ApprovalBatch, options: { openDetail: boolean }) => {
+    setSelectedBatchId(batch.id);
+    if (options.openDetail) setIsBatchDetailOpen(true);
+  }, []);
+
+  const closeBatchDetail = useCallback(() => {
+    setIsBatchDetailOpen(false);
+  }, []);
+
+  const batchShortcuts = useListKeyboardShortcuts({
+    items: batches,
+    selectedKey: selectedBatchId,
+    listRef: batchListRef,
+    rowSelector: "[data-approval-batch-row='true']",
+    getKey: (batch) => batch.id,
+    getCopyText: (batch) => batch.batchCode,
+    onSelect: selectBatch,
+    onOpenDetail: openBatchDetail,
+    onCloseDetail: closeBatchDetail,
+    isDetailOpen: isBatchDetailOpen
+  });
+
+  useEffect(() => {
+    if (!isBatchDetailOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".pdm-detail-drawer")) return;
+      if (target.closest("[data-approval-batch-row='true']")) return;
+      setIsBatchDetailOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isBatchDetailOpen]);
 
   function toggleRequest(approvalRequestId: string) {
     setSelectedRequestIds((current) => {
@@ -283,10 +331,28 @@ export default function NumberingApprovalsPage() {
               <ClipboardCheck size={20} color="#475569" />
             </div>
             {state === "loading" ? <div className="empty">正在載入審核批次...</div> : null}
-            {state === "ready" ? <BatchList batches={batches} selectedId={selectedBatch?.id ?? null} onSelect={setSelectedBatchId} /> : null}
+            {state === "ready" ? (
+              <div
+                aria-keyshortcuts={batchShortcuts.shortcuts}
+                aria-label="審核批次清單"
+                onKeyDown={batchShortcuts.handleKeyDown}
+                ref={batchListRef}
+                role="region"
+                tabIndex={0}
+              >
+                <BatchList batches={batches} selectedId={selectedBatchId} onSelect={openBatchDetail} />
+              </div>
+            ) : null}
           </section>
 
-          <section className="panel">
+          <PdmDetailDrawer
+            open={isBatchDetailOpen && Boolean(selectedBatch)}
+            width={drawerWidth}
+            ariaLabel="審核批次明細"
+            onClose={closeBatchDetail}
+            onStartResize={startDrawerResize}
+          >
+          <section className="panel pdm-master-detail-panel">
             <div className="panel-header">
               <div>
                 <h2>{selectedBatch ? selectedBatch.batchCode : "批次明細"}</h2>
@@ -295,9 +361,14 @@ export default function NumberingApprovalsPage() {
                 </p>
                 {selectedBatch?.markers?.length ? <MarkerList markers={selectedBatch.markers} /> : null}
               </div>
-              <span className={`badge ${selectedBatch?.batchStatus === "approved" ? "Released" : selectedBatch?.batchStatus === "rejected" ? "Rejected" : "Pending"}`}>
-                {selectedBatch ? batchStatusLabel(selectedBatch.batchStatus) : "-"}
-              </span>
+              <div className="pdm-drawer-header-actions">
+                <span className={`badge ${selectedBatch?.batchStatus === "approved" ? "Released" : selectedBatch?.batchStatus === "rejected" ? "Rejected" : "Pending"}`}>
+                  {selectedBatch ? batchStatusLabel(selectedBatch.batchStatus) : "-"}
+                </span>
+                <button className="icon-button" type="button" aria-label="關閉審核批次明細" onClick={closeBatchDetail}>
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             {selectedBatch ? (
               <>
@@ -341,6 +412,7 @@ export default function NumberingApprovalsPage() {
               <div className="empty">目前沒有 DVT/發行審核批次</div>
             )}
           </section>
+          </PdmDetailDrawer>
         </div>
       </div>
     </>
@@ -354,7 +426,7 @@ function BatchList({
 }: {
   batches: ApprovalBatch[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (batch: ApprovalBatch) => void;
 }) {
   if (batches.length === 0) {
     return <div className="empty">目前沒有審核批次</div>;
@@ -374,7 +446,12 @@ function BatchList({
         </thead>
         <tbody>
           {batches.map((batch) => (
-            <tr className={selectedId === batch.id ? "selected-row" : undefined} key={batch.id}>
+            <tr
+              className={selectedId === batch.id ? "selected-row" : undefined}
+              data-approval-batch-row="true"
+              key={batch.id}
+              onClick={() => onSelect(batch)}
+            >
               <td>
                   <strong>{batch.batchCode}</strong>
                   <p style={bodyTextStyle}>{actionLabel(batch.actionCode)}</p>
@@ -392,7 +469,7 @@ function BatchList({
                 <p style={mutedTextStyle}>{batch.submittedByRole}</p>
               </td>
               <td>
-                <button className="secondary-button" type="button" onClick={() => onSelect(batch.id)}>
+                <button className="secondary-button" type="button" onClick={() => onSelect(batch)}>
                   查看
                 </button>
               </td>

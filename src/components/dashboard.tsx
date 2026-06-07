@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
 import { NextStepState } from "@/components/next-step-state";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -499,7 +500,7 @@ export function Dashboard() {
   const [submissionTableScrollTop, setSubmissionTableScrollTop] = useState(0);
   const [submissionTableViewportHeight, setSubmissionTableViewportHeight] = useState(640);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detailOverlayLeft, setDetailOverlayLeft] = useState<number | null>(null);
+  const { drawerWidth: detailDrawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-dashboard-detail-drawer-width" });
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SubmissionDetail | null>(null);
   const [detailLayerOpen, setDetailLayerOpen] = useState({ engineering: false, collaboration: false });
@@ -607,10 +608,6 @@ export function Dashboard() {
     [detail, selectedId, submissions]
   );
   const isDetailLoading = Boolean(loadingDetailId);
-  const detailFocusStyle = useMemo(
-    () => (detailOverlayLeft ? ({ "--detail-overlay-left": `${detailOverlayLeft}px` } as CSSProperties) : undefined),
-    [detailOverlayLeft]
-  );
   const virtualTable = useMemo(() => {
     const visibleCount = Math.ceil(submissionTableViewportHeight / virtualRowHeight) + virtualOverscan * 2;
     const startIndex = Math.max(Math.floor(submissionTableScrollTop / virtualRowHeight) - virtualOverscan, 0);
@@ -1134,36 +1131,25 @@ export function Dashboard() {
   }, [selectedId]);
 
   useEffect(() => {
+    if (!selectedId) return;
+
+    function closeDetailOnOutsidePointer(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".pdm-detail-drawer")) return;
+      if (target.closest("[data-dashboard-submission-row='true']")) return;
+      setSelectedId(null);
+    }
+
+    document.addEventListener("pointerdown", closeDetailOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeDetailOnOutsidePointer);
+  }, [selectedId]);
+
+  useEffect(() => {
     if (!selectedId) {
       setDetailLayerOpen({ engineering: false, collaboration: false });
     }
   }, [selectedId]);
-
-  useLayoutEffect(() => {
-    if (!selectedId) {
-      setDetailOverlayLeft(null);
-      return;
-    }
-
-    function updateDetailOverlayLeft() {
-      const selectedRow = submissionTableWrapRef.current?.querySelector("tr.selected-row");
-      const identifierCell = selectedRow?.querySelectorAll("td").item(2);
-      const identifierRight = identifierCell?.getBoundingClientRect().right;
-      const viewportWidth = window.innerWidth;
-      const gap = 12;
-      const minPanelWidth = viewportWidth <= 1180 ? 420 : 520;
-      const maxLeft = Math.max(viewportWidth - minPanelWidth - 20, 12);
-      setDetailOverlayLeft(identifierRight ? Math.min(Math.ceil(identifierRight + gap), maxLeft) : null);
-    }
-
-    updateDetailOverlayLeft();
-    const frame = window.requestAnimationFrame(updateDetailOverlayLeft);
-    window.addEventListener("resize", updateDetailOverlayLeft);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", updateDetailOverlayLeft);
-    };
-  }, [selectedId, virtualTable.rows]);
 
   useLayoutEffect(() => {
     if (selectedSummary) rememberDrawing(selectedSummary);
@@ -2018,7 +2004,7 @@ export function Dashboard() {
       </section>
       </FinderToolbar>
 
-      <div className={selectedId ? "grid detail-focus-mode" : "grid"} style={detailFocusStyle}>
+      <div className={selectedId ? "grid detail-focus-mode" : "grid"}>
         <SubmissionTable
           loading={loading}
           visibleSubmissions={visibleSubmissions}
@@ -2043,10 +2029,12 @@ export function Dashboard() {
         {selectedId ? (
           <SubmissionDetailPanel
             detailPanelRef={detailPanelRef}
+            drawerWidth={detailDrawerWidth}
             isDetailLoading={isDetailLoading}
             selectedSummary={selectedSummary}
             statusLabels={statusLabels}
             onClose={() => setSelectedId(null)}
+            onStartResize={startDrawerResize}
           >
           {detail ? (
             <div className="detail">

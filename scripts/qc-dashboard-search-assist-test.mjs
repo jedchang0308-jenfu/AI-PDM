@@ -99,14 +99,14 @@ async function run() {
     );
     record("DSA-004 suggestion fills search with drawing number", (await input.inputValue()) === `ASSIST-${unique}`);
 
+    await page.keyboard.press("Escape");
+    await page.locator(".pdm-detail-drawer").waitFor({ state: "detached", timeout: 5000 });
     await page.locator("tr", { hasText: `ASSIST-${unique}` }).getByRole("button", { name: `收藏 ASSIST-${unique}` }).click();
     await page.locator("tr", { hasText: `ASSIST-${unique}` }).locator(".icon-button.favorite.active").waitFor({ timeout: 5000 });
     record("DSA-005 favorite button becomes active", await page.locator("tr", { hasText: `ASSIST-${unique}` }).locator(".icon-button.favorite.active").isVisible());
     const favoriteGroup = page.locator(".recent-access > div", { hasText: "常用圖面" });
     record("DSA-006 favorite drawing chip is recorded", await favoriteGroup.getByRole("button", { name: `ASSIST-${unique} Rev A` }).isVisible());
 
-    await page.locator(".detail-close-button").click();
-    await page.locator(".detail-panel").waitFor({ state: "detached", timeout: 5000 });
     await favoriteGroup.getByRole("button", { name: `ASSIST-${unique} Rev A` }).click();
     await page.locator("tr", { hasText: `ASSIST-${unique}` }).first().waitFor({ timeout: 15000 });
     record("DSA-007 favorite chip restores drawing search", (await input.inputValue()) === `ASSIST-${unique}`);

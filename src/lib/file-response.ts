@@ -57,7 +57,7 @@ function contentTypeFor(file: SubmissionFile) {
   return "application/octet-stream";
 }
 
-function contentDispositionFilename(filename: string) {
+export function contentDispositionFilename(filename: string) {
   return filename.replace(/["\r\n\\]/g, "_");
 }
 
