@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-05-25",
+  "releaseTarget": "AI PDM MVP production readiness",
+  "notes": "QC records every discovered defect here. Production readiness requires zero active P0/P1 defects.",
+  "defects": []
+}

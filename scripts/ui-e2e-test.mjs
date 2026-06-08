@@ -109,7 +109,13 @@ async function run() {
     await loginContext.close();
 
     const { context: managerContext, page: managerPage } = await authenticatedPage(browser, "manager@example.com");
-    record("UI-002 manager dashboard loads", await managerPage.locator('section[aria-label="送審統計"]').count().then((count) => count === 1));
+    record(
+      "UI-002 manager dashboard loads",
+      await managerPage
+        .locator('section[aria-label="AI PDM multi-role workbench"]')
+        .count()
+        .then((count) => count === 1)
+    );
     await openSubmissionByDrawing(managerPage, `UIE2E-${unique}`);
     await managerPage.locator(".detail-quick-actions").waitFor({ timeout: 15000 });
     record("UI-003 manager can open seeded submission detail", await managerPage.locator(".detail-quick-actions").isVisible());

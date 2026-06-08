@@ -1,6 +1,11 @@
 .next/
 node_modules/
 data/
+!data/
+data/*
+!data/quality/
+data/quality/*
+!data/quality/defect-register.json
 .tmp/
 tmp/
 artifacts/
