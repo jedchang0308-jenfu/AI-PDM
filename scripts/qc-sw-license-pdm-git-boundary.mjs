@@ -121,34 +121,46 @@ if (!docMap.includes(handoffPath)) {
 }
 
 const devTask = existsSync('.ai-doc/dev_task.md') ? read('.ai-doc/dev_task.md') : '';
-if (!devTask.includes('existing unrelated Supabase staged files')) {
-  failures.push('dev_task does not document the unrelated staged-file commit boundary');
+const boundaryClosed =
+  devTask.includes('6f4dbab') &&
+  devTask.includes('DEV-SW-LICENSE-PDM-001 add company-scoped PDM boundary') &&
+  devTask.includes('be333eb') &&
+  devTask.includes('DEV-SUPABASE-DB-001 record staging gate B evidence');
+
+if (boundaryClosed) {
+  notes.push('dev_task records closed SW/PDM commit boundary and separate Supabase evidence commit');
+} else if (!devTask.includes('existing unrelated Supabase staged files')) {
+  failures.push('dev_task does not document either the closed commit boundary or the prior unrelated staged-file boundary');
 }
 
 const tempIndex = join(
   tmpdir(),
   `ai-pdm-sw-pdm-boundary-${Date.now()}-${Math.random().toString(16).slice(2)}.index`,
 );
-try {
-  const env = { ...process.env, GIT_INDEX_FILE: tempIndex };
-  git(['read-tree', 'HEAD'], { env });
-  for (const path of cleanIndexCandidateFiles) {
-    git(['add', '--', path], { env });
-  }
-  const cleanCandidate = git(['diff', '--cached', '--name-only'], { env });
-  const cleanCandidateSet = new Set(cleanCandidate);
-  const leakedUnrelated = expectedUnrelatedStaged.filter((path) => cleanCandidateSet.has(path));
-  if (leakedUnrelated.length > 0) {
-    failures.push(`clean-index simulation leaked unrelated staged files: ${leakedUnrelated.join(', ')}`);
-  }
-  for (const path of cleanIndexCandidateFiles) {
-    if (!cleanCandidateSet.has(path)) {
-      failures.push(`clean-index simulation missing candidate file: ${path}`);
+if (boundaryClosed) {
+  notes.push('clean-index simulation skipped because the scoped SW/PDM commit is already closed');
+} else {
+  try {
+    const env = { ...process.env, GIT_INDEX_FILE: tempIndex };
+    git(['read-tree', 'HEAD'], { env });
+    for (const path of cleanIndexCandidateFiles) {
+      git(['add', '--', path], { env });
     }
+    const cleanCandidate = git(['diff', '--cached', '--name-only'], { env });
+    const cleanCandidateSet = new Set(cleanCandidate);
+    const leakedUnrelated = expectedUnrelatedStaged.filter((path) => cleanCandidateSet.has(path));
+    if (leakedUnrelated.length > 0) {
+      failures.push(`clean-index simulation leaked unrelated staged files: ${leakedUnrelated.join(', ')}`);
+    }
+    for (const path of cleanIndexCandidateFiles) {
+      if (!cleanCandidateSet.has(path)) {
+        failures.push(`clean-index simulation missing candidate file: ${path}`);
+      }
+    }
+    notes.push(`clean-index candidate files: ${cleanCandidate.length}`);
+  } finally {
+    rmSync(tempIndex, { force: true });
   }
-  notes.push(`clean-index candidate files: ${cleanCandidate.length}`);
-} finally {
-  rmSync(tempIndex, { force: true });
 }
 
 if (failures.length > 0) {
@@ -164,7 +176,11 @@ for (const note of notes) {
   console.log(`- ${note}`);
 }
 if (stagedUnrelated.length === 0) {
-  console.log('- direct commit boundary can close for the current staged SW/PDM group');
+  if (boundaryClosed) {
+    console.log('- direct commit boundary is already closed for the SW/PDM group');
+  } else {
+    console.log('- direct commit boundary can close for the current staged SW/PDM group');
+  }
 } else {
   console.log('- direct commit remains intentionally deferred until index cleanup or explicit PM grouping approval');
 }
