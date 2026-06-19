@@ -4,6 +4,7 @@ import type { CSSProperties, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, FileSearch, Link2, RotateCcw, Search, ShieldAlert, X } from "lucide-react";
 import { CompactSummary, RiskHint } from "@/components/compact-hints";
+import { ObjectLifecycleStatusPanel, buildUploadPrefillHref } from "@/components/lifecycle-ux";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type EntityType = "all" | "part_root" | "part_number" | "drawing_number";
@@ -782,6 +783,22 @@ function RootDetailPanel({
     );
   }
 
+  const primaryPart = detail.partNumbers[0] ?? null;
+  const primaryDrawing = detail.drawingNumbers.find((drawingNumber) => drawingNumber.isPrimaryManufacturing) ?? detail.drawingNumbers[0] ?? null;
+  const canUploadFromDetail = Boolean(primaryPart || primaryDrawing);
+  const primaryAction = canUploadFromDetail
+    ? {
+        href: buildUploadPrefillHref({
+          rootCode: detail.root.rootCode,
+          drawingNumber: primaryDrawing?.drawingNumber,
+          partNumber: primaryPart?.partNumber,
+          partName: primaryPart?.partName ?? detail.root.coreName,
+          developmentPhase: detail.root.developmentPhase
+        }),
+        label: detail.root.recordStatus === "Released" ? "建立新版送審" : "接續上傳送審"
+      }
+    : undefined;
+
   return (
     <section className="panel pdm-master-detail-panel">
       <div className="panel-header">
@@ -801,6 +818,31 @@ function RootDetailPanel({
           <Metric label="MA 圖" value={detail.summary.primaryManufacturingCount} />
           <Metric label="提醒" value={detail.summary.warningCount} />
         </div>
+
+        <ObjectLifecycleStatusPanel
+          title="這個主根目前狀態"
+          objectName={`${detail.root.rootCode} / ${detail.root.coreName}`}
+          status={detail.root.recordStatus}
+          phase={detail.root.developmentPhase}
+          owner="RD / Manager"
+          identities={[
+            { label: "主根號", value: detail.root.rootCode },
+            { label: "主要料號", value: primaryPart?.partNumber ?? "-" },
+            { label: "主要圖號", value: primaryDrawing?.drawingNumber ?? "-" },
+            { label: "提醒", value: detail.summary.warningCount }
+          ]}
+          blockers={[
+            detail.root.recordStatus === "Draft" ? "已領號但尚未建立 submission" : "需確認 submission、BOM 與 gate 狀態",
+            detail.summary.primaryManufacturingCount === 0 ? "尚未找到主要 MA 圖" : "主要 MA 圖可在下方圖號區檢查",
+            detail.summary.warningCount > 0 ? `仍有 ${detail.summary.warningCount} 則提醒未收斂` : "目前沒有未確認提醒"
+          ]}
+          nextStep={detail.root.recordStatus === "Released" ? "若要改版，先進行 ECR / 影響分析，再建立新版送審。" : "RD 需接續送審或補齊缺口；主管核准後才會進 Released。"}
+          primaryAction={primaryAction}
+          secondaryActions={[
+            { href: "/numbering/tasks", label: "看待辦 / 草稿" },
+            { href: "/numbering/impact", label: "MA 影響分析" }
+          ]}
+        />
 
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>料號</h3>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, RotateCcw, Search, Send } from "lucide-react";
 import { LabelWithInfo } from "@/components/compact-hints";
+import { ObjectLifecycleStatusPanel, buildUploadPrefillHref, LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -264,6 +265,19 @@ export default function NumberingRequestPage() {
         ]}
       />
 
+      <LifecycleStageGuidance
+        activeStage="numbering"
+        metrics={[
+          { label: "Phase", value: developmentPhase },
+          { label: "Required gaps", value: validation.length, tone: validation.length > 0 ? "warning" : "success" },
+          {
+            label: "Duplicate risk",
+            value: duplicateResult ? (duplicateResult.blocked ? "Blocked" : duplicateResult.matches.length) : "Not checked",
+            tone: duplicateResult?.blocked ? "critical" : duplicateResult?.matches.length ? "warning" : "neutral"
+          }
+        ]}
+      />
+
       {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再申請圖料號。" /> : null}
       {state === "forbidden" ? <AccessPanel title="權限不足" message="工程師、研發主管或管理員可申請圖料號。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={() => setState("ready")} /> : null}
@@ -471,6 +485,14 @@ function DuplicatePanel({ result }: { result: DuplicateResult | null }) {
 
 function ResultPanel({ record }: { record: CreatedRecord | null }) {
   if (!record) return null;
+  const uploadHref = buildUploadPrefillHref({
+    rootCode: record.root.rootCode,
+    drawingNumber: record.drawingNumber?.drawingNumber,
+    partNumber: record.partNumber.partNumber,
+    partName: record.partNumber.partName,
+    developmentPhase: record.root.developmentPhase
+  });
+  const objectLabel = `${record.root.rootCode} / ${record.partNumber.partNumber}${record.drawingNumber ? ` / ${record.drawingNumber.drawingNumber}` : ""}`;
   return (
     <section className="panel">
       <div className="panel-header">
@@ -486,13 +508,36 @@ function ResultPanel({ record }: { record: CreatedRecord | null }) {
         <ResultCard label="圖號" value={record.drawingNumber?.drawingNumber ?? "未領圖號"} />
         <ResultCard label="客製規格" value={record.partNumber.customSpecification ?? "-"} />
       </div>
+      <ObjectLifecycleStatusPanel
+        title="這張圖料現在在哪一步"
+        objectName={objectLabel}
+        status={record.root.recordStatus}
+        phase={record.root.developmentPhase}
+        owner="RD"
+        identities={[
+          { label: "主根號", value: record.root.rootCode },
+          { label: "料號", value: record.partNumber.partNumber },
+          { label: "圖號", value: record.drawingNumber?.drawingNumber ?? "未建立" },
+          { label: "品名", value: record.partNumber.partName }
+        ]}
+        blockers={[
+          "號碼已建立但尚未送審，不是 Released 工程資料",
+          record.drawingNumber ? "尚未上傳圖面、3D/PDF/DWG 與變更原因" : "尚未建立圖號，後續若需製造圖須先補圖號"
+        ]}
+        nextStep="接著上傳設計資料建立 Pending submission；送出後由審核者接手，不是 RD 自行放行。"
+        primaryAction={{ href: uploadHref, label: "帶入這組號碼去送審" }}
+        secondaryActions={[
+          { href: `/numbering/search?query=${encodeURIComponent(record.root.rootCode)}`, label: "查看主根明細" },
+          { href: "/numbering/tasks", label: "看待辦 / 草稿" }
+        ]}
+      />
       <NextStepState
         compact
         eyebrow="完成後"
         title="草稿號碼已建立"
         body="下一步可上傳圖面送審，或先回查圖料確認同圖多料號與既有關聯。"
         actions={[
-          { href: "/upload", label: "上傳送審", variant: "primary" },
+          { href: uploadHref, label: "上傳送審", variant: "primary" },
           { href: "/numbering/search", label: "回圖料模組" }
         ]}
       />

@@ -39,6 +39,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FileDropzone } from "@/components/file-dropzone";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { WorkflowStrip } from "@/components/workflow-strip";
@@ -768,6 +769,15 @@ export default function BomWorkbenchPage() {
         actions={[
           { href: "/bom/reviews", label: "去 BOM 審核", variant: "primary" },
           { href: "/handoff", label: "看交接輸出" }
+        ]}
+      />
+
+      <LifecycleStageGuidance
+        activeStage="bom"
+        metrics={[
+          { label: "Draft status", value: selectedDraft?.status ?? "No draft", tone: selectedDraft ? "neutral" : "warning" },
+          { label: "Lines", value: selectedDraft?.lines.length ?? 0 },
+          { label: "Unsaved", value: dirty ? "Yes" : "No", tone: dirty ? "warning" : "success" }
         ]}
       />
 

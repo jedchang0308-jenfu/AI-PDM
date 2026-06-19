@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, X, XCircle } from "lucide-react";
 import { InfoHint, RiskHint } from "@/components/compact-hints";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 
@@ -291,6 +292,16 @@ export default function NumberingApprovalsPage() {
           重新整理
         </button>
       </div>
+
+      <LifecycleStageGuidance
+        activeStage="review"
+        metrics={[
+          { label: "Batches", value: metrics.batches },
+          { label: "Pending items", value: metrics.pendingItems, tone: metrics.pendingItems > 0 ? "warning" : "success" },
+          { label: "Proxy", value: metrics.proxyItems, tone: metrics.proxyItems > 0 ? "warning" : "neutral" },
+          { label: "Exceptions", value: metrics.exceptionItems, tone: metrics.exceptionItems > 0 ? "critical" : "neutral" }
+        ]}
+      />
 
       {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看 DVT/發行審核。" /> : null}
       {state === "forbidden" ? <AccessPanel title="權限不足" message="DVT/發行審核需研發主管或管理員權限。" /> : null}

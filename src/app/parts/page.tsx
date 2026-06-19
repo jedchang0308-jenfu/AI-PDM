@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X } from "lucide-react";
+import { CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X, XCircle } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 
@@ -65,7 +65,16 @@ type PartDetail = PartListRecord & {
     status: string;
     tiers: Array<{ id: string; minQty: number; maxQty: number | null; unitCost: number; setupCost: number; leadTimeDays: number | null }>;
   }>;
-  costChangeRequests: Array<{ id: string; requestType: string; reviewStatus: string; changeReason: string; requestedAt: string }>;
+  costChangeRequests: Array<{
+    id: string;
+    proposedCostProfileId: string | null;
+    requestType: string;
+    reviewStatus: string;
+    changeReason: string;
+    requestedAt: string;
+    reviewedAt: string | null;
+    reviewComment: string | null;
+  }>;
 };
 
 const statuses = ["", "Draft", "Active", "PendingReview", "Released", "Obsolete"] as const;
@@ -557,7 +566,7 @@ function PartList({
                     <span className={`badge ${part.recordStatus}`}>{part.recordStatus}</span>
                     <span className="pdm-meta-chip">{part.developmentPhase}</span>
                     <span className="pdm-meta-chip">{variantLabel(part.variant)}</span>
-                    {part.standardCost ? <span className="pdm-meta-chip">{part.standardCost.currency} {formatNumber(part.standardCost.unitCost)}</span> : null}
+                    {part.standardCost ? <span className="pdm-meta-chip">{standardCostChipLabel(part.standardCost)}</span> : null}
                     {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本待審</span> : null}
                   </div>
                 </td>
@@ -665,6 +674,21 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
     await onUpdated();
   }
 
+  async function decideCostRequest(requestId: string, decision: "approve" | "reject") {
+    setBusy(true);
+    await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/cost-change-requests/${encodeURIComponent(requestId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        decision,
+        basisQty: 1,
+        reviewComment: decision === "approve" ? "主管核准成本設定並設為標準成本。" : "主管退回成本設定。"
+      })
+    });
+    setBusy(false);
+    await onUpdated();
+  }
+
   return (
     <div className="pdm-master-detail-panel pdm-master-detail-stack">
       <section className="panel">
@@ -678,7 +702,7 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
         <div style={detailGridStyle}>
           <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
           <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
-          <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={detail.standardCost ? `${detail.standardCost.profileName}: ${detail.standardCost.currency} ${formatNumber(detail.standardCost.unitCost)} / ${detail.standardCost.uom}` : "尚未設定標準成本"} />
+          <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
           <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
         </div>
       </section>
@@ -755,6 +779,59 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
           </table>
         </div>
       </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>成本審核</h2>
+            <p style={mutedStyle}>採購送審後，主管核准才會成為標準成本。</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table style={{ minWidth: 720 }}>
+            <thead>
+              <tr>
+                <th>類型</th>
+                <th>狀態</th>
+                <th>原因</th>
+                <th>送審時間</th>
+                <th>動作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.costChangeRequests.map((request) => (
+                <tr key={request.id}>
+                  <td>{costRequestTypeLabel(request.requestType)}</td>
+                  <td>{costRequestStatusLabel(request.reviewStatus)}</td>
+                  <td>{request.changeReason}</td>
+                  <td>{formatDateTime(request.requestedAt)}</td>
+                  <td>
+                    {request.reviewStatus === "pending" ? (
+                      <div style={inlineButtonRowStyle}>
+                        <button className="secondary-button" type="button" disabled={busy} onClick={() => decideCostRequest(request.id, "approve")}>
+                          <CheckCircle2 size={16} />
+                          核准
+                        </button>
+                        <button className="secondary-button" type="button" disabled={busy} onClick={() => decideCostRequest(request.id, "reject")}>
+                          <XCircle size={16} />
+                          退回
+                        </button>
+                      </div>
+                    ) : (
+                      request.reviewComment ?? "-"
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {detail.costChangeRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={mutedStyle}>目前沒有成本審核紀錄。</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
@@ -813,6 +890,14 @@ function costTypeLabel(value: string) {
   return ({ outsourced: "委外加工", in_house: "自行製作", purchase: "採購", trial: "試作", other: "其他" } as Record<string, string>)[value] ?? value;
 }
 
+function costRequestTypeLabel(value: string) {
+  return ({ set_standard: "指定標準成本", update_profile: "更新成本", retire_profile: "停用成本" } as Record<string, string>)[value] ?? value;
+}
+
+function costRequestStatusLabel(value: string) {
+  return ({ pending: "待審", approved: "已核准", rejected: "已退回", cancelled: "已取消" } as Record<string, string>)[value] ?? value;
+}
+
 function partKindLabel(value: string) {
   return ({ purchased: "外購", manufactured: "自製", outsourced: "發包", shared: "共用", custom: "客製" } as Record<string, string>)[value] ?? value;
 }
@@ -821,9 +906,27 @@ function linkTypeLabel(value: string) {
   return ({ primary_manufacturing: "主要製造圖", reference: "參考圖" } as Record<string, string>)[value] ?? value;
 }
 
+function standardCostChipLabel(value: PartStandardCost) {
+  if (value.unitCost === null) return "標準成本已設定";
+  return `${value.currency} ${formatNumber(value.unitCost)}`;
+}
+
+function standardCostLabel(value: PartStandardCost | null) {
+  if (!value) return "尚未設定標準成本";
+  if (value.unitCost === null) return `${value.profileName}: 標準成本已設定`;
+  return `${value.profileName}: ${value.currency} ${formatNumber(value.unitCost)} / ${value.uom}`;
+}
+
 function formatNumber(value: number | null) {
   if (value === null || Number.isNaN(value)) return "-";
   return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value);
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-TW", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 const detailGridStyle: CSSProperties = {
@@ -846,4 +949,10 @@ const fieldStyle: CSSProperties = {
   minWidth: 0,
   color: "var(--muted)",
   fontSize: 13
+};
+
+const inlineButtonRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8
 };

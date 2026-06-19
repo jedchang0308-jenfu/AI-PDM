@@ -151,6 +151,22 @@
     display: grid;
   }
 
+  .lifecycle-map-header {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .lifecycle-map-meta {
+    justify-content: flex-start;
+  }
+
+  .lifecycle-stage-list,
+  .lifecycle-guidance-grid,
+  .object-lifecycle-grid,
+  .object-lifecycle-next {
+    grid-template-columns: 1fr;
+  }
+
   .workflow-strip {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -222,6 +238,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .lifecycle-stage-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lifecycle-guidance-grid,
+  .object-lifecycle-grid,
+  .object-lifecycle-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .workflow-strip {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -277,6 +303,11 @@
   }
 
   .platform-workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lifecycle-stage-list,
+  .lifecycle-guidance-grid {
     grid-template-columns: 1fr;
   }
 

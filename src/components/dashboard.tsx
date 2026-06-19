@@ -30,8 +30,10 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
+import { LifecycleMap, ObjectLifecycleStatusPanel, buildUploadPrefillHref, type LifecycleMetric, type LifecycleStageId } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { buildAdaptiveTaskFeed, type TaskSummary, type TaskSummarySeverity, type TaskSummarySource } from "@/lib/adaptive-task-feed";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -125,6 +127,20 @@ type RecentDrawing = {
   part_name: string;
   revision: string;
   updated_at: string;
+};
+
+type NumberingDraftRecord = {
+  entityType: "part_root" | "part_number" | "drawing_number";
+  entityId: string;
+  rootCode: string;
+  coreName: string;
+  displayCode: string;
+  displayName: string;
+  developmentPhase: string;
+  recordStatus: string;
+  partNumber: string | null;
+  drawingNumber: string | null;
+  primaryDrawingNumber: string | null;
 };
 
 type SavedFinderSearch = {
@@ -311,6 +327,149 @@ function getPlatformWorkbenchSections({
   ];
 }
 
+const taskSeverityClass: Record<TaskSummarySeverity, string> = {
+  critical: "critical",
+  warning: "warning",
+  info: "info",
+  success: "success"
+};
+
+const taskSourceIcons: Record<TaskSummarySource, LucideIcon> = {
+  numbering_task: ClipboardList,
+  notification: Bell,
+  bom_review: ListTree,
+  handoff_readiness: Factory,
+  storage_evidence: Archive,
+  submission: FileText
+};
+
+function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
+  return (
+    <section className="platform-workbench adaptive-task-feed" aria-label="自適應任務排序">
+      <div className="platform-workbench-header">
+        <div>
+          <span className="section-label">Adaptive task feed</span>
+          <h2>下一個該處理的任務</h2>
+          <p>依角色、風險、待審、交接與系統異常排序。</p>
+        </div>
+      </div>
+      <div className="platform-workbench-grid adaptive-task-feed-grid">
+        {tasks.map((item) => {
+          const Icon = taskSourceIcons[item.source];
+          return (
+            <article className={`platform-workbench-card adaptive-task-card ${taskSeverityClass[item.severity]}`} key={item.id}>
+              <div className="platform-workbench-card-header">
+                <span className="workbench-card-icon">
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+                <div>
+                  <span className="metadata-badge">{item.signal}</span>
+                  <h3>{item.title}</h3>
+                </div>
+              </div>
+              <p>{item.detail}</p>
+              <div className="workbench-link-list">
+                <Link className="workbench-link" href={item.href}>
+                  <GitBranch size={15} aria-hidden="true" />
+                  <span>
+                    <strong>{item.primaryActionLabel}</strong>
+                    <small>{item.evidence}</small>
+                  </span>
+                </Link>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] }) {
+  const uniqueDrafts = dedupeNumberingDrafts(drafts);
+  if (uniqueDrafts.length === 0) return null;
+  const firstDraft = uniqueDrafts[0];
+  const firstDrawing = firstDraft.drawingNumber ?? firstDraft.primaryDrawingNumber;
+  const firstPart = firstDraft.partNumber;
+  return (
+    <section className="platform-workbench" aria-label="我的開發中圖料">
+      <ObjectLifecycleStatusPanel
+        title="我的開發中圖料"
+        objectName={`${firstDraft.rootCode} / ${firstPart ?? "未帶入料號"} / ${firstDrawing ?? "未帶入圖號"}`}
+        status={firstDraft.recordStatus}
+        phase={firstDraft.developmentPhase}
+        owner="RD"
+        identities={[
+          { label: "待送審草稿", value: uniqueDrafts.length },
+          { label: "主根號", value: firstDraft.rootCode },
+          { label: "料號", value: firstPart ?? "-" },
+          { label: "圖號", value: firstDrawing ?? "-" },
+          { label: "品名", value: firstDraft.displayName || firstDraft.coreName }
+        ]}
+        blockers={["草稿已有號碼，但尚未形成 Pending submission", "未送審前不可作為正式 BOM、製造或採購交接資料"]}
+        nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與 release 流程。"
+        primaryAction={{
+          href: buildUploadPrefillHref({
+            rootCode: firstDraft.rootCode,
+            drawingNumber: firstDrawing,
+            partNumber: firstPart,
+            partName: firstDraft.displayName || firstDraft.coreName,
+            developmentPhase: firstDraft.developmentPhase
+          }),
+          label: "接續送審"
+        }}
+        secondaryActions={[
+          { href: "/numbering/tasks", label: "看全部草稿" },
+          { href: `/numbering/search?query=${encodeURIComponent(firstDraft.rootCode)}`, label: "開主根明細" }
+        ]}
+      />
+      {uniqueDrafts.length > 1 ? (
+        <div className="workbench-link-list">
+          {uniqueDrafts.slice(1, 5).map((draft) => {
+            const drawingNumber = draft.drawingNumber ?? draft.primaryDrawingNumber;
+            return (
+              <Link
+                className="workbench-link"
+                href={buildUploadPrefillHref({
+                  rootCode: draft.rootCode,
+                  drawingNumber,
+                  partNumber: draft.partNumber,
+                  partName: draft.displayName || draft.coreName,
+                  developmentPhase: draft.developmentPhase
+                })}
+                key={draft.rootCode}
+              >
+                <UploadCloud size={15} aria-hidden="true" />
+                <span>
+                  <strong>{draft.rootCode}</strong>
+                  <small>
+                    {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"} / {draft.developmentPhase}
+                  </small>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function dedupeNumberingDrafts(drafts: NumberingDraftRecord[]) {
+  const byRoot = new Map<string, NumberingDraftRecord>();
+  for (const draft of drafts) {
+    const current = byRoot.get(draft.rootCode);
+    if (!current) {
+      byRoot.set(draft.rootCode, draft);
+      continue;
+    }
+    const currentScore = (current.partNumber ? 1 : 0) + (current.drawingNumber ?? current.primaryDrawingNumber ? 1 : 0);
+    const nextScore = (draft.partNumber ? 1 : 0) + (draft.drawingNumber ?? draft.primaryDrawingNumber ? 1 : 0);
+    if (nextScore > currentScore) byRoot.set(draft.rootCode, draft);
+  }
+  return Array.from(byRoot.values());
+}
+
 function parseFileRoles(submission: SubmissionSummary) {
   return new Set((submission.file_roles ?? "").split(",").filter(Boolean));
 }
@@ -473,6 +632,176 @@ type CurrentUser = {
   role: "Engineer" | "R&D Manager" | "Admin";
 };
 
+  type StorageEvidenceDashboard = {
+  source: {
+    available: boolean;
+    error: string | null;
+    evidenceMarkdownPath: string | null;
+  };
+  run: {
+    period: string;
+    status: string;
+    severity: "normal" | "warning" | "critical" | "unknown";
+    generatedAt: string | null;
+    suggestedExitCode: number;
+  } | null;
+  summary: {
+    metadataObjectCount: number;
+    metadataStorageGb: number;
+    duplicateRecoverableBytes: number;
+    missingLocalObjectCount: number;
+    hashMismatchCount: number;
+    orphanLocalFileCount: number;
+    auditedEgressGb: number;
+    publicShareEgressBytes: number;
+  } | null;
+  readiness: {
+    migrationReady: boolean;
+    blockers: string[];
+    warnings: string[];
+  } | null;
+    thresholdUsage: {
+      storage: { includedGb: number; usageRatio: number } | null;
+      egress: { includedGb: number; usageRatio: number } | null;
+    };
+    governance: {
+      level: "stable" | "observe" | "review" | "control" | "blocked";
+      label: string;
+      reason: string;
+      storageUsageRatio: number | null;
+      egressUsageRatio: number | null;
+      providerMigrationAllowed: boolean;
+      lifecycleCleanupAllowed: boolean;
+      alternateProviderReviewRecommended: boolean;
+      nextReviewTrigger: string;
+    } | null;
+    recommendationCount: number;
+    nextActions: string[];
+  };
+
+function formatStorageGb(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value === 0) return "0 GB";
+  if (value < 0.01) return `${value.toFixed(6)} GB`;
+  if (value < 1) return `${value.toFixed(3)} GB`;
+  return `${value.toFixed(2)} GB`;
+}
+
+function formatByteSavings(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function formatUsageRatio(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return `${Math.round(value * 100)}%`;
+}
+
+function StorageEvidencePanel({
+  evidence,
+  loading,
+  onRefresh
+}: {
+  evidence: StorageEvidenceDashboard | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const severity = evidence?.run?.severity ?? (evidence?.source.available === false ? "warning" : "unknown");
+  const severityClass = severity === "critical" ? "critical" : severity === "warning" ? "warning" : "normal";
+  const blockerCount = evidence?.readiness?.blockers.length ?? 0;
+  const warningCount = evidence?.readiness?.warnings.length ?? 0;
+  const statusLabel = evidence?.run ? `${evidence.run.period} / ${evidence.run.status}` : evidence?.source.available === false ? "Missing evidence" : "Not loaded";
+  const primaryAction = evidence?.nextActions[0] ?? "Run monthly storage evidence job.";
+
+  return (
+    <section className={`panel storage-evidence-panel ${severityClass}`} aria-label="Storage cost evidence">
+      <div className="panel-header">
+        <h2>
+          <Archive size={16} aria-hidden="true" /> Storage Evidence
+        </h2>
+        <div className="storage-evidence-actions">
+          <span className={`metadata-badge storage-evidence-status ${severityClass}`}>{statusLabel}</span>
+          <button className="icon-button" type="button" onClick={onRefresh} disabled={loading} title="Refresh storage evidence" aria-label="Refresh storage evidence">
+            <RefreshCcw size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      {!evidence || !evidence.source.available ? (
+        <NextStepState
+          compact
+          eyebrow="Storage Evidence"
+          title={loading ? "Loading monthly evidence" : "Monthly evidence is not ready"}
+          body={loading ? "Reading the latest controlled storage evidence." : primaryAction}
+        />
+      ) : (
+        <div className="storage-evidence-body">
+          <div className="storage-evidence-metrics" aria-label="Storage evidence metrics">
+            <span className="compact-summary-item">
+              <strong>{formatStorageGb(evidence.summary?.metadataStorageGb)}</strong>
+              <span>metadata storage</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatStorageGb(evidence.summary?.auditedEgressGb)}</strong>
+              <span>audited egress</span>
+            </span>
+            <span className={blockerCount > 0 ? "compact-summary-item compact-summary-danger" : "compact-summary-item"}>
+              <strong>{blockerCount}</strong>
+              <span>blockers</span>
+            </span>
+            <span className={warningCount > 0 ? "compact-summary-item compact-summary-warning" : "compact-summary-item"}>
+              <strong>{warningCount}</strong>
+              <span>warnings</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatUsageRatio(evidence.thresholdUsage.storage?.usageRatio)}</strong>
+              <span>storage threshold</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatByteSavings(evidence.summary?.duplicateRecoverableBytes)}</strong>
+              <span>recoverable duplicate</span>
+            </span>
+          </div>
+            <div className="storage-evidence-lists">
+              <div>
+                <span className="metadata-label">Next action</span>
+                <strong>{primaryAction}</strong>
+              </div>
+              <div>
+                <span className="metadata-label">Governance</span>
+                <strong>{evidence.governance?.label ?? "Not classified"}</strong>
+                <small>{evidence.governance?.nextReviewTrigger ?? "Run monthly storage evidence job."}</small>
+              </div>
+              <div className="metadata-list" aria-label="Storage evidence health">
+              <span className="metadata-pair">
+                <span className="metadata-label">Objects</span>
+                <span className="metadata-value">{evidence.summary?.metadataObjectCount ?? 0}</span>
+              </span>
+              <span className="metadata-pair">
+                <span className="metadata-label">Missing local</span>
+                <span className="metadata-value">{evidence.summary?.missingLocalObjectCount ?? 0}</span>
+              </span>
+              <span className="metadata-pair">
+                <span className="metadata-label">Hash mismatch</span>
+                <span className="metadata-value">{evidence.summary?.hashMismatchCount ?? 0}</span>
+              </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">Public share bytes</span>
+                  <span className="metadata-value">{formatByteSavings(evidence.summary?.publicShareEgressBytes)}</span>
+                </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">Provider review</span>
+                  <span className="metadata-value">{evidence.governance?.alternateProviderReviewRecommended ? "Yes" : "No"}</span>
+                </span>
+              </div>
+            </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Dashboard() {
   const detailPanelRef = useRef<HTMLElement | null>(null);
   const detailAbortRef = useRef<AbortController | null>(null);
@@ -494,6 +823,7 @@ export function Dashboard() {
   const [savedFinderSearches, setSavedFinderSearches] = useState<SavedFinderSearch[]>([]);
   const [savedFinderSearchName, setSavedFinderSearchName] = useState("");
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
+  const [numberingDrafts, setNumberingDrafts] = useState<NumberingDraftRecord[]>([]);
   const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
   const [loadingMoreSubmissions, setLoadingMoreSubmissions] = useState(false);
   const [isSubmissionTransitionPending, startSubmissionTransition] = useTransition();
@@ -557,6 +887,8 @@ export function Dashboard() {
   const [sandboxLoading, setSandboxLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationSummary, setNotificationSummary] = useState<NotificationSummary>(emptyNotificationSummary);
+  const [storageEvidence, setStorageEvidence] = useState<StorageEvidenceDashboard | null>(null);
+  const [storageEvidenceLoading, setStorageEvidenceLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -925,6 +1257,33 @@ export function Dashboard() {
     setNotificationSummary(data.summary ?? emptyNotificationSummary);
   }, []);
 
+  const loadStorageEvidence = useCallback(async () => {
+    setStorageEvidenceLoading(true);
+    try {
+      const response = await fetch("/api/storage/evidence");
+      if (response.status === 401 || response.status === 403) {
+        setStorageEvidence(null);
+        return;
+      }
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      setStorageEvidence(data);
+    } finally {
+      setStorageEvidenceLoading(false);
+    }
+  }, []);
+
+  const loadNumberingDrafts = useCallback(async () => {
+    const response = await fetch("/api/numbering/search?recordStatus=Draft&limit=8");
+    if (response.status === 401 || response.status === 403) {
+      setNumberingDrafts([]);
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json().catch(() => ({}));
+    setNumberingDrafts(data.results ?? []);
+  }, []);
+
   const rememberSearch = useCallback((query: string) => {
     const trimmed = query.trim();
     if (trimmed.length < 2 || typeof window === "undefined") return;
@@ -1087,8 +1446,17 @@ export function Dashboard() {
   useEffect(() => {
     if (currentUser) {
       loadNotifications().catch(console.error);
+      loadNumberingDrafts().catch(console.error);
     }
-  }, [currentUser, loadNotifications]);
+  }, [currentUser, loadNotifications, loadNumberingDrafts]);
+
+  useEffect(() => {
+    if (canReview) {
+      loadStorageEvidence().catch(console.error);
+    } else {
+      setStorageEvidence(null);
+    }
+  }, [canReview, loadStorageEvidence]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -1679,6 +2047,35 @@ export function Dashboard() {
     recentDrawings,
     favoriteDrawings
   });
+  const lifecycleActiveStage: LifecycleStageId =
+    currentUser.role === "Engineer" ? "submission" : currentUser.role === "R&D Manager" ? "review" : "gate";
+  const lifecycleMetrics: LifecycleMetric[] = [
+    { label: "Draft", value: numberingDrafts.length, tone: numberingDrafts.length > 0 ? "warning" : "neutral" },
+    { label: "Pending", value: visibleSubmissions.filter((submission) => submission.status === "Pending").length, tone: "warning" },
+    {
+      label: "ReleaseFailed",
+      value: visibleSubmissions.filter((submission) => submission.status === "ReleaseFailed").length,
+      tone: visibleSubmissions.some((submission) => submission.status === "ReleaseFailed") ? "critical" : "neutral"
+    },
+    { label: "Released", value: visibleSubmissions.filter((submission) => submission.status === "Released").length, tone: "success" }
+  ];
+  const adaptiveTaskFeed = buildAdaptiveTaskFeed({
+    role: currentUser.role,
+    submissions: visibleSubmissions,
+    notificationSummary,
+    notifications,
+    numberingDraftCount: numberingDrafts.length,
+    storageEvidence: storageEvidence
+      ? {
+          available: storageEvidence.source.available,
+          severity: storageEvidence.run?.severity ?? "unknown",
+          blockerCount: storageEvidence.readiness?.blockers.length ?? 0,
+          warningCount: storageEvidence.readiness?.warnings.length ?? 0,
+          migrationReady: storageEvidence.readiness?.migrationReady ?? false
+        }
+      : null,
+    limit: 5
+  });
 
   return (
     <>
@@ -1700,6 +2097,7 @@ export function Dashboard() {
             onClick={() => {
               loadSubmissions(status, debouncedSearchQuery, finderFilters).catch(console.error);
               loadNotifications().catch(console.error);
+              if (canReview) loadStorageEvidence().catch(console.error);
             }}
             disabled={loading}
             title="重新整理"
@@ -1713,6 +2111,14 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      <LifecycleMap activeStage={lifecycleActiveStage} roleLabel={roleLabels[currentUser.role]} metrics={lifecycleMetrics} />
+
+      <AdaptiveTaskFeedPanel tasks={adaptiveTaskFeed} />
+
+      {currentUser.role === "Engineer" || currentUser.role === "Admin" ? (
+        <NumberingDraftWorkbench drafts={numberingDrafts} />
+      ) : null}
 
       <section className="platform-workbench" aria-label="AI PDM multi-role workbench">
         <div className="platform-workbench-header">
@@ -2003,6 +2409,16 @@ export function Dashboard() {
         </div>
       </section>
       </FinderToolbar>
+
+      {canReview ? (
+        <StorageEvidencePanel
+          evidence={storageEvidence}
+          loading={storageEvidenceLoading}
+          onRefresh={() => {
+            loadStorageEvidence().catch(console.error);
+          }}
+        />
+      ) : null}
 
       <div className={selectedId ? "grid detail-focus-mode" : "grid"}>
         <SubmissionTable

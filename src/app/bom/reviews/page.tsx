@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardCheck, GitCompareArrows, RefreshCw, XCircle } from "lucide-react";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -156,6 +157,16 @@ export default function BomReviewsPage() {
         actions={[
           { href: "/bom/workbench", label: "回 BOM 工作台" },
           { href: "/handoff", label: "看交接輸出", variant: "primary" }
+        ]}
+      />
+
+      <LifecycleStageGuidance
+        activeStage="bom"
+        metrics={[
+          { label: "Pending BOM", value: reviews.length, tone: reviews.length > 0 ? "warning" : "success" },
+          { label: "Added", value: selectedReview?.diff.summary.added_count ?? 0 },
+          { label: "Removed", value: selectedReview?.diff.summary.removed_count ?? 0 },
+          { label: "Changed", value: selectedReview?.diff.summary.changed_count ?? 0 }
         ]}
       />
 

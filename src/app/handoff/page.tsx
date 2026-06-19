@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Archive, Download, FileCheck2, FileDown, Printer, RefreshCcw, ShieldAlert } from "lucide-react";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -116,6 +117,19 @@ export default function ManufacturingHandoffPage() {
         actions={[
           { href: "/numbering/reports", label: "看報表", variant: "primary" },
           { href: "/numbering/search", label: "查圖料" }
+        ]}
+      />
+
+      <LifecycleStageGuidance
+        activeStage="handoff"
+        metrics={[
+          { label: "Released entries", value: state.status === "ready" ? state.entries.length : "-" },
+          {
+            label: "Missing package",
+            value: state.status === "ready" ? state.entries.filter((entry) => !entry.package).length : "-",
+            tone: state.status === "ready" && state.entries.some((entry) => !entry.package) ? "warning" : "success"
+          },
+          { label: "Visible after search", value: state.status === "ready" ? filteredEntries.length : "-" }
         ]}
       />
 

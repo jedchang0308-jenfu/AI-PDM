@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, RotateCcw, Search, ShieldAlert } from "lucide-react";
 import { RiskHint } from "@/components/compact-hints";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -116,6 +117,23 @@ export default function NumberingImpactPage() {
         actions={[
           { href: "/numbering/tasks", label: "看影響待辦", variant: "primary" },
           { href: "/numbering/search", label: "回圖料模組" }
+        ]}
+      />
+
+      <LifecycleStageGuidance
+        activeStage="ecr"
+        metrics={[
+          {
+            label: "Impacted parts",
+            value: impact?.impactedPartNumbers.length ?? 0,
+            tone: impact && impact.impactedPartNumbers.length > 0 ? "warning" : "neutral"
+          },
+          {
+            label: "Required docs",
+            value: impact?.requiredDocuments.length ?? 0,
+            tone: impact && impact.requiredDocuments.length > 0 ? "warning" : "neutral"
+          },
+          { label: "Applied", value: impact?.applied ? "Yes" : "No", tone: impact?.applied ? "success" : "neutral" }
         ]}
       />
 

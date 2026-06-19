@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardList, PauseCircle, RotateCcw, Send, ShieldAlert, XCircle } from "lucide-react";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type CandidateStatus = "ready" | "needs_override" | "blocked";
@@ -159,6 +160,16 @@ export default function NumberingDvtPromotionPage() {
           重新整理
         </button>
       </div>
+
+      <LifecycleStageGuidance
+        activeStage="gate"
+        metrics={[
+          { label: "Ready", value: summary.ready, tone: summary.ready > 0 ? "success" : "neutral" },
+          { label: "Override", value: summary.needsOverride, tone: summary.needsOverride > 0 ? "warning" : "neutral" },
+          { label: "Blocked", value: summary.blocked, tone: summary.blocked > 0 ? "critical" : "neutral" },
+          { label: "Selected", value: summary.selected }
+        ]}
+      />
 
       {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看 DVT 晉升清單。" /> : null}
       {state === "forbidden" ? <AccessPanel title="權限不足" message="DVT 晉升需 RD、主管或管理員權限。" /> : null}

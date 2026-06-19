@@ -23,6 +23,23 @@ type NumberingRecordStatus =
 type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type DrawingPurposeCode = "MA" | "OT";
 
+type DrawingLinkedPartRecord = {
+  id: string;
+  partNumber: string;
+  partName: string;
+  recordStatus: NumberingRecordStatus;
+  materialCode: string | null;
+  materialLabel: string | null;
+  colorCode: string | null;
+  colorLabel: string | null;
+  surfaceTreatment: string | null;
+  variantNote: string | null;
+  primaryDrawingNumber: string | null;
+  standardCostStatus: "active" | "missing";
+  standardCostProfileName: string | null;
+  standardCostType: string | null;
+};
+
 type DrawingListRecord = {
   id: string;
   partRootId: string;
@@ -39,6 +56,8 @@ type DrawingListRecord = {
   ruleVersionId: string;
   linkedPartCount: number;
   linkedPartNumbers: string[];
+  sameRootParts: DrawingLinkedPartRecord[];
+  titleBlockVariantWarning: boolean;
   warningCount: number;
   updatedAt: string;
 };
@@ -635,6 +654,10 @@ function DrawingDetailDrawer({
             </div>
           </section>
 
+          {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
+
+          <SameRootPartPanel drawing={drawing} />
+
           <MasterAttachmentPanel entityType="drawing_number" entityCode={drawing.drawingNumber} />
 
           <section className="panel">
@@ -667,6 +690,69 @@ function DrawingDetailDrawer({
   );
 }
 
+function TitleBlockVariantWarning() {
+  return (
+    <section className="panel" style={warningPanelStyle}>
+      <div className="panel-header">
+        <div>
+          <h2>Title block 變體風險</h2>
+          <p style={mutedStyle}>同一張 MA 圖已對應多個料號，且圖面描述含材質、顏色或表面處理字樣；請確認 title block 沒有寫死單一變體。</p>
+        </div>
+        <AlertTriangle size={18} color="var(--danger)" />
+      </div>
+    </section>
+  );
+}
+
+function SameRootPartPanel({ drawing }: { drawing: DrawingListRecord }) {
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2>同主根號料號</h2>
+          <p style={mutedStyle}>顯示材質、顏色、料號狀態、標準成本狀態與 primary MA link。</p>
+        </div>
+      </div>
+      {drawing.sameRootParts.length === 0 ? (
+        <p style={mutedStyle}>尚無同主根號料號。</p>
+      ) : (
+        <div style={sameRootPartListStyle}>
+          {drawing.sameRootParts.map((part) => (
+            <article key={part.id} style={sameRootPartCardStyle}>
+              <div>
+                <strong>{part.partNumber}</strong>
+                <p style={mutedStyle}>{part.partName}</p>
+              </div>
+              <div className="pdm-meta-strip">
+                <span style={badgeStyle}>{part.recordStatus}</span>
+                <span style={{ ...badgeStyle, color: part.standardCostStatus === "active" ? "var(--success)" : "var(--danger)" }}>
+                  {standardCostLabel(part)}
+                </span>
+              </div>
+              <div style={sameRootPartMetaGridStyle}>
+                <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
+                <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
+                <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
+                <InfoBlock icon={<Link2 size={16} />} title="Primary MA" value={part.primaryDrawingNumber ?? "未連結"} />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function variantDescriptor(part: DrawingLinkedPartRecord) {
+  const values = [part.surfaceTreatment, part.variantNote].filter(Boolean);
+  return values.length ? values.join(" / ") : "未填";
+}
+
+function standardCostLabel(part: DrawingLinkedPartRecord) {
+  if (part.standardCostStatus === "missing") return "標準成本未設定";
+  return part.standardCostProfileName ? `標準成本 active / ${part.standardCostProfileName}` : "標準成本 active";
+}
+
 function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return (
     <div className="info-block">
@@ -685,6 +771,31 @@ const detailGridStyle: CSSProperties = {
 
 const actionStackStyle: CSSProperties = {
   display: "grid",
+  gap: "0.5rem"
+};
+
+const warningPanelStyle: CSSProperties = {
+  borderColor: "rgba(220, 38, 38, 0.35)",
+  boxShadow: "inset 3px 0 0 var(--danger)"
+};
+
+const sameRootPartListStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.75rem"
+};
+
+const sameRootPartCardStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.65rem",
+  border: "1px solid var(--border)",
+  borderRadius: "8px",
+  padding: "0.75rem",
+  background: "var(--surface)"
+};
+
+const sameRootPartMetaGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: "0.5rem"
 };
 
