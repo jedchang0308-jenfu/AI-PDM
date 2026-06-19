@@ -58,7 +58,7 @@ export function normalizeFileRole(filename: string) {
   return "other";
 }
 
-export function validateUploadedFiles(files: File[], maxFileBytes: number) {
+export function validateUploadedFiles(files: File[], maxFileBytes: number, options: { allowOversizedFiles?: boolean } = {}) {
   const errors: string[] = [];
 
   for (const file of files) {
@@ -69,7 +69,7 @@ export function validateUploadedFiles(files: File[], maxFileBytes: number) {
     if (file.size <= 0) {
       errors.push(`檔案為空：${file.name}`);
     }
-    if (file.size > maxFileBytes) {
+    if (!options.allowOversizedFiles && file.size > maxFileBytes) {
       errors.push(`檔案超過 ${formatBytes(maxFileBytes)} 限制：${file.name}`);
     }
   }

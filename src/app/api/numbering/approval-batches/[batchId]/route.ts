@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { decideNumberingApprovalBatch, getNumberingApprovalBatch, resubmitRejectedNumberingApprovalBatchItems } from "@/lib/db";
-import { canUserUseNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { forbidden } from "@/lib/auth-async";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import {
+  decideNumberingApprovalBatchAsync,
+  getNumberingApprovalBatchAsync,
+  resubmitRejectedNumberingApprovalBatchItemsAsync
+} from "@/lib/numbering-async";
+import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
@@ -12,11 +17,13 @@ function reviewerRoleCode(role: string) {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.approvals");
+  const auth = await requireNumberingPageAsync(request, "numbering.approvals");
   if (auth.response) return auth.response;
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
 
   const { batchId } = await params;
-  const batch = getNumberingApprovalBatch(batchId);
+  const batch = await getNumberingApprovalBatchAsync(batchId, companyResult.company.companyId);
   if (!batch) {
     return NextResponse.json({ error: "Approval batch not found" }, { status: 404 });
   }
@@ -24,13 +31,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ batc
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireNumberingPageAsync(request, "numbering.approvals");
   if (auth.response) return auth.response;
 
   const { batchId } = await params;
   const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
   const action = String(body.action ?? "").trim();
-  const batch = getNumberingApprovalBatch(batchId);
+  const batch = await getNumberingApprovalBatchAsync(batchId, companyResult.company.companyId);
   if (!batch) {
     return NextResponse.json({ error: "Approval batch not found" }, { status: 404 });
   }
@@ -48,12 +57,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
 
   try {
     if (action === "resubmit_rejected") {
-      const permission = canUserUseNumberingAction(auth.user, "numbering.approval.batch.resubmit", {
+      const permission = await canUserUseNumberingActionAsync(auth.user, "numbering.approval.batch.resubmit", {
         projectCode: batch.projectCode,
         actionCode: batch.actionCode
       });
       if (!permission.allowed) return forbidden();
-      const result = resubmitRejectedNumberingApprovalBatchItems({
+      const result = await resubmitRejectedNumberingApprovalBatchItemsAsync({
+        companyId: companyResult.company.companyId,
         batchId,
         approvalRequestIds,
         reason: String(body.reason ?? "").trim(),
@@ -66,13 +76,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
     if (decision !== "approved" && decision !== "rejected" && decision !== "needs_info") {
       return NextResponse.json({ error: "decision must be approved, rejected, or needs_info" }, { status: 400 });
     }
-    const permission = canUserUseNumberingAction(auth.user, "numbering.approval.batch.decide", {
+    const permission = await canUserUseNumberingActionAsync(auth.user, "numbering.approval.batch.decide", {
       projectCode: batch.projectCode,
       actionCode: batch.actionCode
     });
     if (!permission.allowed) return forbidden();
 
-    const result = decideNumberingApprovalBatch({
+    const result = await decideNumberingApprovalBatchAsync({
+      companyId: companyResult.company.companyId,
       batchId,
       approvalRequestIds,
       decision,

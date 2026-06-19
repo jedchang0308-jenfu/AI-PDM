@@ -46,6 +46,7 @@ namespace AiPdmAddin.Views
 
             AddinSettings settings = AddinSettings.Load();
             TxtServerUrl.Text = settings.ServerUrl;
+            PopulatePdmCompanyOptions(settings);
 
             FilesItemsControl.ItemsSource = _collectedFiles;
 
@@ -139,6 +140,7 @@ namespace AiPdmAddin.Views
 
             var finalMetadata = new Dictionary<string, string>(_metadata);
             finalMetadata["change_description"] = TxtChangeDescription.Text.Trim();
+            finalMetadata["pdm_company_code"] = GetSelectedPdmCompanyCode();
 
             var selectedItem = (ComboBoxItem)CmbApprovalRequired.SelectedItem;
             finalMetadata["approval_required"] = selectedItem.Tag.ToString();
@@ -159,6 +161,8 @@ namespace AiPdmAddin.Views
 
             if (response != null && string.IsNullOrEmpty(error))
             {
+                settings.SelectedPdmCompanyCode = GetSelectedPdmCompanyCode();
+                settings.Save();
                 MessageBox.Show(
                     "Submission succeeded." + Environment.NewLine
                     + "Submission ID: " + response.SubmissionId + Environment.NewLine
@@ -191,6 +195,7 @@ namespace AiPdmAddin.Views
             BtnSubmit.IsEnabled = !isLoading;
             TxtChangeDescription.IsEnabled = !isLoading;
             TxtServerUrl.IsEnabled = !isLoading;
+            CmbPdmCompany.IsEnabled = !isLoading && CmbPdmCompany.Items.Count > 1;
             CmbApprovalRequired.IsEnabled = !isLoading;
             BtnLogout.IsEnabled = !isLoading;
 
@@ -199,6 +204,51 @@ namespace AiPdmAddin.Views
             {
                 LblError.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void PopulatePdmCompanyOptions(AddinSettings settings)
+        {
+            CmbPdmCompany.Items.Clear();
+            UserDto user = _authService.CurrentUser;
+            if (user != null && user.Companies != null && user.Companies.Count > 0)
+            {
+                foreach (CompanyDto company in user.Companies)
+                {
+                    string code = string.IsNullOrWhiteSpace(company.CompanyCode) ? "JENFU" : company.CompanyCode;
+                    string label = string.IsNullOrWhiteSpace(company.DisplayName) ? code : company.DisplayName + " (" + code + ")";
+                    CmbPdmCompany.Items.Add(new ComboBoxItem { Content = label, Tag = code });
+                }
+            }
+
+            if (CmbPdmCompany.Items.Count == 0)
+            {
+                CmbPdmCompany.Items.Add(new ComboBoxItem { Content = "鉦富 (JENFU)", Tag = "JENFU" });
+            }
+
+            string preferredCode = !string.IsNullOrWhiteSpace(settings.SelectedPdmCompanyCode)
+                ? settings.SelectedPdmCompanyCode
+                : user != null && user.DefaultCompany != null
+                    ? user.DefaultCompany.CompanyCode
+                    : "JENFU";
+
+            CmbPdmCompany.SelectedIndex = 0;
+            for (int index = 0; index < CmbPdmCompany.Items.Count; index++)
+            {
+                ComboBoxItem item = CmbPdmCompany.Items[index] as ComboBoxItem;
+                if (item != null && string.Equals(Convert.ToString(item.Tag), preferredCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    CmbPdmCompany.SelectedIndex = index;
+                    break;
+                }
+            }
+
+            CmbPdmCompany.IsEnabled = CmbPdmCompany.Items.Count > 1;
+        }
+
+        private string GetSelectedPdmCompanyCode()
+        {
+            ComboBoxItem item = CmbPdmCompany.SelectedItem as ComboBoxItem;
+            return item != null && item.Tag != null ? Convert.ToString(item.Tag) : "JENFU";
         }
     }
 }

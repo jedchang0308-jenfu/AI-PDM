@@ -1,43 +1,49 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { findPreviousBomSubmissionId, getBomBySubmissionId, getBomDiffBetweenSubmissions, getSubmission } from "@/lib/db";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import {
+  findPreviousBomSubmissionIdAsync,
+  getBomBySubmissionIdAsync,
+  getBomDiffBetweenSubmissionsAsync
+} from "@/lib/bom-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
+import type { BomDiffResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const targetSubmission = getSubmission(id);
+  const targetSubmission = await getSubmissionAsync(id);
   if (!targetSubmission) {
-    return NextResponse.json({ error: "找不到目標送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??啁璅祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, targetSubmission)) return forbidden();
-  if (!getBomBySubmissionId(id)) {
-    return NextResponse.json({ error: "Target 找不到 BOM" }, { status: 409 });
+  if (!(await canReadSubmissionAsync(auth.user, targetSubmission))) return forbidden();
+  if (!(await getBomBySubmissionIdAsync(id))) {
+    return NextResponse.json({ error: "Target ?曆???BOM" }, { status: 409 });
   }
 
   const url = new URL(request.url);
   const requestedBaseSubmissionId = url.searchParams.get("baseSubmissionId")?.trim();
-  const baseSubmissionId = requestedBaseSubmissionId || findPreviousBomSubmissionId(id);
+  const baseSubmissionId = requestedBaseSubmissionId || (await findPreviousBomSubmissionIdAsync(id));
   if (!baseSubmissionId) {
-    return NextResponse.json({ error: "Previous 找不到 BOM" }, { status: 404 });
+    return NextResponse.json({ error: "Previous ?曆???BOM" }, { status: 404 });
   }
 
-  const baseSubmission = getSubmission(baseSubmissionId);
+  const baseSubmission = await getSubmissionAsync(baseSubmissionId);
   if (!baseSubmission) {
-    return NextResponse.json({ error: "找不到基準送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??啣皞祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, baseSubmission)) return forbidden();
-  if (!getBomBySubmissionId(baseSubmissionId)) {
-    return NextResponse.json({ error: "Base 找不到 BOM" }, { status: 409 });
+  if (!(await canReadSubmissionAsync(auth.user, baseSubmission))) return forbidden();
+  if (!(await getBomBySubmissionIdAsync(baseSubmissionId))) {
+    return NextResponse.json({ error: "Base ?曆???BOM" }, { status: 409 });
   }
 
-  const diff = getBomDiffBetweenSubmissions({ baseSubmissionId, targetSubmissionId: id });
+  const diff = await getBomDiffBetweenSubmissionsAsync({ baseSubmissionId, targetSubmissionId: id });
   if (!diff) {
-    return NextResponse.json({ error: "無法取得 BOM 差異" }, { status: 409 });
+    return NextResponse.json({ error: "?⊥??? BOM 撌桃" }, { status: 409 });
   }
 
   const format = url.searchParams.get("format");
@@ -68,7 +74,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     diff
   });
 }
-function buildBomDiffRows(diff: NonNullable<ReturnType<typeof getBomDiffBetweenSubmissions>>, exportedAt: string) {
+function buildBomDiffRows(diff: BomDiffResult, exportedAt: string) {
   const headers = [
     "exported_at",
     "base_submission_id",
@@ -133,3 +139,4 @@ function escapeXml(value: string) {
 function sanitizeFilename(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "bom-diff";
 }
+

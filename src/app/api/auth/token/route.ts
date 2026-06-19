@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAuditLog, ensureDemoUser, getAuthMode, getUserByEmailWithPassword } from "@/lib/db";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { getAuthMode } from "@/lib/auth-config";
 import { generateToken } from "@/lib/auth";
+import { ensureDemoUserAsync, getUserByEmailWithPasswordAsync } from "@/lib/auth-async";
+import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
@@ -16,7 +19,7 @@ export async function POST(request: Request) {
 
   // Ensure Demo Admin is created if attempting to login as admin
   if (email.toLowerCase() === "admin@example.com") {
-    ensureDemoUser({
+    await ensureDemoUserAsync({
       id: "user-admin-demo",
       displayName: "Demo Admin",
       email: "admin@example.com",
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const user = getUserByEmailWithPassword(email);
+  const user = await getUserByEmailWithPasswordAsync(email);
   if (!user) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
@@ -42,18 +45,13 @@ export async function POST(request: Request) {
   }
 
   // Create audit log for login event
-  createAuditLog({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, client: "SolidWorks Add-in" } });
+  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, client: "SolidWorks Add-in" } });
 
   // Generate bearer token
   const token = generateToken(user.id);
 
   return NextResponse.json({
     token,
-    user: {
-      id: user.id,
-      display_name: user.display_name,
-      email: user.email,
-      role: user.role
-    }
+    user: await serializeAuthUserAsync(user)
   });
 }

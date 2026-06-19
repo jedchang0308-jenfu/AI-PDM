@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { createNumberingRecord, type DrawingPurposeCode, type NumberingItemKind, type NumberingPhase } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { createNumberingRecordAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import type { DrawingPurposeCode, NumberingItemKind, NumberingPhase } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
@@ -9,10 +11,13 @@ const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 const purposeCodes = new Set(["MA", "OT"]);
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "numbering.create");
+  const auth = await requireNumberingActionAsync(request, "numbering.create");
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
+
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
   const partName = String(body.partName ?? body.part_name ?? "").trim();
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
@@ -39,7 +44,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = createNumberingRecord({
+    const result = await createNumberingRecordAsync({
+      companyId: companyResult.company.companyId,
       coreName,
       partName,
       itemKind,
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
       drawingPurposeDescription: String(body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim(),
       createdBy: auth.user.id
     });
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ ...result, pdmCompany: companyResult.company }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create numbering record";
     const status = message.includes("REQUIRED") ? 400 : message.includes("UNIQUE") ? 409 : 400;

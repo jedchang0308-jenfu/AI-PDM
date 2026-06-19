@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
 import { scopedSubmittedBy } from "@/lib/permissions";
-import { searchSubmissions } from "@/lib/db";
+import { searchSubmissionsAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);
+  const companyResult = await resolvePdmCompanyContextAsync(auth.user, requestedPdmCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
+
   const query = (url.searchParams.get("q") ?? "").trim();
   const status = url.searchParams.get("status") ?? undefined;
   const filters = {
@@ -30,10 +34,17 @@ export async function GET(request: Request) {
   const submittedBy = scopedSubmittedBy(auth.user);
 
   if (query.length < 2 && !hasFilters) {
-    return NextResponse.json({ submissions: [] });
+    return NextResponse.json({ pdmCompany: companyResult.company, submissions: [] });
   }
 
   return NextResponse.json({
-    submissions: searchSubmissions({ query: query.length >= 2 ? query : "", status, filters, submittedBy })
+    pdmCompany: companyResult.company,
+    submissions: await searchSubmissionsAsync({
+      query: query.length >= 2 ? query : "",
+      status,
+      filters,
+      submittedBy,
+      companyId: companyResult.company.companyId
+    })
   });
 }

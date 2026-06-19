@@ -17,6 +17,9 @@ namespace AiPdmAddin.Config
         [DataMember(Name = "maxUploadFileBytes")]
         public long MaxUploadFileBytes { get; set; }
 
+        [DataMember(Name = "selectedPdmCompanyCode")]
+        public string SelectedPdmCompanyCode { get; set; }
+
         private static readonly string SettingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AiPdm",
@@ -28,6 +31,7 @@ namespace AiPdmAddin.Config
             ServerUrl = "http://localhost:3000";
             SavedEmail = "";
             MaxUploadFileBytes = 50L * 1024L * 1024L;
+            SelectedPdmCompanyCode = "JENFU";
         }
 
         public static AddinSettings Load()
@@ -82,6 +86,10 @@ namespace AiPdmAddin.Config
             if (MaxUploadFileBytes <= 0)
             {
                 MaxUploadFileBytes = 50L * 1024L * 1024L;
+            }
+            if (string.IsNullOrWhiteSpace(SelectedPdmCompanyCode))
+            {
+                SelectedPdmCompanyCode = "JENFU";
             }
         }
     }

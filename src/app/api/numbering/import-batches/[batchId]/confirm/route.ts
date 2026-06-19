@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { confirmNumberingImportBatch } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { confirmNumberingImportBatchAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.import.confirm");
+  const auth = await requireNumberingActionAsync(request, "numbering.import.confirm");
   if (auth.response) return auth.response;
+  const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
 
   const { batchId } = await params;
   try {
-    const result = confirmNumberingImportBatch({ batchId, confirmedBy: auth.user.id });
+    const result = await confirmNumberingImportBatchAsync({ companyId: companyResult.company.companyId, batchId, confirmedBy: auth.user.id });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to confirm import batch";

@@ -672,6 +672,7 @@ export function listManufacturingHandoffEntries(input: { submittedBy?: string; l
 }
 
 export function createSubmissionRecord(input: {
+  companyId?: string;
   drawingNumber: string;
   partNumber: string;
   partName: string;
@@ -710,8 +711,10 @@ export function createSubmissionRecord(input: {
 }) {
   const database = getDb();
   const now = new Date().toISOString();
+  const companyId = input.companyId ?? "company-jenfu";
   const submissionId = `SUB-${now.slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const itemId = findOrCreateItem({
+    companyId,
     partNumber: input.partNumber,
     partName: input.partName,
     revision: input.revision
@@ -721,14 +724,15 @@ export function createSubmissionRecord(input: {
     .prepare(
       `
       INSERT INTO submissions (
-        id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
+        id, company_id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
         machine, material, surface_finish, document_type,
         change_description, status, submitted_by, approval_required, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
       submissionId,
+      companyId,
       itemId,
       input.drawingNumber,
       input.revision,

@@ -3,6 +3,7 @@ export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
 
 export type SubmissionSummary = {
   id: string;
+  company_id?: string;
   item_id: string;
   part_number: string;
   part_name: string;
@@ -565,7 +566,8 @@ export type NotificationKind =
   | "awaiting_review"
   | "active_lock"
   | "drive_upload_failed"
-  | "release_package_missing";
+  | "release_package_missing"
+  | "storage_evidence_alert";
 
 export type NotificationItem = {
   id: string;

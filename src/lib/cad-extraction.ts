@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
 import type { FileRole } from "@/lib/types";
 
 export type CadReferenceCandidate = {
@@ -28,7 +29,10 @@ const referenceMarker = "AI_PDM_REFERENCES:";
 const maxEmbeddedProbeBytes = 2 * 1024 * 1024;
 const execFileAsync = promisify(execFile);
 
-export async function extractCadReferences(files: File[]): Promise<CadExtractionResult> {
+export async function extractCadReferences(
+  files: File[],
+  options: { referenceExtractor?: ExtractorRuntimeProfile } = {}
+): Promise<CadExtractionResult> {
   const nativeFiles = files.filter((file) => nativeCadExtensions.has(getFileExtension(file.name)));
   if (nativeFiles.length === 0) {
     return { references: [], warnings: [] };
@@ -38,7 +42,7 @@ export async function extractCadReferences(files: File[]): Promise<CadExtraction
   const warnings: string[] = [];
 
   for (const file of nativeFiles) {
-    const external = await extractWithExternalCommand(file);
+    const external = await extractWithExternalCommand(file, options.referenceExtractor);
     warnings.push(...external.warnings);
     if (external.references.length > 0) {
       references.push(...external.references);
@@ -52,15 +56,15 @@ export async function extractCadReferences(files: File[]): Promise<CadExtraction
 
   if (references.length === 0) {
     warnings.push(
-      "尚未設定 SolidWorks Document Manager 擷取功能。CAD 引用資料表已就緒，但此環境尚未擷取原生檔案引用。"
+      "Native CAD file references require SolidWorks Document Manager or an equivalent reference adapter. This upload currently has no native CAD references."
     );
   }
 
   return { references, warnings };
 }
 
-async function extractWithExternalCommand(file: File): Promise<CadExtractionResult> {
-  const command = process.env.PDM_CAD_REFERENCE_EXTRACTOR_CMD?.trim();
+async function extractWithExternalCommand(file: File, extractor?: ExtractorRuntimeProfile): Promise<CadExtractionResult> {
+  const command = extractor?.command ?? process.env.PDM_CAD_REFERENCE_EXTRACTOR_CMD?.trim();
   if (!command) return { references: [], warnings: [] };
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-pdm-cad-ref-"));
@@ -68,7 +72,7 @@ async function extractWithExternalCommand(file: File): Promise<CadExtractionResu
 
   try {
     await fs.writeFile(tempPath, Buffer.from(await file.arrayBuffer()));
-    const args = parseExtractorArgs(tempPath);
+    const args = parseExtractorArgs(tempPath, extractor);
     const { stdout } = await execFileAsync(command, args, {
       timeout: 8000,
       windowsHide: true,
@@ -78,15 +82,15 @@ async function extractWithExternalCommand(file: File): Promise<CadExtractionResu
   } catch (error) {
     return {
       references: [],
-      warnings: [`Native CAD reference adapter failed for ${file.name}: ${error instanceof Error ? error.message : "未知錯誤"}`]
+      warnings: [`Native CAD reference adapter failed for ${file.name}: ${error instanceof Error ? error.message : "unknown_error"}`]
     };
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
 
-function parseExtractorArgs(filePath: string) {
-  const raw = process.env.PDM_CAD_REFERENCE_EXTRACTOR_ARGS?.trim();
+function parseExtractorArgs(filePath: string, extractor?: ExtractorRuntimeProfile) {
+  const raw = extractor?.args ?? process.env.PDM_CAD_REFERENCE_EXTRACTOR_ARGS?.trim();
   if (!raw) return [filePath];
 
   const parsed = JSON.parse(raw) as unknown;

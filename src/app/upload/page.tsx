@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileSearch, Send, X } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
+import { LifecycleStageGuidance, ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
 
@@ -48,19 +49,78 @@ const requiredMetadataFields = new Set<keyof PdmMetadata>([
 ]);
 
 type Message = { type: "success" | "error"; text: string; submissionId?: string };
+type CompanyOption = {
+  companyCode: string;
+  displayName: string;
+  is_default?: boolean;
+};
+type AuthUserPayload = {
+  default_company?: CompanyOption;
+  companies?: CompanyOption[];
+};
+type UploadPrefillContext = {
+  rootCode: string;
+  developmentPhase: string;
+  metadata: Partial<PdmMetadata>;
+};
 
 export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [metadata, setMetadata] = useState<PdmMetadata>(emptyMetadata);
   const [detection, setDetection] = useState<PdmMetadataDetection | null>(null);
+  const [prefillContext, setPrefillContext] = useState<UploadPrefillContext | null>(null);
   const [changeDescription, setChangeDescription] = useState("");
   const [approvalRequired, setApprovalRequired] = useState<"1" | "2">("1");
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState("JENFU");
   const [detecting, setDetecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
   const submissionFiles = useMemo(() => files.filter((file) => !isMetadataSidecar(file.name)), [files]);
   const propertyFiles = useMemo(() => files.filter((file) => isMetadataSidecar(file.name)), [files]);
+  const missingRequiredMetadata = useMemo(
+    () => Array.from(requiredMetadataFields).filter((field) => !metadata[field].trim()),
+    [metadata]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { user?: AuthUserPayload } | null) => {
+        if (cancelled) return;
+        const user = body?.user;
+        const companies = user?.companies?.length ? user.companies : user?.default_company ? [user.default_company] : [];
+        if (companies.length > 0) {
+          setCompanyOptions(companies);
+          setSelectedCompanyCode((user?.default_company?.companyCode || companies.find((company) => company.is_default)?.companyCode || companies[0].companyCode || "JENFU").toUpperCase());
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCompanyOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("source") !== "numbering_draft") return;
+    const nextMetadata: Partial<PdmMetadata> = {
+      drawing_number: params.get("drawingNumber") ?? "",
+      part_number: params.get("partNumber") ?? "",
+      part_name: params.get("partName") ?? ""
+    };
+    const nextPrefill: UploadPrefillContext = {
+      rootCode: params.get("rootCode") ?? "",
+      developmentPhase: params.get("developmentPhase") ?? "",
+      metadata: nextMetadata
+    };
+    setPrefillContext(nextPrefill);
+    setMetadata((current) => mergeMetadataWithPrefill(current, nextPrefill.metadata));
+  }, []);
 
   async function handleFiles(nextFiles: FileList | File[]) {
     const selected = Array.from(nextFiles);
@@ -68,7 +128,7 @@ export default function UploadPage() {
     setMessage(null);
     setDetection(null);
     if (selected.length === 0) {
-      setMetadata(emptyMetadata);
+      setMetadata(prefillContext ? { ...emptyMetadata, ...prefillContext.metadata } : emptyMetadata);
       return;
     }
     await detectMetadata(selected);
@@ -78,6 +138,7 @@ export default function UploadPage() {
     setDetecting(true);
     const form = new FormData();
     selected.forEach((file) => form.append("files", file));
+    form.append("pdm_company_code", selectedCompanyCode);
 
     const response = await fetch("/api/file-metadata/detect", {
       method: "POST",
@@ -92,7 +153,7 @@ export default function UploadPage() {
     }
 
     setDetection(body);
-    setMetadata({ ...emptyMetadata, ...(body.metadata ?? {}) });
+    setMetadata(mergeDetectedMetadataWithPrefill(prefillContext?.metadata ?? {}, body.metadata ?? {}));
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -103,6 +164,7 @@ export default function UploadPage() {
     const form = new FormData();
     for (const file of submissionFiles) form.append("files", file);
     for (const [key, value] of Object.entries(metadata)) form.append(key, value);
+    form.append("pdm_company_code", selectedCompanyCode);
     form.append("change_description", changeDescription);
     form.append("approval_required", approvalRequired);
     form.append("cad_references_json", JSON.stringify(detection?.cadReferences ?? []));
@@ -154,6 +216,34 @@ export default function UploadPage() {
           { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
         ]}
       />
+
+      <LifecycleStageGuidance
+        activeStage="submission"
+        metrics={[
+          { label: "Submission files", value: submissionFiles.length, tone: submissionFiles.length > 0 ? "success" : "warning" },
+          { label: "Metadata gaps", value: missingRequiredMetadata.length, tone: missingRequiredMetadata.length > 0 ? "warning" : "success" },
+          { label: "Reviewers", value: approvalRequired }
+        ]}
+      />
+
+      {prefillContext ? (
+        <ObjectLifecycleStatusPanel
+          title="從領號草稿接續送審"
+          objectName={`${prefillContext.rootCode || "未帶入主根號"} / ${metadata.part_number || "未帶入料號"} / ${metadata.drawing_number || "未帶入圖號"}`}
+          status="Draft"
+          phase={prefillContext.developmentPhase || "EVT"}
+          owner="RD"
+          identities={[
+            { label: "主根號", value: prefillContext.rootCode || "-" },
+            { label: "料號", value: metadata.part_number || "-" },
+            { label: "圖號", value: metadata.drawing_number || "-" },
+            { label: "品名", value: metadata.part_name || "-" }
+          ]}
+          blockers={missingRequiredMetadata.length > 0 ? missingRequiredMetadata.map((field) => `尚缺 ${fieldLabels[field]}`) : ["欄位已帶入，仍需確認檔案與變更原因"]}
+          nextStep="補齊必要欄位與送審檔案後送出，submission 會進入 Pending 並交由審核者處理。"
+          secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回主根明細" }]}
+        />
+      ) : null}
 
       <form className="upload-layout" onSubmit={submit}>
         <section className="panel">
@@ -227,6 +317,23 @@ export default function UploadPage() {
                 </div>
               </div>
             ) : null}
+
+            <label>
+              PDM Company
+              <select
+                className="dropdown-select"
+                value={selectedCompanyCode}
+                onChange={(event) => setSelectedCompanyCode(event.target.value)}
+                disabled={companyOptions.length <= 1}
+              >
+                {(companyOptions.length > 0 ? companyOptions : [{ companyCode: "JENFU", displayName: "鉦富" }]).map((company) => (
+                  <option key={company.companyCode} value={company.companyCode}>
+                    {company.displayName || company.companyCode} ({company.companyCode})
+                  </option>
+                ))}
+              </select>
+              <small>Server validates this company against your account permissions.</small>
+            </label>
 
             <div className="upload-fields">
               {(Object.keys(emptyMetadata) as Array<keyof PdmMetadata>).map((field) => (
@@ -342,6 +449,22 @@ function sourceText(detection: PdmMetadataDetection | null, field: keyof PdmMeta
   const source = detection?.sources?.find((item) => item.field === field);
   if (!source) return "未偵測到時可手動填寫。";
   return `來源：${source.source}，信心度：${source.confidence}`;
+}
+
+function mergeMetadataWithPrefill(current: PdmMetadata, prefill: Partial<PdmMetadata>) {
+  const next = { ...current };
+  for (const [field, value] of Object.entries(prefill) as Array<[keyof PdmMetadata, string | undefined]>) {
+    if (value && !next[field].trim()) next[field] = value;
+  }
+  return next;
+}
+
+function mergeDetectedMetadataWithPrefill(prefill: Partial<PdmMetadata>, detected: Partial<PdmMetadata>) {
+  const next: PdmMetadata = { ...emptyMetadata, ...prefill };
+  for (const [field, value] of Object.entries(detected) as Array<[keyof PdmMetadata, string | undefined]>) {
+    if (value?.trim()) next[field] = value;
+  }
+  return next;
 }
 
 function isMetadataSidecar(filename: string) {

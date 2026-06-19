@@ -1,35 +1,38 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { getSubmission, getSubmissionFile, type DbUser } from "@/lib/db";
-import { canReadSubmission } from "@/lib/permissions";
+import type { DbUser } from "@/lib/db";
+import { createFileStorageService, storageKeyFromLocalPath } from "@/lib/file-storage";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionFileAsync } from "@/lib/submission-files-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { SubmissionFile } from "@/lib/types";
 
 export async function getStoredSubmissionFile(submissionId: string, fileId: string, user: DbUser) {
-  const submission = getSubmission(submissionId);
+  const submission = await getSubmissionAsync(submissionId);
   if (!submission) {
-    return { response: NextResponse.json({ error: "找不到送審資料" }, { status: 404 }) };
+    return { response: NextResponse.json({ error: "Submission not found" }, { status: 404 }) };
   }
-  if (!canReadSubmission(user, submission)) {
-    return { response: NextResponse.json({ error: "角色權限不足" }, { status: 403 }) };
+  if (!(await canReadSubmissionAsync(user, submission))) {
+    return { response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
 
-  const file = getSubmissionFile({ submissionId, fileId });
+  const file = await getSubmissionFileAsync({ submissionId, fileId });
   if (!file) {
-    return { response: NextResponse.json({ error: "找不到送審檔案" }, { status: 404 }) };
+    return { response: NextResponse.json({ error: "Submission file not found" }, { status: 404 }) };
   }
 
-  const repositoryRoot = path.resolve(/*turbopackIgnore: true*/ getRepositoryDir());
-  const resolvedPath = path.resolve(/*turbopackIgnore: true*/ file.local_path);
-  if (!resolvedPath.startsWith(repositoryRoot + path.sep)) {
-    return { response: NextResponse.json({ error: "儲存檔案路徑超出檔案庫" }, { status: 500 }) };
+  let storageKey: string;
+  try {
+    storageKey = storageKeyFromLocalPath(file.local_path);
+  } catch {
+    return { response: NextResponse.json({ error: "Stored file path is outside repository root" }, { status: 500 }) };
   }
 
   try {
-    const bytes = await fs.readFile(resolvedPath);
-    return { file, bytes };
+    const bytes = await createFileStorageService().readObject(storageKey);
+    return { file, bytes, storageKey };
   } catch {
-    return { response: NextResponse.json({ error: "儲存檔案遺失" }, { status: 404 }) };
+    return { response: NextResponse.json({ error: "Stored file is missing" }, { status: 404 }) };
   }
 }
 
@@ -59,10 +62,4 @@ function contentTypeFor(file: SubmissionFile) {
 
 export function contentDispositionFilename(filename: string) {
   return filename.replace(/["\r\n\\]/g, "_");
-}
-
-function getRepositoryDir() {
-  const configured = process.env.PDM_REPOSITORY_DIR?.trim();
-  if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "repository");
-  return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
 }

@@ -1,3 +1,6 @@
+﻿import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
+import { extractNativeCadMetadata } from "@/lib/pdm-metadata-adapter";
+
 export type PdmMetadata = {
   drawing_number: string;
   part_number: string;
@@ -68,23 +71,26 @@ const aliases: Record<keyof PdmMetadata, string[]> = {
   project_code: ["project_code", "project", "projectcode"],
   process_name: ["process_name", "process", "manufacturing_process"],
   machine: ["machine", "machine_type", "equipment"],
-  drawing_number: ["drawing_number", "drawingnumber", "drawing_no", "drawingno", "drawing", "dwg_no", "dwgno", "圖號"],
-  part_number: ["part_number", "partnumber", "part_no", "partno", "part", "料號"],
-  part_name: ["part_name", "partname", "name", "description", "品名"],
-  revision: ["revision", "rev", "版次"],
-  material: ["material", "材質"],
-  surface_finish: ["surface_finish", "surfacefinish", "finish", "surface", "表面處理"],
-  document_type: ["document_type", "documenttype", "type", "doctype", "doc_type", "文件類型"]
+  drawing_number: ["drawing_number", "drawingnumber", "drawing_no", "drawingno", "drawing", "dwg_no", "dwgno", "??"],
+  part_number: ["part_number", "partnumber", "part_no", "partno", "part", "??"],
+  part_name: ["part_name", "partname", "name", "description", "??"],
+  revision: ["revision", "rev", "?活"],
+  material: ["material", "?釭"],
+  surface_finish: ["surface_finish", "surfacefinish", "finish", "surface", "銵券??"],
+  document_type: ["document_type", "documenttype", "type", "doctype", "doc_type", "?辣憿?"]
 };
 
 export function isMetadataSidecarFilename(filename: string) {
   const ext = getFileExtension(filename);
   if (!propertyFileExtensions.has(ext)) return false;
   const base = filename.toLowerCase();
-  return base.includes("pdm") || base.includes("property") || base.includes("properties") || base.includes("屬性");
+  return base.includes("pdm") || base.includes("property") || base.includes("properties");
 }
 
-export async function detectPdmMetadata(files: File[]): Promise<PdmMetadataDetection> {
+export async function detectPdmMetadata(
+  files: File[],
+  options: { metadataExtractor?: ExtractorRuntimeProfile } = {}
+): Promise<PdmMetadataDetection> {
   const metadata: PdmMetadata = { ...EMPTY_METADATA };
   const sources: PdmMetadataSource[] = [];
   const warnings: string[] = [];
@@ -92,7 +98,7 @@ export async function detectPdmMetadata(files: File[]): Promise<PdmMetadataDetec
   const nativeMetadataFiles: string[] = [];
   const uploadFiles = files.filter((file) => submissionFileExtensions.has(getFileExtension(file.name))).map((file) => file.name);
 
-  const nativeExtractions = await extractNativeCadMetadata(files);
+  const nativeExtractions = await extractNativeCadMetadata(files, { extractor: options.metadataExtractor });
   for (const extraction of nativeExtractions) {
     nativeMetadataFiles.push(extraction.source);
     warnings.push(...extraction.warnings);
@@ -266,4 +272,3 @@ function normalizeKey(value: string) {
     .replace(/[()\[\]{}]/gu, "")
     .replace(/[\s_-]+/gu, "");
 }
-import { extractNativeCadMetadata } from "@/lib/pdm-metadata-adapter";

@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
-import { listDvtPromotionCandidates, submitDvtPromotionDecisions, type DvtPromotionDecisionAction } from "@/lib/db";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { listDvtPromotionCandidatesAsync, submitDvtPromotionDecisionsAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import type { DvtPromotionDecisionAction } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
 const decisionActions = new Set(["submit_dvt", "keep_evt", "disable_evt", "obsolete"]);
 
 export async function GET(request: Request) {
-  const auth = requireNumberingPage(request, "numbering.dvt");
+  const auth = await requireNumberingPageAsync(request, "numbering.dvt");
   if (auth.response) return auth.response;
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
 
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? 50);
   const includeBlocked = url.searchParams.get("includeBlocked") !== "false";
-  const candidates = listDvtPromotionCandidates({ limit, includeBlocked });
+  const candidates = await listDvtPromotionCandidatesAsync({ companyId: companyResult.company.companyId, limit, includeBlocked });
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
@@ -28,10 +32,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "numbering.dvt.submit");
+  const auth = await requireNumberingActionAsync(request, "numbering.dvt.submit");
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
   const rawDecisions = Array.isArray(body.decisions) ? body.decisions : [];
   const decisions = rawDecisions
     .map((item: unknown) => {
@@ -56,7 +62,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = submitDvtPromotionDecisions({
+    const result = await submitDvtPromotionDecisionsAsync({
+      companyId: companyResult.company.companyId,
       decisions,
       projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
       submittedBy: auth.user.id

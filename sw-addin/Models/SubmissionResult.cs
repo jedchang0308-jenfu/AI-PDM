@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace AiPdmAddin.Models
@@ -42,6 +43,28 @@ namespace AiPdmAddin.Models
 
         [DataMember(Name = "role")]
         public string Role { get; set; }
+
+        [DataMember(Name = "default_company")]
+        public CompanyDto DefaultCompany { get; set; }
+
+        [DataMember(Name = "companies")]
+        public List<CompanyDto> Companies { get; set; }
+    }
+
+    [DataContract]
+    public class CompanyDto
+    {
+        [DataMember(Name = "companyId")]
+        public string CompanyId { get; set; }
+
+        [DataMember(Name = "companyCode")]
+        public string CompanyCode { get; set; }
+
+        [DataMember(Name = "displayName")]
+        public string DisplayName { get; set; }
+
+        [DataMember(Name = "is_default")]
+        public bool IsDefault { get; set; }
     }
 
     [DataContract]
@@ -52,6 +75,9 @@ namespace AiPdmAddin.Models
 
         [DataMember(Name = "part_number")]
         public string PartNumber { get; set; }
+
+        [DataMember(Name = "pdm_company_code")]
+        public string PdmCompanyCode { get; set; }
     }
 
     [DataContract]

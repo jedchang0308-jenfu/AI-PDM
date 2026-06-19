@@ -6,9 +6,34 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE,
   password_hash TEXT,
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE TABLE IF NOT EXISTS companies (
+  id TEXT PRIMARY KEY,
+  company_code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS user_company_memberships (
+  user_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, company_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+INSERT OR IGNORE INTO companies (id, company_code, display_name)
+VALUES
+  ('company-jenfu', 'JENFU', '鉦富'),
+  ('company-maxima', 'MAXIMA', '久方');
 
 CREATE TABLE IF NOT EXISTS system_settings (
   key TEXT PRIMARY KEY,
@@ -20,15 +45,19 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
-  part_number TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number TEXT NOT NULL,
   part_name TEXT NOT NULL,
   current_revision TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  UNIQUE (company_id, part_number)
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   item_id TEXT NOT NULL,
   drawing_number TEXT NOT NULL,
   revision TEXT NOT NULL,
@@ -53,11 +82,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   obsolete_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (item_id) REFERENCES items(id),
   FOREIGN KEY (submitted_by) REFERENCES users(id),
   FOREIGN KEY (superseded_by_submission_id) REFERENCES submissions(id),
   FOREIGN KEY (obsolete_by) REFERENCES users(id),
-  UNIQUE (drawing_number, revision)
+  UNIQUE (company_id, drawing_number, revision)
 );
 
 CREATE TABLE IF NOT EXISTS submission_files (
@@ -520,8 +550,10 @@ END;
 
 CREATE TABLE IF NOT EXISTS numbering_sequences (
   sequence_key TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   next_value INTEGER NOT NULL CHECK (next_value > 0),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
 CREATE TABLE IF NOT EXISTS numbering_rule_versions (
@@ -549,7 +581,8 @@ VALUES (
 
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
-  root_code TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  root_code TEXT NOT NULL,
   core_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
@@ -558,14 +591,17 @@ CREATE TABLE IF NOT EXISTS part_roots (
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
-  FOREIGN KEY (created_by) REFERENCES users(id)
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, root_code)
 );
 
 CREATE TABLE IF NOT EXISTS part_numbers (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
-  part_number TEXT NOT NULL UNIQUE,
+  part_number TEXT NOT NULL,
   sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
   sequence_code TEXT NOT NULL,
   part_name TEXT NOT NULL,
@@ -580,16 +616,19 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, part_number),
   UNIQUE (part_root_id, sequence_code)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_numbers (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
-  drawing_number TEXT NOT NULL UNIQUE,
+  drawing_number TEXT NOT NULL,
   purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT')),
   purpose_description TEXT NOT NULL DEFAULT '',
   sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
@@ -600,9 +639,11 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, drawing_number),
   UNIQUE (part_root_id, purpose_code, sequence_no)
 );
 
@@ -760,6 +801,7 @@ CREATE TABLE IF NOT EXISTS warning_events (
 
 CREATE TABLE IF NOT EXISTS numbering_task_items (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   task_type TEXT NOT NULL,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,
@@ -777,6 +819,7 @@ CREATE TABLE IF NOT EXISTS numbering_task_items (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   handled_by TEXT,
   handled_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (assigned_to) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (handled_by) REFERENCES users(id)
@@ -784,6 +827,7 @@ CREATE TABLE IF NOT EXISTS numbering_task_items (
 
 CREATE TABLE IF NOT EXISTS numbering_notifications (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   notification_type TEXT NOT NULL,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,
@@ -801,6 +845,7 @@ CREATE TABLE IF NOT EXISTS numbering_notifications (
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (recipient_id) REFERENCES users(id),
   FOREIGN KEY (handled_by) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id)
@@ -870,6 +915,7 @@ VALUES
 
 CREATE TABLE IF NOT EXISTS approval_requests (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
   action_code TEXT NOT NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'same_drawing_variant')),
@@ -883,6 +929,7 @@ CREATE TABLE IF NOT EXISTS approval_requests (
   resolved_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (requested_by) REFERENCES users(id),
   FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
@@ -901,6 +948,7 @@ CREATE TABLE IF NOT EXISTS approval_decisions (
 
 CREATE TABLE IF NOT EXISTS approval_batches (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   batch_code TEXT NOT NULL UNIQUE,
   request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
   project_code TEXT,
@@ -910,6 +958,7 @@ CREATE TABLE IF NOT EXISTS approval_batches (
   submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (submitted_by) REFERENCES users(id)
 );
 
@@ -1178,6 +1227,7 @@ CREATE TABLE IF NOT EXISTS approval_delegations (
 
 CREATE TABLE IF NOT EXISTS import_batches (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   source_filename TEXT NOT NULL,
   source_hash TEXT,
   status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
@@ -1187,6 +1237,7 @@ CREATE TABLE IF NOT EXISTS import_batches (
   confirmed_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (imported_by) REFERENCES users(id),
   FOREIGN KEY (confirmed_by) REFERENCES users(id)
 );
@@ -1235,17 +1286,20 @@ CREATE TABLE IF NOT EXISTS file_assets (
 
 CREATE TABLE IF NOT EXISTS numbering_export_jobs (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   export_mode TEXT NOT NULL CHECK (export_mode IN ('no_audit', 'last_change_summary', 'full_change_summary')),
   status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
   result_json TEXT NOT NULL DEFAULT '{}',
   generated_by TEXT,
   generated_at TEXT NOT NULL DEFAULT (datetime('now')),
   completed_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (generated_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS monthly_audit_reports (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   report_type TEXT NOT NULL,
   report_month TEXT NOT NULL,
   generation_mode TEXT NOT NULL CHECK (generation_mode IN ('auto', 'manual')),
@@ -1260,6 +1314,7 @@ CREATE TABLE IF NOT EXISTS monthly_audit_reports (
   regenerate_reason TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (generated_by) REFERENCES users(id),
   FOREIGN KEY (last_downloaded_by) REFERENCES users(id),
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id)
@@ -1288,7 +1343,6 @@ CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at 
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_created_at ON submissions(submitted_by, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_status_created_at ON submissions(submitted_by, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_item_created_at ON submissions(item_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_submissions_drawing_number ON submissions(drawing_number);
 CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);

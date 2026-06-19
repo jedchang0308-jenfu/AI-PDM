@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { createBomWorkbenchDraftFromAssembly, getSubmission } from "@/lib/db";
-import { canReadBomDraft } from "@/lib/permissions";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { createBomWorkbenchDraftFromAssemblyAsync } from "@/lib/bom-workbench-async";
+import { canReadBomDraftAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,7 @@ type RequestBody = {
 };
 
 export async function POST(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const body = (await request.json().catch(() => ({}))) as RequestBody;
@@ -21,13 +22,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
   }
 
-  const submission = getSubmission(submissionId);
+  const submission = await getSubmissionAsync(submissionId);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadBomDraft(auth.user, submission)) return forbidden();
+  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
 
-  const draft = createBomWorkbenchDraftFromAssembly({
+  const draft = await createBomWorkbenchDraftFromAssemblyAsync({
     submissionId,
     actorId: auth.user.id,
     draftName: typeof body.draftName === "string" ? body.draftName : undefined,

@@ -27,9 +27,13 @@ export function reconcileItemCurrentRevisions(database: SqliteDatabase) {
   `);
 }
 
-export function listItemRevisionHistory(input: { partNumber: string; submittedBy?: string }) {
+export function listItemRevisionHistory(input: { partNumber: string; submittedBy?: string; companyId?: string }) {
   const filters = ["i.part_number = ?"];
   const values = [input.partNumber];
+  if (input.companyId) {
+    filters.push("i.company_id = ?");
+    values.push(input.companyId);
+  }
   if (input.submittedBy) {
     filters.push("s.submitted_by = ?");
     values.push(input.submittedBy);
@@ -65,16 +69,18 @@ export function listItemRevisionHistory(input: { partNumber: string; submittedBy
     .all(...values) as ItemRevisionHistoryEntry[];
 }
 
-export function submissionRevisionExists(input: { drawingNumber: string; revision: string }) {
+export function submissionRevisionExists(input: { drawingNumber: string; revision: string; companyId?: string }) {
+  const companyId = input.companyId ?? "company-jenfu";
   const existing = getDb()
-    .prepare("SELECT id FROM submissions WHERE drawing_number = ? AND revision = ?")
-    .get(input.drawingNumber, input.revision) as { id: string } | undefined;
+    .prepare("SELECT id FROM submissions WHERE drawing_number = ? AND revision = ? AND company_id = ?")
+    .get(input.drawingNumber, input.revision, companyId) as { id: string } | undefined;
   return Boolean(existing);
 }
 
-export function findOrCreateItem(input: { partNumber: string; partName: string; revision: string }) {
+export function findOrCreateItem(input: { partNumber: string; partName: string; revision: string; companyId?: string }) {
   const database = getDb();
-  const existing = database.prepare("SELECT id FROM items WHERE part_number = ?").get(input.partNumber) as
+  const companyId = input.companyId ?? "company-jenfu";
+  const existing = database.prepare("SELECT id FROM items WHERE company_id = ? AND part_number = ?").get(companyId, input.partNumber) as
     | { id: string }
     | undefined;
 
@@ -88,7 +94,7 @@ export function findOrCreateItem(input: { partNumber: string; partName: string; 
 
   const id = crypto.randomUUID();
   database
-    .prepare("INSERT INTO items (id, part_number, part_name, current_revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(id, input.partNumber, input.partName, null, now, now);
+    .prepare("INSERT INTO items (id, company_id, part_number, part_name, current_revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(id, companyId, input.partNumber, input.partName, null, now, now);
   return id;
 }
