@@ -1,0 +1,42 @@
+{
+  "generatedAt": "deterministic",
+  "generatedBy": "scripts/sync-supabase-runtime-migrations.mjs",
+  "supabaseCli": {
+    "available": false,
+    "version": "",
+    "error": "supabase CLI detection skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+  },
+  "localMigrationList": {
+    "command": "supabase migration list",
+    "attempted": false,
+    "passed": false,
+    "status": null,
+    "stdout": "",
+    "stderr": "",
+    "reason": "supabase migration list skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+  },
+  "note": "Generated mirror of db/postgres SQL for AI_PDM runtime migration planning. If Supabase CLI is available, validate migration history with `supabase migration list` before applying to a live project.",
+  "migrations": [
+    {
+      "source": "db/postgres/001_initial_schema.sql",
+      "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
+      "description": "Initial AI_PDM public schema converted from SQLite",
+      "sourceSha256": "ec91860f889d306a7f9e2a3fc3d4c702d8790c6a1953ce481276fce7e142e7aa",
+      "targetSha256": "80f71ae9dc858a1a2cda05d1fa20825d6f2e46a034cba98967374c0a63933b6b"
+    },
+    {
+      "source": "db/postgres/002_supabase_rls_plan.sql",
+      "target": "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
+      "description": "Force RLS and deny direct anon/authenticated public table access",
+      "sourceSha256": "1bd022c38d658c5fb736947064864c00956ee9cd2dc87ebf0cc155eb7ce192aa",
+      "targetSha256": "65f47d8d5d88b5447dce97c53632cd4c0f229620ba4e48478055c583904aac77"
+    },
+    {
+      "source": "db/postgres/003_harden_set_updated_at_search_path.sql",
+      "target": "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
+      "description": "Harden set_updated_at function search_path for Supabase",
+      "sourceSha256": "83d2883f59b7078898f4abf9b7cb8620ddf58b6f1f8a426f286417f37b4bbcdf",
+      "targetSha256": "c84ee2876fed9103887dd60ef81dc43baa974bec7705cb60364748f2bcc663b1"
+    }
+  ]
+}

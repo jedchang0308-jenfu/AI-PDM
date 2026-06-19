@@ -1,9 +1,9 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import crypto from "node:crypto";
 import { createAuditLog, getDb, getSystemSetting } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
+import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
+import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
 
 export type MasterAttachmentEntityType = "drawing_number" | "part_number";
 export type DrawingAttachmentCategory = "cad_3d" | "drawing_2d" | "dwg" | "pdf" | "other";
@@ -166,7 +166,7 @@ export async function createMasterAttachment(input: {
     bytes: fileBuffer
   });
   const id = crypto.randomUUID();
-  const contentHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+  const contentHash = sha256(fileBuffer);
   const driveFolderId = getMasterAttachmentsDriveFolderId();
   const initialDriveStatus: MasterAttachmentDriveStatus = driveFolderId && isGoogleDriveServiceConfigured() ? "uploading" : "none";
 
@@ -248,12 +248,14 @@ export async function getMasterAttachmentBytes(input: {
   if (!entity) return null;
   const row = selectMasterAttachmentRow(database, entity, input.attachmentId);
   if (!row?.original_path) return null;
-  const repositoryRoot = path.resolve(getRepositoryDir());
-  const resolvedPath = path.resolve(row.original_path);
-  if (!resolvedPath.startsWith(repositoryRoot + path.sep)) {
+  const storage = createFileStorageService();
+  let storageKey: string;
+  try {
+    storageKey = row.storage_key || storageKeyFromLocalPath(row.original_path);
+  } catch {
     throw new Error("MASTER_ATTACHMENT_PATH_OUTSIDE_REPOSITORY");
   }
-  const bytes = await fs.readFile(resolvedPath);
+  const bytes = await storage.readObject(storageKey);
   return { attachment: mapMasterAttachment(row, entity.code), bytes };
 }
 
@@ -439,14 +441,14 @@ async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFile
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const safeName = sanitizeFilename(input.originalFilename);
   const entityDir = input.entity.type === "drawing_number" ? "drawing-number" : "part-number";
-  const targetDir = path.join(getRepositoryDir(), "master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm);
-  await fs.mkdir(targetDir, { recursive: true });
   const storedName = `${crypto.randomUUID()}-${safeName}`;
-  const localPath = path.join(targetDir, storedName);
-  await fs.writeFile(localPath, input.bytes);
+  const stored = await createFileStorageService().putObject({
+    key: buildStorageKey(["master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm, storedName]),
+    bytes: input.bytes
+  });
   return {
-    localPath,
-    storageKey: path.relative(getRepositoryDir(), localPath).split(path.sep).join("/")
+    localPath: stored.localPath,
+    storageKey: stored.key
   };
 }
 
@@ -523,13 +525,5 @@ function inferMimeType(filename: string) {
 }
 
 function getMaxAttachmentBytes() {
-  const configured = process.env.PDM_MASTER_ATTACHMENT_MAX_UPLOAD_FILE_BYTES || process.env.PDM_MAX_UPLOAD_FILE_BYTES || "";
-  const parsed = Number.parseInt(configured, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 50 * 1024 * 1024;
-}
-
-function getRepositoryDir() {
-  const configured = process.env.PDM_REPOSITORY_DIR?.trim();
-  if (!configured) return path.join(process.cwd(), "data", "repository");
-  return path.isAbsolute(configured) ? configured : path.join(/* turbopackIgnore: true */ process.cwd(), configured);
+  return getMasterAttachmentUploadPolicy().maxUploadFileBytes;
 }

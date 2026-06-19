@@ -1,29 +1,30 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireRole } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { createItemLock, getSubmission, releaseItemLock } from "@/lib/db";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { createItemLockAsync, releaseItemLockAsync } from "@/lib/item-locks-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, ["Engineer", "Admin"]);
+  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
+  const submission = await getSubmissionAsync(id);
   if (!submission) {
-    return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   const body = await request.json().catch(() => ({}));
   const reason = String(body.reason ?? "Edit reservation").trim();
   const hours = Number.parseInt(String(body.hours ?? "8"), 10);
   if (reason.length < 3 || reason.length > 120) {
-    return NextResponse.json({ error: "原因需為 3 到 120 個字" }, { status: 400 });
+    return NextResponse.json({ error: "?????3 ??120 ??" }, { status: 400 });
   }
 
-  const result = createItemLock({
+  const result = await createItemLockAsync({
     submissionId: id,
     userId: auth.user.id,
     reason,
@@ -38,17 +39,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, ["Engineer", "Admin"]);
+  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
+  const submission = await getSubmissionAsync(id);
   if (!submission) {
-    return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, submission) && auth.user.role !== "Admin") return forbidden();
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const result = releaseItemLock({
+  const result = await releaseItemLockAsync({
     submissionId: id,
     userId: auth.user.id,
     force: auth.user.role === "Admin"
@@ -60,3 +61,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   return NextResponse.json({ released: result.released });
 }
+

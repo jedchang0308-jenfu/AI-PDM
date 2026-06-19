@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { evaluateApprovalRules, evaluateNumberingGate } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { evaluateApprovalRulesAsync, evaluateNumberingGateAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "settings.admin_matrix");
+  const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         : [];
 
     try {
-      const result = evaluateApprovalRules({
+      const result = await evaluateApprovalRulesAsync({
         actionCode,
         phase: body.phase,
         recordStatus: body.recordStatus ?? body.record_status,
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = evaluateNumberingGate({
+    const result = await evaluateNumberingGateAsync({
       partNumber,
       gate,
       allowMainDrawingOverride: Boolean(body.allowMainDrawingOverride ?? body.allow_main_drawing_override)

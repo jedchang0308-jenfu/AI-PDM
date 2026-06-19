@@ -1,28 +1,28 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import crypto from "node:crypto";
+import { buildStorageKey, createFileStorageService } from "@/lib/file-storage";
 import { normalizeFileRole } from "@/lib/validation";
 
 export async function saveUploadedFiles(submissionFolderName: string, files: File[]) {
   const now = new Date();
   const yyyy = String(now.getFullYear());
   const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const targetDir = path.join(/*turbopackIgnore: true*/ getRepositoryDir(), "pending", yyyy, mm, submissionFolderName);
-
-  await fs.mkdir(targetDir, { recursive: true });
+  const storage = createFileStorageService();
 
   const saved = [];
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const safeName = sanitizeFilename(file.name);
-    const localPath = path.join(/*turbopackIgnore: true*/ targetDir, safeName);
-    await fs.writeFile(localPath, buffer);
+    const stored = await storage.putObject({
+      key: buildStorageKey(["pending", yyyy, mm, submissionFolderName, safeName]),
+      bytes: buffer
+    });
     saved.push({
       fileRole: normalizeFileRole(file.name),
       originalFilename: file.name,
-      localPath,
-      sha256: crypto.createHash("sha256").update(buffer).digest("hex"),
-      fileSize: buffer.byteLength
+      localPath: stored.localPath,
+      sha256: stored.sha256,
+      fileSize: stored.bytes
     });
   }
 

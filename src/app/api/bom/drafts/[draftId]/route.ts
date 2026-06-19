@@ -1,44 +1,45 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { getBomWorkbenchDraftById, getSubmission, saveBomWorkbenchDraftTree } from "@/lib/db";
-import { canReadBomDraft } from "@/lib/permissions";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getBomWorkbenchDraftByIdAsync, saveBomWorkbenchDraftTreeAsync } from "@/lib/bom-workbench-async";
+import { canReadBomDraftAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ draftId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { draftId } = await params;
-  const draft = getBomWorkbenchDraftById(draftId);
+  const draft = await getBomWorkbenchDraftByIdAsync(draftId);
   if (!draft) {
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  const submission = getSubmission(draft.parent_submission_id);
+  const submission = await getSubmissionAsync(draft.parent_submission_id);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadBomDraft(auth.user, submission)) return forbidden();
+  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
 
   return NextResponse.json({ draft });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ draftId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { draftId } = await params;
-  const draft = getBomWorkbenchDraftById(draftId);
+  const draft = await getBomWorkbenchDraftByIdAsync(draftId);
   if (!draft) {
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  const submission = getSubmission(draft.parent_submission_id);
+  const submission = await getSubmissionAsync(draft.parent_submission_id);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadBomDraft(auth.user, submission)) return forbidden();
+  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
 
   const body = (await request.json().catch(() => ({}))) as {
     lines?: unknown;
@@ -49,7 +50,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dr
   }
 
   try {
-    const updated = saveBomWorkbenchDraftTree({
+    const updated = await saveBomWorkbenchDraftTreeAsync({
       draftId,
       actorId: auth.user.id,
       reason: typeof body.reason === "string" ? body.reason : undefined,

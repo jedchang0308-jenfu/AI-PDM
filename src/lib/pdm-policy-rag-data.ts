@@ -6,7 +6,7 @@ export type PdmPolicyChunk = {
   content: string;
 };
 
-export const PDM_POLICY_SOURCE = "docs/pdm-management-policy-draft.md";
+export const PDM_POLICY_SOURCE = ".ai-doc/reference/pdm-management-policy-draft.md";
 
 export const PDM_POLICY_CHUNKS: PdmPolicyChunk[] = [
   {
@@ -42,7 +42,7 @@ export const PDM_POLICY_CHUNKS: PdmPolicyChunk[] = [
   {
     "id": "7-ai-助手使用限制",
     "title": "7. AI 助手使用限制",
-    "content": "- AI assistant is read-only。\n- AI 可查詢 pending reviews、dashboard metrics、submission detail、file metadata 與 PDM rules。\n- AI 不可 approve、reject、delete、revise、release、publish 或修改任何 PDM record。\n- AI 回答管理辦法時必須引用政策資料來源，例如 `docs/pdm-management-policy-draft.md`。\n- 若政策文件與程式行為不一致，需優先視為 RD/QC 缺陷處理，不可只修改 AI 回答掩蓋差異。"
+    "content": "- AI assistant is read-only。\n- AI 可查詢 pending reviews、dashboard metrics、submission detail、file metadata 與 PDM rules。\n- AI 不可 approve、reject、delete、revise、release、publish 或修改任何 PDM record。\n- AI 回答管理辦法時必須引用政策資料來源，例如 `.ai-doc/reference/pdm-management-policy-draft.md`。\n- 若政策文件與程式行為不一致，需優先視為 RD/QC 缺陷處理，不可只修改 AI 回答掩蓋差異。"
   },
   {
     "id": "8-目前仍需管理層確認的-p0-項目",

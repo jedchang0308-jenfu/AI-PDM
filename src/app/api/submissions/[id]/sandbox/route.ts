@@ -1,20 +1,21 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth, requireRole } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { createSandboxBranch, getSubmission, listSandboxBranchesForSubmission } from "@/lib/db";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { createSandboxBranchAsync, listSandboxBranchesForSubmissionAsync } from "@/lib/sandbox-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const branches = listSandboxBranchesForSubmission(id);
+  const branches = await listSandboxBranchesForSubmissionAsync(id);
   return NextResponse.json({
     branches,
     current_branch: branches.find((branch) => branch.sandbox_submission_id === id) ?? null
@@ -22,16 +23,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, ["Engineer", "Admin"]);
+  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   const body = await request.json().catch(() => ({}));
-  const result = createSandboxBranch({
+  const result = await createSandboxBranchAsync({
     sourceSubmissionId: id,
     userId: auth.user.id,
     branchName: String(body.branchName ?? body.branch_name ?? "").trim(),
@@ -44,3 +45,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   return NextResponse.json({ branch: result.branch, submissionId: result.submissionId }, { status: 201 });
 }
+

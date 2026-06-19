@@ -82,10 +82,10 @@ function getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, document
 
 function getSupabaseShadowEvidence() {
   const evidenceDocs = [
-    "docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
-    "docs/industrialization/supabase-live-probe-2026-05-28.md",
-    "docs/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
-    "docs/industrialization/external-validation-handoff-2026-05-28.md"
+    ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
+    ".ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md",
+    ".ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
+    ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md"
   ].map((docPath) => ({
     path: docPath,
     exists: fs.existsSync(path.join(root, docPath))

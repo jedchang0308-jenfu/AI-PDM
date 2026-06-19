@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachment, listMasterAttachments } from "@/lib/db";
+import { createMasterAttachmentAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.search");
+  const auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
-  const result = listMasterAttachments({
+  const result = await listMasterAttachmentsAsync({
     entityType: "part_number",
     entityCode: decodeURIComponent(partNumber)
   });
@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
   }
 
   try {
-    const attachment = await createMasterAttachment({
+    const attachment = await createMasterAttachmentAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       file,

@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachment, listMasterAttachments } from "@/lib/db";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { createMasterAttachmentAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.drawings.view");
+  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
 
   const { drawingNumber } = await params;
-  const result = listMasterAttachments({
+  const result = await listMasterAttachmentsAsync({
     entityType: "drawing_number",
     entityCode: decodeURIComponent(drawingNumber)
   });
@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { drawingNumber } = await params;
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   }
 
   try {
-    const attachment = await createMasterAttachment({
+    const attachment = await createMasterAttachmentAsync({
       entityType: "drawing_number",
       entityCode: decodeURIComponent(drawingNumber),
       file,

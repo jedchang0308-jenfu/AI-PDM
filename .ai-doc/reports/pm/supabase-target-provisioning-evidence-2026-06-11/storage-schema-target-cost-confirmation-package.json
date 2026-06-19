@@ -1,0 +1,65 @@
+{
+  "reportType": "file-storage-schema-target-cost-confirmation-package",
+  "packageVersion": "storage-schema-target-cost-confirmation-package/v1",
+  "generatedAt": "2026-06-11T04:21:45.072Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noSupabaseConfirmCostCalled": true,
+    "noSupabaseProjectCreated": true,
+    "noSupabaseBranchCreated": true,
+    "noCostAccepted": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noMetadataPointersUpdated": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "organizationId": "igzdpafkvqqpsyadmage",
+    "organizationName": "JED",
+    "targetName": "AI_PDM_STAGING",
+    "region": "ap-southeast-1",
+    "preferredResource": "project"
+  },
+  "targetSafety": {
+    "safe": true,
+    "status": "safe",
+    "reason": "target name is explicitly non-production and not a known forbidden project"
+  },
+  "costEvidence": {
+    "project": {
+      "type": "project",
+      "amount": 0,
+      "recurrence": "monthly",
+      "available": true,
+      "requiresUserConfirmationBeforeCreate": true
+    },
+    "branch": {
+      "type": "branch",
+      "amount": 0.01344,
+      "recurrence": "hourly",
+      "available": true,
+      "requiresUserConfirmationBeforeCreate": true
+    }
+  },
+  "readiness": {
+    "readyForUserCostConfirmation": true,
+    "readyForSupabaseCreateCall": false,
+    "reason": "cost evidence is present and target name is safe; explicit user confirmation is still required"
+  },
+  "handoff": {
+    "nextActions": [
+      "Repeat to the user: creating a Supabase project for AI_PDM_STAGING costs 0 monthly",
+      "Ask the user to explicitly confirm they understand the cost before calling Supabase confirm_cost",
+      "After explicit confirmation, use Supabase confirm_cost and then create the project or branch through the connector"
+    ],
+    "confirmationText": "Please confirm you understand creating the Supabase project target \"AI_PDM_STAGING\" in organization \"igzdpafkvqqpsyadmage\" costs 0 monthly."
+  },
+  "summary": {
+    "status": "ready_for_user_cost_confirmation",
+    "costEvidenceAvailable": true,
+    "selectedCostAmount": 0,
+    "selectedCostRecurrence": "monthly"
+  }
+}

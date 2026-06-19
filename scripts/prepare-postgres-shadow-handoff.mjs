@@ -300,7 +300,7 @@ const handoff = {
   targetPolicy: {
     requiresDisposableTarget: true,
     forbiddenKnownProjects: ["ProJED", "ProJED_TEST"],
-    connectionStringStorage: "operator shell only; do not write into package/docs/task"
+    connectionStringStorage: "operator shell only; do not write into package/.ai-doc/task"
   },
   sqlSources: {
     sqliteSchema: {

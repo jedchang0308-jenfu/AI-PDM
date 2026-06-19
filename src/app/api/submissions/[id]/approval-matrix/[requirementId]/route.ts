@@ -1,33 +1,34 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireRole } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { getApprovalMatrixRequirement, getSubmission, waiveApprovalMatrixRequirement } from "@/lib/db";
+import { getApprovalMatrixRequirementAsync, waiveApprovalMatrixRequirementAsync } from "@/lib/approval-async";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; requirementId: string }> }) {
-  const auth = requireRole(request, ["R&D Manager", "Admin"]);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id, requirementId } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const existing = getApprovalMatrixRequirement({ submissionId: id, requirementId });
-  if (!existing) return NextResponse.json({ error: "找不到簽核矩陣需求" }, { status: 404 });
+  const existing = await getApprovalMatrixRequirementAsync({ submissionId: id, requirementId });
+  if (!existing) return NextResponse.json({ error: "Approval matrix requirement not found" }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
   const action = String(body.action ?? "").trim();
   const comment = String(body.comment ?? "").trim();
   if (action !== "waive") {
-    return NextResponse.json({ error: "動作必須為豁免" }, { status: 400 });
+    return NextResponse.json({ error: "Unsupported approval matrix action" }, { status: 400 });
   }
   if (comment.length > 1000) {
     return NextResponse.json({ error: "comment is too long" }, { status: 400 });
   }
 
-  const result = waiveApprovalMatrixRequirement({
+  const result = await waiveApprovalMatrixRequirementAsync({
     submissionId: id,
     requirementId,
     decidedBy: auth.user.id,

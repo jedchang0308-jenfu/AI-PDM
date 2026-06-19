@@ -1,0 +1,52 @@
+{
+  "reportType": "supabase-target-connector-receipt-evidence",
+  "evidenceVersion": "storage-schema-target-connector-receipt-evidence/v1",
+  "generatedAt": "2026-06-11T05:47:44.305Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "generatorDidNotCallSupabaseConfirmCost": true,
+    "generatorDidNotCreateProject": true,
+    "generatorDidNotCreateBranch": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "targetCreateRequestPath": "supabase-target-create-request.json",
+    "confirmCostIdProvided": false,
+    "createdResourceIdProvided": false
+  },
+  "sourceEvidence": {
+    "createRequestStatus": "blocked_user_cost_not_confirmed"
+  },
+  "target": {
+    "organizationId": "igzdpafkvqqpsyadmage",
+    "targetName": "AI_PDM_STAGING",
+    "resourceType": "project",
+    "region": "ap-southeast-1"
+  },
+  "receipts": {
+    "confirmCostId": "",
+    "createdResourceId": "",
+    "createdResourceType": "project",
+    "createdTargetName": "AI_PDM_STAGING",
+    "createdRegion": "ap-southeast-1"
+  },
+  "targetSafety": {
+    "safe": true,
+    "status": "safe",
+    "reason": "target name is explicitly non-production and not a known forbidden project"
+  },
+  "summary": {
+    "status": "blocked_create_request_not_ready",
+    "receiptRecorded": false,
+    "readyForCreateResultEvidence": false
+  },
+  "handoff": {
+    "nextActions": [
+      "Do not call Supabase confirm_cost or create APIs until target create request is ready"
+    ]
+  }
+}

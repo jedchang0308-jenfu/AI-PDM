@@ -1,25 +1,22 @@
-import { NextResponse } from "next/server";
-import { getSubmission, revokeReadonlyShare } from "@/lib/db";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { revokeReadonlyShareAsync } from "@/lib/release-records-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
-function canManageShares(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
-
-export async function PATCH(_request: Request, { params }: { params: Promise<{ id: string; shareId: string }> }) {
-  const auth = requireAuth(_request);
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; shareId: string }> }) {
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageShares(auth.user.role)) return forbidden();
 
   const { id, shareId } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const share = revokeReadonlyShare({ submissionId: id, shareId, revokedBy: auth.user.id });
-  if (!share) return NextResponse.json({ error: "找不到分享連結" }, { status: 404 });
+  const share = await revokeReadonlyShareAsync({ submissionId: id, shareId, revokedBy: auth.user.id });
+  if (!share) return NextResponse.json({ error: "?曆??啣?鈭恍??" }, { status: 404 });
   return NextResponse.json({ share });
 }
+

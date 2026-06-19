@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
-import { getMasterAttachment, getMasterAttachmentBytes, softDeleteMasterAttachment, syncMasterAttachmentToDrive } from "@/lib/db";
+import {
+  getMasterAttachmentAsync,
+  getMasterAttachmentBytesAsync,
+  softDeleteMasterAttachmentAsync,
+  syncMasterAttachmentToDriveAsync
+} from "@/lib/master-attachments-async";
 import { buildMasterAttachmentFileResponse, masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.search");
+  const auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return auth.response;
 
   const { partNumber, attachmentId } = await params;
   try {
-    const result = await getMasterAttachmentBytes({
+    const result = await getMasterAttachmentBytesAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       attachmentId
@@ -26,18 +31,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { partNumber, attachmentId } = await params;
   try {
-    const current = getMasterAttachment({
+    const current = await getMasterAttachmentAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       attachmentId
     });
     if (!current) return NextResponse.json({ error: "MASTER_ATTACHMENT_NOT_FOUND" }, { status: 404 });
-    const attachment = await syncMasterAttachmentToDrive({ attachmentId, actorId: auth.user.id });
+    const attachment = await syncMasterAttachmentToDriveAsync({ attachmentId, actorId: auth.user.id });
     return NextResponse.json({ attachment });
   } catch (error) {
     const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_SYNC_FAILED";
@@ -46,13 +51,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { partNumber, attachmentId } = await params;
   const body = await request.json().catch(() => ({}));
   try {
-    softDeleteMasterAttachment({
+    await softDeleteMasterAttachmentAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       attachmentId,

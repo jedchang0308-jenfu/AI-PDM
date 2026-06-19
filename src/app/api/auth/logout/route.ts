@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { createLogoutCookie, getSessionUser } from "@/lib/auth";
-import { createAuditLog } from "@/lib/db";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { createLogoutCookie } from "@/lib/auth";
+import { getSessionUserAsync } from "@/lib/auth-async";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const user = getSessionUser(request);
+  const user = await getSessionUserAsync(request);
   if (user) {
-    createAuditLog({ actorId: user.id, action: "Logout", detail: { email: user.email } });
+    await createAuditLogAsync({ actorId: user.id, action: "Logout", detail: { email: user.email } });
   }
 
   return NextResponse.json(

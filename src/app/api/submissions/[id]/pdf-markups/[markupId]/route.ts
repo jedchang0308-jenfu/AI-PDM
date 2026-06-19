@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { getPdfMarkup, getSubmission, resolvePdfMarkup } from "@/lib/db";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getPdfMarkupAsync, resolvePdfMarkupAsync } from "@/lib/collaboration-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; markupId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id, markupId } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const existing = getPdfMarkup({ submissionId: id, markupId });
+  const existing = await getPdfMarkupAsync({ submissionId: id, markupId });
   if (!existing) {
-    return NextResponse.json({ error: "找不到 PDF 標註" }, { status: 404 });
+    return NextResponse.json({ error: "PDF markup not found" }, { status: 404 });
   }
 
   const body = await request.json().catch(() => ({}));
   if (body.resolved !== true && body.status !== "resolved") {
-    return NextResponse.json({ error: "目前僅支援結案 PDF 標註" }, { status: 400 });
+    return NextResponse.json({ error: "Patch requires resolved status" }, { status: 400 });
   }
 
   return NextResponse.json({
-    markup: resolvePdfMarkup({ submissionId: id, markupId, resolvedBy: auth.user.id })
+    markup: await resolvePdfMarkupAsync({ submissionId: id, markupId, resolvedBy: auth.user.id })
   });
 }

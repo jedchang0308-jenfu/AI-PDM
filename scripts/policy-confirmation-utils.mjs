@@ -24,7 +24,7 @@ export function createBlankPolicyConfirmation(date = new Date()) {
   return {
     schemaVersion: "1.0",
     releaseTarget: "AI PDM MVP production readiness",
-    policyDocument: "docs/pdm-management-policy-draft.md",
+    policyDocument: ".ai-doc/reference/pdm-management-policy-draft.md",
     policyVersion: "draft-2026-05-25",
     status: "pending",
     updatedAt,

@@ -6,12 +6,17 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { getDataDir, getQualityDir } from "./pdm-paths.mjs";
-import { collectPostgresTargetSnapshot, evaluateShadowTarget } from "./postgres-shadow-target-guard-utils.mjs";
+import {
+  collectPostgresTargetSnapshot,
+  evaluateShadowTarget,
+  evaluateSupabaseTargetIdentity
+} from "./postgres-shadow-target-guard-utils.mjs";
 
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
 const writeReport = !args.has("--no-write");
 const requirePostgres = args.has("--require-postgres");
+const schemaRlsOnly = args.has("--schema-rls-only");
 const sqliteSchemaPath = path.join(root, "db", "schema.sql");
 const postgresSchemaPath = path.join(root, "db", "postgres", "001_initial_schema.sql");
 const postgresRlsPath = path.join(root, "db", "postgres", "002_supabase_rls_plan.sql");
@@ -112,9 +117,15 @@ const sqliteStats = collectSqliteStats(sqliteTables);
 let postgresStats = null;
 let postgresCompareError = null;
 let postgresTargetGuard = null;
+const postgresTargetIdentity = evaluateSupabaseTargetIdentity(postgresUrl, process.env);
 
 try {
   if (postgresUrl) {
+    if (!postgresTargetIdentity.safe) {
+      throw new Error(
+        `Postgres shadow target identity guard failed: ${postgresTargetIdentity.issues.map((issue) => issue.type).join(", ")}`
+      );
+    }
     const snapshot = collectPostgresTargetSnapshot(postgresUrl, sqliteTables, root);
     postgresTargetGuard = evaluateShadowTarget({
       publicTables: snapshot.publicTables,
@@ -126,13 +137,15 @@ try {
       throw new Error(`Postgres shadow target guard failed: ${postgresTargetGuard.issues.map((issue) => issue.type).join(", ")}`);
     }
   }
-  postgresStats = collectPostgresStats(sqliteStats);
+  if (!schemaRlsOnly) {
+    postgresStats = collectPostgresStats(sqliteStats);
+  }
 } catch (error) {
   postgresCompareError = error instanceof Error ? error.message : String(error);
 }
 
 const mismatches = [];
-if (postgresStats) {
+if (!schemaRlsOnly && postgresStats) {
   const byTable = new Map(postgresStats.map((stat) => [stat.table, stat]));
   for (const sqliteStat of sqliteStats) {
     const postgresStat = byTable.get(sqliteStat.table);
@@ -145,6 +158,11 @@ if (postgresStats) {
 const rlsMissingTables = sqliteTables.filter((tableName) => !postgresRls.includes(`'${tableName}'`));
 const report = {
   checkedAt: new Date().toISOString(),
+  comparePolicy: schemaRlsOnly ? "schema_rls_only" : "schema_data",
+  dataCompareSkipped: schemaRlsOnly,
+  dataCompareSkipReason: schemaRlsOnly
+    ? "Schema/RLS-only compare intentionally skips row counts and key hashes so an empty staging database is not treated as a data migration failure."
+    : "",
   sqlitePath,
   migrationTrace: {
     sqliteSchema: {
@@ -166,6 +184,7 @@ const report = {
   missingInPostgres,
   rlsMissingTables,
   sqliteStats,
+  postgresTargetIdentity,
   postgresTargetGuard,
   postgresStats,
   postgresCompareError,

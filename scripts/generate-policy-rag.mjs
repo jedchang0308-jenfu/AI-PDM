@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const sourcePath = path.join(root, "docs", "pdm-management-policy-draft.md");
+const sourcePath = path.join(root, ".ai-doc", "reference", "pdm-management-policy-draft.md");
 const outputPath = path.join(root, "src", "lib", "pdm-policy-rag-data.ts");
 
 if (!fs.existsSync(sourcePath)) {
@@ -51,7 +51,7 @@ const generated = [
   "  content: string;",
   "};",
   "",
-  `export const PDM_POLICY_SOURCE = ${JSON.stringify("docs/pdm-management-policy-draft.md")};`,
+  `export const PDM_POLICY_SOURCE = ${JSON.stringify(".ai-doc/reference/pdm-management-policy-draft.md")};`,
   "",
   `export const PDM_POLICY_CHUNKS: PdmPolicyChunk[] = ${JSON.stringify(chunks, null, 2)};`,
   ""

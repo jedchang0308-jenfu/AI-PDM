@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-06-11T12:20:00+08:00",
+  "source": "Supabase connector list_projects",
+  "organizationId": "igzdpafkvqqpsyadmage",
+  "projects": [
+    {
+      "name": "ProJED",
+      "ref": "knodlkxqpcqyrtgwpdst",
+      "organization_id": "igzdpafkvqqpsyadmage",
+      "region": "ap-southeast-1",
+      "status": "ACTIVE_HEALTHY"
+    },
+    {
+      "name": "ProJED_TEST",
+      "ref": "fhisnnufoeulxqrchldf",
+      "organization_id": "igzdpafkvqqpsyadmage",
+      "region": "ap-northeast-1",
+      "status": "ACTIVE_HEALTHY"
+    }
+  ]
+}

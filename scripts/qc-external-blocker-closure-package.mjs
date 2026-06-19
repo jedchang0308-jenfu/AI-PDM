@@ -69,9 +69,9 @@ function assertFileExists(label, filePath) {
 }
 
 const taskText = readText(".ai-doc/dev_task.md");
-const externalHandoff = readText("docs/industrialization/external-validation-handoff-2026-05-28.md");
-const evidenceChecklist = readText("docs/external-evidence-handoff-checklist-2026-05-27.md");
-const activeBlockerReport = readText("docs/qc-active-goal-remaining-blockers-report-2026-06-02.md");
+const externalHandoff = readText(".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
+const evidenceChecklist = readText(".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md");
+const activeBlockerReport = readText(".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
 const packageJson = readJson("package.json");
 const fieldHandoff = latestDirectory(getFieldTestHandoffsDir(root));
 const postgresHandoff = latestDirectory(getPostgresShadowHandoffsDir(root));
@@ -172,7 +172,7 @@ record("EXT-CLOSE field handoff QC script exposed", packageJson.scripts?.["qc:fi
 record("EXT-CLOSE field issue intake QC script exposed", packageJson.scripts?.["qc:field-test-issue-intake"] === "node scripts/qc-field-test-issue-intake.mjs", "package.json");
 record("EXT-CLOSE postgres handoff QC script exposed", packageJson.scripts?.["qc:postgres-shadow-handoff-package"] === "node scripts/qc-postgres-shadow-handoff-package.mjs", "package.json");
 record("EXT-CLOSE closure QC script exposed", packageJson.scripts?.["qc:external-blocker-closure"] === "node scripts/qc-external-blocker-closure-package.mjs", "package.json");
-record("EXT-CLOSE active blocker report states goal incomplete", /不可標示 complete|不能標示 complete|cannot mark/i.test(activeBlockerReport), "docs/qc-active-goal-remaining-blockers-report-2026-06-02.md");
+record("EXT-CLOSE active blocker report states goal incomplete", /不可標示 complete|不能標示 complete|cannot mark/i.test(activeBlockerReport), ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
 
 const staleFieldIds = [...externalHandoff.matchAll(/data[\\/]+field-test-handoffs[\\/]+(\d{8}-\d{6})/gu)]
   .map((match) => match[1])

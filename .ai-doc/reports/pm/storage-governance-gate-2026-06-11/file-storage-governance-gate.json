@@ -1,0 +1,72 @@
+{
+  "reportType": "file-storage-governance-gate",
+  "gateVersion": "file-storage-governance-gate/v1",
+  "generatedAt": "2026-06-11T06:05:48.810Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noProviderRequests": true,
+    "noFilesDeleted": true,
+    "noMetadataPointersUpdated": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noSupabaseConnectorCalls": true,
+    "rawSignedUrlsNotReported": true
+  },
+  "inputs": {
+    "latestManifestPath": "C:\\VIBE CODING\\AI_PDM\\data\\storage-monthly-evidence\\latest-storage-monthly-evidence-run.json"
+  },
+  "source": {
+    "available": true,
+    "error": null,
+    "runId": "2026-06-storage-evidence-scheduled-20260611140359",
+    "period": "2026-06",
+    "evidenceJsonPath": "C:\\VIBE CODING\\AI_PDM\\data\\storage-monthly-evidence\\2026-06-storage-evidence-scheduled-20260611140359\\storage-monthly-evidence.json",
+    "evidenceMarkdownPath": "C:\\VIBE CODING\\AI_PDM\\data\\storage-monthly-evidence\\2026-06-storage-evidence-scheduled-20260611140359\\storage-monthly-evidence.md"
+  },
+  "summary": {
+    "status": "observation_required",
+    "governanceLevel": "observe",
+    "governanceLabel": "Observation mode",
+    "storageUsageRatio": null,
+    "egressUsageRatio": null,
+    "blockerCount": 0,
+    "warningCount": 1
+  },
+  "decisions": {
+    "providerMigration": {
+      "allowed": false,
+      "reason": "provider migration is blocked until governance and readiness allow it"
+    },
+    "lifecycleCleanup": {
+      "allowed": false,
+      "reason": "lifecycle cleanup is blocked until storage evidence is clean enough"
+    },
+    "alternateProviderReview": {
+      "allowed": false,
+      "reason": "alternate provider review is not required by current evidence"
+    }
+  },
+  "governance": {
+    "level": "observe",
+    "label": "Observation mode",
+    "reason": "No audited egress rows exist yet, so cost controls are not proven with real usage.",
+    "storageUsageRatio": null,
+    "egressUsageRatio": null,
+    "providerMigrationAllowed": false,
+    "lifecycleCleanupAllowed": false,
+    "alternateProviderReviewRecommended": false,
+    "nextReviewTrigger": "Keep monthly evidence schedule active until real download and share activity is captured."
+  },
+  "readiness": {
+    "migrationReady": true,
+    "blockers": [],
+    "warnings": [
+      "No StorageAccessed rows exist yet; egress controls are not proven with real usage."
+    ]
+  },
+  "handoff": {
+    "nextActions": [
+      "Keep storage evidence in observation mode until real download/share activity is captured."
+    ]
+  }
+}

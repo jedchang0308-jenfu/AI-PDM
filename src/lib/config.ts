@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getStorageUploadPolicy } from "@/lib/storage-upload-policy";
 
 const root = /*turbopackIgnore: true*/ process.cwd();
 
@@ -16,7 +17,7 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
 export const config = {
   dataDir: resolveAppPath(process.env.PDM_DATA_DIR, "data"),
   repositoryDir: resolveAppPath(process.env.PDM_REPOSITORY_DIR, path.join("data", "repository")),
-  maxUploadFileBytes: parsePositiveInt(process.env.PDM_MAX_UPLOAD_FILE_BYTES, 50 * 1024 * 1024),
+  maxUploadFileBytes: getStorageUploadPolicy().maxUploadFileBytes,
   releaseFunctionUrl: process.env.RELEASE_FUNCTION_URL ?? "",
   releaseFunctionToken: process.env.RELEASE_FUNCTION_TOKEN ?? "",
   llmProvider: process.env.LLM_PROVIDER ?? "local",

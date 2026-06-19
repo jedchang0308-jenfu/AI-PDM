@@ -1,14 +1,11 @@
-import { NextResponse } from "next/server";
-import { createReadonlyShare, getSubmission, listReadonlyShares } from "@/lib/db";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { buildPublicShareUrl, generateShareToken, hashShareToken } from "@/lib/readonly-share";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { createReadonlyShareAsync, listReadonlySharesAsync } from "@/lib/release-records-async";
+import { buildPublicShareUrlAsync, generateShareTokenAsync, hashShareTokenAsync } from "@/lib/readonly-share-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
-
-function canManageShares(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
 
 function parseDays(value: unknown) {
   const days = Number(value ?? 14);
@@ -22,43 +19,41 @@ function parseLabel(value: unknown) {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageShares(auth.user.role)) return forbidden();
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  return NextResponse.json({ shares: listReadonlyShares(id) });
+  return NextResponse.json({ shares: await listReadonlySharesAsync(id) });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageShares(auth.user.role)) return forbidden();
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
   if (submission.status !== "Released") {
-    return NextResponse.json({ error: "只有已發布送審資料可以對外分享" }, { status: 409 });
+    return NextResponse.json({ error: "Release package is required before sharing" }, { status: 409 });
   }
   if (!submission.release_package) {
-    return NextResponse.json({ error: "對外分享前必須先產生發布包" }, { status: 409 });
+    return NextResponse.json({ error: "Release package is required before sharing" }, { status: 409 });
   }
 
   const body = await request.json().catch(() => ({}));
   const days = parseDays(body.days);
-  if (!days) return NextResponse.json({ error: "有效天數必須為正數" }, { status: 400 });
+  if (!days) return NextResponse.json({ error: "days must be between 1 and 30" }, { status: 400 });
 
-  const token = generateShareToken();
+  const token = generateShareTokenAsync();
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-  const share = createReadonlyShare({
+  const share = await createReadonlyShareAsync({
     submissionId: id,
-    tokenHash: hashShareToken(token),
+    tokenHash: hashShareTokenAsync(token),
     label: parseLabel(body.label),
     expiresAt,
     createdBy: auth.user.id
@@ -68,8 +63,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     {
       share,
       token,
-      public_url: buildPublicShareUrl(request, token)
+      public_url: buildPublicShareUrlAsync(request, token)
     },
     { status: 201 }
   );
 }
+

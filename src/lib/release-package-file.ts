@@ -1,16 +1,10 @@
-import fs from "node:fs/promises";
 import path from "node:path";
+import {
+  createReleasePackageStorageService,
+  getReleasePackageRoot,
+  storageKeyFromLocalPath
+} from "@/lib/file-storage";
 import type { ReleasePackage } from "@/lib/types";
-
-export function getReleasePackageRoot() {
-  const configured = process.env.PDM_DATA_DIR?.trim();
-  const dataDir = configured
-    ? path.isAbsolute(configured)
-      ? configured
-      : path.join(/*turbopackIgnore: true*/ process.cwd(), configured)
-    : path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
-  return path.join(/*turbopackIgnore: true*/ dataDir, "release-packages");
-}
 
 export function resolveReleasePackagePath(releasePackage: Pick<ReleasePackage, "local_path">) {
   const packageRoot = path.resolve(/*turbopackIgnore: true*/ getReleasePackageRoot());
@@ -22,7 +16,12 @@ export function resolveReleasePackagePath(releasePackage: Pick<ReleasePackage, "
 }
 
 export async function readReleasePackage(releasePackage: Pick<ReleasePackage, "local_path">) {
-  return fs.readFile(resolveReleasePackagePath(releasePackage));
+  const storageKey = getReleasePackageStorageKey(releasePackage);
+  return createReleasePackageStorageService().readObject(storageKey);
+}
+
+export function getReleasePackageStorageKey(releasePackage: Pick<ReleasePackage, "local_path">) {
+  return storageKeyFromLocalPath(resolveReleasePackagePath(releasePackage), getReleasePackageRoot());
 }
 
 export function contentDispositionFilename(filename: string) {

@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { getDiscussionComment, getSubmission, resolveDiscussionComment } from "@/lib/db";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getDiscussionCommentAsync, resolveDiscussionCommentAsync } from "@/lib/collaboration-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; commentId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id, commentId } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const existing = getDiscussionComment({ submissionId: id, commentId });
+  const existing = await getDiscussionCommentAsync({ submissionId: id, commentId });
   if (!existing) {
-    return NextResponse.json({ error: "找不到討論留言" }, { status: 404 });
+    return NextResponse.json({ error: "Discussion comment not found" }, { status: 404 });
   }
 
   const body = await request.json().catch(() => ({}));
   if (body.resolved !== true && body.status !== "resolved") {
-    return NextResponse.json({ error: "目前僅支援結案留言" }, { status: 400 });
+    return NextResponse.json({ error: "Patch requires resolved status" }, { status: 400 });
   }
 
   return NextResponse.json({
-    comment: resolveDiscussionComment({ submissionId: id, commentId, resolvedBy: auth.user.id })
+    comment: await resolveDiscussionCommentAsync({ submissionId: id, commentId, resolvedBy: auth.user.id })
   });
 }

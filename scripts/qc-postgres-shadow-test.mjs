@@ -37,6 +37,9 @@ record("PG-001 migration generator exits successfully", generate.status === 0, g
 const compare = runNode("scripts/compare-sqlite-postgres-shadow.mjs", ["--no-write"]);
 record("PG-002 shadow compare exits successfully", compare.status === 0, compare.stderr || compare.stdout);
 
+const schemaRlsOnlyCompare = runNode("scripts/compare-sqlite-postgres-shadow.mjs", ["--schema-rls-only", "--no-write"]);
+record("PG-002B schema/RLS-only shadow compare exits successfully", schemaRlsOnlyCompare.status === 0, schemaRlsOnlyCompare.stderr || schemaRlsOnlyCompare.stdout);
+
 const targetGuard = runNode("scripts/qc-postgres-shadow-target-guard.mjs");
 record("PG-002A target guard exits successfully", targetGuard.status === 0, targetGuard.stderr || targetGuard.stdout);
 
@@ -45,7 +48,7 @@ const postgresSchema = read("db/postgres/001_initial_schema.sql");
 const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
 const readme = read("db/postgres/README.md");
 const packageJson = JSON.parse(read("package.json"));
-const planDoc = read("docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
+const planDoc = read(".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
 
 const sqliteTables = extractTableNames(sqliteSchema);
 const postgresTables = extractTableNames(postgresSchema);
@@ -65,9 +68,10 @@ record("PG-008 RLS plan enables and forces RLS", /ENABLE ROW LEVEL SECURITY/u.te
 record("PG-009 RLS plan denies anon/authenticated table access by default", /REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated/u.test(rlsPlan), "db/postgres/002_supabase_rls_plan.sql");
 record("PG-010 no user-editable auth metadata in Postgres SQL", !/user_metadata|raw_user_meta_data/iu.test(`${postgresSchema}\n${rlsPlan}`), "db/postgres/*.sql");
 record("PG-011 README documents shadow workflow", readme.includes("db:postgres:compare") && readme.includes("qc:postgres-shadow"), "db/postgres/README.md");
-record("PG-012 plan document records Supabase advisor gate", planDoc.includes("Supabase advisor") && planDoc.includes("RLS"), "docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
+record("PG-012 plan document records Supabase advisor gate", planDoc.includes("Supabase advisor") && planDoc.includes("RLS"), ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
 record("PG-013 package exposes generation command", packageJson.scripts?.["db:postgres:migration"] === "node scripts/generate-postgres-migration.mjs", "package.json");
 record("PG-014 package exposes compare command", packageJson.scripts?.["db:postgres:compare"] === "node scripts/compare-sqlite-postgres-shadow.mjs", "package.json");
+record("PG-014A package exposes schema/RLS-only compare command", packageJson.scripts?.["db:postgres:compare:schema-rls"] === "node scripts/compare-sqlite-postgres-shadow.mjs --schema-rls-only", "package.json");
 record("PG-015 package exposes QC command", packageJson.scripts?.["qc:postgres-shadow"] === "node scripts/qc-postgres-shadow-test.mjs", "package.json");
 record("PG-015A package exposes target guard command", packageJson.scripts?.["db:postgres:guard"] === "node scripts/guard-postgres-shadow-target.mjs", "package.json");
 record("PG-015B package exposes target guard QC command", packageJson.scripts?.["qc:postgres-shadow-target-guard"] === "node scripts/qc-postgres-shadow-target-guard.mjs", "package.json");
@@ -80,6 +84,7 @@ try {
 }
 record("PG-016 compare report has row counts and key hashes", Array.isArray(compareReport?.sqliteStats) && compareReport.sqliteStats.every((item) => typeof item.count === "number" && typeof item.keyHash === "string"), "scripts/compare-sqlite-postgres-shadow.mjs");
 record("PG-017 compare report includes target guard field", Object.hasOwn(compareReport ?? {}, "postgresTargetGuard"), "scripts/compare-sqlite-postgres-shadow.mjs");
+record("PG-017A compare report includes target identity guard field", Object.hasOwn(compareReport ?? {}, "postgresTargetIdentity"), "scripts/compare-sqlite-postgres-shadow.mjs");
 record(
   "PG-018 compare report is traceable to migration files",
   compareReport?.migrationTrace?.sqliteSchema?.path === "db/schema.sql" &&
@@ -92,6 +97,24 @@ record(
     typeof compareReport?.migrationTrace?.postgresRlsPlan?.sha256 === "string" &&
     compareReport.migrationTrace.postgresRlsPlan.sha256.length === 64,
   JSON.stringify(compareReport?.migrationTrace ?? null)
+);
+
+let schemaRlsOnlyReport = null;
+try {
+  schemaRlsOnlyReport = JSON.parse(schemaRlsOnlyCompare.stdout);
+} catch {
+  schemaRlsOnlyReport = null;
+}
+record(
+  "PG-019 schema/RLS-only compare records policy and skips data mismatch gate",
+  schemaRlsOnlyReport?.comparePolicy === "schema_rls_only" &&
+    schemaRlsOnlyReport?.dataCompareSkipped === true &&
+    schemaRlsOnlyReport?.mismatches?.length === 0,
+  JSON.stringify({
+    comparePolicy: schemaRlsOnlyReport?.comparePolicy,
+    dataCompareSkipped: schemaRlsOnlyReport?.dataCompareSkipped,
+    mismatches: schemaRlsOnlyReport?.mismatches?.length
+  })
 );
 
 const failed = results.filter((result) => !result.passed);

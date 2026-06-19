@@ -116,11 +116,11 @@ async function verifySidebar(browser, cookie, shouldShowRequestLink, viewportNam
   await addCookie(context, cookie);
   await page.goto(`${apiBaseUrl}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(
-    (expected) => Boolean(document.querySelector('a[href="/numbering/request"]')) === expected,
+    (expected) => Boolean(document.querySelector('.sidebar a[href="/numbering/request"]')) === expected,
     shouldShowRequestLink,
     { timeout: 10_000 }
   );
-  const requestLinkCount = await page.locator('a[href="/numbering/request"]').count();
+  const requestLinkCount = await page.locator('.sidebar a[href="/numbering/request"]').count();
   record(
     `${viewportName} sidebar request link ${shouldShowRequestLink ? "visible" : "hidden"}`,
     shouldShowRequestLink ? requestLinkCount > 0 : requestLinkCount === 0,

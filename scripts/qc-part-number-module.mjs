@@ -24,6 +24,16 @@ const dbExports = read("src/lib/db.ts");
 const sidebar = read("src/components/sidebar-nav.tsx");
 const navPermissions = read("src/lib/numbering-permission-codes.ts");
 const partsPage = read("src/app/parts/page.tsx");
+const drawingsPage = read("src/app/numbering/drawings/page.tsx");
+const drawingsRoute = read("src/app/api/numbering/drawings/route.ts");
+const itemRevisionsRoute = read("src/app/api/items/[partNumber]/revisions/route.ts");
+const itemInsightsAsync = read("src/lib/repositories/item-insight-async-repository.ts");
+const partCostVisibility = read("src/lib/part-cost-visibility.ts");
+const partsRoute = read("src/app/api/parts/route.ts");
+const partDetailRoute = read("src/app/api/parts/[partNumber]/route.ts");
+const partCostProfileRoute = read("src/app/api/parts/[partNumber]/cost-profiles/route.ts");
+const partCostResolutionRoute = read("src/app/api/parts/[partNumber]/cost-resolution/route.ts");
+const partCostDecisionRoute = read("src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts");
 const packageJson = JSON.parse(read("package.json"));
 
 const expectedTables = [
@@ -61,7 +71,9 @@ const repositoryFunctions = [
   "listPartModuleRecords",
   "getPartModuleDetail",
   "upsertPartVariantAttributes",
-  "createPartCostProfile"
+  "createPartCostProfile",
+  "decidePartCostChangeRequest",
+  "resolvePartCost"
 ];
 for (const functionName of repositoryFunctions) {
   assert(repository.includes(`export function ${functionName}`), `repository exports ${functionName}`);
@@ -72,7 +84,9 @@ const routeFiles = [
   "src/app/api/parts/route.ts",
   "src/app/api/parts/[partNumber]/route.ts",
   "src/app/api/parts/[partNumber]/variant/route.ts",
-  "src/app/api/parts/[partNumber]/cost-profiles/route.ts"
+  "src/app/api/parts/[partNumber]/cost-profiles/route.ts",
+  "src/app/api/parts/[partNumber]/cost-resolution/route.ts",
+  "src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts"
 ];
 for (const routeFile of routeFiles) {
   assert(fs.existsSync(path.join(root, routeFile)), `API route exists: ${routeFile}`);
@@ -82,6 +96,38 @@ assert(partsPage.includes("料號模組"), "parts page renders part module workb
 assert(partsPage.includes("/api/parts"), "parts page calls parts API");
 assert(sidebar.includes('href: "/parts"'), "sidebar includes /parts entry");
 assert(navPermissions.includes('"/parts": "numbering.search"'), "sidebar permission maps /parts to numbering.search");
+assert(partCostVisibility.includes('"Admin", "R&D Manager", "Procurement"'), "part cost amount visibility includes legacy admin, manager, and procurement roles");
+assert(partCostVisibility.includes('"system_admin", "pdm_admin", "rd_manager", "procurement"'), "part cost amount visibility includes ACL cost roles");
+assert(partCostVisibility.includes("unitCost: null"), "part cost redaction clears standard cost amount");
+assert(partCostVisibility.includes("costProfiles: []"), "part cost redaction hides cost profile tier amounts");
+assert(repository.includes("PART_COST_TIER_RANGE_OVERLAP"), "repository rejects overlapping cost tiers");
+assert(repository.includes("SAME_DRAWING_VARIANT_DETAIL_REQUIRED"), "repository blocks DVT/Release gate when same-drawing variant details are missing");
+assert(repository.includes("primaryDrawingHasMultipleLinkedParts"), "repository detects multi-part primary MA drawing links");
+assert(repository.includes("partHasVariantDescriptor"), "repository checks material, color, or variant note before DVT/Release");
+assert(repository.includes("DrawingModuleLinkedPartRecord"), "drawing module exposes same-root linked part detail contract");
+assert(repository.includes("selectDrawingModuleLinkedPartsByRoot"), "drawing module loads same-root parts for drawing detail");
+assert(repository.includes("standardCostStatus") && repository.includes("part_standard_costs"), "drawing detail includes active or missing standard cost status");
+assert(repository.includes("hasPotentialHardcodedTitleBlockVariantText"), "drawing module detects potential hard-coded material or color title block text");
+assert(repository.includes("NO_APPROVED_STANDARD_COST"), "repository reports missing approved standard cost");
+assert(repository.includes("NO_PART_COST_TIER_FOR_QUANTITY"), "repository reports missing quantity tier");
+assert(repository.includes("status = 'approved'"), "repository resolves only approved cost profiles");
+assert(repository.includes("part_standard_costs") && repository.includes("effective_to IS NULL"), "repository maintains active standard cost history");
+assert(repository.includes("numbering.part_cost_change.approve"), "repository writes approve audit");
+assert(repository.includes("numbering.part_cost_change.reject"), "repository writes reject audit");
+assert(partsRoute.includes("redactPartListCosts") && partsRoute.includes("canViewPartCostAmounts(auth)"), "parts list API applies cost amount redaction");
+assert(partDetailRoute.includes("redactPartDetailCosts") && partDetailRoute.includes("canViewPartCostAmounts(auth)"), "part detail API applies cost amount redaction");
+assert(partCostProfileRoute.includes("redactPartDetailCosts") && partCostProfileRoute.includes("canViewPartCostAmounts(auth)"), "part cost profile create API applies response redaction");
+assert(partCostResolutionRoute.includes("resolvePartCost") && partCostResolutionRoute.includes("unitCost: null"), "part cost resolution API resolves and redacts costs");
+assert(partCostDecisionRoute.includes("decidePartCostChangeRequest") && partCostDecisionRoute.includes("numbering.approval.batch.decide"), "part cost decision API uses approval decision permission");
+assert(partsPage.includes("成本審核") && partsPage.includes("decideCostRequest") && partsPage.includes("cost-change-requests"), "parts page exposes cost review actions");
+assert(drawingsRoute.includes("listDrawingModuleRecords"), "drawing API returns drawing module records");
+assert(drawingsPage.includes("同主根號料號") && drawingsPage.includes("Title block 變體風險"), "drawing page shows same-root part detail and title block warning");
+assert(drawingsPage.includes("standardCostLabel") && drawingsPage.includes("primaryDrawingNumber"), "drawing page renders standard cost status and primary MA link");
+assert(itemRevisionsRoute.includes("export async function GET") && !itemRevisionsRoute.includes("export async function POST") && !itemRevisionsRoute.includes("export async function PATCH"), "item revision route is read-only");
+assert(!itemRevisionsRoute.includes("createPartCostProfile") && !itemRevisionsRoute.includes("decidePartCostChangeRequest"), "item revision route does not trigger cost review flows");
+assert(!itemInsightsAsync.includes("part_cost_change_requests") && !itemInsightsAsync.includes("part_standard_costs"), "item revision history query does not mutate or read cost workflow tables");
+assert(fs.existsSync(path.join(root, "scripts/qc-part-cost-review-e2e.mjs")), "part cost review E2E QC script exists");
+assert(packageJson.scripts["qc:part-cost-review-e2e"] === "node scripts/qc-part-cost-review-e2e.mjs", "package script qc:part-cost-review-e2e is registered");
 assert(packageJson.scripts["qc:part-number-module"] === "node scripts/qc-part-number-module.mjs", "package script qc:part-number-module is registered");
 
 database.close();

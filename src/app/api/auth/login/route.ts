@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAuditLog, ensureDemoUser, getAuthMode, getUserByEmailWithPassword } from "@/lib/db";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { getAuthMode } from "@/lib/auth-config";
 import { createSessionCookie } from "@/lib/auth";
+import { ensureDemoUserAsync, getUserByEmailWithPasswordAsync } from "@/lib/auth-async";
+import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
@@ -35,13 +38,13 @@ export async function GET(request: Request) {
   const account = demoAccounts.find((item) => item.role.toLowerCase() === accountKey || item.email.toLowerCase() === accountKey);
   if (!account) return NextResponse.json({ error: "Unknown demo account" }, { status: 400 });
 
-  ensureDemoUser({
+  await ensureDemoUserAsync({
     id: account.id,
     displayName: account.displayName,
     email: account.email,
     role: account.dbRole
   });
-  createAuditLog({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
+  await createAuditLogAsync({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
 
   const redirectUrl = new URL("/", url.origin);
   return NextResponse.redirect(redirectUrl, {
@@ -62,7 +65,7 @@ export async function POST(request: Request) {
   }
 
   if (email.toLowerCase() === "admin@example.com") {
-    ensureDemoUser({
+    await ensureDemoUserAsync({
       id: "user-admin-demo",
       displayName: "Demo Admin",
       email: "admin@example.com",
@@ -70,7 +73,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const user = getUserByEmailWithPassword(email);
+  const user = await getUserByEmailWithPasswordAsync(email);
   if (!user) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
@@ -87,9 +90,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
 
-  createAuditLog({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role } });
+  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role } });
   return NextResponse.json(
-    { user: { id: user.id, display_name: user.display_name, email: user.email, role: user.role } },
+    { user: await serializeAuthUserAsync(user) },
     {
       headers: {
         "set-cookie": createSessionCookie(user.id)

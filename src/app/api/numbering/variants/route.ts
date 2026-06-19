@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { linkPartNumberToDrawing } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { linkPartNumberToDrawingAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "numbering.link_variant");
+  const auth = await requireNumberingActionAsync(request, "numbering.link_variant");
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = linkPartNumberToDrawing({
+    const result = await linkPartNumberToDrawingAsync({
       drawingNumber,
       partNumber,
       variants,

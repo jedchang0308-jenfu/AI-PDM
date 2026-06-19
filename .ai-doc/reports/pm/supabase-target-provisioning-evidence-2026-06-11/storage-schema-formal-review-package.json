@@ -1,0 +1,196 @@
+{
+  "reportType": "file-storage-schema-formal-review-package",
+  "packageVersion": "storage-schema-formal-review-package/v1",
+  "generatedAt": "2026-06-11T05:48:52.931Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noMetadataPointersUpdated": true,
+    "noDatabaseUrlPrinted": true,
+    "noSupabaseResourceCreated": true,
+    "userCostConfirmationEvidenceRequired": true,
+    "targetCreateResultEvidenceRequired": true,
+    "reviewerApprovalStillRequired": true
+  },
+  "inputs": {
+    "targetReadinessPackagePath": "storage-schema-target-readiness-package.json",
+    "costConfirmationPackagePath": "storage-schema-target-cost-confirmation-package.json",
+    "userCostConfirmedEvidencePath": "user-cost-confirmation-evidence.json",
+    "targetCreateResultEvidencePath": "supabase-target-create-result-evidence.json",
+    "promotionReportPath": ""
+  },
+  "sourceEvidence": {
+    "targetReadiness": {
+      "status": "blocked_target_readiness",
+      "targetName": "AI_PDM_STAGING"
+    },
+    "costConfirmation": {
+      "status": "ready_for_user_cost_confirmation",
+      "targetName": "AI_PDM_STAGING",
+      "resourceType": "project",
+      "amount": 0,
+      "recurrence": "monthly"
+    },
+    "userCostConfirmation": {
+      "status": "failed",
+      "confirmationRecorded": false,
+      "targetName": "AI_PDM_STAGING",
+      "resourceType": "project"
+    },
+    "targetCreateResult": {
+      "status": "blocked_create_request_not_ready",
+      "targetName": "AI_PDM_STAGING",
+      "verifiedTargetCount": 0
+    },
+    "schemaPromotion": {
+      "status": "missing"
+    }
+  },
+  "readiness": {
+    "readyForFormalMigrationReview": false,
+    "reason": "formal migration review evidence is missing or blocked"
+  },
+  "summary": {
+    "status": "blocked_missing_evidence",
+    "passedCheckCount": 19,
+    "blockerCount": 5
+  },
+  "checks": [
+    {
+      "name": "target readiness package is present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "target readiness report type is valid",
+      "passed": true,
+      "detail": "file-storage-schema-target-readiness-package"
+    },
+    {
+      "name": "target readiness status is ready",
+      "passed": false,
+      "detail": "blocked_target_readiness"
+    },
+    {
+      "name": "target readiness avoided database connection",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "target readiness avoided project creation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "cost confirmation package is present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "cost confirmation report type is valid",
+      "passed": true,
+      "detail": "file-storage-schema-target-cost-confirmation-package"
+    },
+    {
+      "name": "cost package is ready for user confirmation",
+      "passed": true,
+      "detail": "ready_for_user_cost_confirmation"
+    },
+    {
+      "name": "selected cost evidence is available",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "cost package did not create resources",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "user cost confirmation evidence is present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "user cost confirmation report type is valid",
+      "passed": true,
+      "detail": "supabase-target-user-cost-confirmation-evidence"
+    },
+    {
+      "name": "user confirmation is recorded",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "name": "confirmation target matches cost package",
+      "passed": true,
+      "detail": "AI_PDM_STAGING / AI_PDM_STAGING"
+    },
+    {
+      "name": "confirmation resource matches cost package",
+      "passed": true,
+      "detail": "project / project"
+    },
+    {
+      "name": "confirmation cost matches cost package",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "target create result evidence is present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "target create result report type is valid",
+      "passed": true,
+      "detail": "supabase-target-create-result-evidence"
+    },
+    {
+      "name": "target create result is verified",
+      "passed": false,
+      "detail": "blocked_create_request_not_ready"
+    },
+    {
+      "name": "target create result has verified target",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "name": "target create result matches readiness target",
+      "passed": true,
+      "detail": "AI_PDM_STAGING / AI_PDM_STAGING"
+    },
+    {
+      "name": "target create result avoided database connection",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "target create result avoided SQL apply",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "schema promotion report is present",
+      "passed": false,
+      "detail": "missing schema promotion report"
+    }
+  ],
+  "blockers": [
+    "target readiness failed: target readiness status is ready",
+    "user cost confirmation failed: user confirmation is recorded",
+    "target create result failed: target create result is verified",
+    "target create result failed: target create result has verified target",
+    "missing schema promotion report"
+  ],
+  "handoff": {
+    "nextActions": [
+      "Collect target readiness package, cost confirmation package, user cost confirmation evidence, target create result evidence, and schema promotion report",
+      "Regenerate this formal review package after all evidence files exist"
+    ]
+  }
+}

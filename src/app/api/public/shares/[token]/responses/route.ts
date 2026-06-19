@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { createSupplierPortalResponse } from "@/lib/db";
-import { getPublicShare } from "@/lib/readonly-share";
+import { getPublicShareAsync } from "@/lib/readonly-share-async";
+import { createSupplierPortalResponseAsync } from "@/lib/release-records-async";
 import type { SupplierPortalResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const publicShare = getPublicShare(token);
+  const publicShare = await getPublicShareAsync(token);
   if (!publicShare) return NextResponse.json({ error: "找不到分享連結" }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const value = parsed.value;
 
-  const response = createSupplierPortalResponse({
+  const response = await createSupplierPortalResponseAsync({
     shareId: publicShare.share.id,
     submissionId: publicShare.submission.id,
     responseKind: value.responseKind,

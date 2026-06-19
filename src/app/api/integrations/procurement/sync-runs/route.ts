@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
-import { createProcurementSyncRun, getSubmission, listProcurementSyncRuns } from "@/lib/db";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import {
+  createProcurementSyncRunAsync,
+  listProcurementSyncRunsAsync
+} from "@/lib/release-records-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { ProcurementSyncRun } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-function canManageProcurementSync(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
 
 function parseTargetSystem(value: unknown): ProcurementSyncRun["target_system"] | null {
   const target = String(value ?? "procurement").trim();
@@ -17,42 +17,40 @@ function parseTargetSystem(value: unknown): ProcurementSyncRun["target_system"] 
 }
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageProcurementSync(auth.user.role)) return forbidden();
 
   const url = new URL(request.url);
   const submissionId = url.searchParams.get("submissionId")?.trim() || undefined;
   const targetSystemParam = url.searchParams.get("targetSystem");
   const targetSystem = targetSystemParam ? parseTargetSystem(targetSystemParam) : undefined;
   if (targetSystemParam && !targetSystem) {
-    return NextResponse.json({ error: "目標系統必須為 ERP、庫存或採購" }, { status: 400 });
+    return NextResponse.json({ error: "?格?蝟餌絞敹???ERP?澈摮??∟頃" }, { status: 400 });
   }
 
-  return NextResponse.json({ runs: listProcurementSyncRuns({ submissionId, targetSystem: targetSystem ?? undefined }) });
+  return NextResponse.json({ runs: await listProcurementSyncRunsAsync({ submissionId, targetSystem: targetSystem ?? undefined }) });
 }
 
 export async function POST(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageProcurementSync(auth.user.role)) return forbidden();
 
   const body = await request.json().catch(() => ({}));
   const submissionId = String(body.submissionId ?? body.submission_id ?? "").trim();
   const targetSystem = parseTargetSystem(body.targetSystem ?? body.target_system);
   const externalReference = String(body.externalReference ?? body.external_reference ?? "").trim() || undefined;
 
-  if (!submissionId) return NextResponse.json({ error: "送審 ID 為必填" }, { status: 400 });
-  if (!targetSystem) return NextResponse.json({ error: "目標系統必須為 ERP、庫存或採購" }, { status: 400 });
+  if (!submissionId) return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
+  if (!targetSystem) return NextResponse.json({ error: "?格?蝟餌絞敹???ERP?澈摮??∟頃" }, { status: 400 });
 
-  const submission = getSubmission(submissionId);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(submissionId);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
   if (submission.status !== "Released") {
-    return NextResponse.json({ error: "只有已發布送審資料可以同步" }, { status: 409 });
+    return NextResponse.json({ error: "Release package is required" }, { status: 409 });
   }
   if (!submission.release_package) {
-    return NextResponse.json({ error: "同步前必須先產生發布包" }, { status: 409 });
+    return NextResponse.json({ error: "Release package is required" }, { status: 409 });
   }
 
   const payload = {
@@ -82,7 +80,7 @@ export async function POST(request: Request) {
       : null
   };
 
-  const run = createProcurementSyncRun({
+  const run = await createProcurementSyncRunAsync({
     submissionId,
     targetSystem,
     payload,
@@ -92,3 +90,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ run }, { status: 201 });
 }
+

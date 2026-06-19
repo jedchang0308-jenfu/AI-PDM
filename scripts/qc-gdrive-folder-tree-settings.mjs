@@ -331,8 +331,14 @@ function staticChecks() {
 
   record("gdrive.ts exposes folder list and verify functions", gdrive.includes("listDriveFolders") && gdrive.includes("verifyDriveFolder"));
   record("Folder list uses shared drive flags", gdrive.includes("supportsAllDrives") && gdrive.includes("includeItemsFromAllDrives"));
-  record("Folder list route is Admin-only", foldersRoute.includes('requireRole(request, ["Admin"])'));
-  record("Folder verify route is Admin-only", verifyRoute.includes('requireRole(request, ["Admin"])'));
+  record(
+    "Folder list route is Admin-only",
+    foldersRoute.includes('await requireRoleAsync(request, ["Admin"])') && !foldersRoute.includes("requireRole(request")
+  );
+  record(
+    "Folder verify route is Admin-only",
+    verifyRoute.includes('await requireRoleAsync(request, ["Admin"])') && !verifyRoute.includes("requireRole(request")
+  );
   record("Settings route stores folder metadata snapshots", settingsRoute.includes("gdrive_pending_folder_name") && settingsRoute.includes("gdrive_released_folder_verified_at"));
   record("Settings route supports verified-save mode", settingsRoute.includes("gdrive_require_verified"));
   record("Settings UI renders folder tree and manual fallback", settingsPage.includes("gdrive-folder-tree") && settingsPage.includes("進階：手動貼 Folder ID"));

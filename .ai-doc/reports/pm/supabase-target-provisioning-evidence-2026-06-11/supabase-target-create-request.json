@@ -1,0 +1,68 @@
+{
+  "reportType": "supabase-target-create-request",
+  "requestVersion": "storage-schema-target-create-request/v1",
+  "generatedAt": "2026-06-11T05:47:44.138Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noSupabaseConfirmCostCalled": true,
+    "noSupabaseProjectCreated": true,
+    "noSupabaseBranchCreated": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "costConfirmationPackagePath": "storage-schema-target-cost-confirmation-package.json",
+    "userCostConfirmedEvidencePath": "user-cost-confirmation-evidence.json",
+    "sourceProjectId": ""
+  },
+  "sourceEvidence": {
+    "costPackageStatus": "ready_for_user_cost_confirmation",
+    "costPackageGeneratedAt": "2026-06-11T04:21:45.072Z",
+    "userCostConfirmationStatus": "blocked_missing_user_confirmation",
+    "userCostConfirmationGeneratedAt": "2026-06-11T05:47:30.213Z",
+    "userCostConfirmationConfirmedAt": "",
+    "userCostConfirmationSourceCostPackageGeneratedAt": "2026-06-11T04:21:45.072Z",
+    "userConfirmationRecorded": false
+  },
+  "target": {
+    "organizationId": "igzdpafkvqqpsyadmage",
+    "organizationName": "JED",
+    "targetName": "AI_PDM_STAGING",
+    "region": "ap-southeast-1",
+    "sourceProjectId": ""
+  },
+  "selectedCost": {
+    "type": "project",
+    "amount": 0,
+    "recurrence": "monthly"
+  },
+  "targetSafety": {
+    "safe": true,
+    "status": "safe",
+    "reason": "target name is explicitly non-production and not a known forbidden project"
+  },
+  "summary": {
+    "status": "blocked_user_cost_not_confirmed",
+    "readyForSupabaseConfirmCost": false,
+    "readyForSupabaseCreateCall": false,
+    "costMatchesUserConfirmation": true,
+    "costPackageFresh": true,
+    "userConfirmationFresh": false,
+    "maxCostConfirmationPackageAgeHours": 24,
+    "userConfirmationSourceMatchesCostPackage": true
+  },
+  "readiness": {
+    "readyForConnectorExecution": false,
+    "upstreamEvidenceFresh": false,
+    "reason": "target create request is blocked by missing or failed upstream evidence"
+  },
+  "connectorPlan": [],
+  "handoff": {
+    "nextActions": [
+      "Collect exact user cost confirmation evidence before calling Supabase confirm_cost"
+    ]
+  }
+}

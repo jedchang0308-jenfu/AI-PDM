@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const policyPath = path.join(root, "docs", "pdm-management-policy-draft.md");
+const policyPath = path.join(root, ".ai-doc", "reference", "pdm-management-policy-draft.md");
 const ragDataPath = path.join(root, "src", "lib", "pdm-policy-rag-data.ts");
 
 function readText(filePath) {

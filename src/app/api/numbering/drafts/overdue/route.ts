@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { markOverdueDraftNumberingRecords } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { markOverdueDraftNumberingRecordsAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "numbering.draft.admin_confirm");
+  const auth = await requireNumberingActionAsync(request, "numbering.draft.admin_confirm");
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
   try {
-    const result = markOverdueDraftNumberingRecords({
+    const result = await markOverdueDraftNumberingRecordsAsync({
       olderThanDays: Number(body.olderThanDays ?? body.older_than_days ?? 30),
       now: typeof body.now === "string" ? body.now : undefined,
       actorId: auth.user.id

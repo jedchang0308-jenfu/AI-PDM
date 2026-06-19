@@ -90,6 +90,17 @@ const unconfiguredGuard = runGuard(["--phase", "compare"], { PDM_POSTGRES_SHADOW
 const unconfiguredBody = parseJson(unconfiguredGuard.stdout);
 record("PG-GUARD-008 CLI fails closed when target URL is missing", unconfiguredGuard.status !== 0 && unconfiguredBody?.issues?.some((issue) => issue.type === "target_unavailable"), unconfiguredGuard.stderr || unconfiguredGuard.stdout);
 
+const forbiddenProjectGuard = runGuard(["--phase", "pre-migration"], {
+  PDM_POSTGRES_SHADOW_URL: "postgresql://postgres:secret@db.knodlkxqpcqyrtgwpdst.supabase.co:5432/postgres"
+});
+const forbiddenProjectBody = parseJson(forbiddenProjectGuard.stdout);
+record(
+  "PG-GUARD-008A CLI fails closed for known non-AI_PDM Supabase project refs",
+  forbiddenProjectGuard.status !== 0 &&
+    forbiddenProjectBody?.issues?.some((issue) => issue.type === "forbidden_supabase_project"),
+  forbiddenProjectGuard.stderr || forbiddenProjectGuard.stdout
+);
+
 const compareScript = fs.readFileSync(path.join(root, "scripts", "compare-sqlite-postgres-shadow.mjs"), "utf8");
 record("PG-GUARD-009 compare script invokes target guard before live stats", compareScript.includes("collectPostgresTargetSnapshot") && compareScript.includes("postgresTargetGuard"), "scripts/compare-sqlite-postgres-shadow.mjs");
 

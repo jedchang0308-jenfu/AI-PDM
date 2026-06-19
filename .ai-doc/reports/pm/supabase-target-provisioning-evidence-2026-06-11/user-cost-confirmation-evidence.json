@@ -1,0 +1,55 @@
+{
+  "reportType": "supabase-target-user-cost-confirmation-evidence",
+  "evidenceVersion": "storage-schema-user-cost-confirmation-evidence/v1",
+  "generatedAt": "2026-06-11T05:47:30.213Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noSupabaseConfirmCostCalled": true,
+    "noSupabaseProjectCreated": true,
+    "noSupabaseBranchCreated": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "costConfirmationPackagePath": "storage-schema-target-cost-confirmation-package.json",
+    "confirmedBy": "",
+    "confirmationTextProvided": false
+  },
+  "costPackage": {
+    "status": "ready_for_user_cost_confirmation",
+    "reportType": "file-storage-schema-target-cost-confirmation-package",
+    "packageVersion": "storage-schema-target-cost-confirmation-package/v1",
+    "generatedAt": "2026-06-11T04:21:45.072Z",
+    "targetName": "AI_PDM_STAGING",
+    "resourceType": "project",
+    "selectedCostAmount": 0,
+    "selectedCostRecurrence": "monthly",
+    "confirmationText": "Please confirm you understand creating the Supabase project target \"AI_PDM_STAGING\" in organization \"igzdpafkvqqpsyadmage\" costs 0 monthly."
+  },
+  "targetName": "AI_PDM_STAGING",
+  "resourceType": "project",
+  "confirmationRecorded": false,
+  "confirmedBy": "",
+  "confirmedAt": "",
+  "cost": {
+    "amount": 0,
+    "recurrence": "monthly"
+  },
+  "expectedConfirmationText": "Please confirm you understand creating the Supabase project target \"AI_PDM_STAGING\" in organization \"igzdpafkvqqpsyadmage\" costs 0 monthly.",
+  "summary": {
+    "status": "blocked_missing_user_confirmation",
+    "costPackageFresh": true,
+    "maxCostConfirmationPackageAgeHours": 24,
+    "providedTextMatchesExpected": false,
+    "readyForSupabaseConfirmCost": false,
+    "readyForSupabaseCreateCall": false
+  },
+  "handoff": {
+    "nextActions": [
+      "Collect explicit user confirmation evidence before calling Supabase confirm_cost or creating a target"
+    ]
+  }
+}

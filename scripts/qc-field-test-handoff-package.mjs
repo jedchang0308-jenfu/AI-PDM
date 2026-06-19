@@ -118,9 +118,9 @@ if (latest) {
   );
 
   for (const docPath of [
-    "docs/external-evidence-handoff-checklist-2026-05-27.md",
-    "docs/industrialization/external-validation-handoff-2026-05-28.md",
-    "docs/qc-active-goal-remaining-blockers-report-2026-06-02.md"
+    ".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md",
+    ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md",
+    ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md"
   ]) {
     const absoluteDocPath = path.join(root, docPath);
     const content = fs.existsSync(absoluteDocPath) ? fs.readFileSync(absoluteDocPath, "utf8") : "";

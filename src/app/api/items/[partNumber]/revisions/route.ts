@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { listItemRevisionHistory } from "@/lib/db";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { listItemRevisionHistoryAsync } from "@/lib/item-insights-async";
 import { scopedSubmittedBy } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   }
 
   return NextResponse.json({
-    revisions: listItemRevisionHistory({
+    revisions: await listItemRevisionHistoryAsync({
       partNumber: decodedPartNumber,
       submittedBy: scopedSubmittedBy(auth.user)
     })
