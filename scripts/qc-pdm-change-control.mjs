@@ -9,6 +9,15 @@ const root = process.cwd();
 const schema = readProjectFile(root, "db/schema.sql");
 const serviceSource = readProjectFile(root, "src/lib/pdm-change-control-domain.ts");
 const wrapperSource = readProjectFile(root, "src/lib/pdm-change-control.ts");
+const apiListRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/route.ts");
+const apiPatchRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/route.ts");
+const apiSubmitRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/submit-review/route.ts");
+const apiVoidRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts");
+const apiRecycleRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts");
+const apiReconfirmRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts");
+const partDraftPageSource = readProjectFile(root, "src/app/numbering/part-drafts/page.tsx");
+const sidebarSource = readProjectFile(root, "src/components/sidebar-nav.tsx");
+const navPermissionSource = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
 const packageJson = readProjectJson(root, "package.json");
 const results = [];
 const companyId = "company-jenfu";
@@ -192,7 +201,10 @@ record("CHG-SRC-005 domain service exposes controlled-boundary functions", [
   "assertPartNumberDraftIsRecyclable",
   "assertPartNumberDraftCanSubmit",
   "recyclePartNumberDraft",
-  "submitPartNumberDraft"
+  "submitPartNumberDraft",
+  "listPartNumberDrafts",
+  "markSameSourceDraftsNeedReconfirmation",
+  "reconfirmPartNumberDraft"
 ].every((text) => serviceSource.includes(text)), "pdm-change-control-domain.ts");
 record("CHG-SRC-006 domain service carries required reason codes", [
   "referenced_by_bom",
@@ -206,6 +218,37 @@ record(
   packageJson.scripts?.["qc:pdm-change-control"] === "node --experimental-strip-types scripts/qc-pdm-change-control.mjs",
   "package.json"
 );
+record(
+  "CHG-SRC-009 part-number draft API routes exist",
+  [
+    "GET(request: Request)",
+    "POST(request: Request)",
+    "PATCH(request: Request",
+    "submitPartNumberDraft",
+    "voidPartNumberDraft",
+    "recyclePartNumberDraft",
+    "reconfirmPartNumberDraft"
+  ].every((text) =>
+    [
+      apiListRouteSource,
+      apiPatchRouteSource,
+      apiSubmitRouteSource,
+      apiVoidRouteSource,
+      apiRecycleRouteSource,
+      apiReconfirmRouteSource
+    ].join("\n").includes(text)
+  ),
+  "src/app/api/numbering/part-number-drafts"
+);
+record(
+  "CHG-SRC-010 part draft page and nav entry exist",
+  partDraftPageSource.includes("料號草稿") &&
+    partDraftPageSource.includes("/api/numbering/part-number-drafts") &&
+    sidebarSource.includes("/numbering/part-drafts") &&
+    navPermissionSource.includes('"/numbering/part-drafts": "numbering.tasks"'),
+  "src/app/numbering/part-drafts/page.tsx"
+);
+record("CHG-SRC-011 reconfirm event type is allowed by schema", schema.includes("'draft_reconfirmed'"), "db/schema.sql");
 
 const database = new Database(":memory:");
 try {
@@ -366,6 +409,42 @@ try {
     replacementBoundary.reasons.includes("formal_part_exists") &&
       replacementBoundary.reasons.includes("referenced_by_replacement_link"),
     JSON.stringify(replacementBoundary)
+  );
+
+  const sameSourcePart = seedFormalPart(database, "P-QC-SAME-SOURCE-001");
+  const sameSourceA = await service.reservePartNumberDraft({
+    reservedPartNumber: "P-QC-SAME-A",
+    draftType: "replacement_part",
+    itemType: "purchased",
+    sourcePartNumberId: sameSourcePart.partId,
+    actor: engineer
+  });
+  const sameSourceB = await service.reservePartNumberDraft({
+    reservedPartNumber: "P-QC-SAME-B",
+    draftType: "replacement_part",
+    itemType: "standard",
+    sourcePartNumberId: sameSourcePart.partId,
+    actor: engineer
+  });
+  const listedDrafts = await service.listPartNumberDrafts({ actor: engineer, status: "all" });
+  const listedSameSourceA = listedDrafts.find((draft) => draft.id === sameSourceA.id);
+  assert(
+    "CHG-LIST-001 list reports same-source unfinished warning",
+    listedSameSourceA?.sameSourceUnfinishedDraftCount === 1 && listedSameSourceA.warnings.includes("same_source_unfinished_draft"),
+    JSON.stringify(listedSameSourceA)
+  );
+  const reconfirmationTargets = await service.markSameSourceDraftsNeedReconfirmation({ draftId: sameSourceA.id, actor: manager });
+  assert(
+    "CHG-RECONFIRM-001 same-source drafts can be marked needs_reconfirmation",
+    reconfirmationTargets.some((draft) => draft.id === sameSourceB.id && draft.status === "needs_reconfirmation"),
+    JSON.stringify(reconfirmationTargets)
+  );
+  const reconfirmed = await service.reconfirmPartNumberDraft({ draftId: sameSourceB.id, actor: engineer });
+  assert("CHG-RECONFIRM-002 reconfirm returns draft to editable status", reconfirmed.status === "draft", JSON.stringify(reconfirmed));
+  assert(
+    "CHG-RECONFIRM-003 reconfirmation events are retained",
+    ["draft_reconfirmation_required", "draft_reconfirmed"].every((eventType) => eventTypes(database, sameSourceB.id).includes(eventType)),
+    eventTypes(database, sameSourceB.id).join(",")
   );
 } catch (error) {
   record("CHG-RUNTIME-000 runtime test setup failed", false, error instanceof Error ? error.message : String(error));

@@ -36,7 +36,7 @@ This project uses `.ai-doc` as the single project documentation center.
 
 ## PDM Change-Control Package
 
-`DEV-PDM-CHANGE-CONTROL-001` covers drawing revision, replacement part number draft, and BOM impact control. Phase 1 is implemented for the local schema and domain service boundary only; Phase 2-5 UI/API/review/BOM release flows and production/Supabase cutover remain unimplemented unless separately approved.
+`DEV-PDM-CHANGE-CONTROL-001` covers drawing revision, replacement part number draft, and BOM impact control. Phase 1 local schema/domain service and Phase 2 part-number draft module are implemented; Phase 3-5 drawing revision/review/BOM release flows and production/Supabase cutover remain unimplemented unless separately approved.
 
 Read in this order:
 
@@ -48,9 +48,14 @@ Read in this order:
 6. `db/schema.sql`
 7. `src/lib/pdm-change-control-domain.ts`
 8. `src/lib/pdm-change-control.ts`
-9. `scripts/qc-pdm-change-control.mjs`
-10. `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`
-11. `.ai-doc/dev_task.md`
+9. `src/lib/pdm-change-control-api.ts`
+10. `src/app/api/numbering/part-number-drafts/route.ts`
+11. `src/app/api/numbering/part-number-drafts/[draftId]/route.ts`
+12. `src/app/numbering/part-drafts/page.tsx`
+13. `scripts/qc-pdm-change-control.mjs`
+14. `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`
+15. `.ai-doc/reports/qc/qc-pdm-change-control-phase-2-report-2026-06-24.md`
+16. `.ai-doc/dev_task.md`
 
 ## Planned Storage Cost-Control Package
 

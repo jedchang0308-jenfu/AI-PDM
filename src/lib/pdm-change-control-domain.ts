@@ -53,6 +53,19 @@ export type PartNumberControlBoundary = {
   reasons: PartNumberControlBoundaryReason[];
 };
 
+export type PartNumberDraftWarningCode = "same_source_unfinished_draft" | "needs_reconfirmation" | "recycle_overdue";
+
+export type PartNumberDraftListItem = PartNumberDraftRecord & {
+  sourcePartNumber: string | null;
+  sourceDrawingNumber: string | null;
+  creatorName: string | null;
+  sameSourceUnfinishedDraftCount: number;
+  sameSourceUnfinishedDraftIds: string[];
+  controlled: boolean;
+  controlBoundaryReasons: PartNumberControlBoundaryReason[];
+  warnings: PartNumberDraftWarningCode[];
+};
+
 export type ReservePartNumberDraftInput = {
   reservedPartNumber: string;
   draftType: PartNumberDraftType;
@@ -81,6 +94,19 @@ export type DraftActionInput = {
   actor: PdmChangeControlActorContext;
 };
 
+export type ListPartNumberDraftsInput = {
+  actor: PdmChangeControlActorContext;
+  status?: PartNumberDraftStatus | "all";
+  draftType?: PartNumberDraftType | "all";
+  includeRecycled?: boolean;
+  limit?: number;
+};
+
+export type MarkSameSourceDraftsNeedReconfirmationInput = {
+  draftId: string;
+  actor: PdmChangeControlActorContext;
+};
+
 type PartNumberDraftRow = {
   id: string;
   company_id: string;
@@ -102,12 +128,23 @@ type PartNumberDraftRow = {
   updated_at: string;
 };
 
+type PartNumberDraftListRow = PartNumberDraftRow & {
+  source_part_number: string | null;
+  source_drawing_number: string | null;
+  creator_name: string | null;
+};
+
 type CountRow = {
   count: number | string;
 };
 
+type IdRow = {
+  id: string;
+};
+
 const DEFAULT_COMPANY_ID = "company-jenfu";
 const RECYCLE_COOLING_DAYS = 7;
+const unfinishedDraftStatuses: PartNumberDraftStatus[] = ["draft", "pending_review", "needs_reconfirmation"];
 
 export class PdmChangeControlError extends Error {
   readonly code: string;
@@ -158,6 +195,11 @@ function countValue(row: CountRow | null) {
   return Number(row?.count ?? 0);
 }
 
+function normalizeLimit(value: number | undefined) {
+  if (!Number.isFinite(value)) return 100;
+  return Math.min(Math.max(Math.trunc(value ?? 100), 1), 250);
+}
+
 function addDays(isoTimestamp: string, days: number) {
   const date = new Date(isoTimestamp);
   date.setUTCDate(date.getUTCDate() + days);
@@ -175,6 +217,10 @@ function assertDraftEditableStatus(draft: PartNumberDraftRecord) {
   }
 }
 
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
+}
+
 export class PdmChangeControlDomainService {
   private readonly client: PdmChangeControlDatabaseClient;
   private readonly clock: () => string;
@@ -188,6 +234,79 @@ export class PdmChangeControlDomainService {
     this.client = client;
     this.clock = clock;
     this.idFactory = idFactory;
+  }
+
+  async listPartNumberDrafts(input: ListPartNumberDraftsInput): Promise<PartNumberDraftListItem[]> {
+    const companyId = normalizeCompanyId(input.actor);
+    const filters = ["pnd.company_id = :companyId"];
+    const params: Record<string, unknown> = {
+      companyId,
+      limit: normalizeLimit(input.limit)
+    };
+
+    if (input.status && input.status !== "all") {
+      filters.push("pnd.status = :status");
+      params.status = input.status;
+    }
+    if (input.draftType && input.draftType !== "all") {
+      filters.push("pnd.draft_type = :draftType");
+      params.draftType = input.draftType;
+    }
+    if (!input.includeRecycled) {
+      filters.push("pnd.recycled_at IS NULL");
+    }
+
+    const rows = await this.client.query<PartNumberDraftListRow>(
+      `
+      SELECT
+        pnd.*,
+        sp.part_number AS source_part_number,
+        sd.drawing_number AS source_drawing_number,
+        u.display_name AS creator_name
+      FROM part_number_drafts pnd
+      LEFT JOIN part_numbers sp ON sp.id = pnd.source_part_number_id AND sp.company_id = pnd.company_id
+      LEFT JOIN drawing_numbers sd ON sd.id = pnd.source_drawing_number_id AND sd.company_id = pnd.company_id
+      LEFT JOIN users u ON u.id = pnd.created_by
+      WHERE ${filters.join(" AND ")}
+      ORDER BY
+        CASE pnd.status
+          WHEN 'needs_reconfirmation' THEN 0
+          WHEN 'pending_review' THEN 1
+          WHEN 'draft' THEN 2
+          WHEN 'voided' THEN 3
+          ELSE 4
+        END,
+        pnd.updated_at DESC,
+        pnd.created_at DESC
+      LIMIT :limit
+      `,
+      params
+    );
+
+    const items: PartNumberDraftListItem[] = [];
+    for (const row of rows) {
+      const draft = mapDraft(row);
+      const boundary = await this.getPartNumberControlBoundary(draft.id, input.actor);
+      const sameSourceUnfinishedDraftIds = await this.listSameSourceUnfinishedDraftIds(companyId, draft);
+      const warnings: PartNumberDraftWarningCode[] = [];
+      if (sameSourceUnfinishedDraftIds.length > 0) warnings.push("same_source_unfinished_draft");
+      if (draft.status === "needs_reconfirmation") warnings.push("needs_reconfirmation");
+      if (draft.status === "voided" && draft.recycleAvailableAt && !draft.recycledAt && new Date(draft.recycleAvailableAt) <= new Date(this.clock())) {
+        warnings.push("recycle_overdue");
+      }
+      items.push({
+        ...draft,
+        sourcePartNumber: row.source_part_number,
+        sourceDrawingNumber: row.source_drawing_number,
+        creatorName: row.creator_name,
+        sameSourceUnfinishedDraftCount: sameSourceUnfinishedDraftIds.length,
+        sameSourceUnfinishedDraftIds,
+        controlled: boundary.controlled,
+        controlBoundaryReasons: boundary.reasons,
+        warnings
+      });
+    }
+    return items;
   }
 
   async reservePartNumberDraft(input: ReservePartNumberDraftInput): Promise<PartNumberDraftRecord> {
@@ -416,6 +535,66 @@ export class PdmChangeControlDomainService {
     return this.requireDraft(input.draftId, companyId);
   }
 
+  async markSameSourceDraftsNeedReconfirmation(input: MarkSameSourceDraftsNeedReconfirmationInput): Promise<PartNumberDraftRecord[]> {
+    const companyId = normalizeCompanyId(input.actor);
+    const anchor = await this.requireDraft(input.draftId, companyId);
+    const relatedIds = await this.listSameSourceUnfinishedDraftIds(companyId, anchor);
+    const now = this.clock();
+    const changed: PartNumberDraftRecord[] = [];
+    for (const draftId of relatedIds) {
+      await this.client.execute(
+        `
+        UPDATE part_number_drafts
+        SET status = 'needs_reconfirmation',
+            version = version + 1,
+            updated_at = :updatedAt
+        WHERE id = :draftId
+          AND company_id = :companyId
+          AND status IN ('draft', 'pending_review')
+        `,
+        { draftId, companyId, updatedAt: now }
+      );
+      await this.insertPartNumberEvent({
+        companyId,
+        draftId,
+        eventType: "draft_reconfirmation_required",
+        actorUserId: input.actor.userId,
+        occurredAt: now,
+        metadata: { anchorDraftId: anchor.id, sourcePartNumberId: anchor.sourcePartNumberId, sourceDrawingNumberId: anchor.sourceDrawingNumberId }
+      });
+      changed.push(await this.requireDraft(draftId, companyId));
+    }
+    return changed;
+  }
+
+  async reconfirmPartNumberDraft(input: DraftActionInput): Promise<PartNumberDraftRecord> {
+    const companyId = normalizeCompanyId(input.actor);
+    const draft = await this.requireDraft(input.draftId, companyId);
+    if (draft.status !== "needs_reconfirmation") {
+      throw new PdmChangeControlError("draft_not_needs_reconfirmation", `Draft ${draft.id} does not need reconfirmation`, { status: draft.status });
+    }
+    const now = this.clock();
+    await this.client.execute(
+      `
+      UPDATE part_number_drafts
+      SET status = 'draft',
+          version = version + 1,
+          updated_at = :updatedAt
+      WHERE id = :draftId AND company_id = :companyId
+      `,
+      { draftId: input.draftId, companyId, updatedAt: now }
+    );
+    await this.insertPartNumberEvent({
+      companyId,
+      draftId: input.draftId,
+      eventType: "draft_reconfirmed",
+      actorUserId: input.actor.userId,
+      occurredAt: now,
+      metadata: {}
+    });
+    return this.requireDraft(input.draftId, companyId);
+  }
+
   async submitPartNumberDraft(input: DraftActionInput): Promise<PartNumberDraftRecord> {
     const companyId = normalizeCompanyId(input.actor);
     await this.assertPartNumberDraftCanSubmit(input.draftId, input.actor);
@@ -558,6 +737,43 @@ export class PdmChangeControlDomainService {
       { companyId, draftId }
     );
     return countValue(row) > 0;
+  }
+
+  private async listSameSourceUnfinishedDraftIds(companyId: string, draft: PartNumberDraftRecord) {
+    const ids: string[] = [];
+    if (draft.sourcePartNumberId) {
+      const rows = await this.client.query<IdRow>(
+        `
+        SELECT id
+        FROM part_number_drafts
+        WHERE company_id = :companyId
+          AND id <> :draftId
+          AND source_part_number_id = :sourcePartNumberId
+          AND status IN ('draft', 'pending_review', 'needs_reconfirmation')
+          AND recycled_at IS NULL
+        ORDER BY updated_at DESC
+        `,
+        { companyId, draftId: draft.id, sourcePartNumberId: draft.sourcePartNumberId }
+      );
+      ids.push(...rows.map((row) => row.id));
+    }
+    if (draft.sourceDrawingNumberId) {
+      const rows = await this.client.query<IdRow>(
+        `
+        SELECT id
+        FROM part_number_drafts
+        WHERE company_id = :companyId
+          AND id <> :draftId
+          AND source_drawing_number_id = :sourceDrawingNumberId
+          AND status IN ('draft', 'pending_review', 'needs_reconfirmation')
+          AND recycled_at IS NULL
+        ORDER BY updated_at DESC
+        `,
+        { companyId, draftId: draft.id, sourceDrawingNumberId: draft.sourceDrawingNumberId }
+      );
+      ids.push(...rows.map((row) => row.id));
+    }
+    return uniqueStrings(ids);
   }
 
   private async insertPartNumberEvent(input: {

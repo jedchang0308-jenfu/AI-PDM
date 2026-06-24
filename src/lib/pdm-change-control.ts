@@ -2,6 +2,8 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   PdmChangeControlDomainService,
   type DraftActionInput,
+  type ListPartNumberDraftsInput,
+  type MarkSameSourceDraftsNeedReconfirmationInput,
   type PdmChangeControlActorContext,
   type ReservePartNumberDraftInput,
   type UpdatePartNumberDraftInput
@@ -11,9 +13,11 @@ export type {
   PartNumberControlBoundary,
   PartNumberControlBoundaryReason,
   PartNumberDraftItemType,
+  PartNumberDraftListItem,
   PartNumberDraftRecord,
   PartNumberDraftStatus,
   PartNumberDraftType,
+  PartNumberDraftWarningCode,
   PdmChangeControlActorContext
 } from "@/lib/pdm-change-control-domain";
 
@@ -25,6 +29,10 @@ function service() {
 
 export async function reservePartNumberDraft(input: ReservePartNumberDraftInput) {
   return service().reservePartNumberDraft(input);
+}
+
+export async function listPartNumberDrafts(input: ListPartNumberDraftsInput) {
+  return service().listPartNumberDrafts(input);
 }
 
 export async function updatePartNumberDraft(input: UpdatePartNumberDraftInput) {
@@ -49,6 +57,14 @@ export async function voidPartNumberDraft(input: DraftActionInput) {
 
 export async function recyclePartNumberDraft(input: DraftActionInput) {
   return service().recyclePartNumberDraft(input);
+}
+
+export async function markSameSourceDraftsNeedReconfirmation(input: MarkSameSourceDraftsNeedReconfirmationInput) {
+  return service().markSameSourceDraftsNeedReconfirmation(input);
+}
+
+export async function reconfirmPartNumberDraft(input: DraftActionInput) {
+  return service().reconfirmPartNumberDraft(input);
 }
 
 export async function submitPartNumberDraft(input: DraftActionInput) {

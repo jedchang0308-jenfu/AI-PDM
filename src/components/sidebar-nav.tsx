@@ -51,6 +51,7 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "圖料模組", icon: Search },
       { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
       { href: "/parts", label: "料號模組", icon: PackageSearch },
+      { href: "/numbering/part-drafts", label: "料號草稿", icon: ClipboardList },
       { href: "/upload", label: "上傳送審", icon: UploadCloud },
       { href: "/numbering/request", label: "領號申請", icon: ClipboardList },
       { href: "/numbering/imports", label: "圖號總表匯入", icon: FileUp }

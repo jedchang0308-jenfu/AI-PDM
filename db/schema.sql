@@ -698,6 +698,7 @@ CREATE TABLE IF NOT EXISTS part_number_events (
       'draft_reissued',
       'draft_submitted',
       'draft_reconfirmation_required',
+      'draft_reconfirmed',
       'part_released',
       'controlled_recycle_blocked'
     )
