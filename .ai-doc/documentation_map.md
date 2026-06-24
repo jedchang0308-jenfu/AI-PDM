@@ -41,8 +41,9 @@ This project uses `.ai-doc` as the single project documentation center.
 Read in this order:
 
 1. `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
-2. `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
-3. `.ai-doc/dev_task.md`
+2. `.ai-doc/qa/qa-pdm-change-control-validation-plan-2026-06-24.md`
+3. `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
+4. `.ai-doc/dev_task.md`
 
 ## Planned Storage Cost-Control Package
 
