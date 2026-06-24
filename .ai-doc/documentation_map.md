@@ -34,6 +34,16 @@ This project uses `.ai-doc` as the single project documentation center.
 7. `.ai-doc/qa/qa-supabase-db-migration-validation-plan-2026-06-08.md`
 8. `.ai-doc/qc/qc-supabase-db-migration-fact-check-plan-2026-06-08.md`
 
+## Planned PDM Change-Control Package
+
+`DEV-PDM-CHANGE-CONTROL-001` is the planned follow-up package for drawing revision, replacement part number draft, and BOM impact control. It is a specification-only package at this point and must not be treated as implemented.
+
+Read in this order:
+
+1. `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
+2. `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
+3. `.ai-doc/dev_task.md`
+
 ## Planned Storage Cost-Control Package
 
 `DEV-STORAGE-COST-001` is the Storage follow-up package. It is tracked as a Backlog delivery point and must not be treated as part of `DEV-SUPABASE-DB-001` completion.
