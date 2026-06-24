@@ -139,7 +139,21 @@ Create or seed these controlled fixtures:
 | UI 訊息太多導致 RD 看不懂下一步 | Form combines too many rules on main screen | 誤判或放棄流程 | 5-second CTA/disabled reason check | P1 | UI manual review and viewport checks |
 | 審核者確認動作沒有留痕 | Audit event omitted | ISO/QMS 證據不足 | DB/audit query | P0 | `TC-AUDIT-001`, `TC-AUDIT-002` |
 
-## 10. Test Cases
+## 10. Phase Gates
+
+This plan has a final acceptance scope, but QC must not treat unfinished later phases as failures for earlier RD slices. Each phase can pass independently only within its declared scope.
+
+| Phase | Local pass criteria | Cases / evidence |
+|---|---|---|
+| Phase 1 Data Model And Domain Service | Draft model exists; controlled-boundary service exists; recycle and submit guards are testable; optimistic-lock conflict is testable; no UI pass required | API/data checks for `QA-CHG-011`, `QA-CHG-012`; focused command `qc:pdm-change-control` or RD-provided equivalent |
+| Phase 2 Part Draft Module | Single draft list exists; three draft labels exist; reserved draft recycle works; same-source warning and `needs_reconfirmation` are testable | `TC-DRAFT-001` to `TC-DRAFT-008`; visible error sweep for draft routes |
+| Phase 3 Drawing Revision Flow | FFF three-state flow exists; confirmed impact creates replacement draft; self-made drawing part-number match gate works | `TC-REV-FFF-001` to `TC-REV-FFF-005`; viewport evidence for revision route |
+| Phase 4 Review Flow | Required reviewer actions are enforced; reviewer cannot edit RD FFF judgement; confirmed-impact release transaction is atomic | `TC-REV-FFF-001`, `TC-REV-FFF-002`, `TC-AUDIT-002`; transaction rollback evidence |
+| Phase 5 BOM Impact | Unreleased BOM drafts are flagged; released BOMs are unchanged; replaced-part warning and confirmation work in BOM edit | `TC-BOM-001` to `TC-BOM-003` |
+
+Final package pass still requires all P0/P1 cases and UI visible-error gates across affected routes.
+
+## 11. Test Cases
 
 ### TC-REV-FFF-001 No FFF Impact Uses Original Part
 
@@ -527,7 +541,7 @@ Evidence:
 
 - Screenshots or Playwright traces per route/viewport.
 
-## 11. API And Data Consistency Checks
+## 12. API And Data Consistency Checks
 
 RD should provide focused automated checks after implementation. At minimum, QC should verify:
 
@@ -558,7 +572,7 @@ npm.cmd run qc:bom-workbench-review-release
 
 If command names differ, QC must record the actual commands used.
 
-## 12. Pass / Fail / Block Criteria
+## 13. Pass / Fail / Block Criteria
 
 Pass:
 
@@ -585,7 +599,7 @@ Blocked:
 - Required schema/migration is absent.
 - Browser evidence cannot be captured for UI-heavy checks.
 
-## 13. QC Evidence Package
+## 14. QC Evidence Package
 
 QC final report must include:
 
@@ -598,7 +612,7 @@ QC final report must include:
 - List of skipped cases with reason.
 - Final judgement: `通過`, `未通過`, `未充分驗證`, or `阻塞`.
 
-## 14. No-Go Conditions For Release
+## 15. No-Go Conditions For Release
 
 Do not release this package if any of these remain:
 
