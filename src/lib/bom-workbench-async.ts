@@ -75,6 +75,10 @@ export async function submitBomWorkbenchDraftReviewAsync(input: { draftId: strin
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).submitReview(input);
 }
 
+export async function reconfirmBomWorkbenchReplacementFlagsAsync(input: { draftId: string; actorId: string; note?: string }) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).reconfirmReplacementFlags(input);
+}
+
 export async function rejectBomWorkbenchReviewAsync(input: { reviewId: string; actorId: string; decisionReason?: string }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).rejectReview(input);
 }

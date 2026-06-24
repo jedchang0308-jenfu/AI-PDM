@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  AlertTriangle,
   CheckCircle2,
   Copy,
   FileSpreadsheet,
@@ -96,8 +97,17 @@ type BomWorkbenchDraftSummary = {
   updated_at: string;
 };
 
+type BomReconfirmationFlag = {
+  id: string;
+  old_part_number: string;
+  new_part_number: string;
+  reason: string;
+  created_at: string;
+};
+
 type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
+  reconfirmation_flags: BomReconfirmationFlag[];
 };
 
 type BomWorkbenchSummary = {
@@ -200,6 +210,7 @@ export default function BomWorkbenchPage() {
   });
 
   const isMutable = selectedDraft?.status === "Draft" || selectedDraft?.status === "Rejected";
+  const openReconfirmationFlags = selectedDraft?.reconfirmation_flags ?? [];
   const rows = useMemo(() => buildTreeRows(selectedDraft?.lines ?? []), [selectedDraft?.lines]);
   const selectedLine = useMemo(
     () => selectedDraft?.lines.find((line) => line.id === selectedLineId) ?? null,
@@ -713,6 +724,10 @@ export default function BomWorkbenchPage() {
       setError("送審前請先儲存目前 Draft");
       return;
     }
+    if (selectedDraft.reconfirmation_flags.length > 0) {
+      setError("BOM 草稿含被取代料號，請先重新確認或更新 BOM");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -725,6 +740,28 @@ export default function BomWorkbenchPage() {
       setMessage("已送出研發主管審核");
     } catch (err) {
       setError(err instanceof Error ? err.message : "送審失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function reconfirmReplacementFlags() {
+    if (!selectedDraft) return;
+    if (dirty) {
+      setError("重新確認前請先儲存目前 Draft");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${selectedDraft.id}/reconfirm-replacements`, {
+        method: "POST",
+        body: JSON.stringify({ note: "BOM owner confirmed replaced-part usage before review" })
+      });
+      setDraftFromDetail(body.draft);
+      setMessage("已重新確認被取代料號");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "重新確認失敗");
     } finally {
       setLoading(false);
     }
@@ -777,7 +814,8 @@ export default function BomWorkbenchPage() {
         metrics={[
           { label: "Draft status", value: selectedDraft?.status ?? "No draft", tone: selectedDraft ? "neutral" : "warning" },
           { label: "Lines", value: selectedDraft?.lines.length ?? 0 },
-          { label: "Unsaved", value: dirty ? "Yes" : "No", tone: dirty ? "warning" : "success" }
+          { label: "Unsaved", value: dirty ? "Yes" : "No", tone: dirty ? "warning" : "success" },
+          { label: "Reconfirm", value: openReconfirmationFlags.length, tone: openReconfirmationFlags.length > 0 ? "warning" : "success" }
         ]}
       />
 
@@ -1079,11 +1117,27 @@ export default function BomWorkbenchPage() {
               </div>
 
               <div className="bom-review-box">
+                {openReconfirmationFlags.length > 0 ? (
+                  <div className="bom-workbench-alert warning">
+                    <AlertTriangle size={17} aria-hidden="true" />
+                    <div>
+                      <strong>BOM 需重新確認</strong>
+                      {openReconfirmationFlags.map((flag) => (
+                        <p key={flag.id}>
+                          {flag.old_part_number} 已被 {flag.new_part_number} 取代；{flag.reason}
+                        </p>
+                      ))}
+                    </div>
+                    <button type="button" onClick={reconfirmReplacementFlags} disabled={loading || dirty}>
+                      已重新確認
+                    </button>
+                  </div>
+                ) : null}
                 <label className="bom-field">
                   <span>送審原因</span>
                   <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="描述本次 BOM 變更原因" />
                 </label>
-                <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading}>
+                <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading || openReconfirmationFlags.length > 0}>
                   <Send size={16} aria-hidden="true" />
                   送主管審核
                 </button>

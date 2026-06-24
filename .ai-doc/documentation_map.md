@@ -36,7 +36,7 @@ This project uses `.ai-doc` as the single project documentation center.
 
 ## PDM Change-Control Package
 
-`DEV-PDM-CHANGE-CONTROL-001` covers drawing revision, replacement part number draft, and BOM impact control. Phase 1 local schema/domain service, Phase 2 part-number draft module, and Phase 3 drawing revision FFF flow are implemented; Phase 4-5 review/BOM release flows and production/Supabase cutover remain unimplemented unless separately approved.
+`DEV-PDM-CHANGE-CONTROL-001` covers drawing revision, replacement part number draft, and BOM impact control. Phase 1-5 local implementation is captured: local schema/domain service, part-number draft module, drawing revision FFF flow, review queue/action APIs, confirmed-impact release transaction, and BOM replacement reconfirmation gates. Production/Supabase cutover remains unimplemented unless separately approved.
 
 Read in this order:
 
@@ -54,11 +54,22 @@ Read in this order:
 12. `src/app/numbering/part-drafts/page.tsx`
 13. `src/app/api/numbering/drawing-revisions/fff-assessments/route.ts`
 14. `src/app/numbering/revisions/page.tsx`
-15. `scripts/qc-pdm-change-control.mjs`
-16. `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`
-17. `.ai-doc/reports/qc/qc-pdm-change-control-phase-2-report-2026-06-24.md`
-18. `.ai-doc/reports/qc/qc-pdm-change-control-phase-3-report-2026-06-24.md`
-19. `.ai-doc/dev_task.md`
+15. `src/app/api/numbering/reviews/pending/route.ts`
+16. `src/app/api/numbering/reviews/_review-action-handler.ts`
+17. `src/app/api/numbering/reviews/[reviewId]/confirm-bom-no-revision/route.ts`
+18. `src/app/api/numbering/reviews/[reviewId]/confirm-original-part-reuse/route.ts`
+19. `src/app/api/numbering/reviews/[reviewId]/return-for-replacement-part/route.ts`
+20. `src/app/api/numbering/reviews/[reviewId]/approve-confirmed-impact-release/route.ts`
+21. `src/app/numbering/change-reviews/page.tsx`
+22. `src/lib/repositories/bom-workbench-async-repository.ts`
+23. `src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts`
+24. `src/app/bom/workbench/page.tsx`
+25. `scripts/qc-pdm-change-control.mjs`
+26. `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`
+27. `.ai-doc/reports/qc/qc-pdm-change-control-phase-2-report-2026-06-24.md`
+28. `.ai-doc/reports/qc/qc-pdm-change-control-phase-3-report-2026-06-24.md`
+29. `.ai-doc/reports/qc/qc-pdm-change-control-phase-4-5-report-2026-06-24.md`
+30. `.ai-doc/dev_task.md`
 
 ## Planned Storage Cost-Control Package
 

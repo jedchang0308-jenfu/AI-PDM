@@ -13,6 +13,11 @@ export type PartNumberDraftItemType = "self_made" | "purchased" | "standard";
 export type PartNumberDraftStatus = "draft" | "pending_review" | "released" | "needs_reconfirmation" | "voided";
 export type DrawingRevisionFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
 export type DrawingRevisionFffOutcome = "no_impact" | "suspected_impact" | "confirmed_impact";
+export type DrawingRevisionReviewAction =
+  | "confirm_bom_no_revision"
+  | "confirm_original_part_reuse"
+  | "return_for_replacement_part"
+  | "approve_replacement_part_and_drawing_release";
 
 export type PartNumberControlBoundaryReason =
   | "referenced_by_bom"
@@ -152,6 +157,28 @@ export type SubmitDrawingRevisionFffAssessmentResult = {
   replacementDraft: PartNumberDraftRecord | null;
 };
 
+export type ApplyDrawingRevisionReviewActionInput = {
+  assessmentId: string;
+  action: DrawingRevisionReviewAction;
+  result?: string | null;
+  actor: PdmChangeControlActorContext;
+};
+
+export type ApplyDrawingRevisionReviewActionResult = {
+  action: DrawingRevisionReviewAction;
+  outcome: DrawingRevisionFffOutcome;
+  assessment: DrawingRevisionFffAssessmentRecord;
+  replacementDraft: PartNumberDraftRecord | null;
+  replacementPartNumberId: string | null;
+  bomReconfirmationFlagCount: number;
+};
+
+export type DrawingRevisionReviewListItem = DrawingRevisionFffAssessmentRecord & {
+  drawingNumber: string | null;
+  replacementReservedPartNumber: string | null;
+  outcome: DrawingRevisionFffOutcome;
+};
+
 type PartNumberDraftRow = {
   id: string;
   company_id: string;
@@ -187,6 +214,15 @@ type IdRow = {
   id: string;
 };
 
+type PartNumberIdentityRow = {
+  id: string;
+  part_number: string;
+};
+
+type BomDraftReferenceRow = {
+  bom_draft_id: string;
+};
+
 type DrawingRevisionFffAssessmentRow = {
   id: string;
   company_id: string;
@@ -204,6 +240,11 @@ type DrawingRevisionFffAssessmentRow = {
   note: string | null;
   assessed_by: string | null;
   assessed_at: string;
+};
+
+type DrawingRevisionReviewListRow = DrawingRevisionFffAssessmentRow & {
+  drawing_number: string | null;
+  replacement_reserved_part_number: string | null;
 };
 
 const DEFAULT_COMPANY_ID = "company-jenfu";
@@ -310,6 +351,12 @@ function fffOutcome(states: DrawingRevisionFffState[]): DrawingRevisionFffOutcom
   if (states.includes("confirmed_impact")) return "confirmed_impact";
   if (states.includes("suspected_impact")) return "suspected_impact";
   return "no_impact";
+}
+
+function itemKindForDraftItemType(itemType: PartNumberDraftItemType) {
+  if (itemType === "self_made") return "manufactured";
+  if (itemType === "purchased") return "purchased";
+  return "custom";
 }
 
 export class PdmChangeControlDomainService {
@@ -586,6 +633,126 @@ export class PdmChangeControlDomainService {
     };
   }
 
+  async applyDrawingRevisionReviewAction(input: ApplyDrawingRevisionReviewActionInput): Promise<ApplyDrawingRevisionReviewActionResult> {
+    return this.runReleaseTransaction(async (service) => service.applyDrawingRevisionReviewActionInTransaction(input));
+  }
+
+  async listPendingDrawingRevisionReviews(actor: PdmChangeControlActorContext): Promise<DrawingRevisionReviewListItem[]> {
+    const companyId = normalizeCompanyId(actor);
+    const rows = await this.client.query<DrawingRevisionReviewListRow>(
+      `
+      SELECT
+        a.*,
+        dn.drawing_number,
+        pnd.reserved_part_number AS replacement_reserved_part_number
+      FROM drawing_revision_fff_assessments a
+      LEFT JOIN drawing_numbers dn ON dn.id = a.drawing_number_id
+      LEFT JOIN part_number_drafts pnd ON pnd.id = a.replacement_part_number_draft_id
+      WHERE a.company_id = :companyId
+        AND NOT EXISTS (
+          SELECT 1
+          FROM review_confirmation_events rce
+          WHERE rce.company_id = a.company_id
+            AND rce.review_id = a.id
+        )
+      ORDER BY a.assessed_at DESC, a.id DESC
+      LIMIT 100
+      `,
+      { companyId }
+    );
+    return rows.map((row) => {
+      const assessment = mapFffAssessment(row);
+      return {
+        ...assessment,
+        drawingNumber: row.drawing_number,
+        replacementReservedPartNumber: row.replacement_reserved_part_number,
+        outcome: fffOutcome([assessment.formState, assessment.fitState, assessment.functionState])
+      };
+    });
+  }
+
+  private async applyDrawingRevisionReviewActionInTransaction(
+    input: ApplyDrawingRevisionReviewActionInput
+  ): Promise<ApplyDrawingRevisionReviewActionResult> {
+    const companyId = normalizeCompanyId(input.actor);
+    const assessment = await this.requireFffAssessment(input.assessmentId, companyId);
+    const outcome = fffOutcome([assessment.formState, assessment.fitState, assessment.functionState]);
+    this.assertReviewActionMatchesOutcome(input.action, outcome);
+
+    let replacementDraft: PartNumberDraftRecord | null = null;
+    let replacementPartNumberId: string | null = null;
+    let bomReconfirmationFlagCount = 0;
+
+    if (input.action === "approve_replacement_part_and_drawing_release") {
+      if (!assessment.replacementPartNumberDraftId) {
+        throw new PdmChangeControlError("replacement_draft_required");
+      }
+      replacementDraft = await this.requireDraft(assessment.replacementPartNumberDraftId, companyId);
+      if (!replacementDraft.sourcePartNumberId) {
+        throw new PdmChangeControlError("source_part_required_for_replacement_release");
+      }
+      const oldPart = await this.requireFormalPartById(companyId, replacementDraft.sourcePartNumberId);
+      replacementPartNumberId = await this.createReleasedPartNumberFromDraft(companyId, replacementDraft, input.actor.userId);
+      await this.client.execute(
+        `
+        UPDATE part_number_drafts
+        SET status = 'released',
+            version = version + 1,
+            updated_at = :updatedAt
+        WHERE id = :draftId AND company_id = :companyId
+        `,
+        { draftId: replacementDraft.id, companyId, updatedAt: this.clock() }
+      );
+      await this.client.execute(
+        `
+        INSERT INTO part_replacement_links (
+          id, company_id, old_part_number_id, new_part_number_id, source_drawing_number_id,
+          source_revision, reason_category, fff_summary_json, released_by, released_at
+        ) VALUES (
+          :id, :companyId, :oldPartNumberId, :newPartNumberId, :sourceDrawingNumberId,
+          :sourceRevision, :reasonCategory, :fffSummaryJson, :releasedBy, :releasedAt
+        )
+        `,
+        {
+          id: this.idFactory(),
+          companyId,
+          oldPartNumberId: oldPart.id,
+          newPartNumberId: replacementPartNumberId,
+          sourceDrawingNumberId: assessment.drawingNumberId,
+          sourceRevision: assessment.revision,
+          reasonCategory: assessment.reasonCategory,
+          fffSummaryJson: JSON.stringify({
+            form: assessment.formState,
+            fit: assessment.fitState,
+            function: assessment.functionState
+          }),
+          releasedBy: input.actor.userId,
+          releasedAt: this.clock()
+        }
+      );
+      bomReconfirmationFlagCount = await this.createBomReconfirmationFlags(companyId, oldPart, replacementPartNumberId);
+      replacementDraft = await this.requireDraft(replacementDraft.id, companyId);
+    }
+
+    await this.insertReviewConfirmationEvent({
+      companyId,
+      reviewId: assessment.id,
+      action: input.action,
+      reviewerUserId: input.actor.userId,
+      result: input.result?.trim() || input.action,
+      metadata: { outcome, replacementPartNumberId, bomReconfirmationFlagCount }
+    });
+
+    return {
+      action: input.action,
+      outcome,
+      assessment,
+      replacementDraft,
+      replacementPartNumberId,
+      bomReconfirmationFlagCount
+    };
+  }
+
   async getPartNumberControlBoundary(draftId: string, actor: PdmChangeControlActorContext): Promise<PartNumberControlBoundary> {
     const companyId = normalizeCompanyId(actor);
     const draft = await this.requireDraft(draftId, companyId);
@@ -838,6 +1005,170 @@ export class PdmChangeControlDomainService {
     );
     if (!row) throw new PdmChangeControlError("fff_assessment_not_found", `FFF assessment not found: ${assessmentId}`);
     return mapFffAssessment(row);
+  }
+
+  private assertReviewActionMatchesOutcome(action: DrawingRevisionReviewAction, outcome: DrawingRevisionFffOutcome) {
+    if (outcome === "no_impact" && action !== "confirm_bom_no_revision") {
+      throw new PdmChangeControlError("review_action_mismatch", "No-impact FFF requires BOM no-revision confirmation", { outcome, action });
+    }
+    if (outcome === "suspected_impact" && action !== "confirm_original_part_reuse" && action !== "return_for_replacement_part") {
+      throw new PdmChangeControlError("review_action_mismatch", "Suspected-impact FFF requires reuse confirmation or return", { outcome, action });
+    }
+    if (outcome === "confirmed_impact" && action !== "approve_replacement_part_and_drawing_release") {
+      throw new PdmChangeControlError("review_action_mismatch", "Confirmed-impact FFF requires replacement release approval", { outcome, action });
+    }
+  }
+
+  private async createReleasedPartNumberFromDraft(companyId: string, draft: PartNumberDraftRecord, actorUserId: string) {
+    const existing = await this.getFormalPartId(companyId, draft.reservedPartNumber);
+    if (existing) throw new PdmChangeControlError("replacement_part_already_released", undefined, { partNumberId: existing });
+    const now = this.clock();
+    const rootId = this.idFactory();
+    const partNumberId = this.idFactory();
+    await this.client.execute(
+      `
+      INSERT INTO part_roots (
+        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (
+        :id, :companyId, :rootCode, :coreName, :itemKind, 'Release', 'Released', 'numbering-rule-v1', :createdBy, :createdAt, :updatedAt
+      )
+      `,
+      {
+        id: rootId,
+        companyId,
+        rootCode: `REL-${draft.id}`,
+        coreName: draft.reservedPartNumber,
+        itemKind: itemKindForDraftItemType(draft.itemType),
+        createdBy: actorUserId,
+        createdAt: now,
+        updatedAt: now
+      }
+    );
+    await this.client.execute(
+      `
+      INSERT INTO part_numbers (
+        id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
+        item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (
+        :id, :companyId, :partRootId, :partNumber, 1, '001', :partName,
+        :itemKind, 0, 'Release', 'Released', 'numbering-rule-v1', :createdBy, :createdAt, :updatedAt
+      )
+      `,
+      {
+        id: partNumberId,
+        companyId,
+        partRootId: rootId,
+        partNumber: draft.reservedPartNumber,
+        partName: draft.reservedPartNumber,
+        itemKind: itemKindForDraftItemType(draft.itemType),
+        createdBy: actorUserId,
+        createdAt: now,
+        updatedAt: now
+      }
+    );
+    return partNumberId;
+  }
+
+  private async requireFormalPartById(companyId: string, partNumberId: string) {
+    const row = await this.client.queryOne<PartNumberIdentityRow>(
+      "SELECT id, part_number FROM part_numbers WHERE id = :partNumberId AND company_id = :companyId LIMIT 1",
+      { partNumberId, companyId }
+    );
+    if (!row) throw new PdmChangeControlError("source_part_not_found", `Source part not found: ${partNumberId}`);
+    return row;
+  }
+
+  private async createBomReconfirmationFlags(companyId: string, oldPart: PartNumberIdentityRow, newPartNumberId: string) {
+    const rows = await this.client.query<BomDraftReferenceRow>(
+      `
+      SELECT DISTINCT bd.id AS bom_draft_id
+      FROM bom_drafts bd
+      JOIN bom_lines_tree blt ON blt.bom_draft_id = bd.id
+      JOIN items i ON i.id = bd.parent_item_id
+      WHERE i.company_id = :companyId
+        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
+        AND blt.part_number = :oldPartNumber
+        AND NOT EXISTS (
+          SELECT 1
+          FROM bom_reconfirmation_flags brf
+          WHERE brf.company_id = :companyId
+            AND brf.bom_draft_id = bd.id
+            AND brf.old_part_number_id = :oldPartNumberId
+            AND brf.new_part_number_id = :newPartNumberId
+            AND brf.resolved_at IS NULL
+        )
+      `,
+      { companyId, oldPartNumber: oldPart.part_number, oldPartNumberId: oldPart.id, newPartNumberId }
+    );
+    const now = this.clock();
+    for (const row of rows) {
+      await this.client.execute(
+        `
+        INSERT INTO bom_reconfirmation_flags (
+          id, company_id, bom_draft_id, old_part_number_id, new_part_number_id, reason, created_at
+        ) VALUES (
+          :id, :companyId, :bomDraftId, :oldPartNumberId, :newPartNumberId, :reason, :createdAt
+        )
+        `,
+        {
+          id: this.idFactory(),
+          companyId,
+          bomDraftId: row.bom_draft_id,
+          oldPartNumberId: oldPart.id,
+          newPartNumberId,
+          reason: "replacement_part_released",
+          createdAt: now
+        }
+      );
+    }
+    return rows.length;
+  }
+
+  private async insertReviewConfirmationEvent(input: {
+    companyId: string;
+    reviewId: string;
+    action: DrawingRevisionReviewAction;
+    reviewerUserId: string;
+    result: string;
+    metadata: Record<string, unknown>;
+  }) {
+    await this.client.execute(
+      `
+      INSERT INTO review_confirmation_events (
+        id, company_id, review_id, action, reviewer_user_id, result, metadata_json
+      ) VALUES (
+        :id, :companyId, :reviewId, :action, :reviewerUserId, :result, :metadataJson
+      )
+      `,
+      {
+        id: this.idFactory(),
+        companyId: input.companyId,
+        reviewId: input.reviewId,
+        action: input.action,
+        reviewerUserId: input.reviewerUserId,
+        result: input.result,
+        metadataJson: JSON.stringify(input.metadata)
+      }
+    );
+  }
+
+  private async runReleaseTransaction<T>(fn: (service: PdmChangeControlDomainService) => Promise<T>): Promise<T> {
+    const transactional = this.client as PdmChangeControlDatabaseClient & {
+      transaction?: (callback: (client: PdmChangeControlDatabaseClient) => Promise<T>) => Promise<T>;
+    };
+    if (this.client.kind === "postgres" && transactional.transaction) {
+      return transactional.transaction((client) => fn(new PdmChangeControlDomainService(client, this.clock, this.idFactory)));
+    }
+
+    await this.client.execute("BEGIN");
+    try {
+      const result = await fn(this);
+      await this.client.execute("COMMIT");
+      return result;
+    } catch (error) {
+      await this.client.execute("ROLLBACK");
+      throw error;
+    }
   }
 
   private async hasBomReference(companyId: string, partNumber: string) {

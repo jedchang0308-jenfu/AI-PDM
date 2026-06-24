@@ -70,6 +70,7 @@ const navSections: NavSection[] = [
       { href: "/numbering/revisions", label: "圖面進版", icon: GitPullRequestArrow },
       { href: "/numbering/dvt", label: "DVT 晉升", icon: GitPullRequestArrow },
       { href: "/numbering/approvals", label: "發行審核", icon: ClipboardCheck },
+      { href: "/numbering/change-reviews", label: "變更審核", icon: ClipboardCheck },
       { href: "/numbering/impact", label: "MA 影響分析", icon: ShieldAlert }
     ]
   },

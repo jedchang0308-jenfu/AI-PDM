@@ -132,6 +132,19 @@ export type BomWorkbenchDraftSummary = {
   updated_at: string;
 };
 
+export type BomReconfirmationFlag = {
+  id: string;
+  bom_draft_id: string;
+  old_part_number_id: string;
+  old_part_number: string;
+  new_part_number_id: string;
+  new_part_number: string;
+  reason: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
 export type BomWorkbenchLine = {
   id: string;
   bom_draft_id: string;
@@ -156,6 +169,7 @@ export type BomWorkbenchLine = {
 
 export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
+  reconfirmation_flags: BomReconfirmationFlag[];
 };
 
 export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";

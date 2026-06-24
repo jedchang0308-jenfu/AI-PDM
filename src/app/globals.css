@@ -4509,6 +4509,24 @@ select.dropdown-select:focus-visible,
   color: var(--danger);
 }
 
+.bom-workbench-alert.warning {
+  align-items: flex-start;
+  border-color: #fedf89;
+  background: #fffaeb;
+  color: var(--warning);
+}
+
+.bom-workbench-alert.warning div {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.bom-workbench-alert.warning p {
+  margin: 0;
+  color: inherit;
+}
+
 .bom-workbench-alert button {
   border: 0;
   background: transparent;

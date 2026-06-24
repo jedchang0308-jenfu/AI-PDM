@@ -16,8 +16,17 @@ const apiVoidRouteSource = readProjectFile(root, "src/app/api/numbering/part-num
 const apiRecycleRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts");
 const apiReconfirmRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts");
 const fffAssessmentRouteSource = readProjectFile(root, "src/app/api/numbering/drawing-revisions/fff-assessments/route.ts");
+const reviewActionHandlerSource = readProjectFile(root, "src/app/api/numbering/reviews/_review-action-handler.ts");
+const reviewPendingRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/pending/route.ts");
+const reviewConfirmBomRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/confirm-bom-no-revision/route.ts");
+const reviewApproveReleaseRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/approve-confirmed-impact-release/route.ts");
+const bomWorkbenchRepositorySource = readProjectFile(root, "src/lib/repositories/bom-workbench-async-repository.ts");
+const bomSubmitReviewRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/submit-review/route.ts");
+const bomReconfirmReplacementRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts");
+const bomWorkbenchPageSource = readProjectFile(root, "src/app/bom/workbench/page.tsx");
 const partDraftPageSource = readProjectFile(root, "src/app/numbering/part-drafts/page.tsx");
 const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
+const changeReviewPageSource = readProjectFile(root, "src/app/numbering/change-reviews/page.tsx");
 const sidebarSource = readProjectFile(root, "src/components/sidebar-nav.tsx");
 const navPermissionSource = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
 const packageJson = readProjectJson(root, "package.json");
@@ -178,6 +187,70 @@ function seedBomReference(database, partNumber) {
     .run(bomLineId, bomHeaderId, partNumber);
 }
 
+function seedReleasedBomSnapshotReference(database, partNumber) {
+  const itemId = nextId("released-bom-item");
+  const submissionId = nextId("released-bom-submission");
+  const bomHeaderId = nextId("released-bom-header");
+  const bomLineId = nextId("released-bom-line");
+  database.prepare("INSERT INTO items (id, company_id, part_number, part_name) VALUES (?, ?, ?, ?)").run(
+    itemId,
+    companyId,
+    `ASM-REL-${partNumber}`,
+    "QC released assembly"
+  );
+  database
+    .prepare(
+      `
+      INSERT INTO submissions (
+        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
+        change_description, status, submitted_by
+      ) VALUES (?, ?, ?, ?, '1', 'QC material', 'QC finish', 'drawing', 'QC released BOM immutability', 'Released', ?)
+      `
+    )
+    .run(submissionId, companyId, itemId, `D-REL-BOM-${partNumber}`, engineer.userId);
+  database
+    .prepare(
+      "INSERT INTO bom_headers (id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count) VALUES (?, ?, ?, '1', 'ReleasedSnapshot', 'manual', 1)"
+    )
+    .run(bomHeaderId, itemId, submissionId);
+  database
+    .prepare("INSERT INTO bom_lines (id, bom_header_id, line_no, child_part_number, quantity) VALUES (?, ?, 1, ?, 1)")
+    .run(bomLineId, bomHeaderId, partNumber);
+  return bomHeaderId;
+}
+
+function seedUnreleasedBomDraftReference(database, partNumber) {
+  const itemId = nextId("draft-item");
+  const submissionId = nextId("draft-submission");
+  const bomDraftId = nextId("bom-draft");
+  const lineId = nextId("bom-tree-line");
+  database.prepare("INSERT INTO items (id, company_id, part_number, part_name) VALUES (?, ?, ?, ?)").run(
+    itemId,
+    companyId,
+    `ASM-DRAFT-${partNumber}`,
+    "QC draft assembly"
+  );
+  database
+    .prepare(
+      `
+      INSERT INTO submissions (
+        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
+        change_description, status, submitted_by
+      ) VALUES (?, ?, ?, ?, '1', 'QC material', 'QC finish', 'drawing', 'QC BOM draft boundary', 'Pending', ?)
+      `
+    )
+    .run(submissionId, companyId, itemId, `D-DRAFT-${partNumber}`, engineer.userId);
+  database
+    .prepare(
+      "INSERT INTO bom_drafts (id, parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active, line_count, created_by) VALUES (?, ?, ?, '1', 'QC draft BOM', 'Draft', 'manual', 1, 1, ?)"
+    )
+    .run(bomDraftId, itemId, submissionId, engineer.userId);
+  database
+    .prepare("INSERT INTO bom_lines_tree (id, bom_draft_id, node_type, part_number, quantity, sequence_no, source, created_by) VALUES (?, ?, 'item', ?, 1, 1, 'manual', ?)")
+    .run(lineId, bomDraftId, partNumber, engineer.userId);
+  return bomDraftId;
+}
+
 function eventTypes(database, draftId) {
   return database
     .prepare("SELECT event_type FROM part_number_events WHERE part_number_draft_id = ? ORDER BY occurred_at ASC, id ASC")
@@ -266,6 +339,35 @@ record(
   "CHG-SRC-013 FFF assessment stores drawing part-number read/correction values",
   ["replacement_part_number_draft_id", "detected_part_number", "corrected_part_number"].every((column) => schema.includes(column)),
   "db/schema.sql"
+);
+record(
+  "CHG-SRC-014 review action APIs and page exist",
+  reviewActionHandlerSource.includes("applyDrawingRevisionReviewAction") &&
+    reviewPendingRouteSource.includes("listPendingDrawingRevisionReviews") &&
+    reviewConfirmBomRouteSource.includes("confirm_bom_no_revision") &&
+    reviewApproveReleaseRouteSource.includes("approve_replacement_part_and_drawing_release") &&
+    changeReviewPageSource.includes("/api/numbering/reviews/") &&
+    sidebarSource.includes("/numbering/change-reviews") &&
+    navPermissionSource.includes('"/numbering/change-reviews": "numbering.approvals"'),
+  "src/app/api/numbering/reviews"
+);
+record(
+  "CHG-SRC-015 review release domain supports atomic replacement and BOM flags",
+  ["applyDrawingRevisionReviewAction", "createReleasedPartNumberFromDraft", "createBomReconfirmationFlags", "runReleaseTransaction"].every((text) =>
+    serviceSource.includes(text)
+  ),
+  "pdm-change-control-domain.ts"
+);
+record(
+  "CHG-SRC-016 BOM workbench blocks and resolves replacement reconfirmation flags",
+  bomWorkbenchRepositorySource.includes("BOM_RECONFIRMATION_REQUIRED") &&
+    bomWorkbenchRepositorySource.includes("reconfirmReplacementFlags") &&
+    bomSubmitReviewRouteSource.includes("submitBomWorkbenchDraftReviewAsync") &&
+    bomReconfirmReplacementRouteSource.includes("reconfirmBomWorkbenchReplacementFlagsAsync") &&
+    bomWorkbenchPageSource.includes("reconfirmation_flags") &&
+    bomWorkbenchPageSource.includes("已重新確認") &&
+    bomWorkbenchPageSource.includes("openReconfirmationFlags.length > 0"),
+  "src/app/bom/workbench/page.tsx"
 );
 
 const database = new Database(":memory:");
@@ -481,6 +583,12 @@ try {
     noImpact.outcome === "no_impact" && noImpact.replacementDraft === null && noImpact.assessment.replacementPartNumberDraftId === null,
     JSON.stringify(noImpact)
   );
+  const pendingReviewsBeforeAction = await service.listPendingDrawingRevisionReviews(manager);
+  assert(
+    "CHG-REVIEW-000 pending review queue lists unconfirmed FFF assessments",
+    pendingReviewsBeforeAction.some((review) => review.id === noImpact.assessment.id && review.outcome === "no_impact"),
+    JSON.stringify(pendingReviewsBeforeAction.map((review) => ({ id: review.id, outcome: review.outcome })))
+  );
   await expectReject(
     "CHG-FFF-002 confirmed impact requires replacement part number",
     () =>
@@ -537,6 +645,144 @@ try {
     "CHG-FFF-005 confirmed impact keeps original drawing number",
     drawingCountBeforeReplacement === drawingCountAfterReplacement,
     JSON.stringify({ drawingCountBeforeReplacement, drawingCountAfterReplacement })
+  );
+
+  await expectReject(
+    "CHG-REVIEW-001 no-impact review rejects wrong action",
+    () =>
+      service.applyDrawingRevisionReviewAction({
+        assessmentId: noImpact.assessment.id,
+        action: "approve_replacement_part_and_drawing_release",
+        actor: manager
+      }),
+    "review_action_mismatch"
+  );
+  const noImpactReview = await service.applyDrawingRevisionReviewAction({
+    assessmentId: noImpact.assessment.id,
+    action: "confirm_bom_no_revision",
+    actor: manager
+  });
+  assert(
+    "CHG-REVIEW-002 no-impact review requires BOM no-revision confirmation",
+    noImpactReview.action === "confirm_bom_no_revision" && noImpactReview.replacementPartNumberId === null,
+    JSON.stringify(noImpactReview)
+  );
+
+  const suspected = await service.submitDrawingRevisionFffAssessment({
+    drawingNumberId: revisionDrawing.drawingId,
+    revision: "0.5",
+    formState: "suspected_impact",
+    fitState: "no_impact",
+    functionState: "no_impact",
+    reasonCategory: "BOM / 料件影響",
+    actor: engineer
+  });
+  await expectReject(
+    "CHG-REVIEW-003 suspected impact rejects skipped conclusion",
+    () =>
+      service.applyDrawingRevisionReviewAction({
+        assessmentId: suspected.assessment.id,
+        action: "confirm_bom_no_revision",
+        actor: manager
+      }),
+    "review_action_mismatch"
+  );
+  const suspectedReview = await service.applyDrawingRevisionReviewAction({
+    assessmentId: suspected.assessment.id,
+    action: "confirm_original_part_reuse",
+    actor: manager
+  });
+  assert("CHG-REVIEW-004 suspected impact allows explicit reuse confirmation", suspectedReview.action === "confirm_original_part_reuse", JSON.stringify(suspectedReview));
+
+  const releaseOldPart = seedFormalPart(database, "P-QC-REL-OLD");
+  const flaggedBomDraftId = seedUnreleasedBomDraftReference(database, releaseOldPart.partNumber);
+  const releasedBomHeaderId = seedReleasedBomSnapshotReference(database, releaseOldPart.partNumber);
+  const releasedBomBefore = database.prepare("SELECT child_part_number FROM bom_lines WHERE bom_header_id = ?").get(releasedBomHeaderId).child_part_number;
+  const releaseDrawing = seedDrawing(database, "D-QC-REL-MA1");
+  const releaseAssessment = await service.submitDrawingRevisionFffAssessment({
+    drawingNumberId: releaseDrawing.drawingId,
+    revision: "1",
+    formState: "confirmed_impact",
+    fitState: "no_impact",
+    functionState: "no_impact",
+    reasonCategory: "材質 / 製程修正",
+    currentPartNumberId: releaseOldPart.partId,
+    replacementReservedPartNumber: "P-QC-REL-NEW",
+    detectedPartNumber: "P-QC-REL-NEW",
+    actor: engineer
+  });
+  const releaseResult = await service.applyDrawingRevisionReviewAction({
+    assessmentId: releaseAssessment.assessment.id,
+    action: "approve_replacement_part_and_drawing_release",
+    actor: manager
+  });
+  const replacementLinkCount = database
+    .prepare("SELECT COUNT(*) AS count FROM part_replacement_links WHERE old_part_number_id = ? AND new_part_number_id = ?")
+    .get(releaseOldPart.partId, releaseResult.replacementPartNumberId).count;
+  const bomFlagCount = database
+    .prepare("SELECT COUNT(*) AS count FROM bom_reconfirmation_flags WHERE bom_draft_id = ? AND old_part_number_id = ?")
+    .get(flaggedBomDraftId, releaseOldPart.partId).count;
+  const openBomFlag = database
+    .prepare(
+      `
+      SELECT resolved_by, resolved_at
+      FROM bom_reconfirmation_flags
+      WHERE bom_draft_id = ? AND old_part_number_id = ?
+      `
+    )
+    .get(flaggedBomDraftId, releaseOldPart.partId);
+  assert(
+    "CHG-REVIEW-005 confirmed impact release creates part, replacement link, and BOM flag",
+    releaseResult.replacementDraft?.status === "released" && replacementLinkCount === 1 && bomFlagCount === 1 && releaseResult.bomReconfirmationFlagCount === 1,
+    JSON.stringify({ releaseResult, replacementLinkCount, bomFlagCount })
+  );
+  assert(
+    "CHG-BOM-001 BOM reconfirmation flag starts unresolved",
+    openBomFlag?.resolved_by === null && openBomFlag?.resolved_at === null,
+    JSON.stringify(openBomFlag)
+  );
+  const releasedBomAfter = database.prepare("SELECT child_part_number FROM bom_lines WHERE bom_header_id = ?").get(releasedBomHeaderId).child_part_number;
+  assert(
+    "CHG-BOM-002 released BOM keeps old part after replacement release",
+    releasedBomBefore === releaseOldPart.partNumber && releasedBomAfter === releaseOldPart.partNumber,
+    JSON.stringify({ releasedBomBefore, releasedBomAfter })
+  );
+
+  const rollbackOldPart = seedFormalPart(database, "P-QC-ROLLBACK-OLD");
+  const rollbackDrawing = seedDrawing(database, "D-QC-ROLLBACK-MA1");
+  const rollbackAssessment = await service.submitDrawingRevisionFffAssessment({
+    drawingNumberId: rollbackDrawing.drawingId,
+    revision: "1",
+    formState: "confirmed_impact",
+    fitState: "no_impact",
+    functionState: "no_impact",
+    reasonCategory: "尺寸 / 公差修正",
+    currentPartNumberId: rollbackOldPart.partId,
+    replacementReservedPartNumber: "P-QC-ROLLBACK-NEW",
+    detectedPartNumber: "P-QC-ROLLBACK-NEW",
+    actor: engineer
+  });
+  seedFormalPart(database, "P-QC-ROLLBACK-NEW");
+  await expectReject(
+    "CHG-REVIEW-006 failed release rolls back transaction",
+    () =>
+      service.applyDrawingRevisionReviewAction({
+        assessmentId: rollbackAssessment.assessment.id,
+        action: "approve_replacement_part_and_drawing_release",
+        actor: manager
+      }),
+    "replacement_part_already_released"
+  );
+  const rollbackReviewEvents = database
+    .prepare("SELECT COUNT(*) AS count FROM review_confirmation_events WHERE review_id = ?")
+    .get(rollbackAssessment.assessment.id).count;
+  const rollbackDraft = database
+    .prepare("SELECT status FROM part_number_drafts WHERE id = ?")
+    .get(rollbackAssessment.replacementDraft.id);
+  assert(
+    "CHG-REVIEW-007 rollback leaves no review event or released draft",
+    rollbackReviewEvents === 0 && rollbackDraft.status === "draft",
+    JSON.stringify({ rollbackReviewEvents, rollbackDraft })
   );
 } catch (error) {
   record("CHG-RUNTIME-000 runtime test setup failed", false, error instanceof Error ? error.message : String(error));

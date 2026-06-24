@@ -5,6 +5,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type {
   BomImportJob,
   BomImportProfile,
+  BomReconfirmationFlag,
   BomReleaseSnapshotDetail,
   BomReleaseGateIssue,
   BomWorkbenchDraftDetail,
@@ -102,6 +103,12 @@ export type SubmitAsyncBomWorkbenchDraftReviewInput = {
   draftId: string;
   actorId: string;
   changeReason: string;
+};
+
+export type ReconfirmAsyncBomReplacementFlagsInput = {
+  draftId: string;
+  actorId: string;
+  note?: string;
 };
 
 export type SaveAsyncBomWorkbenchDraftTreeInput = {
@@ -256,6 +263,34 @@ export const SELECT_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL = `
   LEFT JOIN items i ON i.id = l.item_id
   WHERE l.bom_draft_id = :draftId
   ORDER BY COALESCE(l.parent_line_id, ''), l.sequence_no ASC, l.id ASC
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL = `
+  SELECT
+    brf.id,
+    brf.bom_draft_id,
+    brf.old_part_number_id,
+    old_part.part_number AS old_part_number,
+    brf.new_part_number_id,
+    new_part.part_number AS new_part_number,
+    brf.reason,
+    brf.created_at,
+    brf.resolved_at,
+    brf.resolved_by
+  FROM bom_reconfirmation_flags brf
+  JOIN part_numbers old_part ON old_part.id = brf.old_part_number_id
+  JOIN part_numbers new_part ON new_part.id = brf.new_part_number_id
+  WHERE brf.bom_draft_id = :draftId
+    AND brf.resolved_at IS NULL
+  ORDER BY brf.created_at DESC, brf.id DESC
+`;
+
+export const RESOLVE_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL = `
+  UPDATE bom_reconfirmation_flags
+  SET resolved_at = :resolvedAt,
+      resolved_by = :resolvedBy
+  WHERE bom_draft_id = :draftId
+    AND resolved_at IS NULL
 `;
 
 export const DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL = `
@@ -602,10 +637,14 @@ export class AsyncBomWorkbenchRepository {
     const draft = await this.client.queryOne<BomWorkbenchDraftSummary>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, { draftId });
     if (!draft) return null;
 
-    const lines = await this.client.query<BomWorkbenchLine>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL, { draftId });
+    const [lines, reconfirmationFlags] = await Promise.all([
+      this.client.query<BomWorkbenchLine>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL, { draftId }),
+      this.client.query<BomReconfirmationFlag>(SELECT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL, { draftId })
+    ]);
     return {
       ...coerceDraftSummary(draft),
-      lines: lines.map(coerceWorkbenchLine)
+      lines: lines.map(coerceWorkbenchLine),
+      reconfirmation_flags: reconfirmationFlags
     };
   }
 
@@ -1016,6 +1055,9 @@ export class AsyncBomWorkbenchRepository {
     const draft = await this.getDraftById(input.draftId);
     if (!draft) return null;
     assertBomDraftMutable(draft.status);
+    if (draft.reconfirmation_flags.length > 0) {
+      throw new Error("BOM_RECONFIRMATION_REQUIRED");
+    }
 
     const changeReason = input.changeReason.trim();
     if (!changeReason) throw new Error("BOM_REVIEW_CHANGE_REASON_REQUIRED");
@@ -1070,6 +1112,53 @@ export class AsyncBomWorkbenchRepository {
     }
 
     return this.getReviewById(reviewId);
+  }
+
+  async reconfirmReplacementFlags(input: ReconfirmAsyncBomReplacementFlagsInput): Promise<BomWorkbenchDraftDetail | null> {
+    const draft = await this.getDraftById(input.draftId);
+    if (!draft) return null;
+    assertBomDraftMutable(draft.status);
+    if (draft.reconfirmation_flags.length === 0) return draft;
+
+    const now = this.clock();
+    const note = input.note?.trim() || "BOM owner reconfirmed replaced part usage";
+    const confirm = async (client: AsyncDatabaseClient) => {
+      await client.execute(RESOLVE_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL, {
+        draftId: input.draftId,
+        resolvedAt: now,
+        resolvedBy: input.actorId
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId: input.draftId,
+        actorId: input.actorId,
+        eventType: "reconfirm_replaced_parts",
+        beforeJson: JSON.stringify({ reconfirmationFlags: draft.reconfirmation_flags }),
+        afterJson: JSON.stringify({ reconfirmationFlags: [] }),
+        reason: note,
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: draft.parent_submission_id,
+        actorId: input.actorId,
+        action: "BomWorkbenchReplacementPartsReconfirmed",
+        detailJson: JSON.stringify({
+          draftId: input.draftId,
+          flagCount: draft.reconfirmation_flags.length,
+          note
+        }),
+        createdAt: now
+      });
+    };
+
+    if (this.client.kind === "postgres") {
+      await this.client.transaction(confirm);
+    } else {
+      await confirm(this.client);
+    }
+
+    return this.getDraftById(input.draftId);
   }
 
   async rejectReview(input: DecideAsyncBomWorkbenchReviewInput): Promise<{ review: BomWorkbenchReview | null; draft: BomWorkbenchDraftDetail | null } | null> {

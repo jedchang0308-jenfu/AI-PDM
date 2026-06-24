@@ -1,6 +1,7 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   PdmChangeControlDomainService,
+  type ApplyDrawingRevisionReviewActionInput,
   type DraftActionInput,
   type ListPartNumberDraftsInput,
   type MarkSameSourceDraftsNeedReconfirmationInput,
@@ -11,6 +12,9 @@ import {
 } from "@/lib/pdm-change-control-domain";
 
 export type {
+  ApplyDrawingRevisionReviewActionResult,
+  DrawingRevisionReviewListItem,
+  DrawingRevisionReviewAction,
   DrawingRevisionFffAssessmentRecord,
   DrawingRevisionFffOutcome,
   DrawingRevisionFffState,
@@ -46,6 +50,14 @@ export async function updatePartNumberDraft(input: UpdatePartNumberDraftInput) {
 
 export async function submitDrawingRevisionFffAssessment(input: SubmitDrawingRevisionFffAssessmentInput) {
   return service().submitDrawingRevisionFffAssessment(input);
+}
+
+export async function applyDrawingRevisionReviewAction(input: ApplyDrawingRevisionReviewActionInput) {
+  return service().applyDrawingRevisionReviewAction(input);
+}
+
+export async function listPendingDrawingRevisionReviews(actor: PdmChangeControlActorContext) {
+  return service().listPendingDrawingRevisionReviews(actor);
 }
 
 export async function getPartNumberControlBoundary(draftId: string, actor: PdmChangeControlActorContext) {
