@@ -11,6 +11,8 @@ export interface PdmChangeControlDatabaseClient {
 export type PartNumberDraftType = "new_part" | "replacement_part" | "drawing_revision_generated";
 export type PartNumberDraftItemType = "self_made" | "purchased" | "standard";
 export type PartNumberDraftStatus = "draft" | "pending_review" | "released" | "needs_reconfirmation" | "voided";
+export type DrawingRevisionFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
+export type DrawingRevisionFffOutcome = "no_impact" | "suspected_impact" | "confirmed_impact";
 
 export type PartNumberControlBoundaryReason =
   | "referenced_by_bom"
@@ -107,6 +109,49 @@ export type MarkSameSourceDraftsNeedReconfirmationInput = {
   actor: PdmChangeControlActorContext;
 };
 
+export type SubmitDrawingRevisionFffAssessmentInput = {
+  drawingNumberId: string;
+  revision: string;
+  formState: DrawingRevisionFffState;
+  fitState: DrawingRevisionFffState;
+  functionState: DrawingRevisionFffState;
+  reasonCategory: string;
+  note?: string | null;
+  submissionId?: string | null;
+  reviewPackageId?: string | null;
+  currentPartNumberId?: string | null;
+  replacementReservedPartNumber?: string | null;
+  replacementItemType?: PartNumberDraftItemType;
+  detectedPartNumber?: string | null;
+  correctedPartNumber?: string | null;
+  actor: PdmChangeControlActorContext;
+};
+
+export type DrawingRevisionFffAssessmentRecord = {
+  id: string;
+  companyId: string;
+  drawingNumberId: string;
+  revision: string;
+  submissionId: string | null;
+  reviewPackageId: string | null;
+  replacementPartNumberDraftId: string | null;
+  detectedPartNumber: string | null;
+  correctedPartNumber: string | null;
+  formState: DrawingRevisionFffState;
+  fitState: DrawingRevisionFffState;
+  functionState: DrawingRevisionFffState;
+  reasonCategory: string;
+  note: string | null;
+  assessedBy: string | null;
+  assessedAt: string;
+};
+
+export type SubmitDrawingRevisionFffAssessmentResult = {
+  outcome: DrawingRevisionFffOutcome;
+  assessment: DrawingRevisionFffAssessmentRecord;
+  replacementDraft: PartNumberDraftRecord | null;
+};
+
 type PartNumberDraftRow = {
   id: string;
   company_id: string;
@@ -140,6 +185,25 @@ type CountRow = {
 
 type IdRow = {
   id: string;
+};
+
+type DrawingRevisionFffAssessmentRow = {
+  id: string;
+  company_id: string;
+  drawing_number_id: string;
+  revision: string;
+  submission_id: string | null;
+  review_package_id: string | null;
+  replacement_part_number_draft_id: string | null;
+  detected_part_number: string | null;
+  corrected_part_number: string | null;
+  form_state: DrawingRevisionFffState;
+  fit_state: DrawingRevisionFffState;
+  function_state: DrawingRevisionFffState;
+  reason_category: string;
+  note: string | null;
+  assessed_by: string | null;
+  assessed_at: string;
 };
 
 const DEFAULT_COMPANY_ID = "company-jenfu";
@@ -191,6 +255,27 @@ function mapDraft(row: PartNumberDraftRow): PartNumberDraftRecord {
   };
 }
 
+function mapFffAssessment(row: DrawingRevisionFffAssessmentRow): DrawingRevisionFffAssessmentRecord {
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    drawingNumberId: row.drawing_number_id,
+    revision: row.revision,
+    submissionId: row.submission_id,
+    reviewPackageId: row.review_package_id,
+    replacementPartNumberDraftId: row.replacement_part_number_draft_id,
+    detectedPartNumber: row.detected_part_number,
+    correctedPartNumber: row.corrected_part_number,
+    formState: row.form_state,
+    fitState: row.fit_state,
+    functionState: row.function_state,
+    reasonCategory: row.reason_category,
+    note: row.note,
+    assessedBy: row.assessed_by,
+    assessedAt: row.assessed_at
+  };
+}
+
 function countValue(row: CountRow | null) {
   return Number(row?.count ?? 0);
 }
@@ -219,6 +304,12 @@ function assertDraftEditableStatus(draft: PartNumberDraftRecord) {
 
 function uniqueStrings(values: string[]) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function fffOutcome(states: DrawingRevisionFffState[]): DrawingRevisionFffOutcome {
+  if (states.includes("confirmed_impact")) return "confirmed_impact";
+  if (states.includes("suspected_impact")) return "suspected_impact";
+  return "no_impact";
 }
 
 export class PdmChangeControlDomainService {
@@ -416,6 +507,83 @@ export class PdmChangeControlDomainService {
       });
     }
     return this.requireDraft(input.draftId, companyId);
+  }
+
+  async submitDrawingRevisionFffAssessment(input: SubmitDrawingRevisionFffAssessmentInput): Promise<SubmitDrawingRevisionFffAssessmentResult> {
+    const companyId = normalizeCompanyId(input.actor);
+    await this.requireDrawing(input.drawingNumberId, companyId);
+    const revision = normalizeRequiredText(input.revision, "revision_required");
+    const reasonCategory = normalizeRequiredText(input.reasonCategory, "reason_category_required");
+    const outcome = fffOutcome([input.formState, input.fitState, input.functionState]);
+    const detectedPartNumber = input.detectedPartNumber?.trim() || null;
+    const correctedPartNumber = input.correctedPartNumber?.trim() || null;
+    const comparedPartNumber = correctedPartNumber || detectedPartNumber;
+    let replacementDraft: PartNumberDraftRecord | null = null;
+
+    if (outcome === "confirmed_impact") {
+      const replacementReservedPartNumber = input.replacementReservedPartNumber?.trim() || null;
+      if (!replacementReservedPartNumber) {
+        throw new PdmChangeControlError("replacement_part_number_required");
+      }
+      if (!comparedPartNumber) {
+        throw new PdmChangeControlError("drawing_part_number_read_required");
+      }
+      if (comparedPartNumber !== replacementReservedPartNumber) {
+        throw new PdmChangeControlError("drawing_part_number_mismatch", "Drawing part number must match replacement part number", {
+          expectedPartNumber: replacementReservedPartNumber,
+          actualPartNumber: comparedPartNumber
+        });
+      }
+      replacementDraft = await this.reservePartNumberDraft({
+        reservedPartNumber: replacementReservedPartNumber,
+        draftType: "drawing_revision_generated",
+        itemType: input.replacementItemType ?? "self_made",
+        sourcePartNumberId: input.currentPartNumberId ?? null,
+        sourceDrawingNumberId: input.drawingNumberId,
+        sourceRevision: revision,
+        actor: input.actor
+      });
+    }
+
+    const assessmentId = this.idFactory();
+    const now = this.clock();
+    await this.client.execute(
+      `
+      INSERT INTO drawing_revision_fff_assessments (
+        id, company_id, drawing_number_id, revision, submission_id, review_package_id,
+        replacement_part_number_draft_id, detected_part_number, corrected_part_number,
+        form_state, fit_state, function_state, reason_category, note, assessed_by, assessed_at
+      ) VALUES (
+        :id, :companyId, :drawingNumberId, :revision, :submissionId, :reviewPackageId,
+        :replacementPartNumberDraftId, :detectedPartNumber, :correctedPartNumber,
+        :formState, :fitState, :functionState, :reasonCategory, :note, :assessedBy, :assessedAt
+      )
+      `,
+      {
+        id: assessmentId,
+        companyId,
+        drawingNumberId: input.drawingNumberId,
+        revision,
+        submissionId: input.submissionId?.trim() || null,
+        reviewPackageId: input.reviewPackageId?.trim() || null,
+        replacementPartNumberDraftId: replacementDraft?.id ?? null,
+        detectedPartNumber,
+        correctedPartNumber,
+        formState: input.formState,
+        fitState: input.fitState,
+        functionState: input.functionState,
+        reasonCategory,
+        note: input.note?.trim() || null,
+        assessedBy: input.actor.userId,
+        assessedAt: now
+      }
+    );
+
+    return {
+      outcome,
+      assessment: await this.requireFffAssessment(assessmentId, companyId),
+      replacementDraft
+    };
   }
 
   async getPartNumberControlBoundary(draftId: string, actor: PdmChangeControlActorContext): Promise<PartNumberControlBoundary> {
@@ -652,6 +820,24 @@ export class PdmChangeControlDomainService {
       { companyId, partNumber }
     );
     return row?.id ?? null;
+  }
+
+  private async requireDrawing(drawingNumberId: string, companyId: string) {
+    const row = await this.client.queryOne<IdRow>(
+      "SELECT id FROM drawing_numbers WHERE id = :drawingNumberId AND company_id = :companyId LIMIT 1",
+      { drawingNumberId, companyId }
+    );
+    if (!row) throw new PdmChangeControlError("drawing_number_not_found", `Drawing number not found: ${drawingNumberId}`);
+    return row;
+  }
+
+  private async requireFffAssessment(assessmentId: string, companyId: string) {
+    const row = await this.client.queryOne<DrawingRevisionFffAssessmentRow>(
+      "SELECT * FROM drawing_revision_fff_assessments WHERE id = :assessmentId AND company_id = :companyId",
+      { assessmentId, companyId }
+    );
+    if (!row) throw new PdmChangeControlError("fff_assessment_not_found", `FFF assessment not found: ${assessmentId}`);
+    return mapFffAssessment(row);
   }
 
   private async hasBomReference(companyId: string, partNumber: string) {

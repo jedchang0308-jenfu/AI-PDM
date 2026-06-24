@@ -15,7 +15,9 @@ const apiSubmitRouteSource = readProjectFile(root, "src/app/api/numbering/part-n
 const apiVoidRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts");
 const apiRecycleRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts");
 const apiReconfirmRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts");
+const fffAssessmentRouteSource = readProjectFile(root, "src/app/api/numbering/drawing-revisions/fff-assessments/route.ts");
 const partDraftPageSource = readProjectFile(root, "src/app/numbering/part-drafts/page.tsx");
+const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
 const sidebarSource = readProjectFile(root, "src/components/sidebar-nav.tsx");
 const navPermissionSource = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
 const packageJson = readProjectJson(root, "package.json");
@@ -249,6 +251,22 @@ record(
   "src/app/numbering/part-drafts/page.tsx"
 );
 record("CHG-SRC-011 reconfirm event type is allowed by schema", schema.includes("'draft_reconfirmed'"), "db/schema.sql");
+record(
+  "CHG-SRC-012 drawing revision FFF API and page exist",
+  fffAssessmentRouteSource.includes("submitDrawingRevisionFffAssessment") &&
+    drawingRevisionPageSource.includes("Form") &&
+    drawingRevisionPageSource.includes("Fit") &&
+    drawingRevisionPageSource.includes("Function") &&
+    drawingRevisionPageSource.includes("/api/numbering/drawing-revisions/fff-assessments") &&
+    sidebarSource.includes("/numbering/revisions") &&
+    navPermissionSource.includes('"/numbering/revisions": "numbering.drawings.view"'),
+  "src/app/numbering/revisions/page.tsx"
+);
+record(
+  "CHG-SRC-013 FFF assessment stores drawing part-number read/correction values",
+  ["replacement_part_number_draft_id", "detected_part_number", "corrected_part_number"].every((column) => schema.includes(column)),
+  "db/schema.sql"
+);
 
 const database = new Database(":memory:");
 try {
@@ -445,6 +463,80 @@ try {
     "CHG-RECONFIRM-003 reconfirmation events are retained",
     ["draft_reconfirmation_required", "draft_reconfirmed"].every((eventType) => eventTypes(database, sameSourceB.id).includes(eventType)),
     eventTypes(database, sameSourceB.id).join(",")
+  );
+
+  const revisionDrawing = seedDrawing(database, "D-QC-REV-MA1");
+  const noImpact = await service.submitDrawingRevisionFffAssessment({
+    drawingNumberId: revisionDrawing.drawingId,
+    revision: "0.1",
+    formState: "no_impact",
+    fitState: "no_impact",
+    functionState: "no_impact",
+    reasonCategory: "標註 / 文字修正",
+    note: "QC no impact",
+    actor: engineer
+  });
+  assert(
+    "CHG-FFF-001 no-impact FFF stores assessment without replacement draft",
+    noImpact.outcome === "no_impact" && noImpact.replacementDraft === null && noImpact.assessment.replacementPartNumberDraftId === null,
+    JSON.stringify(noImpact)
+  );
+  await expectReject(
+    "CHG-FFF-002 confirmed impact requires replacement part number",
+    () =>
+      service.submitDrawingRevisionFffAssessment({
+        drawingNumberId: revisionDrawing.drawingId,
+        revision: "0.2",
+        formState: "confirmed_impact",
+        fitState: "no_impact",
+        functionState: "no_impact",
+        reasonCategory: "尺寸 / 公差修正",
+        detectedPartNumber: "P-QC-REV-NEW",
+        actor: engineer
+      }),
+    "replacement_part_number_required"
+  );
+  await expectReject(
+    "CHG-FFF-003 drawing part-number mismatch blocks confirmed impact",
+    () =>
+      service.submitDrawingRevisionFffAssessment({
+        drawingNumberId: revisionDrawing.drawingId,
+        revision: "0.3",
+        formState: "confirmed_impact",
+        fitState: "no_impact",
+        functionState: "no_impact",
+        reasonCategory: "尺寸 / 公差修正",
+        replacementReservedPartNumber: "P-QC-REV-NEW",
+        detectedPartNumber: "P-QC-REV-OTHER",
+        actor: engineer
+      }),
+    "drawing_part_number_mismatch"
+  );
+  const drawingCountBeforeReplacement = database.prepare("SELECT COUNT(*) AS count FROM drawing_numbers WHERE company_id = ?").get(companyId).count;
+  const confirmedImpact = await service.submitDrawingRevisionFffAssessment({
+    drawingNumberId: revisionDrawing.drawingId,
+    revision: "0.4",
+    formState: "confirmed_impact",
+    fitState: "no_impact",
+    functionState: "no_impact",
+    reasonCategory: "尺寸 / 公差修正",
+    replacementReservedPartNumber: "P-QC-REV-NEW",
+    detectedPartNumber: "P-QC-REV-OCR",
+    correctedPartNumber: "P-QC-REV-NEW",
+    actor: engineer
+  });
+  const drawingCountAfterReplacement = database.prepare("SELECT COUNT(*) AS count FROM drawing_numbers WHERE company_id = ?").get(companyId).count;
+  assert(
+    "CHG-FFF-004 confirmed impact creates drawing-revision generated draft",
+    confirmedImpact.outcome === "confirmed_impact" &&
+      confirmedImpact.replacementDraft?.draftType === "drawing_revision_generated" &&
+      confirmedImpact.assessment.replacementPartNumberDraftId === confirmedImpact.replacementDraft.id,
+    JSON.stringify(confirmedImpact)
+  );
+  assert(
+    "CHG-FFF-005 confirmed impact keeps original drawing number",
+    drawingCountBeforeReplacement === drawingCountAfterReplacement,
+    JSON.stringify({ drawingCountBeforeReplacement, drawingCountAfterReplacement })
   );
 } catch (error) {
   record("CHG-RUNTIME-000 runtime test setup failed", false, error instanceof Error ? error.message : String(error));

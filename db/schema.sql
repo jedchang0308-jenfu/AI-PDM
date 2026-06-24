@@ -747,6 +747,9 @@ CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
   revision TEXT NOT NULL,
   submission_id TEXT,
   review_package_id TEXT,
+  replacement_part_number_draft_id TEXT,
+  detected_part_number TEXT,
+  corrected_part_number TEXT,
   form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
   fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
   function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
@@ -757,6 +760,7 @@ CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
   FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE CASCADE,
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (replacement_part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
   FOREIGN KEY (assessed_by) REFERENCES users(id)
 );
 

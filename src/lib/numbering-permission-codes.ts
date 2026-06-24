@@ -52,6 +52,7 @@ export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
   "/numbering/search": "numbering.search",
   "/numbering/drawings": "numbering.drawings.view",
   "/numbering/part-drafts": "numbering.tasks",
+  "/numbering/revisions": "numbering.drawings.view",
   "/parts": "numbering.search",
   "/numbering/dvt": "numbering.dvt",
   "/numbering/approvals": "numbering.approvals",

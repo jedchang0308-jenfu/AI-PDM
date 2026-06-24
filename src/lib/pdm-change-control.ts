@@ -6,10 +6,14 @@ import {
   type MarkSameSourceDraftsNeedReconfirmationInput,
   type PdmChangeControlActorContext,
   type ReservePartNumberDraftInput,
+  type SubmitDrawingRevisionFffAssessmentInput,
   type UpdatePartNumberDraftInput
 } from "@/lib/pdm-change-control-domain";
 
 export type {
+  DrawingRevisionFffAssessmentRecord,
+  DrawingRevisionFffOutcome,
+  DrawingRevisionFffState,
   PartNumberControlBoundary,
   PartNumberControlBoundaryReason,
   PartNumberDraftItemType,
@@ -18,7 +22,8 @@ export type {
   PartNumberDraftStatus,
   PartNumberDraftType,
   PartNumberDraftWarningCode,
-  PdmChangeControlActorContext
+  PdmChangeControlActorContext,
+  SubmitDrawingRevisionFffAssessmentResult
 } from "@/lib/pdm-change-control-domain";
 
 export { PdmChangeControlDomainService, PdmChangeControlError } from "@/lib/pdm-change-control-domain";
@@ -37,6 +42,10 @@ export async function listPartNumberDrafts(input: ListPartNumberDraftsInput) {
 
 export async function updatePartNumberDraft(input: UpdatePartNumberDraftInput) {
   return service().updatePartNumberDraft(input);
+}
+
+export async function submitDrawingRevisionFffAssessment(input: SubmitDrawingRevisionFffAssessmentInput) {
+  return service().submitDrawingRevisionFffAssessment(input);
 }
 
 export async function getPartNumberControlBoundary(draftId: string, actor: PdmChangeControlActorContext) {
