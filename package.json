@@ -156,6 +156,7 @@
     "qc:native-cad-extractor-contract": "node scripts/qc-native-cad-extractor-contract.mjs",
     "qc:ai-cost-gates": "node scripts/qc-openai-provider-test.mjs",
     "qc:openai-provider": "node scripts/qc-openai-provider-test.mjs",
+    "qc:pdm-change-control": "node --experimental-strip-types scripts/qc-pdm-change-control.mjs",
     "qc:postgres-shadow": "node scripts/qc-postgres-shadow-test.mjs",
     "qc:postgres-shadow-handoff-package": "node scripts/qc-postgres-shadow-handoff-package.mjs",
     "qc:postgres-shadow-target-guard": "node scripts/qc-postgres-shadow-target-guard.mjs",

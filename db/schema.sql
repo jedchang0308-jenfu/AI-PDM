@@ -647,6 +647,164 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   UNIQUE (part_root_id, purpose_code, sequence_no)
 );
 
+CREATE TABLE IF NOT EXISTS part_number_drafts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  reserved_part_number TEXT NOT NULL,
+  draft_type TEXT NOT NULL CHECK (draft_type IN ('new_part', 'replacement_part', 'drawing_revision_generated')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased', 'standard')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation', 'voided')),
+  source_part_number_id TEXT,
+  source_drawing_number_id TEXT,
+  source_revision TEXT,
+  use_type TEXT,
+  created_by TEXT,
+  department_id TEXT,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  voided_at TEXT,
+  recycle_available_at TEXT,
+  recycled_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (source_part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_number_drafts_active_number
+ON part_number_drafts(company_id, reserved_part_number)
+WHERE status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation');
+
+CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_part
+ON part_number_drafts(company_id, source_part_number_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_drawing
+ON part_number_drafts(company_id, source_drawing_number_id, status);
+
+CREATE TABLE IF NOT EXISTS part_number_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number_draft_id TEXT,
+  part_number_id TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'draft_created',
+      'item_type_changed',
+      'source_part_changed',
+      'draft_voided',
+      'draft_recycle_scheduled',
+      'draft_recycled',
+      'draft_reissued',
+      'draft_submitted',
+      'draft_reconfirmation_required',
+      'part_released',
+      'controlled_recycle_blocked'
+    )
+  ),
+  actor_user_id TEXT,
+  occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_part_number_events_draft
+ON part_number_events(part_number_draft_id, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS part_replacement_links (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  old_part_number_id TEXT NOT NULL,
+  new_part_number_id TEXT NOT NULL,
+  source_drawing_number_id TEXT,
+  source_revision TEXT,
+  reason_category TEXT NOT NULL,
+  fff_summary_json TEXT NOT NULL DEFAULT '{}',
+  released_by TEXT,
+  released_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (released_by) REFERENCES users(id),
+  UNIQUE (old_part_number_id, new_part_number_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_part_replacement_links_old
+ON part_replacement_links(company_id, old_part_number_id);
+
+CREATE INDEX IF NOT EXISTS idx_part_replacement_links_new
+ON part_replacement_links(company_id, new_part_number_id);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  drawing_number_id TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  submission_id TEXT,
+  review_package_id TEXT,
+  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  reason_category TEXT NOT NULL,
+  note TEXT,
+  assessed_by TEXT,
+  assessed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (assessed_by) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_fff_assessments_drawing
+ON drawing_revision_fff_assessments(company_id, drawing_number_id, revision, assessed_at DESC);
+
+CREATE TABLE IF NOT EXISTS review_confirmation_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  review_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (
+    action IN (
+      'confirm_bom_no_revision',
+      'confirm_original_part_reuse',
+      'return_for_replacement_part',
+      'approve_replacement_part_and_drawing_release'
+    )
+  ),
+  reviewer_user_id TEXT NOT NULL,
+  result TEXT NOT NULL,
+  occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (reviewer_user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_confirmation_events_review
+ON review_confirmation_events(company_id, review_id, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  bom_draft_id TEXT NOT NULL,
+  old_part_number_id TEXT NOT NULL,
+  new_part_number_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at TEXT,
+  resolved_by TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open
+ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
+
 CREATE TABLE IF NOT EXISTS drawing_part_links (
   id TEXT PRIMARY KEY,
   drawing_number_id TEXT NOT NULL,

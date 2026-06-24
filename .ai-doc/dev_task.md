@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-Updated: 2026-06-19
+Updated: 2026-06-24
 Owner: PM-dev
 
 Legacy snapshot:
@@ -9,7 +9,7 @@ Legacy snapshot:
 
 ## 1. PM Snapshot
 
-Active objective: no active PM-dev implementation lane. `DEV-SW-LICENSE-PDM-001` is committed locally; `DEV-SUPABASE-DB-001` production/cutover remains deferred.
+Active objective: `DEV-PDM-CHANGE-CONTROL-001` Phase 1 data model/domain service implementation is in local evidence capture; `DEV-SW-LICENSE-PDM-001` is committed locally; `DEV-SUPABASE-DB-001` production/cutover remains deferred.
 
 `DEV-SUPABASE-DB-001` staging GATE-B remains passed and production/cutover remains deferred. The approved SW license / PDM company separation implementation lane has been closed in a scoped local commit.
 
@@ -41,7 +41,7 @@ Current recommendation: treat `DEV-SUPABASE-DB-001-GATE-B` as passed for `AI_PDM
 
 | Lane | ID | Type | Parent | State | Next condition | Evidence |
 |---|---|---|---|---|---|---|
-| Prepared / Blocked | `DEV-PDM-CHANGE-CONTROL-001` | Delivery point | None | ADR, cross-spec numbering exception, business spec, implementation contract, and QA validation plan prepared for drawing revision / replacement part-number draft / BOM impact control; no product implementation started | PM/user authorizes RD implementation scope and phase order; RD starts with Phase 1 data model + domain service only | ADR `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`; SPEC `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`; implementation contract `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-implementation-contract.md`; QA plan `.ai-doc/qa/qa-pdm-change-control-validation-plan-2026-06-24.md`; numbering spec reserved-draft exception |
+| Evidence Captured / Phase 1 | `DEV-PDM-CHANGE-CONTROL-001` | Delivery point | None | Phase 1 local SQLite schema, change-control domain service, draft recycle/submit guards, boundary reason detection, event retention, and optimistic-lock QC implemented; no Phase 2-5 UI/API/review/BOM release transaction or production/Supabase cutover implemented | PM chooses next slice: Phase 2 API/UI, Postgres/Supabase migration mirror under existing runtime governance, or keep later phases deferred | ADR `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`; SPEC `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`; implementation contract `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-implementation-contract.md`; QA plan `.ai-doc/qa/qa-pdm-change-control-validation-plan-2026-06-24.md`; `db/schema.sql`; `src/lib/pdm-change-control-domain.ts`; `src/lib/pdm-change-control.ts`; `scripts/qc-pdm-change-control.mjs`; QC report `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`; `npm.cmd run qc:pdm-change-control` 23/23; `npx.cmd tsc --noEmit --pretty false`; focused ESLint |
 | Deferred | `DEV-SUPABASE-DB-001` | Development objective | None | Staging GATE-B passed for `AI_PDM_STAGING`; production/cutover remains unapproved and deferred | PM decides data parity tier and production gate scope, or keeps production deferred | Section 5 |
 | Evidence Captured | `DEV-SW-LICENSE-PDM-001` | Delivery point | None | Backend company-scope plus Web/Add-in company selection, direct read-path company permissions, core numbering company scope, company-aware CAD metadata adapter profile resolver, and numbering workflow/detail/task company scope implemented and committed locally | Commit boundary closed in `6f4dbab` after user authorized Supabase staged evidence handling, index rebuild, and partial commit in the dirty worktree | SPEC-SW-LICENSE-PDM-001 / ADR-SW-LICENSE-PDM-001 / PM plan / Git boundary handoff / local commits `be333eb` and `6f4dbab` / `npx.cmd tsc --noEmit` / `npm.cmd run lint` / `npm.cmd run build` / `qc:sw-license-pdm-company-scope` / `qc:sw-license-pdm-numbering-company-scope` / `qc:sw-license-pdm-metadata-adapter-profile` / `qc:sw-license-pdm-git-boundary` / `qc:sw-addin-company-selection` |
 | Evidence Captured | `DEV-SUPABASE-DB-001-GATE-B` | Gate / RD-QC execution | `DEV-SUPABASE-DB-001` | Target/schema/provider checks passed; permission repair passed; `numbering-rule-v1` minimal seed passed; app API write/readback/cleanup smoke passed; active smoke data count is zero | No further staging GATE-B action unless PM asks for a rerun | Approval package / runbook / smoke matrix / execution report / target identity receipt |
@@ -91,6 +91,7 @@ All evidence below is local-only unless the linked document explicitly says it i
 
 | Evidence | Status | QC command |
 |---|---|---|
+| PDM change-control Phase 1 | Passed / local schema and domain service evidence captured; UI/API/review/BOM release flows deferred | `npm.cmd run qc:pdm-change-control` |
 | Runtime provider gate QA plan | Prepared | `npm.cmd run qc:supabase-runtime-gate-plan` |
 | GATE-B approval package | Prepared | `npm.cmd run qc:supabase-runtime-approval-package` |
 | GATE-B execution runbook | Prepared | `npm.cmd run qc:supabase-runtime-gate-b-runbook` |
@@ -182,6 +183,7 @@ Expected results:
 
 ## 9. Latest Update
 
+- 2026-06-24: Implemented `DEV-PDM-CHANGE-CONTROL-001` Phase 1 local foundation. Added SQLite schema tables for part-number drafts, events, replacement links, FFF assessments, review confirmation events, and BOM reconfirmation flags; added change-control domain service for draft reservation/update/void/recycle/submit, controlled-boundary reason detection, event retention, and optimistic-lock conflict handling; added focused QC script `scripts/qc-pdm-change-control.mjs` and package script `qc:pdm-change-control`. Verification passed: `npm.cmd run qc:pdm-change-control` 23/23, `npx.cmd tsc --noEmit --pretty false`, and focused ESLint. Phase 2-5 UI/API/review/BOM release transaction and production/Supabase migration/cutover remain unimplemented and approval-gated.
 - 2026-06-24: Prepared `DEV-PDM-CHANGE-CONTROL-001` governance package after RD主管 debt review. Added ADR for reserved draft number vs controlled part-number recycle policy, amended numbering spec with the controlled exception to the non-reuse rule, added implementation contract for draft model / controlled-boundary service / action APIs / permissions / optimistic locking / atomic confirmed-impact release, and linked QA validation plan in `documentation_map.md`. This package remains Prepared / Blocked and must not be treated as implemented until PM/user authorizes RD Phase 1.
 - 2026-06-17: Recorded user-provided `AI_PDM_STAGING` target identity: project ref `qerabudthnnpqvybpcsq`, organization `Jenfu Machinery` / `ydxbtstvlunmpjdlrhml`, region `ap-northeast-1`, Postgres major version `17`, and user confirmation that target is not production, `ProJED`, or `ProJED_TEST`.
 - 2026-06-17: Recorded smoke data owner `Jed`, cleanup owner `Jed`, and cleanup criteria: delete or obsolete all `AI_PDM_GB_SMOKE_*` test records after GATE-B smoke completes.

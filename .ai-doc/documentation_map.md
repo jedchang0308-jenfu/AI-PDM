@@ -34,9 +34,9 @@ This project uses `.ai-doc` as the single project documentation center.
 7. `.ai-doc/qa/qa-supabase-db-migration-validation-plan-2026-06-08.md`
 8. `.ai-doc/qc/qc-supabase-db-migration-fact-check-plan-2026-06-08.md`
 
-## Planned PDM Change-Control Package
+## PDM Change-Control Package
 
-`DEV-PDM-CHANGE-CONTROL-001` is the planned follow-up package for drawing revision, replacement part number draft, and BOM impact control. It is a specification-only package at this point and must not be treated as implemented.
+`DEV-PDM-CHANGE-CONTROL-001` covers drawing revision, replacement part number draft, and BOM impact control. Phase 1 is implemented for the local schema and domain service boundary only; Phase 2-5 UI/API/review/BOM release flows and production/Supabase cutover remain unimplemented unless separately approved.
 
 Read in this order:
 
@@ -45,7 +45,12 @@ Read in this order:
 3. `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-implementation-contract.md`
 4. `.ai-doc/qa/qa-pdm-change-control-validation-plan-2026-06-24.md`
 5. `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
-6. `.ai-doc/dev_task.md`
+6. `db/schema.sql`
+7. `src/lib/pdm-change-control-domain.ts`
+8. `src/lib/pdm-change-control.ts`
+9. `scripts/qc-pdm-change-control.mjs`
+10. `.ai-doc/reports/qc/qc-pdm-change-control-phase-1-report-2026-06-24.md`
+11. `.ai-doc/dev_task.md`
 
 ## Planned Storage Cost-Control Package
 
