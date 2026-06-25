@@ -27,12 +27,13 @@ This project uses `.ai-doc` as the single project documentation center.
 
 1. `.ai-doc/reports/pm/supabase-db-async-provider-batch-control-2026-06-15.md`
 2. `.ai-doc/reports/pm/supabase-db-migration-replanned-development-document-2026-06-09.md`
-3. `.ai-doc/dev_task.md`
-4. `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
-5. `.ai-doc/decisions/ADR-SUPABASE-DB-001-runtime-provider-and-target.md`
-6. `.ai-doc/reports/rd/rd-supabase-db-migration-development-plan-2026-06-08.md`
-7. `.ai-doc/qa/qa-supabase-db-migration-validation-plan-2026-06-08.md`
-8. `.ai-doc/qc/qc-supabase-db-migration-fact-check-plan-2026-06-08.md`
+3. `.ai-doc/reports/pm/pm-dev-continuation-audit-2026-06-25.md`
+4. `.ai-doc/dev_task.md`
+5. `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
+6. `.ai-doc/decisions/ADR-SUPABASE-DB-001-runtime-provider-and-target.md`
+7. `.ai-doc/reports/rd/rd-supabase-db-migration-development-plan-2026-06-08.md`
+8. `.ai-doc/qa/qa-supabase-db-migration-validation-plan-2026-06-08.md`
+9. `.ai-doc/qc/qc-supabase-db-migration-fact-check-plan-2026-06-08.md`
 
 ## PDM Change-Control Package
 
