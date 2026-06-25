@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: ec91860f889d306a7f9e2a3fc3d4c702d8790c6a1953ce481276fce7e142e7aa
+-- Source SHA-256: c75bc6bf1f13add33f5214decd16f8583added91c9e002452b85238cc7d5f5fe
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -10,14 +10,34 @@
 BEGIN;
 SET search_path = public;
 
+CREATE TABLE IF NOT EXISTS companies (
+  id TEXT PRIMARY KEY,
+  company_code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
   email TEXT UNIQUE,
   password_hash TEXT,
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_company_memberships (
+  user_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, company_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -30,15 +50,19 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
-  part_number TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number TEXT NOT NULL,
   part_name TEXT NOT NULL,
   current_revision TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  UNIQUE (company_id, part_number)
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   item_id TEXT NOT NULL,
   drawing_number TEXT NOT NULL,
   revision TEXT NOT NULL,
@@ -63,11 +87,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   obsolete_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (item_id) REFERENCES items(id),
   FOREIGN KEY (submitted_by) REFERENCES users(id),
   FOREIGN KEY (superseded_by_submission_id) REFERENCES submissions(id),
   FOREIGN KEY (obsolete_by) REFERENCES users(id),
-  UNIQUE (drawing_number, revision)
+  UNIQUE (company_id, drawing_number, revision)
 );
 
 CREATE TABLE IF NOT EXISTS submission_files (
@@ -510,8 +535,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE TABLE IF NOT EXISTS numbering_sequences (
   sequence_key TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   next_value INTEGER NOT NULL CHECK (next_value > 0),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
 CREATE TABLE IF NOT EXISTS numbering_rule_versions (
@@ -530,7 +557,8 @@ CREATE TABLE IF NOT EXISTS numbering_rule_versions (
 
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
-  root_code TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  root_code TEXT NOT NULL,
   core_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
@@ -539,14 +567,17 @@ CREATE TABLE IF NOT EXISTS part_roots (
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
-  FOREIGN KEY (created_by) REFERENCES users(id)
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, root_code)
 );
 
 CREATE TABLE IF NOT EXISTS part_numbers (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
-  part_number TEXT NOT NULL UNIQUE,
+  part_number TEXT NOT NULL,
   sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
   sequence_code TEXT NOT NULL,
   part_name TEXT NOT NULL,
@@ -561,16 +592,19 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, part_number),
   UNIQUE (part_root_id, sequence_code)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_numbers (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
-  drawing_number TEXT NOT NULL UNIQUE,
+  drawing_number TEXT NOT NULL,
   purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT')),
   purpose_description TEXT NOT NULL DEFAULT '',
   sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
@@ -581,10 +615,147 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, drawing_number),
   UNIQUE (part_root_id, purpose_code, sequence_no)
+);
+
+CREATE TABLE IF NOT EXISTS part_number_drafts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  reserved_part_number TEXT NOT NULL,
+  draft_type TEXT NOT NULL CHECK (draft_type IN ('new_part', 'replacement_part', 'drawing_revision_generated')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased', 'standard')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation', 'voided')),
+  source_part_number_id TEXT,
+  source_drawing_number_id TEXT,
+  source_revision TEXT,
+  use_type TEXT,
+  created_by TEXT,
+  department_id TEXT,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  voided_at TIMESTAMPTZ,
+  recycle_available_at TIMESTAMPTZ,
+  recycled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (source_part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_number_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number_draft_id TEXT,
+  part_number_id TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'draft_created',
+      'item_type_changed',
+      'source_part_changed',
+      'draft_voided',
+      'draft_recycle_scheduled',
+      'draft_recycled',
+      'draft_reissued',
+      'draft_submitted',
+      'draft_reconfirmation_required',
+      'draft_reconfirmed',
+      'part_released',
+      'controlled_recycle_blocked'
+    )
+  ),
+  actor_user_id TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS part_replacement_links (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  old_part_number_id TEXT NOT NULL,
+  new_part_number_id TEXT NOT NULL,
+  source_drawing_number_id TEXT,
+  source_revision TEXT,
+  reason_category TEXT NOT NULL,
+  fff_summary_json TEXT NOT NULL DEFAULT '{}',
+  released_by TEXT,
+  released_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (released_by) REFERENCES users(id),
+  UNIQUE (old_part_number_id, new_part_number_id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  drawing_number_id TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  submission_id TEXT,
+  review_package_id TEXT,
+  replacement_part_number_draft_id TEXT,
+  detected_part_number TEXT,
+  corrected_part_number TEXT,
+  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  reason_category TEXT NOT NULL,
+  note TEXT,
+  assessed_by TEXT,
+  assessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (replacement_part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (assessed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS review_confirmation_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  review_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (
+    action IN (
+      'confirm_bom_no_revision',
+      'confirm_original_part_reuse',
+      'return_for_replacement_part',
+      'approve_replacement_part_and_drawing_release'
+    )
+  ),
+  reviewer_user_id TEXT NOT NULL,
+  result TEXT NOT NULL,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (reviewer_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  bom_draft_id TEXT NOT NULL,
+  old_part_number_id TEXT NOT NULL,
+  new_part_number_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_part_links (
@@ -733,6 +904,7 @@ CREATE TABLE IF NOT EXISTS warning_events (
 
 CREATE TABLE IF NOT EXISTS numbering_task_items (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   task_type TEXT NOT NULL,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,
@@ -750,6 +922,7 @@ CREATE TABLE IF NOT EXISTS numbering_task_items (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   handled_by TEXT,
   handled_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (assigned_to) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (handled_by) REFERENCES users(id)
@@ -757,6 +930,7 @@ CREATE TABLE IF NOT EXISTS numbering_task_items (
 
 CREATE TABLE IF NOT EXISTS numbering_notifications (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   notification_type TEXT NOT NULL,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,
@@ -774,6 +948,7 @@ CREATE TABLE IF NOT EXISTS numbering_notifications (
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (recipient_id) REFERENCES users(id),
   FOREIGN KEY (handled_by) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id)
@@ -814,6 +989,7 @@ CREATE TABLE IF NOT EXISTS approval_rules (
 
 CREATE TABLE IF NOT EXISTS approval_requests (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
   action_code TEXT NOT NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'same_drawing_variant')),
@@ -827,6 +1003,7 @@ CREATE TABLE IF NOT EXISTS approval_requests (
   resolved_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (requested_by) REFERENCES users(id),
   FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
@@ -845,6 +1022,7 @@ CREATE TABLE IF NOT EXISTS approval_decisions (
 
 CREATE TABLE IF NOT EXISTS approval_batches (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   batch_code TEXT NOT NULL UNIQUE,
   request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
   project_code TEXT,
@@ -854,6 +1032,7 @@ CREATE TABLE IF NOT EXISTS approval_batches (
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (submitted_by) REFERENCES users(id)
 );
 
@@ -953,6 +1132,7 @@ CREATE TABLE IF NOT EXISTS approval_delegations (
 
 CREATE TABLE IF NOT EXISTS import_batches (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   source_filename TEXT NOT NULL,
   source_hash TEXT,
   status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
@@ -962,6 +1142,7 @@ CREATE TABLE IF NOT EXISTS import_batches (
   confirmed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (imported_by) REFERENCES users(id),
   FOREIGN KEY (confirmed_by) REFERENCES users(id)
 );
@@ -1010,17 +1191,20 @@ CREATE TABLE IF NOT EXISTS file_assets (
 
 CREATE TABLE IF NOT EXISTS numbering_export_jobs (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   export_mode TEXT NOT NULL CHECK (export_mode IN ('no_audit', 'last_change_summary', 'full_change_summary')),
   status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
   result_json TEXT NOT NULL DEFAULT '{}',
   generated_by TEXT,
   generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   completed_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (generated_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS monthly_audit_reports (
   id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   report_type TEXT NOT NULL,
   report_month TEXT NOT NULL,
   generation_mode TEXT NOT NULL CHECK (generation_mode IN ('auto', 'manual')),
@@ -1035,6 +1219,7 @@ CREATE TABLE IF NOT EXISTS monthly_audit_reports (
   regenerate_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (generated_by) REFERENCES users(id),
   FOREIGN KEY (last_downloaded_by) REFERENCES users(id),
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id)
@@ -1063,7 +1248,6 @@ CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at 
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_created_at ON submissions(submitted_by, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_status_created_at ON submissions(submitted_by, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_item_created_at ON submissions(item_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_submissions_drawing_number ON submissions(drawing_number);
 CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
@@ -1108,6 +1292,17 @@ CREATE INDEX IF NOT EXISTS idx_part_numbers_root_id ON part_numbers(part_root_id
 CREATE INDEX IF NOT EXISTS idx_part_numbers_status_phase ON part_numbers(record_status, development_phase);
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_root_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status_phase ON drawing_numbers(record_status, development_phase);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_number_drafts_active_number
+ON part_number_drafts(company_id, reserved_part_number)
+WHERE status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation');
+CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_part ON part_number_drafts(company_id, source_part_number_id, status);
+CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_drawing ON part_number_drafts(company_id, source_drawing_number_id, status);
+CREATE INDEX IF NOT EXISTS idx_part_number_events_draft ON part_number_events(part_number_draft_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_part_replacement_links_old ON part_replacement_links(company_id, old_part_number_id);
+CREATE INDEX IF NOT EXISTS idx_part_replacement_links_new ON part_replacement_links(company_id, new_part_number_id);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_fff_assessments_drawing ON drawing_revision_fff_assessments(company_id, drawing_number_id, revision, assessed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_review_confirmation_events_review ON review_confirmation_events(company_id, review_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
 CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
@@ -1144,6 +1339,11 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
 CREATE TRIGGER trg_users_updated_at
 BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_companies_updated_at ON companies;
+CREATE TRIGGER trg_companies_updated_at
+BEFORE UPDATE ON companies
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_system_settings_updated_at ON system_settings;
