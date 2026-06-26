@@ -35,6 +35,7 @@ This project uses `.ai-doc` as the single project documentation center.
 8. `.ai-doc/qa/qa-supabase-db-migration-validation-plan-2026-06-08.md`
 9. `.ai-doc/qc/qc-supabase-db-migration-fact-check-plan-2026-06-08.md`
 10. `.ai-doc/reports/qc/qc-supabase-pdm-change-control-schema-mirror-report-2026-06-25.md`
+11. `.ai-doc/runbooks/runbook-supabase-local-env-live-smoke-2026-06-26.md`
 
 ## PDM Change-Control Package
 
