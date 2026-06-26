@@ -42,6 +42,16 @@ Use the official Supabase connection UI:
    - **Session pooler** if your network is IPv4-only.
 3. Replace `[YOUR-PASSWORD]` in the copied connection string with the database password.
 
+The placeholder must be fully removed. A value that still contains `[YOUR-PASSWORD]`, `[password]`, or `<password>` is not valid and must not pass live smoke.
+
+If the database password contains special characters such as `#`, `@`, `:`, `/`, `?`, `&`, or `%`, URL-encode the password before putting it into the connection string. In PowerShell, encode only the password value with:
+
+```powershell
+[System.Uri]::EscapeDataString('paste-the-password-here')
+```
+
+Then replace only the password segment in the Supabase connection string with the encoded result.
+
 Official reference: https://supabase.com/docs/guides/database/connecting-to-postgres
 
 ### 3. Find or reset the database password
@@ -86,6 +96,7 @@ Expected:
 - `PDM_SUPABASE_TARGET_NAME` shows `AI_PDM_STAGING`.
 - `PDM_POSTGRES_URL` and `PDM_POSTGRES_SHADOW_URL` show `<configured len=...>`.
 - `PDM_RUNTIME_SMOKE_APPROVED` is `<missing>`.
+- The connection strings do not contain `[YOUR-PASSWORD]`, `[password]`, or `<password>`.
 
 ### 6. Run non-approved preflight
 
@@ -100,6 +111,7 @@ Expected:
 - Target and URLs are configured.
 - The only remaining blockers should be approval/provider blockers.
 - No hazards should appear.
+- If the output mentions password placeholders or invalid connection URIs, update `secrets/pdm-staging.env` before continuing.
 
 ### 7. Run explicitly approved preflight
 

@@ -178,6 +178,8 @@
     "qc:supabase-runtime-smoke-preflight": "node scripts/qc-supabase-runtime-smoke-preflight.mjs",
     "qc:supabase-runtime-smoke-preflight:local": "node scripts/run-with-local-env.mjs -- npm run qc:supabase-runtime-smoke-preflight",
     "qc:supabase-runtime-smoke-preflight:approved": "node scripts/run-with-local-env.mjs --approve-runtime-smoke -- npm run qc:supabase-runtime-smoke-preflight",
+    "qc:supabase-runtime-live-smoke": "node scripts/qc-supabase-runtime-live-smoke.mjs",
+    "qc:supabase-runtime-live-smoke:approved": "node scripts/run-with-local-env.mjs --approve-runtime-smoke -- npm run qc:supabase-runtime-live-smoke",
     "env:supabase-local:check": "node scripts/run-with-local-env.mjs --show",
     "qc:supabase-runtime-gate-b-local-suite": "node scripts/qc-supabase-runtime-gate-b-local-suite.mjs",
     "qc:supabase-runtime-gate-b-local-suite-report": "node scripts/qc-supabase-runtime-gate-b-local-suite-report.mjs",

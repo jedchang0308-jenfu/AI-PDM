@@ -14,6 +14,24 @@ function configured(name) {
   return Boolean(process.env[name]?.trim());
 }
 
+function validateConnectionString(name) {
+  const value = process.env[name]?.trim() ?? "";
+  if (!value) return null;
+  if (/\[(?:YOUR-)?PASSWORD\]|<password>/iu.test(value)) {
+    return `${name} still contains a password placeholder. Replace it with the real database password and URL-encode special characters.`;
+  }
+  try {
+    const parsed = new URL(value);
+    if (!/^postgres(?:ql)?:$/iu.test(parsed.protocol)) return `${name} must use postgres:// or postgresql://.`;
+    if (!parsed.hostname) return `${name} must include a hostname.`;
+    if (!parsed.username) return `${name} must include a username.`;
+    if (!parsed.pathname || parsed.pathname === "/") return `${name} should include the database path, usually /postgres.`;
+  } catch {
+    return `${name} is not a valid connection URI. Copy it from Supabase Connect and URL-encode the database password if it contains special characters.`;
+  }
+  return null;
+}
+
 function redactConfigured(name) {
   return configured(name) ? "<configured>" : "<missing>";
 }
@@ -39,6 +57,11 @@ if (targetName !== expectedTargetName) blockers.push(`Set PDM_SUPABASE_TARGET_NA
 if (!runtimeUrlConfigured) blockers.push("Configure server-side PDM_POSTGRES_URL outside the repository.");
 if (!shadowUrlConfigured) blockers.push("Configure server-side PDM_POSTGRES_SHADOW_URL outside the repository.");
 if (provider !== "postgres") blockers.push("Set PDM_DB_PROVIDER=postgres only for the approved smoke process.");
+
+const runtimeUrlIssue = validateConnectionString("PDM_POSTGRES_URL");
+const shadowUrlIssue = validateConnectionString("PDM_POSTGRES_SHADOW_URL");
+if (runtimeUrlIssue) blockers.push(runtimeUrlIssue);
+if (shadowUrlIssue) blockers.push(shadowUrlIssue);
 
 if (!allowedProviderValues.has(provider)) {
   hazards.push(`Unsupported PDM_DB_PROVIDER value: ${provider}`);
