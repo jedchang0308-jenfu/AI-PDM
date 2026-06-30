@@ -17,6 +17,7 @@ import type {
   ConfirmNumberingImportBatchInput,
   CreateNumberingApprovalBatchInput,
   CreateNumberingImportBatchInput,
+  DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
   CreatePartCostProfileInput,
   CreateNumberingExportJobInput,
@@ -65,6 +66,7 @@ import type {
   NumberingImportBatchRecord,
   NumberingImportRowInput,
   NumberingImportStagingRowRecord,
+  NumberingObsoleteApprovalResult,
   LinkPartNumberToDrawingInput,
   NumberingAuditTrailRecord,
   NumberingExportJobRecord,
@@ -107,8 +109,10 @@ import type {
   RevokeNumberingUserRoleAssignmentInput,
   RequestMainDrawingRestoreApprovalInput,
   RequestNumberingApprovalInput,
+  RequestNumberingObsoleteApprovalInput,
   RequestSameDrawingVariantApprovalInput,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
+  RestoreNumberingImportBatchInput,
   ResolvePartCostInput,
   SaveNumberingRolePriorityInput,
   SubmitDvtPromotionInput,
@@ -1176,6 +1180,18 @@ export const SELECT_ASYNC_APPROVED_NUMBERING_APPROVAL_SQL = `
   LIMIT 1
 `;
 
+export const SELECT_ASYNC_PENDING_OBSOLETE_APPROVAL_SQL = `
+  SELECT id
+  FROM approval_requests
+  WHERE request_type = 'numbering'
+    AND company_id = :companyId
+    AND entity_type = :entityType
+    AND entity_id = :entityId
+    AND action_code = :actionCode
+    AND request_status IN ('pending', 'needs_info')
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_PART_VARIANT_DESCRIPTOR_SQL = `
   SELECT material_code, material_label, color_code, color_label, variant_note
   FROM part_variant_attributes
@@ -1225,6 +1241,13 @@ export const UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL = `
 export const UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL = `
   UPDATE part_numbers
   SET record_status = 'MainDrawingInvalid',
+      updated_at = :updatedAt
+  WHERE id = :partNumberId
+`;
+
+export const UPDATE_ASYNC_APPROVAL_OBSOLETE_PART_SQL = `
+  UPDATE part_numbers
+  SET record_status = 'Obsolete',
       updated_at = :updatedAt
   WHERE id = :partNumberId
 `;
@@ -1499,6 +1522,7 @@ export const SELECT_ASYNC_IMPORT_BATCHES_SQL = `
   SELECT id, company_id, source_filename, source_hash, status, summary_json, imported_by, confirmed_by, confirmed_at
   FROM import_batches
   WHERE company_id = :companyId
+    AND (:status = 'all' OR status = :status)
   ORDER BY updated_at DESC, created_at DESC, id DESC
   LIMIT :limit
 `;
@@ -1548,6 +1572,26 @@ export const UPDATE_ASYNC_IMPORT_BATCH_CONFIRMED_SQL = `
       confirmed_at = :confirmedAt,
       updated_at = :updatedAt
   WHERE id = :batchId
+`;
+
+export const UPDATE_ASYNC_IMPORT_BATCH_REJECTED_SQL = `
+  UPDATE import_batches
+  SET status = 'rejected',
+      updated_at = :updatedAt
+  WHERE id = :batchId
+    AND company_id = :companyId
+    AND status = 'staged'
+`;
+
+export const UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL = `
+  UPDATE import_batches
+  SET status = 'staged',
+      confirmed_by = NULL,
+      confirmed_at = NULL,
+      updated_at = :updatedAt
+  WHERE id = :batchId
+    AND company_id = :companyId
+    AND status = 'rejected'
 `;
 
 export const SELECT_ASYNC_APPROVAL_PART_ROOT_SUMMARY_SQL = `
@@ -2715,7 +2759,9 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     release: "\u767c\u884c\u5be9\u6838",
     release_missing_ma_confirm: "\u767c\u884c\u7f3a MA \u518d\u78ba\u8a8d",
     same_drawing_variant_after_release: "\u767c\u884c\u5f8c\u540c\u5716\u591a\u6599\u865f",
-    main_drawing_restore: "MA \u5716\u6062\u5fa9"
+    main_drawing_restore: "MA \u5716\u6062\u5fa9",
+    obsolete_part_number: "\u6599\u865f\u4f5c\u5ee2\u5be9\u6838",
+    obsolete_ma_drawing: "\u5716\u865f\u4f5c\u5ee2\u5be9\u6838"
   };
   return value ? labels[value] ?? value : "\u5be9\u6838";
 }
@@ -2994,7 +3040,11 @@ function buildNumberingActionMarkers(input: { actionCode?: string | null; payloa
 
   const impactedPartNumbers = textList(payload.impactedPartNumbers);
   const requiredDocuments = textList(payload.requiredDocuments);
-  const hasImpact = actionCode === "main_drawing_restore" || impactedPartNumbers.length > 0 || requiredDocuments.length > 0;
+  const hasImpact =
+    actionCode === "main_drawing_restore" ||
+    actionCode === "release_missing_ma_confirm" ||
+    impactedPartNumbers.length > 0 ||
+    requiredDocuments.length > 0;
   if (hasImpact) {
     const detailParts = [
       impactedPartNumbers.length ? `\u53d7\u5f71\u97ff\u6599\u865f: ${impactedPartNumbers.join(", ")}` : "",
@@ -3616,7 +3666,12 @@ function emptyApprovalEntitySummary(request: ApprovalRequestRow): NumberingAppro
 }
 
 function approvalRecipientRole(actionCode: NumberingApprovalActionCode) {
-  if (actionCode === "dvt_promotion" || actionCode === "release" || actionCode === "same_drawing_variant_after_release") {
+  if (
+    actionCode === "dvt_promotion" ||
+    actionCode === "release" ||
+    actionCode === "same_drawing_variant_after_release" ||
+    actionCode === "obsolete_ma_drawing"
+  ) {
     return "rd_manager";
   }
   return "pdm_admin";
@@ -3944,6 +3999,80 @@ export class AsyncNumberingRepository {
     return run(this.client);
   }
 
+  async requestNumberingObsoleteApproval(input: RequestNumberingObsoleteApprovalInput): Promise<NumberingObsoleteApprovalResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const entityId = input.entityId?.trim() || "";
+      const entityCode = input.entityCode?.trim() || "";
+      const projectCode = input.projectCode?.trim() || undefined;
+      const actionCode: Extract<NumberingApprovalActionCode, "obsolete_part_number" | "obsolete_ma_drawing"> =
+        input.entityType === "part_number" ? "obsolete_part_number" : "obsolete_ma_drawing";
+
+      if (!entityId && !entityCode) throw new Error("LIFE_OBSOLETE_ENTITY_REQUIRED");
+
+      const entityRow =
+        input.entityType === "part_number"
+          ? entityId
+            ? await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: entityId })
+            : await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: entityCode, companyId })
+          : entityId
+            ? await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: entityId })
+            : await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber: entityCode, companyId });
+
+      if (!entityRow) throw new Error(input.entityType === "part_number" ? `PART_NUMBER_NOT_FOUND: ${entityCode || entityId}` : `DRAWING_NUMBER_NOT_FOUND: ${entityCode || entityId}`);
+      if (entityRow.company_id !== companyId) throw new Error("LIFE_OBSOLETE_COMPANY_MISMATCH");
+      if (entityRow.record_status === "Obsolete") throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+      if (entityRow.record_status !== "Active" && entityRow.record_status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const pending = await client.queryOne<{ id: string }>(SELECT_ASYNC_PENDING_OBSOLETE_APPROVAL_SQL, {
+        companyId,
+        entityType: input.entityType,
+        entityId: entityRow.id,
+        actionCode
+      });
+      if (pending) throw new Error("LIFE_OBSOLETE_ALREADY_REQUESTED");
+
+      const resolvedEntityCode = input.entityType === "part_number" ? (entityRow as PartNumberRow).part_number : (entityRow as DrawingNumberRow).drawing_number;
+      const approvalRequest = await this.insertNumberingApprovalRequest(client, {
+        companyId,
+        actionCode,
+        entityType: input.entityType,
+        entityId: entityRow.id,
+        reason: input.reason,
+        requestedBy: input.requestedBy,
+        payload: {
+          lifecycleAction: "obsolete",
+          entityCode: resolvedEntityCode,
+          partNumber: input.entityType === "part_number" ? resolvedEntityCode : undefined,
+          drawingNumber: input.entityType === "drawing_number" ? resolvedEntityCode : undefined,
+          previousRecordStatus: entityRow.record_status,
+          projectCode: projectCode ?? null
+        }
+      });
+      const approvalBatch = await this.createNumberingApprovalBatchInClient(client, {
+        companyId,
+        approvalRequestIds: [approvalRequest.id],
+        projectCode,
+        actionCode,
+        submittedBy: input.requestedBy
+      });
+
+      return {
+        approvalRequest,
+        approvalBatch,
+        entity: {
+          entityType: input.entityType,
+          entityId: entityRow.id,
+          entityCode: resolvedEntityCode,
+          recordStatus: entityRow.record_status,
+          actionCode
+        }
+      };
+    };
+    if (this.client.kind === "postgres") return this.client.transaction(run);
+    return run(this.client);
+  }
+
   async requestSameDrawingVariantApproval(input: RequestSameDrawingVariantApprovalInput): Promise<NumberingApprovalRecord> {
     const run = async (client: AsyncDatabaseClient) => {
       const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
@@ -4265,7 +4394,11 @@ export class AsyncNumberingRepository {
 
   async listNumberingImportBatches(input: ListNumberingImportBatchesInput = {}): Promise<NumberingImportBatchRecord[]> {
     const limit = clampNumberingListLimit(input.limit, 20);
-    const rows = await this.client.query<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCHES_SQL, { companyId: input.companyId ?? DEFAULT_COMPANY_ID, limit });
+    const rows = await this.client.query<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCHES_SQL, {
+      companyId: input.companyId ?? DEFAULT_COMPANY_ID,
+      status: input.status ?? "all",
+      limit
+    });
     const batches: NumberingImportBatchRecord[] = [];
     for (const row of rows) batches.push(await this.mapImportBatchInClient(this.client, row));
     return batches;
@@ -4401,6 +4534,51 @@ export class AsyncNumberingRepository {
         detail: { importBatchId: input.batchId, summary }
       });
 
+      const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
+      if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
+      return this.mapImportBatchInClient(client, updated);
+    };
+    if (this.client.kind === "postgres") return this.client.transaction(run);
+    return run(this.client);
+  }
+
+  async deleteNumberingImportBatch(input: DeleteNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const batch = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
+      if (!batch || batch.company_id !== companyId) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
+      if (batch.status !== "staged") throw new Error(`IMPORT_BATCH_ALREADY_${batch.status.toUpperCase()}`);
+
+      const now = this.clock();
+      await client.execute(UPDATE_ASYNC_IMPORT_BATCH_REJECTED_SQL, { batchId: input.batchId, companyId, updatedAt: now });
+      await this.insertAudit(client, {
+        actorId: input.deletedBy,
+        action: "numbering.import_batch.delete",
+        detail: { importBatchId: input.batchId, sourceFilename: batch.source_filename, lifecycleAction: "delete" }
+      });
+      const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
+      if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
+      return this.mapImportBatchInClient(client, updated);
+    };
+    if (this.client.kind === "postgres") return this.client.transaction(run);
+    return run(this.client);
+  }
+
+  async restoreNumberingImportBatch(input: RestoreNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const batch = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
+      if (!batch || batch.company_id !== companyId) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
+      if (batch.status !== "rejected") throw new Error(`IMPORT_BATCH_NOT_DELETED: ${input.batchId}`);
+      if (batch.confirmed_at || batch.confirmed_by) throw new Error(`IMPORT_BATCH_ALREADY_CONFIRMED: ${input.batchId}`);
+
+      const now = this.clock();
+      await client.execute(UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL, { batchId: input.batchId, companyId, updatedAt: now });
+      await this.insertAudit(client, {
+        actorId: input.restoredBy,
+        action: "numbering.import_batch.restore",
+        detail: { importBatchId: input.batchId, sourceFilename: batch.source_filename, lifecycleAction: "restore" }
+      });
       const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
       if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
       return this.mapImportBatchInClient(client, updated);
@@ -6660,6 +6838,80 @@ export class AsyncNumberingRepository {
       const partNumber = String(request.payload.partNumber ?? "").trim();
       const variants = request.payload.variants as LinkPartNumberToDrawingInput["variants"];
       await this.linkPartNumberToDrawingInClient(client, { companyId, drawingNumber, partNumber, variants, createdBy: actorId, approvedAfterRelease: true });
+      return;
+    }
+
+    if (request.actionCode === "obsolete_part_number") {
+      const partNumberFromPayload = String(request.payload.partNumber ?? request.payload.entityCode ?? "").trim();
+      const partRow =
+        (await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: request.entityId })) ??
+        (partNumberFromPayload
+          ? await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: partNumberFromPayload, companyId })
+          : null);
+      if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${request.entityId}`);
+      if (partRow.company_id !== companyId) throw new Error("LIFE_OBSOLETE_COMPANY_MISMATCH");
+      if (partRow.record_status === "Obsolete") throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+      if (partRow.record_status !== "Active" && partRow.record_status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const now = this.clock();
+      await client.execute(UPDATE_ASYNC_APPROVAL_OBSOLETE_PART_SQL, { partNumberId: partRow.id, updatedAt: now });
+      await this.markRootClosedIfNoOpenParts(client, partRow.part_root_id, "Obsolete", now);
+      await this.insertAudit(client, {
+        actorId,
+        action: "lifecycle.obsolete.approved",
+        detail: {
+          approvalRequestId: request.id,
+          actionCode: request.actionCode,
+          entityType: "part_number",
+          entityId: partRow.id,
+          entityCode: partRow.part_number,
+          previousRecordStatus: partRow.record_status,
+          newRecordStatus: "Obsolete",
+          reason: request.reason
+        }
+      });
+      return;
+    }
+
+    if (request.actionCode === "obsolete_ma_drawing") {
+      const drawingNumberFromPayload = String(request.payload.drawingNumber ?? request.payload.entityCode ?? "").trim();
+      const drawingRow =
+        (await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: request.entityId })) ??
+        (drawingNumberFromPayload
+          ? await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber: drawingNumberFromPayload, companyId })
+          : null);
+      if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${request.entityId}`);
+      if (drawingRow.company_id !== companyId) throw new Error("LIFE_OBSOLETE_COMPANY_MISMATCH");
+      if (drawingRow.record_status === "Obsolete") throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+      if (drawingRow.record_status !== "Active" && drawingRow.record_status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const now = this.clock();
+      const impactedPartRows =
+        drawingRow.purpose_code === "MA"
+          ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingRow.id })).filter(
+              (partRow) => partRow.record_status !== "Obsolete" && partRow.record_status !== "Merged" && partRow.record_status !== "EVTDisabled"
+            )
+          : [];
+      await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
+      for (const partRow of impactedPartRows) {
+        await client.execute(UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL, { partNumberId: partRow.id, updatedAt: now });
+        await client.execute(UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL, { rootId: partRow.part_root_id, updatedAt: now });
+      }
+      await this.insertAudit(client, {
+        actorId,
+        action: "lifecycle.obsolete.approved",
+        detail: {
+          approvalRequestId: request.id,
+          actionCode: request.actionCode,
+          entityType: "drawing_number",
+          entityId: drawingRow.id,
+          entityCode: drawingRow.drawing_number,
+          previousRecordStatus: drawingRow.record_status,
+          newRecordStatus: "Obsolete",
+          impactedPartNumbers: impactedPartRows.map((partRow) => partRow.part_number),
+          reason: request.reason
+        }
+      });
       return;
     }
 

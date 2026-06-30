@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachmentAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
+import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
@@ -10,6 +10,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
+  const surface = new URL(request.url).searchParams.get("surface");
+  if (surface === "deleted_data") {
+    const result = await listDeletedMasterAttachmentsAsync({
+      entityType: "part_number",
+      entityCode: decodeURIComponent(partNumber)
+    });
+    if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" });
+  }
+
   const result = await listMasterAttachmentsAsync({
     entityType: "part_number",
     entityCode: decodeURIComponent(partNumber)

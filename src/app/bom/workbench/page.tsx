@@ -13,6 +13,7 @@ import {
   FolderPlus,
   GitBranch,
   GripVertical,
+  History,
   ListTree,
   Redo2,
   RotateCcw,
@@ -110,6 +111,27 @@ type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   reconfirmation_flags: BomReconfirmationFlag[];
 };
 
+type LifecycleActionState = {
+  allowed: boolean;
+  reasonCode?: string;
+  message?: string;
+};
+
+type BomDraftLifecyclePolicy = {
+  stageLabel: "草稿" | "審核中" | "正式" | "歷史";
+  uiSurface: "work_list" | "deleted_data" | "controlled_history";
+  traceabilityClass: "working" | "uncontrolled_deleted" | "controlled_history";
+  detailTags: Array<"待補" | "已發行" | "可還原" | "不可還原" | "被引用" | "需審核">;
+  actions: {
+    restore?: LifecycleActionState;
+  };
+};
+
+type DeletedBomWorkbenchDraft = {
+  draft: BomWorkbenchDraftSummary;
+  policy: BomDraftLifecyclePolicy;
+};
+
 type BomWorkbenchSummary = {
   parent_submission_id: string;
   parent_item_id: string;
@@ -160,6 +182,8 @@ const SOURCE_LABELS: Record<BomWorkbenchSource, string> = {
   solidworks_xls: "SolidWorks XLS",
   manual: "Manual"
 };
+const bomMutedTextStyle = { color: "var(--text-muted)", margin: "0.2rem 0 0" };
+const bomIssueTextStyle = { color: "var(--danger)", fontWeight: 700 };
 
 const bomNodeTypes = {
   bomNode: BomFlowNodeCard
@@ -190,10 +214,14 @@ export default function BomWorkbenchPage() {
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionSummary | null>(null);
   const [workbench, setWorkbench] = useState<BomWorkbenchSummary | null>(null);
   const [selectedDraft, setSelectedDraft] = useState<BomWorkbenchDraftDetail | null>(null);
+  const [deletedDrafts, setDeletedDrafts] = useState<DeletedBomWorkbenchDraft[]>([]);
+  const [deletedLoaded, setDeletedLoaded] = useState(false);
+  const [deletedLoading, setDeletedLoading] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [compareDraftId, setCompareDraftId] = useState("");
   const [compareDraft, setCompareDraft] = useState<BomWorkbenchDraftDetail | null>(null);
   const [reviewReason, setReviewReason] = useState("");
+  const [obsoleteReason, setObsoleteReason] = useState("");
   const [xlsText, setXlsText] = useState("");
   const [draggedSubmissionId, setDraggedSubmissionId] = useState<string | null>(null);
   const [history, setHistory] = useState<BomWorkbenchLine[][]>([]);
@@ -257,16 +285,35 @@ export default function BomWorkbenchPage() {
     async (draftId: string) => {
       const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${draftId}`);
       setDraftFromDetail(body.draft);
-      setMessage(`已載入 Draft：${body.draft.draft_name}`);
+      setMessage(`已載入草稿：${body.draft.draft_name}`);
     },
     [requestJson, setDraftFromDetail]
   );
+
+  const loadDeletedDrafts = useCallback(async () => {
+    if (!selectedSubmission) return;
+    setDeletedLoading(true);
+    setError("");
+    try {
+      const body = await requestJson<{ drafts: DeletedBomWorkbenchDraft[] }>(
+        `/api/bom/workbench?submissionId=${encodeURIComponent(selectedSubmission.id)}&surface=deleted_data`
+      );
+      setDeletedDrafts(body.drafts ?? []);
+      setDeletedLoaded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入已刪除 BOM 草稿失敗");
+    } finally {
+      setDeletedLoading(false);
+    }
+  }, [requestJson, selectedSubmission]);
 
   const loadWorkbench = useCallback(
     async (submissionId: string, preferredDraftId?: string) => {
       setLoading(true);
       setError("");
       try {
+        setDeletedDrafts([]);
+        setDeletedLoaded(false);
         const body = await requestJson<{ workbench: BomWorkbenchSummary }>(`/api/bom/workbench?submissionId=${encodeURIComponent(submissionId)}`);
         const nextWorkbench = body.workbench;
         setWorkbench(nextWorkbench);
@@ -297,7 +344,7 @@ export default function BomWorkbenchPage() {
         }
         if (nextWorkbench.active_draft?.id === nextDraftId) {
           setDraftFromDetail(nextWorkbench.active_draft);
-          setMessage(`已載入 Active Draft：${nextWorkbench.active_draft.draft_name}`);
+          setMessage(`已載入目前草稿：${nextWorkbench.active_draft.draft_name}`);
           return;
         }
         await loadDraft(nextDraftId);
@@ -690,6 +737,49 @@ export default function BomWorkbenchPage() {
     }
   }
 
+  async function deleteDraft() {
+    if (!selectedDraft || !selectedSubmission) return;
+    if (dirty) {
+      setError("刪除前請先儲存或放棄目前未儲存變更");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${selectedDraft.id}/delete`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "BOM Workbench UI delete" })
+      });
+      setDraftFromDetail(null);
+      await loadWorkbench(selectedSubmission.id);
+      if (deletedLoaded) await loadDeletedDrafts();
+      setMessage("BOM 草稿已刪除，可從已刪除資料還原。");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "刪除 BOM 草稿失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function restoreDeletedDraft(deleted: DeletedBomWorkbenchDraft) {
+    if (!selectedSubmission) return;
+    setLoading(true);
+    setError("");
+    try {
+      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${deleted.draft.id}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "BOM Workbench UI restore" })
+      });
+      await loadWorkbench(selectedSubmission.id, body.draft.id);
+      await loadDeletedDrafts();
+      setMessage("BOM 草稿已還原。");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "還原 BOM 草稿失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function cloneDraft() {
     if (!selectedDraft || !selectedSubmission) return;
     setLoading(true);
@@ -740,6 +830,29 @@ export default function BomWorkbenchPage() {
       setMessage("已送出研發主管審核");
     } catch (err) {
       setError(err instanceof Error ? err.message : "送審失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function requestObsolete() {
+    if (!selectedDraft) return;
+    if (dirty) {
+      setError("申請作廢前請先儲存或放棄目前未儲存變更");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await requestJson(`/api/bom/drafts/${selectedDraft.id}/obsolete-request`, {
+        method: "POST",
+        body: JSON.stringify({ reason: obsoleteReason.trim() })
+      });
+      if (selectedSubmission) await loadWorkbench(selectedSubmission.id, selectedDraft.id);
+      setObsoleteReason("");
+      setMessage("BOM 作廢申請已送出，等待主管審核。");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "申請作廢失敗");
     } finally {
       setLoading(false);
     }
@@ -812,7 +925,7 @@ export default function BomWorkbenchPage() {
       <LifecycleStageGuidance
         activeStage="bom"
         metrics={[
-          { label: "Draft status", value: selectedDraft?.status ?? "No draft", tone: selectedDraft ? "neutral" : "warning" },
+          { label: "狀態", value: selectedDraft ? draftStageLabel(selectedDraft.status) : "無草稿", tone: selectedDraft ? "neutral" : "warning" },
           { label: "Lines", value: selectedDraft?.lines.length ?? 0 },
           { label: "Unsaved", value: dirty ? "Yes" : "No", tone: dirty ? "warning" : "success" },
           { label: "Reconfirm", value: openReconfirmationFlags.length, tone: openReconfirmationFlags.length > 0 ? "warning" : "success" }
@@ -919,7 +1032,7 @@ export default function BomWorkbenchPage() {
                 {workbench?.drafts.map((draft) => (
                   <option value={draft.id} key={draft.id}>
                     {draft.is_active ? "* " : ""}
-                    {draft.draft_name} · {draft.status} · {draft.line_count} lines
+                    {draft.draft_name} · {draftStageLabel(draft.status)} · {draft.line_count} lines
                   </option>
                 ))}
               </select>
@@ -947,10 +1060,37 @@ export default function BomWorkbenchPage() {
               {workbench?.drafts.map((draft) => (
                 <button className={draft.id === selectedDraft?.id ? "bom-draft-chip active" : "bom-draft-chip"} type="button" onClick={() => loadDraft(draft.id)} disabled={dirty} key={draft.id}>
                   <span>{draft.draft_name}</span>
-                  <small>{SOURCE_LABELS[draft.source]} · {draft.status}{draft.is_active ? " · Active" : ""}</small>
+                  <small>{SOURCE_LABELS[draft.source]} · {draftStageLabel(draft.status)}{draft.is_active ? " · 目前使用" : ""}</small>
                 </button>
               ))}
             </div>
+
+            <details
+              className="master-attachment-deleted"
+              onToggle={(event) => {
+                if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedDrafts();
+              }}
+            >
+              <summary>
+                <span>
+                  <History size={16} aria-hidden="true" />
+                  已刪除資料
+                </span>
+                <strong>{deletedLoaded ? deletedDrafts.length : "未載入"}</strong>
+              </summary>
+              <div className="master-attachment-deleted-body">
+                <div className="master-attachment-deleted-toolbar">
+                  <p>這裡只放尚未送審或發行的 BOM 草稿；審核中與正式 BOM 不在此還原。</p>
+                  <button className="secondary-button" type="button" onClick={() => void loadDeletedDrafts()} disabled={deletedLoading || !selectedSubmission}>
+                    <RotateCcw size={16} aria-hidden="true" />
+                    重新整理
+                  </button>
+                </div>
+                <DeletedBomDraftTable deletedDrafts={deletedDrafts} loading={deletedLoading || loading} onRestore={restoreDeletedDraft} />
+                {deletedLoading ? <div className="empty">正在載入已刪除 BOM 草稿...</div> : null}
+                {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除 BOM 草稿</div> : null}
+              </div>
+            </details>
 
             <div className="bom-tree-toolbar">
               <button className="primary-button" type="button" onClick={saveDraft} disabled={!selectedDraft || !dirty || loading}>
@@ -976,6 +1116,10 @@ export default function BomWorkbenchPage() {
               <button className="secondary-button" type="button" onClick={cloneDraft} disabled={!selectedDraft || loading}>
                 <Copy size={16} aria-hidden="true" />
                 複製
+              </button>
+              <button className="secondary-button" type="button" onClick={deleteDraft} disabled={!selectedDraft || selectedDraft.status !== "Draft" || dirty || loading}>
+                <Trash2 size={16} aria-hidden="true" />
+                刪除
               </button>
             </div>
 
@@ -1116,32 +1260,47 @@ export default function BomWorkbenchPage() {
                 </button>
               </div>
 
-              <div className="bom-review-box">
-                {openReconfirmationFlags.length > 0 ? (
-                  <div className="bom-workbench-alert warning">
-                    <AlertTriangle size={17} aria-hidden="true" />
-                    <div>
-                      <strong>BOM 需重新確認</strong>
-                      {openReconfirmationFlags.map((flag) => (
-                        <p key={flag.id}>
-                          {flag.old_part_number} 已被 {flag.new_part_number} 取代；{flag.reason}
-                        </p>
-                      ))}
+              {isMutable ? (
+                <div className="bom-review-box">
+                  {openReconfirmationFlags.length > 0 ? (
+                    <div className="bom-workbench-alert warning">
+                      <AlertTriangle size={17} aria-hidden="true" />
+                      <div>
+                        <strong>BOM 需重新確認</strong>
+                        {openReconfirmationFlags.map((flag) => (
+                          <p key={flag.id}>
+                            {flag.old_part_number} 已被 {flag.new_part_number} 取代；{flag.reason}
+                          </p>
+                        ))}
+                      </div>
+                      <button type="button" onClick={reconfirmReplacementFlags} disabled={loading || dirty}>
+                        已重新確認
+                      </button>
                     </div>
-                    <button type="button" onClick={reconfirmReplacementFlags} disabled={loading || dirty}>
-                      已重新確認
-                    </button>
-                  </div>
-                ) : null}
-                <label className="bom-field">
-                  <span>送審原因</span>
-                  <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="描述本次 BOM 變更原因" />
-                </label>
-                <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading || openReconfirmationFlags.length > 0}>
-                  <Send size={16} aria-hidden="true" />
-                  送主管審核
-                </button>
-              </div>
+                  ) : null}
+                  <label className="bom-field">
+                    <span>送審原因</span>
+                    <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="描述本次 BOM 變更原因" />
+                  </label>
+                  <button className="primary-button" type="button" onClick={submitReview} disabled={!selectedDraft || !reviewReason.trim() || dirty || loading || openReconfirmationFlags.length > 0}>
+                    <Send size={16} aria-hidden="true" />
+                    送主管審核
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedDraft?.status === "Released" ? (
+                <div className="bom-review-box">
+                  <label className="bom-field">
+                    <span>作廢原因</span>
+                    <textarea value={obsoleteReason} onChange={(event) => setObsoleteReason(event.target.value)} placeholder="描述正式 BOM 為何需要作廢" />
+                  </label>
+                  <button className="danger-button" type="button" onClick={requestObsolete} disabled={!obsoleteReason.trim() || dirty || loading}>
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    申請作廢
+                  </button>
+                </div>
+              ) : null}
 
               <div className="bom-compare-box">
                 <label className="bom-field">
@@ -1152,7 +1311,7 @@ export default function BomWorkbenchPage() {
                       .filter((draft) => draft.id !== selectedDraft?.id)
                       .map((draft) => (
                         <option value={draft.id} key={draft.id}>
-                          {draft.draft_name} · {draft.status}
+                          {draft.draft_name} · {draftStageLabel(draft.status)}
                         </option>
                       ))}
                   </select>
@@ -1184,6 +1343,82 @@ export default function BomWorkbenchPage() {
       </PdmDetailDrawer>
     </section>
   );
+}
+
+function DeletedBomDraftTable({
+  deletedDrafts,
+  loading,
+  onRestore
+}: {
+  deletedDrafts: DeletedBomWorkbenchDraft[];
+  loading: boolean;
+  onRestore: (deleted: DeletedBomWorkbenchDraft) => void;
+}) {
+  if (deletedDrafts.length === 0) return null;
+  return (
+    <div className="table-wrap">
+      <table style={{ minWidth: "760px" }}>
+        <thead>
+          <tr>
+            <th>草稿</th>
+            <th>狀態</th>
+            <th>內容</th>
+            <th>還原狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deletedDrafts.map((deleted) => {
+            const restoreState = deleted.policy.actions.restore;
+            const canRestore = restoreState?.allowed === true;
+            return (
+              <tr key={deleted.draft.id}>
+                <td>
+                  <strong>{deleted.draft.draft_name}</strong>
+                  <p style={bomMutedTextStyle}>{SOURCE_LABELS[deleted.draft.source]} · {formatBomDateTime(deleted.draft.updated_at)}</p>
+                </td>
+                <td>
+                  <span className="badge Rejected">{deleted.policy.stageLabel}</span>
+                  {deleted.policy.detailTags.map((tag) => (
+                    <span className={`badge ${tag === "可還原" ? "Released" : "Rejected"}`} key={`${deleted.draft.id}-${tag}`}>
+                      {tag}
+                    </span>
+                  ))}
+                </td>
+                <td>{deleted.draft.line_count} lines</td>
+                <td>{canRestore ? <span style={bomMutedTextStyle}>可還原到 BOM 工作台</span> : <span style={bomIssueTextStyle}>{restoreState?.message ?? "不可還原"}</span>}</td>
+                <td>
+                  <button className="secondary-button" type="button" onClick={() => onRestore(deleted)} disabled={!canRestore || loading}>
+                    <RotateCcw size={16} aria-hidden="true" />
+                    還原
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function draftStageLabel(status: BomWorkbenchDraftStatus) {
+  const labels: Record<BomWorkbenchDraftStatus, "草稿" | "審核中" | "正式" | "歷史"> = {
+    Draft: "草稿",
+    Rejected: "草稿",
+    PendingReview: "審核中",
+    Released: "正式",
+    Obsolete: "歷史",
+    Archived: "歷史"
+  };
+  return labels[status];
+}
+
+function formatBomDateTime(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 function makeId() {

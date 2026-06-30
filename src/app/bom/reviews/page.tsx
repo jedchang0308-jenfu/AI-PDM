@@ -32,6 +32,7 @@ type PendingReview = {
   id: string;
   bom_draft_id: string;
   status: "PendingReview";
+  lifecycle_action: "release" | "obsolete";
   submitted_by_name: string | null;
   change_reason: string;
   submitted_at: string;
@@ -52,6 +53,23 @@ type PendingReview = {
     };
     changes: DiffChange[];
   };
+};
+
+const REVIEW_ACTION_LABELS: Record<PendingReview["lifecycle_action"], { title: string; approve: string; reject: string; approved: string; rejected: string }> = {
+  release: {
+    title: "發布審核",
+    approve: "核准發布",
+    reject: "退回修改",
+    approved: "BOM 已核准發布",
+    rejected: "BOM 已退回"
+  },
+  obsolete: {
+    title: "作廢審核",
+    approve: "核准作廢",
+    reject: "退回申請",
+    approved: "BOM 已核准作廢",
+    rejected: "BOM 作廢申請已退回"
+  }
 };
 
 const CHANGE_LABELS: Record<DiffChange["change_type"], string> = {
@@ -86,6 +104,7 @@ export default function BomReviewsPage() {
     () => selectedReview?.diff.changes.filter((change) => change.change_type !== "unchanged") ?? [],
     [selectedReview]
   );
+  const selectedActionLabels = selectedReview ? REVIEW_ACTION_LABELS[selectedReview.lifecycle_action] : REVIEW_ACTION_LABELS.release;
 
   const requestJson = useCallback(async <T,>(url: string, init?: RequestInit): Promise<T> => {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -124,7 +143,8 @@ export default function BomReviewsPage() {
         method: "POST",
         body: JSON.stringify({ decisionReason })
       });
-      setMessage(kind === "approve" ? "BOM 已核准發布" : "BOM 已退回");
+      const labels = REVIEW_ACTION_LABELS[selectedReview.lifecycle_action];
+      setMessage(kind === "approve" ? labels.approved : labels.rejected);
       setApprovedSnapshotId(kind === "approve" ? body.result?.snapshotId ?? "" : "");
       setDecisionReason("");
       await loadReviews();
@@ -141,7 +161,7 @@ export default function BomReviewsPage() {
         <div>
           <p className="eyebrow">BOM Review</p>
           <h1>BOM 審核</h1>
-          <p>主管先看與上一份 Released BOM 的差異，再決定核准發布或退回工程師修改。</p>
+          <p>主管集中處理 BOM 發布與正式作廢審核；作廢核准後會進入受控歷史。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadReviews} disabled={loading}>
           <RefreshCw size={16} aria-hidden="true" />
@@ -194,6 +214,7 @@ export default function BomReviewsPage() {
                 onClick={() => setSelectedReviewId(review.id)}
               >
                 <strong>{review.parent_part_number} Rev {review.parent_revision}</strong>
+                <span className="badge PendingReview">{REVIEW_ACTION_LABELS[review.lifecycle_action].title}</span>
                 <span>{review.parent_part_name}</span>
                 <small>{review.draft_name} · Attempt {review.review_attempt}</small>
                 <small>
@@ -242,7 +263,7 @@ export default function BomReviewsPage() {
                     <small>{selectedReview.diff.base_snapshot?.released_at ?? "首次發布時所有項目視為新增"}</small>
                   </div>
                   <div>
-                    <span>送審原因</span>
+                    <span>{selectedActionLabels.title}原因</span>
                     <strong>{selectedReview.change_reason}</strong>
                     <small>{selectedReview.submitted_by_name ?? selectedReview.submitted_at}</small>
                   </div>
@@ -301,11 +322,11 @@ export default function BomReviewsPage() {
             </label>
             <button className="primary-button" type="button" onClick={() => decide("approve")} disabled={!selectedReview || loading}>
               <CheckCircle2 size={16} aria-hidden="true" />
-              核准發布
+              {selectedActionLabels.approve}
             </button>
             <button className="danger-button" type="button" onClick={() => decide("reject")} disabled={!selectedReview || loading}>
               <XCircle size={16} aria-hidden="true" />
-              退回修改
+              {selectedActionLabels.reject}
             </button>
             {approvedSnapshotId && (
               <div className="bom-review-export-links">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Download, Eye, FileUp, RotateCcw, ShieldAlert, X } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileUp, History, RotateCcw, ShieldAlert, Trash2, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
@@ -30,6 +30,27 @@ type NumberingImportBatch = {
   rows: NumberingImportStagingRow[];
 };
 
+type LifecycleActionState = {
+  allowed: boolean;
+  reasonCode?: string;
+  message?: string;
+};
+
+type LifecycleActionPolicy = {
+  stageLabel: "草稿" | "審核中" | "正式" | "歷史";
+  uiSurface: "work_list" | "deleted_data" | "controlled_history";
+  traceabilityClass: "working" | "uncontrolled_deleted" | "controlled_history";
+  detailTags: string[];
+  actions: {
+    restore?: LifecycleActionState;
+  };
+};
+
+type DeletedImportBatch = {
+  batch: NumberingImportBatch;
+  policy: LifecycleActionPolicy;
+};
+
 const sampleCsv = `主根號,品名,料號,圖號,料件類型,圖別
 QC-1001,測試支架,QC-1001-001,QC-1001-MA1,manufactured,MA
 QC-1002,測試墊片,QC-1002-001,,purchased,MA`;
@@ -37,13 +58,16 @@ QC-1002,測試墊片,QC-1002-001,,purchased,MA`;
 export default function NumberingImportsPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [batches, setBatches] = useState<NumberingImportBatch[]>([]);
+  const [deletedBatches, setDeletedBatches] = useState<DeletedImportBatch[]>([]);
+  const [deletedLoaded, setDeletedLoaded] = useState(false);
+  const [deletedLoading, setDeletedLoading] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const batchListRef = useRef<HTMLDivElement | null>(null);
   const [isBatchDetailOpen, setIsBatchDetailOpen] = useState(false);
   const [sourceFilename, setSourceFilename] = useState(`legacy-numbering-${currentDate()}.csv`);
   const [sourceHash, setSourceHash] = useState("");
   const [rawInput, setRawInput] = useState(sampleCsv);
-  const [busy, setBusy] = useState<"stage" | "confirm" | null>(null);
+  const [busy, setBusy] = useState<"stage" | "confirm" | `delete:${string}` | `restore:${string}` | null>(null);
   const [error, setError] = useState("");
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-import-detail-drawer-width" });
 
@@ -76,6 +100,22 @@ export default function NumberingImportsPage() {
       return nextSelection;
     });
     setState("ready");
+  }, []);
+
+  const loadDeletedBatches = useCallback(async () => {
+    setDeletedLoading(true);
+    setError("");
+    const response = await fetch("/api/numbering/import-batches?surface=deleted_data&limit=20");
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error ?? "已刪除匯入批次讀取失敗");
+      setState(response.status === 403 ? "forbidden" : "error");
+      setDeletedLoading(false);
+      return;
+    }
+    setDeletedBatches((body.batches ?? []) as DeletedImportBatch[]);
+    setDeletedLoaded(true);
+    setDeletedLoading(false);
   }, []);
 
   useEffect(() => {
@@ -171,6 +211,42 @@ export default function NumberingImportsPage() {
     setState("ready");
   }
 
+  async function deleteBatch(batch: NumberingImportBatch) {
+    setBusy(`delete:${batch.id}`);
+    const response = await fetch(`/api/numbering/import-batches/${encodeURIComponent(batch.id)}/delete`, { method: "POST" });
+    setBusy(null);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error ?? "匯入批次刪除失敗");
+      setState(response.status === 403 ? "forbidden" : "error");
+      return;
+    }
+    const isDeletingSelectedBatch = selectedBatchId === batch.id;
+    setBatches((current) => current.filter((item) => item.id !== batch.id));
+    setSelectedBatchId((current) => (current === batch.id ? null : current));
+    setIsBatchDetailOpen((open) => (isDeletingSelectedBatch ? false : open));
+    if (deletedLoaded) void loadDeletedBatches();
+    setState("ready");
+  }
+
+  async function restoreBatch(deleted: DeletedImportBatch) {
+    setBusy(`restore:${deleted.batch.id}`);
+    const response = await fetch(`/api/numbering/import-batches/${encodeURIComponent(deleted.batch.id)}/restore`, { method: "POST" });
+    setBusy(null);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error ?? "匯入批次還原失敗");
+      setState(response.status === 403 ? "forbidden" : "error");
+      return;
+    }
+    const nextBatch = body.batch as NumberingImportBatch;
+    setBatches((current) => [nextBatch, ...current.filter((item) => item.id !== nextBatch.id)]);
+    setSelectedBatchId(nextBatch.id);
+    setIsBatchDetailOpen(true);
+    void loadDeletedBatches();
+    setState("ready");
+  }
+
   return (
     <>
       <div className="topbar">
@@ -250,9 +326,36 @@ export default function NumberingImportsPage() {
               role="region"
               tabIndex={0}
             >
-              <BatchTable batches={batches} selectedId={selectedBatchId} onSelect={openBatchDetail} />
+              <BatchTable batches={batches} selectedId={selectedBatchId} busy={busy} onDelete={deleteBatch} onSelect={openBatchDetail} />
             </div>
           </section>
+
+          <details
+            className="master-attachment-deleted"
+            onToggle={(event) => {
+              if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedBatches();
+            }}
+          >
+            <summary>
+              <span>
+                <History size={16} />
+                已刪除資料
+              </span>
+              <strong>{deletedLoaded ? deletedBatches.length : "未載入"}</strong>
+            </summary>
+            <div className="master-attachment-deleted-body">
+              <div className="master-attachment-deleted-toolbar">
+                <p>這裡只放尚未確認轉正式主檔的暫存匯入批次；已確認批次不在此還原。</p>
+                <button className="secondary-button" type="button" onClick={() => void loadDeletedBatches()} disabled={deletedLoading}>
+                  <RotateCcw size={16} />
+                  重新整理
+                </button>
+              </div>
+              <DeletedBatchTable deletedBatches={deletedBatches} busy={busy} loading={deletedLoading} onRestore={restoreBatch} />
+              {deletedLoading ? <div className="empty">正在載入已刪除匯入批次...</div> : null}
+              {deletedLoaded && deletedBatches.length === 0 ? <div className="empty">目前沒有已刪除匯入批次</div> : null}
+            </div>
+          </details>
 
           <PdmDetailDrawer
             open={isBatchDetailOpen && Boolean(selectedBatch)}
@@ -369,10 +472,14 @@ function StagingRowsTable({ batch }: { batch: NumberingImportBatch | null }) {
 function BatchTable({
   batches,
   selectedId,
+  busy,
+  onDelete,
   onSelect
 }: {
   batches: NumberingImportBatch[];
   selectedId: string | null;
+  busy: "stage" | "confirm" | `delete:${string}` | `restore:${string}` | null;
+  onDelete: (batch: NumberingImportBatch) => void;
   onSelect: (batch: NumberingImportBatch) => void;
 }) {
   if (batches.length === 0) {
@@ -413,20 +520,109 @@ function BatchTable({
                 <p style={bodyTextStyle}>{batch.sourceHash || "無 hash"}</p>
               </td>
               <td>
-                <span className={`badge ${batch.status === "confirmed" ? "Released" : "Pending"}`}>{batch.status}</span>
+                <span className={`badge ${batch.status === "confirmed" ? "Released" : "Pending"}`}>{batchStatusLabel(batch.status)}</span>
               </td>
               <td>
                 total {numberValue(batch.summary.total)} / valid {numberValue(batch.summary.valid)} / conflict {numberValue(batch.summary.conflict)}
               </td>
               <td>{batch.confirmedAt ? formatDateTime(batch.confirmedAt) : "尚未確認"}</td>
               <td>
-                <button className="secondary-button" type="button" onClick={() => onSelect(batch)}>
-                  <Eye size={16} />
-                  查看
-                </button>
+                <div style={actionGroupStyle}>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelect(batch);
+                    }}
+                  >
+                    <Eye size={16} />
+                    查看
+                  </button>
+                  {batch.status === "staged" ? (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDelete(batch);
+                      }}
+                      disabled={busy === `delete:${batch.id}`}
+                    >
+                      <Trash2 size={16} />
+                      刪除
+                    </button>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DeletedBatchTable({
+  deletedBatches,
+  busy,
+  loading,
+  onRestore
+}: {
+  deletedBatches: DeletedImportBatch[];
+  busy: "stage" | "confirm" | `delete:${string}` | `restore:${string}` | null;
+  loading: boolean;
+  onRestore: (deleted: DeletedImportBatch) => void;
+}) {
+  if (deletedBatches.length === 0) return null;
+  return (
+    <div className="table-wrap">
+      <table style={{ minWidth: "900px" }}>
+        <thead>
+          <tr>
+            <th>來源</th>
+            <th>狀態</th>
+            <th>摘要</th>
+            <th>還原狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deletedBatches.map((deleted) => {
+            const restoreState = deleted.policy.actions.restore;
+            const canRestore = restoreState?.allowed === true;
+            return (
+              <tr key={deleted.batch.id}>
+                <td>
+                  <strong>{deleted.batch.sourceFilename}</strong>
+                  <p style={bodyTextStyle}>{deleted.batch.sourceHash || "無 hash"}</p>
+                </td>
+                <td>
+                  <span className="badge Rejected">{deleted.policy.stageLabel}</span>
+                  {deleted.policy.detailTags.map((tag) => (
+                    <span className={`badge ${tag === "可還原" ? "Released" : "Rejected"}`} key={`${deleted.batch.id}-${tag}`}>
+                      {tag}
+                    </span>
+                  ))}
+                </td>
+                <td>
+                  total {numberValue(deleted.batch.summary.total)} / valid {numberValue(deleted.batch.summary.valid)} / conflict {numberValue(deleted.batch.summary.conflict)}
+                </td>
+                <td>{canRestore ? <span style={mutedTextStyle}>可還原到匯入批次</span> : <span style={issueTextStyle}>{restoreState?.message ?? "不可還原"}</span>}</td>
+                <td>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => onRestore(deleted)}
+                    disabled={!canRestore || loading || busy === `restore:${deleted.batch.id}`}
+                  >
+                    <RotateCcw size={16} />
+                    還原
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -551,6 +747,15 @@ function statusLabel(status: NumberingImportStagingRow["checkStatus"]) {
     admin_confirm: "待管理員",
     conflict: "衝突",
     legacy_keep: "舊制保留"
+  };
+  return labels[status];
+}
+
+function batchStatusLabel(status: NumberingImportBatch["status"]) {
+  const labels: Record<NumberingImportBatch["status"], string> = {
+    staged: "草稿",
+    confirmed: "正式",
+    rejected: "已刪除"
   };
   return labels[status];
 }

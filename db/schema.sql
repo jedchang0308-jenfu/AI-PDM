@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS bom_review_requests (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'PendingReview' CHECK (status IN ('PendingReview', 'Approved', 'Rejected', 'Cancelled')),
+  lifecycle_action TEXT NOT NULL DEFAULT 'release' CHECK (lifecycle_action IN ('release', 'obsolete')),
   submitted_by TEXT NOT NULL,
   reviewed_by TEXT,
   change_reason TEXT NOT NULL,
@@ -524,6 +525,24 @@ CREATE TABLE IF NOT EXISTS approval_matrix_requirements (
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (decided_by) REFERENCES users(id),
   UNIQUE (submission_id, required_role)
+);
+
+CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  action_code TEXT NOT NULL CHECK (action_code IN ('obsolete_submission')),
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  requested_by TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  decided_by TEXT,
+  decision_reason TEXT,
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  decided_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (decided_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -1563,6 +1582,7 @@ CREATE INDEX IF NOT EXISTS idx_numbering_notifications_scope ON numbering_notifi
 CREATE INDEX IF NOT EXISTS idx_approval_rules_version_action ON approval_rules(rule_version_id, action_code);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_entity ON approval_requests(entity_type, entity_id, request_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_requests_action ON approval_requests(action_code, request_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submission_lifecycle_requests_submission ON submission_lifecycle_requests(submission_id, action_code, request_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_decisions_request_id ON approval_decisions(approval_request_id, decided_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batches_status ON approval_batches(request_type, batch_status, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batch_items_batch_status ON approval_batch_items(batch_id, item_status);

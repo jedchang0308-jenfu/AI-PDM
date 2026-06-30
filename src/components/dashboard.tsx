@@ -41,6 +41,7 @@ import type {
   AiRiskReport,
   BomLine,
   ChangeRequest,
+  ControlledHistoryEntry,
   DiscussionComment,
   DesignReuseCandidate,
   DuplicateGeometryCandidate,
@@ -54,6 +55,7 @@ import type {
   ReviewIssue,
   SandboxBranch,
   SubmissionDetail,
+  SubmissionLifecycleRequest,
   SubmissionStatus,
   SubmissionSummary,
   SupplierPortalResponse,
@@ -64,7 +66,7 @@ const statusLabels: Record<SubmissionStatus | "All", string> = {
   Pending: "待審核",
   Releasing: "發布中",
   Released: "已發布",
-  Obsolete: "已廢止",
+  Obsolete: "已作廢",
   Rejected: "已駁回",
   ReleaseFailed: "發布失敗",
   All: "全部"
@@ -173,7 +175,6 @@ const statusFilters: StatusFilterConfig[] = [
   { label: "全部", status: "All" },
   { label: "待審核", status: "Pending" },
   { label: "已發布", status: "Released" },
-  { label: "已廢止", status: "Obsolete" },
   { label: "已駁回", status: "Rejected" },
   { label: "發布失敗", status: "ReleaseFailed" }
 ];
@@ -455,6 +456,124 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
   );
 }
 
+function ControlledHistoryPanel({
+  entries,
+  loading,
+  onRefresh,
+  onOpenEntry
+}: {
+  entries: ControlledHistoryEntry[];
+  loading: boolean;
+  onRefresh: () => void;
+  onOpenEntry: (entry: ControlledHistoryEntry) => void;
+}) {
+  const entityLabels: Record<ControlledHistoryEntry["entity_type"], string> = {
+    submission: "正式圖面",
+    numbering_part_number: "正式料號",
+    numbering_drawing_number: "正式圖號",
+    bom_release: "正式 BOM"
+  };
+
+  return (
+    <details className="controlled-history-panel" data-controlled-history-surface="true">
+      <summary>
+        <span>
+          <Archive size={16} aria-hidden="true" />
+          受控歷史
+        </span>
+        <span className="metadata-badge">{loading ? "載入中" : `${entries.length} 筆`}</span>
+      </summary>
+      <div className="controlled-history-body">
+        <div className="controlled-history-toolbar">
+          <p>已作廢或被正式生命週期取代的資料只供追溯，不提供刪除或還原。</p>
+          <button className="secondary-button" type="button" onClick={onRefresh} disabled={loading}>
+            <RefreshCcw size={14} aria-hidden="true" />
+            重新整理
+          </button>
+        </div>
+        {entries.length === 0 ? (
+          <div className="empty compact-empty">目前沒有受控歷史資料。</div>
+        ) : (
+          <div className="table-wrap controlled-history-table-wrap">
+            <table className="controlled-history-table">
+              <thead>
+                <tr>
+                  <th>資料</th>
+                  <th>狀態</th>
+                  <th>作廢時間</th>
+                  <th>責任鏈</th>
+                  <th>原因</th>
+                  <th>動作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr key={entry.id} data-controlled-history-row={entry.entity_type}>
+                    <td>
+                      <strong className="identity-primary">{entry.display_code}</strong>
+                      <div className="metadata-list">
+                        <span className="metadata-badge">{entityLabels[entry.entity_type]}</span>
+                        <span className="metadata-badge">{entry.secondary_code}</span>
+                        <span className="metadata-value">{entry.title}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge Obsolete">{entry.result_label}</span>
+                      <div className="metadata-list">
+                        <span className="metadata-badge">{entry.stage_label}</span>
+                        <span className="metadata-badge">受控追溯</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="metadata-value">{formatNullableDate(entry.history_at)}</span>
+                    </td>
+                    <td>
+                      <div className="metadata-list vertical">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請</span>
+                          <span className="metadata-value">{entry.requested_by_name ?? "-"}</span>
+                        </span>
+                        <span className="metadata-pair">
+                          <span className="metadata-label">審核</span>
+                          <span className="metadata-value">{entry.reviewed_by_name ?? "-"}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="controlled-history-reason">{entry.history_reason}</span>
+                      {entry.decision_reason ? <small>決策：{entry.decision_reason}</small> : null}
+                    </td>
+                    <td>
+                      {entry.entity_type === "submission" ? (
+                        <button className="secondary-button" type="button" onClick={() => onOpenEntry(entry)}>
+                          <Eye size={14} aria-hidden="true" />
+                          查看追溯
+                        </button>
+                      ) : (
+                        <span className="metadata-badge">責任鏈已列出</span>
+                      )}
+                      <span
+                        className="sr-only"
+                        data-controlled-history-actions={`delete:${entry.actions.delete};restore:${entry.actions.restore};obsolete:${entry.actions.obsolete}`}
+                      >
+                        受控歷史不提供刪除、還原或再次作廢。
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function formatNullableDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString() : "-";
+}
+
 function dedupeNumberingDrafts(drafts: NumberingDraftRecord[]) {
   const byRoot = new Map<string, NumberingDraftRecord>();
   for (const draft of drafts) {
@@ -561,7 +680,7 @@ function isBomIssueFilter(value: unknown): value is FinderFilters["bomIssue"] {
 }
 
 function isSubmissionStatusOrAll(value: unknown): value is SubmissionStatus | "All" {
-  return value === "All" || value === "Pending" || value === "Releasing" || value === "Released" || value === "Rejected" || value === "ReleaseFailed" || value === "Obsolete";
+  return value === "All" || value === "Pending" || value === "Releasing" || value === "Released" || value === "Rejected" || value === "ReleaseFailed";
 }
 
 function readDrawingList(key: string) {
@@ -823,6 +942,8 @@ export function Dashboard() {
   const [savedFinderSearches, setSavedFinderSearches] = useState<SavedFinderSearch[]>([]);
   const [savedFinderSearchName, setSavedFinderSearchName] = useState("");
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
+  const [controlledHistoryEntries, setControlledHistoryEntries] = useState<ControlledHistoryEntry[]>([]);
+  const [controlledHistoryLoading, setControlledHistoryLoading] = useState(false);
   const [numberingDrafts, setNumberingDrafts] = useState<NumberingDraftRecord[]>([]);
   const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
   const [loadingMoreSubmissions, setLoadingMoreSubmissions] = useState(false);
@@ -891,6 +1012,9 @@ export function Dashboard() {
   const [storageEvidenceLoading, setStorageEvidenceLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [obsoleteReason, setObsoleteReason] = useState("");
+  const [obsoleteDecisionReason, setObsoleteDecisionReason] = useState("");
+  const [obsoleteActionLoading, setObsoleteActionLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: "assistant", content: "可詢問待審清單、統計數字、目前送審內容，或 PDM 圖號/料號/版次規則。" }
@@ -939,6 +1063,9 @@ export function Dashboard() {
     () => submissions.find((submission) => submission.id === selectedId) ?? (detail?.id === selectedId ? detail : null),
     [detail, selectedId, submissions]
   );
+  const pendingSubmissionObsoleteRequest = useMemo<SubmissionLifecycleRequest | null>(() => {
+    return detail?.lifecycle_requests.find((request) => request.action_code === "obsolete_submission" && request.request_status === "pending") ?? null;
+  }, [detail?.lifecycle_requests]);
   const isDetailLoading = Boolean(loadingDetailId);
   const virtualTable = useMemo(() => {
     const visibleCount = Math.ceil(submissionTableViewportHeight / virtualRowHeight) + virtualOverscan * 2;
@@ -1069,6 +1196,8 @@ export function Dashboard() {
     setCurrentSandboxBranch(null);
     setSandboxBranchName("原型試作");
     setSandboxReason("工程試作分支");
+    setObsoleteReason("");
+    setObsoleteDecisionReason("");
     setDetailResourcesLoaded({ ...emptyDetailResourceFlags });
     setDetailResourceLoading({ ...emptyDetailResourceFlags });
   }, []);
@@ -1284,6 +1413,22 @@ export function Dashboard() {
     setNumberingDrafts(data.results ?? []);
   }, []);
 
+  const loadControlledHistory = useCallback(async () => {
+    setControlledHistoryLoading(true);
+    try {
+      const response = await fetch("/api/lifecycle/controlled-history?limit=50");
+      if (response.status === 401 || response.status === 403) {
+        setControlledHistoryEntries([]);
+        return;
+      }
+      if (!response.ok) return;
+      const data = await response.json().catch(() => ({}));
+      setControlledHistoryEntries(Array.isArray(data.entries) ? data.entries : []);
+    } finally {
+      setControlledHistoryLoading(false);
+    }
+  }, []);
+
   const rememberSearch = useCallback((query: string) => {
     const trimmed = query.trim();
     if (trimmed.length < 2 || typeof window === "undefined") return;
@@ -1397,6 +1542,19 @@ export function Dashboard() {
     setSearchFocused(false);
   }
 
+  async function openControlledHistoryEntry(entry: ControlledHistoryEntry) {
+    if (entry.entity_type !== "submission") return;
+    setActiveConditionFilters([]);
+    setFinderFilters(emptyFinderFilters);
+    setStatus("All");
+    setSearchQuery("");
+    setSelectedId(entry.target_id);
+    await loadDetail(entry.target_id);
+    requestAnimationFrame(() => {
+      detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function openChildSubmission(submissionId: string | null | undefined) {
     if (!submissionId) return;
     setSelectedId(submissionId);
@@ -1447,8 +1605,9 @@ export function Dashboard() {
     if (currentUser) {
       loadNotifications().catch(console.error);
       loadNumberingDrafts().catch(console.error);
+      loadControlledHistory().catch(console.error);
     }
-  }, [currentUser, loadNotifications, loadNumberingDrafts]);
+  }, [currentUser, loadControlledHistory, loadNotifications, loadNumberingDrafts]);
 
   useEffect(() => {
     if (canReview) {
@@ -1477,9 +1636,14 @@ export function Dashboard() {
 
   useEffect(() => {
     setSelectedId((current) =>
-      current && visibleSubmissions.some((submission) => submission.id === current) ? current : null
+      current &&
+      (visibleSubmissions.some((submission) => submission.id === current) ||
+        controlledHistoryEntries.some((entry) => entry.target_id === current) ||
+        detail?.id === current)
+        ? current
+        : null
     );
-  }, [visibleSubmissions]);
+  }, [controlledHistoryEntries, detail?.id, visibleSubmissions]);
 
   useEffect(() => {
     if (currentUser) {
@@ -1570,9 +1734,54 @@ export function Dashboard() {
       alert(body.error ?? "操作失敗");
     }
     await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
     await loadDetail(selectedId);
     await loadNotifications();
     setActionLoading(false);
+  }
+
+  async function requestSubmissionObsolete() {
+    if (!selectedId) return;
+    const reason = obsoleteReason.trim();
+    if (!reason) return;
+    setObsoleteActionLoading(true);
+    const response = await fetch(`/api/submissions/${selectedId}/obsolete-request`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      alert(body.error ?? "申請作廢失敗");
+    } else {
+      setObsoleteReason("");
+    }
+    await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
+    await loadDetail(selectedId);
+    await loadNotifications();
+    setObsoleteActionLoading(false);
+  }
+
+  async function decideSubmissionObsolete(requestId: string, decision: "approve" | "reject") {
+    if (!selectedId) return;
+    setObsoleteActionLoading(true);
+    const response = await fetch(`/api/submission-lifecycle-requests/${requestId}/${decision}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ decisionReason: obsoleteDecisionReason.trim() || undefined })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      alert(body.error ?? "作廢審核失敗");
+    } else {
+      setObsoleteDecisionReason("");
+    }
+    await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
+    await loadDetail(selectedId);
+    await loadNotifications();
+    setObsoleteActionLoading(false);
   }
 
   async function runCheckout(action: "lock" | "unlock") {
@@ -2076,6 +2285,10 @@ export function Dashboard() {
       : null,
     limit: 5
   });
+  const canRequestSubmissionObsolete =
+    Boolean(detail && detail.status === "Released" && !pendingSubmissionObsoleteRequest) &&
+    (currentUser.role === "Engineer" || currentUser.role === "R&D Manager" || currentUser.role === "Admin");
+  const canReviewSubmissionObsolete = Boolean(pendingSubmissionObsoleteRequest && canReview);
 
   return (
     <>
@@ -2096,6 +2309,7 @@ export function Dashboard() {
             className="secondary-button"
             onClick={() => {
               loadSubmissions(status, debouncedSearchQuery, finderFilters).catch(console.error);
+              loadControlledHistory().catch(console.error);
               loadNotifications().catch(console.error);
               if (canReview) loadStorageEvidence().catch(console.error);
             }}
@@ -2166,6 +2380,17 @@ export function Dashboard() {
           })}
         </div>
       </section>
+
+      <ControlledHistoryPanel
+        entries={controlledHistoryEntries}
+        loading={controlledHistoryLoading}
+        onRefresh={() => {
+          loadControlledHistory().catch(console.error);
+        }}
+        onOpenEntry={(entry) => {
+          openControlledHistoryEntry(entry).catch(console.error);
+        }}
+      />
 
       <FinderToolbar>
       <section className="finder-summary-row" aria-label="找圖與摘要">
@@ -3843,6 +4068,98 @@ export function Dashboard() {
                     <X size={16} aria-hidden="true" />
                     駁回
                   </button>
+                </div>
+              ) : null}
+              {detail.status === "Released" || detail.status === "Obsolete" || pendingSubmissionObsoleteRequest ? (
+                <div className="readonly-share-panel">
+                  <div className="readonly-share-header">
+                    <div className="readonly-share-title">
+                      <span className="section-label">正式資料</span>
+                      <strong>
+                        <Archive size={14} aria-hidden="true" />{" "}
+                        {detail.status === "Obsolete" ? "已作廢" : pendingSubmissionObsoleteRequest ? "作廢審核中" : "申請作廢"}
+                      </strong>
+                      <small>正式圖面作廢需經主管審核；核准後資料進入受控歷史。</small>
+                    </div>
+                  </div>
+                  {detail.status === "Obsolete" ? (
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">作廢時間</span>
+                        <span className="metadata-value">{detail.obsolete_at ?? "-"}</span>
+                      </span>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">作廢者</span>
+                        <span className="metadata-value">{detail.obsolete_by ?? "-"}</span>
+                      </span>
+                    </div>
+                  ) : pendingSubmissionObsoleteRequest ? (
+                    <div className="change-form">
+                      <div className="metadata-list">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請者</span>
+                          <span className="metadata-value">{pendingSubmissionObsoleteRequest.requested_by_name}</span>
+                        </span>
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請時間</span>
+                          <span className="metadata-value">{pendingSubmissionObsoleteRequest.requested_at}</span>
+                        </span>
+                      </div>
+                      <p>{pendingSubmissionObsoleteRequest.reason}</p>
+                      {canReviewSubmissionObsolete ? (
+                        <>
+                          <textarea
+                            value={obsoleteDecisionReason}
+                            onChange={(event) => setObsoleteDecisionReason(event.target.value)}
+                            placeholder="審核意見"
+                            rows={3}
+                            disabled={obsoleteActionLoading}
+                          />
+                          <div className="file-actions">
+                            <button
+                              className="primary-button"
+                              type="button"
+                              onClick={() => decideSubmissionObsolete(pendingSubmissionObsoleteRequest.id, "approve")}
+                              disabled={obsoleteActionLoading}
+                            >
+                              <Check size={14} aria-hidden="true" />
+                              核准作廢
+                            </button>
+                            <button
+                              className="danger-button"
+                              type="button"
+                              onClick={() => decideSubmissionObsolete(pendingSubmissionObsoleteRequest.id, "reject")}
+                              disabled={obsoleteActionLoading}
+                            >
+                              <X size={14} aria-hidden="true" />
+                              退回申請
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <small>等待主管審核。</small>
+                      )}
+                    </div>
+                  ) : canRequestSubmissionObsolete ? (
+                    <div className="change-form">
+                      <textarea
+                        value={obsoleteReason}
+                        onChange={(event) => setObsoleteReason(event.target.value)}
+                        placeholder="作廢原因"
+                        rows={3}
+                        disabled={obsoleteActionLoading}
+                      />
+                      <button
+                        className="danger-button"
+                        type="button"
+                        onClick={requestSubmissionObsolete}
+                        disabled={!obsoleteReason.trim() || obsoleteActionLoading}
+                      >
+                        <Archive size={14} aria-hidden="true" />
+                        申請作廢
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
                 </div>

@@ -8,6 +8,12 @@ export function listMasterAttachmentsAsync(input: { entityType: MasterAttachment
   return repository.listMasterAttachments(input);
 }
 
+export function listDeletedMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncMasterAttachmentRepository(client);
+  return repository.listDeletedMasterAttachments(input);
+}
+
 export function createMasterAttachmentAsync(input: {
   entityType: MasterAttachmentEntityType;
   entityCode: string;
@@ -29,6 +35,16 @@ export function getMasterAttachmentAsync(input: { entityType: MasterAttachmentEn
   return repository.getMasterAttachment(input);
 }
 
+export function getMasterAttachmentLifecyclePolicyAsync(input: {
+  entityType: MasterAttachmentEntityType;
+  entityCode: string;
+  attachmentId: string;
+}) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncMasterAttachmentRepository(client);
+  return repository.getMasterAttachmentLifecyclePolicy(input);
+}
+
 export function getMasterAttachmentBytesAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
@@ -45,6 +61,18 @@ export function softDeleteMasterAttachmentAsync(input: {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
   return repository.softDeleteMasterAttachment(input);
+}
+
+export function restoreMasterAttachmentAsync(input: {
+  entityType: MasterAttachmentEntityType;
+  entityCode: string;
+  attachmentId: string;
+  restoredBy: string;
+  reason?: string | null;
+}) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncMasterAttachmentRepository(client);
+  return repository.restoreMasterAttachment(input);
 }
 
 export function syncMasterAttachmentToDriveAsync(input: { attachmentId: string; actorId?: string | null }) {

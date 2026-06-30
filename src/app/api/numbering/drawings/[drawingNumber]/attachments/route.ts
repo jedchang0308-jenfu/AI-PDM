@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachmentAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
+import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 
@@ -10,6 +10,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
   if (auth.response) return auth.response;
 
   const { drawingNumber } = await params;
+  const surface = new URL(request.url).searchParams.get("surface");
+  if (surface === "deleted_data") {
+    const result = await listDeletedMasterAttachmentsAsync({
+      entityType: "drawing_number",
+      entityCode: decodeURIComponent(drawingNumber)
+    });
+    if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" });
+  }
+
   const result = await listMasterAttachmentsAsync({
     entityType: "drawing_number",
     entityCode: decodeURIComponent(drawingNumber)

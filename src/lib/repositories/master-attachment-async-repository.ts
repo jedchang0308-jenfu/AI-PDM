@@ -3,6 +3,8 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
 import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
+import { buildMasterAttachmentLifecyclePolicy, type LifecycleActionPolicy } from "@/lib/pdm-lifecycle-policy";
+import { normalizeRevisionCode, revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
 import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
 import type {
   MasterAttachmentCategory,
@@ -105,6 +107,26 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
   LIMIT 1
 `;
 
+export const SELECT_ASYNC_DELETED_MASTER_ATTACHMENTS_SQL = `
+  SELECT a.*, u.display_name AS uploaded_by_name
+  FROM file_assets a
+  LEFT JOIN users u ON u.id = a.uploaded_by
+  WHERE a.linked_entity_type = :entityType
+    AND a.linked_entity_id = :entityId
+    AND a.deleted_at IS NOT NULL
+  ORDER BY a.deleted_at DESC, a.created_at DESC
+`;
+
+export const SELECT_ASYNC_MASTER_ATTACHMENT_ANY_SQL = `
+  SELECT a.*, u.display_name AS uploaded_by_name
+  FROM file_assets a
+  LEFT JOIN users u ON u.id = a.uploaded_by
+  WHERE a.id = :attachmentId
+    AND a.linked_entity_type = :entityType
+    AND a.linked_entity_id = :entityId
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_MASTER_ATTACHMENT_BY_ID_SQL = `
   SELECT *
   FROM file_assets
@@ -145,6 +167,18 @@ export const UPDATE_ASYNC_MASTER_ATTACHMENT_DELETE_SQL = `
       deleted_reason = :deletedReason,
       updated_at = :updatedAt
   WHERE id = :attachmentId
+`;
+
+export const UPDATE_ASYNC_MASTER_ATTACHMENT_RESTORE_SQL = `
+  UPDATE file_assets
+  SET deleted_at = NULL,
+      deleted_by = NULL,
+      deleted_reason = NULL,
+      updated_at = :updatedAt
+  WHERE id = :attachmentId
+    AND linked_entity_type = :entityType
+    AND linked_entity_id = :entityId
+    AND deleted_at IS NOT NULL
 `;
 
 export const UPDATE_ASYNC_MASTER_ATTACHMENT_GDRIVE_UPLOADING_SQL = `
@@ -221,6 +255,22 @@ export class AsyncMasterAttachmentRepository {
     return { entity, attachments: rows.map((row) => mapMasterAttachment(row, entity.code)) };
   }
 
+  async listDeletedMasterAttachments(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
+    const entity = await this.resolveEntity(input.entityType, input.entityCode);
+    if (!entity) return null;
+    const rows = await this.client.query<MasterAttachmentRow>(SELECT_ASYNC_DELETED_MASTER_ATTACHMENTS_SQL, {
+      entityType: entity.type,
+      entityId: entity.id
+    });
+    const attachments = await Promise.all(
+      rows.map(async (row) => ({
+        attachment: mapMasterAttachment(row, entity.code),
+        policy: await this.buildPolicyForRow(entity, row)
+      }))
+    );
+    return { entity, attachments };
+  }
+
   async createMasterAttachment(input: {
     entityType: MasterAttachmentEntityType;
     entityCode: string;
@@ -235,6 +285,7 @@ export class AsyncMasterAttachmentRepository {
     if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
 
     const category = normalizeCategory(entity.type, input.documentCategory);
+    const revision = normalizeAttachmentRevision(input.revision);
     const fileBuffer = Buffer.from(await input.file.arrayBuffer());
     validateAttachmentFile(input.file.name, fileBuffer.byteLength);
     const originalFilename = input.file.name.trim();
@@ -243,7 +294,7 @@ export class AsyncMasterAttachmentRepository {
     const duplicate = await this.findActiveDuplicate({
       entity,
       category,
-      revision: normalizeNullableText(input.revision),
+      revision,
       filename: originalFilename
     });
     if (duplicate) throw new Error("MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE");
@@ -270,7 +321,7 @@ export class AsyncMasterAttachmentRepository {
       documentCategory: category,
       displayName: normalizeDisplayName(input.displayName, originalFilename),
       description: normalizeNullableText(input.description) ?? "",
-      revision: normalizeNullableText(input.revision),
+      revision,
       uploadedBy: input.uploadedBy,
       gdriveStatus: initialDriveStatus,
       syncStatus: "local_only",
@@ -283,7 +334,7 @@ export class AsyncMasterAttachmentRepository {
       entityType: entity.type,
       entityCode: entity.code,
       documentCategory: category,
-      revision: normalizeNullableText(input.revision),
+      revision,
       fileName: originalFilename,
       sha256: contentHash,
       gdriveStatus: initialDriveStatus
@@ -301,6 +352,17 @@ export class AsyncMasterAttachmentRepository {
     if (!entity) return null;
     const row = await this.selectMasterAttachmentRow(entity, input.attachmentId);
     return row ? mapMasterAttachment(row, entity.code) : null;
+  }
+
+  async getMasterAttachmentLifecyclePolicy(input: {
+    entityType: MasterAttachmentEntityType;
+    entityCode: string;
+    attachmentId: string;
+  }): Promise<LifecycleActionPolicy | null> {
+    const entity = await this.resolveEntity(input.entityType, input.entityCode);
+    if (!entity) return null;
+    const row = await this.selectMasterAttachmentAnyRow(entity, input.attachmentId);
+    return row ? this.buildPolicyForRow(entity, row) : null;
   }
 
   async getMasterAttachmentBytes(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }) {
@@ -345,6 +407,50 @@ export class AsyncMasterAttachmentRepository {
       fileName: row.file_name,
       reason: normalizeNullableText(input.reason)
     });
+  }
+
+  async restoreMasterAttachment(input: {
+    entityType: MasterAttachmentEntityType;
+    entityCode: string;
+    attachmentId: string;
+    restoredBy: string;
+    reason?: string | null;
+  }) {
+    const entity = await this.resolveEntity(input.entityType, input.entityCode);
+    if (!entity) throw new Error("LIFE_ATTACHMENT_PARENT_INVALID");
+
+    const row = await this.selectMasterAttachmentAnyRow(entity, input.attachmentId);
+    if (!row) throw new Error("LIFE_ATTACHMENT_NOT_FOUND");
+    if (!row.deleted_at) throw new Error("LIFE_ATTACHMENT_NOT_DELETED");
+
+    const duplicate = await this.findActiveDuplicate({
+      entity,
+      category: row.document_category as MasterAttachmentCategory,
+      revision: row.revision,
+      filename: row.file_name
+    });
+    if (duplicate) throw new Error("LIFE_ATTACHMENT_DUPLICATE_ACTIVE");
+
+    const now = this.clock();
+    await this.client.execute(UPDATE_ASYNC_MASTER_ATTACHMENT_RESTORE_SQL, {
+      updatedAt: now,
+      attachmentId: input.attachmentId,
+      entityType: entity.type,
+      entityId: entity.id
+    });
+    await this.createAuditLog(input.restoredBy, "numbering.master_attachment.restore", {
+      attachmentId: input.attachmentId,
+      entityType: entity.type,
+      entityCode: entity.code,
+      fileName: row.file_name,
+      reason: normalizeNullableText(input.reason),
+      conflictCheckResult: {
+        parentValid: true,
+        activeDuplicate: false
+      }
+    });
+
+    return this.getMasterAttachment({ entityType: entity.type, entityCode: entity.code, attachmentId: input.attachmentId });
   }
 
   async syncMasterAttachmentToDrive(input: { attachmentId: string; actorId?: string | null }) {
@@ -439,6 +545,14 @@ export class AsyncMasterAttachmentRepository {
     });
   }
 
+  private async selectMasterAttachmentAnyRow(entity: EntityRef, attachmentId: string) {
+    return this.client.queryOne<MasterAttachmentRow>(SELECT_ASYNC_MASTER_ATTACHMENT_ANY_SQL, {
+      attachmentId,
+      entityType: entity.type,
+      entityId: entity.id
+    });
+  }
+
   private async findActiveDuplicate(input: { entity: EntityRef; category: MasterAttachmentCategory; revision: string | null; filename: string }) {
     return this.client.queryOne<{ id: string }>(SELECT_ASYNC_MASTER_ATTACHMENT_DUPLICATE_SQL, {
       entityType: input.entity.type,
@@ -446,6 +560,26 @@ export class AsyncMasterAttachmentRepository {
       category: input.category,
       revision: input.revision,
       filename: input.filename
+    });
+  }
+
+  private async buildPolicyForRow(entity: EntityRef, row: MasterAttachmentRow) {
+    const duplicate = row.deleted_at
+      ? await this.findActiveDuplicate({
+          entity,
+          category: row.document_category as MasterAttachmentCategory,
+          revision: row.revision,
+          filename: row.file_name
+        })
+      : null;
+
+    return buildMasterAttachmentLifecyclePolicy({
+      attachmentId: row.id,
+      parentType: entity.type,
+      parentCode: entity.code,
+      deleted: Boolean(row.deleted_at),
+      parentValid: true,
+      activeDuplicate: Boolean(duplicate)
     });
   }
 
@@ -530,6 +664,14 @@ function normalizeDisplayName(value: string | undefined, fallback: string) {
 function normalizeNullableText(value: string | null | undefined) {
   const text = value?.trim();
   return text ? text : null;
+}
+
+function normalizeAttachmentRevision(value: string | null | undefined) {
+  const text = normalizeNullableText(value);
+  if (!text) return null;
+  const error = validateRevisionCode(text, { required: false });
+  if (error) throw new Error(`MASTER_ATTACHMENT_REVISION_INVALID: ${revisionValidationMessage(error)}`);
+  return normalizeRevisionCode(text);
 }
 
 function getFileExtension(filename: string) {

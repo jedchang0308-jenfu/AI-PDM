@@ -17,6 +17,7 @@ import type {
 
 type BomWorkbenchParentRow = Omit<BomWorkbenchSummary, "drafts" | "active_draft">;
 type AsyncBomReleaseSnapshotRow = Omit<BomReleaseSnapshotDetail, "lines"> & { line_snapshot_json: string };
+export type BomWorkbenchLifecycleAction = "release" | "obsolete";
 
 export type BomWorkbenchComparableLine = {
   key: string;
@@ -56,6 +57,7 @@ export type BomWorkbenchPendingReview = {
   id: string;
   bom_draft_id: string;
   status: "PendingReview";
+  lifecycle_action: BomWorkbenchLifecycleAction;
   submitted_by: string;
   submitted_by_name: string | null;
   change_reason: string;
@@ -74,12 +76,40 @@ export type BomWorkbenchReview = {
   id: string;
   bom_draft_id: string;
   status: "PendingReview" | "Approved" | "Rejected" | "Cancelled";
+  lifecycle_action: BomWorkbenchLifecycleAction;
   submitted_by: string;
   reviewed_by: string | null;
   change_reason: string;
   decision_reason: string | null;
   submitted_at: string;
   reviewed_at: string | null;
+};
+
+export type BomWorkbenchObsoleteHistoryRecord = {
+  bom_draft_id: string;
+  draft_name: string;
+  draft_status: "Obsolete";
+  parent_submission_id: string;
+  parent_part_number: string;
+  parent_part_name: string;
+  parent_drawing_number: string;
+  parent_revision: string;
+  line_count: number;
+  review_id: string | null;
+  submitted_by_name: string | null;
+  reviewed_by_name: string | null;
+  change_reason: string | null;
+  decision_reason: string | null;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  snapshot_id: string | null;
+  released_at: string | null;
+  obsolete_at: string | null;
+};
+
+export type ListBomWorkbenchObsoleteHistoryInput = {
+  companyId: string;
+  limit?: number;
 };
 
 export type SetAsyncBomWorkbenchActiveDraftInput = {
@@ -96,7 +126,7 @@ export type DecideAsyncBomWorkbenchReviewInput = {
 export type ApproveAsyncBomWorkbenchReviewResult = {
   review: BomWorkbenchReview | null;
   draft: BomWorkbenchDraftDetail | null;
-  snapshotId: string;
+  snapshotId: string | null;
 };
 
 export type SubmitAsyncBomWorkbenchDraftReviewInput = {
@@ -105,10 +135,28 @@ export type SubmitAsyncBomWorkbenchDraftReviewInput = {
   changeReason: string;
 };
 
+export type RequestAsyncBomWorkbenchObsoleteReviewInput = {
+  draftId: string;
+  actorId: string;
+  reason: string;
+};
+
 export type ReconfirmAsyncBomReplacementFlagsInput = {
   draftId: string;
   actorId: string;
   note?: string;
+};
+
+export type DeleteAsyncBomWorkbenchDraftInput = {
+  draftId: string;
+  actorId: string | null;
+  reason?: string;
+};
+
+export type RestoreAsyncBomWorkbenchDraftInput = {
+  draftId: string;
+  actorId: string | null;
+  reason?: string;
 };
 
 export type SaveAsyncBomWorkbenchDraftTreeInput = {
@@ -246,7 +294,16 @@ export const SELECT_ASYNC_BOM_WORKBENCH_DRAFTS_SQL = `
   SELECT *
   FROM bom_drafts
   WHERE parent_submission_id = :submissionId
+    AND status <> 'Archived'
   ORDER BY is_active DESC, updated_at DESC, id DESC
+`;
+
+export const SELECT_ASYNC_DELETED_BOM_WORKBENCH_DRAFTS_SQL = `
+  SELECT *
+  FROM bom_drafts
+  WHERE parent_submission_id = :submissionId
+    AND status = 'Archived'
+  ORDER BY updated_at DESC, id DESC
 `;
 
 export const SELECT_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
@@ -461,6 +518,7 @@ export const SELECT_ASYNC_BOM_WORKBENCH_PENDING_REVIEWS_SQL = `
     rr.id,
     rr.bom_draft_id,
     rr.status,
+    COALESCE(rr.lifecycle_action, 'release') AS lifecycle_action,
     rr.submitted_by,
     u.display_name AS submitted_by_name,
     rr.change_reason,
@@ -478,14 +536,64 @@ export const SELECT_ASYNC_BOM_WORKBENCH_PENDING_REVIEWS_SQL = `
   JOIN submissions s ON s.id = d.parent_submission_id
   LEFT JOIN users u ON u.id = rr.submitted_by
   WHERE rr.status = 'PendingReview'
-    AND d.status = 'PendingReview'
+    AND (
+      (COALESCE(rr.lifecycle_action, 'release') = 'release' AND d.status = 'PendingReview')
+      OR (COALESCE(rr.lifecycle_action, 'release') = 'obsolete' AND d.status = 'Released')
+    )
   ORDER BY rr.submitted_at DESC, rr.id DESC
 `;
 
 export const SELECT_ASYNC_BOM_WORKBENCH_REVIEW_SQL = `
-  SELECT *
+  SELECT
+    id,
+    bom_draft_id,
+    status,
+    COALESCE(lifecycle_action, 'release') AS lifecycle_action,
+    submitted_by,
+    reviewed_by,
+    change_reason,
+    decision_reason,
+    submitted_at,
+    reviewed_at
   FROM bom_review_requests
   WHERE id = :reviewId
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
+  SELECT
+    d.id AS bom_draft_id,
+    d.draft_name,
+    d.status AS draft_status,
+    d.parent_submission_id,
+    i.part_number AS parent_part_number,
+    i.part_name AS parent_part_name,
+    s.drawing_number AS parent_drawing_number,
+    d.parent_revision,
+    COALESCE(rs.line_count, d.line_count) AS line_count,
+    rr.id AS review_id,
+    submitter.display_name AS submitted_by_name,
+    reviewer.display_name AS reviewed_by_name,
+    rr.change_reason,
+    rr.decision_reason,
+    rr.submitted_at,
+    rr.reviewed_at,
+    rs.id AS snapshot_id,
+    rs.released_at,
+    rs.obsolete_at
+  FROM bom_drafts d
+  JOIN submissions s ON s.id = d.parent_submission_id
+  JOIN items i ON i.id = d.parent_item_id
+  LEFT JOIN bom_release_snapshots rs ON rs.bom_draft_id = d.id
+  LEFT JOIN bom_review_requests rr
+    ON rr.bom_draft_id = d.id
+    AND rr.status = 'Approved'
+    AND COALESCE(rr.lifecycle_action, 'release') = 'obsolete'
+  LEFT JOIN users submitter ON submitter.id = rr.submitted_by
+  LEFT JOIN users reviewer ON reviewer.id = rr.reviewed_by
+  WHERE d.status = 'Obsolete'
+    AND s.company_id = :companyId
+  ORDER BY COALESCE(rs.obsolete_at, rr.reviewed_at, d.updated_at) DESC, d.id DESC
+  LIMIT :limit
 `;
 
 export const SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_REVIEW_SQL = `
@@ -495,6 +603,15 @@ export const SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_REVIEW_SQL = `
     AND upper(parent_revision) = upper(:parentRevision)
     AND status = 'PendingReview'
     AND id <> :draftId
+  LIMIT 1
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_OBSOLETE_REVIEW_SQL = `
+  SELECT id
+  FROM bom_review_requests
+  WHERE bom_draft_id = :draftId
+    AND status = 'PendingReview'
+    AND COALESCE(lifecycle_action, 'release') = 'obsolete'
   LIMIT 1
 `;
 
@@ -509,9 +626,9 @@ export const SUBMIT_ASYNC_BOM_WORKBENCH_DRAFT_REVIEW_SQL = `
 
 export const INSERT_ASYNC_BOM_WORKBENCH_REVIEW_SQL = `
   INSERT INTO bom_review_requests (
-    id, bom_draft_id, status, submitted_by, change_reason, submitted_at
+    id, bom_draft_id, status, lifecycle_action, submitted_by, change_reason, submitted_at
   ) VALUES (
-    :id, :draftId, :status, :submittedBy, :changeReason, :submittedAt
+    :id, :draftId, :status, :lifecycleAction, :submittedBy, :changeReason, :submittedAt
   )
 `;
 
@@ -577,6 +694,23 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASED_DRAFTS_SQL = `
     AND status = 'Released'
 `;
 
+export const OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOTS_SQL = `
+  UPDATE bom_release_snapshots
+  SET obsolete_at = :obsoleteAt,
+      obsolete_by = :obsoleteBy
+  WHERE bom_draft_id = :draftId
+    AND obsolete_at IS NULL
+`;
+
+export const OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
+  UPDATE bom_drafts
+  SET status = 'Obsolete',
+      is_active = 0,
+      updated_by = :updatedBy,
+      updated_at = :updatedAt
+  WHERE id = :draftId
+`;
+
 export const INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
   INSERT INTO bom_release_snapshots (
     id, bom_draft_id, parent_item_id, parent_submission_id, parent_revision,
@@ -590,6 +724,24 @@ export const INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
 export const RELEASE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
   UPDATE bom_drafts
   SET status = 'Released',
+      is_active = 0,
+      updated_by = :updatedBy,
+      updated_at = :updatedAt
+  WHERE id = :draftId
+`;
+
+export const ARCHIVE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
+  UPDATE bom_drafts
+  SET status = 'Archived',
+      is_active = 0,
+      updated_by = :updatedBy,
+      updated_at = :updatedAt
+  WHERE id = :draftId
+`;
+
+export const RESTORE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
+  UPDATE bom_drafts
+  SET status = 'Draft',
       is_active = 0,
       updated_by = :updatedBy,
       updated_at = :updatedAt
@@ -633,6 +785,11 @@ export class AsyncBomWorkbenchRepository {
     return rows.map(coerceDraftSummary);
   }
 
+  async listDeletedDraftsBySubmissionId(submissionId: string): Promise<BomWorkbenchDraftSummary[]> {
+    const rows = await this.client.query<BomWorkbenchDraftSummary>(SELECT_ASYNC_DELETED_BOM_WORKBENCH_DRAFTS_SQL, { submissionId });
+    return rows.map(coerceDraftSummary);
+  }
+
   async getDraftById(draftId: string): Promise<BomWorkbenchDraftDetail | null> {
     const draft = await this.client.queryOne<BomWorkbenchDraftSummary>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, { draftId });
     if (!draft) return null;
@@ -672,6 +829,14 @@ export class AsyncBomWorkbenchRepository {
       snapshotId
     });
     return row ? parseReleaseSnapshot(row) : null;
+  }
+
+  async listObsoleteHistory(input: ListBomWorkbenchObsoleteHistoryInput): Promise<BomWorkbenchObsoleteHistoryRecord[]> {
+    const rows = await this.client.query<BomWorkbenchObsoleteHistoryRecord>(SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL, {
+      companyId: input.companyId,
+      limit: Math.min(Math.max(Math.trunc(input.limit ?? 100), 1), 500)
+    });
+    return rows.map((row) => ({ ...row, line_count: numberValue(row.line_count) }));
   }
 
   async createDraftFromAssembly(input: CreateAsyncBomWorkbenchDraftFromAssemblyInput): Promise<BomWorkbenchDraftDetail | null> {
@@ -1081,6 +1246,7 @@ export class AsyncBomWorkbenchRepository {
         id: reviewId,
         draftId: input.draftId,
         status: "PendingReview",
+        lifecycleAction: "release",
         submittedBy: input.actorId,
         changeReason,
         submittedAt: now
@@ -1109,6 +1275,69 @@ export class AsyncBomWorkbenchRepository {
       await this.client.transaction(submit);
     } else {
       await submit(this.client);
+    }
+
+    return this.getReviewById(reviewId);
+  }
+
+  async requestObsoleteReview(input: RequestAsyncBomWorkbenchObsoleteReviewInput): Promise<BomWorkbenchReview | null> {
+    const draft = await this.getDraftById(input.draftId);
+    if (!draft) return null;
+    if (draft.status === "Obsolete") throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+    if (draft.status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+    const reason = input.reason.trim();
+    if (!reason) throw new Error("LIFE_OBSOLETE_REASON_REQUIRED");
+
+    const existingPendingReview = await this.client.queryOne<{ id: string }>(
+      SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_OBSOLETE_REVIEW_SQL,
+      { draftId: input.draftId }
+    );
+    if (existingPendingReview) throw new Error("LIFE_OBSOLETE_ALREADY_REQUESTED");
+
+    const now = this.clock();
+    const reviewId = this.idFactory();
+    const requestObsolete = async (client: AsyncDatabaseClient) => {
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
+        id: reviewId,
+        draftId: input.draftId,
+        status: "PendingReview",
+        lifecycleAction: "obsolete",
+        submittedBy: input.actorId,
+        changeReason: reason,
+        submittedAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId: input.draftId,
+        actorId: input.actorId,
+        eventType: "request_obsolete",
+        beforeJson: JSON.stringify({ status: draft.status }),
+        afterJson: JSON.stringify({ status: draft.status, reviewId, lifecycleAction: "obsolete" }),
+        reason,
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: draft.parent_submission_id,
+        actorId: input.actorId,
+        action: "lifecycle.obsolete.requested",
+        detailJson: JSON.stringify({
+          entityType: "bom_workbench_draft",
+          draftId: input.draftId,
+          reviewId,
+          beforeStatus: draft.status,
+          requestedStatus: "Obsolete",
+          reason
+        }),
+        createdAt: now
+      });
+    };
+
+    if (this.client.kind === "postgres") {
+      await this.client.transaction(requestObsolete);
+    } else {
+      await requestObsolete(this.client);
     }
 
     return this.getReviewById(reviewId);
@@ -1171,6 +1400,54 @@ export class AsyncBomWorkbenchRepository {
 
     const now = this.clock();
     const decisionReason = input.decisionReason?.trim() || "";
+    if (review.lifecycle_action === "obsolete") {
+      if (draft.status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+      const rejectObsolete = async (client: AsyncDatabaseClient) => {
+        await client.execute(REJECT_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
+          reviewId: input.reviewId,
+          reviewedBy: input.actorId,
+          decisionReason: decisionReason || null,
+          reviewedAt: now
+        });
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+          id: this.idFactory(),
+          draftId: draft.id,
+          actorId: input.actorId,
+          eventType: "reject_obsolete",
+          beforeJson: JSON.stringify({ status: draft.status, reviewId: input.reviewId, lifecycleAction: "obsolete" }),
+          afterJson: JSON.stringify({ status: draft.status }),
+          reason: decisionReason || "Reject BOM obsolete request",
+          createdAt: now
+        });
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+          id: this.idFactory(),
+          submissionId: draft.parent_submission_id,
+          actorId: input.actorId,
+          action: "lifecycle.obsolete.rejected",
+          detailJson: JSON.stringify({
+            entityType: "bom_workbench_draft",
+            draftId: draft.id,
+            reviewId: input.reviewId,
+            beforeStatus: draft.status,
+            afterStatus: draft.status,
+            decisionReason: decisionReason || null
+          }),
+          createdAt: now
+        });
+      };
+
+      if (this.client.kind === "postgres") {
+        await this.client.transaction(rejectObsolete);
+      } else {
+        await rejectObsolete(this.client);
+      }
+
+      return {
+        review: await this.getReviewById(input.reviewId),
+        draft: await this.getDraftById(draft.id)
+      };
+    }
+
     const reject = async (client: AsyncDatabaseClient) => {
       await client.execute(REJECT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
         draftId: draft.id,
@@ -1222,6 +1499,68 @@ export class AsyncBomWorkbenchRepository {
 
     const draft = await this.getDraftById(review.bom_draft_id);
     if (!draft) return null;
+    if (review.lifecycle_action === "obsolete") {
+      if (draft.status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const now = this.clock();
+      const decisionReason = input.decisionReason?.trim() || "";
+      const approveObsolete = async (client: AsyncDatabaseClient) => {
+        await client.execute(OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOTS_SQL, {
+          draftId: draft.id,
+          obsoleteAt: now,
+          obsoleteBy: input.actorId
+        });
+        await client.execute(OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
+          draftId: draft.id,
+          updatedBy: input.actorId,
+          updatedAt: now
+        });
+        await client.execute(APPROVE_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
+          reviewId: input.reviewId,
+          reviewedBy: input.actorId,
+          decisionReason: decisionReason || null,
+          reviewedAt: now
+        });
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+          id: this.idFactory(),
+          draftId: draft.id,
+          actorId: input.actorId,
+          eventType: "approve_obsolete",
+          beforeJson: JSON.stringify({ status: draft.status, reviewId: input.reviewId, lifecycleAction: "obsolete" }),
+          afterJson: JSON.stringify({ status: "Obsolete" }),
+          reason: decisionReason || "Approve BOM obsolete request",
+          createdAt: now
+        });
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+          id: this.idFactory(),
+          submissionId: draft.parent_submission_id,
+          actorId: input.actorId,
+          action: "lifecycle.obsolete.approved",
+          detailJson: JSON.stringify({
+            entityType: "bom_workbench_draft",
+            draftId: draft.id,
+            reviewId: input.reviewId,
+            beforeStatus: draft.status,
+            afterStatus: "Obsolete",
+            decisionReason: decisionReason || null
+          }),
+          createdAt: now
+        });
+      };
+
+      if (this.client.kind === "postgres") {
+        await this.client.transaction(approveObsolete);
+      } else {
+        await approveObsolete(this.client);
+      }
+
+      return {
+        review: await this.getReviewById(input.reviewId),
+        draft: await this.getDraftById(draft.id),
+        snapshotId: null
+      };
+    }
+
     if (draft.status !== "PendingReview") throw new Error("BOM_DRAFT_NOT_PENDING_REVIEW");
 
     const issues = await this.evaluateReleaseGate(draft.lines);
@@ -1345,6 +1684,105 @@ export class AsyncBomWorkbenchRepository {
       await this.client.transaction(activate);
     } else {
       await activate(this.client);
+    }
+
+    return this.getDraftById(input.draftId);
+  }
+
+  async deleteDraft(input: DeleteAsyncBomWorkbenchDraftInput): Promise<BomWorkbenchDraftDetail | null> {
+    const before = await this.getDraftById(input.draftId);
+    if (!before) return null;
+    if (before.status === "Archived") throw new Error("LIFE_BOM_DRAFT_ALREADY_DELETED");
+    if (before.status !== "Draft") throw new Error("LIFE_BOM_DRAFT_NOT_DELETABLE");
+
+    const now = this.clock();
+    const reason = input.reason?.trim() || "Delete BOM workbench draft";
+    const archive = async (client: AsyncDatabaseClient) => {
+      await client.execute(ARCHIVE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
+        draftId: input.draftId,
+        updatedBy: input.actorId,
+        updatedAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId: input.draftId,
+        actorId: input.actorId,
+        eventType: "delete_draft",
+        beforeJson: JSON.stringify({ status: before.status, isActive: before.is_active, lineCount: before.lines.length }),
+        afterJson: JSON.stringify({ status: "Archived", isActive: 0 }),
+        reason,
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: before.parent_submission_id,
+        actorId: input.actorId,
+        action: "BomWorkbenchDraftDeleted",
+        detailJson: JSON.stringify({
+          lifecycleAction: "delete",
+          draftId: input.draftId,
+          beforeStatus: before.status,
+          afterStatus: "Archived",
+          previousActive: before.is_active,
+          reason
+        }),
+        createdAt: now
+      });
+    };
+
+    if (this.client.kind === "postgres") {
+      await this.client.transaction(archive);
+    } else {
+      await archive(this.client);
+    }
+
+    return this.getDraftById(input.draftId);
+  }
+
+  async restoreDraft(input: RestoreAsyncBomWorkbenchDraftInput): Promise<BomWorkbenchDraftDetail | null> {
+    const before = await this.getDraftById(input.draftId);
+    if (!before) return null;
+    if (before.status !== "Archived") throw new Error("LIFE_BOM_DRAFT_NOT_DELETED");
+
+    const now = this.clock();
+    const reason = input.reason?.trim() || "Restore BOM workbench draft";
+    const restore = async (client: AsyncDatabaseClient) => {
+      await client.execute(RESTORE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
+        draftId: input.draftId,
+        updatedBy: input.actorId,
+        updatedAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId: input.draftId,
+        actorId: input.actorId,
+        eventType: "restore_draft",
+        beforeJson: JSON.stringify({ status: before.status, isActive: before.is_active, lineCount: before.lines.length }),
+        afterJson: JSON.stringify({ status: "Draft", isActive: 0 }),
+        reason,
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: before.parent_submission_id,
+        actorId: input.actorId,
+        action: "BomWorkbenchDraftRestored",
+        detailJson: JSON.stringify({
+          lifecycleAction: "restore",
+          draftId: input.draftId,
+          beforeStatus: before.status,
+          afterStatus: "Draft",
+          reason,
+          conflictCheckResult: "passed"
+        }),
+        createdAt: now
+      });
+    };
+
+    if (this.client.kind === "postgres") {
+      await this.client.transaction(restore);
+    } else {
+      await restore(this.client);
     }
 
     return this.getDraftById(input.draftId);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, X, XCircle } from "lucide-react";
 import { InfoHint, RiskHint } from "@/components/compact-hints";
@@ -284,7 +285,7 @@ export default function NumberingApprovalsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>DVT/發行審核</h1>
+          <h1>正式資料審核</h1>
           <p>同專案批次審核、共用意見、異常項個別意見與代送審標示。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => loadBatches(statusFilter)} disabled={busy === "reload"}>
@@ -303,8 +304,8 @@ export default function NumberingApprovalsPage() {
         ]}
       />
 
-      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看 DVT/發行審核。" /> : null}
-      {state === "forbidden" ? <AccessPanel title="權限不足" message="DVT/發行審核需研發主管或管理員權限。" /> : null}
+      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看正式資料審核。" /> : null}
+      {state === "forbidden" ? <AccessPanel title="權限不足" message="正式資料審核需研發主管或管理員權限。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={() => loadBatches(statusFilter)} /> : null}
 
       <div style={{ display: "grid", gap: "1rem" }}>
@@ -312,7 +313,7 @@ export default function NumberingApprovalsPage() {
           <div className="panel-header">
             <div>
               <h2>審核佇列</h2>
-              <p style={mutedTextStyle}>預設只顯示 DVT 與發行相關待處理批次。</p>
+              <p style={mutedTextStyle}>預設顯示正式資料的待處理審核批次。</p>
             </div>
             <select className="dropdown-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
               {statusFilters.map((status) => (
@@ -420,7 +421,7 @@ export default function NumberingApprovalsPage() {
                 />
               </>
             ) : (
-              <div className="empty">目前沒有 DVT/發行審核批次</div>
+              <EmptyApprovalBatchGuidance />
             )}
           </section>
           </PdmDetailDrawer>
@@ -440,7 +441,7 @@ function BatchList({
   onSelect: (batch: ApprovalBatch) => void;
 }) {
   if (batches.length === 0) {
-    return <div className="empty">目前沒有審核批次</div>;
+    return <EmptyApprovalBatchGuidance />;
   }
   return (
     <div className="table-wrap">
@@ -492,6 +493,24 @@ function BatchList({
   );
 }
 
+function EmptyApprovalBatchGuidance() {
+  return (
+    <div className="empty">
+      <ClipboardCheck size={22} aria-hidden="true" />
+      <h2>目前沒有正式資料審核批次</h2>
+      <p>這裡顯示 DVT 晉升、正式發行、MA 圖恢復與申請作廢批次。一般狀態為「待審核」的圖面 submission，請回工作台開啟圖面明細後核准或駁回。</p>
+      <div className="empty-actions">
+        <Link className="primary-button" href="/?status=Pending">
+          回工作台審核圖面
+        </Link>
+        <Link className="secondary-button" href="/numbering/tasks">
+          查看我的待辦
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function ApprovalItemTable({
   items,
   selectedRequestIds,
@@ -512,7 +531,7 @@ function ApprovalItemTable({
           <tr>
             <th>選取</th>
             <th>項目</th>
-            <th>DVT/發行動作</th>
+            <th>審核動作</th>
             <th>送審資訊</th>
             <th>狀態</th>
             <th>原因</th>
@@ -619,6 +638,7 @@ function isExceptionItem(item: ApprovalBatchItem) {
     actionCode.includes("missing_ma") ||
     actionCode.includes("restore") ||
     actionCode.includes("same_drawing") ||
+    actionCode.includes("obsolete") ||
     item.request.entitySummary.recordStatus === "MainDrawingInvalid" ||
     item.request.markers?.some((marker) => marker.code === "override" || marker.code === "impact_scope")
   );
@@ -684,7 +704,9 @@ function actionLabel(value: string | null) {
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
-    main_drawing_restore: "MA 圖恢復"
+    main_drawing_restore: "MA 圖恢復",
+    obsolete_part_number: "料號作廢",
+    obsolete_ma_drawing: "圖號作廢"
   };
   return value ? labels[value] ?? value : "混合審核";
 }

@@ -10,6 +10,10 @@ export async function listBomWorkbenchDraftsBySubmissionIdAsync(submissionId: st
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listDraftsBySubmissionId(submissionId);
 }
 
+export async function listDeletedBomWorkbenchDraftsBySubmissionIdAsync(submissionId: string) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listDeletedDraftsBySubmissionId(submissionId);
+}
+
 export async function getBomWorkbenchDraftByIdAsync(draftId: string) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getDraftById(draftId);
 }
@@ -63,6 +67,10 @@ export async function getBomReleaseSnapshotByIdAsync(snapshotId: string) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getReleaseSnapshotById(snapshotId);
 }
 
+export async function listObsoleteBomWorkbenchHistoryAsync(input: { companyId: string; limit?: number }) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listObsoleteHistory(input);
+}
+
 export async function listPendingBomWorkbenchReviewsAsync() {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listPendingReviews();
 }
@@ -73,6 +81,10 @@ export async function getBomWorkbenchReviewByIdAsync(reviewId: string) {
 
 export async function submitBomWorkbenchDraftReviewAsync(input: { draftId: string; actorId: string; changeReason: string }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).submitReview(input);
+}
+
+export async function requestBomWorkbenchObsoleteReviewAsync(input: { draftId: string; actorId: string; reason: string }) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).requestObsoleteReview(input);
 }
 
 export async function reconfirmBomWorkbenchReplacementFlagsAsync(input: { draftId: string; actorId: string; note?: string }) {
@@ -89,4 +101,12 @@ export async function approveBomWorkbenchReviewAsync(input: { reviewId: string; 
 
 export async function setBomWorkbenchActiveDraftAsync(input: { draftId: string; actorId: string | null }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).setActiveDraft(input);
+}
+
+export async function deleteBomWorkbenchDraftAsync(input: { draftId: string; actorId: string | null; reason?: string }) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).deleteDraft(input);
+}
+
+export async function restoreBomWorkbenchDraftAsync(input: { draftId: string; actorId: string | null; reason?: string }) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).restoreDraft(input);
 }

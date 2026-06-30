@@ -826,7 +826,9 @@ export type NumberingApprovalActionCode =
   | "same_drawing_variant_after_release"
   | "dvt_missing_ma_override"
   | "release_missing_ma_confirm"
-  | "main_drawing_restore";
+  | "main_drawing_restore"
+  | "obsolete_part_number"
+  | "obsolete_ma_drawing";
 
 export type NumberingApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled";
 export type NumberingApprovalBatchStatus = "pending" | "partially_approved" | "approved" | "rejected" | "needs_info" | "cancelled";
@@ -902,6 +904,28 @@ export type RequestMainDrawingRestoreApprovalInput = {
   replacementDrawingNumber?: string;
   reason: string;
   requestedBy: string;
+};
+
+export type RequestNumberingObsoleteApprovalInput = {
+  companyId?: string;
+  entityType: "part_number" | "drawing_number";
+  entityId?: string;
+  entityCode?: string;
+  reason: string;
+  requestedBy: string;
+  projectCode?: string;
+};
+
+export type NumberingObsoleteApprovalResult = {
+  approvalRequest: NumberingApprovalRecord;
+  approvalBatch: NumberingApprovalBatchRecord;
+  entity: {
+    entityType: "part_number" | "drawing_number";
+    entityId: string;
+    entityCode: string;
+    recordStatus: NumberingRecordStatus;
+    actionCode: Extract<NumberingApprovalActionCode, "obsolete_part_number" | "obsolete_ma_drawing">;
+  };
 };
 
 export type DecideNumberingApprovalInput = {
@@ -1118,6 +1142,7 @@ export type CreateNumberingImportBatchInput = {
 
 export type ListNumberingImportBatchesInput = {
   companyId?: string;
+  status?: "all" | NumberingImportBatchRecord["status"];
   limit?: number;
 };
 
@@ -1125,6 +1150,18 @@ export type ConfirmNumberingImportBatchInput = {
   companyId?: string;
   batchId: string;
   confirmedBy: string;
+};
+
+export type DeleteNumberingImportBatchInput = {
+  companyId?: string;
+  batchId: string;
+  deletedBy: string;
+};
+
+export type RestoreNumberingImportBatchInput = {
+  companyId?: string;
+  batchId: string;
+  restoredBy: string;
 };
 
 export type NumberingExportMode = "no_audit" | "last_change_summary" | "full_change_summary";
@@ -2236,7 +2273,9 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
-    main_drawing_restore: "MA 圖恢復"
+    main_drawing_restore: "MA 圖恢復",
+    obsolete_part_number: "料號作廢審核",
+    obsolete_ma_drawing: "圖號作廢審核"
   };
   return value ? labels[value] ?? value : "審核";
 }
@@ -2323,7 +2362,12 @@ function buildNumberingActionMarkers(input: {
 }
 
 function approvalRecipientRole(actionCode: NumberingApprovalActionCode) {
-  if (actionCode === "dvt_promotion" || actionCode === "release" || actionCode === "same_drawing_variant_after_release") {
+  if (
+    actionCode === "dvt_promotion" ||
+    actionCode === "release" ||
+    actionCode === "same_drawing_variant_after_release" ||
+    actionCode === "obsolete_ma_drawing"
+  ) {
     return "rd_manager";
   }
   return "pdm_admin";
@@ -2905,6 +2949,10 @@ function selectDrawingNumberByNumber(database: SqliteDatabase, drawingNumber: st
   return database.prepare("SELECT * FROM drawing_numbers WHERE drawing_number = ?").get(drawingNumber) as
     | DrawingNumberRow
     | undefined;
+}
+
+function selectDrawingNumberById(database: SqliteDatabase, id: string) {
+  return database.prepare("SELECT * FROM drawing_numbers WHERE id = ?").get(id) as DrawingNumberRow | undefined;
 }
 
 function selectApprovalRequestById(database: SqliteDatabase, approvalRequestId: string) {
@@ -5453,6 +5501,78 @@ function applyApprovedNumberingRequest(database: SqliteDatabase, request: Number
     const partNumber = String(request.payload.partNumber ?? "").trim();
     const variants = request.payload.variants as LinkPartNumberToDrawingInput["variants"];
     linkPartNumberToDrawingInDatabase(database, { drawingNumber, partNumber, variants, createdBy: actorId, approvedAfterRelease: true });
+    return;
+  }
+
+  if (request.actionCode === "obsolete_part_number") {
+    const partNumberFromPayload = String(request.payload.partNumber ?? request.payload.entityCode ?? "").trim();
+    const partRow = selectPartNumberById(database, request.entityId) ?? selectPartNumberByNumber(database, partNumberFromPayload);
+    if (!partRow) {
+      throw new Error(`PART_NUMBER_NOT_FOUND: ${request.entityId}`);
+    }
+    if (partRow.record_status === "Obsolete") {
+      throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+    }
+    if (partRow.record_status !== "Active" && partRow.record_status !== "Released") {
+      throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+    }
+
+    const now = new Date().toISOString();
+    database.prepare("UPDATE part_numbers SET record_status = 'Obsolete', updated_at = ? WHERE id = ?").run(now, partRow.id);
+    markRootClosedIfNoOpenParts(database, partRow.part_root_id, "Obsolete", now);
+    insertAudit(database, {
+      actorId,
+      action: "lifecycle.obsolete.approved",
+      detail: {
+        approvalRequestId: request.id,
+        actionCode: request.actionCode,
+        entityType: "part_number",
+        entityId: partRow.id,
+        entityCode: partRow.part_number,
+        previousRecordStatus: partRow.record_status,
+        newRecordStatus: "Obsolete",
+        reason: request.reason
+      }
+    });
+    return;
+  }
+
+  if (request.actionCode === "obsolete_ma_drawing") {
+    const drawingNumberFromPayload = String(request.payload.drawingNumber ?? request.payload.entityCode ?? "").trim();
+    const drawingRow = selectDrawingNumberById(database, request.entityId) ?? selectDrawingNumberByNumber(database, drawingNumberFromPayload);
+    if (!drawingRow) {
+      throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${request.entityId}`);
+    }
+    if (drawingRow.record_status === "Obsolete") {
+      throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
+    }
+    if (drawingRow.record_status !== "Active" && drawingRow.record_status !== "Released") {
+      throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+    }
+
+    const drawingNumber = mapDrawingNumber(drawingRow);
+    const impactedPartNumbers = drawingNumber.purposeCode === "MA" ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
+    const now = new Date().toISOString();
+    database.prepare("UPDATE drawing_numbers SET record_status = 'Obsolete', updated_at = ? WHERE id = ?").run(now, drawingNumber.id);
+    for (const partNumber of impactedPartNumbers) {
+      database.prepare("UPDATE part_numbers SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?").run(now, partNumber.id);
+      database.prepare("UPDATE part_roots SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?").run(now, partNumber.partRootId);
+    }
+    insertAudit(database, {
+      actorId,
+      action: "lifecycle.obsolete.approved",
+      detail: {
+        approvalRequestId: request.id,
+        actionCode: request.actionCode,
+        entityType: "drawing_number",
+        entityId: drawingNumber.id,
+        entityCode: drawingNumber.drawingNumber,
+        previousRecordStatus: drawingRow.record_status,
+        newRecordStatus: "Obsolete",
+        impactedPartNumbers: impactedPartNumbers.map((partNumber) => partNumber.partNumber),
+        reason: request.reason
+      }
+    });
     return;
   }
 

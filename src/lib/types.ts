@@ -364,6 +364,49 @@ export type ReleasePackage = {
   created_at: string;
 };
 
+export type SubmissionLifecycleRequest = {
+  id: string;
+  submission_id: string;
+  action_code: "obsolete_submission";
+  request_status: "pending" | "approved" | "rejected" | "cancelled";
+  requested_by: string;
+  requested_by_name: string;
+  reason: string;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decision_reason: string | null;
+  requested_at: string;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ControlledHistoryEntry = {
+  id: string;
+  entity_type: "submission" | "numbering_part_number" | "numbering_drawing_number" | "bom_release";
+  target_id: string;
+  display_code: string;
+  secondary_code: string;
+  title: string;
+  stage_label: "歷史";
+  result_label: "已作廢";
+  traceability_class: "controlled_history";
+  history_reason: string;
+  requested_by_name: string | null;
+  reviewed_by_name: string | null;
+  requested_at: string | null;
+  decided_at: string | null;
+  history_at: string | null;
+  decision_reason: string | null;
+  source_status: string;
+  release_package_available: boolean;
+  actions: {
+    delete: false;
+    restore: false;
+    obsolete: false;
+  };
+};
+
 export type ReadonlyShare = {
   id: string;
   submission_id: string;
@@ -552,6 +595,7 @@ export type SubmissionDetail = SubmissionSummary & {
     detail_json: string;
     created_at: string;
   }>;
+  lifecycle_requests: SubmissionLifecycleRequest[];
 };
 
 export type ItemRevisionHistoryEntry = {

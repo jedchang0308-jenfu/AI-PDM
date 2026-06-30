@@ -12,7 +12,9 @@ const dvtReleaseActionCodes = new Set<NumberingApprovalActionCode>([
   "release",
   "release_missing_ma_confirm",
   "same_drawing_variant_after_release",
-  "main_drawing_restore"
+  "main_drawing_restore",
+  "obsolete_part_number",
+  "obsolete_ma_drawing"
 ]);
 
 const validBatchStatuses = new Set(["active", "all", "pending", "partially_approved", "approved", "rejected", "needs_info", "cancelled"]);

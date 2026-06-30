@@ -8,6 +8,7 @@ import type {
   ApplyNumberingRuleTemplateInput,
   CreateNumberingApprovalBatchInput,
   CreateNumberingImportBatchInput,
+  DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
   CreatePartCostProfileInput,
   CreateNumberingExportJobInput,
@@ -75,8 +76,11 @@ import type {
   PartRootRecord,
   RequestMainDrawingRestoreApprovalInput,
   RequestNumberingApprovalInput,
+  RequestNumberingObsoleteApprovalInput,
   RequestSameDrawingVariantApprovalInput,
+  NumberingObsoleteApprovalResult,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
+  RestoreNumberingImportBatchInput,
   UpsertPartVariantAttributesInput,
   UpdateDraftNumberingRecordInput,
   UpdateNumberingNotificationStateInput,
@@ -121,6 +125,12 @@ export async function requestNumberingApprovalAsync(input: RequestNumberingAppro
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.requestNumberingApproval(input);
+}
+
+export async function requestNumberingObsoleteApprovalAsync(input: RequestNumberingObsoleteApprovalInput): Promise<NumberingObsoleteApprovalResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.requestNumberingObsoleteApproval(input);
 }
 
 export async function requestSameDrawingVariantApprovalAsync(input: RequestSameDrawingVariantApprovalInput): Promise<NumberingApprovalRecord> {
@@ -201,6 +211,18 @@ export async function confirmNumberingImportBatchAsync(input: ConfirmNumberingIm
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.confirmNumberingImportBatch(input);
+}
+
+export async function deleteNumberingImportBatchAsync(input: DeleteNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.deleteNumberingImportBatch(input);
+}
+
+export async function restoreNumberingImportBatchAsync(input: RestoreNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.restoreNumberingImportBatch(input);
 }
 
 export async function listNumberingAdminMatrixAsync(): Promise<NumberingAdminMatrixRecord> {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { createNumberingImportBatchAsync, listNumberingImportBatchesAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { buildNumberingImportBatchLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,20 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? 20);
-  return NextResponse.json({ batches: await listNumberingImportBatchesAsync({ companyId: companyResult.company.companyId, limit }), pdmCompany: companyResult.company });
+  const surface = url.searchParams.get("surface") ?? "work_list";
+  if (surface === "deleted_data") {
+    const batches = await listNumberingImportBatchesAsync({ companyId: companyResult.company.companyId, status: "rejected", limit });
+    return NextResponse.json({
+      surface: "deleted_data",
+      batches: batches.map((batch) => ({
+        batch,
+        policy: buildNumberingImportBatchLifecyclePolicy({ batchId: batch.id, status: batch.status })
+      })),
+      pdmCompany: companyResult.company
+    });
+  }
+  const batches = await listNumberingImportBatchesAsync({ companyId: companyResult.company.companyId, limit });
+  return NextResponse.json({ batches: batches.filter((batch) => batch.status !== "rejected"), pdmCompany: companyResult.company });
 }
 
 export async function POST(request: Request) {

@@ -16,7 +16,9 @@ const allowedActionCodes = new Set([
   "same_drawing_variant_after_release",
   "dvt_missing_ma_override",
   "release_missing_ma_confirm",
-  "main_drawing_restore"
+  "main_drawing_restore",
+  "obsolete_part_number",
+  "obsolete_ma_drawing"
 ]);
 
 const allowedEntityTypes = new Set(["part_root", "part_number", "drawing_number", "same_drawing_variant"]);

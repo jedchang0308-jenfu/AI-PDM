@@ -22,13 +22,21 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
+  const includeHistory = status === "Obsolete";
   const limit = parsePageLimit(url.searchParams.get("limit"));
   const offset = parsePageOffset(url.searchParams.get("offset"));
   const companyResult = await resolvePdmCompanyContextAsync(auth.user, requestedPdmCompanyCodeFromRequest(request));
   if (companyResult.response) return companyResult.response;
 
   const submittedBy = scopedSubmittedBy(auth.user);
-  const rows = await listSubmissionsAsync({ status, submittedBy, companyId: companyResult.company.companyId, limit: limit + 1, offset });
+  const rows = await listSubmissionsAsync({
+    status,
+    submittedBy,
+    companyId: companyResult.company.companyId,
+    limit: limit + 1,
+    offset,
+    includeHistory
+  });
   const submissions = rows.slice(0, limit);
   return NextResponse.json({
     pdmCompany: companyResult.company,

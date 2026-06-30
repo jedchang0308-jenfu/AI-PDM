@@ -2,12 +2,26 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ClipboardList, Plus, Recycle, RotateCcw, Send, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, History, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
 
-type LoadState = "loading" | "ready" | "unauthorized" | "error";
+type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type DraftType = "new_part" | "replacement_part" | "drawing_revision_generated";
 type ItemType = "self_made" | "purchased" | "standard";
 type DraftStatus = "draft" | "pending_review" | "released" | "needs_reconfirmation" | "voided";
+type LifecycleActionState = {
+  allowed: boolean;
+  reasonCode?: string;
+  message?: string;
+};
+type LifecycleActionPolicy = {
+  stageLabel: "草稿" | "審核中" | "正式" | "歷史";
+  uiSurface: "work_list" | "deleted_data" | "controlled_history";
+  traceabilityClass: "working" | "uncontrolled_deleted" | "controlled_history";
+  detailTags: string[];
+  actions: {
+    restore?: LifecycleActionState;
+  };
+};
 
 type PartNumberDraft = {
   id: string;
@@ -31,6 +45,11 @@ type PartNumberDraft = {
   updatedAt: string;
 };
 
+type DeletedPartNumberDraft = {
+  draft: PartNumberDraft;
+  policy: LifecycleActionPolicy;
+};
+
 const draftTypeOptions: { value: DraftType; label: string }[] = [
   { value: "new_part", label: "新料號" },
   { value: "replacement_part", label: "替代料號" },
@@ -43,12 +62,15 @@ const itemTypeOptions: { value: ItemType; label: string }[] = [
   { value: "standard", label: "標準件" }
 ];
 
-const statusFilters = ["all", "draft", "pending_review", "needs_reconfirmation", "voided"] as const;
+const statusFilters = ["all", "draft", "pending_review", "needs_reconfirmation"] as const;
 
 export default function PartNumberDraftsPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [status, setStatus] = useState<(typeof statusFilters)[number]>("all");
   const [drafts, setDrafts] = useState<PartNumberDraft[]>([]);
+  const [deletedDrafts, setDeletedDrafts] = useState<DeletedPartNumberDraft[]>([]);
+  const [deletedLoaded, setDeletedLoaded] = useState(false);
+  const [deletedLoading, setDeletedLoading] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftType, setDraftType] = useState<DraftType>("new_part");
@@ -62,9 +84,9 @@ export default function PartNumberDraftsPage() {
       total: drafts.length,
       needsReconfirmation: drafts.filter((draft) => draft.status === "needs_reconfirmation").length,
       sameSource: drafts.filter((draft) => draft.sameSourceUnfinishedDraftCount > 0).length,
-      voided: drafts.filter((draft) => draft.status === "voided" && !draft.recycledAt).length
+      deleted: deletedLoaded ? deletedDrafts.length : null
     }),
-    [drafts]
+    [deletedDrafts.length, deletedLoaded, drafts]
   );
 
   const loadData = useCallback(async () => {
@@ -85,6 +107,22 @@ export default function PartNumberDraftsPage() {
     setDrafts(body.drafts ?? []);
     setState("ready");
   }, [status]);
+
+  const loadDeletedDrafts = useCallback(async () => {
+    setDeletedLoading(true);
+    setError("");
+    const response = await fetch("/api/numbering/part-number-drafts?surface=deleted_data&limit=100");
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error ?? body.message ?? "已刪除草稿讀取失敗");
+      setState(response.status === 403 ? "forbidden" : "error");
+      setDeletedLoading(false);
+      return;
+    }
+    setDeletedDrafts(body.drafts ?? []);
+    setDeletedLoaded(true);
+    setDeletedLoading(false);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -121,7 +159,7 @@ export default function PartNumberDraftsPage() {
     loadData();
   }
 
-  async function runAction(draftId: string, action: "submit-review" | "void" | "recycle" | "reconfirm") {
+  async function runAction(draftId: string, action: "submit-review" | "void" | "reconfirm") {
     setBusyId(`${draftId}:${action}`);
     const response = await fetch(`/api/numbering/part-number-drafts/${encodeURIComponent(draftId)}/${action}`, { method: "POST" });
     setBusyId(null);
@@ -132,6 +170,21 @@ export default function PartNumberDraftsPage() {
       return;
     }
     loadData();
+    if (deletedLoaded) loadDeletedDrafts();
+  }
+
+  async function restoreDraft(deleted: DeletedPartNumberDraft) {
+    setBusyId(`${deleted.draft.id}:restore`);
+    const response = await fetch(`/api/numbering/part-number-drafts/${encodeURIComponent(deleted.draft.id)}/restore`, { method: "POST" });
+    setBusyId(null);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(body.error ?? body.message ?? "料號草稿還原失敗");
+      setState("error");
+      return;
+    }
+    loadData();
+    loadDeletedDrafts();
   }
 
   return (
@@ -148,6 +201,7 @@ export default function PartNumberDraftsPage() {
       </div>
 
       {state === "unauthorized" ? <AccessPanel /> : null}
+      {state === "forbidden" ? <AccessPanel title="權限不足" message="沒有管理料號草稿的權限。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={loadData} /> : null}
 
       <section className="panel">
@@ -202,7 +256,8 @@ export default function PartNumberDraftsPage() {
           <div>
             <h2>草稿清單</h2>
             <p style={mutedTextStyle}>
-              {summary.total} 筆，需重新確認 {summary.needsReconfirmation}，同來源警示 {summary.sameSource}，待回收 {summary.voided}
+              {summary.total} 筆，需重新確認 {summary.needsReconfirmation}，同來源警示 {summary.sameSource}
+              {summary.deleted === null ? "" : `，已刪除 ${summary.deleted}`}
             </p>
           </div>
           <div className="status-tabs">
@@ -217,6 +272,33 @@ export default function PartNumberDraftsPage() {
         {state === "ready" && drafts.length === 0 ? <div className="empty">目前沒有料號草稿</div> : null}
         {state === "ready" && drafts.length > 0 ? <DraftTable drafts={drafts} busyId={busyId} onAction={runAction} /> : null}
       </section>
+
+      <details
+        className="master-attachment-deleted"
+        onToggle={(event) => {
+          if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedDrafts();
+        }}
+      >
+        <summary>
+          <span>
+            <History size={16} />
+            已刪除資料
+          </span>
+          <strong>{deletedLoaded ? deletedDrafts.length : "未載入"}</strong>
+        </summary>
+        <div className="master-attachment-deleted-body">
+          <div className="master-attachment-deleted-toolbar">
+            <p>這裡只放可復原的料號草稿，正式料號作廢與審核追溯不在此處。</p>
+            <button className="secondary-button" type="button" onClick={() => void loadDeletedDrafts()} disabled={deletedLoading}>
+              <RotateCcw size={16} />
+              重新整理
+            </button>
+          </div>
+          <DeletedDraftTable deletedDrafts={deletedDrafts} busyId={busyId} loading={deletedLoading} onRestore={restoreDraft} />
+          {deletedLoading ? <div className="empty">正在載入已刪除草稿...</div> : null}
+          {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除草稿</div> : null}
+        </div>
+      </details>
     </>
   );
 }
@@ -228,7 +310,7 @@ function DraftTable({
 }: {
   drafts: PartNumberDraft[];
   busyId: string | null;
-  onAction: (draftId: string, action: "submit-review" | "void" | "recycle" | "reconfirm") => void;
+  onAction: (draftId: string, action: "submit-review" | "void" | "reconfirm") => void;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
@@ -281,8 +363,8 @@ function DraftTable({
                       <IconAction busy={busyId === `${draft.id}:submit-review`} label="送審" onClick={() => onAction(draft.id, "submit-review")}>
                         <Send size={15} />
                       </IconAction>
-                      <IconAction busy={busyId === `${draft.id}:void`} label="作廢" onClick={() => onAction(draft.id, "void")}>
-                        <XCircle size={15} />
+                      <IconAction busy={busyId === `${draft.id}:void`} label="刪除" onClick={() => onAction(draft.id, "void")}>
+                        <Trash2 size={15} />
                       </IconAction>
                     </>
                   ) : null}
@@ -291,15 +373,81 @@ function DraftTable({
                       <CheckCircle2 size={15} />
                     </IconAction>
                   ) : null}
-                  {draft.status === "voided" && !draft.recycledAt ? (
-                    <IconAction busy={busyId === `${draft.id}:recycle`} label="回收" onClick={() => onAction(draft.id, "recycle")}>
-                      <Recycle size={15} />
-                    </IconAction>
-                  ) : null}
                 </div>
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DeletedDraftTable({
+  deletedDrafts,
+  busyId,
+  loading,
+  onRestore
+}: {
+  deletedDrafts: DeletedPartNumberDraft[];
+  busyId: string | null;
+  loading: boolean;
+  onRestore: (deleted: DeletedPartNumberDraft) => void;
+}) {
+  if (deletedDrafts.length === 0) return null;
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>預留料號</th>
+            <th>類型</th>
+            <th>狀態</th>
+            <th>來源</th>
+            <th>還原狀態</th>
+            <th>動作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deletedDrafts.map((deleted) => {
+            const restoreState = deleted.policy.actions.restore;
+            const canRestore = restoreState?.allowed === true;
+            return (
+              <tr key={deleted.draft.id}>
+                <td>
+                  <strong>{deleted.draft.reservedPartNumber}</strong>
+                  <div style={mutedTextStyle}>v{deleted.draft.version} · {deleted.draft.creatorName ?? "未記錄"}</div>
+                </td>
+                <td>
+                  <Tag>{draftTypeLabel(deleted.draft.draftType)}</Tag>
+                  <Tag>{itemTypeLabel(deleted.draft.itemType)}</Tag>
+                </td>
+                <td>
+                  <Tag tone="muted">{deleted.policy.stageLabel}</Tag>
+                  {deleted.policy.detailTags.map((tag) => (
+                    <Tag key={`${deleted.draft.id}-${tag}`} tone={tag === "可還原" ? "success" : "warning"}>
+                      {tag}
+                    </Tag>
+                  ))}
+                </td>
+                <td>
+                  <div>{deleted.draft.sourcePartNumber ?? deleted.draft.sourcePartNumberId ?? "未指定來源料號"}</div>
+                  <div style={mutedTextStyle}>{deleted.draft.sourceDrawingNumber ?? deleted.draft.sourceDrawingNumberId ?? "未指定來源圖號"}</div>
+                </td>
+                <td>{canRestore ? <span style={mutedTextStyle}>可還原到草稿清單</span> : <span style={errorTextStyle}>{restoreState?.message ?? "不可還原"}</span>}</td>
+                <td>
+                  <IconAction
+                    busy={busyId === `${deleted.draft.id}:restore` || loading}
+                    label={canRestore ? "還原" : restoreState?.message ?? "不可還原"}
+                    onClick={() => onRestore(deleted)}
+                    disabled={!canRestore}
+                  >
+                    <RotateCcw size={15} />
+                  </IconAction>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -324,9 +472,9 @@ function WarningTags({ draft }: { draft: PartNumberDraft }) {
   );
 }
 
-function IconAction({ busy, label, children, onClick }: { busy: boolean; label: string; children: ReactNode; onClick: () => void }) {
+function IconAction({ busy, label, children, onClick, disabled = false }: { busy: boolean; label: string; children: ReactNode; onClick: () => void; disabled?: boolean }) {
   return (
-    <button className="icon-button" type="button" title={label} aria-label={label} onClick={onClick} disabled={busy}>
+    <button className="icon-button" type="button" title={label} aria-label={label} onClick={onClick} disabled={busy || disabled}>
       {children}
     </button>
   );
@@ -348,12 +496,13 @@ function StatusTag({ status }: { status: DraftStatus }) {
   return <Tag tone={tone}>{statusLabel(status)}</Tag>;
 }
 
-function AccessPanel() {
+function AccessPanel({ title = "需要登入", message = "請先登入後再查看料號草稿。" }: { title?: string; message?: string }) {
   return (
     <section className="panel">
       <div className="empty">
         <ClipboardList size={24} />
-        <p>請先登入後再查看料號草稿。</p>
+        <strong>{title}</strong>
+        <p>{message}</p>
       </div>
     </section>
   );
@@ -382,7 +531,6 @@ function statusFilterLabel(value: (typeof statusFilters)[number]) {
     draft: "草稿",
     pending_review: "待審核",
     needs_reconfirmation: "需重新確認",
-    voided: "作廢"
   };
   return labels[value];
 }
@@ -393,7 +541,7 @@ function statusLabel(value: DraftStatus) {
     pending_review: "待審核",
     released: "已發行",
     needs_reconfirmation: "需重新確認",
-    voided: "作廢"
+    voided: "已刪除"
   };
   return labels[value];
 }
@@ -417,6 +565,7 @@ function itemTypeLabel(value: ItemType) {
 }
 
 const mutedTextStyle: CSSProperties = { color: "#64748b", fontSize: "0.85rem" };
+const errorTextStyle: CSSProperties = { color: "#b91c1c", fontSize: "0.85rem" };
 const formGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",

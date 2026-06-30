@@ -6,6 +6,7 @@ import type {
   FileReference,
   ItemLock,
   ReleasePackage,
+  SubmissionLifecycleRequest,
   SubmissionDetail,
   SubmissionFile,
   SubmissionSummary
@@ -17,6 +18,7 @@ export type ListSubmissionsAsyncInput = {
   companyId?: string;
   limit?: number;
   offset?: number;
+  includeHistory?: boolean;
 };
 
 export type SubmissionSearchFiltersAsync = {
@@ -41,6 +43,7 @@ export type SearchSubmissionsAsyncInput = {
   companyId?: string;
   filters?: SubmissionSearchFiltersAsync;
   limit?: number;
+  includeHistory?: boolean;
 };
 
 type SubmissionSummaryRow = SubmissionSummary & {
@@ -91,6 +94,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
   LEFT JOIN release_packages rp ON rp.submission_id = s.id
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
   WHERE (:status IS NULL OR s.status = :status)
+    AND (:includeHistory = 1 OR s.status <> 'Obsolete')
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
     AND (:companyId IS NULL OR s.company_id = :companyId)
   GROUP BY
@@ -141,6 +145,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
   LEFT JOIN release_packages rp ON rp.submission_id = s.id
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
   WHERE (:status IS NULL OR s.status = :status)
+    AND (:includeHistory = 1 OR s.status <> 'Obsolete')
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
     AND (:companyId IS NULL OR s.company_id = :companyId)
   GROUP BY
@@ -488,6 +493,21 @@ export const SELECT_ASYNC_SUBMISSION_AUDIT_LOGS_SQL = `
   ORDER BY created_at DESC
 `;
 
+export const SELECT_ASYNC_SUBMISSION_LIFECYCLE_REQUESTS_SQL = `
+  SELECT
+    r.*,
+    requester.display_name AS requested_by_name,
+    decider.display_name AS decided_by_name
+  FROM submission_lifecycle_requests r
+  JOIN users requester ON requester.id = r.requested_by
+  LEFT JOIN users decider ON decider.id = r.decided_by
+  WHERE r.submission_id = :id
+  ORDER BY
+    CASE r.request_status WHEN 'pending' THEN 0 ELSE 1 END,
+    r.created_at DESC,
+    r.id DESC
+`;
+
 export const SELECT_ASYNC_SUBMISSION_ACTIVE_LOCK_SQL = `
   SELECT
     l.*,
@@ -579,6 +599,7 @@ export class AsyncSubmissionListRepository {
     const rows = await this.client.query<SubmissionSummaryRow>(sql, {
       now: new Date().toISOString(),
       status: input.status ?? null,
+      includeHistory: input.includeHistory ? 1 : 0,
       submittedBy: input.submittedBy ?? null,
       companyId: input.companyId ?? null,
       limit,
@@ -609,11 +630,12 @@ export class AsyncSubmissionListRepository {
     const row = await this.client.queryOne<SubmissionDetailRow>(SELECT_ASYNC_SUBMISSION_DETAIL_SQL, { id });
     if (!row) return null;
 
-    const [files, references, approvals, auditLogs, activeLock, releasePackage, bom] = await Promise.all([
+    const [files, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom] = await Promise.all([
       this.client.query<SubmissionFile>(SELECT_ASYNC_SUBMISSION_FILES_SQL, { id }),
       this.client.query<FileReference>(SELECT_ASYNC_SUBMISSION_REFERENCES_SQL, { id }),
       this.client.query<SubmissionDetail["approvals"][number]>(SELECT_ASYNC_SUBMISSION_APPROVALS_SQL, { id }),
       this.client.query<SubmissionDetail["audit_logs"][number]>(SELECT_ASYNC_SUBMISSION_AUDIT_LOGS_SQL, { id }),
+      this.client.query<SubmissionLifecycleRequest>(SELECT_ASYNC_SUBMISSION_LIFECYCLE_REQUESTS_SQL, { id }),
       this.client.queryOne<ItemLock>(SELECT_ASYNC_SUBMISSION_ACTIVE_LOCK_SQL, {
         itemId: row.item_id,
         now: new Date().toISOString()
@@ -634,7 +656,8 @@ export class AsyncSubmissionListRepository {
       active_lock: activeLock,
       release_package: releasePackage,
       approvals: approvals.map(normalizeApproval),
-      audit_logs: auditLogs
+      audit_logs: auditLogs,
+      lifecycle_requests: lifecycleRequests
     };
   }
 
@@ -1019,6 +1042,8 @@ function buildSearchWhere(input: SearchSubmissionsAsyncInput, normalizedFilters:
   if (normalizedFilters.status && normalizedFilters.status !== "All") {
     filters.push("s.status = :status");
     params.status = normalizedFilters.status;
+  } else if (!input.includeHistory) {
+    filters.push("s.status <> 'Obsolete'");
   }
   if (input.submittedBy) {
     filters.push("s.submitted_by = :submittedBy");

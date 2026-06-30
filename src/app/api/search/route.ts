@@ -16,6 +16,7 @@ export async function GET(request: Request) {
 
   const query = (url.searchParams.get("q") ?? "").trim();
   const status = url.searchParams.get("status") ?? undefined;
+  const includeHistory = status === "Obsolete";
   const filters = {
     productLine: url.searchParams.get("productLine") ?? undefined,
     customer: url.searchParams.get("customer") ?? undefined,
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
       status,
       filters,
       submittedBy,
-      companyId: companyResult.company.companyId
+      companyId: companyResult.company.companyId,
+      includeHistory
     })
   });
 }

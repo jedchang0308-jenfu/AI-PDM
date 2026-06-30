@@ -3,6 +3,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { buildPdmChangeControlActor, pdmChangeControlErrorResponse } from "@/lib/pdm-change-control-api";
 import {
+  listDeletedPartNumberDrafts,
   listPartNumberDrafts,
   reservePartNumberDraft,
   type PartNumberDraftItemType,
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
   if (companyResult.response) return companyResult.response;
 
   const url = new URL(request.url);
+  const surface = url.searchParams.get("surface") ?? "work_list";
   const rawStatus = url.searchParams.get("status") ?? "all";
   const rawDraftType = url.searchParams.get("draftType") ?? url.searchParams.get("draft_type") ?? "all";
   const status = statuses.has(rawStatus) ? (rawStatus as PartNumberDraftStatus | "all") : "all";
@@ -32,7 +34,18 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 100);
 
   const actor = buildPdmChangeControlActor(auth, companyResult.company.companyId);
-  const drafts = await listPartNumberDrafts({ actor, status, draftType, includeRecycled, limit });
+  if (surface === "deleted_data") {
+    const deletedDrafts = await listDeletedPartNumberDrafts({ actor, draftType, includeRecycled: false, limit });
+    return NextResponse.json({
+      generatedAt: new Date().toISOString(),
+      surface: "deleted_data",
+      drafts: deletedDrafts,
+      pdmCompany: companyResult.company
+    });
+  }
+
+  const listedDrafts = await listPartNumberDrafts({ actor, status, draftType, includeRecycled, limit });
+  const drafts = status === "all" ? listedDrafts.filter((draft) => draft.status !== "voided") : listedDrafts;
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
     summary: {
