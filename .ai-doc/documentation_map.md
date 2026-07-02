@@ -139,7 +139,7 @@ Implemented scope:
 - Submission-detail link back to the workbench for attachment/filename recovery.
 - Focused QC command: `npm run qc:pdm-drawing-submission-ui-self-recovery`.
 - UI-only operation QC command: `npm run qc:pdm-drawing-submission-ui-operation`; latest local run passed 14/14 and writes `output/playwright/ui-operation-scenarios/pdm-drawing-submission-ui-operation-report.md`.
-  - Clean database continuation note: the QC runner now bootstraps a minimal local `D-0014-MA1` fixture only when absent, records fixture setup in the report, and treats setup as prerequisite data rather than UI evidence.
+  - Clean database continuation note: the QC runner now bootstraps a minimal QC-owned `D-QC-SUBMIT-MA1` fixture only when absent, records fixture setup in the report, treats setup as prerequisite data rather than UI evidence, and removes QC-owned fixture rows/files after browser evidence is captured. Historical D-0014 data is not a required executable fixture.
 
 Remaining high-risk boundaries:
 

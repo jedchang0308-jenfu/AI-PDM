@@ -11,6 +11,22 @@ const now = new Date().toISOString();
 const results = [];
 let fixtureInfo = null;
 
+const realRouteFixture = {
+  rootId: "root-qc-submit-ui",
+  rootCode: "QC-SUBMIT",
+  partId: "part-qc-submit-ui-001",
+  partNumber: "P-QC-SUBMIT-001",
+  partName: "QC 送審測試件",
+  drawingId: "drawing-qc-submit-ui-ma1",
+  drawingNumber: "D-QC-SUBMIT-MA1",
+  drawingBaseName: "D-QC-SUBMIT-MA1",
+  linkId: "link-qc-submit-ui-primary",
+  variantId: "variant-qc-submit-ui",
+  itemId: "item-qc-submit-ui-001",
+  submissionId: "SUB-QC-SUBMIT-RELEASED",
+  snapshotId: "snapshot-qc-submit-ui"
+};
+
 const forbiddenVisibleStrings = [
   "duplicate_active_submission",
   "ReleaseFailed",
@@ -26,29 +42,29 @@ const forbiddenVisibleStrings = [
 
 fs.mkdirSync(outDir, { recursive: true });
 
-function ensureD0014Fixture() {
+function ensureRealRouteFixture() {
   const dbPath = path.resolve("data/ai-pdm.sqlite");
   const database = new Database(dbPath);
   try {
     const existing = database
       .prepare("SELECT id FROM drawing_numbers WHERE company_id = ? AND drawing_number = ? LIMIT 1")
-      .get("company-jenfu", "D-0014-MA1");
+      .get("company-jenfu", realRouteFixture.drawingNumber);
     if (existing) {
       fixtureInfo = {
-        drawingNumber: "D-0014-MA1",
+        drawingNumber: realRouteFixture.drawingNumber,
         action: "existing",
-        detail: "D-0014-MA1 already existed; QC did not modify the existing drawing fixture."
+        detail: `${realRouteFixture.drawingNumber} already existed; QC did not modify the existing QC-owned drawing fixture.`
       };
-      console.log("INFO FIXTURE-001: D-0014-MA1 already exists; using existing local fixture.");
+      console.log(`INFO FIXTURE-001: ${realRouteFixture.drawingNumber} already exists; using existing QC-owned fixture.`);
       return;
     }
 
-    const repositoryDir = path.resolve("data/repository/qc-fixtures/d0014");
+    const repositoryDir = path.resolve("data/repository/qc-fixtures/drawing-submission-ui");
     fs.mkdirSync(repositoryDir, { recursive: true });
-    const drawingPath = path.join(repositoryDir, "D-0014-MA1.SLDDRW");
-    const modelPath = path.join(repositoryDir, "D-0014-MA1.SLDPRT");
-    fs.writeFileSync(drawingPath, "QC fixture drawing for D-0014-MA1\n");
-    fs.writeFileSync(modelPath, "QC fixture model for D-0014-MA1\n");
+    const drawingPath = path.join(repositoryDir, `${realRouteFixture.drawingBaseName}.SLDDRW`);
+    const modelPath = path.join(repositoryDir, `${realRouteFixture.drawingBaseName}.SLDPRT`);
+    fs.writeFileSync(drawingPath, `QC fixture drawing for ${realRouteFixture.drawingNumber}\n`);
+    fs.writeFileSync(modelPath, `QC fixture model for ${realRouteFixture.drawingNumber}\n`);
     const drawingBytes = fs.readFileSync(drawingPath);
     const modelBytes = fs.readFileSync(modelPath);
     const drawingHash = crypto.createHash("sha256").update(drawingBytes).digest("hex");
@@ -63,10 +79,10 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "root-qc-d0014",
+          realRouteFixture.rootId,
           "company-jenfu",
-          "0014",
-          "外側版_JF_A",
+          realRouteFixture.rootCode,
+          realRouteFixture.partName,
           "manufactured",
           "Release",
           "Released",
@@ -83,13 +99,13 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "part-qc-d0014-001",
+          realRouteFixture.partId,
           "company-jenfu",
-          "root-qc-d0014",
-          "P-0014-001",
+          realRouteFixture.rootId,
+          realRouteFixture.partNumber,
           1,
           "001",
-          "外側版_JF_A",
+          realRouteFixture.partName,
           "manufactured",
           "Release",
           "Released",
@@ -107,10 +123,10 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "drawing-qc-d0014-ma1",
+          realRouteFixture.drawingId,
           "company-jenfu",
-          "root-qc-d0014",
-          "D-0014-MA1",
+          realRouteFixture.rootId,
+          realRouteFixture.drawingNumber,
           "MA",
           "MA 製造圖",
           1,
@@ -129,9 +145,9 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "link-qc-d0014-primary",
-          "drawing-qc-d0014-ma1",
-          "part-qc-d0014-001",
+          realRouteFixture.linkId,
+          realRouteFixture.drawingId,
+          realRouteFixture.partId,
           "primary_manufacturing",
           "user-admin-demo",
           now
@@ -144,8 +160,8 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "variant-qc-d0014",
-          "part-qc-d0014-001",
+          realRouteFixture.variantId,
+          realRouteFixture.partId,
           "SUS304",
           "SUS304",
           "無",
@@ -157,21 +173,29 @@ function ensureD0014Fixture() {
         .prepare(
           "INSERT OR IGNORE INTO items (id, company_id, part_number, part_name, current_revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
-        .run("item-qc-d0014-001", "company-jenfu", "P-0014-001", "外側版_JF_A", "0.1", now, now);
+        .run(
+          realRouteFixture.itemId,
+          "company-jenfu",
+          realRouteFixture.partNumber,
+          realRouteFixture.partName,
+          "0.1",
+          now,
+          now
+        );
       for (const asset of [
         {
-          id: "asset-qc-d0014-slddrw",
+          id: "asset-qc-submit-ui-slddrw",
           path: drawingPath,
-          fileName: "D-0014-MA1.SLDDRW",
+          fileName: `${realRouteFixture.drawingBaseName}.SLDDRW`,
           ext: "slddrw",
           category: "drawing_2d",
           hash: drawingHash,
           size: drawingBytes.length
         },
         {
-          id: "asset-qc-d0014-sldprt",
+          id: "asset-qc-submit-ui-sldprt",
           path: modelPath,
-          fileName: "D-0014-MA1.SLDPRT",
+          fileName: `${realRouteFixture.drawingBaseName}.SLDPRT`,
           ext: "sldprt",
           category: "cad_3d",
           hash: modelHash,
@@ -196,7 +220,7 @@ function ensureD0014Fixture() {
             asset.size,
             asset.hash,
             "drawing_number",
-            "drawing-qc-d0014-ma1",
+            realRouteFixture.drawingId,
             asset.category,
             asset.fileName,
             "0.1",
@@ -214,10 +238,10 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "SUB-QC-D0014-RELEASED",
+          realRouteFixture.submissionId,
           "company-jenfu",
-          "item-qc-d0014-001",
-          "D-0014-MA1",
+          realRouteFixture.itemId,
+          realRouteFixture.drawingNumber,
           "0.1",
           "QA",
           "焊接",
@@ -230,13 +254,27 @@ function ensureD0014Fixture() {
           1,
           now,
           "drawing_number",
-          "D-0014-MA1",
+          realRouteFixture.drawingNumber,
           now,
           now
         );
       for (const file of [
-        { id: "file-qc-d0014-slddrw", role: "slddrw", name: "D-0014-MA1.SLDDRW", path: drawingPath, hash: drawingHash, size: drawingBytes.length },
-        { id: "file-qc-d0014-sldprt", role: "sldprt", name: "D-0014-MA1.SLDPRT", path: modelPath, hash: modelHash, size: modelBytes.length }
+        {
+          id: "file-qc-submit-ui-slddrw",
+          role: "slddrw",
+          name: `${realRouteFixture.drawingBaseName}.SLDDRW`,
+          path: drawingPath,
+          hash: drawingHash,
+          size: drawingBytes.length
+        },
+        {
+          id: "file-qc-submit-ui-sldprt",
+          role: "sldprt",
+          name: `${realRouteFixture.drawingBaseName}.SLDPRT`,
+          path: modelPath,
+          hash: modelHash,
+          size: modelBytes.length
+        }
       ]) {
         database
           .prepare(
@@ -245,12 +283,12 @@ function ensureD0014Fixture() {
               sha256, file_size, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
-          .run(file.id, "SUB-QC-D0014-RELEASED", file.role, file.name, file.path, "none", file.hash, file.size, now);
+          .run(file.id, realRouteFixture.submissionId, file.role, file.name, file.path, "none", file.hash, file.size, now);
       }
       const snapshotJson = {
         source: "qc-pdm-drawing-submission-ui-operation",
-        drawingNumber: "D-0014-MA1",
-        partNumber: "P-0014-001",
+        drawingNumber: realRouteFixture.drawingNumber,
+        partNumber: realRouteFixture.partNumber,
         revision: "0.1"
       };
       const snapshotText = JSON.stringify(snapshotJson);
@@ -263,15 +301,15 @@ function ensureD0014Fixture() {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
-          "snapshot-qc-d0014",
-          "SUB-QC-D0014-RELEASED",
+          realRouteFixture.snapshotId,
+          realRouteFixture.submissionId,
           "company-jenfu",
-          "root-qc-d0014",
-          "0014",
-          "drawing-qc-d0014-ma1",
-          "D-0014-MA1",
-          "part-qc-d0014-001",
-          "P-0014-001",
+          realRouteFixture.rootId,
+          realRouteFixture.rootCode,
+          realRouteFixture.drawingId,
+          realRouteFixture.drawingNumber,
+          realRouteFixture.partId,
+          realRouteFixture.partNumber,
           "drawing_part_submission_v1",
           "numbering-rule-v1",
           crypto.createHash("sha256").update(snapshotText).digest("hex"),
@@ -280,25 +318,46 @@ function ensureD0014Fixture() {
           now,
           now
         );
-      database
-        .prepare("INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-        .run(
-          crypto.randomUUID(),
-          "SUB-QC-D0014-RELEASED",
-          "user-admin-demo",
-          "QcFixtureCreated",
-          JSON.stringify({ script: "qc-pdm-drawing-submission-ui-operation-scenarios", drawingNumber: "D-0014-MA1" }),
-          now
-        );
     });
 
     insert();
     fixtureInfo = {
-      drawingNumber: "D-0014-MA1",
+      drawingNumber: realRouteFixture.drawingNumber,
       action: "created",
-      detail: "Created minimal local D-0014-MA1 fixture for real UI route checks; setup is not counted as UI evidence."
+      detail: `Created minimal local ${realRouteFixture.drawingNumber} fixture for real UI route checks; setup is not counted as UI evidence.`
     };
-    console.log("INFO FIXTURE-001: Created D-0014-MA1 local QC fixture for real UI route checks.");
+    console.log(`INFO FIXTURE-001: Created ${realRouteFixture.drawingNumber} local QC fixture for real UI route checks.`);
+  } finally {
+    database.close();
+  }
+}
+
+function cleanupRealRouteFixture() {
+  if (!fixtureInfo || fixtureInfo.drawingNumber !== realRouteFixture.drawingNumber) return;
+  const dbPath = path.resolve("data/ai-pdm.sqlite");
+  const database = new Database(dbPath);
+  try {
+    const cleanup = database.transaction(() => {
+      database.prepare("DELETE FROM submission_snapshots WHERE submission_id = ?").run(realRouteFixture.submissionId);
+      database.prepare("DELETE FROM submission_files WHERE submission_id = ?").run(realRouteFixture.submissionId);
+      database.prepare("DELETE FROM submissions WHERE id = ?").run(realRouteFixture.submissionId);
+      database.prepare("DELETE FROM file_assets WHERE linked_entity_type = 'drawing_number' AND linked_entity_id = ?").run(realRouteFixture.drawingId);
+      database.prepare("DELETE FROM part_variant_attributes WHERE part_number_id = ?").run(realRouteFixture.partId);
+      database.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id = ?").run(realRouteFixture.drawingId);
+      database.prepare("DELETE FROM drawing_numbers WHERE id = ?").run(realRouteFixture.drawingId);
+      database.prepare("DELETE FROM items WHERE id = ?").run(realRouteFixture.itemId);
+      database.prepare("DELETE FROM part_numbers WHERE id = ?").run(realRouteFixture.partId);
+      database.prepare("DELETE FROM part_roots WHERE id = ?").run(realRouteFixture.rootId);
+    });
+    cleanup();
+    fs.rmSync(path.resolve("data/repository/qc-fixtures/drawing-submission-ui"), { recursive: true, force: true });
+    fixtureInfo.cleanup = "removed";
+    fixtureInfo.detail += " QC-owned fixture rows and local files were removed after browser evidence was captured.";
+    console.log(`INFO FIXTURE-002: Removed ${realRouteFixture.drawingNumber} QC fixture after UI validation.`);
+  } catch (error) {
+    fixtureInfo.cleanup = "failed";
+    fixtureInfo.cleanupError = error instanceof Error ? error.message : String(error);
+    record("FIXTURE-CLEANUP", "QC fixture cleanup", "fail", `QC 專用 fixture 清理失敗：${fixtureInfo.cleanupError}`);
   } finally {
     database.close();
   }
@@ -564,7 +623,7 @@ async function mockSubmissionDetail(page, id, getSubmission, options = {}) {
 async function run() {
   const fixtureFile = path.join(outDir, "D-QA-RELFAIL-MA1.SLDDRW");
   fs.writeFileSync(fixtureFile, "mock drawing file for UI operation validation");
-  ensureD0014Fixture();
+  ensureRealRouteFixture();
 
   const browser = await chromium.launch({ headless: true });
   try {
@@ -578,29 +637,29 @@ async function run() {
       record("AUTH-001", "三種測試角色可用登入頁表單登入", "pass", "Engineer / R&D Manager / Admin 均完成 UI 登入");
     });
 
-    await runScenario("REAL-001", "從圖號模組點選 D-0014-MA1 送審入口", async () => {
+    await runScenario("REAL-001", "從圖號模組點選 QC 專用圖號送審入口", async () => {
       const { context, page } = await loginByUi(browser, "Admin");
       await page.goto(`${baseUrl}/numbering/drawings`, { waitUntil: "networkidle" });
-      await page.locator("input").first().fill("D-0014-MA1");
+      await page.locator("input").first().fill(realRouteFixture.drawingNumber);
       await page.getByRole("button", { name: /查詢/ }).click();
-      await page.getByRole("button", { name: "D-0014-MA1" }).click();
+      await page.getByRole("button", { name: realRouteFixture.drawingNumber }).click();
       await page.getByRole("link", { name: "送審", exact: true }).click();
-      await page.waitForURL(/\/drawings\/D-0014-MA1\/submission-workbench/);
-      await page.getByText("送審來源：D-0014-MA1").waitFor({ timeout: 15000 });
+      await page.waitForURL(new RegExp(`/drawings/${realRouteFixture.drawingNumber}/submission-workbench`));
+      await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
       await page.getByText("此版次不可送審").waitFor({ timeout: 15000 });
       expect(await page.locator("textarea").first().isDisabled(), "正式版次備註欄應鎖定");
       expect(await page.locator('input[type="checkbox"]').first().isDisabled(), "正式版次附件勾選應鎖定");
-      await assertVisibleErrorClean(page, "D-0014 圖號入口");
-      await assertNoHorizontalOverflow(page, "D-0014 圖號入口");
-      const filePath = await screenshot(page, "REAL-001-d0014-drawing-entry");
+      await assertVisibleErrorClean(page, `${realRouteFixture.drawingNumber} 圖號入口`);
+      await assertNoHorizontalOverflow(page, `${realRouteFixture.drawingNumber} 圖號入口`);
+      const filePath = await screenshot(page, "REAL-001-qc-submit-drawing-entry");
       await context.close();
-      record("REAL-001", "從圖號模組點選 D-0014-MA1 送審入口", "pass", "導到同一圖號工作台且正式版次被鎖定", { screenshot: filePath });
+      record("REAL-001", "從圖號模組點選 QC 專用圖號送審入口", "pass", "導到同一圖號工作台且正式版次被鎖定", { screenshot: filePath });
     });
 
     await runScenario("REAL-002", "Legacy drawing upload route 不回到泛用上傳表單", async () => {
       const { context, page } = await loginByUi(browser, "Admin");
-      await page.goto(`${baseUrl}/upload?source=drawing&drawingNumber=D-0014-MA1`, { waitUntil: "networkidle" });
-      await page.getByText("送審來源：D-0014-MA1").waitFor({ timeout: 15000 });
+      await page.goto(`${baseUrl}/upload?source=drawing&drawingNumber=${realRouteFixture.drawingNumber}`, { waitUntil: "networkidle" });
+      await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
       const text = await visibleText(page);
       expect(!text.includes("Windows 檔案送審"), "Legacy drawing route 不應顯示泛用 Windows 上傳送審");
       expect(text.includes("此版次不可送審"), "同版次正式紀錄應顯示不可送審");
@@ -621,18 +680,18 @@ async function run() {
       record("REAL-003", "泛用 /upload 已退役且導向受控來源", "pass", "未出現空白送審表單", { screenshot: filePath });
     });
 
-    await runScenario("REAL-004", "既有送審明細導向同一 D-0014 正式紀錄", async () => {
+    await runScenario("REAL-004", "既有送審明細導向同一 QC 專用正式紀錄", async () => {
       const { context, page } = await loginByUi(browser, "Admin");
-      await page.goto(`${baseUrl}/drawings/D-0014-MA1/submission-workbench`, { waitUntil: "networkidle" });
-      await page.getByText("送審來源：D-0014-MA1").waitFor({ timeout: 15000 });
+      await page.goto(`${baseUrl}/drawings/${realRouteFixture.drawingNumber}/submission-workbench`, { waitUntil: "networkidle" });
+      await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
       await page.getByRole("link", { name: /查看正式紀錄|查看紀錄/ }).first().click();
       await page.waitForURL(/\/submissions\//);
-      await page.getByText("D-0014-MA1").first().waitFor({ timeout: 15000 });
+      await page.getByText(realRouteFixture.drawingNumber).first().waitFor({ timeout: 15000 });
       await page.getByText("已發布").first().waitFor({ timeout: 15000 });
-      await assertVisibleErrorClean(page, "D-0014 正式紀錄明細");
-      const filePath = await screenshot(page, "REAL-004-d0014-submission-detail");
+      await assertVisibleErrorClean(page, `${realRouteFixture.drawingNumber} 正式紀錄明細`);
+      const filePath = await screenshot(page, "REAL-004-qc-submit-submission-detail");
       await context.close();
-      record("REAL-004", "既有送審明細導向同一 D-0014 正式紀錄", "pass", "未導到無關圖號", { screenshot: filePath });
+      record("REAL-004", "既有送審明細導向同一 QC 專用正式紀錄", "pass", "未導到無關圖號", { screenshot: filePath });
     });
 
     await runScenario("MOCK-READY-001", "可送審狀態：備註與附件條件控制送出審核", async () => {
@@ -997,11 +1056,11 @@ async function run() {
         { width: 390, height: 844 }
       ]) {
         const { context, page } = await loginByUi(browser, "Admin", viewport);
-        await page.goto(`${baseUrl}/upload?source=drawing&drawingNumber=D-0014-MA1`, { waitUntil: "networkidle" });
-        await page.getByText("送審來源：D-0014-MA1").waitFor({ timeout: 15000 });
-        await assertNoHorizontalOverflow(page, `D-0014 viewport ${viewport.width}`);
-        await assertVisibleErrorClean(page, `D-0014 viewport ${viewport.width}`);
-        await screenshot(page, `RWD-001-d0014-${viewport.width}`);
+        await page.goto(`${baseUrl}/upload?source=drawing&drawingNumber=${realRouteFixture.drawingNumber}`, { waitUntil: "networkidle" });
+        await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
+        await assertNoHorizontalOverflow(page, `${realRouteFixture.drawingNumber} viewport ${viewport.width}`);
+        await assertVisibleErrorClean(page, `${realRouteFixture.drawingNumber} viewport ${viewport.width}`);
+        await screenshot(page, `RWD-001-qc-submit-${viewport.width}`);
         await context.close();
       }
       record("RWD-001", "核心工作台 viewport 無水平 overflow", "pass", "1440/1024/768/390 皆完成 UI 檢查");
@@ -1009,6 +1068,7 @@ async function run() {
   } finally {
     await browser.close();
   }
+  cleanupRealRouteFixture();
 
   const summary = {
     generatedAt: now,

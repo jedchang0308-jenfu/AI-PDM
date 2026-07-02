@@ -1,10 +1,11 @@
 {
-  "generatedAt": "2026-07-02T14:31:51.046Z",
+  "generatedAt": "2026-07-02T14:49:05.346Z",
   "baseUrl": "http://127.0.0.1:3000",
   "fixture": {
-    "drawingNumber": "D-0014-MA1",
+    "drawingNumber": "D-QC-SUBMIT-MA1",
     "action": "created",
-    "detail": "Created minimal local D-0014-MA1 fixture for real UI route checks; setup is not counted as UI evidence."
+    "detail": "Created minimal local D-QC-SUBMIT-MA1 fixture for real UI route checks; setup is not counted as UI evidence. QC-owned fixture rows and local files were removed after browser evidence was captured.",
+    "cleanup": "removed"
   },
   "total": 14,
   "pass": 14,
@@ -19,11 +20,11 @@
     },
     {
       "id": "REAL-001",
-      "title": "從圖號模組點選 D-0014-MA1 送審入口",
+      "title": "從圖號模組點選 QC 專用圖號送審入口",
       "status": "pass",
       "detail": "導到同一圖號工作台且正式版次被鎖定",
       "evidence": {
-        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-001-d0014-drawing-entry.png"
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-001-qc-submit-drawing-entry.png"
       }
     },
     {
@@ -46,11 +47,11 @@
     },
     {
       "id": "REAL-004",
-      "title": "既有送審明細導向同一 D-0014 正式紀錄",
+      "title": "既有送審明細導向同一 QC 專用正式紀錄",
       "status": "pass",
       "detail": "未導到無關圖號",
       "evidence": {
-        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-004-d0014-submission-detail.png"
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-004-qc-submit-submission-detail.png"
       }
     },
     {

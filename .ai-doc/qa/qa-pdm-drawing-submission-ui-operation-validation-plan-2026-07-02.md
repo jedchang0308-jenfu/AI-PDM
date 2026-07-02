@@ -8,7 +8,7 @@ Status: UI-only operation validation plan ready; QC script implemented and passi
 
 This plan verifies that the drawing submission workflow can be operated from the UI without asking users to understand database records, API payloads, internal status codes, or manual backend cleanup.
 
-The business risk addressed by this plan is the gap found during D-0014-MA1 recovery: the final release was achievable locally, but part of the recovery depended on non-user-facing operations. For a production user, that means the workflow can become blocked even when the system technically has a recovery path.
+The business risk addressed by this plan was first found during the historical D-0014-MA1 recovery: the final release was achievable locally, but part of the recovery depended on non-user-facing operations. D-0014-MA1 is a historical incident reference only; it must not be required as current test data. For a production user, that means the workflow can become blocked even when the system technically has a recovery path.
 
 ## 2. UI-Only Rule
 
@@ -35,10 +35,10 @@ Important boundary: route-mocked browser states are allowed only as UI contract 
 
 In scope:
 
-- Drawing module `送審` entry for D-0014-MA1.
+- Drawing module `送審` entry for a QC-owned disposable route fixture, currently `D-QC-SUBMIT-MA1`.
 - Legacy drawing upload URL compatibility.
 - Generic `/upload` retirement behavior.
-- Existing submission detail navigation for D-0014-MA1.
+- Existing submission detail navigation for the QC-owned disposable route fixture.
 - Ready-to-submit workbench behavior.
 - Missing note, missing attachment and missing master-data blockers.
 - Same drawing + same revision states: Pending, Releasing, Released, historical/non-blocking.
@@ -60,7 +60,7 @@ Out of scope:
 
 | Failure mode | Likely cause | User impact | Detection method | Priority | QA countermeasure |
 |---|---|---|---|---|---|
-| User clicks `送審` from drawing module and lands on unrelated drawing | Route parameter loses drawing identity or detail link chooses wrong record | User may review or change wrong drawing package | Real browser navigation from drawing list to D-0014-MA1 workbench/detail | P0 | `REAL-001`, `REAL-004` |
+| User clicks `送審` from drawing module and lands on unrelated drawing | Route parameter loses drawing identity or detail link chooses wrong record | User may review or change wrong drawing package | Real browser navigation from drawing list to the QC-owned fixture workbench/detail | P0 | `REAL-001`, `REAL-004` |
 | Drawing-source submission opens a blank generic upload form | Legacy `/upload` remains primary behavior | User must refill data already owned by drawing/part modules | Open legacy drawing URL and retired generic upload route | P0 | `REAL-002`, `REAL-003` |
 | Workflow says conditions passed but submit button stays blocked without reason | UI validation rules disagree with readiness message | User cannot know what to fix | Ready-state UI operation with note and attachment conditions | P0 | `MOCK-READY-001`, `MOCK-READY-002` |
 | Same-revision conflict is shown as master-data missing | Blocker categories are collapsed | User looks in the wrong place and cannot recover | Mixed blocker UI simulation and wording sweep | P0 | `MOCK-BLOCKER-001`, forbidden-text sweep |
@@ -75,10 +75,10 @@ Out of scope:
 | ID | Evidence type | Scenario | Pass criteria |
 |---|---|---|---|
 | `AUTH-001` | Real UI | Engineer, R&D Manager and Admin can log in through `/login` | All three roles reach authenticated app UI |
-| `REAL-001` | Real UI | From drawing module, open D-0014-MA1 submission entry | Workbench route keeps D-0014-MA1 and locks formal released revision |
+| `REAL-001` | Real UI | From drawing module, open the QC-owned fixture submission entry | Workbench route keeps the same fixture drawing number and locks formal released revision |
 | `REAL-002` | Real UI | Open legacy drawing upload URL | Page shows drawing submission workbench, not generic blank upload form |
 | `REAL-003` | Real UI | Open generic `/upload` | Page does not present uncontrolled blank formal submission form |
-| `REAL-004` | Real UI | Open existing D-0014-MA1 submission detail from workbench/history | Detail remains D-0014-MA1 and does not route to unrelated drawing |
+| `REAL-004` | Real UI | Open existing fixture submission detail from workbench/history | Detail remains the same fixture drawing number and does not route to unrelated drawing |
 | `MOCK-READY-001` | UI contract simulation | Ready state with note and selectable attachment | Submit button becomes actionable and success message is human-readable |
 | `MOCK-READY-002` | UI contract simulation | No attachment selected | Submit is blocked with Chinese explanation |
 | `MOCK-BLOCKER-001` | UI contract simulation | Missing master data plus same-revision conflict | Blockers are separated and explained in Chinese |
@@ -91,12 +91,12 @@ Out of scope:
 
 ## 6. Data And Fixture Needs
 
-- Real local app state: D-0014-MA1 must exist and represent the current formal/released drawing state.
+- Real local app state: the QC-owned disposable fixture must exist and represent a formal/released drawing state. The current fixture key is `D-QC-SUBMIT-MA1`; D-0014-MA1 must not be used as a required fixture because old user/business data should remain clearable.
 - Route-mocked UI states: used only for safe simulation of lifecycle states that should not be created by direct database mutation in this validation plan.
 - Temporary upload fixture: `output/playwright/ui-operation-scenarios/D-QA-RELFAIL-MA1.SLDDRW`.
 - Evidence folder: `output/playwright/ui-operation-scenarios/`.
-- If a clean local database has no `D-0014-MA1`, the QC runner may create a minimal local `D-0014-MA1` fixture before browser validation. This setup only establishes prerequisite data; it is not counted as UI operation proof. The pass/fail evidence still comes from login, navigation, visible UI state, button state, screenshots and viewport checks.
-- If `D-0014-MA1` already exists, the QC runner must not overwrite it. Existing data is used as-is so fixture setup cannot hide a real route identity or lifecycle defect.
+- If a clean local database has no QC-owned fixture, the QC runner may create a minimal local `D-QC-SUBMIT-MA1` fixture before browser validation. This setup only establishes prerequisite data; it is not counted as UI operation proof. The pass/fail evidence still comes from login, navigation, visible UI state, button state, screenshots and viewport checks.
+- Whether the QC-owned fixture was created in the current run or found from a previous interrupted run, the runner must remove the fixture rows and local files after browser evidence is captured. Existing fixture data may be used as-is during the run, but it must not remain as standing business data.
 
 ## 7. Pass / Fail Standard
 
@@ -104,7 +104,7 @@ Pass:
 
 - All test matrix items pass through `npm run qc:pdm-drawing-submission-ui-operation`.
 - Visible UI text never exposes `duplicate_active_submission`, `ReleaseFailed`, `UNIQUE constraint failed`, raw API paths, stack traces or other internal-only wording.
-- D-0014-MA1 never routes to D-0009-MA1 or any unrelated drawing in real route checks.
+- The QC-owned fixture never routes to D-0009-MA1, D-0014-MA1, or any unrelated drawing in real route checks.
 - Formal/released drawing state is locked from duplicate active submission.
 - Release-incomplete recovery is operable from the UI contract without destructive file overwrite.
 - Workbench has no horizontal overflow at the tested widths.
@@ -130,7 +130,8 @@ Expected local result from the current QC pass:
 
 - `npm run dev:local:check`: local project-owned Next server on port 3000 is healthy.
 - `npm run qc:pdm-drawing-submission-ui-operation`: 14/14 passed.
-- On a clean database, the report records whether the local `D-0014-MA1` fixture was created or an existing fixture was used. Fixture setup is a prerequisite record only, not evidence for the UI-only rule.
+- On a clean database, the report records whether the local QC-owned fixture was created or an existing fixture was used. Fixture setup is a prerequisite record only, not evidence for the UI-only rule.
+- The report records cleanup status for the QC-owned fixture; cleanup failure is a QC failure because it pollutes the clean-data lifecycle validation environment.
 
 Current evidence:
 
@@ -141,5 +142,5 @@ Current evidence:
 ## 9. Residual Risk
 
 - Route-mocked scenarios validate UI contract behavior and visible language, not backend persistence or production integration.
-- Real D-0014-MA1 checks validate route identity, formal-state locking and current local detail navigation, but do not prove production data repair.
+- QC-owned fixture checks validate route identity, formal-state locking and current local detail navigation, but do not prove production data repair.
 - Production release, migration, historical repair, Google Drive production movement and direct cleanup remain outside this QA plan and require separate approval.
