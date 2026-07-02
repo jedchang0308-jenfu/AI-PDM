@@ -10,7 +10,9 @@ import {
 } from "./generate-file-storage-schema-user-cost-confirmation-evidence.mjs";
 import { buildStorageSchemaTargetCostConfirmationPackage } from "./generate-file-storage-schema-target-cost-confirmation-package.mjs";
 import { buildStorageSchemaFormalReviewPackage } from "./generate-file-storage-schema-formal-review-package.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -45,20 +47,19 @@ function costPackage() {
   });
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-user-cost-confirmation-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-user-cost-confirmation-qc-"));
   const costPackagePath = path.join(tempRoot, "storage-schema-target-cost-confirmation-package.json");
   const readyCostPackage = costPackage();
   await writeJson(costPackagePath, readyCostPackage);
   const expectedText = readyCostPackage.handoff.confirmationText;
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-user-cost-confirmation-evidence.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-user-cost-confirmation-evidence.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const missingReport = await buildStorageSchemaUserCostConfirmationEvidence({});
   record("STORAGE-SCHEMA-USER-COST-001 evidence version is stable", missingReport.evidenceVersion === STORAGE_SCHEMA_USER_COST_CONFIRMATION_EVIDENCE_VERSION);
@@ -125,8 +126,12 @@ try {
       packageJson.includes('"qc:file-storage-schema-user-cost-confirmation-evidence"')
   );
   record(
-    "STORAGE-SCHEMA-USER-COST-015 PM evidence references Phase 5C",
-    planSource.includes("Phase 5C") && devTaskSource.includes("Phase 5C")
+    "STORAGE-SCHEMA-USER-COST-015 PM evidence references user cost confirmation lane",
+    planSource.includes("Phase 5C") &&
+      planSource.includes("storage:schema-user-cost-confirmation-evidence") &&
+      planSource.includes("qc:file-storage-schema-user-cost-confirmation-evidence") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-USER-COST-016 generator does not call Supabase resource APIs",
@@ -142,9 +147,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

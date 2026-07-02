@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 import {
   getBackupDir,
   getDataDir,
@@ -19,14 +19,13 @@ import {
 
 const root = process.cwd();
 const results = [];
+const allowedTrackedDataFiles = new Set(["data/quality/defect-register.json"]);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function runGit(args) {
   return spawnSync("git", args, {
@@ -57,11 +56,22 @@ for (const variable of [
   record(`DATA-BOUNDARY env documented: ${variable}`, new RegExp(`^${variable}=`, "m").test(envExample), ".env.example");
 }
 
-const ignored = runGit(["check-ignore", "-v", "--", "data/"]);
-record("DATA-BOUNDARY data root ignored", ignored.status === 0, (ignored.stdout || ignored.stderr).trim());
+const runtimeIgnored = runGit(["check-ignore", "-v", "--", "data/repository/", "data/quality/generated.json"]);
+record("DATA-BOUNDARY runtime data paths ignored", runtimeIgnored.status === 0, (runtimeIgnored.stdout || runtimeIgnored.stderr).trim());
 
 const trackedData = runGit(["ls-files", "--", "data/"]);
-record("DATA-BOUNDARY data root not tracked", trackedData.status === 0 && trackedData.stdout.trim() === "", trackedData.stdout.trim());
+const trackedDataFiles = trackedData.stdout.trim().split(/\r?\n/u).filter(Boolean);
+const unexpectedTrackedDataFiles = trackedDataFiles.filter((file) => !allowedTrackedDataFiles.has(file));
+record(
+  "DATA-BOUNDARY tracked data limited to quality baseline",
+  trackedData.status === 0 && unexpectedTrackedDataFiles.length === 0,
+  unexpectedTrackedDataFiles.join("\n") || trackedDataFiles.join("\n")
+);
+record(
+  "DATA-BOUNDARY quality baseline remains tracked",
+  trackedDataFiles.includes("data/quality/defect-register.json"),
+  trackedDataFiles.join("\n")
+);
 
 const defaultPaths = {
   dataDir: getDataDir(root),

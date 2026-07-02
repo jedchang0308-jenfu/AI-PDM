@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
+import { closeSync, existsSync, openSync, readSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
@@ -23,18 +23,18 @@ function makeDrillId(date) {
   ].join("");
 }
 
-function sha256File(filePath) {
+function sha256FileSync(filePath) {
   const hash = crypto.createHash("sha256");
-  const file = fs.openSync(filePath, "r");
+  const file = openSync(filePath, "r");
   const buffer = Buffer.alloc(1024 * 1024);
 
   try {
     let bytesRead = 0;
-    while ((bytesRead = fs.readSync(file, buffer, 0, buffer.length, null)) > 0) {
+    while ((bytesRead = readSync(file, buffer, 0, buffer.length, null)) > 0) {
       hash.update(buffer.subarray(0, bytesRead));
     }
   } finally {
-    fs.closeSync(file);
+    closeSync(file);
   }
 
   return hash.digest("hex");
@@ -76,12 +76,12 @@ function verifyRestoredDatabase(dbPath) {
 
     for (const row of fileRows) {
       const filePath = String(row.local_path);
-      if (!fs.existsSync(filePath)) {
+      if (!existsSync(filePath)) {
         missingFiles.push(filePath);
         continue;
       }
 
-      const actualSha256 = sha256File(filePath);
+      const actualSha256 = sha256FileSync(filePath);
       if (actualSha256 !== row.sha256) {
         hashMismatches.push(filePath);
       }

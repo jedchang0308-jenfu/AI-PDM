@@ -1,13 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const checks = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
 
 function assert(condition, message) {
   checks.push({ message, passed: Boolean(condition) });
@@ -16,25 +11,25 @@ function assert(condition, message) {
   }
 }
 
-const sqliteSchema = read("db/schema.sql");
-const postgresSchema = read("db/postgres/001_initial_schema.sql");
-const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
-const repository = read("src/lib/repositories/numbering-repository.ts");
-const dbExports = read("src/lib/db.ts");
-const sidebar = read("src/components/sidebar-nav.tsx");
-const navPermissions = read("src/lib/numbering-permission-codes.ts");
-const partsPage = read("src/app/parts/page.tsx");
-const drawingsPage = read("src/app/numbering/drawings/page.tsx");
-const drawingsRoute = read("src/app/api/numbering/drawings/route.ts");
-const itemRevisionsRoute = read("src/app/api/items/[partNumber]/revisions/route.ts");
-const itemInsightsAsync = read("src/lib/repositories/item-insight-async-repository.ts");
-const partCostVisibility = read("src/lib/part-cost-visibility.ts");
-const partsRoute = read("src/app/api/parts/route.ts");
-const partDetailRoute = read("src/app/api/parts/[partNumber]/route.ts");
-const partCostProfileRoute = read("src/app/api/parts/[partNumber]/cost-profiles/route.ts");
-const partCostResolutionRoute = read("src/app/api/parts/[partNumber]/cost-resolution/route.ts");
-const partCostDecisionRoute = read("src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts");
-const packageJson = JSON.parse(read("package.json"));
+const sqliteSchema = readProjectFile(root, "db/schema.sql");
+const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql");
+const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
+const repository = readProjectFile(root, "src/lib/repositories/numbering-repository.ts");
+const dbExports = readProjectFile(root, "src/lib/db.ts");
+const sidebar = readProjectFile(root, "src/components/sidebar-nav.tsx");
+const navPermissions = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
+const partsPage = readProjectFile(root, "src/app/parts/page.tsx");
+const drawingsPage = readProjectFile(root, "src/app/numbering/drawings/page.tsx");
+const drawingsRoute = readProjectFile(root, "src/app/api/numbering/drawings/route.ts");
+const itemRevisionsRoute = readProjectFile(root, "src/app/api/items/[partNumber]/revisions/route.ts");
+const itemInsightsAsync = readProjectFile(root, "src/lib/repositories/item-insight-async-repository.ts");
+const partCostVisibility = readProjectFile(root, "src/lib/part-cost-visibility.ts");
+const partsRoute = readProjectFile(root, "src/app/api/parts/route.ts");
+const partDetailRoute = readProjectFile(root, "src/app/api/parts/[partNumber]/route.ts");
+const partCostProfileRoute = readProjectFile(root, "src/app/api/parts/[partNumber]/cost-profiles/route.ts");
+const partCostResolutionRoute = readProjectFile(root, "src/app/api/parts/[partNumber]/cost-resolution/route.ts");
+const partCostDecisionRoute = readProjectFile(root, "src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts");
+const packageJson = readProjectJson(root, "package.json");
 
 const expectedTables = [
   "part_variant_attributes",
@@ -89,7 +84,7 @@ const routeFiles = [
   "src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts"
 ];
 for (const routeFile of routeFiles) {
-  assert(fs.existsSync(path.join(root, routeFile)), `API route exists: ${routeFile}`);
+  assert(projectFileExists(root, routeFile), `API route exists: ${routeFile}`);
 }
 
 assert(partsPage.includes("料號模組"), "parts page renders part module workbench");
@@ -126,7 +121,7 @@ assert(drawingsPage.includes("standardCostLabel") && drawingsPage.includes("prim
 assert(itemRevisionsRoute.includes("export async function GET") && !itemRevisionsRoute.includes("export async function POST") && !itemRevisionsRoute.includes("export async function PATCH"), "item revision route is read-only");
 assert(!itemRevisionsRoute.includes("createPartCostProfile") && !itemRevisionsRoute.includes("decidePartCostChangeRequest"), "item revision route does not trigger cost review flows");
 assert(!itemInsightsAsync.includes("part_cost_change_requests") && !itemInsightsAsync.includes("part_standard_costs"), "item revision history query does not mutate or read cost workflow tables");
-assert(fs.existsSync(path.join(root, "scripts/qc-part-cost-review-e2e.mjs")), "part cost review E2E QC script exists");
+assert(projectFileExists(root, "scripts/qc-part-cost-review-e2e.mjs"), "part cost review E2E QC script exists");
 assert(packageJson.scripts["qc:part-cost-review-e2e"] === "node scripts/qc-part-cost-review-e2e.mjs", "package script qc:part-cost-review-e2e is registered");
 assert(packageJson.scripts["qc:part-number-module"] === "node scripts/qc-part-number-module.mjs", "package script qc:part-number-module is registered");
 

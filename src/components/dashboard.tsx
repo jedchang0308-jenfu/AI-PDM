@@ -64,11 +64,12 @@ import type {
 
 const statusLabels: Record<SubmissionStatus | "All", string> = {
   Pending: "待審核",
-  Releasing: "發布中",
+  Releasing: "發行中",
   Released: "已發布",
   Obsolete: "已作廢",
   Rejected: "已駁回",
-  ReleaseFailed: "發布失敗",
+  ReleaseFailed: "發行未完成",
+  Cancelled: "已取消",
   All: "全部"
 };
 
@@ -176,7 +177,7 @@ const statusFilters: StatusFilterConfig[] = [
   { label: "待審核", status: "Pending" },
   { label: "已發布", status: "Released" },
   { label: "已駁回", status: "Rejected" },
-  { label: "發布失敗", status: "ReleaseFailed" }
+  { label: "發行未完成", status: "ReleaseFailed" }
 ];
 
 const emptyFinderFilters: FinderFilters = {
@@ -1579,6 +1580,15 @@ export function Dashboard() {
   }, [currentUser]);
 
   useEffect(() => {
+    if (!currentUser) return;
+    const params = new URLSearchParams(window.location.search);
+    const submissionId = (params.get("submissionId") ?? params.get("submission_id") ?? "").trim();
+    if (!submissionId) return;
+
+    window.location.replace(`/submissions/${encodeURIComponent(submissionId)}`);
+  }, [currentUser]);
+
+  useEffect(() => {
     if (currentUser) {
       loadSubmissions(status, debouncedSearchQuery, finderFilters).catch(console.error);
     }
@@ -1731,7 +1741,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "操作失敗");
+      alert(body.message ?? body.error ?? "操作失敗");
     }
     await loadSubmissions(status, debouncedSearchQuery, finderFilters);
     await loadControlledHistory();
@@ -2262,9 +2272,11 @@ export function Dashboard() {
     { label: "Draft", value: numberingDrafts.length, tone: numberingDrafts.length > 0 ? "warning" : "neutral" },
     { label: "Pending", value: visibleSubmissions.filter((submission) => submission.status === "Pending").length, tone: "warning" },
     {
-      label: "ReleaseFailed",
-      value: visibleSubmissions.filter((submission) => submission.status === "ReleaseFailed").length,
-      tone: visibleSubmissions.some((submission) => submission.status === "ReleaseFailed") ? "critical" : "neutral"
+      label: "發行未完成",
+      value: visibleSubmissions.filter((submission) => submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id).length,
+      tone: visibleSubmissions.some((submission) => submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id)
+        ? "critical"
+        : "neutral"
     },
     { label: "Released", value: visibleSubmissions.filter((submission) => submission.status === "Released").length, tone: "success" }
   ];

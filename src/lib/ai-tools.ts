@@ -40,11 +40,12 @@ export type AiToolResult = {
 
 const statusLabels = {
   Pending: "待審核",
-  Releasing: "發布中",
+  Releasing: "發行中",
   Released: "已發布",
   Obsolete: "已廢止",
   Rejected: "已駁回",
-  ReleaseFailed: "發布失敗"
+  ReleaseFailed: "發行未完成",
+  Cancelled: "已取消"
 } as const;
 
 export function executeAiTool(input: {
@@ -86,12 +87,12 @@ export function executeAiTool(input: {
   if (input.toolName === "get_dashboard_metrics") {
     const metrics = getDashboardMetrics(submittedBy);
     return {
-      text: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發布失敗 ${metrics.failed}`,
+      text: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`,
       sources: [
         {
           type: "metric",
           label: "工作台統計",
-          detail: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發布失敗 ${metrics.failed}`
+          detail: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`
         }
       ]
     };

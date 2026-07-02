@@ -4,9 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const repoRoot = process.cwd();
 const tempDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-numbering-company-scope-"));
+const read = (relativePath) => readProjectFile(repoRoot, relativePath);
 
 try {
   const init = spawnSync("npm.cmd run db:init", {
@@ -124,10 +126,6 @@ try {
   );
 } finally {
   fs.rmSync(tempDataDir, { recursive: true, force: true });
-}
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
 function hasUniqueColumns(db, tableName, expectedColumns) {

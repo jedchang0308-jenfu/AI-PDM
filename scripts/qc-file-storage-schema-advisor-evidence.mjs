@@ -9,7 +9,9 @@ import {
   writeStorageSchemaAdvisorEvidence
 } from "./generate-file-storage-schema-advisor-evidence.mjs";
 import { buildStorageSchemaPromotionGate } from "./generate-file-storage-schema-promotion-gate.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -69,8 +71,10 @@ function validVerifyReport() {
   };
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-advisor-evidence-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-advisor-evidence-qc-"));
   const cleanSecurityPath = path.join(tempRoot, "security-clean.json");
   const cleanPerformancePath = path.join(tempRoot, "performance-clean.json");
   const securityFindingPath = path.join(tempRoot, "security-finding.json");
@@ -111,13 +115,10 @@ try {
   await writeJson(applyPath, validApplyReport());
   await writeJson(verifyPath, validVerifyReport());
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-advisor-evidence.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-advisor-evidence.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const missingReport = await buildStorageSchemaAdvisorEvidence({});
   record("STORAGE-SCHEMA-ADVISOR-EVIDENCE-001 evidence version is stable", missingReport.evidenceVersion === STORAGE_SCHEMA_ADVISOR_EVIDENCE_VERSION);
@@ -185,8 +186,12 @@ try {
     packageJson.includes('"storage:schema-advisor-evidence"') && packageJson.includes('"qc:file-storage-schema-advisor-evidence"')
   );
   record(
-    "STORAGE-SCHEMA-ADVISOR-EVIDENCE-016 PM evidence references Phase 4V",
-    planSource.includes("Phase 4V") && devTaskSource.includes("Phase 4V")
+    "STORAGE-SCHEMA-ADVISOR-EVIDENCE-016 PM evidence references advisor evidence lane",
+    planSource.includes("Phase 4V") &&
+      planSource.includes("storage:schema-advisor-evidence") &&
+      planSource.includes("qc:file-storage-schema-advisor-evidence") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-ADVISOR-EVIDENCE-017 generator does not write official migration directories",
@@ -197,9 +202,10 @@ try {
   record("STORAGE-SCHEMA-ADVISOR-EVIDENCE-018 clean outputs do not expose credential markers", !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(outputBody));
   record("STORAGE-SCHEMA-ADVISOR-EVIDENCE-019 target safety accepts disposable staging names", cleanReport.target.safe === true);
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

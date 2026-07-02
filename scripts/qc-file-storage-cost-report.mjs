@@ -4,19 +4,16 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import { buildStorageCostReport } from "./generate-file-storage-cost-report.mjs";
+import { sha256Bytes } from "./qc-file-hash-utils.mjs";
 
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
 function writeFixtureDb(dbPath, files) {
@@ -135,7 +132,7 @@ function writeFixtureDb(dbPath, files) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-qc-"));
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   await fsp.mkdir(dataDir, { recursive: true });
@@ -152,8 +149,8 @@ async function main() {
   const sameBytes = Buffer.alloc(10, "a");
   const mismatchBytes = Buffer.alloc(5, "m");
   const releaseBytes = Buffer.alloc(30, "z");
-  files.sameHash = sha256(sameBytes);
-  files.releaseHash = sha256(releaseBytes);
+  files.sameHash = sha256Bytes(sameBytes);
+  files.releaseHash = sha256Bytes(releaseBytes);
 
   await fsp.mkdir(path.dirname(files.sameA), { recursive: true });
   await fsp.mkdir(path.dirname(files.releaseZip), { recursive: true });
@@ -204,12 +201,14 @@ async function main() {
   const serialized = JSON.stringify(report);
   record("STORAGE-COST-018 report does not expose common cloud secret markers", !/(secret|service_role|X-Amz|BEGIN PRIVATE KEY)/i.test(serialized));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
-
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

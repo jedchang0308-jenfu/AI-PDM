@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { getPostgresShadowHandoffsDir, resolveUserPath } from "./pdm-paths.mjs";
 
@@ -50,8 +51,8 @@ function handoffRel(filePath) {
   return toPortableSlash(path.relative(outputDir, filePath));
 }
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+async function sha256File(filePath) {
+  return crypto.createHash("sha256").update(await fsp.readFile(filePath)).digest("hex");
 }
 
 function assertFile(filePath, message) {
@@ -306,17 +307,17 @@ const handoff = {
     sqliteSchema: {
       source: rel(sqliteSchemaPath),
       copy: handoffRel(copiedSqlite),
-      sha256: sha256File(sqliteSchemaPath)
+      sha256: await sha256File(sqliteSchemaPath)
     },
     postgresSchema: {
       source: rel(initialSchemaPath),
       copy: handoffRel(copiedInitial),
-      sha256: sha256File(initialSchemaPath)
+      sha256: await sha256File(initialSchemaPath)
     },
     postgresRlsPlan: {
       source: rel(rlsPlanPath),
       copy: handoffRel(copiedRls),
-      sha256: sha256File(rlsPlanPath)
+      sha256: await sha256File(rlsPlanPath)
     }
   },
   commands: commandPaths,

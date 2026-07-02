@@ -31,7 +31,7 @@ PowerShell 可能會攔截 `npm.ps1`，本專案建議使用 `npm.cmd`。
 npm.cmd install
 npm.cmd run db:init
 npm.cmd run db:seed
-npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
+npm.cmd run dev:local
 ```
 
 開啟：
@@ -39,6 +39,14 @@ npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
 ```text
 http://127.0.0.1:3000
 ```
+
+`dev:local` 是受控本機啟動入口，會檢查 `http://127.0.0.1:3000/login` 是否真的回應成功，不只檢查 port 是否 listen。若 3000 已被本專案舊 process 佔用但健康檢查失敗，使用：
+
+```powershell
+npm.cmd run dev:local:restart
+```
+
+此指令會停止本專案 stale process、清理 `.next`、重新啟動 3000，並把 log 寫到 `tmp/local-dev/`。若 3000 被非本專案 process 佔用，請先確認該 process 可停止，不要直接清 port。
 
 ## 帳號模式
 

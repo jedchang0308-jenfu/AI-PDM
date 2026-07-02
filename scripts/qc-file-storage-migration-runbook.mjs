@@ -3,22 +3,21 @@
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import {
   buildStorageMigrationRunbook,
   writeStorageMigrationRunbook
 } from "./generate-file-storage-migration-runbook.mjs";
+import { sha256Bytes } from "./qc-file-hash-utils.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
 function writeFixtureDb(dbPath, files) {
@@ -122,7 +121,7 @@ function writeFixtureDb(dbPath, files) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-runbook-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-runbook-qc-"));
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   const releaseDir = path.join(dataDir, "release-packages", "2026", "06");
@@ -138,8 +137,8 @@ async function main() {
     missingPath: path.join(repositoryDir, "pending", "missing.pdf"),
     mismatchPath: path.join(repositoryDir, "pending", "mismatch.pdf"),
     releasePath: path.join(releaseDir, "release.zip"),
-    okHash: sha256(okBytes),
-    releaseHash: sha256(releaseBytes)
+    okHash: sha256Bytes(okBytes),
+    releaseHash: sha256Bytes(releaseBytes)
   };
   await fsp.writeFile(files.okPath, okBytes);
   await fsp.writeFile(files.mismatchPath, mismatchBytes);
@@ -201,10 +200,9 @@ async function main() {
   const serialized = JSON.stringify(report);
   record("STORAGE-MIGRATION-RUNBOOK-023 report does not expose common cloud secret markers", !/(secret|service_role|X-Amz|BEGIN PRIVATE KEY)/i.test(serialized));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
   record("STORAGE-MIGRATION-RUNBOOK-024 package scripts are registered", packageJson.includes('"storage:migration-runbook"') && packageJson.includes('"qc:file-storage-migration-runbook"'));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
@@ -217,7 +215,11 @@ async function exists(filePath) {
   }
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

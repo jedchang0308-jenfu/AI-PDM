@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { getReportRoot } from "./pdm-paths.mjs";
 
@@ -166,13 +166,13 @@ export function validateReport(report) {
 
 export function findLatestReport(root) {
   const reportRoot = getReportRoot(root, "sw-addin-test-reports");
-  if (!fs.existsSync(reportRoot)) return null;
+  if (!existsSync(reportRoot)) return null;
 
   const reports = [];
-  for (const entry of fs.readdirSync(reportRoot, { withFileTypes: true })) {
+  for (const entry of readdirSync(reportRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const reportPath = path.join(reportRoot, entry.name, "report.json");
-    if (fs.existsSync(reportPath)) {
+    if (existsSync(reportPath)) {
       reports.push(reportPath);
     }
   }
@@ -181,5 +181,5 @@ export function findLatestReport(root) {
 }
 
 export function readReport(reportPath) {
-  return JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  return JSON.parse(readFileSync(reportPath, "utf8"));
 }

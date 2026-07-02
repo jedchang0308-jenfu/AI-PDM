@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import crypto from "node:crypto";
@@ -50,7 +50,7 @@ function readRows(db, tableName, sql) {
 }
 
 function readDatabaseRows(dbPath) {
-  if (!fs.existsSync(dbPath)) {
+  if (!existsSync(dbPath)) {
     return {
       exists: false,
       submissionFiles: [],
@@ -134,7 +134,7 @@ function readDatabaseRows(dbPath) {
 
 async function scanDirectory(rootDir, root, limit) {
   const summary = {
-    exists: fs.existsSync(rootDir),
+    exists: existsSync(rootDir),
     root: safeRelative(root, rootDir),
     files: 0,
     bytes: 0,
@@ -148,7 +148,7 @@ async function scanDirectory(rootDir, root, limit) {
   const top = [];
   const filesForAudit = [];
   async function visit(directory) {
-    const entries = await fsp.readdir(directory, { withFileTypes: true });
+    const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
@@ -157,21 +157,21 @@ async function scanDirectory(rootDir, root, limit) {
       }
       if (!entry.isFile()) continue;
 
-      const stat = await fsp.stat(fullPath);
+      const fileStat = await stat(fullPath);
       const extension = normalizeExtension(entry.name);
       summary.files += 1;
-      summary.bytes += stat.size;
+      summary.bytes += fileStat.size;
       summary.byExtension[extension] ??= createEmptySummary();
-      addToSummary(summary.byExtension[extension], stat.size);
+      addToSummary(summary.byExtension[extension], fileStat.size);
       top.push({
         path: safeRelative(rootDir, fullPath),
-        bytes: stat.size,
+        bytes: fileStat.size,
         extension
       });
       filesForAudit.push({
         path: safeRelative(rootDir, fullPath),
         absolutePath: path.resolve(fullPath),
-        bytes: stat.size,
+        bytes: fileStat.size,
         extension
       });
     }
@@ -219,7 +219,7 @@ function summarizeMetadata(objects, limit, repositoryDir) {
       const resolved = path.resolve(object.pathForExistenceCheck);
       const localRoot = path.resolve(object.localRoot ?? repositoryDir);
       const insideRoot = resolved === localRoot || resolved.startsWith(localRoot + path.sep);
-      if (!insideRoot || !fs.existsSync(resolved)) {
+      if (!insideRoot || !existsSync(resolved)) {
         missingLocalObjects.push({
           id: object.id,
           source: object.source,
@@ -298,7 +298,7 @@ function uniquePhysicalObjects(group) {
   return [...unique.values()];
 }
 
-function buildLocalObjectAudit(objects, scans, limit) {
+async function buildLocalObjectAudit(objects, scans, limit) {
   const referencedPaths = new Set();
   const missingLocalObjects = [];
   const hashMismatchObjects = [];
@@ -308,7 +308,7 @@ function buildLocalObjectAudit(objects, scans, limit) {
     const localRoot = path.resolve(object.localRoot);
     const resolved = path.resolve(object.pathForExistenceCheck);
     const insideRoot = resolved === localRoot || resolved.startsWith(localRoot + path.sep);
-    if (!insideRoot || !fs.existsSync(resolved)) {
+    if (!insideRoot || !existsSync(resolved)) {
       missingLocalObjects.push({
         id: object.id,
         source: object.source,
@@ -321,7 +321,7 @@ function buildLocalObjectAudit(objects, scans, limit) {
 
     referencedPaths.add(resolved.toLowerCase());
     if (object.hash) {
-      const actualHash = hashFileSync(resolved);
+      const actualHash = await hashFile(resolved);
       if (actualHash !== object.hash) {
         hashMismatchObjects.push({
           id: object.id,
@@ -366,8 +366,8 @@ function buildLocalObjectAudit(objects, scans, limit) {
   };
 }
 
-function hashFileSync(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+async function hashFile(filePath) {
+  return crypto.createHash("sha256").update(await readFile(filePath)).digest("hex");
 }
 
 export function buildStorageMetadataContext(options = {}) {
@@ -400,7 +400,7 @@ export async function buildStorageCostReport(options = {}) {
   const repositoryScan = await scanDirectory(repositoryDir, root, limit);
   const releasePackageScan = await scanDirectory(releasePackageRoot, root, limit);
   const scannedLocalRootsGb = Number(bytesToGb(repositoryScan.bytes + releasePackageScan.bytes).toFixed(6));
-  const localObjectAudit = buildLocalObjectAudit(
+  const localObjectAudit = await buildLocalObjectAudit(
     metadataObjects,
     [
       { name: "repository", summary: repositoryScan, filesForAudit: repositoryScan.filesForAudit ?? [] },
@@ -478,8 +478,8 @@ async function main() {
   if (outIndex >= 0) {
     const outPath = process.argv[outIndex + 1];
     if (!outPath) throw new Error("--out requires a path");
-    await fsp.mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
-    await fsp.writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
+    await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   }
   console.log(JSON.stringify(report, null, 2));
 }

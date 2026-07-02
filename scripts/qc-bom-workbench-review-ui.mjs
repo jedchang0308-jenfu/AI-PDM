@@ -2,9 +2,9 @@
 
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
-import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3131";
@@ -18,8 +18,13 @@ function record(name, passed, detail = "") {
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+async function launchBrowser() {
+  const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chrome";
+  try {
+    return await chromium.launch({ channel, headless: true });
+  } catch {
+    return chromium.launch({ headless: true });
+  }
 }
 
 async function apiLogin(email) {
@@ -56,7 +61,7 @@ async function createSubmission(cookie, input) {
   form.set("drawing_number", input.drawingNumber);
   form.set("part_number", input.partNumber);
   form.set("part_name", input.partName);
-  form.set("revision", input.revision ?? "A");
+  form.set("revision", input.revision ?? "1");
   form.set("material", "QC-Material");
   form.set("surface_finish", "QC-Finish");
   form.set("document_type", input.documentType ?? "Assembly");
@@ -82,12 +87,12 @@ function markReleased(...submissionIds) {
 }
 
 function staticChecks() {
-  const pageSource = read("src/app/bom/reviews/page.tsx");
-  const sidebarSource = read("src/components/sidebar-nav.tsx");
-  const draftDiffRoute = read("src/app/api/bom/drafts/[draftId]/diff/route.ts");
-  const pendingRoute = read("src/app/api/bom/reviews/pending/route.ts");
-  const repositorySource = read("src/lib/repositories/bom-repository.ts");
-  const packageSource = read("package.json");
+  const pageSource = readProjectFile(root, "src/app/bom/reviews/page.tsx");
+  const sidebarSource = readProjectFile(root, "src/components/sidebar-nav.tsx");
+  const draftDiffRoute = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/diff/route.ts");
+  const pendingRoute = readProjectFile(root, "src/app/api/bom/reviews/pending/route.ts");
+  const repositorySource = readProjectFile(root, "src/lib/repositories/bom-repository.ts");
+  const packageSource = readProjectFile(root, "package.json");
 
   record("Sidebar links BOM review page", sidebarSource.includes("/bom/reviews") && sidebarSource.includes("BOM 審核"), "sidebar-nav.tsx");
   record("Review page leads with diff table", pageSource.includes("BOM 差異") && pageSource.includes("bom-review-diff-table"), "page.tsx");
@@ -103,14 +108,14 @@ async function seedReviewedBom(engineerCookie, managerCookie) {
     drawingNumber: `BOMREV-${token}-A`,
     partNumber: `P-BOMREV-${token}-A`,
     partName: "QC BOM review child A",
-    revision: "A",
+    revision: "1",
     documentType: "Part"
   });
   const childB = await createSubmission(engineerCookie, {
     drawingNumber: `BOMREV-${token}-B`,
     partNumber: `P-BOMREV-${token}-B`,
     partName: "QC BOM review child B",
-    revision: "A",
+    revision: "1",
     documentType: "Part"
   });
   markReleased(childA.submissionId, childB.submissionId);
@@ -119,7 +124,7 @@ async function seedReviewedBom(engineerCookie, managerCookie) {
     drawingNumber: `BOMREV-${token}-ASM`,
     partNumber: `P-BOMREV-${token}-ASM`,
     partName: "QC BOM review assembly",
-    revision: "A",
+    revision: "1",
     documentType: "Assembly",
     references: [
       {
@@ -162,8 +167,8 @@ async function seedReviewedBom(engineerCookie, managerCookie) {
       reason: "QC create diff for manager page",
       lines: [
         { id: groupId, parentLineId: null, nodeType: "group", groupName: "QC 更新群組", sequenceNo: 1 },
-        { id: childAId, parentLineId: groupId, nodeType: "item", partNumber: childA.partNumber, revision: "A", quantity: 2, sequenceNo: 1 },
-        { id: crypto.randomUUID(), parentLineId: null, nodeType: "item", partNumber: childB.partNumber, revision: "A", quantity: 3, sequenceNo: 2 }
+        { id: childAId, parentLineId: groupId, nodeType: "item", partNumber: childA.partNumber, revision: "1", quantity: 2, sequenceNo: 1 },
+        { id: crypto.randomUUID(), parentLineId: null, nodeType: "item", partNumber: childB.partNumber, revision: "1", quantity: 3, sequenceNo: 2 }
       ]
     })
   });
@@ -194,7 +199,8 @@ async function verifyReviewPage(browser, seed, managerCookie) {
   const consoleErrors = [];
   const page = await context.newPage();
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    const location = message.location();
+    if (message.type() === "error" && !location.url.endsWith("/favicon.ico")) consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   const url = new URL(apiBaseUrl);
@@ -208,7 +214,7 @@ async function verifyReviewPage(browser, seed, managerCookie) {
   record("Diff table shows added child", await page.locator(".bom-review-diff-table", { hasText: seed.childB.partNumber }).isVisible());
   record("Diff table shows quantity field", await page.locator(".bom-review-diff-table", { hasText: "數量" }).isVisible());
   record("Diff table shows hierarchy field", await page.locator(".bom-review-diff-table", { hasText: "階層" }).isVisible());
-  record("Diff table shows previous released baseline", await page.getByText(/Released A|上一份 Released BOM/).first().isVisible());
+  record("Diff table shows previous released baseline", await page.getByText(/Released 1|上一份 Released BOM/).first().isVisible());
 
   await page.getByLabel("主管意見").fill("QC manager reviewed diff and approved");
   await page.getByRole("button", { name: "核准發布" }).click();
@@ -247,7 +253,7 @@ async function run() {
   const engineerCookie = await apiLogin("engineer@example.com");
   const managerCookie = await apiLogin("manager@example.com");
   const seed = await seedReviewedBom(engineerCookie, managerCookie);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   try {
     await verifyReviewPage(browser, seed, managerCookie);
     await verifyMobileReviewPage(browser, seed, managerCookie);

@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -20,6 +11,14 @@ function record(name, passed, detail = "") {
 
 function includesAll(source, needles) {
   return needles.every((needle) => source.includes(needle));
+}
+
+function devTaskRecordsDataParityPolicy(devTask) {
+  return (
+    devTask.includes("DEV-SUPABASE-DB-001-DATA-PARITY") &&
+    /Data parity policy[\s\S]*Prepared/iu.test(devTask) &&
+    devTask.includes("qc:supabase-data-parity-policy")
+  );
 }
 
 function hasLiveSecret(value) {
@@ -38,20 +37,20 @@ const compareScriptPath = "scripts/compare-sqlite-postgres-shadow.mjs";
 const readmePath = "supabase/README.md";
 const scriptPath = "scripts/qc-supabase-data-parity-policy.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const policy = exists(policyPath) ? read(policyPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const compareScript = read(compareScriptPath);
-const readme = exists(readmePath) ? read(readmePath) : "";
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const policy = projectFileExists(root, policyPath) ? readProjectFile(root, policyPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const compareScript = readProjectFile(root, compareScriptPath);
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-DATA-PARITY-001 package script is registered",
   packageJson.scripts?.["qc:supabase-data-parity-policy"] === "node scripts/qc-supabase-data-parity-policy.mjs",
   "package.json"
 );
-record("SUPA-DATA-PARITY-002 policy file exists", exists(policyPath), policyPath);
+record("SUPA-DATA-PARITY-002 policy file exists", projectFileExists(root, policyPath), policyPath);
 record(
   "SUPA-DATA-PARITY-003 policy defines parity tiers",
   includesAll(policy, ["schema_rls_only", "smoke_seed", "full_data"]),
@@ -119,9 +118,7 @@ record(
 );
 record(
   "SUPA-DATA-PARITY-010 dev_task records policy as controlled evidence",
-  devTask.includes(policyPath) &&
-    devTask.includes("Data parity policy prepared") &&
-    devTask.includes("qc:supabase-data-parity-policy"),
+  devTaskRecordsDataParityPolicy(devTask),
   devTaskPath
 );
 record(

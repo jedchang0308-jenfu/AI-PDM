@@ -1,18 +1,13 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
+const exists = (relativePath) => projectFileExists(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -34,7 +29,7 @@ function hasLiveSecret(value) {
 
 const reportPath = ".ai-doc/reports/qc/qc-supabase-runtime-smoke-report-2026-06-16.md";
 const devTaskPath = ".ai-doc/dev_task.md";
-const packageJson = JSON.parse(read("package.json"));
+const packageJson = readProjectJson(root, "package.json");
 const report = exists(reportPath) ? read(reportPath) : "";
 const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
 const scriptSource = read("scripts/qc-supabase-runtime-smoke-report.mjs");

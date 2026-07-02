@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
 import { getRetentionDrillsDir } from "./pdm-paths.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const drillRoot = path.join(getRetentionDrillsDir(root), makeDrillId(new Date()));
@@ -29,16 +31,16 @@ function makeDrillId(date) {
   ].join("");
 }
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+async function sha256FileAsync(filePath) {
+  return crypto.createHash("sha256").update(await readFile(filePath)).digest("hex");
 }
 
 function seedSource() {
-  fs.mkdirSync(path.dirname(sourceFilePath), { recursive: true });
-  fs.writeFileSync(sourceFilePath, sourceContent);
-  fs.mkdirSync(sourceDataDir, { recursive: true });
+  mkdirSync(path.dirname(sourceFilePath), { recursive: true });
+  writeFileSync(sourceFilePath, sourceContent);
+  mkdirSync(sourceDataDir, { recursive: true });
 
-  const schema = fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8");
+  const schema = readProjectFile(root, "db/schema.sql");
   const db = new Database(path.join(sourceDataDir, "ai-pdm.sqlite"));
   try {
     db.exec(schema);
@@ -112,10 +114,10 @@ seedSource();
 const backupResult = runBackup();
 const backedUpFile = path.join(backupResult.snapshotDir, "repository", "pending", "2026", "05", "SUB-RETENTION-001", "RETENTION-001.pdf");
 
-fs.rmSync(sourceFilePath, { force: true });
+rmSync(sourceFilePath, { force: true });
 
-const retained = fs.existsSync(backedUpFile);
-const hashMatches = retained && sha256File(backedUpFile) === sourceSha256;
+const retained = existsSync(backedUpFile);
+const hashMatches = retained && (await sha256FileAsync(backedUpFile)) === sourceSha256;
 
 if (!retained || !hashMatches) {
   console.error(JSON.stringify({ retained, hashMatches, backedUpFile, passed: false }, null, 2));
@@ -127,7 +129,7 @@ console.log(
     {
       drillRoot,
       snapshotDir: backupResult.snapshotDir,
-      sourceDeleted: !fs.existsSync(sourceFilePath),
+      sourceDeleted: !existsSync(sourceFilePath),
       retained,
       hashMatches,
       passed: true

@@ -1,147 +1,61 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
-const schema = fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8");
-const repositorySource = fs.readFileSync(path.join(root, "src", "lib", "repositories", "numbering-repository.ts"), "utf8");
-const dbExports = fs.readFileSync(path.join(root, "src", "lib", "db.ts"), "utf8");
-const variantsRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "numbering", "variants", "route.ts"), "utf8");
-const ruleSimulatorRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "rule-simulator", "route.ts"),
-  "utf8"
-);
-const impactAnalysisRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "impact-analysis", "route.ts"),
-  "utf8"
-);
-const duplicateCheckRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "duplicate-check", "route.ts"),
-  "utf8"
-);
-const numberingRecordsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "route.ts"),
-  "utf8"
-);
-const draftRecordRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "[rootCode]", "route.ts"),
-  "utf8"
-);
-const draftObsoleteRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "[rootCode]", "obsolete", "route.ts"),
-  "utf8"
-);
-const overdueDraftRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "drafts", "overdue", "route.ts"),
-  "utf8"
-);
-const dvtCandidatesRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "dvt-candidates", "route.ts"),
-  "utf8"
-);
-const numberingSearchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "search", "route.ts"),
-  "utf8"
-);
-const numberingDrawingsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "drawings", "route.ts"),
-  "utf8"
-);
-const numberingRootDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "roots", "[rootCode]", "route.ts"),
-  "utf8"
-);
-const approvalRequestRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-requests", "route.ts"),
-  "utf8"
-);
-const approvalDecisionRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-decisions", "route.ts"),
-  "utf8"
-);
-const approvalBatchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-batches", "route.ts"),
-  "utf8"
-);
-const approvalBatchDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-batches", "[batchId]", "route.ts"),
-  "utf8"
-);
-const numberingTasksRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "tasks", "route.ts"),
-  "utf8"
-);
-const numberingTaskDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "tasks", "[taskId]", "route.ts"),
-  "utf8"
-);
-const numberingNotificationsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "route.ts"),
-  "utf8"
-);
-const numberingNotificationReadRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "[notificationId]", "read", "route.ts"),
-  "utf8"
-);
-const numberingNotificationHandledRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "[notificationId]", "handled", "route.ts"),
-  "utf8"
-);
-const importBatchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "route.ts"),
-  "utf8"
-);
-const importBatchDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "[batchId]", "route.ts"),
-  "utf8"
-);
-const importBatchConfirmRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "[batchId]", "confirm", "route.ts"),
-  "utf8"
-);
-const exportJobRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "export-jobs", "route.ts"),
-  "utf8"
-);
-const exportJobDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "export-jobs", "[jobId]", "route.ts"),
-  "utf8"
-);
-const monthlyAuditReportRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "monthly-audit-reports", "route.ts"),
-  "utf8"
-);
-const monthlyAuditReportDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "monthly-audit-reports", "[reportId]", "route.ts"),
-  "utf8"
-);
-const adminMatrixRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "admin", "matrix", "route.ts"),
-  "utf8"
-);
-const permissionRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "permissions", "route.ts"),
-  "utf8"
-);
-const permissionGuardSource = fs.readFileSync(path.join(root, "src", "lib", "numbering-permission-guard.ts"), "utf8");
-const permissionCodesSource = fs.readFileSync(path.join(root, "src", "lib", "numbering-permission-codes.ts"), "utf8");
-const settingsPageSource = fs.readFileSync(path.join(root, "src", "app", "settings", "page.tsx"), "utf8");
-const numberingRequestPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "request", "page.tsx"), "utf8");
-const numberingDvtPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "dvt", "page.tsx"), "utf8");
-const numberingApprovalPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "approvals", "page.tsx"), "utf8");
-const numberingSearchPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "search", "page.tsx"), "utf8");
-const numberingDrawingsPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "drawings", "page.tsx"), "utf8");
-const numberingImpactPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "impact", "page.tsx"), "utf8");
-const numberingImportPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "imports", "page.tsx"), "utf8");
-const numberingTaskCenterPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "tasks", "page.tsx"), "utf8");
-const numberingReportCenterPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "reports", "page.tsx"), "utf8");
-const sidebarNavSource = fs.readFileSync(path.join(root, "src", "components", "sidebar-nav.tsx"), "utf8");
-const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const concurrencyReuseScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-concurrency-reuse.mjs"), "utf8");
-const draftLifecycleScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-draft-lifecycle.mjs"), "utf8");
-const crossRoleAuditScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-cross-role-audit-e2e.mjs"), "utf8");
+const read = (relativePath) => readProjectFile(root, relativePath);
+const readJson = (relativePath) => readProjectJson(root, relativePath);
+const schema = read("db/schema.sql");
+const repositorySource = read("src/lib/repositories/numbering-repository.ts");
+const dbExports = read("src/lib/db.ts");
+const variantsRouteSource = read("src/app/api/numbering/variants/route.ts");
+const ruleSimulatorRouteSource = read("src/app/api/numbering/rule-simulator/route.ts");
+const impactAnalysisRouteSource = read("src/app/api/numbering/impact-analysis/route.ts");
+const duplicateCheckRouteSource = read("src/app/api/numbering/duplicate-check/route.ts");
+const numberingRecordsRouteSource = read("src/app/api/numbering/records/route.ts");
+const draftRecordRouteSource = read("src/app/api/numbering/records/[rootCode]/route.ts");
+const draftObsoleteRouteSource = read("src/app/api/numbering/records/[rootCode]/obsolete/route.ts");
+const overdueDraftRouteSource = read("src/app/api/numbering/drafts/overdue/route.ts");
+const dvtCandidatesRouteSource = read("src/app/api/numbering/dvt-candidates/route.ts");
+const numberingSearchRouteSource = read("src/app/api/numbering/search/route.ts");
+const numberingDrawingsRouteSource = read("src/app/api/numbering/drawings/route.ts");
+const numberingRootDetailRouteSource = read("src/app/api/numbering/roots/[rootCode]/route.ts");
+const approvalRequestRouteSource = read("src/app/api/numbering/approval-requests/route.ts");
+const approvalDecisionRouteSource = read("src/app/api/numbering/approval-decisions/route.ts");
+const approvalBatchRouteSource = read("src/app/api/numbering/approval-batches/route.ts");
+const approvalBatchDetailRouteSource = read("src/app/api/numbering/approval-batches/[batchId]/route.ts");
+const numberingTasksRouteSource = read("src/app/api/numbering/tasks/route.ts");
+const numberingTaskDetailRouteSource = read("src/app/api/numbering/tasks/[taskId]/route.ts");
+const numberingNotificationsRouteSource = read("src/app/api/numbering/notifications/route.ts");
+const numberingNotificationReadRouteSource = read("src/app/api/numbering/notifications/[notificationId]/read/route.ts");
+const numberingNotificationHandledRouteSource = read("src/app/api/numbering/notifications/[notificationId]/handled/route.ts");
+const importBatchRouteSource = read("src/app/api/numbering/import-batches/route.ts");
+const importBatchDetailRouteSource = read("src/app/api/numbering/import-batches/[batchId]/route.ts");
+const importBatchConfirmRouteSource = read("src/app/api/numbering/import-batches/[batchId]/confirm/route.ts");
+const exportJobRouteSource = read("src/app/api/numbering/export-jobs/route.ts");
+const exportJobDetailRouteSource = read("src/app/api/numbering/export-jobs/[jobId]/route.ts");
+const monthlyAuditReportRouteSource = read("src/app/api/numbering/monthly-audit-reports/route.ts");
+const monthlyAuditReportDetailRouteSource = read("src/app/api/numbering/monthly-audit-reports/[reportId]/route.ts");
+const adminMatrixRouteSource = read("src/app/api/numbering/admin/matrix/route.ts");
+const permissionRouteSource = read("src/app/api/numbering/permissions/route.ts");
+const permissionGuardSource = read("src/lib/numbering-permission-guard.ts");
+const permissionCodesSource = read("src/lib/numbering-permission-codes.ts");
+const settingsPageSource = read("src/app/settings/page.tsx");
+const numberingRequestPageSource = read("src/app/numbering/request/page.tsx");
+const numberingDvtPageSource = read("src/app/numbering/dvt/page.tsx");
+const numberingApprovalPageSource = read("src/app/numbering/approvals/page.tsx");
+const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
+const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
+const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
+const numberingImportPageSource = read("src/app/numbering/imports/page.tsx");
+const numberingTaskCenterPageSource = read("src/app/numbering/tasks/page.tsx");
+const numberingReportCenterPageSource = read("src/app/numbering/reports/page.tsx");
+const sidebarNavSource = read("src/components/sidebar-nav.tsx");
+const packageJson = readJson("package.json");
+const concurrencyReuseScriptSource = read("scripts/qc-pdm-numbering-concurrency-reuse.mjs");
+const draftLifecycleScriptSource = read("scripts/qc-pdm-numbering-draft-lifecycle.mjs");
+const crossRoleAuditScriptSource = read("scripts/qc-pdm-numbering-cross-role-audit-e2e.mjs");
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -703,6 +617,13 @@ record(
 record("NUM-API numbering records route validates custom and shared inputs", numberingRecordsRouteSource.includes("customSpecification") && numberingRecordsRouteSource.includes("universalReason"), "records/route.ts");
 record("NUM-API numbering records route treats shared items as universal", numberingRecordsRouteSource.includes('itemKind === "shared"'), "records/route.ts");
 record(
+  "NUM-API numbering records route forces new numbering to EVT",
+  numberingRecordsRouteSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
+    numberingRecordsRouteSource.includes("const developmentPhase = initialDevelopmentPhase") &&
+    !numberingRecordsRouteSource.includes("body.developmentPhase ?? body.development_phase"),
+  "records/route.ts"
+);
+record(
   "NUM-API draft record route updates drafts through action guard",
   draftRecordRouteSource.includes("updateDraftNumberingRecord") && draftRecordRouteSource.includes("numbering.draft.update"),
   "records/[rootCode]/route.ts"
@@ -937,6 +858,13 @@ record(
   "numbering/request/page.tsx"
 );
 record(
+  "NUM-UI numbering request wizard locks initial phase instead of offering phase selection",
+  numberingRequestPageSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
+    numberingRequestPageSource.includes('data-testid="initial-development-phase"') &&
+    !numberingRequestPageSource.includes("setDevelopmentPhase"),
+  "numbering/request/page.tsx"
+);
+record(
   "NUM-UI DVT promotion page renders candidate workflow",
   numberingDvtPageSource.includes("/api/numbering/dvt-candidates") &&
     numberingDvtPageSource.includes("批次送審") &&
@@ -950,8 +878,8 @@ record(
   "numbering/dvt/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page renders batch review workflow",
-  numberingApprovalPageSource.includes("DVT/發行審核") &&
+  "NUM-UI formal-data approval page renders batch review workflow",
+  numberingApprovalPageSource.includes("正式資料審核") &&
     numberingApprovalPageSource.includes("同專案批次審核") &&
     numberingApprovalPageSource.includes("/api/numbering/approval-batches"),
   "numbering/approvals/page.tsx"

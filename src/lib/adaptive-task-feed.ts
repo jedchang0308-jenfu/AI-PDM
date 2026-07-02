@@ -98,7 +98,9 @@ function statusCount(submissions: SubmissionSummary[], status: SubmissionStatus)
 export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary[] {
   const now = input.now ?? new Date();
   const tasks: TaskSummary[] = [];
-  const releaseFailed = input.submissions.filter((submission) => submission.status === "ReleaseFailed");
+  const releaseFailed = input.submissions.filter(
+    (submission) => submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id
+  );
   const pendingCount = statusCount(input.submissions, "Pending");
   const handoffGaps = input.submissions.filter(hasMissingHandoff);
 
@@ -130,14 +132,14 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
       task(
         {
           id: "release-failed",
-          title: "發行失敗需排除",
-          detail: `${releaseFailed.length} 件 ReleaseFailed，最新 ${latest.drawing_number} Rev ${latest.revision}`,
+          title: "發行未完成需處理",
+          detail: `${releaseFailed.length} 件發行未完成，最新 ${latest.drawing_number} 版次 ${latest.revision}`,
           source: "submission",
           signal: "blocked",
           severity: "critical",
           roleAffinity: ["R&D Manager", "Admin", "QA/QC", "PM"],
           href: `/`,
-          primaryActionLabel: "查看送審",
+          primaryActionLabel: "查看發行未完成",
           evidence: latest.id,
           updatedAt: latestActivityAt(latest)
         },

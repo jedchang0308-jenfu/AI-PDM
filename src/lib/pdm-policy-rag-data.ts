@@ -22,7 +22,7 @@ export const PDM_POLICY_CHUNKS: PdmPolicyChunk[] = [
   {
     "id": "3-版次規則",
     "title": "3. 版次規則",
-    "content": "- `revision` 為必填欄位。\n- MVP 目前接受使用者或 SolidWorks Add-in 提交的 revision 字串，不自動產生版次。\n- 新設計變更應建立下一個 revision 的新送審紀錄。\n- Released 紀錄必須保持可追溯，不可因後續 revision 建立而被覆蓋或刪除。\n- Pending / Rejected / ReleaseFailed revision 不得更新 item master 的 `current_revision`。\n- 新 revision 成功 Released 後，系統才更新 item master 的 `current_revision`，並將同一 item 既有 Released revision 自動轉為 `Obsolete`。\n- `Obsolete` revision 代表已被新版取代；內部仍可查詢與下載 release package，但不可作為製造交接、採購同步或外部分享的有效版本。\n- 若公司決定固定版次格式，例如 `A/B/C`、`R01/R02` 或語意版本，需在正式管理辦法中補充並新增對應欄位驗證。"
+    "content": "- `revision` 為工程圖進版管控欄位，送審時必須有值。\n- 系統依工程圖資料及編號管理辦法 4.1 原則自動帶入預設版次，使用者可依圖紙修訂欄編輯。\n- 版次格式一律不加 `V`；欄位名稱「版次」本身即代表 Version。\n- 發行區使用大版次整數，例如 `1`、`2`、`3`。\n- 須製程管制的研發工作區與設計變更工作區使用小版次，例如研發 `0.1`、`0.2`，已發行後設計變更 `1.1`、`1.2`。\n- 無須製程管制的研發工作區與設計變更工作區可不填圖號與版次；發行時仍需圖號與大版次。\n- 系統不得接受 `V1`、`V0.1`、`A/B/C`、`R01/R02` 或其他英文字母版次格式。\n- 新設計變更應建立下一個 revision 的新送審紀錄。\n- Released 紀錄必須保持可追溯，不可因後續 revision 建立而被覆蓋或刪除。\n- Pending / Rejected / ReleaseFailed revision 不得更新 item master 的 `current_revision`。\n- 新 revision 成功 Released 後，系統才更新 item master 的 `current_revision`，並將同一 item 既有 Released revision 自動轉為 `Obsolete`。\n- `Obsolete` revision 代表已被新版取代；內部仍可查詢與下載 release package，但不可作為製造交接、採購同步或外部分享的有效版本。"
   },
   {
     "id": "4-檔案提交規則",

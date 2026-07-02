@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { buildStorageMetadataContext } from "./generate-file-storage-cost-report.mjs";
 import { buildStorageMetadataModelBlueprint, buildStorageObjectReferencePreview } from "./storage-metadata-model.mjs";
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+function sha256FileSync(filePath) {
+  return crypto.createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
 function toPosixRelative(root, target) {
@@ -55,11 +55,11 @@ function validateObjectForDedup(object) {
   if (!insideRoot) {
     return { valid: false, reason: "source_path_outside_local_root" };
   }
-  if (!fs.existsSync(sourcePath)) {
+  if (!existsSync(sourcePath)) {
     return { valid: false, reason: "source_file_missing" };
   }
 
-  const actualSha256 = sha256File(sourcePath);
+  const actualSha256 = sha256FileSync(sourcePath);
   if (actualSha256 !== object.hash) {
     return {
       valid: false,
@@ -267,9 +267,9 @@ async function main() {
   if (outIndex >= 0) {
     const outputDir = process.argv[outIndex + 1];
     if (!outputDir) throw new Error("--output requires a directory");
-    await fsp.mkdir(outputDir, { recursive: true });
-    await fsp.writeFile(path.join(outputDir, "storage-dedup-reference-dry-run.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-    await fsp.writeFile(path.join(outputDir, "storage-dedup-reference-dry-run.md"), renderMarkdown(report), "utf8");
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(path.join(outputDir, "storage-dedup-reference-dry-run.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await writeFile(path.join(outputDir, "storage-dedup-reference-dry-run.md"), renderMarkdown(report), "utf8");
   }
   console.log(JSON.stringify(report, null, 2));
 }

@@ -112,6 +112,7 @@
 - `npm.cmd run build`
 - `npm.cmd run qc:pdm-master-workbench-layout`
 - `npm.cmd run qc:dashboard-detail-priority`
+- `npm.cmd run qc:pdm-system-detail-drawer-ui`
 - `npm.cmd run qc:pdm-numbering-approval-review-ui`
 - `npm.cmd run qc:pdm-numbering-import-center-ui`
 - `npm.cmd run qc:pdm-numbering-report-center-ui`

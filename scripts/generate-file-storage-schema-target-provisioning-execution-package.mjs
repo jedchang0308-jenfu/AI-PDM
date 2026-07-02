@@ -1,20 +1,34 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_TARGET_PROVISIONING_EXECUTION_PACKAGE_VERSION =
   "storage-schema-target-provisioning-execution-package/v1";
 
-async function readJson(filePath) {
+const root = process.cwd();
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
+
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
   const resolvedPath = path.resolve(filePath);
   try {
     return {
       missing: false,
       path: resolvedPath,
-      value: JSON.parse(await fsp.readFile(resolvedPath, "utf8"))
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
     };
   } catch (error) {
     return {
@@ -158,9 +172,9 @@ function buildMarkdown(report) {
 }
 
 export async function buildStorageSchemaTargetProvisioningExecutionPackage(options = {}) {
-  const createRequestEvidence = await readJson(options.targetCreateRequestPath ?? "");
-  const connectorReceiptEvidence = await readJson(options.connectorReceiptEvidencePath ?? "");
-  const createResultEvidence = await readJson(options.targetCreateResultEvidencePath ?? "");
+  const createRequestEvidence = await readInputJson(options.targetCreateRequestPath ?? "");
+  const connectorReceiptEvidence = await readInputJson(options.connectorReceiptEvidencePath ?? "");
+  const createResultEvidence = await readInputJson(options.targetCreateResultEvidencePath ?? "");
   const createRequest = createRequestEvidence.value ?? {};
   const connectorReceipt = connectorReceiptEvidence.value ?? {};
   const createResult = createResultEvidence.value ?? {};
@@ -232,11 +246,11 @@ export async function buildStorageSchemaTargetProvisioningExecutionPackage(optio
 
 export async function writeStorageSchemaTargetProvisioningExecutionPackage(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "supabase-target-provisioning-execution-package.json");
   const markdownPath = path.join(resolvedOutputDir, "supabase-target-provisioning-execution-package.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

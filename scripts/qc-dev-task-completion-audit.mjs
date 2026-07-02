@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
+import { runProductionReadinessReport } from "./qc-production-readiness-report-runner.mjs";
 
 const root = process.cwd();
-const taskPath = resolveTaskFile();
+const taskRelativePath = resolveTaskFile();
 const expectedExternalOpenIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001", "DEV-FIELD-001", "DEV-IND-007"];
 const allowedOpenCategories = new Set([
   "external_document_manager",
@@ -18,11 +17,11 @@ const results = [];
 
 function resolveTaskFile() {
   const candidates = [
-    path.join(root, ".ai-doc", "dev_task.md"),
-    path.join(root, "dev_task.md"),
-    path.join(root, "PDM_dev_task.md")
+    ".ai-doc/dev_task.md",
+    "dev_task.md",
+    "PDM_dev_task.md"
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return candidates.find((candidate) => projectFileExists(root, candidate)) ?? candidates[0];
 }
 
 function record(name, passed, detail = "") {
@@ -34,6 +33,10 @@ function statusFromToken(token) {
   if (token === "/") return "partial";
   if (token === "!") return "blocked";
   return "open";
+}
+
+function stripInlineCode(value) {
+  return value.replace(/^`|`$/g, "");
 }
 
 function categoryForTask(id, text) {
@@ -119,38 +122,62 @@ function parseIndustrializationOverview(lines) {
   return tasks;
 }
 
-function runReadinessReport() {
-  const run = spawnSync(process.execPath, ["scripts/qc-production-readiness-test.mjs", "--allow-open"], {
-    cwd: root,
-    encoding: "utf8",
-    windowsHide: true
+function parseParkedExternalBlockers(lines) {
+  const tasks = [];
+  let inParkedExternalBlockers = false;
+  const parkedExternalHeadingPattern = /^##\s+3\.\s+(?:Parked Scope And External Blockers|External Blockers\s*\/\s*Parked Scope)\b/i;
+
+  lines.forEach((line, index) => {
+    if (parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = true;
+      return;
+    }
+    if (inParkedExternalBlockers && /^##\s+/i.test(line) && !parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = false;
+    }
+    if (!inParkedExternalBlockers || !line.trim().startsWith("|")) return;
+
+    const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+    if (cells.length < 4) return;
+
+    const statusMatch = cells[0].match(/^\[(x| |\/|!)\]$/);
+    if (!statusMatch) return;
+
+    const id = stripInlineCode(cells[1] ?? "");
+    if (!expectedExternalOpenIds.includes(id)) return;
+
+    const text = [id, cells[2] ?? "", cells[3] ?? ""].filter(Boolean).join(" | ");
+    tasks.push({
+      line: index + 1,
+      section: "Parked Scope",
+      id,
+      status: statusFromToken(statusMatch[1]),
+      text,
+      category: categoryForTask(id, text)
+    });
   });
-  if (run.status !== 0) return { run, report: null };
-  try {
-    return { run, report: JSON.parse(run.stdout) };
-  } catch {
-    return { run, report: null };
-  }
+
+  return tasks;
 }
 
-if (!fs.existsSync(taskPath)) {
-  console.error(`Task file not found: ${path.relative(root, taskPath)}`);
+if (!projectFileExists(root, taskRelativePath)) {
+  console.error(`Task file not found: ${taskRelativePath}`);
   process.exit(1);
 }
 
-const lines = fs.readFileSync(taskPath, "utf8").split(/\r?\n/u);
-const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines)];
+const lines = readProjectFile(root, taskRelativePath).split(/\r?\n/u);
+const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines), ...parseParkedExternalBlockers(lines)];
 const openTasks = tasks.filter((task) => task.status !== "done");
 const unclassifiedOpenTasks = openTasks.filter((task) => !allowedOpenCategories.has(task.category));
 const missingExpectedOpen = expectedExternalOpenIds
   .filter((id) => !openTasks.some((task) => task.id === id));
-const handoff = fs.readFileSync(path.join(root, "docs", "industrialization", "external-validation-handoff-2026-05-28.md"), "utf8");
-const { run: readinessRun, report: readinessReport } = runReadinessReport();
+const handoff = readProjectFile(root, ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
+const { run: readinessRun, report: readinessReport } = runProductionReadinessReport(root);
 const readinessIds = new Set((readinessReport?.blockers ?? []).map((blocker) => blocker.task.match(/DEV-[A-Z]+-\d+/)?.[0]).filter(Boolean));
 const openIds = new Set(openTasks.map((task) => task.id));
 const readinessMissingOpen = [...openIds].filter((id) => !readinessIds.has(id));
 
-record("COMPLETE-001 dev_task.md exists", fs.existsSync(taskPath), path.relative(root, taskPath));
+record("COMPLETE-001 dev_task.md exists", projectFileExists(root, taskRelativePath), taskRelativePath);
 record("COMPLETE-002 task audit covers active backlog overview", tasks.length >= expectedExternalOpenIds.length, String(tasks.length));
 record("COMPLETE-003 no local or unclassified open task remains", unclassifiedOpenTasks.length === 0, JSON.stringify(unclassifiedOpenTasks));
 record("COMPLETE-004 expected external blockers remain visible", missingExpectedOpen.length === 0, JSON.stringify(missingExpectedOpen));

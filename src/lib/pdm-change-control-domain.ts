@@ -1,3 +1,5 @@
+import type { LifecycleActionPolicy, LifecycleDetailTag } from "@/lib/pdm-lifecycle-policy";
+
 export type PdmChangeControlDatabaseKind = "sqlite" | "postgres";
 export type PdmChangeControlQueryParams = readonly unknown[] | Record<string, unknown>;
 
@@ -71,6 +73,11 @@ export type PartNumberDraftListItem = PartNumberDraftRecord & {
   controlled: boolean;
   controlBoundaryReasons: PartNumberControlBoundaryReason[];
   warnings: PartNumberDraftWarningCode[];
+};
+
+export type DeletedPartNumberDraftListItem = {
+  draft: PartNumberDraftListItem;
+  policy: LifecycleActionPolicy;
 };
 
 export type ReservePartNumberDraftInput = {
@@ -359,6 +366,81 @@ function itemKindForDraftItemType(itemType: PartNumberDraftItemType) {
   return "custom";
 }
 
+function buildPartNumberDraftLifecyclePolicyFromDomain(input: {
+  draftId: string;
+  status: PartNumberDraftStatus;
+  controlled: boolean;
+  recycled: boolean;
+  numberReused: boolean;
+  canDelete: boolean;
+  canRestore: boolean;
+}): LifecycleActionPolicy {
+  if (input.status === "voided") {
+    const restoreBlock = getDeletedPartNumberDraftRestoreBlock(input);
+    const restorable = !restoreBlock;
+    return {
+      entityType: "part_number_draft",
+      entityId: input.draftId,
+      visibleStage: "history",
+      stageLabel: "歷史",
+      uiSurface: "deleted_data",
+      traceabilityClass: input.controlled ? "controlled_history" : "uncontrolled_deleted",
+      detailTags: [restorable ? "可還原" : "不可還原"],
+      actions: {
+        delete: blockedLifecycleAction("LIFE_DRAFT_ALREADY_DELETED", "此草稿已在已刪除資料中。"),
+        restore: restoreBlock ?? { allowed: true },
+        obsolete: { ...blockedLifecycleAction("LIFE_UNSUPPORTED_ENTITY", "草稿不使用申請作廢流程。"), requiresApproval: false }
+      }
+    };
+  }
+
+  const inReview = input.status === "pending_review";
+  const formal = input.status === "released";
+  const editableDraft = input.status === "draft" || input.status === "needs_reconfirmation";
+  const detailTags: LifecycleDetailTag[] = [];
+  if (input.status === "needs_reconfirmation") detailTags.push("待補");
+  if (inReview) detailTags.push("需審核");
+  if (formal) detailTags.push("已發行");
+
+  return {
+    entityType: "part_number_draft",
+    entityId: input.draftId,
+    visibleStage: formal ? "formal" : inReview ? "in_review" : "draft",
+    stageLabel: formal ? "正式" : inReview ? "審核中" : "草稿",
+    uiSurface: "work_list",
+    traceabilityClass: "working",
+    detailTags,
+    actions: {
+      delete:
+        editableDraft && input.canDelete && !input.controlled
+          ? { allowed: true }
+          : blockedLifecycleAction(
+              input.controlled ? "LIFE_DRAFT_CONTROLLED_BOUNDARY" : "LIFE_DRAFT_NOT_DELETABLE",
+              "此草稿目前不能直接刪除。"
+            ),
+      restore: blockedLifecycleAction("LIFE_DRAFT_NOT_DELETED", "此草稿尚未刪除，不需要還原。"),
+      obsolete: { ...blockedLifecycleAction("LIFE_UNSUPPORTED_ENTITY", "草稿不使用申請作廢流程。"), requiresApproval: false }
+    }
+  };
+}
+
+function getDeletedPartNumberDraftRestoreBlock(input: {
+  controlled: boolean;
+  recycled: boolean;
+  numberReused: boolean;
+  canRestore: boolean;
+}) {
+  if (!input.canRestore) return blockedLifecycleAction("LIFE_PERMISSION_DENIED", "沒有還原此草稿的權限。");
+  if (input.controlled) return blockedLifecycleAction("LIFE_DRAFT_CONTROLLED_BOUNDARY", "此草稿已跨受控邊界，不能從已刪除資料還原。");
+  if (input.recycled) return blockedLifecycleAction("LIFE_DRAFT_ALREADY_RECYCLED", "此草稿號已被回收重用，不能還原。");
+  if (input.numberReused) return blockedLifecycleAction("LIFE_DRAFT_NUMBER_REUSED", "此草稿號已被重新使用，不能還原。");
+  return null;
+}
+
+function blockedLifecycleAction(reasonCode: string, message: string) {
+  return { allowed: false, reasonCode, message };
+}
+
 export class PdmChangeControlDomainService {
   private readonly client: PdmChangeControlDatabaseClient;
   private readonly clock: () => string;
@@ -445,6 +527,16 @@ export class PdmChangeControlDomainService {
       });
     }
     return items;
+  }
+
+  async listDeletedPartNumberDrafts(input: ListPartNumberDraftsInput): Promise<DeletedPartNumberDraftListItem[]> {
+    const drafts = await this.listPartNumberDrafts({ ...input, status: "voided", includeRecycled: false });
+    return Promise.all(
+      drafts.map(async (draft) => ({
+        draft,
+        policy: await this.buildPartNumberDraftPolicy(draft, input.actor)
+      }))
+    );
   }
 
   async reservePartNumberDraft(input: ReservePartNumberDraftInput): Promise<PartNumberDraftRecord> {
@@ -581,15 +673,44 @@ export class PdmChangeControlDomainService {
           actualPartNumber: comparedPartNumber
         });
       }
-      replacementDraft = await this.reservePartNumberDraft({
-        reservedPartNumber: replacementReservedPartNumber,
-        draftType: "drawing_revision_generated",
-        itemType: input.replacementItemType ?? "self_made",
-        sourcePartNumberId: input.currentPartNumberId ?? null,
-        sourceDrawingNumberId: input.drawingNumberId,
-        sourceRevision: revision,
-        actor: input.actor
-      });
+      replacementDraft =
+        (await this.findReusableDrawingRevisionReplacementDraft(companyId, {
+          reservedPartNumber: replacementReservedPartNumber,
+          drawingNumberId: input.drawingNumberId,
+          revision
+        })) ??
+        (await this.reservePartNumberDraft({
+          reservedPartNumber: replacementReservedPartNumber,
+          draftType: "drawing_revision_generated",
+          itemType: input.replacementItemType ?? "self_made",
+          sourcePartNumberId: input.currentPartNumberId ?? null,
+          sourceDrawingNumberId: input.drawingNumberId,
+          sourceRevision: revision,
+          actor: input.actor
+        }));
+    }
+
+    const duplicate = await this.findDuplicateActiveFffAssessment(companyId, {
+      drawingNumberId: input.drawingNumberId,
+      revision,
+      submissionId: input.submissionId?.trim() || null,
+      reviewPackageId: input.reviewPackageId?.trim() || null,
+      replacementPartNumberDraftId: replacementDraft?.id ?? null,
+      detectedPartNumber,
+      correctedPartNumber,
+      formState: input.formState,
+      fitState: input.fitState,
+      functionState: input.functionState,
+      reasonCategory,
+      note: input.note?.trim() || null,
+      assessedBy: input.actor.userId
+    });
+    if (duplicate) {
+      return {
+        outcome,
+        assessment: mapFffAssessment(duplicate),
+        replacementDraft
+      };
     }
 
     const assessmentId = this.idFactory();
@@ -870,6 +991,59 @@ export class PdmChangeControlDomainService {
     return this.requireDraft(input.draftId, companyId);
   }
 
+  async restorePartNumberDraft(input: DraftActionInput): Promise<PartNumberDraftRecord> {
+    const companyId = normalizeCompanyId(input.actor);
+    const draft = await this.requireDraft(input.draftId, companyId);
+    if (draft.status !== "voided") {
+      throw new PdmChangeControlError("draft_not_deleted", `Draft ${draft.id} is not deleted`, { status: draft.status });
+    }
+    if (draft.recycledAt) {
+      throw new PdmChangeControlError("draft_already_recycled");
+    }
+    if (draft.createdBy !== input.actor.userId && !isPartNumberManager(input.actor)) {
+      throw new PdmChangeControlError("draft_restore_forbidden");
+    }
+    const boundary = await this.getPartNumberControlBoundary(input.draftId, input.actor);
+    if (boundary.controlled) {
+      throw new PdmChangeControlError("controlled_boundary_restore_blocked", "Part-number draft has crossed the controlled boundary", {
+        reasons: boundary.reasons
+      });
+    }
+    if (await this.isReservedNumberReused(companyId, draft)) {
+      throw new PdmChangeControlError("draft_number_reused");
+    }
+
+    const now = this.clock();
+    await this.client.execute(
+      `
+      UPDATE part_number_drafts
+      SET status = 'draft',
+          voided_at = NULL,
+          recycle_available_at = NULL,
+          recycled_at = NULL,
+          version = version + 1,
+          updated_at = :updatedAt
+      WHERE id = :draftId AND company_id = :companyId
+      `,
+      { draftId: input.draftId, companyId, updatedAt: now }
+    );
+    await this.insertPartNumberEvent({
+      companyId,
+      draftId: input.draftId,
+      eventType: "draft_reissued",
+      actorUserId: input.actor.userId,
+      occurredAt: now,
+      metadata: { lifecycleAction: "restore", reservedPartNumber: draft.reservedPartNumber }
+    });
+    return this.requireDraft(input.draftId, companyId);
+  }
+
+  async getPartNumberDraftLifecyclePolicy(input: DraftActionInput): Promise<LifecycleActionPolicy> {
+    const companyId = normalizeCompanyId(input.actor);
+    const draft = await this.requireDraft(input.draftId, companyId);
+    return this.buildPartNumberDraftPolicy(draft, input.actor);
+  }
+
   async markSameSourceDraftsNeedReconfirmation(input: MarkSameSourceDraftsNeedReconfirmationInput): Promise<PartNumberDraftRecord[]> {
     const companyId = normalizeCompanyId(input.actor);
     const anchor = await this.requireDraft(input.draftId, companyId);
@@ -987,6 +1161,133 @@ export class PdmChangeControlDomainService {
       { companyId, partNumber }
     );
     return row?.id ?? null;
+  }
+
+  private async findReusableDrawingRevisionReplacementDraft(
+    companyId: string,
+    input: { reservedPartNumber: string; drawingNumberId: string; revision: string }
+  ) {
+    const row = await this.client.queryOne<PartNumberDraftRow>(
+      `
+      SELECT *
+      FROM part_number_drafts
+      WHERE company_id = :companyId
+        AND reserved_part_number = :reservedPartNumber
+        AND draft_type = 'drawing_revision_generated'
+        AND source_drawing_number_id = :drawingNumberId
+        AND COALESCE(source_revision, '') = :revision
+        AND status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation')
+        AND recycled_at IS NULL
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+      `,
+      {
+        companyId,
+        reservedPartNumber: input.reservedPartNumber,
+        drawingNumberId: input.drawingNumberId,
+        revision: input.revision
+      }
+    );
+    return row ? mapDraft(row) : null;
+  }
+
+  private async findDuplicateActiveFffAssessment(
+    companyId: string,
+    input: {
+      drawingNumberId: string;
+      revision: string;
+      submissionId: string | null;
+      reviewPackageId: string | null;
+      replacementPartNumberDraftId: string | null;
+      detectedPartNumber: string | null;
+      correctedPartNumber: string | null;
+      formState: DrawingRevisionFffState;
+      fitState: DrawingRevisionFffState;
+      functionState: DrawingRevisionFffState;
+      reasonCategory: string;
+      note: string | null;
+      assessedBy: string;
+    }
+  ) {
+    return this.client.queryOne<DrawingRevisionFffAssessmentRow>(
+      `
+      SELECT *
+      FROM drawing_revision_fff_assessments a
+      WHERE a.company_id = :companyId
+        AND a.drawing_number_id = :drawingNumberId
+        AND a.revision = :revision
+        AND COALESCE(a.submission_id, '') = :submissionId
+        AND COALESCE(a.review_package_id, '') = :reviewPackageId
+        AND COALESCE(a.replacement_part_number_draft_id, '') = :replacementPartNumberDraftId
+        AND COALESCE(a.detected_part_number, '') = :detectedPartNumber
+        AND COALESCE(a.corrected_part_number, '') = :correctedPartNumber
+        AND a.form_state = :formState
+        AND a.fit_state = :fitState
+        AND a.function_state = :functionState
+        AND a.reason_category = :reasonCategory
+        AND COALESCE(a.note, '') = :note
+        AND a.assessed_by = :assessedBy
+        AND NOT EXISTS (
+          SELECT 1
+          FROM review_confirmation_events rce
+          WHERE rce.company_id = a.company_id
+            AND rce.review_id = a.id
+        )
+      ORDER BY a.assessed_at DESC, a.id DESC
+      LIMIT 1
+      `,
+      {
+        companyId,
+        drawingNumberId: input.drawingNumberId,
+        revision: input.revision,
+        submissionId: input.submissionId ?? "",
+        reviewPackageId: input.reviewPackageId ?? "",
+        replacementPartNumberDraftId: input.replacementPartNumberDraftId ?? "",
+        detectedPartNumber: input.detectedPartNumber ?? "",
+        correctedPartNumber: input.correctedPartNumber ?? "",
+        formState: input.formState,
+        fitState: input.fitState,
+        functionState: input.functionState,
+        reasonCategory: input.reasonCategory,
+        note: input.note ?? "",
+        assessedBy: input.assessedBy
+      }
+    );
+  }
+
+  private async buildPartNumberDraftPolicy(draft: PartNumberDraftRecord | PartNumberDraftListItem, actor: PdmChangeControlActorContext) {
+    const boundary = "controlled" in draft && "controlBoundaryReasons" in draft
+      ? { controlled: draft.controlled, reasons: draft.controlBoundaryReasons }
+      : await this.getPartNumberControlBoundary(draft.id, actor);
+    const canManage = draft.createdBy === actor.userId || isPartNumberManager(actor);
+    const numberReused = await this.isReservedNumberReused(normalizeCompanyId(actor), draft);
+    return buildPartNumberDraftLifecyclePolicyFromDomain({
+      draftId: draft.id,
+      status: draft.status,
+      controlled: boundary.controlled,
+      recycled: Boolean(draft.recycledAt),
+      numberReused,
+      canDelete: canManage,
+      canRestore: canManage
+    });
+  }
+
+  private async isReservedNumberReused(companyId: string, draft: Pick<PartNumberDraftRecord, "id" | "reservedPartNumber">) {
+    if (await this.getFormalPartId(companyId, draft.reservedPartNumber)) return true;
+    const activeDraft = await this.client.queryOne<{ id: string }>(
+      `
+      SELECT id
+      FROM part_number_drafts
+      WHERE company_id = :companyId
+        AND id <> :draftId
+        AND reserved_part_number = :reservedPartNumber
+        AND status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation')
+        AND recycled_at IS NULL
+      LIMIT 1
+      `,
+      { companyId, draftId: draft.id, reservedPartNumber: draft.reservedPartNumber }
+    );
+    return Boolean(activeDraft);
   }
 
   private async requireDrawing(drawingNumberId: string, companyId: string) {

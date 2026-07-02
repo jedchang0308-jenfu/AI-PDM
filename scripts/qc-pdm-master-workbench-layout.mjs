@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3000";
@@ -30,9 +29,7 @@ const identityHeadersByRoute = {
   "/parts": ["料號", "品名", "圖號", "其他"]
 };
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed: Boolean(passed), detail });

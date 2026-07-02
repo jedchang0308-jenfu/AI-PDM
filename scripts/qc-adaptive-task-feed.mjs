@@ -1,22 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const checks = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
 
 function assert(condition, message) {
   checks.push({ message, passed: Boolean(condition) });
   if (!condition) throw new Error(message);
 }
 
-const feed = read("src/lib/adaptive-task-feed.ts");
-const dashboard = read("src/components/dashboard.tsx");
-const css = read("src/app/globals.css");
-const packageJson = JSON.parse(read("package.json"));
+const feed = readProjectFile(root, "src/lib/adaptive-task-feed.ts");
+const dashboard = readProjectFile(root, "src/components/dashboard.tsx");
+const css = readProjectFile(root, "src/app/globals.css");
+const packageJson = readProjectJson(root, "package.json");
 
 for (const token of ["TaskSummary", "TaskSummaryRole", "TaskSummarySource", "TaskSummarySignal", "buildAdaptiveTaskFeed"]) {
   assert(feed.includes(token), `adaptive task feed exports ${token}`);

@@ -3,22 +3,21 @@
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import {
   buildS3CompatibleDryRun,
   writeS3CompatibleDryRun
 } from "./generate-file-storage-s3-compatible-dry-run.mjs";
+import { sha256Bytes } from "./qc-file-hash-utils.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
 function writeFixtureDb(dbPath, files) {
@@ -122,7 +121,7 @@ function writeFixtureDb(dbPath, files) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-s3-dry-run-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-s3-dry-run-qc-"));
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   const releaseDir = path.join(dataDir, "release-packages", "2026", "06");
@@ -138,8 +137,8 @@ async function main() {
     missingPath: path.join(repositoryDir, "pending", "missing.pdf"),
     mismatchPath: path.join(repositoryDir, "pending", "mismatch.pdf"),
     releasePath: path.join(releaseDir, "release.zip"),
-    okHash: sha256(okBytes),
-    releaseHash: sha256(releaseBytes)
+    okHash: sha256Bytes(okBytes),
+    releaseHash: sha256Bytes(releaseBytes)
   };
   await fsp.writeFile(files.okPath, okBytes);
   await fsp.writeFile(files.mismatchPath, mismatchBytes);
@@ -172,7 +171,7 @@ async function main() {
   record("STORAGE-S3-DRY-RUN-012 JSON output is written", await exists(outputs.jsonPath));
   record("STORAGE-S3-DRY-RUN-013 Markdown output is written", await exists(outputs.markdownPath));
 
-  const storageSource = await fsp.readFile(path.resolve("src/lib/file-storage.ts"), "utf8");
+  const storageSource = readProjectFile(root, "src/lib/file-storage.ts");
   record("STORAGE-S3-DRY-RUN-014 file storage provider includes s3_compatible", storageSource.includes('"s3_compatible"'));
   record("STORAGE-S3-DRY-RUN-015 S3 adapter contract exists", storageSource.includes("export class S3CompatibleStorageAdapter implements FileStorageService"));
   record("STORAGE-S3-DRY-RUN-016 S3 live IO is disabled by default", storageSource.includes("PDM_S3_COMPATIBLE_LIVE_ENABLED") && storageSource.includes("signed request staging gate"));
@@ -181,10 +180,9 @@ async function main() {
   const serialized = JSON.stringify(report);
   record("STORAGE-S3-DRY-RUN-018 report does not expose common cloud secret markers", !/(secret[^_A-Z]|service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16})/i.test(serialized));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
   record("STORAGE-S3-DRY-RUN-019 package scripts are registered", packageJson.includes('"storage:s3-compatible-dry-run"') && packageJson.includes('"qc:file-storage-s3-compatible-dry-run"'));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
@@ -197,7 +195,11 @@ async function exists(filePath) {
   }
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

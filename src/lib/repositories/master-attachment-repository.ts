@@ -3,6 +3,7 @@ import { createAuditLog, getDb, getSystemSetting } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
 import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
+import { normalizeRevisionCode, revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
 import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
 
 export type MasterAttachmentEntityType = "drawing_number" | "part_number";
@@ -147,6 +148,7 @@ export async function createMasterAttachment(input: {
   if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
 
   const category = normalizeCategory(entity.type, input.documentCategory);
+  const revision = normalizeAttachmentRevision(input.revision);
   const fileBuffer = Buffer.from(await input.file.arrayBuffer());
   validateAttachmentFile(input.file.name, fileBuffer.byteLength);
   const originalFilename = input.file.name.trim();
@@ -155,7 +157,7 @@ export async function createMasterAttachment(input: {
   const duplicate = findActiveDuplicate(database, {
     entity,
     category,
-    revision: normalizeNullableText(input.revision),
+    revision,
     filename: originalFilename
   });
   if (duplicate) throw new Error("MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE");
@@ -196,7 +198,7 @@ export async function createMasterAttachment(input: {
       category,
       normalizeDisplayName(input.displayName, originalFilename),
       normalizeNullableText(input.description) ?? "",
-      normalizeNullableText(input.revision),
+      revision,
       input.uploadedBy,
       initialDriveStatus,
       "local_only",
@@ -212,7 +214,7 @@ export async function createMasterAttachment(input: {
       entityType: entity.type,
       entityCode: entity.code,
       documentCategory: category,
-      revision: normalizeNullableText(input.revision),
+      revision,
       fileName: originalFilename,
       sha256: contentHash,
       gdriveStatus: initialDriveStatus
@@ -499,6 +501,14 @@ function normalizeDisplayName(value: string | undefined, fallback: string) {
 function normalizeNullableText(value: string | null | undefined) {
   const text = value?.trim();
   return text ? text : null;
+}
+
+function normalizeAttachmentRevision(value: string | null | undefined) {
+  const text = normalizeNullableText(value);
+  if (!text) return null;
+  const error = validateRevisionCode(text, { required: false });
+  if (error) throw new Error(`MASTER_ATTACHMENT_REVISION_INVALID: ${revisionValidationMessage(error)}`);
+  return normalizeRevisionCode(text);
 }
 
 function getFileExtension(filename: string) {

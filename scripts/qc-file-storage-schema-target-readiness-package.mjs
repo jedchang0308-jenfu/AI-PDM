@@ -8,7 +8,9 @@ import {
   buildStorageSchemaTargetReadinessPackage,
   writeStorageSchemaTargetReadinessPackage
 } from "./generate-file-storage-schema-target-readiness-package.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -43,20 +45,19 @@ const readyInventory = {
   ]
 };
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-target-readiness-package-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-target-readiness-package-qc-"));
   const forbiddenInventoryPath = path.join(tempRoot, "forbidden-inventory.json");
   const readyInventoryPath = path.join(tempRoot, "ready-inventory.json");
   await writeJson(forbiddenInventoryPath, forbiddenInventory);
   await writeJson(readyInventoryPath, readyInventory);
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-target-readiness-package.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-target-readiness-package.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const missingReport = await buildStorageSchemaTargetReadinessPackage({});
   record("STORAGE-SCHEMA-TARGET-PACKAGE-001 package version is stable", missingReport.packageVersion === STORAGE_SCHEMA_TARGET_READINESS_PACKAGE_VERSION);
@@ -100,8 +101,12 @@ try {
       packageJson.includes('"qc:file-storage-schema-target-readiness-package"')
   );
   record(
-    "STORAGE-SCHEMA-TARGET-PACKAGE-012 PM evidence references Phase 4Y",
-    planSource.includes("Phase 4Y") && devTaskSource.includes("Phase 4Y")
+    "STORAGE-SCHEMA-TARGET-PACKAGE-012 PM evidence references target readiness package lane",
+    planSource.includes("Phase 4Y") &&
+      planSource.includes("storage:schema-target-readiness-package") &&
+      planSource.includes("qc:file-storage-schema-target-readiness-package") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-TARGET-PACKAGE-013 generator does not write official migration directories",
@@ -118,9 +123,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

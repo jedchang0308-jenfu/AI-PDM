@@ -1,0 +1,25 @@
+# PDM Release Master Status Sync QC
+
+- PASS: success marks submission Released
+- PASS: success stamps released_at
+- PASS: drawing master is Released / Release
+- PASS: part master is Released / Release
+- PASS: root master is Released / Release
+- PASS: item current revision is updated
+- PASS: previous released submission is obsoleted
+- PASS: related release-failed submission is resolved
+- PASS: result exposes master sync payload
+- PASS: master sync audit is written
+- PASS: obsolete audit still exists
+- PASS: release-failed resolution audit still exists
+- PASS: missing source returns human Chinese message
+- PASS: missing source does not mark submission Released
+- PASS: missing source does not mutate drawing master
+- PASS: missing source does not write partial audit
+- PASS: legacy submission can resolve by drawing number fallback
+- PASS: single linked part is still synced
+- PASS: package exposes qc script
+- PASS: repository writes master sync audit
+- PASS: repository blocks missing source with Chinese message
+- PASS: drawing list exposes human mismatch text
+- PASS: async drawing list detects released-master mismatch

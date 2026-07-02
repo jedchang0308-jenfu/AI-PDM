@@ -7,7 +7,9 @@ import {
   buildStorageSchemaTargetProvisioningExecutionPackage,
   writeStorageSchemaTargetProvisioningExecutionPackage
 } from "./generate-file-storage-schema-target-provisioning-execution-package.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -139,8 +141,10 @@ function blockedCreateResult() {
   };
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-target-provisioning-execution-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-target-provisioning-execution-qc-"));
   const missing = await buildStorageSchemaTargetProvisioningExecutionPackage({});
   record("STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-001 missing create request blocks package", missing.summary.status === "blocked_missing_target_create_request");
 
@@ -208,21 +212,26 @@ try {
   record("STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-010 output files are written", Boolean(output.jsonPath && output.markdownPath));
   record("STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-011 markdown records guardrails and connector plan", markdown.includes("No Supabase connector call made by generator: true") && markdown.includes("Step 1: Supabase.confirm_cost"));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
   record(
     "STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-012 package scripts are registered",
     packageJson.includes('"storage:schema-target-provisioning-execution-package"') &&
       packageJson.includes('"qc:file-storage-schema-target-provisioning-execution-package"')
   );
 
-  const planSource = await fsp.readFile(path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"), "utf8");
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
   record(
-    "STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-013 PM evidence references Phase 5I and Phase 5K",
-    planSource.includes("Phase 5I") && devTaskSource.includes("Phase 5I") && planSource.includes("Phase 5K") && devTaskSource.includes("Phase 5K")
+    "STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-013 PM evidence references provisioning execution lane",
+    planSource.includes("Phase 5I") &&
+      planSource.includes("Phase 5K") &&
+      planSource.includes("storage:schema-target-provisioning-execution-package") &&
+      planSource.includes("qc:file-storage-schema-target-provisioning-execution-package") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
 
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-target-provisioning-execution-package.mjs"), "utf8");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-target-provisioning-execution-package.mjs");
   record(
     "STORAGE-SCHEMA-TARGET-PROVISIONING-EXECUTION-014 generator is evidence-only and has no connector imports",
     !/(mcp__codex_apps__supabase|_confirm_cost|_create_project|_create_branch)/.test(generatorSource)
@@ -238,4 +247,6 @@ try {
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

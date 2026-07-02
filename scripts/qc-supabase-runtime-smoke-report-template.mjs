@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -20,6 +11,13 @@ function record(name, passed, detail = "") {
 
 function includesAll(source, needles) {
   return needles.every((needle) => source.includes(needle));
+}
+
+function devTaskRecordsSmokeReportTemplate(devTask) {
+  return (
+    /Runtime smoke report template[\s\S]*Prepared/iu.test(devTask) &&
+    devTask.includes("qc:supabase-runtime-smoke-report-template")
+  );
 }
 
 function hasLiveSecret(value) {
@@ -41,16 +39,16 @@ const readmePath = "supabase/README.md";
 const localReadinessPath = "scripts/qc-supabase-runtime-local-readiness.mjs";
 const scriptPath = "scripts/qc-supabase-runtime-smoke-report-template.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const template = exists(templatePath) ? read(templatePath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const approvalPackage = exists(approvalPackagePath) ? read(approvalPackagePath) : "";
-const smokeApiMatrix = exists(smokeApiMatrixPath) ? read(smokeApiMatrixPath) : "";
-const authSessionBoundary = exists(authSessionBoundaryPath) ? read(authSessionBoundaryPath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
-const localReadiness = read(localReadinessPath);
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const template = projectFileExists(root, templatePath) ? readProjectFile(root, templatePath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const approvalPackage = projectFileExists(root, approvalPackagePath) ? readProjectFile(root, approvalPackagePath) : "";
+const smokeApiMatrix = projectFileExists(root, smokeApiMatrixPath) ? readProjectFile(root, smokeApiMatrixPath) : "";
+const authSessionBoundary = projectFileExists(root, authSessionBoundaryPath) ? readProjectFile(root, authSessionBoundaryPath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const localReadiness = readProjectFile(root, localReadinessPath);
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-SMOKE-REPORT-001 package script is registered",
@@ -58,7 +56,7 @@ record(
     "node scripts/qc-supabase-runtime-smoke-report-template.mjs",
   "package.json"
 );
-record("SUPA-SMOKE-REPORT-002 report template exists", exists(templatePath), templatePath);
+record("SUPA-SMOKE-REPORT-002 report template exists", projectFileExists(root, templatePath), templatePath);
 record(
   "SUPA-SMOKE-REPORT-003 template is clearly not an executed report",
   includesAll(template, [
@@ -160,9 +158,7 @@ record(
 );
 record(
   "SUPA-SMOKE-REPORT-010 dev_task records template as controlled evidence",
-  devTask.includes(templatePath) &&
-    (devTask.includes("Runtime smoke report template prepared") || devTask.includes("Runtime smoke report template")) &&
-    devTask.includes("qc:supabase-runtime-smoke-report-template"),
+  devTaskRecordsSmokeReportTemplate(devTask),
   devTaskPath
 );
 record(

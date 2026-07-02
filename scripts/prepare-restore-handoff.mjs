@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { getBackupDir, getRestoreHandoffsDir, resolveUserPath } from "./pdm-paths.mjs";
@@ -10,7 +10,7 @@ const backupRoot = getBackupDir(root);
 const args = parseArgs(process.argv.slice(2));
 const snapshotDir = resolveSnapshotDir(args.snapshot);
 const manifestPath = path.join(snapshotDir, "manifest.json");
-const manifest = readManifest();
+const manifest = readSnapshotManifest();
 const outputRoot = args.output ? resolveUserPath(root, args.output) : getRestoreHandoffsDir(root);
 const outputDir = path.join(outputRoot, manifest.snapshotId ?? path.basename(snapshotDir));
 
@@ -42,13 +42,12 @@ function resolveSnapshotDir(snapshotArg) {
     return resolveUserPath(root, snapshotArg);
   }
 
-  if (!fs.existsSync(backupRoot)) {
+  if (!existsSync(backupRoot)) {
     console.error(`Backup root not found at ${backupRoot}`);
     process.exit(1);
   }
 
-  const snapshots = fs
-    .readdirSync(backupRoot, { withFileTypes: true })
+  const snapshots = readdirSync(backupRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(backupRoot, entry.name))
     .sort();
@@ -61,12 +60,12 @@ function resolveSnapshotDir(snapshotArg) {
   return snapshots[snapshots.length - 1];
 }
 
-function readManifest() {
-  if (!fs.existsSync(manifestPath)) {
+function readSnapshotManifest() {
+  if (!existsSync(manifestPath)) {
     console.error(`Backup manifest not found at ${manifestPath}`);
     process.exit(1);
   }
-  return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  return JSON.parse(readFileSync(manifestPath, "utf8"));
 }
 
 function runSnapshotVerification() {
@@ -172,7 +171,7 @@ function buildReadme(handoff) {
 
 const verification = runSnapshotVerification();
 
-fs.mkdirSync(outputDir, { recursive: true });
+mkdirSync(outputDir, { recursive: true });
 
 const handoff = {
   generatedAt: new Date().toISOString(),
@@ -210,9 +209,9 @@ const handoff = {
   }
 };
 
-fs.writeFileSync(path.join(outputDir, "restore-handoff.json"), `${JSON.stringify(handoff, null, 2)}\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "restore-on-test-machine.ps1"), buildPowerShellScript(), "utf8");
-fs.writeFileSync(path.join(outputDir, "README.md"), buildReadme(handoff), "utf8");
+writeFileSync(path.join(outputDir, "restore-handoff.json"), `${JSON.stringify(handoff, null, 2)}\n`, "utf8");
+writeFileSync(path.join(outputDir, "restore-on-test-machine.ps1"), buildPowerShellScript(), "utf8");
+writeFileSync(path.join(outputDir, "README.md"), buildReadme(handoff), "utf8");
 
 console.log(JSON.stringify({
   snapshotId: handoff.snapshot.snapshotId,

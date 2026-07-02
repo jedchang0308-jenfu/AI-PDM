@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { evaluateStorageSchemaTargetSafety } from "./file-storage-schema-target-safety.mjs";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_TARGET_CREATE_RESULT_EVIDENCE_VERSION = "storage-schema-target-create-result-evidence/v1";
+
+const root = process.cwd();
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
 
 function normalizeName(value) {
   return String(value ?? "")
@@ -23,14 +35,16 @@ function normalizeProjectInventory(value) {
   return [];
 }
 
-async function readJson(filePath) {
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
   const resolvedPath = path.resolve(filePath);
   try {
     return {
       missing: false,
       path: resolvedPath,
-      value: JSON.parse(await fsp.readFile(resolvedPath, "utf8"))
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
     };
   } catch (error) {
     return {
@@ -141,9 +155,9 @@ function buildMarkdown(report) {
 }
 
 export async function buildStorageSchemaTargetCreateResultEvidence(options = {}) {
-  const createRequestEvidence = await readJson(options.targetCreateRequestPath ?? "");
-  const connectorReceiptEvidence = await readJson(options.connectorReceiptEvidencePath ?? "");
-  const inventoryEvidence = await readJson(options.projectsReportPath ?? "");
+  const createRequestEvidence = await readInputJson(options.targetCreateRequestPath ?? "");
+  const connectorReceiptEvidence = await readInputJson(options.connectorReceiptEvidencePath ?? "");
+  const inventoryEvidence = await readInputJson(options.projectsReportPath ?? "");
   const createRequest = createRequestEvidence.value ?? {};
   const targetName = String(createRequest?.target?.targetName ?? options.expectedTargetName ?? "").trim();
   const inventoryProjects = normalizeProjectInventory(inventoryEvidence.value);
@@ -208,11 +222,11 @@ export async function buildStorageSchemaTargetCreateResultEvidence(options = {})
 
 export async function writeStorageSchemaTargetCreateResultEvidence(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "supabase-target-create-result-evidence.json");
   const markdownPath = path.join(resolvedOutputDir, "supabase-target-create-result-evidence.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 const profileSource = read("src/lib/metadata-adapter-profile.ts");
 const routeSource = read("src/app/api/file-metadata/detect/route.ts");

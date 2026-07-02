@@ -41,6 +41,10 @@ export async function submissionRevisionExistsAsync(input: { companyId: string; 
   return new AsyncSubmissionWriteRepository(getAsyncDatabaseClient()).submissionRevisionExists(input);
 }
 
+export async function listSubmissionRevisionsByDrawingAsync(input: { companyId: string; drawingNumber: string }) {
+  return new AsyncSubmissionWriteRepository(getAsyncDatabaseClient()).listSubmissionRevisionsByDrawing(input);
+}
+
 export async function createSubmissionRecordAsync(input: CreateSubmissionAsyncInput) {
   return new AsyncSubmissionWriteRepository(getAsyncDatabaseClient()).createSubmissionRecord(input);
 }

@@ -1,15 +1,10 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -43,12 +38,12 @@ record("PG-002B schema/RLS-only shadow compare exits successfully", schemaRlsOnl
 const targetGuard = runNode("scripts/qc-postgres-shadow-target-guard.mjs");
 record("PG-002A target guard exits successfully", targetGuard.status === 0, targetGuard.stderr || targetGuard.stdout);
 
-const sqliteSchema = read("db/schema.sql");
-const postgresSchema = read("db/postgres/001_initial_schema.sql");
-const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
-const readme = read("db/postgres/README.md");
-const packageJson = JSON.parse(read("package.json"));
-const planDoc = read(".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
+const sqliteSchema = readProjectFile(root, "db/schema.sql");
+const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql");
+const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
+const readme = readProjectFile(root, "db/postgres/README.md");
+const packageJson = readProjectJson(root, "package.json");
+const planDoc = readProjectFile(root, ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
 
 const sqliteTables = extractTableNames(sqliteSchema);
 const postgresTables = extractTableNames(postgresSchema);

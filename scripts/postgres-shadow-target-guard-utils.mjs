@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const forbiddenSupabaseTargets = [
   { name: "ProJED", ref: "knodlkxqpcqyrtgwpdst" },
@@ -12,7 +11,7 @@ export function extractTableNames(sql) {
 }
 
 export function getExpectedAiPdmTables(root) {
-  return extractTableNames(fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8"));
+  return extractTableNames(readProjectFile(root, "db/schema.sql"));
 }
 
 export function quoteIdent(identifier) {

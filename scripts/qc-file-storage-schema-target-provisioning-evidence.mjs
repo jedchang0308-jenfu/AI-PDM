@@ -2,8 +2,10 @@
 
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const DEFAULT_EVIDENCE_DIR = ".ai-doc/reports/pm/supabase-target-provisioning-evidence-2026-06-11";
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -11,7 +13,19 @@ function record(name, passed, detail = "") {
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 
-async function readJson(filePath) {
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
+
+async function readEvidenceJson(filePath) {
+  if (isInsideDirectory(root, filePath)) {
+    return readProjectJson(root, toProjectRelative(filePath));
+  }
   return JSON.parse(await fsp.readFile(filePath, "utf8"));
 }
 
@@ -26,21 +40,18 @@ function parseArgs(argv) {
 try {
   const args = parseArgs(process.argv.slice(2));
   const evidenceDir = path.resolve(args.evidenceDir);
-  const inventory = await readJson(path.join(evidenceDir, "project-inventory.json"));
-  const readinessPackage = await readJson(path.join(evidenceDir, "storage-schema-target-readiness-package.json"));
-  const costPackage = await readJson(path.join(evidenceDir, "storage-schema-target-cost-confirmation-package.json"));
-  const userCostConfirmation = await readJson(path.join(evidenceDir, "user-cost-confirmation-evidence.json"));
-  const targetCreateRequest = await readJson(path.join(evidenceDir, "supabase-target-create-request.json"));
-  const targetConnectorReceipt = await readJson(path.join(evidenceDir, "supabase-target-connector-receipt-evidence.json"));
-  const targetCreateResult = await readJson(path.join(evidenceDir, "supabase-target-create-result-evidence.json"));
-  const targetProvisioningExecution = await readJson(path.join(evidenceDir, "supabase-target-provisioning-execution-package.json"));
-  const formalPackage = await readJson(path.join(evidenceDir, "storage-schema-formal-review-package.json"));
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
+  const inventory = await readEvidenceJson(path.join(evidenceDir, "project-inventory.json"));
+  const readinessPackage = await readEvidenceJson(path.join(evidenceDir, "storage-schema-target-readiness-package.json"));
+  const costPackage = await readEvidenceJson(path.join(evidenceDir, "storage-schema-target-cost-confirmation-package.json"));
+  const userCostConfirmation = await readEvidenceJson(path.join(evidenceDir, "user-cost-confirmation-evidence.json"));
+  const targetCreateRequest = await readEvidenceJson(path.join(evidenceDir, "supabase-target-create-request.json"));
+  const targetConnectorReceipt = await readEvidenceJson(path.join(evidenceDir, "supabase-target-connector-receipt-evidence.json"));
+  const targetCreateResult = await readEvidenceJson(path.join(evidenceDir, "supabase-target-create-result-evidence.json"));
+  const targetProvisioningExecution = await readEvidenceJson(path.join(evidenceDir, "supabase-target-provisioning-execution-package.json"));
+  const formalPackage = await readEvidenceJson(path.join(evidenceDir, "storage-schema-formal-review-package.json"));
+  const packageJson = readProjectFile(root, "package.json");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
 
   const projectNames = inventory.projects.map((project) => project.name);
   const projectRefs = inventory.projects.map((project) => project.ref);
@@ -115,8 +126,13 @@ try {
       packageJson.includes('"qc:file-storage-schema-target-provisioning-execution-package"')
   );
   record(
-    "STORAGE-SCHEMA-PROVISIONING-EVIDENCE-033 PM evidence references Phase 5I and Phase 5K",
-    devTaskSource.includes("Phase 5I") && planSource.includes("Phase 5I") && devTaskSource.includes("Phase 5K") && planSource.includes("Phase 5K")
+    "STORAGE-SCHEMA-PROVISIONING-EVIDENCE-033 PM evidence references provisioning evidence lane",
+    planSource.includes("Phase 5I") &&
+      planSource.includes("Phase 5K") &&
+      planSource.includes("storage:schema-target-provisioning-execution-package") &&
+      planSource.includes("qc:file-storage-schema-target-provisioning-execution-package") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
 
   const serialized = JSON.stringify([inventory, readinessPackage, costPackage, userCostConfirmation, targetCreateRequest, targetConnectorReceipt, targetCreateResult, targetProvisioningExecution, formalPackage]);

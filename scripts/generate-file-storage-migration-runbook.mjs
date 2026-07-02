@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildStorageMigrationDryRun } from "./generate-file-storage-migration-dry-run.mjs";
@@ -290,13 +290,13 @@ export function buildStorageMigrationRunbook(options = {}) {
 
 export async function writeStorageMigrationRunbook(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-migration-runbook.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-migration-runbook.md");
   const rollbackPlanPath = path.join(resolvedOutputDir, "storage-migration-pointer-rollback-plan.json");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
-  await fsp.writeFile(rollbackPlanPath, `${JSON.stringify(report.pointerRollbackPlan, null, 2)}\n`, "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(rollbackPlanPath, `${JSON.stringify(report.pointerRollbackPlan, null, 2)}\n`, "utf8");
   return { jsonPath, markdownPath, rollbackPlanPath };
 }
 

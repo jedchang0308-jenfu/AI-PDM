@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   surface_finish TEXT NOT NULL,
   document_type TEXT NOT NULL,
   change_description TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('Pending', 'Releasing', 'Released', 'Rejected', 'ReleaseFailed', 'Obsolete')),
+  status TEXT NOT NULL CHECK (status IN ('Pending', 'Releasing', 'Released', 'Rejected', 'ReleaseFailed', 'Obsolete', 'Cancelled')),
   submitted_by TEXT NOT NULL,
   approval_required INTEGER NOT NULL DEFAULT 1 CHECK (approval_required IN (1, 2)),
   released_at TEXT,
@@ -80,6 +80,17 @@ CREATE TABLE IF NOT EXISTS submissions (
   superseded_by_submission_id TEXT,
   obsolete_at TEXT,
   obsolete_by TEXT,
+  cancelled_at TEXT,
+  cancelled_by TEXT,
+  cancel_reason TEXT,
+  returned_for_correction_at TEXT,
+  returned_for_correction_by TEXT,
+  returned_for_correction_reason TEXT,
+  corrects_submission_id TEXT,
+  resolved_by_submission_id TEXT,
+  resolved_at TEXT,
+  source_entity_type TEXT,
+  source_entity_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (company_id) REFERENCES companies(id),
@@ -87,7 +98,10 @@ CREATE TABLE IF NOT EXISTS submissions (
   FOREIGN KEY (submitted_by) REFERENCES users(id),
   FOREIGN KEY (superseded_by_submission_id) REFERENCES submissions(id),
   FOREIGN KEY (obsolete_by) REFERENCES users(id),
-  UNIQUE (company_id, drawing_number, revision)
+  FOREIGN KEY (cancelled_by) REFERENCES users(id),
+  FOREIGN KEY (returned_for_correction_by) REFERENCES users(id),
+  FOREIGN KEY (corrects_submission_id) REFERENCES submissions(id),
+  FOREIGN KEY (resolved_by_submission_id) REFERENCES submissions(id)
 );
 
 CREATE TABLE IF NOT EXISTS submission_files (
@@ -100,10 +114,62 @@ CREATE TABLE IF NOT EXISTS submission_files (
   gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed', 'moved')),
   sha256 TEXT NOT NULL,
   file_size INTEGER NOT NULL,
+  source_master_attachment_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
   UNIQUE (submission_id, file_role, original_filename)
 );
+
+CREATE TABLE IF NOT EXISTS submission_snapshots (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL,
+  source_root_id TEXT NOT NULL,
+  source_root_code TEXT NOT NULL,
+  source_drawing_number_id TEXT NOT NULL,
+  source_drawing_number TEXT NOT NULL,
+  source_part_number_id TEXT NOT NULL,
+  source_part_number TEXT NOT NULL,
+  snapshot_version TEXT NOT NULL DEFAULT 'drawing_part_submission_v1',
+  rules_version TEXT NOT NULL,
+  snapshot_hash TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  captured_by TEXT NOT NULL,
+  captured_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
+ON submission_snapshots(company_id, source_root_code);
+
+CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
+ON submission_snapshots(company_id, source_drawing_number);
+
+CREATE TABLE IF NOT EXISTS submission_attempts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  source_root_code TEXT NOT NULL,
+  source_drawing_number TEXT,
+  source_revision TEXT,
+  idempotency_key TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('started', 'blocked', 'failed', 'created')),
+  retryable INTEGER NOT NULL DEFAULT 0 CHECK (retryable IN (0, 1)),
+  blocker_json TEXT,
+  error_code TEXT,
+  error_message TEXT,
+  submission_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  UNIQUE (company_id, actor_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_attempts_source
+ON submission_attempts(company_id, source_root_code, source_drawing_number, source_revision, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS file_references (
   id TEXT PRIMARY KEY,
@@ -1525,6 +1591,10 @@ CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at 
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_created_at ON submissions(submitted_by, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_status_created_at ON submissions(submitted_by, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_item_created_at ON submissions(item_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_company_drawing_revision ON submissions(company_id, drawing_number, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_blocking_same_revision_unique
+ON submissions(company_id, drawing_number, revision)
+WHERE status IN ('Pending', 'Releasing', 'Released', 'Obsolete');
 CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);

@@ -11,6 +11,8 @@ This policy defines the data parity boundary for `DEV-SUPABASE-DB-001`.
 
 It does not authorize live Supabase connection, staging runtime smoke, data migration, provider pointer changes, production cutover, or cost-incurring actions. Full data parity execution remains blocked until PM approves a controlled seed/data migration scope.
 
+2026-06-29 PM consistency note: this policy governs full data parity only. The separate `AI_PDM_STAGING` GATE-B app-API smoke and read-only staging validation were later approved and executed under their own gate; that evidence does not execute or close full data parity.
+
 ## 2. Current Supabase References
 
 References reviewed for this policy:

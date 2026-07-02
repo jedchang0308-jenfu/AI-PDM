@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -20,6 +11,14 @@ function record(name, passed, detail = "") {
 
 function includesAll(source, needles) {
   return needles.every((needle) => source.includes(needle));
+}
+
+function devTaskRecordsMigrationHistoryPolicy(devTask) {
+  return (
+    devTask.includes("DEV-SUPABASE-DB-001-MIGRATION-HISTORY") &&
+    /Migration history policy[\s\S]*Accepted/iu.test(devTask) &&
+    devTask.includes("qc:supabase-migration-history-policy")
+  );
 }
 
 function hasLiveSecret(value) {
@@ -36,11 +35,11 @@ const devTaskPath = ".ai-doc/dev_task.md";
 const gatePlanPath = ".ai-doc/qa/qa-supabase-runtime-provider-gate-validation-plan-2026-06-16.md";
 const readmePath = "supabase/README.md";
 
-const packageJson = JSON.parse(read("package.json"));
-const policy = exists(policyPath) ? read(policyPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
+const packageJson = readProjectJson(root, "package.json");
+const policy = projectFileExists(root, policyPath) ? readProjectFile(root, policyPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
 
 record(
   "SUPA-HISTORY-001 package script is registered",
@@ -48,7 +47,7 @@ record(
     "node scripts/qc-supabase-migration-history-policy.mjs",
   "package.json"
 );
-record("SUPA-HISTORY-002 policy file exists", exists(policyPath), policyPath);
+record("SUPA-HISTORY-002 policy file exists", projectFileExists(root, policyPath), policyPath);
 record(
   "SUPA-HISTORY-003 policy identifies the raw psql staging exception",
   includesAll(policy, ["raw `psql -f`", "staging-only exception", "partial history"]),
@@ -87,9 +86,7 @@ record(
 );
 record(
   "SUPA-HISTORY-007 dev_task records policy as controlled evidence",
-  devTask.includes(policyPath) &&
-    devTask.includes("Migration history policy accepted") &&
-    devTask.includes("qc:supabase-migration-history-policy"),
+  devTaskRecordsMigrationHistoryPolicy(devTask),
   devTaskPath
 );
 record(

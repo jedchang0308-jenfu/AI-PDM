@@ -4,27 +4,20 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import {
   buildStorageArchiveRestoreDrill,
   writeStorageArchiveRestoreDrill
 } from "./generate-file-storage-archive-restore-drill.mjs";
+import { sha256Bytes, sha256File } from "./qc-file-hash-utils.mjs";
 
 const root = process.cwd();
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
-}
-
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function writeFixtureDb(dbPath, files) {
@@ -128,7 +121,7 @@ function writeFixtureDb(dbPath, files) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-restore-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-restore-qc-"));
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   const releaseDir = path.join(dataDir, "release-packages", "2026", "06");
@@ -145,8 +138,8 @@ async function main() {
     missingPath: path.join(repositoryDir, "released", "missing.dwg"),
     mismatchPath: path.join(repositoryDir, "released", "mismatch.pdf"),
     releasePath: path.join(releaseDir, "release-restore.zip"),
-    okHash: sha256(okBytes),
-    releaseHash: sha256(releaseBytes)
+    okHash: sha256Bytes(okBytes),
+    releaseHash: sha256Bytes(releaseBytes)
   };
   await fsp.writeFile(files.okPath, okBytes);
   await fsp.writeFile(files.mismatchPath, mismatchBytes);
@@ -177,7 +170,10 @@ async function main() {
   record("STORAGE-ARCHIVE-RESTORE-009 missing and mismatch objects are blocked", report.summary.blockedCount === 2 && ["source_file_missing", "sha256_mismatch"].every((reason) => report.blocked.some((item) => item.reason === reason)));
   record("STORAGE-ARCHIVE-RESTORE-010 remote provider object is skipped", report.summary.skippedCount === 1 && report.skipped[0]?.reason === "source_provider_not_local_repository");
   record("STORAGE-ARCHIVE-RESTORE-011 restored files exist under isolated target", report.restored.every((item) => fs.existsSync(path.join(tempRoot, item.restorePath))));
-  record("STORAGE-ARCHIVE-RESTORE-012 restored file hashes match source metadata", report.restored.every((item) => sha256File(path.join(tempRoot, item.restorePath)) === item.expectedSha256));
+  record(
+    "STORAGE-ARCHIVE-RESTORE-012 restored file hashes match source metadata",
+    (await Promise.all(report.restored.map(async (item) => sha256File(path.join(tempRoot, item.restorePath))))).every((hash, index) => hash === report.restored[index].expectedSha256)
+  );
   record("STORAGE-ARCHIVE-RESTORE-013 output JSON and Markdown are written", fs.existsSync(written.jsonPath) && fs.existsSync(written.markdownPath) && markdown.includes("AI_PDM Storage Archive Restore Drill"));
 
   const serialized = JSON.stringify(report);
@@ -186,11 +182,14 @@ async function main() {
   const packageJson = await fsp.readFile(path.join(root, "package.json"), "utf8");
   record("STORAGE-ARCHIVE-RESTORE-015 package scripts are registered", packageJson.includes('"storage:archive-restore-drill"') && packageJson.includes('"qc:file-storage-archive-restore"'));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

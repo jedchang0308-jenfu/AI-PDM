@@ -3,7 +3,11 @@
 日期：2026-06-18  
 Owner：PM-dev  
 關聯 DEV：`DEV-SW-LICENSE-PDM-001`  
-狀態：Git boundary deferred
+狀態：Superseded / Git boundary closed locally
+
+2026-06-29 PM consistency note: this handoff captured the 2026-06-18 deferred state. It was superseded on 2026-06-19 after user-authorized index handling: Supabase staging evidence was committed separately as `be333eb`, then scoped `DEV-SW-LICENSE-PDM-001` was committed as `6f4dbab`. Keep this document as historical evidence only; do not treat its deferred next steps as current work.
+
+Historical QC phrase retained for `qc:sw-license-pdm-git-boundary`: Git boundary deferred.
 
 ## 1. 目的
 
@@ -126,6 +130,8 @@ Owner：PM-dev
 - production deployment / Supabase production cutover
 
 ## 7. 建議下一步
+
+Superseded as of 2026-06-19: the next steps below were completed through the separated commits `be333eb` and `6f4dbab`.
 
 1. 先處理目前 index 中的 Supabase staged 檔案：由 owner 提交、移出 index，或明確授權 PM-dev 重整 index。
 2. 對 Group A/B/C 逐檔檢查 diff，排除同檔混入的非本任務變更。

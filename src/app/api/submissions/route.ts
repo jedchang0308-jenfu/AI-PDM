@@ -68,122 +68,13 @@ export async function POST(request: Request) {
   const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
-  const form = await request.formData();
-  const companyResult = await resolvePdmCompanyContextAsync(auth.user, requestedPdmCompanyCodeFromRequest(request, form));
-  if (companyResult.response) return companyResult.response;
-
-  const files = form.getAll("files").filter((item): item is File => item instanceof File);
-  const input = {
-    drawingNumber: String(form.get("drawing_number") ?? "").trim(),
-    partNumber: String(form.get("part_number") ?? "").trim(),
-    partName: String(form.get("part_name") ?? "").trim(),
-    revision: String(form.get("revision") ?? "").trim(),
-    productLine: String(form.get("product_line") ?? "").trim(),
-    customer: String(form.get("customer") ?? "").trim(),
-    projectCode: String(form.get("project_code") ?? "").trim(),
-    processName: String(form.get("process_name") ?? "").trim(),
-    machine: String(form.get("machine") ?? "").trim(),
-    material: String(form.get("material") ?? "").trim(),
-    surfaceFinish: String(form.get("surface_finish") ?? "").trim(),
-    documentType: String(form.get("document_type") ?? "").trim(),
-    changeDescription: String(form.get("change_description") ?? "").trim(),
-    submittedBy: auth.user.id
-  };
-  const approvalRequired = parseApprovalRequired(form.get("approval_required"));
-  const cadReferences = parseCadReferences(form.get("cad_references_json"));
-
-  const uploadPolicy = getStorageUploadPolicy();
-  const uploadDecisions = getActionableStorageUploadDecisions(files, uploadPolicy);
-  const largeFileIntakePackage = getAlternateLargeFileIntakePackage(files, uploadPolicy);
-  const uploadOverride = evaluateStorageUploadOverride({
-    enabled: parseBooleanFormValue(form.get("storage_upload_override")),
-    reason: String(form.get("storage_upload_override_reason") ?? "").trim(),
-    actorId: auth.user.id,
-    actorRole: auth.user.role,
-    decisions: uploadDecisions,
-    maxUploadFileBytes: uploadPolicy.maxUploadFileBytes,
-    largeFileThresholdBytes: uploadPolicy.largeFileThresholdBytes
-  });
-  const errors = validateSubmissionInput(input);
-  if (!approvalRequired) errors.push("簽審層級必須為 1 或 2");
-  if (files.length === 0) errors.push("至少需要一個檔案");
-  errors.push(...uploadOverride.errors);
-  errors.push(...validateUploadedFiles(files, uploadPolicy.maxUploadFileBytes, { allowOversizedFiles: uploadOverride.approved }));
-  for (const decision of uploadOverride.approved ? [] : uploadDecisions) {
-    errors.push(
-      [
-        `storage_upload_decision=${decision.disposition}`,
-        `filename=${decision.filename}`,
-        `file_size=${decision.fileSize}`,
-        `max_upload_bytes=${decision.maxUploadFileBytes}`,
-        `large_file_threshold_bytes=${decision.largeFileThresholdBytes}`,
-        `reason=${decision.reason}`
-      ].join(";")
-    );
-  }
-  for (const item of largeFileIntakePackage.items) {
-    errors.push(
-      [
-        "large_file_intake_required=true",
-        `package_version=${largeFileIntakePackage.packageVersion}`,
-        `filename=${item.filename}`,
-        `file_size=${item.fileSize}`,
-        `intake_action=${item.intakeAction}`,
-        `audit_action=${item.auditAction}`,
-        `required_metadata=${item.requiredMetadata.join(",")}`,
-        `allowed_provider_profiles=${item.allowedProviderProfiles.join(",")}`
-      ].join(";")
-    );
-  }
-  if (errors.length > 0) {
-    return NextResponse.json({ error: "驗證失敗", details: errors }, { status: 400 });
-  }
-
-  if (
-    await submissionRevisionExistsAsync({
-      companyId: companyResult.company.companyId,
-      drawingNumber: input.drawingNumber,
-      revision: input.revision
-    })
-  ) {
-    return NextResponse.json({ error: "圖號與版次已存在" }, { status: 409 });
-  }
-
-  const submissionFolderName = `SUB-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto
-    .randomUUID()
-    .slice(0, 8)
-    .toUpperCase()}`;
-  const savedFiles = await saveUploadedFiles(submissionFolderName, files);
-
-  try {
-    const submissionId = await createSubmissionRecordAsync({
-      companyId: companyResult.company.companyId,
-      ...input,
-      approvalRequired: approvalRequired ?? 1,
-      files: savedFiles,
-      references: cadReferences,
-      storageUploadOverride: uploadOverride.audit
-    });
-
-    // Fire and forget background upload if configured
-    const pendingFolderId =
-      (await getSystemSettingAsync("gdrive_pending_folder_id")) || (process.env.GOOGLE_DRIVE_PENDING_FOLDER_ID ?? "");
-    if (pendingFolderId) {
-      triggerBackgroundUpload(submissionId, pendingFolderId).catch(console.error);
-    }
-
-    return NextResponse.json({ submissionId, status: "Pending", pdmCompany: companyResult.company }, { status: 201 });
-  } catch (error) {
-    await removeSubmissionUploadFolder(submissionFolderName);
-    const message = error instanceof Error ? error.message : "未知錯誤";
-    if (
-      message.includes("UNIQUE constraint failed: submissions.company_id, submissions.drawing_number, submissions.revision") ||
-      message.includes("UNIQUE constraint failed: submissions.drawing_number, submissions.revision")
-    ) {
-      return NextResponse.json({ error: "圖號與版次已存在" }, { status: 409 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json(
+    {
+      error: "GENERIC_SUBMISSION_RETIRED",
+      message: "通用上傳送審已退役。請從圖料模組完成主資料與附件確認後送審，不可在送審階段補填主資料。"
+    },
+    { status: 410 }
+  );
 }
 
 function parseBooleanFormValue(value: FormDataEntryValue | null) {

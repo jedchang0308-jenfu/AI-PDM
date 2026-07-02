@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { projectPath, readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const sourceFiles = [
@@ -24,12 +25,10 @@ const sourceFiles = [
   }
 ];
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function write(relativePath, content) {
-  const absolutePath = path.join(root, ...relativePath.split("/"));
+  const absolutePath = projectPath(root, relativePath);
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
   fs.writeFileSync(absolutePath, content, "utf8");
 }

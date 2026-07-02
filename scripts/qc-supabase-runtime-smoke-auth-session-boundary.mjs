@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
@@ -68,17 +67,9 @@ const linkedDocs = [
   localReadinessPath
 ];
 
-function filePath(relativePath) {
-  return path.join(root, ...relativePath.split("/"));
-}
+const exists = (relativePath) => projectFileExists(root, relativePath);
 
-function exists(relativePath) {
-  return fs.existsSync(filePath(relativePath));
-}
-
-function read(relativePath) {
-  return fs.readFileSync(filePath(relativePath), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function includesAll(source, needles) {
   return needles.every((needle) => source.includes(needle));
@@ -101,7 +92,7 @@ function hasLiveSecret(value) {
   ].some((pattern) => pattern.test(value));
 }
 
-const packageJson = JSON.parse(read("package.json"));
+const packageJson = readProjectJson(root, "package.json");
 const boundary = exists(boundaryPath) ? read(boundaryPath) : "";
 const scriptSource = read(scriptPath);
 

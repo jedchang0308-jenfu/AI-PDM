@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -41,16 +32,16 @@ const readmePath = "supabase/README.md";
 const localReadinessPath = "scripts/qc-supabase-runtime-local-readiness.mjs";
 const scriptPath = "scripts/qc-supabase-runtime-gate-b-runbook.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const runbook = exists(runbookPath) ? read(runbookPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const approvalPackage = exists(approvalPackagePath) ? read(approvalPackagePath) : "";
-const reportTemplate = exists(reportTemplatePath) ? read(reportTemplatePath) : "";
-const smokeApiMatrix = exists(smokeApiMatrixPath) ? read(smokeApiMatrixPath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
-const localReadiness = read(localReadinessPath);
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const runbook = projectFileExists(root, runbookPath) ? readProjectFile(root, runbookPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const approvalPackage = projectFileExists(root, approvalPackagePath) ? readProjectFile(root, approvalPackagePath) : "";
+const reportTemplate = projectFileExists(root, reportTemplatePath) ? readProjectFile(root, reportTemplatePath) : "";
+const smokeApiMatrix = projectFileExists(root, smokeApiMatrixPath) ? readProjectFile(root, smokeApiMatrixPath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const localReadiness = readProjectFile(root, localReadinessPath);
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-RUNBOOK-001 package script is registered",
@@ -58,7 +49,7 @@ record(
     "node scripts/qc-supabase-runtime-gate-b-runbook.mjs",
   "package.json"
 );
-record("SUPA-RUNBOOK-002 runbook exists", exists(runbookPath), runbookPath);
+record("SUPA-RUNBOOK-002 runbook exists", projectFileExists(root, runbookPath), runbookPath);
 record(
   "SUPA-RUNBOOK-003 runbook is clearly not an execution approval or execution claim",
   includesAll(runbook, [

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const sourcePath = path.join(root, "src", "lib", "repositories", "access-control-async-repository.ts");
@@ -209,178 +210,178 @@ function listRouteFiles(directory) {
   });
 }
 
-const source = fs.readFileSync(sourcePath, "utf8");
-const userSource = fs.readFileSync(userSourcePath, "utf8");
-const auditSource = fs.readFileSync(auditSourcePath, "utf8");
-const itemLockAsyncSource = fs.readFileSync(itemLockAsyncSourcePath, "utf8");
-const itemInsightSource = fs.readFileSync(itemInsightSourcePath, "utf8");
-const dashboardAsyncSource = fs.readFileSync(dashboardAsyncSourcePath, "utf8");
-const submissionListAsyncSource = fs.readFileSync(submissionListAsyncSourcePath, "utf8");
-const submissionWriteAsyncSource = fs.readFileSync(submissionWriteAsyncSourcePath, "utf8");
-const submissionFileAsyncSource = fs.readFileSync(submissionFileAsyncSourcePath, "utf8");
-const bomAsyncSource = fs.readFileSync(bomAsyncSourcePath, "utf8");
-const sandboxAsyncSource = fs.readFileSync(sandboxAsyncSourcePath, "utf8");
-const numberingAsyncSource = fs.readFileSync(numberingAsyncSourcePath, "utf8");
-const masterAttachmentAsyncSource = fs.readFileSync(masterAttachmentAsyncSourcePath, "utf8");
-const bomWorkbenchAsyncSource = fs.readFileSync(bomWorkbenchAsyncSourcePath, "utf8");
-const collaborationAsyncSource = fs.readFileSync(collaborationAsyncSourcePath, "utf8");
-const approvalAsyncSource = fs.readFileSync(approvalAsyncSourcePath, "utf8");
-const submissionStatusAsyncSource = fs.readFileSync(submissionStatusAsyncSourcePath, "utf8");
-const releaseAsyncSource = fs.readFileSync(releaseAsyncSourcePath, "utf8");
-const notificationAsyncSource = fs.readFileSync(notificationAsyncSourcePath, "utf8");
-const handoffAsyncSource = fs.readFileSync(handoffAsyncSourcePath, "utf8");
-const aiAsyncSource = fs.readFileSync(aiAsyncSourcePath, "utf8");
-const serviceSource = fs.readFileSync(servicePath, "utf8");
-const itemLocksAsyncSource = fs.readFileSync(itemLocksAsyncPath, "utf8");
-const itemInsightsAsyncSource = fs.readFileSync(itemInsightsAsyncPath, "utf8");
-const dashboardMetricsAsyncSource = fs.readFileSync(dashboardMetricsAsyncPath, "utf8");
-const submissionsAsyncSource = fs.readFileSync(submissionsAsyncPath, "utf8");
-const submissionFilesAsyncSource = fs.readFileSync(submissionFilesAsyncPath, "utf8");
-const bomAsyncHelperSource = fs.readFileSync(bomAsyncPath, "utf8");
-const sandboxAsyncHelperSource = fs.readFileSync(sandboxAsyncPath, "utf8");
-const numberingAsyncHelperSource = fs.readFileSync(numberingAsyncPath, "utf8");
-const masterAttachmentsAsyncHelperSource = fs.readFileSync(masterAttachmentsAsyncPath, "utf8");
-const bomWorkbenchAsyncHelperSource = fs.readFileSync(bomWorkbenchAsyncPath, "utf8");
-const collaborationAsyncHelperSource = fs.readFileSync(collaborationAsyncPath, "utf8");
-const approvalAsyncHelperSource = fs.readFileSync(approvalAsyncPath, "utf8");
-const submissionStatusAsyncHelperSource = fs.readFileSync(submissionStatusAsyncPath, "utf8");
-const releaseRecordsAsyncHelperSource = fs.readFileSync(releaseRecordsAsyncPath, "utf8");
-const releaseServiceAsyncSource = fs.readFileSync(releaseAsyncPath, "utf8");
-const releasePackageAsyncSource = fs.readFileSync(releasePackageAsyncPath, "utf8");
-const notificationsAsyncSource = fs.readFileSync(notificationsAsyncPath, "utf8");
-const handoffAsyncHelperSource = fs.readFileSync(handoffAsyncPath, "utf8");
-const aiAsyncHelperSource = fs.readFileSync(aiAsyncPath, "utf8");
-const readonlyShareAsyncSource = fs.readFileSync(readonlyShareAsyncPath, "utf8");
-const fileResponseSource = fs.readFileSync(fileResponsePath, "utf8");
-const authAsyncSource = fs.readFileSync(authAsyncPath, "utf8");
-const auditAsyncSource = fs.readFileSync(auditAsyncPath, "utf8");
-const guardSource = fs.readFileSync(guardPath, "utf8");
-const loginRouteSource = fs.readFileSync(loginRoutePath, "utf8");
-const tokenRouteSource = fs.readFileSync(tokenRoutePath, "utf8");
-const meRouteSource = fs.readFileSync(meRoutePath, "utf8");
-const logoutRouteSource = fs.readFileSync(logoutRoutePath, "utf8");
-const chatRouteSource = fs.readFileSync(chatRoutePath, "utf8");
-const fileMetadataDetectRouteSource = fs.readFileSync(fileMetadataDetectRoutePath, "utf8");
-const submissionsRouteSource = fs.readFileSync(submissionsRoutePath, "utf8");
-const submissionDetailRouteSource = fs.readFileSync(submissionDetailRoutePath, "utf8");
-const submissionFileRouteSource = fs.readFileSync(submissionFileRoutePath, "utf8");
-const submissionPreflightLockRouteSource = fs.readFileSync(submissionPreflightLockRoutePath, "utf8");
-const submissionCheckoutRouteSource = fs.readFileSync(submissionCheckoutRoutePath, "utf8");
-const submissionApproveRouteSource = fs.readFileSync(submissionApproveRoutePath, "utf8");
-const submissionRejectRouteSource = fs.readFileSync(submissionRejectRoutePath, "utf8");
-const submissionReleasePackageRouteSource = fs.readFileSync(submissionReleasePackageRoutePath, "utf8");
-const submissionSharesRouteSource = fs.readFileSync(submissionSharesRoutePath, "utf8");
-const submissionShareRouteSource = fs.readFileSync(submissionShareRoutePath, "utf8");
-const submissionSupplierResponsesRouteSource = fs.readFileSync(submissionSupplierResponsesRoutePath, "utf8");
-const submissionSupplierResponseRouteSource = fs.readFileSync(submissionSupplierResponseRoutePath, "utf8");
-const submissionAiSummaryRouteSource = fs.readFileSync(submissionAiSummaryRoutePath, "utf8");
-const submissionAiRisksRouteSource = fs.readFileSync(submissionAiRisksRoutePath, "utf8");
-const submissionBomRouteSource = fs.readFileSync(submissionBomRoutePath, "utf8");
-const submissionBomDiffRouteSource = fs.readFileSync(submissionBomDiffRoutePath, "utf8");
-const submissionBomExportRouteSource = fs.readFileSync(submissionBomExportRoutePath, "utf8");
-const bomWorkbenchRouteSource = fs.readFileSync(bomWorkbenchRoutePath, "utf8");
-const bomDraftFromAssemblyRouteSource = fs.readFileSync(bomDraftFromAssemblyRoutePath, "utf8");
-const bomDraftImportXlsRouteSource = fs.readFileSync(bomDraftImportXlsRoutePath, "utf8");
-const bomDraftRouteSource = fs.readFileSync(bomDraftRoutePath, "utf8");
-const bomDraftActiveRouteSource = fs.readFileSync(bomDraftActiveRoutePath, "utf8");
-const bomDraftDiffRouteSource = fs.readFileSync(bomDraftDiffRoutePath, "utf8");
-const bomDraftSubmitReviewRouteSource = fs.readFileSync(bomDraftSubmitReviewRoutePath, "utf8");
-const bomReviewsPendingRouteSource = fs.readFileSync(bomReviewsPendingRoutePath, "utf8");
-const bomReviewApproveRouteSource = fs.readFileSync(bomReviewApproveRoutePath, "utf8");
-const bomReviewRejectRouteSource = fs.readFileSync(bomReviewRejectRoutePath, "utf8");
-const bomReleaseExportRouteSource = fs.readFileSync(bomReleaseExportRoutePath, "utf8");
-const submissionReuseCandidatesRouteSource = fs.readFileSync(submissionReuseCandidatesRoutePath, "utf8");
-const submissionDuplicateGeometryRouteSource = fs.readFileSync(submissionDuplicateGeometryRoutePath, "utf8");
-const submissionRetryUploadRouteSource = fs.readFileSync(submissionRetryUploadRoutePath, "utf8");
-const submissionSandboxRouteSource = fs.readFileSync(submissionSandboxRoutePath, "utf8");
-const submissionSandboxBranchRouteSource = fs.readFileSync(submissionSandboxBranchRoutePath, "utf8");
-const numberingDuplicateCheckRouteSource = fs.readFileSync(numberingDuplicateCheckRoutePath, "utf8");
-const numberingTaskDetailRouteSource = fs.readFileSync(numberingTaskDetailRoutePath, "utf8");
-const numberingNotificationsRouteSource = fs.readFileSync(numberingNotificationsRoutePath, "utf8");
-const numberingNotificationReadRouteSource = fs.readFileSync(numberingNotificationReadRoutePath, "utf8");
-const numberingNotificationHandledRouteSource = fs.readFileSync(numberingNotificationHandledRoutePath, "utf8");
-const numberingExportJobsRouteSource = fs.readFileSync(numberingExportJobsRoutePath, "utf8");
-const numberingExportJobRouteSource = fs.readFileSync(numberingExportJobRoutePath, "utf8");
-const numberingMonthlyAuditReportsRouteSource = fs.readFileSync(numberingMonthlyAuditReportsRoutePath, "utf8");
-const numberingMonthlyAuditReportRouteSource = fs.readFileSync(numberingMonthlyAuditReportRoutePath, "utf8");
-const numberingDraftsOverdueRouteSource = fs.readFileSync(numberingDraftsOverdueRoutePath, "utf8");
-const numberingRootDetailRouteSource = fs.readFileSync(numberingRootDetailRoutePath, "utf8");
-const numberingRecordsRouteSource = fs.readFileSync(numberingRecordsRoutePath, "utf8");
-const numberingRecordDetailRouteSource = fs.readFileSync(numberingRecordDetailRoutePath, "utf8");
-const numberingRecordObsoleteRouteSource = fs.readFileSync(numberingRecordObsoleteRoutePath, "utf8");
-const numberingSearchRouteSource = fs.readFileSync(searchRoutePath, "utf8");
-const numberingDrawingsRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "numbering", "drawings", "route.ts"), "utf8");
-const partsRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "route.ts"), "utf8");
-const partsDetailRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "[partNumber]", "route.ts"), "utf8");
-const partsVariantRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "[partNumber]", "variant", "route.ts"), "utf8");
-const partsCostProfilesRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "[partNumber]", "cost-profiles", "route.ts"), "utf8");
-const partsCostChangeRequestRouteSource = fs.readFileSync(
+function readProjectPath(filePath) {
+  return readProjectFile(root, path.relative(root, filePath).replaceAll(path.sep, "/"));
+}
+
+const source = readProjectPath(sourcePath);
+const userSource = readProjectPath(userSourcePath);
+const auditSource = readProjectPath(auditSourcePath);
+const itemLockAsyncSource = readProjectPath(itemLockAsyncSourcePath);
+const itemInsightSource = readProjectPath(itemInsightSourcePath);
+const dashboardAsyncSource = readProjectPath(dashboardAsyncSourcePath);
+const submissionListAsyncSource = readProjectPath(submissionListAsyncSourcePath);
+const submissionWriteAsyncSource = readProjectPath(submissionWriteAsyncSourcePath);
+const submissionFileAsyncSource = readProjectPath(submissionFileAsyncSourcePath);
+const bomAsyncSource = readProjectPath(bomAsyncSourcePath);
+const sandboxAsyncSource = readProjectPath(sandboxAsyncSourcePath);
+const numberingAsyncSource = readProjectPath(numberingAsyncSourcePath);
+const masterAttachmentAsyncSource = readProjectPath(masterAttachmentAsyncSourcePath);
+const bomWorkbenchAsyncSource = readProjectPath(bomWorkbenchAsyncSourcePath);
+const collaborationAsyncSource = readProjectPath(collaborationAsyncSourcePath);
+const approvalAsyncSource = readProjectPath(approvalAsyncSourcePath);
+const submissionStatusAsyncSource = readProjectPath(submissionStatusAsyncSourcePath);
+const releaseAsyncSource = readProjectPath(releaseAsyncSourcePath);
+const notificationAsyncSource = readProjectPath(notificationAsyncSourcePath);
+const handoffAsyncSource = readProjectPath(handoffAsyncSourcePath);
+const aiAsyncSource = readProjectPath(aiAsyncSourcePath);
+const serviceSource = readProjectPath(servicePath);
+const itemLocksAsyncSource = readProjectPath(itemLocksAsyncPath);
+const itemInsightsAsyncSource = readProjectPath(itemInsightsAsyncPath);
+const dashboardMetricsAsyncSource = readProjectPath(dashboardMetricsAsyncPath);
+const submissionsAsyncSource = readProjectPath(submissionsAsyncPath);
+const submissionFilesAsyncSource = readProjectPath(submissionFilesAsyncPath);
+const bomAsyncHelperSource = readProjectPath(bomAsyncPath);
+const sandboxAsyncHelperSource = readProjectPath(sandboxAsyncPath);
+const numberingAsyncHelperSource = readProjectPath(numberingAsyncPath);
+const masterAttachmentsAsyncHelperSource = readProjectPath(masterAttachmentsAsyncPath);
+const bomWorkbenchAsyncHelperSource = readProjectPath(bomWorkbenchAsyncPath);
+const collaborationAsyncHelperSource = readProjectPath(collaborationAsyncPath);
+const approvalAsyncHelperSource = readProjectPath(approvalAsyncPath);
+const submissionStatusAsyncHelperSource = readProjectPath(submissionStatusAsyncPath);
+const releaseRecordsAsyncHelperSource = readProjectPath(releaseRecordsAsyncPath);
+const releaseServiceAsyncSource = readProjectPath(releaseAsyncPath);
+const releasePackageAsyncSource = readProjectPath(releasePackageAsyncPath);
+const notificationsAsyncSource = readProjectPath(notificationsAsyncPath);
+const handoffAsyncHelperSource = readProjectPath(handoffAsyncPath);
+const aiAsyncHelperSource = readProjectPath(aiAsyncPath);
+const readonlyShareAsyncSource = readProjectPath(readonlyShareAsyncPath);
+const fileResponseSource = readProjectPath(fileResponsePath);
+const authAsyncSource = readProjectPath(authAsyncPath);
+const auditAsyncSource = readProjectPath(auditAsyncPath);
+const guardSource = readProjectPath(guardPath);
+const loginRouteSource = readProjectPath(loginRoutePath);
+const tokenRouteSource = readProjectPath(tokenRoutePath);
+const meRouteSource = readProjectPath(meRoutePath);
+const logoutRouteSource = readProjectPath(logoutRoutePath);
+const chatRouteSource = readProjectPath(chatRoutePath);
+const fileMetadataDetectRouteSource = readProjectPath(fileMetadataDetectRoutePath);
+const submissionsRouteSource = readProjectPath(submissionsRoutePath);
+const submissionDetailRouteSource = readProjectPath(submissionDetailRoutePath);
+const submissionFileRouteSource = readProjectPath(submissionFileRoutePath);
+const submissionPreflightLockRouteSource = readProjectPath(submissionPreflightLockRoutePath);
+const submissionCheckoutRouteSource = readProjectPath(submissionCheckoutRoutePath);
+const submissionApproveRouteSource = readProjectPath(submissionApproveRoutePath);
+const submissionRejectRouteSource = readProjectPath(submissionRejectRoutePath);
+const submissionReleasePackageRouteSource = readProjectPath(submissionReleasePackageRoutePath);
+const submissionSharesRouteSource = readProjectPath(submissionSharesRoutePath);
+const submissionShareRouteSource = readProjectPath(submissionShareRoutePath);
+const submissionSupplierResponsesRouteSource = readProjectPath(submissionSupplierResponsesRoutePath);
+const submissionSupplierResponseRouteSource = readProjectPath(submissionSupplierResponseRoutePath);
+const submissionAiSummaryRouteSource = readProjectPath(submissionAiSummaryRoutePath);
+const submissionAiRisksRouteSource = readProjectPath(submissionAiRisksRoutePath);
+const submissionBomRouteSource = readProjectPath(submissionBomRoutePath);
+const submissionBomDiffRouteSource = readProjectPath(submissionBomDiffRoutePath);
+const submissionBomExportRouteSource = readProjectPath(submissionBomExportRoutePath);
+const bomWorkbenchRouteSource = readProjectPath(bomWorkbenchRoutePath);
+const bomDraftFromAssemblyRouteSource = readProjectPath(bomDraftFromAssemblyRoutePath);
+const bomDraftImportXlsRouteSource = readProjectPath(bomDraftImportXlsRoutePath);
+const bomDraftRouteSource = readProjectPath(bomDraftRoutePath);
+const bomDraftActiveRouteSource = readProjectPath(bomDraftActiveRoutePath);
+const bomDraftDiffRouteSource = readProjectPath(bomDraftDiffRoutePath);
+const bomDraftSubmitReviewRouteSource = readProjectPath(bomDraftSubmitReviewRoutePath);
+const bomReviewsPendingRouteSource = readProjectPath(bomReviewsPendingRoutePath);
+const bomReviewApproveRouteSource = readProjectPath(bomReviewApproveRoutePath);
+const bomReviewRejectRouteSource = readProjectPath(bomReviewRejectRoutePath);
+const bomReleaseExportRouteSource = readProjectPath(bomReleaseExportRoutePath);
+const submissionReuseCandidatesRouteSource = readProjectPath(submissionReuseCandidatesRoutePath);
+const submissionDuplicateGeometryRouteSource = readProjectPath(submissionDuplicateGeometryRoutePath);
+const submissionRetryUploadRouteSource = readProjectPath(submissionRetryUploadRoutePath);
+const submissionSandboxRouteSource = readProjectPath(submissionSandboxRoutePath);
+const submissionSandboxBranchRouteSource = readProjectPath(submissionSandboxBranchRoutePath);
+const numberingDuplicateCheckRouteSource = readProjectPath(numberingDuplicateCheckRoutePath);
+const numberingTaskDetailRouteSource = readProjectPath(numberingTaskDetailRoutePath);
+const numberingNotificationsRouteSource = readProjectPath(numberingNotificationsRoutePath);
+const numberingNotificationReadRouteSource = readProjectPath(numberingNotificationReadRoutePath);
+const numberingNotificationHandledRouteSource = readProjectPath(numberingNotificationHandledRoutePath);
+const numberingExportJobsRouteSource = readProjectPath(numberingExportJobsRoutePath);
+const numberingExportJobRouteSource = readProjectPath(numberingExportJobRoutePath);
+const numberingMonthlyAuditReportsRouteSource = readProjectPath(numberingMonthlyAuditReportsRoutePath);
+const numberingMonthlyAuditReportRouteSource = readProjectPath(numberingMonthlyAuditReportRoutePath);
+const numberingDraftsOverdueRouteSource = readProjectPath(numberingDraftsOverdueRoutePath);
+const numberingRootDetailRouteSource = readProjectPath(numberingRootDetailRoutePath);
+const numberingRecordsRouteSource = readProjectPath(numberingRecordsRoutePath);
+const numberingRecordDetailRouteSource = readProjectPath(numberingRecordDetailRoutePath);
+const numberingRecordObsoleteRouteSource = readProjectPath(numberingRecordObsoleteRoutePath);
+const numberingSearchRouteSource = readProjectPath(searchRoutePath);
+const numberingDrawingsRouteSource = readProjectPath(path.join(root, "src", "app", "api", "numbering", "drawings", "route.ts"));
+const partsRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "route.ts"));
+const partsDetailRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "[partNumber]", "route.ts"));
+const partsVariantRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "[partNumber]", "variant", "route.ts"));
+const partsCostProfilesRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "[partNumber]", "cost-profiles", "route.ts"));
+const partsCostChangeRequestRouteSource = readProjectPath(
   path.join(root, "src", "app", "api", "parts", "[partNumber]", "cost-change-requests", "[requestId]", "route.ts"),
-  "utf8"
 );
-const partsCostResolutionRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "[partNumber]", "cost-resolution", "route.ts"), "utf8");
-const partsAttachmentsRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "parts", "[partNumber]", "attachments", "route.ts"), "utf8");
-const partsAttachmentDetailRouteSource = fs.readFileSync(
+const partsCostResolutionRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "[partNumber]", "cost-resolution", "route.ts"));
+const partsAttachmentsRouteSource = readProjectPath(path.join(root, "src", "app", "api", "parts", "[partNumber]", "attachments", "route.ts"));
+const partsAttachmentDetailRouteSource = readProjectPath(
   path.join(root, "src", "app", "api", "parts", "[partNumber]", "attachments", "[attachmentId]", "route.ts"),
-  "utf8"
 );
-const drawingAttachmentsRouteSource = fs.readFileSync(
+const drawingAttachmentsRouteSource = readProjectPath(
   path.join(root, "src", "app", "api", "numbering", "drawings", "[drawingNumber]", "attachments", "route.ts"),
-  "utf8"
 );
-const drawingAttachmentDetailRouteSource = fs.readFileSync(
+const drawingAttachmentDetailRouteSource = readProjectPath(
   path.join(root, "src", "app", "api", "numbering", "drawings", "[drawingNumber]", "attachments", "[attachmentId]", "route.ts"),
-  "utf8"
 );
-const submissionPdfMarkupsRouteSource = fs.readFileSync(submissionPdfMarkupsRoutePath, "utf8");
-const submissionPdfMarkupRouteSource = fs.readFileSync(submissionPdfMarkupRoutePath, "utf8");
-const submissionDiscussionsRouteSource = fs.readFileSync(submissionDiscussionsRoutePath, "utf8");
-const submissionDiscussionRouteSource = fs.readFileSync(submissionDiscussionRoutePath, "utf8");
-const submissionIssuesRouteSource = fs.readFileSync(submissionIssuesRoutePath, "utf8");
-const submissionIssueRouteSource = fs.readFileSync(submissionIssueRoutePath, "utf8");
-const submissionChangesRouteSource = fs.readFileSync(submissionChangesRoutePath, "utf8");
-const submissionChangeRouteSource = fs.readFileSync(submissionChangeRoutePath, "utf8");
-const submissionPhaseGatesRouteSource = fs.readFileSync(submissionPhaseGatesRoutePath, "utf8");
-const submissionPhaseGateRouteSource = fs.readFileSync(submissionPhaseGateRoutePath, "utf8");
-const submissionApprovalMatrixRouteSource = fs.readFileSync(submissionApprovalMatrixRoutePath, "utf8");
-const submissionApprovalMatrixRequirementRouteSource = fs.readFileSync(submissionApprovalMatrixRequirementRoutePath, "utf8");
-const handoffRouteSource = fs.readFileSync(handoffRoutePath, "utf8");
-const handoffExportRouteSource = fs.readFileSync(handoffExportRoutePath, "utf8");
-const searchApiRouteSource = fs.readFileSync(searchApiRoutePath, "utf8");
-const notificationsRouteSource = fs.readFileSync(notificationsRoutePath, "utf8");
-const itemRevisionsRouteSource = fs.readFileSync(itemRevisionsRoutePath, "utf8");
-const itemWhereUsedRouteSource = fs.readFileSync(itemWhereUsedRoutePath, "utf8");
-const procurementReleasesRouteSource = fs.readFileSync(procurementReleasesRoutePath, "utf8");
-const procurementSyncRunsRouteSource = fs.readFileSync(procurementSyncRunsRoutePath, "utf8");
-const procurementSyncRunRouteSource = fs.readFileSync(procurementSyncRunRoutePath, "utf8");
-const publicShareRouteSource = fs.readFileSync(publicShareRoutePath, "utf8");
-const publicSharePackageRouteSource = fs.readFileSync(publicSharePackageRoutePath, "utf8");
-const publicShareResponsesRouteSource = fs.readFileSync(publicShareResponsesRoutePath, "utf8");
-const routeSource = fs.readFileSync(routePath, "utf8");
-const numberingTasksRouteSource = fs.readFileSync(numberingTasksRoutePath, "utf8");
-const numberingApprovalBatchesRouteSource = fs.readFileSync(numberingApprovalBatchesRoutePath, "utf8");
-const numberingApprovalBatchDetailRouteSource = fs.readFileSync(numberingApprovalBatchDetailRoutePath, "utf8");
-const numberingApprovalDecisionsRouteSource = fs.readFileSync(numberingApprovalDecisionsRoutePath, "utf8");
-const numberingApprovalRequestsRouteSource = fs.readFileSync(numberingApprovalRequestsRoutePath, "utf8");
-const numberingImportBatchesRouteSource = fs.readFileSync(numberingImportBatchesRoutePath, "utf8");
-const numberingImportBatchRouteSource = fs.readFileSync(numberingImportBatchRoutePath, "utf8");
-const numberingImportBatchConfirmRouteSource = fs.readFileSync(numberingImportBatchConfirmRoutePath, "utf8");
-const numberingAdminMatrixRouteSource = fs.readFileSync(numberingAdminMatrixRoutePath, "utf8");
-const numberingDvtCandidatesRouteSource = fs.readFileSync(numberingDvtCandidatesRoutePath, "utf8");
-const numberingImpactAnalysisRouteSource = fs.readFileSync(numberingImpactAnalysisRoutePath, "utf8");
-const numberingRuleSimulatorRouteSource = fs.readFileSync(numberingRuleSimulatorRoutePath, "utf8");
-const numberingVariantsRouteSource = fs.readFileSync(numberingVariantsRoutePath, "utf8");
+const submissionPdfMarkupsRouteSource = readProjectPath(submissionPdfMarkupsRoutePath);
+const submissionPdfMarkupRouteSource = readProjectPath(submissionPdfMarkupRoutePath);
+const submissionDiscussionsRouteSource = readProjectPath(submissionDiscussionsRoutePath);
+const submissionDiscussionRouteSource = readProjectPath(submissionDiscussionRoutePath);
+const submissionIssuesRouteSource = readProjectPath(submissionIssuesRoutePath);
+const submissionIssueRouteSource = readProjectPath(submissionIssueRoutePath);
+const submissionChangesRouteSource = readProjectPath(submissionChangesRoutePath);
+const submissionChangeRouteSource = readProjectPath(submissionChangeRoutePath);
+const submissionPhaseGatesRouteSource = readProjectPath(submissionPhaseGatesRoutePath);
+const submissionPhaseGateRouteSource = readProjectPath(submissionPhaseGateRoutePath);
+const submissionApprovalMatrixRouteSource = readProjectPath(submissionApprovalMatrixRoutePath);
+const submissionApprovalMatrixRequirementRouteSource = readProjectPath(submissionApprovalMatrixRequirementRoutePath);
+const handoffRouteSource = readProjectPath(handoffRoutePath);
+const handoffExportRouteSource = readProjectPath(handoffExportRoutePath);
+const searchApiRouteSource = readProjectPath(searchApiRoutePath);
+const notificationsRouteSource = readProjectPath(notificationsRoutePath);
+const itemRevisionsRouteSource = readProjectPath(itemRevisionsRoutePath);
+const itemWhereUsedRouteSource = readProjectPath(itemWhereUsedRoutePath);
+const procurementReleasesRouteSource = readProjectPath(procurementReleasesRoutePath);
+const procurementSyncRunsRouteSource = readProjectPath(procurementSyncRunsRoutePath);
+const procurementSyncRunRouteSource = readProjectPath(procurementSyncRunRoutePath);
+const publicShareRouteSource = readProjectPath(publicShareRoutePath);
+const publicSharePackageRouteSource = readProjectPath(publicSharePackageRoutePath);
+const publicShareResponsesRouteSource = readProjectPath(publicShareResponsesRoutePath);
+const routeSource = readProjectPath(routePath);
+const numberingTasksRouteSource = readProjectPath(numberingTasksRoutePath);
+const numberingApprovalBatchesRouteSource = readProjectPath(numberingApprovalBatchesRoutePath);
+const numberingApprovalBatchDetailRouteSource = readProjectPath(numberingApprovalBatchDetailRoutePath);
+const numberingApprovalDecisionsRouteSource = readProjectPath(numberingApprovalDecisionsRoutePath);
+const numberingApprovalRequestsRouteSource = readProjectPath(numberingApprovalRequestsRoutePath);
+const numberingImportBatchesRouteSource = readProjectPath(numberingImportBatchesRoutePath);
+const numberingImportBatchRouteSource = readProjectPath(numberingImportBatchRoutePath);
+const numberingImportBatchConfirmRouteSource = readProjectPath(numberingImportBatchConfirmRoutePath);
+const numberingAdminMatrixRouteSource = readProjectPath(numberingAdminMatrixRoutePath);
+const numberingDvtCandidatesRouteSource = readProjectPath(numberingDvtCandidatesRoutePath);
+const numberingImpactAnalysisRouteSource = readProjectPath(numberingImpactAnalysisRoutePath);
+const numberingRuleSimulatorRouteSource = readProjectPath(numberingRuleSimulatorRoutePath);
+const numberingVariantsRouteSource = readProjectPath(numberingVariantsRoutePath);
 const readOnlyRouteSources = readOnlyRouteChecks.map((route) => ({
   ...route,
-  source: fs.readFileSync(route.path, "utf8")
+  source: readProjectPath(route.path)
 }));
 const numberingApiRouteSources = listRouteFiles(path.join(root, "src", "app", "api", "numbering")).map((routePath) => ({
   label: path.relative(root, routePath),
-  source: fs.readFileSync(routePath, "utf8")
+  source: readProjectPath(routePath)
 }));
 const partsApiRouteSources = listRouteFiles(path.join(root, "src", "app", "api", "parts")).map((routePath) => ({
   label: path.relative(root, routePath),
-  source: fs.readFileSync(routePath, "utf8")
+  source: readProjectPath(routePath)
 }));
 const results = [];
 
@@ -751,7 +752,7 @@ record(
 record(
   "ROUTE-AUTH-ASYNC-026 submissions GET metrics uses async provider-neutral repository helper",
   submissionsRouteSource.includes("getDashboardMetricsAsync") &&
-    submissionsRouteSource.includes("await getDashboardMetricsAsync(submittedBy)") &&
+    submissionsRouteSource.includes("await getDashboardMetricsAsync({ submittedBy, companyId: companyResult.company.companyId })") &&
     !submissionsRouteSource.includes("getDashboardMetrics,") &&
     !submissionsRouteSource.includes("getDashboardMetrics(submittedBy)"),
   "submissions route.ts"
@@ -2238,10 +2239,10 @@ record(
 );
 record(
   "SUBMISSION-WRITE-ASYNC-005 create SQL keeps Postgres-compatible named parameters and conflict handling",
-  submissionWriteAsyncSource.includes("ON CONFLICT(part_number)") &&
+  submissionWriteAsyncSource.includes("ON CONFLICT(company_id, part_number)") &&
     submissionWriteAsyncSource.includes("ON CONFLICT(parent_submission_id)") &&
     submissionWriteAsyncSource.includes("RETURNING id") &&
-    [":drawingNumber", ":revision", ":submissionId", ":sourceReferenceId", ":detailJson"].every((param) =>
+    [":companyId", ":drawingNumber", ":revision", ":submissionId", ":sourceReferenceId", ":detailJson"].every((param) =>
       submissionWriteAsyncSource.includes(param)
     ) &&
     !submissionWriteAsyncSource.includes("datetime(") &&
@@ -3370,6 +3371,26 @@ try {
     handoffAsyncSource
   );
   const database = new Database(":memory:");
+  const qcCompanyId = "company-jenfu";
+  const prepareStatement = database.prepare.bind(database);
+  database.prepare = (sql) => {
+    const statement = prepareStatement(sql);
+    const withCompanyId = (args) => {
+      if (args.length === 0) return [{ companyId: qcCompanyId }];
+      const [first, ...rest] = args;
+      if (first && typeof first === "object" && !Array.isArray(first)) {
+        return [{ companyId: qcCompanyId, ...first }, ...rest];
+      }
+      return args;
+    };
+
+    return {
+      ...statement,
+      all: (...args) => statement.all(...withCompanyId(args)),
+      get: (...args) => statement.get(...withCompanyId(args)),
+      run: (...args) => statement.run(...withCompanyId(args))
+    };
+  };
   database.exec(`
     CREATE TABLE users (
       id TEXT PRIMARY KEY,
@@ -3377,8 +3398,25 @@ try {
       email TEXT UNIQUE,
       password_hash TEXT,
       role TEXT NOT NULL,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       created_at TEXT,
       updated_at TEXT
+    );
+
+    CREATE TABLE companies (
+      id TEXT PRIMARY KEY,
+      company_code TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE user_company_memberships (
+      user_id TEXT NOT NULL,
+      company_id TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, company_id)
     );
 
     CREATE TABLE roles (
@@ -3453,17 +3491,20 @@ try {
 
     CREATE TABLE part_roots (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       root_code TEXT NOT NULL UNIQUE,
       core_name TEXT NOT NULL,
       item_kind TEXT NOT NULL,
       development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       rule_version_id TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      UNIQUE (company_id, root_code)
     );
 
     CREATE TABLE part_numbers (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       part_root_id TEXT NOT NULL,
       part_number TEXT NOT NULL UNIQUE,
       sequence_no INTEGER NOT NULL,
@@ -3476,11 +3517,13 @@ try {
       record_status TEXT NOT NULL,
       universal_reason TEXT,
       rule_version_id TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      UNIQUE (company_id, part_number)
     );
 
     CREATE TABLE drawing_numbers (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       part_root_id TEXT NOT NULL,
       drawing_number TEXT NOT NULL UNIQUE,
       purpose_code TEXT NOT NULL,
@@ -3490,7 +3533,8 @@ try {
       development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       rule_version_id TEXT NOT NULL,
-      updated_at TEXT
+      updated_at TEXT,
+      UNIQUE (company_id, drawing_number)
     );
 
     CREATE TABLE drawing_part_links (
@@ -3612,6 +3656,7 @@ try {
 
     CREATE TABLE numbering_task_items (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       task_type TEXT NOT NULL,
       entity_type TEXT NOT NULL,
       entity_id TEXT NOT NULL,
@@ -3633,6 +3678,7 @@ try {
 
     CREATE TABLE numbering_notifications (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       notification_type TEXT NOT NULL,
       entity_type TEXT NOT NULL,
       entity_id TEXT NOT NULL,
@@ -3654,6 +3700,7 @@ try {
 
     CREATE TABLE numbering_export_jobs (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       export_mode TEXT NOT NULL,
       status TEXT NOT NULL,
       result_json TEXT NOT NULL DEFAULT '{}',
@@ -3671,6 +3718,7 @@ try {
 
     CREATE TABLE monthly_audit_reports (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       report_type TEXT NOT NULL,
       report_month TEXT NOT NULL,
       generation_mode TEXT NOT NULL,
@@ -3698,15 +3746,18 @@ try {
 
     CREATE TABLE items (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       part_number TEXT NOT NULL UNIQUE,
       part_name TEXT NOT NULL,
       current_revision TEXT,
       created_at TEXT,
-      updated_at TEXT
+      updated_at TEXT,
+      UNIQUE (company_id, part_number)
     );
 
     CREATE TABLE submissions (
       id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
       item_id TEXT NOT NULL,
       drawing_number TEXT NOT NULL,
       revision TEXT NOT NULL,
@@ -3731,7 +3782,8 @@ try {
       superseded_by_submission_id TEXT,
       obsolete_at TEXT,
       obsolete_by TEXT,
-      UNIQUE (drawing_number, revision)
+      UNIQUE (drawing_number, revision),
+      UNIQUE (company_id, drawing_number, revision)
     );
 
     CREATE TABLE submission_files (
@@ -4105,9 +4157,9 @@ try {
     INSERT INTO roles (id, role_code, title, system_defined, enabled)
     VALUES
       ('role-rd', 'rd', 'RD', 1, 1),
-      ('role-rd-manager', 'rd_manager', 'RD 主管', 1, 1),
-      ('role-pdm-admin', 'pdm_admin', 'PDM 管理員', 1, 1),
-      ('role-system-admin', 'system_admin', '系統管理員', 1, 1),
+      ('role-rd-manager', 'rd_manager', 'RD Manager', 1, 1),
+      ('role-pdm-admin', 'pdm_admin', 'PDM Admin', 1, 1),
+      ('role-system-admin', 'system_admin', 'System Admin', 1, 1),
       ('role-custom-reviewer', 'custom_reviewer', 'Custom Reviewer', 0, 1);
 
     INSERT INTO role_priority_versions (id, priority_json, status, created_at)

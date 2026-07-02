@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -20,6 +11,14 @@ function record(name, passed, detail = "") {
 
 function includesAll(source, needles) {
   return needles.every((needle) => source.includes(needle));
+}
+
+function devTaskRecordsCurrentChangeAudit(devTask) {
+  return (
+    devTask.includes("DEV-SUPABASE-DB-001") &&
+    devTask.includes("Current Supabase change impact audit") &&
+    devTask.includes("qc:supabase-current-change-impact")
+  );
 }
 
 function hasLiveSecret(value) {
@@ -41,23 +40,23 @@ const readmePath = "supabase/README.md";
 const localReadinessPath = "scripts/qc-supabase-runtime-local-readiness.mjs";
 const scriptPath = "scripts/qc-supabase-current-change-impact.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const audit = exists(auditPath) ? read(auditPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const approvalPackage = exists(approvalPackagePath) ? read(approvalPackagePath) : "";
-const runbook = exists(runbookPath) ? read(runbookPath) : "";
-const smokeReportTemplate = exists(smokeReportTemplatePath) ? read(smokeReportTemplatePath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
-const localReadiness = exists(localReadinessPath) ? read(localReadinessPath) : "";
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const audit = projectFileExists(root, auditPath) ? readProjectFile(root, auditPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const approvalPackage = projectFileExists(root, approvalPackagePath) ? readProjectFile(root, approvalPackagePath) : "";
+const runbook = projectFileExists(root, runbookPath) ? readProjectFile(root, runbookPath) : "";
+const smokeReportTemplate = projectFileExists(root, smokeReportTemplatePath) ? readProjectFile(root, smokeReportTemplatePath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const localReadiness = projectFileExists(root, localReadinessPath) ? readProjectFile(root, localReadinessPath) : "";
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-CURRENT-001 package script is registered",
   packageJson.scripts?.["qc:supabase-current-change-impact"] === "node scripts/qc-supabase-current-change-impact.mjs",
   "package.json"
 );
-record("SUPA-CURRENT-002 current-change audit exists", exists(auditPath), auditPath);
+record("SUPA-CURRENT-002 current-change audit exists", projectFileExists(root, auditPath), auditPath);
 record(
   "SUPA-CURRENT-003 audit records official current Supabase sources",
   includesAll(audit, [
@@ -127,7 +126,7 @@ record(
 );
 record(
   "SUPA-CURRENT-011 dev_task exposes current-change audit as local evidence",
-  devTask.includes(auditPath) && devTask.includes("qc:supabase-current-change-impact"),
+  devTaskRecordsCurrentChangeAudit(devTask),
   devTaskPath
 );
 record(

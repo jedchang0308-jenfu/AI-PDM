@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -40,15 +31,15 @@ const readmePath = "supabase/README.md";
 const smokePreflightPath = "scripts/qc-supabase-runtime-smoke-preflight.mjs";
 const scriptPath = "scripts/qc-supabase-runtime-approval-package.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const approvalPackage = exists(packagePath) ? read(packagePath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const rollbackPlan = exists(rollbackPlanPath) ? read(rollbackPlanPath) : "";
-const dataPolicy = exists(dataPolicyPath) ? read(dataPolicyPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
-const smokePreflight = read(smokePreflightPath);
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const approvalPackage = projectFileExists(root, packagePath) ? readProjectFile(root, packagePath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const rollbackPlan = projectFileExists(root, rollbackPlanPath) ? readProjectFile(root, rollbackPlanPath) : "";
+const dataPolicy = projectFileExists(root, dataPolicyPath) ? readProjectFile(root, dataPolicyPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const smokePreflight = readProjectFile(root, smokePreflightPath);
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-APPROVAL-001 package script is registered",
@@ -56,7 +47,7 @@ record(
     "node scripts/qc-supabase-runtime-approval-package.mjs",
   "package.json"
 );
-record("SUPA-APPROVAL-002 approval package exists", exists(packagePath), packagePath);
+record("SUPA-APPROVAL-002 approval package exists", projectFileExists(root, packagePath), packagePath);
 record(
   "SUPA-APPROVAL-003 package identifies GATE-B approval and blocked execution state",
   includesAll(approvalPackage, [

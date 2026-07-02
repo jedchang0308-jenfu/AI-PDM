@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const sampleDir = path.join(root, ".tmp", "qc-fixtures", "document-manager-extractor-probe");
@@ -14,6 +15,13 @@ const results = [];
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
+
+function cleanupProbePaths() {
+  fs.rmSync(sampleDir, { recursive: true, force: true });
+  fs.rmSync(outputDir, { recursive: true, force: true });
+}
+
+process.once("exit", cleanupProbePaths);
 
 fs.mkdirSync(sampleDir, { recursive: true });
 for (const filename of ["QC-PROBE-PART.sldprt", "QC-PROBE-ASM.sldasm", "QC-PROBE-DRAWING.slddrw"]) {
@@ -46,7 +54,9 @@ record("DMPROBE-001 probe command exits 0", probe.status === 0, probe.stderr || 
 const outputPath = path.join(outputDir, "probe.json");
 record("DMPROBE-002 probe.json is written", fs.existsSync(outputPath), outputPath);
 
-const output = fs.existsSync(outputPath) ? JSON.parse(fs.readFileSync(outputPath, "utf8")) : {};
+const output = fs.existsSync(outputPath)
+  ? readProjectJson(root, path.relative(root, outputPath).replaceAll(path.sep, "/"))
+  : {};
 record("DMPROBE-003 probe ready is true", output.ready === true, JSON.stringify(output.checks ?? []));
 record("DMPROBE-004 all three native sample extensions are covered", ["sldprt", "sldasm", "slddrw"].every((extension) =>
   (output.sampleResults ?? []).some((sample) => sample.extension === extension)
@@ -57,5 +67,6 @@ record("DMPROBE-006 reference validation passes for at least one assembly or dra
 ));
 
 const failed = results.filter((result) => !result.passed);
+cleanupProbePaths();
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
 if (failed.length > 0) process.exitCode = 1;

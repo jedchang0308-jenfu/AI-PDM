@@ -6,6 +6,8 @@
 關聯前置任務：`DEV-IND-007`  
 產品：AI_PDM
 
+2026-06-29 PM consistency note: this spec was written before the approved `AI_PDM_STAGING` GATE-B execution. Current authoritative state is recorded in `.ai-doc/dev_task.md`: staging GATE-B passed with target identity, schema/RLS compare, migration history evidence, permission/rule seed repair, app API smoke, cleanup proof, and rollback proof. Production/cutover and full data parity remain unapproved and deferred.
+
 ## 1. 背景
 
 AI_PDM 目前正式 runtime 仍以 SQLite 為主。Postgres / Supabase shadow migration、RLS baseline、target guard 與 handoff package 已具備基礎能力，但尚未把正式 runtime 切到 Supabase Postgres。
@@ -136,10 +138,12 @@ Demo data 與舊測試資料不得進入 production。
 - 補 `.env.example` 與 Supabase README。
 - 強化 target identity guard，阻擋 `ProJED` / `ProJED_TEST`。
 
-尚未完成：
+2026-06-29 current-state amendment：
 
-- Supabase CLI migration history。
-- Live `AI_PDM_STAGING` target apply。
+- Local Supabase CLI migration history remains unavailable because Supabase CLI is not installed locally.
+- Target-linked migration evidence for `AI_PDM_STAGING` was captured through Supabase MCP `list_migrations`.
+- `AI_PDM_STAGING` GATE-B passed under the approved staging-only smoke scope.
+- Production target apply, production cutover, and full data parity are still deferred until PM explicitly approves that scope.
 
 ### Phase 2: DB Provider Abstraction
 

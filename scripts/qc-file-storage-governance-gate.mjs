@@ -8,8 +8,11 @@ import {
   buildStorageGovernanceGate,
   writeStorageGovernanceGate
 } from "./generate-file-storage-governance-gate.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed: Boolean(passed), detail });
@@ -88,7 +91,7 @@ async function reportFor(tempRoot, name, value) {
 }
 
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-governance-gate-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-governance-gate-qc-"));
   const missing = await buildStorageGovernanceGate({
     root: tempRoot,
     latestManifestPath: path.join(tempRoot, "missing.json")
@@ -167,16 +170,20 @@ try {
   const legacyOutputBody = `${await fsp.readFile(legacyOutputs.jsonPath, "utf8")}\n${await fsp.readFile(legacyOutputs.markdownPath, "utf8")}`;
   record("STORAGE-GOVERNANCE-GATE-018 markdown records evidence quality", legacyOutputBody.includes("## Evidence Quality") && legacyOutputBody.includes("Legacy unclassified rows: 2") && legacyOutputBody.includes("Provenance review required: true"));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
   record("STORAGE-GOVERNANCE-GATE-011 package scripts are registered", packageJson.includes('"storage:governance-gate"') && packageJson.includes('"qc:file-storage-governance-gate"'));
-  record("STORAGE-GOVERNANCE-GATE-012 PM evidence references Phase 5M", planSource.includes("Phase 5M") && devTaskSource.includes("Phase 5M"));
+  record(
+    "STORAGE-GOVERNANCE-GATE-012 PM evidence references governance gate",
+    planSource.includes("Phase 5M") &&
+      planSource.includes("storage:governance-gate") &&
+      planSource.includes("qc:file-storage-governance-gate") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
+  );
 
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-governance-gate.mjs"), "utf8");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-governance-gate.mjs");
   record(
     "STORAGE-GOVERNANCE-GATE-013 generator has no provider or Supabase side-effect imports",
     !/(mcp__codex_apps__supabase|_confirm_cost|_create_project|_create_branch|supabase\.storage\.from|copyFile|unlink|rm\()/i.test(generatorSource)
@@ -187,9 +194,10 @@ try {
     !/(governance-secret-token|governance-signed-url|service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

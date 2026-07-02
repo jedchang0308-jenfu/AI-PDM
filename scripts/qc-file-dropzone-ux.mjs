@@ -1,28 +1,22 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const checks = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
 
 function assert(condition, message, detail = "") {
   checks.push({ message, passed: Boolean(condition), detail });
   if (!condition) throw new Error(`${message}${detail ? `: ${detail}` : ""}`);
 }
 
-const dropzone = read("src/components/file-dropzone.tsx");
-const uploadPage = read("src/app/upload/page.tsx");
-const bomWorkbench = read("src/app/bom/workbench/page.tsx");
-const masterAttachmentPanel = read("src/components/master-attachment-panel.tsx");
-const css = read("src/app/globals.css");
-const packageJson = JSON.parse(read("package.json"));
-const spec = read(".ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md");
-const devTask = read(".ai-doc/dev_task.md");
+const dropzone = readProjectFile(root, "src/components/file-dropzone.tsx");
+const uploadPage = readProjectFile(root, "src/app/upload/page.tsx");
+const bomWorkbench = readProjectFile(root, "src/app/bom/workbench/page.tsx");
+const masterAttachmentPanel = readProjectFile(root, "src/components/master-attachment-panel.tsx");
+const css = readProjectFile(root, "src/app/globals.css");
+const packageJson = readProjectJson(root, "package.json");
+const spec = readProjectFile(root, ".ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md");
 
 assert(dropzone.includes("export function FileDropzone"), "FileDropzone component exists");
 assert(dropzone.includes("single_file_only"), "FileDropzone rejects multiple files in single-file mode");
@@ -54,7 +48,8 @@ for (const marker of [
 }
 
 assert(spec.includes("SPEC-UX-FILE-DROPZONE-001") && spec.includes("全系統拖曳上傳 UX"), "Spec document exists");
-assert(devTask.includes("DEV-UX-FILE-DROPZONE-001"), "dev_task tracks DEV-UX-FILE-DROPZONE-001");
+assert(spec.includes("DEV-UX-FILE-DROPZONE-001"), "Spec records DEV-UX-FILE-DROPZONE-001 linkage");
+assert(spec.includes("qc:file-dropzone-ux"), "Spec records file dropzone QC evidence");
 assert(packageJson.scripts?.["qc:file-dropzone-ux"] === "node scripts/qc-file-dropzone-ux.mjs", "package script qc:file-dropzone-ux is registered");
 
 console.log(`qc:file-dropzone-ux passed ${checks.length}/${checks.length} checks`);

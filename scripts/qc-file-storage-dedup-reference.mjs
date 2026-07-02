@@ -3,19 +3,16 @@
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import { buildStorageDedupReferenceDryRun } from "./generate-file-storage-dedup-reference-dry-run.mjs";
+import { sha256Bytes } from "./qc-file-hash-utils.mjs";
 
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed: Boolean(passed), detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
 async function exists(filePath) {
@@ -182,7 +179,7 @@ function writeFixtureDb(dbPath, files) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dedup-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dedup-qc-"));
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   const releaseDir = path.join(dataDir, "release-packages");
@@ -198,8 +195,8 @@ async function main() {
     dupAssetPath: path.join(repositoryDir, "dup-local-asset.pdf"),
     blockedPresentPath: path.join(repositoryDir, "blocked-present.pdf"),
     blockedMissingPath: path.join(repositoryDir, "blocked-missing.pdf"),
-    dupHash: sha256(dupBytes),
-    blockedHash: sha256(blockedBytes),
+    dupHash: sha256Bytes(dupBytes),
+    blockedHash: sha256Bytes(blockedBytes),
     remoteHash: "f".repeat(64)
   };
 
@@ -254,11 +251,14 @@ async function main() {
   record("STORAGE-DEDUP-016 report does not expose common cloud secret markers", !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16})/i.test(serialized));
   record("STORAGE-DEDUP-017 package scripts are registered", (await fsp.readFile(path.join(process.cwd(), "package.json"), "utf8")).includes('"storage:dedup-reference-dry-run"') && (await fsp.readFile(path.join(process.cwd(), "package.json"), "utf8")).includes('"qc:file-storage-dedup-reference"'));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

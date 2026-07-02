@@ -1,6 +1,7 @@
-import fs from "node:fs";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
 const browserBaseUrl = toBrowserBaseUrl(apiBaseUrl);
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
@@ -67,7 +68,7 @@ async function authenticatedPage(browser, cookie) {
 }
 
 async function run() {
-  const source = fs.readFileSync("src/components/dashboard.tsx", "utf8");
+  const source = readProjectFile(root, "src/components/dashboard.tsx");
   record("ROWMEMO-001 SubmissionRow uses memo", /const SubmissionRow = memo\(function SubmissionRow/.test(source));
   record("ROWMEMO-002 table renders SubmissionRow component", source.includes("<SubmissionRow"));
 

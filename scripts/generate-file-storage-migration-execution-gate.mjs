@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -9,8 +9,8 @@ import { buildStorageMigrationRunbook } from "./generate-file-storage-migration-
 
 const DEFAULT_TARGET_MODE = "local_staging_directory";
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+async function sha256File(filePath) {
+  return crypto.createHash("sha256").update(await readFile(filePath)).digest("hex");
 }
 
 function ensureInside(rootDir, targetPath) {
@@ -65,7 +65,7 @@ async function readGovernanceGate(root, governanceGatePath) {
 
   let parsed;
   try {
-    parsed = JSON.parse(await fsp.readFile(resolvedPath, "utf8"));
+    parsed = JSON.parse(await readFile(resolvedPath, "utf8"));
   } catch (error) {
     return {
       available: false,
@@ -305,7 +305,7 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
 
   const copied = [];
   const rollbackVerification = [];
-  await fsp.mkdir(targetRoot, { recursive: true });
+  await mkdir(targetRoot, { recursive: true });
 
   for (const batch of runbook.plannedBatches) {
     for (const item of batch.objects) {
@@ -314,7 +314,7 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
       if (!sourcePath) {
         throw new Error(`Missing rollbackLocalPath for ${item.source}/${item.id}`);
       }
-      const actualSourceHash = sha256File(sourcePath);
+      const actualSourceHash = await sha256File(sourcePath);
       if (actualSourceHash !== item.sha256) {
         throw new Error(`Source hash changed before execution for ${item.source}/${item.id}`);
       }
@@ -324,10 +324,10 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
         throw new Error(`Target key resolves outside staging target for ${item.source}/${item.id}`);
       }
 
-      await fsp.mkdir(path.dirname(targetPath), { recursive: true });
-      await fsp.copyFile(sourcePath, targetPath);
-      const stat = await fsp.stat(targetPath);
-      const copiedHash = sha256File(targetPath);
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await copyFile(sourcePath, targetPath);
+      const fileStat = await stat(targetPath);
+      const copiedHash = await sha256File(targetPath);
       copied.push({
         id: item.id,
         source: item.source,
@@ -336,7 +336,7 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
         targetBucket: item.targetBucket,
         targetKey: item.targetKey,
         targetPath: safeRelative(process.cwd(), targetPath),
-        bytes: stat.size,
+        bytes: fileStat.size,
         sha256: copiedHash,
         expectedSha256: item.sha256,
         hashVerified: copiedHash === item.sha256
@@ -346,7 +346,7 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
 
   for (const item of runbook.pointerRollbackPlan) {
     const rollbackPath = item.rollbackLocalPath;
-    const rollbackHash = rollbackPath && fs.existsSync(rollbackPath) ? sha256File(rollbackPath) : "";
+    const rollbackHash = rollbackPath && existsSync(rollbackPath) ? await sha256File(rollbackPath) : "";
     rollbackVerification.push({
       table: item.table,
       id: item.id,
@@ -415,11 +415,11 @@ export async function buildStorageMigrationExecutionGate(options = {}) {
 
 export async function writeStorageMigrationExecutionGate(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-migration-execution-gate.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-migration-execution-gate.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

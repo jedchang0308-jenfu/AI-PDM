@@ -8,7 +8,9 @@ import {
   buildStorageSchemaTargetReadiness,
   writeStorageSchemaTargetReadiness
 } from "./generate-file-storage-schema-target-readiness.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -64,20 +66,19 @@ const dedicatedProjects = {
   ]
 };
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-target-readiness-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-target-readiness-qc-"));
   const knownProjectsPath = path.join(tempRoot, "known-projects.json");
   const dedicatedProjectsPath = path.join(tempRoot, "dedicated-projects.json");
   await writeJson(knownProjectsPath, knownProjects);
   await writeJson(dedicatedProjectsPath, dedicatedProjects);
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-target-readiness.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-target-readiness.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const missingReport = await buildStorageSchemaTargetReadiness({});
   record("STORAGE-SCHEMA-TARGET-READINESS-001 gate version is stable", missingReport.gateVersion === STORAGE_SCHEMA_TARGET_READINESS_VERSION);
@@ -121,8 +122,12 @@ try {
     packageJson.includes('"storage:schema-target-readiness"') && packageJson.includes('"qc:file-storage-schema-target-readiness"')
   );
   record(
-    "STORAGE-SCHEMA-TARGET-READINESS-014 PM evidence references Phase 4X",
-    planSource.includes("Phase 4X") && devTaskSource.includes("Phase 4X")
+    "STORAGE-SCHEMA-TARGET-READINESS-014 PM evidence references target readiness lane",
+    planSource.includes("Phase 4X") &&
+      planSource.includes("storage:schema-target-readiness") &&
+      planSource.includes("qc:file-storage-schema-target-readiness") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-TARGET-READINESS-015 generator does not write official migration directories",
@@ -135,9 +140,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

@@ -7,6 +7,10 @@
     grid-template-columns: 30px minmax(0, 1fr);
   }
 
+  .solidworks-preview-fallback {
+    grid-template-columns: 1fr;
+  }
+
   .master-attachment-actions {
     grid-column: 1 / -1;
     justify-content: flex-start;

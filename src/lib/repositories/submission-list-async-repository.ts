@@ -80,6 +80,9 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name AS submitted_by_name,
@@ -95,6 +98,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
   WHERE (:status IS NULL OR s.status = :status)
     AND (:includeHistory = 1 OR s.status <> 'Obsolete')
+    AND (:includeHistory = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
     AND (:companyId IS NULL OR s.company_id = :companyId)
   GROUP BY
@@ -110,6 +114,9 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name
@@ -131,6 +138,9 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name AS submitted_by_name,
@@ -146,6 +156,7 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
   WHERE (:status IS NULL OR s.status = :status)
     AND (:includeHistory = 1 OR s.status <> 'Obsolete')
+    AND (:includeHistory = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
     AND (:companyId IS NULL OR s.company_id = :companyId)
   GROUP BY
@@ -161,6 +172,9 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name
@@ -182,6 +196,9 @@ export const SELECT_ASYNC_SUBMISSION_SEARCH_SQLITE = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name AS submitted_by_name,
@@ -210,6 +227,9 @@ export const SELECT_ASYNC_SUBMISSION_SEARCH_SQLITE = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name
@@ -231,6 +251,9 @@ export const SELECT_ASYNC_SUBMISSION_SEARCH_POSTGRES = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name AS submitted_by_name,
@@ -259,6 +282,9 @@ export const SELECT_ASYNC_SUBMISSION_SEARCH_POSTGRES = `
     s.created_at,
     s.updated_at,
     s.released_at,
+    s.resolved_by_submission_id,
+    s.resolved_at,
+    s.corrects_submission_id,
     i.part_number,
     i.part_name,
     u.display_name
@@ -1044,6 +1070,9 @@ function buildSearchWhere(input: SearchSubmissionsAsyncInput, normalizedFilters:
     params.status = normalizedFilters.status;
   } else if (!input.includeHistory) {
     filters.push("s.status <> 'Obsolete'");
+  }
+  if (!input.includeHistory) {
+    filters.push("(s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)");
   }
   if (input.submittedBy) {
     filters.push("s.submitted_by = :submittedBy");

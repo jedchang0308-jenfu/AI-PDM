@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { getFieldTestHandoffsDir, getPostgresShadowHandoffsDir } from "./pdm-paths.mjs";
+import { readProjectFileIfExists, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
@@ -21,15 +22,6 @@ function record(name, passed, detail = "") {
 
 function relative(filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function readText(relativePath) {
-  const filePath = path.join(root, ...relativePath.split("/"));
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-}
-
-function readJson(relativePath) {
-  return JSON.parse(readText(relativePath));
 }
 
 function latestDirectory(baseDir) {
@@ -68,11 +60,11 @@ function assertFileExists(label, filePath) {
   record(`${label} exists`, fs.existsSync(filePath) && fs.statSync(filePath).isFile(), relative(filePath));
 }
 
-const taskText = readText(".ai-doc/dev_task.md");
-const externalHandoff = readText(".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
-const evidenceChecklist = readText(".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md");
-const activeBlockerReport = readText(".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
-const packageJson = readJson("package.json");
+const taskText = readProjectFileIfExists(root, ".ai-doc/dev_task.md");
+const externalHandoff = readProjectFileIfExists(root, ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
+const evidenceChecklist = readProjectFileIfExists(root, ".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md");
+const activeBlockerReport = readProjectFileIfExists(root, ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
+const packageJson = readProjectJson(root, "package.json");
 const fieldHandoff = latestDirectory(getFieldTestHandoffsDir(root));
 const postgresHandoff = latestDirectory(getPostgresShadowHandoffsDir(root));
 const fieldHandoffRelative = fieldHandoff ? relative(fieldHandoff) : "";

@@ -1,18 +1,13 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
+const exists = (relativePath) => projectFileExists(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -50,7 +45,7 @@ const routePaths = [
   "src/app/api/numbering/records/[rootCode]/obsolete/route.ts"
 ];
 
-const packageJson = JSON.parse(read("package.json"));
+const packageJson = readProjectJson(root, "package.json");
 const matrix = exists(matrixPath) ? read(matrixPath) : "";
 const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
 const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";

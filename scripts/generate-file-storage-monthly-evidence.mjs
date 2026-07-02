@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildStorageCostReport } from "./generate-file-storage-cost-report.mjs";
@@ -213,11 +213,11 @@ export function buildStorageMonthlyEvidenceMarkdown(evidence) {
 }
 
 export async function writeStorageMonthlyEvidence(evidence, outputDir) {
-  await fsp.mkdir(outputDir, { recursive: true });
+  await mkdir(outputDir, { recursive: true });
   const jsonPath = path.join(outputDir, "storage-monthly-evidence.json");
   const mdPath = path.join(outputDir, "storage-monthly-evidence.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-  await fsp.writeFile(mdPath, buildStorageMonthlyEvidenceMarkdown(evidence), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+  await writeFile(mdPath, buildStorageMonthlyEvidenceMarkdown(evidence), "utf8");
   return { jsonPath, mdPath };
 }
 

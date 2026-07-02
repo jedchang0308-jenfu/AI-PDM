@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -10,8 +10,8 @@ import { safeRelative } from "./storage-metadata-normalizer.mjs";
 
 const DEFAULT_LIMIT = 100;
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+async function sha256File(filePath) {
+  return crypto.createHash("sha256").update(await readFile(filePath)).digest("hex");
 }
 
 function parsePositiveInt(value, fallback) {
@@ -111,7 +111,7 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
   const blocked = [];
   const skipped = [];
 
-  await fsp.mkdir(restoreTargetDir, { recursive: true });
+  await mkdir(restoreTargetDir, { recursive: true });
 
   for (const object of context.metadataObjects) {
     if (restored.length >= limit) {
@@ -156,7 +156,7 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
       continue;
     }
 
-    if (!fs.existsSync(sourcePath)) {
+    if (!existsSync(sourcePath)) {
       blocked.push({
         id: object.id,
         source: object.source,
@@ -176,7 +176,7 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
       continue;
     }
 
-    const sourceHash = sha256File(sourcePath);
+    const sourceHash = await sha256File(sourcePath);
     if (sourceHash !== object.hash) {
       blocked.push({
         id: object.id,
@@ -200,10 +200,10 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
       continue;
     }
 
-    await fsp.mkdir(path.dirname(restorePath), { recursive: true });
-    await fsp.copyFile(sourcePath, restorePath);
-    const restoredHash = sha256File(restorePath);
-    const stat = await fsp.stat(restorePath);
+    await mkdir(path.dirname(restorePath), { recursive: true });
+    await copyFile(sourcePath, restorePath);
+    const restoredHash = await sha256File(restorePath);
+    const fileStat = await stat(restorePath);
     restored.push({
       id: object.id,
       source: object.source,
@@ -212,7 +212,7 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
       sourceKey: object.storageKey,
       sourcePath: safeRelative(context.root, sourcePath),
       restorePath: safeRelative(context.root, restorePath),
-      bytes: stat.size,
+      bytes: fileStat.size,
       sha256: restoredHash,
       expectedSha256: object.hash,
       hashVerified: restoredHash === object.hash,
@@ -258,11 +258,11 @@ export async function buildStorageArchiveRestoreDrill(options = {}) {
 
 export async function writeStorageArchiveRestoreDrill(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-archive-restore-drill.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-archive-restore-drill.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

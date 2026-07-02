@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-const uploadPage = read("src/app/upload/page.tsx");
-const apiClient = read("sw-addin/Services/ApiClient.cs");
-const submissionWindow = read("sw-addin/Views/SubmissionWindow.xaml.cs");
-const submissionWindowXaml = read("sw-addin/Views/SubmissionWindow.xaml");
-const addinModels = read("sw-addin/Models/SubmissionResult.cs");
-const addinSettings = read("sw-addin/Config/AddinSettings.cs");
-const preflightRoute = read("src/app/api/submissions/preflight-lock/route.ts");
-const itemLockRepository = read("src/lib/repositories/item-lock-async-repository.ts");
+const uploadPage = readProjectFile(root, "src/app/upload/page.tsx");
+const apiClient = readProjectFile(root, "sw-addin/Services/ApiClient.cs");
+const submissionWindow = readProjectFile(root, "sw-addin/Views/SubmissionWindow.xaml.cs");
+const submissionWindowXaml = readProjectFile(root, "sw-addin/Views/SubmissionWindow.xaml");
+const addinModels = readProjectFile(root, "sw-addin/Models/SubmissionResult.cs");
+const addinSettings = readProjectFile(root, "sw-addin/Config/AddinSettings.cs");
+const preflightRoute = readProjectFile(root, "src/app/api/submissions/preflight-lock/route.ts");
+const itemLockRepository = readProjectFile(root, "src/lib/repositories/item-lock-async-repository.ts");
 
 assert.match(uploadPage, /fetch\("\/api\/auth\/me"\)/, "Web upload must load auth company options");
 assert.match(uploadPage, /selectedCompanyCode/, "Web upload must track selected company code");

@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const submission = await getSubmissionAsync(id);
   if (!submission) {
-    return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+    return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
   }
   if (!(await canReadSubmissionAsync(auth.user, submission))) {
     return forbidden();

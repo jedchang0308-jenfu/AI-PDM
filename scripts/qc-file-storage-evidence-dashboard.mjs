@@ -7,6 +7,7 @@ import { getStorageEvidenceDashboard } from "../src/lib/storage-evidence-dashboa
 
 const root = process.cwd();
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -70,7 +71,7 @@ function fixtureManifest() {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dashboard-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dashboard-qc-"));
   const latestPath = path.join(tempRoot, "data", "storage-monthly-evidence", "latest-storage-monthly-evidence-run.json");
   const manifest = fixtureManifest();
   await writeJson(latestPath, manifest);
@@ -167,11 +168,14 @@ async function main() {
   record("STORAGE-DASHBOARD-021 notification message includes governance label", notificationsRouteSource.includes("governanceLabel") && notificationsRouteSource.includes("governance ${governanceLabel}"));
   record("STORAGE-DASHBOARD-022 dashboard panel renders governance snapshot", dashboardSource.includes("Governance") && dashboardSource.includes("alternateProviderReviewRecommended"));
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

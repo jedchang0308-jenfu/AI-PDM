@@ -7,8 +7,8 @@ import type { DrawingPurposeCode, NumberingItemKind, NumberingPhase } from "@/li
 export const runtime = "nodejs";
 
 const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
-const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 const purposeCodes = new Set(["MA", "OT"]);
+const initialDevelopmentPhase: NumberingPhase = "EVT";
 
 export async function POST(request: Request) {
   const auth = await requireNumberingActionAsync(request, "numbering.create");
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
   const partName = String(body.partName ?? body.part_name ?? "").trim();
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
-  const developmentPhase = (normalizeEnum(body.developmentPhase ?? body.development_phase, phases) ?? "EVT") as NumberingPhase;
+  const developmentPhase = initialDevelopmentPhase;
   const drawingRequested = Boolean(body.drawingRequested ?? body.drawing_requested);
   const drawingPurposeCode = normalizeEnum(body.drawingPurposeCode ?? body.drawing_purpose_code, purposeCodes) as DrawingPurposeCode | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import path from "node:path";
 import { evaluateDefectRegister } from "./defect-register-utils.mjs";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
 import { getRestoreDrillReportEvidence } from "./restore-drill-report-utils.mjs";
 import { findLatestReport, readReport, validateReport } from "./sw-addin-report-utils.mjs";
 import {
@@ -14,15 +14,15 @@ import {
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
 const allowOpen = args.has("--allow-open");
-const taskPath = resolveTaskFile();
+const taskRelativePath = resolveTaskFile();
 
 function resolveTaskFile() {
   const candidates = [
-    path.join(root, ".ai-doc", "dev_task.md"),
-    path.join(root, "dev_task.md"),
-    path.join(root, "PDM_dev_task.md")
+    ".ai-doc/dev_task.md",
+    "dev_task.md",
+    "PDM_dev_task.md"
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return candidates.find((candidate) => projectFileExists(root, candidate)) ?? candidates[0];
 }
 
 function getSolidWorksReportEvidence() {
@@ -88,7 +88,7 @@ function getSupabaseShadowEvidence() {
     ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md"
   ].map((docPath) => ({
     path: docPath,
-    exists: fs.existsSync(path.join(root, docPath))
+    exists: projectFileExists(root, docPath)
   }));
 
   return {
@@ -154,6 +154,16 @@ function readinessStatusFromToken(token) {
   return "open";
 }
 
+function stripInlineCode(value) {
+  return value.replace(/^`|`$/g, "");
+}
+
+function externalBlockerPriority(id) {
+  if (id === "DEV-FIELD-001") return "P1";
+  if (["DEV-IND-007", "DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"].includes(id)) return "P0";
+  return null;
+}
+
 function parseLegacyReadinessTask(line, index) {
   const match = line.match(/^- \[(x| |\/|!)\]\s+`(P[0-2])`\s+(.+)$/);
   if (!match) return null;
@@ -207,13 +217,54 @@ function parseIndustrializationOverviewTask(line, index) {
   };
 }
 
+function parseParkedExternalBlockerTask(line, index) {
+  if (!line.trim().startsWith("|")) return null;
+
+  const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+  if (cells.length < 4) return null;
+
+  const statusMatch = cells[0].match(/^\[(x| |\/|!)\]$/);
+  if (!statusMatch) return null;
+
+  const id = stripInlineCode(cells[1] ?? "");
+  const priority = externalBlockerPriority(id);
+  if (!priority) return null;
+
+  const task = [id, cells[2] ?? "", cells[3] ?? ""].filter(Boolean).join(" | ");
+  return {
+    line: index + 1,
+    priority,
+    status: readinessStatusFromToken(statusMatch[1]),
+    task,
+    category: classifyReadinessTask(task)
+  };
+}
+
 function parseReadinessTasks(markdown) {
   const tasks = [];
   let currentPriority = null;
   let inIndustrializationBacklog = false;
   let inIndustrializationOverview = false;
+  let inParkedExternalBlockers = false;
+  const parkedExternalHeadingPattern = /^##\s+3\.\s+(?:Parked Scope And External Blockers|External Blockers\s*\/\s*Parked Scope)\b/i;
 
   markdown.split(/\r?\n/).forEach((line, index) => {
+    if (parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = true;
+      currentPriority = null;
+      return;
+    }
+
+    if (inParkedExternalBlockers && /^##\s+/i.test(line) && !parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = false;
+    }
+
+    if (inParkedExternalBlockers) {
+      const parkedTask = parseParkedExternalBlockerTask(line, index);
+      if (parkedTask) tasks.push(parkedTask);
+      return;
+    }
+
     if (/^#\s+Industrialization Optimization Backlog\b/i.test(line)) {
       inIndustrializationBacklog = true;
       inIndustrializationOverview = false;
@@ -252,12 +303,12 @@ function parseReadinessTasks(markdown) {
   return tasks;
 }
 
-if (!fs.existsSync(taskPath)) {
-  console.error(`Task file not found: ${path.relative(root, taskPath)}`);
+if (!projectFileExists(root, taskRelativePath)) {
+  console.error(`Task file not found: ${taskRelativePath}`);
   process.exit(1);
 }
 
-const tasks = parseReadinessTasks(fs.readFileSync(taskPath, "utf8"));
+const tasks = parseReadinessTasks(readProjectFile(root, taskRelativePath));
 const solidWorksEvidence = getSolidWorksReportEvidence();
 const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
 const documentManagerEvidence = getDocumentManagerReportEvidence();
@@ -300,7 +351,7 @@ const byCategory = blockers.reduce((acc, blocker) => {
 const report = {
   ready: blockers.length === 0,
   allowOpen,
-  taskFile: path.relative(root, taskPath).replaceAll(path.sep, "/"),
+  taskFile: taskRelativePath.replaceAll(path.sep, "/"),
   summary: {
     trackedTasks: tasks.length,
     blockers: blockers.length,

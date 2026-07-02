@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { getStorageEvidenceDashboard } from "../src/lib/storage-evidence-dashboard.ts";
@@ -192,11 +192,11 @@ export async function buildStorageGovernanceGate(options = {}) {
 
 export async function writeStorageGovernanceGate(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "file-storage-governance-gate.json");
   const markdownPath = path.join(resolvedOutputDir, "file-storage-governance-gate.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

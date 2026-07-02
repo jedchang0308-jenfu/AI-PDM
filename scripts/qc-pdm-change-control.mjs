@@ -14,6 +14,7 @@ const apiPatchRouteSource = readProjectFile(root, "src/app/api/numbering/part-nu
 const apiSubmitRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/submit-review/route.ts");
 const apiVoidRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts");
 const apiRecycleRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts");
+const apiRestoreRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts");
 const apiReconfirmRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts");
 const fffAssessmentRouteSource = readProjectFile(root, "src/app/api/numbering/drawing-revisions/fff-assessments/route.ts");
 const reviewActionHandlerSource = readProjectFile(root, "src/app/api/numbering/reviews/_review-action-handler.ts");
@@ -276,6 +277,9 @@ record("CHG-SRC-005 domain service exposes controlled-boundary functions", [
   "assertPartNumberDraftIsRecyclable",
   "assertPartNumberDraftCanSubmit",
   "recyclePartNumberDraft",
+  "restorePartNumberDraft",
+  "listDeletedPartNumberDrafts",
+  "getPartNumberDraftLifecyclePolicy",
   "submitPartNumberDraft",
   "listPartNumberDrafts",
   "markSameSourceDraftsNeedReconfirmation",
@@ -302,6 +306,7 @@ record(
     "submitPartNumberDraft",
     "voidPartNumberDraft",
     "recyclePartNumberDraft",
+    "restorePartNumberDraft",
     "reconfirmPartNumberDraft"
   ].every((text) =>
     [
@@ -310,6 +315,7 @@ record(
       apiSubmitRouteSource,
       apiVoidRouteSource,
       apiRecycleRouteSource,
+      apiRestoreRouteSource,
       apiReconfirmRouteSource
     ].join("\n").includes(text)
   ),
@@ -319,6 +325,11 @@ record(
   "CHG-SRC-010 part draft page and nav entry exist",
   partDraftPageSource.includes("料號草稿") &&
     partDraftPageSource.includes("/api/numbering/part-number-drafts") &&
+    partDraftPageSource.includes("已刪除資料") &&
+    partDraftPageSource.includes("surface=deleted_data") &&
+    partDraftPageSource.includes("/restore") &&
+    partDraftPageSource.includes("刪除") &&
+    partDraftPageSource.includes("還原") &&
     sidebarSource.includes("/numbering/part-drafts") &&
     navPermissionSource.includes('"/numbering/part-drafts": "numbering.tasks"'),
   "src/app/numbering/part-drafts/page.tsx"
@@ -434,6 +445,68 @@ try {
     "CHG-RECYCLE-004 recycle events are retained",
     ["draft_voided", "draft_recycle_scheduled", "draft_recycled"].every((eventType) => eventTypes(database, firstDraft.id).includes(eventType)),
     eventTypes(database, firstDraft.id).join(",")
+  );
+  await expectReject(
+    "CHG-RESTORE-001 recycled deleted draft cannot be restored",
+    () => service.restorePartNumberDraft({ draftId: firstDraft.id, actor: engineer }),
+    "draft_already_recycled"
+  );
+
+  const restorableDraft = await service.reservePartNumberDraft({
+    reservedPartNumber: "P-QC-CHG-RESTORE",
+    draftType: "new_part",
+    itemType: "purchased",
+    actor: engineer
+  });
+  const deletedRestorableDraft = await service.voidPartNumberDraft({ draftId: restorableDraft.id, actor: engineer });
+  const deletedDrafts = await service.listDeletedPartNumberDrafts({ actor: engineer });
+  const deletedDraftListItem = deletedDrafts.find((item) => item.draft.id === restorableDraft.id);
+  assert(
+    "CHG-RESTORE-002 deleted draft appears on deleted-data surface with restore policy",
+    deletedRestorableDraft.status === "voided" &&
+      deletedDraftListItem?.policy.uiSurface === "deleted_data" &&
+      deletedDraftListItem.policy.actions.restore?.allowed === true,
+    JSON.stringify({ deletedRestorableDraft, deletedDraftListItem })
+  );
+  const restoredDraft = await service.restorePartNumberDraft({ draftId: restorableDraft.id, actor: engineer });
+  assert(
+    "CHG-RESTORE-003 restore returns draft to editable work list",
+    restoredDraft.status === "draft" &&
+      restoredDraft.voidedAt === null &&
+      restoredDraft.recycleAvailableAt === null &&
+      restoredDraft.recycledAt === null,
+    JSON.stringify(restoredDraft)
+  );
+  assert(
+    "CHG-RESTORE-004 restore event is retained",
+    eventTypes(database, restorableDraft.id).includes("draft_reissued"),
+    eventTypes(database, restorableDraft.id).join(",")
+  );
+
+  const reusedOriginalDraft = await service.reservePartNumberDraft({
+    reservedPartNumber: "P-QC-CHG-REUSED",
+    draftType: "new_part",
+    itemType: "standard",
+    actor: engineer
+  });
+  await service.voidPartNumberDraft({ draftId: reusedOriginalDraft.id, actor: engineer });
+  await service.reservePartNumberDraft({
+    reservedPartNumber: "P-QC-CHG-REUSED",
+    draftType: "new_part",
+    itemType: "standard",
+    actor: engineer
+  });
+  const reusedDeletedDraftPolicy = await service.getPartNumberDraftLifecyclePolicy({ draftId: reusedOriginalDraft.id, actor: engineer });
+  assert(
+    "CHG-RESTORE-005 reused deleted draft policy blocks restore",
+    reusedDeletedDraftPolicy.actions.restore?.allowed === false &&
+      reusedDeletedDraftPolicy.actions.restore.reasonCode === "LIFE_DRAFT_NUMBER_REUSED",
+    JSON.stringify(reusedDeletedDraftPolicy)
+  );
+  await expectReject(
+    "CHG-RESTORE-006 reused deleted draft cannot be restored",
+    () => service.restorePartNumberDraft({ draftId: reusedOriginalDraft.id, actor: engineer }),
+    "draft_number_reused"
   );
 
   const submittedDraft = await service.reservePartNumberDraft({

@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { buildStorageEgressReport } from "./generate-file-storage-egress-report.mjs";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const results = [];
+const root = process.cwd();
 
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
+const readRequired = (filePath) => readProjectFile(root, filePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -151,13 +150,14 @@ function writeFixtureDb(dbPath) {
 }
 
 async function main() {
-  const storageAccessAudit = read("src/lib/storage-access-audit.ts");
-  const submissionFileRoute = read("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
-  const releasePackageRoute = read("src/app/api/submissions/[id]/release-package/route.ts");
-  const publicSharePackageRoute = read("src/app/api/public/shares/[token]/package/route.ts");
-  const egressReport = read("scripts/generate-file-storage-egress-report.mjs");
-  const apiQc = read("scripts/qc-api-test.mjs");
-  const packageJson = JSON.parse(read("package.json"));
+  const storageAccessAudit = readRequired("src/lib/storage-access-audit.ts");
+  const submissionFileRoute = readRequired("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
+  const releasePackageRoute = readRequired("src/app/api/submissions/[id]/release-package/route.ts");
+  const publicSharePackageRoute = readRequired("src/app/api/public/shares/[token]/package/route.ts");
+  const egressReport = readRequired("scripts/generate-file-storage-egress-report.mjs");
+  const apiQc = readRequired("scripts/qc-api-test.mjs");
+  const industrializationQc = readRequired("scripts/qc-industrialization-test.mjs");
+  const packageJson = readProjectJson(root, "package.json");
 
   record("STORAGE-ACCESS-AUDIT-001 helper emits StorageAccessed action", storageAccessAudit.includes('action: "StorageAccessed"'));
   record("STORAGE-ACCESS-AUDIT-002 helper records storageAccess flag", storageAccessAudit.includes("storageAccess: true"));
@@ -225,9 +225,14 @@ async function main() {
   record("STORAGE-ACCESS-AUDIT-034 qc:api checks runtime release package audit row", apiQc.includes("PKG-009 package download writes StorageAccessed audit"));
   record("STORAGE-ACCESS-AUDIT-035 qc:api checks runtime public package audit row", apiQc.includes("SHARE-012 public package writes StorageAccessed audit"));
   record("STORAGE-ACCESS-AUDIT-036 qc:api sends QC provenance header", apiQc.includes("x-ai-pdm-qc-storage-audit-run-id"));
-  record("STORAGE-ACCESS-AUDIT-037 package exposes focused QC script", packageJson.scripts?.["qc:file-storage-access-audit"] === "node scripts/qc-file-storage-access-audit.mjs");
-  record("STORAGE-ACCESS-AUDIT-038 egress parser requires storageAccess flag", egressReport.includes("detail.storageAccess !== true"));
-  record("STORAGE-ACCESS-AUDIT-039 egress parser flags legacy unclassified provenance", egressReport.includes("legacyUnclassifiedRows") && egressReport.includes("missing_storage_access_source"));
+  record("STORAGE-ACCESS-AUDIT-037 qc:api has an explicit storage audit provenance expectation", apiQc.includes("PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE"));
+  record("STORAGE-ACCESS-AUDIT-038 qc:api defaults to QC provenance for non-production app runs", apiQc.includes('? "runtime" : "qc_api"'));
+  record("STORAGE-ACCESS-AUDIT-039 qc:api validates production runtime provenance without QC run id", apiQc.includes('audit.detail.storageAccessSource === "runtime"') && apiQc.includes("audit.detail.qcRunId === null"));
+  record("STORAGE-ACCESS-AUDIT-040 qc:api validates QC provenance with the active run id", apiQc.includes('audit.detail.storageAccessSource === "qc_api"') && apiQc.includes("audit.detail.qcRunId === qcStorageAuditRunId"));
+  record("STORAGE-ACCESS-AUDIT-041 industrialization gate expects runtime provenance from production server", industrializationQc.includes('PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE: "runtime"'));
+  record("STORAGE-ACCESS-AUDIT-042 package exposes focused QC script", packageJson.scripts?.["qc:file-storage-access-audit"] === "node scripts/qc-file-storage-access-audit.mjs");
+  record("STORAGE-ACCESS-AUDIT-043 egress parser requires storageAccess flag", egressReport.includes("detail.storageAccess !== true"));
+  record("STORAGE-ACCESS-AUDIT-044 egress parser flags legacy unclassified provenance", egressReport.includes("legacyUnclassifiedRows") && egressReport.includes("missing_storage_access_source"));
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }

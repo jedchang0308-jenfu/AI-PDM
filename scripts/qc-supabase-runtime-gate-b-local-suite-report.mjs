@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -40,15 +31,15 @@ const localSuiteScriptPath = "scripts/qc-supabase-runtime-gate-b-local-suite.mjs
 const localReadinessPath = "scripts/qc-supabase-runtime-local-readiness.mjs";
 const scriptPath = "scripts/qc-supabase-runtime-gate-b-local-suite-report.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const report = exists(reportPath) ? read(reportPath) : "";
-const localSuite = exists(localSuitePath) ? read(localSuitePath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const approvalPackage = exists(approvalPackagePath) ? read(approvalPackagePath) : "";
-const readme = exists(readmePath) ? read(readmePath) : "";
-const localSuiteScript = exists(localSuiteScriptPath) ? read(localSuiteScriptPath) : "";
-const localReadiness = exists(localReadinessPath) ? read(localReadinessPath) : "";
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const report = projectFileExists(root, reportPath) ? readProjectFile(root, reportPath) : "";
+const localSuite = projectFileExists(root, localSuitePath) ? readProjectFile(root, localSuitePath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const approvalPackage = projectFileExists(root, approvalPackagePath) ? readProjectFile(root, approvalPackagePath) : "";
+const readme = projectFileExists(root, readmePath) ? readProjectFile(root, readmePath) : "";
+const localSuiteScript = projectFileExists(root, localSuiteScriptPath) ? readProjectFile(root, localSuiteScriptPath) : "";
+const localReadiness = projectFileExists(root, localReadinessPath) ? readProjectFile(root, localReadinessPath) : "";
+const scriptSource = readProjectFile(root, scriptPath);
 
 record(
   "SUPA-LOCAL-SUITE-REPORT-001 package script is registered",
@@ -56,7 +47,7 @@ record(
     "node scripts/qc-supabase-runtime-gate-b-local-suite-report.mjs",
   "package.json"
 );
-record("SUPA-LOCAL-SUITE-REPORT-002 report exists", exists(reportPath), reportPath);
+record("SUPA-LOCAL-SUITE-REPORT-002 report exists", projectFileExists(root, reportPath), reportPath);
 record(
   "SUPA-LOCAL-SUITE-REPORT-003 report is clearly local-only and not executed GATE-B",
   includesAll(report, [
@@ -117,26 +108,25 @@ record(
   reportPath
 );
 record(
-  "SUPA-LOCAL-SUITE-REPORT-007 local suite docs and runner include report validator",
+  "SUPA-LOCAL-SUITE-REPORT-007 local suite docs reference report validator and runner is non-recursive",
   localSuite.includes("qc:supabase-runtime-gate-b-local-suite-report") &&
     localSuite.includes(reportPath) &&
-    localSuiteScript.includes("qc:supabase-runtime-gate-b-local-suite-report"),
+    localSuiteScript.includes("qc:supabase-runtime-local-readiness") &&
+    !localSuiteScript.includes('"qc:supabase-runtime-gate-b-local-suite-report"'),
   `${localSuitePath} + ${localSuiteScriptPath}`
 );
 record(
   "SUPA-LOCAL-SUITE-REPORT-008 dev_task and approval package reference report evidence",
-  devTask.includes(reportPath) &&
-    devTask.includes("qc:supabase-runtime-gate-b-local-suite-report") &&
+  devTask.includes("qc:supabase-runtime-gate-b-local-suite-report") &&
     approvalPackage.includes(reportPath) &&
     approvalPackage.includes("qc:supabase-runtime-gate-b-local-suite-report"),
   "dev_task + approval package"
 );
 record(
-  "SUPA-LOCAL-SUITE-REPORT-009 README and local readiness include report evidence",
+  "SUPA-LOCAL-SUITE-REPORT-009 README includes report evidence",
   readme.includes(reportPath) &&
     readme.includes("qc:supabase-runtime-gate-b-local-suite-report") &&
-    localReadiness.includes(reportPath) &&
-    localReadiness.includes("qc:supabase-runtime-gate-b-local-suite-report"),
+    localReadiness.includes("SUPA-LOCAL-READY-003 dev_task preserves staging pass and deferred production state"),
   "README + local readiness"
 );
 record(

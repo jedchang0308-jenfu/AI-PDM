@@ -6,6 +6,7 @@ import { createBlankReport, validateReport } from "./document-manager-report-uti
 
 const root = process.cwd();
 const probePath = path.join(root, ".tmp", "document-manager-probes", "qc-contract", "probe.json");
+const probeDir = path.dirname(probePath);
 const badProbeDir = path.join(root, ".tmp", "document-manager-probes", "qc-bad");
 const badProbePath = path.join(badProbeDir, "probe.json");
 const results = [];
@@ -13,6 +14,13 @@ const results = [];
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
+
+function cleanupProbePathGateDirs() {
+  fs.rmSync(probeDir, { recursive: true, force: true });
+  fs.rmSync(badProbeDir, { recursive: true, force: true });
+}
+
+process.once("exit", cleanupProbePathGateDirs);
 
 function completedReport(extractorProbePath) {
   const report = createBlankReport("qc-probe-path-gate");
@@ -49,6 +57,9 @@ function completedReport(extractorProbePath) {
   return report;
 }
 
+fs.mkdirSync(probeDir, { recursive: true });
+fs.writeFileSync(probePath, `${JSON.stringify({ ready: true }, null, 2)}\n`, "utf8");
+
 record("DMPATH-001 ready probe fixture exists", fs.existsSync(probePath), probePath);
 const valid = validateReport(completedReport(path.relative(root, probePath).replaceAll(path.sep, "/")));
 record("DMPATH-002 valid ready probe path allows completed report", valid.ready, JSON.stringify(valid.issues));
@@ -62,5 +73,6 @@ const notReady = validateReport(completedReport(path.relative(root, badProbePath
 record("DMPATH-004 not-ready probe path is blocked", notReady.issues.some((issue) => issue.type === "probe_not_ready"), JSON.stringify(notReady.issues));
 
 const failed = results.filter((result) => !result.passed);
+cleanupProbePathGateDirs();
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
 if (failed.length > 0) process.exitCode = 1;

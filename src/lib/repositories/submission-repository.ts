@@ -126,7 +126,8 @@ export function getSubmission(id: string): SubmissionDetail | null {
     active_lock: activeLock,
     release_package: releasePackage,
     approvals,
-    audit_logs: auditLogs
+    audit_logs: auditLogs,
+    lifecycle_requests: []
   };
 }
 

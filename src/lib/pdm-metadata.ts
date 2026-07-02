@@ -64,6 +64,13 @@ const nativeSolidWorksExtensions = new Set(["sldprt", "sldasm", "slddrw"]);
 const propertyFileExtensions = new Set(["json", "txt", "properties", "csv"]);
 const submissionFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
 const maxPropertyFileBytes = 1024 * 1024;
+const primaryFilePriority: Record<string, number> = {
+  slddrw: 0,
+  sldasm: 1,
+  sldprt: 2,
+  pdf: 3,
+  dwg: 4
+};
 
 const aliases: Record<keyof PdmMetadata, string[]> = {
   product_line: ["product_line", "productline", "line", "product_family"],
@@ -96,7 +103,8 @@ export async function detectPdmMetadata(
   const warnings: string[] = [];
   const propertyFiles: string[] = [];
   const nativeMetadataFiles: string[] = [];
-  const uploadFiles = files.filter((file) => submissionFileExtensions.has(getFileExtension(file.name))).map((file) => file.name);
+  const submissionFiles = files.filter((file) => submissionFileExtensions.has(getFileExtension(file.name)));
+  const uploadFiles = submissionFiles.map((file) => file.name);
 
   const nativeExtractions = await extractNativeCadMetadata(files, { extractor: options.metadataExtractor });
   for (const extraction of nativeExtractions) {
@@ -119,7 +127,13 @@ export async function detectPdmMetadata(
     mergeMetadata(metadata, parsed, sources, file.name, "high");
   }
 
-  const primaryFile = files.find((file) => submissionFileExtensions.has(getFileExtension(file.name)));
+  const filenameHints = submissionFiles.map((file) => ({
+    filename: file.name,
+    metadata: inferMetadataFromFilename(file.name)
+  }));
+  warnings.push(...detectFilenameHintConflicts(filenameHints));
+
+  const primaryFile = selectPrimaryMetadataFile(submissionFiles);
   if (primaryFile) {
     mergeMetadata(metadata, inferMetadataFromFilename(primaryFile.name), sources, primaryFile.name, "low");
   }
@@ -248,6 +262,40 @@ function inferMetadataFromFilename(filename: string): Partial<PdmMetadata> {
   }
 
   return inferred;
+}
+
+function selectPrimaryMetadataFile(files: File[]) {
+  return files
+    .map((file, index) => ({
+      file,
+      index,
+      priority: primaryFilePriority[getFileExtension(file.name)] ?? 99
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)[0]?.file;
+}
+
+function detectFilenameHintConflicts(hints: Array<{ filename: string; metadata: Partial<PdmMetadata> }>) {
+  const warnings: string[] = [];
+  const fields: Array<keyof PdmMetadata> = ["drawing_number", "part_number", "revision"];
+
+  for (const field of fields) {
+    const values = new Map<string, string[]>();
+    for (const hint of hints) {
+      const value = hint.metadata[field]?.trim();
+      if (!value) continue;
+      const key = value.toUpperCase();
+      values.set(key, [...(values.get(key) ?? []), hint.filename]);
+    }
+    if (values.size > 1) {
+      warnings.push(
+        `conflicting_filename_hint:${field}:${Array.from(values.entries())
+          .map(([value, filenames]) => `${value}=${filenames.join("|")}`)
+          .join(";")}`
+      );
+    }
+  }
+
+  return warnings;
 }
 
 function documentTypeFromExtension(ext: string) {

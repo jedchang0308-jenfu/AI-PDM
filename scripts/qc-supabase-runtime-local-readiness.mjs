@@ -2,17 +2,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { projectFileExists, projectPath, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -32,15 +25,26 @@ function hasLiveSecret(value) {
   ].some((pattern) => pattern.test(value));
 }
 
+function devTaskPreservesSupabaseGateState(devTask) {
+  return includesAll(devTask, [
+    "DEV-SUPABASE-DB-001",
+    "AI_PDM_STAGING",
+    "Production gate"
+  ]) &&
+    /staging GATE-B (?:remains )?passed/iu.test(devTask) &&
+    /production\/cutover remains (?:unapproved and )?deferred/iu.test(devTask);
+}
+
 function listApiRouteDbImports() {
-  const apiDir = path.join(root, "src", "app", "api");
+  const apiDir = projectPath(root, "src/app/api");
   const matches = [];
   function visit(current) {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const fullPath = path.join(current, entry.name);
       if (entry.isDirectory()) visit(fullPath);
-      if (entry.isFile() && entry.name === "route.ts" && fs.readFileSync(fullPath, "utf8").includes("@/lib/db")) {
-        matches.push(path.relative(root, fullPath).replaceAll(path.sep, "/"));
+      if (entry.isFile() && entry.name === "route.ts") {
+        const relativePath = path.relative(root, fullPath).replaceAll(path.sep, "/");
+        if (readProjectFile(root, relativePath).includes("@/lib/db")) matches.push(relativePath);
       }
     }
   }
@@ -58,37 +62,43 @@ const paths = {
   smokeApiMatrix: ".ai-doc/qa/qa-supabase-runtime-smoke-api-matrix-2026-06-16.md",
   authSessionBoundary: ".ai-doc/qa/qa-supabase-runtime-smoke-auth-session-boundary-2026-06-16.md",
   targetReceipt: ".ai-doc/reports/qc/qc-supabase-target-identity-receipt-2026-06-17.md",
+  currentChangeAudit: ".ai-doc/qa/qa-supabase-current-change-impact-audit-2026-06-16.md",
   rollbackPlan: ".ai-doc/qa/qa-supabase-runtime-rollback-readiness-plan-2026-06-16.md",
   dataPolicy: ".ai-doc/qa/qa-supabase-data-parity-policy-2026-06-16.md",
   readme: "supabase/README.md",
   manifest: "supabase/migrations/manifest.json"
 };
 
-const packageJson = JSON.parse(read("package.json"));
-const docs = Object.fromEntries(Object.entries(paths).map(([key, value]) => [key, exists(value) ? read(value) : ""]));
+const packageJson = readProjectJson(root, "package.json");
+const docs = Object.fromEntries(
+  Object.entries(paths).map(([key, value]) => [key, projectFileExists(root, value) ? readProjectFile(root, value) : ""])
+);
 const directRouteImports = listApiRouteDbImports();
 
 record(
   "SUPA-LOCAL-READY-001 package scripts are registered",
   packageJson.scripts?.["qc:supabase-runtime-local-readiness"] === "node scripts/qc-supabase-runtime-local-readiness.mjs" &&
     packageJson.scripts?.["qc:supabase-runtime-gate-b-local-suite"] === "node scripts/qc-supabase-runtime-gate-b-local-suite.mjs" &&
-    packageJson.scripts?.["qc:supabase-runtime-smoke-report"] === "node scripts/qc-supabase-runtime-smoke-report.mjs",
+    packageJson.scripts?.["qc:supabase-runtime-smoke-report"] === "node scripts/qc-supabase-runtime-smoke-report.mjs" &&
+    packageJson.scripts?.["qc:supabase-runtime-smoke-api-matrix"] ===
+      "node scripts/qc-supabase-runtime-smoke-api-matrix.mjs" &&
+    packageJson.scripts?.["qc:supabase-runtime-smoke-auth-session-boundary"] ===
+      "node scripts/qc-supabase-runtime-smoke-auth-session-boundary.mjs" &&
+    packageJson.scripts?.["qc:supabase-current-change-impact"] === "node scripts/qc-supabase-current-change-impact.mjs" &&
+    packageJson.scripts?.["qc:supabase-runtime-gate-b-runbook"] ===
+      "node scripts/qc-supabase-runtime-gate-b-runbook.mjs" &&
+    packageJson.scripts?.["qc:supabase-runtime-smoke-report-template"] ===
+      "node scripts/qc-supabase-runtime-smoke-report-template.mjs",
   "package.json"
 );
 record(
   "SUPA-LOCAL-READY-002 required evidence files exist",
-  Object.values(paths).every((filePath) => exists(filePath)),
-  Object.values(paths).filter((filePath) => !exists(filePath)).join(", ")
+  Object.values(paths).every((filePath) => projectFileExists(root, filePath)),
+  Object.values(paths).filter((filePath) => !projectFileExists(root, filePath)).join(", ")
 );
 record(
-  "SUPA-LOCAL-READY-003 dev_task keeps one active objective and staging pass state",
-  includesAll(docs.devTask, [
-    "Active objective: finish `DEV-SUPABASE-DB-001` without expanding scope.",
-    "`DEV-SUPABASE-DB-001` is the only active development objective.",
-    "Staging GATE-B passed for `AI_PDM_STAGING`",
-    "production/cutover remains unapproved and deferred",
-    "Production gate"
-  ]),
+  "SUPA-LOCAL-READY-003 dev_task preserves staging pass and deferred production state",
+  devTaskPreservesSupabaseGateState(docs.devTask),
   paths.devTask
 );
 record(

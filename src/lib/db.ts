@@ -330,6 +330,9 @@ function initDatabase(database: SqliteDatabase) {
   ensureNumberingWorkflowCompanyScopeSchema(database);
   ensureUsersRoleSchema(database);
   ensureSubmissionsLifecycleSchema(database);
+  ensureSubmissionSnapshotAndAttemptSchema(database);
+  ensureSubmissionLifecycleRequestSchema(database);
+  ensureBomReviewLifecycleSchema(database);
   ensureSubmissionIndexes(database);
   reconcileItemCurrentRevisions(database);
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
@@ -339,6 +342,93 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   seedConfiguredUsers(database);
+}
+
+function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {
+  ensureColumn(database, "bom_review_requests", "lifecycle_action", "TEXT NOT NULL DEFAULT 'release'");
+  database
+    .prepare("UPDATE bom_review_requests SET lifecycle_action = 'release' WHERE lifecycle_action IS NULL OR lifecycle_action = ''")
+    .run();
+}
+
+function ensureSubmissionLifecycleRequestSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL,
+      action_code TEXT NOT NULL CHECK (action_code IN ('obsolete_submission')),
+      request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+      requested_by TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      decided_by TEXT,
+      decision_reason TEXT,
+      requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+      decided_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+      FOREIGN KEY (requested_by) REFERENCES users(id),
+      FOREIGN KEY (decided_by) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_submission_lifecycle_requests_submission
+      ON submission_lifecycle_requests(submission_id, action_code, request_status, created_at DESC);
+  `);
+}
+
+function ensureSubmissionSnapshotAndAttemptSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS submission_snapshots (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL UNIQUE,
+      company_id TEXT NOT NULL,
+      source_root_id TEXT NOT NULL,
+      source_root_code TEXT NOT NULL,
+      source_drawing_number_id TEXT NOT NULL,
+      source_drawing_number TEXT NOT NULL,
+      source_part_number_id TEXT NOT NULL,
+      source_part_number TEXT NOT NULL,
+      snapshot_version TEXT NOT NULL DEFAULT 'drawing_part_submission_v1',
+      rules_version TEXT NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      captured_by TEXT NOT NULL,
+      captured_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+      FOREIGN KEY (company_id) REFERENCES companies(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
+      ON submission_snapshots(company_id, source_root_code);
+    CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
+      ON submission_snapshots(company_id, source_drawing_number);
+
+    CREATE TABLE IF NOT EXISTS submission_attempts (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL,
+      source_root_code TEXT NOT NULL,
+      source_drawing_number TEXT,
+      source_revision TEXT,
+      idempotency_key TEXT NOT NULL,
+      actor_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('started', 'blocked', 'failed', 'created')),
+      retryable INTEGER NOT NULL DEFAULT 0 CHECK (retryable IN (0, 1)),
+      blocker_json TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      submission_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (company_id) REFERENCES companies(id),
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+      UNIQUE (company_id, actor_id, idempotency_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_submission_attempts_source
+      ON submission_attempts(company_id, source_root_code, source_drawing_number, source_revision, updated_at DESC);
+  `);
+  ensureColumn(database, "submission_attempts", "source_revision", "TEXT");
+  ensureColumn(database, "submission_attempts", "retryable", "INTEGER NOT NULL DEFAULT 0");
 }
 
 function ensureUsersRoleSchema(database: SqliteDatabase) {
@@ -729,6 +819,17 @@ const submissionLifecycleColumns = [
   "superseded_by_submission_id",
   "obsolete_at",
   "obsolete_by",
+  "cancelled_at",
+  "cancelled_by",
+  "cancel_reason",
+  "returned_for_correction_at",
+  "returned_for_correction_by",
+  "returned_for_correction_reason",
+  "corrects_submission_id",
+  "resolved_by_submission_id",
+  "resolved_at",
+  "source_entity_type",
+  "source_entity_id",
   "created_at",
   "updated_at"
 ];
@@ -752,7 +853,7 @@ function createSubmissionsLifecycleTableSql(tableName: string) {
       surface_finish TEXT NOT NULL,
       document_type TEXT NOT NULL,
       change_description TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('Pending', 'Releasing', 'Released', 'Rejected', 'ReleaseFailed', 'Obsolete')),
+      status TEXT NOT NULL CHECK (status IN ('Pending', 'Releasing', 'Released', 'Rejected', 'ReleaseFailed', 'Obsolete', 'Cancelled')),
       submitted_by TEXT NOT NULL,
       approval_required INTEGER NOT NULL DEFAULT 1 CHECK (approval_required IN (1, 2)),
       released_at TEXT,
@@ -762,6 +863,17 @@ function createSubmissionsLifecycleTableSql(tableName: string) {
       superseded_by_submission_id TEXT,
       obsolete_at TEXT,
       obsolete_by TEXT,
+      cancelled_at TEXT,
+      cancelled_by TEXT,
+      cancel_reason TEXT,
+      returned_for_correction_at TEXT,
+      returned_for_correction_by TEXT,
+      returned_for_correction_reason TEXT,
+      corrects_submission_id TEXT,
+      resolved_by_submission_id TEXT,
+      resolved_at TEXT,
+      source_entity_type TEXT,
+      source_entity_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (company_id) REFERENCES companies(id),
@@ -769,7 +881,10 @@ function createSubmissionsLifecycleTableSql(tableName: string) {
       FOREIGN KEY (submitted_by) REFERENCES users(id),
       FOREIGN KEY (superseded_by_submission_id) REFERENCES submissions(id),
       FOREIGN KEY (obsolete_by) REFERENCES users(id),
-      UNIQUE (company_id, drawing_number, revision)
+      FOREIGN KEY (cancelled_by) REFERENCES users(id),
+      FOREIGN KEY (returned_for_correction_by) REFERENCES users(id),
+      FOREIGN KEY (corrects_submission_id) REFERENCES submissions(id),
+      FOREIGN KEY (resolved_by_submission_id) REFERENCES submissions(id)
     )
   `;
 }
@@ -780,13 +895,28 @@ function ensureSubmissionsLifecycleSchema(database: SqliteDatabase) {
     | undefined;
   const columns = database.prepare("PRAGMA table_info(submissions)").all() as Array<{ name: string }>;
   const hasObsoleteStatus = Boolean(row?.sql.includes("'Obsolete'"));
+  const hasCancelledStatus = Boolean(row?.sql.includes("'Cancelled'"));
   const hasCompanyId = columns.some((column) => column.name === "company_id");
   const usesCompanyUnique = Boolean(row?.sql.includes("UNIQUE (company_id, drawing_number, revision)"));
+  const hasReleaseRecoveryColumns = [
+    "cancelled_at",
+    "cancelled_by",
+    "cancel_reason",
+    "returned_for_correction_at",
+    "returned_for_correction_by",
+    "returned_for_correction_reason",
+    "corrects_submission_id",
+    "resolved_by_submission_id",
+    "resolved_at"
+  ].every((columnName) => columns.some((column) => column.name === columnName));
 
-  if (hasObsoleteStatus && hasCompanyId && usesCompanyUnique) {
+  if (hasObsoleteStatus && hasCancelledStatus && hasCompanyId && hasReleaseRecoveryColumns && !usesCompanyUnique) {
     ensureColumn(database, "submissions", "superseded_by_submission_id", "TEXT");
     ensureColumn(database, "submissions", "obsolete_at", "TEXT");
     ensureColumn(database, "submissions", "obsolete_by", "TEXT");
+    ensureColumn(database, "submissions", "source_entity_type", "TEXT");
+    ensureColumn(database, "submissions", "source_entity_id", "TEXT");
+    ensureColumn(database, "submission_files", "source_master_attachment_id", "TEXT");
     ensureSubmissionFinderColumns(database);
     return;
   }
@@ -823,6 +953,9 @@ function ensureSubmissionsLifecycleSchema(database: SqliteDatabase) {
     database.pragma("foreign_keys = ON");
   }
   ensureSubmissionFinderColumns(database);
+  ensureColumn(database, "submissions", "source_entity_type", "TEXT");
+  ensureColumn(database, "submissions", "source_entity_id", "TEXT");
+  ensureColumn(database, "submission_files", "source_master_attachment_id", "TEXT");
 }
 
 function ensureSubmissionFinderColumns(database: SqliteDatabase) {
@@ -843,6 +976,14 @@ function ensureSubmissionIndexes(database: SqliteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_submissions_submitted_status_created_at ON submissions(submitted_by, status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_submissions_item_created_at ON submissions(item_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_submissions_drawing_number ON submissions(company_id, drawing_number);
+    CREATE INDEX IF NOT EXISTS idx_submissions_company_drawing_revision ON submissions(company_id, drawing_number, revision);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_blocking_same_revision_unique
+      ON submissions(company_id, drawing_number, revision)
+      WHERE status IN ('Pending', 'Releasing', 'Released', 'Obsolete');
+    CREATE INDEX IF NOT EXISTS idx_submissions_release_failed_resolution
+      ON submissions(company_id, drawing_number, revision, resolved_by_submission_id, resolved_at)
+      WHERE status = 'ReleaseFailed';
+    CREATE INDEX IF NOT EXISTS idx_submissions_corrects_submission ON submissions(corrects_submission_id);
     CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
   `);
 }

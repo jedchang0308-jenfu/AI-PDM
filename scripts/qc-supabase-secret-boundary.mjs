@@ -2,13 +2,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -37,14 +34,14 @@ function listFiles(dir, predicate = () => true) {
 }
 
 try {
-  const packageJson = JSON.parse(read("package.json"));
-  const envExample = read(".env.example");
-  const nextConfig = read("next.config.mjs");
-  const dbAsyncProvider = read("src/lib/db-async-provider.ts");
-  const fileStorage = read("src/lib/file-storage.ts");
-  const supabaseSpec = read(".ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md");
-  const supabaseAdr = read(".ai-doc/decisions/ADR-SUPABASE-DB-001-runtime-provider-and-target.md");
-  const handoff = read(".ai-doc/reports/pm/thread-handoff-supabase-connector-2026-06-11.md");
+  const packageJson = readProjectJson(root, "package.json");
+  const envExample = readProjectFile(root, ".env.example");
+  const nextConfig = readProjectFile(root, "next.config.mjs");
+  const dbAsyncProvider = readProjectFile(root, "src/lib/db-async-provider.ts");
+  const fileStorage = readProjectFile(root, "src/lib/file-storage.ts");
+  const supabaseSpec = readProjectFile(root, ".ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md");
+  const supabaseAdr = readProjectFile(root, ".ai-doc/decisions/ADR-SUPABASE-DB-001-runtime-provider-and-target.md");
+  const handoff = readProjectFile(root, ".ai-doc/reports/pm/thread-handoff-supabase-connector-2026-06-11.md");
 
   record("SUPABASE-SECRET-001 package script is registered", packageJson.scripts?.["qc:supabase-secret-boundary"] === "node scripts/qc-supabase-secret-boundary.mjs");
   record("SUPABASE-SECRET-002 env example documents server-only Postgres runtime vars", includesAll(envExample, ["PDM_POSTGRES_URL=", "PDM_POSTGRES_ADMIN_URL=", "PDM_POSTGRES_POOLER_MODE=", "PDM_POSTGRES_MAX_CONNECTIONS="]));
@@ -67,8 +64,8 @@ try {
   const publicSecretReferences = [];
   const postgresRuntimeReferences = [];
   for (const filePath of sourceFiles) {
-    const content = fs.readFileSync(filePath, "utf8");
     const relativePath = path.relative(root, filePath).replace(/\\/g, "/");
+    const content = readProjectFile(root, relativePath);
     if (/NEXT_PUBLIC_.*(?:SERVICE_ROLE|SECRET|PASSWORD|TOKEN|POSTGRES)/iu.test(content)) {
       publicSecretReferences.push(relativePath);
     }

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const tmpRoot = path.join(root, ".tmp", "qc-field-test-issue-intake");
@@ -40,10 +41,16 @@ function parseJson(stdout) {
 }
 
 function readRegister() {
-  return JSON.parse(fs.readFileSync(registerPath, "utf8"));
+  return readProjectJson(root, path.relative(root, registerPath).replaceAll(path.sep, "/"));
 }
 
-fs.rmSync(tmpRoot, { recursive: true, force: true });
+function cleanupTmpRoot() {
+  fs.rmSync(tmpRoot, { recursive: true, force: true });
+}
+
+process.once("exit", cleanupTmpRoot);
+
+cleanupTmpRoot();
 fs.mkdirSync(qualityDir, { recursive: true });
 writeJson(registerPath, {
   schemaVersion: "1.0",
@@ -163,6 +170,7 @@ record("FIELD-ISSUE-010 invalid active field issue fails", invalidRun.status !==
 record("FIELD-ISSUE-011 invalid report names missing owner/evidence", invalidReport?.issues?.some((issue) => issue.field?.endsWith(".owner")) && invalidReport?.issues?.some((issue) => issue.field?.endsWith(".evidence")), JSON.stringify(invalidReport?.issues ?? []));
 
 const failed = results.filter((result) => !result.passed);
+cleanupTmpRoot();
 console.log(JSON.stringify({
   passed: results.length - failed.length,
   failed: failed.length,

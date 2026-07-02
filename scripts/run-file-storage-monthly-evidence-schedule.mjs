@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -138,10 +138,10 @@ export async function runStorageMonthlyEvidenceSchedule(options = {}) {
     }
   };
 
-  await fsp.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   if (latestPath) {
-    await fsp.mkdir(path.dirname(latestPath), { recursive: true });
-    await fsp.writeFile(latestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await mkdir(path.dirname(latestPath), { recursive: true });
+    await writeFile(latestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   }
 
   return {

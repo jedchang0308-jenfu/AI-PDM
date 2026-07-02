@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const results = [];
+const root = process.cwd();
 
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
+const readRequired = (filePath) => readProjectFile(root, filePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -24,16 +23,16 @@ function ordered(source, first, second) {
 }
 
 try {
-  const packageJson = JSON.parse(read("package.json"));
-  const permissions = read("src/lib/permissions.ts");
-  const fileResponse = read("src/lib/file-response.ts");
-  const submissionFileRoute = read("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
-  const releasePackageRoute = read("src/app/api/submissions/[id]/release-package/route.ts");
-  const publicSharePackageRoute = read("src/app/api/public/shares/[token]/package/route.ts");
-  const readonlyShare = read("src/lib/readonly-share.ts");
-  const releaseRepository = read("src/lib/repositories/release-repository.ts");
-  const apiQc = read("scripts/qc-api-test.mjs");
-  const localProviderQc = read("scripts/qc-file-storage-local-provider-regression.mjs");
+  const packageJson = readProjectJson(root, "package.json");
+  const permissions = readRequired("src/lib/permissions.ts");
+  const fileResponse = readRequired("src/lib/file-response.ts");
+  const submissionFileRoute = readRequired("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
+  const releasePackageRoute = readRequired("src/app/api/submissions/[id]/release-package/route.ts");
+  const publicSharePackageRoute = readRequired("src/app/api/public/shares/[token]/package/route.ts");
+  const readonlyShare = readRequired("src/lib/readonly-share.ts");
+  const releaseRepository = readRequired("src/lib/repositories/release-repository.ts");
+  const apiQc = readRequired("scripts/qc-api-test.mjs");
+  const localProviderQc = readRequired("scripts/qc-file-storage-local-provider-regression.mjs");
 
   record("STORAGE-ROLE-ACCESS-001 package script is registered", packageJson.scripts?.["qc:file-storage-role-access"] === "node scripts/qc-file-storage-role-access.mjs");
   record("STORAGE-ROLE-ACCESS-002 Manufacturing and Procurement are released-only roles", includesAll(permissions, ['user.role === "Manufacturing"', 'user.role === "Procurement"', "isBomReleasedOnlyRole"]));
@@ -41,16 +40,16 @@ try {
   record("STORAGE-ROLE-ACCESS-004 Engineers remain scoped to own submissions", permissions.includes('return user.role !== "Engineer" || submission.submitted_by === user.id;'));
   record("STORAGE-ROLE-ACCESS-005 BOM draft remains blocked for released-only roles", permissions.includes("return !isBomReleasedOnlyRole(user) && canReadSubmission(user, submission);"));
 
-  record("STORAGE-ROLE-ACCESS-006 submission file lookup uses canReadSubmission", includesAll(fileResponse, ["getSubmissionAsync(submissionId)", "canReadSubmission(user, submission)", 'NextResponse.json({ error: "Forbidden" }, { status: 403 })']));
+  record("STORAGE-ROLE-ACCESS-006 submission file lookup uses async canReadSubmission guard", includesAll(fileResponse, ["getSubmissionAsync(submissionId)", "canReadSubmissionAsync(user, submission)", 'NextResponse.json({ error: "Forbidden" }, { status: 403 })']));
   record("STORAGE-ROLE-ACCESS-007 submission file route authenticates before file lookup", ordered(submissionFileRoute, "requireAuthAsync(request)", "getStoredSubmissionFile(id, mode.fileId, auth.user)"));
   record("STORAGE-ROLE-ACCESS-008 submission file route audits only after authorization and file read", ordered(submissionFileRoute, "getStoredSubmissionFile(id, mode.fileId, auth.user)", "await auditStorageAccess"));
   record("STORAGE-ROLE-ACCESS-009 submission file route keeps preview PDF-only guard", includesAll(submissionFileRoute, ['mode.disposition === "inline"', "Only PDF files can be previewed", "{ status: 415 }"]));
 
-  record("STORAGE-ROLE-ACCESS-010 release package route uses canReadSubmission", includesAll(releasePackageRoute, ["canReadSubmission(auth.user, submission)", "return forbidden()"]));
+  record("STORAGE-ROLE-ACCESS-010 release package route uses async canReadSubmission guard", includesAll(releasePackageRoute, ["canReadSubmissionAsync(auth.user, submission)", "return forbidden()"]));
   record("STORAGE-ROLE-ACCESS-011 release package route requires released package state", includesAll(releasePackageRoute, ['submission.status !== "Released" && submission.status !== "Obsolete"', "{ status: 409 }", "submission.release_package"]));
   record("STORAGE-ROLE-ACCESS-012 release package route audits after storage-backed read", ordered(releasePackageRoute, "const bytes = await readReleasePackage", "await auditStorageAccess"));
 
-  record("STORAGE-ROLE-ACCESS-013 public share package route is token scoped", includesAll(publicSharePackageRoute, ["getPublicShare(token)", "publicShare.share.id", "recordPublicShareAccess"]));
+  record("STORAGE-ROLE-ACCESS-013 public share package route is token scoped", includesAll(publicSharePackageRoute, ["getPublicShareAsync(token)", "publicShare.share.id", "recordPublicShareAccessAsync"]));
   record("STORAGE-ROLE-ACCESS-014 public share package route never accepts actor cookies for scope", !publicSharePackageRoute.includes("requireAuth") && publicSharePackageRoute.includes("actorId: null"));
   record("STORAGE-ROLE-ACCESS-015 readonly share repository normalizes revoked and expired shares", includesAll(releaseRepository, ["status: row.revoked_at ? \"revoked\" : expired ? \"expired\" : \"active\"", "Date.parse(row.expires_at)", "getReadonlyShareByTokenHash"]));
   record("STORAGE-ROLE-ACCESS-015A public share lookup rejects non-active shares", includesAll(readonlyShare, ['share.status !== "active"', "getReadonlyShareByTokenHash", "return null"]));

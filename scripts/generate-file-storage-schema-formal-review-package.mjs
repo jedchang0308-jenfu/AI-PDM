@@ -1,23 +1,37 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_FORMAL_REVIEW_PACKAGE_VERSION = "storage-schema-formal-review-package/v1";
+
+const root = process.cwd();
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
 
 function buildCheck(name, passed, detail = "") {
   return { name, passed: Boolean(passed), detail };
 }
 
-async function readJsonEvidence(filePath) {
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
   const resolvedPath = path.resolve(filePath);
   try {
     return {
       missing: false,
       path: resolvedPath,
-      value: JSON.parse(await fsp.readFile(resolvedPath, "utf8"))
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
     };
   } catch (error) {
     return {
@@ -297,14 +311,14 @@ function buildMarkdown(report) {
 }
 
 export async function buildStorageSchemaFormalReviewPackage(options = {}) {
-  const targetEvidence = await readJsonEvidence(options.targetReadinessPackagePath ?? "");
-  const costEvidence = await readJsonEvidence(options.costConfirmationPackagePath ?? "");
-  const targetCreateResultEvidence = await readJsonEvidence(options.targetCreateResultEvidencePath ?? "");
-  const promotionEvidence = await readJsonEvidence(options.promotionReportPath ?? "");
+  const targetEvidence = await readInputJson(options.targetReadinessPackagePath ?? "");
+  const costEvidence = await readInputJson(options.costConfirmationPackagePath ?? "");
+  const targetCreateResultEvidence = await readInputJson(options.targetCreateResultEvidencePath ?? "");
+  const promotionEvidence = await readInputJson(options.promotionReportPath ?? "");
 
   const target = evaluateTargetReadiness(targetEvidence);
   const cost = evaluateCostConfirmationPackage(costEvidence);
-  const userCostEvidence = await readJsonEvidence(options.userCostConfirmedEvidencePath ?? "");
+  const userCostEvidence = await readInputJson(options.userCostConfirmedEvidencePath ?? "");
   const userCost = evaluateUserCostConfirmation(userCostEvidence, cost.summary);
   const targetCreateResult = evaluateTargetCreateResult(targetCreateResultEvidence, target.summary);
   const promotion = evaluatePromotionGate(promotionEvidence);
@@ -367,11 +381,11 @@ export async function buildStorageSchemaFormalReviewPackage(options = {}) {
 
 export async function writeStorageSchemaFormalReviewPackage(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-schema-formal-review-package.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-schema-formal-review-package.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

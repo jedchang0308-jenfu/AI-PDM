@@ -1,20 +1,34 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { evaluateStorageSchemaTargetSafety } from "./file-storage-schema-target-safety.mjs";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_TARGET_CONNECTOR_RECEIPT_EVIDENCE_VERSION = "storage-schema-target-connector-receipt-evidence/v1";
 
-async function readJson(filePath) {
+const root = process.cwd();
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
+
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
   const resolvedPath = path.resolve(filePath);
   try {
     return {
       missing: false,
       path: resolvedPath,
-      value: JSON.parse(await fsp.readFile(resolvedPath, "utf8"))
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
     };
   } catch (error) {
     return {
@@ -94,7 +108,7 @@ function buildMarkdown(report) {
 }
 
 export async function buildStorageSchemaTargetConnectorReceiptEvidence(options = {}) {
-  const createRequestEvidence = await readJson(options.targetCreateRequestPath ?? "");
+  const createRequestEvidence = await readInputJson(options.targetCreateRequestPath ?? "");
   const createRequest = createRequestEvidence.value ?? {};
   const createdResourceType = normalizeText(options.createdResourceType || createRequest?.selectedCost?.type);
   const createdTargetName = normalizeText(options.createdTargetName || createRequest?.target?.targetName);
@@ -163,11 +177,11 @@ export async function buildStorageSchemaTargetConnectorReceiptEvidence(options =
 
 export async function writeStorageSchemaTargetConnectorReceiptEvidence(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "supabase-target-connector-receipt-evidence.json");
   const markdownPath = path.join(resolvedOutputDir, "supabase-target-connector-receipt-evidence.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

@@ -1,3 +1,5 @@
+import { revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
+
 export type SubmissionInput = {
   drawingNumber: string;
   partNumber: string;
@@ -32,6 +34,9 @@ export function validateSubmissionInput(input: SubmissionInput) {
       errors.push(`${label}為必填`);
     }
   }
+
+  const revisionError = validateRevisionCode(input.revision, { required: false });
+  if (revisionError) errors.push(revisionValidationMessage(revisionError));
 
   const desc = input.changeDescription.trim();
   if (desc.length < 5 || desc.length > 100) {

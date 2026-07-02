@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
+import { closeSync, cpSync, existsSync, mkdirSync, openSync, readSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { getBackupDir, getDataDir, getRepositoryDir, resolveUserPath } from "./pdm-paths.mjs";
@@ -31,28 +31,28 @@ function quoteSqlString(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-function sha256File(filePath) {
+function sha256FileSync(filePath) {
   const hash = crypto.createHash("sha256");
-  const file = fs.openSync(filePath, "r");
+  const file = openSync(filePath, "r");
   const buffer = Buffer.alloc(1024 * 1024);
 
   try {
     let bytesRead = 0;
-    while ((bytesRead = fs.readSync(file, buffer, 0, buffer.length, null)) > 0) {
+    while ((bytesRead = readSync(file, buffer, 0, buffer.length, null)) > 0) {
       hash.update(buffer.subarray(0, bytesRead));
     }
   } finally {
-    fs.closeSync(file);
+    closeSync(file);
   }
 
   return hash.digest("hex");
 }
 
 function walkFiles(dir) {
-  if (!fs.existsSync(dir)) return [];
+  if (!existsSync(dir)) return [];
 
   const files = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...walkFiles(fullPath));
@@ -64,9 +64,9 @@ function walkFiles(dir) {
 }
 
 function copyIfExists(source, target) {
-  if (!fs.existsSync(source)) return false;
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.cpSync(source, target, { recursive: true });
+  if (!existsSync(source)) return false;
+  mkdirSync(path.dirname(target), { recursive: true });
+  cpSync(source, target, { recursive: true });
   return true;
 }
 
@@ -78,15 +78,15 @@ function parseExtraPaths() {
     .map((item) => resolveUserPath(root, item));
 }
 
-if (!fs.existsSync(dbPath)) {
+if (!existsSync(dbPath)) {
   console.error(`Database not found at ${dbPath}`);
   process.exit(1);
 }
 
-fs.mkdirSync(snapshotDir, { recursive: true });
+mkdirSync(snapshotDir, { recursive: true });
 
 const backupDbPath = path.join(snapshotDir, "database", "ai-pdm.sqlite");
-fs.mkdirSync(path.dirname(backupDbPath), { recursive: true });
+mkdirSync(path.dirname(backupDbPath), { recursive: true });
 
 const db = new Database(dbPath);
 try {
@@ -106,7 +106,7 @@ for (const extraPath of parseExtraPaths()) {
 }
 
 const createdAt = new Date().toISOString();
-fs.writeFileSync(
+writeFileSync(
   path.join(snapshotDir, "backup.log"),
   [
     `snapshotId=${snapshotId}`,
@@ -121,11 +121,11 @@ fs.writeFileSync(
 const files = walkFiles(snapshotDir)
   .filter((filePath) => path.basename(filePath) !== "manifest.json")
   .map((filePath) => {
-    const stat = fs.statSync(filePath);
+    const stat = statSync(filePath);
     return {
       path: path.relative(snapshotDir, filePath).replaceAll(path.sep, "/"),
       size: stat.size,
-      sha256: sha256File(filePath)
+      sha256: sha256FileSync(filePath)
     };
   })
   .sort((a, b) => a.path.localeCompare(b.path));
@@ -144,7 +144,7 @@ const manifest = {
   files
 };
 
-fs.writeFileSync(path.join(snapshotDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+writeFileSync(path.join(snapshotDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
 console.log(
   JSON.stringify(

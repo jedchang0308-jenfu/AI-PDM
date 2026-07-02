@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, ExternalLink, FileText, History, RefreshCw, RotateCcw, Trash2, UploadCloud } from "lucide-react";
+import { Box, Download, ExternalLink, FileText, History, RefreshCw, RotateCcw, Trash2, UploadCloud } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
 import { suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
 
@@ -100,6 +100,7 @@ export function MasterAttachmentPanel({
     () => (revisionStage ? suggestRevisionCode(attachments.map((attachment) => ({ revision: attachment.revision ?? "" })), revisionStage) : ""),
     [attachments, revisionStage]
   );
+  const solidWorksAttachments = useMemo(() => attachments.filter(isSolidWorksAttachment), [attachments]);
 
   const loadAttachments = useCallback(async (options?: { clearMessage?: boolean }) => {
     setLoading(true);
@@ -310,6 +311,25 @@ export function MasterAttachmentPanel({
 
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
 
+      {solidWorksAttachments.length > 0 ? (
+        <div className="solidworks-preview-fallback" aria-label="SolidWorks 3D preview fallback">
+          <div className="solidworks-preview-viewport" aria-hidden="true">
+            <Box size={32} />
+            <span>3D Preview</span>
+          </div>
+          <div className="solidworks-preview-copy">
+            <strong>SolidWorks 3D 預覽</strong>
+            <p>預覽來源採伺服器產生的 3D 轉檔或縮圖；目前尚未產生可顯示的預覽，附件仍可下載使用。</p>
+            <div className="master-attachment-meta">
+              {solidWorksAttachments.slice(0, 4).map((attachment) => (
+                <span key={attachment.id}>{attachment.fileName}</span>
+              ))}
+              {solidWorksAttachments.length > 4 ? <span>另 {solidWorksAttachments.length - 4} 個</span> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="master-attachment-list" aria-live="polite">
         {attachments.map((attachment) => {
           const downloadUrl = `${baseUrl}/${encodeURIComponent(attachment.id)}`;
@@ -447,6 +467,10 @@ export function MasterAttachmentPanel({
 
 function categoryLabel(value: string) {
   return [...drawingCategories, ...partCategories].find((item) => item.value === value)?.label ?? value;
+}
+
+function isSolidWorksAttachment(attachment: MasterAttachment) {
+  return ["sldprt", "sldasm", "slddrw"].includes(attachment.fileExt.toLowerCase());
 }
 
 function revisionLifecycleStageForAttachment(

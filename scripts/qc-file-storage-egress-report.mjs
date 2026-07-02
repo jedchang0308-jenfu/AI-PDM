@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import { buildStorageEgressReport } from "./generate-file-storage-egress-report.mjs";
 
 const results = [];
+let tempRoot;
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -234,7 +235,7 @@ function writeFixtureDb(dbPath) {
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-egress-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-egress-qc-"));
   const dataDir = path.join(tempRoot, "data");
   await fsp.mkdir(dataDir, { recursive: true });
   writeFixtureDb(path.join(dataDir, "ai-pdm.sqlite"));
@@ -282,12 +283,14 @@ async function main() {
   record("STORAGE-EGRESS-019 report does not expose signed URL values", !serialized.includes("signed-secret") && !serialized.includes("storage.example.invalid"));
   record("STORAGE-EGRESS-020 report does not require file reads or provider requests", report.assumptions.noFilesRead === true && report.assumptions.noProviderRequests === true);
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
-
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
+  });

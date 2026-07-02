@@ -1,7 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
+
+const root = process.cwd();
 
 const requiredFiles = [
   '.ai-doc/reports/pm/pm-sw-license-pdm-company-operational-shared-development-plan-2026-06-18.md',
@@ -62,20 +65,19 @@ function git(args, options = {}) {
     .filter(Boolean);
 }
 
-function read(path) {
-  return readFileSync(path, 'utf8');
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
+const exists = (relativePath) => projectFileExists(root, relativePath);
 
 const failures = [];
 const notes = [];
 
 for (const path of requiredFiles) {
-  if (!existsSync(path)) {
+  if (!exists(path)) {
     failures.push(`missing required file: ${path}`);
   }
 }
 
-const packageJson = JSON.parse(read('package.json'));
+const packageJson = readProjectJson(root, 'package.json');
 for (const scriptName of requiredPackageScripts) {
   if (!packageJson.scripts?.[scriptName]) {
     failures.push(`missing package script: ${scriptName}`);
@@ -93,7 +95,7 @@ if (stagedUnrelated.length === 0) {
 }
 
 const handoffPath = '.ai-doc/reports/pm/pm-sw-license-pdm-company-git-boundary-handoff-2026-06-18.md';
-const handoff = existsSync(handoffPath) ? read(handoffPath) : '';
+const handoff = exists(handoffPath) ? read(handoffPath) : '';
 for (const path of stagedUnrelated) {
   if (!handoff.includes(path)) {
     failures.push(`handoff does not document staged unrelated file: ${path}`);
@@ -112,7 +114,7 @@ for (const phrase of [
   }
 }
 
-const docMap = existsSync('.ai-doc/documentation_map.md') ? read('.ai-doc/documentation_map.md') : '';
+const docMap = exists('.ai-doc/documentation_map.md') ? read('.ai-doc/documentation_map.md') : '';
 if (!docMap.includes('Implemented SW License / PDM Company Package')) {
   failures.push('documentation_map does not mark SW/PDM package as implemented/deferred');
 }
@@ -120,7 +122,7 @@ if (!docMap.includes(handoffPath)) {
   failures.push('documentation_map does not link the git boundary handoff');
 }
 
-const devTask = existsSync('.ai-doc/dev_task.md') ? read('.ai-doc/dev_task.md') : '';
+const devTask = exists('.ai-doc/dev_task.md') ? read('.ai-doc/dev_task.md') : '';
 const boundaryClosed =
   devTask.includes('6f4dbab') &&
   devTask.includes('DEV-SW-LICENSE-PDM-001 add company-scoped PDM boundary') &&

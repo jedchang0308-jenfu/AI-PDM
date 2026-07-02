@@ -1,4 +1,4 @@
-export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete";
+export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete" | "Cancelled";
 export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
 
 export type SubmissionSummary = {
@@ -35,6 +35,17 @@ export type SubmissionSummary = {
   superseded_by_submission_id: string | null;
   obsolete_at: string | null;
   obsolete_by: string | null;
+  source_entity_type?: string | null;
+  source_entity_id?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  returned_for_correction_at?: string | null;
+  returned_for_correction_by?: string | null;
+  returned_for_correction_reason?: string | null;
+  corrects_submission_id?: string | null;
+  resolved_by_submission_id?: string | null;
+  resolved_at?: string | null;
 };
 
 export type SubmissionFile = {

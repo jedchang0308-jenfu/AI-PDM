@@ -1,26 +1,39 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_USER_COST_CONFIRMATION_EVIDENCE_VERSION = "storage-schema-user-cost-confirmation-evidence/v1";
 export const STORAGE_SCHEMA_COST_CONFIRMATION_MAX_AGE_HOURS = 24;
 
+const root = process.cwd();
 const MS_PER_HOUR = 60 * 60 * 1000;
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
 
 function normalizeText(value) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
-async function readJson(filePath) {
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
   const resolvedPath = path.resolve(filePath);
   try {
     return {
       missing: false,
       path: resolvedPath,
-      value: JSON.parse(await fsp.readFile(resolvedPath, "utf8"))
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
     };
   } catch (error) {
     return {
@@ -122,7 +135,7 @@ function buildMarkdown(report) {
 }
 
 export async function buildStorageSchemaUserCostConfirmationEvidence(options = {}) {
-  const costEvidence = await readJson(options.costConfirmationPackagePath ?? "");
+  const costEvidence = await readInputJson(options.costConfirmationPackagePath ?? "");
   const report = costEvidence.value ?? {};
   const cost = selectedCost(report);
   const expectedConfirmationText = String(report?.handoff?.confirmationText ?? "");
@@ -193,11 +206,11 @@ export async function buildStorageSchemaUserCostConfirmationEvidence(options = {
 
 export async function writeStorageSchemaUserCostConfirmationEvidence(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "user-cost-confirmation-evidence.json");
   const markdownPath = path.join(resolvedOutputDir, "user-cost-confirmation-evidence.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

@@ -40,6 +40,7 @@ import type {
   MonthlyAuditReportRecord,
   DrawingNumberRecord,
   DrawingModuleLinkedPartRecord,
+  DrawingModuleReleaseStatusMismatch,
   DrawingModuleListInput,
   DrawingModuleListRecord,
   NumberingAttentionMarkerRecord,
@@ -204,6 +205,13 @@ type DrawingModuleLinkedPartRow = {
   standard_cost_id: string | null;
   standard_profile_name: string | null;
   standard_cost_type: PartCostType | null;
+};
+
+type DrawingModuleReleaseStatusMismatchRow = {
+  drawing_number_id: string;
+  submission_id: string;
+  revision: string;
+  released_at: string | null;
 };
 
 type PartStandardCostRow = {
@@ -2313,6 +2321,25 @@ export const SELECT_ASYNC_DRAWING_MODULE_LINKED_PARTS_BY_ROOT_SQL = `
   LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
 `;
 
+export const SELECT_ASYNC_DRAWING_MODULE_RELEASE_STATUS_MISMATCHES_SQL = `
+  SELECT
+    d.id AS drawing_number_id,
+    s.id AS submission_id,
+    s.revision,
+    s.released_at
+  FROM drawing_numbers d
+  JOIN submissions s
+    ON s.company_id = d.company_id
+   AND s.status = 'Released'
+   AND (
+      (s.source_entity_type = 'drawing_number' AND s.source_entity_id = d.id)
+      OR (s.drawing_number = d.drawing_number)
+   )
+  WHERE d.id IN (__DRAWING_ID_FILTER__)
+    AND d.record_status <> 'Released'
+  ORDER BY d.id ASC, COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
+`;
+
 export const SELECT_ASYNC_PART_MODULE_RECORDS_BASE_SQL = `
   SELECT
     p.*,
@@ -3235,7 +3262,8 @@ function hasPotentialHardcodedTitleBlockVariantText(text: string | null | undefi
 function mapDrawingModuleListRow(
   row: DrawingModuleListRow,
   linkedPartNumbers: string[] = [],
-  sameRootParts: DrawingModuleLinkedPartRecord[] = []
+  sameRootParts: DrawingModuleLinkedPartRecord[] = [],
+  releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null = null
 ): DrawingModuleListRecord {
   return {
     ...mapDrawingNumber(row),
@@ -3247,6 +3275,7 @@ function mapDrawingModuleListRow(
     sameRootParts,
     titleBlockVariantWarning: hasPotentialHardcodedTitleBlockVariantText(row.purpose_description) && sameRootParts.length > 1,
     warningCount: Number(row.warning_count ?? 0),
+    releaseStatusMismatch,
     updatedAt: row.updated_at
   };
 }
@@ -5632,12 +5661,18 @@ export class AsyncNumberingRepository {
     );
     const drawingIds = rows.map((row) => row.id);
     const rootIds = uniqueStrings(rows.map((row) => row.part_root_id));
-    const [linkedPartNumbersByDrawing, sameRootPartsByRoot] = await Promise.all([
+    const [linkedPartNumbersByDrawing, sameRootPartsByRoot, releaseStatusMismatchByDrawing] = await Promise.all([
       this.listDrawingModuleLinkedPartNumbers(drawingIds),
-      this.listDrawingModuleLinkedPartsByRoot(rootIds)
+      this.listDrawingModuleLinkedPartsByRoot(rootIds),
+      this.listDrawingModuleReleaseStatusMismatches(drawingIds)
     ]);
     return rows.map((row) =>
-      mapDrawingModuleListRow(row, linkedPartNumbersByDrawing.get(row.id) ?? [], sameRootPartsByRoot.get(row.part_root_id) ?? [])
+      mapDrawingModuleListRow(
+        row,
+        linkedPartNumbersByDrawing.get(row.id) ?? [],
+        sameRootPartsByRoot.get(row.part_root_id) ?? [],
+        releaseStatusMismatchByDrawing.get(row.id) ?? null
+      )
     );
   }
 
@@ -6089,6 +6124,25 @@ export class AsyncNumberingRepository {
       partsByRoot.set(row.part_root_id, list);
     }
     return partsByRoot;
+  }
+
+  private async listDrawingModuleReleaseStatusMismatches(drawingIds: string[]) {
+    const mismatchByDrawing = new Map<string, DrawingModuleReleaseStatusMismatch>();
+    if (drawingIds.length === 0) return mismatchByDrawing;
+    const drawingList = createNamedList("drawingId", drawingIds);
+    const rows = await this.client.query<DrawingModuleReleaseStatusMismatchRow>(
+      SELECT_ASYNC_DRAWING_MODULE_RELEASE_STATUS_MISMATCHES_SQL.replace("__DRAWING_ID_FILTER__", drawingList.sql),
+      drawingList.params
+    );
+    for (const row of rows) {
+      if (mismatchByDrawing.has(row.drawing_number_id)) continue;
+      mismatchByDrawing.set(row.drawing_number_id, {
+        submissionId: row.submission_id,
+        revision: row.revision,
+        releasedAt: row.released_at
+      });
+    }
+    return mismatchByDrawing;
   }
 
   private async getNumberingAccessContext(user: NumberingUserScope): Promise<NumberingAccessContext> {

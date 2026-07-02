@@ -4,7 +4,7 @@ import type { CSSProperties, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, FileSearch, Link2, RotateCcw, Search, ShieldAlert, X } from "lucide-react";
 import { CompactSummary, RiskHint } from "@/components/compact-hints";
-import { ObjectLifecycleStatusPanel, buildUploadPrefillHref } from "@/components/lifecycle-ux";
+import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type EntityType = "all" | "part_root" | "part_number" | "drawing_number";
@@ -785,17 +785,10 @@ function RootDetailPanel({
 
   const primaryPart = detail.partNumbers[0] ?? null;
   const primaryDrawing = detail.drawingNumbers.find((drawingNumber) => drawingNumber.isPrimaryManufacturing) ?? detail.drawingNumbers[0] ?? null;
-  const canUploadFromDetail = Boolean(primaryPart || primaryDrawing);
-  const primaryAction = canUploadFromDetail
+  const primaryAction = primaryDrawing
     ? {
-        href: buildUploadPrefillHref({
-          rootCode: detail.root.rootCode,
-          drawingNumber: primaryDrawing?.drawingNumber,
-          partNumber: primaryPart?.partNumber,
-          partName: primaryPart?.partName ?? detail.root.coreName,
-          developmentPhase: detail.root.developmentPhase
-        }),
-        label: detail.root.recordStatus === "Released" ? "建立新版送審" : "接續上傳送審"
+        href: `/drawings/${encodeURIComponent(primaryDrawing.drawingNumber)}/submission-workbench`,
+        label: detail.root.recordStatus === "Released" ? "檢查新版送審條件" : "檢查送審條件"
       }
     : undefined;
 

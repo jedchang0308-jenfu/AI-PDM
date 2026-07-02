@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
-
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -14,17 +11,17 @@ function record(name, passed, detail = "") {
 }
 
 try {
-  const storage = read("src/lib/file-storage.ts");
-  const fileStore = read("src/lib/file-store.ts");
-  const fileResponse = read("src/lib/file-response.ts");
-  const releasePackageFile = read("src/lib/release-package-file.ts");
-  const storageAccessAudit = read("src/lib/storage-access-audit.ts");
-  const submissionFileRoute = read("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
-  const releasePackageRoute = read("src/app/api/submissions/[id]/release-package/route.ts");
-  const publicSharePackageRoute = read("src/app/api/public/shares/[token]/package/route.ts");
-  const releasePackage = read("src/lib/release-package.ts");
-  const releasePackageAsync = read("src/lib/release-package-async.ts");
-  const masterAttachmentRepository = read("src/lib/repositories/master-attachment-repository.ts");
+  const storage = readProjectFile(root, "src/lib/file-storage.ts");
+  const fileStore = readProjectFile(root, "src/lib/file-store.ts");
+  const fileResponse = readProjectFile(root, "src/lib/file-response.ts");
+  const releasePackageFile = readProjectFile(root, "src/lib/release-package-file.ts");
+  const storageAccessAudit = readProjectFile(root, "src/lib/storage-access-audit.ts");
+  const submissionFileRoute = readProjectFile(root, "src/app/api/submissions/[id]/files/[...filePath]/route.ts");
+  const releasePackageRoute = readProjectFile(root, "src/app/api/submissions/[id]/release-package/route.ts");
+  const publicSharePackageRoute = readProjectFile(root, "src/app/api/public/shares/[token]/package/route.ts");
+  const releasePackage = readProjectFile(root, "src/lib/release-package.ts");
+  const releasePackageAsync = readProjectFile(root, "src/lib/release-package-async.ts");
+  const masterAttachmentRepository = readProjectFile(root, "src/lib/repositories/master-attachment-repository.ts");
 
   record("FILE-STORAGE-001 service interface exists", storage.includes("export interface FileStorageService"));
   record("FILE-STORAGE-002 local adapter exists", storage.includes("export class LocalRepositoryStorageAdapter"));

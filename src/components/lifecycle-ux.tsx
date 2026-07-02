@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -11,6 +13,7 @@ import {
   UploadCloud,
   type LucideIcon
 } from "lucide-react";
+import { PageHelpDrawerButton, type SecondaryHelpContent } from "@/components/secondary-help";
 
 export type LifecycleStageId = "numbering" | "submission" | "review" | "bom" | "gate" | "handoff" | "ecr";
 
@@ -79,10 +82,10 @@ const lifecycleStages: LifecycleStage[] = [
     phase: "EVT / DVT",
     owner: "RD",
     state: "Pending",
-    intent: "把圖面、3D、PDF、DWG、變更原因與必要屬性送進 PDM。",
-    risk: "缺 PDF/DWG、變更原因過短、metadata 不一致會讓審核者無法判斷可否放行。",
+    intent: "從受控圖料主資料確認圖面、3D、PDF、DWG 與變更原因後送進 PDM。",
+    risk: "主圖、主料、材質、表面處理或附件缺漏會讓審核者無法判斷可否放行。",
     doneSignal: "Submission 進入 Pending，審核者能看到完整檔案與變更脈絡。",
-    href: "/upload",
+    href: "/numbering/search",
     cta: "送審設計",
     icon: UploadCloud
   },
@@ -94,7 +97,7 @@ const lifecycleStages: LifecycleStage[] = [
     state: "Releasing / Released",
     intent: "判斷此版是否能成為正式工程資料，而不是只看檔案是否存在。",
     risk: "未 Released 子件、舊版子件、同名 Released 檔案、較新 revision 都要先處理。",
-    doneSignal: "核准後完成 release package；失敗時進 ReleaseFailed 並產生待辦。",
+    doneSignal: "核准後完成發行包；發行未完成時產生主管/Admin 待辦。",
     href: "/numbering/approvals",
     cta: "審核待辦",
     icon: ClipboardCheck
@@ -221,18 +224,44 @@ export function LifecycleMap({
 
 export function LifecycleStageGuidance({
   activeStage,
-  metrics = []
+  metrics = [],
+  variant = "compact",
+  helpContent
 }: {
   activeStage: LifecycleStageId;
   metrics?: LifecycleMetric[];
+  variant?: "compact" | "expanded";
+  helpContent?: SecondaryHelpContent;
 }) {
   const stage = getStage(activeStage);
   const index = stageIndex(activeStage);
   const nextStage = lifecycleStages[Math.min(index + 1, lifecycleStages.length - 1)];
   const Icon = stage.icon;
+  const resolvedHelpContent: SecondaryHelpContent = helpContent ?? {
+    title: stage.title,
+    summary: stage.intent,
+    sections: [
+      {
+        title: "Responsibility and status",
+        items: [stage.owner, stage.state]
+      },
+      {
+        title: "Risk",
+        body: stage.risk
+      },
+      {
+        title: "Done signal",
+        body: stage.doneSignal
+      }
+    ],
+    actions: [
+      { href: stage.href, label: stage.cta, variant: "primary" },
+      ...(nextStage.id !== stage.id ? [{ href: nextStage.href, label: nextStage.title }] : [])
+    ]
+  };
 
   return (
-    <section className="lifecycle-guidance" aria-label={`${stage.title} 操作情境`}>
+    <section className={variant === "expanded" ? "lifecycle-guidance expanded" : "lifecycle-guidance compact"} aria-label={stage.title}>
       <div className="lifecycle-guidance-main">
         <span className="lifecycle-stage-icon">
           <Icon size={18} aria-hidden="true" />
@@ -240,14 +269,19 @@ export function LifecycleStageGuidance({
         <div>
           <span className="section-label">{stage.phase}</span>
           <h2>{stage.title}</h2>
-          <p>{stage.intent}</p>
+          {variant === "expanded" ? <p>{stage.intent}</p> : null}
         </div>
+        <PageHelpDrawerButton content={resolvedHelpContent} className="lifecycle-help-trigger" />
       </div>
       <div className="lifecycle-guidance-grid">
-        <GuidanceItem title="主要角色" value={stage.owner} />
-        <GuidanceItem title="目前狀態語言" value={stage.state} />
-        <GuidanceItem title="清除風險" value={stage.risk} icon={AlertTriangle} />
-        <GuidanceItem title="完成訊號" value={stage.doneSignal} />
+        <GuidanceItem title="Owner" value={stage.owner} />
+        <GuidanceItem title="State" value={stage.state} />
+        {variant === "expanded" ? (
+          <>
+            <GuidanceItem title="Risk" value={stage.risk} icon={AlertTriangle} />
+            <GuidanceItem title="Done signal" value={stage.doneSignal} />
+          </>
+        ) : null}
       </div>
       {metrics.length > 0 ? (
         <div className="lifecycle-guidance-metrics">
@@ -261,11 +295,11 @@ export function LifecycleStageGuidance({
       ) : null}
       <div className="lifecycle-guidance-actions">
         <span className="primary-button lifecycle-current-action" aria-current="step">
-          目前：{stage.cta}
+          Current: {stage.cta}
         </span>
         {nextStage.id !== stage.id ? (
           <Link className="secondary-button" href={nextStage.href}>
-            下一步：{nextStage.title}
+            Next: {nextStage.title}
           </Link>
         ) : null}
       </div>
@@ -287,17 +321,19 @@ export function buildUploadPrefillHref({
   developmentPhase?: string | null;
 }) {
   const params = new URLSearchParams();
-  params.set("source", "numbering_draft");
-  if (rootCode) params.set("rootCode", rootCode);
+  params.set("submission", "1");
+  if (rootCode) params.set("query", rootCode);
+  else if (drawingNumber) params.set("query", drawingNumber);
+  else if (partNumber) params.set("query", partNumber);
   if (drawingNumber) params.set("drawingNumber", drawingNumber);
   if (partNumber) params.set("partNumber", partNumber);
   if (partName) params.set("partName", partName);
   if (developmentPhase) params.set("developmentPhase", developmentPhase);
-  return `/upload?${params.toString()}`;
+  return `/numbering/search?${params.toString()}`;
 }
 
 export function ObjectLifecycleStatusPanel({
-  title = "物件生命週期狀態",
+  title = "Object lifecycle",
   objectName,
   status,
   phase,
@@ -306,7 +342,8 @@ export function ObjectLifecycleStatusPanel({
   blockers = [],
   nextStep,
   primaryAction,
-  secondaryActions = []
+  secondaryActions = [],
+  helpContent
 }: {
   title?: string;
   objectName: string;
@@ -318,10 +355,36 @@ export function ObjectLifecycleStatusPanel({
   nextStep?: string;
   primaryAction?: ObjectLifecycleAction;
   secondaryActions?: ObjectLifecycleAction[];
+  helpContent?: SecondaryHelpContent;
 }) {
   const statusCopy = describeObjectLifecycleStatus(status);
   const visibleIdentities = identities.filter((identity) => identity.value !== null && identity.value !== undefined && String(identity.value).trim());
   const visibleBlockers = blockers.length > 0 ? blockers : statusCopy.defaultBlockers;
+  const showBlockersInline = visibleBlockers.length > 0 && (statusCopy.tone === "warning" || statusCopy.tone === "critical");
+  const actions = [primaryAction, ...secondaryActions].filter(Boolean) as ObjectLifecycleAction[];
+  const resolvedHelpContent: SecondaryHelpContent = helpContent ?? {
+    title,
+    summary: statusCopy.description,
+    sections: [
+      {
+        title: "Object",
+        items: [objectName, phase ? `${phase} / ${owner}` : owner, statusCopy.label]
+      },
+      {
+        title: "Blockers and notes",
+        items: visibleBlockers
+      },
+      {
+        title: "Next step",
+        body: nextStep ?? statusCopy.nextStep
+      },
+      {
+        title: "Identity",
+        items: visibleIdentities.map((identity) => `${identity.label}: ${identity.value}`)
+      }
+    ],
+    actions
+  };
 
   return (
     <section className={`object-lifecycle-panel ${statusCopy.tone}`} aria-label={title}>
@@ -331,7 +394,10 @@ export function ObjectLifecycleStatusPanel({
           <h2>{title}</h2>
           <p>{objectName}</p>
         </div>
-        <span className={`badge ${status}`}>{status}</span>
+        <div className="object-lifecycle-header-actions">
+          <PageHelpDrawerButton content={resolvedHelpContent} className="object-lifecycle-help-trigger" />
+          <span className={`badge ${status}`}>{status}</span>
+        </div>
       </div>
       <div className="object-lifecycle-grid">
         <div className="object-lifecycle-state">
@@ -339,7 +405,6 @@ export function ObjectLifecycleStatusPanel({
           <div>
             <span className="metadata-badge">{phase ? `${phase} / ${owner}` : owner}</span>
             <strong>{statusCopy.label}</strong>
-            <p>{statusCopy.description}</p>
           </div>
         </div>
         <div className="object-lifecycle-identity">
@@ -351,33 +416,38 @@ export function ObjectLifecycleStatusPanel({
           ))}
         </div>
       </div>
-      <div className="object-lifecycle-next">
-        <div>
-          <span className="section-label">現在卡點</span>
-          <ul>
-            {visibleBlockers.map((blocker) => (
-              <li key={blocker}>{blocker}</li>
-            ))}
-          </ul>
+      {showBlockersInline || actions.length > 0 ? (
+        <div className="object-lifecycle-next compact">
+          {showBlockersInline ? (
+            <div>
+              <span className="section-label">Notes</span>
+              <ul>
+                {visibleBlockers.map((blocker) => (
+                  <li key={blocker}>{blocker}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {actions.length > 0 ? (
+            <div className="object-lifecycle-actions-panel">
+              <span className="section-label">Actions</span>
+              <div className="object-lifecycle-actions">
+                {primaryAction ? (
+                  <Link className={primaryAction.variant === "secondary" ? "secondary-button" : "primary-button"} href={primaryAction.href}>
+                    {primaryAction.label}
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                ) : null}
+                {secondaryActions.map((action) => (
+                  <Link className={action.variant === "primary" ? "primary-button" : "secondary-button"} href={action.href} key={`${action.href}-${action.label}`}>
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
-        <div>
-          <span className="section-label">下一步</span>
-          <p>{nextStep ?? statusCopy.nextStep}</p>
-          <div className="object-lifecycle-actions">
-            {primaryAction ? (
-              <Link className={primaryAction.variant === "secondary" ? "secondary-button" : "primary-button"} href={primaryAction.href}>
-                {primaryAction.label}
-                <ArrowRight size={15} aria-hidden="true" />
-              </Link>
-            ) : null}
-            {secondaryActions.map((action) => (
-              <Link className={action.variant === "primary" ? "primary-button" : "secondary-button"} href={action.href} key={`${action.href}-${action.label}`}>
-                {action.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -443,11 +513,11 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
       defaultBlockers: ["不可用於正式交接"]
     },
     ReleaseFailed: {
-      label: "放行失敗",
-      description: "系統未完成正式 release package，使用者不可誤認為已放行。",
-      nextStep: "由 Admin 或負責人查看失敗原因並重新處理 release。",
+      label: "發行未完成",
+      description: "系統尚未完成正式發行包，使用者不可誤認為已發行。",
+      nextStep: "由主管或 Admin 查看原因，重新發行或退回修正。",
       tone: "critical",
-      defaultBlockers: ["release package 建立失敗"]
+      defaultBlockers: ["發行包尚未完成"]
     },
     PendingAdminConfirm: {
       label: "等待管理員確認",

@@ -59,6 +59,11 @@ type DrawingListRecord = {
   sameRootParts: DrawingLinkedPartRecord[];
   titleBlockVariantWarning: boolean;
   warningCount: number;
+  releaseStatusMismatch: {
+    submissionId: string;
+    revision: string;
+    releasedAt: string | null;
+  } | null;
   updatedAt: string;
 };
 
@@ -531,6 +536,7 @@ export default function DrawingNumbersPage() {
                             <div className="pdm-meta-strip">
                               <PurposeBadge drawing={drawing} />
                               <span style={badgeStyle}>{drawing.recordStatus}</span>
+                              {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
                               <span className="pdm-meta-chip">{drawing.developmentPhase}</span>
                               {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
                             </div>
@@ -548,6 +554,7 @@ export default function DrawingNumbersPage() {
             open={isDetailOpen}
             width={drawerWidth}
             onStartResize={startDrawingDrawerResize}
+            onDataChanged={loadDrawings}
             onClose={() => setIsDetailOpen(false)}
           />
         </div>
@@ -595,6 +602,39 @@ function drawingPurposeLabel(drawing: DrawingListRecord) {
   return drawing.isPrimaryManufacturing ? `${base} / 主圖` : base;
 }
 
+function ReleaseStatusMismatchBadge({ mismatch }: { mismatch: NonNullable<DrawingListRecord["releaseStatusMismatch"]> }) {
+  return (
+    <Link
+      className="pdm-meta-chip"
+      href={`/submissions/${encodeURIComponent(mismatch.submissionId)}`}
+      onClick={(event) => event.stopPropagation()}
+      style={{ borderColor: "#f59e0b", color: "#92400e" }}
+    >
+      已發布送審待同步
+    </Link>
+  );
+}
+
+function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord }) {
+  const mismatch = drawing.releaseStatusMismatch;
+  if (!mismatch) return null;
+  return (
+    <section className="panel" style={{ borderColor: "#f59e0b", background: "#fffbeb" }}>
+      <div className="panel-header">
+        <div>
+          <h2>發布狀態待確認</h2>
+          <p style={mutedStyle}>
+            系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {drawing.recordStatus} / {drawing.developmentPhase}。
+          </p>
+        </div>
+        <Link className="secondary-button" href={`/submissions/${encodeURIComponent(mismatch.submissionId)}`}>
+          查看送審明細
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function WarningBadge({ count }: { count: number }) {
   return (
     <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>
@@ -609,12 +649,14 @@ function DrawingDetailDrawer({
   open,
   width,
   onStartResize,
+  onDataChanged,
   onClose
 }: {
   drawing: DrawingListRecord | null;
   open: boolean;
   width: number;
   onStartResize: (clientX: number) => void;
+  onDataChanged: () => Promise<void>;
   onClose: () => void;
 }) {
   if (!open || !drawing) return null;
@@ -655,10 +697,16 @@ function DrawingDetailDrawer({
           </section>
 
           {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
+          {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} /> : null}
 
-          <SameRootPartPanel drawing={drawing} />
+          <SameRootPartPanel drawing={drawing} onDataChanged={onDataChanged} />
 
-          <MasterAttachmentPanel entityType="drawing_number" entityCode={drawing.drawingNumber} />
+          <MasterAttachmentPanel
+            entityType="drawing_number"
+            entityCode={drawing.drawingNumber}
+            developmentPhase={drawing.developmentPhase}
+            processControlled={drawing.purposeCode === "MA"}
+          />
 
           <section className="panel">
             <div className="panel-header">
@@ -668,19 +716,19 @@ function DrawingDetailDrawer({
               </div>
             </div>
             <div style={actionStackStyle}>
-              <Link className="primary-button" href={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}>
-                <Search size={16} />
+              <Link style={governanceActionStyle} href={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}>
                 開啟圖料追溯
               </Link>
               {drawing.purposeCode === "MA" ? (
-                <Link className="secondary-button" href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
-                  <ShieldAlert size={16} />
+                <Link style={governanceActionStyle} href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
                   檢查 MA 影響文件
                 </Link>
               ) : null}
-              <Link className="secondary-button" href="/numbering/request">
-                <Workflow size={16} />
-                申請新圖號 / 進版
+              <Link style={governanceActionStyle} href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
+                進版
+              </Link>
+              <Link style={governanceActionStyle} href={`/drawings/${encodeURIComponent(drawing.drawingNumber)}/submission-workbench`}>
+                送審
               </Link>
             </div>
           </section>
@@ -704,43 +752,140 @@ function TitleBlockVariantWarning() {
   );
 }
 
-function SameRootPartPanel({ drawing }: { drawing: DrawingListRecord }) {
+function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRecord; onDataChanged: () => Promise<void> }) {
+  const incompleteParts = drawing.sameRootParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
   return (
     <section className="panel">
       <div className="panel-header">
         <div>
           <h2>同主根號料號</h2>
-          <p style={mutedStyle}>顯示材質、顏色、料號狀態、標準成本狀態與 primary MA link。</p>
+          <p style={mutedStyle}>送審前在這裡完成材質、表面處理、顏色與變體主資料。</p>
         </div>
       </div>
+      {incompleteParts.length ? (
+        <div className="upload-message error" style={{ alignItems: "flex-start", marginBottom: "0.75rem" }}>
+          <AlertTriangle size={16} aria-hidden="true" />
+          <div>
+            <p>有 {incompleteParts.length} 個料號缺少送審必要主資料，送審前請先補齊材質與表面處理。</p>
+          </div>
+        </div>
+      ) : null}
       {drawing.sameRootParts.length === 0 ? (
         <p style={mutedStyle}>尚無同主根號料號。</p>
       ) : (
         <div style={sameRootPartListStyle}>
           {drawing.sameRootParts.map((part) => (
-            <article key={part.id} style={sameRootPartCardStyle}>
-              <div>
-                <strong>{part.partNumber}</strong>
-                <p style={mutedStyle}>{part.partName}</p>
-              </div>
-              <div className="pdm-meta-strip">
-                <span style={badgeStyle}>{part.recordStatus}</span>
-                <span style={{ ...badgeStyle, color: part.standardCostStatus === "active" ? "var(--success)" : "var(--danger)" }}>
-                  {standardCostLabel(part)}
-                </span>
-              </div>
-              <div style={sameRootPartMetaGridStyle}>
-                <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
-                <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
-                <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
-                <InfoBlock icon={<Link2 size={16} />} title="Primary MA" value={part.primaryDrawingNumber ?? "未連結"} />
-              </div>
-            </article>
+            <PartMasterDataCard key={part.id} part={part} onDataChanged={onDataChanged} />
           ))}
         </div>
       )}
     </section>
   );
+}
+
+function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRecord; onDataChanged: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [draft, setDraft] = useState(() => partDraftFromRecord(part));
+  const missingRequired = !draft.materialLabel.trim() || !draft.surfaceTreatment.trim();
+
+  useEffect(() => {
+    if (editing) return;
+    setDraft(partDraftFromRecord(part));
+    setMessage("");
+  }, [editing, part]);
+
+  async function savePartMasterData() {
+    setSaving(true);
+    setMessage("");
+    const response = await fetch(`/api/parts/${encodeURIComponent(part.partNumber)}/variant`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        materialCode: part.materialCode,
+        materialLabel: draft.materialLabel,
+        colorCode: part.colorCode,
+        colorLabel: draft.colorLabel,
+        surfaceTreatment: draft.surfaceTreatment,
+        variantNote: draft.variantNote
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    setSaving(false);
+    if (!response.ok) {
+      setMessage(body.error ?? "主資料儲存失敗。");
+      return;
+    }
+    setEditing(false);
+    await onDataChanged();
+  }
+
+  return (
+    <article style={sameRootPartCardStyle}>
+      <div style={partCardHeaderStyle}>
+        <div>
+          <strong>{part.partNumber}</strong>
+          <p style={mutedStyle}>{part.partName}</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving}>
+          {editing ? "取消" : missingRequired ? "補主資料" : "編輯主資料"}
+        </button>
+      </div>
+      <div className="pdm-meta-strip">
+        <span style={badgeStyle}>{part.recordStatus}</span>
+        <span style={{ ...badgeStyle, color: part.standardCostStatus === "active" ? "var(--success)" : "var(--danger)" }}>
+          {standardCostLabel(part)}
+        </span>
+        {missingRequired ? <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>送審資料未完成</span> : null}
+      </div>
+
+      {editing ? (
+        <div style={partEditGridStyle}>
+          <label className="pdm-master-field">
+            <span>材質</span>
+            <input value={draft.materialLabel} onChange={(event) => setDraft((current) => ({ ...current, materialLabel: event.target.value }))} />
+            <small>送審必要；對應上傳送審頁的 PDM 屬性。</small>
+          </label>
+          <label className="pdm-master-field">
+            <span>表面處理</span>
+            <input value={draft.surfaceTreatment} onChange={(event) => setDraft((current) => ({ ...current, surfaceTreatment: event.target.value }))} />
+            <small>送審必要；未填會阻擋圖面送審。</small>
+          </label>
+          <label className="pdm-master-field">
+            <span>顏色</span>
+            <input value={draft.colorLabel} onChange={(event) => setDraft((current) => ({ ...current, colorLabel: event.target.value }))} />
+          </label>
+          <label className="pdm-master-field">
+            <span>變體</span>
+            <input value={draft.variantNote} onChange={(event) => setDraft((current) => ({ ...current, variantNote: event.target.value }))} />
+          </label>
+          {message ? <p style={{ ...mutedStyle, color: "var(--danger)", gridColumn: "1 / -1" }}>{message}</p> : null}
+          <div style={partEditActionsStyle}>
+            <button className="primary-button" type="button" onClick={savePartMasterData} disabled={saving || !draft.materialLabel.trim() || !draft.surfaceTreatment.trim()}>
+              {saving ? "儲存中..." : "儲存主資料"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={sameRootPartMetaGridStyle}>
+          <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
+          <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
+          <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
+          <InfoBlock icon={<Link2 size={16} />} title="Primary MA" value={part.primaryDrawingNumber ?? "未連結"} />
+        </div>
+      )}
+    </article>
+  );
+}
+
+function partDraftFromRecord(part: DrawingLinkedPartRecord) {
+  return {
+    materialLabel: part.materialLabel || part.materialCode || "",
+    colorLabel: part.colorLabel || part.colorCode || "",
+    surfaceTreatment: part.surfaceTreatment || "",
+    variantNote: part.variantNote || ""
+  };
 }
 
 function variantDescriptor(part: DrawingLinkedPartRecord) {
@@ -771,7 +916,23 @@ const detailGridStyle: CSSProperties = {
 
 const actionStackStyle: CSSProperties = {
   display: "grid",
-  gap: "0.5rem"
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "0.45rem"
+};
+
+const governanceActionStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "2.25rem",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  background: "#ffffff",
+  color: "#334155",
+  fontSize: "0.9rem",
+  fontWeight: 700,
+  textDecoration: "none",
+  whiteSpace: "nowrap"
 };
 
 const warningPanelStyle: CSSProperties = {
@@ -793,10 +954,29 @@ const sameRootPartCardStyle: CSSProperties = {
   background: "var(--surface)"
 };
 
+const partCardHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.75rem"
+};
+
 const sameRootPartMetaGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: "0.5rem"
+};
+
+const partEditGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "0.65rem"
+};
+
+const partEditActionsStyle: CSSProperties = {
+  gridColumn: "1 / -1",
+  display: "flex",
+  justifyContent: "flex-end"
 };
 
 function AccessPanel() {

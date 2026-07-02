@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { evaluateShadowTarget, getExpectedAiPdmTables } from "./postgres-shadow-target-guard-utils.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const expectedTables = getExpectedAiPdmTables(root);
 const results = [];
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -101,10 +101,10 @@ record(
   forbiddenProjectGuard.stderr || forbiddenProjectGuard.stdout
 );
 
-const compareScript = fs.readFileSync(path.join(root, "scripts", "compare-sqlite-postgres-shadow.mjs"), "utf8");
+const compareScript = read("scripts/compare-sqlite-postgres-shadow.mjs");
 record("PG-GUARD-009 compare script invokes target guard before live stats", compareScript.includes("collectPostgresTargetSnapshot") && compareScript.includes("postgresTargetGuard"), "scripts/compare-sqlite-postgres-shadow.mjs");
 
-const readme = fs.readFileSync(path.join(root, "db", "postgres", "README.md"), "utf8");
+const readme = read("db/postgres/README.md");
 record("PG-GUARD-010 README documents pre-migration and compare guards", readme.includes("db:postgres:guard") && readme.includes("--phase pre-migration"), "db/postgres/README.md");
 
 const failed = results.filter((result) => !result.passed);

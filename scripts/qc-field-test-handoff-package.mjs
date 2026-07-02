@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getFieldTestHandoffsDir } from "./pdm-paths.mjs";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
@@ -26,10 +27,6 @@ function findLatestHandoff() {
   return entries[0] ?? null;
 }
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
 function assertFile(baseDir, relativePath, label = relativePath) {
   const filePath = path.join(baseDir, relativePath);
   record(`FIELD-HANDOFF file exists: ${label}`, fs.existsSync(filePath) && fs.statSync(filePath).isFile(), relative(filePath));
@@ -50,7 +47,7 @@ if (latest) {
   assertFile(latest, "README.md");
   assertFile(latest, "qc-checklist.ps1");
 
-  const manifest = fs.existsSync(manifestPath) ? readJson(manifestPath) : {};
+  const manifest = fs.existsSync(manifestPath) ? readProjectJson(root, relative(manifestPath)) : {};
   record("FIELD-HANDOFF-002 manifest has handoffId", /^\d{8}-\d{6}$/u.test(String(manifest.handoffId ?? "")), String(manifest.handoffId ?? ""));
   record("FIELD-HANDOFF-003 manifest has generatedAt", Boolean(Date.parse(String(manifest.generatedAt ?? ""))), String(manifest.generatedAt ?? ""));
 
@@ -85,7 +82,7 @@ if (latest) {
   assertFile(latest, "restore-handoff/restore-handoff.json");
 
   const checklistPath = path.join(latest, "qc-checklist.ps1");
-  const checklist = fs.existsSync(checklistPath) ? fs.readFileSync(checklistPath, "utf8") : "";
+  const checklist = fs.existsSync(checklistPath) ? readProjectFile(root, relative(checklistPath)) : "";
   for (const command of [
     "npm.cmd run qc:restore-drill-report",
     "npm.cmd run qc:sw-addin-real-machine-report",
@@ -100,7 +97,7 @@ if (latest) {
   }
 
   const fieldIssuesTemplatePath = path.join(latest, "field-issues-template.json");
-  const fieldIssuesTemplate = fs.existsSync(fieldIssuesTemplatePath) ? readJson(fieldIssuesTemplatePath) : {};
+  const fieldIssuesTemplate = fs.existsSync(fieldIssuesTemplatePath) ? readProjectJson(root, relative(fieldIssuesTemplatePath)) : {};
   record(
     "FIELD-HANDOFF-004 manifest records field issue template",
     manifest.fieldIssues?.template === "field-issues-template.json",
@@ -123,7 +120,7 @@ if (latest) {
     ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md"
   ]) {
     const absoluteDocPath = path.join(root, docPath);
-    const content = fs.existsSync(absoluteDocPath) ? fs.readFileSync(absoluteDocPath, "utf8") : "";
+    const content = fs.existsSync(absoluteDocPath) ? readProjectFile(root, relative(absoluteDocPath)) : "";
     const referencedHandoffs = [...content.matchAll(/data[\\/]+field-test-handoffs[\\/]+(\d{8}-\d{6})/gu)].map((match) => match[1]);
     const staleHandoffs = referencedHandoffs.filter((handoffId) => handoffId !== path.basename(latest));
     record(`FIELD-HANDOFF doc references latest package: ${docPath}`, content.includes(latestRelative), docPath);

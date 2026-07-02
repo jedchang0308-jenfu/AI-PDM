@@ -1,11 +1,12 @@
-import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const baseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
 const root = process.cwd();
 const dbPath = path.join(root, "data", "ai-pdm.sqlite");
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 const results = [];
 
@@ -82,15 +83,15 @@ async function main() {
     change_description: "QC revision lifecycle"
   };
 
-  const firstSubmission = await postSubmission({ ...baseData, revision: "A", filename }, engineerCookie);
-  record("REVOBS-001 Rev A submission returns 201", firstSubmission.response.status === 201, `HTTP ${firstSubmission.response.status}`);
+  const firstSubmission = await postSubmission({ ...baseData, revision: "1", filename }, engineerCookie);
+  record("REVOBS-001 revision 1 submission returns 201", firstSubmission.response.status === 201, `HTTP ${firstSubmission.response.status}`);
 
   const firstId = firstSubmission.body.submissionId;
   const firstApproval = await approve(firstId, managerCookie);
-  record("REVOBS-002 Rev A release returns Released", firstApproval.body.status === "Released", JSON.stringify(firstApproval.body));
+  record("REVOBS-002 revision 1 release returns Released", firstApproval.body.status === "Released", JSON.stringify(firstApproval.body));
 
   let state = getStoredState(firstId, firstId, partNumber);
-  record("REVOBS-003 current item revision is Rev A after Rev A release", state.item?.current_revision === "A", JSON.stringify(state.item));
+  record("REVOBS-003 current item revision is 1 after revision 1 release", state.item?.current_revision === "1", JSON.stringify(state.item));
 
   const shareBeforeResponse = await fetch(`${baseUrl}/api/submissions/${firstId}/shares`, {
     method: "POST",
@@ -98,58 +99,58 @@ async function main() {
     body: JSON.stringify({ label: "QC obsolete share", days: 7 })
   });
   const shareBeforeBody = await shareBeforeResponse.json().catch(() => ({}));
-  record("REVOBS-007 Manager can create public share for Rev A before Rev B release", shareBeforeResponse.status === 201, `HTTP ${shareBeforeResponse.status}`);
+  record("REVOBS-007 Manager can create public share for revision 1 before revision 2 release", shareBeforeResponse.status === 201, `HTTP ${shareBeforeResponse.status}`);
 
-  const secondSubmission = await postSubmission({ ...baseData, revision: "B", filename }, engineerCookie);
-  record("REVOBS-004 Rev B same item and filename submission returns 201", secondSubmission.response.status === 201, `HTTP ${secondSubmission.response.status}`);
+  const secondSubmission = await postSubmission({ ...baseData, revision: "2", filename }, engineerCookie);
+  record("REVOBS-004 revision 2 same item and filename submission returns 201", secondSubmission.response.status === 201, `HTTP ${secondSubmission.response.status}`);
 
   const secondId = secondSubmission.body.submissionId;
   state = getStoredState(firstId, secondId, partNumber);
-  record("REVOBS-005 Rev B Pending does not obsolete Rev A", state.first?.status === "Released" && state.second?.status === "Pending", JSON.stringify(state));
-  record("REVOBS-006 current item revision remains Rev A while Rev B is Pending", state.item?.current_revision === "A", JSON.stringify(state.item));
+  record("REVOBS-005 revision 2 Pending does not obsolete revision 1", state.first?.status === "Released" && state.second?.status === "Pending", JSON.stringify(state));
+  record("REVOBS-006 current item revision remains 1 while revision 2 is Pending", state.item?.current_revision === "1", JSON.stringify(state.item));
 
   const secondApproval = await approve(secondId, managerCookie);
-  record("REVOBS-008 Rev B release returns Released and obsoletes Rev A", secondApproval.body.status === "Released" && secondApproval.body.lifecycle?.obsolete_count >= 1, JSON.stringify(secondApproval.body));
+  record("REVOBS-008 revision 2 release returns Released and obsoletes revision 1", secondApproval.body.status === "Released" && secondApproval.body.lifecycle?.obsolete_count >= 1, JSON.stringify(secondApproval.body));
 
   state = getStoredState(firstId, secondId, partNumber);
   record(
-    "REVOBS-009 Rev A status becomes Obsolete and points to Rev B",
+    "REVOBS-009 revision 1 status becomes Obsolete and points to revision 2",
     state.first?.status === "Obsolete" && state.first?.superseded_by_submission_id === secondId && Boolean(state.first?.obsolete_at),
     JSON.stringify(state.first)
   );
-  record("REVOBS-010 current item revision becomes Rev B", state.item?.current_revision === "B", JSON.stringify(state.item));
+  record("REVOBS-010 current item revision becomes 2", state.item?.current_revision === "2", JSON.stringify(state.item));
 
   const obsoletePackageResponse = await fetch(`${baseUrl}/api/submissions/${firstId}/release-package`, { headers: { cookie: managerCookie } });
-  record("REVOBS-011 internal Rev A package download still returns 200", obsoletePackageResponse.status === 200, `HTTP ${obsoletePackageResponse.status}`);
+  record("REVOBS-011 internal revision 1 package download still returns 200", obsoletePackageResponse.status === 200, `HTTP ${obsoletePackageResponse.status}`);
 
   const publicShareAfterResponse = await fetch(`${baseUrl}/api/public/shares/${shareBeforeBody.token}`);
-  record("REVOBS-012 Rev A public share returns 404 after obsolete", publicShareAfterResponse.status === 404, `HTTP ${publicShareAfterResponse.status}`);
+  record("REVOBS-012 revision 1 public share returns 404 after obsolete", publicShareAfterResponse.status === 404, `HTTP ${publicShareAfterResponse.status}`);
 
   const obsoleteShareCreateResponse = await fetch(`${baseUrl}/api/submissions/${firstId}/shares`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: managerCookie },
     body: JSON.stringify({ label: "QC obsolete share blocked", days: 7 })
   });
-  record("REVOBS-013 creating a new share for Rev A returns 409", obsoleteShareCreateResponse.status === 409, `HTTP ${obsoleteShareCreateResponse.status}`);
+  record("REVOBS-013 creating a new share for revision 1 returns 409", obsoleteShareCreateResponse.status === 409, `HTTP ${obsoleteShareCreateResponse.status}`);
 
   const obsoleteSyncResponse = await fetch(`${baseUrl}/api/integrations/procurement/sync-runs`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: managerCookie },
     body: JSON.stringify({ submissionId: firstId, targetSystem: "procurement" })
   });
-  record("REVOBS-014 procurement sync for Rev A returns 409", obsoleteSyncResponse.status === 409, `HTTP ${obsoleteSyncResponse.status}`);
+  record("REVOBS-014 procurement sync for revision 1 returns 409", obsoleteSyncResponse.status === 409, `HTTP ${obsoleteSyncResponse.status}`);
 
   const handoffResponse = await fetch(`${baseUrl}/api/handoff`, { headers: { cookie: managerCookie } });
   const handoffBody = await handoffResponse.json().catch(() => ({}));
   const handoffIds = new Set((handoffBody.entries ?? []).map((entry) => entry.id));
-  record("REVOBS-015 handoff includes Rev B and excludes Rev A", handoffIds.has(secondId) && !handoffIds.has(firstId), JSON.stringify([...handoffIds]));
+  record("REVOBS-015 handoff includes revision 2 and excludes revision 1", handoffIds.has(secondId) && !handoffIds.has(firstId), JSON.stringify([...handoffIds]));
 
   const procurementResponse = await fetch(`${baseUrl}/api/integrations/procurement/releases?partNumber=${encodeURIComponent(partNumber)}`, {
     headers: { cookie: managerCookie }
   });
   const procurementBody = await procurementResponse.json().catch(() => ({}));
   const procurementIds = new Set((procurementBody.entries ?? []).map((entry) => entry.submission_id));
-  record("REVOBS-016 procurement releases include Rev B and exclude Rev A", procurementIds.has(secondId) && !procurementIds.has(firstId), JSON.stringify([...procurementIds]));
+  record("REVOBS-016 procurement releases include revision 2 and exclude revision 1", procurementIds.has(secondId) && !procurementIds.has(firstId), JSON.stringify([...procurementIds]));
 
   const revisionHistoryResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(partNumber)}/revisions`, {
     headers: { cookie: managerCookie }
@@ -157,7 +158,7 @@ async function main() {
   const revisionHistoryBody = await revisionHistoryResponse.json().catch(() => ({}));
   const obsoleteHistory = (revisionHistoryBody.revisions ?? []).find((entry) => entry.submission_id === firstId);
   record(
-    "REVOBS-017 revision history shows Rev A as Obsolete with Rev B as superseding submission",
+    "REVOBS-017 revision history shows revision 1 as Obsolete with revision 2 as superseding submission",
     obsoleteHistory?.status === "Obsolete" && obsoleteHistory?.superseded_by_submission_id === secondId,
     JSON.stringify(obsoleteHistory)
   );
@@ -167,16 +168,16 @@ async function main() {
   });
   const obsoleteSearchBody = await obsoleteSearchResponse.json().catch(() => ({}));
   const obsoleteSearchIds = new Set((obsoleteSearchBody.submissions ?? []).map((entry) => entry.id));
-  record("REVOBS-018 search with status=Obsolete finds Rev A", obsoleteSearchIds.has(firstId), JSON.stringify([...obsoleteSearchIds]));
+  record("REVOBS-018 search with status=Obsolete finds revision 1", obsoleteSearchIds.has(firstId), JSON.stringify([...obsoleteSearchIds]));
 
   const releasedSearchResponse = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(drawingNumber)}&status=Released`, {
     headers: { cookie: managerCookie }
   });
   const releasedSearchBody = await releasedSearchResponse.json().catch(() => ({}));
   const releasedSearchIds = new Set((releasedSearchBody.submissions ?? []).map((entry) => entry.id));
-  record("REVOBS-019 search with status=Released finds Rev B and excludes Rev A", releasedSearchIds.has(secondId) && !releasedSearchIds.has(firstId), JSON.stringify([...releasedSearchIds]));
+  record("REVOBS-019 search with status=Released finds revision 2 and excludes revision 1", releasedSearchIds.has(secondId) && !releasedSearchIds.has(firstId), JSON.stringify([...releasedSearchIds]));
 
-  const ragData = fs.readFileSync(path.join(root, "src", "lib", "pdm-policy-rag-data.ts"), "utf8");
+  const ragData = read("src/lib/pdm-policy-rag-data.ts");
   record(
     "REVOBS-020 policy RAG data includes Obsolete lifecycle rules",
     ragData.includes("Obsolete") && ragData.includes("current_revision") && ragData.includes("採購同步"),

@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-07-02T13:51:40.779Z",
+  "checks": [
+    {
+      "name": "success marks submission Released",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "success stamps released_at",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing master is Released / Release",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "part master is Released / Release",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "root master is Released / Release",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "item current revision is updated",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "previous released submission is obsoleted",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "related release-failed submission is resolved",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "result exposes master sync payload",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "master sync audit is written",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "obsolete audit still exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "release-failed resolution audit still exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "missing source returns human Chinese message",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "missing source does not mark submission Released",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "missing source does not mutate drawing master",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "missing source does not write partial audit",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "legacy submission can resolve by drawing number fallback",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "single linked part is still synced",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "package exposes qc script",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "repository writes master sync audit",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "repository blocks missing source with Chinese message",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing list exposes human mismatch text",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "async drawing list detects released-master mismatch",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

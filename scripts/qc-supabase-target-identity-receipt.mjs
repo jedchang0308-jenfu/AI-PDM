@@ -1,18 +1,13 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
+const exists = (relativePath) => projectFileExists(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -35,7 +30,7 @@ function hasLiveSecret(value) {
 const receiptPath = ".ai-doc/reports/qc/qc-supabase-target-identity-receipt-template-2026-06-16.md";
 const filledReceiptPath = ".ai-doc/reports/qc/qc-supabase-target-identity-receipt-2026-06-17.md";
 const devTaskPath = ".ai-doc/dev_task.md";
-const packageJson = JSON.parse(read("package.json"));
+const packageJson = readProjectJson(root, "package.json");
 const receipt = exists(receiptPath) ? read(receiptPath) : "";
 const filledReceipt = exists(filledReceiptPath) ? read(filledReceiptPath) : "";
 const devTask = exists(devTaskPath) ? read(devTaskPath) : "";

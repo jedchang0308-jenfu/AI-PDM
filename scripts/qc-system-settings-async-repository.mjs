@@ -1,22 +1,15 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
-const sourcePath = path.join(root, "src", "lib", "repositories", "system-settings-async-repository.ts");
-const helperPath = path.join(root, "src", "lib", "system-settings-async.ts");
-const authAsyncPath = path.join(root, "src", "lib", "auth-async.ts");
-const settingsRoutePath = path.join(root, "src", "app", "api", "settings", "route.ts");
-const gdriveFoldersRoutePath = path.join(root, "src", "app", "api", "settings", "gdrive", "folders", "route.ts");
-const gdriveVerifyRoutePath = path.join(root, "src", "app", "api", "settings", "gdrive", "folders", "verify", "route.ts");
-const source = fs.readFileSync(sourcePath, "utf8");
-const helperSource = fs.readFileSync(helperPath, "utf8");
-const authAsyncSource = fs.readFileSync(authAsyncPath, "utf8");
-const settingsRouteSource = fs.readFileSync(settingsRoutePath, "utf8");
-const gdriveFoldersRouteSource = fs.readFileSync(gdriveFoldersRoutePath, "utf8");
-const gdriveVerifyRouteSource = fs.readFileSync(gdriveVerifyRoutePath, "utf8");
+const source = readProjectFile(root, "src/lib/repositories/system-settings-async-repository.ts");
+const helperSource = readProjectFile(root, "src/lib/system-settings-async.ts");
+const authAsyncSource = readProjectFile(root, "src/lib/auth-async.ts");
+const settingsRouteSource = readProjectFile(root, "src/app/api/settings/route.ts");
+const gdriveFoldersRouteSource = readProjectFile(root, "src/app/api/settings/gdrive/folders/route.ts");
+const gdriveVerifyRouteSource = readProjectFile(root, "src/app/api/settings/gdrive/folders/verify/route.ts");
 const results = [];
 
 function record(name, passed, detail = "") {

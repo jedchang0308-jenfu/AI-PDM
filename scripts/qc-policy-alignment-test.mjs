@@ -1,21 +1,18 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
-const policyPath = path.join(root, ".ai-doc", "reference", "pdm-management-policy-draft.md");
-const ragDataPath = path.join(root, "src", "lib", "pdm-policy-rag-data.ts");
 
-function readText(filePath) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Missing required file: ${path.relative(root, filePath)}`);
+function readRequired(relativePath) {
+  if (!projectFileExists(root, relativePath)) {
+    throw new Error(`Missing required file: ${relativePath}`);
   }
-  return fs.readFileSync(filePath, "utf8");
+  return readProjectFile(root, relativePath);
 }
 
-const policy = readText(policyPath);
-const ragData = readText(ragDataPath);
+const policy = readRequired(".ai-doc/reference/pdm-management-policy-draft.md");
+const ragData = readRequired("src/lib/pdm-policy-rag-data.ts");
 
 const checks = [
   {
@@ -32,6 +29,24 @@ const checks = [
     id: "POL-003",
     name: "revision traceability is documented",
     passed: /revision/.test(policy) && /Released/.test(policy) && /可追溯|traceable/i.test(policy)
+  },
+  {
+    id: "POL-003A",
+    name: "revision default and editable numeric policy is documented",
+    passed:
+      /自動帶入預設版次/.test(policy) &&
+      /使用者可依圖紙修訂欄編輯/.test(policy) &&
+      /大版次整數/.test(policy) &&
+      /小版次/.test(policy)
+  },
+  {
+    id: "POL-003B",
+    name: "revision format rejects V prefix and alphabetic versions",
+    passed:
+      /版次格式一律不加 `V`/.test(policy) &&
+      /不得接受 `V1`/.test(policy) &&
+      /不得接受 .*`A\/B\/C`/.test(policy) &&
+      !/接受使用者或 SolidWorks Add-in 提交的 revision 字串，不自動產生版次/.test(policy)
   },
   {
     id: "POL-004",
@@ -65,7 +80,11 @@ const checks = [
       ragData.includes("圖號規則") &&
       ragData.includes("drawing_number + revision") &&
       ragData.includes("Released duplicate filename policy") &&
-      ragData.includes("AI assistant is read-only")
+      ragData.includes("AI assistant is read-only") &&
+      ragData.includes("自動帶入預設版次") &&
+      ragData.includes("版次格式一律不加 `V`") &&
+      ragData.includes("不得接受 `V1`") &&
+      !ragData.includes("不自動產生版次")
   }
 ];
 

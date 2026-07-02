@@ -4,8 +4,10 @@
 Owner：PM-dev  
 關聯 DEV：`DEV-SW-LICENSE-PDM-001`  
 節點類型：交付點  
-狀態：Implemented / Git boundary deferred  
-是否計入產品交付完成：是，已完成 RD/QC；待 Git boundary 可安全提交後關閉 PM-dev 交付點  
+狀態：Implemented / Git boundary closed locally
+是否計入產品交付完成：是，已完成 RD/QC，且後續已建立 scoped local commit boundary
+
+2026-06-29 PM consistency note: this plan originally recorded Git boundary as deferred. That status was superseded on 2026-06-19 after user-authorized index handling: Supabase staging evidence was committed separately as `be333eb`, then the scoped `DEV-SW-LICENSE-PDM-001` boundary was committed as `6f4dbab`.
 
 ## 1. 交付目標
 
@@ -146,12 +148,12 @@ FMEA 風險:
 
 ## 10. Git 邊界
 
-本交付點尚未建立 commit，原因不是驗證失敗，而是目前 worktree 與 index 已有大量非本任務變更，且 index 內已有 Supabase GATE-B staged 檔案。依 PM-dev 規則，不能把 SW/PDM 公司隔離與 Supabase staging evidence 混成同一個 commit。
+Git boundary 已於 2026-06-19 關閉：
 
-需要 PM 決定後才能提交:
+- Supabase staging evidence 先獨立提交為 `be333eb`。
+- Scoped `DEV-SW-LICENSE-PDM-001` SW/PDM company boundary 後續提交為 `6f4dbab`。
 
-- 先由 owner 處理或提交既有 Supabase staged 檔案。
-- 或明確同意重新整理 index，再只 stage `DEV-SW-LICENSE-PDM-001` 相關檔案建立獨立 commit。
+本節下方 2026-06-18 的 deferred 判斷保留為歷史原因：當時 worktree 與 index 內已有大量非本任務變更，且 index 內已有 Supabase GATE-B staged 檔案。後續使用者已授權處理 index 並建立分組 commit，因此不得再把此交付點視為 Git boundary 未關閉。
 
 ## 11. 停止條件
 
@@ -174,3 +176,5 @@ FMEA 風險:
 - 2026-06-18: 建立 PM 開發計畫，採 `operational_shared`，首版範圍限定為 PDM 公司隔離與 Admin 目標公司選擇。
 - 2026-06-18: 完成 RD/QC 實作，補記 Web/Add-in、PDM read/write、numbering、metadata adapter profile、task/notification company scope 與 Git boundary deferred 狀態。
 - 2026-06-18: 新增並通過 `npm.cmd run qc:sw-license-pdm-git-boundary`，確認目前直接 commit 仍因 9 個 unrelated Supabase staged files 而應 deferred。
+- 2026-06-19: 使用者授權處理既有 Supabase staged files、重整 index，先提交 Supabase staging evidence 為 `be333eb`，再提交 scoped SW/PDM company boundary 為 `6f4dbab`。
+- 2026-06-29: PM consistency pass 將本文件狀態由歷史的 Git boundary deferred 更新為 Git boundary closed locally。

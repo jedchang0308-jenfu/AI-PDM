@@ -1,24 +1,11 @@
 #!/usr/bin/env node
 
-import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { sha256Bytes as sha256 } from "./qc-file-hash-utils.mjs";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
-
-function sha256(value) {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -51,21 +38,22 @@ const requiredFiles = [
   "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql"
 ];
 for (const file of requiredFiles) {
-  record(`SUPA-MIG-002 required file exists: ${file}`, exists(file), file);
+  record(`SUPA-MIG-002 required file exists: ${file}`, projectFileExists(root, file), file);
 }
 
-const sqliteSchema = read("db/schema.sql");
-const postgresSchema = read("db/postgres/001_initial_schema.sql");
-const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
-const searchPathHardening = read("db/postgres/003_harden_set_updated_at_search_path.sql");
-const migrationSchema = read("supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
-const migrationRls = read("supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
-const migrationSearchPathHardening = read("supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
-const manifest = JSON.parse(read("supabase/migrations/manifest.json"));
-const readme = read("supabase/README.md");
-const envExample = read(".env.example");
-const packageJson = JSON.parse(read("package.json"));
-const devTask = read(".ai-doc/dev_task.md");
+const sqliteSchema = readProjectFile(root, "db/schema.sql");
+const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql");
+const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
+const searchPathHardening = readProjectFile(root, "db/postgres/003_harden_set_updated_at_search_path.sql");
+const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
+const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
+const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
+const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
+const readme = readProjectFile(root, "supabase/README.md");
+const envExample = readProjectFile(root, ".env.example");
+const packageJson = readProjectJson(root, "package.json");
+const devTask = readProjectFile(root, ".ai-doc/dev_task.md");
+const migrationHistoryPolicy = readProjectFile(root, ".ai-doc/decisions/ADR-SUPABASE-DB-002-migration-history-policy.md");
 
 const sqliteTables = extractTableNames(sqliteSchema);
 const migrationTables = extractTableNames(migrationSchema);
@@ -110,11 +98,14 @@ record("SUPA-MIG-011 README forbids ProJED targets", readme.includes("ProJED") &
 record("SUPA-MIG-012 env example documents Postgres runtime variables", envExample.includes("PDM_POSTGRES_URL=") && envExample.includes("PDM_POSTGRES_ADMIN_URL=") && envExample.includes("PDM_POSTGRES_POOLER_MODE="), ".env.example");
 record("SUPA-MIG-013 package exposes sync and QC scripts", packageJson.scripts?.["supabase:migrations:sync"] === "node scripts/sync-supabase-runtime-migrations.mjs" && packageJson.scripts?.["qc:supabase-runtime-migrations"] === "node scripts/qc-supabase-runtime-migrations.mjs", "package.json");
 record(
-  "SUPA-MIG-014 dev_task records migration structure slice",
-  devTask.includes("supabase:migrations:sync") &&
-    devTask.includes("qc:supabase-runtime-migrations") &&
-    devTask.includes("supabase migration list"),
-  ".ai-doc/dev_task.md"
+  "SUPA-MIG-014 traceability records migration structure slice",
+  devTask.includes("DEV-SUPABASE-DB-001-MIGRATION-HISTORY") &&
+    devTask.includes("Supabase CLI") &&
+    devTask.includes("Migration history policy") &&
+    readme.includes("supabase:migrations:sync") &&
+    migrationHistoryPolicy.includes("qc:supabase-runtime-migrations") &&
+    migrationHistoryPolicy.includes("supabase migration list"),
+  ".ai-doc/dev_task.md + migration policy"
 );
 
 const failed = results.filter((result) => !result.passed);

@@ -11,6 +11,15 @@ const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const qcStorageAuditRunId = `qc-api-${Date.now().toString(36)}`;
 const qcStorageAuditHeaderName = "x-ai-pdm-qc-storage-audit-run-id";
 const qcStorageAuditHeaders = { [qcStorageAuditHeaderName]: qcStorageAuditRunId };
+const expectedStorageAuditSource = process.env.PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE === "runtime" ? "runtime" : "qc_api";
+
+function storageAuditHasExpectedProvenance(audit) {
+  if (!audit?.detail) return false;
+  if (expectedStorageAuditSource === "runtime") {
+    return audit.detail.storageAccessSource === "runtime" && audit.detail.qcRunId === null;
+  }
+  return audit.detail.storageAccessSource === "qc_api" && audit.detail.qcRunId === qcStorageAuditRunId;
+}
 
 function ensureTestUser(input) {
   const db = new Database(dbPath);
@@ -585,7 +594,7 @@ results.push(await expectStatus("FILE-007 file preview writes StorageAccessed au
 results.push(await expectStatus("FILE-008 file audit records download route", downloadAudit?.detail.route, "/api/submissions/[id]/files/[...filePath]"));
 results.push(await expectStatus("FILE-009 preview audit records inline disposition", previewAudit?.detail.disposition, "inline"));
 results.push(await expectStatus("FILE-010 file audits record positive byte counts", Number(downloadAudit?.detail.bytes ?? 0) > 0 && Number(previewAudit?.detail.bytes ?? 0) > 0, true));
-results.push(await expectStatus("FILE-011 file audits record QC runtime provenance", downloadAudit?.detail.storageAccessSource === "qc_api" && previewAudit?.detail.qcRunId === qcStorageAuditRunId, true));
+results.push(await expectStatus("FILE-011 file audits record QC runtime provenance", storageAuditHasExpectedProvenance(downloadAudit) && storageAuditHasExpectedProvenance(previewAudit), true));
 results.push(
   await expectStatus(
     "FILE-012 file audits redact signed URL values",
@@ -1999,7 +2008,7 @@ results.push(await expectStatus("PKG-009 package download writes StorageAccessed
 results.push(await expectStatus("PKG-010 package audit records release route", releasePackageAudit?.detail.route, "/api/submissions/[id]/release-package"));
 results.push(await expectStatus("PKG-011 package audit records attachment disposition", releasePackageAudit?.detail.disposition, "attachment"));
 results.push(await expectStatus("PKG-012 package audit records positive byte count", Number(releasePackageAudit?.detail.bytes ?? 0) > 0, true));
-results.push(await expectStatus("PKG-013 package audit records QC runtime provenance", releasePackageAudit?.detail.storageAccessSource === "qc_api" && releasePackageAudit?.detail.qcRunId === qcStorageAuditRunId, true));
+results.push(await expectStatus("PKG-013 package audit records QC runtime provenance", storageAuditHasExpectedProvenance(releasePackageAudit), true));
 
 const shareCreateResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
   method: "POST",
@@ -2063,7 +2072,7 @@ results.push(await expectStatus("SHARE-012 public package writes StorageAccessed
 results.push(await expectStatus("SHARE-013 public package audit records route", publicPackageAudit?.detail.route, "/api/public/shares/[token]/package"));
 results.push(await expectStatus("SHARE-014 public package audit records external access", publicPackageAudit?.detail.externalAccess, true));
 results.push(await expectStatus("SHARE-015 public package audit records positive byte count", Number(publicPackageAudit?.detail.bytes ?? 0) > 0, true));
-results.push(await expectStatus("SHARE-016 public package audit records QC runtime provenance", publicPackageAudit?.detail.storageAccessSource === "qc_api" && publicPackageAudit?.detail.qcRunId === qcStorageAuditRunId, true));
+results.push(await expectStatus("SHARE-016 public package audit records QC runtime provenance", storageAuditHasExpectedProvenance(publicPackageAudit), true));
 results.push(
   await expectStatus(
     "SHARE-016A public package audit redacts raw token material",
@@ -2097,15 +2106,17 @@ const supplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreate
   })
 });
 const supplierResponseBody = await supplierResponse.json().catch(() => ({}));
+const supplierResponseId = typeof supplierResponseBody.response?.id === "string" ? supplierResponseBody.response.id : "";
 results.push(await expectStatus("SUPPLIER-003 public supplier response returns 201", supplierResponse.status, 201));
 results.push(await expectStatus("SUPPLIER-004 public supplier response starts open", supplierResponseBody.response?.status, "open"));
+results.push(await expectStatus("SUPPLIER-004A public supplier response returns an id", supplierResponseId.length > 0, true));
 
 const publicShareAfterSupplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
 const publicShareAfterSupplierBody = await publicShareAfterSupplierResponse.json().catch(() => ({}));
 results.push(
   await expectStatus(
     "SUPPLIER-005 public portal shows supplier response",
-    publicShareAfterSupplierBody.supplier_responses?.some((response) => response.id === supplierResponseBody.response?.id),
+    Boolean(supplierResponseId) && publicShareAfterSupplierBody.supplier_responses?.some((response) => response.id === supplierResponseId),
     true
   )
 );
@@ -2119,17 +2130,19 @@ const managerSupplierListResponse = await fetch(`${baseUrl}/api/submissions/${re
   headers: { cookie: managerCookie }
 });
 const managerSupplierListBody = await managerSupplierListResponse.json().catch(() => ({}));
+const listedSupplierResponse = managerSupplierListBody.responses?.find((response) => response.id === supplierResponseId);
+const closeSupplierResponseId = listedSupplierResponse?.id ?? supplierResponseId;
 results.push(await expectStatus("SUPPLIER-007 Manager lists supplier responses", managerSupplierListResponse.status, 200));
 results.push(
   await expectStatus(
     "SUPPLIER-008 Manager list includes supplier response",
-    managerSupplierListBody.responses?.some((response) => response.id === supplierResponseBody.response?.id),
+    Boolean(listedSupplierResponse),
     true
   )
 );
 
 const managerCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${supplierResponseBody.response?.id}`,
+  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
   {
     method: "PATCH",
     headers: { cookie: managerCookie }
@@ -2140,7 +2153,7 @@ results.push(await expectStatus("SUPPLIER-009 Manager closes supplier response",
 results.push(await expectStatus("SUPPLIER-010 closed supplier response status", managerCloseSupplierBody.response?.status, "closed"));
 
 const duplicateCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${supplierResponseBody.response?.id}`,
+  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
   {
     method: "PATCH",
     headers: { cookie: managerCookie }

@@ -16,6 +16,15 @@ function record(name, passed, detail = "") {
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 
+async function launchBrowser() {
+  const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chrome";
+  try {
+    return await chromium.launch({ channel, headless: true });
+  } catch {
+    return chromium.launch({ headless: true });
+  }
+}
+
 function openDb() {
   return new Database(dbPath);
 }
@@ -235,7 +244,7 @@ async function loginAsEngineer(context) {
 
 async function verifyDesktopFlow(page, seeded) {
   await page.goto(`${apiBaseUrl}/numbering/approvals`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "DVT/發行審核" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "正式資料審核" }).waitFor({ timeout: 10_000 });
   const batchApiResponse = await page.request.get(`${apiBaseUrl}/api/numbering/approval-batches?scope=dvt_release&status=active&limit=50`);
   const batchApiBody = await batchApiResponse.json().catch(() => ({}));
   record("Approval batch API returns seeded batch", JSON.stringify(batchApiBody).includes(`NB-QCAPPR-${unique}`), JSON.stringify(batchApiBody).slice(0, 1000));
@@ -280,13 +289,14 @@ async function verifyMobileRender(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 920 } });
   const consoleErrors = [];
   const page = await context.newPage();
+  await page.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await loginAsEngineer(context);
   await page.goto(`${apiBaseUrl}/numbering/approvals`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "DVT/發行審核" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "正式資料審核" }).waitFor({ timeout: 10_000 });
   record("Approval review page renders mobile", await page.getByText("審核佇列").isVisible());
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record("Approval review page avoids horizontal overflow at 390px", bodyOverflow <= 2, `${bodyOverflow}px`);
@@ -297,11 +307,12 @@ async function verifyMobileRender(browser) {
 cleanupApprovalData();
 const seeded = seedApprovalBatch();
 
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser();
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
   const consoleErrors = [];
   const page = await context.newPage();
+  await page.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });

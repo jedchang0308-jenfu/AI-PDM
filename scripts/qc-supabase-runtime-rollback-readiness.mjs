@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -44,11 +35,11 @@ const gatePlanPath = ".ai-doc/qa/qa-supabase-runtime-provider-gate-validation-pl
 const devTaskPath = ".ai-doc/dev_task.md";
 const scriptPath = "scripts/qc-supabase-runtime-rollback-readiness.mjs";
 
-const packageJson = JSON.parse(read("package.json"));
-const plan = exists(planPath) ? read(planPath) : "";
-const gatePlan = exists(gatePlanPath) ? read(gatePlanPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
-const scriptSource = read(scriptPath);
+const packageJson = readProjectJson(root, "package.json");
+const plan = projectFileExists(root, planPath) ? readProjectFile(root, planPath) : "";
+const gatePlan = projectFileExists(root, gatePlanPath) ? readProjectFile(root, gatePlanPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
+const scriptSource = readProjectFile(root, scriptPath);
 
 const provider = process.env.PDM_DB_PROVIDER?.trim() ?? "";
 const publicSecretEnvNames = collectPublicSecretEnvNames();
@@ -70,7 +61,7 @@ record(
     "node scripts/qc-supabase-runtime-rollback-readiness.mjs",
   "package.json"
 );
-record("SUPA-ROLLBACK-002 rollback readiness plan exists", exists(planPath), planPath);
+record("SUPA-ROLLBACK-002 rollback readiness plan exists", projectFileExists(root, planPath), planPath);
 record(
   "SUPA-ROLLBACK-003 plan defines SQLite fallback rollback target",
   includesAll(plan, ["SQLite runtime mode", "PDM_DB_PROVIDER", "PDM_POSTGRES_URL", "fresh SQLite-mode app process"]),

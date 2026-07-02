@@ -4,26 +4,21 @@ import fsp from "node:fs/promises";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import {
   buildStorageMigrationExecutionGate,
   writeStorageMigrationExecutionGate
 } from "./generate-file-storage-migration-execution-gate.mjs";
+import { sha256Bytes, sha256File } from "./qc-file-hash-utils.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
+const fixtureTempRoots = [];
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
-}
-
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function writeFixtureDb(dbPath, files, { includeBlockers }) {
@@ -132,6 +127,7 @@ function writeFixtureDb(dbPath, files, { includeBlockers }) {
 
 async function createFixture({ includeBlockers }) {
   const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-exec-gate-qc-"));
+  fixtureTempRoots.push(tempRoot);
   const dataDir = path.join(tempRoot, "data");
   const repositoryDir = path.join(tempRoot, "repository");
   const releaseDir = path.join(dataDir, "release-packages", "2026", "06");
@@ -146,8 +142,8 @@ async function createFixture({ includeBlockers }) {
     missingPath: path.join(repositoryDir, "pending", "missing.pdf"),
     mismatchPath: path.join(repositoryDir, "pending", "mismatch.pdf"),
     releasePath: path.join(releaseDir, "release.zip"),
-    okHash: sha256(okBytes),
-    releaseHash: sha256(releaseBytes)
+    okHash: sha256Bytes(okBytes),
+    releaseHash: sha256Bytes(releaseBytes)
   };
   await fsp.writeFile(files.okPath, okBytes);
   await fsp.writeFile(files.mismatchPath, mismatchBytes);
@@ -313,7 +309,9 @@ async function main() {
   record("STORAGE-MIGRATION-EXEC-GATE-012 target files exist under staging root", executeReport.copied.every((item) => fs.existsSync(path.resolve(item.targetPath))));
   record(
     "STORAGE-MIGRATION-EXEC-GATE-013 target file hashes match expected hashes",
-    executeReport.copied.every((item) => sha256File(path.resolve(item.targetPath)) === item.expectedSha256)
+    (await Promise.all(executeReport.copied.map(async (item) => sha256File(path.resolve(item.targetPath))))).every(
+      (hash, index) => hash === executeReport.copied[index].expectedSha256
+    )
   );
   record("STORAGE-MIGRATION-EXEC-GATE-014 provider requests remain disabled", executeReport.assumptions.providerRequestsDisabled === true);
   record("STORAGE-MIGRATION-EXEC-GATE-015 metadata pointers are not updated", executeReport.assumptions.noMetadataPointersUpdated === true);
@@ -329,14 +327,9 @@ async function main() {
     JSON.stringify(legacyGovernanceReport);
   record("STORAGE-MIGRATION-EXEC-GATE-018 reports do not expose common cloud secret markers", !/(secret|service_role|X-Amz|BEGIN PRIVATE KEY)/i.test(serialized));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
   record("STORAGE-MIGRATION-EXEC-GATE-019 package scripts are registered", packageJson.includes('"storage:migration-execution-gate"') && packageJson.includes('"qc:file-storage-migration-execution-gate"'));
 
-  await fsp.rm(disabledFixture.tempRoot, { recursive: true, force: true });
-  await fsp.rm(blockedFixture.tempRoot, { recursive: true, force: true });
-  await fsp.rm(missingGovernanceFixture.tempRoot, { recursive: true, force: true });
-  await fsp.rm(legacyGovernanceFixture.tempRoot, { recursive: true, force: true });
-  await fsp.rm(executeFixture.tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 }
 
@@ -349,7 +342,11 @@ async function exists(filePath) {
   }
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await Promise.all(fixtureTempRoots.map((tempRoot) => fsp.rm(tempRoot, { recursive: true, force: true })));
+  });

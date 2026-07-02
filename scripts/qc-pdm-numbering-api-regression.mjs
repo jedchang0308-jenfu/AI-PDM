@@ -147,7 +147,7 @@ try {
       coreName: `QC API regression ${unique}`,
       partName: `QC API part ${unique}-001`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
+      developmentPhase: "DVT",
       drawingRequested: true,
       drawingPurposeCode: "MA"
     },
@@ -158,6 +158,15 @@ try {
   const drawingNumber = numbering.drawingNumber?.drawingNumber;
   created.rootCodes.push(rootCode);
   record("Numbering allocation returns root, part, and MA drawing", Boolean(rootCode && firstPartNumber && drawingNumber), JSON.stringify({ rootCode, firstPartNumber, drawingNumber }));
+  record(
+    "Numbering create API forces new records to EVT initial phase",
+    numbering.root?.developmentPhase === "EVT" && numbering.partNumber?.developmentPhase === "EVT" && numbering.drawingNumber?.developmentPhase === "EVT",
+    JSON.stringify({
+      root: numbering.root?.developmentPhase,
+      part: numbering.partNumber?.developmentPhase,
+      drawing: numbering.drawingNumber?.developmentPhase
+    })
+  );
 
   const duplicate = await request(
     "POST",

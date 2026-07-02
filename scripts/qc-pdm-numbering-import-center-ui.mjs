@@ -77,11 +77,17 @@ function cleanupImportData() {
 async function verifyViewport(browser, viewport) {
   const context = await browser.newContext({ viewport, acceptDownloads: true });
   const consoleErrors = [];
+  const failedRequests = [];
+  const failedResponses = [];
   const page = await context.newPage();
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    if (message.type() === "error" && !message.text().includes("Failed to load resource")) consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
+  page.on("requestfailed", (request) => failedRequests.push(`${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`));
+  page.on("response", (response) => {
+    if (response.url().includes("/api/") && response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
+  });
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/imports`, { waitUntil: "networkidle" });
@@ -120,16 +126,31 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "管理員確認" }).click();
   const confirmResponse = await confirmResponsePromise;
   record(`Admin confirm applies valid rows at ${viewport.width}px`, confirmResponse.ok(), `HTTP ${confirmResponse.status()}`);
-  await page.getByText("confirmed").waitFor({ timeout: 10_000 });
-  record(`Confirmed batch renders at ${viewport.width}px`, (await page.getByText("confirmed").count()) >= 1);
+  const confirmedBatchRow = page.locator('[data-import-batch-row="true"]').filter({ hasText: sourceFilename });
+  await confirmedBatchRow.getByText("正式", { exact: true }).waitFor({ timeout: 10_000 });
+  record(
+    `Confirmed batch renders with lifecycle stage label at ${viewport.width}px`,
+    (await confirmedBatchRow.getByText("正式", { exact: true }).count()) >= 1
+  );
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`Import center avoids page-level horizontal overflow at ${viewport.width}px`, bodyOverflow <= 2, `${bodyOverflow}px`);
+  record(`No failed import-center API responses at ${viewport.width}px`, failedResponses.length === 0, failedResponses.join("\n"));
+  record(`No failed import-center requests at ${viewport.width}px`, failedRequests.length === 0, failedRequests.join("\n"));
   record(`No browser console errors at ${viewport.width}px`, consoleErrors.length === 0, consoleErrors.join("\n"));
   await context.close();
 }
 
-const browser = await chromium.launch({ headless: true });
+async function launchBrowser() {
+  const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chrome";
+  try {
+    return await chromium.launch({ channel, headless: true });
+  } catch {
+    return chromium.launch({ headless: true });
+  }
+}
+
+const browser = await launchBrowser();
 try {
   cleanupImportData();
   seedDuplicateRoot();

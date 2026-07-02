@@ -17,6 +17,10 @@ export async function markSubmissionReleaseFailedAsync(input: { id: string; rele
   return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).markSubmissionReleaseFailed(input);
 }
 
+export async function cancelPendingSubmissionAsync(input: { id: string; actorId: string; reason: string }): Promise<void> {
+  return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).cancelPendingSubmission(input);
+}
+
 export async function markSubmissionReleasedAndObsoletePreviousAsync(input: { id: string; actorId: string }) {
   return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).markSubmissionReleasedAndObsoletePrevious(input);
 }

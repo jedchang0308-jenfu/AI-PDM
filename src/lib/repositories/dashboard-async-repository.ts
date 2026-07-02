@@ -17,6 +17,7 @@ export const SELECT_ASYNC_DASHBOARD_STATUS_COUNTS_SQL = `
   FROM submissions
   WHERE (:submittedBy IS NULL OR submitted_by = :submittedBy)
     AND (:companyId IS NULL OR company_id = :companyId)
+    AND (status <> 'ReleaseFailed' OR resolved_by_submission_id IS NULL)
   GROUP BY status
 `;
 

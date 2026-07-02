@@ -8,7 +8,9 @@ import {
   buildStorageSchemaApplyGate,
   writeStorageSchemaApplyGate
 } from "./generate-file-storage-schema-apply-gate.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -64,15 +66,14 @@ function makeFakeClient(calls) {
   };
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-schema-apply-gate-qc-"));
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const gateSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-apply-gate.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-schema-apply-gate-qc-"));
+  const packageJson = readProjectFile(root, "package.json");
+  const gateSource = readProjectFile(root, "scripts/generate-file-storage-schema-apply-gate.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const disabledCalls = [];
   const disabledReport = await buildStorageSchemaApplyGate({
@@ -155,8 +156,12 @@ try {
     packageJson.includes('"storage:schema-apply-gate"') && packageJson.includes('"qc:file-storage-schema-apply-gate"')
   );
   record(
-    "STORAGE-SCHEMA-APPLY-GATE-020 PM evidence references Phase 5J",
-    planSource.includes("Phase 5J") && devTaskSource.includes("Phase 5J")
+    "STORAGE-SCHEMA-APPLY-GATE-020 PM evidence references schema apply gate lane",
+    planSource.includes("Phase 5J") &&
+      planSource.includes("storage:schema-apply-gate") &&
+      planSource.includes("qc:file-storage-schema-apply-gate") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-APPLY-GATE-021 gate does not write official migration directories",
@@ -169,9 +174,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16})/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

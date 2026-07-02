@@ -8,7 +8,9 @@ import {
   buildStorageSchemaPromotionGate,
   writeStorageSchemaPromotionGate
 } from "./generate-file-storage-schema-promotion-gate.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -82,8 +84,10 @@ function validAdvisorEvidence() {
   };
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-schema-promotion-gate-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-schema-promotion-gate-qc-"));
   const applyPath = path.join(tempRoot, "storage-schema-apply-gate.json");
   const verifyPath = path.join(tempRoot, "storage-schema-verify-gate.json");
   const advisorPath = path.join(tempRoot, "supabase-advisor-evidence.json");
@@ -91,13 +95,10 @@ try {
   await writeJson(verifyPath, validVerifyReport());
   await writeJson(advisorPath, validAdvisorEvidence());
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const gateSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-promotion-gate.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const gateSource = readProjectFile(root, "scripts/generate-file-storage-schema-promotion-gate.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
 
   const missingReport = await buildStorageSchemaPromotionGate({});
   record("STORAGE-SCHEMA-PROMOTION-GATE-001 gate version is stable", missingReport.gateVersion === STORAGE_SCHEMA_PROMOTION_GATE_VERSION);
@@ -157,8 +158,12 @@ try {
     packageJson.includes('"storage:schema-promotion-gate"') && packageJson.includes('"qc:file-storage-schema-promotion-gate"')
   );
   record(
-    "STORAGE-SCHEMA-PROMOTION-GATE-016 PM evidence references Phase 4U",
-    planSource.includes("Phase 4U") && devTaskSource.includes("Phase 4U")
+    "STORAGE-SCHEMA-PROMOTION-GATE-016 PM evidence references schema promotion gate lane",
+    planSource.includes("Phase 4U") &&
+      planSource.includes("storage:schema-promotion-gate") &&
+      planSource.includes("qc:file-storage-schema-promotion-gate") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-PROMOTION-GATE-017 gate does not write official migration directories",
@@ -171,9 +176,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16})/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

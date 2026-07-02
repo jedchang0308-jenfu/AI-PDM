@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const fixtureRoot = path.join(root, ".tmp", "qc-fixtures", `dev-task-evidence-sync-${process.pid}`);
@@ -53,6 +54,12 @@ function record(results, name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
 
+function cleanupFixtureRoot() {
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
+}
+
+process.once("exit", cleanupFixtureRoot);
+
 fs.mkdirSync(fixtureRoot, { recursive: true });
 fs.writeFileSync(fixtureTaskPath, fixtureMarkdown, "utf8");
 fs.writeFileSync(evidenceBlockedPath, `${JSON.stringify({
@@ -89,12 +96,12 @@ const applyReady = runSync([
 record(results, "QASYNC-005 ready fixture exits 0", applyReady.status === 0, applyReady.stderr);
 record(results, "QASYNC-006 ready fixture applies ten changes", applyReady.parsed?.changes?.length === 10 && applyReady.parsed?.applied === true, JSON.stringify(applyReady.parsed ?? null));
 
-const syncedMarkdown = fs.existsSync(outputTaskPath) ? fs.readFileSync(outputTaskPath, "utf8") : "";
+const syncedMarkdown = fs.existsSync(outputTaskPath) ? readProjectFile(root, path.relative(root, outputTaskPath).replaceAll(path.sep, "/")) : "";
 const checkedTargetCount = (syncedMarkdown.match(/^- \[x\]/gmu) ?? []).length;
 record(results, "QASYNC-007 output has all eight target list lines checked", checkedTargetCount === 8, syncedMarkdown);
 record(results, "QASYNC-007A output has table target checked", syncedMarkdown.includes("| [x] | DEV-CAD-001 |"), syncedMarkdown);
 record(results, "QASYNC-007B output has Supabase table target checked", syncedMarkdown.includes("| [x] | DEV-IND-007 |"), syncedMarkdown);
-const sourceFixtureUnchanged = fs.readFileSync(fixtureTaskPath, "utf8") === fixtureMarkdown;
+const sourceFixtureUnchanged = readProjectFile(root, path.relative(root, fixtureTaskPath).replaceAll(path.sep, "/")) === fixtureMarkdown;
 record(results, "QASYNC-008 source fixture remains unchanged", sourceFixtureUnchanged, sourceFixtureUnchanged ? "" : "source fixture mutated");
 
 const actualDryRun = runSync([]);
@@ -108,6 +115,8 @@ const report = {
   failed: failed.length,
   results
 };
+
+cleanupFixtureRoot();
 
 console.log(JSON.stringify(report, null, 2));
 

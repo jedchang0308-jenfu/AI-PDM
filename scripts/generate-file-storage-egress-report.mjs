@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import Database from "better-sqlite3";
@@ -38,7 +38,7 @@ function tableExists(db, tableName) {
 }
 
 function readStorageAccessAuditRows(dbPath) {
-  if (!fs.existsSync(dbPath)) {
+  if (!existsSync(dbPath)) {
     return {
       exists: false,
       rows: []
@@ -356,8 +356,8 @@ async function main() {
   if (outIndex >= 0) {
     const outPath = process.argv[outIndex + 1];
     if (!outPath) throw new Error("--out requires a path");
-    await fsp.mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
-    await fsp.writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
+    await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   }
   console.log(JSON.stringify(report, null, 2));
 }

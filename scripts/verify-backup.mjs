@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { getBackupDir, resolveUserPath } from "./pdm-paths.mjs";
 
@@ -16,13 +16,12 @@ function resolveSnapshotDir() {
     return resolveUserPath(root, arg);
   }
 
-  if (!fs.existsSync(backupRoot)) {
+  if (!existsSync(backupRoot)) {
     console.error(`Backup root not found at ${backupRoot}`);
     process.exit(1);
   }
 
-  const snapshots = fs
-    .readdirSync(backupRoot, { withFileTypes: true })
+  const snapshots = readdirSync(backupRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(backupRoot, entry.name))
     .sort();
@@ -35,40 +34,40 @@ function resolveSnapshotDir() {
   return snapshots[snapshots.length - 1];
 }
 
-function sha256File(filePath) {
+function sha256FileSync(filePath) {
   const hash = crypto.createHash("sha256");
-  const file = fs.openSync(filePath, "r");
+  const file = openSync(filePath, "r");
   const buffer = Buffer.alloc(1024 * 1024);
 
   try {
     let bytesRead = 0;
-    while ((bytesRead = fs.readSync(file, buffer, 0, buffer.length, null)) > 0) {
+    while ((bytesRead = readSync(file, buffer, 0, buffer.length, null)) > 0) {
       hash.update(buffer.subarray(0, bytesRead));
     }
   } finally {
-    fs.closeSync(file);
+    closeSync(file);
   }
 
   return hash.digest("hex");
 }
 
-if (!fs.existsSync(manifestPath)) {
+if (!existsSync(manifestPath)) {
   console.error(`Backup manifest not found at ${manifestPath}`);
   process.exit(1);
 }
 
-const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const failures = [];
 
 for (const expected of manifest.files ?? []) {
   const filePath = path.join(snapshotDir, expected.path);
-  if (!fs.existsSync(filePath)) {
+  if (!existsSync(filePath)) {
     failures.push({ path: expected.path, reason: "missing" });
     continue;
   }
 
-  const stat = fs.statSync(filePath);
-  const actualHash = sha256File(filePath);
+  const stat = statSync(filePath);
+  const actualHash = sha256FileSync(filePath);
   if (stat.size !== expected.size || actualHash !== expected.sha256) {
     failures.push({
       path: expected.path,
@@ -81,11 +80,11 @@ for (const expected of manifest.files ?? []) {
   }
 }
 
-if (!fs.existsSync(path.join(snapshotDir, "database", "ai-pdm.sqlite"))) {
+if (!existsSync(path.join(snapshotDir, "database", "ai-pdm.sqlite"))) {
   failures.push({ path: "database/ai-pdm.sqlite", reason: "required-db-missing" });
 }
 
-if (!fs.existsSync(path.join(snapshotDir, "repository"))) {
+if (!existsSync(path.join(snapshotDir, "repository"))) {
   failures.push({ path: "repository", reason: "required-repository-missing" });
 }
 

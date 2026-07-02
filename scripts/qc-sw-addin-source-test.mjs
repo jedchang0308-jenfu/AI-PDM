@@ -2,20 +2,20 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { projectFileExists, projectPath, readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
-const addinDir = path.join(root, "sw-addin");
+const addinDir = projectPath(root, "sw-addin");
 
-function read(relativePath) {
-  const fullPath = path.join(root, relativePath);
-  if (!fs.existsSync(fullPath)) {
+function readRequired(relativePath) {
+  if (!projectFileExists(root, relativePath)) {
     throw new Error(`Missing required file: ${relativePath}`);
   }
-  return fs.readFileSync(fullPath, "utf8");
+  return readProjectFile(root, relativePath);
 }
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, relativePath));
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
 }
 
 function record(results, name, passed, detail = "") {
@@ -54,20 +54,20 @@ const requiredFiles = [
 ];
 
 for (const file of requiredFiles) {
-  record(results, `SW-SRC required file exists: ${file}`, exists(file), file);
+  record(results, `SW-SRC required file exists: ${file}`, projectFileExists(root, file), file);
 }
 
-const project = read("sw-addin/AiPdmAddin.csproj");
-const swAddin = read("sw-addin/SwAddin.cs");
-const propertyExtractor = read("sw-addin/Services/PropertyExtractor.cs");
-const fileCollector = read("sw-addin/Services/FileCollector.cs");
-const authService = read("sw-addin/Services/AuthService.cs");
-const apiClient = read("sw-addin/Services/ApiClient.cs");
-const submissionResult = read("sw-addin/Models/SubmissionResult.cs");
-const preflightLockRoute = read("src/app/api/submissions/preflight-lock/route.ts");
-const submissionWindow = read("sw-addin/Views/SubmissionWindow.xaml.cs");
-const settings = read("sw-addin/Config/AddinSettings.cs");
-const logger = read("sw-addin/Services/Logger.cs");
+const project = readRequired("sw-addin/AiPdmAddin.csproj");
+const swAddin = readRequired("sw-addin/SwAddin.cs");
+const propertyExtractor = readRequired("sw-addin/Services/PropertyExtractor.cs");
+const fileCollector = readRequired("sw-addin/Services/FileCollector.cs");
+const authService = readRequired("sw-addin/Services/AuthService.cs");
+const apiClient = readRequired("sw-addin/Services/ApiClient.cs");
+const submissionResult = readRequired("sw-addin/Models/SubmissionResult.cs");
+const preflightLockRoute = readRequired("src/app/api/submissions/preflight-lock/route.ts");
+const submissionWindow = readRequired("sw-addin/Views/SubmissionWindow.xaml.cs");
+const settings = readRequired("sw-addin/Config/AddinSettings.cs");
+const logger = readRequired("sw-addin/Services/Logger.cs");
 
 record(results, "SW-SRC project targets .NET Framework 4.8", project.includes("<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>"));
 record(results, "SW-SRC project builds a class library", project.includes("<OutputType>Library</OutputType>"));
@@ -136,7 +136,7 @@ record(results, "SW-SRC settings define local server URL and upload limit", sett
 record(results, "SW-SRC logger stores logs under AppData AiPdm logs", logger.includes("ApplicationData") && logger.includes("\"logs\"") && logger.includes("addin-"));
 record(results, "SW-SRC logger rotates old logs", logger.includes("AddDays(-30)") && logger.includes("CleanOldLogs"));
 
-const combinedSource = listSourceFiles(addinDir).map((file) => fs.readFileSync(file, "utf8")).join("\n");
+const combinedSource = listSourceFiles(addinDir).map((file) => readProjectFile(root, toProjectRelative(file))).join("\n");
 record(results, "SW-SRC source does not embed high-privilege cloud credentials", !/GOOGLE_SERVICE_ACCOUNT|SERVICE_ACCOUNT_KEY|private_key|client_secret|gdrive_service_account/i.test(combinedSource));
 
 const failed = results.filter((result) => !result.passed);

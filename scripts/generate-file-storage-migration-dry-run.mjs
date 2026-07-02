@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import fsp from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -11,8 +11,8 @@ const DEFAULT_TARGET_PROVIDER = "supabase_storage";
 const DEFAULT_TARGET_BUCKET = "pdm-hot";
 const DEFAULT_TARGET_PREFIX = "ai-pdm";
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+function sha256FileSync(filePath) {
+  return crypto.createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
 function sanitizeKeyPart(value) {
@@ -149,7 +149,7 @@ export function buildStorageMigrationDryRun(options = {}) {
       continue;
     }
 
-    if (!fs.existsSync(sourcePath)) {
+    if (!existsSync(sourcePath)) {
       blocked.push({
         id: object.id,
         source: object.source,
@@ -169,7 +169,7 @@ export function buildStorageMigrationDryRun(options = {}) {
       continue;
     }
 
-    const actualHash = sha256File(sourcePath);
+    const actualHash = sha256FileSync(sourcePath);
     if (actualHash !== object.hash) {
       blocked.push({
         id: object.id,
@@ -246,8 +246,8 @@ async function main() {
   if (outIndex >= 0) {
     const outPath = process.argv[outIndex + 1];
     if (!outPath) throw new Error("--out requires a path");
-    await fsp.mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
-    await fsp.writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await mkdir(path.dirname(path.resolve(outPath)), { recursive: true });
+    await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   }
   console.log(JSON.stringify(report, null, 2));
 }

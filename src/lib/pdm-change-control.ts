@@ -2,6 +2,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   PdmChangeControlDomainService,
   type ApplyDrawingRevisionReviewActionInput,
+  type DeletedPartNumberDraftListItem,
   type DraftActionInput,
   type ListPartNumberDraftsInput,
   type MarkSameSourceDraftsNeedReconfirmationInput,
@@ -30,6 +31,8 @@ export type {
   SubmitDrawingRevisionFffAssessmentResult
 } from "@/lib/pdm-change-control-domain";
 
+export type { DeletedPartNumberDraftListItem };
+
 export { PdmChangeControlDomainService, PdmChangeControlError } from "@/lib/pdm-change-control-domain";
 
 function service() {
@@ -42,6 +45,10 @@ export async function reservePartNumberDraft(input: ReservePartNumberDraftInput)
 
 export async function listPartNumberDrafts(input: ListPartNumberDraftsInput) {
   return service().listPartNumberDrafts(input);
+}
+
+export async function listDeletedPartNumberDrafts(input: ListPartNumberDraftsInput) {
+  return service().listDeletedPartNumberDrafts(input);
 }
 
 export async function updatePartNumberDraft(input: UpdatePartNumberDraftInput) {
@@ -78,6 +85,14 @@ export async function voidPartNumberDraft(input: DraftActionInput) {
 
 export async function recyclePartNumberDraft(input: DraftActionInput) {
   return service().recyclePartNumberDraft(input);
+}
+
+export async function restorePartNumberDraft(input: DraftActionInput) {
+  return service().restorePartNumberDraft(input);
+}
+
+export async function getPartNumberDraftLifecyclePolicy(input: DraftActionInput) {
+  return service().getPartNumberDraftLifecyclePolicy(input);
 }
 
 export async function markSameSourceDraftsNeedReconfirmation(input: MarkSameSourceDraftsNeedReconfirmationInput) {

@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import pg from "pg";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
 
-const source = read("src/lib/db-async-provider.ts");
-const packageJson = JSON.parse(read("package.json"));
+const source = readProjectFile(root, "src/lib/db-async-provider.ts");
+const packageJson = readProjectJson(root, "package.json");
 const postgresUrl = process.env.PDM_POSTGRES_URL?.trim() || "";
 
 record("PG-PROVIDER-001 pg dependency installed", Boolean(packageJson.dependencies?.pg), "package.json");
@@ -29,7 +24,11 @@ record(
 );
 record("PG-PROVIDER-005 named parameter normalization exists", source.includes("normalizePostgresQuery") && source.includes("POSTGRES_NAMED_PARAMETER_MISSING"), "src/lib/db-async-provider.ts");
 record("PG-PROVIDER-006 transaction boundaries exist", ["BEGIN", "COMMIT", "ROLLBACK"].every((text) => source.includes(text)), "src/lib/db-async-provider.ts");
-record("PG-PROVIDER-007 nested transaction fail-closed exists", source.includes("POSTGRES_NESTED_TRANSACTION_UNSUPPORTED"), "src/lib/db-async-provider.ts");
+record(
+  "PG-PROVIDER-007 transaction client reuses active transaction",
+  source.includes("class PostgresTransactionClient") && source.includes("return await fn(this);"),
+  "src/lib/db-async-provider.ts"
+);
 record(
   "PG-PROVIDER-008 runtime selector uses Postgres env",
   source.includes("export function getAsyncDatabaseClient") &&

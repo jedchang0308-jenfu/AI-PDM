@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { STORAGE_SCHEMA_MIGRATION_PACKAGE_VERSION } from "./generate-file-storage-schema-migration-package.mjs";
+import { readProjectJson } from "./qc-project-file-utils.mjs";
 
 export const STORAGE_SCHEMA_PROMOTION_GATE_VERSION = "storage-schema-promotion-gate/v1";
+
+const root = process.cwd();
+
+function isInsideDirectory(parent, child) {
+  const relativePath = path.relative(parent, child);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
 
 function buildMarkdown(report) {
   const lines = [
@@ -53,15 +65,21 @@ function buildCheck(name, passed, detail = "") {
   return { name, passed: Boolean(passed), detail };
 }
 
-async function readJsonEvidence(filePath) {
+async function readInputJson(filePath) {
   if (!filePath) return { missing: true, path: "" };
+  const resolvedPath = path.resolve(filePath);
   try {
-    const parsed = JSON.parse(await fsp.readFile(path.resolve(filePath), "utf8"));
-    return { missing: false, path: path.resolve(filePath), value: parsed };
+    return {
+      missing: false,
+      path: resolvedPath,
+      value: isInsideDirectory(root, resolvedPath)
+        ? readProjectJson(root, toProjectRelative(resolvedPath))
+        : JSON.parse(await readFile(resolvedPath, "utf8"))
+    };
   } catch (error) {
     return {
       missing: true,
-      path: path.resolve(filePath),
+      path: resolvedPath,
       error: error instanceof Error ? error.message : String(error)
     };
   }
@@ -166,9 +184,9 @@ function statusFor(blockers) {
 }
 
 export async function buildStorageSchemaPromotionGate(options = {}) {
-  const applyEvidence = await readJsonEvidence(options.applyReportPath ?? "");
-  const verifyEvidence = await readJsonEvidence(options.verifyReportPath ?? "");
-  const advisorEvidence = await readJsonEvidence(options.advisorEvidencePath ?? "");
+  const applyEvidence = await readInputJson(options.applyReportPath ?? "");
+  const verifyEvidence = await readInputJson(options.verifyReportPath ?? "");
+  const advisorEvidence = await readInputJson(options.advisorEvidencePath ?? "");
 
   const applyResult = evaluateApplyEvidence(applyEvidence);
   const verifyResult = evaluateVerifyEvidence(verifyEvidence);
@@ -220,11 +238,11 @@ export async function buildStorageSchemaPromotionGate(options = {}) {
 
 export async function writeStorageSchemaPromotionGate(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-schema-promotion-gate.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-schema-promotion-gate.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

@@ -150,13 +150,13 @@ async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
 
 async function verifyManufacturedWithDrawing(page, viewportWidth) {
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
+  record(`Initial phase is locked to EVT at ${viewportWidth}px`, (await page.getByTestId("initial-development-phase").innerText()).includes("EVT"));
   await page.locator('input:not([type="checkbox"])').nth(0).fill(`QC Drawing Sync ${unique} ${viewportWidth}`);
   await page.locator("select").nth(0).selectOption("manufactured");
-  await page.locator("select").nth(1).selectOption("EVT");
   await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
   await page.locator('input:not([type="checkbox"])').nth(2).fill("MA");
   await page.locator('input[type="checkbox"]').last().check();
-  await page.locator("select").nth(2).selectOption("MA");
+  await page.locator("select").nth(1).selectOption("MA");
   await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
   const drawingGeneratedName = await page.locator('input:not([type="checkbox"])').nth(3).inputValue();
   record(`Suggested manufactured part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(drawingGeneratedName), drawingGeneratedName);
@@ -171,6 +171,7 @@ async function verifyManufacturedWithDrawing(page, viewportWidth) {
 
   const created = getCreatedPart(drawingGeneratedName);
   record(`Drawing generated name persisted at ${viewportWidth}px`, created?.part_name === drawingGeneratedName, JSON.stringify(created ?? {}));
+  record(`New numbering persists EVT initial phase at ${viewportWidth}px`, created?.development_phase === "EVT", JSON.stringify(created ?? {}));
   record(`Drawing created with manufactured part at ${viewportWidth}px`, created?.drawing_count === 1, JSON.stringify(created ?? {}));
 }
 
@@ -187,6 +188,8 @@ async function verifyViewport(browser, viewport) {
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
   record(`Request wizard renders at ${viewport.width}px`, await page.getByText("基本資料").isVisible());
+
+  record(`Request wizard shows locked EVT initial phase at ${viewport.width}px`, (await page.getByTestId("initial-development-phase").innerText()).includes("EVT"));
 
   if (viewport.width >= 1000) {
     await verifyCustomPartBeforeDrawing(page, viewport.width);

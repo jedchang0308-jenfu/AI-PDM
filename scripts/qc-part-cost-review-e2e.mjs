@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const checks = [];
@@ -17,7 +16,7 @@ function id(prefix) {
 
 const database = new Database(":memory:");
 database.pragma("foreign_keys = ON");
-database.exec(fs.readFileSync(path.join(root, "db/schema.sql"), "utf8"));
+database.exec(readProjectFile(root, "db/schema.sql"));
 
 const now = new Date("2026-06-11T00:00:00.000Z").toISOString();
 const procurementUserId = id("procurement");

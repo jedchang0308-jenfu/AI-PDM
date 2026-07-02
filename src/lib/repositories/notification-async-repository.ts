@@ -42,6 +42,7 @@ export const SELECT_ASYNC_RELEASE_FAILED_NOTIFICATIONS_SQL = `
   JOIN items i ON i.id = s.item_id
   JOIN users u ON u.id = s.submitted_by
   WHERE s.status = 'ReleaseFailed'
+    AND s.resolved_by_submission_id IS NULL
     AND (:scopeEngineer = 0 OR s.submitted_by = :userId)
   ORDER BY s.updated_at DESC, s.id DESC
   LIMIT :limit
@@ -180,8 +181,8 @@ export class AsyncNotificationRepository {
         id: `release_failed:${row.submission_id}`,
         kind: "release_failed",
         severity: "critical",
-        title: "Release failed",
-        message: `${submissionLabel(row)} release failed: ${row.detail ?? "No error detail"}`,
+        title: "發行未完成",
+        message: `${submissionLabel(row)} 發行未完成：${row.detail ?? "需要主管或 Admin 處理。"}`,
         ...notificationTarget(row)
       });
     }
@@ -261,7 +262,7 @@ export function summarizeNotifications(items: NotificationItem[]): NotificationS
 }
 
 function submissionLabel(row: Pick<NotificationRow, "drawing_number" | "revision" | "part_number">) {
-  const drawing = row.drawing_number ? `${row.drawing_number} Rev ${row.revision ?? "-"}` : "Unknown drawing";
+  const drawing = row.drawing_number ? `${row.drawing_number} 版次 ${row.revision ?? "-"}` : "未知圖號";
   return row.part_number ? `${drawing} / ${row.part_number}` : drawing;
 }
 

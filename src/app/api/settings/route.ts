@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { requireRoleAsync } from "@/lib/auth-async";
 import { isGoogleDriveServiceConfigured } from "@/lib/gdrive";
+import { llmConfig } from "@/lib/llm-config";
 import { getAllSystemSettingsAsync, setSystemSettingAsync } from "@/lib/system-settings-async";
 
 export const runtime = "nodejs";
@@ -50,9 +51,9 @@ export async function GET(request: Request) {
       releaseMode: process.env.PDM_RELEASE_MODE ?? "auto",
       releaseFunctionConfigured: Boolean(process.env.RELEASE_FUNCTION_URL),
       releaseFunctionTokenConfigured: Boolean(process.env.RELEASE_FUNCTION_TOKEN),
-      llmProvider: process.env.LLM_PROVIDER ?? "local",
-      openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
-      openAiModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+      llmProvider: llmConfig.provider,
+      openAiConfigured: Boolean(llmConfig.openAiApiKey),
+      openAiModel: llmConfig.openAiModel,
       serviceAccountConfigured: isGoogleDriveServiceConfigured()
     }
   });

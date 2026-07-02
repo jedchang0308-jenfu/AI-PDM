@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
 
 const checks = [];
-
-function read(path) {
-  return fs.readFileSync(path, "utf8");
-}
+const root = process.cwd();
 
 function record(name, passed, detail = "") {
   checks.push({ name, passed, detail });
@@ -14,16 +11,16 @@ function record(name, passed, detail = "") {
 }
 
 function includesAll(path, needles) {
-  const text = read(path);
+  const text = readProjectFile(root, path);
   for (const needle of needles) {
     record(`${path} includes ${needle}`, text.includes(needle), needle);
   }
   return text;
 }
 
-record("Drawer spec exists", fs.existsSync(".ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md"));
-record("Shared drawer component exists", fs.existsSync("src/components/pdm-detail-drawer.tsx"));
-record("Shared list shortcut hook exists", fs.existsSync("src/components/use-list-keyboard-shortcuts.ts"));
+record("Drawer spec exists", projectFileExists(root, ".ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md"));
+record("Shared drawer component exists", projectFileExists(root, "src/components/pdm-detail-drawer.tsx"));
+record("Shared list shortcut hook exists", projectFileExists(root, "src/components/use-list-keyboard-shortcuts.ts"));
 
 includesAll("src/components/pdm-detail-drawer.tsx", [
   "useRememberedDrawerWidth",
@@ -104,13 +101,13 @@ includesAll("scripts/qc-pdm-numbering-report-center-ui.mjs", [
   ".pdm-detail-drawer"
 ]);
 
-const globals = read("src/app/globals.css");
+const globals = readProjectFile(root, "src/app/globals.css");
 record("Drawer backdrop stays transparent", globals.includes("background: transparent;"));
 record("Dashboard drawer panel CSS exists", globals.includes(".dashboard-detail-drawer-panel"));
 
-const devTask = read(".ai-doc/dev_task.md");
-record("Dev task contains drawer task", devTask.includes("DEV-PDM-DETAIL-DRAWER-001"));
-record("Spec index contains drawer spec", devTask.includes("SPEC-PDM-DETAIL-DRAWER-001"));
+const drawerSpec = readProjectFile(root, ".ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md");
+record("Drawer spec references drawer task", drawerSpec.includes("DEV-PDM-DETAIL-DRAWER-001"));
+record("Drawer spec documents drawer QC command", drawerSpec.includes("qc:pdm-system-detail-drawer-ui"));
 
 console.log(
   JSON.stringify(

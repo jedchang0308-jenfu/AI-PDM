@@ -78,6 +78,12 @@ export type DrawingModuleLinkedPartRecord = {
   standardCostType: PartCostType | null;
 };
 
+export type DrawingModuleReleaseStatusMismatch = {
+  submissionId: string;
+  revision: string;
+  releasedAt: string | null;
+};
+
 export type DrawingModuleListRecord = DrawingNumberRecord & {
   rootCode: string;
   coreName: string;
@@ -87,6 +93,7 @@ export type DrawingModuleListRecord = DrawingNumberRecord & {
   sameRootParts: DrawingModuleLinkedPartRecord[];
   titleBlockVariantWarning: boolean;
   warningCount: number;
+  releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null;
   updatedAt: string;
 };
 
@@ -1873,6 +1880,7 @@ function mapDrawingModuleListRow(row: DrawingModuleListRow, sameRootParts: Drawi
     sameRootParts,
     titleBlockVariantWarning: hasPotentialHardcodedTitleBlockVariantText(row.purpose_description) && sameRootParts.length > 1,
     warningCount: row.warning_count ?? 0,
+    releaseStatusMismatch: null,
     updatedAt: row.updated_at
   };
 }

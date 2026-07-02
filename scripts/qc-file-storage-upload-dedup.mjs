@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
-const results = [];
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
+const root = process.cwd();
+const results = [];
+let tmpRoot;
+const readRequired = (filePath) => readProjectFile(root, filePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -23,7 +23,7 @@ function includesAll(source, needles) {
 }
 
 async function compileFileStorageModule(outputDir) {
-  const source = read("src/lib/file-storage.ts");
+  const source = readRequired("src/lib/file-storage.ts");
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
@@ -41,10 +41,10 @@ async function compileFileStorageModule(outputDir) {
 }
 
 try {
-  const packageJson = JSON.parse(read("package.json"));
-  const storageSource = read("src/lib/file-storage.ts");
-  const submissionWriteRepository = read("src/lib/repositories/submission-write-async-repository.ts");
-  const devTask = read(".ai-doc/dev_task.md");
+  const packageJson = readProjectJson(root, "package.json");
+  const storageSource = readRequired("src/lib/file-storage.ts");
+  const submissionWriteRepository = readRequired("src/lib/repositories/submission-write-async-repository.ts");
+  const uploadDedupReport = readRequired(".ai-doc/reports/rd/rd-file-storage-upload-dedup-report-2026-06-12.md");
 
   record(
     "STORAGE-UPLOAD-DEDUP-001 package script is registered",
@@ -63,11 +63,15 @@ try {
     includesAll(storageSource, ["path.resolve(/*turbopackIgnore: true*/ this.repositoryDir)", "listLocalRepositoryFiles(repositoryRoot)", "path.relative(repositoryRoot, localPath)"])
   );
   record(
-    "STORAGE-UPLOAD-DEDUP-005 dev_task tracks upload-time dedup requirement",
-    devTask.includes("重複檔案上傳時不重複存 physical object")
+    "STORAGE-UPLOAD-DEDUP-005 RD report tracks upload-time dedup scope",
+    includesAll(uploadDedupReport, [
+      "prevent duplicate local physical objects when uploaded bytes have the same SHA-256",
+      "preserving per-upload business file rows",
+      "Formal `storage_objects` / `storage_object_references` persistence and live provider dedup remain open"
+    ])
   );
 
-  const tmpRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dedup-"));
+  tmpRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-storage-dedup-"));
   const modulePath = await compileFileStorageModule(tmpRoot);
   const { LocalRepositoryStorageAdapter, sha256 } = await import(pathToFileURL(modulePath).href);
   const repositoryDir = path.join(tmpRoot, "repository");
@@ -107,7 +111,6 @@ try {
     includesAll(submissionWriteRepository, ['action: "Submit"', "fileCount: input.files.length"])
   );
 
-  await fsp.rm(tmpRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(
@@ -123,4 +126,6 @@ try {
     )
   );
   process.exitCode = 1;
+} finally {
+  if (tmpRoot) await fsp.rm(tmpRoot, { recursive: true, force: true });
 }

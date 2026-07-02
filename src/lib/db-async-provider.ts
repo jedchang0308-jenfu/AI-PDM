@@ -56,10 +56,6 @@ function bindRun(database: SqliteDatabase, sql: string, params: AsyncDatabaseQue
   statement.run(params);
 }
 
-function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
-  return typeof value === "object" && value !== null && "then" in value && typeof value.then === "function";
-}
-
 function normalizePostgresQuery(sql: string, params: AsyncDatabaseQueryParams | undefined) {
   if (!params) {
     return { text: sql, values: [] };
@@ -118,15 +114,20 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
   }
 
   async transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T> {
-    const tx = this.database.transaction(() => {
-      const result = fn(this);
-      if (isPromiseLike(result)) {
-        throw new Error("SQLITE_ASYNC_TRANSACTION_CALLBACK_UNSUPPORTED");
-      }
-      return result;
-    });
+    const state = this.database as SqliteDatabase & { inTransaction?: boolean };
+    if (state.inTransaction) {
+      return await fn(this);
+    }
 
-    return tx() as T;
+    this.database.exec("BEGIN");
+    try {
+      const result = await fn(this);
+      this.database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async close(): Promise<void> {
@@ -152,8 +153,8 @@ class PostgresTransactionClient implements AsyncDatabaseClient {
     await runPostgresQuery<QueryResultRow>(this.client, sql, params);
   }
 
-  async transaction<T>(): Promise<T> {
-    throw new Error("POSTGRES_NESTED_TRANSACTION_UNSUPPORTED");
+  async transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T> {
+    return await fn(this);
   }
 
   async close(): Promise<void> {

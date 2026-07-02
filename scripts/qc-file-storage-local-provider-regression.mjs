@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
-
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -24,19 +21,19 @@ function ordered(source, first, second) {
 }
 
 try {
-  const packageJson = JSON.parse(read("package.json"));
-  const storage = read("src/lib/file-storage.ts");
-  const fileStore = read("src/lib/file-store.ts");
-  const fileResponse = read("src/lib/file-response.ts");
-  const submissionFileRoute = read("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
-  const releasePackageFile = read("src/lib/release-package-file.ts");
-  const releasePackageRoute = read("src/app/api/submissions/[id]/release-package/route.ts");
-  const publicSharePackageRoute = read("src/app/api/public/shares/[token]/package/route.ts");
-  const costReport = read("scripts/generate-file-storage-cost-report.mjs");
-  const costReportQc = read("scripts/qc-file-storage-cost-report.mjs");
-  const contractQc = read("scripts/qc-file-storage-contract.mjs");
-  const accessAuditQc = read("scripts/qc-file-storage-access-audit.mjs");
-  const apiQc = read("scripts/qc-api-test.mjs");
+  const packageJson = readProjectJson(root, "package.json");
+  const storage = readProjectFile(root, "src/lib/file-storage.ts");
+  const fileStore = readProjectFile(root, "src/lib/file-store.ts");
+  const fileResponse = readProjectFile(root, "src/lib/file-response.ts");
+  const submissionFileRoute = readProjectFile(root, "src/app/api/submissions/[id]/files/[...filePath]/route.ts");
+  const releasePackageFile = readProjectFile(root, "src/lib/release-package-file.ts");
+  const releasePackageRoute = readProjectFile(root, "src/app/api/submissions/[id]/release-package/route.ts");
+  const publicSharePackageRoute = readProjectFile(root, "src/app/api/public/shares/[token]/package/route.ts");
+  const costReport = readProjectFile(root, "scripts/generate-file-storage-cost-report.mjs");
+  const costReportQc = readProjectFile(root, "scripts/qc-file-storage-cost-report.mjs");
+  const contractQc = readProjectFile(root, "scripts/qc-file-storage-contract.mjs");
+  const accessAuditQc = readProjectFile(root, "scripts/qc-file-storage-access-audit.mjs");
+  const apiQc = readProjectFile(root, "scripts/qc-api-test.mjs");
 
   record("LOCAL-STORAGE-REGRESSION-001 package script is registered", packageJson.scripts?.["qc:file-storage-local-provider-regression"] === "node scripts/qc-file-storage-local-provider-regression.mjs");
 
@@ -63,7 +60,14 @@ try {
   record("LOCAL-STORAGE-REGRESSION-018 release package route audits package download", includesAll(releasePackageRoute, ['purpose: "release_package"', 'accessKind: "release_package"', 'route: "/api/submissions/[id]/release-package"']));
   record("LOCAL-STORAGE-REGRESSION-019 release package route returns zip attachment without cache", includesAll(releasePackageRoute, ['"content-type": "application/zip"', '"content-disposition": `attachment;', '"cache-control": "private, no-store"']));
 
-  record("LOCAL-STORAGE-REGRESSION-020 public share package route is token scoped", includesAll(publicSharePackageRoute, ["getPublicShare(token)", "recordPublicShareAccess(publicShare.share.id", "{ status: 404 }"]));
+  record(
+    "LOCAL-STORAGE-REGRESSION-020 public share package route is token scoped",
+    includesAll(publicSharePackageRoute, [
+      "getPublicShareAsync(token)",
+      "recordPublicShareAccessAsync(publicShare.share.id",
+      "{ status: 404 }"
+    ])
+  );
   record("LOCAL-STORAGE-REGRESSION-021 public share package route audits supplier package access", includesAll(publicSharePackageRoute, ['purpose: "supplier_share"', 'accessKind: "public_share_package"', "shareId: publicShare.share.id", "externalAccess: true"]));
   record("LOCAL-STORAGE-REGRESSION-022 public share package route returns zip attachment without cache", includesAll(publicSharePackageRoute, ['"content-type": "application/zip"', '"content-disposition": `attachment;', '"cache-control": "private, no-store"']));
 

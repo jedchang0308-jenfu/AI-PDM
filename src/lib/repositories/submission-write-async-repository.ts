@@ -8,7 +8,19 @@ export const SELECT_ASYNC_SUBMISSION_REVISION_EXISTS_SQL = `
   WHERE drawing_number = :drawingNumber
     AND revision = :revision
     AND company_id = :companyId
+    AND (
+      status IN ('Pending', 'Releasing', 'Released', 'Obsolete')
+      OR (status = 'ReleaseFailed' AND resolved_by_submission_id IS NULL)
+    )
   LIMIT 1
+`;
+
+export const SELECT_ASYNC_SUBMISSION_REVISIONS_BY_DRAWING_SQL = `
+  SELECT revision, status, created_at, updated_at, released_at
+  FROM submissions
+  WHERE drawing_number = :drawingNumber
+    AND company_id = :companyId
+  ORDER BY created_at ASC, id ASC
 `;
 
 export const UPSERT_ASYNC_SUBMISSION_ITEM_SQL = `
@@ -24,21 +36,33 @@ export const INSERT_ASYNC_SUBMISSION_RECORD_SQL = `
   INSERT INTO submissions (
     id, company_id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
     machine, material, surface_finish, document_type,
-    change_description, status, submitted_by, approval_required, created_at, updated_at
+    change_description, status, submitted_by, approval_required, source_entity_type, source_entity_id, corrects_submission_id, created_at, updated_at
   ) VALUES (
     :id, :companyId, :itemId, :drawingNumber, :revision, :productLine, :customer, :projectCode, :processName,
     :machine, :material, :surfaceFinish, :documentType,
-    :changeDescription, 'Pending', :submittedBy, :approvalRequired, :now, :now
+    :changeDescription, 'Pending', :submittedBy, :approvalRequired, :sourceEntityType, :sourceEntityId, :correctsSubmissionId, :now, :now
   )
 `;
 
 export const INSERT_ASYNC_SUBMISSION_FILE_SQL = `
   INSERT INTO submission_files (
     id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
-    sha256, file_size, created_at
+    sha256, file_size, source_master_attachment_id, created_at
   ) VALUES (
     :id, :submissionId, :fileRole, :originalFilename, :localPath, :gdriveFileId,
-    :sha256, :fileSize, :now
+    :sha256, :fileSize, :sourceMasterAttachmentId, :now
+  )
+`;
+
+export const INSERT_ASYNC_SUBMISSION_SNAPSHOT_SQL = `
+  INSERT INTO submission_snapshots (
+    id, submission_id, company_id, source_root_id, source_root_code,
+    source_drawing_number_id, source_drawing_number, source_part_number_id, source_part_number,
+    snapshot_version, rules_version, snapshot_hash, snapshot_json, captured_by, captured_at, created_at
+  ) VALUES (
+    :id, :submissionId, :companyId, :sourceRootId, :sourceRootCode,
+    :sourceDrawingNumberId, :sourceDrawingNumber, :sourcePartNumberId, :sourcePartNumber,
+    :snapshotVersion, :rulesVersion, :snapshotHash, :snapshotJson, :capturedBy, :capturedAt, :createdAt
   )
 `;
 
@@ -105,6 +129,9 @@ export type CreateSubmissionAsyncInput = {
   changeDescription: string;
   submittedBy: string;
   approvalRequired?: 1 | 2;
+  sourceEntityType?: "drawing_number" | "part_number" | null;
+  sourceEntityId?: string | null;
+  correctsSubmissionId?: string | null;
   files: Array<{
     fileRole: string;
     originalFilename: string;
@@ -112,7 +139,9 @@ export type CreateSubmissionAsyncInput = {
     gdriveFileId?: string | null;
     sha256: string;
     fileSize: number;
+    sourceMasterAttachmentId?: string | null;
   }>;
+  snapshot?: CreateSubmissionSnapshotInput;
   references?: Array<{
     sourceFilename: string;
     sourceFileRole: FileReference["source_file_role"];
@@ -139,10 +168,31 @@ export type CreateSubmissionAsyncInput = {
   };
 };
 
+export type CreateSubmissionSnapshotInput = {
+  sourceRootId: string;
+  sourceRootCode: string;
+  sourceDrawingNumberId: string;
+  sourceDrawingNumber: string;
+  sourcePartNumberId: string;
+  sourcePartNumber: string;
+  rulesVersion: string;
+  capturedBy: string;
+  capturedAt: string;
+  snapshotJson: Record<string, unknown>;
+};
+
 type PreparedFileReference = NonNullable<CreateSubmissionAsyncInput["references"]>[number] & {
   id: string;
   sourceFileId: string | null;
   sourceFileRoleValue: FileRole;
+};
+
+type SubmissionRevisionHistoryRow = {
+  revision: string;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  released_at: string | null;
 };
 
 export class AsyncSubmissionWriteRepository {
@@ -155,6 +205,17 @@ export class AsyncSubmissionWriteRepository {
   async submissionRevisionExists(input: { companyId: string; drawingNumber: string; revision: string }): Promise<boolean> {
     const row = await this.client.queryOne<{ id: string }>(SELECT_ASYNC_SUBMISSION_REVISION_EXISTS_SQL, input);
     return Boolean(row);
+  }
+
+  async listSubmissionRevisionsByDrawing(input: { companyId: string; drawingNumber: string }) {
+    const rows = await this.client.query<SubmissionRevisionHistoryRow>(SELECT_ASYNC_SUBMISSION_REVISIONS_BY_DRAWING_SQL, input);
+    return rows.map((row) => ({
+      revision: row.revision,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      releasedAt: row.released_at
+    }));
   }
 
   async createSubmissionRecord(input: CreateSubmissionAsyncInput): Promise<string> {
@@ -203,6 +264,9 @@ export class AsyncSubmissionWriteRepository {
         changeDescription: input.changeDescription,
         submittedBy: input.submittedBy,
         approvalRequired: input.approvalRequired ?? 1,
+        sourceEntityType: input.sourceEntityType ?? null,
+        sourceEntityId: input.sourceEntityId ?? null,
+        correctsSubmissionId: input.correctsSubmissionId ?? null,
         now
       });
 
@@ -216,6 +280,53 @@ export class AsyncSubmissionWriteRepository {
           gdriveFileId: file.gdriveFileId ?? null,
           sha256: file.sha256,
           fileSize: file.fileSize,
+          sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null,
+          now
+        });
+      }
+
+      if (input.snapshot) {
+        const snapshotJson = buildSubmissionSnapshotJson(input.snapshot.snapshotJson, {
+          submissionId,
+          submissionFileEntries: fileEntries.map((file) => ({
+            submissionFileId: file.id,
+            sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null,
+            fileRole: file.fileRole,
+            originalFilename: file.originalFilename,
+            localPath: file.localPath,
+            sha256: file.sha256,
+            fileSize: file.fileSize
+          }))
+        });
+        const snapshotJsonText = canonicalJsonStringify(snapshotJson);
+        await client.execute(INSERT_ASYNC_SUBMISSION_SNAPSHOT_SQL, {
+          id: this.idFactory(),
+          submissionId,
+          companyId: input.companyId,
+          sourceRootId: input.snapshot.sourceRootId,
+          sourceRootCode: input.snapshot.sourceRootCode,
+          sourceDrawingNumberId: input.snapshot.sourceDrawingNumberId,
+          sourceDrawingNumber: input.snapshot.sourceDrawingNumber,
+          sourcePartNumberId: input.snapshot.sourcePartNumberId,
+          sourcePartNumber: input.snapshot.sourcePartNumber,
+          snapshotVersion: "drawing_part_submission_v1",
+          rulesVersion: input.snapshot.rulesVersion,
+          snapshotHash: crypto.createHash("sha256").update(snapshotJsonText).digest("hex"),
+          snapshotJson: snapshotJsonText,
+          capturedBy: input.snapshot.capturedBy,
+          capturedAt: input.snapshot.capturedAt,
+          createdAt: now
+        });
+        await this.insertAudit(client, {
+          submissionId,
+          actorId: input.submittedBy,
+          action: "submission.snapshot.created",
+          detail: {
+            sourceRootCode: input.snapshot.sourceRootCode,
+            sourceDrawingNumber: input.snapshot.sourceDrawingNumber,
+            sourcePartNumber: input.snapshot.sourcePartNumber,
+            rulesVersion: input.snapshot.rulesVersion
+          },
           now
         });
       }
@@ -245,6 +356,10 @@ export class AsyncSubmissionWriteRepository {
         action: "Submit",
         detail: {
           fileCount: input.files.length,
+          ...(input.sourceEntityType && input.sourceEntityId
+            ? { sourceEntityType: input.sourceEntityType, sourceEntityId: input.sourceEntityId }
+            : {}),
+          sourceMasterAttachmentIds: input.files.map((file) => file.sourceMasterAttachmentId).filter(Boolean),
           ...(input.storageUploadOverride ? { storageUploadOverride: input.storageUploadOverride } : {})
         },
         now
@@ -262,11 +377,7 @@ export class AsyncSubmissionWriteRepository {
       }
     };
 
-    if (this.client.kind === "postgres") {
-      await this.client.transaction(create);
-    } else {
-      await create(this.client);
-    }
+    await this.client.transaction(create);
 
     return submissionId;
   }
@@ -345,6 +456,50 @@ export class AsyncSubmissionWriteRepository {
       createdAt: input.now
     });
   }
+}
+
+function buildSubmissionSnapshotJson(
+  base: Record<string, unknown>,
+  generated: {
+    submissionId: string;
+    submissionFileEntries: Array<{
+      submissionFileId: string;
+      sourceMasterAttachmentId: string | null;
+      fileRole: string;
+      originalFilename: string;
+      localPath: string;
+      sha256: string;
+      fileSize: number;
+    }>;
+  }
+) {
+  return {
+    ...base,
+    submission: {
+      ...((base.submission && typeof base.submission === "object" && !Array.isArray(base.submission)
+        ? (base.submission as Record<string, unknown>)
+        : {}) as Record<string, unknown>),
+      id: generated.submissionId
+    },
+    attachments: generated.submissionFileEntries
+  };
+}
+
+function canonicalJsonStringify(value: unknown) {
+  return JSON.stringify(sortJsonValue(value));
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJsonValue);
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record)
+    .sort()
+    .reduce<Record<string, unknown>>((result, key) => {
+      if (key === "snapshot_hash") return result;
+      result[key] = sortJsonValue(record[key]);
+      return result;
+    }, {});
 }
 
 function compareBomReferences(left: PreparedFileReference, right: PreparedFileReference) {

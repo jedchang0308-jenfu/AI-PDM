@@ -12,7 +12,9 @@ import { buildStorageSchemaTargetCostConfirmationPackage } from "./generate-file
 import { buildStorageSchemaUserCostConfirmationEvidence } from "./generate-file-storage-schema-user-cost-confirmation-evidence.mjs";
 import { buildStorageSchemaTargetCreateRequest } from "./generate-file-storage-schema-target-create-request.mjs";
 import { buildStorageSchemaTargetCreateResultEvidence } from "./generate-file-storage-schema-target-create-result-evidence.mjs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -60,8 +62,10 @@ async function readyCreateRequest(tempRoot) {
   });
 }
 
+let tempRoot;
+
 try {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-target-connector-receipt-qc-"));
+  tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "ai-pdm-target-connector-receipt-qc-"));
   const request = await readyCreateRequest(tempRoot);
   const requestPath = path.join(tempRoot, "supabase-target-create-request.json");
   await writeJson(requestPath, request);
@@ -126,21 +130,22 @@ try {
   const outputBody = `${await fsp.readFile(outputs.jsonPath, "utf8")}\n${await fsp.readFile(outputs.markdownPath, "utf8")}`;
   record("STORAGE-SCHEMA-TARGET-RECEIPT-011 output does not print database URL", !outputBody.includes("postgres://"));
 
-  const packageJson = await fsp.readFile(path.resolve("package.json"), "utf8");
-  const generatorSource = await fsp.readFile(path.resolve("scripts/generate-file-storage-schema-target-connector-receipt-evidence.mjs"), "utf8");
-  const planSource = await fsp.readFile(
-    path.resolve(".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md"),
-    "utf8"
-  );
-  const devTaskSource = await fsp.readFile(path.resolve(".ai-doc/dev_task.md"), "utf8");
+  const packageJson = readProjectFile(root, "package.json");
+  const generatorSource = readProjectFile(root, "scripts/generate-file-storage-schema-target-connector-receipt-evidence.mjs");
+  const planSource = readProjectFile(root, ".ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md");
+  const devTaskSource = readProjectFile(root, ".ai-doc/dev_task.md");
   record(
     "STORAGE-SCHEMA-TARGET-RECEIPT-012 package scripts are registered",
     packageJson.includes('"storage:schema-target-connector-receipt-evidence"') &&
       packageJson.includes('"qc:file-storage-schema-target-connector-receipt-evidence"')
   );
   record(
-    "STORAGE-SCHEMA-TARGET-RECEIPT-013 PM evidence references Phase 5G",
-    planSource.includes("Phase 5G") && devTaskSource.includes("Phase 5G")
+    "STORAGE-SCHEMA-TARGET-RECEIPT-013 PM evidence references target connector receipt lane",
+    planSource.includes("Phase 5G") &&
+      planSource.includes("storage:schema-target-connector-receipt-evidence") &&
+      planSource.includes("qc:file-storage-schema-target-connector-receipt-evidence") &&
+      devTaskSource.includes("DEV-STORAGE-COST-001") &&
+      devTaskSource.includes("Storage governance and cost")
   );
   record(
     "STORAGE-SCHEMA-TARGET-RECEIPT-014 generator does not call Supabase resource APIs",
@@ -156,9 +161,10 @@ try {
     !/(service_role|X-Amz|BEGIN PRIVATE KEY|AKIA[0-9A-Z]{16}|postgres:\/\/)/i.test(serialized)
   );
 
-  await fsp.rm(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ passed: results.length, failed: 1, error: error instanceof Error ? error.message : String(error), results }, null, 2));
   process.exitCode = 1;
+} finally {
+  if (tempRoot) await fsp.rm(tempRoot, { recursive: true, force: true });
 }

@@ -3,8 +3,10 @@
 Date: 2026-06-24  
 Task: `DEV-PDM-CHANGE-CONTROL-001`  
 Mode: QA validation plan  
-Status: Prepared for RD implementation and QC execution  
+Status: Evidence captured for Phase 1-5 local implementation; retained as QA acceptance contract
 Source spec: `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`  
+
+2026-06-29 PM consistency note: this QA plan was created before RD implementation, but `.ai-doc/dev_task.md` now records Phase 1-5 local implementation and QC evidence. Use this file as the acceptance contract and historical QA plan; do not interpret older "before RD implementation" wording as current task state.
 
 ## 1. Purpose
 
@@ -47,12 +49,13 @@ Out of scope:
 
 ## 4. Assumptions
 
-- `DEV-PDM-CHANGE-CONTROL-001` is specification-only before RD implementation.
+- `DEV-PDM-CHANGE-CONTROL-001` was specification-only when this QA plan was created. As of the 2026-06-29 PM consistency pass, local Phase 1-5 implementation and QC evidence are captured in `.ai-doc/dev_task.md`.
 - Exact route names may differ after RD implementation; QC must map this plan to the implemented route names and record the mapping.
 - Part numbers have no revision.
 - Drawing numbers have revisions and must not use `V` prefix.
 - BOM has its own revision but does not directly store drawing revision in v1.
 - Reserved draft number recycle is allowed only before the number crosses the controlled boundary.
+- Cross-spec UI vocabulary rule: `QA-CHG-010` checks change-control module/domain states, not the global lifecycle main-list badge vocabulary. After `DEV-PDM-LIFECYCLE-ACTIONS-001`, daily main lists should map module states into `草稿 / 審核中 / 正式` plus `detailTags`; this QA plan must not fail a correct lifecycle UI merely because `待審核` is surfaced as `審核中` in the main badge.
 
 ## 5. Test Environment
 

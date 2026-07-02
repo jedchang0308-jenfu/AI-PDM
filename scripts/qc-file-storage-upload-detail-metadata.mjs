@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
+const root = process.cwd();
 const results = [];
-
-function read(filePath) {
-  return fs.readFileSync(filePath, "utf8");
-}
+const readRequired = (filePath) => readProjectFile(root, filePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -24,15 +22,15 @@ function ordered(source, first, second) {
 }
 
 try {
-  const packageJson = JSON.parse(read("package.json"));
-  const validation = read("src/lib/validation.ts");
-  const fileStore = read("src/lib/file-store.ts");
-  const submissionRoute = read("src/app/api/submissions/route.ts");
-  const detailRoute = read("src/app/api/submissions/[id]/route.ts");
-  const writeRepository = read("src/lib/repositories/submission-write-async-repository.ts");
-  const listRepository = read("src/lib/repositories/submission-list-async-repository.ts");
-  const types = read("src/lib/types.ts");
-  const apiQc = read("scripts/qc-api-test.mjs");
+  const packageJson = readProjectJson(root, "package.json");
+  const validation = readRequired("src/lib/validation.ts");
+  const fileStore = readRequired("src/lib/file-store.ts");
+  const submissionRoute = readRequired("src/app/api/submissions/route.ts");
+  const detailRoute = readRequired("src/app/api/submissions/[id]/route.ts");
+  const writeRepository = readRequired("src/lib/repositories/submission-write-async-repository.ts");
+  const listRepository = readRequired("src/lib/repositories/submission-list-async-repository.ts");
+  const types = readRequired("src/lib/types.ts");
+  const apiQc = readRequired("scripts/qc-api-test.mjs");
 
   record(
     "STORAGE-UPLOAD-METADATA-001 package script is registered",
@@ -109,9 +107,9 @@ try {
     ])
   );
   record(
-    "STORAGE-UPLOAD-METADATA-010 detail route uses async auth and canReadSubmission before returning payload",
+    "STORAGE-UPLOAD-METADATA-010 detail route uses async auth and canReadSubmissionAsync before returning payload",
     ordered(detailRoute, "requireAuthAsync(request)", "getSubmissionAsync(id)") &&
-      ordered(detailRoute, "canReadSubmission(auth.user, submission)", "NextResponse.json({ submission })")
+      ordered(detailRoute, "canReadSubmissionAsync(auth.user, submission)", "NextResponse.json({ submission })")
   );
   record(
     "STORAGE-UPLOAD-METADATA-011 qc:api already exercises created submission detail file metadata",

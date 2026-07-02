@@ -3,12 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
 const browserBaseUrl = toBrowserBaseUrl(apiBaseUrl);
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const unique = Date.now().toString().slice(-6);
 const results = [];
+const root = process.cwd();
 
 function toBrowserBaseUrl(value) {
   const url = new URL(value);
@@ -28,7 +30,6 @@ function hashPassword(plain) {
 }
 
 function getDbPath() {
-  const root = process.cwd();
   const dataDir = process.env.PDM_DATA_DIR ? path.resolve(root, process.env.PDM_DATA_DIR) : path.join(root, "data");
   return path.join(dataDir, "ai-pdm.sqlite");
 }
@@ -37,7 +38,7 @@ function ensureUser() {
   const dbPath = getDbPath();
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
-  db.exec(fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8"));
+  db.exec(readProjectFile(root, "db/schema.sql"));
   const now = new Date().toISOString();
   db.prepare(
     `INSERT INTO users (id, display_name, email, password_hash, role, created_at, updated_at)

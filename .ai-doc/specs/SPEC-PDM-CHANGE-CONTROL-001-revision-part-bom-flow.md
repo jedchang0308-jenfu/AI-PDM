@@ -1,10 +1,12 @@
 # SPEC-PDM-CHANGE-CONTROL-001：圖號進版、料號替代與 BOM 影響管制
 
-狀態：Draft  
+狀態：Implemented locally / Evidence captured; production/Supabase cutover deferred
 日期：2026-06-24  
 適用系統：AI_PDM  
-節點類型：交付點候選  
+節點類型：交付點
 來源：HCS 引導模式決策整理，接續 `DEV-PDM-REVISION-001` 版次政策  
+
+2026-06-29 PM consistency note: this document is the source contract for the implemented local Phase 1-5 behavior recorded in `.ai-doc/dev_task.md`. It is no longer a pre-RD draft; remaining work is limited to separately approved production/Supabase cutover, richer UX, or later scope expansion.
 
 ## 1. 目的
 

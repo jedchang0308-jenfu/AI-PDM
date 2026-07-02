@@ -68,7 +68,7 @@ const itemKinds: Array<{ value: ItemKind; label: string }> = [
   { value: "shared", label: "共用件" },
   { value: "custom", label: "客製尺寸" }
 ];
-const phases: NumberingPhase[] = ["EVT", "DVT", "PVT", "Release", "ECR"];
+const initialDevelopmentPhase: NumberingPhase = "EVT";
 
 export default function NumberingRequestPage() {
   const [state, setState] = useState<LoadState>("ready");
@@ -82,7 +82,7 @@ export default function NumberingRequestPage() {
   const [suggestedSequenceCode, setSuggestedSequenceCode] = useState("A");
   const [sequenceSuggestionState, setSequenceSuggestionState] = useState<"idle" | "checking" | "ready" | "fallback">("idle");
   const [itemKind, setItemKind] = useState<ItemKind>("manufactured");
-  const [developmentPhase, setDevelopmentPhase] = useState<NumberingPhase>("EVT");
+  const developmentPhase = initialDevelopmentPhase;
   const [isUniversal, setIsUniversal] = useState(false);
   const [universalReason, setUniversalReason] = useState("");
   const [customSpecification, setCustomSpecification] = useState("");
@@ -287,7 +287,7 @@ export default function NumberingRequestPage() {
           <div className="panel-header">
             <div>
               <h2>基本資料</h2>
-              <p style={mutedTextStyle}>草稿領號不需審核；DVT/發行 gate 由後續流程檢查。</p>
+              <p style={mutedTextStyle}>新領號固定為 EVT 草稿；DVT、PVT、Release 由後續 gate 流程晉升。</p>
             </div>
             <div style={actionGroupStyle}>
               <button className="secondary-button" type="button" onClick={runDuplicateCheck} disabled={busy === "check" || !coreName.trim() || !partName.trim()}>
@@ -340,13 +340,10 @@ export default function NumberingRequestPage() {
             ) : null}
             <label style={fieldStyle}>
               <span>階段</span>
-              <select value={developmentPhase} onChange={(event) => setDevelopmentPhase(event.target.value as NumberingPhase)}>
-                {phases.map((phase) => (
-                  <option value={phase} key={phase}>
-                    {phase}
-                  </option>
-                ))}
-              </select>
+              <div style={lockedPhaseStyle} data-testid="initial-development-phase">
+                <strong>{initialDevelopmentPhase}</strong>
+                <small>領號只建立圖料身份；成熟度由 DVT / PVT / Release gate 推進。</small>
+              </div>
             </label>
             {itemKind === "custom" ? (
               <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
@@ -700,6 +697,15 @@ const sequenceSuggestionStyle = {
   border: "1px solid var(--line)",
   borderRadius: "8px",
   padding: "10px 12px",
+  background: "var(--panel-2)"
+};
+const lockedPhaseStyle = {
+  display: "grid",
+  gap: "0.25rem",
+  minHeight: "38px",
+  border: "1px solid var(--line)",
+  borderRadius: "8px",
+  padding: "9px 12px",
   background: "var(--panel-2)"
 };
 const suggestionLabelStyle = {

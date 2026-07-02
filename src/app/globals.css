@@ -58,6 +58,49 @@
   color: var(--danger);
 }
 
+.solidworks-preview-fallback {
+  margin: 0 1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  background: #f8fafc;
+}
+
+.solidworks-preview-viewport {
+  min-height: 96px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  color: #475569;
+  background: linear-gradient(135deg, #ffffff, #eef6f7);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.solidworks-preview-copy {
+  display: grid;
+  align-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.solidworks-preview-copy strong {
+  color: var(--text);
+}
+
+.solidworks-preview-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .master-attachment-list {
   display: grid;
   gap: 0.65rem;
@@ -2409,6 +2452,13 @@ tr.selected-row td:first-child {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.metadata-pair.primary {
+  border: 1px solid rgba(0, 128, 128, 0.22);
+  border-radius: 999px;
+  padding: 1px 7px;
+  background: #ecfdf3;
 }
 
 .metadata-label {
@@ -5756,4 +5806,16 @@ select.dropdown-select:focus-visible,
   overflow-wrap: anywhere;
   color: var(--text);
   font-size: 0.88rem;
+}
+.drawing-submission-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .drawing-submission-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

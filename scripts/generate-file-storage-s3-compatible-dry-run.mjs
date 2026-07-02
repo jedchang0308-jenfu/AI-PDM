@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fsp from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildStorageMigrationRunbook } from "./generate-file-storage-migration-runbook.mjs";
@@ -179,11 +179,11 @@ export function buildS3CompatibleDryRun(options = {}) {
 
 export async function writeS3CompatibleDryRun(report, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
-  await fsp.mkdir(resolvedOutputDir, { recursive: true });
+  await mkdir(resolvedOutputDir, { recursive: true });
   const jsonPath = path.join(resolvedOutputDir, "storage-s3-compatible-dry-run.json");
   const markdownPath = path.join(resolvedOutputDir, "storage-s3-compatible-dry-run.md");
-  await fsp.writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await fsp.writeFile(markdownPath, buildMarkdown(report), "utf8");
+  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(markdownPath, buildMarkdown(report), "utf8");
   return { jsonPath, markdownPath };
 }
 

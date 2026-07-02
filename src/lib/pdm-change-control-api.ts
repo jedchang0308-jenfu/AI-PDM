@@ -32,6 +32,6 @@ function statusForPdmChangeControlError(code: string) {
   if (code.includes("not_found")) return 404;
   if (code.includes("forbidden")) return 403;
   if (code.includes("optimistic_lock_conflict")) return 409;
-  if (code.includes("already") || code.includes("controlled_boundary") || code.includes("not_")) return 409;
+  if (code.includes("already") || code.includes("controlled_boundary") || code.includes("not_") || code.includes("reused")) return 409;
   return 400;
 }

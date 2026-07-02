@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -34,16 +25,16 @@ function hasLiveSecret(value) {
 
 const planPath = ".ai-doc/qa/qa-supabase-runtime-provider-gate-validation-plan-2026-06-16.md";
 const devTaskPath = ".ai-doc/dev_task.md";
-const packageJson = JSON.parse(read("package.json"));
-const plan = exists(planPath) ? read(planPath) : "";
-const devTask = exists(devTaskPath) ? read(devTaskPath) : "";
+const packageJson = readProjectJson(root, "package.json");
+const plan = projectFileExists(root, planPath) ? readProjectFile(root, planPath) : "";
+const devTask = projectFileExists(root, devTaskPath) ? readProjectFile(root, devTaskPath) : "";
 
 record(
   "SUPA-GATE-001 package script is registered",
   packageJson.scripts?.["qc:supabase-runtime-gate-plan"] === "node scripts/qc-supabase-runtime-gate-plan.mjs",
   "package.json"
 );
-record("SUPA-GATE-002 runtime gate QA plan exists", exists(planPath), planPath);
+record("SUPA-GATE-002 runtime gate QA plan exists", projectFileExists(root, planPath), planPath);
 record("SUPA-GATE-003 dev_task references runtime gate QA plan", devTask.includes(planPath), devTaskPath);
 record(
   "SUPA-GATE-004 GATE-A remains preparation and GATE-B is passed for staging",
