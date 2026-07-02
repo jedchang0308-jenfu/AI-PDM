@@ -95,6 +95,8 @@ Out of scope:
 - Route-mocked UI states: used only for safe simulation of lifecycle states that should not be created by direct database mutation in this validation plan.
 - Temporary upload fixture: `output/playwright/ui-operation-scenarios/D-QA-RELFAIL-MA1.SLDDRW`.
 - Evidence folder: `output/playwright/ui-operation-scenarios/`.
+- If a clean local database has no `D-0014-MA1`, the QC runner may create a minimal local `D-0014-MA1` fixture before browser validation. This setup only establishes prerequisite data; it is not counted as UI operation proof. The pass/fail evidence still comes from login, navigation, visible UI state, button state, screenshots and viewport checks.
+- If `D-0014-MA1` already exists, the QC runner must not overwrite it. Existing data is used as-is so fixture setup cannot hide a real route identity or lifecycle defect.
 
 ## 7. Pass / Fail Standard
 
@@ -128,6 +130,7 @@ Expected local result from the current QC pass:
 
 - `npm run dev:local:check`: local project-owned Next server on port 3000 is healthy.
 - `npm run qc:pdm-drawing-submission-ui-operation`: 14/14 passed.
+- On a clean database, the report records whether the local `D-0014-MA1` fixture was created or an existing fixture was used. Fixture setup is a prerequisite record only, not evidence for the UI-only rule.
 
 Current evidence:
 

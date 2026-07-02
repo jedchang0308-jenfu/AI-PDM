@@ -1,8 +1,13 @@
 # PDM Drawing Submission UI Operation Scenario Report
 
-Generated: 2026-07-02T13:47:12.766Z
+Generated: 2026-07-02T14:31:51.046Z
 Base URL: http://127.0.0.1:3000
 Result: 14/14 passed, 0 failed
+
+## Fixture Setup
+
+- D-0014-MA1: created - Created minimal local D-0014-MA1 fixture for real UI route checks; setup is not counted as UI evidence.
+- Fixture setup is test data preparation only; pass/fail evidence comes from browser UI operations and screenshots.
 
 | ID | Status | Scenario | Detail |
 |---|---|---|---|

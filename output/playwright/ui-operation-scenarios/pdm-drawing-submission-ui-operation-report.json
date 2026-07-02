@@ -1,6 +1,11 @@
 {
-  "generatedAt": "2026-07-02T13:47:12.766Z",
+  "generatedAt": "2026-07-02T14:31:51.046Z",
   "baseUrl": "http://127.0.0.1:3000",
+  "fixture": {
+    "drawingNumber": "D-0014-MA1",
+    "action": "created",
+    "detail": "Created minimal local D-0014-MA1 fixture for real UI route checks; setup is not counted as UI evidence."
+  },
   "total": 14,
   "pass": 14,
   "fail": 0,

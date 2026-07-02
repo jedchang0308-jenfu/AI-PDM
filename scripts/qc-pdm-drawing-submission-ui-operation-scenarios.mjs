@@ -1,12 +1,15 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
+import Database from "better-sqlite3";
 
 const baseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
 const outDir = path.resolve("output/playwright/ui-operation-scenarios");
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const now = new Date().toISOString();
 const results = [];
+let fixtureInfo = null;
 
 const forbiddenVisibleStrings = [
   "duplicate_active_submission",
@@ -22,6 +25,284 @@ const forbiddenVisibleStrings = [
 ];
 
 fs.mkdirSync(outDir, { recursive: true });
+
+function ensureD0014Fixture() {
+  const dbPath = path.resolve("data/ai-pdm.sqlite");
+  const database = new Database(dbPath);
+  try {
+    const existing = database
+      .prepare("SELECT id FROM drawing_numbers WHERE company_id = ? AND drawing_number = ? LIMIT 1")
+      .get("company-jenfu", "D-0014-MA1");
+    if (existing) {
+      fixtureInfo = {
+        drawingNumber: "D-0014-MA1",
+        action: "existing",
+        detail: "D-0014-MA1 already existed; QC did not modify the existing drawing fixture."
+      };
+      console.log("INFO FIXTURE-001: D-0014-MA1 already exists; using existing local fixture.");
+      return;
+    }
+
+    const repositoryDir = path.resolve("data/repository/qc-fixtures/d0014");
+    fs.mkdirSync(repositoryDir, { recursive: true });
+    const drawingPath = path.join(repositoryDir, "D-0014-MA1.SLDDRW");
+    const modelPath = path.join(repositoryDir, "D-0014-MA1.SLDPRT");
+    fs.writeFileSync(drawingPath, "QC fixture drawing for D-0014-MA1\n");
+    fs.writeFileSync(modelPath, "QC fixture model for D-0014-MA1\n");
+    const drawingBytes = fs.readFileSync(drawingPath);
+    const modelBytes = fs.readFileSync(modelPath);
+    const drawingHash = crypto.createHash("sha256").update(drawingBytes).digest("hex");
+    const modelHash = crypto.createHash("sha256").update(modelBytes).digest("hex");
+
+    const insert = database.transaction(() => {
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO part_roots (
+            id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+            rule_version_id, created_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "root-qc-d0014",
+          "company-jenfu",
+          "0014",
+          "外側版_JF_A",
+          "manufactured",
+          "Release",
+          "Released",
+          "numbering-rule-v1",
+          "user-admin-demo",
+          now,
+          now
+        );
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO part_numbers (
+            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
+            item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "part-qc-d0014-001",
+          "company-jenfu",
+          "root-qc-d0014",
+          "P-0014-001",
+          1,
+          "001",
+          "外側版_JF_A",
+          "manufactured",
+          "Release",
+          "Released",
+          "numbering-rule-v1",
+          "user-admin-demo",
+          now,
+          now
+        );
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO drawing_numbers (
+            id, company_id, part_root_id, drawing_number, purpose_code, purpose_description,
+            sequence_no, is_primary_manufacturing, development_phase, record_status,
+            rule_version_id, created_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "drawing-qc-d0014-ma1",
+          "company-jenfu",
+          "root-qc-d0014",
+          "D-0014-MA1",
+          "MA",
+          "MA 製造圖",
+          1,
+          1,
+          "Release",
+          "Released",
+          "numbering-rule-v1",
+          "user-admin-demo",
+          now,
+          now
+        );
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO drawing_part_links (
+            id, drawing_number_id, part_number_id, link_type, created_by, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "link-qc-d0014-primary",
+          "drawing-qc-d0014-ma1",
+          "part-qc-d0014-001",
+          "primary_manufacturing",
+          "user-admin-demo",
+          now
+        );
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO part_variant_attributes (
+            id, part_number_id, material_code, material_label, surface_treatment,
+            updated_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "variant-qc-d0014",
+          "part-qc-d0014-001",
+          "SUS304",
+          "SUS304",
+          "無",
+          "user-admin-demo",
+          now,
+          now
+        );
+      database
+        .prepare(
+          "INSERT OR IGNORE INTO items (id, company_id, part_number, part_name, current_revision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run("item-qc-d0014-001", "company-jenfu", "P-0014-001", "外側版_JF_A", "0.1", now, now);
+      for (const asset of [
+        {
+          id: "asset-qc-d0014-slddrw",
+          path: drawingPath,
+          fileName: "D-0014-MA1.SLDDRW",
+          ext: "slddrw",
+          category: "drawing_2d",
+          hash: drawingHash,
+          size: drawingBytes.length
+        },
+        {
+          id: "asset-qc-d0014-sldprt",
+          path: modelPath,
+          fileName: "D-0014-MA1.SLDPRT",
+          ext: "sldprt",
+          category: "cad_3d",
+          hash: modelHash,
+          size: modelBytes.length
+        }
+      ]) {
+        database
+          .prepare(
+            `INSERT OR IGNORE INTO file_assets (
+              id, storage_provider, original_path, storage_key, file_name, file_ext, file_size,
+              content_hash, linked_entity_type, linked_entity_id, document_category, display_name,
+              revision, uploaded_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            asset.id,
+            "j_drive",
+            asset.path,
+            asset.path,
+            asset.fileName,
+            asset.ext,
+            asset.size,
+            asset.hash,
+            "drawing_number",
+            "drawing-qc-d0014-ma1",
+            asset.category,
+            asset.fileName,
+            "0.1",
+            "user-admin-demo",
+            now,
+            now
+          );
+      }
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO submissions (
+            id, company_id, item_id, drawing_number, revision, product_line, process_name,
+            material, surface_finish, document_type, change_description, status, submitted_by,
+            approval_required, released_at, source_entity_type, source_entity_id, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "SUB-QC-D0014-RELEASED",
+          "company-jenfu",
+          "item-qc-d0014-001",
+          "D-0014-MA1",
+          "0.1",
+          "QA",
+          "焊接",
+          "SUS304",
+          "無",
+          "Drawing",
+          "QC fixture released submission for UI operation validation.",
+          "Released",
+          "user-engineer-demo",
+          1,
+          now,
+          "drawing_number",
+          "D-0014-MA1",
+          now,
+          now
+        );
+      for (const file of [
+        { id: "file-qc-d0014-slddrw", role: "slddrw", name: "D-0014-MA1.SLDDRW", path: drawingPath, hash: drawingHash, size: drawingBytes.length },
+        { id: "file-qc-d0014-sldprt", role: "sldprt", name: "D-0014-MA1.SLDPRT", path: modelPath, hash: modelHash, size: modelBytes.length }
+      ]) {
+        database
+          .prepare(
+            `INSERT OR IGNORE INTO submission_files (
+              id, submission_id, file_role, original_filename, local_path, gdrive_status,
+              sha256, file_size, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(file.id, "SUB-QC-D0014-RELEASED", file.role, file.name, file.path, "none", file.hash, file.size, now);
+      }
+      const snapshotJson = {
+        source: "qc-pdm-drawing-submission-ui-operation",
+        drawingNumber: "D-0014-MA1",
+        partNumber: "P-0014-001",
+        revision: "0.1"
+      };
+      const snapshotText = JSON.stringify(snapshotJson);
+      database
+        .prepare(
+          `INSERT OR IGNORE INTO submission_snapshots (
+            id, submission_id, company_id, source_root_id, source_root_code,
+            source_drawing_number_id, source_drawing_number, source_part_number_id, source_part_number,
+            snapshot_version, rules_version, snapshot_hash, snapshot_json, captured_by, captured_at, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          "snapshot-qc-d0014",
+          "SUB-QC-D0014-RELEASED",
+          "company-jenfu",
+          "root-qc-d0014",
+          "0014",
+          "drawing-qc-d0014-ma1",
+          "D-0014-MA1",
+          "part-qc-d0014-001",
+          "P-0014-001",
+          "drawing_part_submission_v1",
+          "numbering-rule-v1",
+          crypto.createHash("sha256").update(snapshotText).digest("hex"),
+          snapshotText,
+          "user-admin-demo",
+          now,
+          now
+        );
+      database
+        .prepare("INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .run(
+          crypto.randomUUID(),
+          "SUB-QC-D0014-RELEASED",
+          "user-admin-demo",
+          "QcFixtureCreated",
+          JSON.stringify({ script: "qc-pdm-drawing-submission-ui-operation-scenarios", drawingNumber: "D-0014-MA1" }),
+          now
+        );
+    });
+
+    insert();
+    fixtureInfo = {
+      drawingNumber: "D-0014-MA1",
+      action: "created",
+      detail: "Created minimal local D-0014-MA1 fixture for real UI route checks; setup is not counted as UI evidence."
+    };
+    console.log("INFO FIXTURE-001: Created D-0014-MA1 local QC fixture for real UI route checks.");
+  } finally {
+    database.close();
+  }
+}
 
 function record(id, title, status, detail, evidence = {}) {
   results.push({ id, title, status, detail, evidence });
@@ -283,6 +564,7 @@ async function mockSubmissionDetail(page, id, getSubmission, options = {}) {
 async function run() {
   const fixtureFile = path.join(outDir, "D-QA-RELFAIL-MA1.SLDDRW");
   fs.writeFileSync(fixtureFile, "mock drawing file for UI operation validation");
+  ensureD0014Fixture();
 
   const browser = await chromium.launch({ headless: true });
   try {
@@ -731,6 +1013,7 @@ async function run() {
   const summary = {
     generatedAt: now,
     baseUrl,
+    fixture: fixtureInfo,
     total: results.length,
     pass: results.filter((item) => item.status === "pass").length,
     fail: results.filter((item) => item.status === "fail").length,
@@ -754,6 +1037,13 @@ function renderMarkdown(summary) {
     `Base URL: ${summary.baseUrl}`,
     `Result: ${summary.pass}/${summary.total} passed, ${summary.fail} failed`,
     "",
+    "## Fixture Setup",
+    "",
+    summary.fixture
+      ? `- ${summary.fixture.drawingNumber}: ${summary.fixture.action} - ${summary.fixture.detail}`
+      : "- No local fixture setup recorded.",
+    "- Fixture setup is test data preparation only; pass/fail evidence comes from browser UI operations and screenshots.",
+    "",
     "| ID | Status | Scenario | Detail |",
     "|---|---|---|---|"
   ];
@@ -768,6 +1058,7 @@ run().catch((error) => {
   const summary = {
     generatedAt: now,
     baseUrl,
+    fixture: fixtureInfo,
     total: results.length,
     pass: results.filter((item) => item.status === "pass").length,
     fail: results.filter((item) => item.status === "fail").length,
