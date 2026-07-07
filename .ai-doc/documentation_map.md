@@ -49,6 +49,7 @@ Not executable without explicit approval:
 
 - `DEV-PDM-NEXT-STEP-UX-001` Phase 2+: regression scanner/checklist hardening and production release are not authorized. DB/API/permission/state-machine changes, production deploy, direct data repair, historical cleanup, admin/debug raw payload full localization and full platform navigation redesign are excluded unless separately approved.
 - `DEV-PDM-STATUS-UX-002`: Prepared / RD Implementation Ready / Not Authorized. Captures APP feedback that status help still mixes workflow, task, import, settings, job, restore and DVT readiness semantics after the central Chinese status display work. Phase 1 requires context-specific status help for tasks, imports, settings, reports, approvals, DVT, restore lists and mixed master-data columns, plus focused QA/QC gates. Product implementation, production deploy, DB/API/status-machine changes, historical repair and audit raw-payload migration are not authorized.
+- `DEV-PDM-NUMBERING-002`: Prepared / RD Implementation Ready / Not Authorized. Captures compact Numbering Core V2 for new records: `00001`, `00001-P01`, `00001-M01`, `00001-R01`; main root is a reusable design-object root, not a project/order/equipment root; v1 `MA/OT` and `D-/P-` rows remain readable through semantic manufacturing/reference compatibility. Product implementation, schema migration, production migration, direct data rewrite, project/order/equipment numbering and extra visible category codes are not authorized.
 - `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`: Prepared / RD Implementation Ready for Phase 1 documentation only. It captures the D-0014-MA1 mismatch where submission release state is `Released` while drawing/part/root master statuses remain `Draft`. Phase 1 requires release-time master lifecycle sync in the same DB transaction as submission `Released`, audit and visible inconsistency guard. Phase 2 historical scanner/Admin repair and Phase 3 production cutover are documented but not authorized. No historical D-0014 repair, production migration, direct DB mutation or data deletion is authorized.
 - `DEV-SUPABASE-DB-001-DATA-PARITY`: prepared but blocked; requires parity tier, target, data scope, cleanup owner, and credential boundary.
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P`: Phase 2+ RD Contract Ready only and rechecked under the latest `dev-pm` All-Phase Gate. Phase 2 requires Phase 1 implemented/verified and explicit authorization; Phase 3 requires Phase 2 implemented/verified and explicit authorization; Phase 4 requires production release-gate approval. Continuation commands must not start Phase 2+ unless `.ai-doc/dev_task.md` is explicitly updated.
@@ -58,6 +59,39 @@ Not executable without explicit approval:
 - Any production deployment, Supabase production cutover, schema migration, direct DB mutation, data deletion, provider pointer switch, or cost-incurring external action.
 
 ## 3. Active Package Read Order
+
+### DEV-PDM-NUMBERING-002
+
+Status: Prepared / RD Implementation Ready / Not Authorized. Phase 0 development documents are complete; Phase 1 local product implementation requires explicit authorization.
+
+Read:
+
+1. `.ai-doc/dev_task.md`
+2. `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
+3. `.ai-doc/decisions/ADR-PDM-NUMBERING-002-compact-root-drawing-part-identity.md`
+4. `.ai-doc/qa/qa-pdm-numbering-v2-compact-identity-validation-plan-2026-07-07.md`
+5. Existing v1 authority: `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
+6. Related ownership/submission boundary: `.ai-doc/decisions/ADR-PDM-DRAWING-PART-WORKBENCH-001-data-ownership-and-submission-snapshot.md`
+7. Likely implementation surfaces after authorization: `db/schema.sql`, `db/postgres/001_initial_schema.sql`, `src/lib/repositories/numbering-async-repository.ts`, `src/lib/repositories/numbering-repository.ts`, `src/app/api/numbering/records/route.ts`, `src/app/numbering/request/page.tsx`, `src/app/numbering/search/page.tsx`, `src/app/numbering/drawings/page.tsx`, `src/app/numbering/impact/page.tsx`, import/export scripts and numbering QC scripts.
+
+Human decisions:
+
+- New compact identities are `00001`, `00001-P01`, `00001-M01` and `00001-R01`.
+- `00001` is a reusable PDM design-object root, not a project/order/equipment root.
+- Visible drawing code only distinguishes manufacturing drawing from reference drawing.
+- Reference subtype belongs in metadata, not number-code expansion.
+
+Target behavior:
+
+- New records use v2 compact format.
+- v1 rows remain readable/searchable and gate-compatible.
+- Manufacturing/reference logic is semantic: `MA/M` are manufacturing, `OT/R` are reference.
+- `R/OT` drawings cannot become manufacturing basis.
+
+Authorization boundary:
+
+- No product implementation is authorized by the documentation request.
+- Stop if work needs production migration, existing-data rewrite, data deletion, project/order/equipment numbering or more visible category codes.
 
 ### DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001
 

@@ -29,6 +29,10 @@ New completed local native preview package:
 
 - `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001` Phase 1 local vertical slice is implemented / verification passed locally after the user's 2026-07-06 authorization, then amended with real Windows Shell worker evidence and a SolidWorks Document Manager SLDDRW PNG worker path. PDM now has additive `preview_jobs` and `file_derivatives` metadata, token-gated worker claim/complete routes, attachment preview enqueue/list APIs, derivative streaming under the source attachment permission path, a fake local PNG worker for deterministic local QC, a Windows `IShellItemImageFactory` worker for model thumbnails, a Document Manager sheet-preview exporter/worker for SLDDRW, blank/low-information PNG quality gating, no-store attachment list responses, and derivative-aware 3D/2D preview cards. Browser behavior is now: ready derivative tied to current source hash first, then PDF/image source, then Google Drive, then actionable placeholder. Verification passed with `tsc`, lint, focused native-preview QC, redaction QC, master-attachments QC, local dev health, API worker smoke on `D-0007-MA1` showing `.SLDPRT` succeeds with a real `windows_solidworks_preview_worker` derivative, and browser smoke showing `.SLDDRW` fails cleanly with a compact worker-key recovery message instead of remaining queued. Full `.SLDDRW` success still requires a worker-readable real Document Manager key via Supabase Vault live secret or worker environment variable; full `.SLDASM` readiness still requires equivalent worker evidence. Phase 2 `.SLDDRW -> PDF`, Phase 3 interactive 3D and Phase 4 production rollout remain not authorized.
 
+New prepared development documents:
+
+- `DEV-PDM-NUMBERING-002` is documented as `RD Implementation Ready / Not Authorized` for a compact Numbering Core V2. It amends the v1 `0001 / P-0001-001 / D-0001-MA1 / D-0001-OT1` scheme for new records to `00001 / 00001-P01 / 00001-M01 / 00001-R01`, keeps `00001` as a reusable design-object root rather than a project/order/equipment root, and requires v1/v2 compatibility through semantic manufacturing/reference helpers. No schema migration, product implementation, production migration, direct data rewrite or v1-to-v2 conversion is authorized by the documentation request.
+
 Current completed local package state:
 
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` is implemented / verification passed locally for Phase 1. It is based on the user's 2026-07-02 guided decisions and supersedes the broad `duplicate_active_submission` umbrella for same-revision conflicts with status-specific rules: `same_revision_in_progress`, `release_incomplete_conflict`, `released_revision_exists`, and `obsolete_revision_locked`. Local worktree changes cover submission schema/types/repositories, same-revision classification service, release workflow wrapper, approve route, Pending cancel route, canonical workbench page/API, retry-release API, return-for-correction API, module CTAs, submission-detail recovery UI, resolved ReleaseFailed dashboard/todo de-noising and async transaction boundaries used by return-for-correction. Verified gates include focused recovery QC, disposable mutation lifecycle QC, DB provider transaction QC, `tsc`, lint, build, D-0014 workbench API smoke, D-0014 release-incomplete browser smoke, and D-0014 submission-detail browser smoke. Phase 2+ is preserved as RD handoff contracts: master-data completion/writeback, drawing attachment upload, collaboration, dashboard/todo de-noising, and production cutover/historical repair gates. Production deploy, production migration, direct DB cleanup, historical repair and data deletion remain unapproved.
@@ -97,6 +101,7 @@ Verification evidence:
 | Implemented / Verification passed | `PA-LOCAL-DEV-3000-001` | CAPA / PA tooling control | None | Recurring broken local 3000 prevention is implemented: managed launcher, `dev:local:check`, stale project recovery via `dev:local:restart`, multi-route health checks, port-owner PID/status JSON/logs, and `.next` clean/build collision guard. | Use `npm run dev:local` for normal startup, `npm run dev:local:check` for diagnosis, and `npm run dev:local:restart` only when the project-owned 3000 process is stale/unhealthy. Build/clean while 3000 is running requires intentional bypass and should not be used as the normal workflow. | `package.json`; `scripts/start-localhost-3000.ps1`; `scripts/clean-next.mjs`; `scripts/qc-local-dev-entrypoint.mjs`; `tmp/local-dev/ai-pdm-3000.status.json`; `npm run qc:local-dev-entrypoint`; `npm run dev:local:check`. |
 | Implemented / Verification passed | `DEV-PDM-STATUS-UX-001` | Delivery point | `DEV-PDM-LIFECYCLE-ACTIONS-001`; `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001` | Phase 1 local RD is implemented: central UI status dictionary, Chinese-only normal UI status display, status filter/badge/error mapping, development phase display mapping and unified `?` help popovers on user-visible status table columns. Focused scanner baseline and browser UI evidence passed. | Monitor APP validation feedback. Remaining Phase 2 hardening, production deploy, DB enum/schema rename, production migration, audit payload migration and historical data repair require explicit authorization. | `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`; `src/lib/status-display.ts`; `src/components/status-help-popover.tsx`; `scripts/qc-pdm-status-ui-vocabulary.mjs`; `npm run qc:pdm-status-ui-vocabulary` 44/44; `npx tsc --noEmit --pretty false`; `npm run lint`; `npm run build`; `output/playwright/status-ui/settings-status-help-open.png`; `output/playwright/status-ui/drawings-phase-label-fixed.png`; `npm run dev:local:check`. |
 | Prepared / RD Implementation Ready / Not Authorized | `DEV-PDM-STATUS-UX-002` | Development objective / UX quality gate | `DEV-PDM-STATUS-UX-001`; `DEV-PDM-NEXT-STEP-UX-001` | Development documents are ready for status context disambiguation: task/import/settings/report/DVT/restore/mixed-column status help must become task-specific rather than generic workflow/masterRecord help. No product implementation is authorized by the documentation request. | Requires explicit user authorization before RD implementation. Stop if DB/API/schema migration, production deploy, historical repair, raw audit migration or workflow semantic changes are needed. | `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`; `.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`; required evidence after authorization: `tsc`, lint, focused status context QC, Playwright screenshots for affected routes. |
+| Prepared / RD Implementation Ready / Not Authorized | `DEV-PDM-NUMBERING-002` | Delivery point / numbering core | `DEV-PDM-NUMBERING-001`; `SPEC-PDM-NUMBERING-001`; `DEV-PDM-DRAWING-PART-WORKBENCH-001` | Development documents are ready for compact Numbering Core V2: new records target `00001`, `00001-P01`, `00001-M01` and `00001-R01`; v1 `MA/OT` and `D-/P-` records remain readable; manufacturing/reference logic must use semantic helpers; main root remains a reusable design-object root, not a project/order/equipment identity. No product implementation is authorized by the documentation request. | Requires explicit user/RD authorization before Phase 1 implementation. Stop if implementation would invalidate v1 rows, require production migration, direct data rewrite, project/order/equipment numbering, more visible category codes, or a root exceeding 99 per category. | `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`; `.ai-doc/decisions/ADR-PDM-NUMBERING-002-compact-root-drawing-part-identity.md`; `.ai-doc/qa/qa-pdm-numbering-v2-compact-identity-validation-plan-2026-07-07.md`; required evidence after authorization: `tsc`, lint, `qc:pdm-numbering-v2-compact-identity`, existing numbering core/backend/request/search/impact/DVT regressions. |
 | Implemented / Verification passed | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | Delivery point | `DEV-PDM-DRAWING-PART-WORKBENCH-001`; amends `DEV-PDM-SUBMISSION-CONFLICT-001` | Phase 1 implementation surfaces are present and local verification passed: focused recovery QC, disposable mutation lifecycle QC, transaction provider QC, `tsc`, lint, build, D-0014 workbench API smoke, D-0014 release-incomplete browser smoke and D-0014 submission-detail browser smoke. A schema bootstrap ordering bug that caused old SQLite files to fail with `no such column: resolved_by_submission_id` was fixed by keeping new release-recovery indexes in runtime migration after lifecycle migration. The mutation gate used disposable records and did not touch existing D-0014/user workflow records. | Monitor APP validation feedback. Phase 2 requires explicit user/PM authorization before RD. Production deploy, production migration, direct DB cleanup, historical data repair and data deletion remain unapproved. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md`; `.ai-doc/qa/qa-pdm-drawing-submission-workbench-recovery-validation-plan-2026-07-02.md`; `scripts/qc-pdm-drawing-submission-workbench-recovery.mjs`; `scripts/qc-pdm-drawing-submission-workbench-mutation.mjs`; `output/playwright/pdm-drawing-submission-workbench-d0014-release-incomplete.png`; `output/playwright/pdm-submission-detail-d0014-release-failed-recovery.png`. |
 | Prepared / RD Contract Ready | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P` | Delivery point phase handoff | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | Phase 2+ RD handoff contracts complete and rechecked under the latest `dev-pm` All-Phase Gate: master-data completion/writeback through owner APIs, drawing attachment upload before snapshot, collaboration toggle/permissions, operational edit history, dashboard/todo de-noising, and production cutover/historical repair gate. Not executable as RD yet. | Phase 2 requires explicit user/PM authorization. Phase 3 requires Phase 2 implemented/verified plus explicit authorization. Phase 4 requires release-gate approval. Continuation commands must not start Phase 2+ until this row is explicitly updated. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md` Sections 4.1-4.5. |
 | Implemented / Verification passed | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-003` | Delivery point | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | UI-level release-incomplete self-recovery is implemented locally: human-readable diagnosis, attachment organizer, released-filename preflight, explicit selected-attachment correction submission, locked formal-record state, role-aware CTA, submission-detail recovery link, related ReleaseFailed resolution behavior, and UI-only operation validation covering QC-owned route identity (`D-QC-SUBMIT-MA1`), generic upload retirement, detail navigation, recovery, permission, blocker and RWD scenarios. D-0014 remains historical problem context only, not a required executable fixture. | Monitor APP validation feedback. Production deploy, production migration, direct DB cleanup, historical repair, data deletion, released-file overwrite, collaboration/dashboard later phases and Google Drive production movement remain unapproved. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-003-ui-self-recovery.md`; `.ai-doc/qa/qa-pdm-drawing-submission-ui-operation-validation-plan-2026-07-02.md`; `src/app/upload/page.tsx`; `src/lib/drawing-submission-workbench.ts`; `src/app/api/submissions/[id]/return-for-correction/route.ts`; `src/lib/repositories/submission-status-async-repository.ts`; `src/app/submissions/[id]/page.tsx`; `scripts/qc-pdm-drawing-submission-ui-self-recovery.mjs`; `scripts/qc-pdm-drawing-submission-ui-operation-scenarios.mjs`; `output/playwright/ui-operation-scenarios/pdm-drawing-submission-ui-operation-report.md`; screenshots `output/playwright/ui-operation-scenarios/REAL-001-qc-submit-drawing-entry.png`, `output/playwright/mock-release-incomplete-ui-self-recovery.png`, `output/playwright/ui-operation-scenarios/MOCK-RELFAIL-001-correction-flow.png`. |
@@ -117,6 +122,99 @@ Verification evidence:
 | Prepared / Blocked | `DEV-SUPABASE-DB-001-DATA-PARITY` | QA / PM evidence | `DEV-SUPABASE-DB-001` | Data parity policy prepared; execution not approved. | PM approves parity tier, source snapshot, table scope, target, cleanup owner, and credential boundary. | `.ai-doc/qa/qa-supabase-data-parity-policy-2026-06-16.md`; `qc:supabase-data-parity-policy`. |
 | Deferred | `DEV-SUPABASE-DB-001-PROD-GATE` | PM decision | `DEV-SUPABASE-DB-001` | Staging GATE-B passed; production/cutover remains unapproved and deferred. | Production target, cost confirmation, advisor triage, production migration plan, rollback owner, and release gate approval. | Not executable now. |
 | Backlog / Parked | `DEV-STORAGE-COST-001` | Delivery / development objective | None | Evidence captured / product rollout backlog; not part of the current DB runtime gate. | Real storage inventory, target, cost, retention policy, and production timing must be approved. | `.ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md`. |
+
+### DEV-PDM-NUMBERING-002 Compact Numbering Core V2
+
+Status: Prepared / RD Implementation Ready / Not Authorized
+Priority: P0 - identity scheme affects root, drawing, part, release gate and future ERP/PLM compatibility
+Type: Delivery point / numbering core
+Parent: `DEV-PDM-NUMBERING-001`; `DEV-PDM-DRAWING-PART-WORKBENCH-001`; current PDM master-data direction
+Authorized phase: Phase 0 development documents are complete. Phase 1 product implementation is not authorized by the documentation request.
+
+Human decisions:
+
+- Main root is a reusable PDM design-object root, not a project, order, equipment serial number or whole-machine project.
+- PDM first manages only main root, drawing number and part number.
+- New target identities are `00001`, `00001-P01`, `00001-M01` and `00001-R01`.
+- Visible drawing number signal should only distinguish manufacturing-authorized drawing from reference-only drawing.
+- Additional subtype such as installation, concept, inspection, customer review or fixture belongs in metadata, not visible number codes.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
+- `.ai-doc/decisions/ADR-PDM-NUMBERING-002-compact-root-drawing-part-identity.md`
+- `.ai-doc/qa/qa-pdm-numbering-v2-compact-identity-validation-plan-2026-07-07.md`
+- Existing amended authority: `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
+
+Scope:
+
+- Add `numbering-rule-v2` and generate five-digit root codes.
+- Create new part numbers as `{root}-P{seq2}`.
+- Create new drawing numbers as `{root}-M{seq2}` or `{root}-R{seq2}`.
+- Keep v1 historical data readable/searchable.
+- Replace hard-coded `MA/OT` gate logic with semantic manufacturing/reference helpers.
+- Update API, UI labels, placeholders, imports, exports, regex validators and focused QC.
+
+Out of scope:
+
+- Production deploy, production migration, Supabase cutover or provider pointer changes.
+- Direct rewrite of existing v1 data.
+- Project/order/equipment numbering.
+- BOM/ERP/equipment history linkage.
+- More visible number category codes.
+- Retiring v1 read/search paths.
+
+Phase roadmap:
+
+| Phase | State | Purpose | Authorization boundary |
+|---|---|---|---|
+| Phase 0 - Development documents | Complete | SPEC, ADR, QA, dev_task and documentation_map | Authorized by user request |
+| Phase 1 - Local v2 creation and compatibility | RD Implementation Ready / Not Authorized | New records use compact v2; v1 remains readable | Requires explicit RD authorization |
+| Phase 2 - Migration dry-run | RD Contract Ready / Not Authorized | Map v1 to v2 and identify collision/capacity blockers | Requires Phase 1 evidence and explicit authorization |
+| Phase 3 - Downstream compatibility | RD Contract Ready / Not Authorized | Submission, revision, baseline, preview and report semantics support v1/v2 | Requires Phase 1-2 evidence and explicit authorization |
+| Phase 4 - Production cutover | Release Gate Contract Ready / Not Authorized | Production migration/deploy/smoke/rollback | Requires deployment-release gate |
+
+Acceptance for Phase 1 after authorization:
+
+- Normal create can produce `00001-P01`, `00001-M01` and `00001-R01`.
+- Normal create no longer emits new `D-...`, `P-...`, `MA` or `OT` values.
+- v1 rows remain readable/searchable.
+- Missing manufacturing drawing gates accept `MA/M` as manufacturing and reject `OT/R` as reference.
+- UI labels use `製造圖` and `參考圖`, not `OT 其他圖` for new creation.
+
+Evidence required after authorization:
+
+- `npx.cmd tsc --noEmit --pretty false`
+- `npm.cmd run lint -- --quiet`
+- `npm.cmd run qc:pdm-numbering-v2-compact-identity`
+- `npm.cmd run qc:pdm-numbering-core`
+- `npm.cmd run qc:pdm-numbering-backend-rules`
+- `npm.cmd run qc:pdm-numbering-request-ui`
+- `npm.cmd run qc:pdm-numbering-search-ui`
+- `npm.cmd run qc:pdm-numbering-impact-ui`
+- `npm.cmd run qc:pdm-numbering-dvt-ui`
+
+Stop conditions:
+
+- Any implementation would invalidate existing v1 rows.
+- A root needs more than 99 part, manufacturing drawing or reference drawing sequence values.
+- Implementation needs production migration, direct data rewrite, data deletion or project/order/equipment identity design.
+- Reference drawings are requested to become manufacturing basis without becoming an `M` drawing.
+
+Deferred Scope Audit:
+
+| Scope | Classification | Reason |
+|---|---|---|
+| Existing-data v1 to v2 rewrite | Same Spec Phase 2 / Not Authorized | Dry-run and approval required |
+| Downstream compatibility | Same Spec Phase 3 / Not Authorized | Captured but not Phase 1 by default |
+| Production cutover | Same Spec Phase 4 / Not Authorized | Requires deployment-release gate |
+| Project/order/equipment numbering | Blocked Human Re-entry | Changes product scope and identity model |
+| More visible category codes | Blocked Human Re-entry | User currently chose only `P/M/R` |
+| Retiring v1 read paths | No Tracking now | Rejected for safety; historical records stay readable |
+
+Next condition:
+
+- User explicitly authorizes `DEV-PDM-NUMBERING-002` Phase 1 local RD implementation, or keeps it parked as documentation-ready.
 
 ### DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001 Windows SolidWorks 原檔預覽衍生檔
 
