@@ -1,0 +1,2007 @@
+{
+  "generatedAt": "2026-07-04T05:50:16.714Z",
+  "runId": "2026-07-04T05-48-36-075Z",
+  "gitBranch": "codex/pdm-lifecycle-unified-history",
+  "baseUrl": "http://127.0.0.1:49881",
+  "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj",
+  "dataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data",
+  "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository",
+  "cleanupStatus": "removed",
+  "total": 27,
+  "pass": 26,
+  "fail": 1,
+  "globalTotal": 5,
+  "globalPass": 5,
+  "results": [
+    {
+      "id": "UI26-001",
+      "title": "四種角色可從登入畫面進入系統",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:37.688Z",
+      "endedAt": "2026-07-04T05:48:47.451Z",
+      "evidence": {
+        "roleEmails": {
+          "engineer": "ui26.owner@example.com",
+          "peer": "ui26.peer@example.com",
+          "manager": "ui26.manager@example.com",
+          "admin": "ui26.admin@example.com"
+        },
+        "screenshots": [
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-001-engineer.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-001-peer.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-001-manager.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-001-admin.png"
+        ]
+      }
+    },
+    {
+      "id": "UI26-002",
+      "title": "從圖號模組送審入口開啟同一圖號工作台",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:47.452Z",
+      "endedAt": "2026-07-04T05:48:50.420Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "002",
+          "rootCode": "ROOT-QAUI002",
+          "rootId": "root-QAUI002",
+          "partId": "part-QAUI002",
+          "partNumber": "P-QAUI002-001",
+          "partName": "UI26 002 測試件",
+          "drawingId": "drawing-QAUI002",
+          "drawingNumber": "D-QAUI002-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI002-0",
+              "filename": "D-QAUI002-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI002-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI002-MA1.SLDDRW",
+                "sha256": "7674e0ef3b0a423d7b856153aa168c375689599e4b6e392d8d4f475f422d7df2",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI002-1",
+              "filename": "D-QAUI002-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI002-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI002-MA1.SLDPRT",
+                "sha256": "d9d84aec4eac2d0d964cd5cabbd5579bcb7811efae59977fd9053096981a737c",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-002-D-QAUI002-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-003",
+      "title": "從圖料模組送審入口開啟同一主根與圖號工作台",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:50.420Z",
+      "endedAt": "2026-07-04T05:48:53.319Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "003",
+          "rootCode": "ROOT-QAUI003",
+          "rootId": "root-QAUI003",
+          "partId": "part-QAUI003",
+          "partNumber": "P-QAUI003-001",
+          "partName": "UI26 003 測試件",
+          "drawingId": "drawing-QAUI003",
+          "drawingNumber": "D-QAUI003-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI003-0",
+              "filename": "D-QAUI003-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI003-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI003-MA1.SLDDRW",
+                "sha256": "2d96807ff8cd56621b6a20cbd8e8c66a1f2e388ec32503c30d1bc66a365819e9",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI003-1",
+              "filename": "D-QAUI003-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI003-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI003-MA1.SLDPRT",
+                "sha256": "7c76cd2f67cee8fc7c71e430bf465c1aeebf5fc42536b48f110cc7f961569821",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-003-D-QAUI003-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-004",
+      "title": "圖料入口沒有明確主圖時不會開空白上傳頁",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:53.319Z",
+      "endedAt": "2026-07-04T05:48:56.039Z",
+      "evidence": {
+        "fixture": {
+          "rootCode": "ROOT-QAUI004",
+          "partNumber": "P-QAUI004-001",
+          "partName": "UI26 004 無主圖測試",
+          "rootId": "root-QAUI004",
+          "partId": "part-QAUI004"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-004-ROOT-QAUI004.png"
+      }
+    },
+    {
+      "id": "UI26-005",
+      "title": "舊 upload drawing query 仍導向圖面送審工作台",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:56.039Z",
+      "endedAt": "2026-07-04T05:48:58.699Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "005",
+          "rootCode": "ROOT-QAUI005",
+          "rootId": "root-QAUI005",
+          "partId": "part-QAUI005",
+          "partNumber": "P-QAUI005-001",
+          "partName": "UI26 005 測試件",
+          "drawingId": "drawing-QAUI005",
+          "drawingNumber": "D-QAUI005-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI005-0",
+              "filename": "D-QAUI005-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI005-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI005-MA1.SLDDRW",
+                "sha256": "6546b4d52ee540b33a93c1307a46a6e9d6c2487e9e4a57aa0a023e805966496c",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI005-1",
+              "filename": "D-QAUI005-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI005-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI005-MA1.SLDPRT",
+                "sha256": "7bada90d9f2cd3a12d7034fcb906e853ee890bc791a7575cea773e9c9fd51922",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-005-D-QAUI005-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-006",
+      "title": "泛用 upload 頁面已退役且不能建立失控送審",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:48:58.699Z",
+      "endedAt": "2026-07-04T05:49:01.293Z",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-006-retired-upload.png"
+      }
+    },
+    {
+      "id": "UI26-007",
+      "title": "工作台主資料與附件數量一致",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:01.293Z",
+      "endedAt": "2026-07-04T05:49:03.988Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "007",
+          "rootCode": "ROOT-QAUI007",
+          "rootId": "root-QAUI007",
+          "partId": "part-QAUI007",
+          "partNumber": "P-QAUI007-001",
+          "partName": "UI26 007 測試件",
+          "drawingId": "drawing-QAUI007",
+          "drawingNumber": "D-QAUI007-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI007-0",
+              "filename": "D-QAUI007-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI007-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI007-MA1.SLDDRW",
+                "sha256": "91544c1b12e6d4bd9324568a9a9077b282825ae6c94ca44b907baaf0b38519a9",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI007-1",
+              "filename": "D-QAUI007-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI007-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI007-MA1.SLDPRT",
+                "sha256": "0d91a774f16c568ccee00adec3541da7b5c95959d60d3862720e7590c46d3346",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-007-D-QAUI007-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-008",
+      "title": "資料完整時可從 UI 建立 Pending 送審",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:03.988Z",
+      "endedAt": "2026-07-04T05:49:06.867Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "008",
+          "rootCode": "ROOT-QAUI008",
+          "rootId": "root-QAUI008",
+          "partId": "part-QAUI008",
+          "partNumber": "P-QAUI008-001",
+          "partName": "UI26 008 測試件",
+          "drawingId": "drawing-QAUI008",
+          "drawingNumber": "D-QAUI008-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI008-0",
+              "filename": "D-QAUI008-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI008-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI008-MA1.SLDDRW",
+                "sha256": "2bf8e1a33e57d9c4874241b1801a07413ee7b5dbb83a9d8163628a79cbfb13ad",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI008-1",
+              "filename": "D-QAUI008-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI008-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI008-MA1.SLDPRT",
+                "sha256": "bcca1923af46b1991083dda8ec50d28aced70de0cfcd1c81fb4b675b21d842ee",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "created": {
+          "id": "SUB-20260704-8AC79364",
+          "status": "Pending",
+          "revision": "0.1",
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "cancelled_by": null
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-008-D-QAUI008-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-009",
+      "title": "送審備註缺漏或太短時被中文阻擋",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:06.867Z",
+      "endedAt": "2026-07-04T05:49:09.615Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "009",
+          "rootCode": "ROOT-QAUI009",
+          "rootId": "root-QAUI009",
+          "partId": "part-QAUI009",
+          "partNumber": "P-QAUI009-001",
+          "partName": "UI26 009 測試件",
+          "drawingId": "drawing-QAUI009",
+          "drawingNumber": "D-QAUI009-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI009-0",
+              "filename": "D-QAUI009-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI009-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI009-MA1.SLDDRW",
+                "sha256": "5b8d6e04d97bee110b277b68eeab6c651e3b16ff31a88fc620fd96bf7d96e784",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI009-1",
+              "filename": "D-QAUI009-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI009-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI009-MA1.SLDPRT",
+                "sha256": "0021176d90e148657bc8f1961acc99b9db5052f6b85ac1ad8187647b07192098",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "noteLength": 100,
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-009-D-QAUI009-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-010",
+      "title": "未選附件時不能送出審核",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:09.615Z",
+      "endedAt": "2026-07-04T05:49:12.347Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "010",
+          "rootCode": "ROOT-QAUI010",
+          "rootId": "root-QAUI010",
+          "partId": "part-QAUI010",
+          "partNumber": "P-QAUI010-001",
+          "partName": "UI26 010 測試件",
+          "drawingId": "drawing-QAUI010",
+          "drawingNumber": "D-QAUI010-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI010-0",
+              "filename": "D-QAUI010-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI010-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI010-MA1.SLDDRW",
+                "sha256": "52bfbf8e375ce19d5761f865ae6d28dbf044878262468008718ddaaead36ef4b",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI010-1",
+              "filename": "D-QAUI010-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI010-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI010-MA1.SLDPRT",
+                "sha256": "2edfb6045c5827dfb969be10a778abca1ee08a07b899a54051501a349dd11d2a",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-010-D-QAUI010-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-011",
+      "title": "主資料缺漏與同版次阻擋分層呈現",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:12.347Z",
+      "endedAt": "2026-07-04T05:49:15.020Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "011",
+          "rootCode": "ROOT-QAUI011",
+          "rootId": "root-QAUI011",
+          "partId": "part-QAUI011",
+          "partNumber": "P-QAUI011-001",
+          "partName": "UI26 011 測試件",
+          "drawingId": "drawing-QAUI011",
+          "drawingNumber": "D-QAUI011-MA1",
+          "revision": "0.1",
+          "material": "",
+          "surfaceFinish": "",
+          "attachments": [
+            {
+              "id": "asset-QAUI011-0",
+              "filename": "D-QAUI011-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI011-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI011-MA1.SLDDRW",
+                "sha256": "64ef279fdb27ea5cd7e0e25c6db1d5f8c164557b46863e136c527bf9fb5b7228",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI011-1",
+              "filename": "D-QAUI011-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI011-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI011-MA1.SLDPRT",
+                "sha256": "84674aa82aa17be1d1b26e169d14de030b3f0b778db43ec2fe47d57c22040848",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-011-D-QAUI011-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-012",
+      "title": "Pending 同版次阻擋並導到同一送審明細",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:15.020Z",
+      "endedAt": "2026-07-04T05:49:17.725Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "012",
+          "rootCode": "ROOT-QAUI012",
+          "rootId": "root-QAUI012",
+          "partId": "part-QAUI012",
+          "partNumber": "P-QAUI012-001",
+          "partName": "UI26 012 測試件",
+          "drawingId": "drawing-QAUI012",
+          "drawingNumber": "D-QAUI012-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI012-0",
+              "filename": "D-QAUI012-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI012-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI012-MA1.SLDDRW",
+                "sha256": "9c13272312807aec95b39874069ba539e9b4e0f3f1ab28be9fa8dd3519dc3615",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI012-1",
+              "filename": "D-QAUI012-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI012-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI012-MA1.SLDPRT",
+                "sha256": "7463c0515b6319026a29714c932b67359c205c3009176c90adbd56c8757fb5e1",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-012-PENDING",
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-012-SUB-UI26-012-PENDING.png"
+      }
+    },
+    {
+      "id": "UI26-012B",
+      "title": "送審建立者可從工作台取消 Pending 同版次阻擋",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:17.725Z",
+      "endedAt": "2026-07-04T05:49:20.454Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "012B",
+          "rootCode": "ROOT-QAUI012B",
+          "rootId": "root-QAUI012B",
+          "partId": "part-QAUI012B",
+          "partNumber": "P-QAUI012B-001",
+          "partName": "UI26 012B 測試件",
+          "drawingId": "drawing-QAUI012B",
+          "drawingNumber": "D-QAUI012B-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI012B-0",
+              "filename": "D-QAUI012B-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI012B-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI012B-MA1.SLDDRW",
+                "sha256": "10ae8c0b732f840d2e2ae29a296275eb0afbfba43ad950b577afc9c767c24f40",
+                "size": 39
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI012B-1",
+              "filename": "D-QAUI012B-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI012B-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI012B-MA1.SLDPRT",
+                "sha256": "bc0424094fe1ce8b6e96c179505668b96e2e4821a8f6306cb7dd41d4ebf63dbd",
+                "size": 39
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-012B-WORKBENCH-CANCEL",
+        "row": {
+          "id": "SUB-UI26-012B-WORKBENCH-CANCEL",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-012b-workbench-cancel",
+          "drawing_number": "D-QAUI012B-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "Cancelled",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": null,
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": null,
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": "2026-07-04T05:49:20.321Z",
+          "cancelled_by": "user-ui26-owner",
+          "cancel_reason": "由圖面送審工作台取消待審核送審。",
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI012B",
+          "created_at": "2026-07-04T05:49:17.759Z",
+          "updated_at": "2026-07-04T05:49:20.321Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-012B-D-QAUI012B-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-013",
+      "title": "Releasing 同版次阻擋不能建立重複流程",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:20.454Z",
+      "endedAt": "2026-07-04T05:49:23.219Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "013",
+          "rootCode": "ROOT-QAUI013",
+          "rootId": "root-QAUI013",
+          "partId": "part-QAUI013",
+          "partNumber": "P-QAUI013-001",
+          "partName": "UI26 013 測試件",
+          "drawingId": "drawing-QAUI013",
+          "drawingNumber": "D-QAUI013-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI013-0",
+              "filename": "D-QAUI013-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI013-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI013-MA1.SLDDRW",
+                "sha256": "c7d63b06eb170153d91e8b8c2599b3df10f8aa4910b442e5e2f9a8dd5bc211ad",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI013-1",
+              "filename": "D-QAUI013-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI013-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI013-MA1.SLDPRT",
+                "sha256": "f036f66a9faf498cc0eac9c11296d9afff931140561ff5bdd9bd361c0fdac31b",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-013-D-QAUI013-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-014",
+      "title": "同版次已發布時鎖定並要求使用新版次",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:23.219Z",
+      "endedAt": "2026-07-04T05:49:25.851Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "014",
+          "rootCode": "ROOT-QAUI014",
+          "rootId": "root-QAUI014",
+          "partId": "part-QAUI014",
+          "partNumber": "P-QAUI014-001",
+          "partName": "UI26 014 測試件",
+          "drawingId": "drawing-QAUI014",
+          "drawingNumber": "D-QAUI014-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI014-0",
+              "filename": "D-QAUI014-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI014-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI014-MA1.SLDDRW",
+                "sha256": "a5d33e5d92e58ec3101117567292e69358b35df3d994bc10d1968571dd8e59f3",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI014-1",
+              "filename": "D-QAUI014-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI014-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI014-MA1.SLDPRT",
+                "sha256": "e878d2997a600e2ad715bad2d46fb33da4d5e2fce5385a08e6d4590526fd87ce",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-014-D-QAUI014-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-015",
+      "title": "已駁回或已取消紀錄不阻擋新送審",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:25.851Z",
+      "endedAt": "2026-07-04T05:49:28.638Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "015",
+          "rootCode": "ROOT-QAUI015",
+          "rootId": "root-QAUI015",
+          "partId": "part-QAUI015",
+          "partNumber": "P-QAUI015-001",
+          "partName": "UI26 015 測試件",
+          "drawingId": "drawing-QAUI015",
+          "drawingNumber": "D-QAUI015-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI015-0",
+              "filename": "D-QAUI015-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI015-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI015-MA1.SLDDRW",
+                "sha256": "91145dddd13bcfe95f00924c9c60916558ffe4e4402f790bdc18ab5b7e041a24",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI015-1",
+              "filename": "D-QAUI015-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI015-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI015-MA1.SLDPRT",
+                "sha256": "dc9ef03bf07bade9cfb07f98bbc85cd418187f5fd55d1c2faf383bf61ca54989",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-015-D-QAUI015-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-016",
+      "title": "未解決發行未完成對工程師只顯示處理方向不給復原權限",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:28.638Z",
+      "endedAt": "2026-07-04T05:49:32.063Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "016",
+          "rootCode": "ROOT-QAUI016",
+          "rootId": "root-QAUI016",
+          "partId": "part-QAUI016",
+          "partNumber": "P-QAUI016-001",
+          "partName": "UI26 016 測試件",
+          "drawingId": "drawing-QAUI016",
+          "drawingNumber": "D-QAUI016-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI016-0",
+              "filename": "D-QAUI016-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI016-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI016-MA1.SLDDRW",
+                "sha256": "63f93b5bc80c3f8aa2a58f8a4c890d560364586f2a81921941a6680684d0068a",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI016-1",
+              "filename": "D-QAUI016-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI016-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI016-MA1.SLDPRT",
+                "sha256": "832b5343545a4ed4c6e68510dd8a7a819d955b98ef4f139bbb8f9d234cfbb065",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-016-RELFAIL",
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-016-SUB-UI26-016-RELFAIL.png"
+      }
+    },
+    {
+      "id": "UI26-017",
+      "title": "已處理的發行未完成只保留歷史不再阻擋",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:32.063Z",
+      "endedAt": "2026-07-04T05:49:34.873Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "017",
+          "rootCode": "ROOT-QAUI017",
+          "rootId": "root-QAUI017",
+          "partId": "part-QAUI017",
+          "partNumber": "P-QAUI017-001",
+          "partName": "UI26 017 測試件",
+          "drawingId": "drawing-QAUI017",
+          "drawingNumber": "D-QAUI017-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI017-0",
+              "filename": "D-QAUI017-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI017-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI017-MA1.SLDDRW",
+                "sha256": "ecee749c72f6035d4050e3380d7060282029d81ab576a11f5e69a5a73e26abdb",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI017-1",
+              "filename": "D-QAUI017-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI017-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI017-MA1.SLDPRT",
+                "sha256": "3e86862ad6bd94db5a804843edab70a834454acacba1ec4aa2d4118a9df22afd",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-017-D-QAUI017-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-018",
+      "title": "既有送審明細連結不會導到無關資料",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:34.874Z",
+      "endedAt": "2026-07-04T05:49:37.659Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "018",
+          "rootCode": "ROOT-QAUI018",
+          "rootId": "root-QAUI018",
+          "partId": "part-QAUI018",
+          "partNumber": "P-QAUI018-001",
+          "partName": "UI26 018 測試件",
+          "drawingId": "drawing-QAUI018",
+          "drawingNumber": "D-QAUI018-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI018-0",
+              "filename": "D-QAUI018-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI018-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI018-MA1.SLDDRW",
+                "sha256": "00fb46a353b3475e2f252863645a4507c97977bcf3756ffcec8f3297dc2e2c3b",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI018-1",
+              "filename": "D-QAUI018-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI018-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI018-MA1.SLDPRT",
+                "sha256": "019f12ecef0e147480493e04b75014947add29bb52c490033ded5f2c32def38d",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-018-PENDING",
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-018-SUB-UI26-018-PENDING.png"
+      }
+    },
+    {
+      "id": "UI26-019",
+      "title": "送審建立者可從 UI 取消 Pending",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:37.659Z",
+      "endedAt": "2026-07-04T05:49:40.422Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "019",
+          "rootCode": "ROOT-QAUI019",
+          "rootId": "root-QAUI019",
+          "partId": "part-QAUI019",
+          "partNumber": "P-QAUI019-001",
+          "partName": "UI26 019 測試件",
+          "drawingId": "drawing-QAUI019",
+          "drawingNumber": "D-QAUI019-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI019-0",
+              "filename": "D-QAUI019-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI019-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI019-MA1.SLDDRW",
+                "sha256": "f7f458a7eb6e06d645126bb81657ca7a0fb6bf1f447f0889c76da7d552d11062",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI019-1",
+              "filename": "D-QAUI019-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI019-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI019-MA1.SLDPRT",
+                "sha256": "9eb101cdefe830b399f7022f79539f1f5f01c4ec7858abd098610a2079c29833",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-019-CANCEL",
+        "row": {
+          "id": "SUB-UI26-019-CANCEL",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-019-cancel",
+          "drawing_number": "D-QAUI019-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "Cancelled",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": null,
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": null,
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": "2026-07-04T05:49:40.340Z",
+          "cancelled_by": "user-ui26-owner",
+          "cancel_reason": "由送審明細取消待審核送審。",
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI019",
+          "created_at": "2026-07-04T05:49:37.697Z",
+          "updated_at": "2026-07-04T05:49:40.340Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-019-SUB-UI26-019-CANCEL.png"
+      }
+    },
+    {
+      "id": "UI26-020",
+      "title": "主管可從 UI 取消同公司 Pending",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:40.422Z",
+      "endedAt": "2026-07-04T05:49:43.075Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "020",
+          "rootCode": "ROOT-QAUI020",
+          "rootId": "root-QAUI020",
+          "partId": "part-QAUI020",
+          "partNumber": "P-QAUI020-001",
+          "partName": "UI26 020 測試件",
+          "drawingId": "drawing-QAUI020",
+          "drawingNumber": "D-QAUI020-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI020-0",
+              "filename": "D-QAUI020-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI020-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI020-MA1.SLDDRW",
+                "sha256": "51eb2e5665e990e52bd84d54ef2be36ee580d58738f8065aa20a777424da1856",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI020-1",
+              "filename": "D-QAUI020-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI020-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI020-MA1.SLDPRT",
+                "sha256": "e52c16133ca5a4ff4cf2880fa430ec82752246e0ee62bf4236e7f7889eda6246",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-020-MANAGER-CANCEL",
+        "row": {
+          "id": "SUB-UI26-020-MANAGER-CANCEL",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-020-manager-cancel",
+          "drawing_number": "D-QAUI020-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "Cancelled",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": null,
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": null,
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": "2026-07-04T05:49:42.990Z",
+          "cancelled_by": "user-ui26-manager",
+          "cancel_reason": "由送審明細取消待審核送審。",
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI020",
+          "created_at": "2026-07-04T05:49:40.459Z",
+          "updated_at": "2026-07-04T05:49:42.990Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-020-SUB-UI26-020-MANAGER-CANCEL.png"
+      }
+    },
+    {
+      "id": "UI26-021",
+      "title": "非建立者工程師不能取消他人 Pending",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:43.075Z",
+      "endedAt": "2026-07-04T05:49:45.693Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "021",
+          "rootCode": "ROOT-QAUI021",
+          "rootId": "root-QAUI021",
+          "partId": "part-QAUI021",
+          "partNumber": "P-QAUI021-001",
+          "partName": "UI26 021 測試件",
+          "drawingId": "drawing-QAUI021",
+          "drawingNumber": "D-QAUI021-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI021-0",
+              "filename": "D-QAUI021-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI021-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI021-MA1.SLDDRW",
+                "sha256": "2c7d0210076a0334b5fe35d63612db0c42336caf4e0937a1de503412753328d1",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI021-1",
+              "filename": "D-QAUI021-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI021-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI021-MA1.SLDPRT",
+                "sha256": "a149bc32676719e69aa6b46cb4f51757a1db410207d2714788b1fab8effa64f0",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-021-DENIED",
+        "row": {
+          "id": "SUB-UI26-021-DENIED",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-021-denied",
+          "drawing_number": "D-QAUI021-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "Pending",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": null,
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": null,
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": null,
+          "cancelled_by": null,
+          "cancel_reason": null,
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI021",
+          "created_at": "2026-07-04T05:49:43.110Z",
+          "updated_at": "2026-07-04T05:49:43.110Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-021-SUB-UI26-021-DENIED.png"
+      }
+    },
+    {
+      "id": "UI26-022",
+      "title": "主管可重新發行未完成且同一送審轉為已發布",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:45.693Z",
+      "endedAt": "2026-07-04T05:49:48.420Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "022",
+          "rootCode": "ROOT-QAUI022",
+          "rootId": "root-QAUI022",
+          "partId": "part-QAUI022",
+          "partNumber": "P-QAUI022-001",
+          "partName": "UI26 022 測試件",
+          "drawingId": "drawing-QAUI022",
+          "drawingNumber": "D-QAUI022-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI022-0",
+              "filename": "D-QAUI022-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI022-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI022-MA1.SLDDRW",
+                "sha256": "1e721c67de69b44f82871b32122d35e7f6ce838d38519702cd653286cd0a8fb9",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI022-1",
+              "filename": "D-QAUI022-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI022-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI022-MA1.SLDPRT",
+                "sha256": "352dc630045140e0e1b732b210b910efdc97d3e94e0029c12145f11c7872ea5d",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-022-RETRY",
+        "row": {
+          "id": "SUB-UI26-022-RETRY",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-022-retry",
+          "drawing_number": "D-QAUI022-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "Released",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": "2026-07-04T05:49:48.300Z",
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": null,
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": null,
+          "cancelled_by": null,
+          "cancel_reason": null,
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI022",
+          "created_at": "2026-07-04T05:49:45.728Z",
+          "updated_at": "2026-07-04T05:49:48.300Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-022-SUB-UI26-022-RETRY.png"
+      }
+    },
+    {
+      "id": "UI26-023",
+      "title": "重新發行失敗時維持發行未完成並顯示人類中文",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:48.420Z",
+      "endedAt": "2026-07-04T05:49:51.226Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "023",
+          "rootCode": "ROOT-QAUI023",
+          "rootId": "root-QAUI023",
+          "partId": "part-QAUI023",
+          "partNumber": "P-QAUI023-001",
+          "partName": "UI26 023 測試件",
+          "drawingId": "drawing-QAUI023",
+          "drawingNumber": "D-QAUI023-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI023-0",
+              "filename": "QA-UI-CONFLICT.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\QA-UI-CONFLICT.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/QA-UI-CONFLICT.SLDDRW",
+                "sha256": "81e421bc9ed446af358cf8fb3025162bf1e95ad903343571e9b3488f442df121",
+                "size": 38
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "conflictFixture": {
+          "caseId": "023A",
+          "rootCode": "ROOT-QAUI023A",
+          "rootId": "root-QAUI023A",
+          "partId": "part-QAUI023A",
+          "partNumber": "P-QAUI023A-001",
+          "partName": "UI26 023A 測試件",
+          "drawingId": "drawing-QAUI023A",
+          "drawingNumber": "D-QAUI023A-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI023A-0",
+              "filename": "D-QAUI023A-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI023A-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI023A-MA1.SLDDRW",
+                "sha256": "a186678ed012bfcb01c66ff520e7a978701bd08171d38e18990f7ffbdbb39197",
+                "size": 39
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI023A-1",
+              "filename": "D-QAUI023A-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI023A-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI023A-MA1.SLDPRT",
+                "sha256": "3e6c1eb04f91e01ccd5e8428f8afc4cef4d71e683a87bc4a6f4d369b12b1551c",
+                "size": 39
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-023-RETRY-FAIL",
+        "row": {
+          "id": "SUB-UI26-023-RETRY-FAIL",
+          "company_id": "company-jenfu",
+          "item_id": "item-sub-ui26-023-retry-fail",
+          "drawing_number": "D-QAUI023-MA1",
+          "revision": "0.1",
+          "product_line": "",
+          "customer": "",
+          "project_code": "",
+          "process_name": "QC",
+          "machine": "",
+          "material": "SUS304",
+          "surface_finish": "無",
+          "document_type": "MA 製造圖",
+          "change_description": "UI26 圖面送審操作驗證。",
+          "status": "ReleaseFailed",
+          "submitted_by": "user-ui26-owner",
+          "approval_required": 1,
+          "released_at": null,
+          "rejected_at": null,
+          "reject_reason": null,
+          "release_error": "DUPLICATE_RELEASE_FILENAME: QA-UI-CONFLICT.SLDDRW (D-QAUI023A-MA1 rev 0.1)",
+          "superseded_by_submission_id": null,
+          "obsolete_at": null,
+          "obsolete_by": null,
+          "cancelled_at": null,
+          "cancelled_by": null,
+          "cancel_reason": null,
+          "returned_for_correction_at": null,
+          "returned_for_correction_by": null,
+          "returned_for_correction_reason": null,
+          "corrects_submission_id": null,
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "source_entity_type": "drawing_number",
+          "source_entity_id": "drawing-QAUI023",
+          "created_at": "2026-07-04T05:49:48.504Z",
+          "updated_at": "2026-07-04T05:49:51.134Z"
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-023-SUB-UI26-023-RETRY-FAIL.png"
+      }
+    },
+    {
+      "id": "UI26-024",
+      "title": "主管可從工作台建立發行未完成修正送審",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:51.226Z",
+      "endedAt": "2026-07-04T05:49:54.024Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "024",
+          "rootCode": "ROOT-QAUI024",
+          "rootId": "root-QAUI024",
+          "partId": "part-QAUI024",
+          "partNumber": "P-QAUI024-001",
+          "partName": "UI26 024 測試件",
+          "drawingId": "drawing-QAUI024",
+          "drawingNumber": "D-QAUI024-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI024-0",
+              "filename": "D-QAUI024-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI024-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI024-MA1.SLDDRW",
+                "sha256": "5b252b4027d66b4f54fd4a067ccc5c708929e217c95ba28dc9155e581797ed97",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI024-1",
+              "filename": "D-QAUI024-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI024-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI024-MA1.SLDPRT",
+                "sha256": "3f64659cd9c12eb9aad5d362ee2c600b62fa6cfd882858db20ce3fea8ca502a8",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "oldSubmissionId": "SUB-UI26-024-OLD-FAILED",
+        "correction": {
+          "id": "SUB-20260704-BA9C11A6",
+          "status": "Pending",
+          "revision": "0.1",
+          "corrects_submission_id": "SUB-UI26-024-OLD-FAILED",
+          "resolved_by_submission_id": null,
+          "resolved_at": null,
+          "cancelled_by": null
+        },
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-024-D-QAUI024-MA1.png"
+      }
+    },
+    {
+      "id": "UI26-025",
+      "title": "修正送審核准發布後關閉舊失敗並同步主資料狀態",
+      "status": "fail",
+      "startedAt": "2026-07-04T05:49:54.024Z",
+      "endedAt": "2026-07-04T05:49:57.595Z",
+      "error": "圖號模組仍顯示 Draft 狀態"
+    },
+    {
+      "id": "UI26-026",
+      "title": "未登入使用者不能從 UI 查看送審內容",
+      "status": "pass",
+      "startedAt": "2026-07-04T05:49:57.596Z",
+      "endedAt": "2026-07-04T05:49:58.590Z",
+      "evidence": {
+        "fixture": {
+          "caseId": "026",
+          "rootCode": "ROOT-QAUI026",
+          "rootId": "root-QAUI026",
+          "partId": "part-QAUI026",
+          "partNumber": "P-QAUI026-001",
+          "partName": "UI26 026 測試件",
+          "drawingId": "drawing-QAUI026",
+          "drawingNumber": "D-QAUI026-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI026-0",
+              "filename": "D-QAUI026-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI026-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI026-MA1.SLDDRW",
+                "sha256": "dd22141a82f83080894501a3b2df2b65b874abf108fcdcc633fa4171bfeb1478",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI026-1",
+              "filename": "D-QAUI026-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI026-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI026-MA1.SLDPRT",
+                "sha256": "df54f24e2cca26a2e98ae739034d1c15dcd8654cf8a9c278e44503030cfde7ba",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-026-UNAUTH",
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\UI26-026-unauthorized.png"
+      }
+    }
+  ],
+  "globalGateResults": [
+    {
+      "id": "G3",
+      "title": "禁止 raw 技術錯誤文字掃描",
+      "status": "pass",
+      "evidence": {
+        "forbiddenVisibleStrings": [
+          "duplicate_active_submission",
+          "ReleaseFailed",
+          "UNIQUE constraint failed",
+          "submission_conflict",
+          "DUPLICATE_RELEASE_FILENAME",
+          "RELEASE_NOT_CONFIGURED",
+          "Internal Server Error",
+          "stack trace",
+          "Error: ",
+          "/api/"
+        ]
+      }
+    },
+    {
+      "id": "G4",
+      "title": "工作台與明細多 viewport 無水平溢出",
+      "status": "pass",
+      "evidence": {
+        "fixture": {
+          "caseId": "900",
+          "rootCode": "ROOT-QAUI900",
+          "rootId": "root-QAUI900",
+          "partId": "part-QAUI900",
+          "partNumber": "P-QAUI900-001",
+          "partName": "UI26 900 測試件",
+          "drawingId": "drawing-QAUI900",
+          "drawingNumber": "D-QAUI900-MA1",
+          "revision": "0.1",
+          "material": "SUS304",
+          "surfaceFinish": "無",
+          "attachments": [
+            {
+              "id": "asset-QAUI900-0",
+              "filename": "D-QAUI900-MA1.SLDDRW",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI900-MA1.SLDDRW",
+                "storageKey": "qc-ui26-fixtures/D-QAUI900-MA1.SLDDRW",
+                "sha256": "a3a4a0fee3eccda8fcc14371107a62248e9fd52af6a3499f11692a0b20a7df3b",
+                "size": 37
+              },
+              "fileRole": "slddrw",
+              "revision": "0.1"
+            },
+            {
+              "id": "asset-QAUI900-1",
+              "filename": "D-QAUI900-MA1.SLDPRT",
+              "file": {
+                "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj\\data\\repository\\qc-ui26-fixtures\\D-QAUI900-MA1.SLDPRT",
+                "storageKey": "qc-ui26-fixtures/D-QAUI900-MA1.SLDPRT",
+                "sha256": "95212f499b2c77d4eadbb162fd673879bf477446db27572b45747c827e365c9e",
+                "size": 37
+              },
+              "fileRole": "sldprt",
+              "revision": "0.1"
+            }
+          ]
+        },
+        "submissionId": "SUB-UI26-900-RWD",
+        "screenshots": [
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-workbench-1440.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-detail-1440.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-workbench-1024.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-detail-1024.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-workbench-768.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-detail-768.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-workbench-390.png",
+          "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-real-operation\\2026-07-04T05-48-36-075Z\\G4-detail-390.png"
+        ]
+      }
+    },
+    {
+      "id": "G5",
+      "title": "資料身分一致性",
+      "status": "pass",
+      "evidence": {
+        "checkedCaseIds": [
+          "UI26-001",
+          "UI26-002",
+          "UI26-003",
+          "UI26-004",
+          "UI26-005",
+          "UI26-006",
+          "UI26-007",
+          "UI26-008",
+          "UI26-009",
+          "UI26-010",
+          "UI26-011",
+          "UI26-012",
+          "UI26-012B",
+          "UI26-013",
+          "UI26-014",
+          "UI26-015",
+          "UI26-016",
+          "UI26-017",
+          "UI26-018",
+          "UI26-019",
+          "UI26-020",
+          "UI26-021",
+          "UI26-022",
+          "UI26-023",
+          "UI26-024",
+          "UI26-025",
+          "UI26-026"
+        ]
+      }
+    },
+    {
+      "id": "G6",
+      "title": "正常使用者流程不需後端救援",
+      "status": "pass",
+      "evidence": {
+        "statement": "fixture setup uses an isolated temporary database before UI steps; counted evidence is browser operation. No direct DB/API call is used to unblock a normal UI step."
+      }
+    },
+    {
+      "id": "G1",
+      "title": "Fixture cleanup",
+      "status": "pass",
+      "evidence": {
+        "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-ui26-jjM1mj",
+        "cleanupStatus": "removed"
+      }
+    }
+  ],
+  "fixtureLedger": [
+    {
+      "caseId": "002",
+      "rootCode": "ROOT-QAUI002",
+      "partNumber": "P-QAUI002-001",
+      "drawingNumber": "D-QAUI002-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "003",
+      "rootCode": "ROOT-QAUI003",
+      "partNumber": "P-QAUI003-001",
+      "drawingNumber": "D-QAUI003-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "004",
+      "rootCode": "ROOT-QAUI004",
+      "partNumber": "P-QAUI004-001",
+      "drawingNumber": null,
+      "type": "root_without_drawing"
+    },
+    {
+      "caseId": "005",
+      "rootCode": "ROOT-QAUI005",
+      "partNumber": "P-QAUI005-001",
+      "drawingNumber": "D-QAUI005-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "007",
+      "rootCode": "ROOT-QAUI007",
+      "partNumber": "P-QAUI007-001",
+      "drawingNumber": "D-QAUI007-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "008",
+      "rootCode": "ROOT-QAUI008",
+      "partNumber": "P-QAUI008-001",
+      "drawingNumber": "D-QAUI008-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "009",
+      "rootCode": "ROOT-QAUI009",
+      "partNumber": "P-QAUI009-001",
+      "drawingNumber": "D-QAUI009-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "010",
+      "rootCode": "ROOT-QAUI010",
+      "partNumber": "P-QAUI010-001",
+      "drawingNumber": "D-QAUI010-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "011",
+      "rootCode": "ROOT-QAUI011",
+      "partNumber": "P-QAUI011-001",
+      "drawingNumber": "D-QAUI011-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "012",
+      "rootCode": "ROOT-QAUI012",
+      "partNumber": "P-QAUI012-001",
+      "drawingNumber": "D-QAUI012-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "012",
+      "submissionId": "SUB-UI26-012-PENDING",
+      "drawingNumber": "D-QAUI012-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "012B",
+      "rootCode": "ROOT-QAUI012B",
+      "partNumber": "P-QAUI012B-001",
+      "drawingNumber": "D-QAUI012B-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "012B",
+      "submissionId": "SUB-UI26-012B-WORKBENCH-CANCEL",
+      "drawingNumber": "D-QAUI012B-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "013",
+      "rootCode": "ROOT-QAUI013",
+      "partNumber": "P-QAUI013-001",
+      "drawingNumber": "D-QAUI013-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "013",
+      "submissionId": "SUB-UI26-013-RELEASING",
+      "drawingNumber": "D-QAUI013-MA1",
+      "revision": "0.1",
+      "status": "Releasing",
+      "type": "submission"
+    },
+    {
+      "caseId": "014",
+      "rootCode": "ROOT-QAUI014",
+      "partNumber": "P-QAUI014-001",
+      "drawingNumber": "D-QAUI014-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "014",
+      "submissionId": "SUB-UI26-014-RELEASED",
+      "drawingNumber": "D-QAUI014-MA1",
+      "revision": "0.1",
+      "status": "Released",
+      "type": "submission"
+    },
+    {
+      "caseId": "015",
+      "rootCode": "ROOT-QAUI015",
+      "partNumber": "P-QAUI015-001",
+      "drawingNumber": "D-QAUI015-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "015",
+      "submissionId": "SUB-UI26-015-CANCELLED",
+      "drawingNumber": "D-QAUI015-MA1",
+      "revision": "0.1",
+      "status": "Cancelled",
+      "type": "submission"
+    },
+    {
+      "caseId": "016",
+      "rootCode": "ROOT-QAUI016",
+      "partNumber": "P-QAUI016-001",
+      "drawingNumber": "D-QAUI016-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "016",
+      "submissionId": "SUB-UI26-016-RELFAIL",
+      "drawingNumber": "D-QAUI016-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "017",
+      "rootCode": "ROOT-QAUI017",
+      "partNumber": "P-QAUI017-001",
+      "drawingNumber": "D-QAUI017-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "017R",
+      "rootCode": "ROOT-QAUI017R",
+      "partNumber": "P-QAUI017R-001",
+      "drawingNumber": "D-QAUI017R-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "017R",
+      "submissionId": "SUB-UI26-017-RESOLVER",
+      "drawingNumber": "D-QAUI017R-MA1",
+      "revision": "0.1",
+      "status": "Released",
+      "type": "submission"
+    },
+    {
+      "caseId": "017",
+      "submissionId": "SUB-UI26-017-RESOLVED",
+      "drawingNumber": "D-QAUI017-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "018",
+      "rootCode": "ROOT-QAUI018",
+      "partNumber": "P-QAUI018-001",
+      "drawingNumber": "D-QAUI018-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "018",
+      "submissionId": "SUB-UI26-018-PENDING",
+      "drawingNumber": "D-QAUI018-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "019",
+      "rootCode": "ROOT-QAUI019",
+      "partNumber": "P-QAUI019-001",
+      "drawingNumber": "D-QAUI019-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "019",
+      "submissionId": "SUB-UI26-019-CANCEL",
+      "drawingNumber": "D-QAUI019-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "020",
+      "rootCode": "ROOT-QAUI020",
+      "partNumber": "P-QAUI020-001",
+      "drawingNumber": "D-QAUI020-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "020",
+      "submissionId": "SUB-UI26-020-MANAGER-CANCEL",
+      "drawingNumber": "D-QAUI020-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "021",
+      "rootCode": "ROOT-QAUI021",
+      "partNumber": "P-QAUI021-001",
+      "drawingNumber": "D-QAUI021-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "021",
+      "submissionId": "SUB-UI26-021-DENIED",
+      "drawingNumber": "D-QAUI021-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "022",
+      "rootCode": "ROOT-QAUI022",
+      "partNumber": "P-QAUI022-001",
+      "drawingNumber": "D-QAUI022-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "022",
+      "submissionId": "SUB-UI26-022-RETRY",
+      "drawingNumber": "D-QAUI022-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "023A",
+      "rootCode": "ROOT-QAUI023A",
+      "partNumber": "P-QAUI023A-001",
+      "drawingNumber": "D-QAUI023A-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "023A",
+      "submissionId": "SUB-UI26-023-RELEASED-CONFLICT",
+      "drawingNumber": "D-QAUI023A-MA1",
+      "revision": "0.1",
+      "status": "Released",
+      "type": "submission"
+    },
+    {
+      "caseId": "023",
+      "rootCode": "ROOT-QAUI023",
+      "partNumber": "P-QAUI023-001",
+      "drawingNumber": "D-QAUI023-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "023",
+      "submissionId": "SUB-UI26-023-RETRY-FAIL",
+      "drawingNumber": "D-QAUI023-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "024",
+      "rootCode": "ROOT-QAUI024",
+      "partNumber": "P-QAUI024-001",
+      "drawingNumber": "D-QAUI024-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "024",
+      "submissionId": "SUB-UI26-024-OLD-FAILED",
+      "drawingNumber": "D-QAUI024-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "025",
+      "rootCode": "ROOT-QAUI025",
+      "partNumber": "P-QAUI025-001",
+      "drawingNumber": "D-QAUI025-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "025",
+      "submissionId": "SUB-UI26-025-OLD-FAILED",
+      "drawingNumber": "D-QAUI025-MA1",
+      "revision": "0.1",
+      "status": "ReleaseFailed",
+      "type": "submission"
+    },
+    {
+      "caseId": "025",
+      "submissionId": "SUB-UI26-025-CORRECTION",
+      "drawingNumber": "D-QAUI025-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "026",
+      "rootCode": "ROOT-QAUI026",
+      "partNumber": "P-QAUI026-001",
+      "drawingNumber": "D-QAUI026-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "026",
+      "submissionId": "SUB-UI26-026-UNAUTH",
+      "drawingNumber": "D-QAUI026-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    },
+    {
+      "caseId": "900",
+      "rootCode": "ROOT-QAUI900",
+      "partNumber": "P-QAUI900-001",
+      "drawingNumber": "D-QAUI900-MA1",
+      "revision": "0.1",
+      "type": "drawing"
+    },
+    {
+      "caseId": "900",
+      "submissionId": "SUB-UI26-900-RWD",
+      "drawingNumber": "D-QAUI900-MA1",
+      "revision": "0.1",
+      "status": "Pending",
+      "type": "submission"
+    }
+  ]
+}

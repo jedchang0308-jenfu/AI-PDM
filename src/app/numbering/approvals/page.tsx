@@ -6,7 +6,9 @@ import { CheckCircle2, ClipboardCheck, RotateCcw, Send, ShieldAlert, Undo2, X, X
 import { InfoHint, RiskHint } from "@/components/compact-hints";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
+import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
@@ -98,9 +100,9 @@ type ApprovalBatchResponse = {
 
 const statusFilters: Array<{ value: "active" | "pending" | "partially_approved" | "needs_info" | "approved" | "rejected" | "all"; label: string }> = [
   { value: "active", label: "待處理" },
-  { value: "pending", label: "待審" },
+  { value: "pending", label: "審核中" },
   { value: "partially_approved", label: "部分核准" },
-  { value: "needs_info", label: "待補件" },
+  { value: "needs_info", label: "待補資料" },
   { value: "approved", label: "已核准" },
   { value: "rejected", label: "已退回" },
   { value: "all", label: "全部" }
@@ -285,7 +287,7 @@ export default function NumberingApprovalsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>正式資料審核</h1>
+          <h1>發行審核</h1>
           <p>同專案批次審核、共用意見、異常項個別意見與代送審標示。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => loadBatches(statusFilter)} disabled={busy === "reload"}>
@@ -297,15 +299,15 @@ export default function NumberingApprovalsPage() {
       <LifecycleStageGuidance
         activeStage="review"
         metrics={[
-          { label: "Batches", value: metrics.batches },
-          { label: "Pending items", value: metrics.pendingItems, tone: metrics.pendingItems > 0 ? "warning" : "success" },
-          { label: "Proxy", value: metrics.proxyItems, tone: metrics.proxyItems > 0 ? "warning" : "neutral" },
-          { label: "Exceptions", value: metrics.exceptionItems, tone: metrics.exceptionItems > 0 ? "critical" : "neutral" }
+          { label: "批次", value: metrics.batches },
+          { label: "審核中項目", value: metrics.pendingItems, tone: metrics.pendingItems > 0 ? "warning" : "success" },
+          { label: "代送審", value: metrics.proxyItems, tone: metrics.proxyItems > 0 ? "warning" : "neutral" },
+          { label: "異常項", value: metrics.exceptionItems, tone: metrics.exceptionItems > 0 ? "critical" : "neutral" }
         ]}
       />
 
-      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看正式資料審核。" /> : null}
-      {state === "forbidden" ? <AccessPanel title="權限不足" message="正式資料審核需研發主管或管理員權限。" /> : null}
+      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看發行審核。" /> : null}
+      {state === "forbidden" ? <AccessPanel title="權限不足" message="發行審核需研發主管或管理員權限。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={() => loadBatches(statusFilter)} /> : null}
 
       <div style={{ display: "grid", gap: "1rem" }}>
@@ -313,7 +315,7 @@ export default function NumberingApprovalsPage() {
           <div className="panel-header">
             <div>
               <h2>審核佇列</h2>
-              <p style={mutedTextStyle}>預設顯示正式資料的待處理審核批次。</p>
+              <p style={mutedTextStyle}>這裡處理 DVT 階段、正式發行、MA 圖恢復與作廢審核。</p>
             </div>
             <select className="dropdown-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
               {statusFilters.map((status) => (
@@ -325,7 +327,7 @@ export default function NumberingApprovalsPage() {
           </div>
           <div className="metrics" style={{ marginBottom: 0 }}>
             <Metric label="審核批次" value={metrics.batches} />
-            <Metric label="待審項目" value={metrics.pendingItems} />
+            <Metric label="審核中項目" value={metrics.pendingItems} />
             <Metric label="代送審" value={metrics.proxyItems} />
             <Metric label="異常/Override" value={metrics.exceptionItems} />
           </div>
@@ -374,9 +376,7 @@ export default function NumberingApprovalsPage() {
                 {selectedBatch?.markers?.length ? <MarkerList markers={selectedBatch.markers} /> : null}
               </div>
               <div className="pdm-drawer-header-actions">
-                <span className={`badge ${selectedBatch?.batchStatus === "approved" ? "Released" : selectedBatch?.batchStatus === "rejected" ? "Rejected" : "Pending"}`}>
-                  {selectedBatch ? batchStatusLabel(selectedBatch.batchStatus) : "-"}
-                </span>
+                {selectedBatch ? <StatusBadge status={selectedBatch.batchStatus} context="workflow" /> : <span className="badge">-</span>}
                 <button className="icon-button" type="button" aria-label="關閉審核批次明細" onClick={closeBatchDetail}>
                   <X size={16} />
                 </button>
@@ -450,8 +450,10 @@ function BatchList({
           <tr>
             <th>批次</th>
             <th>專案</th>
-            <th>狀態</th>
-            <th>待審</th>
+            <th>
+              <StatusColumnHeader context="workflow" />
+            </th>
+            <th>審核中</th>
             <th>送審者</th>
             <th>操作</th>
           </tr>
@@ -467,13 +469,12 @@ function BatchList({
               <td>
                   <strong>{batch.batchCode}</strong>
                   <p style={bodyTextStyle}>{actionLabel(batch.actionCode)}</p>
+                  <p style={mutedTextStyle}>{batchItemPreview(batch)}</p>
                   <MarkerList markers={batch.markers ?? []} />
                 </td>
               <td>{batch.projectCode ?? "未指定"}</td>
               <td>
-                <span className={`badge ${batch.batchStatus === "approved" ? "Released" : batch.batchStatus === "rejected" ? "Rejected" : "Pending"}`}>
-                  {batchStatusLabel(batch.batchStatus)}
-                </span>
+                <StatusBadge status={batch.batchStatus} context="workflow" />
               </td>
               <td>{batch.itemCounts.pending ?? 0}</td>
               <td>
@@ -493,12 +494,22 @@ function BatchList({
   );
 }
 
+function batchItemPreview(batch: ApprovalBatch) {
+  const visibleItems = batch.items.slice(0, 3).map((item) => {
+    const summary = item.request.entitySummary;
+    const primary = summary.partNumber ?? summary.drawingNumber ?? summary.rootCode ?? summary.label;
+    return summary.drawingNumber && summary.drawingNumber !== primary ? `${primary} / ${summary.drawingNumber}` : primary;
+  });
+  const overflow = batch.items.length > visibleItems.length ? ` +${batch.items.length - visibleItems.length}` : "";
+  return `${visibleItems.join("、")}${overflow}`;
+}
+
 function EmptyApprovalBatchGuidance() {
   return (
     <div className="empty">
       <ClipboardCheck size={22} aria-hidden="true" />
-      <h2>目前沒有正式資料審核批次</h2>
-      <p>這裡顯示 DVT 晉升、正式發行、MA 圖恢復與申請作廢批次。一般狀態為「待審核」的圖面 submission，請回工作台開啟圖面明細後核准或駁回。</p>
+      <h2>目前沒有發行審核批次</h2>
+      <p>這裡處理 DVT 階段、正式發行、MA 圖恢復與作廢審核。一般狀態為「審核中」的圖面 submission，請回工作台開啟圖面明細後核准或駁回。</p>
       <div className="empty-actions">
         <Link className="primary-button" href="/?status=Pending">
           回工作台審核圖面
@@ -533,7 +544,9 @@ function ApprovalItemTable({
             <th>項目</th>
             <th>審核動作</th>
             <th>送審資訊</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="workflow" />
+            </th>
             <th>原因</th>
             <th>異常項個別意見</th>
           </tr>
@@ -557,8 +570,9 @@ function ApprovalItemTable({
                 <td>
                   <strong>{summary.label}</strong>
                   <p style={bodyTextStyle}>{summary.secondary}</p>
+                  {summary.drawingNumber ? <p style={mutedTextStyle}>圖號 {summary.drawingNumber}</p> : null}
                   <p style={mutedTextStyle}>
-                    {summary.rootCode ?? "-"} / {summary.developmentPhase ?? "-"} / {summary.recordStatus ?? "-"}
+                    {summary.rootCode ?? "-"} / {summary.developmentPhase ? formatDevelopmentPhaseForUser(summary.developmentPhase) : "-"} / {summary.recordStatus ? formatStatusForUser(summary.recordStatus, "masterRecord") : "-"}
                   </p>
                 </td>
                 <td>
@@ -574,9 +588,7 @@ function ApprovalItemTable({
                   {request.isProxySubmission ? <InfoHint title={request.proxyReason ?? "代送審"} className="approval-marker-proxy" /> : null}
                 </td>
                 <td>
-                  <span className={`badge ${item.itemStatus === "approved" ? "Released" : item.itemStatus === "rejected" ? "Rejected" : "Pending"}`}>
-                    {itemStatusLabel(item.itemStatus)}
-                  </span>
+                  <StatusBadge status={item.itemStatus} context="workflow" />
                   {request.decisions[0] ? (
                     <div style={markerStackStyle}>
                       <p style={bodyTextStyle}>{decisionLabel(request.decisions[0].decision)}：{request.decisions[0].comment ?? "無意見"}</p>
@@ -699,8 +711,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
 
 function actionLabel(value: string | null) {
   const labels: Record<string, string> = {
-    dvt_promotion: "DVT 晉升",
-    dvt_missing_ma_override: "DVT 缺 MA Override",
+    dvt_promotion: "DVT 階段晉升",
+    dvt_missing_ma_override: "DVT 缺 MA 例外核准",
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
@@ -713,11 +725,11 @@ function actionLabel(value: string | null) {
 
 function batchStatusLabel(value: BatchStatus) {
   const labels: Record<BatchStatus, string> = {
-    pending: "待審",
+    pending: "審核中",
     partially_approved: "部分核准",
     approved: "已核准",
     rejected: "已退回",
-    needs_info: "待補件",
+    needs_info: "待補資料",
     cancelled: "已取消"
   };
   return labels[value];
@@ -725,10 +737,10 @@ function batchStatusLabel(value: BatchStatus) {
 
 function itemStatusLabel(value: BatchItemStatus) {
   const labels: Record<BatchItemStatus, string> = {
-    pending: "待審",
+    pending: "審核中",
     approved: "已核准",
     rejected: "已退回",
-    needs_info: "待補件",
+    needs_info: "待補資料",
     cancelled: "已取消",
     resubmitted: "已重送"
   };
@@ -737,7 +749,7 @@ function itemStatusLabel(value: BatchItemStatus) {
 
 function decisionLabel(value: ApprovalDecision) {
   if (value === "approved") return "核准";
-  if (value === "needs_info") return "要求補件";
+  if (value === "needs_info") return "要求補資料";
   return "退回";
 }
 

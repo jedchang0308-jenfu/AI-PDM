@@ -2,8 +2,18 @@ import crypto from "node:crypto";
 import { createFileStorageService, storageKeyFromLocalPath } from "@/lib/file-storage";
 import { removeSubmissionUploadFolder, saveSubmissionFileBuffers } from "@/lib/file-store";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
 import { AsyncSubmissionWriteRepository, type CreateSubmissionAsyncInput } from "@/lib/repositories/submission-write-async-repository";
+import {
+  classifyRevisionPackageFiles,
+  evaluateRevisionPackageCompleteness,
+  normalizeRevisionPackageFileRole,
+  type RevisionPackageClassifiedFile,
+  type RevisionPackageFileRole,
+  type RevisionPackageWarning
+} from "@/lib/revision-package";
 import { suggestRevisionCode } from "@/lib/revision-policy";
+import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { createSubmissionRecordAsync, getSubmissionAsync, listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
 import { normalizeFileRole, validateSubmissionInput } from "@/lib/validation";
 
@@ -42,6 +52,7 @@ export type ExistingSubmissionSummary = {
   revision: string;
   status: string;
   createdAt?: string;
+  submittedById?: string;
   submittedByDisplayName?: string;
   releaseError?: string | null;
   resolvedBySubmissionId?: string | null;
@@ -196,7 +207,7 @@ type AttachmentRow = {
   created_at: string;
 };
 
-const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg"]);
+const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "x_t"]);
 const blockedDrawingStatuses = new Set(["Obsolete", "Merged", "EVTDisabled", "MainDrawingInvalid"]);
 const submittablePrimaryPartKinds = new Set(["manufactured", "outsourced", "custom"]);
 const snapshotRulesVersion = "drawing_part_submission_v1.2026-07-01";
@@ -246,6 +257,7 @@ type ExistingSubmissionRow = {
   revision: string;
   status: string;
   created_at: string | null;
+  submitted_by: string | null;
   submitted_by_name: string | null;
   release_error: string | null;
   resolved_by_submission_id: string | null;
@@ -268,9 +280,11 @@ export type DuplicateActiveSubmissionReviewConflict = {
 export async function resolveDrawingSubmissionContext(input: {
   company: PdmCompany;
   drawingNumber: string;
+  targetRevision?: string | null;
 }): Promise<DrawingSubmissionContext> {
   const client = getAsyncDatabaseClient();
   const drawingNumber = normalizeText(input.drawingNumber);
+  const targetRevision = normalizeText(input.targetRevision);
   if (!drawingNumber) throw new DrawingSubmissionWorkbenchError("DRAWING_NUMBER_REQUIRED", "圖號為必填。", 400);
 
   const drawing = await findDrawing(client, input.company.companyId, drawingNumber);
@@ -287,8 +301,8 @@ export async function resolveDrawingSubmissionContext(input: {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number
   });
-  const latestEligibleAttachment = attachments.find((attachment) => attachment.eligibleForSubmission && attachment.revision);
-  const suggestedRevision = latestEligibleAttachment?.revision ?? suggestRevisionCode(revisions, "rd_workspace");
+  const suggestedRevision = targetRevision || suggestRevisionCode(revisions, "rd_workspace");
+  const suggestedRevisionSource = targetRevision ? "manual_master" : "revision_policy";
   const sameRevisionRecords = await listSameRevisionSubmissions(client, {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number,
@@ -301,6 +315,7 @@ export async function resolveDrawingSubmissionContext(input: {
     linkedPartRows,
     rootPrimaryDrawings,
     attachments,
+    targetRevision: suggestedRevision,
     existingSubmission: blockingSubmission
   });
 
@@ -332,7 +347,7 @@ export async function resolveDrawingSubmissionContext(input: {
     attachments,
     suggestedRevision: {
       revision: suggestedRevision,
-      source: latestEligibleAttachment?.revision ? "latest_attachment" : "revision_policy"
+      source: suggestedRevisionSource
     },
     blockers,
     sameRevisionRecords,
@@ -400,7 +415,9 @@ export async function resolveRootSubmissionReadiness(input: {
 export async function createDrawingSourceSubmission(input: {
   company: PdmCompany;
   drawingNumber: string;
+  expectedRevision?: string | null;
   selectedAttachmentIds: string[];
+  packageFileRoles?: Array<{ attachmentId: string; role: RevisionPackageFileRole }>;
   note: string;
   submittedBy: string;
   idempotencyKey: string;
@@ -409,7 +426,12 @@ export async function createDrawingSourceSubmission(input: {
   if (!idempotencyKey) {
     throw new DrawingSubmissionWorkbenchError("SUBMISSION_IDEMPOTENCY_KEY_REQUIRED", "送審缺少防重複識別碼，請重新整理後再送出。", 400);
   }
-  const context = await resolveDrawingSubmissionContext({ company: input.company, drawingNumber: input.drawingNumber });
+  const expectedRevision = normalizeText(input.expectedRevision);
+  const context = await resolveDrawingSubmissionContext({
+    company: input.company,
+    drawingNumber: input.drawingNumber,
+    targetRevision: expectedRevision
+  });
   const client = getAsyncDatabaseClient();
   const existingAttempt = await getSubmissionAttempt(client, {
     companyId: input.company.companyId,
@@ -417,11 +439,18 @@ export async function createDrawingSourceSubmission(input: {
     idempotencyKey
   });
   if (existingAttempt?.status === "created" && existingAttempt.submission_id) {
+    const existingPackage = await ensureDrawingRevisionPackageForSubmissionAsync({
+      submissionId: existingAttempt.submission_id,
+      actorId: input.submittedBy
+    });
     return {
       submissionId: existingAttempt.submission_id,
+      packageId: existingPackage.id,
       status: "Pending" as const,
       revision: existingAttempt.source_revision || context.suggestedRevision.revision,
       context,
+      packageFiles: [] as RevisionPackageClassifiedFile[],
+      packageWarnings: [] as RevisionPackageWarning[],
       idempotentReplay: true
     };
   }
@@ -626,7 +655,55 @@ export async function createDrawingSourceSubmission(input: {
     });
   }
 
-  const revision = revisionFromSelectedAttachments(selectedView) ?? context.suggestedRevision.revision;
+  const selectedRevision = revisionFromSelectedAttachments(selectedView);
+  if (expectedRevision && !selectedAttachmentsMatchRevision(selectedView, expectedRevision)) {
+    const details = selectedView.map((attachment) => `${attachment.fileName}: ${attachment.revision || "未標版次"}`);
+    await upsertSubmissionAttempt(client, {
+      companyId: input.company.companyId,
+      sourceRootCode: context.root.rootCode,
+      sourceDrawingNumber: context.drawing.drawingNumber,
+      sourceRevision: expectedRevision,
+      idempotencyKey,
+      actorId: input.submittedBy,
+      status: "blocked",
+      errorCode: "DRAWING_SUBMISSION_REVISION_MISMATCH",
+      errorMessage: `選取附件版次必須與本次進版版次 ${expectedRevision} 一致。`,
+      blockerMessages: details
+    });
+    throw new DrawingSubmissionWorkbenchError(
+      "DRAWING_SUBMISSION_REVISION_MISMATCH",
+      `選取附件版次必須與本次進版版次 ${expectedRevision} 一致。`,
+      400,
+      details
+    );
+  }
+  const revision = expectedRevision || selectedRevision || context.suggestedRevision.revision;
+  const packageRoleByAttachmentId = new Map(
+    (input.packageFileRoles ?? [])
+      .map((entry) => {
+        const role = normalizeRevisionPackageFileRole(entry.role);
+        const attachmentId = normalizeText(entry.attachmentId);
+        return role && attachmentId ? ([attachmentId, role] as const) : null;
+      })
+      .filter((entry): entry is readonly [string, RevisionPackageFileRole] => Boolean(entry))
+  );
+  const packageFiles = classifyRevisionPackageFiles(
+    selectedView.map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.fileName,
+      documentCategory: attachment.documentCategory,
+      userCorrectedRole: packageRoleByAttachmentId.get(attachment.id) ?? null
+    }))
+  );
+  const packageWarnings = evaluateRevisionPackageCompleteness({
+    drawingNumber: context.drawing.drawingNumber,
+    revision,
+    files: packageFiles.map((file) => ({
+      id: file.id,
+      filename: file.filename,
+      role: file.role
+    }))
+  });
   const existingRevisionSubmission = await findBlockingSubmissionByDrawingRevision(client, {
     companyId: input.company.companyId,
     drawingNumber: context.drawing.drawingNumber,
@@ -683,6 +760,7 @@ export async function createDrawingSourceSubmission(input: {
   };
   const validationErrors = validateSubmissionInput(submissionInput);
   if (validationErrors.length > 0) {
+    const validationMessage = `送審資料尚未完整：${validationErrors.join("、")}。下一步：請回表單補齊後重新送審。`;
     await upsertSubmissionAttempt(client, {
       companyId: input.company.companyId,
       sourceRootCode: context.root.rootCode,
@@ -692,10 +770,10 @@ export async function createDrawingSourceSubmission(input: {
       actorId: input.submittedBy,
       status: "blocked",
       errorCode: "DRAWING_SUBMISSION_VALIDATION_FAILED",
-      errorMessage: "送審資料驗證失敗。",
+      errorMessage: validationMessage,
       blockerMessages: validationErrors
     });
-    throw new DrawingSubmissionWorkbenchError("DRAWING_SUBMISSION_VALIDATION_FAILED", "送審資料驗證失敗。", 400, validationErrors);
+    throw new DrawingSubmissionWorkbenchError("DRAWING_SUBMISSION_VALIDATION_FAILED", validationMessage, 400, validationErrors);
   }
   await upsertSubmissionAttempt(client, {
     companyId: input.company.companyId,
@@ -721,6 +799,7 @@ export async function createDrawingSourceSubmission(input: {
   );
   const savedFiles = await saveSubmissionFileBuffers(submissionFolderName, files);
 
+  let createdSubmissionId: string | null = null;
   try {
     const submissionId = await createSubmissionRecordAsync({
       companyId: input.company.companyId,
@@ -739,8 +818,13 @@ export async function createDrawingSourceSubmission(input: {
         rulesVersion: snapshotRulesVersion,
         capturedBy: input.submittedBy,
         capturedAt,
-        snapshotJson: buildSnapshotBase({ context, revision, selectedView, note, submittedBy: input.submittedBy, capturedAt })
+        snapshotJson: buildSnapshotBase({ context, revision, selectedView, packageFiles, packageWarnings, note, submittedBy: input.submittedBy, capturedAt })
       }
+    });
+    createdSubmissionId = submissionId;
+    const packageRecord = await ensureDrawingRevisionPackageForSubmissionAsync({
+      submissionId,
+      actorId: input.submittedBy
     });
     await upsertSubmissionAttempt(client, {
       companyId: input.company.companyId,
@@ -754,13 +838,24 @@ export async function createDrawingSourceSubmission(input: {
     });
     return {
       submissionId,
+      packageId: packageRecord.id,
       status: "Pending" as const,
       revision,
       context,
+      packageFiles,
+      packageWarnings,
       idempotentReplay: false
     };
   } catch (error) {
-    await removeSubmissionUploadFolder(submissionFolderName);
+    if (createdSubmissionId) {
+      await cancelPendingSubmissionAsync({
+        id: createdSubmissionId,
+        actorId: input.submittedBy,
+        reason: "版次附件包建立失敗，系統取消未完整送審。"
+      }).catch(() => undefined);
+    } else {
+      await removeSubmissionUploadFolder(submissionFolderName);
+    }
     if (isSubmissionRevisionUniqueError(error)) {
       const existingSubmission = await findBlockingSubmissionByDrawingRevision(client, {
         companyId: input.company.companyId,
@@ -1103,6 +1198,7 @@ export async function getDuplicateActiveSubmissionConflictForReviewAsync(
       s.revision,
       s.status,
       s.created_at,
+      s.submitted_by,
       u.display_name AS submitted_by_name
     FROM submissions s
     LEFT JOIN users u ON u.id = s.submitted_by
@@ -1238,6 +1334,7 @@ async function findBlockingSubmissionByDrawingRevision(
       s.revision,
       s.status,
       s.created_at,
+      s.submitted_by,
       s.release_error,
       s.resolved_by_submission_id,
       s.resolved_at,
@@ -1281,6 +1378,7 @@ async function listSameRevisionSubmissions(
       s.revision,
       s.status,
       s.created_at,
+      s.submitted_by,
       s.release_error,
       s.resolved_by_submission_id,
       s.resolved_at,
@@ -1319,6 +1417,7 @@ async function listActiveSubmissionsByDrawingRevision(
       s.revision,
       s.status,
       s.created_at,
+      s.submitted_by,
       s.release_error,
       s.resolved_by_submission_id,
       s.resolved_at,
@@ -1344,6 +1443,7 @@ function mapExistingSubmissionSummary(row: ExistingSubmissionRow): ExistingSubmi
     revision: row.revision,
     status: row.status,
     createdAt: row.created_at ?? undefined,
+    submittedById: row.submitted_by ?? undefined,
     submittedByDisplayName: row.submitted_by_name ?? undefined,
     releaseError: row.release_error ?? null,
     resolvedBySubmissionId: row.resolved_by_submission_id ?? null,
@@ -1528,6 +1628,7 @@ function buildBlockers(input: {
   linkedPartRows: LinkedPartRow[];
   rootPrimaryDrawings: PrimaryDrawingRow[];
   attachments: DrawingSubmissionAttachment[];
+  targetRevision: string;
   existingSubmission: ExistingSubmissionSummary | null;
 }) {
   const recoveryHref = `/numbering/drawings?query=${encodeURIComponent(input.drawing.drawing_number)}`;
@@ -1601,10 +1702,15 @@ function buildBlockers(input: {
       }));
     }
   }
-  if (!input.attachments.some((attachment) => attachment.eligibleForSubmission)) {
+  const hasTargetRevisionAttachment = input.attachments.some(
+    (attachment) => attachment.eligibleForSubmission && normalizeText(attachment.revision) === input.targetRevision
+  );
+  if (!hasTargetRevisionAttachment) {
     blockers.push(makeSubmissionBlocker({
       code: "missing_attachment",
-      message: "此圖號尚無可送審的圖面/CAD/PDF/DWG 附件。請先在圖號附件庫上傳。",
+      message: input.targetRevision
+        ? `此圖號目前沒有版次 ${input.targetRevision} 的可送審附件。請先上傳同版次新版圖面。`
+        : "此圖號尚無可送審的圖面/CAD/PDF/DWG 附件。請先在圖號附件庫上傳。",
       recoveryHref
     }));
   }
@@ -1919,10 +2025,13 @@ function buildSnapshotBase(input: {
   context: DrawingSubmissionContext;
   revision: string;
   selectedView: DrawingSubmissionAttachment[];
+  packageFiles?: RevisionPackageClassifiedFile[];
+  packageWarnings?: RevisionPackageWarning[];
   note: string;
   submittedBy: string;
   capturedAt: string;
 }): Record<string, unknown> {
+  const packageFileById = new Map((input.packageFiles ?? []).map((file) => [file.id, file]));
   return {
     snapshotVersion: "drawing_part_submission_v1",
     rulesVersion: snapshotRulesVersion,
@@ -1951,12 +2060,29 @@ function buildSnapshotBase(input: {
       id: attachment.id,
       fileName: attachment.fileName,
       fileRole: normalizeFileRole(attachment.fileName),
+      packageRole: packageFileById.get(attachment.id)?.role ?? null,
+      packageRoleDefault: packageFileById.get(attachment.id)?.defaultRole ?? null,
+      packageRoleSource: packageFileById.get(attachment.id)?.source ?? null,
       fileExt: attachment.fileExt,
       fileSize: attachment.fileSize,
       documentCategory: attachment.documentCategory,
       revision: attachment.revision,
       createdAt: attachment.createdAt
-    }))
+    })),
+    ...(input.packageFiles
+      ? {
+          revisionPackage: {
+            files: input.packageFiles.map((file) => ({
+              sourceAttachmentId: file.id ?? null,
+              filename: file.filename,
+              defaultRole: file.defaultRole,
+              role: file.role,
+              source: file.source
+            })),
+            warnings: input.packageWarnings ?? []
+          }
+        }
+      : {})
   };
 }
 
@@ -1972,13 +2098,17 @@ function revisionFromSelectedAttachments(attachments: DrawingSubmissionAttachmen
   return revisions.length === 1 ? revisions[0] : null;
 }
 
+function selectedAttachmentsMatchRevision(attachments: DrawingSubmissionAttachment[], revision: string) {
+  return attachments.every((attachment) => normalizeText(attachment.revision) === revision);
+}
+
 function documentTypeFromAttachments(attachments: DrawingSubmissionAttachment[]) {
   const primary = [...attachments].sort(compareSubmissionAttachments)[0];
   if (!primary) return "Drawing";
   if (primary.fileExt === "sldprt") return "Part";
   if (primary.fileExt === "sldasm") return "Assembly";
   if (primary.fileExt === "pdf") return "PDF";
-  if (primary.fileExt === "dwg") return "DWG";
+  if (primary.fileExt === "dwg" || primary.fileExt === "dxf") return "DWG";
   return "Drawing";
 }
 
@@ -1991,7 +2121,7 @@ function attachmentPriority(attachment: DrawingSubmissionAttachment) {
   if (attachment.fileExt === "slddrw") return 0;
   if (attachment.documentCategory === "drawing_2d") return 1;
   if (attachment.fileExt === "pdf") return 2;
-  if (attachment.fileExt === "dwg") return 3;
+  if (attachment.fileExt === "dwg" || attachment.fileExt === "dxf") return 3;
   if (attachment.fileExt === "sldasm") return 4;
   if (attachment.fileExt === "sldprt") return 5;
   return 10;

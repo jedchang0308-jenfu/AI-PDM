@@ -4,6 +4,7 @@ import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/nu
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 
 export const runtime = "nodejs";
+const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
   const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
@@ -17,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
       entityCode: decodeURIComponent(drawingNumber)
     });
     if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
-    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" }, { headers: noStoreHeaders });
   }
 
   const result = await listMasterAttachmentsAsync({
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
     entityCode: decodeURIComponent(drawingNumber)
   });
   if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ entity: result.entity, attachments: result.attachments });
+  return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {

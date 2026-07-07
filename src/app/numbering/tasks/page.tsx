@@ -5,7 +5,9 @@ import Link from "next/link";
 import { CheckCircle2, Eye, RotateCcw, ShieldAlert, UploadCloud } from "lucide-react";
 import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from "@/lib/status-display";
 
 type TaskStatus = "open" | "handled" | "cancelled" | "all";
 type NotificationRead = "all" | "read" | "unread";
@@ -113,7 +115,7 @@ export default function NumberingTaskCenterPage() {
     ]);
     const draftReadable = draftResponse.ok || draftResponse.status === 403;
     if (!taskResponse.ok || !notificationResponse.ok || !draftReadable) {
-      setError(taskBody.error ?? notificationBody.error ?? draftBody.error ?? "待辦、通知與草稿讀取失敗");
+      setError(formatStatusErrorForUser(taskBody.error ?? notificationBody.error ?? draftBody.error ?? "待辦、通知與草稿讀取失敗", "task"));
       setState("error");
       return;
     }
@@ -198,7 +200,7 @@ export default function NumberingTaskCenterPage() {
               <div>
                 <h2>待辦中心</h2>
                 <p style={mutedTextStyle}>
-                  {taskSummary.total} 件，critical {taskSummary.critical}，warning {taskSummary.warning}
+                  {taskSummary.total} 件，高風險 {taskSummary.critical}，注意 {taskSummary.warning}
                 </p>
               </div>
               <div className="status-tabs">
@@ -278,7 +280,9 @@ function TaskList({
             <th>待辦</th>
             <th>角色 / 專案</th>
             <th>建立時間</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="task" />
+            </th>
             <th>操作</th>
           </tr>
         </thead>
@@ -299,7 +303,9 @@ function TaskList({
                 <span style={mutedTextStyle}>{task.projectCode ?? task.entityType}</span>
               </td>
               <td>{formatDateTime(task.createdAt)}</td>
-              <td>{statusLabel(task.taskStatus)}</td>
+              <td>
+                <StatusBadge status={task.taskStatus} context="task" />
+              </td>
               <td>
                 <div style={actionGroupStyle}>
                   {task.actionUrl ? (
@@ -337,9 +343,9 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
       <div className="panel-header">
         <div>
           <h2>待送審草稿</h2>
-          <p style={mutedTextStyle}>{uniqueDrafts.length} 組圖料已領號但尚未建立 submission。</p>
+          <p style={mutedTextStyle}>{uniqueDrafts.length} 組圖料已領號但尚未建立送審單。</p>
         </div>
-        <span className="metadata-badge">Draft</span>
+        <span className="metadata-badge">草稿</span>
       </div>
       <div className="table-wrap">
         <table style={{ minWidth: "820px" }}>
@@ -347,7 +353,9 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
             <tr>
               <th>主根號</th>
               <th>圖料</th>
-              <th>階段 / 狀態</th>
+              <th>
+                <StatusColumnHeader label="階段 / 狀態" context="masterRecord" />
+              </th>
               <th>現在卡點</th>
               <th>操作</th>
             </tr>
@@ -374,9 +382,9 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
                     </p>
                   </td>
                   <td>
-                    <span className={`badge ${draft.recordStatus}`}>{draft.recordStatus}</span>
+                    <StatusBadge status={draft.recordStatus} context="masterRecord" />
                     <br />
-                    <span style={mutedTextStyle}>{draft.developmentPhase}</span>
+                    <span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>
                   </td>
                   <td>已領號，尚未上傳設計資料送審。</td>
                   <td>
@@ -448,7 +456,9 @@ function NotificationList({
             <th>通知</th>
             <th>角色</th>
             <th>建立時間</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="notification" />
+            </th>
             <th>操作</th>
           </tr>
         </thead>
@@ -551,9 +561,9 @@ function MarkerList({ markers }: { markers: AttentionMarker[] }) {
 }
 
 function riskLabel(value: "info" | "warning" | "critical") {
-  if (value === "critical") return "critical";
-  if (value === "warning") return "warning";
-  return "info";
+  if (value === "critical") return "高風險";
+  if (value === "warning") return "注意";
+  return "提醒";
 }
 
 function statusLabel(value: string) {

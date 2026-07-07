@@ -17,10 +17,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
+  const expectedRevision = String(body.expectedRevision ?? body.revision ?? "").trim() || null;
   try {
     const result = await createDrawingSourceSubmission({
       company: companyResult.company,
       drawingNumber: decodeURIComponent(drawingNumber),
+      expectedRevision,
       selectedAttachmentIds: Array.isArray(body.selectedAttachmentIds)
         ? body.selectedAttachmentIds.map((value) => String(value))
         : [],

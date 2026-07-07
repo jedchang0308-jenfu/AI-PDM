@@ -6,6 +6,8 @@ Owner: Dev PM / QA
 Related DEV: `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md`
 
+Supersession note: Section 4.7 remains historical planning context. Future UI real-operation closure must use `.ai-doc/qa/qa-pdm-drawing-submission-ui-real-operation-validation-plan-2026-07-02.md`, which defines the current 26-case browser UI matrix. The focused recovery QC evidence in this file is supporting evidence, not a substitute for the 26 UI cases.
+
 ## 1. Purpose
 
 Validate that the new drawing submission workbench fixes the current dead-end workflow without creating unsafe data flow:

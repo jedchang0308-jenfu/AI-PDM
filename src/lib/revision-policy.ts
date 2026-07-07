@@ -77,6 +77,16 @@ export function isValidRevisionCode(value: string | null | undefined, options: {
   return validateRevisionCode(value, options) === null;
 }
 
+export function compareRevisionCodes(left: string | null | undefined, right: string | null | undefined, options: { allowLegacy?: boolean } = {}) {
+  const leftRevision = parseRevisionCode(left, options);
+  const rightRevision = parseRevisionCode(right, options);
+  if (!leftRevision || !rightRevision) {
+    throw new Error(`版次格式無法比較：${normalizeRevisionCode(left) || "-"} / ${normalizeRevisionCode(right) || "-"}。請通知 Admin 修正版本資料後再處理。`);
+  }
+  if (leftRevision.major !== rightRevision.major) return leftRevision.major - rightRevision.major;
+  return (leftRevision.minor ?? 0) - (rightRevision.minor ?? 0);
+}
+
 export function suggestRevisionCode(revisions: RevisionHistorySource[], lifecycleStage: RevisionLifecycleStage = "release_area") {
   const parsed = revisions
     .map((revision) => {

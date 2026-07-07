@@ -97,7 +97,9 @@ function getCreatedPart(partName) {
         `
         SELECT p.*, r.root_code, (
           SELECT COUNT(*) FROM drawing_numbers d WHERE d.part_root_id = p.part_root_id
-        ) AS drawing_count
+        ) AS drawing_count, (
+          SELECT d.drawing_number FROM drawing_numbers d WHERE d.part_root_id = p.part_root_id ORDER BY d.sequence_no LIMIT 1
+        ) AS drawing_number
         FROM part_numbers p
         JOIN part_roots r ON r.id = p.part_root_id
         WHERE p.part_name = ?
@@ -109,6 +111,73 @@ function getCreatedPart(partName) {
   } finally {
     db.close();
   }
+}
+
+async function verifyNumberingResultDetailLinks(page, viewportWidth, created) {
+  await page.getByRole("heading", { name: "領號結果" }).waitFor({ timeout: 10_000 });
+  const resultPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "領號結果" }) }).last();
+  const detailLinks = resultPanel.getByRole("link", { name: "明細" });
+  record(`Result shows three detail links beside generated numbers at ${viewportWidth}px`, (await detailLinks.count()) === 3, `${await detailLinks.count()} links`);
+  record(`Duplicate lifecycle block is removed from result at ${viewportWidth}px`, (await page.getByText("這張圖料現在在哪一步").count()) === 0);
+  record(`Result actions block is removed at ${viewportWidth}px`, (await page.getByText("Actions").count()) === 0);
+
+  const hrefs = await detailLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+  const [rootHref, partHref, drawingHref] = hrefs;
+  record(`Root detail link targets search detail at ${viewportWidth}px`, rootHref.includes(`/numbering/search?`) && rootHref.includes(`detail=${encodeURIComponent(created.root_code)}`), rootHref);
+  record(`Part detail link targets part module detail at ${viewportWidth}px`, partHref.includes(`/parts?`) && partHref.includes(`detail=${encodeURIComponent(created.part_number)}`), partHref);
+  record(`Drawing detail link targets drawing module detail at ${viewportWidth}px`, drawingHref.includes(`/numbering/drawings?`) && drawingHref.includes(`detail=${encodeURIComponent(created.drawing_number)}`), drawingHref);
+
+  await page.goto(new URL(rootHref, apiBaseUrl).toString(), { waitUntil: "networkidle" });
+  await page.getByRole("dialog", { name: "圖料明細" }).waitFor({ timeout: 10_000 });
+  record(`Root detail link opens root detail drawer at ${viewportWidth}px`, await page.getByRole("dialog", { name: "圖料明細" }).isVisible());
+  record(`Root detail drawer shows created root at ${viewportWidth}px`, (await page.getByText(created.root_code, { exact: true }).count()) >= 1, created.root_code);
+
+  await page.goto(new URL(partHref, apiBaseUrl).toString(), { waitUntil: "networkidle" });
+  await page.getByRole("dialog", { name: "料號明細" }).waitFor({ timeout: 10_000 });
+  record(`Part detail link opens part detail drawer at ${viewportWidth}px`, await page.getByRole("dialog", { name: "料號明細" }).isVisible());
+  record(`Part detail drawer shows created part at ${viewportWidth}px`, (await page.getByText(created.part_number, { exact: true }).count()) >= 1, created.part_number);
+
+  await page.goto(new URL(drawingHref, apiBaseUrl).toString(), { waitUntil: "networkidle" });
+  await page.getByRole("dialog", { name: "圖號治理明細" }).waitFor({ timeout: 10_000 });
+  record(`Drawing detail link opens drawing detail drawer at ${viewportWidth}px`, await page.getByRole("dialog", { name: "圖號治理明細" }).isVisible());
+  record(`Drawing detail drawer shows created drawing at ${viewportWidth}px`, (await page.getByText(created.drawing_number, { exact: true }).count()) >= 1, created.drawing_number);
+}
+
+async function verifyBrowserRestoredMotorNameSuggestion(context, viewportWidth) {
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    const restoredValues = [
+      { label: "核心名稱", value: "馬達" },
+      { label: "系列代號", value: "JF" },
+      { label: "特性", value: "2HP" }
+    ];
+
+    const applyRestoredValues = () => {
+      for (const item of restoredValues) {
+        const label = [...document.querySelectorAll("label")].find((candidate) => candidate.textContent?.includes(item.label));
+        const input = label?.querySelector("input");
+        if (input instanceof HTMLInputElement && !input.value) input.value = item.value;
+      }
+    };
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const observer = new MutationObserver(applyRestoredValues);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      applyRestoredValues();
+      [50, 200, 800, 1600].forEach((delay) => window.setTimeout(applyRestoredValues, delay));
+      window.setTimeout(() => observer.disconnect(), 2200);
+    });
+  });
+
+  await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[placeholder="填寫上方命名元素後自動產生"]');
+    return input instanceof HTMLInputElement && /^馬達_JF_2HP_[A-Z]+$/.test(input.value);
+  });
+  const restoredGeneratedName = await page.locator('input[placeholder="填寫上方命名元素後自動產生"]').inputValue();
+  record(`Browser-restored motor fields generate part name at ${viewportWidth}px`, /^馬達_JF_2HP_[A-Z]+$/.test(restoredGeneratedName), restoredGeneratedName);
+  await page.close();
 }
 
 async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
@@ -173,6 +242,8 @@ async function verifyManufacturedWithDrawing(page, viewportWidth) {
   record(`Drawing generated name persisted at ${viewportWidth}px`, created?.part_name === drawingGeneratedName, JSON.stringify(created ?? {}));
   record(`New numbering persists EVT initial phase at ${viewportWidth}px`, created?.development_phase === "EVT", JSON.stringify(created ?? {}));
   record(`Drawing created with manufactured part at ${viewportWidth}px`, created?.drawing_count === 1, JSON.stringify(created ?? {}));
+  record(`Drawing number is available for result detail link validation at ${viewportWidth}px`, Boolean(created?.drawing_number), JSON.stringify(created ?? {}));
+  await verifyNumberingResultDetailLinks(page, viewportWidth, created);
 }
 
 async function verifyViewport(browser, viewport) {
@@ -185,14 +256,18 @@ async function verifyViewport(browser, viewport) {
   page.on("pageerror", (error) => consoleErrors.push(error.message));
 
   await loginAsAdmin(context);
+  await verifyBrowserRestoredMotorNameSuggestion(context, viewport.width);
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
   record(`Request wizard renders at ${viewport.width}px`, await page.getByText("基本資料").isVisible());
+  record(`Request wizard omits redundant workflow strip at ${viewport.width}px`, (await page.getByText("領號流程").count()) === 0);
+  record(`Request wizard omits redundant lifecycle guidance at ${viewport.width}px`, (await page.getByText("需求與領號").count()) === 0);
 
   record(`Request wizard shows locked EVT initial phase at ${viewport.width}px`, (await page.getByTestId("initial-development-phase").innerText()).includes("EVT"));
 
   if (viewport.width >= 1000) {
     await verifyCustomPartBeforeDrawing(page, viewport.width);
+    await verifyManufacturedWithDrawing(page, viewport.width);
   } else {
     await verifyManufacturedWithDrawing(page, viewport.width);
   }

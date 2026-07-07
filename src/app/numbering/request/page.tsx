@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ClipboardList, RotateCcw, Search, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, RotateCcw, Search, Send } from "lucide-react";
 import { LabelWithInfo } from "@/components/compact-hints";
-import { ObjectLifecycleStatusPanel, buildUploadPrefillHref, LifecycleStageGuidance } from "@/components/lifecycle-ux";
-import { NextStepState } from "@/components/next-step-state";
-import { WorkflowStrip } from "@/components/workflow-strip";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 
 type LoadState = "ready" | "unauthorized" | "forbidden" | "error";
 type ItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
@@ -93,8 +92,27 @@ export default function NumberingRequestPage() {
   const [createdRecord, setCreatedRecord] = useState<CreatedRecord | null>(null);
   const [busy, setBusy] = useState<"check" | "submit" | null>(null);
   const [error, setError] = useState("");
+  const coreNameInputRef = useRef<HTMLInputElement>(null);
+  const seriesCodeInputRef = useRef<HTMLInputElement>(null);
+  const featureTextInputRef = useRef<HTMLInputElement>(null);
+  const brandNameInputRef = useRef<HTMLInputElement>(null);
+  const specModelInputRef = useRef<HTMLInputElement>(null);
+  const customSpecificationInputRef = useRef<HTMLInputElement>(null);
 
   const nameUsesSequence = itemKind !== "purchased";
+
+  useEffect(() => {
+    const syncBrowserRestoredValues = () => {
+      setCoreName((current) => current || coreNameInputRef.current?.value || "");
+      setSeriesCode((current) => current || seriesCodeInputRef.current?.value || "");
+      setFeatureText((current) => current || featureTextInputRef.current?.value || "");
+      setBrandName((current) => current || brandNameInputRef.current?.value || "");
+      setSpecModel((current) => current || specModelInputRef.current?.value || "");
+      setCustomSpecification((current) => current || customSpecificationInputRef.current?.value || "");
+    };
+    const timers = [0, 120, 600, 1500, 3000].map((delay) => window.setTimeout(syncBrowserRestoredValues, delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, []);
 
   const basePartName = useMemo(
     () =>
@@ -254,30 +272,6 @@ export default function NumberingRequestPage() {
         </button>
       </div>
 
-      <WorkflowStrip
-        title="領號流程"
-        description="建立主根號與料號後，可接續送審檔案或回查既有圖料避免重複。"
-        steps={["需求建立", "領號", "上傳送審", "審核", "發行"]}
-        currentStep="領號"
-        actions={[
-          { href: "/upload", label: "去送審", variant: "primary" },
-          { href: "/numbering/search", label: "查既有圖料" }
-        ]}
-      />
-
-      <LifecycleStageGuidance
-        activeStage="numbering"
-        metrics={[
-          { label: "Phase", value: developmentPhase },
-          { label: "Required gaps", value: validation.length, tone: validation.length > 0 ? "warning" : "success" },
-          {
-            label: "Duplicate risk",
-            value: duplicateResult ? (duplicateResult.blocked ? "Blocked" : duplicateResult.matches.length) : "Not checked",
-            tone: duplicateResult?.blocked ? "critical" : duplicateResult?.matches.length ? "warning" : "neutral"
-          }
-        ]}
-      />
-
       {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再申請圖料號。" /> : null}
       {state === "forbidden" ? <AccessPanel title="權限不足" message="工程師、研發主管或管理員可申請圖料號。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={() => setState("ready")} /> : null}
@@ -287,7 +281,7 @@ export default function NumberingRequestPage() {
           <div className="panel-header">
             <div>
               <h2>基本資料</h2>
-              <p style={mutedTextStyle}>新領號固定為 EVT 草稿；DVT、PVT、Release 由後續 gate 流程晉升。</p>
+              <p style={mutedTextStyle}>新領號固定為 EVT 草稿；DVT、PVT、正式階段由後續關卡流程晉升。</p>
             </div>
             <div style={actionGroupStyle}>
               <button className="secondary-button" type="button" onClick={runDuplicateCheck} disabled={busy === "check" || !coreName.trim() || !partName.trim()}>
@@ -303,7 +297,14 @@ export default function NumberingRequestPage() {
           <div style={formGridStyle}>
             <label style={fieldStyle}>
               <span>核心名稱</span>
-              <input value={coreName} onChange={(event) => setCoreName(event.target.value)} placeholder="例如：固定支架" />
+              <input
+                ref={coreNameInputRef}
+                value={coreName}
+                autoComplete="off"
+                onInput={(event) => setCoreName(event.currentTarget.value)}
+                onChange={(event) => setCoreName(event.target.value)}
+                placeholder="例如：固定支架"
+              />
             </label>
             <label style={fieldStyle}>
               <span>料件類型</span>
@@ -319,11 +320,25 @@ export default function NumberingRequestPage() {
               <>
                 <label style={fieldStyle}>
                   <span>品牌</span>
-                  <input value={brandName} onChange={(event) => setBrandName(event.target.value)} placeholder="有影響才填，例如：東元" />
+                  <input
+                    ref={brandNameInputRef}
+                    value={brandName}
+                    autoComplete="off"
+                    onInput={(event) => setBrandName(event.currentTarget.value)}
+                    onChange={(event) => setBrandName(event.target.value)}
+                    placeholder="有影響才填，例如：東元"
+                  />
                 </label>
                 <label style={fieldStyle}>
                   <span>規格 / 型號</span>
-                  <input value={specModel} onChange={(event) => setSpecModel(event.target.value)} placeholder="例如：1HP_4P_220VAC" />
+                  <input
+                    ref={specModelInputRef}
+                    value={specModel}
+                    autoComplete="off"
+                    onInput={(event) => setSpecModel(event.currentTarget.value)}
+                    onChange={(event) => setSpecModel(event.target.value)}
+                    placeholder="例如：1HP_4P_220VAC"
+                  />
                 </label>
               </>
             ) : null}
@@ -335,25 +350,46 @@ export default function NumberingRequestPage() {
             ) : itemKind !== "shared" && !isUniversal ? (
               <label style={fieldStyle}>
                 <span>系列代號</span>
-                <input value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)} placeholder="例如：JF_100L，未定案可先暫填" />
+                <input
+                  ref={seriesCodeInputRef}
+                  value={seriesCode}
+                  autoComplete="off"
+                  onInput={(event) => setSeriesCode(event.currentTarget.value)}
+                  onChange={(event) => setSeriesCode(event.target.value)}
+                  placeholder="例如：JF_100L，未定案可先暫填"
+                />
               </label>
             ) : null}
             <label style={fieldStyle}>
               <span>階段</span>
               <div style={lockedPhaseStyle} data-testid="initial-development-phase">
                 <strong>{initialDevelopmentPhase}</strong>
-                <small>領號只建立圖料身份；成熟度由 DVT / PVT / Release gate 推進。</small>
+                <small>領號只建立圖料身份；成熟度由 DVT / PVT / 發布關卡推進。</small>
               </div>
             </label>
             {itemKind === "custom" ? (
               <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
                 <span>客製尺寸/規格</span>
-                <input value={customSpecification} onChange={(event) => setCustomSpecification(event.target.value)} placeholder="例如：L120 x W30 x H8，孔距 90" />
+                <input
+                  ref={customSpecificationInputRef}
+                  value={customSpecification}
+                  autoComplete="off"
+                  onInput={(event) => setCustomSpecification(event.currentTarget.value)}
+                  onChange={(event) => setCustomSpecification(event.target.value)}
+                  placeholder="例如：L120 x W30 x H8，孔距 90"
+                />
               </label>
             ) : null}
             <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
               <span>{itemKind === "purchased" ? "補充特徵" : "特性"}</span>
-              <input value={featureText} onChange={(event) => setFeatureText(event.target.value)} placeholder="可填規格、型號、材質、用途等；多個特徵可用 _、逗號或空格分隔" />
+              <input
+                ref={featureTextInputRef}
+                value={featureText}
+                autoComplete="off"
+                onInput={(event) => setFeatureText(event.currentTarget.value)}
+                onChange={(event) => setFeatureText(event.target.value)}
+                placeholder="可填規格、型號、材質、用途等；多個特徵可用 _、逗號或空格分隔"
+              />
             </label>
             {itemKind !== "purchased" ? (
               <div style={sequenceSuggestionStyle} data-testid="sequence-suggestion">
@@ -448,7 +484,7 @@ function DuplicatePanel({ result }: { result: DuplicateResult | null }) {
           <h2>查重結果</h2>
           <p style={mutedTextStyle}>{result.matches.length === 0 ? "沒有找到相同或高相似資料。" : `${result.matches.length} 筆相同或高相似資料`}</p>
         </div>
-        {result.blocked ? <span className="badge Rejected">blocker</span> : result.warningsOnly ? <span className="badge Pending">warning</span> : <span className="badge Released">clear</span>}
+        {result.blocked ? <span className="badge Rejected">阻擋</span> : result.warningsOnly ? <span className="badge Pending">注意</span> : <span className="badge Released">可建立</span>}
       </div>
       {result.matches.length > 0 ? (
         <div className="table-wrap">
@@ -458,17 +494,21 @@ function DuplicatePanel({ result }: { result: DuplicateResult | null }) {
                 <th>嚴重度</th>
                 <th>代碼</th>
                 <th>名稱</th>
-                <th>狀態</th>
+                <th>
+                  <StatusColumnHeader context="masterRecord" />
+                </th>
                 <th>分數</th>
               </tr>
             </thead>
             <tbody>
               {result.matches.map((match) => (
                 <tr key={`${match.entityType}:${match.entityId}`}>
-                  <td>{match.severity}</td>
+                  <td>{match.severity === "blocker" ? "阻擋" : "注意"}</td>
                   <td>{match.displayCode}</td>
                   <td>{match.displayName}</td>
-                  <td>{match.recordStatus}</td>
+                  <td>
+                    <StatusBadge status={match.recordStatus} context="masterRecord" />
+                  </td>
                   <td>{match.score}</td>
                 </tr>
               ))}
@@ -482,14 +522,6 @@ function DuplicatePanel({ result }: { result: DuplicateResult | null }) {
 
 function ResultPanel({ record }: { record: CreatedRecord | null }) {
   if (!record) return null;
-  const uploadHref = buildUploadPrefillHref({
-    rootCode: record.root.rootCode,
-    drawingNumber: record.drawingNumber?.drawingNumber,
-    partNumber: record.partNumber.partNumber,
-    partName: record.partNumber.partName,
-    developmentPhase: record.root.developmentPhase
-  });
-  const objectLabel = `${record.root.rootCode} / ${record.partNumber.partNumber}${record.drawingNumber ? ` / ${record.drawingNumber.drawingNumber}` : ""}`;
   return (
     <section className="panel">
       <div className="panel-header">
@@ -500,53 +532,43 @@ function ResultPanel({ record }: { record: CreatedRecord | null }) {
         <CheckCircle2 size={20} color="var(--success)" />
       </div>
       <div style={resultGridStyle}>
-        <ResultCard label="主根號" value={record.root.rootCode} />
-        <ResultCard label="料號" value={record.partNumber.partNumber} />
-        <ResultCard label="圖號" value={record.drawingNumber?.drawingNumber ?? "未領圖號"} />
+        <ResultCard
+          label="主根號"
+          value={record.root.rootCode}
+          detailHref={`/numbering/search?query=${encodeURIComponent(record.root.rootCode)}&entityType=part_root&detail=${encodeURIComponent(record.root.rootCode)}`}
+        />
+        <ResultCard
+          label="料號"
+          value={record.partNumber.partNumber}
+          detailHref={`/parts?query=${encodeURIComponent(record.partNumber.partNumber)}&detail=${encodeURIComponent(record.partNumber.partNumber)}`}
+        />
+        <ResultCard
+          label="圖號"
+          value={record.drawingNumber?.drawingNumber ?? "未領圖號"}
+          detailHref={
+            record.drawingNumber
+              ? `/numbering/drawings?query=${encodeURIComponent(record.drawingNumber.drawingNumber)}&detail=${encodeURIComponent(record.drawingNumber.drawingNumber)}`
+              : undefined
+          }
+        />
         <ResultCard label="客製規格" value={record.partNumber.customSpecification ?? "-"} />
       </div>
-      <ObjectLifecycleStatusPanel
-        title="這張圖料現在在哪一步"
-        objectName={objectLabel}
-        status={record.root.recordStatus}
-        phase={record.root.developmentPhase}
-        owner="RD"
-        identities={[
-          { label: "主根號", value: record.root.rootCode },
-          { label: "料號", value: record.partNumber.partNumber },
-          { label: "圖號", value: record.drawingNumber?.drawingNumber ?? "未建立" },
-          { label: "品名", value: record.partNumber.partName }
-        ]}
-        blockers={[
-          "號碼已建立但尚未送審，不是 Released 工程資料",
-          record.drawingNumber ? "尚未上傳圖面、3D/PDF/DWG 與變更原因" : "尚未建立圖號，後續若需製造圖須先補圖號"
-        ]}
-        nextStep="接著上傳設計資料建立 Pending submission；送出後由審核者接手，不是 RD 自行放行。"
-        primaryAction={{ href: uploadHref, label: "帶入這組號碼去送審" }}
-        secondaryActions={[
-          { href: `/numbering/search?query=${encodeURIComponent(record.root.rootCode)}`, label: "查看主根明細" },
-          { href: "/numbering/tasks", label: "看待辦 / 草稿" }
-        ]}
-      />
-      <NextStepState
-        compact
-        eyebrow="完成後"
-        title="草稿號碼已建立"
-        body="下一步可上傳圖面送審，或先回查圖料確認同圖多料號與既有關聯。"
-        actions={[
-          { href: uploadHref, label: "上傳送審", variant: "primary" },
-          { href: "/numbering/search", label: "回圖料模組" }
-        ]}
-      />
     </section>
   );
 }
 
-function ResultCard({ label, value }: { label: string; value: string }) {
+function ResultCard({ label, value, detailHref }: { label: string; value: string; detailHref?: string }) {
   return (
     <div className="metric-card">
       <span>{label}</span>
-      <strong>{value}</strong>
+      <div style={resultCardValueRowStyle}>
+        <strong>{value}</strong>
+        {detailHref ? (
+          <Link className="secondary-button" href={detailHref} style={resultDetailLinkStyle}>
+            明細
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -719,4 +741,17 @@ const resultGridStyle = {
   gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
   gap: "0.75rem",
   padding: "16px"
+};
+const resultCardValueRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.5rem",
+  minWidth: 0
+};
+const resultDetailLinkStyle = {
+  minHeight: "30px",
+  padding: "0.3rem 0.65rem",
+  fontSize: "0.875rem",
+  whiteSpace: "nowrap" as const
 };

@@ -159,7 +159,7 @@ export default function BomReviewsPage() {
     <section className="bom-review-page" aria-label="BOM 審核">
       <header className="bom-review-header">
         <div>
-          <p className="eyebrow">BOM Review</p>
+          <p className="eyebrow">BOM 審核</p>
           <h1>BOM 審核</h1>
           <p>主管集中處理 BOM 發布與正式作廢審核；作廢核准後會進入受控歷史。</p>
         </div>
@@ -171,7 +171,7 @@ export default function BomReviewsPage() {
 
       <WorkflowStrip
         title="差異審核流程"
-        description="集中比較 BOM 差異、核准發行，核准後輸出 Released BOM 與交接資料。"
+        description="集中比較 BOM 差異、核准發行，核准後輸出已發布 BOM 與交接資料。"
         steps={["選主件", "編輯 BOM", "送審", "發行", "交接"]}
         currentStep="送審"
         actions={[
@@ -183,10 +183,10 @@ export default function BomReviewsPage() {
       <LifecycleStageGuidance
         activeStage="bom"
         metrics={[
-          { label: "Pending BOM", value: reviews.length, tone: reviews.length > 0 ? "warning" : "success" },
-          { label: "Added", value: selectedReview?.diff.summary.added_count ?? 0 },
-          { label: "Removed", value: selectedReview?.diff.summary.removed_count ?? 0 },
-          { label: "Changed", value: selectedReview?.diff.summary.changed_count ?? 0 }
+          { label: "審核中 BOM", value: reviews.length, tone: reviews.length > 0 ? "warning" : "success" },
+          { label: "新增", value: selectedReview?.diff.summary.added_count ?? 0 },
+          { label: "移除", value: selectedReview?.diff.summary.removed_count ?? 0 },
+          { label: "變更", value: selectedReview?.diff.summary.changed_count ?? 0 }
         ]}
       />
 
@@ -202,7 +202,7 @@ export default function BomReviewsPage() {
       <div className="bom-review-layout">
         <aside className="panel bom-review-list-panel">
           <div className="panel-header">
-            <h2>待審 BOM</h2>
+            <h2>審核中 BOM</h2>
             <ClipboardCheck size={16} aria-hidden="true" />
           </div>
           <div className="bom-panel-body">
@@ -216,7 +216,7 @@ export default function BomReviewsPage() {
                 <strong>{review.parent_part_number} Rev {review.parent_revision}</strong>
                 <span className="badge PendingReview">{REVIEW_ACTION_LABELS[review.lifecycle_action].title}</span>
                 <span>{review.parent_part_name}</span>
-                <small>{review.draft_name} · Attempt {review.review_attempt}</small>
+                <small>{review.draft_name} · 第 {review.review_attempt} 次送審</small>
                 <small>
                   +{review.diff.summary.added_count} / -{review.diff.summary.removed_count} / Δ{review.diff.summary.changed_count}
                 </small>
@@ -225,9 +225,9 @@ export default function BomReviewsPage() {
             {reviews.length === 0 && (
               <NextStepState
                 compact
-                eyebrow="沒有待審"
-                title="目前沒有待審 BOM"
-                body="若要建立新的待審項目，請先回 BOM 工作台建立或送出 Draft；若已發行，可查看交接輸出。"
+                eyebrow="沒有審核中項目"
+                title="目前沒有審核中 BOM"
+                body="若要建立新的審核中項目，請先回 BOM 工作台建立或送出草稿；若已發行，可查看交接輸出。"
                 actions={[
                   { href: "/bom/workbench", label: "回 BOM 工作台", variant: "primary" },
                   { href: "/handoff", label: "看交接" }
@@ -253,13 +253,13 @@ export default function BomReviewsPage() {
                 </div>
                 <div className="bom-review-context">
                   <div>
-                    <span>Parent</span>
+                    <span>主件</span>
                     <strong>{selectedReview.parent_part_name}</strong>
                     <small>{selectedReview.parent_drawing_number} · Rev {selectedReview.parent_revision}</small>
                   </div>
                   <div>
-                    <span>上一份 Released BOM</span>
-                    <strong>{selectedReview.diff.base_snapshot ? `Released ${selectedReview.diff.base_snapshot.parent_revision}` : "無基準"}</strong>
+                    <span>上一份已發布 BOM</span>
+                    <strong>{selectedReview.diff.base_snapshot ? `已發布 ${selectedReview.diff.base_snapshot.parent_revision}` : "無基準"}</strong>
                     <small>{selectedReview.diff.base_snapshot?.released_at ?? "首次發布時所有項目視為新增"}</small>
                   </div>
                   <div>
@@ -272,8 +272,8 @@ export default function BomReviewsPage() {
                   <div className="bom-review-diff-row header" role="row">
                     <span>類型</span>
                     <span>項目</span>
-                    <span>Before</span>
-                    <span>After</span>
+                    <span>變更前</span>
+                    <span>變更後</span>
                     <span>欄位</span>
                   </div>
                   {visibleChanges.map((change) => (
@@ -289,7 +289,7 @@ export default function BomReviewsPage() {
                     <NextStepState
                       compact
                       eyebrow="差異比對"
-                      title="與上一份 Released BOM 無差異"
+                      title="與上一份已發布 BOM 無差異"
                       body="若送審理由仍成立，可完成審核決策；若不需發行，請退回並補上原因。"
                       actions={[
                         { href: "/bom/workbench", label: "回 BOM 工作台", variant: "primary" },
@@ -303,8 +303,8 @@ export default function BomReviewsPage() {
               <NextStepState
                 compact
                 eyebrow="尚未選取"
-                title="選擇待審 BOM 後顯示差異"
-                body="請從左側待審清單選擇一筆 BOM；若清單為空，回 BOM 工作台建立送審。"
+                title="選擇審核中 BOM 後顯示差異"
+                body="請從左側審核中清單選擇一筆 BOM；若清單為空，回 BOM 工作台建立送審。"
                 actions={[{ href: "/bom/workbench", label: "回 BOM 工作台", variant: "primary" }]}
               />
             )}
@@ -330,7 +330,7 @@ export default function BomReviewsPage() {
             </button>
             {approvedSnapshotId && (
               <div className="bom-review-export-links">
-                <strong>Released Snapshot 匯出</strong>
+                <strong>已發布快照匯出</strong>
                 <a className="secondary-button" href={`/api/bom/releases/${approvedSnapshotId}/export?format=xlsx`}>
                   匯出 XLSX
                 </a>
@@ -339,7 +339,7 @@ export default function BomReviewsPage() {
                 </a>
               </div>
             )}
-            <p className="bom-review-note">若 Release Gate 偵測到缺件、Pending、Rejected、Obsolete 或非最新版 Released 子件，核准會被 API 阻擋。</p>
+            <p className="bom-review-note">若發布關卡偵測到缺件、審核中、已退回、已作廢或不是最新版已發布子件，核准會被系統阻擋。</p>
           </div>
         </aside>
       </div>
@@ -358,7 +358,7 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 function formatLine(line: ComparableLine | null) {
   if (!line) return "-";
-  const qty = line.node_type === "item" ? `Qty ${line.quantity ?? 1}` : "Group";
-  const revision = line.revision ? `Rev ${line.revision}` : "";
+  const qty = line.node_type === "item" ? `數量 ${line.quantity ?? 1}` : "群組";
+  const revision = line.revision ? `版次 ${line.revision}` : "";
   return `${qty} ${revision} @ ${line.parent_path}`;
 }

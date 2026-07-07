@@ -1610,7 +1610,18 @@ export const SELECT_ASYNC_APPROVAL_PART_ROOT_SUMMARY_SQL = `
 
 export const SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL = `
   SELECT p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status,
-         r.root_code, r.core_name
+         r.root_code, r.core_name,
+         (
+           SELECT d.drawing_number
+           FROM drawing_part_links l
+           JOIN drawing_numbers d ON d.id = l.drawing_number_id
+           WHERE l.part_number_id = p.id
+             AND l.link_type = 'primary_manufacturing'
+             AND d.purpose_code = 'MA'
+             AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+           ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
+           LIMIT 1
+         ) AS primary_drawing_number
   FROM part_numbers p
   JOIN part_roots r ON r.id = p.part_root_id
   WHERE p.id = :entityId
@@ -2781,7 +2792,7 @@ function textList(value: unknown) {
 
 function numberingApprovalActionLabel(value: string | null | undefined) {
   const labels: Record<string, string> = {
-    dvt_promotion: "DVT \u6649\u5347",
+    dvt_promotion: "DVT 階段晉升",
     dvt_missing_ma_override: "DVT \u7f3a MA Override",
     release: "\u767c\u884c\u5be9\u6838",
     release_missing_ma_confirm: "\u767c\u884c\u7f3a MA \u518d\u78ba\u8a8d",
@@ -4024,8 +4035,7 @@ export class AsyncNumberingRepository {
 
   async requestNumberingApproval(input: RequestNumberingApprovalInput): Promise<NumberingApprovalRecord> {
     const run = async (client: AsyncDatabaseClient) => this.insertNumberingApprovalRequest(client, input);
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
   }
 
   async requestNumberingObsoleteApproval(input: RequestNumberingObsoleteApprovalInput): Promise<NumberingObsoleteApprovalResult> {
@@ -5212,8 +5222,7 @@ export class AsyncNumberingRepository {
           : null;
       return { approvalBatch, approvalRequests, decisions: decisionResults };
     };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
   }
 
   async analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): Promise<MainDrawingImpactAnalysis> {
@@ -6793,6 +6802,7 @@ export class AsyncNumberingRepository {
         record_status: NumberingRecordStatus;
         root_code: string;
         core_name: string;
+        primary_drawing_number: string | null;
       }>(SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL, { entityId: request.entity_id });
       if (!row) return emptyApprovalEntitySummary(request);
       return {
@@ -6802,7 +6812,7 @@ export class AsyncNumberingRepository {
         secondary: row.part_name,
         rootCode: row.root_code,
         partNumber: row.part_number,
-        drawingNumber: null,
+        drawingNumber: row.primary_drawing_number,
         partName: row.part_name,
         coreName: row.core_name,
         itemKind: row.item_kind,

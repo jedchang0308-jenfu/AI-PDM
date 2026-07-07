@@ -68,9 +68,9 @@ const navSections: NavSection[] = [
     label: "變更 / 審核",
     items: [
       { href: "/numbering/revisions", label: "圖面進版", icon: GitPullRequestArrow },
-      { href: "/numbering/dvt", label: "DVT 晉升", icon: GitPullRequestArrow },
+      { href: "/numbering/dvt", label: "階段晉升 EVT→DVT", icon: GitPullRequestArrow },
       { href: "/numbering/approvals", label: "發行審核", icon: ClipboardCheck },
-      { href: "/numbering/change-reviews", label: "變更審核", icon: ClipboardCheck },
+      { href: "/numbering/change-reviews", label: "圖面進版影響審核", icon: ClipboardCheck },
       { href: "/numbering/impact", label: "MA 影響分析", icon: ShieldAlert }
     ]
   },

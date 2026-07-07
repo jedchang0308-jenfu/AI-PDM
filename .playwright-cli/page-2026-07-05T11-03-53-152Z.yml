@@ -1,0 +1,113 @@
+- generic [ref=f3e2]:
+  - complementary [ref=f3e3]:
+    - generic [ref=f3e4]:
+      - img [ref=f3e6]
+      - generic [ref=f3e16]: AI PDM
+      - button "收合左側導覽" [ref=f3e17] [cursor=pointer]:
+        - img [ref=f3e18]
+    - navigation "主導覽" [ref=f3e20]:
+      - generic [ref=f3e21]:
+        - generic [ref=f3e22]: 工作台
+        - generic [ref=f3e23]:
+          - link "工作台" [ref=f3e24] [cursor=pointer]:
+            - /url: /
+            - img [ref=f3e25]
+            - generic [ref=f3e29]: 工作台
+          - link "我的待辦" [ref=f3e30] [cursor=pointer]:
+            - /url: /numbering/tasks
+            - img [ref=f3e31]
+            - generic [ref=f3e34]: 我的待辦
+      - generic [ref=f3e35]:
+        - generic [ref=f3e36]: 專案 / 圖料
+        - generic [ref=f3e37]:
+          - link "圖料模組" [ref=f3e38] [cursor=pointer]:
+            - /url: /numbering/search
+            - img [ref=f3e39]
+            - generic [ref=f3e42]: 圖料模組
+          - link "圖號模組" [ref=f3e43] [cursor=pointer]:
+            - /url: /numbering/drawings
+            - img [ref=f3e44]
+            - generic [ref=f3e47]: 圖號模組
+          - link "料號模組" [ref=f3e48] [cursor=pointer]:
+            - /url: /parts
+            - img [ref=f3e49]
+            - generic [ref=f3e55]: 料號模組
+          - link "料號草稿" [ref=f3e56] [cursor=pointer]:
+            - /url: /numbering/part-drafts
+            - img [ref=f3e57]
+            - generic [ref=f3e60]: 料號草稿
+          - link "上傳送審" [ref=f3e61] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=f3e62]
+            - generic [ref=f3e65]: 上傳送審
+          - link "領號申請" [ref=f3e66] [cursor=pointer]:
+            - /url: /numbering/request
+            - img [ref=f3e67]
+            - generic [ref=f3e70]: 領號申請
+          - link "圖號總表匯入" [ref=f3e71] [cursor=pointer]:
+            - /url: /numbering/imports
+            - img [ref=f3e72]
+            - generic [ref=f3e76]: 圖號總表匯入
+      - generic [ref=f3e77]:
+        - generic [ref=f3e78]: BOM
+        - generic [ref=f3e79]:
+          - link "BOM 工作台" [ref=f3e80] [cursor=pointer]:
+            - /url: /bom/workbench
+            - img [ref=f3e81]
+            - generic [ref=f3e84]: BOM 工作台
+          - link "BOM 審核" [ref=f3e85] [cursor=pointer]:
+            - /url: /bom/reviews
+            - img [ref=f3e86]
+            - generic [ref=f3e90]: BOM 審核
+      - generic [ref=f3e91]:
+        - generic [ref=f3e92]: 變更 / 審核
+        - generic [ref=f3e93]:
+          - link "圖面進版" [ref=f3e94] [cursor=pointer]:
+            - /url: /numbering/revisions
+            - img [ref=f3e95]
+            - generic [ref=f3e100]: 圖面進版
+          - link "DVT 晉升" [ref=f3e101] [cursor=pointer]:
+            - /url: /numbering/dvt
+            - img [ref=f3e102]
+            - generic [ref=f3e107]: DVT 晉升
+          - link "發行審核" [ref=f3e108] [cursor=pointer]:
+            - /url: /numbering/approvals
+            - img [ref=f3e109]
+            - generic [ref=f3e113]: 發行審核
+          - link "變更審核" [ref=f3e114] [cursor=pointer]:
+            - /url: /numbering/change-reviews
+            - img [ref=f3e115]
+            - generic [ref=f3e119]: 變更審核
+          - link "MA 影響分析" [ref=f3e120] [cursor=pointer]:
+            - /url: /numbering/impact
+            - img [ref=f3e121]
+            - generic [ref=f3e123]: MA 影響分析
+      - generic [ref=f3e124]:
+        - generic [ref=f3e125]: 發行 / 交接
+        - generic [ref=f3e126]:
+          - link "製造交接" [ref=f3e127] [cursor=pointer]:
+            - /url: /handoff
+            - img [ref=f3e128]
+            - generic [ref=f3e130]: 製造交接
+          - link "圖號報表" [ref=f3e131] [cursor=pointer]:
+            - /url: /numbering/reports
+            - img [ref=f3e132]
+            - generic [ref=f3e135]: 圖號報表
+      - generic [ref=f3e136]:
+        - generic [ref=f3e137]: 管理
+        - generic [ref=f3e138]:
+          - link "系統設定" [ref=f3e139] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=f3e140]
+            - generic [ref=f3e143]: 系統設定
+          - link "登入" [ref=f3e144] [cursor=pointer]:
+            - /url: /login
+            - img [ref=f3e145]
+            - generic [ref=f3e148]: 登入
+  - main [ref=f3e149]:
+    - generic [ref=f3e150]:
+      - heading "圖號模組" [level=1] [ref=f3e152]
+      - button "重新整理" [ref=f3e153] [cursor=pointer]:
+        - img [ref=f3e154]
+        - text: 重新整理
+    - generic [ref=f3e158]: 正在載入圖號清單...

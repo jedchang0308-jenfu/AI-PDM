@@ -26,7 +26,7 @@ export function NextStepState({
   body,
   actions = [],
   compact = false,
-  bodyPlacement = "help",
+  bodyPlacement = "inline",
   helpContent
 }: NextStepStateProps) {
   const resolvedHelpContent: SecondaryHelpContent = helpContent ?? {
@@ -39,7 +39,14 @@ export function NextStepState({
     <div className={compact ? "next-step-state compact" : "next-step-state"}>
       <span className="section-label">{eyebrow}</span>
       <h3>{title}</h3>
-      {bodyPlacement === "inline" ? <p>{body}</p> : <PageHelpDrawerButton content={resolvedHelpContent} buttonLabel="為什麼" className="next-step-help-trigger" />}
+      {bodyPlacement === "help" ? (
+        <PageHelpDrawerButton content={resolvedHelpContent} buttonLabel="為什麼" className="next-step-help-trigger" />
+      ) : (
+        <>
+          <p>{body}</p>
+          {helpContent ? <PageHelpDrawerButton content={resolvedHelpContent} buttonLabel="更多說明" className="next-step-help-trigger" /> : null}
+        </>
+      )}
       {actions.length > 0 ? (
         <div className="next-step-actions">
           {actions.map((action) => (

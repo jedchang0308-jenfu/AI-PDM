@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { compareRevisionCodes } from "@/lib/revision-policy";
 import type { SandboxBranch } from "@/lib/types";
 
 export const REJECT_ASYNC_SUBMISSION_SQL = `
@@ -135,11 +136,11 @@ export const SELECT_ASYNC_RELATED_RELEASE_FAILED_SUBMISSIONS_SQL = `
 `;
 
 export const SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL = `
-  SELECT id
+  SELECT id, revision, status
   FROM submissions
   WHERE item_id = :itemId
     AND id <> :id
-    AND status = 'Released'
+    AND status IN ('Released', 'Obsolete')
   ORDER BY COALESCE(released_at, updated_at, created_at) ASC, id ASC
 `;
 
@@ -221,9 +222,25 @@ export const MARK_ASYNC_PREVIOUS_SUBMISSION_OBSOLETE_SQL = `
     AND status = 'Released'
 `;
 
+export const MARK_ASYNC_FORMAL_SUBMISSION_CURRENT_SQL = `
+  UPDATE submissions
+  SET status = 'Released',
+      superseded_by_submission_id = NULL,
+      obsolete_at = NULL,
+      obsolete_by = NULL,
+      updated_at = :now
+  WHERE id = :id
+    AND status IN ('Released', 'Obsolete')
+`;
+
 export const INSERT_ASYNC_OBSOLETE_AUDIT_LOG_SQL = `
   INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at)
   VALUES (:id, :submissionId, :actorId, 'ObsoleteByRevision', :detailJson, :createdAt)
+`;
+
+export const INSERT_ASYNC_REVISION_CURRENT_RECOMPUTED_AUDIT_LOG_SQL = `
+  INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at)
+  VALUES (:id, :submissionId, :actorId, 'RevisionCurrentRecomputed', :detailJson, :createdAt)
 `;
 
 export const INSERT_ASYNC_RELEASE_FAILED_RESOLUTION_AUDIT_LOG_SQL = `
@@ -259,6 +276,12 @@ type ReleaseLifecycleSubmissionRow = {
   corrects_submission_id: string | null;
   source_entity_type: string | null;
   source_entity_id: string | null;
+};
+
+type FormalRevisionRow = {
+  id: string;
+  revision: string;
+  status: "Released" | "Obsolete";
 };
 
 type ReleaseSourceDrawingRow = {
@@ -307,6 +330,12 @@ export type AsyncReleaseMasterStatusSyncResult = {
 export type AsyncReleaseLifecycleResult = {
   obsolete_count: number;
   obsolete_submission_ids: string[];
+  latest_submission_id: string;
+  latest_revision: string;
+  history_submission_ids: string[];
+  accepted_submission_id: string;
+  accepted_revision: string;
+  accepted_as_history: boolean;
   resolved_release_failed_count: number;
   resolved_release_failed_submission_ids: string[];
   master_status_sync: AsyncReleaseMasterStatusSyncResult;
@@ -342,11 +371,15 @@ function buildMasterStatusResult(input: {
 }
 
 export class AsyncSubmissionStatusRepository {
-  constructor(
-    private readonly client: AsyncDatabaseClient,
-    private readonly clock: () => string = () => new Date().toISOString(),
-    private readonly idFactory: () => string = () => crypto.randomUUID()
-  ) {}
+  private readonly client: AsyncDatabaseClient;
+  private readonly clock: () => string;
+  private readonly idFactory: () => string;
+
+  constructor(client: AsyncDatabaseClient, clock: () => string = () => new Date().toISOString(), idFactory: () => string = () => crypto.randomUUID()) {
+    this.client = client;
+    this.clock = clock;
+    this.idFactory = idFactory;
+  }
 
   async getActiveSandboxBranchForSubmission(submissionId: string): Promise<SandboxBranch | null> {
     return this.client.queryOne<SandboxBranch>(SELECT_ASYNC_ACTIVE_SANDBOX_BRANCH_SQL, { submissionId });
@@ -395,10 +428,12 @@ export class AsyncSubmissionStatusRepository {
     );
     if (!submission) throw new Error("Submission not found");
 
-    const obsoleteRows = await this.client.query<{ id: string }>(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
+    const releasedRows = await this.client.query<FormalRevisionRow>(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
       itemId: submission.item_id,
       id: submission.id
     });
+    assertNoFormalDuplicateRevision(submission, releasedRows);
+    const releasePlan = buildRevisionCurrentPlan(submission, releasedRows);
     const relatedReleaseFailedRows = await this.client.query<{ id: string }>(SELECT_ASYNC_RELATED_RELEASE_FAILED_SUBMISSIONS_SQL, {
       companyId: submission.company_id,
       drawingNumber: submission.drawing_number,
@@ -410,6 +445,16 @@ export class AsyncSubmissionStatusRepository {
     const applyLifecycle = async (client: AsyncDatabaseClient) => {
       masterStatusSync = await this.syncReleaseMasterStatuses(client, { submission, actorId: input.actorId, now });
       await client.execute(MARK_ASYNC_SUBMISSION_RELEASED_SQL, { id: submission.id, now });
+      await client.execute(
+        `
+        UPDATE drawing_revision_packages
+        SET status = 'Released',
+            released_at = COALESCE(released_at, :now),
+            updated_at = :now
+        WHERE source_submission_id = :id
+      `,
+        { id: submission.id, now }
+      );
       for (const row of relatedReleaseFailedRows) {
         await client.execute(MARK_ASYNC_CORRECTED_RELEASE_FAILED_RESOLVED_SQL, {
           id: row.id,
@@ -429,14 +474,18 @@ export class AsyncSubmissionStatusRepository {
       }
       await client.execute(UPDATE_ASYNC_ITEM_CURRENT_REVISION_SQL, {
         itemId: submission.item_id,
-        revision: submission.revision,
+        revision: releasePlan.latest.revision,
+        now
+      });
+      await client.execute(MARK_ASYNC_FORMAL_SUBMISSION_CURRENT_SQL, {
+        id: releasePlan.latest.id,
         now
       });
 
-      for (const row of obsoleteRows) {
+      for (const row of releasePlan.newlyObsolete) {
         await client.execute(MARK_ASYNC_PREVIOUS_SUBMISSION_OBSOLETE_SQL, {
           id: row.id,
-          supersededBySubmissionId: submission.id,
+          supersededBySubmissionId: releasePlan.latest.id,
           obsoleteBy: input.actorId,
           now
         });
@@ -445,24 +494,59 @@ export class AsyncSubmissionStatusRepository {
           submissionId: row.id,
           actorId: input.actorId,
           detailJson: JSON.stringify({
-            supersededBySubmissionId: submission.id,
-            supersededByRevision: submission.revision
+            supersededBySubmissionId: releasePlan.latest.id,
+            supersededByRevision: releasePlan.latest.revision,
+            acceptedSubmissionId: submission.id,
+            acceptedRevision: submission.revision
           }),
           createdAt: now
         });
       }
+      await client.execute(INSERT_ASYNC_REVISION_CURRENT_RECOMPUTED_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: submission.id,
+        actorId: input.actorId,
+        detailJson: JSON.stringify({
+          acceptedSubmissionId: submission.id,
+          acceptedRevision: submission.revision,
+          latestSubmissionId: releasePlan.latest.id,
+          latestRevision: releasePlan.latest.revision,
+          acceptedAsHistory: releasePlan.acceptedAsHistory,
+          historySubmissionIds: releasePlan.history.map((row) => row.id)
+        }),
+        createdAt: now
+      });
     };
 
     await this.client.transaction(applyLifecycle);
     if (!masterStatusSync) throw new Error("主資料狀態同步失敗：發布交易未完成，請重新送審或通知 Admin。");
 
     return {
-      obsolete_count: obsoleteRows.length,
-      obsolete_submission_ids: obsoleteRows.map((row) => row.id),
+      obsolete_count: releasePlan.newlyObsolete.length,
+      obsolete_submission_ids: releasePlan.newlyObsolete.map((row) => row.id),
+      latest_submission_id: releasePlan.latest.id,
+      latest_revision: releasePlan.latest.revision,
+      history_submission_ids: releasePlan.history.map((row) => row.id),
+      accepted_submission_id: submission.id,
+      accepted_revision: submission.revision,
+      accepted_as_history: releasePlan.acceptedAsHistory,
       resolved_release_failed_count: relatedReleaseFailedRows.length,
       resolved_release_failed_submission_ids: relatedReleaseFailedRows.map((row) => row.id),
       master_status_sync: masterStatusSync
     };
+  }
+
+  async assertSubmissionRevisionCanRelease(input: { id: string }): Promise<void> {
+    const submission = await this.client.queryOne<ReleaseLifecycleSubmissionRow>(
+      SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL,
+      { id: input.id }
+    );
+    if (!submission) throw new Error("Submission not found");
+    const releasedRows = await this.client.query<FormalRevisionRow>(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
+      itemId: submission.item_id,
+      id: submission.id
+    });
+    assertNoFormalDuplicateRevision(submission, releasedRows);
   }
 
   private async syncReleaseMasterStatuses(
@@ -576,4 +660,31 @@ export class AsyncSubmissionStatusRepository {
 
     throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料模組確認主料號。");
   }
+}
+
+function assertNoFormalDuplicateRevision(submission: ReleaseLifecycleSubmissionRow, releasedRows: FormalRevisionRow[]) {
+  const blockingRow = releasedRows.find((row) => compareReleaseRevisions(row.revision, submission.revision) === 0);
+  if (!blockingRow) return;
+
+  throw new Error(
+    `版次 ${submission.revision} 已有正式紀錄（${blockingRow.id}），不能重複核准同一版次。請開啟既有版次補件或改用新的版次。`
+  );
+}
+
+function compareReleaseRevisions(left: string, right: string) {
+  return compareRevisionCodes(left, right, { allowLegacy: true });
+}
+
+function buildRevisionCurrentPlan(submission: ReleaseLifecycleSubmissionRow, formalRows: FormalRevisionRow[]) {
+  const accepted: FormalRevisionRow = { id: submission.id, revision: submission.revision, status: "Released" };
+  const allRows = [...formalRows, accepted];
+  const latest = allRows.reduce((current, row) => (compareReleaseRevisions(row.revision, current.revision) > 0 ? row : current), accepted);
+  const history = allRows.filter((row) => row.id !== latest.id);
+  const newlyObsolete = history.filter((row) => row.status === "Released");
+  return {
+    latest,
+    history,
+    newlyObsolete,
+    acceptedAsHistory: latest.id !== submission.id
+  };
 }

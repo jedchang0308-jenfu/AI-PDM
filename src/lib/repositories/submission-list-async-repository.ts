@@ -1,4 +1,9 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  evaluateRevisionPackageCompleteness,
+  normalizeRevisionPackageFileRole,
+  type RevisionPackageWarning
+} from "@/lib/revision-package";
 import type {
   BomDetail,
   DesignReuseCandidate,
@@ -54,6 +59,10 @@ type SubmissionSummaryRow = SubmissionSummary & {
 
 type SubmissionDetailRow = SubmissionSummary & {
   has_release_package?: number | string;
+};
+
+type SubmissionSnapshotRow = {
+  snapshot_json: string | null;
 };
 
 type ReuseCandidateRow = SubmissionSummaryRow & {
@@ -304,6 +313,13 @@ export const SELECT_ASYNC_SUBMISSION_DETAIL_SQL = `
   JOIN users u ON u.id = s.submitted_by
   LEFT JOIN release_packages rp ON rp.submission_id = s.id
   WHERE s.id = :id
+`;
+
+export const SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL = `
+  SELECT snapshot_json
+  FROM submission_snapshots
+  WHERE submission_id = :id
+  LIMIT 1
 `;
 
 export const SELECT_ASYNC_DESIGN_REUSE_CANDIDATES_SQLITE = `
@@ -656,7 +672,7 @@ export class AsyncSubmissionListRepository {
     const row = await this.client.queryOne<SubmissionDetailRow>(SELECT_ASYNC_SUBMISSION_DETAIL_SQL, { id });
     if (!row) return null;
 
-    const [files, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom] = await Promise.all([
+    const [files, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom, snapshot] = await Promise.all([
       this.client.query<SubmissionFile>(SELECT_ASYNC_SUBMISSION_FILES_SQL, { id }),
       this.client.query<FileReference>(SELECT_ASYNC_SUBMISSION_REFERENCES_SQL, { id }),
       this.client.query<SubmissionDetail["approvals"][number]>(SELECT_ASYNC_SUBMISSION_APPROVALS_SQL, { id }),
@@ -667,17 +683,20 @@ export class AsyncSubmissionListRepository {
         now: new Date().toISOString()
       }),
       this.client.queryOne<ReleasePackage>(SELECT_ASYNC_SUBMISSION_RELEASE_PACKAGE_SQL, { id }),
-      this.getSubmissionBom(id)
+      this.getSubmissionBom(id),
+      this.client.queryOne<SubmissionSnapshotRow>(SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL, { id })
     ]);
     const fileRoles = [...new Set(files.map((file) => file.file_role))].join(",");
+    const normalizedFiles = files.map(normalizeSubmissionFile);
 
     return {
       ...row,
-      file_count: files.length,
+      file_count: normalizedFiles.length,
       file_roles: fileRoles || null,
       has_release_package: Number(row.has_release_package ?? 0),
-      files: files.map(normalizeSubmissionFile),
+      files: normalizedFiles,
       references: references.map(normalizeFileReference),
+      revision_package: buildSubmissionRevisionPackage(snapshot, normalizedFiles, row),
       bom,
       active_lock: activeLock,
       release_package: releasePackage,
@@ -794,6 +813,117 @@ function normalizeSubmissionFile(file: SubmissionFile): SubmissionFile {
     ...file,
     file_size: Number(file.file_size ?? 0)
   };
+}
+
+const revisionPackageWarningCodes = new Set<RevisionPackageWarning["code"]>([
+  "missing_pdf",
+  "missing_dwg_dxf",
+  "missing_3d_cad",
+  "unknown_file_role",
+  "filename_revision_mismatch",
+  "duplicate_category"
+]);
+
+function buildSubmissionRevisionPackage(
+  snapshotRow: SubmissionSnapshotRow | null,
+  files: SubmissionFile[],
+  row: Pick<SubmissionDetailRow, "drawing_number" | "revision">
+): SubmissionDetail["revision_package"] {
+  const snapshot = parseSnapshotJson(snapshotRow?.snapshot_json);
+  const revisionPackage = snapshot && isRecord(snapshot.revisionPackage) ? snapshot.revisionPackage : null;
+  if (!revisionPackage || !Array.isArray(revisionPackage.files)) return null;
+
+  const generatedAttachments = Array.isArray(snapshot?.attachments) ? snapshot.attachments.filter(isRecord) : [];
+  const packageFiles = revisionPackage.files
+    .filter(isRecord)
+    .map((file) => {
+      const role = normalizeRevisionPackageFileRole(file.role);
+      const defaultRole = normalizeRevisionPackageFileRole(file.defaultRole) ?? role;
+      const filename = String(file.filename ?? "").trim();
+      if (!filename || !role || !defaultRole) return null;
+      const sourceAttachmentId = nullableSnapshotText(file.sourceAttachmentId);
+      const generated = generatedAttachments.find((attachment) => {
+        const generatedSourceId = nullableSnapshotText(attachment.sourceMasterAttachmentId);
+        const generatedFilename = String(attachment.originalFilename ?? "").trim();
+        return (sourceAttachmentId && generatedSourceId === sourceAttachmentId) || generatedFilename === filename;
+      });
+      const submissionFile =
+        files.find((candidate) => candidate.id === nullableSnapshotText(generated?.submissionFileId)) ??
+        files.find((candidate) => candidate.source_master_attachment_id && candidate.source_master_attachment_id === sourceAttachmentId) ??
+        files.find((candidate) => candidate.original_filename === filename) ??
+        null;
+      return {
+        source_attachment_id: sourceAttachmentId,
+        submission_file_id: submissionFile?.id ?? nullableSnapshotText(generated?.submissionFileId),
+        filename,
+        default_role: defaultRole,
+        role,
+        source: file.source === "user" ? ("user" as const) : ("extension" as const)
+      };
+    })
+    .filter((file): file is NonNullable<typeof file> => Boolean(file));
+
+  const snapshotWarnings = normalizeSnapshotRevisionPackageWarnings(revisionPackage.warnings);
+  const warnings =
+    snapshotWarnings.length > 0
+      ? snapshotWarnings
+      : evaluateRevisionPackageCompleteness({
+          drawingNumber: row.drawing_number,
+          revision: row.revision,
+          files: packageFiles.map((file) => ({
+            id: file.submission_file_id ?? file.source_attachment_id ?? undefined,
+            filename: file.filename,
+            role: file.role
+          }))
+        });
+
+  return {
+    files: packageFiles,
+    warnings
+  };
+}
+
+function normalizeSnapshotRevisionPackageWarnings(value: unknown): RevisionPackageWarning[] {
+  if (!Array.isArray(value)) return [];
+  const warnings: RevisionPackageWarning[] = [];
+  for (const rawWarning of value) {
+    if (!isRecord(rawWarning)) continue;
+    const code = String(rawWarning.code ?? "").trim();
+    if (!revisionPackageWarningCodes.has(code as RevisionPackageWarning["code"])) continue;
+    const messageForSubmitter = String(rawWarning.messageForSubmitter ?? "").trim();
+    const messageForReviewer = String(rawWarning.messageForReviewer ?? "").trim();
+    if (!messageForSubmitter || !messageForReviewer) continue;
+    const affectedFileIds = Array.isArray(rawWarning.affectedFileIds)
+      ? rawWarning.affectedFileIds.map((id) => String(id).trim()).filter(Boolean)
+      : [];
+    warnings.push({
+      code: code as RevisionPackageWarning["code"],
+      severity: "warning",
+      ...(affectedFileIds.length > 0 ? { affectedFileIds } : {}),
+      messageForSubmitter,
+      messageForReviewer
+    });
+  }
+  return warnings;
+}
+
+function parseSnapshotJson(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function nullableSnapshotText(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text || null;
 }
 
 function normalizeFileReference(reference: FileReference): FileReference {

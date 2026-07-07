@@ -43,6 +43,63 @@ CREATE TABLE IF NOT EXISTS system_settings (
   FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS secret_references (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+  vault_secret_id TEXT NOT NULL,
+  masked_hint TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('draft', 'tested', 'active', 'retired', 'revoked')),
+  version INTEGER NOT NULL CHECK (version > 0),
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  tested_at TEXT,
+  activated_by TEXT,
+  activated_at TEXT,
+  retired_by TEXT,
+  retired_at TEXT,
+  revoked_by TEXT,
+  revoked_at TEXT,
+  revoke_reason TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (activated_by) REFERENCES users(id),
+  FOREIGN KEY (retired_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id),
+  UNIQUE (kind, version)
+);
+
+CREATE TABLE IF NOT EXISTS setting_test_runs (
+  id TEXT PRIMARY KEY,
+  secret_reference_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  result_status TEXT NOT NULL CHECK (result_status IN ('passed', 'failed', 'blocked')),
+  summary TEXT NOT NULL,
+  redacted_error TEXT,
+  artifact_path TEXT,
+  tested_by TEXT NOT NULL,
+  tested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+  FOREIGN KEY (tested_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS setting_activation_events (
+  id TEXT PRIMARY KEY,
+  secret_reference_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('created_draft', 'tested', 'activated', 'retired', 'revoked')),
+  actor_id TEXT NOT NULL,
+  event_at TEXT NOT NULL DEFAULT (datetime('now')),
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1156,6 +1213,9 @@ VALUES
   ('approval-rule-dvt-promotion', 'numbering-rule-v1', 'DVT promotion approval', 'dvt_promotion', 'DVT', 'PendingReview', NULL, NULL, 1, 'rd_manager', 1, 0, 1, 1),
   ('approval-rule-release-missing-ma-confirm', 'numbering-rule-v1', 'Release missing MA confirmation', 'release_missing_ma_confirm', 'Release', NULL, NULL, 'missing_primary_ma', 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-release', 'numbering-rule-v1', 'Release approval', 'release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
+  ('approval-rule-shared-model-release', 'numbering-rule-v1', 'Shared 3D model release', 'pdm.shared_model.release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
+  ('approval-rule-model-exception-confirm', 'numbering-rule-v1', '2D-only model exception confirmation', 'pdm.drawing_package.model_exception.confirm', 'Release', NULL, NULL, 'two_d_only_model_exception', 1, 'rd_manager', 1, 1, 1, 1),
+  ('approval-rule-manufacturing-baseline-release', 'numbering-rule-v1', 'Manufacturing baseline release', 'pdm.manufacturing_baseline.release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
   ('approval-rule-post-release-change-manager', 'numbering-rule-v1', 'Post-release change manager', 'post_release_change', NULL, 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
   ('approval-rule-post-release-change-admin', 'numbering-rule-v1', 'Post-release change admin', 'post_release_change', NULL, 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-released-same-drawing-variant', 'numbering-rule-v1', 'Released same drawing variant', 'same_drawing_variant_after_release', NULL, 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
@@ -1297,6 +1357,9 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'dvt_promotion', 1),
     ('system_admin', 'action', 'release_missing_ma_confirm', 1),
     ('system_admin', 'action', 'release', 1),
+    ('system_admin', 'action', 'pdm.shared_model.release', 1),
+    ('system_admin', 'action', 'pdm.drawing_package.model_exception.confirm', 1),
+    ('system_admin', 'action', 'pdm.manufacturing_baseline.release', 1),
     ('system_admin', 'action', 'post_release_change', 1),
     ('system_admin', 'action', 'same_drawing_variant_after_release', 1),
     ('system_admin', 'action', 'main_drawing_restore', 1),
@@ -1340,6 +1403,9 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'dvt_promotion', 1),
     ('pdm_admin', 'action', 'release_missing_ma_confirm', 1),
     ('pdm_admin', 'action', 'release', 1),
+    ('pdm_admin', 'action', 'pdm.shared_model.release', 1),
+    ('pdm_admin', 'action', 'pdm.drawing_package.model_exception.confirm', 1),
+    ('pdm_admin', 'action', 'pdm.manufacturing_baseline.release', 1),
     ('pdm_admin', 'action', 'post_release_change', 1),
     ('pdm_admin', 'action', 'same_drawing_variant_after_release', 1),
     ('pdm_admin', 'action', 'main_drawing_restore', 1),
@@ -1369,6 +1435,9 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'action', 'numbering.draft.obsolete', 1),
     ('rd_manager', 'action', 'dvt_promotion', 1),
     ('rd_manager', 'action', 'release', 1),
+    ('rd_manager', 'action', 'pdm.shared_model.release', 1),
+    ('rd_manager', 'action', 'pdm.drawing_package.model_exception.confirm', 1),
+    ('rd_manager', 'action', 'pdm.manufacturing_baseline.release', 1),
     ('rd_manager', 'action', 'obsolete_ma_drawing', 1),
     ('rd_manager', 'action', 'post_release_change', 1),
     ('rd', 'page', 'numbering.request', 1),
@@ -1532,6 +1601,235 @@ CREATE TABLE IF NOT EXISTS file_assets (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS preview_jobs (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  source_file_asset_id TEXT NOT NULL,
+  source_content_hash TEXT NOT NULL,
+  requested_kind TEXT NOT NULL CHECK (requested_kind IN ('native_thumbnail_png', 'drawing_pdf')),
+  source_extension TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled')),
+  priority INTEGER NOT NULL DEFAULT 100,
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  locked_by TEXT,
+  locked_at TEXT,
+  idempotency_key TEXT NOT NULL,
+  generator_profile TEXT NOT NULL DEFAULT 'windows_solidworks_preview_worker',
+  error_code TEXT,
+  error_summary TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS file_derivatives (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  source_file_asset_id TEXT NOT NULL,
+  source_content_hash TEXT NOT NULL,
+  derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_key TEXT NOT NULL,
+  original_path TEXT,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL CHECK (file_size >= 0),
+  content_hash TEXT NOT NULL,
+  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+  width INTEGER,
+  height INTEGER,
+  page_count INTEGER,
+  generator_profile TEXT NOT NULL,
+  generator_version TEXT,
+  preview_job_id TEXT,
+  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'stale', 'retired', 'failed')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_by_worker TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (preview_job_id) REFERENCES preview_jobs(id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  drawing_number_id TEXT NOT NULL,
+  drawing_number TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Rejected', 'Cancelled')),
+  source_submission_id TEXT UNIQUE,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  submitted_at TEXT,
+  released_at TEXT,
+  rejected_at TEXT,
+  cancelled_at TEXT,
+  superseded_by_package_id TEXT,
+  snapshot_json TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (superseded_by_package_id) REFERENCES drawing_revision_packages(id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL,
+  source_file_asset_id TEXT NOT NULL,
+  source_submission_file_id TEXT,
+  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
+  role_source TEXT NOT NULL CHECK (role_source IN ('extension', 'user', 'migration', 'system')),
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (source_submission_file_id) REFERENCES submission_files(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (package_id, source_file_asset_id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_supplements (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Cancelled')),
+  reason_code TEXT NOT NULL CHECK (reason_code IN ('format_file', 'auxiliary_material', 'metadata_correction', 'content_changed_new_revision', 'other')),
+  reason_note TEXT,
+  revision_warning_shown INTEGER NOT NULL DEFAULT 0 CHECK (revision_warning_shown IN (0, 1)),
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_decision_note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_supplement_files (
+  id TEXT PRIMARY KEY,
+  supplement_id TEXT NOT NULL,
+  source_file_asset_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (supplement_id) REFERENCES drawing_revision_package_supplements(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (supplement_id, source_file_asset_id)
+);
+
+CREATE TABLE IF NOT EXISTS shared_cad_model_versions (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
+  owner_id TEXT NOT NULL,
+  part_root_id TEXT NOT NULL,
+  part_number_id TEXT,
+  source_file_asset_id TEXT NOT NULL,
+  model_revision TEXT NOT NULL DEFAULT 'unlabeled',
+  content_hash TEXT NOT NULL,
+  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Obsolete')),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  released_by TEXT,
+  released_at TEXT,
+  release_reason TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (released_by) REFERENCES users(id),
+  UNIQUE (company_id, owner_scope, owner_id, model_revision, content_hash)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_model_links (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL UNIQUE,
+  basis_type TEXT NOT NULL CHECK (basis_type IN ('shared_model', 'two_d_only')),
+  shared_model_version_id TEXT,
+  exception_reason TEXT,
+  exception_confirmed_by TEXT,
+  exception_confirmed_at TEXT,
+  review_status TEXT NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'confirmed', 'revoked')),
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    (basis_type = 'shared_model' AND shared_model_version_id IS NOT NULL)
+    OR
+    (basis_type = 'two_d_only' AND exception_reason IS NOT NULL AND exception_confirmed_by IS NOT NULL AND exception_confirmed_at IS NOT NULL)
+  ),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (shared_model_version_id) REFERENCES shared_cad_model_versions(id),
+  FOREIGN KEY (exception_confirmed_by) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS manufacturing_baselines (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
+  owner_id TEXT NOT NULL,
+  part_root_id TEXT NOT NULL,
+  part_number_id TEXT,
+  baseline_code TEXT NOT NULL,
+  baseline_revision TEXT NOT NULL,
+  shared_model_version_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Released', 'Obsolete', 'Cancelled')),
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  released_by TEXT,
+  released_at TEXT,
+  snapshot_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (shared_model_version_id) REFERENCES shared_cad_model_versions(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (released_by) REFERENCES users(id),
+  UNIQUE (company_id, owner_scope, owner_id, baseline_revision)
+);
+
+CREATE TABLE IF NOT EXISTS manufacturing_baseline_items (
+  id TEXT PRIMARY KEY,
+  baseline_id TEXT NOT NULL,
+  drawing_number_id TEXT NOT NULL,
+  drawing_number TEXT NOT NULL,
+  package_id TEXT,
+  package_revision TEXT,
+  inclusion_status TEXT NOT NULL DEFAULT 'included' CHECK (inclusion_status IN ('included', 'excluded')),
+  selection_reason TEXT,
+  review_status TEXT NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'approved')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    inclusion_status = 'included'
+    OR
+    (inclusion_status = 'excluded' AND selection_reason IS NOT NULL AND review_status = 'approved')
+  ),
+  FOREIGN KEY (baseline_id) REFERENCES manufacturing_baselines(id) ON DELETE CASCADE,
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id),
+  UNIQUE (baseline_id, drawing_number_id)
+);
+
 CREATE TABLE IF NOT EXISTS numbering_export_jobs (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1598,6 +1896,22 @@ WHERE status IN ('Pending', 'Releasing', 'Released', 'Obsolete');
 CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_drawing_revision ON drawing_revision_packages(company_id, drawing_number_id, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_released_unique
+ON drawing_revision_packages(company_id, drawing_number_id, revision)
+WHERE status = 'Released';
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_submission ON drawing_revision_packages(source_submission_id);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_package ON drawing_revision_package_files(package_id, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_source_asset ON drawing_revision_package_files(source_file_asset_id);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplements_package_status ON drawing_revision_package_supplements(package_id, status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_supplement ON drawing_revision_package_supplement_files(supplement_id, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_source_asset ON drawing_revision_package_supplement_files(source_file_asset_id);
+CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_owner ON shared_cad_model_versions(company_id, owner_scope, owner_id, status, model_revision);
+CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_hash ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash);
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_model_links_model ON drawing_revision_package_model_links(shared_model_version_id, review_status);
+CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_owner ON manufacturing_baselines(company_id, owner_scope, owner_id, status, baseline_revision);
+CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_model ON manufacturing_baselines(shared_model_version_id, status);
+CREATE INDEX IF NOT EXISTS idx_manufacturing_baseline_items_baseline ON manufacturing_baseline_items(baseline_id, drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_file_references_submission_id ON file_references(submission_id);
 CREATE INDEX IF NOT EXISTS idx_file_references_referenced_part_number ON file_references(referenced_part_number);
 CREATE INDEX IF NOT EXISTS idx_file_references_referenced_drawing_number ON file_references(referenced_drawing_number);
@@ -1634,6 +1948,12 @@ CREATE INDEX IF NOT EXISTS idx_approval_matrix_submission_id ON approval_matrix_
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submission_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_submission_id ON audit_logs(submission_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status ON secret_references(kind, lifecycle_status, version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+ON secret_references(kind)
+WHERE lifecycle_status = 'active';
+CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status_phase ON part_roots(record_status, development_phase);
 CREATE INDEX IF NOT EXISTS idx_part_numbers_root_id ON part_numbers(part_root_id);
 CREATE INDEX IF NOT EXISTS idx_part_numbers_status_phase ON part_numbers(record_status, development_phase);
@@ -1665,5 +1985,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_role_assignments_active_unique
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
 CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
+CREATE INDEX IF NOT EXISTS idx_preview_jobs_source_status
+  ON preview_jobs(source_file_asset_id, source_content_hash, requested_kind, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_preview_jobs_claim ON preview_jobs(status, priority, created_at);
+CREATE INDEX IF NOT EXISTS idx_file_derivatives_source_status
+  ON file_derivatives(source_file_asset_id, source_content_hash, derivative_kind, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_file_derivatives_preview_job ON file_derivatives(preview_job_id);
 CREATE INDEX IF NOT EXISTS idx_numbering_export_jobs_generated ON numbering_export_jobs(export_mode, generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monthly_audit_reports_month ON monthly_audit_reports(report_type, report_month);

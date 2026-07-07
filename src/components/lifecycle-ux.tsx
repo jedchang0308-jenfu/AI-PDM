@@ -14,6 +14,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { PageHelpDrawerButton, type SecondaryHelpContent } from "@/components/secondary-help";
+import { formatDevelopmentPhaseForUser } from "@/lib/status-display";
 
 export type LifecycleStageId = "numbering" | "submission" | "review" | "bom" | "gate" | "handoff" | "ecr";
 
@@ -68,7 +69,7 @@ const lifecycleStages: LifecycleStage[] = [
     title: "需求與領號",
     phase: "EVT",
     owner: "RD",
-    state: "Draft / Active",
+    state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
     risk: "重複料號、缺主 MA 圖、品名或分類不清會讓後續 BOM 與交接失準。",
     doneSignal: "料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。",
@@ -81,10 +82,10 @@ const lifecycleStages: LifecycleStage[] = [
     title: "設計送審",
     phase: "EVT / DVT",
     owner: "RD",
-    state: "Pending",
+    state: "審核中",
     intent: "從受控圖料主資料確認圖面、3D、PDF、DWG 與變更原因後送進 PDM。",
     risk: "主圖、主料、材質、表面處理或附件缺漏會讓審核者無法判斷可否放行。",
-    doneSignal: "Submission 進入 Pending，審核者能看到完整檔案與變更脈絡。",
+    doneSignal: "送審進入審核中，審核者能看到完整檔案與變更脈絡。",
     href: "/numbering/search",
     cta: "送審設計",
     icon: UploadCloud
@@ -94,9 +95,9 @@ const lifecycleStages: LifecycleStage[] = [
     title: "審核與放行",
     phase: "DVT / Release",
     owner: "R&D Manager",
-    state: "Releasing / Released",
+    state: "發行中 / 已發布",
     intent: "判斷此版是否能成為正式工程資料，而不是只看檔案是否存在。",
-    risk: "未 Released 子件、舊版子件、同名 Released 檔案、較新 revision 都要先處理。",
+    risk: "未發布子件、舊版子件、同名正式檔案、較新版次都要先處理。",
     doneSignal: "核准後完成發行包；發行未完成時產生主管/Admin 待辦。",
     href: "/numbering/approvals",
     cta: "審核待辦",
@@ -107,10 +108,10 @@ const lifecycleStages: LifecycleStage[] = [
     title: "BOM 建立與審核",
     phase: "DVT / PVT",
     owner: "RD / Manager",
-    state: "Draft / PendingReview / Released",
+    state: "草稿 / 審核中 / 已發布",
     intent: "從 CAD reference、SolidWorks XLS 或手動資料建立可追溯的階層 BOM。",
     risk: "缺子件、子件未放行、數量/階層錯誤會直接影響採購與製造版本。",
-    doneSignal: "BOM Draft 審核通過後形成 Released Snapshot，可供 where-used 與交接使用。",
+    doneSignal: "BOM 草稿審核通過後形成正式快照，可供 where-used 與交接使用。",
     href: "/bom/workbench",
     cta: "整理 BOM",
     icon: ListTree
@@ -120,7 +121,7 @@ const lifecycleStages: LifecycleStage[] = [
     title: "DVT / Release Gate",
     phase: "DVT / Release",
     owner: "RD / Manager / Admin",
-    state: "Ready / Override / Blocked",
+    state: "可處理 / 例外核准 / 阻擋",
     intent: "主動整理候選料件，讓 gate 決策集中處理而不是靠人工翻表。",
     risk: "缺 MA 圖、缺審核、資料不完整或 override 未核准時不可直接晉升。",
     doneSignal: "gate 決策更新料號、圖號與 BOM 使用限制，必要時產生審核批次。",
@@ -133,9 +134,9 @@ const lifecycleStages: LifecycleStage[] = [
     title: "製造與採購交接",
     phase: "Release",
     owner: "Manufacturing / Procurement",
-    state: "Released only",
-    intent: "只取正式 Released 圖料、審核紀錄、交接包與完整性資訊。",
-    risk: "Pending、Rejected、Obsolete 或缺交接包的資料不可混入正式取用清單。",
+    state: "只取已發布資料",
+    intent: "只取已發布圖料、審核紀錄、交接包與完整性資訊。",
+    risk: "審核中、已退回、已作廢或缺交接包的資料不可混入正式取用清單。",
     doneSignal: "交接包、檔案 SHA256、核准紀錄與 CSV/列印資料可被下游使用。",
     href: "/handoff",
     cta: "開啟交接",
@@ -146,10 +147,10 @@ const lifecycleStages: LifecycleStage[] = [
     title: "ECR / 改版 / 廢止",
     phase: "ECR",
     owner: "RD / Manager / Admin",
-    state: "Impact / Obsolete",
+    state: "影響分析 / 已作廢",
     intent: "從既有料件啟動變更前，先看上層 BOM、圖面、供應商與交接影響。",
     risk: "未確認影響範圍就改版或廢止，會造成製造端拿錯版或缺文件。",
-    doneSignal: "新版 Released 後舊版轉 Obsolete；廢止與合併都有審核與稽核紀錄。",
+    doneSignal: "新版已發布後舊版轉已作廢；廢止與合併都有審核與稽核紀錄。",
     href: "/numbering/impact",
     cta: "分析影響",
     icon: Search
@@ -358,17 +359,19 @@ export function ObjectLifecycleStatusPanel({
   helpContent?: SecondaryHelpContent;
 }) {
   const statusCopy = describeObjectLifecycleStatus(status);
+  const phaseLabel = phase ? formatDevelopmentPhaseForUser(phase) : "";
   const visibleIdentities = identities.filter((identity) => identity.value !== null && identity.value !== undefined && String(identity.value).trim());
   const visibleBlockers = blockers.length > 0 ? blockers : statusCopy.defaultBlockers;
   const showBlockersInline = visibleBlockers.length > 0 && (statusCopy.tone === "warning" || statusCopy.tone === "critical");
   const actions = [primaryAction, ...secondaryActions].filter(Boolean) as ObjectLifecycleAction[];
+  const resolvedNextStep = nextStep ?? statusCopy.nextStep;
   const resolvedHelpContent: SecondaryHelpContent = helpContent ?? {
     title,
     summary: statusCopy.description,
     sections: [
       {
         title: "Object",
-        items: [objectName, phase ? `${phase} / ${owner}` : owner, statusCopy.label]
+        items: [objectName, phaseLabel ? `${phaseLabel} / ${owner}` : owner, statusCopy.label]
       },
       {
         title: "Blockers and notes",
@@ -376,7 +379,7 @@ export function ObjectLifecycleStatusPanel({
       },
       {
         title: "Next step",
-        body: nextStep ?? statusCopy.nextStep
+        body: resolvedNextStep
       },
       {
         title: "Identity",
@@ -396,14 +399,14 @@ export function ObjectLifecycleStatusPanel({
         </div>
         <div className="object-lifecycle-header-actions">
           <PageHelpDrawerButton content={resolvedHelpContent} className="object-lifecycle-help-trigger" />
-          <span className={`badge ${status}`}>{status}</span>
+          <span className={`badge ${status}`}>{statusCopy.label}</span>
         </div>
       </div>
       <div className="object-lifecycle-grid">
         <div className="object-lifecycle-state">
           <span className="object-lifecycle-dot" aria-hidden="true" />
           <div>
-            <span className="metadata-badge">{phase ? `${phase} / ${owner}` : owner}</span>
+            <span className="metadata-badge">{phaseLabel ? `${phaseLabel} / ${owner}` : owner}</span>
             <strong>{statusCopy.label}</strong>
           </div>
         </div>
@@ -416,8 +419,14 @@ export function ObjectLifecycleStatusPanel({
           ))}
         </div>
       </div>
-      {showBlockersInline || actions.length > 0 ? (
+      {showBlockersInline || resolvedNextStep || actions.length > 0 ? (
         <div className="object-lifecycle-next compact">
+          {resolvedNextStep ? (
+            <div>
+              <span className="section-label">現在要做</span>
+              <p>{resolvedNextStep}</p>
+            </div>
+          ) : null}
           {showBlockersInline ? (
             <div>
               <span className="section-label">Notes</span>
@@ -480,33 +489,33 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     Active: {
       label: "可接續開發",
       description: "物件已啟用，但仍需依階段完成送審、BOM 或 gate。",
-      nextStep: "依目前階段建立送審、BOM Draft 或進入 DVT/PVT gate 檢查。",
+      nextStep: "依目前階段建立送審、BOM 草稿或進入 DVT/PVT 關卡檢查。",
       tone: "neutral",
       defaultBlockers: ["需確認是否已有最新 submission 與 BOM 狀態"]
     },
     PendingReview: {
       label: "審核中",
-      description: "此物件正在等待主管或指定審核者判斷，RD 不應自行視為 Released。",
+      description: "此物件正在等待主管或指定審核者判斷，RD 不應自行視為已發布。",
       nextStep: "查看審核待辦與補件要求，等待核准或駁回。",
       tone: "warning",
       defaultBlockers: ["等待審核決策"]
     },
     Released: {
-      label: "已放行",
+      label: "已發布",
       description: "此物件可作為正式工程資料來源，後續仍需確認交接包與 BOM snapshot。",
-      nextStep: "進入製造交接、BOM Released Snapshot 或 ECR 影響分析。",
+      nextStep: "進入製造交接、BOM 已發布快照或 ECR 影響分析。",
       tone: "success",
       defaultBlockers: ["確認交接包、SHA256 與 released BOM 是否完整"]
     },
     Rejected: {
-      label: "已駁回",
+      label: "已退回",
       description: "此版本不可使用，需依駁回原因修正後重新送審。",
       nextStep: "查看駁回理由，修正資料後建立新版送審。",
       tone: "critical",
       defaultBlockers: ["需處理駁回原因"]
     },
     Obsolete: {
-      label: "已廢止",
+      label: "已作廢",
       description: "此版本只供追溯，不可作為正式製造、採購或供應商交接來源。",
       nextStep: "查看新版 revision、ECR 影響範圍或歷史稽核紀錄。",
       tone: "critical",
@@ -537,8 +546,8 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
 
   return (
     descriptions[status] ?? {
-      label: "狀態待確認",
-      description: "系統已記錄狀態，但需要進入明細確認下一步。",
+      label: "未分類狀態",
+      description: "系統已記錄狀態，但此狀態尚未完成中文說明，需要進入明細確認下一步。",
       nextStep: "查看物件明細、待辦與稽核紀錄。",
       tone: "neutral" as const,
       defaultBlockers: ["需確認明細資料"]

@@ -5,7 +5,9 @@ import { AlertTriangle, CheckCircle2, RotateCcw, Search, ShieldAlert } from "luc
 import { RiskHint } from "@/components/compact-hints";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "idle" | "ready" | "unauthorized" | "forbidden" | "error";
 
@@ -215,7 +217,7 @@ function ImpactResult({
           <Metric label="受影響料號" value={impact.impactedPartNumbers.length} />
           <Metric label="進版文件" value={impact.requiredDocuments.length} />
           <Metric label="圖別" value={impact.drawingNumber.purposeCode} />
-          <Metric label="狀態" value={impact.drawingNumber.recordStatus} />
+          <Metric label="狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
         </div>
 
         <section style={sectionStyle}>
@@ -237,7 +239,9 @@ function ImpactResult({
                     <th>品名</th>
                     <th>類型</th>
                     <th>階段</th>
-                    <th>狀態</th>
+                    <th>
+                      <StatusColumnHeader context="masterRecord" />
+                    </th>
                     <th>提醒</th>
                   </tr>
                 </thead>
@@ -247,9 +251,9 @@ function ImpactResult({
                       <td>{partNumber.partNumber}</td>
                       <td>{partNumber.partName}</td>
                       <td>{kindLabel(partNumber.itemKind)}</td>
-                      <td>{partNumber.developmentPhase}</td>
+                      <td>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</td>
                       <td>
-                        <span className={`badge ${partNumber.recordStatus}`}>{partNumber.recordStatus}</span>
+                        <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
                       </td>
                       <td>
                         <WarningDot title="此料號的主要 MA 圖將作廢，需確認替代圖或建立進版待辦。" />
@@ -289,7 +293,7 @@ function ImpactResult({
             compact
             eyebrow="完成"
             title="MA 圖作廢已完成"
-            body="下一步回待辦確認進版文件，或到交接頁確認 Released 資料不再被誤用。"
+            body="下一步回待辦確認進版文件，或到交接頁確認已發布資料不再被誤用。"
             actions={[
               { href: "/numbering/tasks", label: "看待辦", variant: "primary" },
               { href: "/handoff", label: "看交接" }

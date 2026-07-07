@@ -500,6 +500,7 @@ function blocker(code, message, status = "Pending", submissionId = `SUB-${code.t
       revision: "0.1",
       status,
       createdAt: "2026-07-02T12:00:00.000Z",
+      submittedById: "user-engineer-demo",
       submittedByDisplayName: "Demo Engineer",
       releaseError: null,
       resolvedBySubmissionId: null,
@@ -646,7 +647,8 @@ async function run() {
       await page.getByRole("link", { name: "送審", exact: true }).click();
       await page.waitForURL(new RegExp(`/drawings/${realRouteFixture.drawingNumber}/submission-workbench`));
       await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
-      await page.getByText("此版次不可送審").waitFor({ timeout: 15000 });
+      await page.getByText("這版已完成，不用再送審").waitFor({ timeout: 15000 });
+      await page.locator(`a[href="/numbering/drawings?query=${encodeURIComponent(realRouteFixture.drawingNumber)}"]`).waitFor({ timeout: 15000 });
       expect(await page.locator("textarea").first().isDisabled(), "正式版次備註欄應鎖定");
       expect(await page.locator('input[type="checkbox"]').first().isDisabled(), "正式版次附件勾選應鎖定");
       await assertVisibleErrorClean(page, `${realRouteFixture.drawingNumber} 圖號入口`);
@@ -662,7 +664,7 @@ async function run() {
       await page.getByText(`送審來源：${realRouteFixture.drawingNumber}`).waitFor({ timeout: 15000 });
       const text = await visibleText(page);
       expect(!text.includes("Windows 檔案送審"), "Legacy drawing route 不應顯示泛用 Windows 上傳送審");
-      expect(text.includes("此版次不可送審"), "同版次正式紀錄應顯示不可送審");
+      expect(text.includes("這版已完成，不用再送審"), "同版次正式紀錄應顯示已完成下一步");
       await assertVisibleErrorClean(page, "Legacy drawing upload route");
       const filePath = await screenshot(page, "REAL-002-legacy-route");
       await context.close();
@@ -790,8 +792,8 @@ async function run() {
           id: "released",
           code: "released_revision_exists",
           status: "Released",
-          text: "此圖號版次已進入正式紀錄",
-          expectedButton: "此版次不可送審"
+          text: "這版已完成，不用再送審",
+          expectedButton: null
         },
         {
           id: "history",
@@ -820,6 +822,7 @@ async function run() {
                 blocking: Boolean(state.code),
                 resolved: false,
                 historyMessage: state.code ? state.text : "已取消，不影響本次送審。",
+                submittedById: "user-engineer-demo",
                 submittedByDisplayName: "Demo Engineer",
                 releaseError: null,
                 resolvedBySubmissionId: null,
@@ -831,8 +834,19 @@ async function run() {
         );
         await page.goto(`${baseUrl}/drawings/${drawingNumber}/submission-workbench`, { waitUntil: "networkidle" });
         await page.getByText(state.text).first().waitFor({ timeout: 15000 });
-        await page.getByRole("button", { name: state.expectedButton }).waitFor({ timeout: 15000 });
-        if (state.code) expect(await page.getByRole("button", { name: state.expectedButton }).isDisabled(), `${state.status} 應阻擋同版次`);
+        if (state.expectedButton) {
+          await page.getByRole("button", { name: state.expectedButton }).waitFor({ timeout: 15000 });
+          if (state.code) expect(await page.getByRole("button", { name: state.expectedButton }).isDisabled(), `${state.status} 應阻擋同版次`);
+        } else {
+          expect((await page.getByRole("button", { name: "此版次不可送審" }).count()) === 0, `${state.status} 不應顯示不可送審禁用按鈕`);
+        }
+        const cancelCount = await page.getByRole("button", { name: "取消送審" }).count();
+        expect(cancelCount === (state.status === "Pending" ? 1 : 0), `${state.status} 工作台取消按鈕顯示不正確`);
+        if (state.status === "Released") {
+          await page.getByText("不改內容：回圖號模組即可").waitFor({ timeout: 15000 });
+          await page.locator(`a[href="/numbering/drawings?query=${encodeURIComponent(drawingNumber)}"]`).waitFor({ timeout: 15000 });
+          await page.locator(`a[href="/numbering/revisions?drawingNumber=${encodeURIComponent(drawingNumber)}"]`).waitFor({ timeout: 15000 });
+        }
         await assertVisibleErrorClean(page, `${state.status} 同版次狀態`);
         await screenshot(page, `MOCK-BLOCKER-002-${state.id}`);
       }
@@ -969,7 +983,7 @@ async function run() {
       await page.goto(`${baseUrl}/drawings/${drawingNumber}/submission-workbench`, { waitUntil: "networkidle" });
       await page.locator("textarea").fill("修正送審附件後重新送審。");
       await page.getByRole("button", { name: "建立修正送審" }).click();
-      await page.getByText("你沒有權限建立修正送審").waitFor({ timeout: 15000 });
+      await expect((await page.getByText(/主管或 Admin/).count()) >= 1, "權限阻擋需顯示主管或 Admin 處理路徑");
       await assertVisibleErrorClean(page, "修正送審權限阻擋");
       const filePath = await screenshot(page, "MOCK-PERM-001-correction-forbidden");
       await context.close();
@@ -1040,7 +1054,8 @@ async function run() {
       await page.unrouteAll({ behavior: "ignoreErrors" });
       await mockSubmissionDetail(page, "SUB-QA-NOTFOUND", () => null, { notFound: true });
       await page.goto(`${baseUrl}/submissions/SUB-QA-NOTFOUND`, { waitUntil: "networkidle" });
-      await page.getByText("找不到送審資料").waitFor({ timeout: 15000 });
+      await page.getByText("找不到這筆送審資料").waitFor({ timeout: 15000 });
+      await page.getByText("回圖料模組").waitFor({ timeout: 15000 });
       const text = await visibleText(page);
       expect(!text.includes("讀取失敗"), "404 應是找不到資料，不應是泛用讀取失敗");
       await screenshot(page, "MOCK-DETAIL-002-not-found");

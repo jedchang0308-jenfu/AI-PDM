@@ -2,18 +2,12 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, RefreshCcw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Download, FileText, RefreshCcw, ShieldAlert } from "lucide-react";
+import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge } from "@/components/status-help-popover";
+import { revisionPackageRoleLabel } from "@/lib/revision-package";
+import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type { SubmissionDetail } from "@/lib/types";
-
-const statusLabels: Record<string, string> = {
-  Pending: "待審核",
-  Releasing: "發行中",
-  Released: "已發布",
-  Rejected: "已駁回",
-  ReleaseFailed: "發行未完成",
-  Obsolete: "已作廢",
-  Cancelled: "已取消"
-};
 
 type CurrentUser = {
   id: string;
@@ -95,7 +89,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
         }
         setState({ status: "ready", submission: body.submission });
       })
-      .catch((error) => setState({ status: "error", message: error instanceof Error ? error.message : "讀取送審資料失敗" }));
+      .catch((error) => setState({ status: "error", message: humanSubmissionLoadError(error instanceof Error ? error.message : error) }));
   }, [submissionId]);
 
   useEffect(() => {
@@ -154,19 +148,29 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
 
       {state.status === "not_found" ? (
         <section className="panel">
-          <div className="empty">
-            <h2>找不到送審資料</h2>
-            <p>系統找不到 {submissionId}，請回送審來源重新查看既有送審。</p>
-          </div>
+          <NextStepState
+            eyebrow="重新定位"
+            title="找不到這筆送審資料"
+            body={`現在請回送審來源或圖料模組重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
+            actions={[
+              { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+              { href: "/", label: "回工作台" }
+            ]}
+          />
         </section>
       ) : null}
 
       {state.status === "error" ? (
         <section className="panel">
-          <div className="empty">
-            <h2>讀取失敗</h2>
-            <p>{state.message}</p>
-          </div>
+          <NextStepState
+            eyebrow="重新嘗試"
+            title="送審明細暫時無法讀取"
+            body={`${state.message} 現在請重新整理；若仍失敗，回圖料模組重新開啟來源紀錄，或請主管 / Admin 協助確認。`}
+            actions={[
+              { href: `/submissions/${encodeURIComponent(submissionId)}`, label: "重新整理", variant: "primary" },
+              { href: "/numbering/search", label: "回圖料模組" }
+            ]}
+          />
         </section>
       ) : null}
 
@@ -184,7 +188,7 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
         <div className="panel-header">
           <h2>
             {summary.drawing_number}
-            <span className={`badge ${summary.status}`}>{statusLabels[summary.status] ?? summary.status}</span>
+            <StatusBadge status={summary.status} context="submission" />
           </h2>
           <span className="metadata-badge">送審 ID {summary.id}</span>
         </div>
@@ -193,7 +197,7 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
           <ShieldAlert size={16} aria-hidden="true" />
           <div>
             <p>只能查看受限摘要</p>
-            <p>{message}</p>
+            <p>{message} 現在請由送審建立者、主管或 Admin 處理完整明細。</p>
           </div>
         </div>
 
@@ -205,6 +209,19 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
           <Info label="建立者" value={summary.submitted_by_name || "未記錄"} />
           <Info label="建立時間" value={new Date(summary.created_at).toLocaleString()} />
         </div>
+      </section>
+
+      <section className="panel">
+        <NextStepState
+          compact
+          eyebrow="權限受限"
+          title="你目前不用在這裡處理完整送審"
+          body="若你只是確認來源，這份摘要已足夠。若要審核、重新發行或取消送審，請交由送審建立者、R&D Manager 或 Admin 開啟完整明細。"
+          actions={[
+            { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+            { href: "/", label: "回工作台" }
+          ]}
+        />
       </section>
 
       <section className="panel">
@@ -232,16 +249,18 @@ function SubmissionDetailView({
   currentUser: CurrentUser | null;
   onReload: () => void;
 }) {
-  const [busyAction, setBusyAction] = useState<"cancel" | "retry" | "return" | null>(null);
+  const [busyAction, setBusyAction] = useState<"approve" | "cancel" | "retry" | "return" | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string; href?: string; label?: string } | null>(null);
   const canManageRelease = currentUser?.role === "R&D Manager" || currentUser?.role === "Admin";
+  const canApprove = submission.status === "Pending" && canManageRelease;
   const canCancel = submission.status === "Pending" && (canManageRelease || currentUser?.id === submission.submitted_by);
   const isUnresolvedReleaseIncomplete =
     submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id && !submission.resolved_at;
   const workbenchHref = `/drawings/${encodeURIComponent(submission.drawing_number)}/submission-workbench`;
+  const revisionPackageWarnings = submission.revision_package?.warnings ?? [];
 
   async function runSubmissionAction(
-    action: "cancel" | "retry" | "return",
+    action: "approve" | "cancel" | "retry" | "return",
     endpoint: string,
     body?: Record<string, unknown>
   ) {
@@ -268,7 +287,7 @@ function SubmissionDetailView({
       onReload();
       return;
     }
-    setActionMessage({ type: "success", text: payload.message ?? "操作完成。" });
+    setActionMessage({ type: "success", text: payload.message ?? (action === "approve" ? "已核准並發布。" : "操作完成。") });
     onReload();
   }
 
@@ -278,7 +297,7 @@ function SubmissionDetailView({
         <div className="panel-header">
           <h2>
             {submission.drawing_number}
-            <span className={`badge ${submission.status}`}>{statusLabels[submission.status] ?? submission.status}</span>
+            <StatusBadge status={submission.status} context="submission" />
           </h2>
           <span className="metadata-badge">送審 ID {submission.id}</span>
         </div>
@@ -294,10 +313,26 @@ function SubmissionDetailView({
           <Info label="建立時間" value={new Date(submission.created_at).toLocaleString()} />
         </div>
 
+        {revisionPackageWarnings.length > 0 ? <RevisionPackageReviewWarnings warnings={revisionPackageWarnings} /> : null}
+
         <div className="next-step-inline-actions">
           <Link className="secondary-button" href={workbenchHref}>
             返回送審工作台
           </Link>
+          {canApprove ? (
+            <button
+              className="primary-button"
+              type="button"
+              disabled={busyAction !== null}
+              onClick={() =>
+                runSubmissionAction("approve", `/api/submissions/${encodeURIComponent(submission.id)}/approve`, {
+                  comment: "由送審明細核准發布。"
+                })
+              }
+            >
+              {busyAction === "approve" ? "核准中..." : "核准發布"}
+            </button>
+          ) : null}
           {canCancel ? (
             <button
               className="secondary-button"
@@ -305,7 +340,7 @@ function SubmissionDetailView({
               disabled={busyAction !== null}
               onClick={() =>
                 runSubmissionAction("cancel", `/api/submissions/${encodeURIComponent(submission.id)}/cancel`, {
-                  reason: "由送審明細取消待審核送審。"
+                  reason: "由送審明細取消審核中送審。"
                 })
               }
             >
@@ -332,7 +367,7 @@ function SubmissionDetailView({
         {submission.status === "Pending" && !canCancel ? (
           <div className="upload-message error">
             <ShieldAlert size={16} aria-hidden="true" />
-            <p>這筆送審仍在待審核中；若需要取消，請由送審建立者、主管或 Admin 處理。</p>
+            <p>這筆送審仍在審核中；若需要取消，請由送審建立者、主管或 Admin 處理。</p>
           </div>
         ) : null}
 
@@ -383,13 +418,21 @@ function SubmissionDetailView({
                   <span className="file-name">{file.original_filename}</span>
                 </strong>
                 <div className="metadata-list">
+                  {revisionPackageFileForSubmissionFile(submission, file.id, file.original_filename) ? (
+                    <span className="metadata-pair">
+                      <span className="metadata-label">版次包類別</span>
+                      <span className="metadata-value">
+                        {revisionPackageRoleLabel(revisionPackageFileForSubmissionFile(submission, file.id, file.original_filename)?.role ?? "")}
+                      </span>
+                    </span>
+                  ) : null}
                   <span className="metadata-pair">
                     <span className="metadata-label">大小</span>
                     <span className="metadata-value">{formatBytes(file.file_size)}</span>
                   </span>
                   <span className="metadata-pair">
                     <span className="metadata-label">Google Drive</span>
-                    <span className="metadata-value">{file.gdrive_status}</span>
+                    <span className="metadata-value">{formatStatusForUser(file.gdrive_status, "fileSync")}</span>
                   </span>
                 </div>
                 <div className="file-actions">
@@ -404,6 +447,32 @@ function SubmissionDetailView({
         )}
       </section>
     </>
+  );
+}
+
+function RevisionPackageReviewWarnings({ warnings }: { warnings: NonNullable<SubmissionDetail["revision_package"]>["warnings"] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="upload-message warning" style={{ alignItems: "flex-start" }}>
+      <AlertTriangle size={16} aria-hidden="true" />
+      <div>
+        <p>審核前請先確認版次檔案包。</p>
+        <p>這些提醒不會阻擋核准；若檔案不足以審核，請駁回並請送審者補件。</p>
+        <ul>
+          {warnings.map((warning) => (
+            <li key={`${warning.code}-${warning.affectedFileIds?.join(",") ?? ""}`}>{warning.messageForReviewer}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function revisionPackageFileForSubmissionFile(submission: SubmissionDetail, fileId: string, filename: string) {
+  return (
+    submission.revision_package?.files.find((file) => file.submission_file_id === fileId) ??
+    submission.revision_package?.files.find((file) => file.filename === filename) ??
+    null
   );
 }
 
@@ -430,16 +499,20 @@ function formatBytes(bytes: number) {
 
 function humanSubmissionLoadError(value: unknown) {
   const text = String(value ?? "").trim();
-  if (!text) return "讀取送審資料失敗，請稍後重試或通知管理員。";
+  if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料模組重新開啟或請 Admin 協助確認。";
   if (text === "Insufficient role permission" || text === "FORBIDDEN") return "你沒有權限查看這筆送審資料。";
-  if (text.includes("Internal Server Error")) return "讀取送審資料失敗，請稍後重試或通知管理員。";
-  return text;
+  if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料模組重新開啟或請 Admin 協助確認。";
+  return formatStatusErrorForUser(text, "submission");
 }
 
 function humanSubmissionActionError(value: unknown) {
   const text = String(value ?? "").trim();
-  if (!text) return "操作失敗，請稍後重試或通知管理員。";
+  if (!text) return "操作未完成。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。";
   if (text === "FORBIDDEN" || text === "Insufficient role permission") return "你目前不能執行這個動作，請由主管或 Admin 處理。";
-  if (text.includes("Internal Server Error")) return "操作失敗，請稍後重試或通知管理員。";
-  return text;
+  if (text.includes("DUPLICATE_RELEASE_FILENAME")) return "重新發行失敗：附件檔名已被其他正式紀錄使用。請到送審工作台移除錯誤附件或更換正確檔案後，再建立修正送審。";
+  if (text.includes("RELEASE_NOT_CONFIGURED")) return "重新發行失敗：系統尚未完成正式發行設定。請通知 Admin 檢查發行設定後再處理。";
+  if (text.includes("LOCAL_GDRIVE_RELEASE_FAILED")) return "重新發行失敗：檔案移到正式資料夾時失敗。請通知主管或 Admin 檢查發行資料夾與檔案權限。";
+  if (text.includes("主資料狀態同步失敗")) return "發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。";
+  if (text.includes("Internal Server Error")) return "操作未完成。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。";
+  return formatStatusErrorForUser(text, "submission");
 }

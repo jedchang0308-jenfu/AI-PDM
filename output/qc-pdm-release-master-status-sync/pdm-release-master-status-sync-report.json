@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T13:51:40.779Z",
+  "generatedAt": "2026-07-05T10:54:13.681Z",
   "checks": [
     {
       "name": "success marks submission Released",
@@ -92,6 +92,36 @@
       "detail": ""
     },
     {
+      "name": "lower revision release is blocked when newer release exists",
+      "passed": true,
+      "detail": "不能發布版次 0.2：同一料號已有版次 0.3 的正式紀錄（sub-qc-newer-released）。請建立高於 0.3 的新版次後再送審。"
+    },
+    {
+      "name": "blocked lower revision remains unreleased",
+      "passed": true,
+      "detail": "{\"status\":\"Releasing\",\"released_at\":null}"
+    },
+    {
+      "name": "newer released revision is not obsoleted",
+      "passed": true,
+      "detail": "{\"status\":\"Released\",\"superseded_by_submission_id\":null}"
+    },
+    {
+      "name": "older released revision is not partially obsoleted after blocked transaction",
+      "passed": true,
+      "detail": "{\"status\":\"Released\",\"superseded_by_submission_id\":null}"
+    },
+    {
+      "name": "item current revision stays on newer release",
+      "passed": true,
+      "detail": "{\"current_revision\":\"0.3\"}"
+    },
+    {
+      "name": "blocked lower revision writes no partial audit",
+      "passed": true,
+      "detail": "0"
+    },
+    {
       "name": "package exposes qc script",
       "passed": true,
       "detail": ""
@@ -103,6 +133,11 @@
     },
     {
       "name": "repository blocks missing source with Chinese message",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "repository blocks lower revision release",
       "passed": true,
       "detail": ""
     },

@@ -1,6 +1,6 @@
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { PdmChangeControlError } from "@/lib/pdm-change-control-domain";
-import { suggestRevisionCode } from "@/lib/revision-policy";
+import { compareRevisionCodes, suggestRevisionCode } from "@/lib/revision-policy";
 import { listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
 
 export type DrawingRevisionResolveStatus =
@@ -122,7 +122,7 @@ export async function requireResolvedDrawingRevisionContext(input: ResolveInput)
 async function buildResolvedContext(client: AsyncDatabaseClient, companyId: string, drawing: ResolvedDrawing) {
   const primaryParts = (await findPrimaryParts(client, companyId, drawing.id)).map(mapPart);
   const revisions = await listSubmissionRevisionsByDrawingAsync({ companyId, drawingNumber: drawing.drawingNumber });
-  const latestRevision = revisions.at(-1)?.revision ?? null;
+  const latestRevision = latestRevisionByVersion(revisions.map((revision) => revision.revision));
   return {
     status: primaryParts.length === 0 ? "resolved_with_missing_part" : primaryParts.length > 1 ? "multiple_primary_parts" : "resolved",
     drawing,
@@ -133,6 +133,14 @@ async function buildResolvedContext(client: AsyncDatabaseClient, companyId: stri
     revisionCount: revisions.length,
     candidates: [drawing]
   } satisfies DrawingRevisionResolvedContext;
+}
+
+function latestRevisionByVersion(revisions: string[]) {
+  return revisions.reduce<string | null>((latest, revision) => {
+    if (!revision) return latest;
+    if (!latest) return revision;
+    return compareRevisionCodes(revision, latest, { allowLegacy: true }) > 0 ? revision : latest;
+  }, null);
 }
 
 function unresolved(status: DrawingRevisionResolveStatus): DrawingRevisionResolvedContext {

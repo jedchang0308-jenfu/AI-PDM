@@ -2,9 +2,12 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X, XCircle } from "lucide-react";
+import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X, XCircle } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -76,8 +79,47 @@ type PartDetail = PartListRecord & {
     reviewComment: string | null;
   }>;
 };
+type SharedModelVersion = {
+  id: string;
+  sourceFileAssetId: string;
+  modelRevision: string;
+  contentHash: string;
+  hashAlgorithm: string;
+  status: string;
+  releasedAt: string | null;
+};
+type SharedModelAttachmentOption = {
+  id: string;
+  documentCategory: string;
+  displayName: string;
+  fileName: string;
+  revision: string | null;
+  createdAt: string;
+};
+type RequiredMaPackage = {
+  id: string;
+  drawingNumberId: string;
+  drawingNumber: string;
+  revision: string;
+  releasedAt: string | null;
+};
+type RequiredMaItem = {
+  drawingNumberId: string;
+  drawingNumber: string;
+  latestReleasedPackage: RequiredMaPackage | null;
+};
+type RequiredMaResolverState = {
+  required: RequiredMaItem[];
+  missing: Array<{ drawingNumberId: string; drawingNumber: string; reason: string }>;
+};
+type ManufacturingBaselineDraftState = {
+  id: string;
+  baselineCode: string;
+  baselineRevision: string;
+  status: string;
+};
 
-const statuses = ["", "Draft", "Active", "PendingReview", "Released", "Obsolete"] as const;
+const statuses = ["", ...partRecordStatusFilterValues] as const;
 const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
 const itemKinds = ["", "purchased", "manufactured", "outsourced", "shared", "custom"] as const;
 const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
@@ -130,12 +172,21 @@ export default function PartsPage() {
   const [parts, setParts] = useState<PartListRecord[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
   const selectedPartNumberRef = useRef<string | null>(null);
+  const initialDetailPartNumberRef = useRef<string | null>(null);
   const partListRef = useRef<HTMLDivElement | null>(null);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialQuery = params.get("query")?.trim();
+    const detailPartNumber = params.get("detail")?.trim();
+    if (initialQuery) setQuery(initialQuery);
+    if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
+  }, []);
 
   const loadParts = useCallback(async () => {
     setState("loading");
@@ -151,7 +202,7 @@ export default function PartsPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "料號清單讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號清單讀取失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -178,7 +229,7 @@ export default function PartsPage() {
     if (response.ok) {
       setDetail(body.part);
     } else {
-      setError(body.error ?? "料號明細讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號明細讀取失敗", "masterRecord"));
       setState("error");
     }
   }, []);
@@ -267,6 +318,15 @@ export default function PartsPage() {
     },
     [focusPartList, loadDetail]
   );
+
+  useEffect(() => {
+    if (state !== "ready") return;
+    const detailPartNumber = initialDetailPartNumberRef.current;
+    if (!detailPartNumber) return;
+    if (!visibleParts.some((part) => part.partNumber === detailPartNumber)) return;
+    initialDetailPartNumberRef.current = null;
+    openPartDetail(detailPartNumber);
+  }, [openPartDetail, state, visibleParts]);
 
   const openSelectedPartDetail = useCallback(() => {
     if (visibleParts.length === 0) return;
@@ -441,7 +501,19 @@ export default function PartsPage() {
       </div>
 
       {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號模組檢視權限。</div></section> : null}
-      {state === "error" ? <section className="panel"><div className="empty">{error}</div></section> : null}
+      {state === "error" ? (
+        <section className="panel">
+          <NextStepState
+            eyebrow="重新嘗試"
+            title="料號資料暫時無法讀取"
+            body={`${error} 現在請重試或回圖料模組重新定位來源資料；若仍失敗，請 Admin 協助確認。`}
+            actions={[
+              { href: "/parts", label: "重新整理", variant: "primary" },
+              { href: "/numbering/search", label: "回圖料模組" }
+            ]}
+          />
+        </section>
+      ) : null}
       {state === "loading" ? <section className="panel"><div className="empty">正在讀取料號資料...</div></section> : null}
       {state === "ready" ? (
         <div className="pdm-master-workbench">
@@ -453,7 +525,7 @@ export default function PartsPage() {
                   items={[
                     { label: "料號", value: summary.total },
                     { label: "已關聯圖號", value: summary.linked },
-                    { label: "成本待審", value: summary.pendingCost, tone: summary.pendingCost > 0 ? "warning" : undefined }
+                    { label: "成本審核中", value: summary.pendingCost, tone: summary.pendingCost > 0 ? "warning" : undefined }
                   ]}
                 />
               </div>
@@ -464,8 +536,8 @@ export default function PartsPage() {
                 <input value={query} placeholder="料號、主根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
-              <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} />
-              <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} />
+              <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+              <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadParts}>
                 <PackageSearch size={16} />
                 查詢
@@ -506,7 +578,15 @@ function PartList({
   if (parts.length === 0) {
     return (
       <section className="panel pdm-master-table-panel">
-        <div className="empty">沒有符合條件的料號。</div>
+        <NextStepState
+          eyebrow="查無結果"
+          title="目前沒有符合條件的料號"
+          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到編號申請建立來源資料。"
+          actions={[
+            { href: "/parts", label: "重新查詢", variant: "primary" },
+            { href: "/numbering/request", label: "建立編號申請" }
+          ]}
+        />
       </section>
     );
   }
@@ -538,7 +618,9 @@ function PartList({
               <th>料號</th>
               <th>品名</th>
               <th>圖號</th>
-              <th>其他</th>
+              <th>
+                <StatusColumnHeader label="其他" context="masterRecord" />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -563,11 +645,11 @@ function PartList({
                 </td>
                 <td data-label="其他">
                   <div className="pdm-meta-strip">
-                    <span className={`badge ${part.recordStatus}`}>{part.recordStatus}</span>
-                    <span className="pdm-meta-chip">{part.developmentPhase}</span>
+                    <StatusBadge status={part.recordStatus} context="masterRecord" />
+                    <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
                     <span className="pdm-meta-chip">{variantLabel(part.variant)}</span>
                     {part.standardCost ? <span className="pdm-meta-chip">{standardCostChipLabel(part.standardCost)}</span> : null}
-                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本待審</span> : null}
+                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本審核中</span> : null}
                   </div>
                 </td>
               </tr>
@@ -697,7 +779,7 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
             <h2>{detail.partNumber}</h2>
             <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
           </div>
-          <span className={`badge ${detail.recordStatus}`}>{detail.recordStatus}</span>
+          <StatusBadge status={detail.recordStatus} context="masterRecord" />
         </div>
         <div style={detailGridStyle}>
           <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
@@ -708,6 +790,7 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
       </section>
 
       <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} />
+      <Shared3dBaselinePanel partNumber={detail.partNumber} rootCode={detail.rootCode} />
 
       <section className="panel">
         <div className="panel-header">
@@ -757,7 +840,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
               <tr>
                 <th>名稱</th>
                 <th>類型</th>
-                <th>狀態</th>
+                <th>
+                  <StatusColumnHeader context="cost" />
+                </th>
                 <th>級距</th>
               </tr>
             </thead>
@@ -766,7 +851,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
                 <tr key={profile.id}>
                   <td>{profile.profileName}</td>
                   <td>{costTypeLabel(profile.costType)}</td>
-                  <td>{profile.status}</td>
+                  <td>
+                    <StatusBadge status={profile.status} context="cost" />
+                  </td>
                   <td>{profile.tiers.map((tier) => `${tier.minQty}${tier.maxQty ? `-${tier.maxQty}` : "+"}: ${profile.currency} ${formatNumber(tier.unitCost)}`).join("、")}</td>
                 </tr>
               ))}
@@ -792,7 +879,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
             <thead>
               <tr>
                 <th>類型</th>
-                <th>狀態</th>
+                <th>
+                  <StatusColumnHeader context="cost" />
+                </th>
                 <th>原因</th>
                 <th>送審時間</th>
                 <th>動作</th>
@@ -802,7 +891,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
               {detail.costChangeRequests.map((request) => (
                 <tr key={request.id}>
                   <td>{costRequestTypeLabel(request.requestType)}</td>
-                  <td>{costRequestStatusLabel(request.reviewStatus)}</td>
+                  <td>
+                    <StatusBadge status={request.reviewStatus} context="cost" />
+                  </td>
                   <td>{request.changeReason}</td>
                   <td>{formatDateTime(request.requestedAt)}</td>
                   <td>
@@ -836,16 +927,385 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
   );
 }
 
+function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; rootCode: string }) {
+  const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState("");
+  const [models, setModels] = useState<SharedModelVersion[]>([]);
+  const [attachments, setAttachments] = useState<SharedModelAttachmentOption[]>([]);
+  const [resolver, setResolver] = useState<RequiredMaResolverState | null>(null);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [modelRevision, setModelRevision] = useState("");
+  const [baselineRevision, setBaselineRevision] = useState("1");
+  const [twoDOnlyReasonByDrawing, setTwoDOnlyReasonByDrawing] = useState<Record<string, string>>({});
+  const [draftBaseline, setDraftBaseline] = useState<ManufacturingBaselineDraftState | null>(null);
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  const selectedModel = useMemo(() => models.find((model) => model.id === selectedModelId) ?? null, [models, selectedModelId]);
+  const releasedModels = useMemo(() => models.filter((model) => model.status === "Released"), [models]);
+  const requiredMaWithPackage = resolver?.required.filter((item) => item.latestReleasedPackage) ?? [];
+  const requiredMissingCount = resolver?.missing.length ?? 0;
+
+  const loadShared3dState = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const modelsResponse = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/shared-models`);
+      const modelsBody = await modelsResponse.json().catch(() => ({}));
+      if (!modelsResponse.ok) throw new Error(shared3dErrorMessage(modelsBody, "共用 3D 清單讀取失敗"));
+
+      const attachmentsResponse = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/attachments`);
+      const attachmentsBody = await attachmentsResponse.json().catch(() => ({}));
+      if (!attachmentsResponse.ok) throw new Error(shared3dErrorMessage(attachmentsBody, "料號附件讀取失敗"));
+
+      const resolverResponse = await fetch("/api/manufacturing-baselines/resolve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ownerScope: "part_number", ownerCode: partNumber })
+      });
+      const resolverBody = await resolverResponse.json().catch(() => ({}));
+      if (!resolverResponse.ok) throw new Error(shared3dErrorMessage(resolverBody, "required MA 解析失敗"));
+
+      const nextModels = (modelsBody.models ?? []) as SharedModelVersion[];
+      const nextAttachments = ((attachmentsBody.attachments ?? []) as SharedModelAttachmentOption[]).filter((attachment) =>
+        ["cad_3d", "intermediate"].includes(attachment.documentCategory)
+      );
+      const nextResolver = {
+        required: (resolverBody.required ?? []) as RequiredMaItem[],
+        missing: (resolverBody.missing ?? []) as RequiredMaResolverState["missing"]
+      };
+      setModels(nextModels);
+      setAttachments(nextAttachments);
+      setResolver(nextResolver);
+      setSelectedModelId((current) => {
+        if (current && nextModels.some((model) => model.id === current)) return current;
+        return nextModels.find((model) => model.status === "Released")?.id ?? nextModels[0]?.id ?? "";
+      });
+      setSelectedAttachmentId((current) => {
+        if (current && nextAttachments.some((attachment) => attachment.id === current)) return current;
+        return nextAttachments[0]?.id ?? "";
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "共用 3D 與製造基準資料讀取失敗，請重新整理。" });
+    } finally {
+      setLoading(false);
+    }
+  }, [partNumber]);
+
+  useEffect(() => {
+    setDraftBaseline(null);
+    setModelRevision("");
+    setBaselineRevision("1");
+    setTwoDOnlyReasonByDrawing({});
+    void loadShared3dState();
+  }, [loadShared3dState]);
+
+  async function createSharedModel() {
+    if (!selectedAttachmentId) {
+      setMessage({ type: "error", text: "請先在料號附件上傳或選擇 3D CAD / 中繼模型檔。" });
+      return;
+    }
+    setActionBusy("create-model");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/shared-models`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceFileAssetId: selectedAttachmentId,
+          modelRevision: modelRevision.trim(),
+          status: "Released",
+          releaseReason: "由料號明細共用 3D 面板建立"
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "共用 3D 建立失敗"));
+      const model = body.model as SharedModelVersion;
+      setMessage({ type: "success", text: body.reused ? "相同 hash/model revision 已存在，已沿用既有共用 3D。" : "共用 3D model version 已建立。" });
+      setSelectedModelId(model.id);
+      setModelRevision("");
+      await loadShared3dState();
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "共用 3D 建立失敗，請重新整理後再試。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function bindPackageModel(packageId: string) {
+    if (!selectedModelId) {
+      setMessage({ type: "error", text: "請先選擇已 Released 的共用 3D model version。" });
+      return;
+    }
+    setActionBusy(`bind-${packageId}`);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(packageId)}/model-basis`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sharedModelVersionId: selectedModelId })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "MA package 共用 3D 綁定失敗"));
+      setMessage({ type: "success", text: "MA package 已綁定共用 3D model basis。" });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "MA package 綁定失敗，請確認權限與 model root。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function confirmTwoDOnly(packageId: string, drawingNumberId: string) {
+    const reason = (twoDOnlyReasonByDrawing[drawingNumberId] ?? "").trim();
+    if (!reason) {
+      setMessage({ type: "error", text: "2D-only / no 3D impact 例外需要明確原因。" });
+      return;
+    }
+    setActionBusy(`2d-${packageId}`);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(packageId)}/model-basis`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ twoDOnlyReason: reason, confirmTwoDOnly: true })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "2D-only 例外確認失敗"));
+      setMessage({ type: "success", text: "已確認 2D-only / no 3D impact 例外。" });
+      setTwoDOnlyReasonByDrawing((current) => ({ ...current, [drawingNumberId]: "" }));
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "2D-only 例外確認失敗，請確認權限與原因。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function createBaselineDraft() {
+    if (!selectedModelId) {
+      setMessage({ type: "error", text: "請先選擇要納入製造基準包的共用 3D。" });
+      return;
+    }
+    setActionBusy("create-baseline");
+    setMessage(null);
+    try {
+      const response = await fetch("/api/manufacturing-baselines", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ownerScope: "part_number",
+          ownerCode: partNumber,
+          sharedModelVersionId: selectedModelId,
+          baselineRevision: baselineRevision.trim() || "1",
+          selectedPackageIds: requiredMaWithPackage.map((item) => item.latestReleasedPackage?.id).filter(Boolean)
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "製造基準包草稿建立失敗"));
+      setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
+      setMessage({
+        type: "success",
+        text: requiredMissingCount > 0 ? "製造基準包草稿已建立，但仍有必要 MA 圖缺少 Released package，發行前必須補齊或核准排除。" : "製造基準包草稿已建立。"
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包草稿建立失敗，請重新整理後再試。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function releaseBaselineDraft() {
+    if (!draftBaseline) return;
+    setActionBusy("release-baseline");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/manufacturing-baselines/${encodeURIComponent(draftBaseline.id)}/release`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "製造基準包發行失敗"));
+      setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
+      setMessage({ type: "success", text: "製造基準包已 Released，snapshot 已凍結。" });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包發行失敗，請確認必要 MA 圖與模型狀態。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2>共用 3D / MA 製造基準</h2>
+          <p style={mutedStyle}>{rootCode} 的 shared 3D 屬於料號/root；製造基準包會凍結 3D hash 與 MA 圖正式版次。</p>
+        </div>
+        <button className="secondary-button" type="button" disabled={loading || Boolean(actionBusy)} onClick={loadShared3dState}>
+          <RotateCcw size={16} />
+          重新整理
+        </button>
+      </div>
+
+      <div style={sharedPanelSummaryStyle}>
+        <InfoBlock icon={<Box size={16} />} title="已建模型" value={`${models.length} 個共用 3D model version`} />
+        <InfoBlock icon={<FileText size={16} />} title="必要 MA" value={resolver ? `${resolver.required.length} 張，缺 ${requiredMissingCount} 張 Released package` : "尚未解析"} />
+        <InfoBlock icon={<CheckCircle2 size={16} />} title="選定模型" value={selectedModel ? `${selectedModel.modelRevision} / ${formatShortHash(selectedModel.contentHash)}` : "尚未選定"} />
+      </div>
+
+      {message ? <div className={message.type === "error" ? "alert error" : "alert success"}>{message.text}</div> : null}
+      {loading ? <div className="empty">正在讀取共用 3D 與 MA 製造基準資料...</div> : null}
+
+      <div style={sharedPanelGridStyle}>
+        <label className="pdm-master-field">
+          <span>來源 3D 附件</span>
+          <select className="dropdown-select" value={selectedAttachmentId} onChange={(event) => setSelectedAttachmentId(event.target.value)}>
+            {attachments.map((attachment) => (
+              <option key={attachment.id} value={attachment.id}>
+                {attachment.displayName || attachment.fileName} / {attachment.documentCategory}
+              </option>
+            ))}
+            {attachments.length === 0 ? <option value="">尚無 3D CAD / 中繼模型附件</option> : null}
+          </select>
+        </label>
+        <TextField label="Model revision" value={modelRevision} onChange={setModelRevision} />
+        <button className="secondary-button" type="button" disabled={Boolean(actionBusy) || !selectedAttachmentId} onClick={createSharedModel}>
+          <Box size={16} />
+          建立共用 3D
+        </button>
+      </div>
+
+      <div className="table-wrap">
+        <table style={{ minWidth: 760 }}>
+          <thead>
+            <tr>
+              <th>共用 3D</th>
+              <th>Hash</th>
+              <th>狀態</th>
+              <th>發行時間</th>
+            </tr>
+          </thead>
+          <tbody>
+            {models.map((model) => (
+              <tr key={model.id} className={model.id === selectedModelId ? "selected-row" : undefined} onClick={() => setSelectedModelId(model.id)} style={{ cursor: "pointer" }}>
+                <td>
+                  <div className="pdm-identity-code">{model.modelRevision}</div>
+                  <div className="pdm-identity-meta">{model.id}</div>
+                </td>
+                <td>{formatShortHash(model.contentHash)}</td>
+                <td><StatusBadge status={model.status} context="masterRecord" /></td>
+                <td>{model.releasedAt ? formatDateTime(model.releasedAt) : "-"}</td>
+              </tr>
+            ))}
+            {models.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={mutedStyle}>尚未建立共用 3D。先在料號附件上傳 3D CAD / 中繼模型，再建立 model version。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="table-wrap">
+        <table style={{ minWidth: 900 }}>
+          <thead>
+            <tr>
+              <th>必要 MA 圖</th>
+              <th>最新 Released package</th>
+              <th>綁定共用 3D</th>
+              <th>2D-only 例外</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(resolver?.required ?? []).map((item) => {
+              const pkg = item.latestReleasedPackage;
+              return (
+                <tr key={item.drawingNumberId}>
+                  <td>{item.drawingNumber}</td>
+                  <td>{pkg ? `${pkg.revision} / ${pkg.id}` : "缺少 Released package"}</td>
+                  <td>
+                    {pkg ? (
+                      <button className="secondary-button" type="button" disabled={!selectedModelId || Boolean(actionBusy)} onClick={() => bindPackageModel(pkg.id)}>
+                        <Link2 size={16} />
+                        綁定
+                      </button>
+                    ) : (
+                      <span style={mutedStyle}>先完成 MA package 發行</span>
+                    )}
+                  </td>
+                  <td>
+                    {pkg ? (
+                      <div style={inlineButtonRowStyle}>
+                        <input
+                          value={twoDOnlyReasonByDrawing[item.drawingNumberId] ?? ""}
+                          placeholder="例：只改標註，3D 不變"
+                          onChange={(event) => setTwoDOnlyReasonByDrawing((current) => ({ ...current, [item.drawingNumberId]: event.target.value }))}
+                        />
+                        <button className="secondary-button" type="button" disabled={Boolean(actionBusy)} onClick={() => confirmTwoDOnly(pkg.id, item.drawingNumberId)}>
+                          確認
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={mutedStyle}>無 package 可設定</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {resolver && resolver.required.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={mutedStyle}>目前 root 下沒有 Active / Released MA 圖。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={sharedPanelGridStyle}>
+        <label className="pdm-master-field">
+          <span>Baseline 使用模型</span>
+          <select className="dropdown-select" value={selectedModelId} onChange={(event) => setSelectedModelId(event.target.value)}>
+            {releasedModels.map((model) => (
+              <option key={model.id} value={model.id}>{model.modelRevision} / {formatShortHash(model.contentHash)}</option>
+            ))}
+            {releasedModels.length === 0 ? <option value="">尚無 Released model</option> : null}
+          </select>
+        </label>
+        <TextField label="Baseline revision" value={baselineRevision} onChange={setBaselineRevision} />
+        <button className="secondary-button" type="button" disabled={!selectedModelId || Boolean(actionBusy)} onClick={createBaselineDraft}>
+          建立 baseline 草稿
+        </button>
+        <button className="primary-button" type="button" disabled={!draftBaseline || draftBaseline.status !== "Draft" || Boolean(actionBusy)} onClick={releaseBaselineDraft}>
+          發行 baseline
+        </button>
+      </div>
+      {draftBaseline ? (
+        <p style={mutedStyle}>
+          目前草稿：{draftBaseline.baselineCode} / {draftBaseline.status} / {draftBaseline.id}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function shared3dErrorMessage(body: Record<string, unknown>, fallback: string) {
+  const text = String(body.message ?? body.error ?? fallback);
+  return formatStatusErrorForUser(text, "masterRecord");
+}
+
+function formatShortHash(hash: string | null | undefined) {
+  if (!hash) return "-";
+  return hash.length <= 16 ? hash : `${hash.slice(0, 8)}...${hash.slice(-6)}`;
+}
+
 function FilterSelectField({
   label,
   value,
   onChange,
-  options
+  options,
+  formatOption
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
+  formatOption?: (option: string) => string;
 }) {
   return (
     <label className="pdm-master-field">
@@ -853,7 +1313,7 @@ function FilterSelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option value={option} key={option || "all"}>
-            {option ? partKindLabel(option) : `全部${label}`}
+            {option ? formatOption?.(option) ?? partKindLabel(option) : `全部${label}`}
           </option>
         ))}
       </select>
@@ -892,10 +1352,6 @@ function costTypeLabel(value: string) {
 
 function costRequestTypeLabel(value: string) {
   return ({ set_standard: "指定標準成本", update_profile: "更新成本", retire_profile: "停用成本" } as Record<string, string>)[value] ?? value;
-}
-
-function costRequestStatusLabel(value: string) {
-  return ({ pending: "待審", approved: "已核准", rejected: "已退回", cancelled: "已取消" } as Record<string, string>)[value] ?? value;
 }
 
 function partKindLabel(value: string) {
@@ -939,6 +1395,21 @@ const detailGridStyle: CSSProperties = {
 const formGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: 10,
+  padding: 12
+};
+
+const sharedPanelSummaryStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: 10,
+  padding: 12
+};
+
+const sharedPanelGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(180px, 1fr) minmax(120px, 180px) auto auto",
+  alignItems: "end",
   gap: 10,
   padding: 12
 };

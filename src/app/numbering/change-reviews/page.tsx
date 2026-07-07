@@ -58,7 +58,7 @@ export default function ChangeReviewPage() {
     try {
       const response = await fetch("/api/numbering/reviews/pending");
       const body = (await response.json().catch(() => ({}))) as { reviews?: PendingReview[]; error?: string; message?: string };
-      if (!response.ok) throw new Error(body.error ?? body.message ?? "載入待審項目失敗");
+      if (!response.ok) throw new Error(body.error ?? body.message ?? "載入審核中項目失敗");
       const nextReviews = body.reviews ?? [];
       setReviews(nextReviews);
       const nextSelected = nextReviews.some((review) => review.id === selectedReviewId) ? selectedReviewId : nextReviews[0]?.id ?? "";
@@ -66,7 +66,7 @@ export default function ChangeReviewPage() {
       const review = nextReviews.find((item) => item.id === nextSelected);
       if (review) setAction(recommendedAction(review.outcome));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "載入待審項目失敗");
+      setError(err instanceof Error ? err.message : "載入審核中項目失敗");
     } finally {
       setBusy(false);
     }
@@ -113,8 +113,8 @@ export default function ChangeReviewPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>變更審核</h1>
-          <p>處理圖面進版 FFF 判定後的必要審核確認。</p>
+          <h1>圖面進版影響審核</h1>
+          <p>處理圖面進版後是否需換料號、沿用原料號或同步發行新版圖面的審核確認。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadPendingReviews} disabled={busy}>
           <RotateCcw size={16} />
@@ -125,8 +125,8 @@ export default function ChangeReviewPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>待審項目</h2>
-            <p style={mutedTextStyle}>系統列出尚未留下 reviewer confirmation 的圖面進版判定。</p>
+            <h2>審核中項目</h2>
+            <p style={mutedTextStyle}>系統列出尚未完成料號影響確認的圖面進版項目。</p>
           </div>
           <span className="badge">{reviews.length} Pending</span>
         </div>
@@ -143,7 +143,7 @@ export default function ChangeReviewPage() {
               <small>{review.replacementReservedPartNumber ? `新料號 ${review.replacementReservedPartNumber}` : "沿用原料號"}</small>
             </button>
           ))}
-          {reviews.length === 0 ? <p style={mutedTextStyle}>目前沒有待審圖面進版項目。</p> : null}
+          {reviews.length === 0 ? <p style={mutedTextStyle}>目前沒有審核中的圖面進版影響項目。</p> : null}
         </div>
       </section>
 

@@ -5,6 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, FileSearch, Link2, RotateCcw, Search, ShieldAlert, X } from "lucide-react";
 import { CompactSummary, RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
+import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type EntityType = "all" | "part_root" | "part_number" | "drawing_number";
@@ -147,19 +150,7 @@ type ImpactAnalysis = {
   warnings: string[];
 };
 
-const statusOptions: NumberingRecordStatus[] = [
-  "Draft",
-  "NeedInfo",
-  "Active",
-  "PendingReview",
-  "Released",
-  "Rejected",
-  "Obsolete",
-  "Merged",
-  "EVTDisabled",
-  "PendingAdminConfirm",
-  "MainDrawingInvalid"
-];
+const statusOptions = masterRecordStatusFilterValues;
 const phaseOptions: NumberingPhase[] = ["EVT", "DVT", "PVT", "Release", "ECR"];
 const SEARCH_DRAWER_WIDTH_STORAGE_KEY = "pdm-search-detail-drawer-width";
 const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
@@ -209,6 +200,7 @@ export default function NumberingSearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedRootCode, setSelectedRootCode] = useState<string | null>(null);
   const selectedRootCodeRef = useRef<string | null>(null);
+  const initialDetailRootCodeRef = useRef<string | null>(null);
   const searchListRef = useRef<HTMLDivElement | null>(null);
   const [detail, setDetail] = useState<RootDetail | null>(null);
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
@@ -221,8 +213,10 @@ export default function NumberingSearchPage() {
     const params = new URLSearchParams(window.location.search);
     const initialQuery = params.get("query")?.trim();
     const initialEntityType = params.get("entityType") as EntityType | null;
+    const detailRootCode = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
+    if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
 
   const summary = useMemo(
@@ -250,7 +244,7 @@ export default function NumberingSearchPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "圖料號明細讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "圖料號明細讀取失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -275,7 +269,7 @@ export default function NumberingSearchPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "圖料號查詢失敗");
+      setError(formatStatusErrorForUser(body.error ?? "圖料號查詢失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -296,6 +290,15 @@ export default function NumberingSearchPage() {
   useEffect(() => {
     void loadResults();
   }, [loadResults]);
+
+  useEffect(() => {
+    if (state !== "ready") return;
+    const detailRootCode = initialDetailRootCodeRef.current;
+    if (!detailRootCode) return;
+    if (!results.some((result) => result.rootCode === detailRootCode)) return;
+    initialDetailRootCodeRef.current = null;
+    void loadDetail(detailRootCode);
+  }, [loadDetail, results, state]);
 
   useEffect(() => {
     const storedWidth = window.localStorage.getItem(SEARCH_DRAWER_WIDTH_STORAGE_KEY);
@@ -512,7 +515,7 @@ export default function NumberingSearchPage() {
     setBusy(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "MA 圖作廢影響分析失敗");
+      setError(formatStatusErrorForUser(body.error ?? "MA 圖作廢影響分析失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -576,7 +579,7 @@ export default function NumberingSearchPage() {
                   <option value="">全部狀態</option>
                   {statusOptions.map((status) => (
                     <option value={status} key={status}>
-                      {status}
+                      {formatStatusForUser(status, "masterRecord")}
                     </option>
                   ))}
                 </select>
@@ -587,7 +590,7 @@ export default function NumberingSearchPage() {
                   <option value="">全部階段</option>
                   {phaseOptions.map((phase) => (
                     <option value={phase} key={phase}>
-                      {phase}
+                      {formatDevelopmentPhaseForUser(phase)}
                     </option>
                   ))}
                 </select>
@@ -632,7 +635,15 @@ function SearchResultsTable({
   if (results.length === 0) {
     return (
       <section className="panel pdm-master-table-panel">
-        <EmptyBlock text="沒有符合條件的圖料號資料" />
+        <NextStepState
+          eyebrow="查無結果"
+          title="目前沒有符合條件的圖料號資料"
+          body="現在請先清除或放寬搜尋條件。若這是新圖號或新料號，請改到編號申請建立來源資料。"
+          actions={[
+            { href: "/numbering/search", label: "重新查詢", variant: "primary" },
+            { href: "/numbering/request", label: "建立編號申請" }
+          ]}
+        />
       </section>
     );
   }
@@ -665,7 +676,9 @@ function SearchResultsTable({
               <th>主根號</th>
               <th>品名</th>
               <th>料號</th>
-              <th>其他</th>
+              <th>
+                <StatusColumnHeader label="其他" context="masterRecord" />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -706,8 +719,8 @@ function SearchResultsTable({
                     <div className="pdm-meta-strip">
                       {drawingIdentity ? <span className="pdm-meta-chip">{drawingIdentity}</span> : null}
                       {result.entityType === "drawing_number" ? <span className="pdm-meta-chip">{purposeLabel(result.purposeCode ?? "OT")}</span> : null}
-                      <span className={`badge ${result.recordStatus}`}>{result.recordStatus}</span>
-                      <span className="pdm-meta-chip">{result.developmentPhase}</span>
+                      <StatusBadge status={result.recordStatus} context="masterRecord" />
+                      <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(result.developmentPhase)}</span>
                       <InfoMarkers result={result} />
                     </div>
                   </td>
@@ -800,7 +813,7 @@ function RootDetailPanel({
           <p style={mutedTextStyle}>{detail.root.coreName}</p>
         </div>
         <div style={actionGroupStyle}>
-          {detail.summary.hasMainDrawingInvalid ? <WarningDot title="此主根或料號含 MainDrawingInvalid，恢復可用前需完成重新送審。" /> : null}
+          {detail.summary.hasMainDrawingInvalid ? <WarningDot title="此主根或料號含主圖失效狀態，恢復可用前需完成重新送審。" /> : null}
           {detail.summary.warningCount > 0 ? <WarningDot title={`尚有 ${detail.summary.warningCount} 則未確認提醒。`} /> : null}
         </div>
       </div>
@@ -825,11 +838,11 @@ function RootDetailPanel({
             { label: "提醒", value: detail.summary.warningCount }
           ]}
           blockers={[
-            detail.root.recordStatus === "Draft" ? "已領號但尚未建立 submission" : "需確認 submission、BOM 與 gate 狀態",
+            detail.root.recordStatus === "Draft" ? "已領號但尚未建立送審單" : "需確認送審、BOM 與審核關卡狀態",
             detail.summary.primaryManufacturingCount === 0 ? "尚未找到主要 MA 圖" : "主要 MA 圖可在下方圖號區檢查",
             detail.summary.warningCount > 0 ? `仍有 ${detail.summary.warningCount} 則提醒未收斂` : "目前沒有未確認提醒"
           ]}
-          nextStep={detail.root.recordStatus === "Released" ? "若要改版，先進行 ECR / 影響分析，再建立新版送審。" : "RD 需接續送審或補齊缺口；主管核准後才會進 Released。"}
+          nextStep={detail.root.recordStatus === "Released" ? "若要改版，先進行 ECR / 影響分析，再建立新版送審。" : "RD 需接續送審或補齊缺口；主管核准後才會進入已發布。"}
           primaryAction={primaryAction}
           secondaryActions={[
             { href: "/numbering/tasks", label: "看待辦 / 草稿" },
@@ -872,12 +885,12 @@ function PartNumberCard({ partNumber, detail }: { partNumber: PartNumber; detail
     <article style={recordCardStyle}>
       <div style={recordTitleStyle}>
         <strong>{partNumber.partNumber}</strong>
-        <span className={`badge ${partNumber.recordStatus}`}>{partNumber.recordStatus}</span>
+        <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
       </div>
       <div style={mutedTextStyle}>{partNumber.partName}</div>
       <div style={metaRowStyle}>
         <span>{kindLabel(partNumber.itemKind)}</span>
-        <span>{partNumber.developmentPhase}</span>
+        <span>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</span>
         <span>{partNumber.isUniversal ? "共用件" : `序號 ${partNumber.sequenceCode}`}</span>
       </div>
       <div style={chipsStyle}>
@@ -889,7 +902,7 @@ function PartNumberCard({ partNumber, detail }: { partNumber: PartNumber; detail
         ))}
       </div>
       <div style={actionGroupStyle}>
-        {missingPrimaryMa ? <WarningDot title="DVT/Release 自製、發包、客製件缺主要 MA 圖時會被 gate 阻擋，需補圖或走 override。" /> : null}
+        {missingPrimaryMa ? <WarningDot title="DVT 或正式階段的自製、發包、客製件缺主要 MA 圖時會被關卡阻擋，需補圖或走 override。" /> : null}
         {partNumber.recordStatus === "MainDrawingInvalid" ? <WarningDot title="主要 MA 圖已失效，料號需重新送審並指定有效 MA 圖後才能恢復使用。" /> : null}
         {warnings.length > 0 ? <WarningDot title={`此料號有 ${warnings.length} 則查重或高相似提醒。`} /> : null}
         {variants.length > 0 ? <WarningDot title={`同圖多料號差異欄位：${variants.map((variant) => `${variant.fieldName}=${variant.fieldValue}`).join("、")}`} /> : null}
@@ -916,12 +929,12 @@ function DrawingNumberCard({
     <article style={recordCardStyle}>
       <div style={recordTitleStyle}>
         <strong>{drawingNumber.drawingNumber}</strong>
-        <span className={`badge ${drawingNumber.recordStatus}`}>{drawingNumber.recordStatus}</span>
+        <StatusBadge status={drawingNumber.recordStatus} context="masterRecord" />
       </div>
       <div style={mutedTextStyle}>{drawingNumber.purposeDescription || purposeLabel(drawingNumber.purposeCode)}</div>
       <div style={metaRowStyle}>
         <span>{drawingNumber.purposeCode}</span>
-        <span>{drawingNumber.developmentPhase}</span>
+        <span>{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>
         <span>{drawingNumber.isPrimaryManufacturing ? "主要製造圖" : "參考/其他"}</span>
       </div>
       <div style={chipsStyle}>
@@ -957,7 +970,7 @@ function WarningsPanel({ warnings }: { warnings: NumberingWarning[] }) {
           <div style={recordCardStyle} key={warning.id}>
             <div style={recordTitleStyle}>
               <strong>{warning.title}</strong>
-              <span className="badge">{warning.severity}</span>
+              <span className="badge">{warningSeverityLabel(warning.severity)}</span>
             </div>
             <div style={mutedTextStyle}>{warning.message}</div>
             <small style={mutedTextStyle}>{warning.warningCode}</small>
@@ -968,6 +981,12 @@ function WarningsPanel({ warnings }: { warnings: NumberingWarning[] }) {
   );
 }
 
+function warningSeverityLabel(severity: NumberingWarning["severity"]) {
+  if (severity === "blocker") return "阻擋";
+  if (severity === "warning") return "注意";
+  return "提醒";
+}
+
 function ImpactPanel({ impact }: { impact: ImpactAnalysis | null }) {
   if (!impact) return null;
   return (
@@ -976,7 +995,7 @@ function ImpactPanel({ impact }: { impact: ImpactAnalysis | null }) {
       <div style={recordCardStyle}>
         <div style={recordTitleStyle}>
           <strong>{impact.drawingNumber.drawingNumber}</strong>
-          <span className="badge">impact</span>
+          <span className="badge">影響分析</span>
         </div>
         <div style={metaRowStyle}>
           <span>受影響料號 {impact.impactedPartNumbers.length}</span>
@@ -1072,8 +1091,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
     <section className="panel">
       <div className="empty">
         <AlertTriangle size={24} />
-        <h2>查詢失敗</h2>
-        <p>{message}</p>
+        <h2>圖料查詢暫時無法完成</h2>
+        <p>{message} 現在請重試；若仍失敗，請放寬查詢條件或請 Admin 協助確認來源資料。</p>
         <div className="empty-actions">
           <button className="secondary-button" type="button" onClick={onRetry}>
             <RotateCcw size={16} />

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  Ban,
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
   Clock,
   Copy,
   ExternalLink,
@@ -12,6 +14,8 @@ import {
   FolderOpen,
   Info,
   KeyRound,
+  LockKeyhole,
+  Play,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -22,6 +26,8 @@ import {
   UserCog
 } from "lucide-react";
 import { InfoHint } from "@/components/compact-hints";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { formatStatusForUser } from "@/lib/status-display";
 
 type SettingsState =
   | { status: "loading" }
@@ -199,6 +205,47 @@ type FolderChildrenState =
 
 type DriveFolderUse = "pending" | "released" | "master_attachments";
 
+type SecretLifecycleStatus = "draft" | "tested" | "active" | "retired" | "revoked";
+
+type RedactedSecretVersionSummary = {
+  id: string;
+  version: number;
+  lifecycleStatus: SecretLifecycleStatus;
+  vaultProvider: "local_test_double" | "supabase_vault";
+  maskedHint: string;
+  fingerprint: string;
+  createdAt: string;
+  testedAt: string | null;
+  activatedAt: string | null;
+  revokedAt: string | null;
+};
+
+type SettingsSecretStatus = {
+  kind: "solidworks_document_manager";
+  provider: string;
+  displayName: string;
+  configured: boolean;
+  active: RedactedSecretVersionSummary | null;
+  latest: RedactedSecretVersionSummary | null;
+  latestTestRun: {
+    id: string;
+    resultStatus: "passed" | "failed" | "blocked";
+    summary: string;
+    redactedError: string | null;
+    testedAt: string;
+  } | null;
+  draftCount: number;
+  testedCount: number;
+  revokedCount: number;
+  workQueueState: "missing" | "draft_needs_test" | "tested_needs_activation" | "ready" | "revoked";
+  workQueueMessage: string;
+  liveGate: {
+    provider: "local_test_double" | "supabase_vault";
+    status: "mocked" | "blocked" | "ready";
+    message: string;
+  };
+};
+
 const emptyRuleDraft: RuleDraft = {
   ruleVersionId: "numbering-rule-v1",
   ruleName: "",
@@ -299,6 +346,11 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
   const [loading, setLoading] = useState(false);
   const [folderLoading, setFolderLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [secretStatuses, setSecretStatuses] = useState<SettingsSecretStatus[]>([]);
+  const [secretLoading, setSecretLoading] = useState(false);
+  const [secretAction, setSecretAction] = useState<string | null>(null);
+  const [solidWorksSecret, setSolidWorksSecret] = useState("");
+  const [secretMessage, setSecretMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   useEffect(() => {
     if (settings.serviceAccountConfigured) {
@@ -307,6 +359,68 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
       setChildrenByParent({ root: { status: "error", message: "Google Drive service account 尚未設定" } });
     }
   }, [settings.serviceAccountConfigured]);
+
+  useEffect(() => {
+    loadSecretStatuses();
+  }, []);
+
+  async function loadSecretStatuses() {
+    setSecretLoading(true);
+    try {
+      const response = await fetch("/api/settings/secrets");
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message ?? body.error ?? "Secret 狀態讀取失敗");
+      setSecretStatuses(body.secrets ?? []);
+    } catch (error) {
+      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "Secret 狀態讀取失敗" });
+    } finally {
+      setSecretLoading(false);
+    }
+  }
+
+  async function createSolidWorksSecretDraft(e: React.FormEvent) {
+    e.preventDefault();
+    setSecretAction("draft");
+    setSecretMessage(null);
+    try {
+      const response = await fetch("/api/settings/secrets/solidworks_document_manager/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ secretValue: solidWorksSecret })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message ?? body.error ?? "建立 secret 草稿失敗");
+      setSecretStatuses(body.secrets ?? []);
+      setSolidWorksSecret("");
+      setSecretMessage({ type: "success", text: "SolidWorks secret 草稿已建立，請接續測試後再啟用。" });
+    } catch (error) {
+      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "建立 secret 草稿失敗" });
+    } finally {
+      setSecretAction(null);
+    }
+  }
+
+  async function runSecretAction(secretReferenceId: string, action: "test" | "activate" | "revoke") {
+    setSecretAction(`${action}:${secretReferenceId}`);
+    setSecretMessage(null);
+    const body = action === "revoke" ? { reason: "Revoked from settings center UI" } : {};
+    try {
+      const response = await fetch(`/api/settings/secrets/${encodeURIComponent(secretReferenceId)}/${action}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message ?? result.error ?? "Secret 操作失敗");
+      setSecretStatuses(result.secrets ?? []);
+      const labels = { test: "測試完成", activate: "啟用完成", revoke: "撤銷完成" } as const;
+      setSecretMessage({ type: "success", text: labels[action] });
+    } catch (error) {
+      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "Secret 操作失敗" });
+    } finally {
+      setSecretAction(null);
+    }
+  }
 
   async function loadFolderChildren(parentId: string) {
     setFolderLoading(parentId);
@@ -397,7 +511,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
 
     if (pendingFolder && releasedFolder && pendingFolder === releasedFolder) {
       setLoading(false);
-      setMessage({ type: "error", text: "待審核暫存區與正式發布區不可指向同一個資料夾" });
+      setMessage({ type: "error", text: "審核中暫存區與正式發布區不可指向同一個資料夾" });
       return;
     }
     const configuredFolders = [pendingFolder, releasedFolder, masterAttachmentsFolder].map((folderId) => folderId.trim()).filter(Boolean);
@@ -453,10 +567,27 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
           : null;
   const selectedUse: DriveFolderUse =
     selectedFolder?.id === releasedFolder ? "released" : selectedFolder?.id === masterAttachmentsFolder ? "master_attachments" : "pending";
+  const solidWorksStatus = secretStatuses.find((status) => status.kind === "solidworks_document_manager") ?? emptySolidWorksSecretStatus();
+  const googleDriveReady = Boolean(pendingSnapshot && releasedSnapshot && masterAttachmentsSnapshot);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <section className="panel">
+      <SettingsAreaNav />
+      <SettingsCenterOverview solidWorksStatus={solidWorksStatus} googleDriveReady={googleDriveReady} vaultProvider={solidWorksStatus.liveGate.provider} />
+
+      <SolidWorksSecretPanel
+        status={solidWorksStatus}
+        secretValue={solidWorksSecret}
+        loading={secretLoading}
+        action={secretAction}
+        message={secretMessage}
+        onSecretValueChange={setSolidWorksSecret}
+        onCreateDraft={createSolidWorksSecretDraft}
+        onRefresh={loadSecretStatuses}
+        onRunAction={runSecretAction}
+      />
+
+      <section className="panel" id="settings-integrations">
         <div className="panel-header">
           <h2>Google Drive 設定</h2>
         </div>
@@ -486,7 +617,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
               <div className="settings-drive-detail-header">
                 <div>
                   <h3>{selectedFolder?.name ?? "尚未選取資料夾"}</h3>
-                  <p>{selectedFolder ? "請驗證後指定用途，再儲存設定。" : "從左側資料夾樹選取待審核暫存區或正式發布區。"}</p>
+                  <p>{selectedFolder ? "請驗證後指定用途，再儲存設定。" : "從左側資料夾樹選取審核中暫存區或正式發布區。"}</p>
                 </div>
                 {selectedFolder ? (
                   <div className="settings-drive-detail-actions">
@@ -529,7 +660,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
 
               <div className="settings-drive-assign-actions">
                 <button className="primary-button" type="button" disabled={!selectedFolder || loading} onClick={() => verifyAndAssign("pending")}>
-                  設為待審核暫存區
+                  設為審核中暫存區
                 </button>
                 <button className="secondary-button" type="button" disabled={!selectedFolder || loading} onClick={() => verifyAndAssign("released")}>
                   設為正式發布區
@@ -554,7 +685,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
           </div>
 
           <div className="settings-drive-summary">
-            <FolderAssignmentCard title="待審核暫存區" folderId={pendingFolder} snapshot={pendingSnapshot} />
+            <FolderAssignmentCard title="審核中暫存區" folderId={pendingFolder} snapshot={pendingSnapshot} />
             <FolderAssignmentCard title="正式發布區" folderId={releasedFolder} snapshot={releasedSnapshot} />
           </div>
 
@@ -566,7 +697,7 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
             <summary>進階：手動貼 Folder ID</summary>
             <div className="settings-drive-manual-grid">
               <label style={labelStyle}>
-                待審核資料夾 ID
+                審核中資料夾 ID
                 <input
                   value={pendingFolder}
                   onChange={(e) => {
@@ -639,9 +770,11 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
         </form>
       </section>
 
-      <ApprovalMatrixSettings />
+      <div id="settings-workflow">
+        <ApprovalMatrixSettings />
+      </div>
 
-      <section className="panel">
+      <section className="panel" id="settings-system">
         <div className="panel-header">
           <h2>環境設定（唯讀）</h2>
         </div>
@@ -656,6 +789,262 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
       </section>
     </div>
   );
+}
+
+function emptySolidWorksSecretStatus(): SettingsSecretStatus {
+  return {
+    kind: "solidworks_document_manager",
+    provider: "solidworks_document_manager",
+    displayName: "SolidWorks Document Manager API key",
+    configured: false,
+    active: null,
+    latest: null,
+    latestTestRun: null,
+    draftCount: 0,
+    testedCount: 0,
+    revokedCount: 0,
+    workQueueState: "missing",
+    workQueueMessage: "尚未建立 SolidWorks CAD reader secret 草稿。",
+    liveGate: {
+      provider: "local_test_double",
+      status: "mocked",
+      message: "目前使用本機 test double；production 啟用前需補 Supabase Vault live 驗證。"
+    }
+  };
+}
+
+function SettingsAreaNav() {
+  return (
+    <nav className="settings-center-nav" aria-label="設定區域">
+      <a href="#settings-overview">總覽</a>
+      <a href="#settings-integrations">整合</a>
+      <a href="#settings-security">安全</a>
+      <a href="#settings-workflow">流程</a>
+      <a href="#settings-system">系統</a>
+    </nav>
+  );
+}
+
+function SettingsCenterOverview({
+  solidWorksStatus,
+  googleDriveReady,
+  vaultProvider
+}: {
+  solidWorksStatus: SettingsSecretStatus;
+  googleDriveReady: boolean;
+  vaultProvider: "local_test_double" | "supabase_vault";
+}) {
+  return (
+    <section className="panel" id="settings-overview">
+      <div className="panel-header">
+        <div>
+          <h2>設定中心</h2>
+          <p>工作佇列與高風險設定狀態。</p>
+        </div>
+      </div>
+      <div className="settings-center-grid">
+        <SettingsStatusTile
+          icon={solidWorksStatus.configured ? <CheckCircle2 size={18} /> : <KeyRound size={18} />}
+          title="SolidWorks CAD reader"
+          status={settingWorkQueueLabel(solidWorksStatus.workQueueState)}
+          detail={solidWorksStatus.workQueueMessage}
+        />
+        <SettingsStatusTile
+          icon={googleDriveReady ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
+          title="Google Drive"
+          status={googleDriveReady ? "已驗證" : "待設定"}
+          detail={googleDriveReady ? "三個用途資料夾皆有驗證快照。" : "審核中、發布與主檔附件庫需各自驗證。"}
+        />
+        <SettingsStatusTile
+          icon={vaultProvider === "supabase_vault" ? <LockKeyhole size={18} /> : <Ban size={18} />}
+          title="Secret Vault"
+          status={solidWorksStatus.liveGate.status === "ready" ? "Vault reference" : "Live gate"}
+          detail={solidWorksStatus.liveGate.message}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SettingsStatusTile({ icon, title, status, detail }: { icon: React.ReactNode; title: string; status: string; detail: string }) {
+  return (
+    <div className="settings-status-tile">
+      <div className="settings-status-tile-icon" aria-hidden="true">
+        {icon}
+      </div>
+      <div>
+        <span>{title}</span>
+        <strong>{status}</strong>
+        <small>{detail}</small>
+      </div>
+    </div>
+  );
+}
+
+function SolidWorksSecretPanel({
+  status,
+  secretValue,
+  loading,
+  action,
+  message,
+  onSecretValueChange,
+  onCreateDraft,
+  onRefresh,
+  onRunAction
+}: {
+  status: SettingsSecretStatus;
+  secretValue: string;
+  loading: boolean;
+  action: string | null;
+  message: { type: "error" | "success"; text: string } | null;
+  onSecretValueChange: (value: string) => void;
+  onCreateDraft: (event: React.FormEvent) => void;
+  onRefresh: () => void;
+  onRunAction: (secretReferenceId: string, action: "test" | "activate" | "revoke") => void;
+}) {
+  const latest = status.latest;
+  const active = status.active;
+  const canTest = latest ? latest.lifecycleStatus === "draft" || latest.lifecycleStatus === "tested" : false;
+  const canActivate = latest?.lifecycleStatus === "tested";
+  const busy = Boolean(action) || loading;
+
+  return (
+    <section className="panel" id="settings-security">
+      <div className="panel-header">
+        <div>
+          <h2>安全設定</h2>
+          <p>Secret lifecycle：draft / test / activate / revoke。</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={onRefresh} disabled={busy}>
+          <RefreshCw size={16} />
+          重新整理
+        </button>
+      </div>
+
+      <div className="settings-secret-layout">
+        <form className="settings-secret-form" onSubmit={onCreateDraft}>
+          <div className="settings-secret-heading">
+            <KeyRound size={18} aria-hidden="true" />
+            <div>
+              <h3>SolidWorks Document Manager</h3>
+              <p>{status.workQueueMessage}</p>
+            </div>
+          </div>
+          <label style={labelStyle}>
+            API/license key
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={secretValue}
+              onChange={(event) => onSecretValueChange(event.target.value)}
+              placeholder="貼上新的 SolidWorks key"
+              style={fieldStyle}
+            />
+          </label>
+          <div className="settings-secret-actions">
+            <button className="primary-button" type="submit" disabled={busy || !secretValue.trim()}>
+              <KeyRound size={16} />
+              {action === "draft" ? "建立中..." : "建立草稿"}
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={busy || !latest || !canTest}
+              onClick={() => {
+                if (latest) onRunAction(latest.id, "test");
+              }}
+            >
+              <Play size={16} />
+              測試最新版本
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={busy || !latest || !canActivate}
+              onClick={() => {
+                if (latest) onRunAction(latest.id, "activate");
+              }}
+            >
+              <ShieldCheck size={16} />
+              啟用已測試版本
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={busy || !active}
+              onClick={() => {
+                if (active) onRunAction(active.id, "revoke");
+              }}
+            >
+              <Ban size={16} />
+              撤銷 active
+            </button>
+          </div>
+          {message ? <div className={`settings-secret-message is-${message.type}`}>{message.text}</div> : null}
+        </form>
+
+        <div className="settings-secret-status">
+          <SecretVersionDetails title="Active version" version={active} emptyText="尚未啟用" />
+          <SecretVersionDetails title="Latest version" version={latest} emptyText="尚未建立草稿" />
+          <div className="settings-secret-test-run">
+            <span>Latest test</span>
+            <strong>{status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
+            <small>{status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SecretVersionDetails({
+  title,
+  version,
+  emptyText
+}: {
+  title: string;
+  version: RedactedSecretVersionSummary | null;
+  emptyText: string;
+}) {
+  return (
+    <div className="settings-secret-version">
+      <span>{title}</span>
+      <strong>{version ? `v${version.version} / ${secretLifecycleLabel(version.lifecycleStatus)}` : emptyText}</strong>
+      <small>
+        {version
+          ? `${version.vaultProvider === "supabase_vault" ? "Supabase Vault" : "Local test double"} / ${version.maskedHint} / ${formatDateTime(version.createdAt)}`
+          : "未設定"}
+      </small>
+    </div>
+  );
+}
+
+function settingWorkQueueLabel(state: SettingsSecretStatus["workQueueState"]) {
+  const labels: Record<SettingsSecretStatus["workQueueState"], string> = {
+    missing: "未設定",
+    draft_needs_test: "待測試",
+    tested_needs_activation: "待啟用",
+    ready: "可使用",
+    revoked: "已停用"
+  };
+  return labels[state];
+}
+
+function secretLifecycleLabel(status: SecretLifecycleStatus) {
+  const labels: Record<SecretLifecycleStatus, string> = {
+    draft: "草稿",
+    tested: "已測試",
+    active: "啟用",
+    retired: "退役",
+    revoked: "撤銷"
+  };
+  return labels[status];
+}
+
+function secretTestStatusLabel(status: "passed" | "failed" | "blocked") {
+  if (status === "passed") return "通過";
+  if (status === "blocked") return "阻擋";
+  return "失敗";
 }
 
 function FolderTreeRoot({
@@ -813,7 +1202,7 @@ function folderSnapshotPayload(use: DriveFolderUse, snapshot: VerifiedFolderSnap
 }
 
 function folderUseLabel(use: DriveFolderUse) {
-  if (use === "pending") return "待審核暫存區";
+  if (use === "pending") return "審核中暫存區";
   if (use === "released") return "正式發布區";
   return "主檔附件庫";
 }
@@ -1096,7 +1485,9 @@ function ApprovalMatrixSettings() {
                 <th>規則</th>
                 <th>動作</th>
                 <th>階段</th>
-                <th>狀態</th>
+                <th>
+                  <StatusColumnHeader context="masterRecord" />
+                </th>
                 <th>料件</th>
                 <th>風險</th>
                 <th>審核角色</th>
@@ -1556,7 +1947,9 @@ function RoleAssignmentPanel({
               <th>PDM 角色</th>
               <th>原因</th>
               <th>指派時間</th>
-              <th>狀態</th>
+              <th>
+                <StatusColumnHeader label="指派狀態" context="settingsLifecycle" />
+              </th>
               <th>操作</th>
             </tr>
           </thead>
@@ -1638,7 +2031,9 @@ function RolePriorityPanel({
           <thead>
             <tr>
               <th>版本</th>
-              <th>狀態</th>
+              <th>
+                <StatusColumnHeader label="設定狀態" context="settingsLifecycle" />
+              </th>
               <th>排序</th>
               <th>建立時間</th>
             </tr>
@@ -1648,7 +2043,9 @@ function RolePriorityPanel({
               matrix.rolePriorityVersions.map((version) => (
                 <tr key={version.id}>
                   <td>{version.versionCode}</td>
-                  <td>{version.status}</td>
+                  <td>
+                    <StatusBadge status={version.status} context="settingsLifecycle" />
+                  </td>
                   <td>{version.priority.join(" > ")}</td>
                   <td>{formatDateTime(version.createdAt)}</td>
                 </tr>
@@ -1656,7 +2053,7 @@ function RolePriorityPanel({
             ) : (
               <tr>
                 <td>內建預設</td>
-                <td>active</td>
+                <td>{formatStatusForUser("default", "settingsLifecycle")}</td>
                 <td>{matrix.activeRolePriority.join(" > ")}</td>
                 <td>尚未建立版本</td>
               </tr>
@@ -1739,7 +2136,9 @@ function RoleScopePanel({
               <th>角色</th>
               <th>範圍類型</th>
               <th>範圍代碼</th>
-              <th>狀態</th>
+              <th>
+                <StatusColumnHeader label="設定狀態" context="settingsLifecycle" />
+              </th>
               <th>切換</th>
             </tr>
           </thead>
@@ -1857,7 +2256,9 @@ function DelegationPanel({
               <th>範圍</th>
               <th>時間</th>
               <th>原因</th>
-              <th>狀態</th>
+              <th>
+                <StatusColumnHeader label="代理狀態" context="settingsLifecycle" />
+              </th>
               <th>操作</th>
             </tr>
           </thead>
@@ -1895,7 +2296,9 @@ function RuleVersionSummary({ versions }: { versions: RuleVersion[] }) {
         <thead>
           <tr>
             <th>規則版本</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader label="設定狀態" context="settingsLifecycle" />
+            </th>
             <th>生效時間</th>
             <th>退役時間</th>
           </tr>
@@ -1908,7 +2311,9 @@ function RuleVersionSummary({ versions }: { versions: RuleVersion[] }) {
                 <br />
                 <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>{version.title}</span>
               </td>
-              <td>{version.status}</td>
+              <td>
+                <StatusBadge status={version.status} context="settingsLifecycle" />
+              </td>
               <td>{formatDateTime(version.effectiveAt)}</td>
               <td>{version.retiredAt ? formatDateTime(version.retiredAt) : "未退役"}</td>
             </tr>
@@ -2031,7 +2436,7 @@ function permissionLabel(code: string) {
     "numbering.audit_report.generate": "產生月報",
     "numbering.task.update": "更新待辦",
     "numbering.notification.update": "更新通知",
-    dvt_promotion: "DVT 晉升",
+    dvt_promotion: "DVT 階段晉升",
     dvt_missing_ma_override: "DVT 缺 MA",
     release: "發行",
     release_missing_ma_confirm: "發行缺 MA",

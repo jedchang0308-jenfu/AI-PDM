@@ -40,6 +40,20 @@ type MasterAttachmentRow = {
   gdrive_error: string | null;
   gdrive_synced_at: string | null;
   sync_status: string;
+  source_submission_id?: string | null;
+  source_submission_status?: string | null;
+  source_submission_revision?: string | null;
+  source_submission_created_at?: string | null;
+  source_submission_released_at?: string | null;
+  revision_package_id?: string | null;
+  revision_package_status?: string | null;
+  revision_package_revision?: string | null;
+  revision_package_source_submission_id?: string | null;
+  revision_package_file_kind?: string | null;
+  revision_package_supplement_id?: string | null;
+  revision_package_supplement_status?: string | null;
+  revision_package_supplement_reason_code?: string | null;
+  revision_package_supplement_reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -75,15 +89,119 @@ export const SELECT_ASYNC_DRAWING_ATTACHMENT_ENTITY_BY_ID_SQL = `
 `;
 
 export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
-  SELECT a.*, u.display_name AS uploaded_by_name
+  WITH package_links AS (
+    SELECT
+      pf.source_file_asset_id AS attachment_id,
+      p.id AS package_id,
+      p.status AS package_status,
+      p.revision AS package_revision,
+      p.source_submission_id AS package_source_submission_id,
+      p.released_at AS package_released_at,
+      p.created_at AS package_created_at,
+      'core' AS file_kind,
+      NULL AS supplement_id,
+      NULL AS supplement_status,
+      NULL AS supplement_reason_code,
+      NULL AS supplement_reviewed_at
+    FROM drawing_revision_package_files pf
+    JOIN drawing_revision_packages p ON p.id = pf.package_id
+    UNION ALL
+    SELECT
+      psf.source_file_asset_id AS attachment_id,
+      p.id AS package_id,
+      p.status AS package_status,
+      p.revision AS package_revision,
+      p.source_submission_id AS package_source_submission_id,
+      p.released_at AS package_released_at,
+      p.created_at AS package_created_at,
+      'supplement' AS file_kind,
+      s.id AS supplement_id,
+      s.status AS supplement_status,
+      s.reason_code AS supplement_reason_code,
+      s.reviewed_at AS supplement_reviewed_at
+    FROM drawing_revision_package_supplement_files psf
+    JOIN drawing_revision_package_supplements s ON s.id = psf.supplement_id
+    JOIN drawing_revision_packages p ON p.id = s.package_id
+  ),
+  ranked_package_links AS (
+    SELECT
+      *,
+      ROW_NUMBER() OVER (
+        PARTITION BY attachment_id
+        ORDER BY
+          CASE
+            WHEN file_kind = 'core' AND package_status = 'Released' THEN 0
+            WHEN file_kind = 'supplement' AND supplement_status = 'Approved' THEN 1
+            WHEN package_status = 'Released' THEN 2
+            ELSE 9
+          END,
+          COALESCE(supplement_reviewed_at, package_released_at, package_created_at) DESC,
+          package_id DESC
+      ) AS link_rank
+    FROM package_links
+  )
+  SELECT
+    a.*,
+    u.display_name AS uploaded_by_name,
+    pl.package_id AS revision_package_id,
+    pl.package_status AS revision_package_status,
+    pl.package_revision AS revision_package_revision,
+    pl.package_source_submission_id AS revision_package_source_submission_id,
+    pl.file_kind AS revision_package_file_kind,
+    pl.supplement_id AS revision_package_supplement_id,
+    pl.supplement_status AS revision_package_supplement_status,
+    pl.supplement_reason_code AS revision_package_supplement_reason_code,
+    pl.supplement_reviewed_at AS revision_package_supplement_reviewed_at,
+    (
+      SELECT s.id
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_id,
+    (
+      SELECT s.status
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_status,
+    (
+      SELECT s.revision
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_revision,
+    (
+      SELECT s.created_at
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_created_at,
+    (
+      SELECT s.released_at
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_released_at
   FROM file_assets a
   LEFT JOIN users u ON u.id = a.uploaded_by
+  LEFT JOIN ranked_package_links pl ON pl.attachment_id = a.id AND pl.link_rank = 1
   WHERE a.linked_entity_type = :entityType
     AND a.linked_entity_id = :entityId
     AND a.deleted_at IS NULL
   ORDER BY
     CASE a.document_category
       WHEN 'cad_3d' THEN 0
+      WHEN 'intermediate' THEN 1
       WHEN 'drawing_2d' THEN 1
       WHEN 'dwg' THEN 2
       WHEN 'pdf' THEN 3
@@ -97,9 +215,112 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
 `;
 
 export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
-  SELECT a.*, u.display_name AS uploaded_by_name
+  WITH package_links AS (
+    SELECT
+      pf.source_file_asset_id AS attachment_id,
+      p.id AS package_id,
+      p.status AS package_status,
+      p.revision AS package_revision,
+      p.source_submission_id AS package_source_submission_id,
+      p.released_at AS package_released_at,
+      p.created_at AS package_created_at,
+      'core' AS file_kind,
+      NULL AS supplement_id,
+      NULL AS supplement_status,
+      NULL AS supplement_reason_code,
+      NULL AS supplement_reviewed_at
+    FROM drawing_revision_package_files pf
+    JOIN drawing_revision_packages p ON p.id = pf.package_id
+    UNION ALL
+    SELECT
+      psf.source_file_asset_id AS attachment_id,
+      p.id AS package_id,
+      p.status AS package_status,
+      p.revision AS package_revision,
+      p.source_submission_id AS package_source_submission_id,
+      p.released_at AS package_released_at,
+      p.created_at AS package_created_at,
+      'supplement' AS file_kind,
+      s.id AS supplement_id,
+      s.status AS supplement_status,
+      s.reason_code AS supplement_reason_code,
+      s.reviewed_at AS supplement_reviewed_at
+    FROM drawing_revision_package_supplement_files psf
+    JOIN drawing_revision_package_supplements s ON s.id = psf.supplement_id
+    JOIN drawing_revision_packages p ON p.id = s.package_id
+  ),
+  ranked_package_links AS (
+    SELECT
+      *,
+      ROW_NUMBER() OVER (
+        PARTITION BY attachment_id
+        ORDER BY
+          CASE
+            WHEN file_kind = 'core' AND package_status = 'Released' THEN 0
+            WHEN file_kind = 'supplement' AND supplement_status = 'Approved' THEN 1
+            WHEN package_status = 'Released' THEN 2
+            ELSE 9
+          END,
+          COALESCE(supplement_reviewed_at, package_released_at, package_created_at) DESC,
+          package_id DESC
+      ) AS link_rank
+    FROM package_links
+  )
+  SELECT
+    a.*,
+    u.display_name AS uploaded_by_name,
+    pl.package_id AS revision_package_id,
+    pl.package_status AS revision_package_status,
+    pl.package_revision AS revision_package_revision,
+    pl.package_source_submission_id AS revision_package_source_submission_id,
+    pl.file_kind AS revision_package_file_kind,
+    pl.supplement_id AS revision_package_supplement_id,
+    pl.supplement_status AS revision_package_supplement_status,
+    pl.supplement_reason_code AS revision_package_supplement_reason_code,
+    pl.supplement_reviewed_at AS revision_package_supplement_reviewed_at,
+    (
+      SELECT s.id
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_id,
+    (
+      SELECT s.status
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_status,
+    (
+      SELECT s.revision
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_revision,
+    (
+      SELECT s.created_at
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_created_at,
+    (
+      SELECT s.released_at
+      FROM submission_files sf
+      JOIN submissions s ON s.id = sf.submission_id
+      WHERE sf.source_master_attachment_id = a.id
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT 1
+    ) AS source_submission_released_at
   FROM file_assets a
   LEFT JOIN users u ON u.id = a.uploaded_by
+  LEFT JOIN ranked_package_links pl ON pl.attachment_id = a.id AND pl.link_rank = 1
   WHERE a.id = :attachmentId
     AND a.linked_entity_type = :entityType
     AND a.linked_entity_id = :entityId
@@ -213,8 +434,8 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_GDRIVE_FOLDER_SQL = `
   WHERE key = 'gdrive_master_attachments_folder_id'
 `;
 
-const drawingCategories = new Set<MasterAttachmentCategory>(["cad_3d", "drawing_2d", "dwg", "pdf", "other"]);
-const partCategories = new Set<MasterAttachmentCategory>(["catalog", "spec_sheet", "supplier_doc", "test_report", "other"]);
+const drawingCategories = new Set<MasterAttachmentCategory>(["cad_3d", "intermediate", "drawing_2d", "dwg", "pdf", "other"]);
+const partCategories = new Set<MasterAttachmentCategory>(["cad_3d", "intermediate", "catalog", "spec_sheet", "supplier_doc", "test_report", "other"]);
 const allowedAttachmentExtensions = new Set([
   "sldprt",
   "sldasm",
@@ -223,6 +444,7 @@ const allowedAttachmentExtensions = new Set([
   "stp",
   "iges",
   "igs",
+  "x_t",
   "dwg",
   "dxf",
   "pdf",
@@ -648,6 +870,22 @@ function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): Mast
     gdriveSyncedAt: row.gdrive_synced_at,
     uploadedBy: row.uploaded_by,
     uploadedByName: row.uploaded_by_name ?? null,
+    sourceSubmissionId: row.source_submission_id ?? null,
+    sourceSubmissionStatus: row.source_submission_status ?? null,
+    sourceSubmissionRevision: row.source_submission_revision ?? null,
+    sourceSubmissionCreatedAt: row.source_submission_created_at ?? null,
+    sourceSubmissionReleasedAt: row.source_submission_released_at ?? null,
+    revisionPackageId: row.revision_package_id ?? null,
+    revisionPackageStatus: row.revision_package_status ?? null,
+    revisionPackageRevision: row.revision_package_revision ?? null,
+    revisionPackageSourceSubmissionId: row.revision_package_source_submission_id ?? null,
+    revisionPackageFileKind: row.revision_package_file_kind ?? null,
+    revisionPackageSupplementId: row.revision_package_supplement_id ?? null,
+    revisionPackageSupplementStatus: row.revision_package_supplement_status ?? null,
+    revisionPackageSupplementReasonCode: row.revision_package_supplement_reason_code ?? null,
+    revisionPackageSupplementReviewedAt: row.revision_package_supplement_reviewed_at ?? null,
+    previewDerivatives: [],
+    previewJob: null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

@@ -24,3 +24,7 @@ export async function cancelPendingSubmissionAsync(input: { id: string; actorId:
 export async function markSubmissionReleasedAndObsoletePreviousAsync(input: { id: string; actorId: string }) {
   return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).markSubmissionReleasedAndObsoletePrevious(input);
 }
+
+export async function assertSubmissionRevisionCanReleaseAsync(id: string): Promise<void> {
+  return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).assertSubmissionRevisionCanRelease({ id });
+}

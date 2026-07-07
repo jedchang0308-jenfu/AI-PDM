@@ -104,6 +104,10 @@ export {
   type MasterAttachmentCategory,
   type MasterAttachmentDriveStatus,
   type MasterAttachmentEntityType,
+  type MasterAttachmentPreviewDerivative,
+  type MasterAttachmentPreviewDerivativeStatus,
+  type MasterAttachmentPreviewJob,
+  type MasterAttachmentPreviewJobStatus,
   type MasterAttachmentRecord
 } from "@/lib/repositories/master-attachment-repository";
 export {
@@ -333,11 +337,14 @@ function initDatabase(database: SqliteDatabase) {
   ensureSubmissionSnapshotAndAttemptSchema(database);
   ensureSubmissionLifecycleRequestSchema(database);
   ensureBomReviewLifecycleSchema(database);
+  ensureSettingsSecretLifecycleSchema(database);
+  ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
   reconcileItemCurrentRevisions(database);
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
   ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
+  ensureSolidWorksNativePreviewSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -779,6 +786,190 @@ function ensureColumn(database: SqliteDatabase, table: string, column: string, d
   }
 }
 
+function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS secret_references (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+      vault_secret_id TEXT NOT NULL,
+      masked_hint TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('draft', 'tested', 'active', 'retired', 'revoked')),
+      version INTEGER NOT NULL CHECK (version > 0),
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      tested_at TEXT,
+      activated_by TEXT,
+      activated_at TEXT,
+      retired_by TEXT,
+      retired_at TEXT,
+      revoked_by TEXT,
+      revoked_at TEXT,
+      revoke_reason TEXT,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (activated_by) REFERENCES users(id),
+      FOREIGN KEY (retired_by) REFERENCES users(id),
+      FOREIGN KEY (revoked_by) REFERENCES users(id),
+      UNIQUE (kind, version)
+    );
+
+    CREATE TABLE IF NOT EXISTS setting_test_runs (
+      id TEXT PRIMARY KEY,
+      secret_reference_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      result_status TEXT NOT NULL CHECK (result_status IN ('passed', 'failed', 'blocked')),
+      summary TEXT NOT NULL,
+      redacted_error TEXT,
+      artifact_path TEXT,
+      tested_by TEXT NOT NULL,
+      tested_at TEXT NOT NULL DEFAULT (datetime('now')),
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+      FOREIGN KEY (tested_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS setting_activation_events (
+      id TEXT PRIMARY KEY,
+      secret_reference_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      event_type TEXT NOT NULL CHECK (event_type IN ('created_draft', 'tested', 'activated', 'retired', 'revoked')),
+      actor_id TEXT NOT NULL,
+      event_at TEXT NOT NULL DEFAULT (datetime('now')),
+      detail_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status
+      ON secret_references(kind, lifecycle_status, version DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+      ON secret_references(kind)
+      WHERE lifecycle_status = 'active';
+    CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret
+      ON setting_test_runs(secret_reference_id, tested_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret
+      ON setting_activation_events(secret_reference_id, event_at DESC);
+  `);
+}
+
+function ensureShared3dBaselineSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS shared_cad_model_versions (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
+      owner_id TEXT NOT NULL,
+      part_root_id TEXT NOT NULL,
+      part_number_id TEXT,
+      source_file_asset_id TEXT NOT NULL,
+      model_revision TEXT NOT NULL DEFAULT 'unlabeled',
+      content_hash TEXT NOT NULL,
+      hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+      status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Obsolete')),
+      created_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      released_by TEXT,
+      released_at TEXT,
+      release_reason TEXT,
+      FOREIGN KEY (company_id) REFERENCES companies(id),
+      FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+      FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+      FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (released_by) REFERENCES users(id),
+      UNIQUE (company_id, owner_scope, owner_id, model_revision, content_hash)
+    );
+
+    CREATE TABLE IF NOT EXISTS drawing_revision_package_model_links (
+      id TEXT PRIMARY KEY,
+      package_id TEXT NOT NULL UNIQUE,
+      basis_type TEXT NOT NULL CHECK (basis_type IN ('shared_model', 'two_d_only')),
+      shared_model_version_id TEXT,
+      exception_reason TEXT,
+      exception_confirmed_by TEXT,
+      exception_confirmed_at TEXT,
+      review_status TEXT NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'confirmed', 'revoked')),
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (
+        (basis_type = 'shared_model' AND shared_model_version_id IS NOT NULL)
+        OR
+        (basis_type = 'two_d_only' AND exception_reason IS NOT NULL AND exception_confirmed_by IS NOT NULL AND exception_confirmed_at IS NOT NULL)
+      ),
+      FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
+      FOREIGN KEY (shared_model_version_id) REFERENCES shared_cad_model_versions(id),
+      FOREIGN KEY (exception_confirmed_by) REFERENCES users(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS manufacturing_baselines (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
+      owner_id TEXT NOT NULL,
+      part_root_id TEXT NOT NULL,
+      part_number_id TEXT,
+      baseline_code TEXT NOT NULL,
+      baseline_revision TEXT NOT NULL,
+      shared_model_version_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Released', 'Obsolete', 'Cancelled')),
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      released_by TEXT,
+      released_at TEXT,
+      snapshot_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (company_id) REFERENCES companies(id),
+      FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+      FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+      FOREIGN KEY (shared_model_version_id) REFERENCES shared_cad_model_versions(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (released_by) REFERENCES users(id),
+      UNIQUE (company_id, owner_scope, owner_id, baseline_revision)
+    );
+
+    CREATE TABLE IF NOT EXISTS manufacturing_baseline_items (
+      id TEXT PRIMARY KEY,
+      baseline_id TEXT NOT NULL,
+      drawing_number_id TEXT NOT NULL,
+      drawing_number TEXT NOT NULL,
+      package_id TEXT,
+      package_revision TEXT,
+      inclusion_status TEXT NOT NULL DEFAULT 'included' CHECK (inclusion_status IN ('included', 'excluded')),
+      selection_reason TEXT,
+      review_status TEXT NOT NULL DEFAULT 'draft' CHECK (review_status IN ('draft', 'approved')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (
+        inclusion_status = 'included'
+        OR
+        (inclusion_status = 'excluded' AND selection_reason IS NOT NULL AND review_status = 'approved')
+      ),
+      FOREIGN KEY (baseline_id) REFERENCES manufacturing_baselines(id) ON DELETE CASCADE,
+      FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
+      FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id),
+      UNIQUE (baseline_id, drawing_number_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_owner
+      ON shared_cad_model_versions(company_id, owner_scope, owner_id, status, model_revision);
+    CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_hash
+      ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash);
+    CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_model_links_model
+      ON drawing_revision_package_model_links(shared_model_version_id, review_status);
+    CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_owner
+      ON manufacturing_baselines(company_id, owner_scope, owner_id, status, baseline_revision);
+    CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_model
+      ON manufacturing_baselines(shared_model_version_id, status);
+    CREATE INDEX IF NOT EXISTS idx_manufacturing_baseline_items_baseline
+      ON manufacturing_baseline_items(baseline_id, drawing_number_id);
+  `);
+}
+
 function ensureFileAssetsMasterAttachmentSchema(database: SqliteDatabase) {
   ensureColumn(database, "file_assets", "mime_type", "TEXT");
   ensureColumn(database, "file_assets", "document_category", "TEXT NOT NULL DEFAULT 'other'");
@@ -792,6 +983,73 @@ function ensureFileAssetsMasterAttachmentSchema(database: SqliteDatabase) {
   ensureColumn(database, "file_assets", "gdrive_status", "TEXT NOT NULL DEFAULT 'none'");
   ensureColumn(database, "file_assets", "gdrive_error", "TEXT");
   ensureColumn(database, "file_assets", "gdrive_synced_at", "TEXT");
+}
+
+function ensureSolidWorksNativePreviewSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS preview_jobs (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      source_file_asset_id TEXT NOT NULL,
+      source_content_hash TEXT NOT NULL,
+      requested_kind TEXT NOT NULL CHECK (requested_kind IN ('native_thumbnail_png', 'drawing_pdf')),
+      source_extension TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled')),
+      priority INTEGER NOT NULL DEFAULT 100,
+      attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+      locked_by TEXT,
+      locked_at TEXT,
+      idempotency_key TEXT NOT NULL,
+      generator_profile TEXT NOT NULL DEFAULT 'windows_solidworks_preview_worker',
+      error_code TEXT,
+      error_summary TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      UNIQUE (idempotency_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS file_derivatives (
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      source_file_asset_id TEXT NOT NULL,
+      source_content_hash TEXT NOT NULL,
+      derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
+      storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
+      storage_key TEXT NOT NULL,
+      original_path TEXT,
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL CHECK (file_size >= 0),
+      content_hash TEXT NOT NULL,
+      hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+      width INTEGER,
+      height INTEGER,
+      page_count INTEGER,
+      generator_profile TEXT NOT NULL,
+      generator_version TEXT,
+      preview_job_id TEXT,
+      status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'stale', 'retired', 'failed')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by_worker TEXT,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+      FOREIGN KEY (preview_job_id) REFERENCES preview_jobs(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_preview_jobs_source_status
+      ON preview_jobs(source_file_asset_id, source_content_hash, requested_kind, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_preview_jobs_claim
+      ON preview_jobs(status, priority, created_at);
+    CREATE INDEX IF NOT EXISTS idx_file_derivatives_source_status
+      ON file_derivatives(source_file_asset_id, source_content_hash, derivative_kind, status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_file_derivatives_preview_job
+      ON file_derivatives(preview_job_id);
+  `);
 }
 
 const submissionLifecycleColumns = [

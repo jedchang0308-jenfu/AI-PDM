@@ -2176,7 +2176,18 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
       .prepare(
         `
         SELECT p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status,
-               r.root_code, r.core_name
+               r.root_code, r.core_name,
+               (
+                 SELECT d.drawing_number
+                 FROM drawing_part_links l
+                 JOIN drawing_numbers d ON d.id = l.drawing_number_id
+                 WHERE l.part_number_id = p.id
+                   AND l.link_type = 'primary_manufacturing'
+                   AND d.purpose_code = 'MA'
+                   AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+                 ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
+                 LIMIT 1
+               ) AS primary_drawing_number
         FROM part_numbers p
         JOIN part_roots r ON r.id = p.part_root_id
         WHERE p.id = ?
@@ -2191,6 +2202,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
           record_status: NumberingRecordStatus;
           root_code: string;
           core_name: string;
+          primary_drawing_number: string | null;
         }
       | undefined;
     if (!row) return emptyApprovalEntitySummary(request);
@@ -2201,7 +2213,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
       secondary: row.part_name,
       rootCode: row.root_code,
       partNumber: row.part_number,
-      drawingNumber: null,
+      drawingNumber: row.primary_drawing_number,
       partName: row.part_name,
       coreName: row.core_name,
       itemKind: row.item_kind,
@@ -2276,7 +2288,7 @@ function approvalUserSummary(database: SqliteDatabase, userId: string) {
 
 function numberingApprovalActionLabel(value: string | null | undefined) {
   const labels: Record<string, string> = {
-    dvt_promotion: "DVT 晉升",
+    dvt_promotion: "DVT 階段晉升",
     dvt_missing_ma_override: "DVT 缺 MA Override",
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",

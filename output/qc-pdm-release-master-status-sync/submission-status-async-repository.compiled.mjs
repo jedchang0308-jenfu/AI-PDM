@@ -123,7 +123,7 @@ export const SELECT_ASYNC_RELATED_RELEASE_FAILED_SUBMISSIONS_SQL = `
   ORDER BY created_at ASC, id ASC
 `;
 export const SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL = `
-  SELECT id
+  SELECT id, revision
   FROM submissions
   WHERE item_id = :itemId
     AND id <> :id
@@ -278,10 +278,12 @@ export class AsyncSubmissionStatusRepository {
         const submission = await this.client.queryOne(SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL, { id: input.id });
         if (!submission)
             throw new Error("Submission not found");
-        const obsoleteRows = await this.client.query(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
+        const releasedRows = await this.client.query(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
             itemId: submission.item_id,
             id: submission.id
         });
+        const obsoleteRows = releasedRows.filter((row) => compareReleaseRevisions(row.revision, submission.revision) < 0);
+        assertNoNewerReleasedRevision(submission, releasedRows);
         const relatedReleaseFailedRows = await this.client.query(SELECT_ASYNC_RELATED_RELEASE_FAILED_SUBMISSIONS_SQL, {
             companyId: submission.company_id,
             drawingNumber: submission.drawing_number,
@@ -343,6 +345,16 @@ export class AsyncSubmissionStatusRepository {
             resolved_release_failed_submission_ids: relatedReleaseFailedRows.map((row) => row.id),
             master_status_sync: masterStatusSync
         };
+    }
+    async assertSubmissionRevisionCanRelease(input) {
+        const submission = await this.client.queryOne(SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL, { id: input.id });
+        if (!submission)
+            throw new Error("Submission not found");
+        const releasedRows = await this.client.query(SELECT_ASYNC_RELEASE_LIFECYCLE_OBSOLETE_SUBMISSIONS_SQL, {
+            itemId: submission.item_id,
+            id: submission.id
+        });
+        assertNoNewerReleasedRevision(submission, releasedRows);
     }
     async syncReleaseMasterStatuses(client, input) {
         const drawing = await this.resolveReleaseSourceDrawing(client, input.submission);
@@ -434,4 +446,36 @@ export class AsyncSubmissionStatusRepository {
         }
         throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料模組確認主料號。");
     }
+}
+function assertNoNewerReleasedRevision(submission, releasedRows) {
+    const blockingRow = releasedRows.find((row) => compareReleaseRevisions(row.revision, submission.revision) >= 0);
+    if (!blockingRow)
+        return;
+    throw new Error(`不能發布版次 ${submission.revision}：同一料號已有版次 ${blockingRow.revision} 的正式紀錄（${blockingRow.id}）。請建立高於 ${blockingRow.revision} 的新版次後再送審。`);
+}
+function compareReleaseRevisions(left, right) {
+    const leftRevision = parseReleaseRevision(left);
+    const rightRevision = parseReleaseRevision(right);
+    if (!leftRevision || !rightRevision) {
+        throw new Error(`版次格式無法比較：${left || "-"} / ${right || "-"}。請通知 Admin 修正版本資料後再發布。`);
+    }
+    if (leftRevision.major !== rightRevision.major)
+        return leftRevision.major - rightRevision.major;
+    return leftRevision.minor - rightRevision.minor;
+}
+function parseReleaseRevision(value) {
+    let code = String(value ?? "").trim().replace(/\s+/gu, "");
+    if (!code)
+        return null;
+    if (/^v\d/iu.test(code))
+        code = code.slice(1);
+    if (/^[A-Z]$/u.test(code.toUpperCase())) {
+        return { major: code.toUpperCase().charCodeAt(0) - 64, minor: 0 };
+    }
+    if (/^[1-9]\d*$/u.test(code))
+        return { major: Number(code), minor: 0 };
+    const minorMatch = code.match(/^(0|[1-9]\d*)\.([1-9]\d*)$/u);
+    if (minorMatch)
+        return { major: Number(minorMatch[1]), minor: Number(minorMatch[2]) };
+    return null;
 }

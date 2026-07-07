@@ -1,11 +1,21 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  decorateMasterAttachmentsWithPreviewState,
+  enqueuePreviewJobForAttachmentAsync,
+  getPreviewDerivativeBytesForAttachmentAsync
+} from "@/lib/preview-derivatives";
 import { AsyncMasterAttachmentRepository } from "@/lib/repositories/master-attachment-async-repository";
-import type { MasterAttachmentEntityType } from "@/lib/repositories/master-attachment-repository";
+import type { MasterAttachmentEntityType, MasterAttachmentRecord } from "@/lib/repositories/master-attachment-repository";
 
-export function listMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
+export async function listMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.listMasterAttachments(input);
+  const result = await repository.listMasterAttachments(input);
+  if (!result) return result;
+  return {
+    ...result,
+    attachments: await decorateMasterAttachmentsWithPreviewState(client, result.attachments)
+  };
 }
 
 export function listDeletedMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
@@ -14,7 +24,7 @@ export function listDeletedMasterAttachmentsAsync(input: { entityType: MasterAtt
   return repository.listDeletedMasterAttachments(input);
 }
 
-export function createMasterAttachmentAsync(input: {
+export async function createMasterAttachmentAsync(input: {
   entityType: MasterAttachmentEntityType;
   entityCode: string;
   file: File;
@@ -26,13 +36,17 @@ export function createMasterAttachmentAsync(input: {
 }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.createMasterAttachment(input);
+  const attachment = await repository.createMasterAttachment(input);
+  if (!attachment) throw new Error("MASTER_ATTACHMENT_CREATE_FAILED");
+  return decorateSingleAttachmentWithPreviewState(client, attachment);
 }
 
-export function getMasterAttachmentAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }) {
+export async function getMasterAttachmentAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.getMasterAttachment(input);
+  const attachment = await repository.getMasterAttachment(input);
+  if (!attachment) return attachment;
+  return decorateSingleAttachmentWithPreviewState(client, attachment);
 }
 
 export function getMasterAttachmentLifecyclePolicyAsync(input: {
@@ -49,6 +63,33 @@ export function getMasterAttachmentBytesAsync(input: { entityType: MasterAttachm
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
   return repository.getMasterAttachmentBytes(input);
+}
+
+export function getMasterAttachmentPreviewDerivativeBytesAsync(input: {
+  entityType: MasterAttachmentEntityType;
+  entityCode: string;
+  attachmentId: string;
+  derivativeId: string;
+}) {
+  const client = getAsyncDatabaseClient();
+  return getPreviewDerivativeBytesForAttachmentAsync(client, input);
+}
+
+export function enqueueMasterAttachmentPreviewJobAsync(input: {
+  entityType: MasterAttachmentEntityType;
+  entityCode: string;
+  attachmentId: string;
+  actorUserId: string;
+  requestedKind?: "native_thumbnail_png" | "drawing_pdf";
+  forceRegenerate?: boolean;
+}) {
+  const client = getAsyncDatabaseClient();
+  const runFakeWorker = process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1";
+  return enqueuePreviewJobForAttachmentAsync(client, {
+    ...input,
+    generatorProfile: runFakeWorker ? "fake_preview_worker" : "windows_solidworks_preview_worker",
+    runFakeWorker
+  });
 }
 
 export function softDeleteMasterAttachmentAsync(input: {
@@ -75,8 +116,15 @@ export function restoreMasterAttachmentAsync(input: {
   return repository.restoreMasterAttachment(input);
 }
 
-export function syncMasterAttachmentToDriveAsync(input: { attachmentId: string; actorId?: string | null }) {
+export async function syncMasterAttachmentToDriveAsync(input: { attachmentId: string; actorId?: string | null }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.syncMasterAttachmentToDrive(input);
+  const attachment = await repository.syncMasterAttachmentToDrive(input);
+  if (!attachment) return attachment;
+  return decorateSingleAttachmentWithPreviewState(client, attachment);
+}
+
+async function decorateSingleAttachmentWithPreviewState(client: ReturnType<typeof getAsyncDatabaseClient>, attachment: MasterAttachmentRecord) {
+  const decorated = await decorateMasterAttachmentsWithPreviewState(client, [attachment]);
+  return decorated[0] ?? attachment;
 }

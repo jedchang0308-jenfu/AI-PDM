@@ -7,7 +7,7 @@
     grid-template-columns: 30px minmax(0, 1fr);
   }
 
-  .solidworks-preview-fallback {
+  .drawing-preview-grid {
     grid-template-columns: 1fr;
   }
 

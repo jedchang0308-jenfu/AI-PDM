@@ -13,10 +13,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
   if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
+  const targetRevision = new URL(request.url).searchParams.get("revision");
   try {
     const context = await resolveDrawingSubmissionContext({
       company: companyResult.company,
-      drawingNumber: decodeURIComponent(drawingNumber)
+      drawingNumber: decodeURIComponent(drawingNumber),
+      targetRevision
     });
     return NextResponse.json(context);
   } catch (error) {

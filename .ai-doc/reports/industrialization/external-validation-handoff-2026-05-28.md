@@ -1,6 +1,6 @@
 # External Validation Handoff - 2026-05-28
 
-Last updated: 2026-06-02
+Last updated: 2026-07-06
 Authoritative task file: `.ai-doc/dev_task.md`
 
 ## Scope
@@ -17,18 +17,18 @@ Current open external gates:
 | `DEV-FIELD-001` | Formal field-test closure | In progress / external | Field-test operator, completed signed evidence reports, and issue closure |
 | `DEV-IND-007` | Live Supabase migration/advisor/RLS gate | Blocked | Disposable AI_PDM Supabase project or branch |
 
-Current local gate status as of 2026-06-02:
+Current local gate status as of 2026-07-06:
 
 | Gate | Latest result |
 |---|---|
 | `qc:dev-task-completion-audit` | PASS, 8/8; only the 5 external blockers above remain open |
 | `qa:dev-task:sync` | PASS dry-run; 0 changes; blocked while SW/restore/Document Manager evidence remains not ready |
-| `qc:production-readiness:report` | PASS in allow-open mode; `ready=false`, 5 P0 blockers |
+| `qc:production-readiness:report` | PASS in allow-open mode; `ready=false`, 5 external blockers |
 | `qc:native-cad-extractor-contract` | PASS, 14/14; local external extractor contract and no-extractor fallback are covered |
 | `qc:document-manager-extractor-probe` / `qc:document-manager-probe-redaction` / `qc:document-manager-probe-path-gate` | PASS, 6/6 + 9/9 + 4/4; local mock probe output now uses `.tmp/...` fixtures |
-| `field-test:preflight -- --profile all` / `field-test:handoff` / `qc:field-test-handoff-package` | PASS; latest handoff package `data/field-test-handoffs/20260602-090136`, package QC 53/53 |
+| `field-test:preflight -- --profile all` / `field-test:handoff` / `qc:field-test-handoff-package` | PASS; latest handoff package `data/field-test-handoffs/20260706-123433`, package QC 53/53 |
 | `qc:field-test-issue-intake` | PASS, 11/11; field issues can be dry-run or written to the defect register, and active P0/P1 issues block `qc:defects-zero` |
-| `postgres-shadow:handoff` / `qc:postgres-shadow-handoff-package` | PASS; latest Postgres shadow handoff package `data/postgres-shadow-handoffs/20260602-091309` |
+| `postgres-shadow:handoff` / `qc:postgres-shadow-handoff-package` | PASS; latest Postgres shadow handoff package `data/postgres-shadow-handoffs/20260706-123443` |
 | `qc:external-blocker-closure` | PASS; validates all 5 external blockers have current package references, closure commands, report gates, safety rules, and remain open until external evidence exists |
 | `field-test:preflight -- --profile all --require-evidence` | `ready=false`; 19 passed / 3 failed / 1 warning |
 
@@ -36,30 +36,30 @@ Current local gate status as of 2026-06-02:
 
 Latest local field-test package:
 
-- `data/field-test-handoffs/20260602-090136`
-- Package manifest: `data/field-test-handoffs/20260602-090136/field-test-handoff.json`
-- Operator README: `data/field-test-handoffs/20260602-090136/README.md`
-- Final checklist: `data/field-test-handoffs/20260602-090136/qc-checklist.ps1`
+- `data/field-test-handoffs/20260706-123433`
+- Package manifest: `data/field-test-handoffs/20260706-123433/field-test-handoff.json`
+- Operator README: `data/field-test-handoffs/20260706-123433/README.md`
+- Final checklist: `data/field-test-handoffs/20260706-123433/qc-checklist.ps1`
 
 The package already contains copies of the current draft reports:
 
-- Restore drill report copy: `data/field-test-handoffs/20260602-090136/reports/restore-drill-report.json`
-- SolidWorks Add-in report copy: `data/field-test-handoffs/20260602-090136/reports/sw-addin-report.json`
-- Document Manager report copy: `data/field-test-handoffs/20260602-090136/reports/document-manager-report.json`
+- Restore drill report copy: `data/field-test-handoffs/20260706-123433/reports/restore-drill-report.json`
+- SolidWorks Add-in report copy: `data/field-test-handoffs/20260706-123433/reports/sw-addin-report.json`
+- Document Manager report copy: `data/field-test-handoffs/20260706-123433/reports/document-manager-report.json`
 
 Source report records:
 
-- Restore drill: `data/restore-drill-reports/20260525-144844/report.json`
-- SolidWorks Add-in: `data/sw-addin-test-reports/20260525-131542/report.json`
-- Document Manager: `data/document-manager-reports/20260527-145712/report.json`
+- Restore drill: `data/restore-drill-reports/20260706-123421/report.json`
+- SolidWorks Add-in: `data/sw-addin-test-reports/20260706-123421/report.json`
+- Document Manager: `data/document-manager-reports/20260706-123421/report.json`
 
 Latest local Postgres shadow handoff package:
 
-- `data/postgres-shadow-handoffs/20260602-091309`
-- Package manifest: `data/postgres-shadow-handoffs/20260602-091309/postgres-shadow-handoff.json`
-- Operator README: `data/postgres-shadow-handoffs/20260602-091309/README.md`
-- Supabase advisor checklist: `data/postgres-shadow-handoffs/20260602-091309/supabase-advisor-checklist.md`
-- Final checklist: `data/postgres-shadow-handoffs/20260602-091309/qc-checklist.ps1`
+- `data/postgres-shadow-handoffs/20260706-123443`
+- Package manifest: `data/postgres-shadow-handoffs/20260706-123443/postgres-shadow-handoff.json`
+- Operator README: `data/postgres-shadow-handoffs/20260706-123443/README.md`
+- Supabase advisor checklist: `data/postgres-shadow-handoffs/20260706-123443/supabase-advisor-checklist.md`
+- Final checklist: `data/postgres-shadow-handoffs/20260706-123443/qc-checklist.ps1`
 
 ## Gate Details
 
@@ -75,9 +75,9 @@ Required inputs:
 Commands:
 
 ```powershell
-.\data\field-test-handoffs\20260602-090136\commands\document-manager-preflight.ps1
-.\data\field-test-handoffs\20260602-090136\commands\document-manager-probe.ps1
-.\data\field-test-handoffs\20260602-090136\commands\document-manager-fill-template.ps1
+.\data\field-test-handoffs\20260706-123433\commands\document-manager-preflight.ps1
+.\data\field-test-handoffs\20260706-123433\commands\document-manager-probe.ps1
+.\data\field-test-handoffs\20260706-123433\commands\document-manager-fill-template.ps1
 npm.cmd run qc:native-cad-extractor-contract
 npm.cmd run qc:document-manager-extractor-probe
 npm.cmd run qc:document-manager-probe-redaction
@@ -107,9 +107,9 @@ Required inputs:
 Commands:
 
 ```powershell
-.\data\field-test-handoffs\20260602-090136\commands\sw-addin-preflight.ps1
-.\data\field-test-handoffs\20260602-090136\commands\sw-addin-build-and-register.ps1
-.\data\field-test-handoffs\20260602-090136\commands\sw-addin-fill-template.ps1
+.\data\field-test-handoffs\20260706-123433\commands\sw-addin-preflight.ps1
+.\data\field-test-handoffs\20260706-123433\commands\sw-addin-build-and-register.ps1
+.\data\field-test-handoffs\20260706-123433\commands\sw-addin-fill-template.ps1
 npm.cmd run qc:sw-addin-real-machine-report
 ```
 
@@ -127,15 +127,15 @@ Pass criteria:
 Required inputs:
 
 - Independent Windows machine that is not the production/source machine.
-- Restore handoff copied from `data/field-test-handoffs/20260602-090136/restore-handoff`.
+- Restore handoff copied from `data/field-test-handoffs/20260706-123433/restore-handoff`.
 - Backup snapshot and restore target directory recorded by the operator.
 
 Commands:
 
 ```powershell
-.\data\field-test-handoffs\20260602-090136\commands\restore-preflight.ps1
-.\data\field-test-handoffs\20260602-090136\restore-handoff\restore-on-test-machine.ps1
-.\data\field-test-handoffs\20260602-090136\commands\restore-fill-template.ps1
+.\data\field-test-handoffs\20260706-123433\commands\restore-preflight.ps1
+.\data\field-test-handoffs\20260706-123433\restore-handoff\restore-on-test-machine.ps1
+.\data\field-test-handoffs\20260706-123433\commands\restore-fill-template.ps1
 npm.cmd run qc:restore-drill-report
 ```
 
@@ -161,9 +161,9 @@ Required inputs:
 Final command:
 
 ```powershell
-.\data\field-test-handoffs\20260602-090136\commands\field-issues-import.ps1
+.\data\field-test-handoffs\20260706-123433\commands\field-issues-import.ps1
 npm.cmd run qc:defects-zero
-.\data\field-test-handoffs\20260602-090136\qc-checklist.ps1
+.\data\field-test-handoffs\20260706-123433\qc-checklist.ps1
 ```
 
 Pass criteria:
@@ -182,7 +182,7 @@ Current evidence:
 - `.ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md`
 - `.ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md`
 - `.ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md`
-- Postgres shadow handoff package: `data/postgres-shadow-handoffs/20260602-091309`
+- Postgres shadow handoff package: `data/postgres-shadow-handoffs/20260706-123443`
 
 Local static and SQLite comparison gates pass. The remaining live gate is blocked because no disposable AI_PDM Supabase project or branch is configured.
 
@@ -204,10 +204,10 @@ Current target decision state:
 Commands after a disposable target exists:
 
 ```powershell
-.\data\postgres-shadow-handoffs\20260602-091309\commands\01-pre-migration-guard.ps1
-.\data\postgres-shadow-handoffs\20260602-091309\commands\02-apply-migration.ps1
-.\data\postgres-shadow-handoffs\20260602-091309\commands\03-compare-shadow.ps1
-.\data\postgres-shadow-handoffs\20260602-091309\qc-checklist.ps1
+.\data\postgres-shadow-handoffs\20260706-123443\commands\01-pre-migration-guard.ps1
+.\data\postgres-shadow-handoffs\20260706-123443\commands\02-apply-migration.ps1
+.\data\postgres-shadow-handoffs\20260706-123443\commands\03-compare-shadow.ps1
+.\data\postgres-shadow-handoffs\20260706-123443\qc-checklist.ps1
 ```
 
 Additional Supabase checks:

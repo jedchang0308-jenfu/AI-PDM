@@ -8,6 +8,7 @@ import { FileDropzone } from "@/components/file-dropzone";
 import { LifecycleStageGuidance, ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 
 const emptyMetadata: PdmMetadata = {
   drawing_number: "",
@@ -72,6 +73,8 @@ type CompanyOption = {
   is_default?: boolean;
 };
 type AuthUserPayload = {
+  id?: string;
+  role?: string;
   default_company?: CompanyOption;
   companies?: CompanyOption[];
 };
@@ -101,6 +104,7 @@ type ExistingDrawingSubmission = {
   revision: string;
   status: string;
   createdAt?: string;
+  submittedById?: string;
   submittedByDisplayName?: string;
   releaseError?: string | null;
   resolvedBySubmissionId?: string | null;
@@ -225,7 +229,7 @@ function RetiredGenericUploadPage() {
         <div className="empty">
           <AlertTriangle size={28} aria-hidden="true" />
           <h2>請從受控主資料送審</h2>
-          <p>圖號或料號資料缺漏時，應回圖號模組或圖料模組修正，送審頁只負責確認與建立待審核。</p>
+          <p>圖號或料號資料缺漏時，應回圖號模組或圖料模組修正，送審頁只負責確認與建立審核中流程。</p>
           <div className="next-step-inline-actions">
             <Link className="primary-button" href="/numbering/search">
               前往圖料模組
@@ -414,7 +418,7 @@ function GenericUploadPage() {
       return;
     }
 
-    setMessage({ type: "success", text: "送審已建立，狀態為待審核。", submissionId: body.submissionId });
+    setMessage({ type: "success", text: "送審已建立，狀態為審核中。", submissionId: body.submissionId });
     setFiles([]);
     setDetection(null);
     setMetadata(emptyMetadata);
@@ -457,9 +461,9 @@ function GenericUploadPage() {
       <LifecycleStageGuidance
         activeStage="submission"
         metrics={[
-          { label: "Submission files", value: submissionFiles.length, tone: submissionFiles.length > 0 ? "success" : "warning" },
-          { label: "Metadata gaps", value: missingRequiredMetadata.length, tone: missingRequiredMetadata.length > 0 ? "warning" : "success" },
-          { label: "Reviewers", value: 1 }
+          { label: "送審檔案", value: submissionFiles.length, tone: submissionFiles.length > 0 ? "success" : "warning" },
+          { label: "資料缺口", value: missingRequiredMetadata.length, tone: missingRequiredMetadata.length > 0 ? "warning" : "success" },
+          { label: "審核者", value: 1 }
         ]}
       />
 
@@ -477,7 +481,7 @@ function GenericUploadPage() {
             { label: "品名", value: metadata.part_name || "-" }
           ]}
           blockers={missingRequiredMetadata.length > 0 ? missingRequiredMetadata.map((field) => `尚缺 ${fieldLabels[field]}`) : ["欄位已帶入，仍需確認檔案與變更原因"]}
-          nextStep="補齊必要欄位與送審檔案後送出，submission 會進入 Pending 並交由審核者處理。"
+          nextStep="補齊必要欄位與送審檔案後送出，送審單會進入審核中並交由審核者處理。"
           secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回主根明細" }]}
         />
       ) : null}
@@ -676,7 +680,7 @@ function GenericUploadPage() {
             ) : null}
             <button className="primary-button" type="submit" disabled={submitting || submissionFiles.length === 0}>
               <Send size={16} aria-hidden="true" />
-              {submitting ? "送審中..." : "建立待審核送審"}
+              {submitting ? "送審中..." : "建立審核中送審"}
             </button>
           </div>
         </section>
@@ -804,6 +808,8 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<DrawingSubmissionMessage | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserPayload | null>(null);
+  const [cancellingSubmissionId, setCancellingSubmissionId] = useState<string | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentCategory, setAttachmentCategory] = useState("drawing_2d");
   const [attachmentRevision, setAttachmentRevision] = useState("");
@@ -821,8 +827,10 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
   const selectedReleaseConflicts = selectedAttachments.filter((attachment) => attachment.releaseConflict);
   const releaseIncompleteBlocker = context?.blockers.find((blocker) => blocker.code === "release_incomplete_conflict") ?? null;
   const releaseIncompleteSubmissionId = releaseIncompleteBlocker?.existingSubmission?.submissionId ?? null;
+  const hasFormalSameRevisionBlocker = context?.blockers.some(isFormalSameRevisionBlocker) ?? false;
   const hasSubmissionConflict = context?.blockers.some((blocker) => drawingSubmissionBlockerGroup(blocker) === "submission_conflict") ?? false;
   const hasStateOrPermissionBlocker = context?.blockers.some((blocker) => drawingSubmissionBlockerGroup(blocker) === "state_or_permission_blocked") ?? false;
+  const visibleSameRevisionHistory = useMemo(() => context?.sameRevisionRecords.filter((record) => !record.blocking) ?? [], [context]);
   const canManageDrawingAttachments = Boolean(
     context &&
       !submitting &&
@@ -870,11 +878,15 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
         setAttachmentRevision((current) => current.trim() || nextContext.suggestedRevision.revision);
         setNote((current) => current || (nextContext.blockers.some((blocker) => blocker.code === "release_incomplete_conflict") ? "修正送審附件後重新送審。" : current));
         setSelectedAttachmentIds((current) => {
+          const targetRevision = nextContext.suggestedRevision.revision.trim();
+          const canSelectTargetRevision = (attachment: DrawingSubmissionContext["attachments"][number]) =>
+            attachment.eligibleForSubmission && !attachment.releaseConflict && (!targetRevision || (attachment.revision ?? "").trim() === targetRevision);
           if (options?.preserveSelection) {
-            const validCurrent = current.filter((id) => nextContext.attachments.some((attachment) => attachment.id === id));
+            const validCurrent = current.filter((id) => nextContext.attachments.some((attachment) => attachment.id === id && canSelectTargetRevision(attachment)));
             if (validCurrent.length > 0) return validCurrent;
           }
           const defaultAttachment =
+            nextContext.attachments.find(canSelectTargetRevision) ??
             nextContext.attachments.find((attachment) => attachment.eligibleForSubmission && !attachment.releaseConflict) ??
             nextContext.attachments.find((attachment) => attachment.eligibleForSubmission);
           return defaultAttachment ? [defaultAttachment.id] : [];
@@ -898,6 +910,21 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
     return () => controller.abort();
   }, [loadDrawingContext]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { user?: AuthUserPayload } | null) => {
+        if (!cancelled) setCurrentUser(body?.user ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function submitDrawingSource() {
     if (!context) return;
     setSubmitting(true);
@@ -909,6 +936,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         selectedAttachmentIds,
+        expectedRevision: context.suggestedRevision.revision,
         note,
         idempotencyKey
       })
@@ -927,7 +955,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
 
     setMessage({
       type: "success",
-      text: `圖面送審已建立，版次 ${body.revision ?? context.suggestedRevision.revision} 已進入待審核。`,
+      text: `圖面送審已建立，版次 ${body.revision ?? context.suggestedRevision.revision} 已進入審核中。`,
       submissionId: body.submissionId
     });
   }
@@ -958,10 +986,43 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
 
     setMessage({
       type: "success",
-      text: `已建立修正送審，版次 ${body.revision ?? context.suggestedRevision.revision} 已進入待審核。`,
+      text: `已建立修正送審，版次 ${body.revision ?? context.suggestedRevision.revision} 已進入審核中。`,
       submissionId: body.submissionId
     });
     await loadDrawingContext(undefined, { preserveSelection: true, clearMessage: false });
+  }
+
+  async function cancelExistingSubmission(submission: ExistingDrawingSubmission) {
+    if (!context || !canCancelExistingDrawingSubmission(submission, currentUser)) return;
+    if (!window.confirm(`取消送審 ${submission.submissionId}？取消後可重新建立同版次送審。`)) return;
+    setCancellingSubmissionId(submission.submissionId);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/submissions/${encodeURIComponent(submission.submissionId)}/cancel`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          reason: "由圖面送審工作台取消審核中送審。"
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMessage({
+          type: "error",
+          text: userFacingDrawingSubmissionCancelError(body.message ?? body.error ?? "取消送審失敗")
+        });
+        return;
+      }
+      setMessage({
+        type: "success",
+        text: body.message ?? "送審已取消，可重新建立同版次送審。"
+      });
+      await loadDrawingContext(undefined, { preserveSelection: true, clearMessage: false });
+    } catch {
+      setMessage({ type: "error", text: "取消送審失敗，請確認網路後再試。" });
+    } finally {
+      setCancellingSubmissionId(null);
+    }
   }
 
   async function uploadDrawingAttachment() {
@@ -1038,7 +1099,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
 
       <WorkflowStrip
         title="送審流程"
-        description="確認來源圖號、選擇既有附件、填寫送審備註後建立待審核流程。"
+        description="確認來源圖號、選擇既有附件、填寫送審備註後建立審核中流程。"
         steps={["圖號主資料", "圖面送審", "審核", "發行", "交接"]}
         currentStep="圖面送審"
         actions={[
@@ -1060,7 +1121,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
               <div>
                 <h2>送審來源：{context.drawing.drawingNumber}</h2>
                 <p style={drawingSubmissionMutedStyle}>
-                  {context.drawing.purposeLabel} / {context.drawing.recordStatus} / {context.drawing.developmentPhase}
+                  {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}
                 </p>
               </div>
               <span className="section-label">{context.pdmCompany.displayName}</span>
@@ -1218,7 +1279,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
             {context.blockers.length ? (
               <>
                 {groupDrawingSubmissionBlockers(context.blockers).map((blockerGroup) => {
-                  const meta = drawingSubmissionBlockerGroupMeta(blockerGroup.group);
+                  const meta = drawingSubmissionBlockerGroupMeta(blockerGroup.group, blockerGroup.blockers);
                   return (
                     <div key={blockerGroup.group} className="upload-message error" style={{ alignItems: "flex-start" }}>
                       <AlertTriangle size={16} aria-hidden="true" />
@@ -1226,17 +1287,50 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                         <p>{meta.headline}</p>
                         <p style={drawingSubmissionMutedStyle}>{meta.description}</p>
                         <div style={drawingSubmissionBlockerListStyle}>
-                          {blockerGroup.blockers.map((blocker) => (
-                            <div key={`${blocker.code}-${blocker.message}`} style={drawingSubmissionBlockerItemStyle}>
-                              <span>{blocker.message}</span>
-                              {blocker.existingSubmission ? (
-                                <small style={drawingSubmissionMutedStyle}>
-                                  既有送審 {blocker.existingSubmission.submissionId} / {drawingSubmissionStatusLabel(blocker.existingSubmission)}
-                                </small>
-                              ) : null}
-                              <Link href={blocker.recoveryHref}>{blocker.recoveryLabel ?? meta.recoveryLabel}</Link>
-                            </div>
-                          ))}
+                          {blockerGroup.blockers.map((blocker) => {
+                            const blockerText = drawingSubmissionBlockerPrimaryText(blocker);
+                            const actionHint = drawingSubmissionBlockerActionHint(blocker, currentUser);
+                            return (
+                              <div key={`${blocker.code}-${blocker.message}`} style={drawingSubmissionBlockerItemStyle}>
+                                {blockerText ? <span>{blockerText}</span> : null}
+                                {blocker.existingSubmission ? (
+                                  <small style={drawingSubmissionMutedStyle}>
+                                    既有送審 {blocker.existingSubmission.submissionId} / {drawingSubmissionStatusLabel(blocker.existingSubmission)}
+                                  </small>
+                                ) : null}
+                                {actionHint ? <small style={drawingSubmissionMutedStyle}>{actionHint}</small> : null}
+                                <div className="next-step-inline-actions" style={drawingSubmissionInlineActionsStyle}>
+                                  {isFormalSameRevisionBlocker(blocker) ? (
+                                    <>
+                                      <Link
+                                        className="primary-button"
+                                        href={`/numbering/drawings?query=${encodeURIComponent(context.drawing.drawingNumber)}`}
+                                      >
+                                        回圖號模組
+                                      </Link>
+                                      <Link
+                                        className="secondary-button"
+                                        href={`/numbering/revisions?drawingNumber=${encodeURIComponent(context.drawing.drawingNumber)}`}
+                                      >
+                                        建立新版次
+                                      </Link>
+                                    </>
+                                  ) : null}
+                                  <Link href={blocker.recoveryHref}>{blocker.recoveryLabel ?? meta.recoveryLabel}</Link>
+                                  {canCancelExistingDrawingSubmission(blocker.existingSubmission, currentUser) ? (
+                                    <button
+                                      className="secondary-button"
+                                      type="button"
+                                      disabled={cancellingSubmissionId !== null || submitting}
+                                      onClick={() => void cancelExistingSubmission(blocker.existingSubmission as ExistingDrawingSubmission)}
+                                    >
+                                      {cancellingSubmissionId === blocker.existingSubmission?.submissionId ? "取消中..." : "取消送審"}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1262,15 +1356,15 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
             ) : (
               <div className="upload-message success">
                 <CheckCircle2 size={16} aria-hidden="true" />
-                <p>主資料、附件與送審備註已通過，可以建立待審核流程。</p>
+                <p>主資料、附件與送審備註已通過，可以建立審核中流程。</p>
               </div>
             )}
 
-            {context.sameRevisionRecords.length > 0 ? (
+            {visibleSameRevisionHistory.length > 0 ? (
               <section style={drawingSubmissionHistorySectionStyle}>
-                <strong>同版次紀錄</strong>
+                <strong>歷史紀錄</strong>
                 <div style={drawingSubmissionBlockerListStyle}>
-                  {context.sameRevisionRecords.map((record) => (
+                  {visibleSameRevisionHistory.map((record) => (
                     <div
                       key={record.submissionId}
                       style={{
@@ -1328,7 +1422,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
               <button className="primary-button" type="button" disabled={!canCreateCorrection || Boolean(message?.submissionId)} onClick={createCorrectionSubmission}>
                 {submitting ? "建立中..." : "建立修正送審"}
               </button>
-            ) : (
+            ) : hasFormalSameRevisionBlocker ? null : (
               <button className="primary-button" type="button" disabled={!canSubmit || Boolean(message?.submissionId)} onClick={submitDrawingSource}>
                 {submitting ? "送審中..." : submitButtonLabel}
               </button>
@@ -1336,7 +1430,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
             {releaseIncompleteBlocker && !canCreateCorrection && !message?.submissionId ? (
               <small style={drawingSubmissionMutedStyle}>{drawingSubmissionDisabledReason(context, selectedAttachmentIds, note, selectedReleaseConflicts.length, true)}</small>
             ) : null}
-            {!releaseIncompleteBlocker && !canSubmit && !message?.submissionId ? (
+            {!releaseIncompleteBlocker && !hasFormalSameRevisionBlocker && !canSubmit && !message?.submissionId ? (
               <small style={drawingSubmissionMutedStyle}>{drawingSubmissionDisabledReason(context, selectedAttachmentIds, note, selectedReleaseConflicts.length, false)}</small>
             ) : null}
           </aside>
@@ -1383,6 +1477,9 @@ function drawingSubmissionDisabledReason(
     return "請先整理附件，確認沒有正式檔名衝突後再建立修正送審。";
   }
   if (context.blockers.some((blocker) => drawingSubmissionBlockerGroup(blocker) === "submission_conflict")) {
+    if (context.blockers.some(isFormalSameRevisionBlocker)) {
+      return "此版次已是正式紀錄，請建立新版次後再送審。";
+    }
     return context.blockers.find((blocker) => drawingSubmissionBlockerGroup(blocker) === "submission_conflict")?.message ?? "此圖號版次已有需處理的送審紀錄。";
   }
   if (context.blockers.some((blocker) => drawingSubmissionBlockerGroup(blocker) === "attachment_conflict")) {
@@ -1432,9 +1529,23 @@ function groupDrawingSubmissionBlockers(blockers: DrawingSubmissionBlocker[]) {
     .filter((item) => item.blockers.length > 0);
 }
 
-function drawingSubmissionBlockerGroupMeta(group: DrawingSubmissionBlockerGroup) {
+function drawingSubmissionBlockerGroupMeta(group: DrawingSubmissionBlockerGroup, blockers: DrawingSubmissionBlocker[] = []) {
   switch (group) {
     case "submission_conflict":
+      if (blockers.length > 0 && blockers.every(isFormalSameRevisionBlocker)) {
+        return {
+          headline: "這版已完成，不用再送審",
+          description: "不改內容：回圖號模組即可。要改內容：建立新版次。",
+          recoveryLabel: "查看正式紀錄"
+        };
+      }
+      if (blockers.length > 0 && blockers.every(isActiveSameRevisionBlocker)) {
+        return {
+          headline: "同版次送審進行中",
+          description: "此圖號版次已有審核中或發行中的送審。審核中送審可由建立者、主管或 Admin 取消。",
+          recoveryLabel: "查看既有送審"
+        };
+      }
       return {
         headline: "同版次送審需處理",
         description: "此圖號版次已有相關送審紀錄，請依提示查看既有送審、處理發行未完成或改用新版次。",
@@ -1467,6 +1578,34 @@ function drawingSubmissionBlockerGroupMeta(group: DrawingSubmissionBlockerGroup)
   }
 }
 
+function isFormalSameRevisionBlocker(blocker: DrawingSubmissionBlocker) {
+  return blocker.code === "released_revision_exists" || blocker.code === "obsolete_revision_locked";
+}
+
+function isActiveSameRevisionBlocker(blocker: DrawingSubmissionBlocker) {
+  return blocker.code === "same_revision_in_progress" || blocker.code === "duplicate_active_submission";
+}
+
+function drawingSubmissionBlockerPrimaryText(blocker: DrawingSubmissionBlocker) {
+  if (isFormalSameRevisionBlocker(blocker)) return "";
+  return blocker.message;
+}
+
+function drawingSubmissionBlockerActionHint(blocker: DrawingSubmissionBlocker, currentUser: AuthUserPayload | null) {
+  const submission = blocker.existingSubmission;
+  if (!submission) return "";
+  if (submission.status === "Released" || submission.status === "Obsolete") {
+    return "";
+  }
+  if (submission.status === "Releasing") {
+    return "此送審正在發行中，不能從工作台取消；請查看紀錄由主管或 Admin 處理。";
+  }
+  if (submission.status === "Pending" && !canCancelExistingDrawingSubmission(submission, currentUser)) {
+    return "取消送審只開放送審建立者、主管或 Admin。";
+  }
+  return "";
+}
+
 function formatSubmissionErrorDetail(value: unknown) {
   if (typeof value === "object" && value !== null && "message" in value) return String((value as { message?: unknown }).message ?? "");
   return String(value);
@@ -1496,7 +1635,7 @@ function userFacingDrawingSubmissionError(value: string) {
   if (value === "released_revision_exists" || value === "obsolete_revision_locked") return "此圖號版次已進入正式紀錄，不能重複送審同一版次。";
   if (value === "release_filename_conflict") return "附件檔名已被其他正式紀錄使用，請移除或更換附件後再送審。";
   if (value === "DRAWING_SUBMISSION_BLOCKED") return "主資料尚未完成，不能送審。";
-  return value || "圖面送審失敗。";
+  return formatStatusErrorForUser(value, "submission") || "圖面送審失敗。";
 }
 
 function userFacingMasterAttachmentError(value: unknown) {
@@ -1510,7 +1649,7 @@ function userFacingMasterAttachmentError(value: unknown) {
   if (text.includes("EXTENSION")) return "此檔案格式目前不能上傳到圖號附件庫。";
   if (text.includes("REVISION")) return "附件版次格式不正確，請使用 0.1、0.2、1、2 這類版次。";
   if (text.includes("Internal Server Error")) return "附件處理失敗，請重新整理後再試或通知管理員。";
-  return text;
+  return formatStatusErrorForUser(text, "fileSync");
 }
 
 function releaseIncompleteSummary(releaseError: string | null | undefined) {
@@ -1534,6 +1673,21 @@ function drawingSubmissionStatusLabel(summary: ExistingDrawingSubmission) {
   if (summary.status === "Released") return "已發布";
   if (summary.status === "Obsolete") return "已作廢";
   return "送審紀錄";
+}
+
+function canCancelExistingDrawingSubmission(submission: ExistingDrawingSubmission | undefined, currentUser: AuthUserPayload | null) {
+  if (!submission || submission.status !== "Pending" || !currentUser?.id) return false;
+  return submission.submittedById === currentUser.id || currentUser.role === "R&D Manager" || currentUser.role === "Admin";
+}
+
+function userFacingDrawingSubmissionCancelError(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return "取消送審失敗，請重新整理後再試。";
+  if (text === "submission_not_pending" || text.includes("只有審核中的送審可以取消")) return "只有審核中的送審可以取消，請重新整理確認目前狀態。";
+  if (text === "cancel_not_allowed" || text.includes("不能取消")) return "你目前不能取消這筆送審，請由送審建立者、主管或 Admin 處理。";
+  if (text === "submission_not_found" || text.includes("找不到送審")) return "找不到這筆送審，請重新整理後再試。";
+  if (text.includes("Internal Server Error")) return "取消送審處理失敗，請重新整理後再試或通知管理員。";
+  return formatStatusErrorForUser(text, "submission") || "取消送審失敗，請重新整理後再試。";
 }
 
 const drawingSubmissionMainPanelStyle: CSSProperties = {
@@ -1619,6 +1773,10 @@ const drawingSubmissionBlockerListStyle: CSSProperties = {
 const drawingSubmissionBlockerItemStyle: CSSProperties = {
   display: "grid",
   gap: "0.25rem"
+};
+
+const drawingSubmissionInlineActionsStyle: CSSProperties = {
+  marginTop: "0.1rem"
 };
 
 const drawingSubmissionHistorySectionStyle: CSSProperties = {

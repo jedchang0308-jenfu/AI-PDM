@@ -312,6 +312,56 @@ async function runSingleLinkFallbackScenario() {
   record("single linked part is still synced", part.record_status === "Released" && part.development_phase === "Release");
 }
 
+async function runLowerRevisionBlockedScenario() {
+  const db = createFixtureDatabase();
+  seedReleasedPathFixture(db);
+  db.prepare("UPDATE items SET current_revision = '0.3' WHERE id = ?").run("item-qc-release-sync");
+  db.prepare(
+    `INSERT INTO submissions (
+      id, company_id, item_id, drawing_number, revision, status, released_at, release_error, reject_reason,
+      superseded_by_submission_id, obsolete_at, obsolete_by, corrects_submission_id, resolved_by_submission_id, resolved_at,
+      source_entity_type, source_entity_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, ?)`
+  ).run(
+    "sub-qc-newer-released",
+    "company-qc",
+    "item-qc-release-sync",
+    "D-QC-0014-MA1",
+    "0.3",
+    "Released",
+    "2026-07-02T08:30:00.000Z",
+    "drawing_number",
+    "drawing-qc-0014",
+    "2026-07-02T08:30:00.000Z",
+    "2026-07-02T08:30:00.000Z"
+  );
+  const repo = new AsyncSubmissionStatusRepository(
+    new MemoryAsyncClient(db),
+    () => "2026-07-02T09:00:00.000Z",
+    () => "audit-qc-lower"
+  );
+
+  let message = "";
+  try {
+    await repo.markSubmissionReleasedAndObsoletePrevious({ id: "sub-qc-current", actorId: "qc-user" });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+
+  const current = db.prepare("SELECT status, released_at FROM submissions WHERE id = ?").get("sub-qc-current");
+  const newer = db.prepare("SELECT status, superseded_by_submission_id FROM submissions WHERE id = ?").get("sub-qc-newer-released");
+  const older = db.prepare("SELECT status, superseded_by_submission_id FROM submissions WHERE id = ?").get("sub-qc-previous-released");
+  const item = db.prepare("SELECT current_revision FROM items WHERE id = ?").get("item-qc-release-sync");
+  const auditCount = db.prepare("SELECT COUNT(*) AS count FROM audit_logs").get().count;
+
+  record("lower revision release is blocked when newer release exists", message.includes("已有版次 0.3 的正式紀錄"), message);
+  record("blocked lower revision remains unreleased", current.status === "Releasing" && current.released_at === null, JSON.stringify(current));
+  record("newer released revision is not obsoleted", newer.status === "Released" && newer.superseded_by_submission_id === null, JSON.stringify(newer));
+  record("older released revision is not partially obsoleted after blocked transaction", older.status === "Released" && older.superseded_by_submission_id === null, JSON.stringify(older));
+  record("item current revision stays on newer release", item.current_revision === "0.3", JSON.stringify(item));
+  record("blocked lower revision writes no partial audit", auditCount === 0, String(auditCount));
+}
+
 function runStaticContractChecks() {
   const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
   const repository = fs.readFileSync(path.join(rootDir, "src", "lib", "repositories", "submission-status-async-repository.ts"), "utf8");
@@ -324,6 +374,7 @@ function runStaticContractChecks() {
   );
   record("repository writes master sync audit", repository.includes("ReleaseMasterStatusSynced"));
   record("repository blocks missing source with Chinese message", repository.includes("找不到這筆送審的來源圖號"));
+  record("repository blocks lower revision release", repository.includes("assertNoNewerReleasedRevision") && repository.includes("已有版次"));
   record("drawing list exposes human mismatch text", drawingPage.includes("已發布送審待同步"));
   record("async drawing list detects released-master mismatch", asyncNumberingRepository.includes("SELECT_ASYNC_DRAWING_MODULE_RELEASE_STATUS_MISMATCHES_SQL"));
 }
@@ -331,6 +382,7 @@ function runStaticContractChecks() {
 await runSuccessfulReleaseSyncScenario();
 await runMissingSourceStopsReleaseScenario();
 await runSingleLinkFallbackScenario();
+await runLowerRevisionBlockedScenario();
 runStaticContractChecks();
 
 const summary = {

@@ -212,33 +212,46 @@ if ($listeners.Count -gt 0) {
   if ($isProjectProcess) {
     $health = Test-LocalHttpHealth
     if ($health.Healthy) {
-      Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy."
-      Write-Host "AI_PDM is healthy."
-      Write-Host "Local URL: $Url"
       if ($CheckOnly) {
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy."
+        Write-Host "AI_PDM is healthy."
+        Write-Host "Local URL: $Url"
         exit 0
       }
-      Open-LocalPage
-      exit 0
-    }
+      if (-not $RestartProjectProcess) {
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy."
+        Write-Host "AI_PDM is healthy."
+        Write-Host "Local URL: $Url"
+        Open-LocalPage
+        exit 0
+      }
 
-    Write-Host "AI_PDM is listening but unhealthy. Health status: $($health.StatusCode). $($health.Error)"
-    Write-RuntimeStatus -State "unhealthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is unhealthy."
-    if (-not $RestartProjectProcess) {
-      Write-Error "Run npm run dev:local:restart to stop the stale project process, clean .next, and start a healthy local server."
-      exit 1
+      Write-Host "Stopping healthy AI_PDM project process PID $ownerProcessId because -RestartProjectProcess was provided."
+      Stop-Process -Id $ownerProcessId -Force
+      if (-not (Wait-PortReleased)) {
+        Write-Error "Port $Port did not release after stopping PID $ownerProcessId."
+        exit 1
+      }
     }
+    else {
+      Write-Host "AI_PDM is listening but unhealthy. Health status: $($health.StatusCode). $($health.Error)"
+      Write-RuntimeStatus -State "unhealthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is unhealthy."
+      if (-not $RestartProjectProcess) {
+        Write-Error "Run npm run dev:local:restart to stop the stale project process, clean .next, and start a healthy local server."
+        exit 1
+      }
 
-    if ($CheckOnly) {
-      Write-Error "CheckOnly detected unhealthy project server on $Url."
-      exit 1
-    }
+      if ($CheckOnly) {
+        Write-Error "CheckOnly detected unhealthy project server on $Url."
+        exit 1
+      }
 
-    Write-Host "Stopping stale AI_PDM project process PID $ownerProcessId because -RestartProjectProcess was provided."
-    Stop-Process -Id $ownerProcessId -Force
-    if (-not (Wait-PortReleased)) {
-      Write-Error "Port $Port did not release after stopping PID $ownerProcessId."
-      exit 1
+      Write-Host "Stopping stale AI_PDM project process PID $ownerProcessId because -RestartProjectProcess was provided."
+      Stop-Process -Id $ownerProcessId -Force
+      if (-not (Wait-PortReleased)) {
+        Write-Error "Port $Port did not release after stopping PID $ownerProcessId."
+        exit 1
+      }
     }
   }
   else {

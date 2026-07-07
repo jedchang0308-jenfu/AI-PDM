@@ -132,7 +132,7 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
   await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
   record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar", { hasText: "查詢條件" }).isVisible());
-  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim().replace(/\?$/, "") ?? ""));
   record(`Identity headers render in required order at ${viewport.width}px`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(["主根號", "品名", "料號", "其他"]), JSON.stringify(headers));
 
   await page.getByLabel("關鍵字").fill(rootCode);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, Eye, FileUp, History, RotateCcw, ShieldAlert, Trash2, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -431,7 +432,9 @@ function StagingRowsTable({ batch }: { batch: NumberingImportBatch | null }) {
         <thead>
           <tr>
             <th>列</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="importRow" />
+            </th>
             <th>主根號</th>
             <th>料號</th>
             <th>圖號</th>
@@ -443,7 +446,7 @@ function StagingRowsTable({ batch }: { batch: NumberingImportBatch | null }) {
             <tr key={row.id}>
               <td>{row.rowNo}</td>
               <td>
-                <StatusBadge status={row.checkStatus} />
+                <StatusBadge status={row.checkStatus} context="importRow" />
               </td>
               <td>{readField(row.raw, "rootCode", "root_code", "主根號")}</td>
               <td>{readField(row.raw, "partNumber", "part_number", "料號")}</td>
@@ -501,7 +504,9 @@ function BatchTable({
         <thead>
           <tr>
             <th>來源</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader label="批次狀態" context="importBatch" />
+            </th>
             <th>摘要</th>
             <th>確認</th>
             <th>操作</th>
@@ -520,7 +525,7 @@ function BatchTable({
                 <p style={bodyTextStyle}>{batch.sourceHash || "無 hash"}</p>
               </td>
               <td>
-                <span className={`badge ${batch.status === "confirmed" ? "Released" : "Pending"}`}>{batchStatusLabel(batch.status)}</span>
+                <StatusBadge status={batch.status} context="importBatch" />
               </td>
               <td>
                 total {numberValue(batch.summary.total)} / valid {numberValue(batch.summary.valid)} / conflict {numberValue(batch.summary.conflict)}
@@ -581,9 +586,11 @@ function DeletedBatchTable({
         <thead>
           <tr>
             <th>來源</th>
-            <th>狀態</th>
+            <th>刪除階段 / 提醒</th>
             <th>摘要</th>
-            <th>還原狀態</th>
+            <th>
+              <StatusColumnHeader label="還原狀態" context="restorePolicy" />
+            </th>
             <th>操作</th>
           </tr>
         </thead>
@@ -608,7 +615,10 @@ function DeletedBatchTable({
                 <td>
                   total {numberValue(deleted.batch.summary.total)} / valid {numberValue(deleted.batch.summary.valid)} / conflict {numberValue(deleted.batch.summary.conflict)}
                 </td>
-                <td>{canRestore ? <span style={mutedTextStyle}>可還原到匯入批次</span> : <span style={issueTextStyle}>{restoreState?.message ?? "不可還原"}</span>}</td>
+                <td>
+                  <StatusBadge status={canRestore ? "restore_allowed" : "restore_blocked"} context="restorePolicy" />
+                  <p style={canRestore ? mutedTextStyle : issueTextStyle}>{canRestore ? "可還原到匯入批次" : restoreState?.message ?? "不可還原"}</p>
+                </td>
                 <td>
                   <button
                     className="secondary-button"
@@ -636,11 +646,6 @@ function Metric({ label, value }: { label: string; value: number }) {
       <strong>{value}</strong>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: NumberingImportStagingRow["checkStatus"] }) {
-  const className = status === "valid" || status === "legacy_keep" ? "Released" : status === "conflict" ? "Rejected" : "Pending";
-  return <span className={`badge ${className}`}>{statusLabel(status)}</span>;
 }
 
 function AccessPanel({ title, message }: { title: string; message: string }) {
@@ -737,27 +742,6 @@ function readField(row: Record<string, unknown>, ...keys: string[]) {
 function numberValue(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
-}
-
-function statusLabel(status: NumberingImportStagingRow["checkStatus"]) {
-  const labels: Record<NumberingImportStagingRow["checkStatus"], string> = {
-    pending: "待檢查",
-    valid: "可匯入",
-    need_info: "待補",
-    admin_confirm: "待管理員",
-    conflict: "衝突",
-    legacy_keep: "舊制保留"
-  };
-  return labels[status];
-}
-
-function batchStatusLabel(status: NumberingImportBatch["status"]) {
-  const labels: Record<NumberingImportBatch["status"], string> = {
-    staged: "草稿",
-    confirmed: "正式",
-    rejected: "已刪除"
-  };
-  return labels[status];
 }
 
 function currentDate() {

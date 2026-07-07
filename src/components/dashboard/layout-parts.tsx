@@ -2,7 +2,8 @@ import { memo, type ReactNode, type RefObject } from "react";
 import { Bell, Eye, MessageSquare, Send, Star, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
-import type { NotificationItem, NotificationSummary, SubmissionStatus, SubmissionSummary } from "@/lib/types";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import type { NotificationItem, NotificationSummary, SubmissionSummary } from "@/lib/types";
 
 export type ChatSource = {
   type: "submission" | "metric" | "policy" | "file" | "bom" | "where_used";
@@ -15,8 +16,6 @@ export type ChatMessage = {
   content: string;
   sources?: ChatSource[];
 };
-
-type StatusLabels = Record<SubmissionStatus | "All", string>;
 
 type DashboardComponentBoundaryProps = {
   children: ReactNode;
@@ -107,7 +106,6 @@ type SubmissionTableProps = {
   isSubmissionTransitionPending: boolean;
   hasMoreSubmissions: boolean;
   loadingMoreSubmissions: boolean;
-  statusLabels: StatusLabels;
   formatFileAvailability: (submission: SubmissionSummary) => string;
   latestActivityAt: (submission: SubmissionSummary) => string;
   onScrollTopChange: (scrollTop: number) => void;
@@ -120,7 +118,6 @@ type SubmissionRowProps = {
   submission: SubmissionSummary;
   selected: boolean;
   favorite: boolean;
-  statusLabels: StatusLabels;
   formatFileAvailability: (submission: SubmissionSummary) => string;
   latestActivityAt: (submission: SubmissionSummary) => string;
   onSelect: (id: string) => void;
@@ -131,7 +128,6 @@ const SubmissionRow = memo(function SubmissionRow({
   submission,
   selected,
   favorite,
-  statusLabels,
   formatFileAvailability,
   latestActivityAt,
   onSelect,
@@ -158,7 +154,7 @@ const SubmissionRow = memo(function SubmissionRow({
         <span className="metadata-badge">Rev {submission.revision}</span>
       </td>
       <td>
-        <span className={`badge ${submission.status}`}>{statusLabels[submission.status]}</span>
+        <StatusBadge status={submission.status} context="submission" />
       </td>
       <td>
         <span className="metadata-badge">{formatFileAvailability(submission)}</span>
@@ -208,7 +204,6 @@ export function SubmissionTable({
   isSubmissionTransitionPending,
   hasMoreSubmissions,
   loadingMoreSubmissions,
-  statusLabels,
   formatFileAvailability,
   latestActivityAt,
   onScrollTopChange,
@@ -265,7 +260,6 @@ export function SubmissionTable({
                     submission={submission}
                     selected={submission.id === selectedId}
                     favorite={favoriteDrawings.some((drawing) => drawing.id === submission.id)}
-                    statusLabels={statusLabels}
                     formatFileAvailability={formatFileAvailability}
                     latestActivityAt={latestActivityAt}
                     onSelect={onSelect}
@@ -325,7 +319,9 @@ function SubmissionTableHead() {
         <th>料號</th>
         <th>品名</th>
         <th>版次</th>
-        <th>狀態</th>
+        <th>
+          <StatusColumnHeader context="submission" />
+        </th>
         <th>檔案</th>
         <th>最近活動</th>
         <th>動作</th>
@@ -339,7 +335,6 @@ type SubmissionDetailPanelProps = {
   drawerWidth: number;
   isDetailLoading: boolean;
   selectedSummary: SubmissionSummary | null;
-  statusLabels: StatusLabels;
   onClose: () => void;
   onStartResize: (clientX: number) => void;
   children: ReactNode;
@@ -350,7 +345,6 @@ export function SubmissionDetailPanel({
   drawerWidth,
   isDetailLoading,
   selectedSummary,
-  statusLabels,
   onClose,
   onStartResize,
   children
@@ -386,7 +380,7 @@ export function SubmissionDetailPanel({
             ) : null}
           </div>
           <div className="detail-header-actions">
-            {selectedSummary ? <span className={`badge ${selectedSummary.status}`}>{statusLabels[selectedSummary.status]}</span> : null}
+            {selectedSummary ? <StatusBadge status={selectedSummary.status} context="submission" /> : null}
             <button className="icon-button detail-close-button" type="button" onClick={onClose} title="關閉明細" aria-label="關閉圖面明細">
               <X size={16} aria-hidden="true" />
             </button>
@@ -483,7 +477,7 @@ export function AssistantPanel({
         <div className="chat-form">
           <textarea
             value={chatInput}
-            placeholder="輸入問題，例如：目前有哪些待審？"
+            placeholder="輸入問題，例如：目前有哪些審核中項目？"
             onChange={(event) => onChatInputChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {

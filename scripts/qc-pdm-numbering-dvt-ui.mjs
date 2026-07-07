@@ -168,14 +168,16 @@ async function loginAsAdmin(context) {
 
 async function verifyDesktopFlow(page, seeded) {
   await page.goto(`${apiBaseUrl}/numbering/dvt`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "DVT 晉升" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "階段晉升：EVT → DVT" }).waitFor({ timeout: 10_000 });
   record("DVT promotion page renders desktop", await page.getByText(seeded.ready.partNumber).isVisible());
   record("Ready candidate is classified", (await page.getByText("可送審").count()) >= 1);
   record("Incomplete candidate is classified", (await page.getByText("待補/Override").count()) >= 1);
-  record("Missing MA warning is available", (await page.getByLabel(/DVT gate requires a primary MA drawing/).count()) >= 1);
+  const missingRow = page.locator("tr").filter({ hasText: seeded.incomplete.partNumber });
+  record("Missing MA next step is visible", await missingRow.getByText(/需補：.*MA|主要 MA/).first().isVisible());
+  record("Missing MA recovery tells user what to do", await missingRow.getByText("現在請回圖號模組指定主要 MA 圖，再回來送 DVT。").isVisible());
 
   const batchResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/dvt-candidates") && response.request().method() === "POST");
-  await page.getByRole("button", { name: "批次送審" }).click();
+  await page.getByRole("button", { name: "批次送審 DVT 階段" }).click();
   const batchResponse = await batchResponsePromise;
   record("Batch DVT submission succeeds", batchResponse.ok(), `HTTP ${batchResponse.status()}`);
   await page.getByRole("heading", { name: "處理結果" }).waitFor({ timeout: 10_000 });
@@ -223,7 +225,7 @@ async function verifyMobileRender(browser) {
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/dvt`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "DVT 晉升" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "階段晉升：EVT → DVT" }).waitFor({ timeout: 10_000 });
   record("DVT promotion page renders mobile", await page.getByText("晉升概況").isVisible());
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record("DVT promotion page avoids horizontal overflow at 390px", bodyOverflow <= 2, `${bodyOverflow}px`);

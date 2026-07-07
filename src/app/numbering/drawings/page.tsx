@@ -6,6 +6,8 @@ import Link from "next/link";
 import { AlertTriangle, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -67,7 +69,7 @@ type DrawingListRecord = {
   updatedAt: string;
 };
 
-const statuses = ["", "Draft", "Active", "PendingReview", "Released", "Obsolete", "MainDrawingInvalid"] as const;
+const statuses = ["", ...drawingRecordStatusFilterValues] as const;
 const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
 const purposeCodes = ["", "MA", "OT"] as const;
 const DRAWING_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
@@ -130,6 +132,7 @@ export default function DrawingNumbersPage() {
   const [drawings, setDrawings] = useState<DrawingListRecord[]>([]);
   const [selectedDrawingNumber, setSelectedDrawingNumber] = useState<string | null>(null);
   const selectedDrawingNumberRef = useRef<string | null>(null);
+  const initialDetailDrawingNumberRef = useRef<string | null>(null);
   const drawingListRef = useRef<HTMLDivElement | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(DRAWING_DRAWER_DEFAULT_WIDTH);
@@ -137,6 +140,15 @@ export default function DrawingNumbersPage() {
   const [error, setError] = useState("");
 
   const selectedDrawing = drawings.find((drawing) => drawing.drawingNumber === selectedDrawingNumber) ?? null;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialQuery = params.get("query")?.trim();
+    const detailDrawingNumber = params.get("detail")?.trim();
+    if (initialQuery) setQuery(initialQuery);
+    if (detailDrawingNumber) initialDetailDrawingNumberRef.current = detailDrawingNumber;
+  }, []);
+
   const summary = useMemo(
     () => ({
       total: drawings.length,
@@ -393,6 +405,15 @@ export default function DrawingNumbersPage() {
     focusDrawingList();
   }, [focusDrawingList]);
 
+  useEffect(() => {
+    if (state !== "ready") return;
+    const detailDrawingNumber = initialDetailDrawingNumberRef.current;
+    if (!detailDrawingNumber) return;
+    if (!drawings.some((drawing) => drawing.drawingNumber === detailDrawingNumber)) return;
+    initialDetailDrawingNumberRef.current = null;
+    openDrawingDetail(detailDrawingNumber);
+  }, [drawings, openDrawingDetail, state]);
+
   return (
     <>
       <div className="topbar">
@@ -436,8 +457,8 @@ export default function DrawingNumbersPage() {
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖號 / 料號 / 文件用途" />
               </label>
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} />
-              <SelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} />
-              <SelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} />
+              <SelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+              <SelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadDrawings} disabled={busy}>
                 <Search size={16} />
                 查詢
@@ -489,7 +510,9 @@ export default function DrawingNumbersPage() {
                         <th>圖號</th>
                         <th>品名</th>
                         <th>料號</th>
-                        <th>其他</th>
+                        <th>
+                          <StatusColumnHeader label="其他" context="masterRecord" />
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -534,10 +557,9 @@ export default function DrawingNumbersPage() {
                           </td>
                           <td data-label="其他">
                             <div className="pdm-meta-strip">
-                              <PurposeBadge drawing={drawing} />
-                              <span style={badgeStyle}>{drawing.recordStatus}</span>
+                              <StatusBadge status={drawing.recordStatus} context="masterRecord" />
                               {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
-                              <span className="pdm-meta-chip">{drawing.developmentPhase}</span>
+                              <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
                               {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
                             </div>
                           </td>
@@ -567,12 +589,14 @@ function SelectField({
   label,
   value,
   onChange,
-  options
+  options,
+  formatOption
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
+  formatOption?: (option: string) => string;
 }) {
   return (
     <label className="pdm-master-field">
@@ -580,20 +604,11 @@ function SelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option || "all"} value={option}>
-            {option || "全部"}
+            {option ? formatOption?.(option) ?? option : "全部"}
           </option>
         ))}
       </select>
     </label>
-  );
-}
-
-function PurposeBadge({ drawing }: { drawing: DrawingListRecord }) {
-  const label = drawingPurposeLabel(drawing);
-  return (
-    <span style={{ ...badgeStyle, borderColor: drawing.purposeCode === "MA" ? "rgba(220, 38, 38, 0.35)" : "var(--border)" }}>
-      {label}
-    </span>
   );
 }
 
@@ -624,7 +639,7 @@ function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord })
         <div>
           <h2>發布狀態待確認</h2>
           <p style={mutedStyle}>
-            系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {drawing.recordStatus} / {drawing.developmentPhase}。
+            系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(drawing.developmentPhase)}。
           </p>
         </div>
         <Link className="secondary-button" href={`/submissions/${encodeURIComponent(mismatch.submissionId)}`}>
@@ -675,24 +690,38 @@ function DrawingDetailDrawer({
           }}
         />
         <div className="pdm-master-detail-panel pdm-master-detail-stack">
-          <section className="panel">
-            <div className="panel-header">
+          <section className="panel drawing-detail-hero">
+            <div className="drawing-detail-hero-header">
               <div>
                 <h2>{drawing.drawingNumber}</h2>
-                <p style={mutedStyle}>{drawing.coreName}</p>
               </div>
-              <div className="pdm-drawer-header-actions">
-                <PurposeBadge drawing={drawing} />
-                <button className="icon-button" type="button" aria-label="關閉圖號明細" onClick={onClose}>
-                  <X size={16} />
-                </button>
-              </div>
+              <button className="icon-button" type="button" aria-label="關閉圖號明細" onClick={onClose}>
+                <X size={16} />
+              </button>
             </div>
-            <div style={detailGridStyle}>
-              <InfoBlock icon={<GitBranch size={16} />} title="狀態階段" value={`${drawing.recordStatus} / ${drawing.developmentPhase}`} />
-              <InfoBlock icon={<FileText size={16} />} title="文件用途" value={drawingPurposeLabel(drawing)} />
-              <InfoBlock icon={<Link2 size={16} />} title="關聯料號" value={drawing.linkedPartCount ? drawing.linkedPartNumbers.join("、") : "未關聯料號"} />
-              <InfoBlock icon={<Workflow size={16} />} title="規則版本" value={drawing.ruleVersionId} />
+            <div className="drawing-detail-hero-meta">
+              <StatusBadge status={drawing.recordStatus} context="masterRecord" />
+              <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
+            </div>
+            <div className="drawing-detail-action-row">
+              <Link className="primary-button" href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
+                <GitBranch size={16} />
+                進版
+              </Link>
+              <Link className="secondary-button" href={`/drawings/${encodeURIComponent(drawing.drawingNumber)}/submission-workbench`}>
+                <FileText size={16} />
+                送審
+              </Link>
+              <Link className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}>
+                <Search size={16} />
+                追溯
+              </Link>
+              {drawing.purposeCode === "MA" ? (
+                <Link className="secondary-button" href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
+                  <Workflow size={16} />
+                  影響
+                </Link>
+              ) : null}
             </div>
           </section>
 
@@ -708,30 +737,6 @@ function DrawingDetailDrawer({
             processControlled={drawing.purposeCode === "MA"}
           />
 
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>圖號治理</h2>
-                <p style={mutedStyle}>追溯、影響分析與進版入口。</p>
-              </div>
-            </div>
-            <div style={actionStackStyle}>
-              <Link style={governanceActionStyle} href={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}>
-                開啟圖料追溯
-              </Link>
-              {drawing.purposeCode === "MA" ? (
-                <Link style={governanceActionStyle} href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
-                  檢查 MA 影響文件
-                </Link>
-              ) : null}
-              <Link style={governanceActionStyle} href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
-                進版
-              </Link>
-              <Link style={governanceActionStyle} href={`/drawings/${encodeURIComponent(drawing.drawingNumber)}/submission-workbench`}>
-                送審
-              </Link>
-            </div>
-          </section>
         </div>
       </aside>
     </div>
@@ -754,14 +759,17 @@ function TitleBlockVariantWarning() {
 
 function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRecord; onDataChanged: () => Promise<void> }) {
   const incompleteParts = drawing.sameRootParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
+  if (drawing.sameRootParts.length === 0) return null;
+  const allReady = incompleteParts.length === 0;
   return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <h2>同主根號料號</h2>
-          <p style={mutedStyle}>送審前在這裡完成材質、表面處理、顏色與變體主資料。</p>
-        </div>
-      </div>
+    <section className="panel same-root-part-panel">
+      <details className="same-root-part-details" open={!allReady}>
+        <summary>
+          <div>
+            <h2>同主根號料號</h2>
+          </div>
+          <strong>{allReady ? "已完成" : "需處理"}</strong>
+        </summary>
       {incompleteParts.length ? (
         <div className="upload-message error" style={{ alignItems: "flex-start", marginBottom: "0.75rem" }}>
           <AlertTriangle size={16} aria-hidden="true" />
@@ -770,15 +778,12 @@ function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRec
           </div>
         </div>
       ) : null}
-      {drawing.sameRootParts.length === 0 ? (
-        <p style={mutedStyle}>尚無同主根號料號。</p>
-      ) : (
-        <div style={sameRootPartListStyle}>
-          {drawing.sameRootParts.map((part) => (
-            <PartMasterDataCard key={part.id} part={part} onDataChanged={onDataChanged} />
-          ))}
-        </div>
-      )}
+      <div style={sameRootPartListStyle}>
+        {drawing.sameRootParts.map((part) => (
+          <PartMasterDataCard key={part.id} part={part} onDataChanged={onDataChanged} />
+        ))}
+      </div>
+      </details>
     </section>
   );
 }
@@ -833,7 +838,7 @@ function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRe
         </button>
       </div>
       <div className="pdm-meta-strip">
-        <span style={badgeStyle}>{part.recordStatus}</span>
+        <StatusBadge status={part.recordStatus} context="masterRecord" />
         <span style={{ ...badgeStyle, color: part.standardCostStatus === "active" ? "var(--success)" : "var(--danger)" }}>
           {standardCostLabel(part)}
         </span>
@@ -907,33 +912,6 @@ function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; val
     </div>
   );
 }
-
-const detailGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "0.75rem"
-};
-
-const actionStackStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "0.45rem"
-};
-
-const governanceActionStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: "2.25rem",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  background: "#ffffff",
-  color: "#334155",
-  fontSize: "0.9rem",
-  fontWeight: 700,
-  textDecoration: "none",
-  whiteSpace: "nowrap"
-};
 
 const warningPanelStyle: CSSProperties = {
   borderColor: "rgba(220, 38, 38, 0.35)",

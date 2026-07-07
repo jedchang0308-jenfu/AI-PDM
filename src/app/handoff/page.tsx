@@ -6,6 +6,7 @@ import { Archive, Download, FileCheck2, FileDown, Printer, RefreshCcw, ShieldAle
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type HandoffEntry = {
   id: string;
@@ -59,12 +60,12 @@ export default function ManufacturingHandoffPage() {
         }
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setState({ status: "error", message: body.error ?? "讀取製造交接資料失敗" });
+          setState({ status: "error", message: formatStatusErrorForUser(body.error ?? "讀取製造交接資料失敗", "submission") });
           return;
         }
         setState({ status: "ready", generatedAt: body.generatedAt, entries: body.entries ?? [] });
       })
-      .catch((error) => setState({ status: "error", message: error instanceof Error ? error.message : "讀取製造交接資料失敗" }));
+      .catch((error) => setState({ status: "error", message: formatStatusErrorForUser(error instanceof Error ? error.message : error, "submission") }));
   };
 
   useEffect(() => {
@@ -111,8 +112,8 @@ export default function ManufacturingHandoffPage() {
 
       <WorkflowStrip
         title="交接流程"
-        description="只取 Released 圖料與交接包，讓製造、採購與外部協作使用一致版本。"
-        steps={["Released", "交接包", "製造取用", "報表", "稽核"]}
+        description="只取已發布圖料與交接包，讓製造、採購與外部協作使用一致版本。"
+        steps={["已發布", "交接包", "製造取用", "報表", "稽核"]}
         currentStep="交接包"
         actions={[
           { href: "/numbering/reports", label: "看報表", variant: "primary" },
@@ -123,13 +124,13 @@ export default function ManufacturingHandoffPage() {
       <LifecycleStageGuidance
         activeStage="handoff"
         metrics={[
-          { label: "Released entries", value: state.status === "ready" ? state.entries.length : "-" },
+          { label: "已發布資料", value: state.status === "ready" ? state.entries.length : "-" },
           {
-            label: "Missing package",
+            label: "缺交接包",
             value: state.status === "ready" ? state.entries.filter((entry) => !entry.package).length : "-",
             tone: state.status === "ready" && state.entries.some((entry) => !entry.package) ? "warning" : "success"
           },
-          { label: "Visible after search", value: state.status === "ready" ? filteredEntries.length : "-" }
+          { label: "目前顯示", value: state.status === "ready" ? filteredEntries.length : "-" }
         ]}
       />
 
@@ -156,10 +157,15 @@ export default function ManufacturingHandoffPage() {
 
       {state.status === "error" ? (
         <section className="panel">
-          <div className="empty">
-            <h2>讀取失敗</h2>
-            <p>{state.message}</p>
-          </div>
+          <NextStepState
+            eyebrow="重新嘗試"
+            title="製造交接資料暫時無法讀取"
+            body={`${state.message} 現在請重新整理；若仍失敗，請回圖料模組確認已發布資料，或請 Admin 協助檢查交接資料。`}
+            actions={[
+              { href: "/handoff", label: "重新整理", variant: "primary" },
+              { href: "/numbering/search", label: "回圖料模組" }
+            ]}
+          />
         </section>
       ) : null}
 
@@ -240,7 +246,13 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
             下載發布包
           </a>
         ) : (
-          <span className="badge ReleaseFailed">缺發布包</span>
+          <div className="handoff-missing-package">
+            <span className="badge ReleaseFailed">缺發布包</span>
+            <p>製造端現在不可取用。請 PDM 或 R&D Manager 回送審明細補齊發布包。</p>
+            <Link className="secondary-button" href={`/submissions/${encodeURIComponent(entry.id)}`}>
+              查看送審
+            </Link>
+          </div>
         )}
       </div>
 

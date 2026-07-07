@@ -4,6 +4,8 @@ Date: 2026-07-02
 Owner: QA / Dev PM
 Status: UI-only operation validation plan ready; QC script implemented and passing locally
 
+Supersession note: this file remains as legacy 14-case partial regression evidence. Future claims that the drawing submission flow has completed UI real-operation validation must use `.ai-doc/qa/qa-pdm-drawing-submission-ui-real-operation-validation-plan-2026-07-02.md`, which defines the current 26-case browser UI matrix and mandatory global UI gates.
+
 ## 1. Purpose
 
 This plan verifies that the drawing submission workflow can be operated from the UI without asking users to understand database records, API payloads, internal status codes, or manual backend cleanup.

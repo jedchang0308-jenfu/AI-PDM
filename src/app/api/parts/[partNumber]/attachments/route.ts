@@ -4,6 +4,7 @@ import { masterAttachmentStatusFromError } from "@/lib/master-attachment-respons
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
+const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
   const auth = await requireNumberingPageAsync(request, "numbering.search");
@@ -17,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
       entityCode: decodeURIComponent(partNumber)
     });
     if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
-    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" }, { headers: noStoreHeaders });
   }
 
   const result = await listMasterAttachmentsAsync({
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
     entityCode: decodeURIComponent(partNumber)
   });
   if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ entity: result.entity, attachments: result.attachments });
+  return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {

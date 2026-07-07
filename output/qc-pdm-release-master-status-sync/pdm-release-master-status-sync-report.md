@@ -18,8 +18,15 @@
 - PASS: missing source does not write partial audit
 - PASS: legacy submission can resolve by drawing number fallback
 - PASS: single linked part is still synced
+- PASS: lower revision release is blocked when newer release exists
+- PASS: blocked lower revision remains unreleased
+- PASS: newer released revision is not obsoleted
+- PASS: older released revision is not partially obsoleted after blocked transaction
+- PASS: item current revision stays on newer release
+- PASS: blocked lower revision writes no partial audit
 - PASS: package exposes qc script
 - PASS: repository writes master sync audit
 - PASS: repository blocks missing source with Chinese message
+- PASS: repository blocks lower revision release
 - PASS: drawing list exposes human mismatch text
 - PASS: async drawing list detects released-master mismatch

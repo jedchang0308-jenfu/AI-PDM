@@ -13,7 +13,9 @@ export type SubmissionInput = {
 };
 
 const weakDescriptions = new Set(["change", "update", "modify", "fix"]);
-const allowedFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
+const allowedFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "x_t"]);
+const directFileRoles = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
+const intermediateFileExtensions = new Set(["step", "stp", "iges", "igs", "x_t"]);
 
 export function validateSubmissionInput(input: SubmissionInput) {
   const errors: string[] = [];
@@ -57,9 +59,11 @@ export function validateSubmissionInput(input: SubmissionInput) {
 
 export function normalizeFileRole(filename: string) {
   const ext = getFileExtension(filename);
-  if (ext && allowedFileExtensions.has(ext)) {
+  if (ext === "dxf") return "dwg";
+  if (ext && directFileRoles.has(ext)) {
     return ext;
   }
+  if (ext && intermediateFileExtensions.has(ext)) return "other";
   return "other";
 }
 

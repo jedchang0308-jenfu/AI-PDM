@@ -30,7 +30,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
-
   await createAuditLogAsync({
     submissionId: id,
     actorId: auth.user.id,

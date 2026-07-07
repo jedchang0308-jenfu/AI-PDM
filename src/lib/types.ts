@@ -1,3 +1,5 @@
+import type { RevisionPackageFileRole, RevisionPackageWarning } from "@/lib/revision-package";
+
 export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete" | "Cancelled";
 export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
 
@@ -58,6 +60,7 @@ export type SubmissionFile = {
   gdrive_status: "none" | "uploading" | "uploaded" | "failed" | "moved";
   sha256: string;
   file_size: number;
+  source_master_attachment_id?: string | null;
   created_at: string;
 };
 
@@ -587,6 +590,17 @@ export type PdfMarkup = {
 export type SubmissionDetail = SubmissionSummary & {
   files: SubmissionFile[];
   references: FileReference[];
+  revision_package?: {
+    files: Array<{
+      source_attachment_id: string | null;
+      submission_file_id: string | null;
+      filename: string;
+      default_role: RevisionPackageFileRole;
+      role: RevisionPackageFileRole;
+      source: "extension" | "user";
+    }>;
+    warnings: RevisionPackageWarning[];
+  } | null;
   bom: BomDetail | null;
   active_lock: ItemLock | null;
   release_package: ReleasePackage | null;

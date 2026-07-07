@@ -3,6 +3,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, History, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
+import { NextStepState } from "@/components/next-step-state";
+import { StatusColumnHeader } from "@/components/status-help-popover";
+import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type DraftType = "new_part" | "replacement_part" | "drawing_revision_generated";
@@ -100,7 +103,7 @@ export default function PartNumberDraftsPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "料號草稿讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號草稿讀取失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -114,7 +117,7 @@ export default function PartNumberDraftsPage() {
     const response = await fetch("/api/numbering/part-number-drafts?surface=deleted_data&limit=100");
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? body.message ?? "已刪除草稿讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? body.message ?? "已刪除草稿讀取失敗", "masterRecord"));
       setState(response.status === 403 ? "forbidden" : "error");
       setDeletedLoading(false);
       return;
@@ -149,7 +152,7 @@ export default function PartNumberDraftsPage() {
     setBusyId(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "料號草稿建立失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號草稿建立失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -165,7 +168,7 @@ export default function PartNumberDraftsPage() {
     setBusyId(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? body.message ?? "料號草稿動作失敗");
+      setError(formatStatusErrorForUser(body.error ?? body.message ?? "料號草稿動作失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -179,7 +182,7 @@ export default function PartNumberDraftsPage() {
     setBusyId(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? body.message ?? "料號草稿還原失敗");
+      setError(formatStatusErrorForUser(body.error ?? body.message ?? "料號草稿還原失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -269,7 +272,18 @@ export default function PartNumberDraftsPage() {
           </div>
         </div>
         {state === "loading" ? <div className="empty">正在載入料號草稿...</div> : null}
-        {state === "ready" && drafts.length === 0 ? <div className="empty">目前沒有料號草稿</div> : null}
+        {state === "ready" && drafts.length === 0 ? (
+          <NextStepState
+            compact
+            eyebrow="不用處理"
+            title="目前沒有料號草稿"
+            body="目前沒有等待整理或送審的料號草稿。若要建立新料號，請先從編號申請建立來源資料。"
+            actions={[
+              { href: "/numbering/request", label: "建立編號申請", variant: "primary" },
+              { href: "/numbering/search", label: "回圖料模組" }
+            ]}
+          />
+        ) : null}
         {state === "ready" && drafts.length > 0 ? <DraftTable drafts={drafts} busyId={busyId} onAction={runAction} /> : null}
       </section>
 
@@ -296,7 +310,7 @@ export default function PartNumberDraftsPage() {
           </div>
           <DeletedDraftTable deletedDrafts={deletedDrafts} busyId={busyId} loading={deletedLoading} onRestore={restoreDraft} />
           {deletedLoading ? <div className="empty">正在載入已刪除草稿...</div> : null}
-          {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除草稿</div> : null}
+          {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除草稿，不用處理。</div> : null}
         </div>
       </details>
     </>
@@ -319,7 +333,9 @@ function DraftTable({
           <tr>
             <th>預留料號</th>
             <th>類型</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="masterRecord" />
+            </th>
             <th>來源</th>
             <th>警示</th>
             <th>版控</th>
@@ -402,9 +418,13 @@ function DeletedDraftTable({
           <tr>
             <th>預留料號</th>
             <th>類型</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="masterRecord" />
+            </th>
             <th>來源</th>
-            <th>還原狀態</th>
+            <th>
+              <StatusColumnHeader label="還原狀態" context="workflow" />
+            </th>
             <th>動作</th>
           </tr>
         </thead>
@@ -513,8 +533,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
     <section className="panel">
       <div className="panel-header">
         <div>
-          <h2>讀取失敗</h2>
-          <p style={mutedTextStyle}>{message}</p>
+          <h2>料號草稿暫時無法讀取</h2>
+          <p style={mutedTextStyle}>{message} 現在請重新整理；若仍失敗，請回圖料模組確認來源資料或請 Admin 協助。</p>
         </div>
         <button className="secondary-button" type="button" onClick={onRetry}>
           <RotateCcw size={16} />
@@ -529,7 +549,7 @@ function statusFilterLabel(value: (typeof statusFilters)[number]) {
   const labels: Record<(typeof statusFilters)[number], string> = {
     all: "全部",
     draft: "草稿",
-    pending_review: "待審核",
+    pending_review: "審核中",
     needs_reconfirmation: "需重新確認",
   };
   return labels[value];
@@ -538,7 +558,7 @@ function statusFilterLabel(value: (typeof statusFilters)[number]) {
 function statusLabel(value: DraftStatus) {
   const labels: Record<DraftStatus, string> = {
     draft: "草稿",
-    pending_review: "待審核",
+    pending_review: "審核中",
     released: "已發行",
     needs_reconfirmation: "需重新確認",
     voided: "已刪除"

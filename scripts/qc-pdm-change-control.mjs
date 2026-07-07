@@ -17,6 +17,12 @@ const apiRecycleRouteSource = readProjectFile(root, "src/app/api/numbering/part-
 const apiRestoreRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts");
 const apiReconfirmRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts");
 const fffAssessmentRouteSource = readProjectFile(root, "src/app/api/numbering/drawing-revisions/fff-assessments/route.ts");
+const drawingRevisionSubmissionRouteSource = readProjectFile(root, "src/app/api/numbering/drawing-revisions/submissions/route.ts");
+const submissionApproveRouteSource = readProjectFile(root, "src/app/api/submissions/[id]/approve/route.ts");
+const submissionRetryReleaseRouteSource = readProjectFile(root, "src/app/api/submissions/[id]/retry-release/route.ts");
+const submissionReleaseWorkflowSource = readProjectFile(root, "src/lib/submission-release-workflow.ts");
+const submissionStatusRepositorySource = readProjectFile(root, "src/lib/repositories/submission-status-async-repository.ts");
+const revisionPolicySource = readProjectFile(root, "src/lib/revision-policy.ts");
 const reviewActionHandlerSource = readProjectFile(root, "src/app/api/numbering/reviews/_review-action-handler.ts");
 const reviewPendingRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/pending/route.ts");
 const reviewConfirmBomRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/confirm-bom-no-revision/route.ts");
@@ -25,8 +31,14 @@ const bomWorkbenchRepositorySource = readProjectFile(root, "src/lib/repositories
 const bomSubmitReviewRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/submit-review/route.ts");
 const bomReconfirmReplacementRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts");
 const bomWorkbenchPageSource = readProjectFile(root, "src/app/bom/workbench/page.tsx");
+const drawingSubmissionWorkbenchSource = readProjectFile(root, "src/lib/drawing-submission-workbench.ts");
 const partDraftPageSource = readProjectFile(root, "src/app/numbering/part-drafts/page.tsx");
 const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
+const masterAttachmentPanelSource = readProjectFile(root, "src/components/master-attachment-panel.tsx");
+const revisionPackageSource = readProjectFile(root, "src/lib/revision-package.ts");
+const submissionDetailPageSource = readProjectFile(root, "src/app/submissions/[id]/page.tsx");
+const dashboardSource = readProjectFile(root, "src/components/dashboard.tsx");
+const submissionListRepositorySource = readProjectFile(root, "src/lib/repositories/submission-list-async-repository.ts");
 const changeReviewPageSource = readProjectFile(root, "src/app/numbering/change-reviews/page.tsx");
 const sidebarSource = readProjectFile(root, "src/components/sidebar-nav.tsx");
 const navPermissionSource = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
@@ -74,6 +86,22 @@ class TestSqliteClient {
     if (params) statement.run(params);
     else statement.run();
   }
+
+  async transaction(fn) {
+    this.database.exec("BEGIN");
+    try {
+      const result = await fn(this);
+      this.database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async close() {
+    return undefined;
+  }
 }
 
 function catchCode(error) {
@@ -86,6 +114,16 @@ async function expectReject(name, fn, expectedCode) {
     assert(name, false, "operation unexpectedly succeeded");
   } catch (error) {
     assert(name, catchCode(error) === expectedCode, `expected ${expectedCode}, got ${catchCode(error)}`);
+  }
+}
+
+async function expectRejectMessageIncludes(name, fn, expectedText) {
+  try {
+    await fn();
+    assert(name, false, "operation unexpectedly succeeded");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    assert(name, message.includes(expectedText), `expected message to include ${expectedText}, got ${message}`);
   }
 }
 
@@ -155,6 +193,118 @@ function seedDrawing(database, drawingNumber, sequenceNo = sequence++) {
     )
     .run(drawingId, companyId, rootId, drawingNumber, engineer.userId);
   return { rootId, drawingId, drawingNumber };
+}
+
+function linkDrawingToPart(database, drawingId, partId) {
+  const linkId = nextId("drawing-part-link");
+  database
+    .prepare("INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by) VALUES (?, ?, ?, 'primary_manufacturing', ?)")
+    .run(linkId, drawingId, partId, engineer.userId);
+  return linkId;
+}
+
+function seedRevisionReleaseSubmission(database, input) {
+  database
+    .prepare(
+      `
+      INSERT INTO submissions (
+        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
+        change_description, status, submitted_by, approval_required, source_entity_type, source_entity_id, released_at
+      ) VALUES (?, ?, ?, ?, ?, 'QC material', 'QC finish', 'drawing', ?, ?, ?, 1, 'drawing_number', ?, ?)
+      `
+    )
+    .run(
+      input.id,
+      companyId,
+      input.itemId,
+      input.drawingNumber,
+      input.revision,
+      input.changeDescription ?? `QC revision ${input.revision}`,
+      input.status,
+      engineer.userId,
+      input.sourceDrawingId,
+      input.releasedAt ?? null
+    );
+}
+
+function releaseRevisionByVersionPlan(database, input) {
+  const submission = database
+    .prepare("SELECT id, item_id, revision FROM submissions WHERE id = ?")
+    .get(input.submissionId);
+  if (!submission) throw new Error("Submission not found");
+  const formalRows = database
+    .prepare("SELECT id, revision, status FROM submissions WHERE item_id = ? AND id <> ? AND status IN ('Released', 'Obsolete')")
+    .all(submission.item_id, submission.id);
+  const duplicate = formalRows.find((row) => compareQcRevision(row.revision, submission.revision) === 0);
+  if (duplicate) throw new Error(`版次 ${submission.revision} 已有正式紀錄（${duplicate.id}），不能重複核准同一版次。`);
+  const accepted = { id: submission.id, revision: submission.revision, status: "Released" };
+  const allRows = [...formalRows, accepted];
+  const latest = allRows.reduce((current, row) => (compareQcRevision(row.revision, current.revision) > 0 ? row : current), accepted);
+  const history = allRows.filter((row) => row.id !== latest.id);
+  const newlyObsolete = history.filter((row) => row.status === "Released");
+
+  database.prepare("UPDATE submissions SET status = 'Released', released_at = COALESCE(released_at, ?), updated_at = ? WHERE id = ?").run(
+    fixedNow,
+    fixedNow,
+    submission.id
+  );
+  database.prepare("UPDATE items SET current_revision = ?, updated_at = ? WHERE id = ?").run(latest.revision, fixedNow, submission.item_id);
+  database
+    .prepare(
+      `
+      UPDATE submissions
+      SET status = 'Released',
+          superseded_by_submission_id = NULL,
+          obsolete_at = NULL,
+          obsolete_by = NULL,
+          updated_at = ?
+      WHERE id = ?
+        AND status IN ('Released', 'Obsolete')
+      `
+    )
+    .run(fixedNow, latest.id);
+  for (const row of newlyObsolete) {
+    database
+      .prepare(
+        `
+        UPDATE submissions
+        SET status = 'Obsolete',
+            superseded_by_submission_id = ?,
+            obsolete_at = ?,
+            obsolete_by = ?,
+            updated_at = ?
+        WHERE id = ?
+          AND status = 'Released'
+        `
+      )
+      .run(latest.id, fixedNow, input.actorId, fixedNow, row.id);
+  }
+  return {
+    latest_revision: latest.revision,
+    latest_submission_id: latest.id,
+    history_submission_ids: history.map((row) => row.id),
+    obsolete_submission_ids: newlyObsolete.map((row) => row.id),
+    accepted_as_history: latest.id !== submission.id
+  };
+}
+
+function compareQcRevision(left, right) {
+  const leftRevision = parseQcRevision(left);
+  const rightRevision = parseQcRevision(right);
+  if (!leftRevision || !rightRevision) throw new Error(`版次格式無法比較：${left || "-"} / ${right || "-"}`);
+  if (leftRevision.major !== rightRevision.major) return leftRevision.major - rightRevision.major;
+  return leftRevision.minor - rightRevision.minor;
+}
+
+function parseQcRevision(value) {
+  let code = String(value ?? "").trim().replace(/\s+/gu, "");
+  if (!code) return null;
+  if (/^v\d/iu.test(code)) code = code.slice(1);
+  if (/^[A-Z]$/u.test(code.toUpperCase())) return { major: code.toUpperCase().charCodeAt(0) - 64, minor: 0 };
+  if (/^[1-9]\d*$/u.test(code)) return { major: Number(code), minor: 0 };
+  const minorMatch = code.match(/^(0|[1-9]\d*)\.([1-9]\d*)$/u);
+  if (minorMatch) return { major: Number(minorMatch[1]), minor: Number(minorMatch[2]) };
+  return null;
 }
 
 function seedBomReference(database, partNumber) {
@@ -336,15 +486,71 @@ record(
 );
 record("CHG-SRC-011 reconfirm event type is allowed by schema", schema.includes("'draft_reconfirmed'"), "db/schema.sql");
 record(
-  "CHG-SRC-012 drawing revision FFF API and page exist",
+  "CHG-SRC-012 drawing revision controlled submission API and page exist",
   fffAssessmentRouteSource.includes("submitDrawingRevisionFffAssessment") &&
+    drawingRevisionSubmissionRouteSource.includes("createDrawingSourceSubmission") &&
+    drawingRevisionSubmissionRouteSource.includes("submitDrawingRevisionFffAssessment") &&
+    drawingRevisionSubmissionRouteSource.includes("cancelPendingSubmissionAsync") &&
     drawingRevisionPageSource.includes("Form") &&
     drawingRevisionPageSource.includes("Fit") &&
     drawingRevisionPageSource.includes("Function") &&
-    drawingRevisionPageSource.includes("/api/numbering/drawing-revisions/fff-assessments") &&
+    drawingRevisionPageSource.includes("新版圖面") &&
+    drawingRevisionPageSource.includes("targetRevisionAttachments") &&
+    drawingRevisionPageSource.includes("canSelectForTargetRevision") &&
+    drawingRevisionPageSource.includes("上一版 / 其他版次參考檔") &&
+    drawingRevisionPageSource.includes("不會納入本次版次") &&
+    drawingRevisionPageSource.includes("ActionableErrorPanel") &&
+    drawingRevisionPageSource.includes("buildSubmissionErrorGuidance") &&
+    drawingRevisionPageSource.includes("下一步：") &&
+    drawingRevisionPageSource.includes("validateRevisionChangeDescription") &&
+    drawingRevisionPageSource.includes("/api/numbering/drawing-revisions/submissions") &&
+    drawingSubmissionWorkbenchSource.includes("送審資料尚未完整") &&
+    drawingSubmissionWorkbenchSource.includes("下一步：請回表單補齊後重新送審") &&
     sidebarSource.includes("/numbering/revisions") &&
     navPermissionSource.includes('"/numbering/revisions": "numbering.drawings.view"'),
   "src/app/numbering/revisions/page.tsx"
+);
+record(
+  "CHG-SRC-012B drawing revision package supports multi-file intake and shared warnings",
+  revisionPackageSource.includes("RevisionPackageFileRole") &&
+    revisionPackageSource.includes("classifyRevisionPackageFiles") &&
+    revisionPackageSource.includes("evaluateRevisionPackageCompleteness") &&
+    revisionPackageSource.includes("missing_pdf") &&
+    revisionPackageSource.includes("missing_dwg_dxf") &&
+    revisionPackageSource.includes("missing_3d_cad") &&
+    revisionPackageSource.includes("dwg_dxf") &&
+    drawingRevisionPageSource.includes("multiple") &&
+    drawingRevisionPageSource.includes("selectedFiles={pendingUploadFiles.map") &&
+    drawingRevisionPageSource.includes("revisionPackageRoleOptions") &&
+    drawingRevisionPageSource.includes("RevisionPackageWarningPanel") &&
+    drawingRevisionPageSource.includes("packageFileRoles") &&
+    !drawingRevisionPageSource.includes("此區一次只能上傳一個附件。") &&
+    drawingRevisionSubmissionRouteSource.includes("packageFileRoles") &&
+    drawingRevisionSubmissionRouteSource.includes("normalizeRevisionPackageFileRole") &&
+    drawingSubmissionWorkbenchSource.includes("revisionPackage") &&
+    drawingSubmissionWorkbenchSource.includes("packageWarnings") &&
+    submissionListRepositorySource.includes("SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL") &&
+    submissionListRepositorySource.includes("buildSubmissionRevisionPackage") &&
+    submissionDetailPageSource.includes("RevisionPackageReviewWarnings") &&
+    submissionDetailPageSource.includes("messageForReviewer") &&
+    dashboardSource.includes("RevisionPackageReviewWarningCard") &&
+    dashboardSource.includes("messageForReviewer"),
+  "DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2"
+);
+record(
+  "CHG-SRC-012C drawing revision release accepts out-of-order revisions and recomputes latest/history",
+  revisionPolicySource.includes("compareRevisionCodes") &&
+    submissionStatusRepositorySource.includes("buildRevisionCurrentPlan") &&
+    submissionStatusRepositorySource.includes("acceptedAsHistory") &&
+    submissionStatusRepositorySource.includes("RevisionCurrentRecomputed") &&
+    submissionStatusRepositorySource.includes("assertNoFormalDuplicateRevision") &&
+    !submissionApproveRouteSource.includes("revision_release_order_conflict") &&
+    !submissionRetryReleaseRouteSource.includes("revision_release_order_conflict") &&
+    !submissionReleaseWorkflowSource.includes("assertSubmissionRevisionCanReleaseAsync") &&
+    drawingRevisionPageSource.includes("buildRevisionIntentNotice") &&
+    drawingRevisionPageSource.includes("核准後會進入歷史區") &&
+    masterAttachmentPanelSource.includes("compareRevisionCodes"),
+  "DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3"
 );
 record(
   "CHG-SRC-013 FFF assessment stores drawing part-number read/correction values",
@@ -819,6 +1025,90 @@ try {
     "CHG-BOM-002 released BOM keeps old part after replacement release",
     releasedBomBefore === releaseOldPart.partNumber && releasedBomAfter === releaseOldPart.partNumber,
     JSON.stringify({ releasedBomBefore, releasedBomAfter })
+  );
+
+  const revisionPolicyPart = seedFormalPart(database, "P-QC-REVORDER-001");
+  const revisionPolicyDrawing = seedDrawing(database, "D-QC-REVORDER-MA1");
+  linkDrawingToPart(database, revisionPolicyDrawing.drawingId, revisionPolicyPart.partId);
+  const revisionPolicyItemId = nextId("rev-order-item");
+  database
+    .prepare("INSERT INTO items (id, company_id, part_number, part_name, current_revision) VALUES (?, ?, ?, ?, '0.6')")
+    .run(revisionPolicyItemId, companyId, revisionPolicyPart.partNumber, "QC revision order item");
+  seedRevisionReleaseSubmission(database, {
+    id: "SUB-QC-REVORDER-06",
+    itemId: revisionPolicyItemId,
+    drawingNumber: revisionPolicyDrawing.drawingNumber,
+    revision: "0.6",
+    status: "Released",
+    sourceDrawingId: revisionPolicyDrawing.drawingId,
+    releasedAt: "2026-07-05T00:00:00.000Z"
+  });
+  seedRevisionReleaseSubmission(database, {
+    id: "SUB-QC-REVORDER-05",
+    itemId: revisionPolicyItemId,
+    drawingNumber: revisionPolicyDrawing.drawingNumber,
+    revision: "0.5",
+    status: "Pending",
+    sourceDrawingId: revisionPolicyDrawing.drawingId
+  });
+  const lowerBackfill = releaseRevisionByVersionPlan(database, {
+    submissionId: "SUB-QC-REVORDER-05",
+    actorId: manager.userId
+  });
+  const lowerRows = database
+    .prepare("SELECT id, revision, status, superseded_by_submission_id FROM submissions WHERE item_id = ? ORDER BY revision ASC")
+    .all(revisionPolicyItemId);
+  const lowerCurrentRevision = database.prepare("SELECT current_revision FROM items WHERE id = ?").get(revisionPolicyItemId).current_revision;
+  assert(
+    "CHG-REVORDER-001 lower revision approves into history without replacing latest",
+    lowerBackfill.accepted_as_history === true &&
+      lowerBackfill.latest_revision === "0.6" &&
+      lowerCurrentRevision === "0.6" &&
+      lowerRows.find((row) => row.id === "SUB-QC-REVORDER-05")?.status === "Obsolete" &&
+      lowerRows.find((row) => row.id === "SUB-QC-REVORDER-06")?.status === "Released",
+    JSON.stringify({ lowerBackfill, lowerRows, lowerCurrentRevision })
+  );
+  seedRevisionReleaseSubmission(database, {
+    id: "SUB-QC-REVORDER-07",
+    itemId: revisionPolicyItemId,
+    drawingNumber: revisionPolicyDrawing.drawingNumber,
+    revision: "0.7",
+    status: "Pending",
+    sourceDrawingId: revisionPolicyDrawing.drawingId
+  });
+  const higherRelease = releaseRevisionByVersionPlan(database, {
+    submissionId: "SUB-QC-REVORDER-07",
+    actorId: manager.userId
+  });
+  const higherRows = database
+    .prepare("SELECT id, revision, status, superseded_by_submission_id FROM submissions WHERE item_id = ? ORDER BY revision ASC")
+    .all(revisionPolicyItemId);
+  const higherCurrentRevision = database.prepare("SELECT current_revision FROM items WHERE id = ?").get(revisionPolicyItemId).current_revision;
+  assert(
+    "CHG-REVORDER-002 higher revision becomes latest and older released revision moves to history",
+    higherRelease.accepted_as_history === false &&
+      higherRelease.latest_revision === "0.7" &&
+      higherCurrentRevision === "0.7" &&
+      higherRows.find((row) => row.id === "SUB-QC-REVORDER-07")?.status === "Released" &&
+      higherRows.find((row) => row.id === "SUB-QC-REVORDER-06")?.status === "Obsolete",
+    JSON.stringify({ higherRelease, higherRows, higherCurrentRevision })
+  );
+  seedRevisionReleaseSubmission(database, {
+    id: "SUB-QC-REVORDER-07-FAILED",
+    itemId: revisionPolicyItemId,
+    drawingNumber: revisionPolicyDrawing.drawingNumber,
+    revision: "0.7",
+    status: "ReleaseFailed",
+    sourceDrawingId: revisionPolicyDrawing.drawingId
+  });
+  await expectRejectMessageIncludes(
+    "CHG-REVORDER-003 duplicate same revision remains blocked",
+    () =>
+      releaseRevisionByVersionPlan(database, {
+        submissionId: "SUB-QC-REVORDER-07-FAILED",
+        actorId: manager.userId
+      }),
+    "不能重複核准同一版次"
   );
 
   const rollbackOldPart = seedFormalPart(database, "P-QC-ROLLBACK-OLD");

@@ -39,7 +39,7 @@ export type AiToolResult = {
 };
 
 const statusLabels = {
-  Pending: "待審核",
+  Pending: "審核中",
   Releasing: "發行中",
   Released: "已發布",
   Obsolete: "已廢止",
@@ -60,11 +60,11 @@ export function executeAiTool(input: {
     const pending = listSubmissions("Pending", submittedBy);
     if (pending.length === 0) {
       return {
-        text: "目前沒有這位使用者可查看的待審送審資料。",
+        text: "目前沒有這位使用者可查看的審核中送審資料。",
         sources: [
           {
             type: "metric",
-            label: "待審送審資料",
+            label: "審核中送審資料",
             detail: "依使用者權限查詢後共 0 筆"
           }
         ]
@@ -87,12 +87,12 @@ export function executeAiTool(input: {
   if (input.toolName === "get_dashboard_metrics") {
     const metrics = getDashboardMetrics(submittedBy);
     return {
-      text: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`,
+      text: `審核中 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`,
       sources: [
         {
           type: "metric",
           label: "工作台統計",
-          detail: `待審核 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`
+          detail: `審核中 ${metrics.pending}，已發布 ${metrics.released}，已駁回 ${metrics.rejected}，發行未完成 ${metrics.failed}`
         }
       ]
     };

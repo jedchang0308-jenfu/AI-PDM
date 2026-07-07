@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-Updated: 2026-07-02
+Updated: 2026-07-06
 Owner: Dev PM
 Purpose: This file is the active DEV control board. Unfinished work stays here; completed work is summarized here and indexed in `.ai-doc/archived/completed-dev-index-2026-06.md`.
 
@@ -12,7 +12,22 @@ Historical snapshots:
 
 ## 1. PM Snapshot
 
-Current active objective: `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` Phase 1 local RD implementation and verification is implemented / verification passed locally while preserving Phase 2+ architecture. Phase 1 development specification is fulfilled locally: new drawing submission workbench route, same-revision lifecycle recovery, Pending cancellation, ReleaseFailed retry/return-for-correction, resolved ReleaseFailed de-noising and user-facing Chinese conflict language are implemented and verified. Local evidence now includes focused recovery QC, disposable mutation lifecycle QC, DB provider transaction gates, duplicate/drawing-part/review-only regressions, `tsc`, lint and build. Mutation validation used temporary local fixture records through `npm run qc:pdm-drawing-submission-workbench-mutation` and did not mutate existing D-0014 or other user data. Phase 2+ development documents remain `RD Contract Ready`: master-data completion/writeback, attachment-library upload, collaboration, dashboard/todo de-noising, and production cutover/historical repair gates include RD handoff contracts but are not authorized for implementation. Production/cutover remains excluded, and external-evidence blockers remain visible under Section 3.
+Current active objective: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` is the latest local delivery package. Phase 1 controlled revision package, Phase 2 multi-file package intake, Phase 3 out-of-order revision/latest-history behavior and Phase 4 first-class revision attachment package model are implemented and locally verified. Phase 4 implements stable `packageId`, package file membership, Released-core immutability, supplement request/approval child records, supplement approval by the current system reviewer/supervisor or Admin, approved supplement `補件` marking in the same main attachment list, and IDE/Codex dry-run reporting for ambiguous legacy migration records instead of a product pending area. The current product rule is: upload/attachment alone is not a formal revision; formal revision requires the controlled submission/review/release package; revisions can be entered and approved in any order; duplicate formal same drawing + same revision is blocked; the computed latest is shown first and older formal revisions belong in history. Production deploy, production migration/cutover, direct data repair, historical cleanup, FFF/part/BOM rule changes, strict chronological approval and dedicated mobile-phone UI remain excluded.
+
+New implemented local package:
+
+- `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` Phase 1 is implemented / verification passed locally after the user's 2026-07-03 authorization to execute development, with 2026-07-05 APP feedback applied. `/numbering/revisions` now has a `新版圖面` step, drawing-owned attachment upload/selection for the intended revision, target-revision-only primary attachment selection, collapsed read-only previous/other-revision reference attachments, a dedicated controlled drawing-revision submission API, Pending submission creation, FFF assessment linkage through `drawing_revision_fff_assessments.submission_id`, and a safe compensation path that cancels the Pending submission if FFF creation fails. No-impact drawing revisions may keep part and BOM unchanged with reviewer BOM no-revision confirmation.
+- `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2` is implemented / verification passed locally after the user's 2026-07-05 `執行開發` authorization. `/numbering/revisions` now treats one target revision as a multi-file `版次檔案包`, accepts multiple queued files, auto-classifies file roles by extension, lets the submitter correct each role, stores package roles/warnings in the submission snapshot, shows warning-only package completeness guidance to the submitter, and surfaces the same warning codes on the full submission detail page and dashboard drawer before approval/rejection. No schema migration, production deploy, direct data repair, CAD/OCR extraction, FFF rule change, forced part/BOM revision, or optional-warning hard block was performed.
+- `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3` is implemented / verification passed locally after the user's 2026-07-05 `執行開發` authorization. The release flow now accepts out-of-order non-duplicate revisions, still blocks duplicate formal same drawing + revision records, recomputes latest/history by deterministic revision comparison, keeps lower backfilled revisions as formal history, promotes higher revisions to latest, and keeps first-level attachment/package views focused on the computed latest.
+- `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4` is implemented / verification passed locally from the user's 2026-07-06 guided decisions and later RD execution authorization. It adds a first-class revision attachment package model with stable `packageId`, package files, Released-core immutability, supplement reason menu, supplement request/approval records, supplement approval by current reviewer/supervisor or Admin, approved supplement `補件` tagging in the main attachment list, multi-file supplement intake and migration dry-run reporting for ambiguous legacy records. Local schema/runtime files and SQLite bootstrap were updated; production deploy, production migration/cutover and existing-data repair were not performed.
+
+New implemented local settings package:
+
+- `DEV-PDM-SETTINGS-CENTER-001` Phase 1 is implemented / verification passed locally after the user's 2026-07-06 authorization. `/settings` now has a settings center overview/work queue, five management-area routes, and a SolidWorks Document Manager secret lifecycle panel. Server-only APIs support redacted status, draft creation, test, activation and revoke. Additive metadata tables `secret_references`, `setting_test_runs` and `setting_activation_events` store lifecycle metadata only; local execution uses a `local_test_double` provider and keeps Supabase Vault live write/smoke as an explicit blocker before production. Existing Google Drive settings remain operational. Production deploy/cutover, Supabase Vault live writes, direct data repair/deletion, external-cost actions and real SolidWorks/CAD-reader proof remain not authorized.
+
+New completed local native preview package:
+
+- `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001` Phase 1 local vertical slice is implemented / verification passed locally after the user's 2026-07-06 authorization, then amended with real Windows Shell worker evidence and a SolidWorks Document Manager SLDDRW PNG worker path. PDM now has additive `preview_jobs` and `file_derivatives` metadata, token-gated worker claim/complete routes, attachment preview enqueue/list APIs, derivative streaming under the source attachment permission path, a fake local PNG worker for deterministic local QC, a Windows `IShellItemImageFactory` worker for model thumbnails, a Document Manager sheet-preview exporter/worker for SLDDRW, blank/low-information PNG quality gating, no-store attachment list responses, and derivative-aware 3D/2D preview cards. Browser behavior is now: ready derivative tied to current source hash first, then PDF/image source, then Google Drive, then actionable placeholder. Verification passed with `tsc`, lint, focused native-preview QC, redaction QC, master-attachments QC, local dev health, API worker smoke on `D-0007-MA1` showing `.SLDPRT` succeeds with a real `windows_solidworks_preview_worker` derivative, and browser smoke showing `.SLDDRW` fails cleanly with a compact worker-key recovery message instead of remaining queued. Full `.SLDDRW` success still requires a worker-readable real Document Manager key via Supabase Vault live secret or worker environment variable; full `.SLDASM` readiness still requires equivalent worker evidence. Phase 2 `.SLDDRW -> PDF`, Phase 3 interactive 3D and Phase 4 production rollout remain not authorized.
 
 Current completed local package state:
 
@@ -78,10 +93,20 @@ Verification evidence:
 
 | Lane | ID | Type | Parent | State | Next condition | Evidence |
 |---|---|---|---|---|---|---|
+| Implemented / Verification passed | `DEV-PDM-NEXT-STEP-UX-001` | Delivery point / UX quality gate | `DEV-PDM-STATUS-UX-001`; `SPEC-UX-RD-LIFECYCLE-001`; `SPEC-UX-PLATFORM-001` | Phase 1 local UI implementation is complete: shared next-step display is visible by default, unknown status/errors fail closed to actionable Chinese, lifecycle next step is visible inline, dashboard action failures are mapped, and selected blocker/empty/error/disabled states now show what to do next. | Monitor APP validation feedback. Phase 2 scanner/checklist and Phase 3 production release require separate authorization. Stop and re-enter PM/ADR if implementation needs DB/API/permission/state-machine changes, production deploy or data repair. | `.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`; `src/components/next-step-state.tsx`; `src/lib/status-display.ts`; `src/components/lifecycle-ux.tsx`; `src/components/dashboard.tsx`; `src/app/numbering/revisions/page.tsx`; `src/app/numbering/dvt/page.tsx`; `src/app/submissions/[id]/page.tsx`; `src/app/handoff/page.tsx`; `src/app/numbering/search/page.tsx`; `src/app/parts/page.tsx`; `src/components/master-attachment-panel.tsx`; `src/app/numbering/part-drafts/page.tsx`; `src/app/numbering/reports/page.tsx`; `src/app/globals.css`; focused QC script maintenance; `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-status-ui-vocabulary` 44/44; `npm.cmd run qc:pdm-numbering-search-ui` 28/28; `npm.cmd run qc:pdm-numbering-dvt-ui` 24/24; `npm.cmd run qc:pdm-numbering-report-center-ui` 22/22; `npm.cmd run qc:master-attachments` 93/93; `npm.cmd run qc:pdm-drawing-submission-ui-operation` 14/14; `npm.cmd run dev:local:check`. |
 | Implemented / Verification passed | `PA-LOCAL-DEV-3000-001` | CAPA / PA tooling control | None | Recurring broken local 3000 prevention is implemented: managed launcher, `dev:local:check`, stale project recovery via `dev:local:restart`, multi-route health checks, port-owner PID/status JSON/logs, and `.next` clean/build collision guard. | Use `npm run dev:local` for normal startup, `npm run dev:local:check` for diagnosis, and `npm run dev:local:restart` only when the project-owned 3000 process is stale/unhealthy. Build/clean while 3000 is running requires intentional bypass and should not be used as the normal workflow. | `package.json`; `scripts/start-localhost-3000.ps1`; `scripts/clean-next.mjs`; `scripts/qc-local-dev-entrypoint.mjs`; `tmp/local-dev/ai-pdm-3000.status.json`; `npm run qc:local-dev-entrypoint`; `npm run dev:local:check`. |
+| Implemented / Verification passed | `DEV-PDM-STATUS-UX-001` | Delivery point | `DEV-PDM-LIFECYCLE-ACTIONS-001`; `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001` | Phase 1 local RD is implemented: central UI status dictionary, Chinese-only normal UI status display, status filter/badge/error mapping, development phase display mapping and unified `?` help popovers on user-visible status table columns. Focused scanner baseline and browser UI evidence passed. | Monitor APP validation feedback. Remaining Phase 2 hardening, production deploy, DB enum/schema rename, production migration, audit payload migration and historical data repair require explicit authorization. | `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`; `src/lib/status-display.ts`; `src/components/status-help-popover.tsx`; `scripts/qc-pdm-status-ui-vocabulary.mjs`; `npm run qc:pdm-status-ui-vocabulary` 44/44; `npx tsc --noEmit --pretty false`; `npm run lint`; `npm run build`; `output/playwright/status-ui/settings-status-help-open.png`; `output/playwright/status-ui/drawings-phase-label-fixed.png`; `npm run dev:local:check`. |
+| Prepared / RD Implementation Ready / Not Authorized | `DEV-PDM-STATUS-UX-002` | Development objective / UX quality gate | `DEV-PDM-STATUS-UX-001`; `DEV-PDM-NEXT-STEP-UX-001` | Development documents are ready for status context disambiguation: task/import/settings/report/DVT/restore/mixed-column status help must become task-specific rather than generic workflow/masterRecord help. No product implementation is authorized by the documentation request. | Requires explicit user authorization before RD implementation. Stop if DB/API/schema migration, production deploy, historical repair, raw audit migration or workflow semantic changes are needed. | `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`; `.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`; required evidence after authorization: `tsc`, lint, focused status context QC, Playwright screenshots for affected routes. |
 | Implemented / Verification passed | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | Delivery point | `DEV-PDM-DRAWING-PART-WORKBENCH-001`; amends `DEV-PDM-SUBMISSION-CONFLICT-001` | Phase 1 implementation surfaces are present and local verification passed: focused recovery QC, disposable mutation lifecycle QC, transaction provider QC, `tsc`, lint, build, D-0014 workbench API smoke, D-0014 release-incomplete browser smoke and D-0014 submission-detail browser smoke. A schema bootstrap ordering bug that caused old SQLite files to fail with `no such column: resolved_by_submission_id` was fixed by keeping new release-recovery indexes in runtime migration after lifecycle migration. The mutation gate used disposable records and did not touch existing D-0014/user workflow records. | Monitor APP validation feedback. Phase 2 requires explicit user/PM authorization before RD. Production deploy, production migration, direct DB cleanup, historical data repair and data deletion remain unapproved. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md`; `.ai-doc/qa/qa-pdm-drawing-submission-workbench-recovery-validation-plan-2026-07-02.md`; `scripts/qc-pdm-drawing-submission-workbench-recovery.mjs`; `scripts/qc-pdm-drawing-submission-workbench-mutation.mjs`; `output/playwright/pdm-drawing-submission-workbench-d0014-release-incomplete.png`; `output/playwright/pdm-submission-detail-d0014-release-failed-recovery.png`. |
 | Prepared / RD Contract Ready | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P` | Delivery point phase handoff | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | Phase 2+ RD handoff contracts complete and rechecked under the latest `dev-pm` All-Phase Gate: master-data completion/writeback through owner APIs, drawing attachment upload before snapshot, collaboration toggle/permissions, operational edit history, dashboard/todo de-noising, and production cutover/historical repair gate. Not executable as RD yet. | Phase 2 requires explicit user/PM authorization. Phase 3 requires Phase 2 implemented/verified plus explicit authorization. Phase 4 requires release-gate approval. Continuation commands must not start Phase 2+ until this row is explicitly updated. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md` Sections 4.1-4.5. |
 | Implemented / Verification passed | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-003` | Delivery point | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | UI-level release-incomplete self-recovery is implemented locally: human-readable diagnosis, attachment organizer, released-filename preflight, explicit selected-attachment correction submission, locked formal-record state, role-aware CTA, submission-detail recovery link, related ReleaseFailed resolution behavior, and UI-only operation validation covering QC-owned route identity (`D-QC-SUBMIT-MA1`), generic upload retirement, detail navigation, recovery, permission, blocker and RWD scenarios. D-0014 remains historical problem context only, not a required executable fixture. | Monitor APP validation feedback. Production deploy, production migration, direct DB cleanup, historical repair, data deletion, released-file overwrite, collaboration/dashboard later phases and Google Drive production movement remain unapproved. | `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-003-ui-self-recovery.md`; `.ai-doc/qa/qa-pdm-drawing-submission-ui-operation-validation-plan-2026-07-02.md`; `src/app/upload/page.tsx`; `src/lib/drawing-submission-workbench.ts`; `src/app/api/submissions/[id]/return-for-correction/route.ts`; `src/lib/repositories/submission-status-async-repository.ts`; `src/app/submissions/[id]/page.tsx`; `scripts/qc-pdm-drawing-submission-ui-self-recovery.mjs`; `scripts/qc-pdm-drawing-submission-ui-operation-scenarios.mjs`; `output/playwright/ui-operation-scenarios/pdm-drawing-submission-ui-operation-report.md`; screenshots `output/playwright/ui-operation-scenarios/REAL-001-qc-submit-drawing-entry.png`, `output/playwright/mock-release-incomplete-ui-self-recovery.png`, `output/playwright/ui-operation-scenarios/MOCK-RELFAIL-001-correction-flow.png`. |
+| Implemented / Verification passed | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` | Delivery point | `DEV-PDM-CHANGE-CONTROL-001`; `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` | Phase 1 local RD implemented on 2026-07-03, with 2026-07-05 APP feedback applied: a drawing attachment with revision `0.2` is source/staging evidence only until selected into a controlled Pending drawing-revision submission package; the `新版圖面` primary list now shows only target-revision attachments, while previous/other-revision attachments are collapsed read-only reference files with no checkbox. The package creates selected-file snapshot/source traceability and links the FFF assessment via `drawing_revision_fff_assessments.submission_id`. No-impact drawing revisions may keep part and BOM unchanged, but reviewer must confirm BOM no revision. | Monitor APP validation feedback. Production deploy, migration, direct data repair, historical cleanup, CAD/OCR dependency, forced part/BOM revision and later-phase work remain excluded; Phase 2 and Phase 3 are tracked by the P2/P3 rows below. Build remains guarded by `prebuild` when the project dev server is listening on 3000. | `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`; `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`; `src/app/numbering/revisions/page.tsx`; `src/lib/drawing-submission-workbench.ts`; `src/app/api/numbering/drawing-revisions/submissions/route.ts`; `src/app/api/numbering/drawing-revisions/fff-assessments/route.ts`; `src/app/api/numbering/drawings/[drawingNumber]/submission-workbench/route.ts`; `scripts/qc-pdm-change-control.mjs`; verification: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-change-control` 56/56, `npm.cmd run dev:local:check`, Playwright mock 1440x900 plus 390x844 sanity check for target `0.2` with only prior `0.1` attachment, plus earlier `npm.cmd run qc:pdm-drawing-submission-review-only`, `npm.cmd run qc:pdm-drawing-submission-workbench-mutation`, local page smoke and protected workbench API 401 unauthenticated. Phone UI is not a separate supported surface; phones use the desktop/default surface. |
+| Implemented / Verification passed | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2` | Delivery point phase handoff | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` | Multi-file revision package intake is implemented locally: one intended drawing revision is a `版次檔案包` with multiple files, extension-based role classification, inline correction, warning-only completeness checks, snapshot persistence and reviewer warning parity on full page plus dashboard drawer. | Monitor APP validation feedback. Stop if follow-up needs production deploy, migration, direct data repair, CAD/OCR extraction, FFF rule change, forced part/BOM revision, optional-file warnings turned into hard blockers, or a dedicated mobile-phone UI. Phones use the desktop/default surface by product setting. | `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md` Phase 2; `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`; `src/lib/revision-package.ts`; `src/app/numbering/revisions/page.tsx`; `src/lib/drawing-submission-workbench.ts`; `src/app/api/numbering/drawing-revisions/submissions/route.ts`; `src/lib/repositories/submission-list-async-repository.ts`; `src/app/submissions/[id]/page.tsx`; `src/components/dashboard.tsx`; `scripts/qc-pdm-change-control.mjs`; `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-change-control` 57/57; `npm.cmd run dev:local:check`; Playwright screenshots `output/playwright/drawing-revision-package-p2/revision-package-submit-desktop.png`, `output/playwright/drawing-revision-package-p2/submission-review-warning-desktop.png`; `output/playwright/drawing-revision-package-p2/revision-package-submit-mobile.png` is retained only as optional viewport sanity, not mobile support evidence. |
+| Implemented / Verification passed | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3` | Delivery point phase handoff | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` | Out-of-order revision acceptance and latest/history view are implemented locally: all drawing revisions may be submitted and approved in any order, the system suggests the next revision first, duplicate formal same drawing + same revision remains blocked, approval/retry-release no longer fails solely because a newer different revision exists, latest/history is recomputed after approval, first-level attachment/package views use the computed latest and older approved revisions remain traceable in history. | Monitor APP validation feedback. Stop if follow-up needs production deploy, direct repair of existing bad data, schema migration without focused plan, duplicate formal records for the same revision, FFF/part/BOM rule changes, strict chronological approval, or dedicated mobile-phone UI. | `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md` Phase 3; `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`; `src/lib/revision-policy.ts`; `src/lib/repositories/submission-status-async-repository.ts`; `src/lib/repositories/submission-repository.ts`; `src/lib/submission-release-workflow.ts`; `src/app/api/submissions/[id]/approve/route.ts`; `src/app/api/submissions/[id]/retry-release/route.ts`; `src/lib/drawing-revision-workbench.ts`; `src/app/numbering/revisions/page.tsx`; `src/components/master-attachment-panel.tsx`; `scripts/qc-pdm-change-control.mjs`; `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-change-control` 61/61; `npm.cmd run dev:local:check`. |
+| Implemented / Verification passed | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4` | Delivery point phase handoff | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` | First-class revision attachment package model is implemented locally: stable `packageId`, package files, Released-core immutability, supplement request/approval, confirmed supplement reason menu, approved supplement `補件` tag in the main attachment list and migration dry-run reporting. | Monitor APP validation feedback. Stop if follow-up needs production deploy/migration, direct data repair/deletion, product `待確認附件` area, FFF/part/BOM rule changes, CAD/OCR dependency or dedicated mobile-phone UI. | `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`; `.ai-doc/decisions/ADR-PDM-DRAWING-REVISION-PACKAGE-001-first-class-package-and-supplement.md`; `.ai-doc/qa/qa-pdm-drawing-revision-package-model-validation-plan-2026-07-06.md`; `db/schema.sql`; `db/postgres/001_initial_schema.sql`; `src/lib/drawing-revision-package.ts`; `src/lib/repositories/drawing-revision-package-async-repository.ts`; `src/lib/drawing-revision-packages-async.ts`; supplement request/decision API routes; `src/components/master-attachment-panel.tsx`; `scripts/qc-pdm-drawing-revision-package-model.mjs`; `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-drawing-revision-package-model` 59/59; `npm.cmd run qc:pdm-change-control` 61/61; `npm.cmd run db:init`. |
+| Implemented / Verification passed | `DEV-PDM-SHARED-3D-MA-BASELINE-001` | Delivery point | `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`; `DEV-PDM-DRAWING-PART-WORKBENCH-001`; `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001` | Local non-production implementation is complete from the user's 2026-07-06 authorization: part/root-owned shared 3D model versions, hash/revision conflict controls, MA package model-basis API, reviewed `2D-only / no 3D impact` exception, MA package release workflow gate, manufacturing baseline draft/release services, required-MA resolver, immutable released baseline snapshot, part-detail UI slice and additive SQLite/Postgres schema are implemented. | Monitor APP validation feedback. Production deploy/migration, direct data repair/deletion, CAD/OCR extraction, forced part/BOM/FFF rule changes, using one MA drawing as shared 3D owner and live production cutover remain not authorized. | `.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md`; `.ai-doc/decisions/ADR-PDM-SHARED-3D-MA-BASELINE-001-root-shared-model-and-manufacturing-baseline.md`; `.ai-doc/qa/qa-pdm-shared-3d-ma-baseline-validation-plan-2026-07-06.md`; `db/schema.sql`; `db/postgres/001_initial_schema.sql`; `db/postgres/002_supabase_rls_plan.sql`; `src/lib/shared-3d-baseline.ts`; `src/lib/repositories/shared-3d-baseline-async-repository.ts`; shared model / model-basis / manufacturing baseline API routes; `src/app/parts/page.tsx`; `src/lib/submission-release-workflow.ts`; `scripts/qc-pdm-shared-3d-ma-baseline.mjs`; verification: `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-shared-3d-ma-baseline` 20/20; `npm.cmd run qc:pdm-drawing-revision-package-model` 59/59; `npm.cmd run qc:pdm-change-control` 61/61; `npm.cmd run qc:db-provider-contract` 35/35; `npm.cmd run qc:db-provider-postgres` 9/9; `npm.cmd run qc:supabase-current-change-impact` 15/15; browser smoke screenshot `output/playwright/shared-3d-ma-baseline/parts-shared-3d-baseline-desktop.png`. |
+| Implemented / Verification passed | `DEV-PDM-SETTINGS-CENTER-001` | Delivery point | `DEV-CAD-001`; `DEV-SUPABASE-DB-001`; current `/settings` | Phase 1 local implementation is complete: settings center overview/work queue; five management-area routes; server-only SolidWorks secret lifecycle APIs; additive secret metadata schema; redacted UI panel; `local_test_double` provider plus live Supabase Vault gate. Existing Google Drive settings remain operational. | Monitor APP validation feedback. Supabase Vault live write/smoke, production deploy/cutover, direct data repair/deletion, external-cost actions, Manager/Reviewer read views and real SolidWorks/CAD-reader proof require separate authorization/evidence. Stop if implementation needs plaintext secret persistence, frontend Vault access or Google Workspace direct role authority. | `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`; `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`; `.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`; `src/app/settings/page.tsx`; `src/app/settings/integrations/page.tsx`; `src/app/settings/security/page.tsx`; `src/app/settings/workflow/page.tsx`; `src/app/settings/system/page.tsx`; `src/app/api/settings/secrets/*`; `src/lib/settings-secret-lifecycle.ts`; `src/lib/repositories/settings-secret-async-repository.ts`; `db/schema.sql`; `db/postgres/001_initial_schema.sql`; `db/postgres/002_supabase_rls_plan.sql`; `scripts/qc-pdm-settings-center-secret-lifecycle.mjs`; verification: `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-settings-center-secret-lifecycle`; `npm.cmd run qc:supabase-secret-boundary`; `npm.cmd run qc:gdrive-folder-tree-settings`; `npm.cmd run qc:db-provider-contract`; `npm.cmd run qc:db-provider-postgres`; `npm.cmd run qc:supabase-current-change-impact`. |
+| Implemented / Verification passed | `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001` | Delivery point | `DEV-PDM-SETTINGS-CENTER-001`; `DEV-CAD-001`; `DEV-PDM-SHARED-3D-MA-BASELINE-001`; current master attachment preview board | Phase 1 local non-production vertical slice is implemented: additive preview queue/derivative schema, async service, fake local PNG worker, token-gated worker claim/complete contract, Windows Shell thumbnail worker, SolidWorks Document Manager SLDDRW PNG worker/exporter, blank/low-information PNG quality gate, attachment preview enqueue/list APIs, derivative stream under the source attachment route, no-store attachment list refresh, and derivative-aware first-level 3D/2D preview cards. Ready derivatives are displayed only when their source hash matches the current attachment. | Monitor APP validation feedback. Real Windows Shell evidence passed for `.SLDPRT`; local `.SLDDRW` Shell output was blank and is now failed cleanly. Document Manager SLDDRW worker compiles and claims drawing jobs, but local UI secret storage is `local_test_double` metadata and does not provide plaintext to the worker, so real SLDDRW success requires Supabase Vault live secret read or worker-local `PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY`. Full `.SLDASM` readiness, Phase 2 drawing PDF, Phase 3 interactive 3D, production deploy/migration, direct data repair/deletion, browser access to secrets/native CAD tooling, synchronous COM/eDrawings/SolidWorks in Next.js request handlers, and preview-as-release-blocker policy remain not authorized. | `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`; `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`; `.ai-doc/qa/qa-pdm-sw-native-preview-worker-validation-plan-2026-07-06.md`; `db/schema.sql`; `db/postgres/001_initial_schema.sql`; `db/postgres/002_supabase_rls_plan.sql`; `src/lib/preview-derivatives.ts`; `src/lib/master-attachments-async.ts`; attachment routes under `src/app/api/numbering/drawings/[drawingNumber]/attachments/` and `src/app/api/parts/[partNumber]/attachments/`; `src/app/api/preview-jobs/*`; `src/components/master-attachment-panel.tsx`; `src/app/globals.css`; `scripts/run-windows-shell-preview-worker.mjs`; `scripts/windows-shell-thumbnail-extractor.ps1`; `scripts/run-solidworks-document-manager-preview-worker.mjs`; `scripts/solidworks-document-manager-preview-exporter.cs`; `scripts/qc-pdm-sw-native-preview-worker.mjs`; `scripts/qc-pdm-sw-native-preview-redaction.mjs`; verification: `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-sw-native-preview-worker` 90/90; `npm.cmd run qc:pdm-sw-native-preview-redaction` 68/68; `npm.cmd run qc:master-attachments` 101/101; `npm.cmd run dev:local:check`; API worker smoke on `D-0007-MA1` created real `.SLDPRT` derivative `4fde352c-eb3c-416e-bcdd-3ccf1fec6640`; Document Manager worker compile-only passed; SLDDRW API worker smoke failed cleanly with missing worker-readable key; browser smoke screenshot `output/playwright/master-attachment-preview/d0007-3d-ready-2d-key-missing-compact.png`. |
 | Implemented / Verification passed | `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001` | Delivery point | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`; `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-003` | Phase 1 local RD is implemented and verified: release success now syncs submission, source drawing, resolved part and root master lifecycle in one DB transaction, writes master-sync audit, and exposes a temporary visible inconsistency guard for historical released-as-Draft records. Phase 2 historical scanner/Admin repair and Phase 3 production cutover are contract-ready but not authorized. | Monitor APP validation feedback. Historical D-0014 repair, production migration, direct DB mutation against existing user data and data deletion remain unapproved. | `.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`; `src/lib/repositories/submission-status-async-repository.ts`; `src/lib/repositories/numbering-async-repository.ts`; `src/lib/repositories/numbering-repository.ts`; `src/app/numbering/drawings/page.tsx`; `scripts/qc-pdm-release-master-status-sync.mjs`; `npm run qc:pdm-release-master-status-sync` 23/23; `npx tsc --noEmit --pretty false`; `npm run lint`; `npm run qc:pdm-drawing-submission-workbench-recovery` 27/27; `npm run qc:pdm-drawing-submission-ui-operation` 14/14; `output/playwright/pdm-release-master-status-sync-guard-d0014.png`. |
 | Implemented / Verification passed | `DEV-PDM-SUBMISSION-CONFLICT-001` | Development objective | `DEV-PDM-DRAWING-PART-WORKBENCH-001` | Duplicate drawing + revision submission is reclassified as `submission_conflict`, blocked at readiness/submit/reviewer guard, shown with human Chinese recovery, retained in structured blocked-attempt audit, and raw DB uniqueness errors are shielded from UI. | Monitor APP validation feedback. Production deploy, production migration, direct DB cleanup and historical duplicate repair remain unapproved. | `src/lib/drawing-submission-workbench.ts`; `src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts`; `src/app/upload/page.tsx`; `src/app/api/submissions/[id]/approve/route.ts`; `src/components/dashboard.tsx`; `scripts/qc-pdm-submission-conflict-duplicate-active.mjs`; `scripts/qc-pdm-drawing-submission-review-only.mjs`; `.ai-doc/specs/SPEC-PDM-SUBMISSION-CONFLICT-001-duplicate-active-submission.md`; `.ai-doc/qa/qa-pdm-submission-conflict-duplicate-active-validation-plan-2026-07-02.md`. |
 | Implemented / Verification passed | `DEV-PDM-DRAWING-PART-WORKBENCH-001` | Delivery point | Supersedes part of `DEV-PDM-DRAWING-SUBMISSION-001` | 圖料/圖號送審安全 package implemented locally: controlled drawing submission route, generic upload retirement, generic submission POST retirement, readiness APIs, ambiguity blockers, duplicate filename preflight, immutable snapshot/hash, idempotency attempt audit, owner-route master data edit path and updated QC. | Monitor user APP validation feedback. Production deploy, production migration, direct DB cleanup and data deletion remain unapproved. | `src/lib/drawing-submission-workbench.ts`; `src/lib/repositories/submission-write-async-repository.ts`; `src/lib/db.ts`; `db/schema.sql`; `src/app/numbering/submissions/drawings/[drawingNumber]/page.tsx`; `src/app/api/numbering/roots/[rootCode]/submission-readiness/route.ts`; `src/app/api/numbering/drawings/[drawingNumber]/submission-readiness/route.ts`; `src/app/api/submissions/route.ts`; `scripts/qc-pdm-drawing-part-workbench-security.mjs`; `scripts/qc-pdm-drawing-submission-review-only.mjs`; `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`; `.ai-doc/decisions/ADR-PDM-DRAWING-PART-WORKBENCH-001-data-ownership-and-submission-snapshot.md`; `.ai-doc/qa/qa-pdm-drawing-part-workbench-data-flow-security-validation-plan-2026-07-01.md`. |
@@ -92,6 +117,565 @@ Verification evidence:
 | Prepared / Blocked | `DEV-SUPABASE-DB-001-DATA-PARITY` | QA / PM evidence | `DEV-SUPABASE-DB-001` | Data parity policy prepared; execution not approved. | PM approves parity tier, source snapshot, table scope, target, cleanup owner, and credential boundary. | `.ai-doc/qa/qa-supabase-data-parity-policy-2026-06-16.md`; `qc:supabase-data-parity-policy`. |
 | Deferred | `DEV-SUPABASE-DB-001-PROD-GATE` | PM decision | `DEV-SUPABASE-DB-001` | Staging GATE-B passed; production/cutover remains unapproved and deferred. | Production target, cost confirmation, advisor triage, production migration plan, rollback owner, and release gate approval. | Not executable now. |
 | Backlog / Parked | `DEV-STORAGE-COST-001` | Delivery / development objective | None | Evidence captured / product rollout backlog; not part of the current DB runtime gate. | Real storage inventory, target, cost, retention policy, and production timing must be approved. | `.ai-doc/reports/pm/pdm-file-storage-cost-control-development-plan-2026-06-10.md`. |
+
+### DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001 Windows SolidWorks 原檔預覽衍生檔
+
+Status: Implemented / Verification passed locally for Phase 1
+Priority: P1 - removes the current `預覽待產生` gap for native SolidWorks attachments after secret setup
+Type: Delivery point
+Parent: `DEV-PDM-SETTINGS-CENTER-001`; `DEV-CAD-001`; `DEV-PDM-SHARED-3D-MA-BASELINE-001`; current master attachment preview board
+Authorized phase: local non-production Phase 1 implementation is complete and verified. Real Windows Shell worker evidence is captured for `.SLDPRT`; a SolidWorks Document Manager SLDDRW PNG worker/exporter is implemented and compile-verified, but real SLDDRW success still requires a worker-readable active key. Full native preview readiness still requires Document Manager/eDrawings/equivalent success evidence for `.SLDDRW` and `.SLDASM`.
+
+Human decisions:
+
+- User wants SolidWorks native files to show previews similar to Windows File Explorer.
+- First value slice is `.SLDPRT / .SLDASM / .SLDDRW -> PNG`.
+- Second value slice is `.SLDDRW -> PDF`.
+- API key input in `/settings` is a prerequisite only; it does not generate previews by itself.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
+- `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`
+- `.ai-doc/qa/qa-pdm-sw-native-preview-worker-validation-plan-2026-07-06.md`
+
+Scope:
+
+- Add preview job and file derivative metadata for native CAD preview generation.
+- Add worker claim/complete contract for a trusted Windows preview worker.
+- Generate PNG/PDF derivatives as browser-readable artifacts tied to source file hash.
+- Update current 3D/2D preview cards to prefer ready derivatives before raw source fallback.
+- Show queued/running/ready/failed/stale/skipped states with Traditional Chinese next-action copy.
+- Use existing settings secret lifecycle for SolidWorks Document Manager/equivalent credentials without exposing plaintext.
+- Validate local PDM pipeline with a fake worker and a real Windows worker smoke before claiming any native preview readiness.
+
+Out of scope:
+
+- Full Windows Document Manager/eDrawings/equivalent worker readiness proof for `.SLDASM`, successful `.SLDDRW` output with a real worker-readable key, and drawing PDF.
+- Production deploy, production migration/cutover, direct data repair or data deletion.
+- Browser-side parsing of `.SLDPRT`, `.SLDASM` or `.SLDDRW`.
+- Calling Windows Explorer shell thumbnail handlers from browser or Next.js request handlers; Shell use is allowed only inside the isolated worker.
+- Running SolidWorks/eDrawings/COM/Document Manager synchronously inside Next.js request handlers.
+- Interactive 3D viewer, STEP/glTF conversion or measurement features.
+- Making preview generation failure a release blocker in Phase 1.
+- Replacing source CAD, drawing package source, shared 3D source or manufacturing baseline evidence with preview derivatives.
+
+Phase roadmap:
+
+| Phase | State | Purpose | Authorization boundary |
+|---|---|---|---|
+| Phase 0 - Development documents | Complete | Capture SPEC, ADR, QA, dev_task and documentation_map entry | Authorized by user request to write development documents |
+| Phase 1 - Native PNG preview vertical slice | Implemented locally / Partial real worker evidence | Queue, derivative metadata, fake worker QC, UI integration, real Windows worker smoke for `.SLDPRT`, and Document Manager SLDDRW PNG worker path; `.SLDDRW` blank Shell output and missing worker-readable key both fail cleanly | Local PDM pipeline implemented; full native readiness requires worker-readable key plus Document Manager/eDrawings/equivalent sample-file success evidence |
+| Phase 2 - Drawing PDF preview | RD Contract Ready / Not Authorized | `.SLDDRW -> PDF` through eDrawings/SOLIDWORKS/equivalent controlled worker | Requires renderer/licensing/timeout approval |
+| Phase 3 - Interactive 3D derivative | RD Contract Ready / Not Authorized | Evaluate STEP/glTF/web viewer derivative | Requires architecture/security/performance decision |
+| Phase 4 - Production rollout | Release Gate Contract Ready / Not Authorized | Worker deployment, storage retention, backfill, production smoke and rollback | Requires deployment-release gate |
+
+Phase 1 acceptance:
+
+- Native SW attachment can enqueue or auto-create an idempotent preview job.
+- Fake local worker can generate deterministic PNG derivatives for automated local QC.
+- Real Windows worker can generate PNG previews for supported sample files and must fail/skip blank or unsupported outputs without displaying misleading images.
+- Preview card displays generated PNG instead of `預覽待產生` when a current-hash derivative exists.
+- Failed/skipped preview states show reason and retry/settings recovery path without raw stack traces or command lines.
+- Source hash mismatch prevents stale derivative display.
+- Existing PDF/image/Drive preview behavior keeps working.
+- No SolidWorks API/license key material appears in jobs, logs, API responses, screenshots or report JSON.
+
+Stop conditions:
+
+- RD needs production deploy, migration, direct data repair or data deletion.
+- RD needs browser/frontend access to SolidWorks API/license key material.
+- RD needs to store plaintext keys in preview jobs, worker output, logs or reports.
+- RD needs to call native CAD tooling synchronously from a Next.js API route.
+- Worker cannot authenticate as a trusted service identity or cannot tie output to source hash.
+- Real native preview proof is required but no Windows host/sample files/component are available.
+
+Evidence required:
+
+- `npx.cmd tsc --noEmit --pretty false`
+- `npm.cmd run lint -- --quiet`
+- `npm.cmd run qc:master-attachments`
+- new focused `qc:pdm-sw-native-preview-worker`
+- new focused `qc:pdm-sw-native-preview-redaction`
+- settings secret boundary regression
+- browser smoke for ready PNG derivative and failed/skipped state
+- real Windows worker smoke before claiming real native preview readiness
+
+Evidence captured on 2026-07-06:
+
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- `npm.cmd run lint -- --quiet`: passed.
+- `npm.cmd run qc:pdm-sw-native-preview-worker`: passed 90/90.
+- `npm.cmd run qc:pdm-sw-native-preview-redaction`: passed 68/68.
+- `npm.cmd run qc:master-attachments`: passed 101/101.
+- `npm.cmd run qc:pdm-settings-center-secret-lifecycle`: passed 22/22.
+- `npm.cmd run qc:supabase-secret-boundary`: passed 15/15.
+- `npm.cmd run qc:db-provider-contract`: passed 35/35.
+- `npm.cmd run qc:db-provider-postgres`: passed 9/9.
+- `npm.cmd run qc:pdm-shared-3d-ma-baseline`: passed 20/20.
+- `npm.cmd run dev:local:check`: passed.
+- API worker smoke: `D-0007-MA1.SLDPRT` job `53749eb7-9aa1-4902-b6cc-a4fc2035f814` succeeded through `qc-windows-shell-worker`; derivative `4fde352c-eb3c-416e-bcdd-3ccf1fec6640` is `image/png`, `768x576`, generator `windows-shell-ishellitemimagefactory-v1`.
+- API worker smoke: `D-0007-MA1.SLDDRW` job `f921e930-2cec-441c-a8dd-4a06a6f71c6d` first failed cleanly because this workstation's Shell provider returned blank/low-information output, then was claimed by the Document Manager worker and failed cleanly with `solidworks_document_manager_preview_failed` because the active UI secret is `local_test_double` metadata and no worker-readable key is available.
+- Worker compile smoke: `node scripts/run-solidworks-document-manager-preview-worker.mjs --compile-only` produced `.tmp/solidworks-document-manager-preview/SolidWorksDocumentManagerPreviewExporter.exe`.
+- Browser smoke: demo Admin opened `D-0007-MA1`; screenshot `output/playwright/master-attachment-preview/d0007-3d-ready-2d-key-missing-compact.png` shows the real 3D preview and the compact 2D failed/retry state without fake preview display or clipped long error text.
+
+Deferred Scope Audit:
+
+| Scope | Classification | Reason |
+|---|---|---|
+| Product implementation | Same Spec Phase 1 / Implemented locally | Local PDM pipeline implemented with fake-worker proof and Windows Shell `.SLDPRT` proof |
+| Full Windows Document Manager/eDrawings/equivalent evidence | Blocked Human Re-entry / external evidence | Requires worker-readable active credential and successful `.SLDASM` / `.SLDDRW` sample-file evidence |
+| Drawing PDF generation | Same Spec Phase 2 / Not Authorized | Requires renderer/tooling approval |
+| Interactive 3D viewer | Same Spec Phase 3 / Not Authorized | Requires separate architecture/security/performance review |
+| Production rollout/backfill | Same Spec Phase 4 / Not Authorized | Requires release gate, storage policy and rollback |
+| Release blocking on preview failure | Blocked Human Re-entry | Current product assumption keeps preview non-blocking |
+| Windows Explorer shell handler direct integration | No Tracking / rejected | Rejected for web/PDM backend safety |
+
+Next condition:
+
+- Continue only after worker-readable Document Manager key is available through Supabase Vault live secret read or worker-local environment variable, or after explicit user/PM authorization for eDrawings drawing worker, Phase 2 `.SLDDRW -> PDF`, production rollout, or historical preview backfill.
+- Do not treat this Phase 1 implementation as permission for production migration, production deployment, direct data repair/deletion, or using preview failure as a release blocker.
+
+### DEV-PDM-SETTINGS-CENTER-001 系統設定中心與 Secret 生命週期治理
+
+Status: Implemented / Verification passed locally
+Priority: P0 - secret governance and settings activation must be safe before SolidWorks/API keys are managed from UI
+Type: Delivery point
+Parent: `DEV-CAD-001`; `DEV-SUPABASE-DB-001`; current `/settings`
+Authorized phase: local non-production Phase 1 implementation authorized by the user on 2026-07-06. Supabase Vault live writes, production deploy/cutover, direct data repair/deletion and external-cost actions remain not authorized. Local evidence uses an approved test-double/live-gate boundary.
+
+Human decisions:
+
+- `1C`: `/settings` becomes a settings center, not one growing page.
+- `2C`: API/license keys can be entered through UI, but backend stores them securely and UI returns only masked status.
+- `3B`: low-risk settings can apply immediately; high-risk settings require test before Admin activation.
+- `1B`: first version has five settings areas.
+- `2B`: secret management is generic, not SolidWorks-only.
+- `3B`: high-risk activation is done by Admin after test success.
+- `1C amended`: Supabase Vault stores secret material; Supabase DB stores metadata only; Google Workspace handles Drive/account source only.
+- `2B`: Admin can change settings; Manager/Reviewer may see selected redacted status only.
+- `3B`: non-secret settings can version/rollback; secrets can rotate/revoke but not restore old plaintext.
+- `1A`: PDM Next.js backend APIs operate Supabase Vault.
+- `2B`: secret metadata lifecycle is `draft -> tested -> active -> retired / revoked`.
+- `3B`: Google Workspace is account source, while PDM owns PDM roles/approval.
+- `1A`: settings subpages are organized by management task.
+- `2B`: use dedicated metadata tables instead of extending `system_settings`.
+- `3B`: high-risk UI flow is `save draft -> test -> Admin activate`.
+- `1C`: `/settings` overview is a work queue for current settings tasks.
+- `2B`: first integration scope is SolidWorks, Google Workspace/Drive, Supabase, LLM/OpenAI and release/backup.
+- `3B`: test evidence stores summary/error/actor/time/version/artifact path, not sensitive request/response payloads.
+- `1B`: settings visibility is classified by setting type.
+- `2B`: high-risk settings are secrets, Google Drive directories, Supabase connection, release/backup and permission matrix.
+- `3C`: first implementation order is a SolidWorks secret vertical slice.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
+- `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`
+- `.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`
+
+Scope:
+
+- Convert `/settings` into a settings center with overview/work queue and five management areas:
+  `/settings`, `/settings/integrations`, `/settings/security`, `/settings/workflow`, `/settings/system`.
+- Add generic secret metadata lifecycle backed by Supabase Vault for secret material and Supabase DB metadata only.
+- Add server-only APIs for secret draft, test, activation, revoke and redacted status.
+- Add high-risk setting draft/test/Admin activation flow.
+- Add role-based redacted visibility for Admin, Manager and Reviewer.
+- Add SolidWorks secret lifecycle as the first vertical slice.
+- Preserve current Google Drive settings until deliberately migrated.
+
+Out of scope:
+
+- Production deploy, production migration/cutover or direct production data repair.
+- Direct data deletion.
+- Supabase Vault live write/smoke until a disposable/staging target is approved.
+- Real SolidWorks Document Manager / CAD-reader proof; that remains under `DEV-CAD-001`.
+- Plaintext secret storage in DB, log, audit, report, screenshot or browser response.
+- Frontend/browser/Data API access to Supabase Vault.
+- Google Workspace direct authority over PDM roles/approval.
+- Two-person activation approval in first version.
+- ERP/procurement connector settings.
+
+Phase roadmap:
+
+| Phase | State | Purpose | Authorization boundary |
+|---|---|---|---|
+| Phase 0 - Architecture and long task | Complete | Capture HCS decisions, spec, ADR, QA and dev_task entry | Authorized by `要寫成長任務` |
+| Phase 1 - SolidWorks secret vertical slice | Implemented / Verification passed locally | Prove UI input -> test-double Vault boundary -> metadata -> probe/test -> Admin activation -> audit -> work queue | Supabase Vault live evidence remains gated |
+| Phase 2 - Settings center IA shell | Implemented / Compatibility shell passed locally | Add five management-area routes while preserving current Google Drive flow | Dedicated per-area pages may be deepened later |
+| Phase 3 - Google Workspace/Drive migration | RD Contract Ready / Not Authorized | Move Drive folders/account-source status into lifecycle model | Requires Google credential boundary confirmation |
+| Phase 4 - Supabase/LLM/release/backup settings | RD Contract Ready / Not Authorized | Generalize provider lifecycle and redacted evidence | Requires provider/cost/credential approval |
+| Phase 5 - Workflow/permission matrix lifecycle | RD Contract Ready / Not Authorized | Apply draft/test/Admin activation to workflow settings | Requires workflow activation authorization |
+| Phase 6 - Production release/cutover | RD Contract Ready / Not Authorized | Migrations, advisors, release gate and rollback | Requires deployment-release approval |
+
+Phase 1 acceptance:
+
+- Admin can create a draft SolidWorks secret and cannot read it back as plaintext.
+- Backend stores no secret plaintext in PDM DB/log/audit/browser response. Local test-double evidence stores metadata only; Supabase Vault live write remains a production-readiness blocker.
+- Test run stores result summary, redacted error, actor, time, version and artifact path only.
+- Only `tested` versions can be activated.
+- Activating a version retires prior active version.
+- Revoked/retired versions cannot be used by runtime/probe.
+- `/settings` overview shows missing/draft/test-failed/tested/active states with the correct next action.
+- Non-Admin mutation routes are rejected.
+
+Stop conditions:
+
+- RD needs production deploy, production migration/cutover, direct data repair or data deletion.
+- RD needs plaintext secret storage outside Supabase Vault.
+- RD needs browser, publishable key, anon key or Supabase Data API role to access Vault.
+- Supabase Vault live target is required but unavailable and no test double boundary is authorized.
+- Probe evidence cannot be redacted without losing QA signal.
+- Implementation would let Google Workspace group membership directly control PDM roles or approval authority.
+
+Evidence required:
+
+- Passed locally: `npx.cmd tsc --noEmit --pretty false`
+- Passed locally: `npm.cmd run lint -- --quiet`
+- Passed locally: `npm.cmd run qc:pdm-settings-center-secret-lifecycle`
+- Passed locally: `npm.cmd run qc:supabase-secret-boundary`
+- Passed locally: `npm.cmd run qc:gdrive-folder-tree-settings`
+- Passed locally for added metadata schema: `npm.cmd run qc:db-provider-contract`, `npm.cmd run qc:db-provider-postgres`, `npm.cmd run qc:supabase-current-change-impact`
+- Supabase Vault live evidence remains an explicit test-double/live-gate blocker.
+
+Deferred Scope Audit:
+
+| Scope | Classification | Reason |
+|---|---|---|
+| Product implementation | Same Spec Phase 1-5 / Not Authorized | Captured in phase roadmap |
+| Production release/cutover | Same Spec Phase 6 / Not Authorized | Requires deployment-release gate |
+| Supabase Vault live target | Blocked Human Re-entry before production | Local test-double is implemented; live Vault target/smoke is still required before production readiness |
+| Two-person activation approval | No Tracking in first version | User selected Admin activation |
+| ERP/procurement settings | No Tracking in first version | Excluded from first integration scope |
+| Google group direct role mapping | No Tracking / rejected | User selected PDM as role authority |
+| Existing settings migration | Same Spec Phase 2-3 | Current flow remains compatible until migrated |
+| Secret rollback to old plaintext | No Tracking / rejected | Secrets are rotate/revoke only |
+
+### DEV-PDM-SHARED-3D-MA-BASELINE-001 共用 3D 主檔與 MA 製造基準包
+
+Status: Implemented / Verification passed locally
+Priority: P0 - formal manufacturing traceability across shared 3D and multiple MA drawings
+Type: Delivery point
+Parent: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`; `DEV-PDM-DRAWING-PART-WORKBENCH-001`; `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`
+Authorized phase: local non-production implementation authorized by the user on 2026-07-06. Production deploy/migration, direct data repair/deletion, CAD/OCR extraction, forced part/BOM/FFF rule changes and production cutover remain not authorized.
+
+Human decisions:
+
+- `1B`: shared 3D master data belongs at the part/root level.
+- `2B`: part/root manufacturing baseline freezes the effective manufacturing set; it does not replace dynamic part-number/root search.
+- `3B`: MA drawing release normally requires shared 3D link; pure 2D marking/annotation changes may use a reviewed `2D-only / no 3D impact` exception.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md`
+- `.ai-doc/decisions/ADR-PDM-SHARED-3D-MA-BASELINE-001-root-shared-model-and-manufacturing-baseline.md`
+- `.ai-doc/qa/qa-pdm-shared-3d-ma-baseline-validation-plan-2026-07-06.md`
+
+Scope:
+
+- Implemented part/root-level shared 3D model ownership and hash reuse guidance.
+- Implemented MA drawing revision package model-basis API for shared model version or reviewed 2D-only exception.
+- Implemented manufacturing baseline object that freezes shared 3D model hash/version and selected MA drawing revision packages.
+- Implemented baseline required-MA resolver so users cannot silently omit required MA drawings at release.
+- Implemented model hash/revision conflict policy, approval action codes and additive schema.
+- Implemented part detail UI slice for shared 3D creation, MA package binding / 2D-only exception and baseline draft/release.
+- Implemented impact service for released baselines that reference a shared model.
+
+Out of scope:
+
+- Production deploy/migration, direct data repair/deletion, CAD/OCR extraction dependency, forced part/BOM revision, replacing drawing revision packages, replacing part/root search, or using one MA drawing as the shared 3D owner.
+
+Acceptance:
+
+- Part/root can own a shared 3D model version with stable id and content hash.
+- MA package release blocks missing model link unless reviewed 2D-only exception exists.
+- Manufacturing baseline release freezes exact shared 3D and MA package ids.
+- Released baseline cannot be edited in place.
+- Dynamic part/root search and frozen baseline evidence are clearly distinct.
+
+Stop conditions:
+
+- RD needs production deploy, production migration, direct DB mutation, historical repair or data deletion.
+- RD must change FFF, BOM, part-number identity or drawing-number identity rules.
+- RD cannot model shared 3D at part/root level without making one MA drawing the owner.
+- Baseline release would mutate existing released MA packages.
+
+Evidence:
+
+- Passed locally: `npx.cmd tsc --noEmit --pretty false`
+- Passed locally: `npm.cmd run lint -- --quiet`
+- Passed locally: `npm.cmd run qc:pdm-shared-3d-ma-baseline` 20/20, including schema/service/API/UI/release-workflow static gates and SQLite immutable baseline semantics.
+- Passed locally: `npm.cmd run qc:pdm-drawing-revision-package-model` 59/59.
+- Passed locally: `npm.cmd run qc:pdm-change-control` 61/61.
+- Passed locally for added schema/runtime boundary: `npm.cmd run qc:db-provider-contract` 35/35, `npm.cmd run qc:db-provider-postgres` 9/9, `npm.cmd run qc:supabase-current-change-impact` 15/15.
+- Browser smoke passed on `http://localhost:3000/parts`: first part drawer shows `共用 3D / MA 製造基準`, no console/http error, no horizontal overflow; screenshot `output/playwright/shared-3d-ma-baseline/parts-shared-3d-baseline-desktop.png`.
+
+### DEV-PDM-NEXT-STEP-UX-001 全系統可行動狀態提示與下一步 UX
+
+Status: Implemented / verification passed locally for Phase 1
+Priority: P0 - user-facing blockers and empty/error states must answer the operational question, not only report system state
+Type: Delivery point / UX quality gate
+Parent: `DEV-PDM-STATUS-UX-001`; `SPEC-UX-RD-LIFECYCLE-001`; `SPEC-UX-PLATFORM-001`
+Authorized phase: Phase 1 local UI implementation was authorized by the user's `執行開發` instruction and is complete. Phase 2 scanner/checklist hardening and Phase 3 production release are not authorized.
+
+Human Decision Brief:
+
+- User-facing states must answer `那我現在要幹嘛`.
+- The correct answer may be `不用處理`, but it must be explicit.
+- Main UI prompts must not lead with raw backend code, SQL, HTTP status, enum names, internal IDs or audit payloads.
+- High-risk states must show the responsible role and a recovery path.
+- Technical detail belongs in secondary details/debug/audit, not the primary user-facing answer.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`
+- Existing status vocabulary authority: `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`
+- Existing lifecycle UX context: `.ai-doc/specs/SPEC-UX-RD-LIFECYCLE-001-object-status-repair.md`
+- Existing platform routing context: `.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md`
+
+Current QA inventory:
+
+- Good pattern: `src/app/upload/page.tsx` formal same-revision blocker now answers `這版已完成，不用再送審`, with `回圖號模組`, `建立新版次`, `查看正式紀錄`.
+- Good pattern: `src/app/bom/reviews/page.tsx`, `src/app/handoff/page.tsx`, and `src/app/numbering/tasks/page.tsx` already use `NextStepState` for some empty states.
+- Gap: `src/components/dashboard.tsx` repeats raw/generic `alert(body.error ?? "...失敗")` patterns across many action handlers.
+- Gap: `src/lib/status-display.ts`, `src/components/next-step-state.tsx`, and `src/components/lifecycle-ux.tsx` can still hide or omit the direct next step.
+- Gap: `src/app/numbering/revisions/page.tsx`, `src/app/numbering/dvt/page.tsx`, `src/app/submissions/[id]/page.tsx`, `src/app/handoff/page.tsx`, `src/app/numbering/search/page.tsx`, `src/app/parts/page.tsx`, `src/components/master-attachment-panel.tsx`, `src/app/numbering/part-drafts/page.tsx`, and `src/app/numbering/reports/page.tsx` have blocker/empty/error/disabled states that need action-first wording.
+
+Phase roadmap:
+
+| Phase | State | Purpose | Authorization boundary |
+|---|---|---|---|
+| Phase 0 - Documentation | Complete | Capture QA inventory, spec, phase plan and deferred scope | Authorized by `寫成開發文件` |
+| Phase 1 - Product UI implementation | Implemented / Verification passed locally | Fix selected blockers, empty states, disabled states and failure states so they answer `現在要做什麼` | Authorized by `執行開發`; local implementation complete |
+| Phase 2 - Regression scanner and new-module checklist | RD Contract Ready / Not Authorized | Add QC guard and checklist so new UI states do not regress | Requires separate authorization |
+| Phase 3 - Production release gate | RD Contract Ready / Not Authorized | Deploy only after implementation and scanner evidence pass | Requires release/deploy approval |
+
+Phase 1 acceptance:
+
+- Every changed blocker/empty/error/disabled state answers `現在要做什麼`.
+- Terminal states explicitly say `不用處理` when no user action is required.
+- Recoverable states show a CTA or responsible-role instruction in the main visible area.
+- Normal UI main copy does not expose raw backend code, SQL/constraint text, HTTP status or internal enum.
+- Desktop and mobile evidence shows no hidden CTA, overlap, clipping or unreadable text.
+
+Stop conditions:
+
+- RD needs DB/API/permission/state-machine changes.
+- RD needs production deploy, migration, direct data repair or historical cleanup.
+- A state cannot be mapped safely without a human product decision.
+- A required UI fix expands into full platform navigation redesign.
+
+Deferred Scope Audit:
+
+| Scope | Classification | Reason |
+|---|---|---|
+| Product RD implementation | Same Spec Phase 1 / Completed locally | Authorized by `執行開發` and implemented locally on 2026-07-04 |
+| Regression scanner hardening | Same Spec Phase 2 / Not Authorized | Should follow or accompany implementation once authorized |
+| Production deploy/release | New DEV or release gate / Not Authorized | Requires deployment approval and release evidence |
+| DB/API/permission/state-machine changes | Blocked Human Re-entry | Higher-risk product decision outside UI copy contract |
+| Admin/debug/audit raw payload full localization | No Tracking in this DEV | Normal user UI is the target; debug/admin payload localization is separate |
+| Full platform navigation redesign | No Tracking in this DEV | Covered by `SPEC-UX-PLATFORM-001`; this DEV is state guidance only |
+
+RD / QA / QC result:
+
+- Phase 1 local UI implementation is complete.
+- Product code changes stayed in UI presentation, wording, shared UI helpers and focused QC script maintenance.
+- No DB/API/permission/state-machine, production deploy, direct data repair or historical cleanup was performed.
+- Verification passed: `npx.cmd tsc --noEmit --pretty false`; `npm.cmd run lint -- --quiet`; `npm.cmd run qc:pdm-status-ui-vocabulary` 44/44; `npm.cmd run qc:pdm-numbering-search-ui` 28/28; `npm.cmd run qc:pdm-numbering-dvt-ui` 24/24; `npm.cmd run qc:pdm-numbering-report-center-ui` 22/22; `npm.cmd run qc:master-attachments` 93/93; `npm.cmd run qc:pdm-drawing-submission-ui-operation` 14/14; `npm.cmd run dev:local:check`.
+- `npm.cmd run build` was blocked by the intentional local dev guard because AI_PDM was listening on port 3000; no bypass was used.
+- Do not start Phase 2 scanner/checklist or Phase 3 production release without explicit authorization.
+
+### DEV-PDM-STATUS-UX-001 全系統狀態中文化與狀態欄說明
+
+Status: Implemented / Verification passed locally
+Priority: P0 - status wording is a cross-system usability and workflow-safety defect
+Type: Delivery point
+Parent: `DEV-PDM-LIFECYCLE-ACTIONS-001`; `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`
+Authorized phase: Phase 1 local RD implementation and verification are complete. Remaining Phase 2 hardening is RD Contract Ready / Not Authorized. Production deploy, DB enum/schema rename, production migration, historical data repair and audit payload migration are not authorized.
+
+Human Decision Brief:
+
+- UI layer must show status in user-understandable Traditional Chinese only.
+- Backend raw status codes may remain in DB/API/audit/debug, but normal UI must not expose them.
+- `Released` object status is displayed as `已發布` in normal UI.
+- Every user-visible table with a status column must place a unified `?` help button in the status column header.
+- The `?` opens a status explanation popover; `ESC` and outside click close it.
+- The `?` button must not trigger sorting, filtering, row selection or navigation.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`
+- Existing vocabulary authority: `.ai-doc/decisions/ADR-PDM-LIFECYCLE-ACTIONS-001-ui-vocabulary-and-backend-lifecycle.md`
+- Existing object status UX context: `.ai-doc/specs/SPEC-UX-RD-LIFECYCLE-001-object-status-repair.md`
+
+Scope:
+
+- Add a central UI status dictionary for raw-status-to-Chinese mapping, help text, severity, terminal/actionability metadata and context separation.
+- Replace visible status badges, table cells, filters and error messages in normal user UI with dictionary-backed Chinese labels.
+- Add a reusable `StatusHelpPopover` / `StatusColumnHeader` or equivalent component.
+- Add a status help button to every user-visible table status column.
+- Provide focused QC coverage for raw enum exposure, status-column help coverage and popover behavior.
+
+Out of scope:
+
+- DB enum/schema rename.
+- Production deploy or production migration.
+- Historical data repair.
+- Audit payload migration.
+- Rewriting the backend lifecycle state machine.
+- Full admin/debug raw payload localization.
+
+Implementation contract:
+
+- Suggested new files: `src/lib/status-display.ts`, `src/components/status-help-popover.tsx`.
+- UI components must call the central status dictionary instead of local `statusLabels` maps or raw `{status}` rendering.
+- Select option values may remain raw status codes for API compatibility, but option labels must be Chinese.
+- Unknown raw statuses must show `未分類狀態` or `異常`, not the raw enum.
+- Status help content must come from the same dictionary as visible labels.
+- Popover behavior must support click open, `ESC` close, outside click close, focus return and mobile viewport safety.
+
+Phase 1 acceptance:
+
+- Normal UI no longer shows raw `Draft`, `PendingReview`, `Released`, `Obsolete`, `MainDrawingInvalid`, `ReleaseFailed`, `duplicate_active_submission`, `drawing_number_not_found` or SQL constraint messages.
+- Status filters show Chinese labels.
+- Every user-visible table with a `狀態` column has a `?` help button in the header.
+- The help popover opens, shows Chinese status explanations, closes by `ESC`, closes by outside click, returns focus and does not trigger table actions.
+- Desktop and mobile routes remain readable without overlap, clipping or horizontal overflow.
+
+Phase 1 likely implementation surfaces:
+
+- `src/components/lifecycle-ux.tsx`
+- `src/components/dashboard.tsx`
+- `src/app/numbering/drawings/page.tsx`
+- `src/app/numbering/search/page.tsx`
+- `src/app/parts/page.tsx`
+- `src/app/submissions/[id]/page.tsx`
+- `src/app/numbering/submissions/drawings/[drawingNumber]/page.tsx`
+- `src/app/upload/page.tsx`
+- `src/app/bom/workbench/page.tsx`
+- `src/app/numbering/tasks/page.tsx`
+- `src/app/numbering/revisions/page.tsx`
+
+Stop conditions:
+
+- RD needs DB enum/schema migration.
+- RD needs production deploy or production data repair.
+- A raw status cannot be safely assigned to a user-facing context without changing workflow semantics.
+- Existing table component architecture cannot safely accept a header button without a broader UI refactor.
+
+Verification evidence:
+
+- `npm run qc:pdm-status-ui-vocabulary` passed 44/44.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Browser UI evidence on `/settings` passed: status help opens, Chinese status copy renders, `ESC` closes, outside click closes.
+- Screenshot: `output/playwright/status-ui/settings-status-help-open.png`.
+- Local server health after build/restart: `npm run dev:local:check` passed and reports `http://127.0.0.1:3000/`.
+
+Phase 2 / hardening:
+
+- Status: RD Contract Ready / Not Authorized.
+- Scope: static scanner or QC rule for raw status exposure and missing status help buttons; new-module checklist; optional admin/report/debug context mapping.
+- Entry condition: Phase 1 implemented and verified, then explicit authorization.
+- Acceptance: new status tables and raw status labels fail focused QC unless they use the central dictionary and status help header.
+
+Deferred Scope Audit:
+
+- DB enum/schema rename: No Tracking; not needed for UI clarity and would create compatibility risk.
+- production deploy/migration: New DEV behind release gate if later requested.
+- admin/debug/audit raw payload localization: Same Spec Phase 2 if user wants it.
+- future module regression prevention: Same Spec Phase 2 through scanner/checklist.
+
+Next condition:
+
+- Monitor APP validation feedback for status wording and status-help coverage.
+- Do not start remaining Phase 2 hardening, production work, DB enum/schema rename, audit payload migration or historical data repair without explicit authorization.
+
+### DEV-PDM-STATUS-UX-002 狀態語意分層與狀態混用修正
+
+Status: Prepared / RD Implementation Ready / Not Authorized
+Priority: P0 - status help can mislead users when one generic context explains different operational tasks
+Type: Development objective / UX quality gate
+Parent: `DEV-PDM-STATUS-UX-001`; `DEV-PDM-NEXT-STEP-UX-001`
+Authorized phase: Documentation only. RD implementation requires explicit user authorization. Phase 2 regression hardening is RD Contract Ready / Not Authorized.
+
+Human Decision Brief:
+
+- UI first-layer status help must answer the user's current task, not expose all internal enum values.
+- `?` status help must explain only the statuses that can appear in that column.
+- Backend raw status, DB enum, API payload and audit trail remain unchanged.
+- Status contexts should be split by user task: task, import row, import batch, settings lifecycle, job status, restore policy and DVT readiness.
+- Columns that mix master status, phase, cost and warning chips must be renamed or visually grouped; they must not imply all chips share one status meaning.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
+- `.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`
+- Parent status vocabulary spec: `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`
+
+Scope:
+
+- Add or adjust presentation contexts for `task`, `importRow`, `importBatch`, `settingsLifecycle`, `jobStatus`, `restorePolicy` and `dvtReadiness`.
+- Fix high-risk status help misuse in `/numbering/tasks`, `/numbering/imports`, `/settings`, `/numbering/reports`, `/numbering/approvals`, `/numbering/dvt`, BOM deleted drafts and part drafts.
+- Fix mixed-column labels in parts/drawings/search surfaces where a column currently mixes status, phase and warning chips.
+- Update focused QC so context mismatch and irrelevant status help can be detected.
+
+Out of scope:
+
+- DB enum/schema rename.
+- API raw status rename.
+- production deploy or production migration.
+- historical data repair.
+- audit/debug raw payload full localization.
+- backend lifecycle state machine changes.
+
+Implementation contract:
+
+- `task` must not alias the full `workflowStatuses` list.
+- Report/export jobs must use `jobStatus`, not `fileSync`.
+- Import staging row status must use `importRow`; import batch status must use `importBatch`.
+- DVT readiness must be explained separately from master-record status.
+- `StatusColumnHeader context="X"` and the primary status badge in the same column must use matching context unless the column label declares mixed content.
+- `待補件` in approval status wording must be normalized to `待補資料`, except where the subject is an attachment supplement.
+
+Acceptance:
+
+- A user opening a status `?` on each affected page sees only task-relevant statuses.
+- 發行審核 keeps the 5-item first-layer help: `審核中 / 待補資料 / 阻擋 / 已核准 / 已退回`.
+- 報表 job help shows `等待中 / 執行中 / 已完成 / 失敗` and does not include import/file-sync-only language.
+- 匯入列 help does not include approval workflow states.
+- 設定版本 help does not include release approval wording.
+- DVT page clearly distinguishes DVT readiness from master-record status.
+- Mixed columns are labeled as `狀態 / 階段 / 提醒` or equivalent.
+
+Stop conditions:
+
+- RD needs DB/API/schema migration.
+- RD needs to change workflow semantics for approval/release/master lifecycle.
+- RD needs production deploy, production migration, historical repair or direct DB mutation.
+- A page's column structure cannot be adjusted without broader redesign.
+
+Evidence required:
+
+- `npx.cmd tsc --noEmit --pretty false`.
+- `npm.cmd run lint -- --quiet` or touched-file lint.
+- Focused status context QC command.
+- Playwright screenshots and popover-label evidence for high-risk routes: tasks, imports, settings, reports, approvals and dvt.
+
+Deferred Scope Audit:
+
+- DB enum/schema rename: No Tracking; UI clarity does not require data-layer rename.
+- production deploy/migration: New DEV behind release gate if requested.
+- audit/debug raw payload localization: Same Spec Phase 2 or New DEV if user expands scope.
+- historical data repair: Blocked Human Re-entry; requires explicit repair scope and authorization.
+- regression scanner hardening: Same Spec Phase 2; not authorized.
+
+Next condition:
+
+- Wait for explicit RD authorization such as `執行開發`.
+- If authorized, implement Phase 1 only; do not start Phase 2 scanner hardening unless separately approved.
 
 ### DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002 圖面送審工作台與發行未完成恢復流程
 
@@ -827,6 +1411,205 @@ Next condition:
 - If user authorizes this focused slice, move state to `Ready / In RD` and execute through RD-QA-QC.
 - If user keeps `DEV-PDM-UI-POLISH-001` intake open, retain this as prepared non-executable scope.
 
+### DEV-PDM-DRAWING-REVISION-SUBMISSION-001 圖面進版受控送審包
+
+Status: Implemented / verification passed locally for Phase 1, Phase 2 multi-file revision package intake, Phase 3 out-of-order revision acceptance/latest-history view and Phase 4 first-class revision attachment package model
+Priority: P0 - without this, a new drawing file revision can exist in the attachment library without becoming a controlled drawing revision package
+Type: Delivery point
+Parent: `DEV-PDM-CHANGE-CONTROL-001`; `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`
+Authorization boundary:
+
+- Phase 1 RD implementation was authorized by the user's 2026-07-03 `執行開發` instruction and is implemented locally.
+- Phase 2 multi-file revision package intake was authorized by the user's 2026-07-05 `執行開發` instruction and is implemented locally.
+- Phase 3 out-of-order revision acceptance and latest/history view was authorized by the user's 2026-07-05 `執行開發` instruction and is implemented locally.
+- Phase 4 first-class revision attachment package model was locally implemented after the user's 2026-07-06 guided decisions and later RD execution authorization. Local schema/runtime files and SQLite bootstrap were updated; production deploy, production migration/cutover and existing-data repair were not performed.
+- Phase 5 extraction assistance and Phase 6 production/historical classification are not authorized.
+- Mobile-specific UX is not a delivery target; phones use the desktop/default surface, and official UI acceptance is desktop/tablet/current browser only unless the user changes this system setting.
+
+Human Decision Brief:
+
+- A drawing revision such as `D-0007-MA1` from `0.1` to `0.2` may be valid while the linked part number and BOM remain unchanged.
+- Uploading a file to `圖號附件庫` with revision `0.2` is not enough to prove formal drawing revision.
+- Formal drawing revision requires selected new drawing files, FFF judgement, revision value, reason category, Pending submission package, reviewer confirmation and release/audit evidence.
+- No-impact changes such as `標註 / 文字修正` should keep part/BOM unchanged, but reviewer must confirm BOM no revision.
+- Confirmed-impact changes still require replacement part draft and drawing part-number match under the existing change-control rule.
+- 2026-07-05 Phase 2 decisions: upload unit is a `版次檔案包`; one revision package may contain multiple files; category is auto-classified by extension and user-correctable; completeness checks are warning-only after at least one valid package file exists; the review page/drawer must show the same warnings before approval/rejection.
+- 2026-07-05 Phase 3 decision: all revisions may be entered and approved in any order; the system suggests the next likely revision, blocks duplicate formal records for the same drawing + revision, computes the latest approved revision by version comparison and moves non-latest approved revisions to history.
+- 2026-07-06 Phase 4 decision: `版次檔案包` must become a first-class model with stable `packageId`; Released core package evidence is immutable; post-release supplements are child records requiring reason and approval; approved supplements display in the same attachment list with `補件` tag; ambiguous migration records are confirmed in IDE/Codex dry-run output, not a product `待確認附件` area.
+
+Required docs:
+
+- `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`
+- `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`
+- `.ai-doc/decisions/ADR-PDM-DRAWING-REVISION-PACKAGE-001-first-class-package-and-supplement.md`
+- `.ai-doc/qa/qa-pdm-drawing-revision-package-model-validation-plan-2026-07-06.md`
+- `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`
+- Parent change-control spec: `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
+- Parent drawing revision UX spec: `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-002-drawing-revision-workbench-ux-contract.md`
+- Parent drawing submission workbench spec: `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md`
+
+Scope:
+
+- Add `新版圖面` step to `/numbering/revisions`.
+- Reuse drawing attachment library upload/select behavior for the intended new revision.
+- Require at least one eligible new-revision drawing file before formal revision package submit.
+- Create one Pending drawing submission package from selected attachment IDs.
+- Link the FFF assessment with `drawing_revision_fff_assessments.submission_id`.
+- Show preview distinguishing drawing revision, part unchanged/replacement state, BOM unchanged/reconfirmation state, selected files and reviewer action.
+- Preserve same-revision blockers and release-incomplete recovery behavior.
+- Phase 2: support multi-file upload/dropzone for one intended revision package.
+- Phase 2: auto-classify SLDDRW/PDF/DWG/DXF/STEP/SLDPRT or equivalent files by extension and allow inline correction.
+- Phase 2: show warning-only package completeness guidance on submitter preview.
+- Phase 2: show the same warning codes on the review page/drawer with reviewer wording.
+- Phase 3: allow lower or skipped revisions to be submitted, reviewed and approved after newer revisions exist.
+- Phase 3: remove chronological order blockers from normal approval/retry-release while preserving same-revision duplicate blockers.
+- Phase 3: recompute latest/history after approval and show only latest in first-level operational views.
+- Phase 3: keep older approved revisions traceable in history, not in the primary current-file list.
+- Phase 4: create a first-class package model with `packageId`, package file memberships and supplement request/approval records.
+- Phase 4: keep Released package core immutable and model late files as approved supplements.
+- Phase 4: show approved supplement files in the same main attachment list with `補件` tag/icon.
+- Phase 4: implement migration dry-run from existing submissions/file assets and report ambiguous records in IDE/Codex output only.
+
+Out of scope:
+
+- Production deploy or production migration.
+- Direct DB cleanup, historical repair or data deletion.
+- CAD/OCR/SolidWorks automatic extraction as a Phase 1 or Phase 2 dependency.
+- Automatic BOM version creation.
+- Automatic part-number revision for no-impact changes.
+- Dedicated mobile-phone UI, mobile-specific navigation or phone-first layout. Phones use the desktop/default surface.
+- Rewriting `DEV-PDM-CHANGE-CONTROL-001` business rules.
+- Turning optional package completeness warnings into hard blockers without explicit PM approval.
+- Requiring chronological approval order.
+- Allowing duplicate formal records for the same drawing + same revision.
+- Direct repair of existing wrong latest/history records.
+- Product UI `待確認附件` area for ambiguous migration records.
+- Editing Released package core files or roles in place.
+
+Implementation contract summary:
+
+- Attachment upload creates drawing-owned source/staging files only; it must not mark a drawing revision as formal.
+- Formal action is `建立圖面進版送審`.
+- Package creation must re-check drawing, selected attachments, same-revision blockers and FFF branch guards.
+- Package creation must create or reuse the drawing submission snapshot/source-attachment traceability.
+- FFF assessment and Pending submission must be linked before success returns.
+- If FFF assessment creation fails after Pending submission creation, the incomplete Pending submission must be cancelled with audit evidence before returning failure.
+- If no-impact: original part is allowed, BOM stays unchanged, and reviewer action is `confirm_bom_no_revision`.
+- If suspected-impact: reviewer must choose `confirm_original_part_reuse` or `return_for_replacement_part`.
+- If confirmed-impact: replacement draft and matching drawing part-number value remain mandatory.
+- Phase 2 package files are treated as one revision package, not separate formal submissions.
+- Phase 2 warning logic must be shared between submitter and reviewer surfaces; only wording changes by audience.
+- Phase 2 missing PDF/DWG/DXF/3D/intermediate evidence is warning-only unless no valid package file exists or an existing hard blocker applies.
+- Phase 3 approval/retry-release must not fail solely because a newer different revision already exists.
+- Phase 3 must keep same drawing + same revision uniqueness as a hard blocker.
+- Phase 3 must use one deterministic revision comparator for next-revision suggestion, release recomputation and UI grouping.
+- Phase 3 latest/history recomputation must keep a lower backfilled revision as formal history when a higher approved revision exists.
+- Phase 3 first-level drawing/package/handoff/download defaults must use the computed latest unless the user explicitly opens history.
+- Phase 4 package identity must be `packageId`; submission snapshot is evidence and migration seed, not the long-term package model.
+- Phase 4 must enforce one effective Released package per company + drawing + revision.
+- Phase 4 Released package core files/roles must be immutable.
+- Phase 4 supplements must store reason, optional/required note, applicant, reviewer/Admin decision and timestamps.
+- Phase 4 `內容有變更，建立新版次` supplement reason must show `應建立新版次` but not hard-block.
+- Phase 4 migration must run dry-run before mutation and report ambiguous records in IDE/Codex only.
+
+Acceptance:
+
+- `D-0007-MA1` or QC-owned equivalent can be prepared for `0.2` as a controlled revision package without revising the linked part or BOM when FFF is no-impact.
+- Uploading/selecting attachment alone does not create Pending submission, assessment or released drawing revision.
+- `建立圖面進版送審` creates one Pending submission and one linked FFF assessment.
+- Submission snapshot includes selected source attachment IDs and intended revision.
+- Reviewer BOM no-revision confirmation is required before no-impact release.
+- Confirmed-impact path remains blocked without replacement draft and drawing part-number match.
+- UI copy is Traditional Chinese and does not expose raw internal codes, SQL or stack traces.
+- Phase 2: one revision package can contain multiple files under the same target revision.
+- Phase 2: extension-based role classification works and user correction is persisted in package evidence.
+- Phase 2: missing recommended file roles do not disable submit after at least one valid package file exists.
+- Phase 2: reviewer page/drawer shows the same package warning codes before approve/reject actions.
+- UI acceptance targets desktop/tablet/current browser surfaces; mobile screenshots are optional sanity evidence only, not a separate supported phone UI.
+- Phase 3: approving revision `0.5` after `0.6` exists succeeds as formal history and does not replace `0.6` as latest.
+- Phase 3: approving revision `0.7` after `0.6` exists makes `0.7` latest and moves `0.6` into history.
+- Phase 3: duplicate formal same drawing + same revision remains blocked with actionable Chinese recovery.
+- Phase 3: first-level drawing/package surfaces show only the computed latest revision; older approved revisions are under history.
+- Phase 3: manufacturing handoff and default download/package consumers select latest by default.
+- Phase 4: package operations use `packageId`.
+- Phase 4: same drawing + same revision duplicate Released package is blocked.
+- Phase 4: approved supplements appear in the same package attachment list with `補件` tag/icon and audit link.
+- Phase 4: `其他` supplement reason requires note; other reasons allow optional note.
+- Phase 4: migration dry-run reports ambiguous records without creating product UI clutter.
+
+QA/QC gate:
+
+- Required QA plan: `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`
+- Verification passed locally:
+  - `npx.cmd tsc --noEmit --pretty false`
+  - `npm.cmd run lint -- --quiet`
+  - `npm.cmd run qc:pdm-change-control` 61/61, including Phase 2 package guards and Phase 3 revision-order/latest-history guards
+  - `npm.cmd run qc:pdm-drawing-submission-review-only`
+  - `npm.cmd run qc:pdm-drawing-submission-workbench-mutation`
+  - Existing local dev server page smoke: `/numbering/revisions` returned HTTP 200.
+  - Protected workbench API smoke: unauthenticated `/api/numbering/drawings/D-0007-MA1/submission-workbench?revision=0.2` returned HTTP 401 `需要登入`.
+  - Phase 2 Playwright smoke: `/numbering/revisions?drawingNumber=D-0007-MA1` shows multi-file package dropzone, selected package role, warning-only submitter guidance and no visible runtime error; `/submissions/SUB-QC-REVPKG-001` shows reviewer warnings before approve/cancel actions.
+  - Screenshot evidence: `output/playwright/drawing-revision-package-p2/revision-package-submit-desktop.png`; `output/playwright/drawing-revision-package-p2/submission-review-warning-desktop.png`. The 390px screenshot is retained as optional sanity only, not mobile support evidence.
+  - Phase 3 lifecycle QC: lower revision after newer latest approves into history without replacing latest; higher revision becomes latest and moves older approved revisions to history; duplicate same drawing + same revision remains blocked.
+  - Phase 3 static guard: approve/retry-release/workflow paths no longer contain the old chronological `revision_release_order_conflict` blocker; duplicate formal same-revision guard remains.
+  - Phase 3 UI/static guard: revision intent copy warns when the target revision is lower/higher than current latest, and `master-attachment-panel` uses the shared revision comparator for latest/history grouping.
+  - Phase 4 local package model QC: `npm.cmd run qc:pdm-drawing-revision-package-model` passed 59/59, covering schema files, package repository guards, package creation/release/cancel integration, supplement APIs, approved supplement tagging, multi-file supplement UI support and migration dry-run reporting.
+  - Phase 4 local regression QC: `npm.cmd run qc:pdm-change-control` passed 61/61 after the package-model implementation.
+- Not run:
+  - `npm.cmd run build` was blocked by the local dev-entrypoint guard because AI_PDM was already listening on `http://127.0.0.1:3000/` and `prebuild` refused to clean `.next`.
+- Recommended focused command: `npm.cmd run qc:pdm-drawing-revision-submission`
+- Required UI evidence: preview, missing-file blocker, no-impact package submit, linked assessment/submission, reviewer BOM no-revision confirmation and desktop/tablet/current-browser visible-error checks. Dedicated phone/mobile evidence is not required by current system setting.
+- Required Phase 2 evidence: multi-file package upload, category auto-classification, inline correction persistence, warning-only submit behavior, reviewer warning parity and shared warning-code evidence.
+- Phase 3 evidence covered in this local pass: lower-after-newer approval into history, higher-after-current approval becoming latest, duplicate same-revision blocker, latest/history static UI grouping, and static/API guard that chronological revision-order conflict is no longer a hard approval blocker. Manual browser evidence for every operational consumer remains recommended for APP validation but is not a separate authorization gate.
+- Phase 4 local evidence now includes packageId repository/API integration, duplicate Released package negative guard, Released-core immutability guard, supplement reason/approval implementation, `補件` tag display implementation and migration dry-run reporting via `npm.cmd run qc:pdm-drawing-revision-package-model` 59/59. Remaining recommended APP evidence: browser screenshot with real or seeded data for supplement request, approval/rejection and `補件` tag display. Focused QA plan: `.ai-doc/qa/qa-pdm-drawing-revision-package-model-validation-plan-2026-07-06.md`.
+
+Deferred Scope Audit:
+
+- Production deploy / Supabase production cutover: New DEV / release gate; Phase 6 parked.
+- Schema migration: Same Spec Phase for local Phase 4 package model; production migration remains Blocked Human Re-entry / release gate.
+- CAD/OCR/SolidWorks automatic extraction: Same Spec Phase 5, not authorized.
+- Historical attachment-only records: Same Spec Phase 4 dry-run and Phase 6 production cutover; no direct repair/deletion authorized.
+- Existing wrong latest/history records: New DEV / Blocked Human Re-entry; no direct repair, deletion or silent cleanup authorized by this documentation request.
+- Ambiguous legacy migration records: Same Spec Phase 4; report in IDE/Codex dry-run, no product `待確認附件` UI.
+- Strict chronological approval order: No Tracking, explicitly rejected by the Phase 3 product decision.
+- Duplicate formal same drawing + same revision: No Tracking, explicitly rejected; same-revision changes must correct the existing package.
+- Optional package completeness warnings as hard blockers: Blocked Human Re-entry; rejected for Phase 2 unless product rule changes.
+- Automatic BOM revision for no-impact: No Tracking, explicitly rejected by product rule.
+- Automatic part-number revision for no-impact: No Tracking, explicitly rejected by product rule.
+
+All-Phase Coverage Matrix:
+
+| Phase / DEV | Authorization | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
+|---|---|---|---|---|---|---|---|
+| Phase 1 - Controlled Revision Package Integration | Authorized and implemented locally on 2026-07-03 | Implemented / verification passed locally | Integrate FFF, selected/uploaded files, Pending submission and `submission_id` link | Production, migration unless stop condition, CAD/OCR dependency, forced part/BOM revision | User `執行開發` authorization | Pending package and FFF assessment linked; no-impact keeps part/BOM unchanged with reviewer confirmation | tsc, change-control QC, drawing-submission QC, mutation QC, local page/API smoke |
+| Phase 2 - Multi-File Revision Package Intake (`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2`) | Authorized and implemented locally on 2026-07-05 | Implemented / verification passed locally | Multi-file package upload, role auto-classification, inline correction, warning-only completeness, snapshot evidence and reviewer warning parity | Production, CAD/OCR extraction, optional-role hard blocking, FFF/part/BOM rule changes, dedicated mobile UI | User `執行開發` authorization | Multi-file same-revision package can submit; warnings show on submitter and reviewer pages without blocking | tsc, lint, `qc:pdm-change-control` 57/57, desktop Playwright smoke, snapshot/API/static evidence |
+| Phase 3 - Out-of-Order Revision Acceptance And Latest/History View (`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3`) | Authorized and implemented locally on 2026-07-05 | Implemented / verification passed locally | Suggested next revision, out-of-order submit/approve, duplicate same-revision guard, latest/history recompute and latest-only first-level display | Production repair, duplicate formal same-revision records, strict chronological approval, FFF/part/BOM rule changes, dedicated mobile UI | User `執行開發` authorization | Lower backfilled revision approves into history; higher revision becomes latest; first-level views show latest only | tsc, lint, `qc:pdm-change-control` 61/61, approve/retry-release static guard, in-memory release lifecycle tests, latest/history UI static guard |
+| Phase 4 - First-Class Revision Attachment Package Model (`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`) | Authorized and implemented locally on 2026-07-06 | Implemented / verification passed locally | First-class packageId model, package files, supplement request/approval, migration dry-run | Production, direct repair, CAD/OCR, product pending-area for ambiguous migration | User `執行開發` authorization after guided Phase 4 decisions | PackageId governs formal package; Released core immutable; supplements approved and tagged | tsc, lint, `qc:pdm-drawing-revision-package-model` 59/59, `qc:pdm-change-control` 61/61, local SQLite `db:init`; browser supplement evidence still recommended |
+| Phase 5 - Extraction Assistance | Not authorized | RD Contract Ready / Not Authorized | Optional title-block extraction and richer file role validation | External license/cost and production CAD processing | Phase 4 implemented/verified plus authorization | Extraction assists but does not override RD correction | Adapter tests, mismatch negative cases |
+| Phase 6 - Production Cutover / Historical Classification | Not authorized | Release Gate Contract Ready / Parked | Production rollout and historical attachment-only classification | Deletion, silent repair, unapproved migration | Implemented applicable phases plus release gate | Production smoke passes and historical risk classified | Release gate package, migration dry-run, rollback evidence |
+
+Stop conditions:
+
+- RD needs production deploy, production migration, direct DB mutation, historical repair or data deletion.
+- Existing submission snapshot cannot preserve selected attachment IDs and FFF assessment link without migration.
+- Package creation cannot be transactional or safely compensated.
+- Implementation would treat attachment upload alone as formal released revision.
+- Implementation would force part/BOM revision for no-impact drawing changes.
+- Implementation keeps one-file upload as the only practical primary flow for a revision package.
+- Implementation hides submitter package warnings from reviewer page/drawer.
+- Implementation blocks submit solely because optional recommended package roles are missing.
+- Implementation blocks approval solely because a newer different revision already exists.
+- Implementation lets an older backfilled revision replace a newer latest revision.
+- Implementation creates duplicate formal records for the same drawing + revision.
+- Implementation edits Released package core in place instead of using supplement/new revision path.
+- Implementation creates product `待確認附件` UI for migration ambiguity.
+- Existing change-control or drawing submission regression QC fails outside this scope.
+
+Next condition:
+
+- Continue only for APP validation feedback or explicitly authorized later-phase work.
+- Do not run product implementation, production deploy, migration, direct historical repair, data deletion, CAD/OCR extraction Phase 5 or forced part/BOM revision from this documentation entry.
+
 ## 3. External Blockers / Parked Scope
 
 These are not executable by RD without external evidence or explicit PM approval. Keep the task lines in this table so `qc:dev-task-evidence-sync` can continue to audit blocker state.
@@ -922,6 +1705,21 @@ Known limitation:
 
 ## 8. Latest Update
 
+- 2026-07-07: Added `DEV-PDM-STATUS-UX-002` development documents for APP feedback that status help still mixes workflow, task, import, settings, job, restore and DVT readiness semantics. Added spec `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`, QA plan `.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`, a `dev_task` row/section and `documentation_map.md` cold-start guidance. Status is `Prepared / RD Implementation Ready / Not Authorized`; no product implementation, DB/API/schema migration, production deploy, historical repair, audit raw-payload migration or workflow semantic change was performed.
+- 2026-07-06: Amended and verified `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001` with a real Windows Shell worker after fake preview images were rejected by APP validation, then added a SolidWorks Document Manager SLDDRW PNG worker/exporter path after APP validation showed 3D success but 2D still queued. Added `scripts/run-windows-shell-preview-worker.mjs`, `scripts/windows-shell-thumbnail-extractor.ps1`, `scripts/run-solidworks-document-manager-preview-worker.mjs`, `scripts/solidworks-document-manager-preview-exporter.cs`, default real worker enqueue, fake-derivative display suppression, blank/low-information PNG quality gating, clean failed-job user messages, and a `dev:local:restart` fix so tokenized local worker routes can be exercised. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-sw-native-preview-worker` 90/90, `npm.cmd run qc:pdm-sw-native-preview-redaction` 68/68, `npm.cmd run qc:master-attachments` 101/101, `npm.cmd run dev:local:check`, direct SLDPRT worker extraction, API claim/complete smoke for `D-0007-MA1.SLDPRT`, Document Manager compile-only smoke, SLDDRW API worker fail-safe smoke for missing worker-readable key, and browser smoke screenshot `output/playwright/master-attachment-preview/d0007-3d-ready-2d-key-missing-compact.png`. `.SLDDRW` Shell output on this workstation was blank and is now failed cleanly; Document Manager worker is implemented but still needs Supabase Vault live secret read or worker-local key for successful drawing preview. No production deploy/migration, historical backfill, direct data repair/deletion, Phase 2 drawing PDF, Phase 3 interactive 3D or Phase 4 rollout was performed.
+- 2026-07-06: Added `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001` development documents from the user's request to make SolidWorks native previews work like Windows File Explorer. Added spec `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`, ADR `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`, and QA plan `.ai-doc/qa/qa-pdm-sw-native-preview-worker-validation-plan-2026-07-06.md`. Status was `RD Contract Ready / Not Authorized`; no product implementation, schema migration, worker deployment, real Document Manager/equivalent run, production deploy/cutover, direct data repair/deletion or historical preview backfill was performed in that documentation-only step.
+- 2026-07-06: Implemented and verified `DEV-PDM-SHARED-3D-MA-BASELINE-001` after the user's `授權給你, 完成這些開發任務` instruction. Added additive shared 3D / MA baseline schema for SQLite and Postgres, async repository/service, part/root shared model version APIs, MA package model-basis API, required-MA resolver, manufacturing baseline draft/release APIs, immutable released baseline snapshot behavior, submission release workflow model-basis gate for MA packages, approval action codes, part-level 3D/intermediate attachment categories, and a part-detail UI slice for shared 3D creation, MA model link / reviewed 2D-only exception and baseline draft/release. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-shared-3d-ma-baseline` 20/20, `npm.cmd run qc:pdm-drawing-revision-package-model` 59/59, `npm.cmd run qc:pdm-change-control` 61/61, `npm.cmd run qc:db-provider-contract` 35/35, `npm.cmd run qc:db-provider-postgres` 9/9, `npm.cmd run qc:supabase-current-change-impact` 15/15 and browser smoke screenshot `output/playwright/shared-3d-ma-baseline/parts-shared-3d-baseline-desktop.png`. Production deploy/migration, direct data repair/deletion, CAD/OCR extraction, forced part/BOM/FFF rule change and production cutover remain excluded.
+- 2026-07-06: Implemented and verified `DEV-PDM-SETTINGS-CENTER-001` Phase 1 after the user's authorization. `/settings` now has a settings center overview/work queue, five management-area routes, SolidWorks secret lifecycle UI, server-only draft/test/activate/revoke APIs, dedicated secret metadata tables, RLS plan entries, redacted local test-double evidence and legacy Google Drive settings compatibility. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-settings-center-secret-lifecycle` 22/22, `npm.cmd run qc:supabase-secret-boundary` 15/15, `npm.cmd run qc:gdrive-folder-tree-settings` 35/35, `npm.cmd run qc:db-provider-contract` 35/35, `npm.cmd run qc:db-provider-postgres` 9/9 and `npm.cmd run qc:supabase-current-change-impact` 15/15. Supabase Vault live write/smoke, production deploy/cutover, direct data repair/deletion, external-cost actions and real SolidWorks/CAD-reader proof remain separately gated.
+- 2026-07-06: Added `DEV-PDM-SETTINGS-CENTER-001` long-task development package from the user's HCS settings-center decisions. The selected architecture is: `/settings` becomes a work-queue settings center with five management areas; Supabase Vault stores secrets; Supabase DB stores metadata only; PDM backend APIs operate Vault; Google Workspace is account/Drive source while PDM owns roles/approval; high-risk settings use draft/test/Admin activation; the first implementation slice is SolidWorks secret lifecycle. Added spec `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`, ADR `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`, and QA plan `.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`. Status is `RD Contract Ready / Not Authorized`; no product implementation, schema migration, Supabase Vault live write, production deploy/cutover, direct data repair/deletion or secret value handling was performed.
+- 2026-07-06: Completed RD-supervisor readiness closure for `DEV-PDM-SHARED-3D-MA-BASELINE-001` documentation. Added ADR `.ai-doc/decisions/ADR-PDM-SHARED-3D-MA-BASELINE-001-root-shared-model-and-manufacturing-baseline.md`, required-MA baseline resolver rules, shared model hash/revision identity rules, approval action codes and QA visible-error/viewport gates. Status remains `RD Implementation Ready / Not Authorized`; no product implementation, schema migration, production deploy, direct data repair/deletion, CAD/OCR extraction, forced part/BOM revision or Git action was performed.
+- 2026-07-06: Added `DEV-PDM-SHARED-3D-MA-BASELINE-001` development documents from the user's guided decisions. The confirmed product rule is: shared 3D belongs at the part/root level; part/root search remains dynamic navigation; manufacturing baseline freezes the exact shared 3D hash/model version and MA drawing package revisions used for formal manufacturing; MA drawing release requires a shared model link or reviewed `2D-only / no 3D impact` exception. Added spec `.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md` and QA plan `.ai-doc/qa/qa-pdm-shared-3d-ma-baseline-validation-plan-2026-07-06.md`. Initial RD-supervisor review later required ADR and readiness hardening before keeping RD Implementation Ready status.
+- 2026-07-05: Implemented and verified `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3` after the user's simplified PDM revision policy and `執行開發` authorization. Product behavior now allows revisions to be entered and approved in any order, suggests the next likely revision without making it a blocker, blocks duplicate formal same drawing + same revision records, recomputes latest/history after release, keeps lower backfilled revisions as formal history and promotes higher revisions to latest. Updated release lifecycle repositories, approve/retry-release/workflow paths, revision comparator, revision workbench intent guidance, first-level latest/history attachment grouping guard, QC script, controlled revision package spec, QA plan, PM control board and documentation map. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-change-control` 61/61, `npm.cmd run dev:local:check`, plus static search confirming product approve/retry-release paths no longer use the chronological `revision_release_order_conflict` blocker. No schema migration, production deploy, direct data repair, historical cleanup, FFF/part/BOM rule change, strict chronological approval or dedicated mobile-phone UI work was performed.
+- 2026-07-05: Implemented and verified `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2` after user `執行開發` authorization. The drawing revision workflow now treats one revision as a multi-file `版次檔案包`, supports extension-based role auto-classification with inline correction, persists package role/warning evidence in the submission snapshot, keeps completeness checks warning-only after at least one valid file exists, and shows the same reviewer warnings on the submission page plus dashboard drawer. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-change-control` 57/57, `npm.cmd run dev:local:check`, and Playwright desktop submit/reviewer warning smoke. `npm.cmd run build` was blocked by the intentional local-dev guard because AI_PDM was already listening on port 3000; no bypass was used. Current system setting: no dedicated mobile-phone UI; phones use the desktop/default surface, so 390px screenshots are optional sanity only. No schema migration, production deploy, direct data repair, CAD/OCR extraction, FFF rule change or forced part/BOM revision was performed.
+- 2026-07-05: Applied APP feedback to `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` after the user reported that old drawings stayed in the `圖面進版` workbench and interfered with preparing a new revision. `/numbering/revisions` now filters the primary `新版圖面` selectable list to the intended revision only, clears preserved selections that no longer match the target revision, moves prior/other-revision attachments to a default-collapsed read-only `上一版 / 其他版次參考檔` area with no checkbox, shows `還沒有版次 X 的新版圖面` as the next-step answer when only old files exist, and makes the disabled submit CTA visually secondary. Updated the drawing revision submission spec, QA plan and change-control QC static guard. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-change-control` 56/56, `npm.cmd run dev:local:check`, and Playwright mock browser checks at 1440x900 and 390x844 with screenshots under `output/playwright/drawing-revision-reference-filter/`. No DB/API/schema/permission/state-machine change, production deploy, direct data repair or historical cleanup was performed.
+- 2026-07-04: Implemented and verified `DEV-PDM-NEXT-STEP-UX-001` Phase 1 local UI package after user `執行開發` authorization. Changed shared state guidance so `NextStepState` shows body inline by default, unknown status/error fallback fails closed to actionable Chinese, lifecycle panels show `現在要做`, dashboard action failures no longer directly alert raw `body.error`, drawing revision same-version blockers use action-first wording, DVT missing items show visible recovery guidance, submission-detail not-found/error/restricted states include CTAs, manufacturing handoff missing packages tell manufacturing not to use the record and route back to submission, search/parts/part-drafts/reports empty states include next action, and master attachment error/empty states are mapped to actionable copy. Focused QC scripts were updated to validate the new status-help and action-first wording. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run lint -- --quiet`, `npm.cmd run qc:pdm-status-ui-vocabulary` 44/44, `npm.cmd run qc:pdm-numbering-search-ui` 28/28, `npm.cmd run qc:pdm-numbering-dvt-ui` 24/24, `npm.cmd run qc:pdm-numbering-report-center-ui` 22/22, `npm.cmd run qc:master-attachments` 93/93, `npm.cmd run qc:pdm-drawing-submission-ui-operation` 14/14, and `npm.cmd run dev:local:check`. `npm.cmd run build` was blocked by the intentional local-dev guard because AI_PDM was already listening on port 3000; no bypass was used. No DB/API/permission/state-machine change, production deploy, direct data repair, historical cleanup, Phase 2 scanner/checklist or Phase 3 release work was performed.
+- 2026-07-04: Prepared `DEV-PDM-NEXT-STEP-UX-001` Phase 0 documentation package after QA review of UI states that do not answer the user's real question: `那我現在要幹嘛`. Added `SPEC-PDM-NEXT-STEP-UX-001` with Human Decision Brief, action-first copy/component contract, QA inventory, phase roadmap, QA/QC gate, spec governance result, Deferred Scope Audit, All-Phase Coverage Matrix and RD Readiness Review. Phase 1 product UI implementation is RD Implementation Ready but not authorized. Phase 2 regression scanner/checklist and Phase 3 production release are not authorized. DB/API/permission/state-machine changes, production deploy, direct data repair, historical cleanup, admin/debug raw payload full localization and full platform navigation redesign remain excluded unless separately approved.
+- 2026-07-03: Implemented and verified `DEV-PDM-DRAWING-REVISION-SUBMISSION-001` Phase 1 locally after user authorization. `/numbering/revisions` now requires a `新版圖面` attachment step before formal submit, uploads selected files to the drawing attachment library as source/staging evidence, validates selected attachment revision against the intended drawing revision, creates a controlled Pending submission package through a dedicated drawing-revision API, links the FFF assessment via `drawing_revision_fff_assessments.submission_id`, and cancels an incomplete Pending submission with audit if FFF creation fails after package creation. Verification passed: `npx.cmd tsc --noEmit --pretty false`, `npm.cmd run qc:pdm-change-control`, `npm.cmd run qc:pdm-drawing-submission-review-only`, `npm.cmd run qc:pdm-drawing-submission-workbench-mutation`, local `/numbering/revisions` HTTP 200 smoke, and unauthenticated workbench API 401 guard smoke. `npm.cmd run build` was blocked by the intentional local-dev guard because AI_PDM was already listening on port 3000; no bypass was used. No production deploy, migration, direct historical repair, data deletion, CAD/OCR Phase 2 or forced part/BOM revision was performed.
+- 2026-07-03: Implemented and verified `DEV-PDM-STATUS-UX-001` Phase 1 locally. Added central UI status dictionary, shared status help/header/badge components, Chinese status filters/badges/errors, development phase display mapping (`Release` -> `正式階段`), and focused QC scanner baseline for user-visible status columns and raw status wording. Verification passed: `npm run qc:pdm-status-ui-vocabulary` 44/44, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm run build`, browser UI evidence on `/settings` for status help open/Chinese copy/ESC close/outside click close, browser UI evidence on `/numbering/drawings` for `已發布 / 正式階段`, and `npm run dev:local:check` after restarting local 3000. No production deploy, DB enum/schema rename, production migration, direct historical data repair or audit payload migration was performed.
 - 2026-07-02: Implemented and verified `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001` Phase 1 locally after user authorization. The release lifecycle now synchronizes source drawing, resolved part and root master statuses to `Released` / `Release` in the same transaction as submission release, writes `ReleaseMasterStatusSynced` audit, blocks missing/ambiguous source context with Chinese recovery language, and shows a drawing-module guard for historical released-as-Draft mismatches. Verification passed: `npm run qc:pdm-release-master-status-sync` 23/23, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm run qc:pdm-drawing-submission-workbench-recovery` 27/27, `npm run qc:pdm-drawing-submission-ui-operation` 14/14, and browser smoke screenshot `output/playwright/pdm-release-master-status-sync-guard-d0014.png`. No historical D-0014 repair, production deploy, production migration, direct mutation against existing user data, data deletion or Phase 2/3 implementation was performed.
 - 2026-07-02: Completed `PA-LOCAL-DEV-3000-001` second PA hardening for recurring broken local port 3000. Added `dev:local:check`, upgraded `scripts/start-localhost-3000.ps1` from single `/login` health to multi-route `/`, `/login`, `/api/auth/me` checks, wrote real port-owner PID/status JSON/logs under `tmp/local-dev/`, and added `scripts/clean-next.mjs` guard so `clean:next` / `prebuild` refuse to remove `.next` while the project-owned 3000 server is listening unless an explicit bypass is set. Verification passed: `npm run qc:local-dev-entrypoint`; `npm run dev:local:check`; expected-block test for `node scripts/clean-next.mjs` returned exit code 1 while PID 52928 owned the healthy project server; status JSON ended in `healthy_existing` with all three routes healthy. No production deploy, production migration, direct DB cleanup, data deletion, provider switch, or foreign-process stop was performed.
 - 2026-07-02: Completed `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` Phase 1 local verification. Fixed the mutation QC runner to use the real `/api/submissions` dashboard source instead of a nonexistent `/api/dashboard`, then passed `npm run qc:pdm-drawing-submission-workbench-mutation` 33/33 on disposable local fixture records. Required gates passed in this run: `npm run build`, `npm run qc:pdm-drawing-submission-workbench-mutation` 33/33, `npm run qc:pdm-drawing-submission-workbench-recovery` 27/27, `npm run qc:db-provider-contract` 35/35, `npm run qc:db-provider-postgres` 9/9, `npm run qc:pdm-submission-conflict-duplicate-active` 14/14, `npm run qc:pdm-drawing-part-workbench-security`, `npm run qc:pdm-drawing-submission-review-only` 14/14, `npx tsc --noEmit --pretty false`, and `npm run lint`. No production deploy, production migration, direct DB cleanup, historical repair, data deletion, provider switch or Phase 2+ implementation was performed.
