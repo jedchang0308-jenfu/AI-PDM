@@ -1,5 +1,13 @@
 import type { LifecycleActionPolicy, LifecycleDetailTag } from "@/lib/pdm-lifecycle-policy";
 
+const NUMBERING_RULE_V2_ID = "numbering-rule-v2";
+
+function parseCompactV2PartNumber(value: string): { rootCode: string; sequenceCode: string } | null {
+  const match = /^([0-9]{5})-P([0-9]{2})$/.exec(value.trim().toUpperCase());
+  if (!match || match[2] === "00") return null;
+  return { rootCode: match[1], sequenceCode: match[2] };
+}
+
 export type PdmChangeControlDatabaseKind = "sqlite" | "postgres";
 export type PdmChangeControlQueryParams = readonly unknown[] | Record<string, unknown>;
 
@@ -1321,47 +1329,62 @@ export class PdmChangeControlDomainService {
   }
 
   private async createReleasedPartNumberFromDraft(companyId: string, draft: PartNumberDraftRecord, actorUserId: string) {
-    const existing = await this.getFormalPartId(companyId, draft.reservedPartNumber);
+    const partNumber = draft.reservedPartNumber.trim().toUpperCase();
+    const identity = parseCompactV2PartNumber(partNumber);
+    if (!identity) {
+      throw new PdmChangeControlError("replacement_part_number_format_invalid", "Replacement release requires a compact v2 part number.");
+    }
+    const existing = await this.getFormalPartId(companyId, partNumber);
     if (existing) throw new PdmChangeControlError("replacement_part_already_released", undefined, { partNumberId: existing });
     const now = this.clock();
-    const rootId = this.idFactory();
-    const partNumberId = this.idFactory();
-    await this.client.execute(
-      `
-      INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (
-        :id, :companyId, :rootCode, :coreName, :itemKind, 'Release', 'Released', 'numbering-rule-v1', :createdBy, :createdAt, :updatedAt
-      )
-      `,
-      {
-        id: rootId,
-        companyId,
-        rootCode: `REL-${draft.id}`,
-        coreName: draft.reservedPartNumber,
-        itemKind: itemKindForDraftItemType(draft.itemType),
-        createdBy: actorUserId,
-        createdAt: now,
-        updatedAt: now
-      }
+    const existingRoot = await this.client.queryOne<{ id: string }>(
+      "SELECT id FROM part_roots WHERE company_id = :companyId AND root_code = :rootCode LIMIT 1",
+      { companyId, rootCode: identity.rootCode }
     );
+    const rootId = existingRoot?.id ?? this.idFactory();
+    const partNumberId = this.idFactory();
+    if (!existingRoot) {
+      await this.client.execute(
+        `
+        INSERT INTO part_roots (
+          id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (
+          :id, :companyId, :rootCode, :coreName, :itemKind, 'Release', 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
+        )
+        `,
+        {
+          id: rootId,
+          companyId,
+          rootCode: identity.rootCode,
+          coreName: partNumber,
+          itemKind: itemKindForDraftItemType(draft.itemType),
+          ruleVersionId: NUMBERING_RULE_V2_ID,
+          createdBy: actorUserId,
+          createdAt: now,
+          updatedAt: now
+        }
+      );
+    }
     await this.client.execute(
       `
       INSERT INTO part_numbers (
         id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
         item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
       ) VALUES (
-        :id, :companyId, :partRootId, :partNumber, 1, '001', :partName,
-        :itemKind, 0, 'Release', 'Released', 'numbering-rule-v1', :createdBy, :createdAt, :updatedAt
+        :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
+        :itemKind, 0, 'Release', 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
       )
       `,
       {
         id: partNumberId,
         companyId,
         partRootId: rootId,
-        partNumber: draft.reservedPartNumber,
-        partName: draft.reservedPartNumber,
+        partNumber,
+        sequenceNo: Number(identity.sequenceCode),
+        sequenceCode: identity.sequenceCode,
+        partName: partNumber,
         itemKind: itemKindForDraftItemType(draft.itemType),
+        ruleVersionId: NUMBERING_RULE_V2_ID,
         createdBy: actorUserId,
         createdAt: now,
         updatedAt: now

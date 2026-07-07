@@ -4,7 +4,7 @@ Date: 2026-07-07
 Related DEV: `DEV-PDM-NUMBERING-002`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBERING-002-compact-root-drawing-part-identity.md`
-Status: QA executed / Verification passed locally for Phase 1-3
+Status: QA executed / Verification passed locally for Phase 1-4 local/runtime formal cutover
 
 ## Validation Objective
 
@@ -21,7 +21,7 @@ Target identities:
 
 ## Scope
 
-Phase 1-3 validation completed after RD authorization:
+Phase 1-4 validation completed after RD and formal-cutover authorization:
 
 - Rule seed and active v2 creation behavior.
 - Five-digit root allocation.
@@ -31,12 +31,13 @@ Phase 1-3 validation completed after RD authorization:
 - Manufacturing/reference helper usage.
 - UI labels/placeholders for creation, search, drawings and impact pages.
 - Import/export sample and regex compatibility.
+- Scripted local/runtime cutover backup, apply/check reporting and zero remaining v1 master rows.
+- Downstream compatibility after actual local/runtime master identity conversion.
 
 Still not authorized:
 
-- Production deploy or Supabase production migration.
-- Applying v1 to v2 migration against real data.
-- Direct DB repair or deletion.
+- External production deploy or Supabase live migration/cutover.
+- Direct/manual DB repair or deletion outside the approved scripted cutover boundary.
 - Project/order/equipment identity linkage.
 - BOM/ERP/equipment history implementation.
 
@@ -107,6 +108,18 @@ Still not authorized:
 | QA-V2-DRYRUN-003 | P0 | Collision | Two old rows mapping to same v2 code are `collision` |
 | QA-V2-DRYRUN-004 | P0 | No mutation | Dry-run leaves source DB unchanged |
 
+### Formal local/runtime cutover checks
+
+| ID | Priority | Case | Expected |
+|---|---|---|---|
+| QA-V2-CUTOVER-001 | P0 | Apply requires explicit apply mode | Default command runs dry-run/check behavior and does not mutate |
+| QA-V2-CUTOVER-002 | P0 | Backup before mutation | Backup file is created and path is recorded |
+| QA-V2-CUTOVER-003 | P0 | Master rows converted | No `D-`, `P-` or four-digit v1 master identities remain in root/part/drawing master tables |
+| QA-V2-CUTOVER-004 | P0 | Rule state switched | `numbering-rule-v1` is retired and `numbering-rule-v2` is active |
+| QA-V2-CUTOVER-005 | P0 | Operational references updated | Submissions, snapshots and supported operational references point to v2 identities |
+| QA-V2-CUTOVER-006 | P1 | Historical evidence retained | Audit/export/file/package evidence strings are not physically renamed or rewritten |
+| QA-V2-CUTOVER-007 | P0 | Post-cutover regression | API/UI/downstream regression suites pass after cutover |
+
 ## Required Evidence
 
 Executed evidence:
@@ -115,7 +128,10 @@ Executed evidence:
 - `npm.cmd run lint -- --quiet`
 - `npm.cmd run qc:pdm-numbering-v2-compact-identity` 13/13
 - `npm.cmd run qc:pdm-numbering-v2-migration-dry-run`
+- `npm.cmd run pdm:numbering-v2:cutover-apply`
+- `npm.cmd run qc:pdm-numbering-v2-formal-cutover` 11/11
 - `npm.cmd run qc:pdm-numbering-core` 241/241
+- `npm.cmd run qc:pdm-change-control` 62/62
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-api-regression` 27/27
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-data-consistency` 16/16
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-concurrency-reuse` 32/32
@@ -127,16 +143,22 @@ Executed evidence:
 - `npm.cmd run qc:master-attachments` 101/101
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-master-workbench-layout` 224/224
 - `npm.cmd run qc:supabase-runtime-migrations` 25/25
+- `npm.cmd run build`
 - Migration dry-run JSON report: `output/qc-pdm-numbering-v2-migration-dry-run/report.json`
 - Migration dry-run Markdown summary: `output/qc-pdm-numbering-v2-migration-dry-run/report.md`
+- Formal cutover apply JSON report: `output/qc-pdm-numbering-v2-cutover/report.json`
+- Formal cutover apply Markdown summary: `output/qc-pdm-numbering-v2-cutover/report.md`
+- Formal cutover check JSON report: `output/qc-pdm-numbering-v2-cutover-check/report.json`
+- Formal cutover check Markdown summary: `output/qc-pdm-numbering-v2-cutover-check/report.md`
+- Local/runtime cutover backup: `data/backups/pdm-numbering-v2-cutover-20260707-052403/ai-pdm.sqlite`
 - Fixture dry-run before/after hash proved no mutation.
-- `npm.cmd run build`: blocked by the intentional local-dev guard because an existing local server was listening on `http://127.0.0.1:3000`; no bypass was used.
 
 ## Pass Criteria
 
 - All P0 cases pass.
 - No v1 row becomes unreadable in local compatibility tests.
 - No normal creation path emits `D-...`, `P-...`, `MA` or `OT` for new v2 records.
+- No v1 master identity remains in the local/runtime root, part or drawing master tables after formal cutover.
 - Reference drawings remain blocked from manufacturing basis.
 - Any capacity/collision issue is reported as blocker, not silently mapped.
 
@@ -145,5 +167,5 @@ Executed evidence:
 - V2 requires deleting or rewriting existing rows before local tests can pass.
 - `drawing_numbers.purpose_code` compatibility cannot be maintained.
 - Existing release/submission/baseline gates cannot support both `MA` and `M`.
-- Production migration, data repair or data deletion is requested.
+- External production/Supabase live migration, provider pointer change, direct/manual data repair or data deletion is requested.
 - More category codes or project/order/equipment roots are needed.

@@ -15,6 +15,14 @@ ON CONFLICT (id) DO UPDATE SET
   rule_json = EXCLUDED.rule_json,
   updated_at = now();
 
+UPDATE numbering_rule_versions
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
+WHERE id = 'numbering-rule-v1';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = now()
+WHERE id = 'numbering-rule-v2';
+
 WITH default_rules (
   id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker

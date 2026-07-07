@@ -986,8 +986,8 @@ try {
     functionState: "no_impact",
     reasonCategory: "材質 / 製程修正",
     currentPartNumberId: releaseOldPart.partId,
-    replacementReservedPartNumber: "P-QC-REL-NEW",
-    detectedPartNumber: "P-QC-REL-NEW",
+    replacementReservedPartNumber: "90001-P01",
+    detectedPartNumber: "90001-P01",
     actor: engineer
   });
   const releaseResult = await service.applyDrawingRevisionReviewAction({
@@ -1014,6 +1014,26 @@ try {
     "CHG-REVIEW-005 confirmed impact release creates part, replacement link, and BOM flag",
     releaseResult.replacementDraft?.status === "released" && replacementLinkCount === 1 && bomFlagCount === 1 && releaseResult.bomReconfirmationFlagCount === 1,
     JSON.stringify({ releaseResult, replacementLinkCount, bomFlagCount })
+  );
+  const releasedReplacementPart = database
+    .prepare(
+      `
+      SELECT pn.part_number, pn.sequence_no, pn.sequence_code, pn.rule_version_id, pr.root_code, pr.rule_version_id AS root_rule_version_id
+      FROM part_numbers pn
+      JOIN part_roots pr ON pr.id = pn.part_root_id
+      WHERE pn.id = ?
+      `
+    )
+    .get(releaseResult.replacementPartNumberId);
+  assert(
+    "CHG-REVIEW-005A confirmed impact release creates compact v2 formal part",
+    releasedReplacementPart?.part_number === "90001-P01" &&
+      releasedReplacementPart.root_code === "90001" &&
+      releasedReplacementPart.sequence_no === 1 &&
+      releasedReplacementPart.sequence_code === "01" &&
+      releasedReplacementPart.rule_version_id === "numbering-rule-v2" &&
+      releasedReplacementPart.root_rule_version_id === "numbering-rule-v2",
+    JSON.stringify(releasedReplacementPart)
   );
   assert(
     "CHG-BOM-001 BOM reconfirmation flag starts unresolved",
@@ -1121,11 +1141,11 @@ try {
     functionState: "no_impact",
     reasonCategory: "尺寸 / 公差修正",
     currentPartNumberId: rollbackOldPart.partId,
-    replacementReservedPartNumber: "P-QC-ROLLBACK-NEW",
-    detectedPartNumber: "P-QC-ROLLBACK-NEW",
+    replacementReservedPartNumber: "90002-P01",
+    detectedPartNumber: "90002-P01",
     actor: engineer
   });
-  seedFormalPart(database, "P-QC-ROLLBACK-NEW");
+  seedFormalPart(database, "90002-P01");
   await expectReject(
     "CHG-REVIEW-006 failed release rolls back transaction",
     () =>

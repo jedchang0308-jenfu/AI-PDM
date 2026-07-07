@@ -1,6 +1,6 @@
 # ADR-PDM-NUMBERING-002 - Compact root, drawing and part identity
 
-Status: Accepted / Implemented locally for new records; production rewrite not authorized
+Status: Accepted / Implemented locally for new records and local/runtime formal cutover; external production/Supabase live cutover not authorized
 Date: 2026-07-07
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
@@ -42,7 +42,7 @@ Rules:
 7. `00` is reserved and not generated.
 8. Reference subtype is metadata, not a number-code expansion.
 9. Existing v1 records remain readable and searchable.
-10. Production migration and existing-data rewrite require separate approval.
+10. Local/runtime existing-master rewrite was approved and executed through the scripted formal cutover path; external production/Supabase live migration still requires separate approval.
 
 ## Options Considered
 
@@ -53,7 +53,7 @@ Rules:
 | Use `00001-M01 / R01 / P01` | Accepted | Short, consistent and preserves the only required visible safety signal. |
 | Add more category codes like install, concept, QC or fixture | Rejected | Metadata should carry subtype; visible code expansion will recreate smart-number complexity. |
 | Let root represent a project or equipment order | Rejected | Blocks reuse and quickly exhausts per-root sequence capacity. |
-| Convert all old records immediately | Rejected for this ADR | Requires dry-run, backup, approval and release gate. |
+| Convert all old records immediately without dry-run/check | Rejected | Requires dry-run/check, backup, approval and cutover gate evidence. |
 
 ## Consequences
 
@@ -69,9 +69,9 @@ Costs and tradeoffs:
 
 - Code and UI must move from literal `MA/OT` checks to semantic helper functions.
 - Schema and validators must support both v1 and v2 during transition.
-- Some old documentation, QA screenshots and evidence will still contain v1 examples.
+- Some old documentation, QA screenshots and retained evidence strings will still contain v1 examples.
 - Two-digit sequences require PM review if a root exceeds 99 per category.
-- Existing production data cannot be rewritten without a migration plan.
+- External production/Supabase live data cannot be rewritten without target-specific migration and release-gate approval.
 
 ## Migration / Compatibility Impact
 
@@ -84,6 +84,7 @@ Implementation must:
 - Update normal creation flows to generate only v2 codes.
 - Keep import/migration paths able to read v1 rows.
 - Provide dry-run mapping before any existing-data rewrite.
+- Apply local/runtime master rewrite only through the approved cutover script with backup, check mode, retained-evidence policy and formal QC.
 
 Required dry-run examples:
 
@@ -94,10 +95,23 @@ D-0001-MA1 -> 00001-M01
 D-0001-OT1 -> 00001-R01
 ```
 
+Implemented local/runtime cutover mapping:
+
+```text
+0007 -> 00007
+0014 -> 00014
+P-0007-001 -> 00007-P01
+P-0014-001 -> 00014-P01
+D-0007-MA1 -> 00007-M01
+D-0014-MA1 -> 00014-M01
+```
+
+Historical audit/export/file/package evidence strings are intentionally retained as evidence, not rewritten.
+
 Blocked without explicit approval:
 
-- Production migration.
-- Direct DB update of old numbers.
+- External production/Supabase live migration.
+- Direct/manual DB update of old numbers outside the approved scripted cutover boundary.
 - Data deletion.
 - Root reinterpretation as project/order/equipment.
 - More visible category codes.
@@ -108,7 +122,7 @@ This ADR amends:
 
 - `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
 
-It does not invalidate historical v1 rows or v1 QA evidence. v1 remains the rule for records created under `numbering-rule-v1`; v2 is now the local target rule for new normal records. Production cutover and applying a v1-to-v2 rewrite remain separately gated.
+It does not invalidate historical v1 QA evidence or retained audit/export/file evidence. `numbering-rule-v1` is retired in the local/runtime DB after formal cutover; `numbering-rule-v2` is active for normal records. External production/Supabase live cutover remains separately gated.
 
 ## Enforcement
 
@@ -120,4 +134,4 @@ RD must not mark implementation complete until:
 - gate logic uses manufacturing/reference semantics rather than raw string literals.
 - `R/OT` cannot be used as manufacturing basis.
 - `P00/M00/R00` are not generated.
-- migration remains dry-run only unless separately approved.
+- local/runtime cutover uses the approved scripted backup/apply/check/QC path.

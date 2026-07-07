@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: d0fe35e54ebaa4f74144cf0ef793c251c1415054af715c76765bcd0214924f9f
+-- Source SHA-256: 367f3c7cfdb94e8d2d8faedc11731798e465f3d3a16e56eb06a4200408da2d47
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -688,12 +688,13 @@ CREATE TABLE IF NOT EXISTS numbering_rule_versions (
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
-INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json)
 VALUES (
   'numbering-rule-v1',
   'PDM-NUMBERING-V1',
   'PDM numbering rule v1',
-  'active',
+  'retired',
+  now(),
   '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -708,6 +709,14 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+UPDATE numbering_rule_versions
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
+WHERE id = 'numbering-rule-v1';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = now()
+WHERE id = 'numbering-rule-v2';
+
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -716,7 +725,7 @@ CREATE TABLE IF NOT EXISTS part_roots (
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v1',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -741,7 +750,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   universal_reason TEXT,
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v1',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -764,7 +773,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v1',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

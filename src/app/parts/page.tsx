@@ -226,6 +226,7 @@ export default function PartsPage() {
     }
     const response = await fetch(`/api/parts/${encodeURIComponent(partNumber)}`);
     const body = await response.json().catch(() => ({}));
+    if (selectedPartNumberRef.current !== partNumber) return;
     if (response.ok) {
       setDetail(body.part);
     } else {

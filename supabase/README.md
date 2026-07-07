@@ -36,6 +36,7 @@ Set `PDM_SUPABASE_TARGET_NAME=AI_PDM_STAGING` or `AI_PDM_PROD` when running live
 supabase/migrations/20260608000100_initial_ai_pdm_schema.sql
 supabase/migrations/20260608000200_force_rls_deny_direct_access.sql
 supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql
+supabase/migrations/20260707000000_numbering_v2_compact_identity.sql
 supabase/migrations/manifest.json
 ```
 
@@ -44,6 +45,9 @@ The SQL files include source SHA-256 comments so they can be traced back to:
 - `db/postgres/001_initial_schema.sql`
 - `db/postgres/002_supabase_rls_plan.sql`
 - `db/postgres/003_harden_set_updated_at_search_path.sql`
+- `db/postgres/004_numbering_v2_compact_identity.sql`
+
+The compact numbering migration adds `numbering-rule-v2`, retires `numbering-rule-v1` for new normal creation, and keeps direct table access denied by default. Application access remains through the server-side API unless a separate RLS/Data API exposure design is approved.
 
 ## Local Migration Mirror Workflow
 

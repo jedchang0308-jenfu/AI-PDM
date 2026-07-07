@@ -1,6 +1,6 @@
 -- Add compact PDM numbering v2 seed and allow M/R drawing purpose codes
 -- Source: db/postgres/004_numbering_v2_compact_identity.sql
--- Source SHA-256: 62495c1cd2c1fa5f4d1ff7e002a46114048459f63fbb36ba831038323c2b4c4d
+-- Source SHA-256: ae8a46c3aceb1524e1318470eb57217e47177a85087f7558dd16e0ca9b2446e0
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 BEGIN;
@@ -19,6 +19,14 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   rule_json = EXCLUDED.rule_json,
   updated_at = now();
+
+UPDATE numbering_rule_versions
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
+WHERE id = 'numbering-rule-v1';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = now()
+WHERE id = 'numbering-rule-v2';
 
 WITH default_rules (
   id, rule_name, action_code, phase, record_status, item_kind, risk_flag,

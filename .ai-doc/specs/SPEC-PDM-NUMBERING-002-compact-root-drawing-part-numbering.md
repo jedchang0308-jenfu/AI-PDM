@@ -1,6 +1,6 @@
 # SPEC-PDM-NUMBERING-002 - Compact root, drawing and part numbering v2
 
-Status: Implemented / Verification passed locally for Phase 1-3
+Status: Implemented / Verification passed locally for Phase 1-4 local/runtime formal cutover
 Date: 2026-07-07
 Owner: Dev PM
 Related DEV: `DEV-PDM-NUMBERING-002`
@@ -41,7 +41,7 @@ Re-entry triggers:
 - User wants roots to represent customer projects, orders, equipment serial numbers or whole-machine projects.
 - User wants more than `P/M/R` visible category codes.
 - A real migration dry-run finds any root that would exceed `P01-P99`, `M01-M99` or `R01-R99`.
-- RD needs production migration, existing-data rewrite, direct DB repair, deletion or provider cutover.
+- RD needs external production/Supabase live cutover, direct DB repair/deletion outside the scripted cutover boundary or provider pointer change.
 
 ## Problem
 
@@ -75,7 +75,7 @@ drawing: 00001-M01 / 00001-R01
 
 ## Scope
 
-Phase 1-3 local implementation scope completed after explicit RD authorization:
+Phase 1-4 local/runtime implementation scope completed after explicit RD and formal-cutover authorization:
 
 - Add `numbering-rule-v2` as the active rule for new local numbering records.
 - Generate five-digit root codes.
@@ -86,11 +86,14 @@ Phase 1-3 local implementation scope completed after explicit RD authorization:
 - Keep v1 records searchable, displayable and release-gate compatible.
 - Update import/export examples, regex validators and QC scripts for v1/v2 compatibility.
 - Prepare dry-run migration reporting for existing v1 records.
+- Apply the reviewed local/runtime v1-to-v2 master identity cutover through the scripted cutover path.
+- Retire `numbering-rule-v1`, activate `numbering-rule-v2`, update operational references and preserve historical audit/export/file/package evidence strings.
+- Produce backup, apply report, independent check report and formal cutover QC evidence.
 
 ## Out of Scope
 
-- Production deployment, Supabase production migration or provider pointer changes.
-- Direct rewriting of existing user data without dry-run evidence and explicit approval.
+- External production deployment, Supabase live migration/cutover or provider pointer changes.
+- Direct/manual rewriting of existing user data outside the approved scripted cutover path.
 - Project/order/equipment-number design.
 - BOM redesign, ERP project linkage or equipment history implementation.
 - Adding new visible number codes beyond `P`, `M` and `R`.
@@ -269,7 +272,7 @@ UI changes:
 
 ## Migration And Compatibility Strategy
 
-Phase 1 does not rewrite existing data.
+Phase 1 did not rewrite existing data. Phase 4 local/runtime formal cutover rewrote master numbering identities only after dry-run evidence, backup and explicit user authorization.
 
 Required dry-run mapping:
 
@@ -289,7 +292,7 @@ Dry-run must detect:
 - Any record whose root cannot be inferred safely.
 - Any reference in `submissions`, `submission_snapshots`, `file_references`, BOM lines, attachment metadata or audit reports that would need update.
 
-Migration must not execute until dry-run evidence is reviewed and explicitly approved.
+External production/Supabase live migration must not execute until cutover evidence is reviewed again against the target environment and explicitly approved.
 
 ## Phase Roadmap
 
@@ -299,7 +302,8 @@ Migration must not execute until dry-run evidence is reviewed and explicitly app
 | Phase 1 - Local v2 creation and compatibility | Implemented / Verification passed locally | New records use compact v2, while v1 remains readable and searchable. | Authorized and completed locally on 2026-07-07. |
 | Phase 2 - Import/export and migration dry-run | Implemented / Verification passed locally | Report how existing v1 data maps to v2 and identify blockers. | Authorized and completed as dry-run only on 2026-07-07. |
 | Phase 3 - Downstream module compatibility | Implemented / Verification passed locally | Ensure submissions, revisions, baselines, previews and reports handle v1/v2 semantics. | Authorized and completed locally on 2026-07-07. |
-| Phase 4 - Production cutover | Release Gate Contract Ready / Not Authorized | Apply production migration/cutover only with rollback and smoke evidence. | Requires deployment-release gate. |
+| Phase 4 - Local/runtime formal cutover | Implemented / Verification passed locally | Apply reviewed v1-to-v2 master identity rewrite to the local runtime DB with backup, check mode and smoke/regression evidence. | Authorized and completed locally on 2026-07-07. |
+| Phase 5 - External production/Supabase live cutover | Release Gate Contract Ready / Not Authorized | Apply target-environment migration/cutover only with backup, rollback and smoke evidence. | Requires deployment-release gate and explicit target approval. |
 
 ## RD Handoff Contract
 
@@ -389,21 +393,46 @@ Acceptance:
 - `OT/R` remain blocked from manufacturing-basis use.
 - No user-facing normal workflow requires knowing `MA/OT`.
 
-### Phase 4 - Production cutover
+### Phase 4 - Local/runtime formal cutover
 
 Scope:
 
-- Production migration plan, backup, rollback, dry-run evidence review, staging smoke, deployment and post-deploy smoke.
+- Scripted local/runtime cutover with default dry-run/check behavior and explicit `--apply`.
+- Backup local SQLite DB before mutation.
+- Convert v1 master rows to v2 master identities.
+- Update operational references in submissions, snapshots, BOM/baseline/revision/change-control records and supported JSON payloads.
+- Retire `numbering-rule-v1` and activate `numbering-rule-v2`.
+- Preserve historical evidence strings in audit logs, export jobs, file assets, release packages and submission files.
+- Produce apply report, independent check report and formal QC report.
 
 Out of scope:
 
-- Any production work before release gate approval.
+- External production/Supabase live cutover before release gate approval.
+- Physical file rename or historical evidence rewrite.
 
 Acceptance:
 
-- Release gate evidence is complete.
+- Backup path exists and is recorded.
+- Apply report shows zero blocked mappings and zero remaining v1 master rows.
+- Independent check report shows zero remaining v1 master rows.
+- Formal cutover QC passes.
+- Runtime API/UI and downstream regression suites pass after cutover.
+
+### Phase 5 - External production/Supabase live cutover
+
+Scope:
+
+- Target-environment backup, migration/cutover, rollback rehearsal or accepted rollback plan, deployment and post-deploy smoke.
+
+Out of scope:
+
+- Any ungated production/provider pointer change.
+
+Acceptance:
+
+- Release gate evidence is complete for the actual target.
 - Rollback plan exists and was rehearsed or explicitly accepted.
-- Post-deploy smoke proves v1 historical rows and v2 new rows both work.
+- Post-deploy smoke proves v2 master identity and retained historical evidence behavior.
 
 ## Local Implementation Evidence
 
@@ -415,6 +444,10 @@ Completed implementation:
 - Downstream manufacturing checks use `MA/M` semantics and keep `OT/R` reference-only.
 - Added compact numbering runtime migration `db/postgres/004_numbering_v2_compact_identity.sql` and synchronized Supabase migration `supabase/migrations/20260707000000_numbering_v2_compact_identity.sql`.
 - Added migration dry-run report generation under `output/qc-pdm-numbering-v2-migration-dry-run/`.
+- Added formal cutover script `scripts/pdm-numbering-v2-cutover.mjs` and formal QC gate `scripts/qc-pdm-numbering-v2-formal-cutover.mjs`.
+- Applied local/runtime cutover with backup `data/backups/pdm-numbering-v2-cutover-20260707-052403/ai-pdm.sqlite`.
+- Converted local/runtime master identities: `0007/0014` to `00007/00014`, `P-0007-001/P-0014-001` to `00007-P01/00014-P01`, and `D-0007-MA1/D-0014-MA1` to `00007-M01/00014-M01`.
+- Updated operational references and intentionally retained historical evidence strings in audit/export/file/package records.
 - Updated focused QC scripts for v2 formats, downstream helper usage, mobile master identity layout and Supabase migration manifest coverage.
 
 Verification passed:
@@ -423,7 +456,10 @@ Verification passed:
 - `npm.cmd run lint -- --quiet`
 - `npm.cmd run qc:pdm-numbering-v2-compact-identity` 13/13
 - `npm.cmd run qc:pdm-numbering-v2-migration-dry-run`
+- `npm.cmd run pdm:numbering-v2:cutover-apply`
+- `npm.cmd run qc:pdm-numbering-v2-formal-cutover` 11/11
 - `npm.cmd run qc:pdm-numbering-core` 241/241
+- `npm.cmd run qc:pdm-change-control` 62/62
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-api-regression` 27/27
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-data-consistency` 16/16
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-concurrency-reuse` 32/32
@@ -435,21 +471,22 @@ Verification passed:
 - `npm.cmd run qc:master-attachments` 101/101
 - `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-master-workbench-layout` 224/224
 - `npm.cmd run qc:supabase-runtime-migrations` 25/25
+- `npm.cmd run build`
 
 Build gate:
 
-- `npm.cmd run build` was blocked by the intentional local-dev guard because PID 30948 was already listening on `http://127.0.0.1:3000`; no bypass was used.
+- `npm.cmd run build` passed after stopping the project-owned local server.
 
 ## RD Readiness Review
 
-Phase 1-3 P0/P1 readiness gaps: none known for local implementation after the evidence above.
+Phase 1-4 P0/P1 readiness gaps: none known for local/runtime implementation after the evidence above.
 
 Required engineering decisions are already specified:
 
 - Schema compatibility must allow v1 and v2 purpose codes during transition.
 - Semantics must be helper-based, not literal-string scattered.
-- Migration is dry-run first.
-- Production cutover is gated.
+- Migration is dry-run/check first and apply requires explicit authorization.
+- External production/Supabase live cutover is gated.
 
 ## QA/QC Gate Summary
 
@@ -469,7 +506,7 @@ Stop and return to PM/user if:
 
 - Any v2 implementation would invalidate existing v1 rows.
 - A root requires more than 99 sequence values in a category.
-- Production migration or direct data rewrite is needed.
+- External production/Supabase live migration, provider pointer change or direct/manual data rewrite is needed.
 - Project/order/equipment identity must be designed in the same scope.
 - A downstream module requires changing business semantics beyond number parsing/display.
 - A reference drawing is requested to become manufacturing-authorized without becoming an `M` drawing.
@@ -478,9 +515,9 @@ Stop and return to PM/user if:
 
 | Deferred scope | Classification | Handling |
 |---|---|---|
-| Applying existing-data rewrite from v1 to v2 | Same Spec Phase 4 / Not Authorized | Dry-run evidence exists; applying changes to real data still requires explicit approval, backup and release/data gate. |
-| Downstream submission/revision/baseline/report compatibility | Same Spec Phase 3 / Completed locally | Semantic compatibility implemented and verified; production evidence remains part of Phase 4 if deployed. |
-| Production deployment/migration | Same Spec Phase 4 / Not Authorized | Requires deployment-release gate. |
+| Applying existing-data rewrite from v1 to v2 in local/runtime DB | Same Spec Phase 4 / Completed locally | Completed through scripted cutover after dry-run evidence, backup and explicit approval. |
+| Downstream submission/revision/baseline/report compatibility | Same Spec Phase 3 / Completed locally | Semantic compatibility implemented and verified; external production evidence belongs to Phase 5 if deployed. |
+| External production/Supabase live deployment/migration | Same Spec Phase 5 / Not Authorized | Requires deployment-release gate and explicit target approval. |
 | Project/order/equipment numbering | Blocked Human Re-entry | Must be separately decided because it changes product scope. |
 | More visible category codes | Blocked Human Re-entry | User currently wants only manufacturing/reference/part signal. |
 | Retiring v1 read paths | No Tracking for now | Rejected for safety; historical records must remain readable. |
@@ -494,4 +531,5 @@ Stop and return to PM/user if:
 | Phase 1 / local v2 creation | Authorized | Implemented / Verification passed locally | v2 rule, repositories, API, UI, semantic helpers, QC | Migration, production, downstream rewrite | User RD authorization | v2 create/search/gate tests pass | tsc, lint, focused QC, numbering regressions |
 | Phase 2 / migration dry-run | Authorized for dry-run only | Implemented / Verification passed locally | v1 to v2 dry-run report | Applying migration | Phase 1 local implementation | collision/capacity report generated; no mutation | dry-run QC |
 | Phase 3 / downstream compatibility | Authorized | Implemented / Verification passed locally | submissions, revisions, baselines, previews, reports | New business semantics | Phase 1-2 local evidence | v1/v2 both work in downstream gates | regression QC |
-| Phase 4 / production cutover | Not authorized | Release Gate Contract Ready / Not Authorized | production migration/deploy/smoke/rollback | Any ungated production change | release gate approval | production smoke pass and rollback ready | deployment-release-gate evidence |
+| Phase 4 / local-runtime formal cutover | Authorized | Implemented / Verification passed locally | scripted local DB cutover, backup, operational reference update, formal QC | external production/Supabase live cutover, physical evidence rename | Phase 1-3 verified evidence and explicit cutover authorization | zero blocked mappings, zero v1 master rows, regression QC pass | backup, apply/check reports, formal QC, build |
+| Phase 5 / external production-Supabase live cutover | Not authorized | Release Gate Contract Ready / Not Authorized | production migration/deploy/smoke/rollback | Any ungated production/provider pointer change | release gate approval for actual target | production smoke pass and rollback ready | deployment-release-gate evidence |

@@ -247,7 +247,7 @@ type SettingsSecretStatus = {
 };
 
 const emptyRuleDraft: RuleDraft = {
-  ruleVersionId: "numbering-rule-v1",
+  ruleVersionId: "numbering-rule-v2",
   ruleName: "",
   actionCode: "",
   phase: null,
