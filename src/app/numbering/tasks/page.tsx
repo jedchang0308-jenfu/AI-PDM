@@ -354,7 +354,7 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
               <th>主根號</th>
               <th>圖料</th>
               <th>
-                <StatusColumnHeader label="階段 / 狀態" context="masterRecord" />
+                <StatusColumnHeader label="狀態 / 階段" context="masterRecord" />
               </th>
               <th>現在卡點</th>
               <th>操作</th>
@@ -456,9 +456,7 @@ function NotificationList({
             <th>通知</th>
             <th>角色</th>
             <th>建立時間</th>
-            <th>
-              <StatusColumnHeader context="notification" />
-            </th>
+            <th>讀取 / 處理</th>
             <th>操作</th>
           </tr>
         </thead>

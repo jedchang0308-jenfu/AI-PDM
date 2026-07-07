@@ -1,6 +1,6 @@
 # SPEC-PDM-STATUS-UX-002：狀態語意分層與狀態混用修正
 
-狀態：RD Implementation Ready / Not Authorized  
+狀態：Phase 1 Implemented / verification passed locally; Phase 2 RD Contract Ready / Not Authorized  
 建立日期：2026-07-07  
 關聯任務：`DEV-PDM-STATUS-UX-002`  
 父交付點：`DEV-PDM-STATUS-UX-001`  
@@ -221,8 +221,8 @@ QC 必須驗證：
 
 ### Phase 1：狀態說明語意修正
 
-Authorization: Not authorized.  
-Document status: RD Implementation Ready / Not Authorized.
+Authorization: Authorized by the user's 2026-07-07 `執行開發` instruction.  
+Implementation status: Implemented / verification passed locally.
 
 Scope:
 
@@ -299,7 +299,7 @@ Evidence required:
 
 | Phase / DEV | Authorization | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
-| Phase 1 / `DEV-PDM-STATUS-UX-002` | Not authorized | RD Implementation Ready / Not Authorized | 修正狀態說明語意、context 分層、混合欄名與 focused QC | DB/API/schema、production、歷史資料修復 | 使用者明確授權 RD 實作 | 受影響頁面狀態說明只解釋當下欄位；context mismatch 被 QC 覆蓋 | `tsc`; lint; focused QC; Playwright |
+| Phase 1 / `DEV-PDM-STATUS-UX-002` | Authorized and implemented locally | Implemented / verification passed locally | 修正狀態說明語意、context 分層、混合欄名與 focused QC | DB/API/schema、production、歷史資料修復 | Completed on 2026-07-07 | 受影響頁面狀態說明只解釋當下欄位；context mismatch 被 QC 覆蓋 | `tsc`; lint; focused QC 81/81; Playwright |
 | Phase 2 / `DEV-PDM-STATUS-UX-002-P2` | Not authorized | RD Contract Ready / Not Authorized | 防回歸 scanner、negative fixture、新模組 checklist | DB/API/schema、production | Phase 1 完成並授權 hardening | context 誤用與缺漏說明可被 deterministic QC 攔下 | Static QC negative fixture |
 
 ## 13. RD Readiness Review
@@ -314,4 +314,34 @@ Reasoning:
 - 高風險項目已列為 out of scope / stop conditions。
 - QA/QC gate 可由現有 Playwright 與 static scanner 擴充完成。
 
-RD 可在使用者授權後直接實作 Phase 1。Phase 2 僅達 RD Contract Ready / Not Authorized。
+Phase 1 has been implemented and locally verified after user authorization. Phase 2 remains RD Contract Ready / Not Authorized.
+
+## 14. Phase 1 Implementation Evidence
+
+Implemented on 2026-07-07:
+
+- Added task/import row/import batch/settings lifecycle/job/restore policy/DVT readiness presentation contexts in `src/lib/status-display.ts`.
+- Updated high-risk pages to use context-specific status help: tasks, imports, settings, reports, approvals, DVT, BOM restore, part draft restore and mixed master-data lists.
+- Changed approval wording from `待補件` to `待補資料` where the subject is approval status, not attachment supplement.
+- Renamed mixed list columns from `其他` to `狀態 / 階段 / 提醒`.
+- Expanded `scripts/qc-pdm-status-ui-vocabulary.mjs` for Phase 1 context checks.
+
+Verification:
+
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- `npm.cmd run lint -- --quiet`: passed.
+- `npm.cmd run qc:pdm-status-ui-vocabulary`: passed 81/81.
+- Browser status-context check: passed 73/73 for `/numbering/tasks`, `/numbering/imports`, `/settings`, `/numbering/reports`, `/numbering/approvals`.
+- Browser DVT status-context check with QC-owned temporary fixture: passed 11/11.
+- Browser 390px task status popover sanity: passed 4/4.
+- Screenshots: `output/playwright/status-context-disambiguation/`.
+- `npm.cmd run dev:local:check`: passed.
+
+Not performed:
+
+- DB/API/schema migration.
+- production deploy or production migration.
+- historical repair or direct mutation of existing user data.
+- audit raw-payload migration.
+- backend workflow semantic change.
+- Phase 2 scanner hardening/checklist.

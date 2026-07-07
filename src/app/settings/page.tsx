@@ -1970,7 +1970,10 @@ function RoleAssignmentPanel({
                   </td>
                   <td>{assignment.reason}</td>
                   <td>{formatDateTime(assignment.assignedAt)}</td>
-                  <td>{assignment.revokedAt ? `已撤銷 ${formatDateTime(assignment.revokedAt)}` : "有效"}</td>
+                  <td>
+                    <StatusBadge status={assignment.revokedAt ? "revoked" : "active"} context="settingsLifecycle" />
+                    {assignment.revokedAt ? <p style={{ color: "var(--muted)", fontSize: "0.8rem", margin: "0.2rem 0 0" }}>{formatDateTime(assignment.revokedAt)}</p> : null}
+                  </td>
                   <td>
                     <button className="secondary-button" type="button" disabled={Boolean(assignment.revokedAt)} onClick={() => onRevoke(assignment.id)}>
                       撤銷
@@ -2148,7 +2151,9 @@ function RoleScopePanel({
                 <td>{matrix.roles.find((role) => role.id === scope.roleId)?.title ?? scope.roleId}</td>
                 <td>{scopeKindLabel(scope.scopeKind)}</td>
                 <td>{scope.scopeCode}</td>
-                <td>{scope.allowed ? "啟用" : "停用"}</td>
+                <td>
+                  <StatusBadge status={scope.allowed ? "active" : "disabled"} context="settingsLifecycle" />
+                </td>
                 <td>
                   <button className="secondary-button" type="button" onClick={() => onToggle(scope, !scope.allowed)}>
                     {scope.allowed ? "停用" : "啟用"}
@@ -2274,7 +2279,10 @@ function DelegationPanel({
                   {(delegation.startsAt ? formatDateTime(delegation.startsAt) : "立即")} - {delegation.endsAt ? formatDateTime(delegation.endsAt) : "未設定"}
                 </td>
                 <td>{delegation.reason}</td>
-                <td>{delegation.revokedAt ? `已撤銷 ${formatDateTime(delegation.revokedAt)}` : "啟用"}</td>
+                <td>
+                  <StatusBadge status={delegation.revokedAt ? "revoked" : "active"} context="settingsLifecycle" />
+                  {delegation.revokedAt ? <p style={{ color: "var(--muted)", fontSize: "0.8rem", margin: "0.2rem 0 0" }}>{formatDateTime(delegation.revokedAt)}</p> : null}
+                </td>
                 <td>
                   <button className="secondary-button" type="button" disabled={Boolean(delegation.revokedAt)} onClick={() => onRevoke(delegation.id)}>
                     撤銷

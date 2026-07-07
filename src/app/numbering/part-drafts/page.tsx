@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, History, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -423,7 +423,7 @@ function DeletedDraftTable({
             </th>
             <th>來源</th>
             <th>
-              <StatusColumnHeader label="還原狀態" context="workflow" />
+              <StatusColumnHeader label="還原狀態" context="restorePolicy" />
             </th>
             <th>動作</th>
           </tr>
@@ -454,7 +454,10 @@ function DeletedDraftTable({
                   <div>{deleted.draft.sourcePartNumber ?? deleted.draft.sourcePartNumberId ?? "未指定來源料號"}</div>
                   <div style={mutedTextStyle}>{deleted.draft.sourceDrawingNumber ?? deleted.draft.sourceDrawingNumberId ?? "未指定來源圖號"}</div>
                 </td>
-                <td>{canRestore ? <span style={mutedTextStyle}>可還原到草稿清單</span> : <span style={errorTextStyle}>{restoreState?.message ?? "不可還原"}</span>}</td>
+                <td>
+                  <StatusBadge status={canRestore ? "restore_allowed" : "restore_blocked"} context="restorePolicy" />
+                  <div style={canRestore ? mutedTextStyle : errorTextStyle}>{canRestore ? "可還原到草稿清單" : restoreState?.message ?? "不可還原"}</div>
+                </td>
                 <td>
                   <IconAction
                     busy={busyId === `${deleted.draft.id}:restore` || loading}

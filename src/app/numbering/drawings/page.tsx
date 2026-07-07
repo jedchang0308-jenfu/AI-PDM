@@ -511,7 +511,7 @@ export default function DrawingNumbersPage() {
                         <th>品名</th>
                         <th>料號</th>
                         <th>
-                          <StatusColumnHeader label="其他" context="masterRecord" />
+                          <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
                         </th>
                       </tr>
                     </thead>
@@ -555,7 +555,7 @@ export default function DrawingNumbersPage() {
                               <span style={mutedStyle}>尚未關聯</span>
                             )}
                           </td>
-                          <td data-label="其他">
+                          <td data-label="狀態 / 階段 / 提醒">
                             <div className="pdm-meta-strip">
                               <StatusBadge status={drawing.recordStatus} context="masterRecord" />
                               {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}

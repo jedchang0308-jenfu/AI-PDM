@@ -619,7 +619,7 @@ function PartList({
               <th>品名</th>
               <th>圖號</th>
               <th>
-                <StatusColumnHeader label="其他" context="masterRecord" />
+                <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
               </th>
             </tr>
           </thead>
@@ -643,7 +643,7 @@ function PartList({
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
                   <div className="pdm-identity-meta">{part.drawingCount > 0 ? `${part.drawingCount} 個圖號` : "尚無圖號關聯"}</div>
                 </td>
-                <td data-label="其他">
+                <td data-label="狀態 / 階段 / 提醒">
                   <div className="pdm-meta-strip">
                     <StatusBadge status={part.recordStatus} context="masterRecord" />
                     <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
@@ -1177,7 +1177,9 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
             <tr>
               <th>共用 3D</th>
               <th>Hash</th>
-              <th>狀態</th>
+              <th>
+                <StatusColumnHeader context="masterRecord" />
+              </th>
               <th>發行時間</th>
             </tr>
           </thead>

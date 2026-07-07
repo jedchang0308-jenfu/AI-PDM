@@ -677,7 +677,7 @@ function SearchResultsTable({
               <th>品名</th>
               <th>料號</th>
               <th>
-                <StatusColumnHeader label="其他" context="masterRecord" />
+                <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
               </th>
             </tr>
           </thead>
@@ -715,7 +715,7 @@ function SearchResultsTable({
                     <div className="pdm-identity-code">{partIdentity}</div>
                     <div className="pdm-identity-meta">{result.entityType === "part_root" ? `${result.partCount} 筆料號` : entityLabel(result.entityType)}</div>
                   </td>
-                  <td data-label="其他">
+                  <td data-label="狀態 / 階段 / 提醒">
                     <div className="pdm-meta-strip">
                       {drawingIdentity ? <span className="pdm-meta-chip">{drawingIdentity}</span> : null}
                       {result.entityType === "drawing_number" ? <span className="pdm-meta-chip">{purposeLabel(result.purposeCode ?? "OT")}</span> : null}

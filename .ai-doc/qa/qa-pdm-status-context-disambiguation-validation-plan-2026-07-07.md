@@ -1,6 +1,6 @@
 # QA：PDM 狀態語意分層與狀態混用修正驗證計畫
 
-狀態：RD Contract Ready / Not Authorized  
+狀態：Phase 1 verification passed locally; Phase 2 RD Contract Ready / Not Authorized  
 建立日期：2026-07-07  
 關聯 DEV：`DEV-PDM-STATUS-UX-002`  
 關聯 SPEC：`.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
@@ -102,6 +102,16 @@ Minimum evidence for Phase 1 completion:
 - Focused status context QC command result
 - Playwright report JSON or console JSON listing route, opened popover labels, clipping status and visible error sweep
 - Screenshots for high-risk routes under `output/playwright/status-context-disambiguation/`
+
+Local evidence captured on 2026-07-07:
+
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- `npm.cmd run lint -- --quiet`: passed.
+- `npm.cmd run qc:pdm-status-ui-vocabulary`: passed 81/81.
+- Browser status-context check: passed 73/73 for tasks/imports/settings/reports/approvals.
+- Browser DVT status-context check with QC-owned temporary fixture: passed 11/11.
+- Browser 390px task status popover sanity: passed 4/4.
+- Screenshots saved under `output/playwright/status-context-disambiguation/`.
 
 ## 8. Stop Conditions
 
