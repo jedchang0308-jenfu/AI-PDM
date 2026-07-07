@@ -1,5 +1,21 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  NUMBERING_RULE_V1_ID,
+  NUMBERING_RULE_V2_ID,
+  assertPurposeAllowedForRule,
+  displayDrawingPurposeLabel,
+  formatDrawingNumberForRule,
+  formatDrawingSequenceForRule,
+  formatPartNumberForRule,
+  formatPartSequenceForRule,
+  formatRootCodeForRule,
+  isManufacturingDrawingPurpose,
+  isReferenceDrawingPurpose,
+  isV2DrawingNumber,
+  isV2PartNumber,
+  isV2RootCode
+} from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import type {
   ApprovalHardRule,
@@ -672,7 +688,7 @@ export type NumberingRootBundleRecord = {
   drawingNumbers: DrawingNumberRecord[];
 };
 
-const DEFAULT_RULE_VERSION_ID = "numbering-rule-v1";
+const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID;
 const DEFAULT_COMPANY_ID = "company-jenfu";
 const DEFAULT_ROLE_PRIORITY = ["system_admin", "pdm_admin", "rd_manager", "document_admin", "qa", "rd"];
 
@@ -767,6 +783,10 @@ const STANDARD_APPROVAL_RULE_DEFAULTS = [
   ["approval-rule-released-same-drawing-variant", 1, "rd_manager", 1, 1, 1, 1],
   ["approval-rule-main-drawing-restore", 1, "pdm_admin", 1, 0, 1, 1]
 ] as const;
+
+function approvalRuleIdForRuleVersion(id: string, ruleVersionId: string) {
+  return ruleVersionId === NUMBERING_RULE_V2_ID ? `v2-${id}` : id;
+}
 
 export const SELECT_ASYNC_PART_ROOT_BY_CODE_SQL = `
   SELECT *
@@ -914,6 +934,27 @@ export const SELECT_ASYNC_ADMIN_APPROVAL_RULES_SQL = `
   FROM approval_rules
   WHERE rule_version_id = :ruleVersionId
   ORDER BY action_code ASC, COALESCE(phase, '') ASC, rule_name ASC
+`;
+
+export const COUNT_ASYNC_ADMIN_APPROVAL_RULES_BY_VERSION_SQL = `
+  SELECT COUNT(*) AS count
+  FROM approval_rules
+  WHERE rule_version_id = :ruleVersionId
+`;
+
+export const INSERT_ASYNC_DEFAULT_APPROVAL_RULES_FOR_VERSION_SQL = `
+  INSERT INTO approval_rules (
+    id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+    requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
+  )
+  SELECT
+    :targetIdPrefix || id, :targetRuleVersionId, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+    requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, :createdAt, :updatedAt
+  FROM approval_rules
+  WHERE rule_version_id = :sourceRuleVersionId
+    AND NOT EXISTS (
+      SELECT 1 FROM approval_rules WHERE rule_version_id = :targetRuleVersionId
+    )
 `;
 
 export const SELECT_ASYNC_ADMIN_APPROVAL_RULES_BY_ACTION_SQL = `
@@ -1617,7 +1658,7 @@ export const SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL = `
            JOIN drawing_numbers d ON d.id = l.drawing_number_id
            WHERE l.part_number_id = p.id
              AND l.link_type = 'primary_manufacturing'
-             AND d.purpose_code = 'MA'
+             AND d.purpose_code IN ('MA', 'M')
              AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
            ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
            LIMIT 1
@@ -1713,7 +1754,7 @@ export const SELECT_ASYNC_PRIMARY_MANUFACTURING_DRAWING_FOR_PART_SQL = `
   JOIN drawing_numbers d ON d.id = l.drawing_number_id
   WHERE l.part_number_id = :partNumberId
     AND l.link_type = 'primary_manufacturing'
-    AND d.purpose_code = 'MA'
+    AND d.purpose_code IN ('MA', 'M')
     AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
   LIMIT 1
 `;
@@ -2190,7 +2231,7 @@ export const SELECT_ASYNC_NUMBERING_SEARCH_ROOTS_BASE_SQL = `
     (
       SELECT d.drawing_number
       FROM drawing_numbers d
-      WHERE d.part_root_id = r.id AND d.purpose_code = 'MA' AND d.is_primary_manufacturing = 1
+      WHERE d.part_root_id = r.id AND d.purpose_code IN ('MA', 'M') AND d.is_primary_manufacturing = 1
       ORDER BY d.sequence_no ASC
       LIMIT 1
     ) AS primary_drawing_number,
@@ -2257,7 +2298,7 @@ export const SELECT_ASYNC_NUMBERING_SEARCH_DRAWINGS_BASE_SQL = `
     d.purpose_code,
     NULL AS part_number,
     d.drawing_number,
-    CASE WHEN d.purpose_code = 'MA' AND d.is_primary_manufacturing = 1 THEN d.drawing_number ELSE NULL END AS primary_drawing_number,
+    CASE WHEN d.purpose_code IN ('MA', 'M') AND d.is_primary_manufacturing = 1 THEN d.drawing_number ELSE NULL END AS primary_drawing_number,
     0 AS part_count,
     1 AS drawing_count,
     (
@@ -2667,25 +2708,16 @@ function normalizeNullableText(value: string | null | undefined) {
   return text ? text : null;
 }
 
-function formatRootCode(value: number) {
-  if (value < 1 || value > 9999) {
-    throw new Error(`ROOT_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString().padStart(4, "0");
+function formatRootCode(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatRootCodeForRule(value, ruleVersionId);
 }
 
-function formatPartSequence(value: number) {
-  if (value < 0 || value > 999) {
-    throw new Error(`PART_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString().padStart(3, "0");
+function formatPartSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatPartSequenceForRule(value, ruleVersionId);
 }
 
-function formatDrawingSequence(value: number) {
-  if (value < 1 || value > 9) {
-    throw new Error(`DRAWING_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString();
+function formatDrawingSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatDrawingSequenceForRule(value, ruleVersionId);
 }
 
 function requireUniversalReason(itemKind: NumberingItemKind, isUniversal: boolean, universalReason: string | undefined) {
@@ -2702,11 +2734,11 @@ function requireCustomSpecification(itemKind: NumberingItemKind, customSpecifica
 
 function normalizePurposeDescription(purposeCode: DrawingPurposeCode, description: string | undefined) {
   const trimmed = description?.trim() ?? "";
-  if (purposeCode === "OT" && !trimmed) {
-    throw new Error("OT_PURPOSE_DESCRIPTION_REQUIRED");
+  if (isReferenceDrawingPurpose(purposeCode) && !trimmed) {
+    throw new Error("REFERENCE_PURPOSE_DESCRIPTION_REQUIRED");
   }
-  if (!trimmed) return purposeCode === "MA" ? "Manufacturing drawing" : "";
-  return trimmed || (purposeCode === "MA" ? "Manufacturing drawing" : "");
+  if (!trimmed) return isManufacturingDrawingPurpose(purposeCode) ? "Manufacturing drawing" : "";
+  return trimmed || displayDrawingPurposeLabel(purposeCode);
 }
 
 function assertDraftMutableStatus(status: NumberingRecordStatus, label: string) {
@@ -3726,13 +3758,24 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
 }
 
 function importedPartSequence(partNumber: string) {
-  const match = partNumber.match(/(\d{3})$/);
-  return match ? Number.parseInt(match[1], 10) : 0;
+  const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
+  if (v2) return Number.parseInt(v2[1], 10);
+  const v1 = partNumber.match(/(\d{3})$/);
+  return v1 ? Number.parseInt(v1[1], 10) : 0;
 }
 
 function importedDrawingSequence(drawingNumber: string) {
-  const match = drawingNumber.match(/(\d)$/);
-  return match ? Number.parseInt(match[1], 10) : 1;
+  const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
+  if (v2) return Number.parseInt(v2[1], 10);
+  const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
+  return v1 ? Number.parseInt(v1[1], 10) : 1;
+}
+
+function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
+  if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
+    return NUMBERING_RULE_V2_ID;
+  }
+  return NUMBERING_RULE_V1_ID;
 }
 
 function normalizeVariantFields(fields: LinkPartNumberToDrawingInput["variants"]) {
@@ -3865,6 +3908,21 @@ export class AsyncNumberingRepository {
     private readonly clock: () => string = () => new Date().toISOString(),
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
+
+  private async ensureDefaultApprovalRulesForCurrentRuleVersion(client: AsyncDatabaseClient = this.client) {
+    const existing = await client.queryOne<{ count: number | string }>(COUNT_ASYNC_ADMIN_APPROVAL_RULES_BY_VERSION_SQL, {
+      ruleVersionId: DEFAULT_RULE_VERSION_ID
+    });
+    if (Number(existing?.count ?? 0) > 0) return;
+    const now = this.clock();
+    await client.execute(INSERT_ASYNC_DEFAULT_APPROVAL_RULES_FOR_VERSION_SQL, {
+      targetIdPrefix: "v2-",
+      targetRuleVersionId: DEFAULT_RULE_VERSION_ID,
+      sourceRuleVersionId: NUMBERING_RULE_V1_ID,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
 
   async createNumberingRecord(input: CreateNumberingRecordInput): Promise<{
     root: PartRootRecord;
@@ -4124,7 +4182,7 @@ export class AsyncNumberingRepository {
       if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
       if (drawingRow.part_root_id !== partRow.part_root_id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
       const variants = normalizeVariantFields(input.variants);
-      if (drawingRow.purpose_code !== "MA") throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
+      if (!isManufacturingDrawingPurpose(drawingRow.purpose_code)) throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
       if (variants.length === 0) throw new Error("SAME_DRAWING_VARIANT_REQUIRED");
       return this.insertNumberingApprovalRequest(client, {
         companyId,
@@ -4468,6 +4526,7 @@ export class AsyncNumberingRepository {
         const partName = importString(raw, "partName", "part_name", "料號品名") || coreName;
         const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
         const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖面用途") || "MA") as DrawingPurposeCode;
+        const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
 
         let root = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
         if (!root) {
@@ -4479,7 +4538,7 @@ export class AsyncNumberingRepository {
             itemKind,
             developmentPhase: "EVT",
             recordStatus: "Active",
-            ruleVersionId: DEFAULT_RULE_VERSION_ID,
+            ruleVersionId,
             createdBy: input.confirmedBy,
             createdAt: now,
             updatedAt: now
@@ -4498,7 +4557,7 @@ export class AsyncNumberingRepository {
             partRootId: root.id,
             partNumber,
             sequenceNo,
-            sequenceCode: formatPartSequence(sequenceNo),
+            sequenceCode: formatPartSequence(sequenceNo, ruleVersionId),
             partName,
             itemKind,
             isUniversal: 0,
@@ -4506,7 +4565,7 @@ export class AsyncNumberingRepository {
             developmentPhase: "EVT",
             recordStatus: "Active",
             universalReason: null,
-            ruleVersionId: DEFAULT_RULE_VERSION_ID,
+            ruleVersionId,
             createdBy: input.confirmedBy,
             createdAt: now,
             updatedAt: now
@@ -4525,10 +4584,10 @@ export class AsyncNumberingRepository {
             purposeCode,
             purposeDescription: normalizePurposeDescription(purposeCode, importString(raw, "purposeDescription", "purpose_description", "圖面用途")),
             sequenceNo: importedDrawingSequence(drawingNumber),
-            isPrimaryManufacturing: purposeCode === "MA" ? 1 : 0,
+            isPrimaryManufacturing: isManufacturingDrawingPurpose(purposeCode) ? 1 : 0,
             developmentPhase: "EVT",
             recordStatus: "Active",
-            ruleVersionId: DEFAULT_RULE_VERSION_ID,
+            ruleVersionId,
             createdBy: input.confirmedBy,
             createdAt: now,
             updatedAt: now
@@ -4538,7 +4597,7 @@ export class AsyncNumberingRepository {
         }
 
         if (partRow && drawingRow && partRow.part_root_id === drawingRow.part_root_id) {
-          const linkType = drawingRow.purpose_code === "MA" ? "primary_manufacturing" : "reference";
+          const linkType = isManufacturingDrawingPurpose(drawingRow.purpose_code) ? "primary_manufacturing" : "reference";
           const existingLink = await client.queryOne<{ id: string }>(SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL, {
             drawingNumberId: drawingRow.id,
             partNumberId: partRow.id,
@@ -4627,6 +4686,7 @@ export class AsyncNumberingRepository {
   }
 
   async listNumberingAdminMatrix(): Promise<NumberingAdminMatrixRecord> {
+    await this.ensureDefaultApprovalRulesForCurrentRuleVersion();
     const [
       roleRows,
       userRows,
@@ -5027,10 +5087,12 @@ export class AsyncNumberingRepository {
       const template = await client.queryOne<{ id: string }>(SELECT_ASYNC_ADMIN_RULE_TEMPLATE_BY_CODE_SQL, { templateCode: input.templateCode });
       if (!template) throw new Error("NUMBERING_RULE_TEMPLATE_NOT_FOUND");
       const now = this.clock();
+      await this.ensureDefaultApprovalRulesForCurrentRuleVersion(client);
       if (input.templateCode === "standard_control") {
         for (const [approvalRuleId, requiresApproval, approverRole, blocksUsage, blocksRelease, showsWarning, exportMarker] of STANDARD_APPROVAL_RULE_DEFAULTS) {
+          const targetApprovalRuleId = approvalRuleIdForRuleVersion(approvalRuleId, DEFAULT_RULE_VERSION_ID);
           await client.execute(UPDATE_ASYNC_STANDARD_APPROVAL_RULE_SQL, {
-            approvalRuleId,
+            approvalRuleId: targetApprovalRuleId,
             requiresApproval,
             approverRole,
             blocksUsage,
@@ -5063,6 +5125,7 @@ export class AsyncNumberingRepository {
     const actionCode = input.actionCode.trim();
     if (!actionCode) throw new Error("APPROVAL_RULE_ACTION_REQUIRED");
     const ruleVersionId = input.ruleVersionId?.trim() || DEFAULT_RULE_VERSION_ID;
+    if (ruleVersionId === DEFAULT_RULE_VERSION_ID) await this.ensureDefaultApprovalRulesForCurrentRuleVersion();
     const riskFlags = normalizeRiskFlags(input.riskFlags);
     const rows = await this.client.query<ApprovalRuleRow>(SELECT_ASYNC_ADMIN_APPROVAL_RULES_BY_ACTION_SQL, { ruleVersionId, actionCode });
     const matchedRules = rows.filter((row) => approvalRuleMatches(row, { ...input, actionCode, ruleVersionId }, riskFlags)).map(mapApprovalRule);
@@ -5235,14 +5298,14 @@ export class AsyncNumberingRepository {
       if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${input.drawingNumber}`);
       const drawingNumber = mapDrawingNumber(drawingRow);
       const impactedPartNumbers =
-        drawingNumber.purposeCode === "MA"
+        isManufacturingDrawingPurpose(drawingNumber.purposeCode)
           ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingNumber.id })).map(mapPartNumber)
           : [];
-      const warnings = drawingNumber.purposeCode === "MA" ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
+      const warnings = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
       const requiredDocuments = impactedPartNumbers.length
         ? ["2D manufacturing drawing", "3D CAD model", "Released PDF package", "BOM or where-used records", "Related SOP/WI or inspection documents"]
         : [];
-      if (input.applyInvalidation && drawingNumber.purposeCode !== "MA") throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
+      if (input.applyInvalidation && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
       if (input.applyInvalidation) {
         const now = this.clock();
         await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingNumber.id, updatedAt: now });
@@ -5618,7 +5681,7 @@ export class AsyncNumberingRepository {
       summary: {
         partCount: partNumbers.length,
         drawingCount: drawingNumbers.length,
-        primaryManufacturingCount: drawingNumbers.filter((drawingNumber) => drawingNumber.purposeCode === "MA" && drawingNumber.isPrimaryManufacturing)
+        primaryManufacturingCount: drawingNumbers.filter((drawingNumber) => isManufacturingDrawingPurpose(drawingNumber.purposeCode) && drawingNumber.isPrimaryManufacturing)
           .length,
         warningCount: warnings.filter((warning) => !warning.acknowledgedAt).length,
         hasMainDrawingInvalid:
@@ -6950,12 +7013,11 @@ export class AsyncNumberingRepository {
       if (drawingRow.record_status !== "Active" && drawingRow.record_status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
 
       const now = this.clock();
-      const impactedPartRows =
-        drawingRow.purpose_code === "MA"
-          ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingRow.id })).filter(
-              (partRow) => partRow.record_status !== "Obsolete" && partRow.record_status !== "Merged" && partRow.record_status !== "EVTDisabled"
-            )
-          : [];
+      const impactedPartRows = isManufacturingDrawingPurpose(drawingRow.purpose_code)
+        ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingRow.id })).filter(
+            (partRow) => partRow.record_status !== "Obsolete" && partRow.record_status !== "Merged" && partRow.record_status !== "EVTDisabled"
+          )
+        : [];
       await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
       for (const partRow of impactedPartRows) {
         await client.execute(UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL, { partNumberId: partRow.id, updatedAt: now });
@@ -7206,7 +7268,7 @@ export class AsyncNumberingRepository {
     const part = mapPartNumber(partRow);
     const drawing = mapDrawingNumber(drawingRow);
     const variants = normalizeVariantFields(input.variants);
-    const linkType = drawing.purposeCode === "MA" ? "primary_manufacturing" : "reference";
+    const linkType = isManufacturingDrawingPurpose(drawing.purposeCode) ? "primary_manufacturing" : "reference";
     const [existingLink, existingPrimaryCount] = await Promise.all([
       client.queryOne<{ id: string }>(SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL, {
         drawingNumberId: drawing.id,
@@ -7216,11 +7278,11 @@ export class AsyncNumberingRepository {
       client.queryOne<CountRow>(SELECT_ASYNC_DRAWING_PRIMARY_LINK_COUNT_SQL, { drawingNumberId: drawing.id })
     ]);
 
-    if (drawing.purposeCode === "MA" && !existingLink && Number(existingPrimaryCount?.count ?? 0) > 0 && variants.length === 0) {
+    if (isManufacturingDrawingPurpose(drawing.purposeCode) && !existingLink && Number(existingPrimaryCount?.count ?? 0) > 0 && variants.length === 0) {
       throw new Error("SAME_DRAWING_VARIANT_REQUIRED");
     }
     if (
-      drawing.purposeCode === "MA" &&
+      isManufacturingDrawingPurpose(drawing.purposeCode) &&
       !existingLink &&
       Number(existingPrimaryCount?.count ?? 0) > 0 &&
       (drawing.recordStatus === "Released" || part.recordStatus === "Released") &&
@@ -7228,7 +7290,7 @@ export class AsyncNumberingRepository {
     ) {
       throw new Error("SAME_DRAWING_VARIANT_APPROVAL_REQUIRED");
     }
-    if (drawing.purposeCode !== "MA" && variants.length > 0) throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
+    if (!isManufacturingDrawingPurpose(drawing.purposeCode) && variants.length > 0) throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
 
     if (!existingLink) await this.linkDrawingToPart(client, { drawing, part, createdBy: input.createdBy });
     const now = this.clock();
@@ -7271,7 +7333,7 @@ export class AsyncNumberingRepository {
       companyId: partRow.company_id ?? DEFAULT_COMPANY_ID
     });
     if (!replacement) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
-    if (replacement.part_root_id !== partRow.part_root_id || replacement.purpose_code !== "MA") {
+    if (replacement.part_root_id !== partRow.part_root_id || !isManufacturingDrawingPurpose(replacement.purpose_code)) {
       throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_SAME_ROOT_MA_DRAWING");
     }
     if (["Obsolete", "Merged", "EVTDisabled"].includes(replacement.record_status)) {
@@ -7371,7 +7433,8 @@ export class AsyncNumberingRepository {
       createdBy?: string | null;
     }
   ): Promise<PartRootRecord> {
-    const rootCode = formatRootCode(await this.allocateSequence(client, input.companyId, `${input.companyId}:part_root`));
+    const rootSequenceKey = input.ruleVersionId === NUMBERING_RULE_V2_ID ? `${input.companyId}:part_root:v2` : `${input.companyId}:part_root`;
+    const rootCode = formatRootCode(await this.allocateSequence(client, input.companyId, rootSequenceKey), input.ruleVersionId);
     const id = this.idFactory();
     const now = this.clock();
     await client.execute(INSERT_ASYNC_PART_ROOT_SQL, {
@@ -7410,9 +7473,12 @@ export class AsyncNumberingRepository {
     const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
     requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
     requireCustomSpecification(input.itemKind, input.customSpecification);
-    const sequenceNo = effectiveIsUniversal ? 0 : await this.allocateSequence(client, root.companyId, `${root.companyId}:part:${root.rootCode}`);
-    const sequenceCode = formatPartSequence(sequenceNo);
-    const partNumber = `P-${root.rootCode}-${sequenceCode}`;
+    const sequenceNo =
+      effectiveIsUniversal && input.ruleVersionId !== NUMBERING_RULE_V2_ID
+        ? 0
+        : await this.allocateSequence(client, root.companyId, `${root.companyId}:part:${root.rootCode}`);
+    const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
+    const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
     const id = this.idFactory();
     const now = this.clock();
     await client.execute(INSERT_ASYNC_PART_NUMBER_SQL, {
@@ -7451,9 +7517,11 @@ export class AsyncNumberingRepository {
       createdBy?: string | null;
     }
   ): Promise<DrawingNumberRecord> {
+    assertPurposeAllowedForRule(input.purposeCode, input.ruleVersionId);
     const purposeDescription = normalizePurposeDescription(input.purposeCode, input.purposeDescription);
     const sequenceNo = await this.allocateSequence(client, root.companyId, `${root.companyId}:drawing:${root.rootCode}:${input.purposeCode}`);
-    const drawingNumber = `D-${root.rootCode}-${input.purposeCode}${formatDrawingSequence(sequenceNo)}`;
+    const sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
+    const drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
     const id = this.idFactory();
     const now = this.clock();
     await client.execute(INSERT_ASYNC_DRAWING_NUMBER_SQL, {
@@ -7464,7 +7532,7 @@ export class AsyncNumberingRepository {
       purposeCode: input.purposeCode,
       purposeDescription,
       sequenceNo,
-      isPrimaryManufacturing: input.purposeCode === "MA" ? 1 : 0,
+      isPrimaryManufacturing: isManufacturingDrawingPurpose(input.purposeCode) ? 1 : 0,
       developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       ruleVersionId: input.ruleVersionId,
@@ -7485,7 +7553,7 @@ export class AsyncNumberingRepository {
       id: this.idFactory(),
       drawingNumberId: input.drawing.id,
       partNumberId: input.part.id,
-      linkType: input.drawing.purposeCode === "MA" ? "primary_manufacturing" : "reference",
+      linkType: isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "primary_manufacturing" : "reference",
       createdBy: input.createdBy ?? null,
       createdAt: this.clock()
     });

@@ -53,8 +53,8 @@ type DeletedImportBatch = {
 };
 
 const sampleCsv = `主根號,品名,料號,圖號,料件類型,圖別
-QC-1001,測試支架,QC-1001-001,QC-1001-MA1,manufactured,MA
-QC-1002,測試墊片,QC-1002-001,,purchased,MA`;
+00001,測試支架,00001-P01,00001-M01,manufactured,M
+00002,測試墊片,00002-P01,,purchased,M`;
 
 export default function NumberingImportsPage() {
   const [state, setState] = useState<LoadState>("loading");

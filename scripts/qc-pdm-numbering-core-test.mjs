@@ -125,6 +125,11 @@ record(
   "numbering_rule_versions"
 );
 record(
+  "NUM-SCHEMA compact numbering rule exists",
+  Boolean(db.prepare("SELECT id FROM numbering_rule_versions WHERE id = 'numbering-rule-v2'").get()),
+  "numbering_rule_versions"
+);
+record(
   "NUM-SCHEMA rule templates seeded",
   db.prepare("SELECT COUNT(*) AS count FROM rule_templates").get().count >= 3,
   "rule_templates"
@@ -423,7 +428,7 @@ record(
     repositorySource.includes("numbering.draft.pending_admin_confirm"),
   "numbering-repository.ts"
 );
-record("NUM-REPO enforces OT purpose description", repositorySource.includes("OT_PURPOSE_DESCRIPTION_REQUIRED"), "numbering-repository.ts");
+record("NUM-REPO enforces reference purpose description", repositorySource.includes("REFERENCE_PURPOSE_DESCRIPTION_REQUIRED"), "numbering-repository.ts");
 record("NUM-REPO enforces universal reason", repositorySource.includes("UNIVERSAL_PART_REASON_REQUIRED"), "numbering-repository.ts");
 record("NUM-REPO treats shared item kind as universal", repositorySource.includes('itemKind === "shared" || input.isUniversal'), "numbering-repository.ts");
 record("NUM-REPO links same-drawing variants", repositorySource.includes("export function linkPartNumberToDrawing"), "numbering-repository.ts");
@@ -879,7 +884,7 @@ record(
 );
 record(
   "NUM-UI formal-data approval page renders batch review workflow",
-  numberingApprovalPageSource.includes("正式資料審核") &&
+  numberingApprovalPageSource.includes("發行審核") &&
     numberingApprovalPageSource.includes("同專案批次審核") &&
     numberingApprovalPageSource.includes("/api/numbering/approval-batches"),
   "numbering/approvals/page.tsx"
@@ -924,7 +929,7 @@ record(
   "NUM-UI numbering search page includes warning markers and impact panel",
   numberingSearchPageSource.includes("WarningDot") &&
     numberingSearchPageSource.includes("影響範圍") &&
-    numberingSearchPageSource.includes("MA 圖作廢影響頁"),
+    numberingSearchPageSource.includes("製造圖作廢影響"),
   "numbering/search/page.tsx"
 );
 record(
@@ -937,8 +942,8 @@ record(
   "numbering/drawings/page.tsx"
 );
 record(
-  "NUM-UI numbering impact page renders MA impact workflow",
-  numberingImpactPageSource.includes("MA 圖影響") &&
+  "NUM-UI numbering impact page renders manufacturing drawing impact workflow",
+  numberingImpactPageSource.includes("製造圖影響") &&
     numberingImpactPageSource.includes("/api/numbering/impact-analysis") &&
     numberingImpactPageSource.includes("套用失效"),
   "numbering/impact/page.tsx"
@@ -970,7 +975,7 @@ record(
   "sidebar-nav.tsx"
 );
 record("NUM-UI sidebar links numbering request page", sidebarNavSource.includes("/numbering/request") && sidebarNavSource.includes("領號申請"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("DVT 晉升"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("階段晉升"), "sidebar-nav.tsx");
 record(
   "NUM-UI sidebar links DVT release approval page",
   sidebarNavSource.includes("/numbering/approvals") && (sidebarNavSource.includes("DVT/發行審核") || sidebarNavSource.includes("發行審核")),
@@ -978,7 +983,7 @@ record(
 );
 record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號模組"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("MA 影響"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("製造圖影響"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering import center", sidebarNavSource.includes("/numbering/imports") && sidebarNavSource.includes("總表匯入"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");
 record(

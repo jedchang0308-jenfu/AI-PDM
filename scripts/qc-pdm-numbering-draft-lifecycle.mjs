@@ -183,7 +183,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "EVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -200,11 +200,19 @@ try {
     {
       coreName: `QC draft lifecycle root updated ${unique}`,
       partName: `QC draft lifecycle part updated ${unique}`,
-      drawingPurposeDescription: `QC draft lifecycle MA updated ${unique}`
+      drawingPurposeDescription: `QC draft lifecycle manufacturing updated ${unique}`
     },
     200
   );
-  record("Draft update API returns updated core and part name", updated.root?.coreName?.includes("updated") && updated.partNumbers?.[0]?.partName?.includes("updated"), JSON.stringify(updated));
+  const updateResult = updated.result ?? updated;
+  record(
+    "Draft update API returns updated core, part, and manufacturing drawing",
+    updateResult.root?.coreName?.includes("updated") &&
+      updateResult.partNumbers?.[0]?.partName?.includes("updated") &&
+      updateResult.drawingNumbers?.[0]?.purposeCode === "M" &&
+      updateResult.drawingNumbers?.[0]?.purposeDescription?.includes("manufacturing updated"),
+    JSON.stringify(updated)
+  );
   bundle = getRootBundle(draft.root.rootCode);
   record("Draft update keeps root, part, and drawing in Draft", bundle.root.record_status === "Draft" && bundle.parts.every((part) => part.record_status === "Draft") && bundle.drawings.every((drawing) => drawing.record_status === "Draft"), JSON.stringify({ root: bundle.root.record_status, parts: bundle.parts.map((part) => part.record_status), drawings: bundle.drawings.map((drawing) => drawing.record_status) }));
   record("Draft update creates no approval request", countApprovalRequestsForBundle(bundle) === 0, `approval count ${countApprovalRequestsForBundle(bundle)}`);
@@ -217,7 +225,8 @@ try {
     { reason: `QC draft obsolete no approval ${unique}` },
     200
   );
-  record("Draft obsolete API returns Obsolete root", obsoleted.root?.recordStatus === "Obsolete", JSON.stringify(obsoleted.root ?? {}));
+  const obsoleteResult = obsoleted.result ?? obsoleted;
+  record("Draft obsolete API returns Obsolete root", obsoleteResult.root?.recordStatus === "Obsolete", JSON.stringify(obsoleted));
   bundle = getRootBundle(draft.root.rootCode);
   record("Draft obsolete updates root, part, and drawing to Obsolete", bundle.root.record_status === "Obsolete" && bundle.parts.every((part) => part.record_status === "Obsolete") && bundle.drawings.every((drawing) => drawing.record_status === "Obsolete"), JSON.stringify({ root: bundle.root.record_status, parts: bundle.parts.map((part) => part.record_status), drawings: bundle.drawings.map((drawing) => drawing.record_status) }));
   record("Draft obsolete creates no approval request", countApprovalRequestsForBundle(bundle) === 0, `approval count ${countApprovalRequestsForBundle(bundle)}`);
@@ -233,7 +242,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "EVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -247,7 +256,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "EVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );

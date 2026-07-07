@@ -1,6 +1,6 @@
 # SPEC-PDM-NUMBERING-002 - Compact root, drawing and part numbering v2
 
-Status: RD Implementation Ready / Not Authorized
+Status: Implemented / Verification passed locally for Phase 1-3
 Date: 2026-07-07
 Owner: Dev PM
 Related DEV: `DEV-PDM-NUMBERING-002`
@@ -75,7 +75,7 @@ drawing: 00001-M01 / 00001-R01
 
 ## Scope
 
-Phase 1 implementation scope after explicit RD authorization:
+Phase 1-3 local implementation scope completed after explicit RD authorization:
 
 - Add `numbering-rule-v2` as the active rule for new local numbering records.
 - Generate five-digit root codes.
@@ -296,9 +296,9 @@ Migration must not execute until dry-run evidence is reviewed and explicitly app
 | Phase | Status | Purpose | Authorization |
 |---|---|---|---|
 | Phase 0 - Development documents | Complete | Capture human decisions, ADR, SPEC, QA and dev_task entry. | Authorized by user request to write development documents. |
-| Phase 1 - Local v2 creation and compatibility | RD Implementation Ready / Not Authorized | New records use compact v2, while v1 remains readable and searchable. | Requires explicit user/RD authorization. |
-| Phase 2 - Import/export and migration dry-run | RD Contract Ready / Not Authorized | Report how existing v1 data maps to v2 and identify blockers. | Requires Phase 1 verified and explicit authorization. |
-| Phase 3 - Downstream module compatibility | RD Contract Ready / Not Authorized | Ensure submissions, revisions, baselines, previews and reports handle v1/v2 semantics. | Requires Phase 1-2 evidence and explicit authorization. |
+| Phase 1 - Local v2 creation and compatibility | Implemented / Verification passed locally | New records use compact v2, while v1 remains readable and searchable. | Authorized and completed locally on 2026-07-07. |
+| Phase 2 - Import/export and migration dry-run | Implemented / Verification passed locally | Report how existing v1 data maps to v2 and identify blockers. | Authorized and completed as dry-run only on 2026-07-07. |
+| Phase 3 - Downstream module compatibility | Implemented / Verification passed locally | Ensure submissions, revisions, baselines, previews and reports handle v1/v2 semantics. | Authorized and completed locally on 2026-07-07. |
 | Phase 4 - Production cutover | Release Gate Contract Ready / Not Authorized | Apply production migration/cutover only with rollback and smoke evidence. | Requires deployment-release gate. |
 
 ## RD Handoff Contract
@@ -405,9 +405,44 @@ Acceptance:
 - Rollback plan exists and was rehearsed or explicitly accepted.
 - Post-deploy smoke proves v1 historical rows and v2 new rows both work.
 
+## Local Implementation Evidence
+
+Completed implementation:
+
+- Added `src/lib/numbering-identity.ts` for v1/v2 formatting, parsing and semantic purpose helpers.
+- Default normal creation now uses `numbering-rule-v2` and generates five-digit roots plus `{root}-P01`, `{root}-M01` and `{root}-R01`.
+- Normal API/UI creation accepts `M/R` rather than `MA/OT`; historical import/read paths preserve v1 compatibility.
+- Downstream manufacturing checks use `MA/M` semantics and keep `OT/R` reference-only.
+- Added compact numbering runtime migration `db/postgres/004_numbering_v2_compact_identity.sql` and synchronized Supabase migration `supabase/migrations/20260707000000_numbering_v2_compact_identity.sql`.
+- Added migration dry-run report generation under `output/qc-pdm-numbering-v2-migration-dry-run/`.
+- Updated focused QC scripts for v2 formats, downstream helper usage, mobile master identity layout and Supabase migration manifest coverage.
+
+Verification passed:
+
+- `npx.cmd tsc --noEmit --pretty false`
+- `npm.cmd run lint -- --quiet`
+- `npm.cmd run qc:pdm-numbering-v2-compact-identity` 13/13
+- `npm.cmd run qc:pdm-numbering-v2-migration-dry-run`
+- `npm.cmd run qc:pdm-numbering-core` 241/241
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-api-regression` 27/27
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-data-consistency` 16/16
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-concurrency-reuse` 32/32
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-draft-lifecycle` 29/29
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-request-ui` 66/66
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-search-ui` 28/28
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-impact-ui` 24/24
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-dvt-ui` 24/24
+- `npm.cmd run qc:master-attachments` 101/101
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-master-workbench-layout` 224/224
+- `npm.cmd run qc:supabase-runtime-migrations` 25/25
+
+Build gate:
+
+- `npm.cmd run build` was blocked by the intentional local-dev guard because PID 30948 was already listening on `http://127.0.0.1:3000`; no bypass was used.
+
 ## RD Readiness Review
 
-Phase 1 P0/P1 readiness gaps: none known after this document, but implementation is not authorized.
+Phase 1-3 P0/P1 readiness gaps: none known for local implementation after the evidence above.
 
 Required engineering decisions are already specified:
 
@@ -443,8 +478,8 @@ Stop and return to PM/user if:
 
 | Deferred scope | Classification | Handling |
 |---|---|---|
-| Existing-data rewrite from v1 to v2 | Same Spec Phase 2 / Not Authorized | Dry-run only first; application requires explicit approval. |
-| Downstream submission/revision/baseline/report compatibility | Same Spec Phase 3 / Not Authorized | Contract captured; not Phase 1 implementation unless explicitly authorized. |
+| Applying existing-data rewrite from v1 to v2 | Same Spec Phase 4 / Not Authorized | Dry-run evidence exists; applying changes to real data still requires explicit approval, backup and release/data gate. |
+| Downstream submission/revision/baseline/report compatibility | Same Spec Phase 3 / Completed locally | Semantic compatibility implemented and verified; production evidence remains part of Phase 4 if deployed. |
 | Production deployment/migration | Same Spec Phase 4 / Not Authorized | Requires deployment-release gate. |
 | Project/order/equipment numbering | Blocked Human Re-entry | Must be separately decided because it changes product scope. |
 | More visible category codes | Blocked Human Re-entry | User currently wants only manufacturing/reference/part signal. |
@@ -456,7 +491,7 @@ Stop and return to PM/user if:
 | Phase / DEV | Authorization | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
 | Phase 0 / `DEV-PDM-NUMBERING-002` docs | Authorized | Complete | SPEC, ADR, QA, dev_task and documentation_map | Product implementation | User requested development documents | Files created and indexed | Git diff for docs |
-| Phase 1 / local v2 creation | Not authorized | RD Implementation Ready / Not Authorized | v2 rule, repositories, API, UI, semantic helpers, QC | Migration, production, downstream rewrite | Explicit RD authorization | v2 create/search/gate tests pass | tsc, lint, focused QC, numbering regressions |
-| Phase 2 / migration dry-run | Not authorized | RD Contract Ready / Not Authorized | v1 to v2 dry-run report | Applying migration | Phase 1 verified and explicit authorization | collision/capacity report generated | dry-run QC |
-| Phase 3 / downstream compatibility | Not authorized | RD Contract Ready / Not Authorized | submissions, revisions, baselines, previews, reports | New business semantics | Phase 1-2 evidence and explicit authorization | v1/v2 both work in downstream gates | regression QC |
+| Phase 1 / local v2 creation | Authorized | Implemented / Verification passed locally | v2 rule, repositories, API, UI, semantic helpers, QC | Migration, production, downstream rewrite | User RD authorization | v2 create/search/gate tests pass | tsc, lint, focused QC, numbering regressions |
+| Phase 2 / migration dry-run | Authorized for dry-run only | Implemented / Verification passed locally | v1 to v2 dry-run report | Applying migration | Phase 1 local implementation | collision/capacity report generated; no mutation | dry-run QC |
+| Phase 3 / downstream compatibility | Authorized | Implemented / Verification passed locally | submissions, revisions, baselines, previews, reports | New business semantics | Phase 1-2 local evidence | v1/v2 both work in downstream gates | regression QC |
 | Phase 4 / production cutover | Not authorized | Release Gate Contract Ready / Not Authorized | production migration/deploy/smoke/rollback | Any ungated production change | release gate approval | production smoke pass and rollback ready | deployment-release-gate evidence |

@@ -87,16 +87,19 @@ function seedSecondPart(root, firstPartNumber, adminUserId) {
   const db = openDb();
   try {
     const now = new Date().toISOString();
-    const partNumber = firstPartNumber.replace(/001$/, "002");
+    const isCompact = /^\d{5}-P\d{2}$/.test(firstPartNumber);
+    const partNumber = isCompact ? firstPartNumber.replace(/P\d{2}$/, "P02") : firstPartNumber.replace(/\d{3}$/, "002");
+    const sequenceCode = isCompact ? "02" : "002";
+    const ruleVersionId = isCompact ? "numbering-rule-v2" : "numbering-rule-v1";
     const partId = `qc-api-part-${unique}-002`;
     db.prepare(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
         item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 2, '002', ?, 'manufactured', 0, 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      ) VALUES (?, ?, ?, 2, ?, ?, 'manufactured', 0, 'EVT', 'Draft', ?, ?, ?, ?)
     `
-    ).run(partId, root.id, partNumber, `QC API ${unique} variant part`, adminUserId, now, now);
+    ).run(partId, root.id, partNumber, sequenceCode, `QC API ${unique} variant part`, ruleVersionId, adminUserId, now, now);
     return { id: partId, partNumber };
   } finally {
     db.close();
@@ -149,7 +152,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "DVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -214,14 +217,14 @@ try {
     200
   );
   record(
-    "MA drawing invalidation API applies impact to linked parts",
+    "Manufacturing drawing invalidation API applies impact to linked parts",
     impact.applied === true && Array.isArray(impact.impactedPartNumbers) && impact.impactedPartNumbers.length >= 2,
     JSON.stringify({ applied: impact.applied, impacted: impact.impactedPartNumbers?.map((part) => part.partNumber) })
   );
 
-  const importRootCode = `QCIMP${unique}`;
-  const importPartNumber = `P-${importRootCode}-001`;
-  const importDrawingNumber = `D-${importRootCode}-MA1`;
+  const importRootCode = `7${unique.slice(-4)}`;
+  const importPartNumber = `${importRootCode}-P01`;
+  const importDrawingNumber = `${importRootCode}-M01`;
   const importBatch = await request(
     "POST",
     "/api/numbering/import-batches",
@@ -237,7 +240,7 @@ try {
           partName: `QC API imported part ${unique}`,
           itemKind: "manufactured",
           drawingNumber: importDrawingNumber,
-          purposeCode: "MA"
+          purposeCode: "M"
         }
       ]
     },

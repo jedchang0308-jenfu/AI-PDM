@@ -126,7 +126,7 @@ assert(panel.includes("groupHistoryAttachmentsByRevision") && panel.includes("ma
 assert(panel.includes("placeholder={revisionStage ? suggestedRevision") && !panel.includes("例如 A、B 或空白"), "Shared panel no longer suggests A/B revision placeholder");
 assert(panel.includes("版次 {attachment.revision}") && !panel.includes("Rev {attachment.revision}"), "Shared panel labels attachment revision without Rev prefix");
 assert(drawingsPage.includes("MasterAttachmentPanel") && drawingsPage.includes('entityType="drawing_number"'), "Drawing drawer mounts master attachment panel");
-assert(drawingsPage.includes("developmentPhase={drawing.developmentPhase}") && drawingsPage.includes('processControlled={drawing.purposeCode === "MA"}'), "Drawing drawer passes phase and process control to attachment panel");
+assert(drawingsPage.includes("developmentPhase={drawing.developmentPhase}") && drawingsPage.includes("processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}"), "Drawing drawer passes phase and process control to attachment panel");
 assert(partsPage.includes("MasterAttachmentPanel") && partsPage.includes('entityType="part_number"'), "Part drawer mounts master attachment panel");
 assert(packageJson.scripts["qc:master-attachments"] === "node scripts/qc-master-attachments.mjs", "package script qc:master-attachments is registered");
 

@@ -24,9 +24,9 @@ const copyShortcutFunctionByRoute = {
   "/parts": "copySelectedPartNumber"
 };
 const identityHeadersByRoute = {
-  "/numbering/search": ["主根號", "品名", "料號", "其他"],
-  "/numbering/drawings": ["圖號", "品名", "料號", "其他"],
-  "/parts": ["料號", "品名", "圖號", "其他"]
+  "/numbering/search": ["主根號", "品名", "料號", "狀態 / 階段 / 提醒"],
+  "/numbering/drawings": ["圖號", "品名", "料號", "狀態 / 階段 / 提醒"],
+  "/parts": ["料號", "品名", "圖號", "狀態 / 階段 / 提醒"]
 };
 
 const read = (relativePath) => readProjectFile(root, relativePath);
@@ -64,7 +64,12 @@ function staticChecks() {
     record(`CSS defines ${className}`, css.includes(`.${className}`), "src/app/globals.css");
   }
   record("Desktop list template uses full-width list layout", css.includes(".pdm-drawing-list-layout") && css.includes("grid-template-columns: minmax(0, 1fr)"), "src/app/globals.css");
-  record("Mobile drawer template stacks to one column", css.includes("@media (max-width: 760px)") && css.includes(".pdm-detail-drawer") && css.includes("width: 100%"), "src/app/globals.css");
+  record(
+    "Mobile drawer template stays within viewport",
+    css.includes(".pdm-detail-drawer") &&
+      (css.includes("width: 100%") || css.includes("width: min(var(--pdm-detail-drawer-width, 500px), calc(100vw - 32px))")),
+    "src/app/globals.css"
+  );
   record("Identity table has 70/22 width intent", css.includes(".pdm-identity-col-name") && css.includes("width: 36%") && css.includes(".pdm-identity-col-meta") && css.includes("width: 18%"), "src/app/globals.css");
   record("Identity list supports XY scroll on desktop", css.includes(".pdm-identity-scroll") && css.includes("overflow: scroll") && css.includes("scrollbar-gutter: stable both-edges"), "src/app/globals.css");
   record("Identity list keeps sticky desktop headers", css.includes(".pdm-identity-scroll .pdm-identity-table thead th") && css.includes("position: sticky"), "src/app/globals.css");
@@ -85,7 +90,8 @@ function staticChecks() {
       record(`${route} uses ${className}`, source.includes(className), file);
     }
     for (const header of identityHeaders) {
-      record(`${route} has ${header} identity header`, source.includes(`<th>${header}</th>`) && source.includes(`data-label="${header}"`), file);
+      const hasHeader = header === "狀態 / 階段 / 提醒" ? source.includes("StatusColumnHeader") : source.includes(`<th>${header}</th>`);
+      record(`${route} has ${header} identity header`, hasHeader && source.includes(`data-label="${header}"`), file);
     }
     record(`${route} has fixed filter row`, source.includes("pdm-master-filter-grid") && source.includes("pdm-master-filter-action"), file);
     record(`${route} rows support selection`, source.includes("selected-row") && source.includes("onClick"), file);
@@ -119,8 +125,8 @@ function staticChecks() {
   const drawingsSource = read(pageFiles["/numbering/drawings"]);
   record("Drawing page avoids large stats grid", !drawingsSource.includes("stats-grid") && !drawingsSource.includes("MetricCard"), pageFiles["/numbering/drawings"]);
   record("Drawing table removes list action column", !drawingsSource.includes("<th>動作</th>") && !drawingsSource.includes("compact-button"), pageFiles["/numbering/drawings"]);
-  record("Drawing detail preserves traceability action", drawingsSource.includes("開啟圖料追溯") && drawingsSource.includes("/numbering/search?query="), pageFiles["/numbering/drawings"]);
-  record("Drawing detail preserves MA impact action", drawingsSource.includes("檢查 MA 影響文件") && drawingsSource.includes("/numbering/impact?drawingNumber="), pageFiles["/numbering/drawings"]);
+  record("Drawing detail preserves traceability action", /追溯/u.test(drawingsSource) && drawingsSource.includes("/numbering/search?query="), pageFiles["/numbering/drawings"]);
+  record("Drawing detail preserves manufacturing impact action", /影響/u.test(drawingsSource) && drawingsSource.includes("/numbering/impact?drawingNumber=") && drawingsSource.includes("isManufacturingDrawingPurpose"), pageFiles["/numbering/drawings"]);
   record(
     "Drawing drawer persists resized width",
     drawingsSource.includes("pdm-drawing-detail-drawer-width") && drawingsSource.includes("window.localStorage.setItem") && drawingsSource.includes("clampDrawerWidth"),
@@ -171,7 +177,7 @@ async function verifyDesktop(browser, route) {
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`${route} desktop avoids page-level horizontal overflow`, bodyOverflow <= 2, `${bodyOverflow}px`);
 
-  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim().replace(/\?$/, "") ?? ""));
   const identityHeaders = identityHeadersByRoute[route];
   record(`${route} identity headers use required order`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(identityHeaders), JSON.stringify(headers));
 

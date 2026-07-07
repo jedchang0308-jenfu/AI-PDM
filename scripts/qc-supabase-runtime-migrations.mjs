@@ -35,7 +35,8 @@ const requiredFiles = [
   "supabase/migrations/manifest.json",
   "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
   "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
-  "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql"
+  "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
+  "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql"
 ];
 for (const file of requiredFiles) {
   record(`SUPA-MIG-002 required file exists: ${file}`, projectFileExists(root, file), file);
@@ -45,9 +46,11 @@ const sqliteSchema = readProjectFile(root, "db/schema.sql");
 const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql");
 const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
 const searchPathHardening = readProjectFile(root, "db/postgres/003_harden_set_updated_at_search_path.sql");
+const compactNumbering = readProjectFile(root, "db/postgres/004_numbering_v2_compact_identity.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
+const migrationCompactNumbering = readProjectFile(root, "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -66,12 +69,15 @@ record("SUPA-MIG-006 RLS migration enables and forces RLS", /ENABLE ROW LEVEL SE
 record("SUPA-MIG-007 RLS migration denies anon/authenticated direct access", /REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated/u.test(migrationRls), "supabase RLS migration");
 record("SUPA-MIG-007A function hardening migration embeds source hash", migrationSearchPathHardening.includes(`Source SHA-256: ${sha256(searchPathHardening)}`), "set_updated_at hardening source hash");
 record("SUPA-MIG-007B function hardening migration fixes search_path", /ALTER FUNCTION public\.set_updated_at\(\)/u.test(migrationSearchPathHardening) && /SET search_path = public, pg_temp/u.test(migrationSearchPathHardening), "set_updated_at hardening migration");
-record("SUPA-MIG-008 manifest records all migrations", Array.isArray(manifest.migrations) && manifest.migrations.length === 3, JSON.stringify(manifest.migrations ?? []));
+record("SUPA-MIG-007C compact numbering migration embeds source hash", migrationCompactNumbering.includes(`Source SHA-256: ${sha256(compactNumbering)}`), "compact numbering migration source hash");
+record("SUPA-MIG-007D compact numbering migration preserves v1/v2 drawing purpose compatibility", /PDM-NUMBERING-V2/u.test(migrationCompactNumbering) && /purpose_code IN \('MA', 'OT', 'M', 'R'\)/u.test(migrationCompactNumbering), "compact numbering migration");
+record("SUPA-MIG-008 manifest records all migrations", Array.isArray(manifest.migrations) && manifest.migrations.length === 4, JSON.stringify(manifest.migrations ?? []));
 record(
   "SUPA-MIG-009 manifest source hashes match db/postgres",
   manifest.migrations?.[0]?.sourceSha256 === sha256(postgresSchema) &&
     manifest.migrations?.[1]?.sourceSha256 === sha256(rlsPlan) &&
-    manifest.migrations?.[2]?.sourceSha256 === sha256(searchPathHardening),
+    manifest.migrations?.[2]?.sourceSha256 === sha256(searchPathHardening) &&
+    manifest.migrations?.[3]?.sourceSha256 === sha256(compactNumbering),
   JSON.stringify(manifest.migrations ?? [])
 );
 record(

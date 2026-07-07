@@ -7,6 +7,7 @@ import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "idle" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -34,7 +35,7 @@ type PartNumber = {
 type DrawingNumber = {
   id: string;
   drawingNumber: string;
-  purposeCode: "MA" | "OT";
+  purposeCode: "MA" | "OT" | "M" | "R";
   purposeDescription: string;
   developmentPhase: "EVT" | "DVT" | "PVT" | "Release" | "ECR";
   recordStatus: PartNumber["recordStatus"];
@@ -86,7 +87,7 @@ export default function NumberingImpactPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "MA 圖影響分析失敗");
+      setError(body.error ?? "製造圖影響分析失敗");
       setState("error");
       return;
     }
@@ -98,7 +99,7 @@ export default function NumberingImpactPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>MA 圖影響</h1>
+          <h1>製造圖影響</h1>
           <p>作廢主要製造圖前，先檢查受影響料號、狀態與進版待辦。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => analyze(false)} disabled={!drawingNumber.trim() || busy === "analyze"}>
@@ -107,12 +108,12 @@ export default function NumberingImpactPage() {
         </button>
       </div>
 
-      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看 MA 圖影響範圍。" /> : null}
+      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看製造圖影響範圍。" /> : null}
       {state === "forbidden" ? <AccessPanel title="權限不足" message="套用失效需研發主管或管理員權限。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={() => analyze(false)} /> : null}
 
       <WorkflowStrip
-        title="MA 影響分析"
+        title="製造圖影響分析"
         description="作廢或變更前先確認父子圖、BOM 與待辦影響，再決定是否套用。"
         steps={["查詢", "影響分析", "確認作廢", "待辦", "交接"]}
         currentStep="影響分析"
@@ -144,7 +145,7 @@ export default function NumberingImpactPage() {
           <div className="panel-header">
             <div>
               <h2>影響範圍查詢</h2>
-              <p style={mutedTextStyle}>輸入 MA 圖號後先分析，不會直接異動主檔。</p>
+              <p style={mutedTextStyle}>輸入製造圖圖號後先分析，不會直接異動主檔。</p>
             </div>
             <button className="primary-button" type="button" onClick={() => analyze(false)} disabled={!drawingNumber.trim() || busy === "analyze"}>
               <Search size={16} />
@@ -153,8 +154,8 @@ export default function NumberingImpactPage() {
           </div>
           <div style={formGridStyle}>
             <label style={fieldStyle}>
-              <span>MA 圖號</span>
-              <input value={drawingNumber} onChange={(event) => setDrawingNumber(event.target.value)} placeholder="D-0001-MA1" />
+              <span>製造圖圖號</span>
+              <input value={drawingNumber} onChange={(event) => setDrawingNumber(event.target.value)} placeholder="00001-M01" />
             </label>
             <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
               <span>作廢原因</span>
@@ -187,8 +188,8 @@ function ImpactResult({
       <section className="panel">
         <NextStepState
           eyebrow="尚未分析"
-          title="尚未產生 MA 圖作廢影響分析"
-          body="輸入 MA 圖號與作廢原因後先分析影響範圍；確認後才可套用失效。"
+          title="尚未產生製造圖作廢影響分析"
+          body="輸入製造圖圖號與作廢原因後先分析影響範圍；確認後才可套用失效。"
           actions={[
             { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
             { href: "/numbering/tasks", label: "看待辦" }
@@ -216,7 +217,7 @@ function ImpactResult({
         <div className="metrics" style={{ marginBottom: 0 }}>
           <Metric label="受影響料號" value={impact.impactedPartNumbers.length} />
           <Metric label="進版文件" value={impact.requiredDocuments.length} />
-          <Metric label="圖別" value={impact.drawingNumber.purposeCode} />
+          <Metric label="圖別" value={`${impact.drawingNumber.purposeCode} ${displayDrawingPurposeLabel(impact.drawingNumber.purposeCode)}`} />
           <Metric label="狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
         </div>
 
@@ -227,7 +228,7 @@ function ImpactResult({
               compact
               eyebrow="沒有關聯"
               title="目前沒有主要製造圖關聯料號"
-              body="可回圖料模組確認 MA 圖關聯，或改查另一張 MA 圖。"
+              body="可回圖料模組確認製造圖關聯，或改查另一張製造圖。"
               actions={[{ href: "/numbering/search", label: "回圖料模組", variant: "primary" }]}
             />
           ) : (
@@ -256,7 +257,7 @@ function ImpactResult({
                         <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
                       </td>
                       <td>
-                        <WarningDot title="此料號的主要 MA 圖將作廢，需確認替代圖或建立進版待辦。" />
+                        <WarningDot title="此料號的主要製造圖將作廢，需確認替代圖或建立進版待辦。" />
                       </td>
                     </tr>
                   ))}
@@ -292,7 +293,7 @@ function ImpactResult({
           <NextStepState
             compact
             eyebrow="完成"
-            title="MA 圖作廢已完成"
+            title="製造圖作廢已完成"
             body="下一步回待辦確認進版文件，或到交接頁確認已發布資料不再被誤用。"
             actions={[
               { href: "/numbering/tasks", label: "看待辦", variant: "primary" },

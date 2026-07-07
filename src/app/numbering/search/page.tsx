@@ -7,6 +7,7 @@ import { CompactSummary, RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -24,7 +25,7 @@ type NumberingRecordStatus =
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
 type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
-type DrawingPurposeCode = "MA" | "OT";
+type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
 
 type SearchResult = {
   entityType: Exclude<EntityType, "all">;
@@ -515,7 +516,7 @@ export default function NumberingSearchPage() {
     setBusy(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(formatStatusErrorForUser(body.error ?? "MA 圖作廢影響分析失敗", "masterRecord"));
+      setError(formatStatusErrorForUser(body.error ?? "製造圖作廢影響分析失敗", "masterRecord"));
       setState("error");
       return;
     }
@@ -718,7 +719,7 @@ function SearchResultsTable({
                   <td data-label="狀態 / 階段 / 提醒">
                     <div className="pdm-meta-strip">
                       {drawingIdentity ? <span className="pdm-meta-chip">{drawingIdentity}</span> : null}
-                      {result.entityType === "drawing_number" ? <span className="pdm-meta-chip">{purposeLabel(result.purposeCode ?? "OT")}</span> : null}
+                      {result.entityType === "drawing_number" ? <span className="pdm-meta-chip">{purposeLabel(result.purposeCode ?? "R")}</span> : null}
                       <StatusBadge status={result.recordStatus} context="masterRecord" />
                       <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(result.developmentPhase)}</span>
                       <InfoMarkers result={result} />
@@ -821,7 +822,7 @@ function RootDetailPanel({
         <div className="metrics" style={{ marginBottom: 0 }}>
           <Metric label="料號" value={detail.summary.partCount} />
           <Metric label="圖號" value={detail.summary.drawingCount} />
-          <Metric label="MA 圖" value={detail.summary.primaryManufacturingCount} />
+          <Metric label="製造圖" value={detail.summary.primaryManufacturingCount} />
           <Metric label="提醒" value={detail.summary.warningCount} />
         </div>
 
@@ -839,14 +840,14 @@ function RootDetailPanel({
           ]}
           blockers={[
             detail.root.recordStatus === "Draft" ? "已領號但尚未建立送審單" : "需確認送審、BOM 與審核關卡狀態",
-            detail.summary.primaryManufacturingCount === 0 ? "尚未找到主要 MA 圖" : "主要 MA 圖可在下方圖號區檢查",
+            detail.summary.primaryManufacturingCount === 0 ? "尚未找到主要製造圖" : "主要製造圖可在下方圖號區檢查",
             detail.summary.warningCount > 0 ? `仍有 ${detail.summary.warningCount} 則提醒未收斂` : "目前沒有未確認提醒"
           ]}
           nextStep={detail.root.recordStatus === "Released" ? "若要改版，先進行 ECR / 影響分析，再建立新版送審。" : "RD 需接續送審或補齊缺口；主管核准後才會進入已發布。"}
           primaryAction={primaryAction}
           secondaryActions={[
             { href: "/numbering/tasks", label: "看待辦 / 草稿" },
-            { href: "/numbering/impact", label: "MA 影響分析" }
+            { href: "/numbering/impact", label: "製造圖影響分析" }
           ]}
         />
 
@@ -902,8 +903,8 @@ function PartNumberCard({ partNumber, detail }: { partNumber: PartNumber; detail
         ))}
       </div>
       <div style={actionGroupStyle}>
-        {missingPrimaryMa ? <WarningDot title="DVT 或正式階段的自製、發包、客製件缺主要 MA 圖時會被關卡阻擋，需補圖或走 override。" /> : null}
-        {partNumber.recordStatus === "MainDrawingInvalid" ? <WarningDot title="主要 MA 圖已失效，料號需重新送審並指定有效 MA 圖後才能恢復使用。" /> : null}
+        {missingPrimaryMa ? <WarningDot title="DVT 或正式階段的自製、發包、客製件缺主要製造圖時會被關卡阻擋，需補圖或走 override。" /> : null}
+        {partNumber.recordStatus === "MainDrawingInvalid" ? <WarningDot title="主要製造圖已失效，料號需重新送審並指定有效製造圖後才能恢復使用。" /> : null}
         {warnings.length > 0 ? <WarningDot title={`此料號有 ${warnings.length} 則查重或高相似提醒。`} /> : null}
         {variants.length > 0 ? <WarningDot title={`同圖多料號差異欄位：${variants.map((variant) => `${variant.fieldName}=${variant.fieldValue}`).join("、")}`} /> : null}
       </div>
@@ -933,7 +934,7 @@ function DrawingNumberCard({
       </div>
       <div style={mutedTextStyle}>{drawingNumber.purposeDescription || purposeLabel(drawingNumber.purposeCode)}</div>
       <div style={metaRowStyle}>
-        <span>{drawingNumber.purposeCode}</span>
+        <span>{purposeLabel(drawingNumber.purposeCode)}</span>
         <span>{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>
         <span>{drawingNumber.isPrimaryManufacturing ? "主要製造圖" : "參考/其他"}</span>
       </div>
@@ -946,10 +947,10 @@ function DrawingNumberCard({
         ))}
       </div>
       <div style={actionGroupStyle}>
-        {drawingNumber.purposeCode === "OT" ? <WarningDot title="OT 圖必填用途描述，且不可作為主要製造圖。" /> : null}
+        {isReferenceDrawingPurpose(drawingNumber.purposeCode) ? <WarningDot title="參考圖必填用途描述，且不可作為主要製造圖。" /> : null}
         {warnings.length > 0 ? <WarningDot title={`此圖號有 ${warnings.length} 則查重或高相似提醒。`} /> : null}
         {variants.length > 0 ? <WarningDot title={`同圖多料號差異欄位：${variants.map((variant) => `${variant.partNumber} ${variant.fieldName}=${variant.fieldValue}`).join("、")}`} /> : null}
-        {drawingNumber.purposeCode === "MA" ? (
+        {isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? (
           <button className="secondary-button" type="button" disabled={busy === "impact"} onClick={() => onAnalyzeImpact(drawingNumber.drawingNumber)}>
             <ShieldAlert size={16} />
             影響範圍
@@ -991,7 +992,7 @@ function ImpactPanel({ impact }: { impact: ImpactAnalysis | null }) {
   if (!impact) return null;
   return (
     <section style={sectionStyle}>
-      <h3 style={sectionHeadingStyle}>MA 圖作廢影響頁</h3>
+      <h3 style={sectionHeadingStyle}>製造圖作廢影響</h3>
       <div style={recordCardStyle}>
         <div style={recordTitleStyle}>
           <strong>{impact.drawingNumber.drawingNumber}</strong>
@@ -1039,9 +1040,9 @@ function AuditPanel({ auditTrail }: { auditTrail: NumberingAudit[] }) {
 function InfoMarkers({ result }: { result: SearchResult }) {
   const markers: string[] = [];
   if (result.warningCount > 0) markers.push(`${result.warningCount} 則未確認提醒`);
-  if (result.recordStatus === "MainDrawingInvalid") markers.push("主要 MA 圖失效，需重新送審恢復");
+  if (result.recordStatus === "MainDrawingInvalid") markers.push("主要製造圖失效，需重新送審恢復");
   if (result.recordStatus === "PendingReview") markers.push("審核中，未核准前不可直接視為可用");
-  if (result.entityType === "drawing_number" && result.purposeCode === "OT") markers.push("OT 圖不可作主要製造圖");
+  if (result.entityType === "drawing_number" && isReferenceDrawingPurpose(result.purposeCode)) markers.push("參考圖不可作主要製造圖");
   if (markers.length === 0) return <span style={mutedTextStyle}>-</span>;
   return (
     <div style={actionGroupStyle}>
@@ -1122,12 +1123,12 @@ function kindLabel(kind: SearchResult["itemKind"]) {
 }
 
 function purposeLabel(purposeCode: DrawingPurposeCode) {
-  return purposeCode === "MA" ? "製造用圖" : "其他用途圖";
+  return `${purposeCode} ${displayDrawingPurposeLabel(purposeCode)}`;
 }
 
 function resultRelation(result: SearchResult) {
   if (result.entityType === "part_root") return `${result.partCount} 料號 / ${result.drawingCount} 圖號`;
-  if (result.entityType === "part_number") return result.primaryDrawingNumber ? `MA ${result.primaryDrawingNumber}` : `${result.drawingCount} 張圖`;
+  if (result.entityType === "part_number") return result.primaryDrawingNumber ? `製造圖 ${result.primaryDrawingNumber}` : `${result.drawingCount} 張圖`;
   return `${result.linkedPartCount} 料號`;
 }
 

@@ -202,8 +202,9 @@ async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
   await requestPanel.locator("button.secondary-button").first().click();
   const duplicateResponse = await duplicateResponsePromise;
   record(`Duplicate precheck succeeds at ${viewportWidth}px`, duplicateResponse.ok(), `HTTP ${duplicateResponse.status()}`);
-  await page.waitForTimeout(100);
-  record(`Duplicate warning renders at ${viewportWidth}px`, (await page.getByText("warning").count()) >= 1);
+  await page.getByRole("heading", { name: "查重結果" }).waitFor({ timeout: 10_000 });
+  const duplicateBadges = await page.getByText(/阻擋|注意|可建立/).count();
+  record(`Duplicate result renders at ${viewportWidth}px`, duplicateBadges >= 1, `${duplicateBadges} status badges`);
 
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
   await requestPanel.locator("button.primary-button").click();
@@ -223,9 +224,9 @@ async function verifyManufacturedWithDrawing(page, viewportWidth) {
   await page.locator('input:not([type="checkbox"])').nth(0).fill(`QC Drawing Sync ${unique} ${viewportWidth}`);
   await page.locator("select").nth(0).selectOption("manufactured");
   await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
-  await page.locator('input:not([type="checkbox"])').nth(2).fill("MA");
+  await page.locator('input:not([type="checkbox"])').nth(2).fill("製造");
   await page.locator('input[type="checkbox"]').last().check();
-  await page.locator("select").nth(1).selectOption("MA");
+  await page.locator("select").nth(1).selectOption("M");
   await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
   const drawingGeneratedName = await page.locator('input:not([type="checkbox"])').nth(3).inputValue();
   record(`Suggested manufactured part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(drawingGeneratedName), drawingGeneratedName);
@@ -236,7 +237,7 @@ async function verifyManufacturedWithDrawing(page, viewportWidth) {
   const createResponse = await createResponsePromise;
   record(`Manufactured part with drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
   await page.waitForTimeout(100);
-  record(`Result includes drawing number at ${viewportWidth}px`, (await page.getByText(/D-\d{4}-MA1/).count()) >= 1);
+  record(`Result includes compact drawing number at ${viewportWidth}px`, (await page.getByText(/\d{5}-M\d{2}/).count()) >= 1);
 
   const created = getCreatedPart(drawingGeneratedName);
   record(`Drawing generated name persisted at ${viewportWidth}px`, created?.part_name === drawingGeneratedName, JSON.stringify(created ?? {}));

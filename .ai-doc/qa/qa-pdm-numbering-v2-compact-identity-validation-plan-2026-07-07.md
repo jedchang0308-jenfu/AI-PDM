@@ -4,7 +4,7 @@ Date: 2026-07-07
 Related DEV: `DEV-PDM-NUMBERING-002`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBERING-002-compact-root-drawing-part-identity.md`
-Status: QA plan ready / Implementation not authorized
+Status: QA executed / Verification passed locally for Phase 1-3
 
 ## Validation Objective
 
@@ -21,7 +21,7 @@ Target identities:
 
 ## Scope
 
-Phase 1 validation after RD authorization:
+Phase 1-3 validation completed after RD authorization:
 
 - Rule seed and active v2 creation behavior.
 - Five-digit root allocation.
@@ -32,10 +32,11 @@ Phase 1 validation after RD authorization:
 - UI labels/placeholders for creation, search, drawings and impact pages.
 - Import/export sample and regex compatibility.
 
-Not in Phase 1:
+Still not authorized:
 
-- Applying v1 to v2 migration.
 - Production deploy or Supabase production migration.
+- Applying v1 to v2 migration against real data.
+- Direct DB repair or deletion.
 - Project/order/equipment identity linkage.
 - BOM/ERP/equipment history implementation.
 
@@ -108,23 +109,28 @@ Not in Phase 1:
 
 ## Required Evidence
 
-Phase 1:
+Executed evidence:
 
 - `npx.cmd tsc --noEmit --pretty false`
 - `npm.cmd run lint -- --quiet`
-- `npm.cmd run qc:pdm-numbering-v2-compact-identity`
-- `npm.cmd run qc:pdm-numbering-core`
-- `npm.cmd run qc:pdm-numbering-backend-rules`
-- `npm.cmd run qc:pdm-numbering-request-ui`
-- `npm.cmd run qc:pdm-numbering-search-ui`
-- `npm.cmd run qc:pdm-numbering-impact-ui`
-- `npm.cmd run qc:pdm-numbering-dvt-ui`
-
-Phase 2:
-
-- Migration dry-run JSON report.
-- Migration dry-run Markdown summary.
-- Fixture DB before/after hash proving no mutation.
+- `npm.cmd run qc:pdm-numbering-v2-compact-identity` 13/13
+- `npm.cmd run qc:pdm-numbering-v2-migration-dry-run`
+- `npm.cmd run qc:pdm-numbering-core` 241/241
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-api-regression` 27/27
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-data-consistency` 16/16
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-concurrency-reuse` 32/32
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-draft-lifecycle` 29/29
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-request-ui` 66/66
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-search-ui` 28/28
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-impact-ui` 24/24
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-numbering-dvt-ui` 24/24
+- `npm.cmd run qc:master-attachments` 101/101
+- `PDM_BASE_URL=http://127.0.0.1:3000 npm.cmd run qc:pdm-master-workbench-layout` 224/224
+- `npm.cmd run qc:supabase-runtime-migrations` 25/25
+- Migration dry-run JSON report: `output/qc-pdm-numbering-v2-migration-dry-run/report.json`
+- Migration dry-run Markdown summary: `output/qc-pdm-numbering-v2-migration-dry-run/report.md`
+- Fixture dry-run before/after hash proved no mutation.
+- `npm.cmd run build`: blocked by the intentional local-dev guard because an existing local server was listening on `http://127.0.0.1:3000`; no bypass was used.
 
 ## Pass Criteria
 

@@ -128,10 +128,10 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/impact`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "MA 圖影響" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "製造圖影響", exact: true }).waitFor({ timeout: 10_000 });
   record(`Impact page renders at ${viewport.width}px`, await page.getByText("影響範圍查詢").isVisible());
 
-  await page.getByLabel("MA 圖號").fill(drawingNumber);
+  await page.getByLabel("製造圖圖號").fill(drawingNumber);
   await page.getByLabel("作廢原因").fill(`QC impact validation ${viewport.width}`);
   const analyzeResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/api/numbering/impact-analysis") && response.request().method() === "POST"

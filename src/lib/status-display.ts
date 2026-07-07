@@ -75,7 +75,7 @@ const masterRecordStatuses: StatusDefinition[] = [
   {
     keys: ["MainDrawingInvalid"],
     label: "主圖失效",
-    description: "主要 MA 圖不可作為目前有效主圖，需要重新確認。",
+    description: "主要製造圖不可作為目前有效主圖，需要重新確認。",
     tone: "critical",
     abnormal: true,
     actionable: true

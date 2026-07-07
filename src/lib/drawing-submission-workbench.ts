@@ -3,6 +3,7 @@ import { createFileStorageService, storageKeyFromLocalPath } from "@/lib/file-st
 import { removeSubmissionUploadFolder, saveSubmissionFileBuffers } from "@/lib/file-store";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
+import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
 import { AsyncSubmissionWriteRepository, type CreateSubmissionAsyncInput } from "@/lib/repositories/submission-write-async-repository";
 import {
   classifyRevisionPackageFiles,
@@ -332,7 +333,7 @@ export async function resolveDrawingSubmissionContext(input: {
       id: drawing.id,
       drawingNumber: drawing.drawing_number,
       purposeCode: drawing.purpose_code,
-      purposeLabel: drawing.purpose_code === "MA" ? "MA 製造圖" : "OT 其他圖",
+      purposeLabel: `${drawing.purpose_code} ${displayDrawingPurposeLabel(drawing.purpose_code)}`,
       recordStatus: drawing.record_status,
       developmentPhase: drawing.development_phase,
       coreName: drawing.core_name ?? ""
@@ -1262,7 +1263,7 @@ async function listRootPrimaryDrawings(client: AsyncDatabaseClient, companyId: s
     FROM drawing_numbers
     WHERE company_id = :companyId
       AND part_root_id = :rootId
-      AND purpose_code = 'MA'
+      AND purpose_code IN ('MA', 'M')
       AND is_primary_manufacturing = 1
       AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
     ORDER BY drawing_number ASC

@@ -296,7 +296,7 @@ function getPlatformWorkbenchSections({
       icon: Search,
       links: [
         { href: "/numbering/search", label: "圖料模組", detail: "圖號、料號、同圖多料號", icon: Search },
-        { href: "/numbering/impact", label: "MA 影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
+        { href: "/numbering/impact", label: "製造圖影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
         { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
       ]
     },

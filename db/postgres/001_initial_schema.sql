@@ -683,6 +683,26 @@ CREATE TABLE IF NOT EXISTS numbering_rule_versions (
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v1',
+  'PDM-NUMBERING-V1',
+  'PDM numbering rule v1',
+  'active',
+  '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v2',
+  'PDM-NUMBERING-V2',
+  'PDM compact numbering rule v2',
+  'active',
+  '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+)
+ON CONFLICT (id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -733,7 +753,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
   drawing_number TEXT NOT NULL,
-  purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT')),
+  purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT', 'M', 'R')),
   purpose_description TEXT NOT NULL DEFAULT '',
   sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),

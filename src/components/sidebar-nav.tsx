@@ -71,7 +71,7 @@ const navSections: NavSection[] = [
       { href: "/numbering/dvt", label: "階段晉升 EVT→DVT", icon: GitPullRequestArrow },
       { href: "/numbering/approvals", label: "發行審核", icon: ClipboardCheck },
       { href: "/numbering/change-reviews", label: "圖面進版影響審核", icon: ClipboardCheck },
-      { href: "/numbering/impact", label: "MA 影響分析", icon: ShieldAlert }
+      { href: "/numbering/impact", label: "製造圖影響分析", icon: ShieldAlert }
     ]
   },
   {

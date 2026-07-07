@@ -9,7 +9,7 @@ import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popove
 type LoadState = "ready" | "unauthorized" | "forbidden" | "error";
 type ItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
-type DrawingPurposeCode = "MA" | "OT";
+type DrawingPurposeCode = "M" | "R";
 
 type DuplicateMatch = {
   entityType: "part_root" | "part_number" | "drawing_number";
@@ -86,7 +86,7 @@ export default function NumberingRequestPage() {
   const [universalReason, setUniversalReason] = useState("");
   const [customSpecification, setCustomSpecification] = useState("");
   const [drawingRequested, setDrawingRequested] = useState(true);
-  const [drawingPurposeCode, setDrawingPurposeCode] = useState<DrawingPurposeCode>("MA");
+  const [drawingPurposeCode, setDrawingPurposeCode] = useState<DrawingPurposeCode>("M");
   const [drawingPurposeDescription, setDrawingPurposeDescription] = useState("");
   const [duplicateResult, setDuplicateResult] = useState<DuplicateResult | null>(null);
   const [createdRecord, setCreatedRecord] = useState<CreatedRecord | null>(null);
@@ -185,7 +185,7 @@ export default function NumberingRequestPage() {
     if (!partName.trim()) errors.push("品名必填");
     if (itemKind === "custom" && !customSpecification.trim()) errors.push("客製尺寸/規格必填");
     if ((isUniversal || itemKind === "shared") && !universalReason.trim()) errors.push("共用件理由必填");
-    if (drawingRequested && drawingPurposeCode === "OT" && !drawingPurposeDescription.trim()) errors.push("OT 圖用途描述必填");
+    if (drawingRequested && drawingPurposeCode === "R" && !drawingPurposeDescription.trim()) errors.push("參考圖用途描述必填");
     return errors;
   }, [coreName, customSpecification, drawingPurposeCode, drawingPurposeDescription, drawingRequested, isUniversal, itemKind, partName, seriesCode, universalReason]);
 
@@ -438,7 +438,7 @@ export default function NumberingRequestPage() {
           <div className="panel-header">
             <div>
               <h2>圖號</h2>
-              <p style={mutedTextStyle}>可先只建立料號，之後再補圖號。</p>
+              <p style={mutedTextStyle}>可先只建立料號，之後再補圖號；新圖號使用 00001-M01 / 00001-R01 格式。</p>
             </div>
             <label style={checkRowStyle}>
               <input type="checkbox" checked={drawingRequested} onChange={(event) => setDrawingRequested(event.target.checked)} />
@@ -450,8 +450,8 @@ export default function NumberingRequestPage() {
               <label style={fieldStyle}>
                 <span>圖別</span>
                 <select value={drawingPurposeCode} onChange={(event) => setDrawingPurposeCode(event.target.value as DrawingPurposeCode)}>
-                  <option value="MA">MA 製造圖</option>
-                  <option value="OT">OT 其他圖</option>
+                  <option value="M">M 製造圖</option>
+                  <option value="R">R 參考圖</option>
                 </select>
               </label>
               <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
@@ -459,7 +459,7 @@ export default function NumberingRequestPage() {
                 <input
                   value={drawingPurposeDescription}
                   onChange={(event) => setDrawingPurposeDescription(event.target.value)}
-                  placeholder={drawingPurposeCode === "OT" ? "OT 圖必填用途" : "可留空"}
+                  placeholder={drawingPurposeCode === "R" ? "參考圖必填用途/子類" : "可留空"}
                 />
               </label>
             </div>

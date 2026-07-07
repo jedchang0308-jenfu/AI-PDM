@@ -721,6 +721,15 @@ VALUES (
   '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
 );
 
+INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v2',
+  'PDM-NUMBERING-V2',
+  'PDM compact numbering rule v2',
+  'active',
+  '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+);
+
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -771,7 +780,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   part_root_id TEXT NOT NULL,
   drawing_number TEXT NOT NULL,
-  purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT')),
+  purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT', 'M', 'R')),
   purpose_description TEXT NOT NULL DEFAULT '',
   sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
@@ -1220,6 +1229,16 @@ VALUES
   ('approval-rule-post-release-change-admin', 'numbering-rule-v1', 'Post-release change admin', 'post_release_change', NULL, 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-released-same-drawing-variant', 'numbering-rule-v1', 'Released same drawing variant', 'same_drawing_variant_after_release', NULL, 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
   ('approval-rule-main-drawing-restore', 'numbering-rule-v1', 'Main drawing invalid restore', 'main_drawing_restore', NULL, 'MainDrawingInvalid', NULL, NULL, 1, 'pdm_admin', 1, 0, 1, 1);
+
+INSERT OR IGNORE INTO approval_rules (
+  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
+)
+SELECT
+  'v2-' || id, 'numbering-rule-v2', rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, datetime('now'), datetime('now')
+FROM approval_rules
+WHERE rule_version_id = 'numbering-rule-v1';
 
 CREATE TABLE IF NOT EXISTS approval_requests (
   id TEXT PRIMARY KEY,

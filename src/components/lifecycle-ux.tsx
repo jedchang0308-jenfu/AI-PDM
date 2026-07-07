@@ -71,7 +71,7 @@ const lifecycleStages: LifecycleStage[] = [
     owner: "RD",
     state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
-    risk: "重複料號、缺主 MA 圖、品名或分類不清會讓後續 BOM 與交接失準。",
+    risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
     doneSignal: "料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。",
     href: "/numbering/request",
     cta: "建立料號",
@@ -123,7 +123,7 @@ const lifecycleStages: LifecycleStage[] = [
     owner: "RD / Manager / Admin",
     state: "可處理 / 例外核准 / 阻擋",
     intent: "主動整理候選料件，讓 gate 決策集中處理而不是靠人工翻表。",
-    risk: "缺 MA 圖、缺審核、資料不完整或 override 未核准時不可直接晉升。",
+    risk: "缺製造圖、缺審核、資料不完整或 override 未核准時不可直接晉升。",
     doneSignal: "gate 決策更新料號、圖號與 BOM 使用限制，必要時產生審核批次。",
     href: "/numbering/dvt",
     cta: "檢查 Gate",
@@ -536,11 +536,11 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
       defaultBlockers: ["等待 PDM 管理員確認"]
     },
     MainDrawingInvalid: {
-      label: "主要 MA 圖失效",
+      label: "主要製造圖失效",
       description: "主要製造圖已失效，相關料號不可直接進 gate 或交接。",
-      nextStep: "重新送審有效 MA 圖，並確認受影響料號。",
+      nextStep: "重新送審有效製造圖，並確認受影響料號。",
       tone: "critical",
-      defaultBlockers: ["缺有效主要 MA 圖"]
+      defaultBlockers: ["缺有效主要製造圖"]
     }
   };
 

@@ -5481,6 +5481,59 @@ body.pdm-drawer-resizing * {
   width: 18%;
 }
 
+@media (max-width: 760px) {
+  .pdm-identity-scroll {
+    max-height: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .pdm-identity-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .pdm-identity-table thead {
+    display: none;
+  }
+
+  .pdm-identity-table tbody,
+  .pdm-identity-table tr {
+    display: block;
+  }
+
+  .pdm-identity-table tr {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .pdm-identity-table tr + tr {
+    margin-top: 8px;
+  }
+
+  .pdm-identity-table td {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.38fr) minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .pdm-identity-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .pdm-identity-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+}
+
 .pdm-identity-code {
   color: var(--text);
   font-weight: 800;

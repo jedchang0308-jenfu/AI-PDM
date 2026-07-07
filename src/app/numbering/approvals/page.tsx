@@ -315,7 +315,7 @@ export default function NumberingApprovalsPage() {
           <div className="panel-header">
             <div>
               <h2>審核佇列</h2>
-              <p style={mutedTextStyle}>這裡處理 DVT 階段、正式發行、MA 圖恢復與作廢審核。</p>
+              <p style={mutedTextStyle}>這裡處理 DVT 階段、正式發行、製造圖恢復與作廢審核。</p>
             </div>
             <select className="dropdown-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
               {statusFilters.map((status) => (
@@ -509,7 +509,7 @@ function EmptyApprovalBatchGuidance() {
     <div className="empty">
       <ClipboardCheck size={22} aria-hidden="true" />
       <h2>目前沒有發行審核批次</h2>
-      <p>這裡處理 DVT 階段、正式發行、MA 圖恢復與作廢審核。一般狀態為「審核中」的圖面 submission，請回工作台開啟圖面明細後核准或駁回。</p>
+      <p>這裡處理 DVT 階段、正式發行、製造圖恢復與作廢審核。一般狀態為「審核中」的圖面 submission，請回工作台開啟圖面明細後核准或駁回。</p>
       <div className="empty-actions">
         <Link className="primary-button" href="/?status=Pending">
           回工作台審核圖面
@@ -716,7 +716,7 @@ function actionLabel(value: string | null) {
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
-    main_drawing_restore: "MA 圖恢復",
+    main_drawing_restore: "製造圖恢復",
     obsolete_part_number: "料號作廢",
     obsolete_ma_drawing: "圖號作廢"
   };

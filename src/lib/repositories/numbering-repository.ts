@@ -1,6 +1,23 @@
 import crypto from "node:crypto";
 import { getDb } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
+import {
+  NUMBERING_RULE_V1_ID,
+  NUMBERING_RULE_V2_ID,
+  assertPurposeAllowedForRule,
+  displayDrawingPurposeLabel,
+  formatDrawingNumberForRule,
+  formatDrawingSequenceForRule,
+  formatPartNumberForRule,
+  formatPartSequenceForRule,
+  formatRootCodeForRule,
+  isManufacturingDrawingPurpose,
+  isReferenceDrawingPurpose,
+  isV2DrawingNumber,
+  isV2PartNumber,
+  isV2RootCode,
+  type DrawingPurposeCode
+} from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
@@ -17,7 +34,7 @@ export type NumberingRecordStatus =
   | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
-export type DrawingPurposeCode = "MA" | "OT";
+export type { DrawingPurposeCode } from "@/lib/numbering-identity";
 
 export type PartRootRecord = {
   id: string;
@@ -1671,7 +1688,7 @@ type MonthlyAuditReportRow = {
   created_at: string;
 };
 
-const DEFAULT_RULE_VERSION_ID = "numbering-rule-v1";
+const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID;
 
 const DEFAULT_ROLE_PRIORITY = ["system_admin", "pdm_admin", "rd_manager", "document_admin", "qa", "rd"];
 
@@ -1767,6 +1784,31 @@ const STANDARD_APPROVAL_RULE_DEFAULTS = [
   ["approval-rule-main-drawing-restore", 1, "pdm_admin", 1, 0, 1, 1]
 ] as const;
 
+function approvalRuleIdForRuleVersion(id: string, ruleVersionId: string) {
+  return ruleVersionId === NUMBERING_RULE_V2_ID ? `v2-${id}` : id;
+}
+
+function ensureDefaultApprovalRulesForCurrentRuleVersion(database: SqliteDatabase) {
+  const existing = database.prepare("SELECT COUNT(*) AS count FROM approval_rules WHERE rule_version_id = ?").get(DEFAULT_RULE_VERSION_ID) as { count: number };
+  if (existing.count > 0) return;
+  const now = new Date().toISOString();
+  database
+    .prepare(
+      `
+      INSERT OR IGNORE INTO approval_rules (
+        id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+        requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
+      )
+      SELECT
+        'v2-' || id, ?, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+        requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, ?, ?
+      FROM approval_rules
+      WHERE rule_version_id = ?
+      `
+    )
+    .run(DEFAULT_RULE_VERSION_ID, now, now, NUMBERING_RULE_V1_ID);
+}
+
 function nullableText(value: string | null | undefined) {
   const text = value?.trim();
   return text ? text : null;
@@ -1781,25 +1823,16 @@ function boolToInt(value: boolean | undefined, fallback = false) {
   return (value ?? fallback) ? 1 : 0;
 }
 
-function formatRootCode(value: number) {
-  if (value < 1 || value > 9999) {
-    throw new Error(`ROOT_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString().padStart(4, "0");
+function formatRootCode(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatRootCodeForRule(value, ruleVersionId);
 }
 
-function formatPartSequence(value: number) {
-  if (value < 0 || value > 999) {
-    throw new Error(`PART_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString().padStart(3, "0");
+function formatPartSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatPartSequenceForRule(value, ruleVersionId);
 }
 
-function formatDrawingSequence(value: number) {
-  if (value < 1 || value > 9) {
-    throw new Error(`DRAWING_SEQUENCE_OUT_OF_RANGE: ${value}`);
-  }
-  return value.toString();
+function formatDrawingSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSION_ID) {
+  return formatDrawingSequenceForRule(value, ruleVersionId);
 }
 
 function mapPartRoot(row: PartRootRow): PartRootRecord {
@@ -2183,7 +2216,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
                  JOIN drawing_numbers d ON d.id = l.drawing_number_id
                  WHERE l.part_number_id = p.id
                    AND l.link_type = 'primary_manufacturing'
-                   AND d.purpose_code = 'MA'
+                   AND d.purpose_code IN ('MA', 'M')
                    AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
                  ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
                  LIMIT 1
@@ -2293,7 +2326,7 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
-    main_drawing_restore: "MA 圖恢復",
+    main_drawing_restore: "製造圖恢復",
     obsolete_part_number: "料號作廢審核",
     obsolete_ma_drawing: "圖號作廢審核"
   };
@@ -2368,7 +2401,7 @@ function buildNumberingActionMarkers(input: {
     const detailParts = [
       impactedPartNumbers.length ? `受影響料號: ${impactedPartNumbers.join(", ")}` : "",
       requiredDocuments.length ? `需確認文件: ${requiredDocuments.join(", ")}` : "",
-      input.entitySummary?.recordStatus === "MainDrawingInvalid" ? "主要 MA 圖失效" : ""
+      input.entitySummary?.recordStatus === "MainDrawingInvalid" ? "主要製造圖失效" : ""
     ].filter(Boolean);
     addAttentionMarker(markers, {
       code: "impact_scope",
@@ -2889,11 +2922,11 @@ function requireCustomSpecification(itemKind: NumberingItemKind, customSpecifica
 
 function normalizePurposeDescription(purposeCode: DrawingPurposeCode, description: string | undefined) {
   const trimmed = description?.trim() ?? "";
-  if (purposeCode === "OT" && !trimmed) {
-    throw new Error("OT_PURPOSE_DESCRIPTION_REQUIRED");
+  if (isReferenceDrawingPurpose(purposeCode) && !trimmed) {
+    throw new Error("REFERENCE_PURPOSE_DESCRIPTION_REQUIRED");
   }
-  if (!trimmed) return purposeCode === "MA" ? "Manufacturing drawing" : "";
-  return trimmed || (purposeCode === "MA" ? "製造用圖" : "");
+  if (!trimmed) return isManufacturingDrawingPurpose(purposeCode) ? "Manufacturing drawing" : "";
+  return trimmed || displayDrawingPurposeLabel(purposeCode);
 }
 
 function computeAuditDiff(before: unknown, after: unknown) {
@@ -3006,7 +3039,7 @@ function getPrimaryManufacturingDrawingForPart(database: SqliteDatabase, partNum
       JOIN drawing_numbers d ON d.id = l.drawing_number_id
       WHERE l.part_number_id = ?
         AND l.link_type = 'primary_manufacturing'
-        AND d.purpose_code = 'MA'
+        AND d.purpose_code IN ('MA', 'M')
         AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
       LIMIT 1
     `
@@ -3020,7 +3053,7 @@ function validateReplacementManufacturingDrawing(database: SqliteDatabase, partR
   if (!replacement) {
     throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
   }
-  if (replacement.part_root_id !== partRow.part_root_id || replacement.purpose_code !== "MA") {
+  if (replacement.part_root_id !== partRow.part_root_id || !isManufacturingDrawingPurpose(replacement.purpose_code)) {
     throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_SAME_ROOT_MA_DRAWING");
   }
   if (["Obsolete", "Merged", "EVTDisabled"].includes(replacement.record_status)) {
@@ -3242,8 +3275,8 @@ function insertPartRoot(
     createdBy?: string | null;
   }
 ) {
-  const rootSequence = allocateSequence(database, "part_root");
-  const rootCode = formatRootCode(rootSequence);
+  const rootSequence = allocateSequence(database, input.ruleVersionId === NUMBERING_RULE_V2_ID ? "part_root:v2" : "part_root");
+  const rootCode = formatRootCode(rootSequence, input.ruleVersionId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   database
@@ -3288,9 +3321,9 @@ function insertPartNumber(
   const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
   requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
   requireCustomSpecification(input.itemKind, input.customSpecification);
-  const sequenceNo = effectiveIsUniversal ? 0 : allocateSequence(database, `part:${root.rootCode}`);
-  const sequenceCode = formatPartSequence(sequenceNo);
-  const partNumber = `P-${root.rootCode}-${sequenceCode}`;
+  const sequenceNo = effectiveIsUniversal && input.ruleVersionId !== NUMBERING_RULE_V2_ID ? 0 : allocateSequence(database, `part:${root.rootCode}`);
+  const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
+  const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   database
@@ -3337,9 +3370,11 @@ function insertDrawingNumber(
     createdBy?: string | null;
   }
 ) {
+  assertPurposeAllowedForRule(input.purposeCode, input.ruleVersionId);
   const purposeDescription = normalizePurposeDescription(input.purposeCode, input.purposeDescription);
   const sequenceNo = allocateSequence(database, `drawing:${root.rootCode}:${input.purposeCode}`);
-  const drawingNumber = `D-${root.rootCode}-${input.purposeCode}${formatDrawingSequence(sequenceNo)}`;
+  const sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
+  const drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   database
@@ -3359,7 +3394,7 @@ function insertDrawingNumber(
       input.purposeCode,
       purposeDescription,
       sequenceNo,
-      input.purposeCode === "MA" ? 1 : 0,
+      isManufacturingDrawingPurpose(input.purposeCode) ? 1 : 0,
       input.developmentPhase,
       input.recordStatus,
       input.ruleVersionId,
@@ -3386,7 +3421,7 @@ function linkDrawingToPart(
       crypto.randomUUID(),
       input.drawing.id,
       input.part.id,
-      input.drawing.purposeCode === "MA" ? "primary_manufacturing" : "reference",
+      isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "primary_manufacturing" : "reference",
       input.createdBy ?? null,
       new Date().toISOString()
     );
@@ -3411,7 +3446,7 @@ function linkPartNumberToDrawingInDatabase(
     const part = mapPartNumber(partRow);
     const drawing = mapDrawingNumber(drawingRow);
     const variants = normalizeVariantFields(input.variants);
-    const linkType = drawing.purposeCode === "MA" ? "primary_manufacturing" : "reference";
+    const linkType = isManufacturingDrawingPurpose(drawing.purposeCode) ? "primary_manufacturing" : "reference";
     const existingLink = database
       .prepare(
         "SELECT id FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = ? LIMIT 1"
@@ -3421,11 +3456,11 @@ function linkPartNumberToDrawingInDatabase(
       .prepare("SELECT COUNT(*) AS count FROM drawing_part_links WHERE drawing_number_id = ? AND link_type = 'primary_manufacturing'")
       .get(drawing.id) as { count: number };
 
-    if (drawing.purposeCode === "MA" && !existingLink && existingPrimaryCount.count > 0 && variants.length === 0) {
+    if (isManufacturingDrawingPurpose(drawing.purposeCode) && !existingLink && existingPrimaryCount.count > 0 && variants.length === 0) {
       throw new Error("SAME_DRAWING_VARIANT_REQUIRED");
     }
     if (
-      drawing.purposeCode === "MA" &&
+      isManufacturingDrawingPurpose(drawing.purposeCode) &&
       !existingLink &&
       existingPrimaryCount.count > 0 &&
       (drawing.recordStatus === "Released" || part.recordStatus === "Released") &&
@@ -3433,7 +3468,7 @@ function linkPartNumberToDrawingInDatabase(
     ) {
       throw new Error("SAME_DRAWING_VARIANT_APPROVAL_REQUIRED");
     }
-    if (drawing.purposeCode !== "MA" && variants.length > 0) {
+    if (!isManufacturingDrawingPurpose(drawing.purposeCode) && variants.length > 0) {
       throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
     }
 
@@ -3637,7 +3672,7 @@ export function requestSameDrawingVariantApproval(input: RequestSameDrawingVaria
       throw new Error("DRAWING_PART_ROOT_MISMATCH");
     }
     const variants = normalizeVariantFields(input.variants);
-    if (drawingRow.purpose_code !== "MA") {
+    if (!isManufacturingDrawingPurpose(drawingRow.purpose_code)) {
       throw new Error("SAME_DRAWING_VARIANT_REQUIRES_MA_DRAWING");
     }
     if (variants.length === 0) {
@@ -4407,13 +4442,24 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
 }
 
 function importedPartSequence(partNumber: string) {
-  const match = partNumber.match(/(\d{3})$/);
-  return match ? Number.parseInt(match[1], 10) : 0;
+  const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
+  if (v2) return Number.parseInt(v2[1], 10);
+  const v1 = partNumber.match(/(\d{3})$/);
+  return v1 ? Number.parseInt(v1[1], 10) : 0;
 }
 
 function importedDrawingSequence(drawingNumber: string) {
-  const match = drawingNumber.match(/(\d)$/);
-  return match ? Number.parseInt(match[1], 10) : 1;
+  const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
+  if (v2) return Number.parseInt(v2[1], 10);
+  const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
+  return v1 ? Number.parseInt(v1[1], 10) : 1;
+}
+
+function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
+  if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
+    return NUMBERING_RULE_V2_ID;
+  }
+  return NUMBERING_RULE_V1_ID;
 }
 
 function analyzeNumberingImportRow(
@@ -4541,6 +4587,7 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
       const partName = importString(raw, "partName", "part_name", "料號品名") || coreName;
       const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
       const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖別") || "MA") as DrawingPurposeCode;
+      const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
 
       let root = selectPartRootByCode(database, rootCode);
       if (!root) {
@@ -4552,7 +4599,7 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
             ) VALUES (?, ?, ?, ?, 'EVT', 'Active', ?, ?, ?, ?)
           `
           )
-          .run(crypto.randomUUID(), rootCode, coreName, itemKind, DEFAULT_RULE_VERSION_ID, input.confirmedBy, now, now);
+          .run(crypto.randomUUID(), rootCode, coreName, itemKind, ruleVersionId, input.confirmedBy, now, now);
         createdRoots += 1;
         root = selectPartRootByCode(database, rootCode);
       }
@@ -4575,10 +4622,10 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
             root.id,
             partNumber,
             sequenceNo,
-            formatPartSequence(sequenceNo),
+            formatPartSequence(sequenceNo, ruleVersionId),
             partName,
             itemKind,
-            DEFAULT_RULE_VERSION_ID,
+            ruleVersionId,
             input.confirmedBy,
             now,
             now
@@ -4605,8 +4652,8 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
             purposeCode,
             normalizePurposeDescription(purposeCode, importString(raw, "purposeDescription", "purpose_description", "圖面用途")),
             importedDrawingSequence(drawingNumber),
-            purposeCode === "MA" ? 1 : 0,
-            DEFAULT_RULE_VERSION_ID,
+            isManufacturingDrawingPurpose(purposeCode) ? 1 : 0,
+            ruleVersionId,
             input.confirmedBy,
             now,
             now
@@ -4616,7 +4663,7 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
       }
 
       if (partRow && drawingRow && partRow.part_root_id === drawingRow.part_root_id) {
-        const linkType = drawingRow.purpose_code === "MA" ? "primary_manufacturing" : "reference";
+        const linkType = isManufacturingDrawingPurpose(drawingRow.purpose_code) ? "primary_manufacturing" : "reference";
         const existingLink = database
           .prepare("SELECT id FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = ? LIMIT 1")
           .get(drawingRow.id, partRow.id, linkType);
@@ -4845,6 +4892,7 @@ export function listMonthlyNumberingAuditReports(input: ListMonthlyNumberingAudi
 
 export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
   const database = getDb();
+  ensureDefaultApprovalRulesForCurrentRuleVersion(database);
   const roles = (database.prepare("SELECT * FROM roles ORDER BY system_defined DESC, title ASC").all() as NumberingAdminRoleRow[]).map(
     mapNumberingAdminRole
   );
@@ -5391,6 +5439,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
 
     if (input.templateCode === "standard_control") {
       for (const [id, requiresApproval, approverRole, blocksUsage, blocksRelease, showsWarning, exportMarker] of STANDARD_APPROVAL_RULE_DEFAULTS) {
+        const approvalRuleId = approvalRuleIdForRuleVersion(id, DEFAULT_RULE_VERSION_ID);
         database
           .prepare(
             `
@@ -5399,7 +5448,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
             WHERE id = ?
           `
           )
-          .run(requiresApproval, approverRole, blocksUsage, blocksRelease, showsWarning, exportMarker, now, id);
+          .run(requiresApproval, approverRole, blocksUsage, blocksRelease, showsWarning, exportMarker, now, approvalRuleId);
       }
     }
 
@@ -5571,7 +5620,7 @@ function applyApprovedNumberingRequest(database: SqliteDatabase, request: Number
     }
 
     const drawingNumber = mapDrawingNumber(drawingRow);
-    const impactedPartNumbers = drawingNumber.purposeCode === "MA" ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
+    const impactedPartNumbers = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
     const now = new Date().toISOString();
     database.prepare("UPDATE drawing_numbers SET record_status = 'Obsolete', updated_at = ? WHERE id = ?").run(now, drawingNumber.id);
     for (const partNumber of impactedPartNumbers) {
@@ -5682,6 +5731,7 @@ export function evaluateApprovalRules(input: EvaluateApprovalRuleInput): Approva
 
   const database = getDb();
   const ruleVersionId = input.ruleVersionId?.trim() || DEFAULT_RULE_VERSION_ID;
+  if (ruleVersionId === DEFAULT_RULE_VERSION_ID) ensureDefaultApprovalRulesForCurrentRuleVersion(database);
   const riskFlags = normalizeRiskFlags(input.riskFlags);
   const rows = database
     .prepare("SELECT * FROM approval_rules WHERE rule_version_id = ? AND action_code = ? ORDER BY created_at ASC, id ASC")
@@ -6026,8 +6076,8 @@ export function analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): M
     }
     const drawingNumber = mapDrawingNumber(drawingRow);
     const impactedPartNumbers =
-      drawingNumber.purposeCode === "MA" ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
-    const warnings = drawingNumber.purposeCode === "MA" ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
+      isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
+    const warnings = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
     const requiredDocuments = impactedPartNumbers.length
       ? [
           "2D manufacturing drawing",
@@ -6038,7 +6088,7 @@ export function analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): M
         ]
       : [];
 
-    if (input.applyInvalidation && drawingNumber.purposeCode !== "MA") {
+    if (input.applyInvalidation && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) {
       throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
     }
 
@@ -6276,7 +6326,7 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
         (
           SELECT d.drawing_number
           FROM drawing_numbers d
-          WHERE d.part_root_id = r.id AND d.purpose_code = 'MA' AND d.is_primary_manufacturing = 1
+          WHERE d.part_root_id = r.id AND d.purpose_code IN ('MA', 'M') AND d.is_primary_manufacturing = 1
           ORDER BY d.sequence_no ASC
           LIMIT 1
         ) AS primary_drawing_number,
@@ -6393,7 +6443,7 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
         d.purpose_code,
         NULL AS part_number,
         d.drawing_number,
-        CASE WHEN d.purpose_code = 'MA' AND d.is_primary_manufacturing = 1 THEN d.drawing_number ELSE NULL END AS primary_drawing_number,
+        CASE WHEN d.purpose_code IN ('MA', 'M') AND d.is_primary_manufacturing = 1 THEN d.drawing_number ELSE NULL END AS primary_drawing_number,
         0 AS part_count,
         1 AS drawing_count,
         (
@@ -6684,7 +6734,7 @@ export function getNumberingRootDetail(rootCode: string): NumberingRootDetailRec
     summary: {
       partCount: partNumbers.length,
       drawingCount: drawingNumbers.length,
-      primaryManufacturingCount: drawingNumbers.filter((drawingNumber) => drawingNumber.purposeCode === "MA" && drawingNumber.isPrimaryManufacturing).length,
+      primaryManufacturingCount: drawingNumbers.filter((drawingNumber) => isManufacturingDrawingPurpose(drawingNumber.purposeCode) && drawingNumber.isPrimaryManufacturing).length,
       warningCount: warnings.filter((warning) => !warning.acknowledgedAt).length,
       hasMainDrawingInvalid: root.recordStatus === "MainDrawingInvalid" || partNumbers.some((partNumber) => partNumber.recordStatus === "MainDrawingInvalid")
     }

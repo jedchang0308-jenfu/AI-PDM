@@ -1459,7 +1459,7 @@ function ApprovalMatrixSettings() {
         <div style={{ display: "grid", gap: "0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
             <strong>規則模板</strong>
-            <InfoMark text="模板會批次更新可設定的 approval rules；唯一性、主要 MA 圖等硬限制不會被模板關閉。" />
+            <InfoMark text="模板會批次更新可設定的 approval rules；唯一性、主要製造圖等硬限制不會被模板關閉。" />
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {matrix.ruleTemplates.map((template) => (

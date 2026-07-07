@@ -133,7 +133,7 @@ async function verifyViewport(browser, viewport) {
   await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
   record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar", { hasText: "查詢條件" }).isVisible());
   const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim().replace(/\?$/, "") ?? ""));
-  record(`Identity headers render in required order at ${viewport.width}px`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(["主根號", "品名", "料號", "其他"]), JSON.stringify(headers));
+  record(`Identity headers render in required order at ${viewport.width}px`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(["主根號", "品名", "料號", "狀態 / 階段 / 提醒"]), JSON.stringify(headers));
 
   await page.getByLabel("關鍵字").fill(rootCode);
   await page.getByRole("button", { name: "查詢" }).click();
@@ -152,7 +152,7 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "影響範圍" }).click();
   const impactResponse = await impactResponsePromise;
   record(`Impact analysis API succeeds at ${viewport.width}px`, impactResponse.ok(), `HTTP ${impactResponse.status()}`);
-  await page.getByRole("heading", { name: "MA 圖作廢影響頁" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "製造圖作廢影響" }).waitFor({ timeout: 10_000 });
   record(`Impact panel shows affected part at ${viewport.width}px`, await page.getByText(partNumberB).first().isVisible());
 
   await page.keyboard.press("Escape");

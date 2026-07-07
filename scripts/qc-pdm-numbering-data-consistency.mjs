@@ -83,14 +83,14 @@ function insertReplacementDrawing(root, adminUserId) {
   const db = openDb();
   try {
     const now = new Date().toISOString();
-    const drawingNumber = `D-${root.rootCode}-MA2`;
+    const drawingNumber = `${root.rootCode}-M02`;
     const drawingId = `qc-data-restore-drawing-${unique}`;
     db.prepare(
       `
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
         is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'MA', 'Replacement manufacturing drawing', 2, 1, 'EVT', 'Active', 'numbering-rule-v1', ?, ?, ?)
+      ) VALUES (?, ?, ?, 'M', 'Replacement manufacturing drawing', 2, 1, 'EVT', 'Active', 'numbering-rule-v2', ?, ?, ?)
     `
     ).run(drawingId, root.id, drawingNumber, adminUserId, now, now);
     return { id: drawingId, drawingNumber };
@@ -250,7 +250,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "EVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -347,12 +347,31 @@ try {
     200
   );
   const overrideTrace = getApprovalTrace(overrideApproval.id);
+  const overrideAuditHasTrace = overrideTrace.auditRows.some(
+    (row) =>
+      row.action === "numbering.approval.request" &&
+      row.detail?.actionCode === "dvt_missing_ma_override" &&
+      row.detail?.after &&
+      row.detail?.diff
+  );
+  const overrideDecisionHasTrace = overrideTrace.auditRows.some(
+    (row) =>
+      row.action === "numbering.approval.decision" &&
+      row.detail?.actionCode === "dvt_missing_ma_override" &&
+      row.detail?.after &&
+      row.detail?.diff
+  );
   record(
     "Override approval keeps request, decision, and audit trace",
     overrideTrace.request?.action_code === "dvt_missing_ma_override" &&
       overrideTrace.decision?.decision === "approved" &&
-      overrideTrace.auditRows.some((row) => row.detail?.actionCode === "dvt_missing_ma_override" && row.detail?.markers?.some((marker) => marker.code === "override")),
-    JSON.stringify({ request: overrideTrace.request?.action_code, decision: overrideTrace.decision?.decision, auditActions: overrideTrace.auditRows.map((row) => row.action) })
+      overrideAuditHasTrace &&
+      overrideDecisionHasTrace,
+    JSON.stringify({
+      request: overrideTrace.request?.action_code,
+      decision: overrideTrace.decision?.decision,
+      auditActions: overrideTrace.auditRows.map((row) => row.action)
+    })
   );
 
   markRootAndPartObsolete(overrideCase.root.id, overrideCase.partNumber.id);

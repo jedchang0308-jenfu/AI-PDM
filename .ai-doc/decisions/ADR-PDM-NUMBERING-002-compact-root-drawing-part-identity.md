@@ -1,6 +1,6 @@
 # ADR-PDM-NUMBERING-002 - Compact root, drawing and part identity
 
-Status: Accepted for specification / Not Authorized for implementation
+Status: Accepted / Implemented locally for new records; production rewrite not authorized
 Date: 2026-07-07
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`
@@ -108,7 +108,7 @@ This ADR amends:
 
 - `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
 
-It does not invalidate historical v1 rows or v1 QA evidence. v1 remains the rule for records created under `numbering-rule-v1`; v2 is the target rule for new records after implementation authorization.
+It does not invalidate historical v1 rows or v1 QA evidence. v1 remains the rule for records created under `numbering-rule-v1`; v2 is now the local target rule for new normal records. Production cutover and applying a v1-to-v2 rewrite remain separately gated.
 
 ## Enforcement
 

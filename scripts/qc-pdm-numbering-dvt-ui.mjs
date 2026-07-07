@@ -174,7 +174,7 @@ async function verifyDesktopFlow(page, seeded) {
   record("Incomplete candidate is classified", (await page.getByText("待補/Override").count()) >= 1);
   const missingRow = page.locator("tr").filter({ hasText: seeded.incomplete.partNumber });
   record("Missing MA next step is visible", await missingRow.getByText(/需補：.*MA|主要 MA/).first().isVisible());
-  record("Missing MA recovery tells user what to do", await missingRow.getByText("現在請回圖號模組指定主要 MA 圖，再回來送 DVT。").isVisible());
+  record("Missing manufacturing drawing recovery tells user what to do", await missingRow.getByText("現在請回圖號模組指定主要製造圖，再回來送 DVT。").isVisible());
 
   const batchResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/dvt-candidates") && response.request().method() === "POST");
   await page.getByRole("button", { name: "批次送審 DVT 階段" }).click();

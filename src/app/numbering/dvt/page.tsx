@@ -5,6 +5,7 @@ import { CheckCircle2, ClipboardList, PauseCircle, RotateCcw, Send, ShieldAlert,
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge as SharedStatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -31,7 +32,7 @@ type DvtCandidate = {
   };
   drawingNumbers: Array<{
     drawingNumber: string;
-    purposeCode: "MA" | "OT";
+    purposeCode: "MA" | "OT" | "M" | "R";
     isPrimaryManufacturing: boolean;
     recordStatus: RecordStatus;
   }>;
@@ -230,7 +231,7 @@ export default function NumberingDvtPromotionPage() {
                 compact
                 eyebrow="不用處理"
                 title="目前沒有 EVT 候選料號"
-                body="DVT 清單沒有待分流項目。若要讓料號進 DVT，請先回圖料模組補齊 EVT 主資料、MA 圖與審核狀態。"
+                body="DVT 清單沒有待分流項目。若要讓料號進 DVT，請先回圖料模組補齊 EVT 主資料、主要製造圖與審核狀態。"
                 actions={[
                   { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
                   { href: "/numbering/tasks", label: "查看待辦" }
@@ -245,7 +246,7 @@ export default function NumberingDvtPromotionPage() {
                       <th>料號</th>
                       <th>主根 / 品名</th>
                       <th>類型</th>
-                      <th>MA 圖</th>
+                      <th>製造圖</th>
                       <th>
                         <StatusColumnHeader label="DVT 檢查" context="dvtReadiness" />
                       </th>
@@ -395,14 +396,14 @@ function kindLabel(value: ItemKind) {
 }
 
 function primaryMaLabel(candidate: DvtCandidate) {
-  const primary = candidate.drawingNumbers.find((drawing) => drawing.purposeCode === "MA" && drawing.isPrimaryManufacturing);
+  const primary = candidate.drawingNumbers.find((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode) && drawing.isPrimaryManufacturing);
   if (primary) return primary.drawingNumber;
-  const maCount = candidate.drawingNumbers.filter((drawing) => drawing.purposeCode === "MA").length;
-  return maCount > 0 ? `${maCount} 張 MA，未指定主要圖` : "無 MA";
+  const manufacturingCount = candidate.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).length;
+  return manufacturingCount > 0 ? `${manufacturingCount} 張製造圖，未指定主要圖` : "無製造圖";
 }
 
 function missingItemsNextStep(items: string[]) {
-  if (items.some((item) => item.includes("MA"))) return "現在請回圖號模組指定主要 MA 圖，再回來送 DVT。";
+  if (items.some((item) => item.includes("MA") || item.includes("製造圖"))) return "現在請回圖號模組指定主要製造圖，再回來送 DVT。";
   if (items.some((item) => item.includes("料號") || item.includes("主資料"))) return "現在請回料號或圖料模組補齊主資料。";
   return "現在請補齊缺漏項目；補完後重新整理 DVT 候選清單。";
 }

@@ -1104,7 +1104,7 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
       setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
       setMessage({
         type: "success",
-        text: requiredMissingCount > 0 ? "製造基準包草稿已建立，但仍有必要 MA 圖缺少 Released package，發行前必須補齊或核准排除。" : "製造基準包草稿已建立。"
+        text: requiredMissingCount > 0 ? "製造基準包草稿已建立，但仍有必要製造圖缺少 Released package，發行前必須補齊或核准排除。" : "製造基準包草稿已建立。"
       });
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包草稿建立失敗，請重新整理後再試。" });
@@ -1124,7 +1124,7 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
       setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
       setMessage({ type: "success", text: "製造基準包已 Released，snapshot 已凍結。" });
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包發行失敗，請確認必要 MA 圖與模型狀態。" });
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包發行失敗，請確認必要製造圖與模型狀態。" });
     } finally {
       setActionBusy("");
     }
@@ -1135,7 +1135,7 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
       <div className="panel-header">
         <div>
           <h2>共用 3D / MA 製造基準</h2>
-          <p style={mutedStyle}>{rootCode} 的 shared 3D 屬於料號/root；製造基準包會凍結 3D hash 與 MA 圖正式版次。</p>
+          <p style={mutedStyle}>{rootCode} 的 shared 3D 屬於料號/root；製造基準包會凍結 3D hash 與製造圖正式版次。</p>
         </div>
         <button className="secondary-button" type="button" disabled={loading || Boolean(actionBusy)} onClick={loadShared3dState}>
           <RotateCcw size={16} />
@@ -1208,7 +1208,7 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
         <table style={{ minWidth: 900 }}>
           <thead>
             <tr>
-              <th>必要 MA 圖</th>
+              <th>必要製造圖</th>
               <th>最新 Released package</th>
               <th>綁定共用 3D</th>
               <th>2D-only 例外</th>
@@ -1252,7 +1252,7 @@ function Shared3dBaselinePanel({ partNumber, rootCode }: { partNumber: string; r
             })}
             {resolver && resolver.required.length === 0 ? (
               <tr>
-                <td colSpan={4} style={mutedStyle}>目前 root 下沒有 Active / Released MA 圖。</td>
+                <td colSpan={4} style={mutedStyle}>目前 root 下沒有 Active / Released 製造圖。</td>
               </tr>
             ) : null}
           </tbody>

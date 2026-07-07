@@ -7,6 +7,7 @@ import { AlertTriangle, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAle
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -23,7 +24,7 @@ type NumberingRecordStatus =
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
 type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
-type DrawingPurposeCode = "MA" | "OT";
+type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
 
 type DrawingLinkedPartRecord = {
   id: string;
@@ -71,7 +72,7 @@ type DrawingListRecord = {
 
 const statuses = ["", ...drawingRecordStatusFilterValues] as const;
 const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
-const purposeCodes = ["", "MA", "OT"] as const;
+const purposeCodes = ["", "M", "R", "MA", "OT"] as const;
 const DRAWING_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
 const DRAWING_DRAWER_DEFAULT_WIDTH = 500;
 const DRAWING_DRAWER_MIN_WIDTH = 380;
@@ -152,8 +153,8 @@ export default function DrawingNumbersPage() {
   const summary = useMemo(
     () => ({
       total: drawings.length,
-      ma: drawings.filter((drawing) => drawing.purposeCode === "MA").length,
-      ot: drawings.filter((drawing) => drawing.purposeCode === "OT").length,
+      manufacturing: drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).length,
+      reference: drawings.filter((drawing) => !isManufacturingDrawingPurpose(drawing.purposeCode)).length,
       linked: drawings.filter((drawing) => drawing.linkedPartCount > 0).length,
       warnings: drawings.reduce((sum, drawing) => sum + drawing.warningCount, 0)
     }),
@@ -443,8 +444,8 @@ export default function DrawingNumbersPage() {
                 <CompactSummary
                   items={[
                     { label: "總筆數", value: summary.total },
-                    { label: "MA", value: summary.ma },
-                    { label: "OT", value: summary.ot },
+                    { label: "製造圖", value: summary.manufacturing },
+                    { label: "參考圖", value: summary.reference },
                     { label: "已關聯", value: summary.linked },
                     { label: "提醒", value: summary.warnings, tone: summary.warnings > 0 ? "warning" : undefined }
                   ]}
@@ -456,7 +457,7 @@ export default function DrawingNumbersPage() {
                 <span>關鍵字</span>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖號 / 料號 / 文件用途" />
               </label>
-              <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} />
+              <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
               <SelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <SelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadDrawings} disabled={busy}>
@@ -536,7 +537,7 @@ export default function DrawingNumbersPage() {
                             >
                               {drawing.drawingNumber}
                             </button>
-                            <div className="pdm-identity-meta">{drawing.purposeCode === "MA" ? "MA 製造圖" : "OT 其他圖"}</div>
+                            <div className="pdm-identity-meta">{drawingPurposeLabel(drawing)}</div>
                           </td>
                           <td data-label="品名">
                             <div className="pdm-identity-name">{drawing.coreName}</div>
@@ -613,8 +614,13 @@ function SelectField({
 }
 
 function drawingPurposeLabel(drawing: DrawingListRecord) {
-  const base = drawing.purposeCode === "MA" ? "MA 製造圖" : "OT 其他圖";
+  const base = `${drawing.purposeCode} ${displayDrawingPurposeLabel(drawing.purposeCode)}`;
   return drawing.isPrimaryManufacturing ? `${base} / 主圖` : base;
+}
+
+function formatDrawingPurposeFilterOption(option: string) {
+  if (!option) return "全部";
+  return `${option} ${displayDrawingPurposeLabel(option)}`;
 }
 
 function ReleaseStatusMismatchBadge({ mismatch }: { mismatch: NonNullable<DrawingListRecord["releaseStatusMismatch"]> }) {
@@ -716,7 +722,7 @@ function DrawingDetailDrawer({
                 <Search size={16} />
                 追溯
               </Link>
-              {drawing.purposeCode === "MA" ? (
+              {isManufacturingDrawingPurpose(drawing.purposeCode) ? (
                 <Link className="secondary-button" href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
                   <Workflow size={16} />
                   影響
@@ -734,7 +740,7 @@ function DrawingDetailDrawer({
             entityType="drawing_number"
             entityCode={drawing.drawingNumber}
             developmentPhase={drawing.developmentPhase}
-            processControlled={drawing.purposeCode === "MA"}
+            processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}
           />
 
         </div>
@@ -749,7 +755,7 @@ function TitleBlockVariantWarning() {
       <div className="panel-header">
         <div>
           <h2>Title block 變體風險</h2>
-          <p style={mutedStyle}>同一張 MA 圖已對應多個料號，且圖面描述含材質、顏色或表面處理字樣；請確認 title block 沒有寫死單一變體。</p>
+          <p style={mutedStyle}>同一張製造圖已對應多個料號，且圖面描述含材質、顏色或表面處理字樣；請確認 title block 沒有寫死單一變體。</p>
         </div>
         <AlertTriangle size={18} color="var(--danger)" />
       </div>
@@ -877,7 +883,7 @@ function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRe
           <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
           <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
           <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
-          <InfoBlock icon={<Link2 size={16} />} title="Primary MA" value={part.primaryDrawingNumber ?? "未連結"} />
+          <InfoBlock icon={<Link2 size={16} />} title="主要製造圖" value={part.primaryDrawingNumber ?? "未連結"} />
         </div>
       )}
     </article>

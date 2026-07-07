@@ -22,6 +22,11 @@ const sourceFiles = [
     source: "db/postgres/003_harden_set_updated_at_search_path.sql",
     target: "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
     description: "Harden set_updated_at function search_path for Supabase"
+  },
+  {
+    source: "db/postgres/004_numbering_v2_compact_identity.sql",
+    target: "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
+    description: "Add compact PDM numbering v2 seed and allow M/R drawing purpose codes"
   }
 ];
 

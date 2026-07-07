@@ -352,7 +352,7 @@ export const SELECT_REQUIRED_MA_DRAWINGS_SQL = `
   FROM drawing_numbers
   WHERE company_id = :companyId
     AND part_root_id = :partRootId
-    AND purpose_code = 'MA'
+    AND purpose_code IN ('MA', 'M')
     AND record_status IN ('Active', 'Released')
   ORDER BY sequence_no ASC, drawing_number ASC
 `;

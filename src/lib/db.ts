@@ -585,9 +585,35 @@ function ensureUserCompanyMembershipBackfill(database: SqliteDatabase) {
 function ensureNumberingCompanyScopeSchema(database: SqliteDatabase) {
   ensureColumn(database, "numbering_sequences", "company_id", "TEXT NOT NULL DEFAULT 'company-jenfu'");
   database.prepare("UPDATE numbering_sequences SET company_id = 'company-jenfu' WHERE company_id IS NULL OR company_id = ''").run();
+  ensureNumberingRuleVersionSeeds(database);
   ensurePartRootsCompanyScopeSchema(database);
   ensurePartNumbersCompanyScopeSchema(database);
   ensureDrawingNumbersCompanyScopeSchema(database);
+}
+
+function ensureNumberingRuleVersionSeeds(database: SqliteDatabase) {
+  database
+    .prepare(
+      `INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+       VALUES (?, ?, ?, 'active', ?)`
+    )
+    .run(
+      "numbering-rule-v1",
+      "PDM-NUMBERING-V1",
+      "PDM numbering rule v1",
+      '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+    );
+  database
+    .prepare(
+      `INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+       VALUES (?, ?, ?, 'active', ?)`
+    )
+    .run(
+      "numbering-rule-v2",
+      "PDM-NUMBERING-V2",
+      "PDM compact numbering rule v2",
+      '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+    );
 }
 
 function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
@@ -712,7 +738,8 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
   const columns = database.prepare("PRAGMA table_info(drawing_numbers)").all() as Array<{ name: string }>;
   const hasCompanyId = columns.some((column) => column.name === "company_id");
   const usesCompanyUnique = Boolean(row?.sql?.includes("UNIQUE (company_id, drawing_number)"));
-  if (hasCompanyId && usesCompanyUnique) return;
+  const supportsV2PurposeCodes = Boolean(row?.sql?.includes("'M'") && row.sql.includes("'R'"));
+  if (hasCompanyId && usesCompanyUnique && supportsV2PurposeCodes) return;
 
   const existing = new Set(columns.map((column) => column.name));
   const selectCompanyId = existing.has("company_id") ? "COALESCE(company_id, 'company-jenfu')" : "'company-jenfu'";
@@ -726,7 +753,7 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
         company_id TEXT NOT NULL DEFAULT 'company-jenfu',
         part_root_id TEXT NOT NULL,
         drawing_number TEXT NOT NULL,
-        purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT')),
+        purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT', 'M', 'R')),
         purpose_description TEXT NOT NULL DEFAULT '',
         sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
         is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),

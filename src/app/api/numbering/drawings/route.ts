@@ -20,7 +20,7 @@ const recordStatuses = new Set([
   "MainDrawingInvalid"
 ]);
 const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
-const purposeCodes = new Set(["MA", "OT"]);
+const purposeCodes = new Set(["MA", "OT", "M", "R"]);
 
 export async function GET(request: Request) {
   const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");

@@ -563,7 +563,7 @@ function DrawingRevisionWorkbench() {
         <div className="panel-header">
           <div>
             <h2>圖號定位</h2>
-            <p style={mutedTextStyle}>可輸入正式圖號或料號，例如 D-0014-MA1。內部 ID 僅顯示於解析結果，不需要人工填寫。</p>
+            <p style={mutedTextStyle}>可輸入正式圖號或料號，例如 00001-M01。內部 ID 僅顯示於解析結果，不需要人工填寫。</p>
           </div>
           <button
             className="primary-button"
@@ -585,7 +585,7 @@ function DrawingRevisionWorkbench() {
             <span style={fieldLabelStyle}>正式圖號 / 料號</span>
             <input
               className="text-input"
-              placeholder="請輸入，例如 D-0014-MA1 或 P-0014-001"
+              placeholder="請輸入，例如 00001-M01 或 00001-P01"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -1057,7 +1057,7 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
     case "DRAWING_SUBMISSION_VALIDATION_FAILED":
       return "送審資料尚未完整，不能建立送審。";
     case "drawing_number_not_found":
-      return "找不到圖號。請輸入正式圖號，例如 D-0014-MA1，不需要填內部 ID。";
+      return "找不到圖號。請輸入正式圖號，例如 00001-M01，不需要填內部 ID。";
     case "drawing_number_ambiguous":
       return "查到多筆可能圖號，請先在圖號定位區選定一筆。";
     case "primary_part_ambiguous":

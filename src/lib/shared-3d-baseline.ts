@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import {
   AsyncShared3dBaselineRepository,
   type DrawingPackageModelBasis,
@@ -178,7 +179,7 @@ export async function setDrawingPackageModelBasisAsync(input: {
     const model = await repository.getSharedModelById(input.sharedModelVersionId);
     if (!model) throw new Shared3dBaselineError("SHARED_MODEL_NOT_FOUND", "找不到共用 3D model version。", 404);
     if (model.companyId !== pkg.companyId || model.partRootId !== pkg.drawingPartRootId) {
-      throw new Shared3dBaselineError("SHARED_MODEL_OWNER_MISMATCH", "共用 3D 不屬於此 MA 圖號的 root/part。", 409);
+      throw new Shared3dBaselineError("SHARED_MODEL_OWNER_MISMATCH", "共用 3D 不屬於此製造圖圖號的 root/part。", 409);
     }
     basis = {
       id: `DPM-${crypto.randomUUID()}`,
@@ -230,17 +231,17 @@ export async function assertDrawingPackageModelBasisForReleaseAsync(packageId: s
   const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
   const pkg = await repository.getDrawingPackage(packageId);
   if (!pkg) throw new Shared3dBaselineError("DRAWING_PACKAGE_NOT_FOUND", "找不到圖面版次附件包。", 404);
-  if (pkg.drawingPurposeCode !== "MA") return { ok: true, reason: "non_ma_package" as const };
+  if (!isManufacturingDrawingPurpose(pkg.drawingPurposeCode)) return { ok: true, reason: "non_ma_package" as const };
 
   const basis = await repository.getPackageModelBasis(packageId);
   if (!basis || basis.reviewStatus !== "confirmed") {
-    throw new Shared3dBaselineError("MA_PACKAGE_MODEL_BASIS_REQUIRED", "MA 圖面發行前必須連結共用 3D，或提供已審核的 2D-only / no 3D impact 例外。", 409);
+    throw new Shared3dBaselineError("MA_PACKAGE_MODEL_BASIS_REQUIRED", "製造圖發行前必須連結共用 3D，或提供已審核的 2D-only / no 3D impact 例外。", 409);
   }
   if (basis.basisType === "shared_model") {
-    if (!basis.sharedModelVersionId) throw new Shared3dBaselineError("MA_PACKAGE_SHARED_MODEL_REQUIRED", "MA 圖面缺少共用 3D model version。", 409);
+    if (!basis.sharedModelVersionId) throw new Shared3dBaselineError("MA_PACKAGE_SHARED_MODEL_REQUIRED", "製造圖缺少共用 3D model version。", 409);
     const model = await repository.getSharedModelById(basis.sharedModelVersionId);
     if (!model || model.status !== "Released") {
-      throw new Shared3dBaselineError("MA_PACKAGE_SHARED_MODEL_NOT_RELEASED", "MA 圖面連結的共用 3D 尚未 Released。", 409);
+      throw new Shared3dBaselineError("MA_PACKAGE_SHARED_MODEL_NOT_RELEASED", "製造圖連結的共用 3D 尚未 Released。", 409);
     }
   }
   if (basis.basisType === "two_d_only" && !basis.exceptionReason) {
@@ -365,11 +366,11 @@ export async function releaseManufacturingBaselineAsync(input: { baselineId: str
   const items = await repository.listManufacturingBaselineItems(baseline.id);
   const missing = items.filter((item) => item.inclusionStatus === "included" && !item.packageId);
   if (missing.length > 0) {
-    throw new Shared3dBaselineError("BASELINE_REQUIRED_MA_MISSING", "製造基準包不能省略必要 MA 圖面。", 409, { missing });
+    throw new Shared3dBaselineError("BASELINE_REQUIRED_MA_MISSING", "製造基準包不能省略必要製造圖。", 409, { missing });
   }
   const unapprovedExclusions = items.filter((item) => item.inclusionStatus === "excluded" && (!item.selectionReason || item.reviewStatus !== "approved"));
   if (unapprovedExclusions.length > 0) {
-    throw new Shared3dBaselineError("BASELINE_EXCLUSION_APPROVAL_REQUIRED", "排除必要 MA 圖面需要原因與核准。", 409, { unapprovedExclusions });
+    throw new Shared3dBaselineError("BASELINE_EXCLUSION_APPROVAL_REQUIRED", "排除必要製造圖需要原因與核准。", 409, { unapprovedExclusions });
   }
   const releasedAt = new Date().toISOString();
   const snapshotJson = JSON.stringify({

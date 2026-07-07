@@ -7,7 +7,7 @@ import type { DrawingPurposeCode, NumberingItemKind, NumberingPhase } from "@/li
 export const runtime = "nodejs";
 
 const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
-const purposeCodes = new Set(["MA", "OT"]);
+const purposeCodes = new Set(["M", "R"]);
 const initialDevelopmentPhase: NumberingPhase = "EVT";
 
 export async function POST(request: Request) {
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
   if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
   if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
   if (drawingRequested && !drawingPurposeCode) errors.push("drawingPurposeCode is required when drawingRequested is true");
-  if (drawingRequested && drawingPurposeCode === "OT" && !String(body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim()) {
-    errors.push("drawingPurposeDescription is required for OT drawings");
+  if (drawingRequested && drawingPurposeCode === "R" && !String(body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim()) {
+    errors.push("drawingPurposeDescription is required for reference drawings");
   }
 
   if (errors.length > 0 || !itemKind) {
