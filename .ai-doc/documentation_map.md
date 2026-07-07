@@ -32,6 +32,7 @@ Executable now:
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`: Implemented / verification passed locally for Phase 1, with Phase 1 contract and QA plan prepared and Phase 2+ RD Contract Ready. Local worktree changes cover `Cancelled` / release-recovery schema fields, same-revision blocker classification, Pending cancel support, release workflow wrapping, approve-flow integration, canonical workbench page/API, retry-release API, return-for-correction API, module CTA routing, submission-detail recovery UI, resolved ReleaseFailed dashboard/todo de-noising and async transaction boundaries. Verified evidence includes focused recovery QC, disposable mutation lifecycle QC, DB transaction provider QC, `tsc`, lint, build, D-0014 workbench API smoke, D-0014 release-incomplete browser smoke and D-0014 submission-detail browser smoke. The mutation gate used temporary local fixture records and did not mutate existing D-0014 or other user data. Phase 2+ preserves RD handoff contracts for master-data completion/writeback through owner APIs, drawing attachment upload, collaboration, dashboard/todo de-noising, and production cutover/historical repair gates. Production deploy, production migration, direct DB cleanup, historical repair and data deletion remain unapproved.
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-003`: Implemented / verification passed locally on 2026-07-02 after user RD authorization. UI-level release-incomplete self-recovery now includes human-readable diagnosis, drawing-owned attachment organizer, released-filename preflight, explicit selected-attachment correction submission, formal-record lock state, submission-detail recovery link, focused QC and a UI-only operation validation gate covering route identity, retired upload, blocker wording, correction flow, permissions, detail states and RWD. Production deploy, production migration, direct DB cleanup, historical repair, data deletion, released-file overwrite, collaboration/dashboard later phases and Google Drive production movement remain unapproved.
 - `DEV-PDM-STATUS-UX-001`: Implemented / verification passed locally on 2026-07-03. Phase 1 adds a central UI status dictionary, Chinese-only normal UI status display, status filter/badge/error mapping, development phase display mapping, shared status badge/header/help components and the required `?` help popover on user-visible status table columns. Verified with `npm run qc:pdm-status-ui-vocabulary` 44/44, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm run build`, browser UI evidence on `/settings`, browser UI evidence on `/numbering/drawings` for `已發布 / 正式階段`, and `npm run dev:local:check`. Remaining Phase 2 hardening, DB enum/schema rename, production deploy, production migration, audit payload migration and historical data repair require explicit approval.
+- `DEV-PDM-STATUS-UX-002`: Implemented / verification passed locally for Phase 1 on 2026-07-07 after user `執行開發` authorization. Status help is now task-specific across task/import/settings/report/DVT/restore contexts, approval wording uses `待補資料`, mixed master-data columns are labeled `狀態 / 階段 / 提醒`, and focused QC covers context mismatch risks. Verified with `tsc`, lint, status vocabulary QC 81/81, browser status-context checks 73/73, DVT fixture browser check 11/11, 390px task popover sanity 4/4 and local dev health. Phase 2 scanner hardening/checklist, DB/API/schema changes, production deploy, historical repair and audit raw-payload migration remain unapproved.
 - `DEV-PDM-DRAWING-REVISION-SUBMISSION-001`: Implemented / verification passed locally on 2026-07-03 after user RD authorization, with 2026-07-05 APP feedback, Phase 2 multi-file package implementation, Phase 3 out-of-order revision/latest-history implementation and Phase 4 first-class revision attachment package model applied. `/numbering/revisions` now includes the `新版圖面` step, selected/uploaded drawing-owned attachments for the intended revision, target-revision-only primary attachment selection, collapsed read-only previous/other-revision reference attachments, a dedicated controlled drawing-revision submission API, Pending submission creation, FFF assessment linkage through `drawing_revision_fff_assessments.submission_id`, selected-attachment revision validation, multi-file `版次檔案包` intake, extension-based role correction, warning-only package completeness, reviewer warning parity, next-revision suggestion with intentional override guidance, release lifecycle latest/history recomputation and duplicate same-revision formal blocking. Phase 4 adds stable `packageId`, package file membership, Released-core immutability, supplement request/approval by current reviewer/supervisor or Admin, approved supplement `補件` tagging in the main attachment list and migration dry-run reporting. Verified implementation evidence now exists for Phase 1-4. Production deploy, production migration/cutover, direct data repair, historical cleanup, CAD/OCR dependency, forced part/BOM revision, strict chronological approval and dedicated mobile-phone UI remain excluded. Phones use the desktop/default surface.
 - Local dev entrypoint CAPA PA is implemented and hardened: use `npm run dev:local` for normal 3000 startup, `npm run dev:local:check` for non-browser health diagnosis, and `npm run dev:local:restart` only when the project-owned 3000 process is stale/unhealthy. The managed launcher performs multi-route HTTP health checks for `/`, `/login`, and `/api/auth/me`, writes launcher PID, port-owner PID, status JSON and logs to `tmp/local-dev/`, and `clean:next` / `prebuild` refuse to remove `.next` while the project-owned 3000 server is listening unless an explicit bypass is set. Guarded by `npm run qc:local-dev-entrypoint`.
 - `DEV-PDM-SUBMISSION-CONFLICT-001`: Implemented / verification passed locally on 2026-07-02. Duplicate drawing + revision submission is classified as `submission_conflict`, blocked at readiness/submit/reviewer guard, shown with human Chinese recovery, audited through structured blocked-attempt payloads, and raw DB uniqueness errors are shielded from UI. Production deploy, production migration, direct DB cleanup and historical duplicate repair remain unapproved.
@@ -48,7 +49,6 @@ Executable now:
 Not executable without explicit approval:
 
 - `DEV-PDM-NEXT-STEP-UX-001` Phase 2+: regression scanner/checklist hardening and production release are not authorized. DB/API/permission/state-machine changes, production deploy, direct data repair, historical cleanup, admin/debug raw payload full localization and full platform navigation redesign are excluded unless separately approved.
-- `DEV-PDM-STATUS-UX-002`: Prepared / RD Implementation Ready / Not Authorized. Captures APP feedback that status help still mixes workflow, task, import, settings, job, restore and DVT readiness semantics after the central Chinese status display work. Phase 1 requires context-specific status help for tasks, imports, settings, reports, approvals, DVT, restore lists and mixed master-data columns, plus focused QA/QC gates. Product implementation, production deploy, DB/API/status-machine changes, historical repair and audit raw-payload migration are not authorized.
 - `DEV-PDM-NUMBERING-002`: Prepared / RD Implementation Ready / Not Authorized. Captures compact Numbering Core V2 for new records: `00001`, `00001-P01`, `00001-M01`, `00001-R01`; main root is a reusable design-object root, not a project/order/equipment root; v1 `MA/OT` and `D-/P-` rows remain readable through semantic manufacturing/reference compatibility. Product implementation, schema migration, production migration, direct data rewrite, project/order/equipment numbering and extra visible category codes are not authorized.
 - `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`: Prepared / RD Implementation Ready for Phase 1 documentation only. It captures the D-0014-MA1 mismatch where submission release state is `Released` while drawing/part/root master statuses remain `Draft`. Phase 1 requires release-time master lifecycle sync in the same DB transaction as submission `Released`, audit and visible inconsistency guard. Phase 2 historical scanner/Admin repair and Phase 3 production cutover are documented but not authorized. No historical D-0014 repair, production migration, direct DB mutation or data deletion is authorized.
 - `DEV-SUPABASE-DB-001-DATA-PARITY`: prepared but blocked; requires parity tier, target, data scope, cleanup owner, and credential boundary.
@@ -327,7 +327,7 @@ Evidence:
 
 ### DEV-PDM-STATUS-UX-002
 
-Status: Prepared / RD Implementation Ready / Not Authorized. Documentation only; RD implementation requires explicit authorization.
+Status: Implemented / verification passed locally for Phase 1. Phase 2 scanner hardening/checklist remains RD Contract Ready / Not Authorized.
 
 Read:
 
@@ -335,7 +335,7 @@ Read:
 2. `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
 3. `.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`
 4. Parent context: `.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`, `.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`
-5. Candidate implementation surfaces: `src/lib/status-display.ts`, `src/components/status-help-popover.tsx`, `src/app/numbering/tasks/page.tsx`, `src/app/numbering/imports/page.tsx`, `src/app/settings/page.tsx`, `src/app/numbering/reports/page.tsx`, `src/app/numbering/approvals/page.tsx`, `src/app/numbering/dvt/page.tsx`, `src/app/bom/workbench/page.tsx`, `src/app/numbering/part-drafts/page.tsx`, `src/app/parts/page.tsx`, `src/app/numbering/drawings/page.tsx`, `src/app/numbering/search/page.tsx`, `scripts/qc-pdm-status-ui-vocabulary.mjs`.
+5. Implemented surfaces: `src/lib/status-display.ts`, `src/components/status-help-popover.tsx`, `src/app/numbering/tasks/page.tsx`, `src/app/numbering/imports/page.tsx`, `src/app/settings/page.tsx`, `src/app/numbering/reports/page.tsx`, `src/app/numbering/approvals/page.tsx`, `src/app/numbering/dvt/page.tsx`, `src/app/bom/workbench/page.tsx`, `src/app/numbering/part-drafts/page.tsx`, `src/app/parts/page.tsx`, `src/app/numbering/drawings/page.tsx`, `src/app/numbering/search/page.tsx`, `scripts/qc-pdm-status-ui-vocabulary.mjs`.
 
 Human-confirmed problem:
 
@@ -346,16 +346,20 @@ Human-confirmed problem:
 
 Implementation / authorization boundary:
 
-- Phase 1 is RD Implementation Ready but not authorized.
+- Phase 1 is implemented and locally verified.
 - Phase 2 scanner hardening is RD Contract Ready / Not Authorized.
 - Stop if DB/API/schema migration, lifecycle semantic changes, production deploy, historical repair or direct data mutation are needed.
 
-Required evidence after authorization:
+Verification evidence:
 
-- `npx.cmd tsc --noEmit --pretty false`
-- lint or touched-file lint
-- focused status context QC
-- Playwright popover-label/clipping screenshots for tasks/imports/settings/reports/approvals/dvt.
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- `npm.cmd run lint -- --quiet`: passed.
+- `npm.cmd run qc:pdm-status-ui-vocabulary`: passed 81/81.
+- Browser status-context checks: passed 73/73 for tasks/imports/settings/reports/approvals.
+- Browser DVT status-context check with QC-owned temporary fixture: passed 11/11.
+- Browser 390px task status popover sanity: passed 4/4.
+- Screenshots: `output/playwright/status-context-disambiguation/`.
+- `npm.cmd run dev:local:check`: passed.
 
 ### DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002
 
