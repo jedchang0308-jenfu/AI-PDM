@@ -98,10 +98,10 @@ export const INSERT_ASYNC_SANDBOX_SUBMISSION_SQL = `
 
 export const INSERT_ASYNC_SANDBOX_FILE_SQL = `
   INSERT INTO submission_files (
-    id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
+    id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
     sha256, file_size, created_at
   ) VALUES (
-    :id, :submissionId, :fileRole, :originalFilename, :localPath, NULL,
+    :id, :submissionId, :fileRole, :originalFilename, :localPath, :storageProvider, :storageBucket, :storageKey, NULL,
     :sha256, :fileSize, :createdAt
   )
 `;
@@ -412,6 +412,9 @@ export class AsyncSandboxRepository {
         fileRole: file.file_role,
         originalFilename: file.original_filename,
         localPath: file.local_path,
+        storageProvider: file.storage_provider ?? "local_repository",
+        storageBucket: file.storage_bucket ?? null,
+        storageKey: file.storage_key ?? null,
         sha256: file.sha256,
         fileSize: file.file_size,
         createdAt: now

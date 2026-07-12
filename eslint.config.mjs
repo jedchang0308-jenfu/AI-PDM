@@ -1,9 +1,11 @@
 import nextVitals from "eslint-config-next/core-web-vitals";
 
 const config = [
+  {
+    ignores: [".next/**", ".tmp/**", "tmp/**", "node_modules/**", "data/**", "output/**"]
+  },
   ...nextVitals,
   {
-    ignores: [".next/**", "node_modules/**", "data/**"],
     rules: {
       "react-hooks/set-state-in-effect": "off"
     }

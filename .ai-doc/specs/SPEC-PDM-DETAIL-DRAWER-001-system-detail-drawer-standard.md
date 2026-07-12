@@ -1,6 +1,6 @@
 # SPEC-PDM-DETAIL-DRAWER-001：全系統右側明細 Drawer 一致化
 
-狀態：實作中  
+狀態：實作中；2026-07-09 已對齊 approval platform legacy redirect 例外
 關聯任務：`DEV-PDM-DETAIL-DRAWER-001`  
 建立日期：2026-06-06
 
@@ -17,7 +17,6 @@
 納入本次：
 
 - 首頁 / 工作台的圖面送審明細。
-- `/numbering/approvals` 的審核批次明細。
 - `/numbering/imports` 的匯入批次 / staging 檢查明細。
 - `/numbering/reports` 的月報明細。
 - 已採用圖號模組 drawer 行為的 `/numbering/search`、`/numbering/drawings`、`/parts` 作為模板與驗證基準。
@@ -28,6 +27,7 @@
 - BOM 工作台左側搜尋 / 樹狀面板。
 - BOM 工作台節點屬性面板。
 - BOM 審核頁固定 decision panel。
+- `/numbering/approvals` 的舊審核批次明細 host；自 `DEV-PDM-APPROVAL-PLATFORM-001` Phase 1C-B 起，此路由是 legacy redirect，canonical reviewer surface 為 `/approvals` 審核工作台。它使用 workbench detail panel contract，不再要求在 legacy route 內掛 `PdmDetailDrawer`。
 - 編輯器、設定頁或高風險操作流程中必須常駐的工具面板。
 
 ## 已定案決策
@@ -113,11 +113,12 @@
 - `npm.cmd run qc:pdm-master-workbench-layout`
 - `npm.cmd run qc:dashboard-detail-priority`
 - `npm.cmd run qc:pdm-system-detail-drawer-ui`
-- `npm.cmd run qc:pdm-numbering-approval-review-ui`
+- `npm.cmd run qc:pdm-approval-platform`
 - `npm.cmd run qc:pdm-numbering-import-center-ui`
 - `npm.cmd run qc:pdm-numbering-report-center-ui`
 - 新增或更新 UI QC，驗證：
   - 指定頁面存在共用 drawer 行為。
+  - `/numbering/approvals` legacy route redirect 到 `/approvals`，且 `/approvals` 提供審核工作台明細 panel、相容訊息與篩選 deep link。
   - drawer 開啟 / 關閉 / 切換列。
   - drawer width drag 與 localStorage 記憶。
   - 無暗幕、無水平 overflow。

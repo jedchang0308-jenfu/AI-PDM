@@ -45,6 +45,8 @@ const settingsPageSource = read("src/app/settings/page.tsx");
 const numberingRequestPageSource = read("src/app/numbering/request/page.tsx");
 const numberingDvtPageSource = read("src/app/numbering/dvt/page.tsx");
 const numberingApprovalPageSource = read("src/app/numbering/approvals/page.tsx");
+const approvalWorkbenchPageSource = read("src/app/approvals/page.tsx");
+const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-redirect.ts");
 const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
 const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
 const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
@@ -681,7 +683,9 @@ record(
 );
 record(
   "NUM-API approval decision route calls workflow through action guard",
-  approvalDecisionRouteSource.includes("decideNumberingApproval") && approvalDecisionRouteSource.includes("numbering.approval.batch.decide"),
+  (approvalDecisionRouteSource.includes("decideNumberingApproval") ||
+    approvalDecisionRouteSource.includes("decideApprovalPlatformLegacyNumberingAsync")) &&
+    approvalDecisionRouteSource.includes("numbering.approval.batch.decide"),
   "approval-decisions/route.ts"
 );
 record(
@@ -694,7 +698,8 @@ record(
 );
 record(
   "NUM-API approval batch detail route decides, resubmits, and accepts item comments",
-    approvalBatchDetailRouteSource.includes("decideNumberingApprovalBatch") &&
+    (approvalBatchDetailRouteSource.includes("decideNumberingApprovalBatch") ||
+      approvalBatchDetailRouteSource.includes("decideApprovalPlatformLegacyNumberingBatchAsync")) &&
     approvalBatchDetailRouteSource.includes("resubmitRejectedNumberingApprovalBatchItems") &&
     approvalBatchDetailRouteSource.includes("itemComments") &&
     approvalBatchDetailRouteSource.includes("numbering.approval.batch.decide") &&
@@ -883,26 +888,28 @@ record(
   "numbering/dvt/page.tsx"
 );
 record(
-  "NUM-UI formal-data approval page renders batch review workflow",
-  numberingApprovalPageSource.includes("發行審核") &&
-    numberingApprovalPageSource.includes("同專案批次審核") &&
-    numberingApprovalPageSource.includes("/api/numbering/approval-batches"),
+  "NUM-UI formal-data legacy approval page redirects to workbench",
+  numberingApprovalPageSource.includes("redirect(buildLegacyApprovalWorkbenchRedirect") &&
+    numberingApprovalPageSource.includes('"numbering_approvals"') &&
+    approvalLegacyRedirectSource.includes('domain: "numbering"'),
   "numbering/approvals/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page supports shared and item comments with proxy markers",
-  numberingApprovalPageSource.includes("共用意見") &&
-    numberingApprovalPageSource.includes("異常項個別意見") &&
-    numberingApprovalPageSource.includes("代送審"),
-  "numbering/approvals/page.tsx"
+  "NUM-UI approval workbench exposes numbering review filters",
+  approvalWorkbenchPageSource.includes("<h1>審核工作台</h1>") &&
+    approvalWorkbenchPageSource.includes("numbering.release") &&
+    approvalWorkbenchPageSource.includes("numbering.dvt_promotion") &&
+    approvalWorkbenchPageSource.includes("numbering.obsolete_part_number") &&
+    approvalWorkbenchPageSource.includes("numbering.obsolete_ma_drawing"),
+  "approvals/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page renders delegated, override, and impact markers",
-  numberingApprovalPageSource.includes("MarkerList") &&
-    numberingApprovalPageSource.includes("代理審核") &&
-    numberingApprovalPageSource.includes("isDelegatedApproval") &&
-    numberingApprovalPageSource.includes("impact_scope"),
-  "numbering/approvals/page.tsx"
+  "NUM-UI approval workbench supports detail decisions and legacy redirect messages",
+  approvalWorkbenchPageSource.includes("allowedDecisionsForDetail") &&
+    approvalWorkbenchPageSource.includes("legacyRedirectMessages") &&
+    approvalWorkbenchPageSource.includes("buildInboxUrl") &&
+    approvalWorkbenchPageSource.includes("syncFilterQuery"),
+  "approvals/page.tsx"
 );
 record(
   "NUM-UI numbering import center renders staging workflow",
@@ -921,8 +928,9 @@ record(
 record(
   "NUM-UI numbering search page renders query and detail workflow",
   numberingSearchPageSource.includes("圖料模組") &&
-    numberingSearchPageSource.includes("/api/numbering/search") &&
-    numberingSearchPageSource.includes("/api/numbering/roots/"),
+    (numberingSearchPageSource.includes("/api/numbering/search") ||
+      numberingSearchPageSource.includes("/api/numbering/relations?${params.toString()}")) &&
+    numberingSearchPageSource.includes("/api/numbering/roots/${"),
   "numbering/search/page.tsx"
 );
 record(
@@ -977,8 +985,8 @@ record(
 record("NUM-UI sidebar links numbering request page", sidebarNavSource.includes("/numbering/request") && sidebarNavSource.includes("領號申請"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("階段晉升"), "sidebar-nav.tsx");
 record(
-  "NUM-UI sidebar links DVT release approval page",
-  sidebarNavSource.includes("/numbering/approvals") && (sidebarNavSource.includes("DVT/發行審核") || sidebarNavSource.includes("發行審核")),
+  "NUM-UI sidebar links unified approval workbench",
+  sidebarNavSource.includes("/approvals") && sidebarNavSource.includes("審核工作台") && sidebarNavSource.includes('badge: "approvalPending"'),
   "sidebar-nav.tsx"
 );
 record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");

@@ -53,7 +53,7 @@ type DeletedImportBatch = {
 };
 
 const sampleCsv = `主根號,品名,料號,圖號,料件類型,圖別
-00001,測試支架,00001-P01,00001-M01,manufactured,M
+A0001,測試支架,A0001-P01,A0001-M01,manufactured,M
 00002,測試墊片,00002-P01,,purchased,M`;
 
 export default function NumberingImportsPage() {

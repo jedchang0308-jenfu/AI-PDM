@@ -1,8 +1,12 @@
 ﻿import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
-import { createReleasePackageStorageService } from "@/lib/file-storage";
 import { canReadSubmissionAsync } from "@/lib/permissions";
-import { contentDispositionFilename, getReleasePackageStorageKey, readReleasePackage } from "@/lib/release-package-file";
+import {
+  contentDispositionFilename,
+  createReleasePackageStorageServiceForRecord,
+  getReleasePackageStorageKey,
+  readReleasePackage
+} from "@/lib/release-package-file";
 import { auditStorageAccess, resolveStorageAccessAuditProvenance } from "@/lib/storage-access-audit";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 
@@ -30,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const storageKey = getReleasePackageStorageKey(submission.release_package);
     const bytes = await readReleasePackage(submission.release_package);
-    const access = await createReleasePackageStorageService().createDownloadUrl({
+    const access = await createReleasePackageStorageServiceForRecord(submission.release_package).createDownloadUrl({
       key: storageKey,
       filename: submission.release_package.package_filename,
       forceDownload: true,

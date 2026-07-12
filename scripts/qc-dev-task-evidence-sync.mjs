@@ -107,7 +107,7 @@ record(results, "QASYNC-008 source fixture remains unchanged", sourceFixtureUnch
 const actualDryRun = runSync([]);
 record(results, "QASYNC-009 actual dev_task dry-run exits 0", actualDryRun.status === 0, actualDryRun.stderr);
 record(results, "QASYNC-010 actual dev_task reports no eligible changes while evidence is open", actualDryRun.parsed?.changes?.length === 0, JSON.stringify(actualDryRun.parsed?.changes ?? null));
-record(results, "QASYNC-011 actual dev_task keeps external target tasks blocked", actualDryRun.parsed?.blocked?.length >= 6, JSON.stringify(actualDryRun.parsed?.blocked ?? null));
+record(results, "QASYNC-011 actual dev_task keeps remaining external/deferred target tasks visible", actualDryRun.parsed?.blocked?.length >= 1, JSON.stringify(actualDryRun.parsed?.blocked ?? null));
 
 const failed = results.filter((result) => !result.passed);
 const report = {

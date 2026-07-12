@@ -9,6 +9,7 @@ import { LifecycleStageGuidance, ObjectLifecycleStatusPanel } from "@/components
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
+import { buildTransferPackageHref, type SubmissionMode } from "@/lib/submission-gate";
 
 const emptyMetadata: PdmMetadata = {
   drawing_number: "",
@@ -803,6 +804,7 @@ function formatBytes(bytes: number) {
 export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNumber: string }) {
   const normalizedDrawingNumber = drawingNumber.trim();
   const [context, setContext] = useState<DrawingSubmissionContext | null>(null);
+  const [submissionMode, setSubmissionMode] = useState<SubmissionMode>("research");
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
@@ -825,6 +827,17 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
     [context, selectedAttachmentIds]
   );
   const selectedReleaseConflicts = selectedAttachments.filter((attachment) => attachment.releaseConflict);
+  const isTechnicalTransferMode = submissionMode === "technical_transfer";
+  const transferPackageHref = useMemo(
+    () =>
+      buildTransferPackageHref({
+        sourceType: "drawing",
+        sourceId: context?.drawing.drawingNumber ?? normalizedDrawingNumber,
+        sourceLabel: context?.drawing.drawingNumber ?? normalizedDrawingNumber,
+        caseType: "design_change_case"
+      }),
+    [context?.drawing.drawingNumber, normalizedDrawingNumber]
+  );
   const releaseIncompleteBlocker = context?.blockers.find((blocker) => blocker.code === "release_incomplete_conflict") ?? null;
   const releaseIncompleteSubmissionId = releaseIncompleteBlocker?.existingSubmission?.submissionId ?? null;
   const hasFormalSameRevisionBlocker = context?.blockers.some(isFormalSameRevisionBlocker) ?? false;
@@ -845,7 +858,8 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
   const submitButtonLabel = hasSubmissionConflict && !releaseIncompleteBlocker ? "此版次不可送審" : "送出審核";
   const canSubmit =
     readyToSubmit &&
-    !submitting;
+    !submitting &&
+    !isTechnicalTransferMode;
   const canCreateCorrection = Boolean(
     context &&
       releaseIncompleteSubmissionId &&
@@ -927,6 +941,10 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
 
   async function submitDrawingSource() {
     if (!context) return;
+    if (isTechnicalTransferMode) {
+      setMessage({ type: "error", text: "技術移轉送審需先建立移轉包，不能從單一圖號直接建立正式送審。" });
+      return;
+    }
     setSubmitting(true);
     setMessage(null);
     const idempotencyKey =
@@ -936,6 +954,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         selectedAttachmentIds,
+        submissionMode,
         expectedRevision: context.suggestedRevision.revision,
         note,
         idempotencyKey
@@ -1108,6 +1127,34 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
         ]}
       />
 
+      <section className="panel" data-submission-mode-selector="true" aria-label="送審模式">
+        <div className="panel-header">
+          <div>
+            <h2>送審模式</h2>
+            <p style={drawingSubmissionMutedStyle}>研發送審維持單一圖號審核；技術移轉送審需先進入移轉包。</p>
+          </div>
+          <span className="section-label">Phase 1</span>
+        </div>
+        <div className="next-step-inline-actions" style={drawingSubmissionModeSelectorStyle}>
+          <button
+            className={submissionMode === "research" ? "primary-button" : "secondary-button"}
+            type="button"
+            aria-pressed={submissionMode === "research"}
+            onClick={() => setSubmissionMode("research")}
+          >
+            研發送審
+          </button>
+          <button
+            className={submissionMode === "technical_transfer" ? "primary-button" : "secondary-button"}
+            type="button"
+            aria-pressed={submissionMode === "technical_transfer"}
+            onClick={() => setSubmissionMode("technical_transfer")}
+          >
+            技術移轉送審
+          </button>
+        </div>
+      </section>
+
       {loading ? (
         <section className="panel">
           <div className="empty">正在解析圖號主資料...</div>
@@ -1266,7 +1313,21 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
             <div className="panel-header">
               <h2>送審確認</h2>
             </div>
-            {releaseIncompleteBlocker ? (
+            {isTechnicalTransferMode ? (
+              <div className="upload-message error" style={{ alignItems: "flex-start" }} data-technical-transfer-package-required="true">
+                <AlertTriangle size={16} aria-hidden="true" />
+                <div>
+                  <p>技術移轉送審需先建立移轉包。</p>
+                  <p style={drawingSubmissionMutedStyle}>目前圖號已帶入移轉包 context；正式移轉送審不可從單一圖號直接建立。</p>
+                  <div className="next-step-inline-actions" style={drawingSubmissionInlineActionsStyle}>
+                    <Link className="primary-button" href={transferPackageHref}>
+                      建立 / 開啟移轉包
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {!isTechnicalTransferMode && releaseIncompleteBlocker ? (
               <div className="upload-message error" style={{ alignItems: "flex-start" }}>
                 <AlertTriangle size={16} aria-hidden="true" />
                 <div>
@@ -1276,7 +1337,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                 </div>
               </div>
             ) : null}
-            {context.blockers.length ? (
+            {isTechnicalTransferMode ? null : context.blockers.length ? (
               <>
                 {groupDrawingSubmissionBlockers(context.blockers).map((blockerGroup) => {
                   const meta = drawingSubmissionBlockerGroupMeta(blockerGroup.group, blockerGroup.blockers);
@@ -1418,7 +1479,11 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
               </div>
             ) : null}
 
-            {releaseIncompleteBlocker ? (
+            {isTechnicalTransferMode ? (
+              <Link className="primary-button" href={transferPackageHref}>
+                建立 / 開啟移轉包
+              </Link>
+            ) : releaseIncompleteBlocker ? (
               <button className="primary-button" type="button" disabled={!canCreateCorrection || Boolean(message?.submissionId)} onClick={createCorrectionSubmission}>
                 {submitting ? "建立中..." : "建立修正送審"}
               </button>
@@ -1427,10 +1492,10 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                 {submitting ? "送審中..." : submitButtonLabel}
               </button>
             )}
-            {releaseIncompleteBlocker && !canCreateCorrection && !message?.submissionId ? (
+            {!isTechnicalTransferMode && releaseIncompleteBlocker && !canCreateCorrection && !message?.submissionId ? (
               <small style={drawingSubmissionMutedStyle}>{drawingSubmissionDisabledReason(context, selectedAttachmentIds, note, selectedReleaseConflicts.length, true)}</small>
             ) : null}
-            {!releaseIncompleteBlocker && !hasFormalSameRevisionBlocker && !canSubmit && !message?.submissionId ? (
+            {!isTechnicalTransferMode && !releaseIncompleteBlocker && !hasFormalSameRevisionBlocker && !canSubmit && !message?.submissionId ? (
               <small style={drawingSubmissionMutedStyle}>{drawingSubmissionDisabledReason(context, selectedAttachmentIds, note, selectedReleaseConflicts.length, false)}</small>
             ) : null}
           </aside>
@@ -1634,6 +1699,7 @@ function userFacingDrawingSubmissionError(value: string) {
   if (value === "release_incomplete_conflict") return "發行未完成：此圖號版次已通過審核，但尚未完成發行，需要主管或 Admin 處理。";
   if (value === "released_revision_exists" || value === "obsolete_revision_locked") return "此圖號版次已進入正式紀錄，不能重複送審同一版次。";
   if (value === "release_filename_conflict") return "附件檔名已被其他正式紀錄使用，請移除或更換附件後再送審。";
+  if (value === "technical_transfer_requires_package") return "技術移轉送審需先建立移轉包，不能從單一圖號或料號直接送審。";
   if (value === "DRAWING_SUBMISSION_BLOCKED") return "主資料尚未完成，不能送審。";
   return formatStatusErrorForUser(value, "submission") || "圖面送審失敗。";
 }
@@ -1710,6 +1776,12 @@ const drawingSubmissionSubsectionStyle: CSSProperties = {
   marginTop: "1rem",
   borderTop: "1px solid var(--border)",
   paddingTop: "1rem"
+};
+
+const drawingSubmissionModeSelectorStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.65rem"
 };
 
 const drawingSubmissionAttachmentListStyle: CSSProperties = {

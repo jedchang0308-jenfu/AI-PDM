@@ -2,10 +2,11 @@ import type { SubmissionDetail, SubmissionFile } from "@/lib/types";
 import { createAuditLog, upsertReleasePackageRecord } from "@/lib/db";
 import {
   buildStorageKey,
-  createFileStorageService,
+  createFileStorageServiceForPointer,
   createReleasePackageStorageService,
   sha256,
-  storageKeyFromLocalPath
+  storagePointerFromRecord,
+  storagePointerFromStoredObject
 } from "@/lib/file-storage";
 import { createZip } from "@/lib/zip";
 
@@ -22,7 +23,6 @@ export async function createReleasePackage(
   createdBy: string,
   releaseResult: Record<string, unknown>
 ): Promise<ReleasePackageResult> {
-  const storage = createFileStorageService();
   const packageStorage = createReleasePackageStorageService();
   const packageFilename = sanitizeFilename(`${submission.drawing_number}_rev-${submission.revision}_release-package.zip`);
   const manifest = buildManifest(submission, createdBy, releaseResult);
@@ -34,14 +34,14 @@ export async function createReleasePackage(
   ];
 
   for (const file of submission.files) {
-    let storageKey: string;
+    let storagePointer;
     try {
-      storageKey = storageKeyFromLocalPath(file.local_path);
+      storagePointer = storagePointerFromRecord(file);
     } catch {
-      throw new Error(`RELEASE_PACKAGE_PATH_OUTSIDE_REPOSITORY: ${file.original_filename}`);
+      throw new Error(`RELEASE_PACKAGE_STORAGE_POINTER_INVALID: ${file.original_filename}`);
     }
 
-    const bytes = await storage.readObject(storageKey);
+    const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
     const actualHash = sha256(bytes);
     if (actualHash !== file.sha256) {
       throw new Error(`RELEASE_PACKAGE_HASH_MISMATCH: ${file.original_filename}`);
@@ -58,11 +58,15 @@ export async function createReleasePackage(
     key: releasePackageStorageKey(submission, packageFilename),
     bytes: zip.bytes
   });
+  const packagePointer = storagePointerFromStoredObject(storedPackage);
 
   const record = upsertReleasePackageRecord({
     submissionId: submission.id,
     packageFilename,
     localPath: storedPackage.localPath,
+    storageProvider: packagePointer.provider,
+    storageBucket: packagePointer.bucket,
+    storageKey: packagePointer.key,
     sha256: zip.sha256,
     fileSize: zip.bytes.byteLength,
     manifestJson: JSON.stringify(manifest),
@@ -146,6 +150,9 @@ function fileManifest(file: SubmissionFile) {
     package_path: `files/${file.file_role}/${sanitizeZipSegment(file.original_filename)}`,
     sha256: file.sha256,
     file_size: file.file_size,
+    storage_provider: file.storage_provider ?? "local_repository",
+    storage_bucket: file.storage_bucket ?? null,
+    storage_key: file.storage_key ?? null,
     gdrive_file_id: file.gdrive_file_id,
     gdrive_status: file.gdrive_status
   };

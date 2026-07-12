@@ -1,35 +1,36 @@
 # External Validation Handoff - 2026-05-28
 
-Last updated: 2026-07-06
+Last updated: 2026-07-10
 Authoritative task file: `.ai-doc/dev_task.md`
 
 ## Scope
 
-This handoff consolidates the remaining production-readiness blockers that cannot be closed inside the local development workspace. It is intended for RD/QA/QC coordination only; it does not mark any blocker as complete.
+This handoff consolidates production-readiness blockers and deferred external scopes. It is intended for RD/QA/QC coordination only; first-version readiness currently covers the formal numbering / draft production slice, not full PDM/CAD production readiness.
 
-Current open external gates:
+Current first-version gate state:
 
 | Task | Gate | Current state | Required environment |
 |---|---|---|---|
-| `DEV-CAD-001` | Native SolidWorks metadata extraction | Blocked | Licensed SolidWorks Document Manager or approved equivalent extractor, real native CAD samples, target Web/Windows host |
-| `DEV-SW-001` | SolidWorks Add-in real-machine validation | In progress / external | Real SolidWorks CAD workstation with administrator PowerShell and .NET Framework 4.8 |
-| `DEV-BACKUP-001` | Independent restore drill | In progress / external | Independent Windows test machine that is not the production/source machine |
-| `DEV-FIELD-001` | Formal field-test closure | In progress / external | Field-test operator, completed signed evidence reports, and issue closure |
-| `DEV-IND-007` | Live Supabase migration/advisor/RLS gate | Blocked | Disposable AI_PDM Supabase project or branch |
+| `DEV-IND-007` | Disposable Postgres shadow migration/RLS gate | Complete for first-version boundary | Evidence: `data/quality/postgres-shadow/shadow-compare-1783676196559.json`; formal Supabase cutover remains in `DEV-030` / `DEV-032` |
+| `DEV-FIELD-001` | Formal numbering / draft pilot field-test closure | Open | Field-test operator, 3-5 internal users, formal numbering / draft script, signed evidence, issue closure |
+| `DEV-CAD-001` | Native SolidWorks metadata / 2D preview | Deferred from first-version blocker | Human test: SW upload OK and 3D preview OK; 2D preview/native metadata remains future CAD phase |
+| `DEV-SW-001` | SolidWorks Add-in real-machine validation | Deferred from first-version blocker | No current Add-in product route; retain history only |
+| `DEV-BACKUP-001` | Independent restore drill | Deferred from first-version blocker | Full restore drill resumes for full PDM/file-storage production readiness |
 
-Current local gate status as of 2026-07-06:
+Current local gate status as of 2026-07-10:
 
 | Gate | Latest result |
 |---|---|
-| `qc:dev-task-completion-audit` | PASS, 8/8; only the 5 external blockers above remain open |
-| `qa:dev-task:sync` | PASS dry-run; 0 changes; blocked while SW/restore/Document Manager evidence remains not ready |
-| `qc:production-readiness:report` | PASS in allow-open mode; `ready=false`, 5 external blockers |
+| `qc:dev-task-completion-audit` | Updated first-version expectation: only `DEV-FIELD-001` remains as first-version external blocker |
+| `qa:dev-task:sync` | Supabase/Postgres shadow evidence now resolves through `data/quality/postgres-shadow/shadow-compare-1783676196559.json`; CAD/SW/backup remain deferred |
+| `qc:production-readiness:report` | Updated first-version expectation: `ready=false` until field-test / release gate is complete |
 | `qc:native-cad-extractor-contract` | PASS, 14/14; local external extractor contract and no-extractor fallback are covered |
 | `qc:document-manager-extractor-probe` / `qc:document-manager-probe-redaction` / `qc:document-manager-probe-path-gate` | PASS, 6/6 + 9/9 + 4/4; local mock probe output now uses `.tmp/...` fixtures |
 | `field-test:preflight -- --profile all` / `field-test:handoff` / `qc:field-test-handoff-package` | PASS; latest handoff package `data/field-test-handoffs/20260706-123433`, package QC 53/53 |
 | `qc:field-test-issue-intake` | PASS, 11/11; field issues can be dry-run or written to the defect register, and active P0/P1 issues block `qc:defects-zero` |
-| `postgres-shadow:handoff` / `qc:postgres-shadow-handoff-package` | PASS; latest Postgres shadow handoff package `data/postgres-shadow-handoffs/20260706-123443` |
-| `qc:external-blocker-closure` | PASS; validates all 5 external blockers have current package references, closure commands, report gates, safety rules, and remain open until external evidence exists |
+| `postgres-shadow:handoff` / `qc:postgres-shadow-handoff-package` | PASS; latest Postgres shadow handoff package `data/postgres-shadow-handoffs/20260710-034552` |
+| Disposable Postgres shadow live gate | PASS; schema apply, RLS apply, compare guard, schema/RLS-only live compare and `qc:postgres-shadow` 26/26 all passed against `.tmp/postgres-shadow-20260710-173550`; temp server stopped |
+| `qc:external-blocker-closure` | Updated to validate first-version blocker/deferred-scope split |
 | `field-test:preflight -- --profile all --require-evidence` | `ready=false`; 19 passed / 3 failed / 1 warning |
 
 ## Shared Evidence Package
@@ -55,11 +56,11 @@ Source report records:
 
 Latest local Postgres shadow handoff package:
 
-- `data/postgres-shadow-handoffs/20260706-123443`
-- Package manifest: `data/postgres-shadow-handoffs/20260706-123443/postgres-shadow-handoff.json`
-- Operator README: `data/postgres-shadow-handoffs/20260706-123443/README.md`
-- Supabase advisor checklist: `data/postgres-shadow-handoffs/20260706-123443/supabase-advisor-checklist.md`
-- Final checklist: `data/postgres-shadow-handoffs/20260706-123443/qc-checklist.ps1`
+- `data/postgres-shadow-handoffs/20260710-034552`
+- Package manifest: `data/postgres-shadow-handoffs/20260710-034552/postgres-shadow-handoff.json`
+- Operator README: `data/postgres-shadow-handoffs/20260710-034552/README.md`
+- Supabase advisor checklist: `data/postgres-shadow-handoffs/20260710-034552/supabase-advisor-checklist.md`
+- Final checklist: `data/postgres-shadow-handoffs/20260710-034552/qc-checklist.ps1`
 
 ## Gate Details
 
@@ -153,9 +154,9 @@ Pass criteria:
 
 Required inputs:
 
-- Completed restore drill report.
-- Completed SolidWorks Add-in real-machine report.
-- Completed Document Manager/native extractor report.
+- First-version formal numbering / draft pilot script.
+- Selected 3-5 internal users and smoke company / tenant.
+- Evidence for official numbering, draft creation, unavailable-feature inert state, permissions, and error recovery.
 - Issue log for every failed or blocked field case.
 
 Final command:
@@ -182,13 +183,14 @@ Current evidence:
 - `.ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md`
 - `.ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md`
 - `.ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md`
-- Postgres shadow handoff package: `data/postgres-shadow-handoffs/20260706-123443`
+- Postgres shadow handoff package: `data/postgres-shadow-handoffs/20260710-034552`
+- Disposable local Postgres shadow compare report: `data/quality/postgres-shadow/shadow-compare-1783676196559.json`
 
-Local static and SQLite comparison gates pass. The remaining live gate is blocked because no disposable AI_PDM Supabase project or branch is configured.
+The first-version disposable Postgres shadow gate is complete: schema migration applied, RLS plan applied, compare guard reported `ai_pdm_shadow_schema`, schema/RLS-only live compare passed, and `qc:postgres-shadow` passed 26/26. A formal Supabase project/branch advisor review is still required only if the release path chooses live Supabase cutover under `DEV-030` / `DEV-032`.
 
 Do not mutate existing Supabase projects for this gate unless the user explicitly approves the target and, if a new project or branch is required, confirms the cost.
 
-Required inputs:
+Required inputs for future live Supabase cutover:
 
 - Disposable Supabase project or branch dedicated to the generated AI_PDM shadow schema.
 - Postgres connection string set as `PDM_POSTGRES_SHADOW_URL`.
@@ -201,20 +203,20 @@ Current target decision state:
 - Prior cost lookup showed new project cost `0/monthly` and branch cost `0.01344/hourly`.
 - Do not create a project or branch until the user explicitly confirms organization, region, resource type, and cost.
 
-Commands after a disposable target exists:
+Commands after a future disposable Supabase target exists:
 
 ```powershell
-.\data\postgres-shadow-handoffs\20260706-123443\commands\01-pre-migration-guard.ps1
-.\data\postgres-shadow-handoffs\20260706-123443\commands\02-apply-migration.ps1
-.\data\postgres-shadow-handoffs\20260706-123443\commands\03-compare-shadow.ps1
-.\data\postgres-shadow-handoffs\20260706-123443\qc-checklist.ps1
+.\data\postgres-shadow-handoffs\20260710-034552\commands\01-pre-migration-guard.ps1
+.\data\postgres-shadow-handoffs\20260710-034552\commands\02-apply-migration.ps1
+.\data\postgres-shadow-handoffs\20260710-034552\commands\03-compare-shadow.ps1
+.\data\postgres-shadow-handoffs\20260710-034552\qc-checklist.ps1
 ```
 
 Additional Supabase checks:
 
 - Apply the generated migration to the disposable target.
 - Apply the RLS plan to the disposable target before compare.
-- Confirm row count and key hash comparison against SQLite.
+- Confirm row count and key hash comparison against SQLite, or explicitly accept schema/RLS-only compare before data migration parity.
 - Run Supabase security advisors and performance advisors.
 - Confirm RLS policies do not depend on `user_metadata`.
 - Record advisor findings and remediation decisions before considering a provider switch.
@@ -224,7 +226,7 @@ Pass criteria:
 - Generated migration applies cleanly on the disposable target.
 - Pre-migration target guard rejects any non-empty public schema before DDL.
 - Compare target guard rejects non-AI_PDM, partial, or non-forced-RLS schemas.
-- SQLite and Postgres shadow row counts/key hashes match for covered tables.
+- SQLite and Postgres shadow row counts/key hashes match for covered tables, or the approved release scope explicitly accepts schema/RLS-only compare before data migration parity.
 - Supabase security advisor has no unresolved high-risk finding relevant to the AI_PDM schema.
 - Supabase performance advisor findings are either remediated or explicitly accepted with rationale.
 - Rollback/rebuild procedure is documented and repeatable.
@@ -255,4 +257,4 @@ npm.cmd run qc:production-readiness:report
 Expected current result:
 
 - Local preflight passes, with an administrator warning expected on machines that are not running elevated PowerShell.
-- Production readiness remains open because external evidence reports are still draft/not ready and `DEV-IND-007` still lacks a disposable Supabase shadow target.
+- Production readiness remains open because `DEV-FIELD-001` field evidence and the `DEV-032` release gate are still incomplete; `DEV-IND-007` no longer lacks first-version disposable Postgres shadow evidence.

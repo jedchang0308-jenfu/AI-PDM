@@ -332,8 +332,11 @@ function initDatabase(database: SqliteDatabase) {
   ensureCompanyScopeSchema(database);
   ensureNumberingCompanyScopeSchema(database);
   ensureNumberingWorkflowCompanyScopeSchema(database);
+  ensureAccessControlLaunchSchema(database);
   ensureUsersRoleSchema(database);
+  ensureAuthIdentitySchema(database);
   ensureSubmissionsLifecycleSchema(database);
+  ensureSubmissionStoragePointerSchema(database);
   ensureSubmissionSnapshotAndAttemptSchema(database);
   ensureSubmissionLifecycleRequestSchema(database);
   ensureBomReviewLifecycleSchema(database);
@@ -455,6 +458,7 @@ function ensureUsersRoleSchema(database: SqliteDatabase) {
         password_hash TEXT,
         role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
         company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+        account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded')),
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (company_id) REFERENCES companies(id)
@@ -472,6 +476,54 @@ function ensureUsersRoleSchema(database: SqliteDatabase) {
   } finally {
     database.exec("PRAGMA foreign_keys = ON;");
   }
+}
+
+function ensureAuthIdentitySchema(database: SqliteDatabase) {
+  ensureColumn(
+    database,
+    "users",
+    "account_status",
+    "TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded'))"
+  );
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS auth_identities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('local_password', 'google_oauth', 'invite')),
+      provider_subject TEXT NOT NULL,
+      login_identifier TEXT,
+      email_normalized TEXT,
+      verified_at TEXT,
+      last_login_at TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE (provider, provider_subject),
+      UNIQUE (user_id, provider)
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_identities_login
+      ON auth_identities(provider, login_identifier, status);
+    CREATE INDEX IF NOT EXISTS idx_auth_identities_user
+      ON auth_identities(user_id, status);
+    INSERT OR IGNORE INTO auth_identities (
+      id, user_id, provider, provider_subject, login_identifier, email_normalized,
+      verified_at, status, created_at, updated_at
+    )
+    SELECT
+      'identity-local-' || id,
+      id,
+      'local_password',
+      lower(email),
+      lower(email),
+      lower(email),
+      created_at,
+      'active',
+      created_at,
+      updated_at
+    FROM users
+    WHERE email IS NOT NULL AND password_hash IS NOT NULL;
+  `);
 }
 
 const defaultCompanies = [
@@ -606,7 +658,7 @@ function ensureNumberingRuleVersionSeeds(database: SqliteDatabase) {
   database
     .prepare(
       `INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
-       VALUES (?, ?, ?, 'active', ?)`
+       VALUES (?, ?, ?, 'retired', ?)`
     )
     .run(
       "numbering-rule-v2",
@@ -615,11 +667,25 @@ function ensureNumberingRuleVersionSeeds(database: SqliteDatabase) {
       '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
     );
   database
+    .prepare(
+      `INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+       VALUES (?, ?, ?, 'active', ?)`
+    )
+    .run(
+      "numbering-rule-v3-alpha-root",
+      "PDM-NUMBERING-V3",
+      "PDM alphanumeric root numbering rule v3",
+      '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+    );
+  database
     .prepare("UPDATE numbering_rule_versions SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), updated_at = datetime('now') WHERE id = ?")
     .run("numbering-rule-v1");
   database
-    .prepare("UPDATE numbering_rule_versions SET status = 'active', retired_at = NULL, updated_at = datetime('now') WHERE id = ?")
+    .prepare("UPDATE numbering_rule_versions SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), updated_at = datetime('now') WHERE id = ?")
     .run("numbering-rule-v2");
+  database
+    .prepare("UPDATE numbering_rule_versions SET status = 'active', retired_at = NULL, updated_at = datetime('now') WHERE id = ?")
+    .run("numbering-rule-v3-alpha-root");
 }
 
 function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
@@ -646,7 +712,7 @@ function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
         item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
         development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -705,7 +771,7 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         universal_reason TEXT,
-        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -765,7 +831,7 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
         is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
         development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+        rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -812,11 +878,80 @@ function ensureNumberingWorkflowCompanyScopeSchema(database: SqliteDatabase) {
   }
 }
 
+function ensureAccessControlLaunchSchema(database: SqliteDatabase) {
+  ensureColumn(database, "user_role_assignments", "scope_template", "TEXT NOT NULL DEFAULT 'own_department'");
+  ensureColumn(database, "user_role_assignments", "named_scope", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, "user_role_assignments", "sponsor_user_id", "TEXT");
+  ensureColumn(database, "user_role_assignments", "starts_at", "TEXT");
+  ensureColumn(database, "user_role_assignments", "review_due_at", "TEXT");
+  ensureColumn(database, "user_role_assignments", "hard_ends_at", "TEXT");
+
+  const launchRoles = [
+    { id: "role-manufacturing", roleCode: "manufacturing", title: "製造" },
+    { id: "role-procurement", roleCode: "procurement", title: "採購" },
+    { id: "role-external-specialist", roleCode: "external_specialist", title: "外部專員" }
+  ];
+  const now = new Date().toISOString();
+  for (const role of launchRoles) {
+    database
+      .prepare(
+        `INSERT INTO roles (id, role_code, title, system_defined, enabled, created_at, updated_at)
+         VALUES (?, ?, ?, 1, 1, ?, ?)
+         ON CONFLICT(role_code) DO UPDATE SET
+           title = excluded.title,
+           system_defined = 1,
+           enabled = 1,
+           updated_at = excluded.updated_at`
+      )
+      .run(role.id, role.roleCode, role.title, now, now);
+  }
+
+  const roleRows = database.prepare("SELECT id, role_code FROM roles").all() as Array<{ id: string; role_code: string }>;
+  const roleIdByCode = new Map(roleRows.map((row) => [row.role_code, row.id]));
+  const launchPermissions = [
+    ["manufacturing", "page", "numbering.search"],
+    ["manufacturing", "page", "numbering.drawings.view"],
+    ["manufacturing", "page", "numbering.reports"],
+    ["procurement", "page", "numbering.search"],
+    ["procurement", "page", "numbering.drawings.view"],
+    ["procurement", "page", "numbering.reports"],
+    ["external_specialist", "page", "numbering.search"],
+    ["external_specialist", "page", "numbering.drawings.view"],
+    ["external_specialist", "action", "pdm.comment.create"],
+    ["external_specialist", "action", "pdm.advice.create"]
+  ] as const;
+  const insertPermission = database.prepare(
+    `INSERT OR IGNORE INTO role_permissions (id, role_id, permission_kind, permission_code, allowed, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 1, ?, ?)`
+  );
+  for (const [roleCode, permissionKind, permissionCode] of launchPermissions) {
+    const roleId = roleIdByCode.get(roleCode);
+    if (!roleId) continue;
+    const permissionId = `default-perm-${roleCode}-${permissionKind}-${permissionCode.replaceAll(".", "-").replaceAll("_", "-")}`;
+    insertPermission.run(permissionId, roleId, permissionKind, permissionCode, now, now);
+  }
+}
+
 function ensureColumn(database: SqliteDatabase, table: string, column: string, definition: string) {
   const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (!columns.some((item) => item.name === column)) {
     database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
+}
+
+function ensureSubmissionStoragePointerSchema(database: SqliteDatabase) {
+  ensureColumn(database, "submission_files", "storage_provider", "TEXT NOT NULL DEFAULT 'local_repository'");
+  ensureColumn(database, "submission_files", "storage_bucket", "TEXT");
+  ensureColumn(database, "submission_files", "storage_key", "TEXT");
+  ensureColumn(database, "release_packages", "storage_provider", "TEXT NOT NULL DEFAULT 'local_repository'");
+  ensureColumn(database, "release_packages", "storage_bucket", "TEXT");
+  ensureColumn(database, "release_packages", "storage_key", "TEXT");
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_submission_files_storage_pointer
+      ON submission_files(storage_provider, storage_bucket, storage_key);
+    CREATE INDEX IF NOT EXISTS idx_release_packages_storage_pointer
+      ON release_packages(storage_provider, storage_bucket, storage_key);
+  `);
 }
 
 function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {

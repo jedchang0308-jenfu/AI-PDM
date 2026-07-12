@@ -1,7 +1,13 @@
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
+import {
+  buildStorageKey,
+  createFileStorageService,
+  createFileStorageServiceForPointer,
+  sha256,
+  storagePointerFromRecord
+} from "@/lib/file-storage";
 import type {
   MasterAttachmentEntityType,
   MasterAttachmentPreviewDerivative,
@@ -218,10 +224,8 @@ export async function getPreviewDerivativeBytesForAttachmentAsync(
   if (row.source_content_hash !== sourceContentHash) throw new Error("PREVIEW_DERIVATIVE_STALE");
   if (!isDisplayablePreviewDerivativeRow(row)) return null;
 
-  const storageKey = row.storage_key || (row.original_path ? storageKeyFromLocalPath(row.original_path) : "");
-  if (!storageKey) throw new Error("PREVIEW_DERIVATIVE_STORAGE_KEY_MISSING");
-  const storage = createFileStorageService();
-  const bytes = await storage.readObject(storageKey);
+  const storagePointer = storagePointerFromRecord(row);
+  const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
   if (sha256(bytes) !== row.content_hash) throw new Error("PREVIEW_DERIVATIVE_HASH_MISMATCH");
   return {
     fileName: row.file_name,

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import type { DbUser } from "@/lib/db";
-import { createFileStorageService, storageKeyFromLocalPath } from "@/lib/file-storage";
+import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { getSubmissionFileAsync } from "@/lib/submission-files-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -21,16 +21,16 @@ export async function getStoredSubmissionFile(submissionId: string, fileId: stri
     return { response: NextResponse.json({ error: "Submission file not found" }, { status: 404 }) };
   }
 
-  let storageKey: string;
+  let storagePointer;
   try {
-    storageKey = storageKeyFromLocalPath(file.local_path);
+    storagePointer = storagePointerFromRecord(file);
   } catch {
-    return { response: NextResponse.json({ error: "Stored file path is outside repository root" }, { status: 500 }) };
+    return { response: NextResponse.json({ error: "Stored file pointer is invalid" }, { status: 500 }) };
   }
 
   try {
-    const bytes = await createFileStorageService().readObject(storageKey);
-    return { file, bytes, storageKey };
+    const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
+    return { file, bytes, storageKey: storagePointer.key, storagePointer };
   } catch {
     return { response: NextResponse.json({ error: "Stored file is missing" }, { status: 404 }) };
   }

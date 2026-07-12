@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import path from "node:path";
+import fs from "node:fs";
 import { evaluateDefectRegister } from "./defect-register-utils.mjs";
+import { getQualityDir } from "./pdm-paths.mjs";
 import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
 import { getRestoreDrillReportEvidence } from "./restore-drill-report-utils.mjs";
 import { findLatestReport, readReport, validateReport } from "./sw-addin-report-utils.mjs";
@@ -59,44 +61,78 @@ function getDocumentManagerReportEvidence() {
   };
 }
 
-function getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence) {
+function getFieldTestEvidence() {
   return {
-    ready: solidWorksEvidence.ready && restoreDrillEvidence.ready && documentManagerEvidence.ready,
-    solidWorks: {
-      ready: solidWorksEvidence.ready,
-      reportPath: solidWorksEvidence.reportPath,
-      issues: solidWorksEvidence.issues
-    },
-    restore: {
-      ready: restoreDrillEvidence.ready,
-      reportPath: restoreDrillEvidence.reportPath,
-      issues: restoreDrillEvidence.issues
-    },
-    documentManager: {
-      ready: documentManagerEvidence.ready,
-      reportPath: documentManagerEvidence.reportPath,
-      issues: documentManagerEvidence.issues
-    }
+    ready: false,
+    requiredScope: "First-version formal numbering / draft pilot",
+    issues: [
+      { type: "missing_first_version_field_test_evidence" },
+      { type: "missing_signed_go_no_go" },
+      { type: "missing_field_issue_closure" }
+    ]
   };
 }
 
 function getSupabaseShadowEvidence() {
-  const evidenceDocs = [
-    ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
-    ".ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md",
-    ".ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
-    ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md"
-  ].map((docPath) => ({
-    path: docPath,
-    exists: projectFileExists(root, docPath)
-  }));
+  const reportDir = path.join(getQualityDir(root), "postgres-shadow");
+  const reports = fs.existsSync(reportDir)
+    ? fs
+        .readdirSync(reportDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && /^shadow-compare-\d+\.json$/u.test(entry.name))
+        .map((entry) => path.join(reportDir, entry.name))
+        .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs)
+    : [];
+  const reportPath = reports[0] ?? "";
 
-  return {
-    ready: false,
-    requiredTarget: "Disposable AI_PDM Supabase project or branch",
-    issues: [{ type: "missing_disposable_supabase_target" }],
-    evidenceDocs
-  };
+  if (!reportPath) {
+    const evidenceDocs = [
+      ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
+      ".ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md",
+      ".ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
+      ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md"
+    ].map((docPath) => ({
+      path: docPath,
+      exists: projectFileExists(root, docPath)
+    }));
+
+    return {
+      ready: false,
+      reportPath: null,
+      requiredTarget: "Disposable AI_PDM Supabase/Postgres shadow target",
+      issues: [{ type: "missing_postgres_shadow_report" }],
+      evidenceDocs
+    };
+  }
+
+  try {
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    const issues = [];
+    if (report.postgresShadowConfigured !== true) issues.push({ type: "postgres_shadow_not_configured" });
+    if (report.postgresTargetGuard?.safe !== true) issues.push({ type: "postgres_target_guard_not_safe" });
+    if (report.postgresCompareError) issues.push({ type: "postgres_compare_error", message: report.postgresCompareError });
+    if ((report.missingInPostgres ?? []).length > 0) issues.push({ type: "missing_in_postgres", tables: report.missingInPostgres });
+    if ((report.rlsMissingTables ?? []).length > 0) issues.push({ type: "rls_missing_tables", tables: report.rlsMissingTables });
+    if ((report.mismatches ?? []).length > 0) issues.push({ type: "postgres_sqlite_mismatches", mismatches: report.mismatches });
+    if (report.comparePolicy === "schema_rls_only") {
+      if (report.dataCompareSkipped !== true) issues.push({ type: "schema_rls_only_without_skip_flag" });
+    } else if (!Array.isArray(report.postgresStats) || report.postgresStats.length === 0) {
+      issues.push({ type: "postgres_stats_missing" });
+    }
+
+    return {
+      ready: issues.length === 0,
+      reportPath: path.relative(root, reportPath).replaceAll(path.sep, "/"),
+      comparePolicy: report.comparePolicy,
+      targetMode: report.postgresTargetGuard?.mode ?? null,
+      issues
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      reportPath: path.relative(root, reportPath).replaceAll(path.sep, "/"),
+      issues: [{ type: "invalid_postgres_shadow_report", message: error instanceof Error ? error.message : String(error) }]
+    };
+  }
 }
 
 function classify(task) {
@@ -160,7 +196,7 @@ function stripInlineCode(value) {
 
 function externalBlockerPriority(id) {
   if (id === "DEV-FIELD-001") return "P1";
-  if (["DEV-IND-007", "DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"].includes(id)) return "P0";
+  if (id === "DEV-IND-007") return "P0";
   return null;
 }
 
@@ -312,7 +348,7 @@ const tasks = parseReadinessTasks(readProjectFile(root, taskRelativePath));
 const solidWorksEvidence = getSolidWorksReportEvidence();
 const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
 const documentManagerEvidence = getDocumentManagerReportEvidence();
-const fieldTestEvidence = getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence);
+const fieldTestEvidence = getFieldTestEvidence();
 const supabaseShadowEvidence = getSupabaseShadowEvidence();
 const defectEvidence = evaluateDefectRegister(root);
 const blockers = tasks

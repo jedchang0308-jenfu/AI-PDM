@@ -20,7 +20,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ro
       rootCode: decodeURIComponent(rootCode),
       coreName: optionalString(body.coreName ?? body.core_name),
       partNumber: optionalString(body.partNumber ?? body.part_number),
-      partName: optionalString(body.partName ?? body.part_name),
       customSpecification: optionalString(body.customSpecification ?? body.custom_specification),
       universalReason: optionalString(body.universalReason ?? body.universal_reason),
       drawingNumber: optionalString(body.drawingNumber ?? body.drawing_number),

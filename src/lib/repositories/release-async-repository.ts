@@ -11,11 +11,14 @@ export const SELECT_ASYNC_RELEASE_PACKAGE_BY_SUBMISSION_SQL = `
 
 export const UPSERT_ASYNC_RELEASE_PACKAGE_SQL = `
   INSERT INTO release_packages (
-    id, submission_id, package_filename, local_path, sha256, file_size, manifest_json, created_by, created_at
-  ) VALUES (:id, :submissionId, :packageFilename, :localPath, :sha256, :fileSize, :manifestJson, :createdBy, :now)
+    id, submission_id, package_filename, local_path, storage_provider, storage_bucket, storage_key, sha256, file_size, manifest_json, created_by, created_at
+  ) VALUES (:id, :submissionId, :packageFilename, :localPath, :storageProvider, :storageBucket, :storageKey, :sha256, :fileSize, :manifestJson, :createdBy, :now)
   ON CONFLICT(submission_id) DO UPDATE SET
     package_filename = excluded.package_filename,
     local_path = excluded.local_path,
+    storage_provider = excluded.storage_provider,
+    storage_bucket = excluded.storage_bucket,
+    storage_key = excluded.storage_key,
     sha256 = excluded.sha256,
     file_size = excluded.file_size,
     manifest_json = excluded.manifest_json,
@@ -247,6 +250,9 @@ export class AsyncReleaseRepository {
     submissionId: string;
     packageFilename: string;
     localPath: string;
+    storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+    storageBucket?: string | null;
+    storageKey?: string | null;
     sha256: string;
     fileSize: number;
     manifestJson: string;
@@ -257,6 +263,9 @@ export class AsyncReleaseRepository {
       submissionId: input.submissionId,
       packageFilename: input.packageFilename,
       localPath: input.localPath,
+      storageProvider: input.storageProvider ?? "local_repository",
+      storageBucket: input.storageBucket ?? null,
+      storageKey: input.storageKey ?? null,
       sha256: input.sha256,
       fileSize: input.fileSize,
       manifestJson: input.manifestJson,

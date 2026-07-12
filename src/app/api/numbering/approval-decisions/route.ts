@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { decideApprovalPlatformLegacyNumberingAsync } from "@/lib/approval-platform";
 import { forbidden } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { decideNumberingApprovalAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
@@ -25,13 +25,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await decideNumberingApprovalAsync({
+    const result = await decideApprovalPlatformLegacyNumberingAsync({
       companyId: companyResult.company.companyId,
       approvalRequestId,
       decision,
       comment: String(body.comment ?? "").trim(),
-      approverRole: auth.user.role,
-      approverId: auth.user.id
+      actor: auth.user
     });
     return NextResponse.json(result);
   } catch (error) {

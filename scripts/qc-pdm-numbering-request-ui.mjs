@@ -2,15 +2,15 @@
 
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-request-ui" });
 const unique = Date.now().toString().slice(-8);
 const duplicateCoreName = `QC 領號查重 ${unique}`;
-const customPartName = `QC 客製申請 ${unique}`;
-const drawingPartName = `QC 同步圖號 ${unique}`;
+const customRootName = `QC 客製申請 ${unique}`;
+const drawingRootName = `QC 同步圖號 ${unique}`;
 const customSpec = "L120 x W30 x H8";
 const results = [];
 
@@ -45,7 +45,7 @@ function cleanupRequestData() {
         WHERE r.core_name LIKE ? OR p.part_name IN (?, ?)
       `
       )
-      .all(`QC%${unique}%`, customPartName, drawingPartName)
+      .all(`QC%${unique}%`, customRootName, drawingRootName)
       .map((row) => row.id);
     for (const rootId of rootIds) {
       const partIds = db.prepare("SELECT id FROM part_numbers WHERE part_root_id = ?").all(rootId).map((row) => row.id);
@@ -95,7 +95,7 @@ function getCreatedPart(partName) {
     return db
       .prepare(
         `
-        SELECT p.*, r.root_code, (
+        SELECT p.*, r.root_code, r.core_name, (
           SELECT COUNT(*) FROM drawing_numbers d WHERE d.part_root_id = p.part_root_id
         ) AS drawing_count, (
           SELECT d.drawing_number FROM drawing_numbers d WHERE d.part_root_id = p.part_root_id ORDER BY d.sequence_no LIMIT 1
@@ -143,13 +143,11 @@ async function verifyNumberingResultDetailLinks(page, viewportWidth, created) {
   record(`Drawing detail drawer shows created drawing at ${viewportWidth}px`, (await page.getByText(created.drawing_number, { exact: true }).count()) >= 1, created.drawing_number);
 }
 
-async function verifyBrowserRestoredMotorNameSuggestion(context, viewportWidth) {
+async function verifyBrowserRestoredRootNameLock(context, viewportWidth) {
   const page = await context.newPage();
   await page.addInitScript(() => {
     const restoredValues = [
-      { label: "核心名稱", value: "馬達" },
-      { label: "系列代號", value: "JF" },
-      { label: "特性", value: "2HP" }
+      { label: "主根品名", value: "馬達" }
     ];
 
     const applyRestoredValues = () => {
@@ -171,35 +169,29 @@ async function verifyBrowserRestoredMotorNameSuggestion(context, viewportWidth) 
 
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
-  await page.waitForFunction(() => {
-    const input = document.querySelector('input[placeholder="填寫上方命名元素後自動產生"]');
-    return input instanceof HTMLInputElement && /^馬達_JF_2HP_[A-Z]+$/.test(input.value);
-  });
-  const restoredGeneratedName = await page.locator('input[placeholder="填寫上方命名元素後自動產生"]').inputValue();
-  record(`Browser-restored motor fields generate part name at ${viewportWidth}px`, /^馬達_JF_2HP_[A-Z]+$/.test(restoredGeneratedName), restoredGeneratedName);
+  await page.waitForFunction(() => document.body.innerText.includes("料號與圖號共用主根品名") && document.body.innerText.includes("馬達"));
+  record(`Browser-restored root name locks part name at ${viewportWidth}px`, (await page.getByText("料號與圖號共用主根品名").count()) >= 1);
+  record(`Editable part-name field is absent at ${viewportWidth}px`, (await page.getByText("品名（系統建議，可微調）").count()) === 0);
   await page.close();
 }
 
 async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
-  await page.locator('input:not([type="checkbox"])').nth(0).fill(duplicateCoreName);
-  await page.locator("select").nth(0).selectOption("custom");
-  await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
-  await page.locator('input:not([type="checkbox"])').nth(2).fill(customSpec);
-  await page.locator('input[type="checkbox"]').last().uncheck();
-  await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
-  record(`System sequence suggestion renders at ${viewportWidth}px`, await page.getByTestId("sequence-suggestion").isVisible());
+  await page.getByLabel("主根品名").fill(customRootName);
+  await page.getByLabel("料件類型").selectOption("custom");
+  await page.getByLabel("客製尺寸/規格").fill(customSpec);
+  await page.getByLabel("同步建立圖號").uncheck();
+  record(`Part name sequence suggestion is removed at ${viewportWidth}px`, (await page.getByTestId("sequence-suggestion").count()) === 0);
 
+  const requestPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "基本資料" }) }).first();
+  await requestPanel.getByRole("button", { name: "查重預檢" }).waitFor({ timeout: 10_000 });
   await page.waitForFunction(() => {
-    const panel = document.querySelector("section.panel");
-    const button = panel?.querySelector("button.secondary-button");
+    const button = [...document.querySelectorAll("button")].find((candidate) => candidate.textContent?.includes("查重預檢"));
     return button instanceof HTMLButtonElement && !button.disabled;
   });
-  const customGeneratedName = await page.locator('input:not([type="checkbox"])').nth(4).inputValue();
-  record(`Suggested custom part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(customGeneratedName), customGeneratedName);
+  record(`Root-locked part name is visible at ${viewportWidth}px`, (await page.getByText(customRootName).count()) >= 1, customRootName);
 
-  const requestPanel = page.locator("section.panel").first();
   const duplicateResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/duplicate-check"));
-  await requestPanel.locator("button.secondary-button").first().click();
+  await requestPanel.getByRole("button", { name: "查重預檢" }).click();
   const duplicateResponse = await duplicateResponsePromise;
   record(`Duplicate precheck succeeds at ${viewportWidth}px`, duplicateResponse.ok(), `HTTP ${duplicateResponse.status()}`);
   await page.getByRole("heading", { name: "查重結果" }).waitFor({ timeout: 10_000 });
@@ -207,13 +199,14 @@ async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
   record(`Duplicate result renders at ${viewportWidth}px`, duplicateBadges >= 1, `${duplicateBadges} status badges`);
 
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await requestPanel.locator("button.primary-button").click();
+  await requestPanel.getByRole("button", { name: "建立號碼" }).click();
   const createResponse = await createResponsePromise;
   record(`Custom part-before-drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
   await page.waitForTimeout(100);
 
-  const created = getCreatedPart(customGeneratedName);
-  record(`Custom generated name persisted at ${viewportWidth}px`, created?.part_name === customGeneratedName, JSON.stringify(created ?? {}));
+  const created = getCreatedPart(customRootName);
+  record(`Custom part name follows root name at ${viewportWidth}px`, created?.part_name === customRootName, JSON.stringify(created ?? {}));
+  record(`Custom root name matches part name at ${viewportWidth}px`, created?.core_name === customRootName, JSON.stringify(created ?? {}));
   record(`Custom specification persisted at ${viewportWidth}px`, created?.custom_specification === customSpec, JSON.stringify(created ?? {}));
   record(`Part-before-drawing persists no drawing at ${viewportWidth}px`, created?.drawing_count === 0, JSON.stringify(created ?? {}));
 }
@@ -221,26 +214,24 @@ async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
 async function verifyManufacturedWithDrawing(page, viewportWidth) {
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   record(`Initial phase is locked to EVT at ${viewportWidth}px`, (await page.getByTestId("initial-development-phase").innerText()).includes("EVT"));
-  await page.locator('input:not([type="checkbox"])').nth(0).fill(`QC Drawing Sync ${unique} ${viewportWidth}`);
-  await page.locator("select").nth(0).selectOption("manufactured");
-  await page.locator('input:not([type="checkbox"])').nth(1).fill("QC");
-  await page.locator('input:not([type="checkbox"])').nth(2).fill("製造");
-  await page.locator('input[type="checkbox"]').last().check();
-  await page.locator("select").nth(1).selectOption("M");
-  await page.getByTestId("sequence-suggestion").waitFor({ timeout: 10_000 });
-  const drawingGeneratedName = await page.locator('input:not([type="checkbox"])').nth(3).inputValue();
-  record(`Suggested manufactured part name includes generated sequence at ${viewportWidth}px`, /_A$/.test(drawingGeneratedName), drawingGeneratedName);
+  const rootName = `${drawingRootName} ${viewportWidth}`;
+  await page.getByLabel("主根品名").fill(rootName);
+  await page.getByLabel("料件類型").selectOption("manufactured");
+  await page.getByLabel("同步建立圖號").check();
+  await page.getByLabel("圖別").selectOption("M");
+  record(`Manufactured part name follows visible root name at ${viewportWidth}px`, (await page.getByText(rootName).count()) >= 1, rootName);
 
-  const requestPanel = page.locator("section.panel").first();
+  const requestPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "基本資料" }) }).first();
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await requestPanel.locator("button.primary-button").click();
+  await requestPanel.getByRole("button", { name: "建立號碼" }).click();
   const createResponse = await createResponsePromise;
   record(`Manufactured part with drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
   await page.waitForTimeout(100);
-  record(`Result includes compact drawing number at ${viewportWidth}px`, (await page.getByText(/\d{5}-M\d{2}/).count()) >= 1);
+  record(`Result includes compact drawing number at ${viewportWidth}px`, (await page.getByText(/(?:[A-Z]\d{4}|\d{5})-M\d{2}/).count()) >= 1);
 
-  const created = getCreatedPart(drawingGeneratedName);
-  record(`Drawing generated name persisted at ${viewportWidth}px`, created?.part_name === drawingGeneratedName, JSON.stringify(created ?? {}));
+  const created = getCreatedPart(rootName);
+  record(`Drawing part name follows root name at ${viewportWidth}px`, created?.part_name === rootName, JSON.stringify(created ?? {}));
+  record(`Drawing root name matches part name at ${viewportWidth}px`, created?.core_name === rootName, JSON.stringify(created ?? {}));
   record(`New numbering persists EVT initial phase at ${viewportWidth}px`, created?.development_phase === "EVT", JSON.stringify(created ?? {}));
   record(`Drawing created with manufactured part at ${viewportWidth}px`, created?.drawing_count === 1, JSON.stringify(created ?? {}));
   record(`Drawing number is available for result detail link validation at ${viewportWidth}px`, Boolean(created?.drawing_number), JSON.stringify(created ?? {}));
@@ -257,7 +248,7 @@ async function verifyViewport(browser, viewport) {
   page.on("pageerror", (error) => consoleErrors.push(error.message));
 
   await loginAsAdmin(context);
-  await verifyBrowserRestoredMotorNameSuggestion(context, viewport.width);
+  await verifyBrowserRestoredRootNameLock(context, viewport.width);
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
   record(`Request wizard renders at ${viewport.width}px`, await page.getByText("基本資料").isVisible());

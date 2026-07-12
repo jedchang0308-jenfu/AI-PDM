@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 
+import Database from "better-sqlite3";
 import { chromium } from "playwright";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3000";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-master-workbench-layout" });
+const unique = Date.now().toString().slice(-8);
+const searchRootCode = `QCM${unique}`;
+const searchRootId = `qc-master-search-root-${unique}`;
+const searchPartA = `${searchRootCode}-P01`;
+const searchPartB = `${searchRootCode}-P02`;
+const searchDrawing = `${searchRootCode}-M01`;
+const searchDrawingB = `${searchRootCode}-M02`;
 const results = [];
 
 const pageFiles = {
@@ -34,6 +44,78 @@ const read = (relativePath) => readProjectFile(root, relativePath);
 function record(name, passed, detail = "") {
   results.push({ name, passed: Boolean(passed), detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
+}
+
+function cleanupMasterSearchData() {
+  const db = new Database(dbPath);
+  try {
+    const roots = db.prepare("SELECT id FROM part_roots WHERE root_code = ? OR root_code LIKE 'QCM%'").all(searchRootCode);
+    for (const existingRoot of roots) {
+      const drawingIds = db.prepare("SELECT id FROM drawing_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
+      const partIds = db.prepare("SELECT id FROM part_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
+      for (const drawingId of drawingIds) db.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id = ?").run(drawingId);
+      for (const partId of partIds) db.prepare("DELETE FROM same_drawing_variants WHERE part_number_id = ?").run(partId);
+      for (const drawingId of drawingIds) db.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id = ?").run(drawingId);
+      for (const partId of partIds) db.prepare("DELETE FROM drawing_part_links WHERE part_number_id = ?").run(partId);
+      db.prepare("DELETE FROM warning_events WHERE entity_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM drawing_numbers WHERE part_root_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM part_numbers WHERE part_root_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM part_roots WHERE id = ?").run(existingRoot.id);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+function seedMasterSearchData() {
+  cleanupMasterSearchData();
+  const db = new Database(dbPath);
+  const now = new Date().toISOString();
+  try {
+    db.prepare(
+      `
+      INSERT INTO part_roots (
+        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, 'QC 工作台關係總成', 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+    `
+    ).run(searchRootId, searchRootCode, now, now);
+    for (const [index, partNumber, partName] of [
+      [1, searchPartA, "QC 工作台主料"],
+      [2, searchPartB, "QC 工作台同圖料"]
+    ]) {
+      db.prepare(
+        `
+        INSERT INTO part_numbers (
+          id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
+          item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+      `
+      ).run(`qc-master-search-part-${index}-${unique}`, searchRootId, partNumber, index, `P${String(index).padStart(2, "0")}`, partName, now, now);
+    }
+    for (const [index, drawingNumber, purposeDescription] of [
+      [1, searchDrawing, "QC 工作台製造圖"],
+      [2, searchDrawingB, "QC 工作台備用製造圖"]
+    ]) {
+      db.prepare(
+        `
+        INSERT INTO drawing_numbers (
+          id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
+          is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'M', ?, ?, 1, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+      `
+      ).run(`qc-master-search-drawing-${index}-${unique}`, searchRootId, drawingNumber, purposeDescription, index, now, now);
+    }
+    for (const [index, partId] of [
+      [1, `qc-master-search-part-1-${unique}`],
+      [2, `qc-master-search-part-2-${unique}`]
+    ]) {
+      db.prepare(
+        "INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at) VALUES (?, ?, ?, 'primary_manufacturing', 'user-engineer-demo', ?)"
+      ).run(`qc-master-search-link-${index}-${unique}`, `qc-master-search-drawing-1-${unique}`, partId, now);
+    }
+  } finally {
+    db.close();
+  }
 }
 
 function staticChecks() {
@@ -73,6 +155,36 @@ function staticChecks() {
   record("Identity table has 70/22 width intent", css.includes(".pdm-identity-col-name") && css.includes("width: 36%") && css.includes(".pdm-identity-col-meta") && css.includes("width: 18%"), "src/app/globals.css");
   record("Identity list supports XY scroll on desktop", css.includes(".pdm-identity-scroll") && css.includes("overflow: scroll") && css.includes("scrollbar-gutter: stable both-edges"), "src/app/globals.css");
   record("Identity list keeps sticky desktop headers", css.includes(".pdm-identity-scroll .pdm-identity-table thead th") && css.includes("position: sticky"), "src/app/globals.css");
+  const identityNameBlock = css.match(/\.pdm-identity-name\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  record(
+    "Identity names render full product names without clamp or ellipsis",
+    identityNameBlock.includes("white-space: normal") &&
+      identityNameBlock.includes("overflow-wrap: anywhere") &&
+      identityNameBlock.includes("word-break: break-word") &&
+      !identityNameBlock.includes("-webkit-line-clamp") &&
+      !identityNameBlock.includes("text-overflow") &&
+      !identityNameBlock.includes("white-space: nowrap") &&
+      !identityNameBlock.includes("overflow: hidden"),
+    "src/app/globals.css"
+  );
+  const relationRootNameBlock = css.match(/\.pdm-relation-root-main strong,\s*\.pdm-relation-matrix-heading strong\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const relationPartNameBlock = css.match(/\.pdm-relation-part-chip small\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  record(
+    "Relation view names render full product names without ellipsis",
+    relationRootNameBlock.includes("white-space: normal") &&
+      relationRootNameBlock.includes("overflow-wrap: anywhere") &&
+      relationRootNameBlock.includes("word-break: break-word") &&
+      !relationRootNameBlock.includes("text-overflow") &&
+      !relationRootNameBlock.includes("white-space: nowrap") &&
+      !relationRootNameBlock.includes("overflow: hidden") &&
+      relationPartNameBlock.includes("white-space: normal") &&
+      relationPartNameBlock.includes("overflow-wrap: anywhere") &&
+      relationPartNameBlock.includes("word-break: break-word") &&
+      !relationPartNameBlock.includes("text-overflow") &&
+      !relationPartNameBlock.includes("white-space: nowrap") &&
+      !relationPartNameBlock.includes("overflow: hidden"),
+    "src/app/globals.css"
+  );
   record("Mobile identity table stacks rows as cards", css.includes(".pdm-identity-table tr") && css.includes("content: attr(data-label)") && css.includes(".pdm-identity-table td"), "src/app/globals.css");
   record("Drawing drawer avoids dimming the base page", css.includes(".pdm-detail-drawer-backdrop") && css.includes("background: transparent") && css.includes("pointer-events: none"), "src/app/globals.css");
   record("Drawing drawer has distinct right-rail treatment", css.includes(".pdm-detail-drawer") && css.includes("border-left: 5px solid #0ea5a4") && css.includes("-18px 0 42px"), "src/app/globals.css");
@@ -86,15 +198,20 @@ function staticChecks() {
     for (const className of routeRequiredClasses) {
       record(`${route} uses ${className}`, source.includes(className), file);
     }
-    for (const className of identityClasses) {
-      record(`${route} uses ${className}`, source.includes(className), file);
-    }
-    for (const header of identityHeaders) {
-      const hasHeader = header === "狀態 / 階段 / 提醒" ? source.includes("StatusColumnHeader") : source.includes(`<th>${header}</th>`);
-      record(`${route} has ${header} identity header`, hasHeader && source.includes(`data-label="${header}"`), file);
+    if (route === "/numbering/search") {
+      record(`${route} uses relation root list`, source.includes("RelationResultsPanel") && source.includes("pdm-relation-root"), file);
+      record(`${route} uses relation tree and matrix modes`, source.includes("關係樹") && source.includes("矩陣") && source.includes("RelationMatrixView"), file);
+    } else {
+      for (const className of identityClasses) {
+        record(`${route} uses ${className}`, source.includes(className), file);
+      }
+      for (const header of identityHeaders) {
+        const hasHeader = header === "狀態 / 階段 / 提醒" ? source.includes("StatusColumnHeader") : source.includes(`<th>${header}</th>`);
+        record(`${route} has ${header} identity header`, hasHeader && source.includes(`data-label="${header}"`), file);
+      }
     }
     record(`${route} has fixed filter row`, source.includes("pdm-master-filter-grid") && source.includes("pdm-master-filter-action"), file);
-    record(`${route} rows support selection`, source.includes("selected-row") && source.includes("onClick"), file);
+    record(`${route} rows support selection`, route === "/numbering/search" ? source.includes("selected") && source.includes("onSelectRoot") : source.includes("selected-row") && source.includes("onClick"), file);
     record(
       `${route} persists drawer width`,
       source.includes(drawerStorageKeysByRoute[route]) &&
@@ -149,6 +266,88 @@ async function loginAsAdmin(context) {
   await context.addCookies([{ name, value: valueParts.join("="), domain: url.hostname, path: "/", httpOnly: true, sameSite: "Lax" }]);
 }
 
+async function verifySearchRelationDesktop(page, route, tableBox) {
+  await page.locator(".pdm-relation-root").first().waitFor({ timeout: 15_000 });
+  record(`${route} renders relation view switch`, await page.getByRole("tab", { name: "關係樹" }).isVisible());
+  record(`${route} renders root relation groups`, (await page.locator(".pdm-relation-root").count()) >= 1);
+  const scrollStats = await page.locator(".pdm-relation-scroll").first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      canScrollY: element.scrollHeight >= element.clientHeight
+    };
+  });
+  record(`${route} relation list owns scroll container`, ["auto", "scroll"].includes(scrollStats.overflowX) && ["auto", "scroll"].includes(scrollStats.overflowY), JSON.stringify(scrollStats));
+
+  await page.locator(".pdm-relation-root-header").first().click();
+  await page.locator(".pdm-detail-drawer").first().waitFor({ timeout: 5_000 });
+  let drawerBox = await page.locator(".pdm-detail-drawer").first().boundingBox();
+  record(`${route} row selection opens right detail drawer`, Boolean(drawerBox), JSON.stringify({ drawerBox }));
+  record(`${route} detail drawer overlays from the right`, drawerBox && tableBox && drawerBox.x > tableBox.x, JSON.stringify({ drawerBox, tableBox }));
+
+  const resizeHandle = page.locator(".pdm-detail-drawer-resize-handle").first();
+  const handleBox = await resizeHandle.boundingBox();
+  record(`${route} exposes drawer resize handle`, Boolean(handleBox), JSON.stringify({ handleBox }));
+  if (handleBox && drawerBox) {
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + 160);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x - 120, handleBox.y + 160, { steps: 8 });
+    await page.mouse.up();
+    const resizedDrawerBox = await page.locator(".pdm-detail-drawer").first().boundingBox();
+    record(
+      `${route} drag handle increases drawer width`,
+      resizedDrawerBox && resizedDrawerBox.width > drawerBox.width + 70,
+      JSON.stringify({ before: drawerBox, after: resizedDrawerBox })
+    );
+    drawerBox = resizedDrawerBox;
+  }
+
+  await page.keyboard.press("Escape");
+  await page.locator(".pdm-detail-drawer").waitFor({ state: "hidden", timeout: 5_000 });
+  record(`${route} Escape closes detail drawer`, (await page.locator(".pdm-detail-drawer").count()) === 0);
+
+  const list = page.locator(".pdm-relation-scroll").first();
+  const primaryCodes = await page
+    .locator(".pdm-relation-root-header .pdm-identity-code")
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? "").filter(Boolean));
+  record(`${route} has root groups for keyboard navigation`, primaryCodes.length >= 1, JSON.stringify({ primaryCodes }));
+  async function selectedPrimaryCode() {
+    return (await page.locator(".pdm-relation-root.selected .pdm-relation-root-header .pdm-identity-code").first().textContent())?.trim() ?? "";
+  }
+  await list.focus();
+  await page.keyboard.press("Home");
+  record(`${route} Home selects first root`, (await selectedPrimaryCode()) === primaryCodes[0], JSON.stringify({ selected: await selectedPrimaryCode(), first: primaryCodes[0] }));
+  if (primaryCodes.length >= 2) {
+    await page.keyboard.press("ArrowDown");
+    record(`${route} ArrowDown selects next root`, (await selectedPrimaryCode()) === primaryCodes[1], JSON.stringify({ selected: await selectedPrimaryCode(), second: primaryCodes[1] }));
+  }
+  await page.keyboard.press("Enter");
+  await page.locator(".pdm-detail-drawer").first().waitFor({ timeout: 5_000 });
+  record(`${route} Enter opens selected root detail`, await page.locator(".pdm-detail-drawer").first().isVisible());
+  await page.keyboard.press("Escape");
+  await page.locator(".pdm-detail-drawer").waitFor({ state: "hidden", timeout: 5_000 });
+  await list.focus();
+  await page.keyboard.press("Control+C");
+  const copiedPrimaryCode = await page.evaluate(() => navigator.clipboard.readText());
+  record(`${route} Ctrl+C copies selected root code`, primaryCodes.includes(copiedPrimaryCode), JSON.stringify({ copiedPrimaryCode, primaryCodes }));
+}
+
+async function verifySearchRelationMobile(page, route) {
+  await page.locator(".pdm-relation-root").first().waitFor({ timeout: 15_000 });
+  record(`${route} mobile renders relation groups`, (await page.locator(".pdm-relation-root").count()) >= 1);
+  const displayStats = await page.locator(".pdm-relation-root").first().evaluate((rootElement) => {
+    const header = rootElement.querySelector(".pdm-relation-root-header");
+    const meta = rootElement.querySelector(".pdm-relation-root-meta");
+    return {
+      rootDisplay: getComputedStyle(rootElement).display,
+      headerColumns: header ? getComputedStyle(header).gridTemplateColumns : "",
+      metaJustify: meta ? getComputedStyle(meta).justifyContent : ""
+    };
+  });
+  record(`${route} mobile relation root stacks safely`, displayStats.rootDisplay === "block" || displayStats.rootDisplay === "grid", JSON.stringify(displayStats));
+}
+
 async function verifyDesktop(browser, route) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(apiBaseUrl).origin }).catch(() => {});
@@ -176,6 +375,15 @@ async function verifyDesktop(browser, route) {
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`${route} desktop avoids page-level horizontal overflow`, bodyOverflow <= 2, `${bodyOverflow}px`);
+
+  if (route === "/numbering/search") {
+    await page.getByLabel("關鍵字").fill(searchRootCode);
+    await page.getByRole("button", { name: "查詢", exact: true }).click();
+    await page.getByText(searchPartA).first().waitFor({ timeout: 10_000 });
+    await verifySearchRelationDesktop(page, route, tableBox);
+    await context.close();
+    return;
+  }
 
   const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim().replace(/\?$/, "") ?? ""));
   const identityHeaders = identityHeadersByRoute[route];
@@ -356,6 +564,15 @@ async function verifyMobile(browser, route) {
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`${route} mobile avoids page-level horizontal overflow`, bodyOverflow <= 2, `${bodyOverflow}px`);
 
+  if (route === "/numbering/search") {
+    await page.getByLabel("關鍵字").fill(searchRootCode);
+    await page.getByRole("button", { name: "查詢", exact: true }).click();
+    await page.getByText(searchPartA).first().waitFor({ timeout: 10_000 });
+    await verifySearchRelationMobile(page, route);
+    await context.close();
+    return;
+  }
+
   const displayStats = await page.locator(".pdm-identity-table").first().evaluate((table) => {
     const row = table.querySelector("tbody tr");
     const cell = table.querySelector("tbody td");
@@ -379,8 +596,13 @@ async function verifyRuntime() {
     await context.close();
 
     for (const route of Object.keys(pageFiles)) {
-      await verifyDesktop(browser, route);
-      await verifyMobile(browser, route);
+      seedMasterSearchData();
+      try {
+        await verifyDesktop(browser, route);
+        await verifyMobile(browser, route);
+      } finally {
+        cleanupMasterSearchData();
+      }
     }
   } finally {
     await browser.close();

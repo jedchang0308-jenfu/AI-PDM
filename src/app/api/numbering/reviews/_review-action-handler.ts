@@ -1,7 +1,8 @@
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { buildPdmChangeControlActor, pdmChangeControlErrorResponse } from "@/lib/pdm-change-control-api";
-import { applyDrawingRevisionReviewAction, type DrawingRevisionReviewAction } from "@/lib/pdm-change-control";
+import { decideApprovalPlatformLegacyDrawingRevisionReviewActionAsync } from "@/lib/approval-platform";
+import type { DrawingRevisionReviewAction } from "@/lib/pdm-change-control";
 
 export async function handleDrawingRevisionReviewAction(
   request: Request,
@@ -18,11 +19,12 @@ export async function handleDrawingRevisionReviewAction(
 
   try {
     const actor = buildPdmChangeControlActor(auth, companyResult.company.companyId);
-    const result = await applyDrawingRevisionReviewAction({
+    const result = await decideApprovalPlatformLegacyDrawingRevisionReviewActionAsync({
       assessmentId: reviewId,
       action,
       result: String(body.result ?? "").trim() || null,
-      actor
+      actor: { id: actor.userId, role: actor.role ?? auth.user.role },
+      companyId: actor.companyId
     });
     return Response.json({ ...result, pdmCompany: companyResult.company });
   } catch (error) {

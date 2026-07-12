@@ -178,7 +178,8 @@ const authLibSource = Object.values(authLibs).filter(exists).map(read).join("\n"
 record(
   "SUPA-AUTH-BOUNDARY-009 auth libraries expose expected app-session boundary",
   includesAll(authLibSource, [
-    "const cookieName = \"pdm_session\"",
+    "SESSION_COOKIE_NAME = \"pdm_session\"",
+    "SESSION_COOKIE_MAX_AGE_SECONDS",
     "HttpOnly",
     "SameSite=Lax",
     "getSessionUserAsync",

@@ -1,9 +1,11 @@
 import crypto from "node:crypto";
 import { getDb } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
+import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
 import {
   NUMBERING_RULE_V1_ID,
   NUMBERING_RULE_V2_ID,
+  NUMBERING_RULE_V3_ID,
   assertPurposeAllowedForRule,
   displayDrawingPurposeLabel,
   formatDrawingNumberForRule,
@@ -11,11 +13,16 @@ import {
   formatPartNumberForRule,
   formatPartSequenceForRule,
   formatRootCodeForRule,
+  isCompactNumberingRule,
   isManufacturingDrawingPurpose,
   isReferenceDrawingPurpose,
   isV2DrawingNumber,
   isV2PartNumber,
   isV2RootCode,
+  isV3DrawingNumber,
+  isV3PartNumber,
+  isV3RootCode,
+  rootCodeToV3Ordinal,
   type DrawingPurposeCode
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
@@ -101,6 +108,14 @@ export type DrawingModuleReleaseStatusMismatch = {
   releasedAt: string | null;
 };
 
+export type DrawingModulePendingApprovalSummary = {
+  count: number;
+  revisions: string[];
+  latestRequestedAt: string | null;
+  latestRequestId: string | null;
+  workbenchHref: string;
+};
+
 export type DrawingModuleListRecord = DrawingNumberRecord & {
   rootCode: string;
   coreName: string;
@@ -111,6 +126,7 @@ export type DrawingModuleListRecord = DrawingNumberRecord & {
   titleBlockVariantWarning: boolean;
   warningCount: number;
   releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null;
+  pendingApproval?: DrawingModulePendingApprovalSummary | null;
   updatedAt: string;
 };
 
@@ -383,7 +399,7 @@ export type ResolvePartCostInput = {
 export type CreateNumberingRecordInput = {
   companyId?: string;
   coreName: string;
-  partName: string;
+  partName?: string;
   itemKind: NumberingItemKind;
   developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
@@ -397,8 +413,9 @@ export type CreateNumberingRecordInput = {
 };
 
 export type AddPartNumberInput = {
+  companyId?: string;
   rootCode: string;
-  partName: string;
+  partName?: string;
   itemKind?: NumberingItemKind;
   developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
@@ -407,9 +424,15 @@ export type AddPartNumberInput = {
   customSpecification?: string;
   createdBy?: string | null;
   ruleVersionId?: string;
+  sourceEntrypoint?: string;
+  reason?: string;
+  idempotencyKey?: string;
+  linkDrawingNumber?: string;
+  linkRelationType?: "auto" | "primary_manufacturing" | "reference" | "none";
 };
 
 export type AddDrawingNumberInput = {
+  companyId?: string;
   rootCode: string;
   purposeCode: DrawingPurposeCode;
   purposeDescription?: string;
@@ -417,6 +440,55 @@ export type AddDrawingNumberInput = {
   recordStatus?: NumberingRecordStatus;
   createdBy?: string | null;
   ruleVersionId?: string;
+  sourceEntrypoint?: string;
+  reason?: string;
+  idempotencyKey?: string;
+  linkPartNumber?: string;
+  linkRelationType?: "auto" | "primary_manufacturing" | "reference" | "none";
+};
+
+export type AddDrawingAndPartToRootInput = {
+  companyId?: string;
+  rootCode: string;
+  purposeCode: DrawingPurposeCode;
+  purposeDescription?: string;
+  partName?: string;
+  itemKind?: NumberingItemKind;
+  developmentPhase?: NumberingPhase;
+  recordStatus?: NumberingRecordStatus;
+  isUniversal?: boolean;
+  universalReason?: string;
+  customSpecification?: string;
+  createdBy?: string | null;
+  ruleVersionId?: string;
+  sourceEntrypoint?: string;
+  reason?: string;
+  idempotencyKey?: string;
+  linkRelationType?: "auto" | "primary_manufacturing" | "reference";
+};
+
+export type AddPartNumberToRootResult = {
+  root: PartRootRecord;
+  partNumber: PartNumberRecord;
+  linkedDrawing: DrawingNumberRecord | null;
+  linkType: "primary_manufacturing" | "reference" | null;
+  reusedFromIdempotency: boolean;
+};
+
+export type AddDrawingNumberToRootResult = {
+  root: PartRootRecord;
+  drawingNumber: DrawingNumberRecord;
+  linkedPart: PartNumberRecord | null;
+  linkType: "primary_manufacturing" | "reference" | null;
+  reusedFromIdempotency: boolean;
+};
+
+export type AddDrawingAndPartToRootResult = {
+  root: PartRootRecord;
+  drawingNumber: DrawingNumberRecord;
+  partNumber: PartNumberRecord;
+  linkType: "primary_manufacturing" | "reference";
+  reusedFromIdempotency: boolean;
 };
 
 export type UpdateDraftNumberingRecordInput = {
@@ -424,7 +496,6 @@ export type UpdateDraftNumberingRecordInput = {
   rootCode: string;
   coreName?: string;
   partNumber?: string;
-  partName?: string;
   customSpecification?: string;
   universalReason?: string;
   drawingNumber?: string;
@@ -437,6 +508,21 @@ export type ObsoleteDraftNumberingRecordInput = {
   rootCode: string;
   reason: string;
   obsoletedBy?: string | null;
+};
+
+export type DeleteDraftNumberingRecordInput = {
+  companyId?: string;
+  rootCode: string;
+  reason?: string;
+  deletedBy?: string | null;
+};
+
+export type DeleteDraftNumberingRecordResult = {
+  rootCode: string;
+  deletedRoot: PartRootRecord;
+  deletedPartNumbers: PartNumberRecord[];
+  deletedDrawingNumbers: DrawingNumberRecord[];
+  affectedFileAssets: number;
 };
 
 export type MarkOverdueDraftNumberingInput = {
@@ -462,6 +548,25 @@ export type LinkPartNumberToDrawingInput = {
   partNumber: string;
   variants?: SameDrawingVariantField[] | Record<string, string>;
   createdBy?: string | null;
+};
+
+export type MaintainDrawingPartRelationOperation = "link" | "set_primary" | "set_reference" | "remove";
+
+export type MaintainDrawingPartRelationInput = {
+  companyId?: string;
+  drawingNumber: string;
+  partNumber: string;
+  operation: MaintainDrawingPartRelationOperation;
+  actorId?: string | null;
+};
+
+export type MaintainDrawingPartRelationResult = {
+  operation: MaintainDrawingPartRelationOperation;
+  drawingNumber: DrawingNumberRecord;
+  partNumber: PartNumberRecord;
+  before: NumberingLinkRecord[];
+  after: NumberingLinkRecord[];
+  changed: boolean;
 };
 
 export type NumberingGate = "DVT" | "Release";
@@ -658,10 +763,25 @@ export type NumberingUserRoleAssignmentRecord = {
   roleCode: string;
   roleTitle: string;
   reason: string;
+  scopeTemplate: string;
+  namedScope: string;
+  sponsorUserId: string | null;
+  startsAt: string | null;
+  reviewDueAt: string | null;
+  hardEndsAt: string | null;
   assignedBy: string;
   assignedAt: string;
   revokedAt: string | null;
   revokedBy: string | null;
+};
+
+export type NumberingAdminAuditEventRecord = {
+  id: string;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
+  detail: Record<string, unknown>;
+  createdAt: string;
 };
 
 export type NumberingAdminApprovalRuleRecord = MatchedApprovalRule & {
@@ -699,6 +819,7 @@ export type NumberingAdminMatrixRecord = {
   activeRolePriority: string[];
   roleAssignments: NumberingUserRoleAssignmentRecord[];
   approvalDelegations: NumberingApprovalDelegationRecord[];
+  auditEvents: NumberingAdminAuditEventRecord[];
   approvalRules: NumberingAdminApprovalRuleRecord[];
   hardRules: NumberingApprovalHardRuleCatalogItem[];
   ruleTemplates: NumberingAdminRuleTemplateRecord[];
@@ -716,7 +837,7 @@ export type NumberingAdminMatrixRecord = {
 export type UpsertNumberingApprovalRuleInput = {
   id?: string;
   ruleVersionId?: string;
-  ruleName: string;
+  ruleName?: string;
   actionCode: string;
   phase?: string | null;
   recordStatus?: string | null;
@@ -791,6 +912,12 @@ export type UpsertNumberingUserRoleAssignmentInput = {
   roleId?: string;
   roleCode?: string;
   reason: string;
+  scopeTemplate?: string;
+  namedScope?: string | null;
+  sponsorUserId?: string | null;
+  startsAt?: string | null;
+  reviewDueAt?: string | null;
+  hardEndsAt?: string | null;
   actorId: string;
 };
 
@@ -852,7 +979,8 @@ export type NumberingApprovalActionCode =
   | "release_missing_ma_confirm"
   | "main_drawing_restore"
   | "obsolete_part_number"
-  | "obsolete_ma_drawing";
+  | "obsolete_ma_drawing"
+  | "obsolete_part_root";
 
 export type NumberingApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled";
 export type NumberingApprovalBatchStatus = "pending" | "partially_approved" | "approved" | "rejected" | "needs_info" | "cancelled";
@@ -950,6 +1078,45 @@ export type NumberingObsoleteApprovalResult = {
     recordStatus: NumberingRecordStatus;
     actionCode: Extract<NumberingApprovalActionCode, "obsolete_part_number" | "obsolete_ma_drawing">;
   };
+};
+
+export type RootObsoleteImpactTarget = {
+  entityType: "part_number" | "drawing_number";
+  entityId: string;
+  entityCode: string;
+  recordStatus: NumberingRecordStatus;
+  developmentPhase: NumberingPhase;
+};
+
+export type RootObsoleteImpactLink = {
+  drawingNumber: string;
+  partNumber: string;
+  linkType: "primary_manufacturing" | "reference";
+};
+
+export type RootObsoleteImpactResult = {
+  root: PartRootRecord;
+  parts: PartNumberRecord[];
+  drawings: DrawingNumberRecord[];
+  links: RootObsoleteImpactLink[];
+  formalTargets: RootObsoleteImpactTarget[];
+  warnings: string[];
+  pendingRequestId: string | null;
+};
+
+export type RequestRootObsoleteApprovalInput = {
+  companyId?: string;
+  rootCode?: string;
+  rootId?: string;
+  reason: string;
+  requestedBy: string;
+  projectCode?: string;
+};
+
+export type RootObsoleteApprovalResult = {
+  approvalRequest: NumberingApprovalRecord;
+  approvalBatch: NumberingApprovalBatchRecord;
+  impact: RootObsoleteImpactResult;
 };
 
 export type DecideNumberingApprovalInput = {
@@ -1516,10 +1683,25 @@ type NumberingUserRoleAssignmentRow = {
   role_code: string;
   role_title: string;
   reason: string;
+  scope_template: string;
+  named_scope: string;
+  sponsor_user_id: string | null;
+  starts_at: string | null;
+  review_due_at: string | null;
+  hard_ends_at: string | null;
   assigned_by: string;
   assigned_at: string;
   revoked_at: string | null;
   revoked_by: string | null;
+};
+
+type NumberingAdminAuditEventRow = {
+  id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string;
+  detail_json: string;
+  created_at: string;
 };
 
 type NumberingRolePriorityVersionRow = {
@@ -1688,9 +1870,47 @@ type MonthlyAuditReportRow = {
   created_at: string;
 };
 
-const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID;
+const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V3_ID;
+const NUMBERING_RULE_VERSION_SEEDS = [
+  {
+    id: NUMBERING_RULE_V1_ID,
+    ruleCode: "PDM-NUMBERING-V1",
+    title: "PDM numbering rule v1",
+    status: "retired",
+    retired: true,
+    ruleJson: '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+  },
+  {
+    id: NUMBERING_RULE_V2_ID,
+    ruleCode: "PDM-NUMBERING-V2",
+    title: "PDM compact numbering rule v2",
+    status: "retired",
+    retired: true,
+    ruleJson:
+      '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+  },
+  {
+    id: NUMBERING_RULE_V3_ID,
+    ruleCode: "PDM-NUMBERING-V3",
+    title: "PDM alphanumeric root numbering rule v3",
+    status: "active",
+    retired: false,
+    ruleJson:
+      '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+  }
+] as const;
 
-const DEFAULT_ROLE_PRIORITY = ["system_admin", "pdm_admin", "rd_manager", "document_admin", "qa", "rd"];
+const DEFAULT_ROLE_PRIORITY = [
+  "system_admin",
+  "pdm_admin",
+  "rd_manager",
+  "document_admin",
+  "qa",
+  "rd",
+  "manufacturing",
+  "procurement",
+  "external_specialist"
+];
 
 const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
   {
@@ -1766,29 +1986,60 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
 ];
 
 const STANDARD_APPROVAL_RULE_DEFAULTS = [
-  ["approval-rule-update-name-dvt", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-update-name-release", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-update-name-released", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-update-spec-released", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-obsolete-part-release", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 1, 0, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-merge-part-referenced", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 1, 1, 1, 1],
+  ["approval-rule-update-name-dvt", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-name-release", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-name-released", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-spec-released", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-part-release", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-root-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-merge-part-referenced", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release", 1, "rd_manager", 0, 1, 1, 1],
-  ["approval-rule-post-release-change-manager", 1, "rd_manager", 1, 1, 1, 1],
-  ["approval-rule-post-release-change-admin", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-released-same-drawing-variant", 1, "rd_manager", 1, 1, 1, 1],
-  ["approval-rule-main-drawing-restore", 1, "pdm_admin", 1, 0, 1, 1]
+  ["approval-rule-post-release-change-manager", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-post-release-change-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-released-same-drawing-variant", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-main-drawing-restore", 1, "pdm_admin", 0, 1, 1, 1]
 ] as const;
 
+function approvalRulePrefixForRuleVersion(ruleVersionId: string) {
+  if (ruleVersionId === NUMBERING_RULE_V3_ID) return "v3-";
+  if (ruleVersionId === NUMBERING_RULE_V2_ID) return "v2-";
+  return "";
+}
+
 function approvalRuleIdForRuleVersion(id: string, ruleVersionId: string) {
-  return ruleVersionId === NUMBERING_RULE_V2_ID ? `v2-${id}` : id;
+  return `${approvalRulePrefixForRuleVersion(ruleVersionId)}${id}`;
+}
+
+function ensureNumberingRuleVersionSeeds(database: SqliteDatabase) {
+  const now = new Date().toISOString();
+  const insert = database.prepare(
+    `
+      INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `
+  );
+  const update = database.prepare(
+    `
+      UPDATE numbering_rule_versions
+      SET status = ?,
+          retired_at = CASE WHEN ? = 1 THEN COALESCE(retired_at, ?) ELSE NULL END,
+          updated_at = ?
+      WHERE id = ?
+    `
+  );
+  for (const seed of NUMBERING_RULE_VERSION_SEEDS) {
+    insert.run(seed.id, seed.ruleCode, seed.title, seed.status, seed.retired ? now : null, seed.ruleJson, now, now);
+    update.run(seed.status, seed.retired ? 1 : 0, now, now, seed.id);
+  }
 }
 
 function ensureDefaultApprovalRulesForCurrentRuleVersion(database: SqliteDatabase) {
+  ensureNumberingRuleVersionSeeds(database);
   const existing = database.prepare("SELECT COUNT(*) AS count FROM approval_rules WHERE rule_version_id = ?").get(DEFAULT_RULE_VERSION_ID) as { count: number };
   if (existing.count > 0) return;
   const now = new Date().toISOString();
@@ -1800,13 +2051,19 @@ function ensureDefaultApprovalRulesForCurrentRuleVersion(database: SqliteDatabas
         requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
       )
       SELECT
-        'v2-' || id, ?, rule_name, action_code, phase, record_status, item_kind, risk_flag,
-        requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, ?, ?
-      FROM approval_rules
-      WHERE rule_version_id = ?
+        ? || source_rules.id, ?, source_rules.rule_name, source_rules.action_code, source_rules.phase, source_rules.record_status,
+        source_rules.item_kind, source_rules.risk_flag, source_rules.requires_approval, source_rules.approver_role, source_rules.blocks_usage,
+        source_rules.blocks_release, source_rules.shows_warning, source_rules.export_marker,
+        CASE
+          WHEN source_rules.created_by IS NOT NULL AND EXISTS (SELECT 1 FROM users WHERE users.id = source_rules.created_by) THEN source_rules.created_by
+          ELSE NULL
+        END,
+        ?, ?
+      FROM approval_rules source_rules
+      WHERE source_rules.rule_version_id = ?
       `
     )
-    .run(DEFAULT_RULE_VERSION_ID, now, now, NUMBERING_RULE_V1_ID);
+    .run(approvalRulePrefixForRuleVersion(DEFAULT_RULE_VERSION_ID), DEFAULT_RULE_VERSION_ID, now, now, NUMBERING_RULE_V1_ID);
 }
 
 function nullableText(value: string | null | undefined) {
@@ -2328,7 +2585,8 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     same_drawing_variant_after_release: "發行後同圖多料號",
     main_drawing_restore: "製造圖恢復",
     obsolete_part_number: "料號作廢審核",
-    obsolete_ma_drawing: "圖號作廢審核"
+    obsolete_ma_drawing: "圖號作廢審核",
+    obsolete_part_root: "主根作廢審核"
   };
   return value ? labels[value] ?? value : "審核";
 }
@@ -2444,9 +2702,7 @@ function mapApprovalReviewRequest(database: SqliteDatabase, row: ApprovalRequest
 }
 
 function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
-  return {
-    id: row.id,
-    ruleName: row.rule_name,
+  const predictedRule = withPredictedApprovalControls({
     actionCode: row.action_code,
     phase: row.phase,
     recordStatus: row.record_status,
@@ -2454,10 +2710,13 @@ function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
     riskFlag: row.risk_flag,
     requiresApproval: row.requires_approval === 1,
     approverRole: row.approver_role,
-    blocksUsage: row.blocks_usage === 1,
-    blocksRelease: row.blocks_release === 1,
     showsWarning: row.shows_warning === 1,
     exportMarker: row.export_marker === 1
+  });
+  return {
+    id: row.id,
+    ruleName: buildApprovalRuleSummary(predictedRule),
+    ...predictedRule
   };
 }
 
@@ -2517,10 +2776,27 @@ function mapNumberingUserRoleAssignment(row: NumberingUserRoleAssignmentRow): Nu
     roleCode: row.role_code,
     roleTitle: row.role_title,
     reason: row.reason,
+    scopeTemplate: row.scope_template ?? "own_department",
+    namedScope: row.named_scope ?? "",
+    sponsorUserId: row.sponsor_user_id,
+    startsAt: row.starts_at,
+    reviewDueAt: row.review_due_at,
+    hardEndsAt: row.hard_ends_at,
     assignedBy: row.assigned_by,
     assignedAt: row.assigned_at,
     revokedAt: row.revoked_at,
     revokedBy: row.revoked_by
+  };
+}
+
+function mapNumberingAdminAuditEvent(row: NumberingAdminAuditEventRow): NumberingAdminAuditEventRecord {
+  return {
+    id: row.id,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    action: row.action,
+    detail: parseJsonDetail(row.detail_json),
+    createdAt: row.created_at
   };
 }
 
@@ -2908,6 +3184,101 @@ function allocateSequence(database: SqliteDatabase, sequenceKey: string) {
   return row.next_value;
 }
 
+function lowestAvailableSequence(usedValues: number[], maxValue: number, label: string) {
+  const used = [...new Set(usedValues.filter((value) => Number.isInteger(value) && value > 0 && value <= maxValue))].sort((a, b) => a - b);
+  let candidate = 1;
+  for (const value of used) {
+    if (value < candidate) continue;
+    if (value > candidate) break;
+    candidate += 1;
+  }
+  if (candidate > maxValue) throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
+  return candidate;
+}
+
+function normalizeRootCodeCandidate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  return rootCodeToV3Ordinal(normalized) !== null ? normalized : null;
+}
+
+function extractAuditRootCodes(value: unknown): string[] {
+  const rootCodes = new Set<string>();
+  const visit = (node: unknown, key = ""): void => {
+    if (typeof node === "string") {
+      if (/root/i.test(key)) {
+        const rootCode = normalizeRootCodeCandidate(node);
+        if (rootCode) rootCodes.add(rootCode);
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, key);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    for (const [childKey, childValue] of Object.entries(node)) visit(childValue, childKey);
+  };
+  visit(value);
+  return Array.from(rootCodes);
+}
+
+function extractAuditRootCodesFromJson(detailJson: string): string[] {
+  try {
+    return extractAuditRootCodes(JSON.parse(detailJson));
+  } catch {
+    return [];
+  }
+}
+
+function selectV3ReservedRootCodes(database: SqliteDatabase): string[] {
+  const masterRows = database.prepare("SELECT root_code FROM part_roots ORDER BY root_code ASC").all() as Array<{ root_code: string }>;
+  const auditRows = database
+    .prepare(
+      `
+      SELECT detail_json
+      FROM audit_logs
+      WHERE action LIKE 'numbering.%'
+        AND (detail_json LIKE '%rootCode%' OR detail_json LIKE '%rootCodes%' OR detail_json LIKE '%root_code%')
+      ORDER BY created_at ASC
+    `
+    )
+    .all() as Array<{ detail_json: string }>;
+
+  return Array.from(new Set([...masterRows.map((row) => row.root_code), ...auditRows.flatMap((row) => extractAuditRootCodesFromJson(row.detail_json))]));
+}
+
+function allocateRootSequence(database: SqliteDatabase, ruleVersionId: string) {
+  if (ruleVersionId !== NUMBERING_RULE_V2_ID && ruleVersionId !== NUMBERING_RULE_V3_ID) {
+    return allocateSequence(database, "part_root");
+  }
+
+  const rootCodes =
+    ruleVersionId === NUMBERING_RULE_V3_ID
+      ? selectV3ReservedRootCodes(database)
+      : (
+          database.prepare("SELECT root_code FROM part_roots WHERE rule_version_id = ? AND LENGTH(root_code) = 5 ORDER BY root_code ASC").all(ruleVersionId) as Array<{
+            root_code: string;
+          }>
+        ).map((row) => row.root_code);
+  const sequenceNo = lowestAvailableSequence(
+    rootCodes.map((rootCode) => (ruleVersionId === NUMBERING_RULE_V3_ID ? rootCodeToV3Ordinal(rootCode) ?? 0 : Number(rootCode))),
+    ruleVersionId === NUMBERING_RULE_V3_ID ? 26 * 9999 : 99999,
+    "ROOT"
+  );
+  const sequenceKey = ruleVersionId === NUMBERING_RULE_V3_ID ? "part_root:v3" : "part_root:v2";
+  const row = database.prepare("SELECT next_value FROM numbering_sequences WHERE sequence_key = ?").get(sequenceKey) as
+    | { next_value: number }
+    | undefined;
+  const now = new Date().toISOString();
+  if (!row) {
+    database.prepare("INSERT INTO numbering_sequences (sequence_key, next_value, updated_at) VALUES (?, ?, ?)").run(sequenceKey, sequenceNo + 1, now);
+  } else {
+    database.prepare("UPDATE numbering_sequences SET next_value = ?, updated_at = ? WHERE sequence_key = ?").run(sequenceNo + 1, now, sequenceKey);
+  }
+  return sequenceNo;
+}
+
 function requireUniversalReason(itemKind: NumberingItemKind, isUniversal: boolean, universalReason: string | undefined) {
   if ((itemKind === "shared" || isUniversal) && !universalReason?.trim()) {
     throw new Error("UNIVERSAL_PART_REASON_REQUIRED");
@@ -3275,7 +3646,7 @@ function insertPartRoot(
     createdBy?: string | null;
   }
 ) {
-  const rootSequence = allocateSequence(database, input.ruleVersionId === NUMBERING_RULE_V2_ID ? "part_root:v2" : "part_root");
+  const rootSequence = allocateRootSequence(database, input.ruleVersionId);
   const rootCode = formatRootCode(rootSequence, input.ruleVersionId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -3321,7 +3692,7 @@ function insertPartNumber(
   const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
   requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
   requireCustomSpecification(input.itemKind, input.customSpecification);
-  const sequenceNo = effectiveIsUniversal && input.ruleVersionId !== NUMBERING_RULE_V2_ID ? 0 : allocateSequence(database, `part:${root.rootCode}`);
+  const sequenceNo = effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId) ? 0 : allocateSequence(database, `part:${root.rootCode}`);
   const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
   const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
   const id = crypto.randomUUID();
@@ -4441,7 +4812,19 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
   return "";
 }
 
+function canonicalImportedRootName(coreName: string, partName: string) {
+  const rootName = coreName.trim();
+  const candidatePartName = partName.trim();
+  if (!rootName) return candidatePartName;
+  if (!candidatePartName) return rootName;
+  if (candidatePartName === rootName) return rootName;
+  if (candidatePartName.startsWith(rootName) && candidatePartName.length > rootName.length) return candidatePartName;
+  return rootName;
+}
+
 function importedPartSequence(partNumber: string) {
+  const v3 = partNumber.match(/^[A-Z][0-9]{4}-P([0-9]{2})$/);
+  if (v3) return Number.parseInt(v3[1], 10);
   const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
   if (v2) return Number.parseInt(v2[1], 10);
   const v1 = partNumber.match(/(\d{3})$/);
@@ -4449,6 +4832,8 @@ function importedPartSequence(partNumber: string) {
 }
 
 function importedDrawingSequence(drawingNumber: string) {
+  const v3 = drawingNumber.match(/^[A-Z][0-9]{4}-[MR]([0-9]{2})$/);
+  if (v3) return Number.parseInt(v3[1], 10);
   const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
   if (v2) return Number.parseInt(v2[1], 10);
   const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
@@ -4456,6 +4841,9 @@ function importedDrawingSequence(drawingNumber: string) {
 }
 
 function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
+  if (isV3RootCode(rootCode) || (partNumber && isV3PartNumber(partNumber)) || (drawingNumber && isV3DrawingNumber(drawingNumber))) {
+    return NUMBERING_RULE_V3_ID;
+  }
   if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
     return NUMBERING_RULE_V2_ID;
   }
@@ -4470,8 +4858,10 @@ function analyzeNumberingImportRow(
   const rootCode = importString(row, "rootCode", "root_code", "主根號");
   const partNumber = importString(row, "partNumber", "part_number", "料號");
   const drawingNumber = importString(row, "drawingNumber", "drawing_number", "圖號");
-  const coreName = importString(row, "coreName", "core_name", "品名", "名稱");
-  const partName = importString(row, "partName", "part_name", "料號品名") || coreName;
+  const importedCoreName = importString(row, "coreName", "core_name", "品名", "名稱");
+  const importedPartName = importString(row, "partName", "part_name", "料號品名");
+  const coreName = canonicalImportedRootName(importedCoreName, importedPartName);
+  const partName = coreName;
   const issues: Array<{ code: string; message: string }> = [];
 
   if (!rootCode) issues.push({ code: "ROOT_CODE_REQUIRED", message: "rootCode is required." });
@@ -4581,10 +4971,13 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
     for (const stagingRow of rows) {
       const raw = parseJsonDetail(stagingRow.raw_json);
       const rootCode = importString(raw, "rootCode", "root_code", "主根號");
-      const coreName = importString(raw, "coreName", "core_name", "品名", "名稱") || importString(raw, "partName", "part_name", "料號品名");
+      const coreName = canonicalImportedRootName(
+        importString(raw, "coreName", "core_name", "品名", "名稱"),
+        importString(raw, "partName", "part_name", "料號品名")
+      );
       const itemKind = (importString(raw, "itemKind", "item_kind", "料件類型") || "manufactured") as NumberingItemKind;
       const partNumber = importString(raw, "partNumber", "part_number", "料號");
-      const partName = importString(raw, "partName", "part_name", "料號品名") || coreName;
+      const partName = coreName;
       const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
       const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖別") || "MA") as DrawingPurposeCode;
       const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
@@ -4912,7 +5305,8 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
         SELECT
           a.id, a.user_id, u.display_name AS user_name, u.email AS user_email, u.role AS user_system_role,
           a.role_id, r.role_code, r.title AS role_title,
-          a.reason, a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
+          a.reason, a.scope_template, a.named_scope, a.sponsor_user_id, a.starts_at, a.review_due_at, a.hard_ends_at,
+          a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
         FROM user_role_assignments a
         JOIN users u ON u.id = a.user_id
         JOIN roles r ON r.id = a.role_id
@@ -4942,6 +5336,30 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
       )
       .all() as NumberingApprovalDelegationRow[]
   ).map(mapNumberingApprovalDelegation);
+  const auditEvents = (
+    database
+      .prepare(
+        `
+        SELECT
+          a.id, a.actor_id, actor.display_name AS actor_name, a.action, a.detail_json, a.created_at
+        FROM audit_logs a
+        LEFT JOIN users actor ON actor.id = a.actor_id
+        WHERE a.action IN (
+          'numbering.role.upsert',
+          'numbering.role_permission.upsert',
+          'numbering.role_scope.upsert',
+          'numbering.user_role_assignment.upsert',
+          'numbering.user_role_assignment.revoke',
+          'numbering.role_priority.save',
+          'numbering.approval_delegation.upsert',
+          'numbering.approval_delegation.revoke'
+        )
+        ORDER BY a.created_at DESC
+        LIMIT 50
+      `
+      )
+      .all() as NumberingAdminAuditEventRow[]
+  ).map(mapNumberingAdminAuditEvent);
   const approvalRules = (
     database
       .prepare("SELECT * FROM approval_rules WHERE rule_version_id = ? ORDER BY action_code ASC, COALESCE(phase, '') ASC, rule_name ASC")
@@ -4971,6 +5389,7 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
     activeRolePriority,
     roleAssignments,
     approvalDelegations,
+    auditEvents,
     approvalRules,
     hardRules: NUMBERING_HARD_RULE_CATALOG,
     ruleTemplates,
@@ -5103,7 +5522,8 @@ function selectNumberingUserRoleAssignment(database: SqliteDatabase, assignmentI
       SELECT
         a.id, a.user_id, u.display_name AS user_name, u.email AS user_email, u.role AS user_system_role,
         a.role_id, r.role_code, r.title AS role_title,
-        a.reason, a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
+        a.reason, a.scope_template, a.named_scope, a.sponsor_user_id, a.starts_at, a.review_due_at, a.hard_ends_at,
+        a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
       FROM user_role_assignments a
       JOIN users u ON u.id = a.user_id
       JOIN roles r ON r.id = a.role_id
@@ -5111,6 +5531,63 @@ function selectNumberingUserRoleAssignment(database: SqliteDatabase, assignmentI
     `
     )
     .get(assignmentId) as NumberingUserRoleAssignmentRow | undefined;
+}
+
+const ROLE_ASSIGNMENT_SCOPE_TEMPLATES = new Set([
+  "own_department",
+  "workspace_quality",
+  "released_only",
+  "named_scope",
+  "self",
+  "workspace_all"
+]);
+
+function defaultScopeTemplateForRoleCode(roleCode: string) {
+  if (roleCode === "qa") return "workspace_quality";
+  if (roleCode === "manufacturing" || roleCode === "procurement") return "released_only";
+  if (roleCode === "external_specialist") return "named_scope";
+  if (roleCode === "system_admin" || roleCode === "pdm_admin") return "workspace_all";
+  return "own_department";
+}
+
+function normalizeAssignmentDate(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function defaultReviewDueDate(now: string) {
+  const date = new Date(now);
+  date.setUTCDate(date.getUTCDate() + 90);
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeRoleAssignmentScope(database: SqliteDatabase, roleCode: string, input: UpsertNumberingUserRoleAssignmentInput, now: string) {
+  const scopeTemplate = (input.scopeTemplate?.trim() || defaultScopeTemplateForRoleCode(roleCode)).toLowerCase();
+  if (!ROLE_ASSIGNMENT_SCOPE_TEMPLATES.has(scopeTemplate)) throw new Error("NUMBERING_ROLE_ASSIGNMENT_SCOPE_TEMPLATE_INVALID");
+  if (scopeTemplate === "workspace_all" && !["system_admin", "pdm_admin", "qa"].includes(roleCode)) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_WORKSPACE_ALL_RESTRICTED");
+  }
+
+  const namedScope = input.namedScope?.trim() ?? "";
+  const sponsorUserId = input.sponsorUserId?.trim() || null;
+  const startsAt = normalizeAssignmentDate(input.startsAt);
+  let reviewDueAt = normalizeAssignmentDate(input.reviewDueAt);
+  const hardEndsAt = normalizeAssignmentDate(input.hardEndsAt);
+
+  if ((scopeTemplate === "named_scope" || roleCode === "external_specialist") && !namedScope) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_NAMED_SCOPE_REQUIRED");
+  }
+  if (roleCode === "external_specialist") {
+    if (scopeTemplate !== "named_scope") throw new Error("NUMBERING_EXTERNAL_SPECIALIST_REQUIRES_NAMED_SCOPE");
+    if (!sponsorUserId) throw new Error("NUMBERING_EXTERNAL_SPECIALIST_SPONSOR_REQUIRED");
+    reviewDueAt = reviewDueAt ?? defaultReviewDueDate(now);
+  }
+  if (sponsorUserId && !database.prepare("SELECT id FROM users WHERE id = ?").get(sponsorUserId)) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_SPONSOR_NOT_FOUND");
+  }
+  if (hardEndsAt && startsAt && hardEndsAt < startsAt) throw new Error("NUMBERING_ROLE_ASSIGNMENT_TIME_RANGE_INVALID");
+
+  return { scopeTemplate, namedScope, sponsorUserId, startsAt, reviewDueAt, hardEndsAt };
 }
 
 export function upsertNumberingUserRoleAssignment(input: UpsertNumberingUserRoleAssignmentInput): NumberingUserRoleAssignmentRecord {
@@ -5123,6 +5600,7 @@ export function upsertNumberingUserRoleAssignment(input: UpsertNumberingUserRole
     if (!user) throw new Error("NUMBERING_ROLE_ASSIGNMENT_USER_NOT_FOUND");
     const role = resolveNumberingRole(database, input);
     const now = new Date().toISOString();
+    const scope = normalizeRoleAssignmentScope(database, role.role_code, input, now);
     const existing = input.id
       ? (database.prepare("SELECT * FROM user_role_assignments WHERE id = ?").get(input.id.trim()) as { id: string; revoked_at: string | null } | undefined)
       : (database
@@ -5133,12 +5611,58 @@ export function upsertNumberingUserRoleAssignment(input: UpsertNumberingUserRole
     const id = existing?.id ?? input.id?.trim() ?? `user-role-${crypto.randomUUID().slice(0, 12)}`;
     if (existing) {
       database
-        .prepare("UPDATE user_role_assignments SET user_id = ?, role_id = ?, reason = ?, assigned_by = ?, assigned_at = ? WHERE id = ?")
-        .run(userId, role.id, reason, input.actorId, now, existing.id);
+        .prepare(
+          `UPDATE user_role_assignments
+           SET user_id = ?,
+               role_id = ?,
+               reason = ?,
+               scope_template = ?,
+               named_scope = ?,
+               sponsor_user_id = ?,
+               starts_at = ?,
+               review_due_at = ?,
+               hard_ends_at = ?,
+               assigned_by = ?,
+               assigned_at = ?
+           WHERE id = ?`
+        )
+        .run(
+          userId,
+          role.id,
+          reason,
+          scope.scopeTemplate,
+          scope.namedScope,
+          scope.sponsorUserId,
+          scope.startsAt,
+          scope.reviewDueAt,
+          scope.hardEndsAt,
+          input.actorId,
+          now,
+          existing.id
+        );
     } else {
       database
-        .prepare("INSERT INTO user_role_assignments (id, user_id, role_id, reason, assigned_by, assigned_at) VALUES (?, ?, ?, ?, ?, ?)")
-        .run(id, userId, role.id, reason, input.actorId, now);
+        .prepare(
+          `INSERT INTO user_role_assignments (
+             id, user_id, role_id, reason, scope_template, named_scope, sponsor_user_id,
+             starts_at, review_due_at, hard_ends_at, assigned_by, assigned_at
+           )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          id,
+          userId,
+          role.id,
+          reason,
+          scope.scopeTemplate,
+          scope.namedScope,
+          scope.sponsorUserId,
+          scope.startsAt,
+          scope.reviewDueAt,
+          scope.hardEndsAt,
+          input.actorId,
+          now
+        );
     }
     const after = mapNumberingUserRoleAssignment(selectNumberingUserRoleAssignment(database, id) as NumberingUserRoleAssignmentRow);
     insertAudit(database, {
@@ -5150,7 +5674,8 @@ export function upsertNumberingUserRoleAssignment(input: UpsertNumberingUserRole
         markers: ["role_assignment_override"],
         userId,
         roleCode: role.role_code,
-        reason
+        reason,
+        scope
       }
     });
     return after;
@@ -5329,12 +5854,10 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
       : undefined;
     const id = existing?.id ?? input.id?.trim() ?? crypto.randomUUID();
     const ruleVersionId = nullableText(input.ruleVersionId) ?? existing?.rule_version_id ?? DEFAULT_RULE_VERSION_ID;
-    const ruleName = input.ruleName.trim();
     const actionCode = input.actionCode.trim();
     const requiresApproval = input.requiresApproval ?? (existing ? existing.requires_approval === 1 : false);
     const approverRole = nullableTextOrExisting(input.approverRole, existing?.approver_role);
 
-    if (!ruleName) throw new Error("APPROVAL_RULE_NAME_REQUIRED");
     if (!actionCode) throw new Error("APPROVAL_RULE_ACTION_REQUIRED");
     if (!database.prepare("SELECT id FROM numbering_rule_versions WHERE id = ?").get(ruleVersionId)) {
       throw new Error("APPROVAL_RULE_VERSION_NOT_FOUND");
@@ -5346,19 +5869,36 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
       throw new Error("APPROVAL_RULE_APPROVER_ROLE_NOT_FOUND");
     }
 
-    const values = {
-      ruleName,
+    const phase = nullableTextOrExisting(input.phase, existing?.phase);
+    const recordStatus = nullableTextOrExisting(input.recordStatus, existing?.record_status);
+    const itemKind = nullableTextOrExisting(input.itemKind, existing?.item_kind);
+    const riskFlag = nullableTextOrExisting(input.riskFlag, existing?.risk_flag);
+    const showsWarning = input.showsWarning ?? (existing ? existing.shows_warning === 1 : true);
+    const exportMarker = input.exportMarker ?? (existing ? existing.export_marker === 1 : true);
+    const predictedRule = withPredictedApprovalControls({
       actionCode,
-      phase: nullableTextOrExisting(input.phase, existing?.phase),
-      recordStatus: nullableTextOrExisting(input.recordStatus, existing?.record_status),
-      itemKind: nullableTextOrExisting(input.itemKind, existing?.item_kind),
-      riskFlag: nullableTextOrExisting(input.riskFlag, existing?.risk_flag),
+      phase,
+      recordStatus,
+      itemKind,
+      riskFlag,
       requiresApproval,
       approverRole,
-      blocksUsage: input.blocksUsage ?? (existing ? existing.blocks_usage === 1 : false),
-      blocksRelease: input.blocksRelease ?? (existing ? existing.blocks_release === 1 : false),
-      showsWarning: input.showsWarning ?? (existing ? existing.shows_warning === 1 : true),
-      exportMarker: input.exportMarker ?? (existing ? existing.export_marker === 1 : true)
+      showsWarning,
+      exportMarker
+    });
+    const values = {
+      ruleName: buildApprovalRuleSummary(predictedRule),
+      actionCode,
+      phase,
+      recordStatus,
+      itemKind,
+      riskFlag,
+      requiresApproval,
+      approverRole,
+      blocksUsage: predictedRule.blocksUsage,
+      blocksRelease: predictedRule.blocksRelease,
+      showsWarning,
+      exportMarker
     };
     const now = new Date().toISOString();
 
@@ -5457,7 +5997,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
         .prepare(
           `
           UPDATE approval_rules
-          SET requires_approval = 0, approver_role = NULL, blocks_usage = 0, blocks_release = 0, shows_warning = 1, export_marker = 1, updated_at = ?
+          SET requires_approval = 0, approver_role = NULL, blocks_usage = 0, blocks_release = 1, shows_warning = 1, export_marker = 1, updated_at = ?
           WHERE action_code IN ('update_name', 'obsolete_part_number') AND phase = 'DVT'
         `
         )
@@ -5466,7 +6006,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
         .prepare(
           `
           UPDATE approval_rules
-          SET requires_approval = 1, approver_role = COALESCE(approver_role, 'pdm_admin'), shows_warning = 1, export_marker = 1, updated_at = ?
+          SET requires_approval = 1, approver_role = COALESCE(approver_role, 'pdm_admin'), blocks_usage = 0, blocks_release = 1, shows_warning = 1, export_marker = 1, updated_at = ?
           WHERE action_code IN ('dvt_missing_ma_override', 'release_missing_ma_confirm', 'same_drawing_variant_after_release', 'main_drawing_restore', 'release')
              OR phase = 'Release'
              OR record_status = 'Released'
@@ -5482,7 +6022,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
           UPDATE approval_rules
           SET requires_approval = 1,
               approver_role = COALESCE(approver_role, 'pdm_admin'),
-              blocks_usage = 1,
+              blocks_usage = 0,
               blocks_release = 1,
               shows_warning = 1,
               export_marker = 1,
@@ -7359,14 +7899,16 @@ export function decidePartCostChangeRequest(input: DecidePartCostChangeRequestIn
 
 export function createNumberingRecord(input: CreateNumberingRecordInput) {
   const database = getDb();
+  const companyId = input.companyId ?? "company-jenfu";
   const developmentPhase = input.developmentPhase ?? "EVT";
   const recordStatus = input.recordStatus ?? "Draft";
   const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
   const isUniversal = input.isUniversal ?? false;
+  const rootName = input.coreName.trim();
 
   return database.transaction(() => {
     const root = insertPartRoot(database, {
-      coreName: input.coreName,
+      coreName: rootName,
       itemKind: input.itemKind,
       developmentPhase,
       recordStatus,
@@ -7374,7 +7916,7 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
       createdBy: input.createdBy
     });
     const partNumber = insertPartNumber(database, root, {
-      partName: input.partName,
+      partName: root.coreName,
       itemKind: input.itemKind,
       developmentPhase,
       recordStatus,
@@ -7403,6 +7945,7 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
       actorId: input.createdBy,
       action: "numbering.create",
       detail: {
+        companyId,
         rootCode: root.rootCode,
         partNumber: partNumber.partNumber,
         customSpecification: partNumber.customSpecification,
@@ -7425,7 +7968,7 @@ export function addPartNumberToRoot(input: AddPartNumberInput) {
     }
     const root = mapPartRoot(rootRow);
     const partNumber = insertPartNumber(database, root, {
-      partName: input.partName,
+      partName: root.coreName,
       itemKind: input.itemKind ?? root.itemKind,
       developmentPhase: input.developmentPhase ?? root.developmentPhase,
       recordStatus: input.recordStatus ?? "Draft",
@@ -7508,21 +8051,22 @@ export function updateDraftNumberingRecord(input: UpdateDraftNumberingRecordInpu
     const coreName = input.coreName?.trim();
     if (coreName) {
       database.prepare("UPDATE part_roots SET core_name = ?, updated_at = ? WHERE id = ?").run(coreName, now, rootRow.id);
+      database.prepare("UPDATE part_numbers SET part_name = ?, updated_at = ? WHERE part_root_id = ?").run(coreName, now, rootRow.id);
     }
+    const effectiveRootName = coreName || rootRow.core_name;
 
     const partNumberText = input.partNumber?.trim();
     const partRow = partNumberText
       ? selectPartNumberByNumber(database, partNumberText)
       : (database.prepare("SELECT * FROM part_numbers WHERE part_root_id = ? ORDER BY sequence_no ASC LIMIT 1").get(rootRow.id) as PartNumberRow | undefined);
-    if ((input.partName?.trim() || input.customSpecification !== undefined || input.universalReason !== undefined) && partRow) {
+    if ((input.customSpecification !== undefined || input.universalReason !== undefined) && partRow) {
       if (partRow.part_root_id !== rootRow.id) throw new Error(`PART_NUMBER_ROOT_MISMATCH: ${partNumberText ?? partRow.part_number}`);
       assertDraftMutableStatus(partRow.record_status, "PART");
-      const partName = input.partName?.trim() || partRow.part_name;
       const customSpecification = input.customSpecification !== undefined ? input.customSpecification.trim() || null : partRow.custom_specification;
       const universalReason = input.universalReason !== undefined ? input.universalReason.trim() || null : partRow.universal_reason;
       database
         .prepare("UPDATE part_numbers SET part_name = ?, custom_specification = ?, universal_reason = ?, updated_at = ? WHERE id = ?")
-        .run(partName, customSpecification, universalReason, now, partRow.id);
+        .run(effectiveRootName, customSpecification, universalReason, now, partRow.id);
     }
 
     const drawingNumberText = input.drawingNumber?.trim();
@@ -7573,6 +8117,132 @@ export function obsoleteDraftNumberingRecord(input: ObsoleteDraftNumberingRecord
       detail: { rootCode: input.rootCode, reason, before, after }
     });
     return after;
+  })();
+}
+
+export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInput): DeleteDraftNumberingRecordResult {
+  const database = getDb();
+  return database.transaction(() => {
+    const rootCode = input.rootCode.trim();
+    if (!rootCode) throw new Error("PART_ROOT_REQUIRED");
+    const rootRow = selectPartRootByCode(database, rootCode);
+    if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
+    assertDraftMutableStatus(rootRow.record_status, "ROOT");
+    const partRows = database.prepare("SELECT * FROM part_numbers WHERE part_root_id = ? ORDER BY sequence_no ASC, part_number ASC").all(rootRow.id) as PartNumberRow[];
+    const drawingRows = database.prepare("SELECT * FROM drawing_numbers WHERE part_root_id = ? ORDER BY purpose_code ASC, sequence_no ASC, drawing_number ASC").all(rootRow.id) as DrawingNumberRow[];
+    for (const row of partRows) assertDraftMutableStatus(row.record_status, "PART");
+    for (const row of drawingRows) assertDraftMutableStatus(row.record_status, "DRAWING");
+
+    const dependencyCounts = database
+      .prepare(
+        `
+        SELECT
+          (SELECT COUNT(*) FROM approval_requests WHERE entity_id = @rootId OR entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS approval_count,
+          (SELECT COUNT(*) FROM drawing_revision_packages WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS revision_package_count,
+          (SELECT COUNT(*) FROM shared_cad_model_versions WHERE part_root_id = @rootId OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) AS shared_model_count,
+          (SELECT COUNT(*) FROM manufacturing_baselines WHERE part_root_id = @rootId OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) AS manufacturing_baseline_count,
+          (SELECT COUNT(*) FROM manufacturing_baseline_items WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS manufacturing_baseline_item_count,
+          (SELECT COUNT(*) FROM part_replacement_links WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS replacement_link_count,
+          (SELECT COUNT(*) FROM bom_reconfirmation_flags WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) AS bom_reconfirmation_count,
+          (SELECT COUNT(*) FROM file_assets WHERE (linked_entity_type = 'part_root' AND linked_entity_id = @rootId) OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) OR (linked_entity_type = 'drawing_number' AND linked_entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId))) AS file_asset_count
+      `
+      )
+      .get({ rootId: rootRow.id }) as {
+      approval_count: number;
+      revision_package_count: number;
+      shared_model_count: number;
+      manufacturing_baseline_count: number;
+      manufacturing_baseline_item_count: number;
+      replacement_link_count: number;
+      bom_reconfirmation_count: number;
+      file_asset_count: number;
+    };
+    const controlledDependencyCount =
+      Number(dependencyCounts.approval_count ?? 0) +
+      Number(dependencyCounts.revision_package_count ?? 0) +
+      Number(dependencyCounts.shared_model_count ?? 0) +
+      Number(dependencyCounts.manufacturing_baseline_count ?? 0) +
+      Number(dependencyCounts.manufacturing_baseline_item_count ?? 0) +
+      Number(dependencyCounts.replacement_link_count ?? 0) +
+      Number(dependencyCounts.bom_reconfirmation_count ?? 0);
+    if (controlledDependencyCount > 0) throw new Error("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES");
+
+    const now = new Date().toISOString();
+    const reason = input.reason?.trim() || "刪除未送審草稿";
+    const params = { rootId: rootRow.id, now, actorId: input.deletedBy ?? null, reason };
+    database
+      .prepare(
+        `UPDATE file_assets
+         SET deleted_at = @now, deleted_by = @actorId, deleted_reason = @reason, updated_at = @now
+         WHERE deleted_at IS NULL
+           AND ((linked_entity_type = 'part_root' AND linked_entity_id = @rootId)
+             OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))
+             OR (linked_entity_type = 'drawing_number' AND linked_entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)))`
+      )
+      .run(params);
+    database
+      .prepare(
+        `UPDATE numbering_task_items
+         SET task_status = 'cancelled', handled_by = @actorId, handled_at = @now, updated_at = @now
+         WHERE task_status = 'open'
+           AND ((entity_type = 'part_root' AND entity_id = @rootId)
+             OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))
+             OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)))`
+      )
+      .run(params);
+    database
+      .prepare(
+        `UPDATE numbering_notifications
+         SET handled_by = @actorId, handled_at = @now, updated_at = @now
+         WHERE handled_at IS NULL
+           AND ((entity_type = 'part_root' AND entity_id = @rootId)
+             OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))
+             OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)))`
+      )
+      .run(params);
+    database
+      .prepare(
+        `DELETE FROM warning_events
+         WHERE (entity_type = 'part_root' AND entity_id = @rootId)
+            OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))
+            OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId))`
+      )
+      .run(params);
+    database
+      .prepare(
+        `UPDATE part_number_drafts
+         SET source_part_number_id = CASE WHEN source_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) THEN NULL ELSE source_part_number_id END,
+             source_drawing_number_id = CASE WHEN source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) THEN NULL ELSE source_drawing_number_id END,
+             updated_at = @now
+         WHERE source_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)
+            OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)`
+      )
+      .run(params);
+    database.prepare("DELETE FROM drawing_revision_fff_assessments WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM part_variant_attributes WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM part_standard_costs WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM part_cost_change_requests WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM part_cost_tiers WHERE cost_profile_id IN (SELECT id FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))").run(params);
+    database.prepare("DELETE FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    database.prepare("DELETE FROM drawing_numbers WHERE part_root_id = @rootId").run(params);
+    database.prepare("DELETE FROM part_numbers WHERE part_root_id = @rootId").run(params);
+    database.prepare("DELETE FROM part_roots WHERE id = @rootId").run(params);
+
+    const result = {
+      rootCode,
+      deletedRoot: mapPartRoot(rootRow),
+      deletedPartNumbers: partRows.map(mapPartNumber),
+      deletedDrawingNumbers: drawingRows.map(mapDrawingNumber),
+      affectedFileAssets: Number(dependencyCounts.file_asset_count ?? 0)
+    };
+    insertAudit(database, {
+      actorId: input.deletedBy,
+      action: "numbering.draft.delete",
+      detail: { reason, ...result }
+    });
+    return result;
   })();
 }
 

@@ -1,7 +1,13 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
-import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
+import {
+  buildStorageKey,
+  createFileStorageService,
+  createFileStorageServiceForPointer,
+  sha256,
+  storagePointerFromRecord
+} from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
 import { buildMasterAttachmentLifecyclePolicy, type LifecycleActionPolicy } from "@/lib/pdm-lifecycle-policy";
 import { normalizeRevisionCode, revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
@@ -529,7 +535,7 @@ export class AsyncMasterAttachmentRepository {
 
     await this.client.execute(INSERT_ASYNC_MASTER_ATTACHMENT_SQL, {
       id,
-      storageProvider: "j_drive",
+      storageProvider: storageProviderForFileAsset(saved.storageProvider),
       originalPath: saved.localPath,
       storageKey: saved.storageKey,
       fileName: originalFilename,
@@ -592,14 +598,13 @@ export class AsyncMasterAttachmentRepository {
     if (!entity) return null;
     const row = await this.selectMasterAttachmentRow(entity, input.attachmentId);
     if (!row?.original_path) return null;
-    const storage = createFileStorageService();
-    let storageKey: string;
+    let storagePointer;
     try {
-      storageKey = row.storage_key || storageKeyFromLocalPath(row.original_path);
+      storagePointer = storagePointerFromRecord(row);
     } catch {
       throw new Error("MASTER_ATTACHMENT_PATH_OUTSIDE_REPOSITORY");
     }
-    const bytes = await storage.readObject(storageKey);
+    const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
     return { attachment: mapMasterAttachment(row, entity.code), bytes };
   }
 
@@ -843,8 +848,13 @@ async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFile
   });
   return {
     localPath: stored.localPath,
+    storageProvider: stored.provider,
     storageKey: stored.key
   };
+}
+
+function storageProviderForFileAsset(provider: string) {
+  return provider === "local_repository" ? "j_drive" : provider;
 }
 
 function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): MasterAttachmentRecord {

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (company_id) REFERENCES companies(id)
@@ -18,6 +19,49 @@ CREATE TABLE IF NOT EXISTS companies (
   display_name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS auth_identities (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK (provider IN ('local_password', 'google_oauth', 'invite')),
+  provider_subject TEXT NOT NULL,
+  login_identifier TEXT,
+  email_normalized TEXT,
+  verified_at TEXT,
+  last_login_at TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE (provider, provider_subject),
+  UNIQUE (user_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_identities_login
+  ON auth_identities(provider, login_identifier, status);
+CREATE INDEX IF NOT EXISTS idx_auth_identities_user
+  ON auth_identities(user_id, status);
+
+CREATE TABLE IF NOT EXISTS account_invitations (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+  invited_by TEXT NOT NULL,
+  invited_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  accepted_by TEXT,
+  accepted_at TEXT,
+  revoked_by TEXT,
+  revoked_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (invited_by) REFERENCES users(id),
+  FOREIGN KEY (accepted_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS user_company_memberships (
@@ -167,6 +211,9 @@ CREATE TABLE IF NOT EXISTS submission_files (
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_bucket TEXT,
+  storage_key TEXT,
   gdrive_file_id TEXT,
   gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed', 'moved')),
   sha256 TEXT NOT NULL,
@@ -433,6 +480,9 @@ CREATE TABLE IF NOT EXISTS release_packages (
   submission_id TEXT NOT NULL UNIQUE,
   package_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_bucket TEXT,
+  storage_key TEXT,
   sha256 TEXT NOT NULL,
   file_size INTEGER NOT NULL,
   manifest_json TEXT NOT NULL,
@@ -727,8 +777,17 @@ VALUES (
   'numbering-rule-v2',
   'PDM-NUMBERING-V2',
   'PDM compact numbering rule v2',
-  'active',
+  'retired',
   '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+);
+
+INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v3-alpha-root',
+  'PDM-NUMBERING-V3',
+  'PDM alphanumeric root numbering rule v3',
+  'active',
+  '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
 );
 
 UPDATE numbering_rule_versions
@@ -736,8 +795,12 @@ SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), upda
 WHERE id = 'numbering-rule-v1';
 
 UPDATE numbering_rule_versions
-SET status = 'active', retired_at = NULL, updated_at = datetime('now')
+SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), updated_at = datetime('now')
 WHERE id = 'numbering-rule-v2';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = datetime('now')
+WHERE id = 'numbering-rule-v3-alpha-root';
 
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
@@ -747,7 +810,7 @@ CREATE TABLE IF NOT EXISTS part_roots (
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -772,7 +835,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   universal_reason TEXT,
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -795,7 +858,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1226,6 +1289,7 @@ VALUES
   ('approval-rule-obsolete-part-release', 'numbering-rule-v1', 'Release part obsolescence', 'obsolete_part_number', 'Release', NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-obsolete-ma-drawing-dvt', 'numbering-rule-v1', 'DVT MA drawing obsolescence manager', 'obsolete_ma_drawing', 'DVT', NULL, NULL, NULL, 1, 'rd_manager', 1, 0, 1, 1),
   ('approval-rule-obsolete-ma-drawing-admin', 'numbering-rule-v1', 'MA drawing obsolescence admin', 'obsolete_ma_drawing', NULL, NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-obsolete-root-admin', 'numbering-rule-v1', 'Root aggregate obsolescence admin', 'obsolete_part_root', NULL, NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-merge-part-referenced', 'numbering-rule-v1', 'Referenced part merge', 'merge_part_number', NULL, NULL, NULL, 'has_reference', 1, 'pdm_admin', 1, 1, 1, 1),
   ('approval-rule-dvt-missing-ma-override', 'numbering-rule-v1', 'DVT missing MA override', 'dvt_missing_ma_override', 'DVT', NULL, 'manufactured', 'missing_primary_ma', 1, 'pdm_admin', 1, 0, 1, 1),
   ('approval-rule-dvt-promotion', 'numbering-rule-v1', 'DVT promotion approval', 'dvt_promotion', 'DVT', 'PendingReview', NULL, NULL, 1, 'rd_manager', 1, 0, 1, 1),
@@ -1245,6 +1309,16 @@ INSERT OR IGNORE INTO approval_rules (
 )
 SELECT
   'v2-' || id, 'numbering-rule-v2', rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, datetime('now'), datetime('now')
+FROM approval_rules
+WHERE rule_version_id = 'numbering-rule-v1';
+
+INSERT OR IGNORE INTO approval_rules (
+  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
+)
+SELECT
+  'v3-' || id, 'numbering-rule-v3-alpha-root', rule_name, action_code, phase, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, datetime('now'), datetime('now')
 FROM approval_rules
 WHERE rule_version_id = 'numbering-rule-v1';
@@ -1312,6 +1386,208 @@ CREATE TABLE IF NOT EXISTS approval_batch_items (
   UNIQUE (batch_id, approval_request_id)
 );
 
+CREATE TABLE IF NOT EXISTS approval_platform_actions (
+  action_code TEXT PRIMARY KEY,
+  domain_code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  handler_key TEXT NOT NULL,
+  risk_level TEXT NOT NULL DEFAULT 'normal' CHECK (risk_level IN ('low', 'normal', 'high', 'critical')),
+  allow_batch INTEGER NOT NULL DEFAULT 0 CHECK (allow_batch IN (0, 1)),
+  requires_impact_snapshot INTEGER NOT NULL DEFAULT 1 CHECK (requires_impact_snapshot IN (0, 1)),
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO approval_platform_actions (
+  action_code, domain_code, title, description, handler_key, risk_level, allow_batch, requires_impact_snapshot, metadata_json
+)
+VALUES
+  ('platform.test.fake', 'platform', '平台測試審核', 'RD/QC only fake handler used to verify platform submit, decide and idempotent apply behavior.', 'platform.fake', 'low', 0, 1, '{"qcOnly":true}'),
+  ('numbering.dvt_promotion', 'numbering', 'DVT 升階審核', 'Numbering DVT promotion compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
+  ('numbering.release', 'numbering', '發行審核', 'Numbering release compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('numbering.same_drawing_variant_after_release', 'numbering', '同圖多料號審核', 'Numbering same-drawing variant compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('numbering.dvt_missing_ma_override', 'numbering', 'DVT 缺製造圖例外審核', 'Numbering DVT missing manufacturing drawing override compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
+  ('numbering.release_missing_ma_confirm', 'numbering', '發行缺製造圖確認', 'Numbering release missing manufacturing drawing compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('numbering.main_drawing_restore', 'numbering', '主圖恢復審核', 'Numbering main drawing restore compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
+  ('numbering.obsolete_part_number', 'numbering', '料號作廢審核', 'Formal part-number obsolete approval action.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('numbering.obsolete_ma_drawing', 'numbering', '圖號作廢審核', 'Formal manufacturing drawing obsolete approval action.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('numbering.obsolete_part_root', 'numbering', '主根作廢審核', 'Root-level aggregate obsolete approval action with child targets.', 'numbering.compat', 'high', 1, 1, '{}'),
+  ('submission.obsolete', 'submission', '送審單作廢審核', 'Submission lifecycle obsolete compatibility action.', 'submission.compat', 'high', 0, 1, '{}'),
+  ('bom.release_review', 'bom', 'BOM 發行審核', 'BOM release review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
+  ('bom.obsolete_review', 'bom', 'BOM 作廢審核', 'BOM obsolete review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
+  ('part_cost.change_review', 'part_cost', '料號成本異動審核', 'Part cost change review compatibility action.', 'part_cost.compat', 'normal', 0, 1, '{}'),
+  ('drawing_package.supplement_review', 'drawing_package', '圖面補件審核', 'Drawing revision package supplement compatibility action.', 'drawing_package.compat', 'normal', 0, 1, '{}');
+
+CREATE TABLE IF NOT EXISTS approval_platform_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  package_code TEXT NOT NULL UNIQUE,
+  action_code TEXT NOT NULL,
+  package_type TEXT NOT NULL DEFAULT 'single' CHECK (package_type IN ('single', 'batch', 'aggregate')),
+  package_status TEXT NOT NULL DEFAULT 'pending' CHECK (package_status IN ('pending', 'partially_approved', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  title TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  submitted_by TEXT NOT NULL,
+  submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_by TEXT,
+  resolved_at TEXT,
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (action_code) REFERENCES approval_platform_actions(action_code),
+  FOREIGN KEY (submitted_by) REFERENCES users(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_requests (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  package_id TEXT,
+  action_code TEXT NOT NULL,
+  domain_code TEXT NOT NULL,
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  title TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_by TEXT,
+  resolved_at TEXT,
+  apply_status TEXT NOT NULL DEFAULT 'not_ready' CHECK (apply_status IN ('not_ready', 'not_required', 'pending', 'applied', 'failed')),
+  apply_attempts INTEGER NOT NULL DEFAULT 0 CHECK (apply_attempts >= 0),
+  apply_error TEXT,
+  applied_by TEXT,
+  applied_at TEXT,
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE SET NULL,
+  FOREIGN KEY (action_code) REFERENCES approval_platform_actions(action_code),
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id),
+  FOREIGN KEY (applied_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_targets (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  target_role TEXT NOT NULL DEFAULT 'primary' CHECK (target_role IN ('primary', 'child', 'impact')),
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  target_code TEXT,
+  target_label TEXT NOT NULL DEFAULT '',
+  target_status TEXT,
+  snapshot_json TEXT NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_impact_snapshots (
+  id TEXT PRIMARY KEY,
+  request_id TEXT,
+  package_id TEXT,
+  snapshot_hash TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL DEFAULT '{}',
+  captured_by TEXT NOT NULL,
+  captured_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (captured_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_decisions (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  approver_role TEXT NOT NULL,
+  approver_id TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'needs_info')),
+  comment TEXT,
+  decided_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (approver_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_events (
+  id TEXT PRIMARY KEY,
+  request_id TEXT,
+  package_id TEXT,
+  event_type TEXT NOT NULL,
+  actor_id TEXT,
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_legacy_links (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  legacy_table TEXT NOT NULL,
+  legacy_id TEXT NOT NULL,
+  legacy_status TEXT NOT NULL,
+  parity_hash TEXT,
+  migration_status TEXT NOT NULL DEFAULT 'adapter' CHECK (migration_status IN ('adapter', 'mirrored', 'migrated', 'blocked')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  UNIQUE (legacy_table, legacy_id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_package_items (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  item_status TEXT NOT NULL DEFAULT 'pending' CHECK (item_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  UNIQUE (package_id, request_id)
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_impact_snapshots_no_update
+BEFORE UPDATE ON approval_platform_impact_snapshots
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_IMPACT_SNAPSHOT_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_impact_snapshots_no_delete
+BEFORE DELETE ON approval_platform_impact_snapshots
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_IMPACT_SNAPSHOT_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_decisions_no_update
+BEFORE UPDATE ON approval_platform_decisions
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_DECISION_APPEND_ONLY');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_decisions_no_delete
+BEFORE DELETE ON approval_platform_decisions
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_DECISION_APPEND_ONLY');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_events_no_update
+BEFORE UPDATE ON approval_platform_events
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_EVENT_APPEND_ONLY');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_approval_platform_events_no_delete
+BEFORE DELETE ON approval_platform_events
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_EVENT_APPEND_ONLY');
+END;
+
 CREATE TABLE IF NOT EXISTS roles (
   id TEXT PRIMARY KEY,
   role_code TEXT NOT NULL UNIQUE,
@@ -1329,6 +1605,9 @@ VALUES
   ('role-pdm-admin', 'pdm_admin', 'PDM 管理員', 1),
   ('role-document-admin', 'document_admin', '文件管理員', 1),
   ('role-qa', 'qa', 'QA / 品保', 1),
+  ('role-manufacturing', 'manufacturing', '製造', 1),
+  ('role-procurement', 'procurement', '採購', 1),
+  ('role-external-specialist', 'external_specialist', '外部專員', 1),
   ('role-system-admin', 'system_admin', '系統管理員', 1);
 
 CREATE TABLE IF NOT EXISTS role_permissions (
@@ -1380,6 +1659,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'update_spec', 1),
     ('system_admin', 'action', 'obsolete_part_number', 1),
     ('system_admin', 'action', 'obsolete_ma_drawing', 1),
+    ('system_admin', 'action', 'obsolete_part_root', 1),
     ('system_admin', 'action', 'merge_part_number', 1),
     ('system_admin', 'action', 'dvt_missing_ma_override', 1),
     ('system_admin', 'action', 'dvt_promotion', 1),
@@ -1426,6 +1706,7 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'update_spec', 1),
     ('pdm_admin', 'action', 'obsolete_part_number', 1),
     ('pdm_admin', 'action', 'obsolete_ma_drawing', 1),
+    ('pdm_admin', 'action', 'obsolete_part_root', 1),
     ('pdm_admin', 'action', 'merge_part_number', 1),
     ('pdm_admin', 'action', 'dvt_missing_ma_override', 1),
     ('pdm_admin', 'action', 'dvt_promotion', 1),
@@ -1500,7 +1781,17 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('qa', 'page', 'numbering.tasks', 1),
     ('qa', 'page', 'numbering.reports', 1),
     ('qa', 'action', 'numbering.task.update', 1),
-    ('qa', 'action', 'numbering.notification.update', 1)
+    ('qa', 'action', 'numbering.notification.update', 1),
+    ('manufacturing', 'page', 'numbering.search', 1),
+    ('manufacturing', 'page', 'numbering.drawings.view', 1),
+    ('manufacturing', 'page', 'numbering.reports', 1),
+    ('procurement', 'page', 'numbering.search', 1),
+    ('procurement', 'page', 'numbering.drawings.view', 1),
+    ('procurement', 'page', 'numbering.reports', 1),
+    ('external_specialist', 'page', 'numbering.search', 1),
+    ('external_specialist', 'page', 'numbering.drawings.view', 1),
+    ('external_specialist', 'action', 'pdm.comment.create', 1),
+    ('external_specialist', 'action', 'pdm.advice.create', 1)
 )
 INSERT OR IGNORE INTO role_permissions (id, role_id, permission_kind, permission_code, allowed)
 SELECT
@@ -1541,12 +1832,19 @@ CREATE TABLE IF NOT EXISTS user_role_assignments (
   user_id TEXT NOT NULL,
   role_id TEXT NOT NULL,
   reason TEXT NOT NULL DEFAULT '',
+  scope_template TEXT NOT NULL DEFAULT 'own_department',
+  named_scope TEXT NOT NULL DEFAULT '',
+  sponsor_user_id TEXT,
+  starts_at TEXT,
+  review_due_at TEXT,
+  hard_ends_at TEXT,
   assigned_by TEXT NOT NULL,
   assigned_at TEXT NOT NULL DEFAULT (datetime('now')),
   revoked_at TEXT,
   revoked_by TEXT,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  FOREIGN KEY (sponsor_user_id) REFERENCES users(id),
   FOREIGN KEY (assigned_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
@@ -1601,7 +1899,7 @@ CREATE TABLE IF NOT EXISTS import_staging_rows (
 
 CREATE TABLE IF NOT EXISTS file_assets (
   id TEXT PRIMARY KEY,
-  storage_provider TEXT NOT NULL DEFAULT 'j_drive' CHECK (storage_provider IN ('j_drive', 'supabase_storage', 'external')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'external')),
   original_path TEXT,
   storage_key TEXT,
   file_name TEXT NOT NULL,
@@ -2004,12 +2302,30 @@ CREATE INDEX IF NOT EXISTS idx_submission_lifecycle_requests_submission ON submi
 CREATE INDEX IF NOT EXISTS idx_approval_decisions_request_id ON approval_decisions(approval_request_id, decided_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batches_status ON approval_batches(request_type, batch_status, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batch_items_batch_status ON approval_batch_items(batch_id, item_status);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_actions_domain ON approval_platform_actions(domain_code, enabled);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_packages_status ON approval_platform_packages(company_id, package_status, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_packages_action ON approval_platform_packages(action_code, package_status, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_status ON approval_platform_requests(company_id, request_status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_action ON approval_platform_requests(action_code, request_status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_package ON approval_platform_requests(package_id, request_status);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_targets_request ON approval_platform_targets(request_id, target_role, sort_order);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_targets_target ON approval_platform_targets(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_impact_request ON approval_platform_impact_snapshots(request_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_decisions_request ON approval_platform_decisions(request_id, decided_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_events_request ON approval_platform_events(request_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_events_package ON approval_platform_events(package_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_legacy_links_request ON approval_platform_legacy_links(request_id, legacy_table);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_package_items_package ON approval_platform_package_items(package_id, item_status, sort_order);
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
 CREATE INDEX IF NOT EXISTS idx_role_scope_rules_role_kind ON role_scope_rules(role_id, scope_kind);
 CREATE INDEX IF NOT EXISTS idx_user_role_assignments_user_active ON user_role_assignments(user_id, revoked_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_role_assignments_active_unique
   ON user_role_assignments(user_id, role_id)
   WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_invitations_pending_email
+  ON account_invitations(email)
+  WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_account_invitations_status_expires ON account_invitations(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
 CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);

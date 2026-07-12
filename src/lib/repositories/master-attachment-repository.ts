@@ -1,7 +1,13 @@
 import crypto from "node:crypto";
 import { createAuditLog, getDb, getSystemSetting } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
-import { buildStorageKey, createFileStorageService, sha256, storageKeyFromLocalPath } from "@/lib/file-storage";
+import {
+  buildStorageKey,
+  createFileStorageService,
+  createFileStorageServiceForPointer,
+  sha256,
+  storagePointerFromRecord
+} from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
 import { normalizeRevisionCode, revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
 import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
@@ -289,7 +295,7 @@ export async function createMasterAttachment(input: {
     )
     .run(
       id,
-      "j_drive",
+      storageProviderForFileAsset(saved.storageProvider),
       saved.localPath,
       saved.storageKey,
       originalFilename,
@@ -355,14 +361,13 @@ export async function getMasterAttachmentBytes(input: {
   if (!entity) return null;
   const row = selectMasterAttachmentRow(database, entity, input.attachmentId);
   if (!row?.original_path) return null;
-  const storage = createFileStorageService();
-  let storageKey: string;
+  let storagePointer;
   try {
-    storageKey = row.storage_key || storageKeyFromLocalPath(row.original_path);
+    storagePointer = storagePointerFromRecord(row);
   } catch {
     throw new Error("MASTER_ATTACHMENT_PATH_OUTSIDE_REPOSITORY");
   }
-  const bytes = await storage.readObject(storageKey);
+  const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
   return { attachment: mapMasterAttachment(row, entity.code), bytes };
 }
 
@@ -555,8 +560,13 @@ async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFile
   });
   return {
     localPath: stored.localPath,
+    storageProvider: stored.provider,
     storageKey: stored.key
   };
+}
+
+function storageProviderForFileAsset(provider: string) {
+  return provider === "local_repository" ? "j_drive" : provider;
 }
 
 function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): MasterAttachmentRecord {

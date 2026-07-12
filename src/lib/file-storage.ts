@@ -70,6 +70,13 @@ export type DownloadUrl = {
   authorizationHeaderRequired: boolean;
 };
 
+export type StoredFileStoragePointer = {
+  provider: FileStorageProvider;
+  bucket: string | null;
+  key: string;
+  legacyLocalPath?: string | null;
+};
+
 export interface FileStorageService {
   readonly provider: FileStorageProvider;
   putObject(input: PutObjectInput): Promise<StoredObject>;
@@ -348,7 +355,7 @@ export class S3CompatibleStorageAdapter implements FileStorageService {
 }
 
 export function createFileStorageService(): FileStorageService {
-  return new LocalRepositoryStorageAdapter();
+  return createConfiguredFileStorageService();
 }
 
 export function createConfiguredFileStorageService(env: NodeJS.ProcessEnv = process.env): FileStorageService {
@@ -358,8 +365,39 @@ export function createConfiguredFileStorageService(env: NodeJS.ProcessEnv = proc
   return new S3CompatibleStorageAdapter(resolveS3CompatibleStorageConfig(env));
 }
 
-export function createReleasePackageStorageService(): FileStorageService {
-  return new LocalRepositoryStorageAdapter(getReleasePackageRoot());
+export function createFileStorageServiceForPointer(
+  pointer: Pick<StoredFileStoragePointer, "provider" | "bucket">,
+  env: NodeJS.ProcessEnv = process.env
+): FileStorageService {
+  if (pointer.provider === "local_repository") return new LocalRepositoryStorageAdapter();
+  if (pointer.provider === "supabase_storage") {
+    const config = resolveSupabaseStorageConfig(env);
+    return new SupabaseStorageAdapter({
+      ...config,
+      bucket: pointer.bucket?.trim() || config.bucket
+    });
+  }
+  const config = resolveS3CompatibleStorageConfig(env);
+  return new S3CompatibleStorageAdapter({
+    ...config,
+    bucket: pointer.bucket?.trim() || config.bucket
+  });
+}
+
+export function createReleasePackageStorageService(env: NodeJS.ProcessEnv = process.env): FileStorageService {
+  const provider = resolveFileStorageProvider(env);
+  if (provider === "local_repository") return new LocalRepositoryStorageAdapter(getReleasePackageRoot());
+  if (provider === "supabase_storage") {
+    return new SupabaseStorageAdapter({
+      ...resolveSupabaseStorageConfig(env),
+      bucket: env.PDM_SUPABASE_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_SUPABASE_STORAGE_BUCKET?.trim() || "pdm-release"
+    });
+  }
+  const config = resolveS3CompatibleStorageConfig(env);
+  return new S3CompatibleStorageAdapter({
+    ...config,
+    bucket: env.PDM_S3_COMPATIBLE_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_S3_COMPATIBLE_BUCKET?.trim() || config.bucket
+  });
 }
 
 export function getReleasePackageRoot() {
@@ -383,6 +421,48 @@ export function storageKeyFromLocalPath(localPath: string, repositoryDir = getRe
     throw new Error("Stored file path is outside repository root");
   }
   return path.relative(repositoryRoot, resolvedPath).split(path.sep).join("/");
+}
+
+export function storagePointerFromStoredObject(stored: StoredObject): StoredFileStoragePointer {
+  return {
+    provider: stored.provider,
+    bucket: stored.bucket ?? null,
+    key: normalizeStorageKey(stored.key),
+    legacyLocalPath: stored.localPath
+  };
+}
+
+export function storagePointerFromRecord(
+  input: {
+    storage_provider?: string | null;
+    storage_bucket?: string | null;
+    storage_key?: string | null;
+    local_path?: string | null;
+    original_path?: string | null;
+  },
+  repositoryDir = getRepositoryDir()
+): StoredFileStoragePointer {
+  const explicitKey = input.storage_key?.trim();
+  const provider = resolveStoredProvider(input.storage_provider, input.local_path ?? input.original_path ?? null);
+  if (explicitKey) {
+    return {
+      provider,
+      bucket: input.storage_bucket?.trim() || null,
+      key: normalizeStorageKey(explicitKey),
+      legacyLocalPath: input.local_path ?? input.original_path ?? null
+    };
+  }
+
+  const pathOrPointer = input.local_path ?? input.original_path ?? "";
+  const parsedPointer = parseStoragePointer(pathOrPointer);
+  if (parsedPointer) return parsedPointer;
+
+  return {
+    provider: "local_repository",
+    bucket: null,
+    key: storageKeyFromLocalPath(pathOrPointer, repositoryDir),
+    legacyLocalPath: pathOrPointer
+  };
 }
 
 export function sha256(bytes: Buffer) {
@@ -451,6 +531,40 @@ function normalizeStorageKey(key: string) {
     throw new Error("Invalid storage object key");
   }
   return normalized;
+}
+
+function resolveStoredProvider(value: string | null | undefined, pathOrPointer: string | null): FileStorageProvider {
+  const provider = value?.trim();
+  if (provider === "j_drive" || provider === "local" || provider === "local_repository") return "local_repository";
+  if (provider === "supabase_storage" || provider === "s3_compatible") return provider;
+  if (pathOrPointer?.startsWith("supabase://")) return "supabase_storage";
+  if (pathOrPointer?.startsWith("s3-compatible://")) return "s3_compatible";
+  if (!provider) return "local_repository";
+  throw new Error(`Unsupported stored file provider: ${provider}`);
+}
+
+function parseStoragePointer(pointer: string): StoredFileStoragePointer | null {
+  if (pointer.startsWith("supabase://")) {
+    const parsed = parseProviderPointer(pointer, "supabase://");
+    return { provider: "supabase_storage", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
+  }
+  if (pointer.startsWith("s3-compatible://")) {
+    const parsed = parseProviderPointer(pointer, "s3-compatible://");
+    return { provider: "s3_compatible", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
+  }
+  return null;
+}
+
+function parseProviderPointer(pointer: string, prefix: string) {
+  const rest = pointer.slice(prefix.length);
+  const separatorIndex = rest.indexOf("/");
+  if (separatorIndex <= 0 || separatorIndex === rest.length - 1) {
+    throw new Error("Invalid storage provider pointer");
+  }
+  return {
+    bucket: rest.slice(0, separatorIndex),
+    key: normalizeStorageKey(rest.slice(separatorIndex + 1))
+  };
 }
 
 function sanitizeStorageKeyPart(part: string) {

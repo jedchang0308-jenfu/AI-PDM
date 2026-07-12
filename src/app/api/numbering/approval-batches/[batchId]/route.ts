@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { decideApprovalPlatformLegacyNumberingBatchAsync } from "@/lib/approval-platform";
 import { forbidden } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import {
-  decideNumberingApprovalBatchAsync,
   getNumberingApprovalBatchAsync,
   resubmitRejectedNumberingApprovalBatchItemsAsync
 } from "@/lib/numbering-async";
@@ -82,15 +82,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
     });
     if (!permission.allowed) return forbidden();
 
-    const result = await decideNumberingApprovalBatchAsync({
+    const result = await decideApprovalPlatformLegacyNumberingBatchAsync({
       companyId: companyResult.company.companyId,
       batchId,
       approvalRequestIds,
       decision,
       comment: String(body.comment ?? "").trim() || undefined,
       itemComments,
-      approverRole: String(body.approverRole ?? body.approver_role ?? "").trim() || permission.roleCode || reviewerRoleCode(auth.user.role),
-      approverId: auth.user.id
+      actor: auth.user,
+      approverRole: String(body.approverRole ?? body.approver_role ?? "").trim() || permission.roleCode || reviewerRoleCode(auth.user.role)
     });
     return NextResponse.json(result);
   } catch (error) {

@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { getUserById, type DbUser } from "@/lib/db";
 
-const cookieName = "pdm_session";
+export const SESSION_COOKIE_NAME = "pdm_session";
+export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 
 function getAuthSecret() {
   return process.env.PDM_AUTH_SECRET || "dev-only-change-before-production";
@@ -9,6 +10,12 @@ function getAuthSecret() {
 
 function sign(payload: string) {
   return crypto.createHmac("sha256", getAuthSecret()).update(payload).digest("base64url");
+}
+
+function secureCookieDirective() {
+  const configured = String(process.env.PDM_COOKIE_SECURE ?? "").trim().toLowerCase();
+  const secure = ["1", "true", "yes", "on"].includes(configured) || String(process.env.PDM_PUBLIC_BASE_URL ?? "").startsWith("https://");
+  return secure ? "; Secure" : "";
 }
 
 function parseCookies(header: string | null) {
@@ -29,15 +36,15 @@ export function generateToken(userId: string): string {
 
 export function createSessionCookie(userId: string) {
   const value = generateToken(userId);
-  return `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=28800`;
+  return `${SESSION_COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
 }
 
 export function createLogoutCookie() {
-  return `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
 }
 
 export function getSessionUser(request: Request): DbUser | null {
-  let value = parseCookies(request.headers.get("cookie")).get(cookieName);
+  let value = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE_NAME);
 
   if (!value) {
     const authHeader = request.headers.get("authorization");
@@ -54,7 +61,8 @@ export function getSessionUser(request: Request): DbUser | null {
   try {
     const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string };
     if (!decoded.userId) return null;
-    return getUserById(decoded.userId) ?? null;
+    const user = getUserById(decoded.userId);
+    return user?.account_status === "active" ? user : null;
   } catch {
     return null;
   }

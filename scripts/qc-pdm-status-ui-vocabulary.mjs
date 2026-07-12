@@ -71,12 +71,10 @@ const requiredHeaderFiles = [
   "src/components/dashboard/layout-parts.tsx",
   "src/components/dashboard.tsx",
   "src/app/numbering/request/page.tsx",
-  "src/app/numbering/search/page.tsx",
   "src/app/numbering/drawings/page.tsx",
   "src/app/parts/page.tsx",
   "src/app/numbering/tasks/page.tsx",
   "src/app/numbering/dvt/page.tsx",
-  "src/app/numbering/approvals/page.tsx",
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
   "src/app/numbering/imports/page.tsx",
@@ -117,10 +115,18 @@ for (const relativePath of ["src/app/bom/workbench/page.tsx", "src/app/numbering
   record(`${relativePath} uses restorePolicy for restore status`, source.includes('context="restorePolicy"'));
 }
 
-const approvalsPage = read("src/app/numbering/approvals/page.tsx");
-record("Approval status wording uses 待補資料 instead of 待補件", !approvalsPage.includes("待補件") && approvalsPage.includes("待補資料"));
+const legacyApprovalsPage = read("src/app/numbering/approvals/page.tsx");
+const approvalWorkbenchPage = read("src/app/approvals/page.tsx");
+record(
+  "Legacy approval route redirects to approval workbench",
+  legacyApprovalsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && legacyApprovalsPage.includes('"numbering_approvals"')
+);
+record(
+  "Approval workbench status wording uses 待補資料 instead of 待補件",
+  !approvalWorkbenchPage.includes("待補件") && approvalWorkbenchPage.includes("待補資料")
+);
 
-for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx", "src/app/numbering/search/page.tsx"]) {
+for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx"]) {
   const source = read(relativePath);
   record(`${relativePath} mixed status column is explicitly labeled`, source.includes('label="狀態 / 階段 / 提醒"'));
   record(`${relativePath} no longer labels mixed status column as 其他`, !source.includes('label="其他"'));

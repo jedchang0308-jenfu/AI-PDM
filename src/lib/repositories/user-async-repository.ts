@@ -8,6 +8,7 @@ type UserRow = {
   email: string | null;
   role: DbUser["role"];
   company_id: string;
+  account_status: DbUser["account_status"];
 };
 
 type UserWithPasswordRow = UserRow & {
@@ -15,19 +16,19 @@ type UserWithPasswordRow = UserRow & {
 };
 
 export const SELECT_ASYNC_USER_BY_ID_SQL = `
-  SELECT id, display_name, email, role, company_id
+  SELECT id, display_name, email, role, company_id, account_status
   FROM users
   WHERE id = :id
 `;
 
 export const SELECT_ASYNC_USER_BY_EMAIL_SQL = `
-  SELECT id, display_name, email, role, company_id
+  SELECT id, display_name, email, role, company_id, account_status
   FROM users
   WHERE lower(email) = lower(:email)
 `;
 
 export const SELECT_ASYNC_USER_BY_EMAIL_WITH_PASSWORD_SQL = `
-  SELECT id, display_name, email, password_hash, role, company_id
+  SELECT id, display_name, email, password_hash, role, company_id, account_status
   FROM users
   WHERE lower(email) = lower(:email)
 `;
@@ -71,6 +72,23 @@ export const INSERT_ASYNC_USER_COMPANY_MEMBERSHIP_SQL = `
   VALUES (:userId, :companyId, :isDefault)
   ON CONFLICT(user_id, company_id) DO UPDATE SET
     is_default = excluded.is_default
+`;
+
+export const UPSERT_ASYNC_LOCAL_IDENTITY_SQL = `
+  INSERT INTO auth_identities (
+    id, user_id, provider, provider_subject, login_identifier, email_normalized,
+    verified_at, last_login_at, status, created_at, updated_at
+  )
+  VALUES (
+    :id, :userId, 'local_password', :email, :email, :email,
+    :now, NULL, 'active', :now, :now
+  )
+  ON CONFLICT(user_id, provider) DO UPDATE SET
+    provider_subject = excluded.provider_subject,
+    login_identifier = excluded.login_identifier,
+    email_normalized = excluded.email_normalized,
+    status = 'active',
+    updated_at = excluded.updated_at
 `;
 
 export const SELECT_ASYNC_USER_COMPANY_ACCESS_SQL = `
@@ -133,13 +151,16 @@ export class AsyncUserRepository {
       companyId: companyIds[0] ?? "company-jenfu",
       now: input.now ?? new Date().toISOString()
     });
-    await this.replaceCompanyMemberships(input.id, companyIds);
+    const storedUser = await this.getUserByEmail(input.email);
+    if (!storedUser) throw new Error("ASYNC_USER_UPSERT_READBACK_FAILED");
+    await this.replaceCompanyMemberships(storedUser.id, companyIds);
+    await this.upsertLocalPasswordIdentity(storedUser.id, input.email, input.now);
   }
 
   async createUser(input: {
     displayName: string;
     email: string;
-    passwordHash: string;
+    passwordHash: string | null;
     role: DbUser["role"];
     companyCodes?: string[];
     id?: string;
@@ -157,11 +178,14 @@ export class AsyncUserRepository {
       now: input.now ?? new Date().toISOString()
     });
     await this.replaceCompanyMemberships(id, companyIds);
+    if (input.passwordHash) await this.upsertLocalPasswordIdentity(id, input.email, input.now);
     return id;
   }
 
   async updateUserPassword(userId: string, passwordHash: string, now = new Date().toISOString()): Promise<void> {
     await this.client.execute(UPDATE_ASYNC_USER_PASSWORD_SQL, { userId, passwordHash, now });
+    const user = await this.getUserById(userId);
+    if (user?.email) await this.upsertLocalPasswordIdentity(user.id, user.email, now);
   }
 
   async listUserCompanyAccess(userId: string): Promise<UserCompanyAccess[]> {
@@ -192,5 +216,15 @@ export class AsyncUserRepository {
         isDefault: index === 0 ? 1 : 0
       });
     }
+  }
+
+  private async upsertLocalPasswordIdentity(userId: string, email: string, now = new Date().toISOString()): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    await this.client.execute(UPSERT_ASYNC_LOCAL_IDENTITY_SQL, {
+      id: `identity-local-${userId}`,
+      userId,
+      email: normalizedEmail,
+      now
+    });
   }
 }

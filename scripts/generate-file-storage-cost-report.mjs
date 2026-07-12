@@ -44,6 +44,17 @@ function tableExists(db, tableName) {
   return Boolean(row);
 }
 
+function tableColumns(db, tableName) {
+  if (!tableExists(db, tableName)) return new Set();
+  return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => column.name));
+}
+
+function selectColumn(columns, alias, columnName, fallbackSql) {
+  return columns.has(columnName)
+    ? `${alias}.${columnName} AS ${columnName}`
+    : `${fallbackSql} AS ${columnName}`;
+}
+
 function readRows(db, tableName, sql) {
   if (!tableExists(db, tableName)) return [];
   return db.prepare(sql).all();
@@ -61,6 +72,8 @@ function readDatabaseRows(dbPath) {
 
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   try {
+    const submissionFileColumns = tableColumns(db, "submission_files");
+    const releasePackageColumns = tableColumns(db, "release_packages");
     const submissionFiles = readRows(
       db,
       "submission_files",
@@ -70,6 +83,9 @@ function readDatabaseRows(dbPath) {
         f.file_role,
         f.original_filename,
         f.local_path,
+        ${selectColumn(submissionFileColumns, "f", "storage_provider", "'local_repository'")},
+        ${selectColumn(submissionFileColumns, "f", "storage_bucket", "NULL")},
+        ${selectColumn(submissionFileColumns, "f", "storage_key", "NULL")},
         f.sha256,
         f.file_size,
         f.created_at,
@@ -89,6 +105,9 @@ function readDatabaseRows(dbPath) {
         submission_id,
         package_filename,
         local_path,
+        ${selectColumn(releasePackageColumns, "release_packages", "storage_provider", "'local_repository'")},
+        ${selectColumn(releasePackageColumns, "release_packages", "storage_bucket", "NULL")},
+        ${selectColumn(releasePackageColumns, "release_packages", "storage_key", "NULL")},
         sha256,
         file_size,
         created_at

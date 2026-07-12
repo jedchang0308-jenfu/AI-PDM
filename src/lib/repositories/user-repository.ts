@@ -81,12 +81,34 @@ function upsertUser(input: {
     )
     .run(input.id, input.displayName, input.email, input.passwordHash, input.role, defaultCompanyId, input.now, input.now);
 
-  input.database.prepare("DELETE FROM user_company_memberships WHERE user_id = ?").run(input.id);
+  const storedUser = input.database.prepare("SELECT id FROM users WHERE lower(email) = lower(?)").get(input.email) as { id: string };
+  const userId = storedUser.id;
+  input.database.prepare("DELETE FROM user_company_memberships WHERE user_id = ?").run(userId);
   for (const [index, companyId] of companyIds.entries()) {
     input.database
       .prepare("INSERT OR IGNORE INTO user_company_memberships (user_id, company_id, is_default) VALUES (?, ?, ?)")
-      .run(input.id, companyId, index === 0 ? 1 : 0);
+      .run(userId, companyId, index === 0 ? 1 : 0);
   }
+  upsertLocalPasswordIdentity(input.database, userId, input.email, input.now);
+}
+
+function upsertLocalPasswordIdentity(database: SqliteDatabase, userId: string, email: string, now: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  database
+    .prepare(
+      `INSERT INTO auth_identities (
+         id, user_id, provider, provider_subject, login_identifier, email_normalized,
+         verified_at, last_login_at, status, created_at, updated_at
+       )
+       VALUES (?, ?, 'local_password', ?, ?, ?, ?, NULL, 'active', ?, ?)
+       ON CONFLICT(user_id, provider) DO UPDATE SET
+         provider_subject = excluded.provider_subject,
+         login_identifier = excluded.login_identifier,
+         email_normalized = excluded.email_normalized,
+         status = 'active',
+         updated_at = excluded.updated_at`
+    )
+    .run(`identity-local-${userId}`, userId, normalizedEmail, normalizedEmail, normalizedEmail, now, now, now);
 }
 
 export function seedConfiguredUsers(database: SqliteDatabase) {
@@ -149,36 +171,39 @@ export function seedConfiguredUsers(database: SqliteDatabase) {
   }
 }
 
+export type UserAccountStatus = "active" | "suspended" | "expired" | "offboarded";
+
 export type DbUser = {
   id: string;
   display_name: string;
   email: string | null;
   role: UserRole;
   company_id: string;
+  account_status?: UserAccountStatus;
 };
 
 export type DbUserWithPassword = DbUser & { password_hash: string | null };
 
 export function getUserById(id: string) {
-  return getDb().prepare("SELECT id, display_name, email, role, company_id FROM users WHERE id = ?").get(id) as DbUser | undefined;
+  return getDb().prepare("SELECT id, display_name, email, role, company_id, account_status FROM users WHERE id = ?").get(id) as DbUser | undefined;
 }
 
 export function getUserByEmail(email: string) {
   return getDb()
-    .prepare("SELECT id, display_name, email, role, company_id FROM users WHERE lower(email) = lower(?)")
+    .prepare("SELECT id, display_name, email, role, company_id, account_status FROM users WHERE lower(email) = lower(?)")
     .get(email) as DbUser | undefined;
 }
 
 export function getUserByEmailWithPassword(email: string) {
   return getDb()
-    .prepare("SELECT id, display_name, email, password_hash, role, company_id FROM users WHERE lower(email) = lower(?)")
+    .prepare("SELECT id, display_name, email, password_hash, role, company_id, account_status FROM users WHERE lower(email) = lower(?)")
     .get(email) as DbUserWithPassword | undefined;
 }
 
 export function createUser(input: {
   displayName: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   role: DbUser["role"];
 }) {
   const id = `user-${crypto.randomUUID().slice(0, 12)}`;
@@ -191,6 +216,7 @@ export function createUser(input: {
   getDb()
     .prepare("INSERT OR IGNORE INTO user_company_memberships (user_id, company_id, is_default) VALUES (?, ?, 1)")
     .run(id, "company-jenfu");
+  if (input.passwordHash) upsertLocalPasswordIdentity(getDb(), id, input.email, now);
   return id;
 }
 

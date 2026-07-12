@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { chromium } from "playwright";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-permission-guard-ui" });
 const results = [];
 
 function record(name, passed, detail = "") {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { buildFileResponse, getStoredSubmissionFile, isPdfFile } from "@/lib/file-response";
-import { createFileStorageService } from "@/lib/file-storage";
+import { createFileStorageServiceForPointer } from "@/lib/file-storage";
 import { auditStorageAccess, resolveStorageAccessAuditProvenance } from "@/lib/storage-access-audit";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Only PDF files can be previewed" }, { status: 415 });
   }
 
-  const access = await createFileStorageService().createDownloadUrl({
+  const access = await createFileStorageServiceForPointer(result.storagePointer).createDownloadUrl({
     key: result.storageKey,
     filename: result.file.original_filename,
     forceDownload: mode.disposition === "attachment",

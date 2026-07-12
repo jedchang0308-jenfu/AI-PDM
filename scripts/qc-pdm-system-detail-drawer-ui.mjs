@@ -53,13 +53,39 @@ includesAll("src/components/dashboard.tsx", [
   ".pdm-detail-drawer"
 ]);
 
-includesAll("src/app/numbering/approvals/page.tsx", [
-  "PdmDetailDrawer",
-  "useRememberedDrawerWidth",
-  "useListKeyboardShortcuts",
-  "pdm-approval-detail-drawer-width",
-  "data-approval-batch-row",
-  "pdm-detail-drawer"
+const numberingApprovalsPage = includesAll("src/app/numbering/approvals/page.tsx", [
+  "redirect(buildLegacyApprovalWorkbenchRedirect",
+  '"numbering_approvals"'
+]);
+record(
+  "src/app/numbering/approvals/page.tsx is no longer an independent client inbox",
+  !numberingApprovalsPage.includes('"use client"')
+);
+record(
+  "src/app/numbering/approvals/page.tsx does not host stale drawer UI",
+  !numberingApprovalsPage.includes("PdmDetailDrawer")
+);
+
+includesAll("src/lib/approval-workbench-legacy-redirect.ts", [
+  "buildLegacyApprovalWorkbenchRedirect",
+  "numbering_approvals",
+  'domain: "numbering"',
+  "legacyRedirect",
+  "requestId",
+  "approvalRequestId",
+  "/approvals?"
+]);
+
+includesAll("src/app/approvals/page.tsx", [
+  "<h1>審核工作台</h1>",
+  "legacyRedirectMessages",
+  "numbering_approvals",
+  "approval-platform-layout",
+  "approval-inbox-panel",
+  "approval-detail-panel",
+  "buildInboxUrl",
+  "syncFilterQuery",
+  "allowedDecisionsForDetail"
 ]);
 
 includesAll("src/app/numbering/imports/page.tsx", [
@@ -86,9 +112,10 @@ includesAll("scripts/qc-dashboard-detail-priority-test.mjs", [
   "button[aria-label='關閉圖面明細']"
 ]);
 
-includesAll("scripts/qc-pdm-numbering-approval-review-ui.mjs", [
-  "data-approval-batch-row",
-  "Approval detail opens as non-dark drawer"
+includesAll("scripts/qc-pdm-approval-platform.mjs", [
+  "Phase 1C-B numbering approvals route redirects to workbench",
+  "legacyRedirectMessages",
+  ".approval-message.info"
 ]);
 
 includesAll("scripts/qc-pdm-numbering-import-center-ui.mjs", [
@@ -104,6 +131,10 @@ includesAll("scripts/qc-pdm-numbering-report-center-ui.mjs", [
 const globals = readProjectFile(root, "src/app/globals.css");
 record("Drawer backdrop stays transparent", globals.includes("background: transparent;"));
 record("Dashboard drawer panel CSS exists", globals.includes(".dashboard-detail-drawer-panel"));
+record("Approval workbench layout CSS exists", globals.includes(".approval-platform-layout"));
+record("Approval workbench inbox panel CSS exists", globals.includes(".approval-inbox-panel"));
+record("Approval workbench detail panel CSS exists", globals.includes(".approval-detail-panel"));
+record("Approval legacy redirect info CSS exists", globals.includes(".approval-message.info"));
 
 const drawerSpec = readProjectFile(root, ".ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md");
 record("Drawer spec references drawer task", drawerSpec.includes("DEV-PDM-DETAIL-DRAWER-001"));

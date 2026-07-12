@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { decideApprovalPlatformLegacyBomAsync } from "@/lib/approval-platform";
 import { forbidden, requireRoleAsync } from "@/lib/auth-async";
-import { getBomWorkbenchDraftByIdAsync, getBomWorkbenchReviewByIdAsync, rejectBomWorkbenchReviewAsync } from "@/lib/bom-workbench-async";
+import { getBomWorkbenchDraftByIdAsync, getBomWorkbenchReviewByIdAsync } from "@/lib/bom-workbench-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 
@@ -28,10 +29,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ rev
   const body = (await request.json().catch(() => ({}))) as { decisionReason?: unknown };
   try {
     return NextResponse.json({
-      result: await rejectBomWorkbenchReviewAsync({
+      result: await decideApprovalPlatformLegacyBomAsync({
         reviewId,
-        actorId: auth.user.id,
-        decisionReason: typeof body.decisionReason === "string" ? body.decisionReason : undefined
+        decision: "rejected",
+        actor: auth.user,
+        comment: typeof body.decisionReason === "string" ? body.decisionReason : undefined
       })
     });
   } catch (error) {

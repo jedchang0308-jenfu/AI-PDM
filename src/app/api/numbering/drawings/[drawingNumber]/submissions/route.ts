@@ -3,6 +3,7 @@ import { requireRoleAsync } from "@/lib/auth-async";
 import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
 import { uploadFileToDrive } from "@/lib/gdrive";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { buildTransferPackageHref, normalizeSubmissionMode, resolveSubmissionReadiness } from "@/lib/submission-gate";
 import { getFilesNeedingUploadAsync, updateFileGDriveStatusAsync } from "@/lib/submission-files-async";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
 
@@ -17,11 +18,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
-  const expectedRevision = String(body.expectedRevision ?? body.revision ?? "").trim() || null;
+  const decodedDrawingNumber = decodeURIComponent(drawingNumber);
+  const submissionMode = normalizeSubmissionMode(body.submissionMode);
+  const caseType = typeof body.caseType === "string" ? body.caseType : null;
+  if (submissionMode === "technical_transfer") {
+    const transferPackageHref = buildTransferPackageHref({
+      sourceType: "drawing",
+      sourceId: decodedDrawingNumber,
+      sourceLabel: decodedDrawingNumber,
+      caseType
+    });
+    const readiness = resolveSubmissionReadiness({
+      mode: "technical_transfer",
+      caseType,
+      sourceType: "drawing",
+      sourceId: decodedDrawingNumber,
+      facts: {
+        hasReviewableAttachment: Array.isArray(body.selectedAttachmentIds) && body.selectedAttachmentIds.length > 0
+      }
+    });
+    return NextResponse.json(
+      {
+        error: "technical_transfer_requires_package",
+        code: "technical_transfer_requires_package",
+        group: "submission_gate",
+        message: "技術移轉送審需先建立移轉包，不能從單一圖號直接建立正式送審。",
+        recoveryTarget: "transfer_package",
+        recoveryHref: transferPackageHref,
+        blockers: readiness.blockers
+      },
+      { status: 409 }
+    );
+  }
+
+  const expectedRevision = String(body.expectedRevision ?? "").trim() || null;
   try {
     const result = await createDrawingSourceSubmission({
       company: companyResult.company,
-      drawingNumber: decodeURIComponent(drawingNumber),
+      drawingNumber: decodedDrawingNumber,
       expectedRevision,
       selectedAttachmentIds: Array.isArray(body.selectedAttachmentIds)
         ? body.selectedAttachmentIds.map((value) => String(value))

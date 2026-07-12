@@ -19,7 +19,6 @@ export async function POST(request: Request) {
   if (companyResult.response) return companyResult.response;
 
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
-  const partName = String(body.partName ?? body.part_name ?? "").trim();
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
   const developmentPhase = initialDevelopmentPhase;
   const drawingRequested = Boolean(body.drawingRequested ?? body.drawing_requested);
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
 
   const errors: string[] = [];
   if (!coreName) errors.push("coreName is required");
-  if (!partName) errors.push("partName is required");
   if (!itemKind) errors.push("itemKind is required");
   if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
   if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
@@ -47,7 +45,6 @@ export async function POST(request: Request) {
     const result = await createNumberingRecordAsync({
       companyId: companyResult.company.companyId,
       coreName,
-      partName,
       itemKind,
       developmentPhase,
       isUniversal,

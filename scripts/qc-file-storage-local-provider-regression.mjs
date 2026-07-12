@@ -37,25 +37,25 @@ try {
 
   record("LOCAL-STORAGE-REGRESSION-001 package script is registered", packageJson.scripts?.["qc:file-storage-local-provider-regression"] === "node scripts/qc-file-storage-local-provider-regression.mjs");
 
-  record("LOCAL-STORAGE-REGRESSION-002 default runtime provider remains local", storage.includes("export function createFileStorageService(): FileStorageService {\n  return new LocalRepositoryStorageAdapter();\n}"));
+  record("LOCAL-STORAGE-REGRESSION-002 default runtime provider still resolves local", storage.includes('env.PDM_STORAGE_PROVIDER?.trim() || "local_repository"') && storage.includes("return createConfiguredFileStorageService();"));
   record("LOCAL-STORAGE-REGRESSION-003 local provider remains server-streamed", includesAll(storage, ['mode: "server_stream"', "url: null", "auditRequired: true", "authorizationHeaderRequired: true"]));
   record("LOCAL-STORAGE-REGRESSION-004 local provider guards repository boundary", includesAll(storage, ["path.resolve", "Storage object key resolves outside repository root", "normalizeStorageKey"]));
 
   record("LOCAL-STORAGE-REGRESSION-005 upload path writes through FileStorageService", includesAll(fileStore, ["createFileStorageService", "storage.putObject", "buildStorageKey"]));
-  record("LOCAL-STORAGE-REGRESSION-006 upload keeps submission metadata contract", includesAll(fileStore, ["fileRole: normalizeFileRole(file.name)", "originalFilename: file.name", "localPath: stored.localPath", "sha256: stored.sha256", "fileSize: stored.bytes"]));
+  record("LOCAL-STORAGE-REGRESSION-006 upload keeps submission metadata contract", includesAll(fileStore, ["fileRole: normalizeFileRole(file.filename)", "originalFilename: file.filename", "localPath: stored.localPath", "storageProvider: pointer.provider", "storageBucket: pointer.bucket", "storageKey: pointer.key", "sha256: stored.sha256", "fileSize: stored.bytes"]));
   record("LOCAL-STORAGE-REGRESSION-007 upload keeps pending date folder key", includesAll(fileStore, ['"pending"', "yyyy", "mm", "submissionFolderName", "safeName"]));
 
-  record("LOCAL-STORAGE-REGRESSION-008 file response reads through storage service", includesAll(fileResponse, ["storageKeyFromLocalPath(file.local_path)", "createFileStorageService().readObject(storageKey)"]));
+  record("LOCAL-STORAGE-REGRESSION-008 file response reads through provider-aware storage service", includesAll(fileResponse, ["storagePointerFromRecord(file)", "createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key)"]));
   record("LOCAL-STORAGE-REGRESSION-009 file response keeps attachment and inline disposition", includesAll(fileResponse, ['disposition: "inline" | "attachment"', '"content-disposition"', "contentDispositionFilename"]));
   record("LOCAL-STORAGE-REGRESSION-010 file response keeps PDF content type", includesAll(fileResponse, ["isPdfFile", '"application/pdf"', 'file.file_role === "pdf"']));
   record("LOCAL-STORAGE-REGRESSION-011 file response keeps private no-store headers", includesAll(fileResponse, ['"x-content-type-options": "nosniff"', '"cache-control": "private, no-store"']));
 
   record("LOCAL-STORAGE-REGRESSION-012 file route supports download URL shape", includesAll(submissionFileRoute, ["filePath.length === 1", 'disposition: "attachment"']));
   record("LOCAL-STORAGE-REGRESSION-013 file route supports PDF preview URL shape", includesAll(submissionFileRoute, ['filePath[0] === "preview"', 'disposition: "inline"', "Only PDF files can be previewed"]));
-  record("LOCAL-STORAGE-REGRESSION-014 file route creates audited access contract before response", ordered(submissionFileRoute, "createFileStorageService().createDownloadUrl", "await auditStorageAccess"));
+  record("LOCAL-STORAGE-REGRESSION-014 file route creates audited access contract before response", ordered(submissionFileRoute, "createFileStorageServiceForPointer(result.storagePointer).createDownloadUrl", "await auditStorageAccess"));
   record("LOCAL-STORAGE-REGRESSION-015 file route separates preview and download audit kinds", includesAll(submissionFileRoute, ['"submission_file_preview"', '"submission_file"', 'route: "/api/submissions/[id]/files/[...filePath]"']));
 
-  record("LOCAL-STORAGE-REGRESSION-016 release package file is root-bound and storage-backed", includesAll(releasePackageFile, ["getReleasePackageRoot", "RELEASE_PACKAGE_PATH_OUTSIDE_ROOT", "createReleasePackageStorageService().readObject"]));
+  record("LOCAL-STORAGE-REGRESSION-016 release package file is root-bound and storage-backed", includesAll(releasePackageFile, ["getReleasePackageRoot", "RELEASE_PACKAGE_PATH_OUTSIDE_ROOT", "createReleasePackageStorageServiceForRecord"]));
   record("LOCAL-STORAGE-REGRESSION-017 release package route only serves released/obsolete submissions", includesAll(releasePackageRoute, ['submission.status !== "Released" && submission.status !== "Obsolete"', "return NextResponse.json", "{ status: 409 }"]));
   record("LOCAL-STORAGE-REGRESSION-018 release package route audits package download", includesAll(releasePackageRoute, ['purpose: "release_package"', 'accessKind: "release_package"', 'route: "/api/submissions/[id]/release-package"']));
   record("LOCAL-STORAGE-REGRESSION-019 release package route returns zip attachment without cache", includesAll(releasePackageRoute, ['"content-type": "application/zip"', '"content-disposition": `attachment;', '"cache-control": "private, no-store"']));

@@ -1,13 +1,13 @@
 import crypto from "node:crypto";
-import { forbidden, unauthorized } from "@/lib/auth";
+import { SESSION_COOKIE_NAME, forbidden, unauthorized } from "@/lib/auth";
 import { getAuthMode } from "@/lib/auth-config";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { DbUser } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { AsyncAuthIdentityRepository, type ResolvedAuthIdentity } from "@/lib/repositories/auth-identity-async-repository";
 import type { DbUserWithPassword } from "@/lib/repositories/user-repository";
 import { AsyncUserRepository } from "@/lib/repositories/user-async-repository";
 
-const cookieName = "pdm_session";
 const demoPassword = "pdm-demo";
 
 export type AsyncAuthResult = { user: DbUser; response: null } | { user: null; response: Response };
@@ -38,7 +38,7 @@ function parseCookies(header: string | null) {
 }
 
 function getSessionToken(request: Request) {
-  const cookieToken = parseCookies(request.headers.get("cookie")).get(cookieName);
+  const cookieToken = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE_NAME);
   if (cookieToken) return cookieToken;
 
   const authHeader = request.headers.get("authorization");
@@ -70,13 +70,28 @@ export async function getSessionUserAsync(request: Request): Promise<DbUser | nu
 
   const client = getAsyncDatabaseClient();
   const repository = new AsyncUserRepository(client);
-  return repository.getUserById(userId);
+  const user = await repository.getUserById(userId);
+  return user?.account_status === "active" ? user : null;
 }
 
 export async function getUserByEmailWithPasswordAsync(email: string): Promise<DbUserWithPassword | null> {
+  const identity = await getLocalPasswordIdentityAsync(email);
+  return identity?.user ?? null;
+}
+
+export async function getLocalPasswordIdentityAsync(email: string): Promise<ResolvedAuthIdentity | null> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncUserRepository(client);
-  return repository.getUserByEmailWithPassword(email);
+  return new AsyncAuthIdentityRepository(client).resolveLocalPassword(email);
+}
+
+export async function getGoogleIdentityAsync(providerSubject: string): Promise<ResolvedAuthIdentity | null> {
+  const client = getAsyncDatabaseClient();
+  return new AsyncAuthIdentityRepository(client).resolveGoogle(providerSubject);
+}
+
+export async function recordIdentityLoginAsync(identityId: string, email?: string | null): Promise<void> {
+  const client = getAsyncDatabaseClient();
+  await new AsyncAuthIdentityRepository(client).recordSuccessfulLogin(identityId, email);
 }
 
 export async function getUserByIdAsync(userId: string): Promise<DbUser | null> {
@@ -88,7 +103,7 @@ export async function getUserByIdAsync(userId: string): Promise<DbUser | null> {
 export async function createUserAsync(input: {
   displayName: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   role: DbUser["role"];
   companyCodes?: string[];
   id?: string;

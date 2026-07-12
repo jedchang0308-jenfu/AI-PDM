@@ -4,10 +4,18 @@ import type { NumberingRootBundleRecord } from "@/lib/repositories/numbering-asy
 import type {
   DuplicateCheckInput,
   DuplicateCheckResult,
+  AddDrawingAndPartToRootInput,
+  AddDrawingAndPartToRootResult,
+  AddDrawingNumberInput,
+  AddDrawingNumberToRootResult,
+  AddPartNumberInput,
+  AddPartNumberToRootResult,
   ConfirmNumberingImportBatchInput,
   ApplyNumberingRuleTemplateInput,
   CreateNumberingApprovalBatchInput,
   CreateNumberingImportBatchInput,
+  DeleteDraftNumberingRecordInput,
+  DeleteDraftNumberingRecordResult,
   DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
   CreatePartCostProfileInput,
@@ -56,6 +64,8 @@ import type {
   EvaluateApprovalRuleInput,
   EvaluateNumberingGateInput,
   LinkPartNumberToDrawingInput,
+  MaintainDrawingPartRelationInput,
+  MaintainDrawingPartRelationResult,
   ObsoleteDraftNumberingRecordInput,
   PartCostResolutionRecord,
   PartModuleDetailRecord,
@@ -77,6 +87,9 @@ import type {
   RequestMainDrawingRestoreApprovalInput,
   RequestNumberingApprovalInput,
   RequestNumberingObsoleteApprovalInput,
+  RequestRootObsoleteApprovalInput,
+  RootObsoleteApprovalResult,
+  RootObsoleteImpactResult,
   RequestSameDrawingVariantApprovalInput,
   NumberingObsoleteApprovalResult,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
@@ -115,6 +128,12 @@ export async function obsoleteDraftNumberingRecordAsync(
   return repository.obsoleteDraftNumberingRecord(input);
 }
 
+export async function deleteDraftNumberingRecordAsync(input: DeleteDraftNumberingRecordInput): Promise<DeleteDraftNumberingRecordResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.deleteDraftNumberingRecord(input);
+}
+
 export async function checkNumberingDuplicatesAsync(input: DuplicateCheckInput): Promise<DuplicateCheckResult> {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
@@ -131,6 +150,36 @@ export async function requestNumberingObsoleteApprovalAsync(input: RequestNumber
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.requestNumberingObsoleteApproval(input);
+}
+
+export async function addDrawingNumberToRootAsync(input: AddDrawingNumberInput): Promise<AddDrawingNumberToRootResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.addDrawingNumberToRoot(input);
+}
+
+export async function addPartNumberToRootAsync(input: AddPartNumberInput): Promise<AddPartNumberToRootResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.addPartNumberToRoot(input);
+}
+
+export async function addDrawingAndPartToRootAsync(input: AddDrawingAndPartToRootInput): Promise<AddDrawingAndPartToRootResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.addDrawingAndPartToRoot(input);
+}
+
+export async function getRootObsoleteImpactAsync(input: { companyId?: string; rootCode?: string; rootId?: string }): Promise<RootObsoleteImpactResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.getRootObsoleteImpact(input);
+}
+
+export async function requestRootObsoleteApprovalAsync(input: RequestRootObsoleteApprovalInput): Promise<RootObsoleteApprovalResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.requestRootObsoleteApproval(input);
 }
 
 export async function requestSameDrawingVariantApprovalAsync(input: RequestSameDrawingVariantApprovalInput): Promise<NumberingApprovalRecord> {
@@ -333,6 +382,12 @@ export async function linkPartNumberToDrawingAsync(input: LinkPartNumberToDrawin
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.linkPartNumberToDrawing(input);
+}
+
+export async function maintainDrawingPartRelationAsync(input: MaintainDrawingPartRelationInput): Promise<MaintainDrawingPartRelationResult> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.maintainDrawingPartRelation(input);
 }
 
 export async function listNumberingTasksAsync(input: ListNumberingTasksInput): Promise<NumberingTaskRecord[]> {

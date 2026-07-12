@@ -8,10 +8,13 @@ export function normalizeStorageMetadataRows(rows, options) {
   const objects = [];
 
   for (const row of rows.submissionFiles ?? []) {
+    const provider = normalizeProvider(row.storage_provider ?? inferProviderFromPointer(row.local_path));
+    const parsedPointer = parseStoragePointer(row.local_path);
     objects.push({
       id: row.id,
       source: "submission_files",
-      provider: "local_repository",
+      provider,
+      bucket: row.storage_bucket ?? parsedPointer?.bucket ?? null,
       lifecycleTier: inferSubmissionLifecycleTier(row.submission_status),
       businessStatus: row.submission_status ?? "unknown",
       linkedEntityType: "submission",
@@ -22,7 +25,7 @@ export function normalizeStorageMetadataRows(rows, options) {
       bytes: normalizeBytes(row.file_size),
       hash: normalizeHash(row.sha256),
       hashAlgorithm: "SHA-256",
-      storageKey: safeRelative(repositoryDir, row.local_path),
+      storageKey: row.storage_key ?? parsedPointer?.key ?? safeRelative(repositoryDir, row.local_path),
       localPath: row.local_path,
       pathForExistenceCheck: row.local_path,
       localRoot: repositoryDir,
@@ -31,10 +34,13 @@ export function normalizeStorageMetadataRows(rows, options) {
   }
 
   for (const row of rows.releasePackages ?? []) {
+    const provider = normalizeProvider(row.storage_provider ?? inferProviderFromPointer(row.local_path));
+    const parsedPointer = parseStoragePointer(row.local_path);
     objects.push({
       id: row.id,
       source: "release_packages",
-      provider: "local_repository",
+      provider,
+      bucket: row.storage_bucket ?? parsedPointer?.bucket ?? null,
       lifecycleTier: "hot",
       businessStatus: "ReleasedPackage",
       linkedEntityType: "submission",
@@ -45,7 +51,7 @@ export function normalizeStorageMetadataRows(rows, options) {
       bytes: normalizeBytes(row.file_size),
       hash: normalizeHash(row.sha256),
       hashAlgorithm: "SHA-256",
-      storageKey: safeRelative(releasePackageRoot, row.local_path),
+      storageKey: row.storage_key ?? parsedPointer?.key ?? safeRelative(releasePackageRoot, row.local_path),
       localPath: row.local_path,
       pathForExistenceCheck: row.local_path,
       localRoot: releasePackageRoot,
@@ -101,6 +107,26 @@ function normalizeProvider(provider) {
   if (value === "j_drive") return "local_repository";
   if (value === "local") return "local_repository";
   return value || "unknown";
+}
+
+function inferProviderFromPointer(value) {
+  const text = String(value ?? "");
+  if (text.startsWith("supabase://")) return "supabase_storage";
+  if (text.startsWith("s3-compatible://")) return "s3_compatible";
+  return "local_repository";
+}
+
+function parseStoragePointer(value) {
+  const text = String(value ?? "");
+  const prefix = text.startsWith("supabase://") ? "supabase://" : text.startsWith("s3-compatible://") ? "s3-compatible://" : "";
+  if (!prefix) return null;
+  const rest = text.slice(prefix.length);
+  const separatorIndex = rest.indexOf("/");
+  if (separatorIndex <= 0 || separatorIndex === rest.length - 1) return null;
+  return {
+    bucket: rest.slice(0, separatorIndex),
+    key: rest.slice(separatorIndex + 1).replaceAll("\\", "/")
+  };
 }
 
 function normalizeBytes(value) {

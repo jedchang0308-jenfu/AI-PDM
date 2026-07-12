@@ -12,6 +12,9 @@ export function upsertReleasePackageRecord(input: {
   submissionId: string;
   packageFilename: string;
   localPath: string;
+  storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+  storageBucket?: string | null;
+  storageKey?: string | null;
   sha256: string;
   fileSize: number;
   manifestJson: string;
@@ -23,11 +26,14 @@ export function upsertReleasePackageRecord(input: {
     .prepare(
       `
       INSERT INTO release_packages (
-        id, submission_id, package_filename, local_path, sha256, file_size, manifest_json, created_by, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, submission_id, package_filename, local_path, storage_provider, storage_bucket, storage_key, sha256, file_size, manifest_json, created_by, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(submission_id) DO UPDATE SET
         package_filename = excluded.package_filename,
         local_path = excluded.local_path,
+        storage_provider = excluded.storage_provider,
+        storage_bucket = excluded.storage_bucket,
+        storage_key = excluded.storage_key,
         sha256 = excluded.sha256,
         file_size = excluded.file_size,
         manifest_json = excluded.manifest_json,
@@ -40,6 +46,9 @@ export function upsertReleasePackageRecord(input: {
       input.submissionId,
       input.packageFilename,
       input.localPath,
+      input.storageProvider ?? "local_repository",
+      input.storageBucket ?? null,
+      input.storageKey ?? null,
       input.sha256,
       input.fileSize,
       input.manifestJson,

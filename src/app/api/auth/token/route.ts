@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAuthMode } from "@/lib/auth-config";
 import { generateToken } from "@/lib/auth";
-import { ensureDemoUserAsync, getUserByEmailWithPasswordAsync } from "@/lib/auth-async";
+import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
 import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
@@ -27,10 +27,11 @@ export async function POST(request: Request) {
     });
   }
 
-  const user = await getUserByEmailWithPasswordAsync(email);
-  if (!user) {
+  const identity = await getLocalPasswordIdentityAsync(email);
+  if (!identity || identity.status !== "active" || identity.user.account_status !== "active") {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
+  const user = identity.user;
 
   let passwordValid = false;
   if (user.password_hash) {
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
   }
 
   // Create audit log for login event
-  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, client: "SolidWorks Add-in" } });
+  await recordIdentityLoginAsync(identity.identityId, user.email);
+  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, provider: "local_password", client: "SolidWorks Add-in" } });
 
   // Generate bearer token
   const token = generateToken(user.id);

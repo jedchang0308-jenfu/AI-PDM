@@ -3,9 +3,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
@@ -43,6 +44,14 @@ type DrawingLinkedPartRecord = {
   standardCostType: string | null;
 };
 
+type DrawingPendingApprovalSummary = {
+  count: number;
+  revisions: string[];
+  latestRequestedAt: string | null;
+  latestRequestId: string | null;
+  workbenchHref: string;
+};
+
 type DrawingListRecord = {
   id: string;
   partRootId: string;
@@ -67,6 +76,7 @@ type DrawingListRecord = {
     revision: string;
     releasedAt: string | null;
   } | null;
+  pendingApproval?: DrawingPendingApprovalSummary | null;
   updatedAt: string;
 };
 
@@ -131,6 +141,7 @@ export default function DrawingNumbersPage() {
   const [developmentPhase, setDevelopmentPhase] = useState("");
   const [purposeCode, setPurposeCode] = useState("");
   const [drawings, setDrawings] = useState<DrawingListRecord[]>([]);
+  const [canReviewApprovals, setCanReviewApprovals] = useState(false);
   const [selectedDrawingNumber, setSelectedDrawingNumber] = useState<string | null>(null);
   const selectedDrawingNumberRef = useRef<string | null>(null);
   const initialDetailDrawingNumberRef = useRef<string | null>(null);
@@ -156,6 +167,7 @@ export default function DrawingNumbersPage() {
       manufacturing: drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).length,
       reference: drawings.filter((drawing) => !isManufacturingDrawingPurpose(drawing.purposeCode)).length,
       linked: drawings.filter((drawing) => drawing.linkedPartCount > 0).length,
+      pendingApprovals: drawings.reduce((sum, drawing) => sum + (drawing.pendingApproval?.count ?? 0), 0),
       warnings: drawings.reduce((sum, drawing) => sum + drawing.warningCount, 0)
     }),
     [drawings]
@@ -182,6 +194,7 @@ export default function DrawingNumbersPage() {
       return;
     }
     const nextDrawings = (body.drawings ?? []) as DrawingListRecord[];
+    setCanReviewApprovals(Boolean(body.approvalProjection?.canReview));
     const currentSelection = selectedDrawingNumberRef.current;
     const nextSelection = currentSelection && nextDrawings.some((drawing) => drawing.drawingNumber === currentSelection) ? currentSelection : null;
     selectedDrawingNumberRef.current = nextSelection;
@@ -447,6 +460,7 @@ export default function DrawingNumbersPage() {
                     { label: "製造圖", value: summary.manufacturing },
                     { label: "參考圖", value: summary.reference },
                     { label: "已關聯", value: summary.linked },
+                    { label: "待審", value: summary.pendingApprovals, tone: summary.pendingApprovals > 0 ? "warning" : undefined },
                     { label: "提醒", value: summary.warnings, tone: summary.warnings > 0 ? "warning" : undefined }
                   ]}
                 />
@@ -540,7 +554,9 @@ export default function DrawingNumbersPage() {
                             <div className="pdm-identity-meta">{drawingPurposeLabel(drawing)}</div>
                           </td>
                           <td data-label="品名">
-                            <div className="pdm-identity-name">{drawing.coreName}</div>
+                            <div className="pdm-identity-name" title={drawing.coreName}>
+                              {drawing.coreName}
+                            </div>
                           </td>
                           <td data-label="料號">
                             {drawing.linkedPartCount > 0 ? (
@@ -559,6 +575,7 @@ export default function DrawingNumbersPage() {
                           <td data-label="狀態 / 階段 / 提醒">
                             <div className="pdm-meta-strip">
                               <StatusBadge status={drawing.recordStatus} context="masterRecord" />
+                              {drawing.pendingApproval ? <PendingApprovalBadge pending={drawing.pendingApproval} canReview={canReviewApprovals} /> : null}
                               {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
                               <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
                               {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
@@ -578,6 +595,7 @@ export default function DrawingNumbersPage() {
             width={drawerWidth}
             onStartResize={startDrawingDrawerResize}
             onDataChanged={loadDrawings}
+            canReviewApprovals={canReviewApprovals}
             onClose={() => setIsDetailOpen(false)}
           />
         </div>
@@ -623,6 +641,15 @@ function formatDrawingPurposeFilterOption(option: string) {
   return `${option} ${displayDrawingPurposeLabel(option)}`;
 }
 
+function revisionRangeLabel(revisions: string[]) {
+  const clean = [...new Set(revisions.map((revision) => revision.trim()).filter(Boolean))].sort((left, right) =>
+    left.localeCompare(right, "zh-Hant", { numeric: true, sensitivity: "base" })
+  );
+  if (clean.length === 0) return "版次待確認";
+  if (clean.length <= 2) return `rev ${clean.join("、")}`;
+  return `rev ${clean[0]}-${clean[clean.length - 1]}`;
+}
+
 function ReleaseStatusMismatchBadge({ mismatch }: { mismatch: NonNullable<DrawingListRecord["releaseStatusMismatch"]> }) {
   return (
     <Link
@@ -656,6 +683,28 @@ function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord })
   );
 }
 
+function PendingApprovalBadge({ pending, canReview }: { pending: DrawingPendingApprovalSummary; canReview: boolean }) {
+  const label = `待審 ${pending.count}`;
+  const title = `圖面進版影響審核：${revisionRangeLabel(pending.revisions)}`;
+  if (canReview) {
+    return (
+      <Link
+        className="pdm-meta-chip drawing-pending-approval-chip"
+        href={pending.workbenchHref}
+        onClick={(event) => event.stopPropagation()}
+        title={title}
+      >
+        {label}
+      </Link>
+    );
+  }
+  return (
+    <span className="pdm-meta-chip drawing-pending-approval-chip" title={title}>
+      {label}
+    </span>
+  );
+}
+
 function WarningBadge({ count }: { count: number }) {
   return (
     <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>
@@ -671,6 +720,7 @@ function DrawingDetailDrawer({
   width,
   onStartResize,
   onDataChanged,
+  canReviewApprovals,
   onClose
 }: {
   drawing: DrawingListRecord | null;
@@ -678,12 +728,23 @@ function DrawingDetailDrawer({
   width: number;
   onStartResize: (clientX: number) => void;
   onDataChanged: () => Promise<void>;
+  canReviewApprovals: boolean;
   onClose: () => void;
 }) {
   if (!open || !drawing) return null;
   return (
     <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside className="pdm-detail-drawer" aria-label="圖號治理明細" role="dialog" style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}>
+      <aside
+        className="pdm-detail-drawer"
+        aria-label="圖號治理明細"
+        role="dialog"
+        data-detail-target="drawing_number"
+        data-detail-code={drawing.drawingNumber}
+        data-entity-type="drawing_number"
+        data-entity-code={drawing.drawingNumber}
+        data-source-context="numbering_drawings"
+        style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}
+      >
         <button
           className="pdm-detail-drawer-resize-handle"
           type="button"
@@ -734,13 +795,30 @@ function DrawingDetailDrawer({
           {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
           {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} /> : null}
 
-          <SameRootPartPanel drawing={drawing} onDataChanged={onDataChanged} />
-
           <MasterAttachmentPanel
             entityType="drawing_number"
             entityCode={drawing.drawingNumber}
             developmentPhase={drawing.developmentPhase}
             processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}
+            pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: canReviewApprovals } : null}
+          />
+
+          <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={canReviewApprovals} />
+
+          <SameRootPartPanel drawing={drawing} onDataChanged={onDataChanged} />
+
+          <NumberingContextualEntrypoints
+            mode="drawing"
+            rootCode={drawing.rootCode}
+            coreName={drawing.coreName}
+            rootRecordStatus={drawing.recordStatus}
+            drawing={{
+              drawingNumber: drawing.drawingNumber,
+              purposeCode: drawing.purposeCode,
+              recordStatus: drawing.recordStatus,
+              linkedPartNumbers: drawing.linkedPartNumbers
+            }}
+            onChanged={onDataChanged}
           />
 
         </div>
@@ -763,27 +841,80 @@ function TitleBlockVariantWarning() {
   );
 }
 
+function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { drawing: DrawingListRecord; canReviewApprovals: boolean }) {
+  const incompleteParts = getIncompleteSameRootParts(drawing);
+  const missingCostParts = drawing.sameRootParts.filter((part) => part.standardCostStatus === "missing");
+  const pendingApproval = drawing.pendingApproval ?? null;
+  const hasOutstandingItems = incompleteParts.length > 0 || missingCostParts.length > 0 || Boolean(pendingApproval);
+  return (
+    <section className="panel drawing-prerequisite-panel">
+      <div className="panel-header">
+        <h2>送審檢查</h2>
+        <strong>{hasOutstandingItems ? "需處理" : "可確認送審"}</strong>
+      </div>
+      <div style={readinessListStyle}>
+        <ReadinessChip
+          icon={<FileText size={16} />}
+          title="圖面附件"
+          state="先確認"
+        />
+        <ReadinessChip
+          icon={<Link2 size={16} />}
+          title="主資料"
+          state={incompleteParts.length > 0 ? `${incompleteParts.length} 筆待補` : "完成"}
+          tone={incompleteParts.length > 0 ? "danger" : "success"}
+        />
+        <ReadinessChip
+          icon={<Workflow size={16} />}
+          title="標準成本"
+          state={missingCostParts.length > 0 ? `${missingCostParts.length} 筆待補` : "完成"}
+          tone={missingCostParts.length > 0 ? "danger" : "success"}
+        />
+        {pendingApproval ? (
+          <ReadinessChip
+            icon={<ClipboardCheck size={16} />}
+            title="進版審核"
+            state={canReviewApprovals ? `${pendingApproval.count} 筆待審` : "等待主管"}
+            tone="warning"
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ReadinessChip({
+  icon,
+  title,
+  state,
+  tone = "default"
+}: {
+  icon: ReactNode;
+  title: string;
+  state: string;
+  tone?: "default" | "success" | "danger" | "warning";
+}) {
+  const color = tone === "success" ? "var(--success)" : tone === "danger" ? "var(--danger)" : tone === "warning" ? "#92400e" : "var(--accent-3)";
+  return (
+    <div style={readinessChipStyle}>
+      <span style={{ color }}>{icon}</span>
+      <span>{title}</span>
+      <strong style={{ color }}>{state}</strong>
+    </div>
+  );
+}
+
 function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRecord; onDataChanged: () => Promise<void> }) {
-  const incompleteParts = drawing.sameRootParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
+  const incompleteParts = getIncompleteSameRootParts(drawing);
   if (drawing.sameRootParts.length === 0) return null;
   const allReady = incompleteParts.length === 0;
   return (
     <section className="panel same-root-part-panel">
       <details className="same-root-part-details" open={!allReady}>
         <summary>
-          <div>
-            <h2>同主根號料號</h2>
-          </div>
-          <strong>{allReady ? "已完成" : "需處理"}</strong>
+          <h2>同主根號料號</h2>
+          <strong>{allReady ? "已完成" : `${incompleteParts.length} 筆待補`}</strong>
         </summary>
-      {incompleteParts.length ? (
-        <div className="upload-message error" style={{ alignItems: "flex-start", marginBottom: "0.75rem" }}>
-          <AlertTriangle size={16} aria-hidden="true" />
-          <div>
-            <p>有 {incompleteParts.length} 個料號缺少送審必要主資料，送審前請先補齊材質與表面處理。</p>
-          </div>
-        </div>
-      ) : null}
       <div style={sameRootPartListStyle}>
         {drawing.sameRootParts.map((part) => (
           <PartMasterDataCard key={part.id} part={part} onDataChanged={onDataChanged} />
@@ -792,6 +923,10 @@ function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRec
       </details>
     </section>
   );
+}
+
+function getIncompleteSameRootParts(drawing: DrawingListRecord) {
+  return drawing.sameRootParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
 }
 
 function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRecord; onDataChanged: () => Promise<void> }) {
@@ -835,13 +970,21 @@ function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRe
   return (
     <article style={sameRootPartCardStyle}>
       <div style={partCardHeaderStyle}>
-        <div>
+        <div style={partCardTitleStyle}>
           <strong>{part.partNumber}</strong>
           <p style={mutedStyle}>{part.partName}</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving}>
-          {editing ? "取消" : missingRequired ? "補主資料" : "編輯主資料"}
-        </button>
+        <div style={partCardActionsStyle}>
+          {part.standardCostStatus === "missing" ? (
+            <Link className="secondary-button" href={partCostHref(part)}>
+              <DollarSign size={16} />
+              補標準成本
+            </Link>
+          ) : null}
+          <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving}>
+            {editing ? "取消" : missingRequired ? "補主資料" : "編輯主資料"}
+          </button>
+        </div>
       </div>
       <div className="pdm-meta-strip">
         <StatusBadge status={part.recordStatus} context="masterRecord" />
@@ -909,6 +1052,10 @@ function standardCostLabel(part: DrawingLinkedPartRecord) {
   return part.standardCostProfileName ? `標準成本 active / ${part.standardCostProfileName}` : "標準成本 active";
 }
 
+function partCostHref(part: DrawingLinkedPartRecord) {
+  return `/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`;
+}
+
 function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return (
     <div className="info-block">
@@ -929,6 +1076,23 @@ const sameRootPartListStyle: CSSProperties = {
   gap: "0.75rem"
 };
 
+const readinessListStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.5rem"
+};
+
+const readinessChipStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "0.4rem",
+  border: "1px solid var(--border)",
+  borderRadius: "999px",
+  padding: "0.35rem 0.6rem",
+  fontSize: "0.85rem",
+  background: "var(--surface)"
+};
+
 const sameRootPartCardStyle: CSSProperties = {
   display: "grid",
   gap: "0.65rem",
@@ -943,6 +1107,17 @@ const partCardHeaderStyle: CSSProperties = {
   alignItems: "flex-start",
   justifyContent: "space-between",
   gap: "0.75rem"
+};
+
+const partCardTitleStyle: CSSProperties = {
+  minWidth: 0
+};
+
+const partCardActionsStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+  gap: "0.5rem"
 };
 
 const sameRootPartMetaGridStyle: CSSProperties = {

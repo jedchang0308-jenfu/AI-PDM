@@ -411,7 +411,7 @@
     font-size: 20px;
   }
 
-  .login-panel > div:first-child p {
+  .login-heading.is-demo p {
     display: none;
   }
 

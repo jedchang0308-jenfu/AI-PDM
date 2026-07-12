@@ -27,6 +27,21 @@ const sourceFiles = [
     source: "db/postgres/004_numbering_v2_compact_identity.sql",
     target: "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
     description: "Add compact PDM numbering v2 seed and allow M/R drawing purpose codes"
+  },
+  {
+    source: "db/postgres/005_access_control_launch_governance.sql",
+    target: "supabase/migrations/20260707010000_access_control_launch_governance.sql",
+    description: "Add launch access-control governance role assignment metadata and seeded external roles"
+  },
+  {
+    source: "db/postgres/006_account_invitations.sql",
+    target: "supabase/migrations/20260710020000_account_invitations.sql",
+    description: "Add one-time account invitations with hashed tokens and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/007_auth_identities_google_oauth.sql",
+    target: "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
+    description: "Add provider-neutral identities, account status, and deny direct Data API access"
   }
 ];
 

@@ -694,6 +694,9 @@ export function createSubmissionRecord(input: {
     fileRole: string;
     originalFilename: string;
     localPath: string;
+    storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+    storageBucket?: string | null;
+    storageKey?: string | null;
     gdriveFileId?: string | null;
     sha256: string;
     fileSize: number;
@@ -762,9 +765,9 @@ export function createSubmissionRecord(input: {
       .prepare(
         `
         INSERT INTO submission_files (
-          id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
+          id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
           sha256, file_size, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       )
       .run(
@@ -773,6 +776,9 @@ export function createSubmissionRecord(input: {
         file.fileRole,
         file.originalFilename,
         file.localPath,
+        file.storageProvider ?? "local_repository",
+        file.storageBucket ?? null,
+        file.storageKey ?? null,
         file.gdriveFileId ?? null,
         file.sha256,
         file.fileSize,

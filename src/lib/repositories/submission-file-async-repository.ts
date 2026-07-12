@@ -13,6 +13,7 @@ export const SELECT_ASYNC_FILES_NEEDING_UPLOAD_SQL = `
   FROM submission_files
   WHERE submission_id = :submissionId
     AND gdrive_status IN ('none', 'failed')
+    AND storage_provider = 'local_repository'
   ORDER BY created_at ASC, id ASC
 `;
 

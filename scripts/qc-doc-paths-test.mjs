@@ -40,8 +40,16 @@ record("DOCS-008 evidence sync prefers .ai-doc/dev_task.md", qaSync.includes('pa
 record("DOCS-009 evidence sync keeps legacy task fallbacks", qaSync.includes('path.join(root, "dev_task.md")') && qaSync.includes('path.join(root, "PDM_dev_task.md")'));
 
 const productionReadiness = readRequired("scripts/qc-production-readiness-test.mjs");
-record("DOCS-010 production readiness prefers .ai-doc/dev_task.md", productionReadiness.includes('path.join(root, ".ai-doc", "dev_task.md")'));
-record("DOCS-011 production readiness keeps legacy task fallbacks", productionReadiness.includes('path.join(root, "dev_task.md")') && productionReadiness.includes('path.join(root, "PDM_dev_task.md")'));
+record(
+  "DOCS-010 production readiness prefers .ai-doc/dev_task.md",
+  productionReadiness.includes('path.join(root, ".ai-doc", "dev_task.md")') ||
+    productionReadiness.includes('".ai-doc/dev_task.md"')
+);
+record(
+  "DOCS-011 production readiness keeps legacy task fallbacks",
+  (productionReadiness.includes('path.join(root, "dev_task.md")') || productionReadiness.includes('"dev_task.md"')) &&
+    (productionReadiness.includes('path.join(root, "PDM_dev_task.md")') || productionReadiness.includes('"PDM_dev_task.md"'))
+);
 record("DOCS-012 production readiness uses migrated industrialization docs", productionReadiness.includes(".ai-doc/reports/industrialization/"));
 
 for (const script of [

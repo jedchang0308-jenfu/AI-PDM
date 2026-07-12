@@ -82,6 +82,12 @@ export async function PATCH(request: Request) {
         roleId: typeof body.roleId === "string" ? body.roleId : undefined,
         roleCode: typeof body.roleCode === "string" ? body.roleCode : undefined,
         reason: String(body.reason ?? ""),
+        scopeTemplate: typeof body.scopeTemplate === "string" ? body.scopeTemplate : typeof body.scope_template === "string" ? body.scope_template : undefined,
+        namedScope: typeof body.namedScope === "string" ? body.namedScope : typeof body.named_scope === "string" ? body.named_scope : undefined,
+        sponsorUserId: typeof body.sponsorUserId === "string" ? body.sponsorUserId : typeof body.sponsor_user_id === "string" ? body.sponsor_user_id : undefined,
+        startsAt: typeof body.startsAt === "string" ? body.startsAt : typeof body.starts_at === "string" ? body.starts_at : undefined,
+        reviewDueAt: typeof body.reviewDueAt === "string" ? body.reviewDueAt : typeof body.review_due_at === "string" ? body.review_due_at : undefined,
+        hardEndsAt: typeof body.hardEndsAt === "string" ? body.hardEndsAt : typeof body.hard_ends_at === "string" ? body.hard_ends_at : undefined,
         actorId: auth.user.id
       });
       return NextResponse.json({ assignment });
@@ -129,7 +135,6 @@ export async function PATCH(request: Request) {
     const rule = await upsertNumberingApprovalRuleAsync({
       id: typeof body.id === "string" ? body.id : undefined,
       ruleVersionId: typeof body.ruleVersionId === "string" ? body.ruleVersionId : undefined,
-      ruleName: String(body.ruleName ?? ""),
       actionCode: String(body.actionCode ?? ""),
       phase: typeof body.phase === "string" ? body.phase : undefined,
       recordStatus: typeof body.recordStatus === "string" ? body.recordStatus : undefined,
@@ -137,8 +142,8 @@ export async function PATCH(request: Request) {
       riskFlag: typeof body.riskFlag === "string" ? body.riskFlag : undefined,
       requiresApproval: Boolean(body.requiresApproval),
       approverRole: typeof body.approverRole === "string" ? body.approverRole : undefined,
-      blocksUsage: Boolean(body.blocksUsage),
-      blocksRelease: Boolean(body.blocksRelease),
+      blocksUsage: false,
+      blocksRelease: true,
       showsWarning: body.showsWarning === undefined ? true : Boolean(body.showsWarning),
       exportMarker: body.exportMarker === undefined ? true : Boolean(body.exportMarker),
       actorId: auth.user.id

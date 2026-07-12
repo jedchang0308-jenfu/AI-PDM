@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { decideApprovalPlatformLegacyPartCostAsync } from "@/lib/approval-platform";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { decidePartCostChangeRequestAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { canViewPartCostAmounts, redactPartDetailCosts } from "@/lib/part-cost-visibility";
 
@@ -20,13 +20,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
   }
 
   try {
-    const part = await decidePartCostChangeRequestAsync({
+    const part = await decideApprovalPlatformLegacyPartCostAsync({
       companyId: companyResult.company.companyId,
       partNumber: decodeURIComponent(partNumber),
       requestId: decodeURIComponent(requestId),
-      decision,
-      reviewedBy: auth.user.id,
-      reviewComment: stringOrNull(body.reviewComment ?? body.review_comment),
+      decision: decision === "approve" ? "approved" : "rejected",
+      actor: auth.user,
+      comment: stringOrNull(body.reviewComment ?? body.review_comment),
       basisQty: numberOrUndefined(body.basisQty ?? body.basis_qty)
     });
     if (!part) return NextResponse.json({ error: "Part number not found" }, { status: 404 });

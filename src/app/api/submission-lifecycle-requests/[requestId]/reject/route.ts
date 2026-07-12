@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { decideApprovalPlatformLegacySubmissionAsync } from "@/lib/approval-platform";
 import { canReadSubmissionAsync } from "@/lib/permissions";
-import { getSubmissionLifecycleRequestByIdAsync, rejectSubmissionObsoleteReviewAsync } from "@/lib/submission-lifecycle-async";
+import { getSubmissionLifecycleRequestByIdAsync } from "@/lib/submission-lifecycle-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
@@ -20,10 +21,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
 
   const body = await request.json().catch(() => ({}));
   try {
-    const result = await rejectSubmissionObsoleteReviewAsync({
+    const result = await decideApprovalPlatformLegacySubmissionAsync({
       requestId,
-      actorId: auth.user.id,
-      decisionReason: typeof body.decisionReason === "string" ? body.decisionReason : undefined
+      decision: "rejected",
+      actor: auth.user,
+      comment: typeof body.decisionReason === "string" ? body.decisionReason : undefined
     });
     return NextResponse.json({ request: result, submissionId: lifecycleRequest.submission_id, status: submission.status });
   } catch (error) {

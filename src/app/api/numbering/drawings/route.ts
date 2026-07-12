@@ -43,7 +43,13 @@ export async function GET(request: Request) {
     limit: Number(url.searchParams.get("limit") ?? 50)
   });
 
-  return NextResponse.json({ drawings, pdmCompany: companyResult.company });
+  return NextResponse.json({
+    drawings,
+    pdmCompany: companyResult.company,
+    approvalProjection: {
+      canReview: auth.user.role === "R&D Manager" || auth.user.role === "Admin"
+    }
+  });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

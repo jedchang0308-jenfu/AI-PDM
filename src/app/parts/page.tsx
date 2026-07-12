@@ -2,10 +2,11 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X, XCircle } from "lucide-react";
+import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, X, XCircle } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
+import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
@@ -118,6 +119,7 @@ type ManufacturingBaselineDraftState = {
   baselineRevision: string;
   status: string;
 };
+type PartDetailFocusSection = "cost" | null;
 
 const statuses = ["", ...partRecordStatusFilterValues] as const;
 const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
@@ -173,9 +175,11 @@ export default function PartsPage() {
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
   const selectedPartNumberRef = useRef<string | null>(null);
   const initialDetailPartNumberRef = useRef<string | null>(null);
+  const initialDetailFocusRef = useRef<PartDetailFocusSection>(null);
   const partListRef = useRef<HTMLDivElement | null>(null);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailFocus, setDetailFocus] = useState<PartDetailFocusSection>(null);
   const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -184,8 +188,10 @@ export default function PartsPage() {
     const params = new URLSearchParams(window.location.search);
     const initialQuery = params.get("query")?.trim();
     const detailPartNumber = params.get("detail")?.trim();
+    const focusSection = params.get("focus")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
+    if (focusSection === "cost") initialDetailFocusRef.current = "cost";
   }, []);
 
   const loadParts = useCallback(async () => {
@@ -282,7 +288,10 @@ export default function PartsPage() {
       setSelectedPartNumber(part.partNumber);
       scrollPartRowIntoView(nextIndex);
       focusPartList();
-      if (isDetailOpen) void loadDetail(part.partNumber);
+      if (isDetailOpen) {
+        setDetailFocus(null);
+        void loadDetail(part.partNumber);
+      }
     },
     [focusPartList, isDetailOpen, loadDetail, scrollPartRowIntoView, visibleParts]
   );
@@ -310,10 +319,12 @@ export default function PartsPage() {
   }
 
   const openPartDetail = useCallback(
-    (partNumber: string) => {
+    (partNumber: string, focusSection: PartDetailFocusSection = null) => {
       selectedPartNumberRef.current = partNumber;
       setSelectedPartNumber(partNumber);
+      setDetail((currentDetail) => (currentDetail?.partNumber === partNumber ? currentDetail : null));
       setIsDetailOpen(true);
+      setDetailFocus(focusSection);
       void loadDetail(partNumber);
       focusPartList();
     },
@@ -326,7 +337,9 @@ export default function PartsPage() {
     if (!detailPartNumber) return;
     if (!visibleParts.some((part) => part.partNumber === detailPartNumber)) return;
     initialDetailPartNumberRef.current = null;
-    openPartDetail(detailPartNumber);
+    const focusSection = initialDetailFocusRef.current;
+    initialDetailFocusRef.current = null;
+    openPartDetail(detailPartNumber, focusSection);
   }, [openPartDetail, state, visibleParts]);
 
   const openSelectedPartDetail = useCallback(() => {
@@ -554,10 +567,14 @@ export default function PartsPage() {
             busy={busy}
             open={isDetailOpen && selectedPartIsVisible}
             width={drawerWidth}
+            focusSection={detailFocus}
             setBusy={setBusy}
             onUpdated={refreshSelected}
             onStartResize={startDetailDrawerResize}
-            onClose={() => setIsDetailOpen(false)}
+            onClose={() => {
+              setIsDetailOpen(false);
+              setDetailFocus(null);
+            }}
           />
         </div>
       ) : null}
@@ -638,7 +655,9 @@ function PartList({
                   <div className="pdm-identity-meta">{partKindLabel(part.itemKind)}</div>
                 </td>
                 <td data-label="品名">
-                  <div className="pdm-identity-name">{part.partName}</div>
+                  <div className="pdm-identity-name" title={part.partName}>
+                    {part.partName}
+                  </div>
                 </td>
                 <td data-label="圖號">
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
@@ -667,6 +686,7 @@ function PartDetailDrawer({
   busy,
   open,
   width,
+  focusSection,
   setBusy,
   onUpdated,
   onStartResize,
@@ -676,15 +696,26 @@ function PartDetailDrawer({
   busy: boolean;
   open: boolean;
   width: number;
+  focusSection: PartDetailFocusSection;
   setBusy: (value: boolean) => void;
   onUpdated: () => Promise<void>;
   onStartResize: (clientX: number) => void;
   onClose: () => void;
 }) {
-  if (!open || !detail) return null;
+  if (!open) return null;
   return (
     <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside className="pdm-detail-drawer" aria-label="料號明細" role="dialog" style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}>
+      <aside
+        className="pdm-detail-drawer"
+        aria-label="料號明細"
+        role="dialog"
+        data-detail-target="part_number"
+        data-detail-code={detail?.partNumber ?? ""}
+        data-entity-type="part_number"
+        data-entity-code={detail?.partNumber ?? ""}
+        data-source-context="parts"
+        style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}
+      >
         <button
           className="pdm-detail-drawer-resize-handle"
           type="button"
@@ -699,13 +730,33 @@ function PartDetailDrawer({
         <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉料號明細" onClick={onClose}>
           <X size={16} />
         </button>
-        <PartDetailPanel detail={detail} busy={busy} setBusy={setBusy} onUpdated={onUpdated} />
+        {detail ? (
+          <PartDetailPanel detail={detail} busy={busy} focusSection={focusSection} setBusy={setBusy} onUpdated={onUpdated} />
+        ) : (
+          <section className="panel pdm-master-detail-panel">
+            <div className="empty">正在載入料號明細...</div>
+          </section>
+        )}
       </aside>
     </div>
   );
 }
 
-function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDetail; busy: boolean; setBusy: (value: boolean) => void; onUpdated: () => Promise<void> }) {
+function PartDetailPanel({
+  detail,
+  busy,
+  focusSection,
+  setBusy,
+  onUpdated
+}: {
+  detail: PartDetail;
+  busy: boolean;
+  focusSection: PartDetailFocusSection;
+  setBusy: (value: boolean) => void;
+  onUpdated: () => Promise<void>;
+}) {
+  const costSectionRef = useRef<HTMLElement | null>(null);
+  const shared3dSectionRef = useRef<HTMLDivElement | null>(null);
   const [variantForm, setVariantForm] = useState(() => ({
     materialLabel: detail.variant?.materialLabel ?? "",
     colorLabel: detail.variant?.colorLabel ?? "",
@@ -730,6 +781,14 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
       variantNote: detail.variant?.variantNote ?? ""
     });
   }, [detail.id, detail.variant]);
+
+  useEffect(() => {
+    if (focusSection !== "cost") return;
+    requestAnimationFrame(() => {
+      costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" });
+      costSectionRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    });
+  }, [detail.partNumber, focusSection]);
 
   async function saveVariant() {
     setBusy(true);
@@ -774,24 +833,17 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
 
   return (
     <div className="pdm-master-detail-panel pdm-master-detail-stack">
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>{detail.partNumber}</h2>
-            <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
-          </div>
-          <StatusBadge status={detail.recordStatus} context="masterRecord" />
-        </div>
-        <div style={detailGridStyle}>
-          <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
-          <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
-          <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
-          <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
-        </div>
-      </section>
+      <PartDetailHero
+        detail={detail}
+        onOpenCost={() => costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
+        onOpenShared3d={() => shared3dSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
+      />
 
       <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} />
-      <Shared3dBaselinePanel partNumber={detail.partNumber} rootCode={detail.rootCode} />
+
+      <PartReadinessPanel detail={detail} />
+
+      <PartLinkedDrawingsPanel detail={detail} />
 
       <section className="panel">
         <div className="panel-header">
@@ -809,9 +861,16 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
         </div>
       </section>
 
-      <section className="panel">
+      <div ref={shared3dSectionRef}>
+        <Shared3dBaselinePanel partNumber={detail.partNumber} rootCode={detail.rootCode} />
+      </div>
+
+      <section className="panel" ref={costSectionRef} style={focusSection === "cost" ? focusPanelStyle : undefined}>
         <div className="panel-header">
-          <h2>成本設定檔</h2>
+          <div>
+            <h2>成本設定檔</h2>
+            {focusSection === "cost" ? <p style={mutedStyle}>填成本名稱與單價後，按新增送審。</p> : null}
+          </div>
           <button className="secondary-button" type="button" disabled={busy || !costForm.profileName || !costForm.unitCost} onClick={createCostProfile}>
             <DollarSign size={16} />
             新增送審
@@ -924,7 +983,151 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
           </table>
         </div>
       </section>
+
+      <NumberingContextualEntrypoints
+        mode="part"
+        rootCode={detail.rootCode}
+        coreName={detail.partName}
+        rootRecordStatus={detail.recordStatus}
+        part={{
+          partNumber: detail.partNumber,
+          partName: detail.partName,
+          recordStatus: detail.recordStatus,
+          linkedDrawingNumbers: detail.linkedDrawings.map((link) => link.drawingNumber)
+        }}
+        onChanged={onUpdated}
+      />
     </div>
+  );
+}
+
+function PartDetailHero({
+  detail,
+  onOpenCost,
+  onOpenShared3d
+}: {
+  detail: PartDetail;
+  onOpenCost: () => void;
+  onOpenShared3d: () => void;
+}) {
+  const primaryDrawingNumber = detail.primaryDrawingNumber ?? detail.linkedDrawings.find((link) => link.linkType === "primary_manufacturing")?.drawingNumber ?? "";
+  return (
+    <section className="panel drawing-detail-hero" data-part-detail-section="hero">
+      <div className="drawing-detail-hero-header">
+        <div>
+          <h2>{detail.partNumber}</h2>
+          <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
+        </div>
+      </div>
+      <div className="drawing-detail-hero-meta">
+        <StatusBadge status={detail.recordStatus} context="masterRecord" />
+        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(detail.developmentPhase)}</span>
+        <span className="pdm-meta-chip">{partKindLabel(detail.itemKind)}</span>
+        <span className="pdm-meta-chip">關聯圖號 {detail.linkedDrawings.length}</span>
+      </div>
+      <div className="drawing-detail-action-row">
+        {primaryDrawingNumber ? (
+          <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawingNumber)}/submission-workbench`}>
+            <FileText size={16} />
+            送審製造圖
+          </a>
+        ) : (
+          <a className="primary-button" href={`/numbering/search?query=${encodeURIComponent(detail.partNumber)}&entityType=part_number`}>
+            <Link2 size={16} />
+            補關聯
+          </a>
+        )}
+        <a className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(detail.partNumber)}&entityType=part_number`}>
+          <Search size={16} />
+          追溯
+        </a>
+        <button className="secondary-button" type="button" onClick={onOpenShared3d}>
+          <Workflow size={16} />
+          3D 基準
+        </button>
+        <button className="secondary-button" type="button" onClick={onOpenCost}>
+          <DollarSign size={16} />
+          成本
+        </button>
+      </div>
+      <div style={detailGridStyle}>
+        <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
+        <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
+        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
+        <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
+      </div>
+    </section>
+  );
+}
+
+function PartReadinessPanel({ detail }: { detail: PartDetail }) {
+  const hasManufacturingDrawing = detail.linkedDrawings.some((link) => link.linkType === "primary_manufacturing");
+  const hasVariantBasics = Boolean((detail.variant?.materialLabel || detail.variant?.materialCode)?.trim()) && Boolean(detail.variant?.surfaceTreatment?.trim());
+  const hasStandardCost = Boolean(detail.standardCost);
+  const pendingCostCount = detail.pendingCostRequestCount || detail.costChangeRequests.filter((request) => request.reviewStatus === "pending").length;
+  const nextStep = !hasManufacturingDrawing
+    ? "先建立製造圖關聯，再進行送審或製造基準確認。"
+    : !hasVariantBasics
+      ? "先補齊材質與表面處理，避免同圖多料號差異不清。"
+      : !hasStandardCost
+        ? "先補標準成本，讓採購與主管能完成成本審核。"
+        : pendingCostCount > 0
+          ? "等待成本審核完成；其餘主資料可先確認附件與 3D 基準。"
+          : "主資料狀態可用，接著確認附件、3D 基準與後續送審。";
+
+  return (
+    <section className="panel" data-part-detail-section="readiness">
+      <div className="panel-header">
+        <div>
+          <h2>料號完整度檢查</h2>
+          <p style={mutedStyle}>{nextStep}</p>
+        </div>
+      </div>
+      <div style={detailGridStyle}>
+        <InfoBlock icon={<Link2 size={16} />} title="製造圖關聯" value={hasManufacturingDrawing ? "已建立製造基準關聯" : "尚未建立製造基準關聯"} />
+        <InfoBlock icon={<Palette size={16} />} title="料號屬性" value={hasVariantBasics ? variantLabel(detail.variant) : "材質或表面處理待補"} />
+        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
+        <InfoBlock icon={<FileText size={16} />} title="成本審核" value={pendingCostCount > 0 ? `${pendingCostCount} 筆待審` : "目前無待審成本"} />
+      </div>
+    </section>
+  );
+}
+
+function PartLinkedDrawingsPanel({ detail }: { detail: PartDetail }) {
+  return (
+    <section className="panel" data-part-detail-section="linked-drawings">
+      <div className="panel-header">
+        <div>
+          <h2>圖號關聯</h2>
+          <p style={mutedStyle}>{detail.linkedDrawings.length > 0 ? `${detail.linkedDrawings.length} 張圖號連到此料號。` : "此料號尚未關聯圖號。"}</p>
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table style={{ minWidth: 560 }}>
+          <thead>
+            <tr>
+              <th>圖號</th>
+              <th>關係</th>
+              <th>處理</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detail.linkedDrawings.map((link) => (
+              <tr key={link.id}>
+                <td>{link.drawingNumber}</td>
+                <td>{linkTypeLabel(link.linkType)}</td>
+                <td>{link.linkType === "primary_manufacturing" ? "製造基準" : "參考"}</td>
+              </tr>
+            ))}
+            {detail.linkedDrawings.length === 0 ? (
+              <tr>
+                <td colSpan={3} style={mutedStyle}>尚未建立圖號關聯。請先從圖料模組或新增相關資料建立關係。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -1334,6 +1537,15 @@ function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; val
   );
 }
 
+function EmptyBlock({ text }: { text: string }) {
+  return (
+    <div className="info-block" style={{ alignItems: "center", textAlign: "center" }}>
+      <PackageSearch size={24} aria-hidden="true" />
+      <p style={{ margin: 0, color: "var(--muted)" }}>{text}</p>
+    </div>
+  );
+}
+
 function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label style={fieldStyle}>
@@ -1362,7 +1574,7 @@ function partKindLabel(value: string) {
 }
 
 function linkTypeLabel(value: string) {
-  return ({ primary_manufacturing: "主要製造圖", reference: "參考圖" } as Record<string, string>)[value] ?? value;
+  return ({ primary_manufacturing: "製造基準關聯", reference: "參考圖" } as Record<string, string>)[value] ?? value;
 }
 
 function standardCostChipLabel(value: PartStandardCost) {
@@ -1393,6 +1605,11 @@ const detailGridStyle: CSSProperties = {
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: 10,
   padding: 12
+};
+
+const focusPanelStyle: CSSProperties = {
+  borderColor: "rgba(13, 148, 136, 0.45)",
+  boxShadow: "inset 3px 0 0 var(--accent-3)"
 };
 
 const formGridStyle: CSSProperties = {

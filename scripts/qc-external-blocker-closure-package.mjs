@@ -9,12 +9,10 @@ import { readProjectFileIfExists, readProjectJson } from "./qc-project-file-util
 const root = process.cwd();
 const results = [];
 const expectedBlockers = [
-  { id: "DEV-CAD-001", category: "external_document_manager" },
-  { id: "DEV-SW-001", category: "external_solidworks_machine" },
-  { id: "DEV-BACKUP-001", category: "external_restore_drill" },
-  { id: "DEV-FIELD-001", category: "external_field_test" },
-  { id: "DEV-IND-007", category: "external_supabase_shadow" }
+  { id: "DEV-FIELD-001", category: "external_field_test" }
 ];
+const deferredScopeIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"];
+const completedGateIds = ["DEV-IND-007"];
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -73,7 +71,7 @@ const { run: readinessRun, report: readinessReport } = parseReadinessReport();
 
 record("EXT-CLOSE-001 production readiness report parses", readinessRun.status === 0 && Boolean(readinessReport), readinessRun.stderr || "parsed");
 record("EXT-CLOSE-002 production readiness is not ready while evidence is missing", readinessReport?.ready === false, String(readinessReport?.ready));
-record("EXT-CLOSE-003 production readiness reports exactly 5 blockers", readinessReport?.blockers?.length === 5, String(readinessReport?.blockers?.length ?? "missing"));
+record("EXT-CLOSE-003 production readiness reports exactly 1 first-version blocker", readinessReport?.blockers?.length === 1, String(readinessReport?.blockers?.length ?? "missing"));
 
 for (const blocker of expectedBlockers) {
   const readinessBlocker = readinessReport?.blockers?.find((item) => item.task.includes(blocker.id));
@@ -82,6 +80,17 @@ for (const blocker of expectedBlockers) {
   record(`EXT-CLOSE dev_task keeps ${blocker.id} blocked`, taskText.includes(`| [!] | ${blocker.id} |`), blocker.id);
   assertIncludes("EXT-CLOSE external handoff", externalHandoff, blocker.id);
   assertIncludes("EXT-CLOSE active blocker report", activeBlockerReport, blocker.id);
+}
+
+for (const id of deferredScopeIds) {
+  assertIncludes("EXT-CLOSE dev_task keeps deferred scope visible", taskText, id);
+  assertIncludes("EXT-CLOSE active blocker report keeps deferred scope rationale", activeBlockerReport, id);
+  record(`EXT-CLOSE ${id} is not a first-version readiness blocker`, !readinessReport?.blockers?.some((item) => item.task.includes(id)), id);
+}
+
+for (const id of completedGateIds) {
+  assertIncludes("EXT-CLOSE dev_task keeps completed gate visible", taskText, id);
+  record(`EXT-CLOSE ${id} is not a remaining readiness blocker`, !readinessReport?.blockers?.some((item) => item.task.includes(id)), id);
 }
 
 record("EXT-CLOSE field handoff package exists", Boolean(fieldHandoff), fieldHandoffRelative || "missing");
@@ -182,6 +191,8 @@ console.log(JSON.stringify({
   failed: failed.length,
   summary: {
     expectedBlockers: expectedBlockers.map((blocker) => blocker.id),
+    deferredScope: deferredScopeIds,
+    completedGates: completedGateIds,
     fieldHandoff: fieldHandoffRelative,
     postgresHandoff: postgresHandoffRelative,
     productionReady: readinessReport?.ready ?? null

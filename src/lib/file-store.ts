@@ -1,12 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { buildStorageKey, createFileStorageService } from "@/lib/file-storage";
+import { buildStorageKey, createFileStorageService, storagePointerFromStoredObject, type FileStorageProvider } from "@/lib/file-storage";
 import { normalizeFileRole } from "@/lib/validation";
 
 export type SavedSubmissionFile = {
   fileRole: string;
   originalFilename: string;
   localPath: string;
+  storageProvider: FileStorageProvider;
+  storageBucket: string | null;
+  storageKey: string;
   sha256: string;
   fileSize: number;
   sourceMasterAttachmentId?: string | null;
@@ -44,10 +47,14 @@ export async function saveSubmissionFileBuffers(
       key: buildStorageKey(["pending", yyyy, mm, submissionFolderName, safeName]),
       bytes: file.bytes
     });
+    const pointer = storagePointerFromStoredObject(stored);
     saved.push({
       fileRole: normalizeFileRole(file.filename),
       originalFilename: file.filename,
       localPath: stored.localPath,
+      storageProvider: pointer.provider,
+      storageBucket: pointer.bucket,
+      storageKey: pointer.key,
       sha256: stored.sha256,
       fileSize: stored.bytes,
       sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null

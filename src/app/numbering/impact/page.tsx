@@ -155,7 +155,7 @@ export default function NumberingImpactPage() {
           <div style={formGridStyle}>
             <label style={fieldStyle}>
               <span>製造圖圖號</span>
-              <input value={drawingNumber} onChange={(event) => setDrawingNumber(event.target.value)} placeholder="00001-M01" />
+              <input value={drawingNumber} onChange={(event) => setDrawingNumber(event.target.value)} placeholder="A0001-M01" />
             </label>
             <label style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
               <span>作廢原因</span>

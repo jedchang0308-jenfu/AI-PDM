@@ -1,0 +1,112 @@
+export const OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft";
+export const PRODUCTION_SLICE_UNOPENED_CODE = "feature_not_open_in_production_slice";
+export const PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 草稿 production slice。";
+
+type EnvLike = Record<string, string | undefined>;
+
+type ProductionSliceState = {
+  configured: boolean;
+  active: boolean;
+  mode: string;
+};
+
+const openPagePaths = [
+  "/",
+  "/login",
+  "/parts",
+  "/numbering/request",
+  "/numbering/search",
+  "/numbering/drawings",
+  "/numbering/part-drafts",
+  "/settings/account-invitations",
+  "/production-slice-blocked"
+];
+
+const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  { method: "POST", pattern: /^\/api\/auth\/login$/ },
+  { method: "POST", pattern: /^\/api\/auth\/logout$/ },
+  { method: "POST", pattern: /^\/api\/account-invitations\/accept$/ }
+];
+
+const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  { method: "POST", pattern: /^\/api\/numbering\/records$/ },
+  { method: "PATCH", pattern: /^\/api\/numbering\/records\/[^/]+$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/roots\/[^/]+\/drawings$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/roots\/[^/]+\/parts$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/roots\/[^/]+\/drawing-part$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts$/ },
+  { method: "PATCH", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/void$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/recycle$/ },
+  { method: "POST", pattern: /^\/api\/admin\/account-invitations$/ },
+  { method: "PATCH", pattern: /^\/api\/admin\/account-invitations$/ }
+];
+
+export function getProductionSliceState(env: EnvLike = process.env): ProductionSliceState {
+  const mode = String(env.PDM_PRODUCTION_SLICE_MODE ?? "").trim();
+  return {
+    configured: mode.length > 0,
+    active: mode === OFFICIAL_NUMBERING_DRAFT_SLICE,
+    mode
+  };
+}
+
+export function isProductionSliceEnforced(env: EnvLike = process.env) {
+  return getProductionSliceState(env).configured;
+}
+
+export function isProductionSliceActive(env: EnvLike = process.env) {
+  return getProductionSliceState(env).active;
+}
+
+export function isWriteMethod(method: string) {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+}
+
+export function normalizePathname(pathname: string) {
+  const normalized = pathname.trim() || "/";
+  return normalized.length > 1 ? normalized.replace(/\/+$/u, "") : normalized;
+}
+
+export function isProductionSliceAllowedApiMutation(method: string, pathname: string, env: EnvLike = process.env) {
+  const normalizedMethod = method.toUpperCase();
+  const normalizedPath = normalizePathname(pathname);
+  if (alwaysAllowedApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath))) return true;
+  if (!getProductionSliceState(env).active) return false;
+  return sliceAllowedApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath));
+}
+
+export function isProductionSliceOpenPagePath(pathname: string) {
+  const normalizedPath = normalizePathname(pathname);
+  return openPagePaths.includes(normalizedPath) || normalizedPath.startsWith("/login/") || normalizedPath.startsWith("/invite/");
+}
+
+export function shouldBlockProductionSlicePagePath(pathname: string) {
+  const normalizedPath = normalizePathname(pathname);
+  if (normalizedPath.startsWith("/api/")) return false;
+  if (normalizedPath.startsWith("/_next/")) return false;
+  if (normalizedPath.includes(".")) return false;
+  return !isProductionSliceOpenPagePath(normalizedPath);
+}
+
+export function productionSliceDeniedPayload(action: string, mode = getProductionSliceState().mode) {
+  return {
+    error: PRODUCTION_SLICE_UNOPENED_CODE,
+    message: PRODUCTION_SLICE_UNOPENED_MESSAGE,
+    action,
+    mode: mode || "unset"
+  };
+}
+
+export function productionSliceClientStatus(env: EnvLike = process.env) {
+  const state = getProductionSliceState(env);
+  return {
+    configured: state.configured,
+    active: state.active,
+    mode: state.mode,
+    expectedMode: OFFICIAL_NUMBERING_DRAFT_SLICE,
+    unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
+    unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
+    openPagePaths
+  };
+}

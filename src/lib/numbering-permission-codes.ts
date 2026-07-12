@@ -32,11 +32,14 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
   "numbering.task.update",
   "numbering.notification.update",
   "numbering.attachments.manage",
+  "pdm.comment.create",
+  "pdm.advice.create",
   "settings.admin_matrix",
   "update_name",
   "update_spec",
   "obsolete_part_number",
   "obsolete_ma_drawing",
+  "obsolete_part_root",
   "merge_part_number",
   "dvt_missing_ma_override",
   "dvt_promotion",
@@ -61,5 +64,6 @@ export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
   "/numbering/tasks": "numbering.tasks",
   "/numbering/imports": "numbering.imports",
   "/numbering/reports": "numbering.reports",
+  "/settings/account-invitations": "settings.admin_matrix",
   "/settings": "settings.admin_matrix"
 };

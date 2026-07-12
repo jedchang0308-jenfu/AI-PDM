@@ -176,7 +176,17 @@ export const UPSERT_ACCESS_CONTROL_ROLE_PERMISSION_SQL = `
     updated_at = excluded.updated_at
 `;
 
-const DEFAULT_ACCESS_CONTROL_ROLE_PRIORITY = ["system_admin", "pdm_admin", "rd_manager", "document_admin", "qa", "rd"];
+const DEFAULT_ACCESS_CONTROL_ROLE_PRIORITY = [
+  "system_admin",
+  "pdm_admin",
+  "rd_manager",
+  "document_admin",
+  "qa",
+  "rd",
+  "manufacturing",
+  "procurement",
+  "external_specialist"
+];
 
 function toBoolean(value: number | boolean) {
   return value === true || value === 1;

@@ -21,15 +21,15 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "367f3c7cfdb94e8d2d8faedc11731798e465f3d3a16e56eb06a4200408da2d47",
-      "targetSha256": "d5e48b6f5a2700fb82fb5123b7ada1ee5c8b503e62a53053885be13a46d15a26"
+      "sourceSha256": "bcaef508a14e7e29679fcf99bef5f2cf393ec87113d7d818ef10ffe63fefce97",
+      "targetSha256": "701c17aaee36e02251d4d31dd210bf214d217f292bd6bbe486dc705d11c2f851"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
       "target": "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
       "description": "Force RLS and deny direct anon/authenticated public table access",
-      "sourceSha256": "95cd540427c61c37703cd30591611b5d1c5bfa762d06bea9ba531f5effd4f123",
-      "targetSha256": "d53403a253cd94759bdad03e0599e54de498515f14351b667ea331c69f2b3e29"
+      "sourceSha256": "43963d7d3e8f0bd891aca8b62a3b97623a58d96bae5d69122f53f943f6c4afb3",
+      "targetSha256": "d263c4a3c8c641f7ac92cc453b1c9aefc555cb55b42eb45242d55ddb19934530"
     },
     {
       "source": "db/postgres/003_harden_set_updated_at_search_path.sql",
@@ -44,6 +44,27 @@
       "description": "Add compact PDM numbering v2 seed and allow M/R drawing purpose codes",
       "sourceSha256": "ae8a46c3aceb1524e1318470eb57217e47177a85087f7558dd16e0ca9b2446e0",
       "targetSha256": "6f7b962a36127bf7c62bfb7db51410aa7b5b27ba0dbd578f6bc0f294d59cb159"
+    },
+    {
+      "source": "db/postgres/005_access_control_launch_governance.sql",
+      "target": "supabase/migrations/20260707010000_access_control_launch_governance.sql",
+      "description": "Add launch access-control governance role assignment metadata and seeded external roles",
+      "sourceSha256": "7aa48b17e01acbc05b8da60e155c9b1540fdd2db06d57b315bc03ecf9f349e46",
+      "targetSha256": "fb52d185e5aa77c531b34d9ef549d6d0a595e800d13c74a549ec7931845880a3"
+    },
+    {
+      "source": "db/postgres/006_account_invitations.sql",
+      "target": "supabase/migrations/20260710020000_account_invitations.sql",
+      "description": "Add one-time account invitations with hashed tokens and deny direct Data API access",
+      "sourceSha256": "79c3fe86f681df9cf936f02666d52f98992c2322e175493db9308278b1ffad51",
+      "targetSha256": "e7807ec4eae585b29ec7794efdaea07dd58d8d8b2b90b9ef7e73936760db26a7"
+    },
+    {
+      "source": "db/postgres/007_auth_identities_google_oauth.sql",
+      "target": "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
+      "description": "Add provider-neutral identities, account status, and deny direct Data API access",
+      "sourceSha256": "499d45e5bc1ec4b265e2ee844f43294b5638102793882c487c4939429e692f7b",
+      "targetSha256": "d443f5d0a053b42bc737a7488d5644c18dd1d2d190ff2b732a99164cbb09fb50"
     }
   ]
 }

@@ -26,6 +26,19 @@ function extractIndexNames(sql) {
   return [...sql.matchAll(/^CREATE INDEX IF NOT EXISTS\s+([a-z0-9_]+)/gimu)].map((match) => match[1]);
 }
 
+function extractStatements(schema, startPattern) {
+  const statements = [];
+  const regex = new RegExp(`${startPattern}[\\s\\S]*?;`, "giu");
+  for (const match of schema.matchAll(regex)) {
+    statements.push(match[0].trim());
+  }
+  return statements;
+}
+
+function extractReferencedTableNames(statement) {
+  return [...statement.matchAll(/\bREFERENCES\s+([a-z0-9_]+)/giu)].map((match) => match[1]);
+}
+
 const generate = runNode("scripts/generate-postgres-migration.mjs");
 record("PG-001 migration generator exits successfully", generate.status === 0, generate.stderr || generate.stdout);
 
@@ -47,12 +60,22 @@ const planDoc = readProjectFile(root, ".ai-doc/reports/industrialization/postgre
 
 const sqliteTables = extractTableNames(sqliteSchema);
 const postgresTables = extractTableNames(postgresSchema);
+const postgresTableOrder = new Map(postgresTables.map((tableName, index) => [tableName, index]));
+const postgresTableStatements = extractStatements(postgresSchema, "CREATE TABLE IF NOT EXISTS");
 const sqliteIndexes = extractIndexNames(sqliteSchema);
 const postgresIndexes = extractIndexNames(postgresSchema);
 
 const missingTables = sqliteTables.filter((tableName) => !postgresTables.includes(tableName));
 const missingIndexes = sqliteIndexes.filter((indexName) => !postgresIndexes.includes(indexName));
 const missingRlsTables = sqliteTables.filter((tableName) => !rlsPlan.includes(`'${tableName}'`));
+const outOfOrderReferences = postgresTableStatements.flatMap((statement) => {
+  const tableName = extractTableNames(statement)[0];
+  const tableIndex = postgresTableOrder.get(tableName);
+  return extractReferencedTableNames(statement)
+    .filter((referencedTableName) => referencedTableName !== tableName && postgresTableOrder.has(referencedTableName))
+    .filter((referencedTableName) => postgresTableOrder.get(referencedTableName) > tableIndex)
+    .map((referencedTableName) => `${tableName}->${referencedTableName}`);
+});
 
 record("PG-003 Postgres migration covers all SQLite tables", missingTables.length === 0, missingTables.join(", "));
 record("PG-004 Postgres migration covers all SQLite indexes", missingIndexes.length === 0, missingIndexes.join(", "));
@@ -62,6 +85,7 @@ record("PG-007 RLS plan covers all public tables", missingRlsTables.length === 0
 record("PG-008 RLS plan enables and forces RLS", /ENABLE ROW LEVEL SECURITY/u.test(rlsPlan) && /FORCE ROW LEVEL SECURITY/u.test(rlsPlan), "db/postgres/002_supabase_rls_plan.sql");
 record("PG-009 RLS plan denies anon/authenticated table access by default", /REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated/u.test(rlsPlan), "db/postgres/002_supabase_rls_plan.sql");
 record("PG-010 no user-editable auth metadata in Postgres SQL", !/user_metadata|raw_user_meta_data/iu.test(`${postgresSchema}\n${rlsPlan}`), "db/postgres/*.sql");
+record("PG-010A referenced tables are created before dependent tables", outOfOrderReferences.length === 0, outOfOrderReferences.join(", "));
 record("PG-011 README documents shadow workflow", readme.includes("db:postgres:compare") && readme.includes("qc:postgres-shadow"), "db/postgres/README.md");
 record("PG-012 plan document records Supabase advisor gate", planDoc.includes("Supabase advisor") && planDoc.includes("RLS"), ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md");
 record("PG-013 package exposes generation command", packageJson.scripts?.["db:postgres:migration"] === "node scripts/generate-postgres-migration.mjs", "package.json");

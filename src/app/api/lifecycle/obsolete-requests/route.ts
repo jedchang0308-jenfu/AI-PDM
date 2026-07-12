@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requestNumberingObsoleteApprovalAsync } from "@/lib/numbering-async";
+import { requestNumberingObsoleteApprovalAsync, requestRootObsoleteApprovalAsync } from "@/lib/numbering-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { buildNumberingFormalRecordLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
@@ -14,7 +14,16 @@ const entityTypeMap = new Map<string, RequestNumberingObsoleteApprovalInput["ent
   ["numbering_drawing_number", "drawing_number"]
 ]);
 
-function obsoleteActionCode(entityType: RequestNumberingObsoleteApprovalInput["entityType"]) {
+type ObsoleteEntityType = RequestNumberingObsoleteApprovalInput["entityType"] | "part_root";
+
+const extendedEntityTypeMap = new Map<string, ObsoleteEntityType>([
+  ...entityTypeMap,
+  ["part_root", "part_root"],
+  ["numbering_part_root", "part_root"]
+]);
+
+function obsoleteActionCode(entityType: ObsoleteEntityType) {
+  if (entityType === "part_root") return "obsolete_part_root";
   return entityType === "part_number" ? "obsolete_part_number" : "obsolete_ma_drawing";
 }
 
@@ -35,7 +44,7 @@ function errorStatus(message: string) {
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const entityTypeText = String(body.entityType ?? body.entity_type ?? "").trim();
-  const entityType = entityTypeMap.get(entityTypeText);
+  const entityType = extendedEntityTypeMap.get(entityTypeText);
   const reason = String(body.reason ?? "").trim();
 
   if (!entityType) {
@@ -52,6 +61,33 @@ export async function POST(request: Request) {
   if (companyResult.response) return companyResult.response;
 
   try {
+    if (entityType === "part_root") {
+      const result = await requestRootObsoleteApprovalAsync({
+        companyId: companyResult.company.companyId,
+        rootId: String(body.entityId ?? body.entity_id ?? "").trim() || undefined,
+        rootCode: String(body.entityCode ?? body.entity_code ?? body.rootCode ?? body.root_code ?? "").trim() || undefined,
+        reason,
+        requestedBy: auth.user.id,
+        projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined
+      });
+      return NextResponse.json(
+        {
+          approvalRequest: result.approvalRequest,
+          approvalBatch: result.approvalBatch,
+          impact: result.impact,
+          policy: {
+            entityType: "numbering_part_root",
+            entityId: result.impact.root.id,
+            action: "obsolete",
+            requiresApproval: true,
+            pendingObsoleteRequest: true
+          },
+          pdmCompany: companyResult.company
+        },
+        { status: 201 }
+      );
+    }
+
     const result = await requestNumberingObsoleteApprovalAsync({
       companyId: companyResult.company.companyId,
       entityType,

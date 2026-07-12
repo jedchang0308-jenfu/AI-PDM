@@ -24,6 +24,49 @@ function extractTableName(statement) {
   return match[1];
 }
 
+function extractReferencedTableNames(statement) {
+  return [...statement.matchAll(/\bREFERENCES\s+([a-z0-9_]+)/giu)].map((match) => match[1]);
+}
+
+function sortTableStatementsByDependencies(tableStatements) {
+  const tableNames = tableStatements.map(extractTableName);
+  const tableNameSet = new Set(tableNames);
+  const byName = new Map(tableStatements.map((statement) => [extractTableName(statement), statement]));
+  const dependenciesByName = new Map(
+    tableStatements.map((statement) => {
+      const tableName = extractTableName(statement);
+      const dependencies = extractReferencedTableNames(statement)
+        .filter((referencedTableName) => referencedTableName !== tableName && tableNameSet.has(referencedTableName));
+      return [tableName, [...new Set(dependencies)]];
+    })
+  );
+
+  const remaining = new Set(tableNames);
+  const sortedNames = [];
+
+  while (remaining.size > 0) {
+    const ready = tableNames.filter((tableName) => {
+      if (!remaining.has(tableName)) return false;
+      return dependenciesByName.get(tableName).every((dependency) => !remaining.has(dependency));
+    });
+
+    if (ready.length === 0) {
+      const unresolved = [...remaining].map((tableName) => ({
+        table: tableName,
+        dependencies: dependenciesByName.get(tableName).filter((dependency) => remaining.has(dependency))
+      }));
+      throw new Error(`Unable to order PostgreSQL tables because of unresolved FK dependencies: ${JSON.stringify(unresolved)}`);
+    }
+
+    for (const tableName of ready) {
+      sortedNames.push(tableName);
+      remaining.delete(tableName);
+    }
+  }
+
+  return sortedNames.map((tableName) => byName.get(tableName));
+}
+
 function escapeSqlString(value) {
   return value.replaceAll("'", "''");
 }
@@ -57,9 +100,10 @@ function tablesWithUpdatedAt(tableStatements) {
 
 function buildInitialMigration(sqliteSchema) {
   const tableStatements = extractStatements(sqliteSchema, "CREATE TABLE IF NOT EXISTS");
+  const sortedTableStatements = sortTableStatementsByDependencies(tableStatements);
   const indexStatements = extractStatements(sqliteSchema, "CREATE INDEX IF NOT EXISTS");
-  const convertedTables = tableStatements.map(toPostgresTable);
-  const updatedAtTables = tablesWithUpdatedAt(tableStatements);
+  const convertedTables = sortedTableStatements.map(toPostgresTable);
+  const updatedAtTables = tablesWithUpdatedAt(sortedTableStatements);
   const triggers = updatedAtTables
     .map(
       (tableName) => `DROP TRIGGER IF EXISTS trg_${tableName}_updated_at ON ${tableName};
@@ -126,7 +170,7 @@ COMMIT;
 
 const sqliteSchema = fs.readFileSync(sqliteSchemaPath, "utf8");
 const tableStatements = extractStatements(sqliteSchema, "CREATE TABLE IF NOT EXISTS");
-const tableNames = tableStatements.map(extractTableName);
+const tableNames = sortTableStatementsByDependencies(tableStatements).map(extractTableName);
 const initialMigration = buildInitialMigration(sqliteSchema);
 const rlsPlan = buildRlsPlan(tableNames);
 

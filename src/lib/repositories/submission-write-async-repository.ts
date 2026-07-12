@@ -46,10 +46,10 @@ export const INSERT_ASYNC_SUBMISSION_RECORD_SQL = `
 
 export const INSERT_ASYNC_SUBMISSION_FILE_SQL = `
   INSERT INTO submission_files (
-    id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
+    id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
     sha256, file_size, source_master_attachment_id, created_at
   ) VALUES (
-    :id, :submissionId, :fileRole, :originalFilename, :localPath, :gdriveFileId,
+    :id, :submissionId, :fileRole, :originalFilename, :localPath, :storageProvider, :storageBucket, :storageKey, :gdriveFileId,
     :sha256, :fileSize, :sourceMasterAttachmentId, :now
   )
 `;
@@ -136,6 +136,9 @@ export type CreateSubmissionAsyncInput = {
     fileRole: string;
     originalFilename: string;
     localPath: string;
+    storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+    storageBucket?: string | null;
+    storageKey?: string | null;
     gdriveFileId?: string | null;
     sha256: string;
     fileSize: number;
@@ -277,6 +280,9 @@ export class AsyncSubmissionWriteRepository {
           fileRole: file.fileRole,
           originalFilename: file.originalFilename,
           localPath: file.localPath,
+          storageProvider: file.storageProvider ?? "local_repository",
+          storageBucket: file.storageBucket ?? null,
+          storageKey: file.storageKey ?? null,
           gdriveFileId: file.gdriveFileId ?? null,
           sha256: file.sha256,
           fileSize: file.fileSize,
@@ -294,6 +300,9 @@ export class AsyncSubmissionWriteRepository {
             fileRole: file.fileRole,
             originalFilename: file.originalFilename,
             localPath: file.localPath,
+            storageProvider: file.storageProvider ?? "local_repository",
+            storageBucket: file.storageBucket ?? null,
+            storageKey: file.storageKey ?? null,
             sha256: file.sha256,
             fileSize: file.fileSize
           }))
@@ -468,6 +477,9 @@ function buildSubmissionSnapshotJson(
       fileRole: string;
       originalFilename: string;
       localPath: string;
+      storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+      storageBucket?: string | null;
+      storageKey?: string | null;
       sha256: string;
       fileSize: number;
     }>;

@@ -113,10 +113,67 @@ assert(partsRoute.includes("redactPartListCosts") && partsRoute.includes("canVie
 assert(partDetailRoute.includes("redactPartDetailCosts") && partDetailRoute.includes("canViewPartCostAmounts(auth)"), "part detail API applies cost amount redaction");
 assert(partCostProfileRoute.includes("redactPartDetailCosts") && partCostProfileRoute.includes("canViewPartCostAmounts(auth)"), "part cost profile create API applies response redaction");
 assert(partCostResolutionRoute.includes("resolvePartCost") && partCostResolutionRoute.includes("unitCost: null"), "part cost resolution API resolves and redacts costs");
-assert(partCostDecisionRoute.includes("decidePartCostChangeRequest") && partCostDecisionRoute.includes("numbering.approval.batch.decide"), "part cost decision API uses approval decision permission");
+assert(
+  (partCostDecisionRoute.includes("decidePartCostChangeRequest") || partCostDecisionRoute.includes("decideApprovalPlatformLegacyPartCostAsync")) &&
+    partCostDecisionRoute.includes("numbering.approval.batch.decide"),
+  "part cost decision API uses approval decision permission"
+);
 assert(partsPage.includes("成本審核") && partsPage.includes("decideCostRequest") && partsPage.includes("cost-change-requests"), "parts page exposes cost review actions");
 assert(drawingsRoute.includes("listDrawingModuleRecords"), "drawing API returns drawing module records");
 assert(drawingsPage.includes("同主根號料號") && drawingsPage.includes("Title block 變體風險"), "drawing page shows same-root part detail and title block warning");
+const drawingAttachmentPanelIndex = drawingsPage.indexOf("<MasterAttachmentPanel");
+const drawingPrerequisitePanelIndex = drawingsPage.indexOf("<DrawingSubmissionPrerequisitePanel");
+const drawingPartPanelIndex = drawingsPage.indexOf("<SameRootPartPanel");
+assert(
+  drawingAttachmentPanelIndex >= 0 &&
+    drawingPrerequisitePanelIndex > drawingAttachmentPanelIndex &&
+    drawingPartPanelIndex > drawingPrerequisitePanelIndex,
+  "drawing detail drawer orders drawing attachments before submission prerequisites and same-root part detail"
+);
+assert(
+  drawingsPage.includes("送審檢查") && drawingsPage.includes("先確認") && drawingsPage.includes("筆待補"),
+  "drawing detail drawer keeps a compact drawing-first submission check"
+);
+assert(
+  drawingsPage.includes("補標準成本") && drawingsPage.includes("partCostHref") && drawingsPage.includes("focus=cost"),
+  "drawing linked part card provides a direct standard-cost remediation entry"
+);
+assert(
+  partsPage.includes("PartDetailFocusSection") && partsPage.includes("focusSection === \"cost\"") && partsPage.includes("成本設定檔"),
+  "parts page supports deep-linking directly to the cost profile section"
+);
+assert(
+  partsPage.includes("function PartDetailHero") &&
+    partsPage.includes('className="panel drawing-detail-hero"') &&
+    partsPage.includes("drawing-detail-hero-meta") &&
+    partsPage.includes("drawing-detail-action-row") &&
+    partsPage.includes("送審製造圖") &&
+    partsPage.includes("追溯") &&
+    partsPage.includes("3D 基準") &&
+    partsPage.includes("成本"),
+  "part detail drawer hero includes status badges and primary action row"
+);
+const partHeroPanelIndex = partsPage.indexOf("<PartDetailHero");
+const partAttachmentPanelIndex = partsPage.indexOf('<MasterAttachmentPanel entityType="part_number"');
+const partReadinessPanelIndex = partsPage.indexOf("<PartReadinessPanel");
+const partLinkedDrawingsPanelIndex = partsPage.indexOf("<PartLinkedDrawingsPanel");
+const partVariantPanelIndex = partsPage.indexOf("<h2>料號變體</h2>", partLinkedDrawingsPanelIndex);
+const partShared3dPanelIndex = partsPage.indexOf("<Shared3dBaselinePanel", partVariantPanelIndex);
+const partCostPanelIndex = partsPage.indexOf('ref={costSectionRef}', partShared3dPanelIndex);
+assert(
+  partHeroPanelIndex >= 0 &&
+    partAttachmentPanelIndex > partHeroPanelIndex &&
+    partReadinessPanelIndex > partAttachmentPanelIndex &&
+    partLinkedDrawingsPanelIndex > partReadinessPanelIndex &&
+    partVariantPanelIndex > partLinkedDrawingsPanelIndex &&
+    partShared3dPanelIndex > partVariantPanelIndex &&
+    partCostPanelIndex > partShared3dPanelIndex,
+  "part detail drawer orders attachments, readiness, linked drawings, variant, shared 3D, then cost"
+);
+assert(
+  partsPage.includes("料號完整度檢查") && partsPage.includes("先建立製造圖關聯") && partsPage.includes("材質或表面處理待補"),
+  "part detail drawer has a compact part-first readiness check"
+);
 assert(drawingsPage.includes("standardCostLabel") && drawingsPage.includes("primaryDrawingNumber"), "drawing page renders standard cost status and primary MA link");
 assert(itemRevisionsRoute.includes("export async function GET") && !itemRevisionsRoute.includes("export async function POST") && !itemRevisionsRoute.includes("export async function PATCH"), "item revision route is read-only");
 assert(!itemRevisionsRoute.includes("createPartCostProfile") && !itemRevisionsRoute.includes("decidePartCostChangeRequest"), "item revision route does not trigger cost review flows");

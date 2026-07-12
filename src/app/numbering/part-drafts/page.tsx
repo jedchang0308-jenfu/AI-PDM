@@ -53,6 +53,14 @@ type DeletedPartNumberDraft = {
   policy: LifecycleActionPolicy;
 };
 
+type ProductionSliceClientStatus = {
+  configured: boolean;
+  active: boolean;
+  unopenedMessage: string;
+};
+
+const defaultUnopenedMessage = "此功能未納入本次正式領號 / 草稿 production slice。";
+
 const draftTypeOptions: { value: DraftType; label: string }[] = [
   { value: "new_part", label: "新料號" },
   { value: "replacement_part", label: "替代料號" },
@@ -81,6 +89,9 @@ export default function PartNumberDraftsPage() {
   const [reservedPartNumber, setReservedPartNumber] = useState("");
   const [sourcePartNumberId, setSourcePartNumberId] = useState("");
   const [sourceDrawingNumberId, setSourceDrawingNumberId] = useState("");
+  const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+  const productionSliceEnforced = productionSlice?.configured === true;
+  const unopenedMessage = productionSlice?.unopenedMessage ?? defaultUnopenedMessage;
 
   const summary = useMemo(
     () => ({
@@ -131,6 +142,21 @@ export default function PartNumberDraftsPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/production-slice/status")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: ProductionSliceClientStatus | null) => {
+        if (!cancelled && body?.configured) setProductionSlice(body);
+      })
+      .catch(() => {
+        if (!cancelled) setProductionSlice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function createDraft() {
     if (!reservedPartNumber.trim()) {
       setError("請輸入預留料號");
@@ -163,6 +189,11 @@ export default function PartNumberDraftsPage() {
   }
 
   async function runAction(draftId: string, action: "submit-review" | "void" | "reconfirm") {
+    if (productionSliceEnforced && (action === "submit-review" || action === "reconfirm")) {
+      setError(unopenedMessage);
+      setState("error");
+      return;
+    }
     setBusyId(`${draftId}:${action}`);
     const response = await fetch(`/api/numbering/part-number-drafts/${encodeURIComponent(draftId)}/${action}`, { method: "POST" });
     setBusyId(null);
@@ -177,6 +208,11 @@ export default function PartNumberDraftsPage() {
   }
 
   async function restoreDraft(deleted: DeletedPartNumberDraft) {
+    if (productionSliceEnforced) {
+      setError(unopenedMessage);
+      setState("error");
+      return;
+    }
     setBusyId(`${deleted.draft.id}:restore`);
     const response = await fetch(`/api/numbering/part-number-drafts/${encodeURIComponent(deleted.draft.id)}/restore`, { method: "POST" });
     setBusyId(null);
@@ -211,7 +247,11 @@ export default function PartNumberDraftsPage() {
         <div className="panel-header">
           <div>
             <h2>建立草稿</h2>
-            <p style={mutedTextStyle}>三種入口共用同一份草稿資料，送審後進入受控邊界。</p>
+            <p style={mutedTextStyle}>
+              {productionSliceEnforced
+                ? "本次開放只允許建立、維護、刪除與回收暫用料號草稿；送審、重新確認與還原為未開放功能。"
+                : "三種入口共用同一份草稿資料，送審後進入受控邊界。"}
+            </p>
           </div>
           <button className="primary-button" type="button" onClick={createDraft} disabled={busyId === "create"}>
             <Plus size={16} />
@@ -284,7 +324,9 @@ export default function PartNumberDraftsPage() {
             ]}
           />
         ) : null}
-        {state === "ready" && drafts.length > 0 ? <DraftTable drafts={drafts} busyId={busyId} onAction={runAction} /> : null}
+        {state === "ready" && drafts.length > 0 ? (
+          <DraftTable drafts={drafts} busyId={busyId} onAction={runAction} productionSliceEnforced={productionSliceEnforced} unopenedMessage={unopenedMessage} />
+        ) : null}
       </section>
 
       <details
@@ -308,7 +350,14 @@ export default function PartNumberDraftsPage() {
               重新整理
             </button>
           </div>
-          <DeletedDraftTable deletedDrafts={deletedDrafts} busyId={busyId} loading={deletedLoading} onRestore={restoreDraft} />
+          <DeletedDraftTable
+            deletedDrafts={deletedDrafts}
+            busyId={busyId}
+            loading={deletedLoading}
+            onRestore={restoreDraft}
+            productionSliceEnforced={productionSliceEnforced}
+            unopenedMessage={unopenedMessage}
+          />
           {deletedLoading ? <div className="empty">正在載入已刪除草稿...</div> : null}
           {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除草稿，不用處理。</div> : null}
         </div>
@@ -320,11 +369,15 @@ export default function PartNumberDraftsPage() {
 function DraftTable({
   drafts,
   busyId,
-  onAction
+  onAction,
+  productionSliceEnforced,
+  unopenedMessage
 }: {
   drafts: PartNumberDraft[];
   busyId: string | null;
   onAction: (draftId: string, action: "submit-review" | "void" | "reconfirm") => void;
+  productionSliceEnforced: boolean;
+  unopenedMessage: string;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
@@ -376,18 +429,30 @@ function DraftTable({
                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                   {draft.status === "draft" ? (
                     <>
-                      <IconAction busy={busyId === `${draft.id}:submit-review`} label="送審" onClick={() => onAction(draft.id, "submit-review")}>
-                        <Send size={15} />
-                      </IconAction>
+                      {productionSliceEnforced ? (
+                        <UnopenedAction label="送審" reason={unopenedMessage}>
+                          <Send size={15} />
+                        </UnopenedAction>
+                      ) : (
+                        <IconAction busy={busyId === `${draft.id}:submit-review`} label="送審" onClick={() => onAction(draft.id, "submit-review")}>
+                          <Send size={15} />
+                        </IconAction>
+                      )}
                       <IconAction busy={busyId === `${draft.id}:void`} label="刪除" onClick={() => onAction(draft.id, "void")}>
                         <Trash2 size={15} />
                       </IconAction>
                     </>
                   ) : null}
                   {draft.status === "needs_reconfirmation" ? (
-                    <IconAction busy={busyId === `${draft.id}:reconfirm`} label="重新確認" onClick={() => onAction(draft.id, "reconfirm")}>
-                      <CheckCircle2 size={15} />
-                    </IconAction>
+                    productionSliceEnforced ? (
+                      <UnopenedAction label="重新確認" reason={unopenedMessage}>
+                        <CheckCircle2 size={15} />
+                      </UnopenedAction>
+                    ) : (
+                      <IconAction busy={busyId === `${draft.id}:reconfirm`} label="重新確認" onClick={() => onAction(draft.id, "reconfirm")}>
+                        <CheckCircle2 size={15} />
+                      </IconAction>
+                    )
                   ) : null}
                 </div>
               </td>
@@ -403,12 +468,16 @@ function DeletedDraftTable({
   deletedDrafts,
   busyId,
   loading,
-  onRestore
+  onRestore,
+  productionSliceEnforced,
+  unopenedMessage
 }: {
   deletedDrafts: DeletedPartNumberDraft[];
   busyId: string | null;
   loading: boolean;
   onRestore: (deleted: DeletedPartNumberDraft) => void;
+  productionSliceEnforced: boolean;
+  unopenedMessage: string;
 }) {
   if (deletedDrafts.length === 0) return null;
   return (
@@ -431,7 +500,8 @@ function DeletedDraftTable({
         <tbody>
           {deletedDrafts.map((deleted) => {
             const restoreState = deleted.policy.actions.restore;
-            const canRestore = restoreState?.allowed === true;
+            const canRestore = !productionSliceEnforced && restoreState?.allowed === true;
+            const restoreMessage = productionSliceEnforced ? unopenedMessage : restoreState?.message ?? "不可還原";
             return (
               <tr key={deleted.draft.id}>
                 <td>
@@ -456,17 +526,23 @@ function DeletedDraftTable({
                 </td>
                 <td>
                   <StatusBadge status={canRestore ? "restore_allowed" : "restore_blocked"} context="restorePolicy" />
-                  <div style={canRestore ? mutedTextStyle : errorTextStyle}>{canRestore ? "可還原到草稿清單" : restoreState?.message ?? "不可還原"}</div>
+                  <div style={canRestore ? mutedTextStyle : errorTextStyle}>{canRestore ? "可還原到草稿清單" : restoreMessage}</div>
                 </td>
                 <td>
-                  <IconAction
-                    busy={busyId === `${deleted.draft.id}:restore` || loading}
-                    label={canRestore ? "還原" : restoreState?.message ?? "不可還原"}
-                    onClick={() => onRestore(deleted)}
-                    disabled={!canRestore}
-                  >
-                    <RotateCcw size={15} />
-                  </IconAction>
+                  {productionSliceEnforced ? (
+                    <UnopenedAction label="還原" reason={unopenedMessage}>
+                      <RotateCcw size={15} />
+                    </UnopenedAction>
+                  ) : (
+                    <IconAction
+                      busy={busyId === `${deleted.draft.id}:restore` || loading}
+                      label={canRestore ? "還原" : restoreMessage}
+                      onClick={() => onRestore(deleted)}
+                      disabled={!canRestore}
+                    >
+                      <RotateCcw size={15} />
+                    </IconAction>
+                  )}
                 </td>
               </tr>
             );
@@ -499,6 +575,23 @@ function IconAction({ busy, label, children, onClick, disabled = false }: { busy
   return (
     <button className="icon-button" type="button" title={label} aria-label={label} onClick={onClick} disabled={busy || disabled}>
       {children}
+    </button>
+  );
+}
+
+function UnopenedAction({ label, reason, children }: { label: string; reason: string; children: ReactNode }) {
+  return (
+    <button
+      className="icon-button production-slice-unopened"
+      type="button"
+      title={`${label}：未開放。${reason}`}
+      aria-label={`${label}未開放。${reason}`}
+      aria-disabled="true"
+      data-production-slice-unopened="true"
+      onClick={(event) => event.preventDefault()}
+    >
+      {children}
+      <span className="sr-only">未開放</span>
     </button>
   );
 }

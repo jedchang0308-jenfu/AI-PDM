@@ -10,6 +10,9 @@ export async function upsertReleasePackageRecordAsync(input: {
   submissionId: string;
   packageFilename: string;
   localPath: string;
+  storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+  storageBucket?: string | null;
+  storageKey?: string | null;
   sha256: string;
   fileSize: number;
   manifestJson: string;

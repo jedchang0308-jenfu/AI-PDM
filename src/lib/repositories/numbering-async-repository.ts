@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
 import {
   NUMBERING_RULE_V1_ID,
   NUMBERING_RULE_V2_ID,
+  NUMBERING_RULE_V3_ID,
   assertPurposeAllowedForRule,
   displayDrawingPurposeLabel,
   formatDrawingNumberForRule,
@@ -10,16 +12,27 @@ import {
   formatPartNumberForRule,
   formatPartSequenceForRule,
   formatRootCodeForRule,
+  isCompactNumberingRule,
   isManufacturingDrawingPurpose,
   isReferenceDrawingPurpose,
   isV2DrawingNumber,
   isV2PartNumber,
-  isV2RootCode
+  isV2RootCode,
+  isV3DrawingNumber,
+  isV3PartNumber,
+  isV3RootCode,
+  rootCodeToV3Ordinal
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
+  AddDrawingAndPartToRootInput,
+  AddDrawingAndPartToRootResult,
+  AddDrawingNumberInput,
+  AddDrawingNumberToRootResult,
+  AddPartNumberInput,
+  AddPartNumberToRootResult,
   ApplyNumberingRuleTemplateInput,
   DrawingPurposeCode,
   DvtPromotionCandidateRecord,
@@ -33,6 +46,8 @@ import type {
   ConfirmNumberingImportBatchInput,
   CreateNumberingApprovalBatchInput,
   CreateNumberingImportBatchInput,
+  DeleteDraftNumberingRecordInput,
+  DeleteDraftNumberingRecordResult,
   DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
   CreatePartCostProfileInput,
@@ -56,6 +71,7 @@ import type {
   MonthlyAuditReportRecord,
   DrawingNumberRecord,
   DrawingModuleLinkedPartRecord,
+  DrawingModulePendingApprovalSummary,
   DrawingModuleReleaseStatusMismatch,
   DrawingModuleListInput,
   DrawingModuleListRecord,
@@ -71,6 +87,7 @@ import type {
   NumberingApprovalReviewBatchRecord,
   NumberingApprovalReviewRequestRecord,
   NumberingApprovalStatus,
+  NumberingAdminAuditEventRecord,
   NumberingAdminApprovalRuleRecord,
   NumberingAdminMatrixRecord,
   NumberingAdminPermissionRecord,
@@ -85,6 +102,8 @@ import type {
   NumberingImportStagingRowRecord,
   NumberingObsoleteApprovalResult,
   LinkPartNumberToDrawingInput,
+  MaintainDrawingPartRelationInput,
+  MaintainDrawingPartRelationResult,
   NumberingAuditTrailRecord,
   NumberingExportJobRecord,
   NumberingExportMode,
@@ -127,6 +146,11 @@ import type {
   RequestMainDrawingRestoreApprovalInput,
   RequestNumberingApprovalInput,
   RequestNumberingObsoleteApprovalInput,
+  RequestRootObsoleteApprovalInput,
+  RootObsoleteApprovalResult,
+  RootObsoleteImpactLink,
+  RootObsoleteImpactResult,
+  RootObsoleteImpactTarget,
   RequestSameDrawingVariantApprovalInput,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
   RestoreNumberingImportBatchInput,
@@ -228,6 +252,13 @@ type DrawingModuleReleaseStatusMismatchRow = {
   submission_id: string;
   revision: string;
   released_at: string | null;
+};
+
+type DrawingModulePendingApprovalRow = {
+  drawing_number_id: string;
+  assessment_id: string;
+  revision: string;
+  assessed_at: string;
 };
 
 type PartStandardCostRow = {
@@ -352,10 +383,25 @@ type NumberingUserRoleAssignmentRow = {
   role_code: string;
   role_title: string;
   reason: string;
+  scope_template: string;
+  named_scope: string;
+  sponsor_user_id: string | null;
+  starts_at: string | null;
+  review_due_at: string | null;
+  hard_ends_at: string | null;
   assigned_by: string;
   assigned_at: string;
   revoked_at: string | null;
   revoked_by: string | null;
+};
+
+type NumberingAdminAuditEventRow = {
+  id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string;
+  detail_json: string;
+  created_at: string;
 };
 
 type NumberingRolePriorityVersionRow = {
@@ -688,9 +734,47 @@ export type NumberingRootBundleRecord = {
   drawingNumbers: DrawingNumberRecord[];
 };
 
-const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID;
+const DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V3_ID;
 const DEFAULT_COMPANY_ID = "company-jenfu";
-const DEFAULT_ROLE_PRIORITY = ["system_admin", "pdm_admin", "rd_manager", "document_admin", "qa", "rd"];
+const NUMBERING_RULE_VERSION_SEEDS = [
+  {
+    id: NUMBERING_RULE_V1_ID,
+    ruleCode: "PDM-NUMBERING-V1",
+    title: "PDM numbering rule v1",
+    status: "retired",
+    retired: true,
+    ruleJson: '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+  },
+  {
+    id: NUMBERING_RULE_V2_ID,
+    ruleCode: "PDM-NUMBERING-V2",
+    title: "PDM compact numbering rule v2",
+    status: "retired",
+    retired: true,
+    ruleJson:
+      '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+  },
+  {
+    id: NUMBERING_RULE_V3_ID,
+    ruleCode: "PDM-NUMBERING-V3",
+    title: "PDM alphanumeric root numbering rule v3",
+    status: "active",
+    retired: false,
+    ruleJson:
+      '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+  }
+] as const;
+const DEFAULT_ROLE_PRIORITY = [
+  "system_admin",
+  "pdm_admin",
+  "rd_manager",
+  "document_admin",
+  "qa",
+  "rd",
+  "manufacturing",
+  "procurement",
+  "external_specialist"
+];
 
 const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
   {
@@ -766,26 +850,33 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
 ];
 
 const STANDARD_APPROVAL_RULE_DEFAULTS = [
-  ["approval-rule-update-name-dvt", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-update-name-release", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-update-name-released", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-update-spec-released", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-obsolete-part-release", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 1, 0, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-merge-part-referenced", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 1, 0, 1, 1],
-  ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 1, 1, 1, 1],
+  ["approval-rule-update-name-dvt", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-name-release", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-name-released", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-update-spec-released", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-part-release", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-obsolete-root-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-merge-part-referenced", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release", 1, "rd_manager", 0, 1, 1, 1],
-  ["approval-rule-post-release-change-manager", 1, "rd_manager", 1, 1, 1, 1],
-  ["approval-rule-post-release-change-admin", 1, "pdm_admin", 1, 1, 1, 1],
-  ["approval-rule-released-same-drawing-variant", 1, "rd_manager", 1, 1, 1, 1],
-  ["approval-rule-main-drawing-restore", 1, "pdm_admin", 1, 0, 1, 1]
+  ["approval-rule-post-release-change-manager", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-post-release-change-admin", 1, "pdm_admin", 0, 1, 1, 1],
+  ["approval-rule-released-same-drawing-variant", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-main-drawing-restore", 1, "pdm_admin", 0, 1, 1, 1]
 ] as const;
 
+function approvalRulePrefixForRuleVersion(ruleVersionId: string) {
+  if (ruleVersionId === NUMBERING_RULE_V3_ID) return "v3-";
+  if (ruleVersionId === NUMBERING_RULE_V2_ID) return "v2-";
+  return "";
+}
+
 function approvalRuleIdForRuleVersion(id: string, ruleVersionId: string) {
-  return ruleVersionId === NUMBERING_RULE_V2_ID ? `v2-${id}` : id;
+  return `${approvalRulePrefixForRuleVersion(ruleVersionId)}${id}`;
 }
 
 export const SELECT_ASYNC_PART_ROOT_BY_CODE_SQL = `
@@ -845,6 +936,45 @@ export const SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL = `
   WHERE id = :drawingNumberId
 `;
 
+const SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL = `
+  SELECT
+    r.id AS root_id,
+    p.id AS part_number_id,
+    d.id AS drawing_number_id
+  FROM part_roots r
+  JOIN part_numbers p ON p.part_root_id = r.id
+  LEFT JOIN drawing_numbers d ON d.part_root_id = r.id
+  WHERE r.company_id = :companyId
+    AND r.core_name = :coreName
+    AND r.item_kind = :itemKind
+    AND r.development_phase = :developmentPhase
+    AND r.record_status = :recordStatus
+    AND r.rule_version_id = :ruleVersionId
+    AND p.part_name = :partName
+    AND p.item_kind = :itemKind
+    AND p.development_phase = :developmentPhase
+    AND p.record_status = :recordStatus
+    AND p.rule_version_id = :ruleVersionId
+    AND p.is_universal = :isUniversal
+    AND COALESCE(p.universal_reason, '') = :universalReason
+    AND COALESCE(p.custom_specification, '') = :customSpecification
+    AND (r.created_by = :createdBy OR (:createdBy IS NULL AND r.created_by IS NULL))
+    AND r.created_at >= :notBefore
+    AND (
+      (:drawingRequested = 0 AND d.id IS NULL)
+      OR (
+        :drawingRequested = 1
+        AND d.purpose_code = :drawingPurposeCode
+        AND COALESCE(d.purpose_description, '') = :drawingPurposeDescription
+        AND d.development_phase = :developmentPhase
+        AND d.record_status = :recordStatus
+        AND d.rule_version_id = :ruleVersionId
+      )
+    )
+  ORDER BY r.created_at DESC
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_ADMIN_ROLES_SQL = `
   SELECT *
   FROM roles
@@ -873,7 +1003,8 @@ export const SELECT_ASYNC_ADMIN_ROLE_ASSIGNMENTS_SQL = `
   SELECT
     a.id, a.user_id, u.display_name AS user_name, u.email AS user_email, u.role AS user_system_role,
     a.role_id, r.role_code, r.title AS role_title,
-    a.reason, a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
+    a.reason, a.scope_template, a.named_scope, a.sponsor_user_id, a.starts_at, a.review_due_at, a.hard_ends_at,
+    a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
   FROM user_role_assignments a
   JOIN users u ON u.id = a.user_id
   JOIN roles r ON r.id = a.role_id
@@ -884,11 +1015,31 @@ export const SELECT_ASYNC_ADMIN_ROLE_ASSIGNMENT_BY_ID_SQL = `
   SELECT
     a.id, a.user_id, u.display_name AS user_name, u.email AS user_email, u.role AS user_system_role,
     a.role_id, r.role_code, r.title AS role_title,
-    a.reason, a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
+    a.reason, a.scope_template, a.named_scope, a.sponsor_user_id, a.starts_at, a.review_due_at, a.hard_ends_at,
+    a.assigned_by, a.assigned_at, a.revoked_at, a.revoked_by
   FROM user_role_assignments a
   JOIN users u ON u.id = a.user_id
   JOIN roles r ON r.id = a.role_id
   WHERE a.id = :assignmentId
+`;
+
+export const SELECT_ASYNC_ADMIN_ACCESS_AUDIT_EVENTS_SQL = `
+  SELECT
+    a.id, a.actor_id, actor.display_name AS actor_name, a.action, a.detail_json, a.created_at
+  FROM audit_logs a
+  LEFT JOIN users actor ON actor.id = a.actor_id
+  WHERE a.action IN (
+    'numbering.role.upsert',
+    'numbering.role_permission.upsert',
+    'numbering.role_scope.upsert',
+    'numbering.user_role_assignment.upsert',
+    'numbering.user_role_assignment.revoke',
+    'numbering.role_priority.save',
+    'numbering.approval_delegation.upsert',
+    'numbering.approval_delegation.revoke'
+  )
+  ORDER BY a.created_at DESC
+  LIMIT 50
 `;
 
 export const SELECT_ASYNC_ADMIN_ROLE_PRIORITY_VERSIONS_SQL = `
@@ -948,10 +1099,16 @@ export const INSERT_ASYNC_DEFAULT_APPROVAL_RULES_FOR_VERSION_SQL = `
     requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
   )
   SELECT
-    :targetIdPrefix || id, :targetRuleVersionId, rule_name, action_code, phase, record_status, item_kind, risk_flag,
-    requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, :createdAt, :updatedAt
-  FROM approval_rules
-  WHERE rule_version_id = :sourceRuleVersionId
+    :targetIdPrefix || source_rules.id, :targetRuleVersionId, source_rules.rule_name, source_rules.action_code, source_rules.phase, source_rules.record_status,
+    source_rules.item_kind, source_rules.risk_flag, source_rules.requires_approval, source_rules.approver_role, source_rules.blocks_usage,
+    source_rules.blocks_release, source_rules.shows_warning, source_rules.export_marker,
+    CASE
+      WHEN source_rules.created_by IS NOT NULL AND EXISTS (SELECT 1 FROM users WHERE users.id = source_rules.created_by) THEN source_rules.created_by
+      ELSE NULL
+    END,
+    :createdAt, :updatedAt
+  FROM approval_rules source_rules
+  WHERE source_rules.rule_version_id = :sourceRuleVersionId
     AND NOT EXISTS (
       SELECT 1 FROM approval_rules WHERE rule_version_id = :targetRuleVersionId
     )
@@ -1079,8 +1236,14 @@ export const UPDATE_ASYNC_ROLE_SCOPE_SQL = `
 `;
 
 export const INSERT_ASYNC_USER_ROLE_ASSIGNMENT_SQL = `
-  INSERT INTO user_role_assignments (id, user_id, role_id, reason, assigned_by, assigned_at)
-  VALUES (:id, :userId, :roleId, :reason, :assignedBy, :assignedAt)
+  INSERT INTO user_role_assignments (
+    id, user_id, role_id, reason, scope_template, named_scope, sponsor_user_id,
+    starts_at, review_due_at, hard_ends_at, assigned_by, assigned_at
+  )
+  VALUES (
+    :id, :userId, :roleId, :reason, :scopeTemplate, :namedScope, :sponsorUserId,
+    :startsAt, :reviewDueAt, :hardEndsAt, :assignedBy, :assignedAt
+  )
 `;
 
 export const UPDATE_ASYNC_USER_ROLE_ASSIGNMENT_SQL = `
@@ -1088,6 +1251,12 @@ export const UPDATE_ASYNC_USER_ROLE_ASSIGNMENT_SQL = `
   SET user_id = :userId,
       role_id = :roleId,
       reason = :reason,
+      scope_template = :scopeTemplate,
+      named_scope = :namedScope,
+      sponsor_user_id = :sponsorUserId,
+      starts_at = :startsAt,
+      review_due_at = :reviewDueAt,
+      hard_ends_at = :hardEndsAt,
       assigned_by = :assignedBy,
       assigned_at = :assignedAt
   WHERE id = :assignmentId
@@ -1186,7 +1355,7 @@ export const UPDATE_ASYNC_RD_EFFICIENCY_RULES_RELAXED_SQL = `
   SET requires_approval = 0,
       approver_role = NULL,
       blocks_usage = 0,
-      blocks_release = 0,
+      blocks_release = 1,
       shows_warning = 1,
       export_marker = 1,
       updated_at = :updatedAt
@@ -1198,6 +1367,8 @@ export const UPDATE_ASYNC_RD_EFFICIENCY_RULES_STRICT_SQL = `
   UPDATE approval_rules
   SET requires_approval = 1,
       approver_role = COALESCE(approver_role, 'pdm_admin'),
+      blocks_usage = 0,
+      blocks_release = 1,
       shows_warning = 1,
       export_marker = 1,
       updated_at = :updatedAt
@@ -1210,7 +1381,7 @@ export const UPDATE_ASYNC_STRICT_CONTROL_RULES_SQL = `
   UPDATE approval_rules
   SET requires_approval = 1,
       approver_role = COALESCE(approver_role, 'pdm_admin'),
-      blocks_usage = 1,
+      blocks_usage = 0,
       blocks_release = 1,
       shows_warning = 1,
       export_marker = 1,
@@ -1371,6 +1542,30 @@ export const SELECT_ASYNC_NUMBERING_SEQUENCE_SQL = `
   SELECT next_value
   FROM numbering_sequences
   WHERE sequence_key = :sequenceKey
+`;
+
+export const SELECT_ASYNC_V2_ROOT_CODES_BY_COMPANY_SQL = `
+  SELECT root_code
+  FROM part_roots
+  WHERE company_id = :companyId
+    AND rule_version_id = :ruleVersionId
+    AND LENGTH(root_code) = 5
+  ORDER BY root_code ASC
+`;
+
+export const SELECT_ASYNC_ROOT_CODES_BY_COMPANY_SQL = `
+  SELECT root_code
+  FROM part_roots
+  WHERE company_id = :companyId
+  ORDER BY root_code ASC
+`;
+
+export const SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL = `
+  SELECT detail_json
+  FROM audit_logs
+  WHERE action LIKE 'numbering.%'
+    AND (detail_json LIKE '%rootCode%' OR detail_json LIKE '%rootCodes%' OR detail_json LIKE '%root_code%')
+  ORDER BY created_at ASC
 `;
 
 export const INSERT_ASYNC_NUMBERING_SEQUENCE_SQL = `
@@ -1734,6 +1929,41 @@ export const SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL = `
   LIMIT 1
 `;
 
+export const SELECT_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL = `
+  SELECT
+    l.id,
+    l.drawing_number_id,
+    l.part_number_id,
+    d.drawing_number,
+    p.part_number,
+    l.link_type,
+    l.created_at
+  FROM drawing_part_links l
+  JOIN drawing_numbers d ON d.id = l.drawing_number_id
+  JOIN part_numbers p ON p.id = l.part_number_id
+  WHERE l.drawing_number_id = :drawingNumberId
+    AND l.part_number_id = :partNumberId
+  ORDER BY l.link_type ASC
+`;
+
+export const SELECT_ASYNC_REFERENCE_LINK_FOR_PAIR_SQL = `
+  SELECT id
+  FROM drawing_part_links
+  WHERE drawing_number_id = :drawingNumberId
+    AND part_number_id = :partNumberId
+    AND link_type = 'reference'
+  LIMIT 1
+`;
+
+export const SELECT_ASYNC_PRIMARY_LINK_FOR_PAIR_SQL = `
+  SELECT id
+  FROM drawing_part_links
+  WHERE drawing_number_id = :drawingNumberId
+    AND part_number_id = :partNumberId
+    AND link_type = 'primary_manufacturing'
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_DRAWING_PRIMARY_LINK_COUNT_SQL = `
   SELECT COUNT(*) AS count
   FROM drawing_part_links
@@ -1765,6 +1995,43 @@ export const UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL = `
   WHERE part_number_id = :partNumberId
     AND link_type = 'primary_manufacturing'
     AND drawing_number_id <> :drawingNumberId
+`;
+
+export const DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL = `
+  DELETE FROM drawing_part_links
+  WHERE part_number_id = :partNumberId
+    AND link_type = 'primary_manufacturing'
+    AND drawing_number_id <> :drawingNumberId
+    AND EXISTS (
+      SELECT 1
+      FROM drawing_part_links r
+      WHERE r.part_number_id = drawing_part_links.part_number_id
+        AND r.drawing_number_id = drawing_part_links.drawing_number_id
+        AND r.link_type = 'reference'
+    )
+`;
+
+export const DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL = `
+  DELETE FROM drawing_part_links
+  WHERE id = :linkId
+`;
+
+export const DELETE_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL = `
+  DELETE FROM drawing_part_links
+  WHERE drawing_number_id = :drawingNumberId
+    AND part_number_id = :partNumberId
+`;
+
+export const DELETE_ASYNC_SAME_DRAWING_VARIANTS_FOR_PAIR_SQL = `
+  DELETE FROM same_drawing_variants
+  WHERE drawing_number_id = :drawingNumberId
+    AND part_number_id = :partNumberId
+`;
+
+export const UPDATE_ASYNC_DRAWING_PART_LINK_TO_REFERENCE_SQL = `
+  UPDATE drawing_part_links
+  SET link_type = 'reference'
+  WHERE id = :linkId
 `;
 
 export const UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL = `
@@ -2140,6 +2407,13 @@ export const UPDATE_ASYNC_PART_NUMBER_DRAFT_SQL = `
   WHERE id = :partNumberId
 `;
 
+export const UPDATE_ASYNC_ROOT_PART_NAMES_SQL = `
+  UPDATE part_numbers
+  SET part_name = :partName,
+      updated_at = :updatedAt
+  WHERE part_root_id = :rootId
+`;
+
 export const UPDATE_ASYNC_DRAWING_PURPOSE_DESCRIPTION_SQL = `
   UPDATE drawing_numbers
   SET purpose_description = :purposeDescription,
@@ -2165,6 +2439,163 @@ export const UPDATE_ASYNC_ROOT_OBSOLETE_SQL = `
   UPDATE part_roots
   SET record_status = 'Obsolete',
       updated_at = :updatedAt
+  WHERE id = :rootId
+`;
+
+export const SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL = `
+  SELECT
+    (SELECT COUNT(*)
+     FROM approval_requests
+     WHERE entity_id = :rootId
+        OR entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+        OR entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS approval_count,
+    (SELECT COUNT(*)
+     FROM drawing_revision_packages
+     WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS revision_package_count,
+    (SELECT COUNT(*)
+     FROM shared_cad_model_versions
+     WHERE part_root_id = :rootId
+        OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)) AS shared_model_count,
+    (SELECT COUNT(*)
+     FROM manufacturing_baselines
+     WHERE part_root_id = :rootId
+        OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)) AS manufacturing_baseline_count,
+    (SELECT COUNT(*)
+     FROM manufacturing_baseline_items
+     WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS manufacturing_baseline_item_count,
+    (SELECT COUNT(*)
+     FROM part_replacement_links
+     WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+        OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+        OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS replacement_link_count,
+    (SELECT COUNT(*)
+     FROM bom_reconfirmation_flags
+     WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+        OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)) AS bom_reconfirmation_count,
+    (SELECT COUNT(*)
+     FROM file_assets
+     WHERE (linked_entity_type = 'part_root' AND linked_entity_id = :rootId)
+        OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+        OR (linked_entity_type = 'drawing_number' AND linked_entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))) AS file_asset_count
+`;
+
+export const UPDATE_ASYNC_DRAFT_FILE_ASSETS_DELETED_SQL = `
+  UPDATE file_assets
+  SET deleted_at = :deletedAt,
+      deleted_by = :deletedBy,
+      deleted_reason = :deletedReason,
+      updated_at = :updatedAt
+  WHERE deleted_at IS NULL
+    AND (
+      (linked_entity_type = 'part_root' AND linked_entity_id = :rootId)
+      OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+      OR (linked_entity_type = 'drawing_number' AND linked_entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))
+    )
+`;
+
+export const DELETE_ASYNC_DRAFT_WARNING_EVENTS_SQL = `
+  DELETE FROM warning_events
+  WHERE (entity_type = 'part_root' AND entity_id = :rootId)
+     OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+     OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))
+`;
+
+export const UPDATE_ASYNC_DRAFT_TASK_ITEMS_CANCELLED_SQL = `
+  UPDATE numbering_task_items
+  SET task_status = 'cancelled',
+      handled_by = :handledBy,
+      handled_at = :handledAt,
+      updated_at = :handledAt
+  WHERE task_status = 'open'
+    AND (
+      (entity_type = 'part_root' AND entity_id = :rootId)
+      OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+      OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))
+    )
+`;
+
+export const UPDATE_ASYNC_DRAFT_NOTIFICATIONS_HANDLED_SQL = `
+  UPDATE numbering_notifications
+  SET handled_by = :handledBy,
+      handled_at = :handledAt,
+      updated_at = :handledAt
+  WHERE handled_at IS NULL
+    AND (
+      (entity_type = 'part_root' AND entity_id = :rootId)
+      OR (entity_type = 'part_number' AND entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+      OR (entity_type = 'drawing_number' AND entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))
+    )
+`;
+
+export const UPDATE_ASYNC_DRAFT_PART_NUMBER_DRAFT_SOURCES_NULL_SQL = `
+  UPDATE part_number_drafts
+  SET source_part_number_id = CASE
+        WHEN source_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId) THEN NULL
+        ELSE source_part_number_id
+      END,
+      source_drawing_number_id = CASE
+        WHEN source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId) THEN NULL
+        ELSE source_drawing_number_id
+      END,
+      updated_at = :updatedAt
+  WHERE source_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+     OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_DRAWING_FFF_SQL = `
+  DELETE FROM drawing_revision_fff_assessments
+  WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL = `
+  DELETE FROM same_drawing_variants
+  WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)
+     OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL = `
+  DELETE FROM drawing_part_links
+  WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)
+     OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL = `
+  DELETE FROM part_variant_attributes
+  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_STANDARD_COSTS_SQL = `
+  DELETE FROM part_standard_costs
+  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_COST_CHANGE_REQUESTS_SQL = `
+  DELETE FROM part_cost_change_requests
+  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_COST_TIERS_SQL = `
+  DELETE FROM part_cost_tiers
+  WHERE cost_profile_id IN (SELECT id FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_COST_PROFILES_SQL = `
+  DELETE FROM part_cost_profiles
+  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
+`;
+
+export const DELETE_ASYNC_DRAFT_DRAWING_NUMBERS_SQL = `
+  DELETE FROM drawing_numbers
+  WHERE part_root_id = :rootId
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_NUMBERS_SQL = `
+  DELETE FROM part_numbers
+  WHERE part_root_id = :rootId
+`;
+
+export const DELETE_ASYNC_DRAFT_PART_ROOT_SQL = `
+  DELETE FROM part_roots
   WHERE id = :rootId
 `;
 
@@ -2703,6 +3134,49 @@ function normalizeAuditDetail(detail: Record<string, unknown>) {
   };
 }
 
+function normalizeRootCodeCandidate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  return rootCodeToV3Ordinal(normalized) !== null ? normalized : null;
+}
+
+function objectCompanyId(value: Record<string, unknown>): string | null {
+  const companyId = value.companyId ?? value.company_id;
+  return typeof companyId === "string" && companyId.trim() ? companyId.trim() : null;
+}
+
+function extractAuditRootCodes(value: unknown, companyId: string): string[] {
+  const rootCodes = new Set<string>();
+  const visit = (node: unknown, key = ""): void => {
+    if (typeof node === "string") {
+      if (/root/i.test(key)) {
+        const rootCode = normalizeRootCodeCandidate(node);
+        if (rootCode) rootCodes.add(rootCode);
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, key);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    const nodeCompanyId = objectCompanyId(record);
+    if (nodeCompanyId && nodeCompanyId !== companyId) return;
+    for (const [childKey, childValue] of Object.entries(record)) visit(childValue, childKey);
+  };
+  visit(value);
+  return Array.from(rootCodes);
+}
+
+function extractAuditRootCodesFromJson(detailJson: string, companyId: string): string[] {
+  try {
+    return extractAuditRootCodes(JSON.parse(detailJson), companyId);
+  } catch {
+    return [];
+  }
+}
+
 function normalizeNullableText(value: string | null | undefined) {
   const text = value?.trim();
   return text ? text : null;
@@ -2807,6 +3281,14 @@ function parseJsonDetail(value: string) {
   }
 }
 
+function isFormalRecordStatus(status: NumberingRecordStatus) {
+  return status === "Active" || status === "Released" || status === "MainDrawingInvalid";
+}
+
+function isClosedRecordStatus(status: NumberingRecordStatus) {
+  return status === "Obsolete" || status === "Merged" || status === "EVTDisabled";
+}
+
 function actionCodeFromDetail(detail: Record<string, unknown>) {
   const value = detail.actionCode ?? detail.action_code;
   return typeof value === "string" ? value : null;
@@ -2831,7 +3313,8 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     same_drawing_variant_after_release: "\u767c\u884c\u5f8c\u540c\u5716\u591a\u6599\u865f",
     main_drawing_restore: "MA \u5716\u6062\u5fa9",
     obsolete_part_number: "\u6599\u865f\u4f5c\u5ee2\u5be9\u6838",
-    obsolete_ma_drawing: "\u5716\u865f\u4f5c\u5ee2\u5be9\u6838"
+    obsolete_ma_drawing: "\u5716\u865f\u4f5c\u5ee2\u5be9\u6838",
+    obsolete_part_root: "\u4e3b\u6839\u4f5c\u5ee2\u5be9\u6838"
   };
   return value ? labels[value] ?? value : "\u5be9\u6838";
 }
@@ -3306,7 +3789,8 @@ function mapDrawingModuleListRow(
   row: DrawingModuleListRow,
   linkedPartNumbers: string[] = [],
   sameRootParts: DrawingModuleLinkedPartRecord[] = [],
-  releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null = null
+  releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null = null,
+  pendingApproval: DrawingModulePendingApprovalSummary | null = null
 ): DrawingModuleListRecord {
   return {
     ...mapDrawingNumber(row),
@@ -3319,8 +3803,13 @@ function mapDrawingModuleListRow(
     titleBlockVariantWarning: hasPotentialHardcodedTitleBlockVariantText(row.purpose_description) && sameRootParts.length > 1,
     warningCount: Number(row.warning_count ?? 0),
     releaseStatusMismatch,
+    pendingApproval,
     updatedAt: row.updated_at
   };
+}
+
+function compareDrawingModuleRevision(left: string, right: string) {
+  return left.localeCompare(right, "zh-Hant", { numeric: true, sensitivity: "base" });
 }
 
 function mapPartVariantAttributes(row: PartVariantAttributesRow | null | undefined): PartVariantAttributesRecord | null {
@@ -3532,9 +4021,7 @@ function mapApprovalRequest(row: ApprovalRequestRow): NumberingApprovalRecord {
 }
 
 function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
-  return {
-    id: row.id,
-    ruleName: row.rule_name,
+  const predictedRule = withPredictedApprovalControls({
     actionCode: row.action_code,
     phase: row.phase,
     recordStatus: row.record_status,
@@ -3542,10 +4029,13 @@ function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
     riskFlag: row.risk_flag,
     requiresApproval: row.requires_approval === 1,
     approverRole: row.approver_role,
-    blocksUsage: row.blocks_usage === 1,
-    blocksRelease: row.blocks_release === 1,
     showsWarning: row.shows_warning === 1,
     exportMarker: row.export_marker === 1
+  });
+  return {
+    id: row.id,
+    ruleName: buildApprovalRuleSummary(predictedRule),
+    ...predictedRule
   };
 }
 
@@ -3605,10 +4095,27 @@ function mapNumberingUserRoleAssignment(row: NumberingUserRoleAssignmentRow): Nu
     roleCode: row.role_code,
     roleTitle: row.role_title,
     reason: row.reason,
+    scopeTemplate: row.scope_template ?? "own_department",
+    namedScope: row.named_scope ?? "",
+    sponsorUserId: row.sponsor_user_id,
+    startsAt: row.starts_at,
+    reviewDueAt: row.review_due_at,
+    hardEndsAt: row.hard_ends_at,
     assignedBy: row.assigned_by,
     assignedAt: row.assigned_at,
     revokedAt: row.revoked_at,
     revokedBy: row.revoked_by
+  };
+}
+
+function mapNumberingAdminAuditEvent(row: NumberingAdminAuditEventRow): NumberingAdminAuditEventRecord {
+  return {
+    id: row.id,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    action: row.action,
+    detail: parseJsonDetail(row.detail_json),
+    createdAt: row.created_at
   };
 }
 
@@ -3757,7 +4264,19 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
   return "";
 }
 
+function canonicalImportedRootName(coreName: string, partName: string) {
+  const rootName = coreName.trim();
+  const candidatePartName = partName.trim();
+  if (!rootName) return candidatePartName;
+  if (!candidatePartName) return rootName;
+  if (candidatePartName === rootName) return rootName;
+  if (candidatePartName.startsWith(rootName) && candidatePartName.length > rootName.length) return candidatePartName;
+  return rootName;
+}
+
 function importedPartSequence(partNumber: string) {
+  const v3 = partNumber.match(/^[A-Z][0-9]{4}-P([0-9]{2})$/);
+  if (v3) return Number.parseInt(v3[1], 10);
   const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
   if (v2) return Number.parseInt(v2[1], 10);
   const v1 = partNumber.match(/(\d{3})$/);
@@ -3765,6 +4284,8 @@ function importedPartSequence(partNumber: string) {
 }
 
 function importedDrawingSequence(drawingNumber: string) {
+  const v3 = drawingNumber.match(/^[A-Z][0-9]{4}-[MR]([0-9]{2})$/);
+  if (v3) return Number.parseInt(v3[1], 10);
   const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
   if (v2) return Number.parseInt(v2[1], 10);
   const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
@@ -3772,6 +4293,9 @@ function importedDrawingSequence(drawingNumber: string) {
 }
 
 function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
+  if (isV3RootCode(rootCode) || (partNumber && isV3PartNumber(partNumber)) || (drawingNumber && isV3DrawingNumber(drawingNumber))) {
+    return NUMBERING_RULE_V3_ID;
+  }
   if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
     return NUMBERING_RULE_V2_ID;
   }
@@ -3892,6 +4416,18 @@ function canAccessNumberingScope(context: NumberingAccessContext, projectCode: s
   return context.baseRoles.includes("rd_manager") || context.baseRoles.includes("pdm_admin") || delegatedAccessAllowed(context, "rd_manager", projectCode, actionCode);
 }
 
+function lowestAvailableSequence(usedValues: number[], maxValue: number, label: string) {
+  const used = [...new Set(usedValues.filter((value) => Number.isInteger(value) && value > 0 && value <= maxValue))].sort((a, b) => a - b);
+  let candidate = 1;
+  for (const value of used) {
+    if (value < candidate) continue;
+    if (value > candidate) break;
+    candidate += 1;
+  }
+  if (candidate > maxValue) throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
+  return candidate;
+}
+
 function createNamedList(prefix: string, values: string[]) {
   const params: Record<string, string> = {};
   const placeholders = values.map((value, index) => {
@@ -3902,6 +4438,68 @@ function createNamedList(prefix: string, values: string[]) {
   return { sql: placeholders.join(", "), params };
 }
 
+const ROLE_ASSIGNMENT_SCOPE_TEMPLATES = new Set([
+  "own_department",
+  "workspace_quality",
+  "released_only",
+  "named_scope",
+  "self",
+  "workspace_all"
+]);
+
+function defaultScopeTemplateForRoleCode(roleCode: string) {
+  if (roleCode === "qa") return "workspace_quality";
+  if (roleCode === "manufacturing" || roleCode === "procurement") return "released_only";
+  if (roleCode === "external_specialist") return "named_scope";
+  if (roleCode === "system_admin" || roleCode === "pdm_admin") return "workspace_all";
+  return "own_department";
+}
+
+function normalizeAssignmentDate(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function defaultReviewDueDate(now: string) {
+  const date = new Date(now);
+  date.setUTCDate(date.getUTCDate() + 90);
+  return date.toISOString().slice(0, 10);
+}
+
+async function normalizeRoleAssignmentScope(
+  client: AsyncDatabaseClient,
+  roleCode: string,
+  input: UpsertNumberingUserRoleAssignmentInput,
+  now: string
+) {
+  const scopeTemplate = (input.scopeTemplate?.trim() || defaultScopeTemplateForRoleCode(roleCode)).toLowerCase();
+  if (!ROLE_ASSIGNMENT_SCOPE_TEMPLATES.has(scopeTemplate)) throw new Error("NUMBERING_ROLE_ASSIGNMENT_SCOPE_TEMPLATE_INVALID");
+  if (scopeTemplate === "workspace_all" && !["system_admin", "pdm_admin", "qa"].includes(roleCode)) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_WORKSPACE_ALL_RESTRICTED");
+  }
+
+  const namedScope = input.namedScope?.trim() ?? "";
+  const sponsorUserId = input.sponsorUserId?.trim() || null;
+  const startsAt = normalizeAssignmentDate(input.startsAt);
+  let reviewDueAt = normalizeAssignmentDate(input.reviewDueAt);
+  const hardEndsAt = normalizeAssignmentDate(input.hardEndsAt);
+
+  if ((scopeTemplate === "named_scope" || roleCode === "external_specialist") && !namedScope) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_NAMED_SCOPE_REQUIRED");
+  }
+  if (roleCode === "external_specialist") {
+    if (scopeTemplate !== "named_scope") throw new Error("NUMBERING_EXTERNAL_SPECIALIST_REQUIRES_NAMED_SCOPE");
+    if (!sponsorUserId) throw new Error("NUMBERING_EXTERNAL_SPECIALIST_SPONSOR_REQUIRED");
+    reviewDueAt = reviewDueAt ?? defaultReviewDueDate(now);
+  }
+  if (sponsorUserId && !(await client.queryOne<{ id: string }>(SELECT_ASYNC_USER_EXISTS_SQL, { userId: sponsorUserId }))) {
+    throw new Error("NUMBERING_ROLE_ASSIGNMENT_SPONSOR_NOT_FOUND");
+  }
+  if (hardEndsAt && startsAt && hardEndsAt < startsAt) throw new Error("NUMBERING_ROLE_ASSIGNMENT_TIME_RANGE_INVALID");
+
+  return { scopeTemplate, namedScope, sponsorUserId, startsAt, reviewDueAt, hardEndsAt };
+}
+
 export class AsyncNumberingRepository {
   constructor(
     private readonly client: AsyncDatabaseClient,
@@ -3909,14 +4507,46 @@ export class AsyncNumberingRepository {
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
 
+  private async ensureNumberingRuleVersionSeeds(client: AsyncDatabaseClient = this.client) {
+    const now = this.clock();
+    for (const seed of NUMBERING_RULE_VERSION_SEEDS) {
+      await client.execute(
+        `
+          INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json, created_at, updated_at)
+          VALUES (:id, :ruleCode, :title, :status, :retiredAt, :ruleJson, :now, :now)
+        `,
+        {
+          id: seed.id,
+          ruleCode: seed.ruleCode,
+          title: seed.title,
+          status: seed.status,
+          retiredAt: seed.retired ? now : null,
+          ruleJson: seed.ruleJson,
+          now
+        }
+      );
+      await client.execute(
+        `
+          UPDATE numbering_rule_versions
+          SET status = :status,
+              retired_at = CASE WHEN :retired = 1 THEN COALESCE(retired_at, :now) ELSE NULL END,
+              updated_at = :now
+          WHERE id = :id
+        `,
+        { id: seed.id, status: seed.status, retired: seed.retired ? 1 : 0, now }
+      );
+    }
+  }
+
   private async ensureDefaultApprovalRulesForCurrentRuleVersion(client: AsyncDatabaseClient = this.client) {
+    await this.ensureNumberingRuleVersionSeeds(client);
     const existing = await client.queryOne<{ count: number | string }>(COUNT_ASYNC_ADMIN_APPROVAL_RULES_BY_VERSION_SQL, {
       ruleVersionId: DEFAULT_RULE_VERSION_ID
     });
     if (Number(existing?.count ?? 0) > 0) return;
     const now = this.clock();
     await client.execute(INSERT_ASYNC_DEFAULT_APPROVAL_RULES_FOR_VERSION_SQL, {
-      targetIdPrefix: "v2-",
+      targetIdPrefix: approvalRulePrefixForRuleVersion(DEFAULT_RULE_VERSION_ID),
       targetRuleVersionId: DEFAULT_RULE_VERSION_ID,
       sourceRuleVersionId: NUMBERING_RULE_V1_ID,
       createdAt: now,
@@ -3935,8 +4565,26 @@ export class AsyncNumberingRepository {
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
       const isUniversal = input.isUniversal ?? false;
+      const rootName = input.coreName.trim();
+      const recentDuplicate = await this.findRecentDuplicateCreateInClient(client, {
+        companyId,
+        coreName: rootName,
+        partName: rootName,
+        itemKind: input.itemKind,
+        developmentPhase,
+        recordStatus,
+        isUniversal,
+        universalReason: input.universalReason,
+        customSpecification: input.customSpecification,
+        drawingPurposeCode: input.drawingPurposeCode,
+        drawingPurposeDescription: input.drawingPurposeDescription,
+        ruleVersionId,
+        createdBy: input.createdBy
+      });
+      if (recentDuplicate) return recentDuplicate;
+
       const root = await this.insertPartRoot(client, {
-        coreName: input.coreName,
+        coreName: rootName,
         companyId,
         itemKind: input.itemKind,
         developmentPhase,
@@ -3945,7 +4593,7 @@ export class AsyncNumberingRepository {
         createdBy: input.createdBy
       });
       const partNumber = await this.insertPartNumber(client, root, {
-        partName: input.partName,
+        partName: root.coreName,
         itemKind: input.itemKind,
         developmentPhase,
         recordStatus,
@@ -3974,6 +4622,7 @@ export class AsyncNumberingRepository {
         actorId: input.createdBy,
         action: "numbering.create",
         detail: {
+          companyId,
           rootCode: root.rootCode,
           partNumber: partNumber.partNumber,
           customSpecification: partNumber.customSpecification,
@@ -3984,8 +4633,381 @@ export class AsyncNumberingRepository {
 
       return { root, partNumber, drawingNumber };
     };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
+  }
+
+  async addDrawingNumberToRoot(input: AddDrawingNumberInput): Promise<AddDrawingNumberToRootResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const rootCode = input.rootCode.trim();
+      if (!rootCode) throw new Error("PART_ROOT_REQUIRED");
+      const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
+      if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
+      if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
+
+      const idempotencyKey = input.idempotencyKey?.trim();
+      if (idempotencyKey) {
+        const recent = await this.findRecentAppendAudit(client, {
+          action: "numbering.drawing_number.create",
+          actorId: input.createdBy ?? null,
+          idempotencyKey
+        });
+        const recentDrawingNumber = String(recent?.drawingNumber ?? "").trim();
+        if (recentDrawingNumber) {
+          const recentRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
+            drawingNumber: recentDrawingNumber,
+            companyId
+          });
+          if (recentRow && recentRow.part_root_id === rootRow.id) {
+            return { root: mapPartRoot(rootRow), drawingNumber: mapDrawingNumber(recentRow), linkedPart: null, linkType: null, reusedFromIdempotency: true };
+          }
+        }
+      }
+
+      const reasonRequired = await this.rootAppendReasonRequired(client, rootRow.id, rootRow.record_status);
+      const reason = input.reason?.trim() ?? "";
+      if (reasonRequired && !reason) throw new Error("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT");
+
+      const root = mapPartRoot(rootRow);
+      const drawingNumber = await this.insertDrawingNumber(client, root, {
+        purposeCode: input.purposeCode,
+        purposeDescription: input.purposeDescription,
+        developmentPhase: input.developmentPhase ?? root.developmentPhase,
+        recordStatus: input.recordStatus ?? "Draft",
+        ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
+        createdBy: input.createdBy
+      });
+
+      let linkedPart: PartNumberRecord | null = null;
+      let linkType: "primary_manufacturing" | "reference" | null = null;
+      const linkPartNumber = input.linkPartNumber?.trim();
+      const linkRelationType = input.linkRelationType ?? (linkPartNumber ? "auto" : "none");
+      if (linkPartNumber && linkRelationType !== "none") {
+        const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
+          partNumber: linkPartNumber,
+          companyId
+        });
+        if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${linkPartNumber}`);
+        if (partRow.part_root_id !== root.id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
+        if (linkRelationType === "primary_manufacturing" && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) {
+          throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
+        }
+        linkType = linkRelationType === "reference" || !isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? "reference" : "primary_manufacturing";
+        linkedPart = mapPartNumber(partRow);
+        await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
+          id: this.idFactory(),
+          drawingNumberId: drawingNumber.id,
+          partNumberId: linkedPart.id,
+          linkType,
+          createdBy: input.createdBy ?? null,
+          createdAt: this.clock()
+        });
+      }
+
+      await this.insertAudit(client, {
+        actorId: input.createdBy,
+        action: "numbering.drawing_number.create",
+        detail: {
+          sourceEntrypoint: input.sourceEntrypoint ?? "contextual_entrypoint",
+          companyId,
+          rootCode: root.rootCode,
+          drawingNumber: drawingNumber.drawingNumber,
+          purposeCode: drawingNumber.purposeCode,
+          linkedPartNumber: linkedPart?.partNumber ?? null,
+          linkType,
+          reason: reason || null,
+          idempotencyKey: idempotencyKey ?? null
+        }
+      });
+      return { root, drawingNumber, linkedPart, linkType, reusedFromIdempotency: false };
+    };
+    return this.client.transaction(run);
+  }
+
+  async addPartNumberToRoot(input: AddPartNumberInput): Promise<AddPartNumberToRootResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const rootCode = input.rootCode.trim();
+      if (!rootCode) throw new Error("PART_ROOT_REQUIRED");
+      const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
+      if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
+      if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
+
+      const idempotencyKey = input.idempotencyKey?.trim();
+      if (idempotencyKey) {
+        const recent = await this.findRecentAppendAudit(client, {
+          action: "numbering.part_number.create",
+          actorId: input.createdBy ?? null,
+          idempotencyKey
+        });
+        const recentPartNumber = String(recent?.partNumber ?? "").trim();
+        if (recentPartNumber) {
+          const recentRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
+            partNumber: recentPartNumber,
+            companyId
+          });
+          if (recentRow && recentRow.part_root_id === rootRow.id) {
+            return { root: mapPartRoot(rootRow), partNumber: mapPartNumber(recentRow), linkedDrawing: null, linkType: null, reusedFromIdempotency: true };
+          }
+        }
+      }
+
+      const reasonRequired = await this.rootAppendReasonRequired(client, rootRow.id, rootRow.record_status);
+      const reason = input.reason?.trim() ?? "";
+      if (reasonRequired && !reason) throw new Error("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT");
+
+      const root = mapPartRoot(rootRow);
+      const partNumber = await this.insertPartNumber(client, root, {
+        partName: root.coreName,
+        itemKind: input.itemKind ?? root.itemKind,
+        developmentPhase: input.developmentPhase ?? root.developmentPhase,
+        recordStatus: input.recordStatus ?? "Draft",
+        isUniversal: input.isUniversal ?? false,
+        universalReason: input.universalReason,
+        customSpecification: input.customSpecification,
+        ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
+        createdBy: input.createdBy
+      });
+
+      let linkedDrawing: DrawingNumberRecord | null = null;
+      let linkType: "primary_manufacturing" | "reference" | null = null;
+      const linkDrawingNumber = input.linkDrawingNumber?.trim();
+      const linkRelationType = input.linkRelationType ?? (linkDrawingNumber ? "auto" : "none");
+      if (linkDrawingNumber && linkRelationType !== "none") {
+        const drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
+          drawingNumber: linkDrawingNumber,
+          companyId
+        });
+        if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${linkDrawingNumber}`);
+        if (drawingRow.part_root_id !== root.id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
+        const drawing = mapDrawingNumber(drawingRow);
+        if (linkRelationType === "primary_manufacturing" && !isManufacturingDrawingPurpose(drawing.purposeCode)) {
+          throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
+        }
+        linkType = linkRelationType === "reference" || !isManufacturingDrawingPurpose(drawing.purposeCode) ? "reference" : "primary_manufacturing";
+        await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
+          id: this.idFactory(),
+          drawingNumberId: drawing.id,
+          partNumberId: partNumber.id,
+          linkType,
+          createdBy: input.createdBy ?? null,
+          createdAt: this.clock()
+        });
+        linkedDrawing = drawing;
+      }
+
+      await this.insertAudit(client, {
+        actorId: input.createdBy,
+        action: "numbering.part_number.create",
+        detail: {
+          sourceEntrypoint: input.sourceEntrypoint ?? "contextual_entrypoint",
+          companyId,
+          rootCode: root.rootCode,
+          partNumber: partNumber.partNumber,
+          linkedDrawingNumber: linkedDrawing?.drawingNumber ?? null,
+          linkType,
+          reason: reason || null,
+          idempotencyKey: idempotencyKey ?? null
+        }
+      });
+      return { root, partNumber, linkedDrawing, linkType, reusedFromIdempotency: false };
+    };
+    return this.client.transaction(run);
+  }
+
+  async addDrawingAndPartToRoot(input: AddDrawingAndPartToRootInput): Promise<AddDrawingAndPartToRootResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const rootCode = input.rootCode.trim();
+      if (!rootCode) throw new Error("PART_ROOT_REQUIRED");
+      const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
+      if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
+      if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
+
+      const idempotencyKey = input.idempotencyKey?.trim();
+      if (idempotencyKey) {
+        const recent = await this.findRecentAppendAudit(client, {
+          action: "numbering.drawing_part.create",
+          actorId: input.createdBy ?? null,
+          idempotencyKey
+        });
+        const recentDrawingNumber = String(recent?.drawingNumber ?? "").trim();
+        const recentPartNumber = String(recent?.partNumber ?? "").trim();
+        if (recentDrawingNumber && recentPartNumber) {
+          const [drawingRow, partRow] = await Promise.all([
+            client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber: recentDrawingNumber, companyId }),
+            client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: recentPartNumber, companyId })
+          ]);
+          const recentLinkType = String(recent?.linkType ?? "") as "primary_manufacturing" | "reference";
+          if (drawingRow && partRow && drawingRow.part_root_id === rootRow.id && partRow.part_root_id === rootRow.id && (recentLinkType === "primary_manufacturing" || recentLinkType === "reference")) {
+            return {
+              root: mapPartRoot(rootRow),
+              drawingNumber: mapDrawingNumber(drawingRow),
+              partNumber: mapPartNumber(partRow),
+              linkType: recentLinkType,
+              reusedFromIdempotency: true
+            };
+          }
+        }
+      }
+
+      const reasonRequired = await this.rootAppendReasonRequired(client, rootRow.id, rootRow.record_status);
+      const reason = input.reason?.trim() ?? "";
+      if (reasonRequired && !reason) throw new Error("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT");
+
+      const root = mapPartRoot(rootRow);
+      const developmentPhase = input.developmentPhase ?? root.developmentPhase;
+      const recordStatus = input.recordStatus ?? "Draft";
+      const ruleVersionId = input.ruleVersionId ?? root.ruleVersionId;
+      const drawingNumber = await this.insertDrawingNumber(client, root, {
+        purposeCode: input.purposeCode,
+        purposeDescription: input.purposeDescription,
+        developmentPhase,
+        recordStatus,
+        ruleVersionId,
+        createdBy: input.createdBy
+      });
+      const partNumber = await this.insertPartNumber(client, root, {
+        partName: root.coreName,
+        itemKind: input.itemKind ?? root.itemKind,
+        developmentPhase,
+        recordStatus,
+        isUniversal: input.isUniversal ?? false,
+        universalReason: input.universalReason,
+        customSpecification: input.customSpecification,
+        ruleVersionId,
+        createdBy: input.createdBy
+      });
+
+      const relationType = input.linkRelationType ?? "auto";
+      if (relationType === "primary_manufacturing" && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) {
+        throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
+      }
+      const linkType: "primary_manufacturing" | "reference" =
+        relationType === "reference" || !isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? "reference" : "primary_manufacturing";
+      await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
+        id: this.idFactory(),
+        drawingNumberId: drawingNumber.id,
+        partNumberId: partNumber.id,
+        linkType,
+        createdBy: input.createdBy ?? null,
+        createdAt: this.clock()
+      });
+
+      await this.insertAudit(client, {
+        actorId: input.createdBy,
+        action: "numbering.drawing_part.create",
+        detail: {
+          sourceEntrypoint: input.sourceEntrypoint ?? "numbering_request_append",
+          companyId,
+          rootCode: root.rootCode,
+          drawingNumber: drawingNumber.drawingNumber,
+          partNumber: partNumber.partNumber,
+          purposeCode: drawingNumber.purposeCode,
+          linkType,
+          reason: reason || null,
+          idempotencyKey: idempotencyKey ?? null
+        }
+      });
+      return { root, drawingNumber, partNumber, linkType, reusedFromIdempotency: false };
+    };
+    return this.client.transaction(run);
+  }
+
+  async getRootObsoleteImpact(input: { companyId?: string; rootCode?: string; rootId?: string }): Promise<RootObsoleteImpactResult> {
+    return this.getRootObsoleteImpactInClient(this.client, input);
+  }
+
+  async requestRootObsoleteApproval(input: RequestRootObsoleteApprovalInput): Promise<RootObsoleteApprovalResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const reason = input.reason.trim();
+      if (!reason) throw new Error("reason is required");
+      const impact = await this.getRootObsoleteImpactInClient(client, { companyId, rootCode: input.rootCode, rootId: input.rootId });
+      if (impact.pendingRequestId) throw new Error("LIFE_OBSOLETE_ALREADY_REQUESTED");
+      if (impact.formalTargets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const approvalRequest = await this.insertNumberingApprovalRequest(client, {
+        companyId,
+        actionCode: "obsolete_part_root",
+        entityType: "part_root",
+        entityId: impact.root.id,
+        reason,
+        requestedBy: input.requestedBy,
+        payload: {
+          lifecycleAction: "obsolete",
+          aggregateIntent: "whole_root_obsolete",
+          rootCode: impact.root.rootCode,
+          rootStatus: impact.root.recordStatus,
+          targetCount: impact.formalTargets.length,
+          childTargets: impact.formalTargets,
+          links: impact.links,
+          warnings: impact.warnings,
+          projectCode: input.projectCode?.trim() || null
+        }
+      });
+      const approvalBatch = await this.createNumberingApprovalBatchInClient(client, {
+        companyId,
+        approvalRequestIds: [approvalRequest.id],
+        projectCode: input.projectCode?.trim() || undefined,
+        actionCode: "obsolete_part_root",
+        submittedBy: input.requestedBy
+      });
+      return { approvalRequest, approvalBatch, impact };
+    };
+    return this.client.transaction(run);
+  }
+
+  private async findRecentDuplicateCreateInClient(
+    client: AsyncDatabaseClient,
+    input: CreateNumberingRecordInput & {
+      companyId: string;
+      developmentPhase: NumberingPhase;
+      recordStatus: NumberingRecordStatus;
+      isUniversal: boolean;
+      ruleVersionId: string;
+    }
+  ): Promise<{
+    root: PartRootRecord;
+    partNumber: PartNumberRecord;
+    drawingNumber: DrawingNumberRecord | null;
+  } | null> {
+    const nowMs = Date.parse(this.clock());
+    const notBefore = new Date((Number.isFinite(nowMs) ? nowMs : Date.now()) - 60_000).toISOString();
+    const recent = await client.queryOne<{
+      root_id: string;
+      part_number_id: string;
+      drawing_number_id: string | null;
+    }>(SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL, {
+      companyId: input.companyId,
+      coreName: input.coreName.trim(),
+      partName: input.partName?.trim() || input.coreName.trim(),
+      itemKind: input.itemKind,
+      developmentPhase: input.developmentPhase,
+      recordStatus: input.recordStatus,
+      ruleVersionId: input.ruleVersionId,
+      isUniversal: input.isUniversal ? 1 : 0,
+      universalReason: input.universalReason?.trim() ?? "",
+      customSpecification: input.customSpecification?.trim() ?? "",
+      createdBy: input.createdBy ?? null,
+      notBefore,
+      drawingRequested: input.drawingPurposeCode ? 1 : 0,
+      drawingPurposeCode: input.drawingPurposeCode ?? "",
+      drawingPurposeDescription: input.drawingPurposeDescription?.trim() ?? ""
+    });
+    if (!recent) return null;
+
+    const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_ID_SQL, { rootId: recent.root_id });
+    const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: recent.part_number_id });
+    const drawingRow = recent.drawing_number_id
+      ? await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: recent.drawing_number_id })
+      : null;
+    if (!rootRow || !partRow) return null;
+    return {
+      root: mapPartRoot(rootRow),
+      partNumber: mapPartNumber(partRow),
+      drawingNumber: drawingRow ? mapDrawingNumber(drawingRow) : null
+    };
   }
 
   async updateDraftNumberingRecord(input: UpdateDraftNumberingRecordInput): Promise<NumberingRootBundleRecord | null> {
@@ -3999,7 +5021,9 @@ export class AsyncNumberingRepository {
       const coreName = input.coreName?.trim();
       if (coreName) {
         await client.execute(UPDATE_ASYNC_PART_ROOT_CORE_NAME_SQL, { rootId: rootRow.id, coreName, updatedAt: now });
+        await client.execute(UPDATE_ASYNC_ROOT_PART_NAMES_SQL, { rootId: rootRow.id, partName: coreName, updatedAt: now });
       }
+      const effectiveRootName = coreName || rootRow.core_name;
 
       const partNumberText = input.partNumber?.trim();
       const partRow = partNumberText
@@ -4008,12 +5032,12 @@ export class AsyncNumberingRepository {
             companyId
           })
         : await client.queryOne<PartNumberRow>(SELECT_ASYNC_FIRST_PART_NUMBER_FOR_ROOT_SQL, { rootId: rootRow.id });
-      if ((input.partName?.trim() || input.customSpecification !== undefined || input.universalReason !== undefined) && partRow) {
+      if ((input.customSpecification !== undefined || input.universalReason !== undefined) && partRow) {
         if (partRow.part_root_id !== rootRow.id) throw new Error(`PART_NUMBER_ROOT_MISMATCH: ${partNumberText ?? partRow.part_number}`);
         assertDraftMutableStatus(partRow.record_status, "PART");
         await client.execute(UPDATE_ASYNC_PART_NUMBER_DRAFT_SQL, {
           partNumberId: partRow.id,
-          partName: input.partName?.trim() || partRow.part_name,
+          partName: effectiveRootName,
           customSpecification: input.customSpecification !== undefined ? input.customSpecification.trim() || null : partRow.custom_specification,
           universalReason: input.universalReason !== undefined ? input.universalReason.trim() || null : partRow.universal_reason,
           updatedAt: now
@@ -4083,6 +5107,83 @@ export class AsyncNumberingRepository {
     };
     if (this.client.kind === "postgres") return this.client.transaction(run);
     return run(this.client);
+  }
+
+  async deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInput): Promise<DeleteDraftNumberingRecordResult> {
+    const run = async (client: AsyncDatabaseClient) => {
+      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const rootCode = input.rootCode.trim();
+      if (!rootCode) throw new Error("PART_ROOT_REQUIRED");
+      const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
+      if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
+      assertDraftMutableStatus(rootRow.record_status, "ROOT");
+
+      const [partRows, drawingRows] = await Promise.all([
+        client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
+        client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id })
+      ]);
+      for (const row of partRows) assertDraftMutableStatus(row.record_status, "PART");
+      for (const row of drawingRows) assertDraftMutableStatus(row.record_status, "DRAWING");
+
+      const dependencyCounts = await client.queryOne<{
+        approval_count: number;
+        revision_package_count: number;
+        shared_model_count: number;
+        manufacturing_baseline_count: number;
+        manufacturing_baseline_item_count: number;
+        replacement_link_count: number;
+        bom_reconfirmation_count: number;
+        file_asset_count: number;
+      }>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, { rootId: rootRow.id });
+      const controlledDependencyCount =
+        Number(dependencyCounts?.approval_count ?? 0) +
+        Number(dependencyCounts?.revision_package_count ?? 0) +
+        Number(dependencyCounts?.shared_model_count ?? 0) +
+        Number(dependencyCounts?.manufacturing_baseline_count ?? 0) +
+        Number(dependencyCounts?.manufacturing_baseline_item_count ?? 0) +
+        Number(dependencyCounts?.replacement_link_count ?? 0) +
+        Number(dependencyCounts?.bom_reconfirmation_count ?? 0);
+      if (controlledDependencyCount > 0) throw new Error("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES");
+
+      const deletedRoot = mapPartRoot(rootRow);
+      const deletedPartNumbers = partRows.map(mapPartNumber);
+      const deletedDrawingNumbers = drawingRows.map(mapDrawingNumber);
+      const affectedFileAssets = Number(dependencyCounts?.file_asset_count ?? 0);
+      const now = this.clock();
+      const reason = input.reason?.trim() || "刪除未送審草稿";
+
+      await client.execute(UPDATE_ASYNC_DRAFT_FILE_ASSETS_DELETED_SQL, {
+        rootId: rootRow.id,
+        deletedAt: now,
+        deletedBy: input.deletedBy ?? null,
+        deletedReason: reason,
+        updatedAt: now
+      });
+      await client.execute(UPDATE_ASYNC_DRAFT_TASK_ITEMS_CANCELLED_SQL, { rootId: rootRow.id, handledBy: input.deletedBy ?? null, handledAt: now });
+      await client.execute(UPDATE_ASYNC_DRAFT_NOTIFICATIONS_HANDLED_SQL, { rootId: rootRow.id, handledBy: input.deletedBy ?? null, handledAt: now });
+      await client.execute(DELETE_ASYNC_DRAFT_WARNING_EVENTS_SQL, { rootId: rootRow.id });
+      await client.execute(UPDATE_ASYNC_DRAFT_PART_NUMBER_DRAFT_SOURCES_NULL_SQL, { rootId: rootRow.id, updatedAt: now });
+      await client.execute(DELETE_ASYNC_DRAFT_DRAWING_FFF_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_STANDARD_COSTS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_CHANGE_REQUESTS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_TIERS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_PROFILES_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_NUMBERS_SQL, { rootId: rootRow.id });
+      await client.execute(DELETE_ASYNC_DRAFT_PART_ROOT_SQL, { rootId: rootRow.id });
+
+      const result = { rootCode, deletedRoot, deletedPartNumbers, deletedDrawingNumbers, affectedFileAssets };
+      await this.insertAudit(client, {
+        actorId: input.deletedBy,
+        action: "numbering.draft.delete",
+        detail: { reason, ...result }
+      });
+      return result;
+    };
+    return this.client.transaction(run);
   }
 
   async checkNumberingDuplicates(input: DuplicateCheckInput): Promise<DuplicateCheckResult> {
@@ -4166,8 +5267,7 @@ export class AsyncNumberingRepository {
         }
       };
     };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
   }
 
   async requestSameDrawingVariantApproval(input: RequestSameDrawingVariantApprovalInput): Promise<NumberingApprovalRecord> {
@@ -4519,11 +5619,13 @@ export class AsyncNumberingRepository {
       for (const stagingRow of rows) {
         const raw = parseJsonDetail(stagingRow.raw_json);
         const rootCode = importString(raw, "rootCode", "root_code", "主根號");
-        const coreName =
-          importString(raw, "coreName", "core_name", "品名", "名稱") || importString(raw, "partName", "part_name", "料號品名");
+        const coreName = canonicalImportedRootName(
+          importString(raw, "coreName", "core_name", "品名", "名稱"),
+          importString(raw, "partName", "part_name", "料號品名")
+        );
         const itemKind = (importString(raw, "itemKind", "item_kind", "料件類型") || "manufactured") as NumberingItemKind;
         const partNumber = importString(raw, "partNumber", "part_number", "料號");
-        const partName = importString(raw, "partName", "part_name", "料號品名") || coreName;
+        const partName = coreName;
         const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
         const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖面用途") || "MA") as DrawingPurposeCode;
         const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
@@ -4636,8 +5738,7 @@ export class AsyncNumberingRepository {
       if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
       return this.mapImportBatchInClient(client, updated);
     };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
   }
 
   async deleteNumberingImportBatch(input: DeleteNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
@@ -4695,6 +5796,7 @@ export class AsyncNumberingRepository {
       assignmentRows,
       priorityRows,
       delegationRows,
+      auditRows,
       approvalRuleRows,
       templateRows,
       versionRows
@@ -4706,6 +5808,7 @@ export class AsyncNumberingRepository {
       this.client.query<NumberingUserRoleAssignmentRow>(SELECT_ASYNC_ADMIN_ROLE_ASSIGNMENTS_SQL),
       this.client.query<NumberingRolePriorityVersionRow>(SELECT_ASYNC_ADMIN_ROLE_PRIORITY_VERSIONS_SQL),
       this.client.query<NumberingApprovalDelegationRow>(SELECT_ASYNC_ADMIN_APPROVAL_DELEGATIONS_SQL),
+      this.client.query<NumberingAdminAuditEventRow>(SELECT_ASYNC_ADMIN_ACCESS_AUDIT_EVENTS_SQL),
       this.client.query<ApprovalRuleRow>(SELECT_ASYNC_ADMIN_APPROVAL_RULES_SQL, { ruleVersionId: DEFAULT_RULE_VERSION_ID }),
       this.client.query<NumberingAdminRuleTemplateRow>(SELECT_ASYNC_ADMIN_RULE_TEMPLATES_SQL),
       this.client.query<NumberingRuleVersionRow>(SELECT_ASYNC_ADMIN_RULE_VERSIONS_SQL)
@@ -4723,6 +5826,7 @@ export class AsyncNumberingRepository {
       activeRolePriority: priorityRows.map(mapNumberingRolePriorityVersion).find((version) => version.status === "active")?.priority ?? DEFAULT_ROLE_PRIORITY,
       roleAssignments: assignmentRows.map(mapNumberingUserRoleAssignment),
       approvalDelegations: delegationRows.map(mapNumberingApprovalDelegation),
+      auditEvents: auditRows.map(mapNumberingAdminAuditEvent),
       approvalRules,
       hardRules: NUMBERING_HARD_RULE_CATALOG,
       ruleTemplates: templateRows.map(mapNumberingRuleTemplate),
@@ -4862,6 +5966,7 @@ export class AsyncNumberingRepository {
       if (!(await client.queryOne<{ id: string }>(SELECT_ASYNC_USER_EXISTS_SQL, { userId }))) throw new Error("NUMBERING_ROLE_ASSIGNMENT_USER_NOT_FOUND");
       const role = await this.resolveNumberingRole(client, input);
       const now = this.clock();
+      const scope = await normalizeRoleAssignmentScope(client, role.role_code, input, now);
       const existing = input.id
         ? await client.queryOne<{ id: string; revoked_at: string | null }>("SELECT * FROM user_role_assignments WHERE id = :assignmentId", { assignmentId: input.id.trim() })
         : await client.queryOne<{ id: string; revoked_at: string | null }>(SELECT_ASYNC_ACTIVE_USER_ROLE_ASSIGNMENT_SQL, { userId, roleId: role.id });
@@ -4874,17 +5979,36 @@ export class AsyncNumberingRepository {
           userId,
           roleId: role.id,
           reason,
+          scopeTemplate: scope.scopeTemplate,
+          namedScope: scope.namedScope,
+          sponsorUserId: scope.sponsorUserId,
+          startsAt: scope.startsAt,
+          reviewDueAt: scope.reviewDueAt,
+          hardEndsAt: scope.hardEndsAt,
           assignedBy: input.actorId,
           assignedAt: now
         });
       } else {
-        await client.execute(INSERT_ASYNC_USER_ROLE_ASSIGNMENT_SQL, { id, userId, roleId: role.id, reason, assignedBy: input.actorId, assignedAt: now });
+        await client.execute(INSERT_ASYNC_USER_ROLE_ASSIGNMENT_SQL, {
+          id,
+          userId,
+          roleId: role.id,
+          reason,
+          scopeTemplate: scope.scopeTemplate,
+          namedScope: scope.namedScope,
+          sponsorUserId: scope.sponsorUserId,
+          startsAt: scope.startsAt,
+          reviewDueAt: scope.reviewDueAt,
+          hardEndsAt: scope.hardEndsAt,
+          assignedBy: input.actorId,
+          assignedAt: now
+        });
       }
       const after = mapNumberingUserRoleAssignment((await this.selectNumberingUserRoleAssignment(client, id)) as NumberingUserRoleAssignmentRow);
       await this.insertAudit(client, {
         actorId: input.actorId,
         action: "numbering.user_role_assignment.upsert",
-        detail: { before, after, markers: ["role_assignment_override"], userId, roleCode: role.role_code, reason }
+        detail: { before, after, markers: ["role_assignment_override"], userId, roleCode: role.role_code, reason, scope }
       });
       return after;
     };
@@ -5028,30 +6152,45 @@ export class AsyncNumberingRepository {
         : null;
       const id = existing?.id ?? input.id?.trim() ?? this.idFactory();
       const ruleVersionId = nullableText(input.ruleVersionId) ?? existing?.rule_version_id ?? DEFAULT_RULE_VERSION_ID;
-      const ruleName = input.ruleName.trim();
       const actionCode = input.actionCode.trim();
       const requiresApproval = input.requiresApproval ?? (existing ? existing.requires_approval === 1 : false);
       const approverRole = nullableTextOrExisting(input.approverRole, existing?.approver_role);
-      if (!ruleName) throw new Error("APPROVAL_RULE_NAME_REQUIRED");
       if (!actionCode) throw new Error("APPROVAL_RULE_ACTION_REQUIRED");
       if (!(await client.queryOne<{ id: string }>(SELECT_ASYNC_RULE_VERSION_BY_ID_SQL, { ruleVersionId }))) throw new Error("APPROVAL_RULE_VERSION_NOT_FOUND");
       if (requiresApproval && !approverRole) throw new Error("APPROVAL_RULE_APPROVER_REQUIRED");
       if (approverRole && !(await client.queryOne<NumberingAdminRoleRow>(SELECT_ASYNC_ROLE_BY_CODE_SQL, { roleCode: approverRole }))) {
         throw new Error("APPROVAL_RULE_APPROVER_ROLE_NOT_FOUND");
       }
-      const values = {
-        ruleName,
+      const phase = nullableTextOrExisting(input.phase, existing?.phase);
+      const recordStatus = nullableTextOrExisting(input.recordStatus, existing?.record_status);
+      const itemKind = nullableTextOrExisting(input.itemKind, existing?.item_kind);
+      const riskFlag = nullableTextOrExisting(input.riskFlag, existing?.risk_flag);
+      const showsWarning = input.showsWarning ?? (existing ? existing.shows_warning === 1 : true);
+      const exportMarker = input.exportMarker ?? (existing ? existing.export_marker === 1 : true);
+      const predictedRule = withPredictedApprovalControls({
         actionCode,
-        phase: nullableTextOrExisting(input.phase, existing?.phase),
-        recordStatus: nullableTextOrExisting(input.recordStatus, existing?.record_status),
-        itemKind: nullableTextOrExisting(input.itemKind, existing?.item_kind),
-        riskFlag: nullableTextOrExisting(input.riskFlag, existing?.risk_flag),
+        phase,
+        recordStatus,
+        itemKind,
+        riskFlag,
         requiresApproval,
         approverRole,
-        blocksUsage: input.blocksUsage ?? (existing ? existing.blocks_usage === 1 : false),
-        blocksRelease: input.blocksRelease ?? (existing ? existing.blocks_release === 1 : false),
-        showsWarning: input.showsWarning ?? (existing ? existing.shows_warning === 1 : true),
-        exportMarker: input.exportMarker ?? (existing ? existing.export_marker === 1 : true)
+        showsWarning,
+        exportMarker
+      });
+      const values = {
+        ruleName: buildApprovalRuleSummary(predictedRule),
+        actionCode,
+        phase,
+        recordStatus,
+        itemKind,
+        riskFlag,
+        requiresApproval,
+        approverRole,
+        blocksUsage: predictedRule.blocksUsage,
+        blocksRelease: predictedRule.blocksRelease,
+        showsWarning,
+        exportMarker
       };
       const now = this.clock();
       const params = {
@@ -5335,6 +6474,11 @@ export class AsyncNumberingRepository {
     const run = async (client: AsyncDatabaseClient) => this.linkPartNumberToDrawingInClient(client, input);
     if (this.client.kind === "postgres") return this.client.transaction(run);
     return run(this.client);
+  }
+
+  async maintainDrawingPartRelation(input: MaintainDrawingPartRelationInput): Promise<MaintainDrawingPartRelationResult> {
+    const run = async (client: AsyncDatabaseClient) => this.maintainDrawingPartRelationInClient(client, input);
+    return this.client.transaction(run);
   }
 
   async listNumberingTasks(input: ListNumberingTasksInput): Promise<NumberingTaskRecord[]> {
@@ -5733,17 +6877,19 @@ export class AsyncNumberingRepository {
     );
     const drawingIds = rows.map((row) => row.id);
     const rootIds = uniqueStrings(rows.map((row) => row.part_root_id));
-    const [linkedPartNumbersByDrawing, sameRootPartsByRoot, releaseStatusMismatchByDrawing] = await Promise.all([
+    const [linkedPartNumbersByDrawing, sameRootPartsByRoot, releaseStatusMismatchByDrawing, pendingApprovalByDrawing] = await Promise.all([
       this.listDrawingModuleLinkedPartNumbers(drawingIds),
       this.listDrawingModuleLinkedPartsByRoot(rootIds),
-      this.listDrawingModuleReleaseStatusMismatches(drawingIds)
+      this.listDrawingModuleReleaseStatusMismatches(drawingIds),
+      this.listDrawingModulePendingApprovalSummaries(drawingIds)
     ]);
     return rows.map((row) =>
       mapDrawingModuleListRow(
         row,
         linkedPartNumbersByDrawing.get(row.id) ?? [],
         sameRootPartsByRoot.get(row.part_root_id) ?? [],
-        releaseStatusMismatchByDrawing.get(row.id) ?? null
+        releaseStatusMismatchByDrawing.get(row.id) ?? null,
+        pendingApprovalByDrawing.get(row.id) ?? null
       )
     );
   }
@@ -6215,6 +7361,61 @@ export class AsyncNumberingRepository {
       });
     }
     return mismatchByDrawing;
+  }
+
+  private async listDrawingModulePendingApprovalSummaries(drawingIds: string[]) {
+    const pendingByDrawing = new Map<string, DrawingModulePendingApprovalSummary>();
+    if (drawingIds.length === 0) return pendingByDrawing;
+    const drawingList = createNamedList("drawingId", drawingIds);
+    const rows = await this.client.query<DrawingModulePendingApprovalRow>(
+      `
+        SELECT
+          a.drawing_number_id,
+          a.id AS assessment_id,
+          a.revision,
+          a.assessed_at
+        FROM drawing_revision_fff_assessments a
+        LEFT JOIN review_confirmation_events rce ON rce.id = (
+          SELECT latest.id
+          FROM review_confirmation_events latest
+          WHERE latest.company_id = a.company_id
+            AND latest.review_id = a.id
+          ORDER BY latest.occurred_at DESC, latest.id DESC
+          LIMIT 1
+        )
+        WHERE a.drawing_number_id IN (${drawingList.sql})
+          AND rce.id IS NULL
+        ORDER BY a.drawing_number_id ASC, a.assessed_at DESC, a.id DESC
+      `,
+      drawingList.params
+    );
+
+    for (const row of rows) {
+      const current =
+        pendingByDrawing.get(row.drawing_number_id) ??
+        ({
+          count: 0,
+          revisions: [],
+          latestRequestedAt: null,
+          latestRequestId: null,
+          workbenchHref: "/approvals?status=pending&domain=numbering&action=numbering.drawing_revision_impact_review"
+        } satisfies DrawingModulePendingApprovalSummary);
+      current.count += 1;
+      if (!current.revisions.includes(row.revision)) current.revisions.push(row.revision);
+      if (!current.latestRequestedAt || row.assessed_at.localeCompare(current.latestRequestedAt) > 0) {
+        current.latestRequestedAt = row.assessed_at;
+        current.latestRequestId = `legacy:legacy_drawing_revision_review:${row.assessment_id}`;
+        current.workbenchHref =
+          `/approvals?status=pending&domain=numbering&action=numbering.drawing_revision_impact_review&requestId=${encodeURIComponent(current.latestRequestId)}`;
+      }
+      pendingByDrawing.set(row.drawing_number_id, current);
+    }
+
+    for (const summary of pendingByDrawing.values()) {
+      summary.revisions = [...summary.revisions].sort(compareDrawingModuleRevision);
+    }
+
+    return pendingByDrawing;
   }
 
   private async getNumberingAccessContext(user: NumberingUserScope): Promise<NumberingAccessContext> {
@@ -7041,6 +8242,65 @@ export class AsyncNumberingRepository {
       return;
     }
 
+    if (request.actionCode === "obsolete_part_root") {
+      const rootCodeFromPayload = String(request.payload.rootCode ?? "").trim();
+      const rootRow =
+        (await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_ID_SQL, { rootId: request.entityId })) ??
+        (rootCodeFromPayload
+          ? await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode: rootCodeFromPayload, companyId })
+          : null);
+      if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${request.entityId}`);
+      if (rootRow.company_id !== companyId) throw new Error("PART_ROOT_COMPANY_MISMATCH");
+
+      const payloadTargets = Array.isArray(request.payload.childTargets) ? request.payload.childTargets : [];
+      const impact = payloadTargets.length > 0
+        ? null
+        : await this.getRootObsoleteImpactInClient(client, { companyId, rootId: rootRow.id });
+      const targets = payloadTargets.length > 0 ? payloadTargets : impact?.formalTargets ?? [];
+      if (targets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+
+      const now = this.clock();
+      const obsoletedParts: string[] = [];
+      const obsoletedDrawings: string[] = [];
+      for (const target of targets) {
+        const targetRecord = target && typeof target === "object" ? (target as Record<string, unknown>) : {};
+        const entityType = String(targetRecord.entityType ?? "").trim();
+        const entityId = String(targetRecord.entityId ?? "").trim();
+        if (entityType === "part_number" && entityId) {
+          const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: entityId });
+          if (!partRow || partRow.company_id !== companyId || partRow.part_root_id !== rootRow.id) throw new Error("ROOT_OBSOLETE_TARGET_MISMATCH");
+          if (isFormalRecordStatus(partRow.record_status)) {
+            await client.execute(UPDATE_ASYNC_APPROVAL_OBSOLETE_PART_SQL, { partNumberId: partRow.id, updatedAt: now });
+            obsoletedParts.push(partRow.part_number);
+          }
+        }
+        if (entityType === "drawing_number" && entityId) {
+          const drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: entityId });
+          if (!drawingRow || drawingRow.company_id !== companyId || drawingRow.part_root_id !== rootRow.id) throw new Error("ROOT_OBSOLETE_TARGET_MISMATCH");
+          if (isFormalRecordStatus(drawingRow.record_status)) {
+            await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
+            obsoletedDrawings.push(drawingRow.drawing_number);
+          }
+        }
+      }
+      await this.markRootClosedIfNoOpenParts(client, rootRow.id, "Obsolete", now);
+      await this.insertAudit(client, {
+        actorId,
+        action: "lifecycle.root_obsolete.approved",
+        detail: {
+          approvalRequestId: request.id,
+          actionCode: request.actionCode,
+          entityType: "part_root",
+          entityId: rootRow.id,
+          rootCode: rootRow.root_code,
+          obsoletedParts,
+          obsoletedDrawings,
+          reason: request.reason
+        }
+      });
+      return;
+    }
+
     if (request.actionCode === "main_drawing_restore") {
       const partNumberFromPayload = String(request.payload.partNumber ?? "").trim();
       const partRow =
@@ -7318,9 +8578,135 @@ export class AsyncNumberingRepository {
     return { drawing, partNumber: part, linkType, variants };
   }
 
+  private async maintainDrawingPartRelationInClient(
+    client: AsyncDatabaseClient,
+    input: MaintainDrawingPartRelationInput
+  ): Promise<MaintainDrawingPartRelationResult> {
+    const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+    const drawingNumber = input.drawingNumber.trim();
+    const partNumberValue = input.partNumber.trim();
+    if (!drawingNumber) throw new Error("DRAWING_NUMBER_REQUIRED");
+    if (!partNumberValue) throw new Error("PART_NUMBER_REQUIRED");
+
+    const [partRow, drawingRow] = await Promise.all([
+      client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: partNumberValue, companyId }),
+      client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId })
+    ]);
+    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${partNumberValue}`);
+    if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
+    if (partRow.part_root_id !== drawingRow.part_root_id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
+
+    const rootRow = await client.queryOne<PartRootRow>("SELECT * FROM part_roots WHERE id = :rootId AND company_id = :companyId", {
+      rootId: partRow.part_root_id,
+      companyId
+    });
+    if (!rootRow) throw new Error("PART_ROOT_NOT_FOUND");
+
+    const lockedStatuses: NumberingRecordStatus[] = ["PendingReview", "Released", "Obsolete", "Merged", "EVTDisabled"];
+    const lockedRecord = [
+      { entityType: "part_root", status: rootRow.record_status, code: rootRow.root_code },
+      { entityType: "drawing_number", status: drawingRow.record_status, code: drawingRow.drawing_number },
+      { entityType: "part_number", status: partRow.record_status, code: partRow.part_number }
+    ].find((record) => lockedStatuses.includes(record.status));
+    if (lockedRecord) {
+      throw new Error(`RELATION_MAINTENANCE_RECORD_LOCKED: ${lockedRecord.entityType}:${lockedRecord.code}:${lockedRecord.status}`);
+    }
+
+    const drawing = mapDrawingNumber(drawingRow);
+    const part = mapPartNumber(partRow);
+    const beforeRows = await this.listDrawingPartLinksForPair(client, drawing.id, part.id);
+
+    const primaryPair = () =>
+      client.queryOne<{ id: string }>(SELECT_ASYNC_PRIMARY_LINK_FOR_PAIR_SQL, {
+        drawingNumberId: drawing.id,
+        partNumberId: part.id
+      });
+    const referencePair = () =>
+      client.queryOne<{ id: string }>(SELECT_ASYNC_REFERENCE_LINK_FOR_PAIR_SQL, {
+        drawingNumberId: drawing.id,
+        partNumberId: part.id
+      });
+    const insertLink = (linkType: NumberingLinkRecord["linkType"]) =>
+      client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
+        id: this.idFactory(),
+        drawingNumberId: drawing.id,
+        partNumberId: part.id,
+        linkType,
+        createdBy: input.actorId ?? null,
+        createdAt: this.clock()
+      });
+
+    if (input.operation === "link") {
+      const linkType: NumberingLinkRecord["linkType"] = isManufacturingDrawingPurpose(drawing.purposeCode) ? "primary_manufacturing" : "reference";
+      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
+      if (linkType === "primary_manufacturing") {
+        await client.execute(DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+        await client.execute(UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+        if (primary && reference) {
+          await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: reference.id });
+        } else if (reference) {
+          await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL, { linkId: reference.id });
+        } else if (!primary) {
+          await insertLink(linkType);
+        }
+      } else if (!reference) {
+        await insertLink(linkType);
+      }
+    } else if (input.operation === "set_primary") {
+      if (!isManufacturingDrawingPurpose(drawing.purposeCode)) throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
+      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
+      await client.execute(DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+      await client.execute(UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+      if (primary && reference) {
+        await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: reference.id });
+      } else if (reference) {
+        await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL, { linkId: reference.id });
+      } else if (!primary) {
+        await insertLink("primary_manufacturing");
+      }
+    } else if (input.operation === "set_reference") {
+      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
+      if (primary && reference) {
+        await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: primary.id });
+      } else if (primary) {
+        await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_REFERENCE_SQL, { linkId: primary.id });
+      } else if (!reference) {
+        await insertLink("reference");
+      }
+    } else if (input.operation === "remove") {
+      await client.execute(DELETE_ASYNC_SAME_DRAWING_VARIANTS_FOR_PAIR_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+      await client.execute(DELETE_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+    } else {
+      throw new Error("RELATION_MAINTENANCE_OPERATION_UNSUPPORTED");
+    }
+
+    const afterRows = await this.listDrawingPartLinksForPair(client, drawing.id, part.id);
+    const before = beforeRows.map(mapNumberingLink);
+    const after = afterRows.map(mapNumberingLink);
+    const changed = JSON.stringify(before.map((link) => `${link.id}:${link.linkType}`).sort()) !== JSON.stringify(after.map((link) => `${link.id}:${link.linkType}`).sort());
+    await this.insertAudit(client, {
+      actorId: input.actorId,
+      action: "numbering.drawing_part.relation_maintain",
+      detail: {
+        operation: input.operation,
+        rootCode: rootRow.root_code,
+        drawingNumber: drawing.drawingNumber,
+        partNumber: part.partNumber,
+        before,
+        after,
+        changed
+      }
+    });
+    return { operation: input.operation, drawingNumber: drawing, partNumber: part, before, after, changed };
+  }
+
   private async getPrimaryManufacturingDrawingForPart(client: AsyncDatabaseClient, partNumberId: string): Promise<DrawingNumberRecord | null> {
     const row = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_PRIMARY_MANUFACTURING_DRAWING_FOR_PART_SQL, { partNumberId });
     return row ? mapDrawingNumber(row) : null;
+  }
+
+  private listDrawingPartLinksForPair(client: AsyncDatabaseClient, drawingNumberId: string, partNumberId: string): Promise<NumberingLinkRow[]> {
+    return client.query<NumberingLinkRow>(SELECT_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL, { drawingNumberId, partNumberId });
   }
 
   private async validateReplacementManufacturingDrawing(
@@ -7356,8 +8742,10 @@ export class AsyncNumberingRepository {
     const rootCode = importString(row, "rootCode", "root_code", "主根號");
     const partNumber = importString(row, "partNumber", "part_number", "料號");
     const drawingNumber = importString(row, "drawingNumber", "drawing_number", "圖號");
-    const coreName = importString(row, "coreName", "core_name", "品名", "名稱");
-    const partName = importString(row, "partName", "part_name", "料號品名") || coreName;
+    const importedCoreName = importString(row, "coreName", "core_name", "品名", "名稱");
+    const importedPartName = importString(row, "partName", "part_name", "料號品名");
+    const coreName = canonicalImportedRootName(importedCoreName, importedPartName);
+    const partName = coreName;
     const issues: Array<{ code: string; message: string }> = [];
 
     if (!rootCode) issues.push({ code: "ROOT_CODE_REQUIRED", message: "rootCode is required." });
@@ -7406,6 +8794,16 @@ export class AsyncNumberingRepository {
     return id;
   }
 
+  private async selectV3ReservedRootCodes(client: AsyncDatabaseClient, companyId: string): Promise<string[]> {
+    const [masterRows, auditRows] = await Promise.all([
+      client.query<{ root_code: string }>(SELECT_ASYNC_ROOT_CODES_BY_COMPANY_SQL, { companyId }),
+      client.query<{ detail_json: string }>(SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL)
+    ]);
+    return Array.from(
+      new Set([...masterRows.map((row) => row.root_code), ...auditRows.flatMap((row) => extractAuditRootCodesFromJson(row.detail_json, companyId))])
+    );
+  }
+
   private async allocateSequence(client: AsyncDatabaseClient, companyId: string, sequenceKey: string): Promise<number> {
     const row = await client.queryOne<{ next_value: number }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey });
     const now = this.clock();
@@ -7421,6 +8819,150 @@ export class AsyncNumberingRepository {
     return Number(row.next_value);
   }
 
+  private async allocateRootSequence(client: AsyncDatabaseClient, input: { companyId: string; ruleVersionId: string }): Promise<number> {
+    if (input.ruleVersionId !== NUMBERING_RULE_V2_ID && input.ruleVersionId !== NUMBERING_RULE_V3_ID) {
+      return this.allocateSequence(client, input.companyId, `${input.companyId}:part_root`);
+    }
+
+    const rootCodes =
+      input.ruleVersionId === NUMBERING_RULE_V3_ID
+        ? await this.selectV3ReservedRootCodes(client, input.companyId)
+        : (
+            await client.query<{ root_code: string }>(SELECT_ASYNC_V2_ROOT_CODES_BY_COMPANY_SQL, {
+              companyId: input.companyId,
+              ruleVersionId: input.ruleVersionId
+            })
+          ).map((row) => row.root_code);
+    const sequenceNo = lowestAvailableSequence(
+      rootCodes.map((rootCode) => (input.ruleVersionId === NUMBERING_RULE_V3_ID ? rootCodeToV3Ordinal(rootCode) ?? 0 : Number(rootCode))),
+      input.ruleVersionId === NUMBERING_RULE_V3_ID ? 26 * 9999 : 99999,
+      "ROOT"
+    );
+    const sequenceKey = input.ruleVersionId === NUMBERING_RULE_V3_ID ? `${input.companyId}:part_root:v3` : `${input.companyId}:part_root:v2`;
+    const row = await client.queryOne<{ next_value: number }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey });
+    const nextValue = sequenceNo + 1;
+    const now = this.clock();
+    if (!row) {
+      await client.execute(INSERT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey, companyId: input.companyId, nextValue, updatedAt: now });
+    } else {
+      await client.execute(UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey, nextValue, updatedAt: now });
+    }
+    return sequenceNo;
+  }
+
+  private async findRecentAppendAudit(
+    client: AsyncDatabaseClient,
+    input: { action: string; actorId: string | null; idempotencyKey: string }
+  ): Promise<Record<string, unknown> | null> {
+    const nowMs = Date.parse(this.clock());
+    const notBefore = new Date((Number.isFinite(nowMs) ? nowMs : Date.now()) - 60_000).toISOString();
+    const row = await client.queryOne<{ detail_json: string }>(
+      `
+        SELECT detail_json
+        FROM audit_logs
+        WHERE action = :action
+          AND (actor_id = :actorId OR (:actorId IS NULL AND actor_id IS NULL))
+          AND created_at >= :notBefore
+          AND detail_json LIKE :needle
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      {
+        action: input.action,
+        actorId: input.actorId,
+        notBefore,
+        needle: `%${input.idempotencyKey}%`
+      }
+    );
+    return row ? parseJsonDetail(row.detail_json) : null;
+  }
+
+  private async rootAppendReasonRequired(client: AsyncDatabaseClient, rootId: string, rootStatus: NumberingRecordStatus): Promise<boolean> {
+    if (isFormalRecordStatus(rootStatus)) return true;
+    const [partRows, drawingRows] = await Promise.all([
+      client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId }),
+      client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId })
+    ]);
+    return partRows.some((row) => isFormalRecordStatus(row.record_status)) || drawingRows.some((row) => isFormalRecordStatus(row.record_status));
+  }
+
+  private async getRootObsoleteImpactInClient(
+    client: AsyncDatabaseClient,
+    input: { companyId?: string; rootCode?: string; rootId?: string }
+  ): Promise<RootObsoleteImpactResult> {
+    const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+    const rootCode = input.rootCode?.trim();
+    const rootId = input.rootId?.trim();
+    if (!rootCode && !rootId) throw new Error("PART_ROOT_REQUIRED");
+    const rootRow = rootId
+      ? await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_ID_SQL, { rootId })
+      : await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
+    if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode || rootId}`);
+    if (rootRow.company_id !== companyId) throw new Error("PART_ROOT_COMPANY_MISMATCH");
+
+    const [partRows, drawingRows, linkRows, pending] = await Promise.all([
+      client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
+      client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id }),
+      client.query<NumberingLinkRow>(SELECT_ASYNC_NUMBERING_LINKS_FOR_ROOT_SQL, { rootId: rootRow.id }),
+      client.queryOne<{ id: string }>(
+        `
+          SELECT id
+          FROM approval_requests
+          WHERE request_type = 'numbering'
+            AND company_id = :companyId
+            AND entity_type = 'part_root'
+            AND entity_id = :entityId
+            AND action_code = 'obsolete_part_root'
+            AND request_status IN ('pending', 'needs_info')
+          LIMIT 1
+        `,
+        { companyId, entityId: rootRow.id }
+      )
+    ]);
+    const parts = partRows.map(mapPartNumber);
+    const drawings = drawingRows.map(mapDrawingNumber);
+    const formalTargets: RootObsoleteImpactTarget[] = [
+      ...parts
+        .filter((part) => isFormalRecordStatus(part.recordStatus))
+        .map((part) => ({
+          entityType: "part_number" as const,
+          entityId: part.id,
+          entityCode: part.partNumber,
+          recordStatus: part.recordStatus,
+          developmentPhase: part.developmentPhase
+        })),
+      ...drawings
+        .filter((drawing) => isFormalRecordStatus(drawing.recordStatus))
+        .map((drawing) => ({
+          entityType: "drawing_number" as const,
+          entityId: drawing.id,
+          entityCode: drawing.drawingNumber,
+          recordStatus: drawing.recordStatus,
+          developmentPhase: drawing.developmentPhase
+        }))
+    ];
+    const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
+    const warnings = [
+      draftChildren > 0 ? `尚有 ${draftChildren} 筆草稿/待補資料；正式作廢只會建立正式資料審核範圍。` : "",
+      formalTargets.length === 0 ? "此主根目前沒有可申請作廢的正式料號或圖號。" : "",
+      pending ? "此主根已有作廢審核中申請。" : ""
+    ].filter(Boolean);
+    const links: RootObsoleteImpactLink[] = linkRows.map((link) => ({
+      drawingNumber: link.drawing_number,
+      partNumber: link.part_number,
+      linkType: link.link_type
+    }));
+    return {
+      root: mapPartRoot(rootRow),
+      parts,
+      drawings,
+      links,
+      formalTargets,
+      warnings,
+      pendingRequestId: pending?.id ?? null
+    };
+  }
+
   private async insertPartRoot(
     client: AsyncDatabaseClient,
     input: {
@@ -7433,8 +8975,7 @@ export class AsyncNumberingRepository {
       createdBy?: string | null;
     }
   ): Promise<PartRootRecord> {
-    const rootSequenceKey = input.ruleVersionId === NUMBERING_RULE_V2_ID ? `${input.companyId}:part_root:v2` : `${input.companyId}:part_root`;
-    const rootCode = formatRootCode(await this.allocateSequence(client, input.companyId, rootSequenceKey), input.ruleVersionId);
+    const rootCode = formatRootCode(await this.allocateRootSequence(client, input), input.ruleVersionId);
     const id = this.idFactory();
     const now = this.clock();
     await client.execute(INSERT_ASYNC_PART_ROOT_SQL, {
@@ -7474,7 +9015,7 @@ export class AsyncNumberingRepository {
     requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
     requireCustomSpecification(input.itemKind, input.customSpecification);
     const sequenceNo =
-      effectiveIsUniversal && input.ruleVersionId !== NUMBERING_RULE_V2_ID
+      effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId)
         ? 0
         : await this.allocateSequence(client, root.companyId, `${root.companyId}:part:${root.rootCode}`);
     const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);

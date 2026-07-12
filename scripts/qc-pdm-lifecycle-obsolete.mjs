@@ -23,6 +23,8 @@ const obsoleteRoute = source("src/app/api/lifecycle/obsolete-requests/route.ts")
 const approvalRequestsRoute = source("src/app/api/numbering/approval-requests/route.ts");
 const approvalBatchesRoute = source("src/app/api/numbering/approval-batches/route.ts");
 const approvalsPage = source("src/app/numbering/approvals/page.tsx");
+const approvalWorkbenchPage = source("src/app/approvals/page.tsx");
+const approvalLegacyRedirect = source("src/lib/approval-workbench-legacy-redirect.ts");
 const bomRepository = source("src/lib/repositories/bom-workbench-async-repository.ts");
 const bomFacade = source("src/lib/bom-workbench-async.ts");
 const bomObsoleteRoute = source("src/app/api/bom/drafts/[draftId]/obsolete-request/route.ts");
@@ -75,10 +77,18 @@ assert(obsoleteRoute.includes("requestNumberingObsoleteApprovalAsync"), "Lifecyc
 assert(obsoleteRoute.includes("buildNumberingFormalRecordLifecyclePolicy"), "Lifecycle obsolete API returns updated policy");
 assert(obsoleteRoute.includes("pendingObsoleteRequest: true"), "Lifecycle obsolete API returns review-stage policy after request");
 
-assert(approvalsPage.includes("正式資料審核"), "Approval page title covers obsolete approvals");
-assert(approvalsPage.includes("料號作廢"), "Approval page labels part obsolete action");
-assert(approvalsPage.includes("圖號作廢"), "Approval page labels drawing obsolete action");
-assert(!approvalsPage.includes("<th>DVT/發行動作</th>"), "Approval page no longer labels the action column as DVT/release only");
+assert(
+  approvalsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && approvalsPage.includes('"numbering_approvals"'),
+  "Legacy numbering approvals route redirects to approval workbench"
+);
+assert(
+  approvalLegacyRedirect.includes("numbering_approvals") && approvalLegacyRedirect.includes('domain: "numbering"'),
+  "Legacy numbering approvals redirect preserves numbering domain filter"
+);
+assert(approvalWorkbenchPage.includes("<h1>審核工作台</h1>"), "Approval workbench title covers obsolete approvals");
+assert(approvalWorkbenchPage.includes("料號作廢審核"), "Approval workbench labels part obsolete action");
+assert(approvalWorkbenchPage.includes("圖號作廢審核"), "Approval workbench labels drawing obsolete action");
+assert(!approvalWorkbenchPage.includes("<th>DVT/發行動作</th>"), "Approval workbench no longer labels action as DVT/release only");
 
 assert(policy.includes('"bom_workbench_draft"'), "Lifecycle policy supports BOM workbench formal records");
 assert(policy.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM lifecycle policy builder exists");
@@ -105,9 +115,18 @@ assert(bomObsoleteRoute.includes("canReadBomDraftAsync"), "BOM obsolete API enfo
 assert(bomObsoleteRoute.includes("requestBomWorkbenchObsoleteReviewAsync"), "BOM obsolete API calls service");
 assert(bomObsoleteRoute.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM obsolete API returns policy");
 assert(bomObsoleteRoute.includes("pendingObsoleteRequest: true"), "BOM obsolete API returns review-stage policy after request");
-assert(bomReviewsPage.includes("核准作廢"), "BOM review UI exposes obsolete approval action");
-assert(bomReviewsPage.includes("退回申請"), "BOM review UI exposes obsolete rejection action");
-assert(bomReviewsPage.includes("作廢審核"), "BOM review UI labels obsolete review cards");
+assert(
+  bomReviewsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && bomReviewsPage.includes('"bom_reviews"'),
+  "Legacy BOM review route redirects to approval workbench"
+);
+assert(
+  approvalLegacyRedirect.includes("bom_reviews") && approvalLegacyRedirect.includes('domain: "bom"'),
+  "Legacy BOM review redirect preserves BOM domain filter"
+);
+assert(
+  approvalWorkbenchPage.includes("bom.obsolete_review") && approvalWorkbenchPage.includes("BOM 作廢審核"),
+  "Approval workbench labels BOM obsolete reviews"
+);
 assert(bomWorkbenchPage.includes("/obsolete-request"), "BOM workbench UI posts obsolete request");
 assert(bomWorkbenchPage.includes('selectedDraft?.status === "Released"'), "BOM workbench UI only exposes obsolete action on released drafts");
 assert(bomWorkbenchPage.includes("作廢原因"), "BOM workbench UI collects obsolete reason");
@@ -126,8 +145,8 @@ assert(submissionRepository.includes("lifecycle.obsolete.rejected"), "Submission
 assert(submissionFacade.includes("requestSubmissionObsoleteReviewAsync"), "Submission facade exports obsolete request service");
 assert(submissionObsoleteRoute.includes("requestSubmissionObsoleteReviewAsync"), "Submission obsolete API calls request service");
 assert(submissionObsoleteRoute.includes("buildSubmissionLifecyclePolicy"), "Submission obsolete API returns policy");
-assert(submissionObsoleteApproveRoute.includes("approveSubmissionObsoleteReviewAsync"), "Submission obsolete approval API calls service");
-assert(submissionObsoleteRejectRoute.includes("rejectSubmissionObsoleteReviewAsync"), "Submission obsolete rejection API calls service");
+assert(submissionObsoleteApproveRoute.includes("decideApprovalPlatformLegacySubmissionAsync"), "Submission obsolete approval API calls approval platform adapter");
+assert(submissionObsoleteRejectRoute.includes("decideApprovalPlatformLegacySubmissionAsync"), "Submission obsolete rejection API calls approval platform adapter");
 assert(dashboardPage.includes("申請作廢"), "Dashboard uses formal obsolete request label");
 assert(dashboardPage.includes("核准作廢"), "Dashboard uses formal obsolete approval label");
 assert(dashboardPage.includes("退回申請"), "Dashboard uses formal obsolete rejection label");

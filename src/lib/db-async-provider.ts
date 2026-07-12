@@ -119,7 +119,7 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
       return await fn(this);
     }
 
-    this.database.exec("BEGIN");
+    this.database.exec("BEGIN IMMEDIATE");
     try {
       const result = await fn(this);
       this.database.exec("COMMIT");

@@ -118,6 +118,13 @@ type DeletedMasterAttachment = {
   policy: LifecycleActionPolicy;
 };
 
+type PendingRevisionReviews = {
+  count: number;
+  revisions: string[];
+  workbenchHref: string;
+  canReview: boolean;
+};
+
 const drawingCategories = [
   { value: "cad_3d", label: "3D CAD" },
   { value: "intermediate", label: "中繼模型" },
@@ -155,12 +162,14 @@ export function MasterAttachmentPanel({
   entityType,
   entityCode,
   developmentPhase,
-  processControlled = true
+  processControlled = true,
+  pendingRevisionReviews = null
 }: {
   entityType: AttachmentEntityType;
   entityCode: string;
   developmentPhase?: NumberingPhase | null;
   processControlled?: boolean;
+  pendingRevisionReviews?: PendingRevisionReviews | null;
 }) {
   const categories = entityType === "drawing_number" ? drawingCategories : partCategories;
   const baseUrl =
@@ -202,6 +211,14 @@ export function MasterAttachmentPanel({
     [attachmentSections.current]
   );
   const supplementReasonDefinition = supplementReasons.find((reason) => reason.code === supplementReason) ?? supplementReasons[0];
+  const pendingReviewRevisions = useMemo(() => pendingRevisionReviews?.revisions ?? [], [pendingRevisionReviews?.revisions]);
+
+  function isRevisionPendingReview(revision: string | null | undefined) {
+    if (entityType !== "drawing_number") return false;
+    const value = String(revision ?? "").trim();
+    if (!value) return false;
+    return pendingReviewRevisions.some((pendingRevision) => compareAttachmentRevision(pendingRevision, value) === 0);
+  }
 
   const loadAttachments = useCallback(async (options?: { clearMessage?: boolean }) => {
     setLoading(true);
@@ -448,6 +465,8 @@ export function MasterAttachmentPanel({
     const submissionState = attachmentSubmissionState(attachment, options);
     const traceSubmissionId = attachment.sourceSubmissionId || attachment.revisionPackageSourceSubmissionId;
     const isSupplement = isApprovedSupplementAttachment(attachment);
+    const attachmentRevision = getAttachmentRevision(attachment);
+    const revisionPendingReview = isRevisionPendingReview(attachmentRevision);
     const quiet = options?.compact || options?.minimal;
     return (
       <article className={`master-attachment-row${options?.forceHistory ? " history" : ""}${options?.compact ? " compact" : ""}${options?.minimal ? " minimal" : ""}`} key={attachment.id}>
@@ -458,12 +477,13 @@ export function MasterAttachmentPanel({
           <div className="master-attachment-title-row">
             <strong title={attachment.fileName}>{attachment.displayName || attachment.fileName}</strong>
             {isSupplement ? <span className="master-attachment-status supplement">補件</span> : null}
+            {revisionPendingReview ? <span className="master-attachment-status approval-pending">待審</span> : null}
             {!quiet ? <span className={`master-attachment-status ${submissionState.tone}`}>{submissionState.label}</span> : null}
             {!quiet || attachment.gdriveStatus === "failed" ? <span className={`master-attachment-status ${attachment.gdriveStatus}`}>{driveStatusLabel(attachment.gdriveStatus)}</span> : null}
           </div>
           <div className="master-attachment-meta">
             <span>{categoryLabel(attachment.documentCategory)}</span>
-            {!options?.minimal && attachment.revision ? <span>版次 {attachment.revision}</span> : null}
+            {!options?.minimal && attachmentRevision ? <span>版次 {attachmentRevision}</span> : null}
             {!options?.minimal ? <span>{attachment.fileExt.toUpperCase()}</span> : null}
             {!options?.minimal ? <span>{formatBytes(attachment.fileSize)}</span> : null}
             {!quiet ? <span>{formatDateTime(attachment.createdAt)}</span> : null}
@@ -546,7 +566,6 @@ export function MasterAttachmentPanel({
           <div>
             <strong>{slot.title}</strong>
           </div>
-          <small>{attachment ? attachment.fileExt.toUpperCase() : "缺檔"}</small>
         </div>
         <div className={`drawing-preview-frame${previewMode === "none" ? " placeholder-frame" : ""}`}>
           {previewMode === "pdf" ? <iframe title={`${slot.title} PDF 預覽`} src={previewUrl} /> : null}
@@ -693,7 +712,6 @@ export function MasterAttachmentPanel({
               <UploadCloud size={16} />
               新增附件
             </span>
-            <strong>{suggestedRevision ? `建議版次 ${suggestedRevision}` : "手動輸入版次"}</strong>
           </summary>
           {uploadForm}
         </details>
@@ -807,7 +825,22 @@ export function MasterAttachmentPanel({
               {historyRevisionGroups.map((group) => (
                 <details className="master-attachment-history-revision" key={group.revision}>
                   <summary>
-                    <span>版次 {group.revision}</span>
+                    <span>
+                      版次 {group.revision}
+                      {isRevisionPendingReview(group.revision) ? (
+                        pendingRevisionReviews?.canReview ? (
+                          <a
+                            className="master-attachment-status approval-pending"
+                            href={pendingRevisionReviews.workbenchHref}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            待審
+                          </a>
+                        ) : (
+                          <span className="master-attachment-status approval-pending">待審</span>
+                        )
+                      ) : null}
+                    </span>
                     <strong>{group.attachments.length} 個檔案</strong>
                   </summary>
                   <div className="master-attachment-list">{group.attachments.map((attachment) => renderAttachmentRow(attachment, { forceHistory: true, minimal: true }))}</div>

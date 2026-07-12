@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { createReleasePackageStorageService } from "@/lib/file-storage";
 import { getPublicShareAsync, recordPublicShareAccessAsync } from "@/lib/readonly-share-async";
-import { contentDispositionFilename, getReleasePackageStorageKey, readReleasePackage } from "@/lib/release-package-file";
+import {
+  contentDispositionFilename,
+  createReleasePackageStorageServiceForRecord,
+  getReleasePackageStorageKey,
+  readReleasePackage
+} from "@/lib/release-package-file";
 import { auditStorageAccess, resolveStorageAccessAuditProvenance } from "@/lib/storage-access-audit";
 
 export const runtime = "nodejs";
@@ -16,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   try {
     const storageKey = getReleasePackageStorageKey(publicShare.submission.release_package);
     const bytes = await readReleasePackage(publicShare.submission.release_package);
-    const access = await createReleasePackageStorageService().createDownloadUrl({
+    const access = await createReleasePackageStorageServiceForRecord(publicShare.submission.release_package).createDownloadUrl({
       key: storageKey,
       filename: publicShare.submission.release_package.package_filename,
       forceDownload: true,

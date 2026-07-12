@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
+import { decideApprovalPlatformLegacyDrawingPackageSupplementAsync } from "@/lib/approval-platform";
 import { forbidden, requireRoleAsync } from "@/lib/auth-async";
-import {
-  decideDrawingRevisionPackageSupplementAsync,
-  DrawingRevisionPackageError
-} from "@/lib/drawing-revision-packages-async";
+import { DrawingRevisionPackageError } from "@/lib/drawing-revision-packages-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 
 export const runtime = "nodejs";
@@ -24,13 +22,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sup
   }
 
   try {
-    const result = await decideDrawingRevisionPackageSupplementAsync({
+    const result = await decideApprovalPlatformLegacyDrawingPackageSupplementAsync({
       supplementId,
       companyId: companyResult.company.companyId,
-      actorId: auth.user.id,
-      actorRole: auth.user.role,
-      decision,
-      note: nullableText(body.note ?? body.comment)
+      actor: auth.user,
+      decision: decision === "approve" ? "approved" : "rejected",
+      comment: nullableText(body.note ?? body.comment)
     });
     return NextResponse.json({ ...result, pdmCompany: companyResult.company });
   } catch (error) {

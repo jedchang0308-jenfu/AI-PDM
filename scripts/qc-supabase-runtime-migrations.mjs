@@ -36,7 +36,10 @@ const requiredFiles = [
   "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
   "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
   "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
-  "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql"
+  "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
+  "supabase/migrations/20260707010000_access_control_launch_governance.sql",
+  "supabase/migrations/20260710020000_account_invitations.sql",
+  "supabase/migrations/20260710030000_auth_identities_google_oauth.sql"
 ];
 for (const file of requiredFiles) {
   record(`SUPA-MIG-002 required file exists: ${file}`, projectFileExists(root, file), file);
@@ -47,10 +50,16 @@ const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql
 const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
 const searchPathHardening = readProjectFile(root, "db/postgres/003_harden_set_updated_at_search_path.sql");
 const compactNumbering = readProjectFile(root, "db/postgres/004_numbering_v2_compact_identity.sql");
+const accessControlLaunch = readProjectFile(root, "db/postgres/005_access_control_launch_governance.sql");
+const accountInvitations = readProjectFile(root, "db/postgres/006_account_invitations.sql");
+const authIdentities = readProjectFile(root, "db/postgres/007_auth_identities_google_oauth.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
 const migrationCompactNumbering = readProjectFile(root, "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql");
+const migrationAccessControlLaunch = readProjectFile(root, "supabase/migrations/20260707010000_access_control_launch_governance.sql");
+const migrationAccountInvitations = readProjectFile(root, "supabase/migrations/20260710020000_account_invitations.sql");
+const migrationAuthIdentities = readProjectFile(root, "supabase/migrations/20260710030000_auth_identities_google_oauth.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -71,13 +80,36 @@ record("SUPA-MIG-007A function hardening migration embeds source hash", migratio
 record("SUPA-MIG-007B function hardening migration fixes search_path", /ALTER FUNCTION public\.set_updated_at\(\)/u.test(migrationSearchPathHardening) && /SET search_path = public, pg_temp/u.test(migrationSearchPathHardening), "set_updated_at hardening migration");
 record("SUPA-MIG-007C compact numbering migration embeds source hash", migrationCompactNumbering.includes(`Source SHA-256: ${sha256(compactNumbering)}`), "compact numbering migration source hash");
 record("SUPA-MIG-007D compact numbering migration preserves v1/v2 drawing purpose compatibility", /PDM-NUMBERING-V2/u.test(migrationCompactNumbering) && /purpose_code IN \('MA', 'OT', 'M', 'R'\)/u.test(migrationCompactNumbering), "compact numbering migration");
-record("SUPA-MIG-008 manifest records all migrations", Array.isArray(manifest.migrations) && manifest.migrations.length === 4, JSON.stringify(manifest.migrations ?? []));
+record("SUPA-MIG-007E access-control launch migration embeds source hash", migrationAccessControlLaunch.includes(`Source SHA-256: ${sha256(accessControlLaunch)}`), "access-control launch source hash");
+record("SUPA-MIG-007F invitation migration embeds source hash", migrationAccountInvitations.includes(`Source SHA-256: ${sha256(accountInvitations)}`), "account invitation source hash");
+record(
+  "SUPA-MIG-007G invitation migration stores only token hashes and denies direct access",
+  migrationAccountInvitations.includes("token_hash") &&
+    !/\btoken\s+TEXT/iu.test(migrationAccountInvitations) &&
+    /ENABLE ROW LEVEL SECURITY/u.test(migrationAccountInvitations) &&
+    /REVOKE ALL ON TABLE public\.account_invitations FROM anon, authenticated/u.test(migrationAccountInvitations),
+  "account invitation security boundary"
+);
+record("SUPA-MIG-007H auth identity migration embeds source hash", migrationAuthIdentities.includes(`Source SHA-256: ${sha256(authIdentities)}`), "auth identity source hash");
+record(
+  "SUPA-MIG-007I auth identity migration uses stable provider subjects and denies direct access",
+  migrationAuthIdentities.includes("UNIQUE (provider, provider_subject)") &&
+    migrationAuthIdentities.includes("account_status") &&
+    !/access_token|refresh_token|id_token/iu.test(migrationAuthIdentities) &&
+    /ENABLE ROW LEVEL SECURITY/u.test(migrationAuthIdentities) &&
+    /REVOKE ALL ON TABLE public\.auth_identities FROM anon, authenticated/u.test(migrationAuthIdentities),
+  "auth identity security boundary"
+);
+record("SUPA-MIG-008 manifest records all migrations", Array.isArray(manifest.migrations) && manifest.migrations.length === 7, JSON.stringify(manifest.migrations ?? []));
 record(
   "SUPA-MIG-009 manifest source hashes match db/postgres",
   manifest.migrations?.[0]?.sourceSha256 === sha256(postgresSchema) &&
     manifest.migrations?.[1]?.sourceSha256 === sha256(rlsPlan) &&
     manifest.migrations?.[2]?.sourceSha256 === sha256(searchPathHardening) &&
-    manifest.migrations?.[3]?.sourceSha256 === sha256(compactNumbering),
+    manifest.migrations?.[3]?.sourceSha256 === sha256(compactNumbering) &&
+    manifest.migrations?.[4]?.sourceSha256 === sha256(accessControlLaunch) &&
+    manifest.migrations?.[5]?.sourceSha256 === sha256(accountInvitations) &&
+    manifest.migrations?.[6]?.sourceSha256 === sha256(authIdentities),
   JSON.stringify(manifest.migrations ?? [])
 );
 record(

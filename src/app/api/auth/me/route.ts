@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SESSION_COOKIE_NAME, createSessionCookie } from "@/lib/auth";
 import { getSessionUserAsync } from "@/lib/auth-async";
 import { serializeAuthUserAsync } from "@/lib/company-context";
 
@@ -10,5 +11,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  return NextResponse.json({ user: await serializeAuthUserAsync(user) });
+  const headers = hasSessionCookie(request) ? { "set-cookie": createSessionCookie(user.id) } : undefined;
+  return NextResponse.json({ user: await serializeAuthUserAsync(user) }, { headers });
+}
+
+function hasSessionCookie(request: Request) {
+  return (
+    request.headers
+      .get("cookie")
+      ?.split(";")
+      .some((cookie) => cookie.trim().startsWith(`${SESSION_COOKIE_NAME}=`)) ?? false
+  );
 }

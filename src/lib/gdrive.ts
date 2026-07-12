@@ -32,6 +32,14 @@ export type VerifiedDriveFolder = {
   verifiedAt: string;
 };
 
+export type DriveFileListItem = {
+  id: string;
+  name: string;
+  mimeType: string;
+  driveId: string | null;
+  webViewLink: string;
+};
+
 async function getAuthClient() {
   if (authClient) return authClient;
 
@@ -130,6 +138,62 @@ export async function listDriveFolders(parentId = "root"): Promise<DriveFolderLi
   return files.map(mapDriveFolderListItem);
 }
 
+export async function findDriveFileInFolderByName(input: {
+  parentId: string;
+  filename: string;
+  includeFolders?: boolean;
+}): Promise<DriveFileListItem | null> {
+  const normalizedParentId = input.parentId.trim() || "root";
+  const normalizedName = input.filename.trim();
+  if (!normalizedName) return null;
+  const folderFilter = input.includeFolders ? "" : ` and mimeType != '${driveFolderMimeType}'`;
+  const params = new URLSearchParams({
+    q: `'${escapeDriveQueryValue(normalizedParentId)}' in parents and name = '${escapeDriveQueryValue(normalizedName)}'${folderFilter} and trashed = false`,
+    fields: "files(id,name,mimeType,driveId,webViewLink)",
+    pageSize: "10",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true"
+  });
+  const result = await requestDriveApi(`/files?${params.toString()}`);
+  const files = Array.isArray(result.files) ? result.files : [];
+  return files[0] ? mapDriveFileListItem(files[0]) : null;
+}
+
+export async function ensureDriveFolder(input: { parentId: string; folderName: string }): Promise<DriveFolderListItem> {
+  const existing = await findDriveFileInFolderByName({
+    parentId: input.parentId,
+    filename: input.folderName,
+    includeFolders: true
+  });
+  if (existing) {
+    if (existing.mimeType !== driveFolderMimeType) {
+      throw new Error(`Drive path collision: ${input.folderName} exists but is not a folder`);
+    }
+    return {
+      id: existing.id,
+      name: existing.name,
+      mimeType: existing.mimeType,
+      driveId: existing.driveId,
+      hasChildren: true,
+      webViewLink: existing.webViewLink
+    };
+  }
+
+  const created = await requestDriveApi("/files?supportsAllDrives=true&fields=id,name,mimeType,driveId,webViewLink", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: input.folderName,
+      mimeType: driveFolderMimeType,
+      parents: [input.parentId.trim() || "root"]
+    })
+  });
+  return {
+    ...mapDriveFolderListItem(created),
+    hasChildren: true
+  };
+}
+
 export async function verifyDriveFolder(folderId: string): Promise<VerifiedDriveFolder> {
   const normalizedFolderId = folderId.trim();
   if (!normalizedFolderId) {
@@ -201,8 +265,22 @@ function mapDriveFolderListItem(file: any): DriveFolderListItem {
   };
 }
 
+function mapDriveFileListItem(file: any): DriveFileListItem {
+  return {
+    id: String(file.id ?? ""),
+    name: String(file.name ?? ""),
+    mimeType: String(file.mimeType ?? ""),
+    driveId: file.driveId ? String(file.driveId) : null,
+    webViewLink: String(file.webViewLink ?? driveFileUrl(String(file.id ?? "")))
+  };
+}
+
 function driveFolderUrl(folderId: string) {
   return `https://drive.google.com/drive/folders/${encodeURIComponent(folderId)}`;
+}
+
+function driveFileUrl(fileId: string) {
+  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`;
 }
 
 function escapeDriveQueryValue(value: string) {
@@ -254,6 +332,49 @@ export async function uploadFileToDrive(input: {
 
   const result = await response.json();
   return result.id;
+}
+
+export async function uploadBytesToDrive(input: {
+  bytes: Buffer;
+  filename: string;
+  targetFolderId: string;
+  mimeType?: string;
+  appProperties?: Record<string, string>;
+}): Promise<string> {
+  const token = await getAccessToken();
+
+  const metadata = {
+    name: input.filename,
+    parents: [input.targetFolderId],
+    ...(input.appProperties ? { appProperties: input.appProperties } : {})
+  };
+
+  const form = new FormData();
+  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.append("file", new Blob([bufferToArrayBuffer(input.bytes)], { type: input.mimeType || "application/octet-stream" }));
+
+  const url = `${getDriveUploadBaseUrl()}/files?uploadType=multipart&supportsAllDrives=true`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: form
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Drive Upload Error (${response.status}): ${body}`);
+  }
+
+  const result = await response.json();
+  return result.id;
+}
+
+function bufferToArrayBuffer(bytes: Buffer) {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 /**

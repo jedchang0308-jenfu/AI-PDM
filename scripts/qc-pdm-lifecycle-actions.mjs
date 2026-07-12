@@ -53,6 +53,8 @@ const obsoleteRequestRoute = readRequired("src/app/api/lifecycle/obsolete-reques
 const approvalRequestsRoute = readRequired("src/app/api/numbering/approval-requests/route.ts");
 const approvalBatchesRoute = readRequired("src/app/api/numbering/approval-batches/route.ts");
 const approvalsPage = readRequired("src/app/numbering/approvals/page.tsx");
+const approvalWorkbenchPage = readRequired("src/app/approvals/page.tsx");
+const approvalLegacyRedirect = readRequired("src/lib/approval-workbench-legacy-redirect.ts");
 const dbSchema = readRequired("db/schema.sql");
 const postgresInitialSchema = readRequired("db/postgres/001_initial_schema.sql");
 const globalCss = readRequired("src/app/globals.css");
@@ -265,8 +267,22 @@ assert(obsoleteRequestRoute.includes("requireNumberingActionAsync"), "Lifecycle 
 assert(obsoleteRequestRoute.includes("obsolete_part_number") && obsoleteRequestRoute.includes("obsolete_ma_drawing"), "Lifecycle obsolete route maps formal entity types to approval actions");
 assert(approvalRequestsRoute.includes("obsolete_part_number") && approvalRequestsRoute.includes("obsolete_ma_drawing"), "Generic approval request route allowlists obsolete actions");
 assert(approvalBatchesRoute.includes("obsolete_part_number") && approvalBatchesRoute.includes("obsolete_ma_drawing"), "Approval batch route includes obsolete actions in default review scope");
-assert(approvalsPage.includes("正式資料審核"), "Approval page uses broad formal-data review vocabulary");
-assert(approvalsPage.includes("料號作廢") && approvalsPage.includes("圖號作廢"), "Approval page labels obsolete actions in user vocabulary");
+assert(
+  approvalsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && approvalsPage.includes('"numbering_approvals"'),
+  "Legacy numbering approvals route redirects to approval workbench"
+);
+assert(
+  approvalLegacyRedirect.includes("numbering_approvals") && approvalLegacyRedirect.includes('domain: "numbering"'),
+  "Legacy numbering approvals redirect preserves numbering domain filter"
+);
+assert(approvalWorkbenchPage.includes("<h1>審核工作台</h1>"), "Approval workbench uses broad formal review vocabulary");
+assert(
+  approvalWorkbenchPage.includes("numbering.obsolete_part_number") &&
+    approvalWorkbenchPage.includes("料號作廢審核") &&
+    approvalWorkbenchPage.includes("numbering.obsolete_ma_drawing") &&
+    approvalWorkbenchPage.includes("圖號作廢審核"),
+  "Approval workbench labels obsolete actions in user vocabulary"
+);
 
 assert(response.includes("LIFE_PERMISSION_DENIED") && response.includes("403"), "Response mapper handles lifecycle permission denial");
 assert(response.includes("LIFE_ATTACHMENT_NOT_DELETED") && response.includes("409"), "Response mapper handles not-deleted restore conflict");
@@ -321,9 +337,18 @@ assert(bomWorkbenchPage.includes("/obsolete-request"), "BOM workbench page can r
 assert(bomWorkbenchPage.includes('selectedDraft?.status === "Released"'), "BOM workbench page shows obsolete action only for released drafts");
 assert(bomWorkbenchPage.includes("作廢原因"), "BOM workbench page collects obsolete reason");
 assert(bomWorkbenchPage.includes("申請作廢"), "BOM workbench page uses formal obsolete action label");
-assert(bomReviewsPage.includes("核准作廢"), "BOM review page exposes obsolete approval label");
-assert(bomReviewsPage.includes("退回申請"), "BOM review page exposes obsolete rejection label");
-assert(bomReviewsPage.includes("作廢審核"), "BOM review page labels obsolete reviews");
+assert(
+  bomReviewsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && bomReviewsPage.includes('"bom_reviews"'),
+  "Legacy BOM review page redirects to approval workbench"
+);
+assert(
+  approvalLegacyRedirect.includes("bom_reviews") && approvalLegacyRedirect.includes('domain: "bom"'),
+  "Legacy BOM review redirect preserves BOM domain filter"
+);
+assert(
+  approvalWorkbenchPage.includes("bom.obsolete_review") && approvalWorkbenchPage.includes("BOM 作廢審核"),
+  "Approval workbench labels BOM obsolete reviews"
+);
 assert(!bomWorkbenchPage.includes("作廢草稿"), "BOM workbench page does not expose obsolete wording for draft delete");
 assert(submissionLifecycleRepository.includes("submission_lifecycle_requests"), "Submission lifecycle repository persists obsolete requests");
 assert(submissionLifecycleRepository.includes("requestObsoleteReview"), "Submission lifecycle repository exposes obsolete request service");
@@ -339,8 +364,8 @@ assert(submissionLifecycleFacade.includes("approveSubmissionObsoleteReviewAsync"
 assert(submissionLifecycleFacade.includes("rejectSubmissionObsoleteReviewAsync"), "Submission lifecycle facade exports obsolete rejection service");
 assert(submissionObsoleteRoute.includes("requestSubmissionObsoleteReviewAsync"), "Submission obsolete route calls obsolete request service");
 assert(submissionObsoleteRoute.includes("buildSubmissionLifecyclePolicy"), "Submission obsolete route returns lifecycle policy");
-assert(submissionObsoleteApproveRoute.includes("approveSubmissionObsoleteReviewAsync"), "Submission obsolete approval route calls service");
-assert(submissionObsoleteRejectRoute.includes("rejectSubmissionObsoleteReviewAsync"), "Submission obsolete rejection route calls service");
+assert(submissionObsoleteApproveRoute.includes("decideApprovalPlatformLegacySubmissionAsync"), "Submission obsolete approval route calls approval platform adapter");
+assert(submissionObsoleteRejectRoute.includes("decideApprovalPlatformLegacySubmissionAsync"), "Submission obsolete rejection route calls approval platform adapter");
 assert(dashboardPage.includes("申請作廢"), "Dashboard exposes submission formal obsolete request label");
 assert(dashboardPage.includes("核准作廢"), "Dashboard exposes submission obsolete approval label");
 assert(dashboardPage.includes("退回申請"), "Dashboard exposes submission obsolete rejection label");

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { createFileStorageService, storageKeyFromLocalPath } from "@/lib/file-storage";
+import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { removeSubmissionUploadFolder, saveSubmissionFileBuffers } from "@/lib/file-store";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
@@ -2088,10 +2088,12 @@ function buildSnapshotBase(input: {
 }
 
 async function readAttachmentBytes(attachment: AttachmentRow) {
-  const storage = createFileStorageService();
-  const storageKey = attachment.storage_key || (attachment.original_path ? storageKeyFromLocalPath(attachment.original_path) : "");
-  if (!storageKey) throw new DrawingSubmissionWorkbenchError("DRAWING_SUBMISSION_ATTACHMENT_PATH_MISSING", "附件缺少本機儲存路徑。", 500);
-  return storage.readObject(storageKey);
+  try {
+    const storagePointer = storagePointerFromRecord(attachment);
+    return createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
+  } catch {
+    throw new DrawingSubmissionWorkbenchError("DRAWING_SUBMISSION_ATTACHMENT_PATH_MISSING", "附件缺少有效儲存指標。", 500);
+  }
 }
 
 function revisionFromSelectedAttachments(attachments: DrawingSubmissionAttachment[]) {

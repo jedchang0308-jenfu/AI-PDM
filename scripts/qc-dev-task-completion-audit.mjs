@@ -5,7 +5,7 @@ import { runProductionReadinessReport } from "./qc-production-readiness-report-r
 
 const root = process.cwd();
 const taskRelativePath = resolveTaskFile();
-const expectedExternalOpenIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001", "DEV-FIELD-001", "DEV-IND-007"];
+const expectedExternalOpenIds = ["DEV-FIELD-001"];
 const allowedOpenCategories = new Set([
   "external_document_manager",
   "external_solidworks_machine",

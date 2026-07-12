@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: 367f3c7cfdb94e8d2d8faedc11731798e465f3d3a16e56eb06a4200408da2d47
+-- Source SHA-256: bcaef508a14e7e29679fcf99bef5f2cf393ec87113d7d818ef10ffe63fefce97
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -10,6 +10,91 @@
 BEGIN;
 SET search_path = public;
 
+CREATE TABLE IF NOT EXISTS companies (
+  id TEXT PRIMARY KEY,
+  company_code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bom_import_profiles (
+  id TEXT PRIMARY KEY,
+  profile_name TEXT NOT NULL,
+  source_type TEXT NOT NULL DEFAULT 'solidworks_xls' CHECK (source_type IN ('solidworks_xls')),
+  version TEXT NOT NULL,
+  mapping_json TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (profile_name, version)
+);
+
+CREATE TABLE IF NOT EXISTS rule_templates (
+  id TEXT PRIMARY KEY,
+  template_code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  template_json TEXT NOT NULL DEFAULT '{}',
+  system_defined INTEGER NOT NULL DEFAULT 1 CHECK (system_defined IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_actions (
+  action_code TEXT PRIMARY KEY,
+  domain_code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  handler_key TEXT NOT NULL,
+  risk_level TEXT NOT NULL DEFAULT 'normal' CHECK (risk_level IN ('low', 'normal', 'high', 'critical')),
+  allow_batch INTEGER NOT NULL DEFAULT 0 CHECK (allow_batch IN (0, 1)),
+  requires_impact_snapshot INTEGER NOT NULL DEFAULT 1 CHECK (requires_impact_snapshot IN (0, 1)),
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+  id TEXT PRIMARY KEY,
+  role_code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  system_defined INTEGER NOT NULL DEFAULT 0 CHECK (system_defined IN (0, 1)),
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS file_assets (
+  id TEXT PRIMARY KEY,
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  original_path TEXT,
+  storage_key TEXT,
+  file_name TEXT NOT NULL,
+  file_ext TEXT NOT NULL DEFAULT '',
+  mime_type TEXT,
+  file_size BIGINT,
+  content_hash TEXT,
+  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+  linked_entity_type TEXT NOT NULL,
+  linked_entity_id TEXT NOT NULL,
+  document_category TEXT NOT NULL DEFAULT 'other',
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  revision TEXT,
+  uploaded_by TEXT,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT,
+  deleted_reason TEXT,
+  gdrive_file_id TEXT,
+  gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed')),
+  gdrive_error TEXT,
+  gdrive_synced_at TIMESTAMPTZ,
+  sync_status TEXT NOT NULL DEFAULT 'local_only' CHECK (sync_status IN ('local_only', 'migrated', 'missing', 'hash_mismatch')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
@@ -17,17 +102,80 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
-CREATE TABLE IF NOT EXISTS companies (
+CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
-  company_code TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number TEXT NOT NULL,
+  part_name TEXT NOT NULL,
+  current_revision TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  UNIQUE (company_id, part_number)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_sequences (
+  sequence_key TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  next_value INTEGER NOT NULL CHECK (next_value > 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id TEXT PRIMARY KEY,
+  role_id TEXT NOT NULL,
+  permission_kind TEXT NOT NULL CHECK (permission_kind IN ('page', 'action')),
+  permission_code TEXT NOT NULL,
+  allowed INTEGER NOT NULL DEFAULT 1 CHECK (allowed IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  UNIQUE (role_id, permission_kind, permission_code)
+);
+
+CREATE TABLE IF NOT EXISTS auth_identities (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK (provider IN ('local_password', 'google_oauth', 'invite')),
+  provider_subject TEXT NOT NULL,
+  login_identifier TEXT,
+  email_normalized TEXT,
+  verified_at TIMESTAMPTZ,
+  last_login_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE (provider, provider_subject),
+  UNIQUE (user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS account_invitations (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+  invited_by TEXT NOT NULL,
+  invited_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_by TEXT,
+  accepted_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  revoked_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (invited_by) REFERENCES users(id),
+  FOREIGN KEY (accepted_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS user_company_memberships (
@@ -75,46 +223,6 @@ CREATE TABLE IF NOT EXISTS secret_references (
   FOREIGN KEY (retired_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id),
   UNIQUE (kind, version)
-);
-
-CREATE TABLE IF NOT EXISTS setting_test_runs (
-  id TEXT PRIMARY KEY,
-  secret_reference_id TEXT NOT NULL,
-  kind TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  result_status TEXT NOT NULL CHECK (result_status IN ('passed', 'failed', 'blocked')),
-  summary TEXT NOT NULL,
-  redacted_error TEXT,
-  artifact_path TEXT,
-  tested_by TEXT NOT NULL,
-  tested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  metadata_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
-  FOREIGN KEY (tested_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS setting_activation_events (
-  id TEXT PRIMARY KEY,
-  secret_reference_id TEXT NOT NULL,
-  kind TEXT NOT NULL,
-  event_type TEXT NOT NULL CHECK (event_type IN ('created_draft', 'tested', 'activated', 'retired', 'revoked')),
-  actor_id TEXT NOT NULL,
-  event_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  detail_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
-  FOREIGN KEY (actor_id) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS items (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  part_number TEXT NOT NULL,
-  part_name TEXT NOT NULL,
-  current_revision TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  UNIQUE (company_id, part_number)
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
@@ -166,12 +274,359 @@ CREATE TABLE IF NOT EXISTS submissions (
   FOREIGN KEY (resolved_by_submission_id) REFERENCES submissions(id)
 );
 
+CREATE TABLE IF NOT EXISTS item_locks (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL,
+  locked_by TEXT NOT NULL,
+  lock_reason TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  released_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+  FOREIGN KEY (locked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_rule_versions (
+  id TEXT PRIMARY KEY,
+  rule_code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'retired')),
+  effective_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  retired_at TIMESTAMPTZ,
+  rule_json TEXT NOT NULL DEFAULT '{}',
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS review_confirmation_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  review_id TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (
+    action IN (
+      'confirm_bom_no_revision',
+      'confirm_original_part_reuse',
+      'return_for_replacement_part',
+      'approve_replacement_part_and_drawing_release'
+    )
+  ),
+  reviewer_user_id TEXT NOT NULL,
+  result TEXT NOT NULL,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (reviewer_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_check_events (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'mixed')),
+  query_json TEXT NOT NULL DEFAULT '{}',
+  result_json TEXT NOT NULL DEFAULT '{}',
+  blocked INTEGER NOT NULL DEFAULT 0 CHECK (blocked IN (0, 1)),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS warning_events (
+  id TEXT PRIMARY KEY,
+  warning_code TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'blocker')),
+  entity_type TEXT NOT NULL,
+  entity_id TEXT,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  acknowledged_by TEXT,
+  acknowledged_at TIMESTAMPTZ,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (acknowledged_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_task_items (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  task_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  risk_level TEXT NOT NULL DEFAULT 'info' CHECK (risk_level IN ('info', 'warning', 'critical')),
+  task_status TEXT NOT NULL DEFAULT 'open' CHECK (task_status IN ('open', 'handled', 'cancelled')),
+  assigned_to TEXT,
+  assigned_role TEXT,
+  project_code TEXT,
+  action_url TEXT,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  handled_by TEXT,
+  handled_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (assigned_to) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (handled_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_notifications (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  notification_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical')),
+  recipient_id TEXT,
+  recipient_role TEXT,
+  read_at TIMESTAMPTZ,
+  handled_at TIMESTAMPTZ,
+  handled_by TEXT,
+  dismissible INTEGER NOT NULL DEFAULT 1 CHECK (dismissible IN (0, 1)),
+  action_url TEXT,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (recipient_id) REFERENCES users(id),
+  FOREIGN KEY (handled_by) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_requests (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
+  action_code TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'same_drawing_variant')),
+  entity_id TEXT NOT NULL,
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled')),
+  reason TEXT NOT NULL,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  requested_by TEXT NOT NULL,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_batches (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  batch_code TEXT NOT NULL UNIQUE,
+  request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
+  project_code TEXT,
+  action_code TEXT,
+  batch_status TEXT NOT NULL DEFAULT 'pending' CHECK (batch_status IN ('pending', 'partially_approved', 'approved', 'rejected', 'needs_info', 'cancelled')),
+  submitted_by TEXT NOT NULL,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (submitted_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  package_code TEXT NOT NULL UNIQUE,
+  action_code TEXT NOT NULL,
+  package_type TEXT NOT NULL DEFAULT 'single' CHECK (package_type IN ('single', 'batch', 'aggregate')),
+  package_status TEXT NOT NULL DEFAULT 'pending' CHECK (package_status IN ('pending', 'partially_approved', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  title TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  submitted_by TEXT NOT NULL,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_by TEXT,
+  resolved_at TIMESTAMPTZ,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (action_code) REFERENCES approval_platform_actions(action_code),
+  FOREIGN KEY (submitted_by) REFERENCES users(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS role_priority_versions (
+  id TEXT PRIMARY KEY,
+  version_code TEXT NOT NULL UNIQUE,
+  priority_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'retired')),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS role_scope_rules (
+  id TEXT PRIMARY KEY,
+  role_id TEXT NOT NULL,
+  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('department', 'project', 'action')),
+  scope_code TEXT NOT NULL,
+  allowed INTEGER NOT NULL DEFAULT 1 CHECK (allowed IN (0, 1)),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (role_id, scope_kind, scope_code)
+);
+
+CREATE TABLE IF NOT EXISTS user_role_assignments (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  role_id TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  scope_template TEXT NOT NULL DEFAULT 'own_department',
+  named_scope TEXT NOT NULL DEFAULT '',
+  sponsor_user_id TEXT,
+  starts_at TIMESTAMPTZ,
+  review_due_at TIMESTAMPTZ,
+  hard_ends_at TIMESTAMPTZ,
+  assigned_by TEXT NOT NULL,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  FOREIGN KEY (sponsor_user_id) REFERENCES users(id),
+  FOREIGN KEY (assigned_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_delegations (
+  id TEXT PRIMARY KEY,
+  delegated_from TEXT NOT NULL,
+  delegated_to TEXT NOT NULL,
+  project_code TEXT,
+  action_code TEXT,
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  reason TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  FOREIGN KEY (delegated_from) REFERENCES users(id),
+  FOREIGN KEY (delegated_to) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS import_batches (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  source_filename TEXT NOT NULL,
+  source_hash TEXT,
+  status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
+  summary_json TEXT NOT NULL DEFAULT '{}',
+  imported_by TEXT NOT NULL,
+  confirmed_by TEXT,
+  confirmed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (imported_by) REFERENCES users(id),
+  FOREIGN KEY (confirmed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS preview_jobs (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  source_file_asset_id TEXT NOT NULL,
+  source_content_hash TEXT NOT NULL,
+  requested_kind TEXT NOT NULL CHECK (requested_kind IN ('native_thumbnail_png', 'drawing_pdf')),
+  source_extension TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled')),
+  priority INTEGER NOT NULL DEFAULT 100,
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  locked_by TEXT,
+  locked_at TIMESTAMPTZ,
+  idempotency_key TEXT NOT NULL,
+  generator_profile TEXT NOT NULL DEFAULT 'windows_solidworks_preview_worker',
+  error_code TEXT,
+  error_summary TEXT,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_export_jobs (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  export_mode TEXT NOT NULL CHECK (export_mode IN ('no_audit', 'last_change_summary', 'full_change_summary')),
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+  result_json TEXT NOT NULL DEFAULT '{}',
+  generated_by TEXT,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (generated_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS llm_conversations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  title TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS setting_test_runs (
+  id TEXT PRIMARY KEY,
+  secret_reference_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  result_status TEXT NOT NULL CHECK (result_status IN ('passed', 'failed', 'blocked')),
+  summary TEXT NOT NULL,
+  redacted_error TEXT,
+  artifact_path TEXT,
+  tested_by TEXT NOT NULL,
+  tested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+  FOREIGN KEY (tested_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS setting_activation_events (
+  id TEXT PRIMARY KEY,
+  secret_reference_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('created_draft', 'tested', 'activated', 'retired', 'revoked')),
+  actor_id TEXT NOT NULL,
+  event_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS submission_files (
   id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL,
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_bucket TEXT,
+  storage_key TEXT,
   gdrive_file_id TEXT,
   gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed', 'moved')),
   sha256 TEXT NOT NULL,
@@ -224,25 +679,6 @@ CREATE TABLE IF NOT EXISTS submission_attempts (
   UNIQUE (company_id, actor_id, idempotency_key)
 );
 
-CREATE TABLE IF NOT EXISTS file_references (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  source_file_id TEXT,
-  source_filename TEXT NOT NULL,
-  source_file_role TEXT NOT NULL CHECK (source_file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
-  referenced_filename TEXT NOT NULL,
-  referenced_part_number TEXT,
-  referenced_drawing_number TEXT,
-  referenced_revision TEXT,
-  reference_type TEXT NOT NULL CHECK (reference_type IN ('assembly_component', 'drawing_model', 'derived', 'unknown')),
-  quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
-  extraction_method TEXT NOT NULL,
-  confidence TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL
-);
-
 CREATE TABLE IF NOT EXISTS bom_headers (
   id TEXT PRIMARY KEY,
   parent_item_id TEXT NOT NULL,
@@ -255,23 +691,6 @@ CREATE TABLE IF NOT EXISTS bom_headers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE CASCADE,
   FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS bom_lines (
-  id TEXT PRIMARY KEY,
-  bom_header_id TEXT NOT NULL,
-  line_no INTEGER NOT NULL,
-  child_part_number TEXT NOT NULL,
-  child_revision TEXT,
-  quantity DOUBLE PRECISION NOT NULL DEFAULT 1 CHECK (quantity > 0),
-  source_file_id TEXT,
-  source_reference_id TEXT,
-  source_filename TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (bom_header_id) REFERENCES bom_headers(id) ON DELETE CASCADE,
-  FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL,
-  FOREIGN KEY (source_reference_id) REFERENCES file_references(id) ON DELETE SET NULL,
-  UNIQUE (bom_header_id, line_no)
 );
 
 CREATE TABLE IF NOT EXISTS bom_drafts (
@@ -293,6 +712,369 @@ CREATE TABLE IF NOT EXISTS bom_drafts (
   FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS release_packages (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL UNIQUE,
+  package_filename TEXT NOT NULL,
+  local_path TEXT NOT NULL,
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_bucket TEXT,
+  storage_key TEXT,
+  sha256 TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  manifest_json JSONB NOT NULL,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS readonly_shares (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_by TEXT NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  access_count INTEGER NOT NULL DEFAULT 0,
+  last_accessed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS procurement_sync_runs (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  target_system TEXT NOT NULL CHECK (target_system IN ('ERP', 'inventory', 'procurement')),
+  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'acknowledged', 'failed')),
+  payload_json JSONB NOT NULL,
+  response_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  external_reference TEXT,
+  created_by TEXT NOT NULL,
+  acknowledged_by TEXT,
+  acknowledged_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (acknowledged_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS sandbox_branches (
+  id TEXT PRIMARY KEY,
+  source_submission_id TEXT NOT NULL,
+  sandbox_submission_id TEXT NOT NULL UNIQUE,
+  branch_name TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'promoted', 'closed')),
+  created_by TEXT NOT NULL,
+  promoted_by TEXT,
+  closed_by TEXT,
+  merged_by TEXT,
+  merge_summary_json JSONB,
+  promoted_at TIMESTAMPTZ,
+  closed_at TIMESTAMPTZ,
+  merged_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (sandbox_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (promoted_by) REFERENCES users(id),
+  FOREIGN KEY (closed_by) REFERENCES users(id),
+  FOREIGN KEY (merged_by) REFERENCES users(id),
+  UNIQUE (source_submission_id, branch_name)
+);
+
+CREATE TABLE IF NOT EXISTS change_requests (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('ECR', 'ECO', 'ECN')),
+  title TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  impact TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'approved', 'rejected', 'closed')),
+  requested_by TEXT NOT NULL,
+  decided_by TEXT,
+  decision_comment TEXT,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (decided_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS phase_gate_checks (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  gate_code TEXT NOT NULL CHECK (gate_code IN ('concept', 'design', 'verification', 'release')),
+  gate_name TEXT NOT NULL,
+  checklist_item TEXT NOT NULL,
+  required INTEGER NOT NULL DEFAULT 1 CHECK (required IN (0, 1)),
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'completed', 'waived')),
+  created_by TEXT NOT NULL,
+  decided_by TEXT,
+  decision_comment TEXT,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (decided_by) REFERENCES users(id),
+  UNIQUE (submission_id, gate_code, checklist_item)
+);
+
+CREATE TABLE IF NOT EXISTS approval_steps (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  reviewer_id TEXT NOT NULL,
+  sequence_no INTEGER NOT NULL DEFAULT 1,
+  decision TEXT NOT NULL CHECK (decision IN ('Approved', 'Rejected')),
+  comment TEXT,
+  decided_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewer_id) REFERENCES users(id),
+  UNIQUE (submission_id, reviewer_id, sequence_no)
+);
+
+CREATE TABLE IF NOT EXISTS approval_matrix_requirements (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  required_role TEXT NOT NULL CHECK (required_role IN ('R&D Manager', 'Admin')),
+  min_count INTEGER NOT NULL DEFAULT 1 CHECK (min_count BETWEEN 1 AND 3),
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'satisfied', 'waived')),
+  created_by TEXT NOT NULL,
+  decided_by TEXT,
+  decision_comment TEXT,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (decided_by) REFERENCES users(id),
+  UNIQUE (submission_id, required_role)
+);
+
+CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  action_code TEXT NOT NULL CHECK (action_code IN ('obsolete_submission')),
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+  requested_by TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  decided_by TEXT,
+  decision_reason TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (decided_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT,
+  actor_id TEXT,
+  action TEXT NOT NULL,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS part_roots (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  root_code TEXT NOT NULL,
+  core_name TEXT NOT NULL,
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
+  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (company_id, root_code)
+);
+
+CREATE TABLE IF NOT EXISTS approval_rules (
+  id TEXT PRIMARY KEY,
+  rule_version_id TEXT NOT NULL,
+  rule_name TEXT NOT NULL,
+  action_code TEXT NOT NULL,
+  phase TEXT,
+  record_status TEXT,
+  item_kind TEXT,
+  risk_flag TEXT,
+  requires_approval INTEGER NOT NULL DEFAULT 0 CHECK (requires_approval IN (0, 1)),
+  approver_role TEXT,
+  blocks_usage INTEGER NOT NULL DEFAULT 0 CHECK (blocks_usage IN (0, 1)),
+  blocks_release INTEGER NOT NULL DEFAULT 0 CHECK (blocks_release IN (0, 1)),
+  shows_warning INTEGER NOT NULL DEFAULT 1 CHECK (shows_warning IN (0, 1)),
+  export_marker INTEGER NOT NULL DEFAULT 1 CHECK (export_marker IN (0, 1)),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_decisions (
+  id TEXT PRIMARY KEY,
+  approval_request_id TEXT NOT NULL,
+  approver_role TEXT NOT NULL,
+  approver_id TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'needs_info')),
+  comment TEXT,
+  decided_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (approver_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_batch_items (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  approval_request_id TEXT NOT NULL,
+  item_status TEXT NOT NULL DEFAULT 'pending' CHECK (item_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'resubmitted')),
+  resubmitted_from_item_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (batch_id) REFERENCES approval_batches(id) ON DELETE CASCADE,
+  FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (resubmitted_from_item_id) REFERENCES approval_batch_items(id),
+  UNIQUE (batch_id, approval_request_id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_requests (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  package_id TEXT,
+  action_code TEXT NOT NULL,
+  domain_code TEXT NOT NULL,
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  title TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_by TEXT,
+  resolved_at TIMESTAMPTZ,
+  apply_status TEXT NOT NULL DEFAULT 'not_ready' CHECK (apply_status IN ('not_ready', 'not_required', 'pending', 'applied', 'failed')),
+  apply_attempts INTEGER NOT NULL DEFAULT 0 CHECK (apply_attempts >= 0),
+  apply_error TEXT,
+  applied_by TEXT,
+  applied_at TIMESTAMPTZ,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE SET NULL,
+  FOREIGN KEY (action_code) REFERENCES approval_platform_actions(action_code),
+  FOREIGN KEY (requested_by) REFERENCES users(id),
+  FOREIGN KEY (resolved_by) REFERENCES users(id),
+  FOREIGN KEY (applied_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS import_staging_rows (
+  id TEXT PRIMARY KEY,
+  import_batch_id TEXT NOT NULL,
+  row_no INTEGER NOT NULL CHECK (row_no > 0),
+  raw_json TEXT NOT NULL,
+  check_status TEXT NOT NULL DEFAULT 'pending' CHECK (check_status IN ('pending', 'valid', 'need_info', 'admin_confirm', 'conflict', 'legacy_keep')),
+  issue_json TEXT NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (import_batch_id) REFERENCES import_batches(id) ON DELETE CASCADE,
+  UNIQUE (import_batch_id, row_no)
+);
+
+CREATE TABLE IF NOT EXISTS file_derivatives (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  source_file_asset_id TEXT NOT NULL,
+  source_content_hash TEXT NOT NULL,
+  derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_key TEXT NOT NULL,
+  original_path TEXT,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_size BIGINT NOT NULL CHECK (file_size >= 0),
+  content_hash TEXT NOT NULL,
+  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+  width INTEGER,
+  height INTEGER,
+  page_count INTEGER,
+  generator_profile TEXT NOT NULL,
+  generator_version TEXT,
+  preview_job_id TEXT,
+  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'stale', 'retired', 'failed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by_worker TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (preview_job_id) REFERENCES preview_jobs(id)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_audit_reports (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  report_type TEXT NOT NULL,
+  report_month TEXT NOT NULL,
+  generation_mode TEXT NOT NULL CHECK (generation_mode IN ('auto', 'manual')),
+  generated_by TEXT,
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+  query_json TEXT NOT NULL DEFAULT '{}',
+  scope_json TEXT NOT NULL DEFAULT '{}',
+  rule_version_id TEXT,
+  download_count INTEGER NOT NULL DEFAULT 0 CHECK (download_count >= 0),
+  last_downloaded_by TEXT,
+  last_downloaded_at TIMESTAMPTZ,
+  regenerate_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (generated_by) REFERENCES users(id),
+  FOREIGN KEY (last_downloaded_by) REFERENCES users(id),
+  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id)
+);
+
+CREATE TABLE IF NOT EXISTS llm_messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (conversation_id) REFERENCES llm_conversations(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS file_references (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  source_file_id TEXT,
+  source_filename TEXT NOT NULL,
+  source_file_role TEXT NOT NULL CHECK (source_file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
+  referenced_filename TEXT NOT NULL,
+  referenced_part_number TEXT,
+  referenced_drawing_number TEXT,
+  referenced_revision TEXT,
+  reference_type TEXT NOT NULL CHECK (reference_type IN ('assembly_component', 'drawing_model', 'derived', 'unknown')),
+  quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+  extraction_method TEXT NOT NULL,
+  confidence TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS bom_lines_tree (
@@ -324,17 +1106,6 @@ CREATE TABLE IF NOT EXISTS bom_lines_tree (
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_import_profiles (
-  id TEXT PRIMARY KEY,
-  profile_name TEXT NOT NULL,
-  source_type TEXT NOT NULL DEFAULT 'solidworks_xls' CHECK (source_type IN ('solidworks_xls')),
-  version TEXT NOT NULL,
-  mapping_json TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (profile_name, version)
 );
 
 CREATE TABLE IF NOT EXISTS bom_import_jobs (
@@ -403,51 +1174,6 @@ CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   FOREIGN KEY (obsolete_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS item_locks (
-  id TEXT PRIMARY KEY,
-  item_id TEXT NOT NULL,
-  locked_by TEXT NOT NULL,
-  lock_reason TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  released_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-  FOREIGN KEY (locked_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS release_packages (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL UNIQUE,
-  package_filename TEXT NOT NULL,
-  local_path TEXT NOT NULL,
-  sha256 TEXT NOT NULL,
-  file_size BIGINT NOT NULL,
-  manifest_json JSONB NOT NULL,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS readonly_shares (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  token_hash TEXT NOT NULL UNIQUE,
-  label TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_by TEXT NOT NULL,
-  revoked_at TIMESTAMPTZ,
-  revoked_by TEXT,
-  access_count INTEGER NOT NULL DEFAULT 0,
-  last_accessed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (revoked_by) REFERENCES users(id)
-);
-
 CREATE TABLE IF NOT EXISTS supplier_portal_responses (
   id TEXT PRIMARY KEY,
   share_id TEXT NOT NULL,
@@ -464,50 +1190,6 @@ CREATE TABLE IF NOT EXISTS supplier_portal_responses (
   FOREIGN KEY (share_id) REFERENCES readonly_shares(id) ON DELETE CASCADE,
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
   FOREIGN KEY (closed_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS procurement_sync_runs (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  target_system TEXT NOT NULL CHECK (target_system IN ('ERP', 'inventory', 'procurement')),
-  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'acknowledged', 'failed')),
-  payload_json JSONB NOT NULL,
-  response_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  external_reference TEXT,
-  created_by TEXT NOT NULL,
-  acknowledged_by TEXT,
-  acknowledged_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (acknowledged_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS sandbox_branches (
-  id TEXT PRIMARY KEY,
-  source_submission_id TEXT NOT NULL,
-  sandbox_submission_id TEXT NOT NULL UNIQUE,
-  branch_name TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'promoted', 'closed')),
-  created_by TEXT NOT NULL,
-  promoted_by TEXT,
-  closed_by TEXT,
-  merged_by TEXT,
-  merge_summary_json JSONB,
-  promoted_at TIMESTAMPTZ,
-  closed_at TIMESTAMPTZ,
-  merged_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (sandbox_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (promoted_by) REFERENCES users(id),
-  FOREIGN KEY (closed_by) REFERENCES users(id),
-  FOREIGN KEY (merged_by) REFERENCES users(id),
-  UNIQUE (source_submission_id, branch_name)
 );
 
 CREATE TABLE IF NOT EXISTS discussion_comments (
@@ -548,45 +1230,6 @@ CREATE TABLE IF NOT EXISTS review_issues (
   FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS change_requests (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('ECR', 'ECO', 'ECN')),
-  title TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  impact TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'approved', 'rejected', 'closed')),
-  requested_by TEXT NOT NULL,
-  decided_by TEXT,
-  decision_comment TEXT,
-  decided_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (requested_by) REFERENCES users(id),
-  FOREIGN KEY (decided_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS phase_gate_checks (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  gate_code TEXT NOT NULL CHECK (gate_code IN ('concept', 'design', 'verification', 'release')),
-  gate_name TEXT NOT NULL,
-  checklist_item TEXT NOT NULL,
-  required INTEGER NOT NULL DEFAULT 1 CHECK (required IN (0, 1)),
-  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'completed', 'waived')),
-  created_by TEXT NOT NULL,
-  decided_by TEXT,
-  decision_comment TEXT,
-  decided_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (decided_by) REFERENCES users(id),
-  UNIQUE (submission_id, gate_code, checklist_item)
-);
-
 CREATE TABLE IF NOT EXISTS pdf_markups (
   id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL,
@@ -607,134 +1250,6 @@ CREATE TABLE IF NOT EXISTS pdf_markups (
   FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS approval_steps (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  reviewer_id TEXT NOT NULL,
-  sequence_no INTEGER NOT NULL DEFAULT 1,
-  decision TEXT NOT NULL CHECK (decision IN ('Approved', 'Rejected')),
-  comment TEXT,
-  decided_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (reviewer_id) REFERENCES users(id),
-  UNIQUE (submission_id, reviewer_id, sequence_no)
-);
-
-CREATE TABLE IF NOT EXISTS approval_matrix_requirements (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  required_role TEXT NOT NULL CHECK (required_role IN ('R&D Manager', 'Admin')),
-  min_count INTEGER NOT NULL DEFAULT 1 CHECK (min_count BETWEEN 1 AND 3),
-  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'satisfied', 'waived')),
-  created_by TEXT NOT NULL,
-  decided_by TEXT,
-  decision_comment TEXT,
-  decided_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (decided_by) REFERENCES users(id),
-  UNIQUE (submission_id, required_role)
-);
-
-CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  action_code TEXT NOT NULL CHECK (action_code IN ('obsolete_submission')),
-  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'cancelled')),
-  requested_by TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  decided_by TEXT,
-  decision_reason TEXT,
-  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  decided_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (requested_by) REFERENCES users(id),
-  FOREIGN KEY (decided_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT,
-  actor_id TEXT,
-  action TEXT NOT NULL,
-  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS numbering_sequences (
-  sequence_key TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  next_value INTEGER NOT NULL CHECK (next_value > 0),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id)
-);
-
-CREATE TABLE IF NOT EXISTS numbering_rule_versions (
-  id TEXT PRIMARY KEY,
-  rule_code TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'retired')),
-  effective_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  retired_at TIMESTAMPTZ,
-  rule_json TEXT NOT NULL DEFAULT '{}',
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json)
-VALUES (
-  'numbering-rule-v1',
-  'PDM-NUMBERING-V1',
-  'PDM numbering rule v1',
-  'retired',
-  now(),
-  '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
-)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
-VALUES (
-  'numbering-rule-v2',
-  'PDM-NUMBERING-V2',
-  'PDM compact numbering rule v2',
-  'active',
-  '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
-)
-ON CONFLICT (id) DO NOTHING;
-
-UPDATE numbering_rule_versions
-SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
-WHERE id = 'numbering-rule-v1';
-
-UPDATE numbering_rule_versions
-SET status = 'active', retired_at = NULL, updated_at = now()
-WHERE id = 'numbering-rule-v2';
-
-CREATE TABLE IF NOT EXISTS part_roots (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  root_code TEXT NOT NULL,
-  core_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
-  development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  UNIQUE (company_id, root_code)
-);
-
 CREATE TABLE IF NOT EXISTS part_numbers (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -750,7 +1265,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   universal_reason TEXT,
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -773,7 +1288,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
-  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v2',
+  rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -783,6 +1298,103 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   FOREIGN KEY (created_by) REFERENCES users(id),
   UNIQUE (company_id, drawing_number),
   UNIQUE (part_root_id, purpose_code, sequence_no)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_targets (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  target_role TEXT NOT NULL DEFAULT 'primary' CHECK (target_role IN ('primary', 'child', 'impact')),
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  target_code TEXT,
+  target_label TEXT NOT NULL DEFAULT '',
+  target_status TEXT,
+  snapshot_json TEXT NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_impact_snapshots (
+  id TEXT PRIMARY KEY,
+  request_id TEXT,
+  package_id TEXT,
+  snapshot_hash TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL DEFAULT '{}',
+  captured_by TEXT NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (captured_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_decisions (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  approver_role TEXT NOT NULL,
+  approver_id TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'needs_info')),
+  comment TEXT,
+  decided_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (approver_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_events (
+  id TEXT PRIMARY KEY,
+  request_id TEXT,
+  package_id TEXT,
+  event_type TEXT NOT NULL,
+  actor_id TEXT,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_legacy_links (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  legacy_table TEXT NOT NULL,
+  legacy_id TEXT NOT NULL,
+  legacy_status TEXT NOT NULL,
+  parity_hash TEXT,
+  migration_status TEXT NOT NULL DEFAULT 'adapter' CHECK (migration_status IN ('adapter', 'mirrored', 'migrated', 'blocked')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  UNIQUE (legacy_table, legacy_id)
+);
+
+CREATE TABLE IF NOT EXISTS approval_platform_package_items (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  item_status TEXT NOT NULL DEFAULT 'pending' CHECK (item_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'apply_failed', 'applied')),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (package_id) REFERENCES approval_platform_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (request_id) REFERENCES approval_platform_requests(id) ON DELETE CASCADE,
+  UNIQUE (package_id, request_id)
+);
+
+CREATE TABLE IF NOT EXISTS bom_lines (
+  id TEXT PRIMARY KEY,
+  bom_header_id TEXT NOT NULL,
+  line_no INTEGER NOT NULL,
+  child_part_number TEXT NOT NULL,
+  child_revision TEXT,
+  quantity DOUBLE PRECISION NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  source_file_id TEXT,
+  source_reference_id TEXT,
+  source_filename TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (bom_header_id) REFERENCES bom_headers(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL,
+  FOREIGN KEY (source_reference_id) REFERENCES file_references(id) ON DELETE SET NULL,
+  UNIQUE (bom_header_id, line_no)
 );
 
 CREATE TABLE IF NOT EXISTS part_number_drafts (
@@ -810,36 +1422,6 @@ CREATE TABLE IF NOT EXISTS part_number_drafts (
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS part_number_events (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  part_number_draft_id TEXT,
-  part_number_id TEXT,
-  event_type TEXT NOT NULL CHECK (
-    event_type IN (
-      'draft_created',
-      'item_type_changed',
-      'source_part_changed',
-      'draft_voided',
-      'draft_recycle_scheduled',
-      'draft_recycled',
-      'draft_reissued',
-      'draft_submitted',
-      'draft_reconfirmation_required',
-      'draft_reconfirmed',
-      'part_released',
-      'controlled_recycle_blocked'
-    )
-  ),
-  actor_user_id TEXT,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  metadata_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
-  FOREIGN KEY (actor_user_id) REFERENCES users(id)
-);
-
 CREATE TABLE IF NOT EXISTS part_replacement_links (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -857,50 +1439,6 @@ CREATE TABLE IF NOT EXISTS part_replacement_links (
   FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE SET NULL,
   FOREIGN KEY (released_by) REFERENCES users(id),
   UNIQUE (old_part_number_id, new_part_number_id)
-);
-
-CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  drawing_number_id TEXT NOT NULL,
-  revision TEXT NOT NULL,
-  submission_id TEXT,
-  review_package_id TEXT,
-  replacement_part_number_draft_id TEXT,
-  detected_part_number TEXT,
-  corrected_part_number TEXT,
-  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
-  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
-  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
-  reason_category TEXT NOT NULL,
-  note TEXT,
-  assessed_by TEXT,
-  assessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (replacement_part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
-  FOREIGN KEY (assessed_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS review_confirmation_events (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  review_id TEXT NOT NULL,
-  action TEXT NOT NULL CHECK (
-    action IN (
-      'confirm_bom_no_revision',
-      'confirm_original_part_reuse',
-      'return_for_replacement_part',
-      'approve_replacement_part_and_drawing_release'
-    )
-  ),
-  reviewer_user_id TEXT NOT NULL,
-  result TEXT NOT NULL,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  metadata_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (reviewer_user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
@@ -985,6 +1523,110 @@ CREATE TABLE IF NOT EXISTS part_cost_profiles (
   FOREIGN KEY (approved_by) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS drawing_revision_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  drawing_number_id TEXT NOT NULL,
+  drawing_number TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Rejected', 'Cancelled')),
+  source_submission_id TEXT UNIQUE,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  submitted_at TIMESTAMPTZ,
+  released_at TIMESTAMPTZ,
+  rejected_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
+  superseded_by_package_id TEXT,
+  snapshot_json TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (superseded_by_package_id) REFERENCES drawing_revision_packages(id)
+);
+
+CREATE TABLE IF NOT EXISTS shared_cad_model_versions (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
+  owner_id TEXT NOT NULL,
+  part_root_id TEXT NOT NULL,
+  part_number_id TEXT,
+  source_file_asset_id TEXT NOT NULL,
+  model_revision TEXT NOT NULL DEFAULT 'unlabeled',
+  content_hash TEXT NOT NULL,
+  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Obsolete')),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  released_by TEXT,
+  released_at TIMESTAMPTZ,
+  release_reason TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (released_by) REFERENCES users(id),
+  UNIQUE (company_id, owner_scope, owner_id, model_revision, content_hash)
+);
+
+CREATE TABLE IF NOT EXISTS part_number_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  part_number_draft_id TEXT,
+  part_number_id TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'draft_created',
+      'item_type_changed',
+      'source_part_changed',
+      'draft_voided',
+      'draft_recycle_scheduled',
+      'draft_recycled',
+      'draft_reissued',
+      'draft_submitted',
+      'draft_reconfirmation_required',
+      'draft_reconfirmed',
+      'part_released',
+      'controlled_recycle_blocked'
+    )
+  ),
+  actor_user_id TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+  drawing_number_id TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  submission_id TEXT,
+  review_package_id TEXT,
+  replacement_part_number_draft_id TEXT,
+  detected_part_number TEXT,
+  corrected_part_number TEXT,
+  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  reason_category TEXT NOT NULL,
+  note TEXT,
+  assessed_by TEXT,
+  assessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (replacement_part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (assessed_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS part_cost_tiers (
   id TEXT PRIMARY KEY,
   cost_profile_id TEXT NOT NULL,
@@ -1036,399 +1678,6 @@ CREATE TABLE IF NOT EXISTS part_cost_change_requests (
   FOREIGN KEY (reviewed_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS duplicate_check_events (
-  id TEXT PRIMARY KEY,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'mixed')),
-  query_json TEXT NOT NULL DEFAULT '{}',
-  result_json TEXT NOT NULL DEFAULT '{}',
-  blocked INTEGER NOT NULL DEFAULT 0 CHECK (blocked IN (0, 1)),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS warning_events (
-  id TEXT PRIMARY KEY,
-  warning_code TEXT NOT NULL,
-  severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'blocker')),
-  entity_type TEXT NOT NULL,
-  entity_id TEXT,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  acknowledged_by TEXT,
-  acknowledged_at TIMESTAMPTZ,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (acknowledged_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS numbering_task_items (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  task_type TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  risk_level TEXT NOT NULL DEFAULT 'info' CHECK (risk_level IN ('info', 'warning', 'critical')),
-  task_status TEXT NOT NULL DEFAULT 'open' CHECK (task_status IN ('open', 'handled', 'cancelled')),
-  assigned_to TEXT,
-  assigned_role TEXT,
-  project_code TEXT,
-  action_url TEXT,
-  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  handled_by TEXT,
-  handled_at TIMESTAMPTZ,
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (assigned_to) REFERENCES users(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (handled_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS numbering_notifications (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  notification_type TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical')),
-  recipient_id TEXT,
-  recipient_role TEXT,
-  read_at TIMESTAMPTZ,
-  handled_at TIMESTAMPTZ,
-  handled_by TEXT,
-  dismissible INTEGER NOT NULL DEFAULT 1 CHECK (dismissible IN (0, 1)),
-  action_url TEXT,
-  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (recipient_id) REFERENCES users(id),
-  FOREIGN KEY (handled_by) REFERENCES users(id),
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS rule_templates (
-  id TEXT PRIMARY KEY,
-  template_code TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  template_json TEXT NOT NULL DEFAULT '{}',
-  system_defined INTEGER NOT NULL DEFAULT 1 CHECK (system_defined IN (0, 1)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS approval_rules (
-  id TEXT PRIMARY KEY,
-  rule_version_id TEXT NOT NULL,
-  rule_name TEXT NOT NULL,
-  action_code TEXT NOT NULL,
-  phase TEXT,
-  record_status TEXT,
-  item_kind TEXT,
-  risk_flag TEXT,
-  requires_approval INTEGER NOT NULL DEFAULT 0 CHECK (requires_approval IN (0, 1)),
-  approver_role TEXT,
-  blocks_usage INTEGER NOT NULL DEFAULT 0 CHECK (blocks_usage IN (0, 1)),
-  blocks_release INTEGER NOT NULL DEFAULT 0 CHECK (blocks_release IN (0, 1)),
-  shows_warning INTEGER NOT NULL DEFAULT 1 CHECK (shows_warning IN (0, 1)),
-  export_marker INTEGER NOT NULL DEFAULT 1 CHECK (export_marker IN (0, 1)),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS approval_requests (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
-  action_code TEXT NOT NULL,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'same_drawing_variant')),
-  entity_id TEXT NOT NULL,
-  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled')),
-  reason TEXT NOT NULL,
-  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  requested_by TEXT NOT NULL,
-  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  resolved_at TIMESTAMPTZ,
-  resolved_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (requested_by) REFERENCES users(id),
-  FOREIGN KEY (resolved_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS approval_decisions (
-  id TEXT PRIMARY KEY,
-  approval_request_id TEXT NOT NULL,
-  approver_role TEXT NOT NULL,
-  approver_id TEXT NOT NULL,
-  decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'needs_info')),
-  comment TEXT,
-  decided_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE CASCADE,
-  FOREIGN KEY (approver_id) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS approval_batches (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  batch_code TEXT NOT NULL UNIQUE,
-  request_type TEXT NOT NULL DEFAULT 'numbering' CHECK (request_type IN ('numbering')),
-  project_code TEXT,
-  action_code TEXT,
-  batch_status TEXT NOT NULL DEFAULT 'pending' CHECK (batch_status IN ('pending', 'partially_approved', 'approved', 'rejected', 'needs_info', 'cancelled')),
-  submitted_by TEXT NOT NULL,
-  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (submitted_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS approval_batch_items (
-  id TEXT PRIMARY KEY,
-  batch_id TEXT NOT NULL,
-  approval_request_id TEXT NOT NULL,
-  item_status TEXT NOT NULL DEFAULT 'pending' CHECK (item_status IN ('pending', 'approved', 'rejected', 'needs_info', 'cancelled', 'resubmitted')),
-  resubmitted_from_item_id TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (batch_id) REFERENCES approval_batches(id) ON DELETE CASCADE,
-  FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE CASCADE,
-  FOREIGN KEY (resubmitted_from_item_id) REFERENCES approval_batch_items(id),
-  UNIQUE (batch_id, approval_request_id)
-);
-
-CREATE TABLE IF NOT EXISTS roles (
-  id TEXT PRIMARY KEY,
-  role_code TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  system_defined INTEGER NOT NULL DEFAULT 0 CHECK (system_defined IN (0, 1)),
-  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS role_permissions (
-  id TEXT PRIMARY KEY,
-  role_id TEXT NOT NULL,
-  permission_kind TEXT NOT NULL CHECK (permission_kind IN ('page', 'action')),
-  permission_code TEXT NOT NULL,
-  allowed INTEGER NOT NULL DEFAULT 1 CHECK (allowed IN (0, 1)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-  UNIQUE (role_id, permission_kind, permission_code)
-);
-
-CREATE TABLE IF NOT EXISTS role_priority_versions (
-  id TEXT PRIMARY KEY,
-  version_code TEXT NOT NULL UNIQUE,
-  priority_json TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'retired')),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS role_scope_rules (
-  id TEXT PRIMARY KEY,
-  role_id TEXT NOT NULL,
-  scope_kind TEXT NOT NULL CHECK (scope_kind IN ('department', 'project', 'action')),
-  scope_code TEXT NOT NULL,
-  allowed INTEGER NOT NULL DEFAULT 1 CHECK (allowed IN (0, 1)),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  UNIQUE (role_id, scope_kind, scope_code)
-);
-
-CREATE TABLE IF NOT EXISTS user_role_assignments (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  role_id TEXT NOT NULL,
-  reason TEXT NOT NULL DEFAULT '',
-  assigned_by TEXT NOT NULL,
-  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  revoked_at TIMESTAMPTZ,
-  revoked_by TEXT,
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-  FOREIGN KEY (assigned_by) REFERENCES users(id),
-  FOREIGN KEY (revoked_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS approval_delegations (
-  id TEXT PRIMARY KEY,
-  delegated_from TEXT NOT NULL,
-  delegated_to TEXT NOT NULL,
-  project_code TEXT,
-  action_code TEXT,
-  starts_at TIMESTAMPTZ,
-  ends_at TIMESTAMPTZ,
-  reason TEXT NOT NULL,
-  created_by TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  revoked_at TIMESTAMPTZ,
-  revoked_by TEXT,
-  FOREIGN KEY (delegated_from) REFERENCES users(id),
-  FOREIGN KEY (delegated_to) REFERENCES users(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (revoked_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS import_batches (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  source_filename TEXT NOT NULL,
-  source_hash TEXT,
-  status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
-  summary_json TEXT NOT NULL DEFAULT '{}',
-  imported_by TEXT NOT NULL,
-  confirmed_by TEXT,
-  confirmed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (imported_by) REFERENCES users(id),
-  FOREIGN KEY (confirmed_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS import_staging_rows (
-  id TEXT PRIMARY KEY,
-  import_batch_id TEXT NOT NULL,
-  row_no INTEGER NOT NULL CHECK (row_no > 0),
-  raw_json TEXT NOT NULL,
-  check_status TEXT NOT NULL DEFAULT 'pending' CHECK (check_status IN ('pending', 'valid', 'need_info', 'admin_confirm', 'conflict', 'legacy_keep')),
-  issue_json TEXT NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (import_batch_id) REFERENCES import_batches(id) ON DELETE CASCADE,
-  UNIQUE (import_batch_id, row_no)
-);
-
-CREATE TABLE IF NOT EXISTS file_assets (
-  id TEXT PRIMARY KEY,
-  storage_provider TEXT NOT NULL DEFAULT 'j_drive' CHECK (storage_provider IN ('j_drive', 'supabase_storage', 'external')),
-  original_path TEXT,
-  storage_key TEXT,
-  file_name TEXT NOT NULL,
-  file_ext TEXT NOT NULL DEFAULT '',
-  mime_type TEXT,
-  file_size BIGINT,
-  content_hash TEXT,
-  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
-  linked_entity_type TEXT NOT NULL,
-  linked_entity_id TEXT NOT NULL,
-  document_category TEXT NOT NULL DEFAULT 'other',
-  display_name TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
-  revision TEXT,
-  uploaded_by TEXT,
-  deleted_at TIMESTAMPTZ,
-  deleted_by TEXT,
-  deleted_reason TEXT,
-  gdrive_file_id TEXT,
-  gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed')),
-  gdrive_error TEXT,
-  gdrive_synced_at TIMESTAMPTZ,
-  sync_status TEXT NOT NULL DEFAULT 'local_only' CHECK (sync_status IN ('local_only', 'migrated', 'missing', 'hash_mismatch')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS preview_jobs (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  source_file_asset_id TEXT NOT NULL,
-  source_content_hash TEXT NOT NULL,
-  requested_kind TEXT NOT NULL CHECK (requested_kind IN ('native_thumbnail_png', 'drawing_pdf')),
-  source_extension TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled')),
-  priority INTEGER NOT NULL DEFAULT 100,
-  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
-  locked_by TEXT,
-  locked_at TIMESTAMPTZ,
-  idempotency_key TEXT NOT NULL,
-  generator_profile TEXT NOT NULL DEFAULT 'windows_solidworks_preview_worker',
-  error_code TEXT,
-  error_summary TEXT,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ,
-  metadata_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  UNIQUE (idempotency_key)
-);
-
-CREATE TABLE IF NOT EXISTS file_derivatives (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  source_file_asset_id TEXT NOT NULL,
-  source_content_hash TEXT NOT NULL,
-  derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
-  storage_key TEXT NOT NULL,
-  original_path TEXT,
-  file_name TEXT NOT NULL,
-  mime_type TEXT NOT NULL,
-  file_size BIGINT NOT NULL CHECK (file_size >= 0),
-  content_hash TEXT NOT NULL,
-  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
-  width INTEGER,
-  height INTEGER,
-  page_count INTEGER,
-  generator_profile TEXT NOT NULL,
-  generator_version TEXT,
-  preview_job_id TEXT,
-  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'stale', 'retired', 'failed')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by_worker TEXT,
-  metadata_json TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
-  FOREIGN KEY (preview_job_id) REFERENCES preview_jobs(id)
-);
-
-CREATE TABLE IF NOT EXISTS drawing_revision_packages (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  drawing_number_id TEXT NOT NULL,
-  drawing_number TEXT NOT NULL,
-  revision TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Rejected', 'Cancelled')),
-  source_submission_id TEXT UNIQUE,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  submitted_at TIMESTAMPTZ,
-  released_at TIMESTAMPTZ,
-  rejected_at TIMESTAMPTZ,
-  cancelled_at TIMESTAMPTZ,
-  superseded_by_package_id TEXT,
-  snapshot_json TEXT,
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (superseded_by_package_id) REFERENCES drawing_revision_packages(id)
-);
-
 CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
   id TEXT PRIMARY KEY,
   package_id TEXT NOT NULL,
@@ -1466,48 +1715,6 @@ CREATE TABLE IF NOT EXISTS drawing_revision_package_supplements (
   FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
   FOREIGN KEY (requested_by) REFERENCES users(id),
   FOREIGN KEY (reviewed_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS drawing_revision_package_supplement_files (
-  id TEXT PRIMARY KEY,
-  supplement_id TEXT NOT NULL,
-  source_file_asset_id TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
-  display_name TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (supplement_id) REFERENCES drawing_revision_package_supplements(id) ON DELETE CASCADE,
-  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  UNIQUE (supplement_id, source_file_asset_id)
-);
-
-CREATE TABLE IF NOT EXISTS shared_cad_model_versions (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  owner_scope TEXT NOT NULL CHECK (owner_scope IN ('part_root', 'part_number')),
-  owner_id TEXT NOT NULL,
-  part_root_id TEXT NOT NULL,
-  part_number_id TEXT,
-  source_file_asset_id TEXT NOT NULL,
-  model_revision TEXT NOT NULL DEFAULT 'unlabeled',
-  content_hash TEXT NOT NULL,
-  hash_algorithm TEXT NOT NULL DEFAULT 'SHA-256',
-  status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Obsolete')),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  released_by TEXT,
-  released_at TIMESTAMPTZ,
-  release_reason TEXT,
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (released_by) REFERENCES users(id),
-  UNIQUE (company_id, owner_scope, owner_id, model_revision, content_hash)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_revision_package_model_links (
@@ -1558,6 +1765,22 @@ CREATE TABLE IF NOT EXISTS manufacturing_baselines (
   UNIQUE (company_id, owner_scope, owner_id, baseline_revision)
 );
 
+CREATE TABLE IF NOT EXISTS drawing_revision_package_supplement_files (
+  id TEXT PRIMARY KEY,
+  supplement_id TEXT NOT NULL,
+  source_file_asset_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (supplement_id) REFERENCES drawing_revision_package_supplements(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (supplement_id, source_file_asset_id)
+);
+
 CREATE TABLE IF NOT EXISTS manufacturing_baseline_items (
   id TEXT PRIMARY KEY,
   baseline_id TEXT NOT NULL,
@@ -1580,60 +1803,10 @@ CREATE TABLE IF NOT EXISTS manufacturing_baseline_items (
   UNIQUE (baseline_id, drawing_number_id)
 );
 
-CREATE TABLE IF NOT EXISTS numbering_export_jobs (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  export_mode TEXT NOT NULL CHECK (export_mode IN ('no_audit', 'last_change_summary', 'full_change_summary')),
-  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
-  result_json TEXT NOT NULL DEFAULT '{}',
-  generated_by TEXT,
-  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ,
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (generated_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS monthly_audit_reports (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  report_type TEXT NOT NULL,
-  report_month TEXT NOT NULL,
-  generation_mode TEXT NOT NULL CHECK (generation_mode IN ('auto', 'manual')),
-  generated_by TEXT,
-  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
-  query_json TEXT NOT NULL DEFAULT '{}',
-  scope_json TEXT NOT NULL DEFAULT '{}',
-  rule_version_id TEXT,
-  download_count INTEGER NOT NULL DEFAULT 0 CHECK (download_count >= 0),
-  last_downloaded_by TEXT,
-  last_downloaded_at TIMESTAMPTZ,
-  regenerate_reason TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (generated_by) REFERENCES users(id),
-  FOREIGN KEY (last_downloaded_by) REFERENCES users(id),
-  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id)
-);
-
-CREATE TABLE IF NOT EXISTS llm_conversations (
-  id TEXT PRIMARY KEY,
-  user_id TEXT,
-  title TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS llm_messages (
-  id TEXT PRIMARY KEY,
-  conversation_id TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-  content TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (conversation_id) REFERENCES llm_conversations(id) ON DELETE CASCADE
-);
-
+CREATE INDEX IF NOT EXISTS idx_auth_identities_login
+  ON auth_identities(provider, login_identifier, status);
+CREATE INDEX IF NOT EXISTS idx_auth_identities_user
+  ON auth_identities(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
 ON submission_snapshots(company_id, source_root_code);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
@@ -1666,9 +1839,6 @@ CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_drawing_revision ON drawing_revision_packages(company_id, drawing_number_id, revision);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_released_unique
-ON drawing_revision_packages(company_id, drawing_number_id, revision)
-WHERE status = 'Released';
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_submission ON drawing_revision_packages(source_submission_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_package ON drawing_revision_package_files(package_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_source_asset ON drawing_revision_package_files(source_file_asset_id);
@@ -1718,9 +1888,6 @@ CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submissi
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_submission_id ON audit_logs(submission_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status ON secret_references(kind, lifecycle_status, version DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
-ON secret_references(kind)
-WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status_phase ON part_roots(record_status, development_phase);
@@ -1745,9 +1912,24 @@ CREATE INDEX IF NOT EXISTS idx_submission_lifecycle_requests_submission ON submi
 CREATE INDEX IF NOT EXISTS idx_approval_decisions_request_id ON approval_decisions(approval_request_id, decided_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batches_status ON approval_batches(request_type, batch_status, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_batch_items_batch_status ON approval_batch_items(batch_id, item_status);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_actions_domain ON approval_platform_actions(domain_code, enabled);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_packages_status ON approval_platform_packages(company_id, package_status, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_packages_action ON approval_platform_packages(action_code, package_status, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_status ON approval_platform_requests(company_id, request_status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_action ON approval_platform_requests(action_code, request_status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_requests_package ON approval_platform_requests(package_id, request_status);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_targets_request ON approval_platform_targets(request_id, target_role, sort_order);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_targets_target ON approval_platform_targets(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_impact_request ON approval_platform_impact_snapshots(request_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_decisions_request ON approval_platform_decisions(request_id, decided_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_events_request ON approval_platform_events(request_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_events_package ON approval_platform_events(package_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_legacy_links_request ON approval_platform_legacy_links(request_id, legacy_table);
+CREATE INDEX IF NOT EXISTS idx_approval_platform_package_items_package ON approval_platform_package_items(package_id, item_status, sort_order);
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
 CREATE INDEX IF NOT EXISTS idx_role_scope_rules_role_kind ON role_scope_rules(role_id, scope_kind);
 CREATE INDEX IF NOT EXISTS idx_user_role_assignments_user_active ON user_role_assignments(user_id, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_account_invitations_status_expires ON account_invitations(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
 CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
@@ -1768,19 +1950,34 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
-CREATE TRIGGER trg_users_updated_at
-BEFORE UPDATE ON users
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_companies_updated_at ON companies;
 CREATE TRIGGER trg_companies_updated_at
 BEFORE UPDATE ON companies
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_system_settings_updated_at ON system_settings;
-CREATE TRIGGER trg_system_settings_updated_at
-BEFORE UPDATE ON system_settings
+DROP TRIGGER IF EXISTS trg_rule_templates_updated_at ON rule_templates;
+CREATE TRIGGER trg_rule_templates_updated_at
+BEFORE UPDATE ON rule_templates
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_platform_actions_updated_at ON approval_platform_actions;
+CREATE TRIGGER trg_approval_platform_actions_updated_at
+BEFORE UPDATE ON approval_platform_actions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_roles_updated_at ON roles;
+CREATE TRIGGER trg_roles_updated_at
+BEFORE UPDATE ON roles
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_file_assets_updated_at ON file_assets;
+CREATE TRIGGER trg_file_assets_updated_at
+BEFORE UPDATE ON file_assets
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+CREATE TRIGGER trg_users_updated_at
+BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
@@ -1788,9 +1985,84 @@ CREATE TRIGGER trg_items_updated_at
 BEFORE UPDATE ON items
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_numbering_sequences_updated_at ON numbering_sequences;
+CREATE TRIGGER trg_numbering_sequences_updated_at
+BEFORE UPDATE ON numbering_sequences
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_role_permissions_updated_at ON role_permissions;
+CREATE TRIGGER trg_role_permissions_updated_at
+BEFORE UPDATE ON role_permissions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_auth_identities_updated_at ON auth_identities;
+CREATE TRIGGER trg_auth_identities_updated_at
+BEFORE UPDATE ON auth_identities
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_system_settings_updated_at ON system_settings;
+CREATE TRIGGER trg_system_settings_updated_at
+BEFORE UPDATE ON system_settings
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_submissions_updated_at ON submissions;
 CREATE TRIGGER trg_submissions_updated_at
 BEFORE UPDATE ON submissions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_item_locks_updated_at ON item_locks;
+CREATE TRIGGER trg_item_locks_updated_at
+BEFORE UPDATE ON item_locks
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_rule_versions_updated_at ON numbering_rule_versions;
+CREATE TRIGGER trg_numbering_rule_versions_updated_at
+BEFORE UPDATE ON numbering_rule_versions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_task_items_updated_at ON numbering_task_items;
+CREATE TRIGGER trg_numbering_task_items_updated_at
+BEFORE UPDATE ON numbering_task_items
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_notifications_updated_at ON numbering_notifications;
+CREATE TRIGGER trg_numbering_notifications_updated_at
+BEFORE UPDATE ON numbering_notifications
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_requests_updated_at ON approval_requests;
+CREATE TRIGGER trg_approval_requests_updated_at
+BEFORE UPDATE ON approval_requests
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_batches_updated_at ON approval_batches;
+CREATE TRIGGER trg_approval_batches_updated_at
+BEFORE UPDATE ON approval_batches
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_platform_packages_updated_at ON approval_platform_packages;
+CREATE TRIGGER trg_approval_platform_packages_updated_at
+BEFORE UPDATE ON approval_platform_packages
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_role_scope_rules_updated_at ON role_scope_rules;
+CREATE TRIGGER trg_role_scope_rules_updated_at
+BEFORE UPDATE ON role_scope_rules
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_import_batches_updated_at ON import_batches;
+CREATE TRIGGER trg_import_batches_updated_at
+BEFORE UPDATE ON import_batches
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_preview_jobs_updated_at ON preview_jobs;
+CREATE TRIGGER trg_preview_jobs_updated_at
+BEFORE UPDATE ON preview_jobs
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_llm_conversations_updated_at ON llm_conversations;
+CREATE TRIGGER trg_llm_conversations_updated_at
+BEFORE UPDATE ON llm_conversations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_submission_attempts_updated_at ON submission_attempts;
@@ -1808,24 +2080,9 @@ CREATE TRIGGER trg_bom_drafts_updated_at
 BEFORE UPDATE ON bom_drafts
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_bom_lines_tree_updated_at ON bom_lines_tree;
-CREATE TRIGGER trg_bom_lines_tree_updated_at
-BEFORE UPDATE ON bom_lines_tree
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_item_locks_updated_at ON item_locks;
-CREATE TRIGGER trg_item_locks_updated_at
-BEFORE UPDATE ON item_locks
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_readonly_shares_updated_at ON readonly_shares;
 CREATE TRIGGER trg_readonly_shares_updated_at
 BEFORE UPDATE ON readonly_shares
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_supplier_portal_responses_updated_at ON supplier_portal_responses;
-CREATE TRIGGER trg_supplier_portal_responses_updated_at
-BEFORE UPDATE ON supplier_portal_responses
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_procurement_sync_runs_updated_at ON procurement_sync_runs;
@@ -1838,16 +2095,6 @@ CREATE TRIGGER trg_sandbox_branches_updated_at
 BEFORE UPDATE ON sandbox_branches
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_discussion_comments_updated_at ON discussion_comments;
-CREATE TRIGGER trg_discussion_comments_updated_at
-BEFORE UPDATE ON discussion_comments
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_review_issues_updated_at ON review_issues;
-CREATE TRIGGER trg_review_issues_updated_at
-BEFORE UPDATE ON review_issues
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_change_requests_updated_at ON change_requests;
 CREATE TRIGGER trg_change_requests_updated_at
 BEFORE UPDATE ON change_requests
@@ -1856,11 +2103,6 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_phase_gate_checks_updated_at ON phase_gate_checks;
 CREATE TRIGGER trg_phase_gate_checks_updated_at
 BEFORE UPDATE ON phase_gate_checks
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_pdf_markups_updated_at ON pdf_markups;
-CREATE TRIGGER trg_pdf_markups_updated_at
-BEFORE UPDATE ON pdf_markups
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_approval_matrix_requirements_updated_at ON approval_matrix_requirements;
@@ -1873,19 +2115,54 @@ CREATE TRIGGER trg_submission_lifecycle_requests_updated_at
 BEFORE UPDATE ON submission_lifecycle_requests
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_numbering_sequences_updated_at ON numbering_sequences;
-CREATE TRIGGER trg_numbering_sequences_updated_at
-BEFORE UPDATE ON numbering_sequences
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_numbering_rule_versions_updated_at ON numbering_rule_versions;
-CREATE TRIGGER trg_numbering_rule_versions_updated_at
-BEFORE UPDATE ON numbering_rule_versions
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_part_roots_updated_at ON part_roots;
 CREATE TRIGGER trg_part_roots_updated_at
 BEFORE UPDATE ON part_roots
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_rules_updated_at ON approval_rules;
+CREATE TRIGGER trg_approval_rules_updated_at
+BEFORE UPDATE ON approval_rules
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_batch_items_updated_at ON approval_batch_items;
+CREATE TRIGGER trg_approval_batch_items_updated_at
+BEFORE UPDATE ON approval_batch_items
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_platform_requests_updated_at ON approval_platform_requests;
+CREATE TRIGGER trg_approval_platform_requests_updated_at
+BEFORE UPDATE ON approval_platform_requests
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_monthly_audit_reports_updated_at ON monthly_audit_reports;
+CREATE TRIGGER trg_monthly_audit_reports_updated_at
+BEFORE UPDATE ON monthly_audit_reports
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_bom_lines_tree_updated_at ON bom_lines_tree;
+CREATE TRIGGER trg_bom_lines_tree_updated_at
+BEFORE UPDATE ON bom_lines_tree
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_supplier_portal_responses_updated_at ON supplier_portal_responses;
+CREATE TRIGGER trg_supplier_portal_responses_updated_at
+BEFORE UPDATE ON supplier_portal_responses
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_discussion_comments_updated_at ON discussion_comments;
+CREATE TRIGGER trg_discussion_comments_updated_at
+BEFORE UPDATE ON discussion_comments
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_review_issues_updated_at ON review_issues;
+CREATE TRIGGER trg_review_issues_updated_at
+BEFORE UPDATE ON review_issues
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_pdf_markups_updated_at ON pdf_markups;
+CREATE TRIGGER trg_pdf_markups_updated_at
+BEFORE UPDATE ON pdf_markups
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_part_numbers_updated_at ON part_numbers;
@@ -1896,6 +2173,16 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_drawing_numbers_updated_at ON drawing_numbers;
 CREATE TRIGGER trg_drawing_numbers_updated_at
 BEFORE UPDATE ON drawing_numbers
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_platform_legacy_links_updated_at ON approval_platform_legacy_links;
+CREATE TRIGGER trg_approval_platform_legacy_links_updated_at
+BEFORE UPDATE ON approval_platform_legacy_links
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_approval_platform_package_items_updated_at ON approval_platform_package_items;
+CREATE TRIGGER trg_approval_platform_package_items_updated_at
+BEFORE UPDATE ON approval_platform_package_items
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_part_number_drafts_updated_at ON part_number_drafts;
@@ -1913,6 +2200,11 @@ CREATE TRIGGER trg_part_cost_profiles_updated_at
 BEFORE UPDATE ON part_cost_profiles
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_drawing_revision_packages_updated_at ON drawing_revision_packages;
+CREATE TRIGGER trg_drawing_revision_packages_updated_at
+BEFORE UPDATE ON drawing_revision_packages
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
 CREATE TRIGGER trg_part_cost_tiers_updated_at
 BEFORE UPDATE ON part_cost_tiers
@@ -1923,84 +2215,14 @@ CREATE TRIGGER trg_part_standard_costs_updated_at
 BEFORE UPDATE ON part_standard_costs
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_numbering_task_items_updated_at ON numbering_task_items;
-CREATE TRIGGER trg_numbering_task_items_updated_at
-BEFORE UPDATE ON numbering_task_items
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_numbering_notifications_updated_at ON numbering_notifications;
-CREATE TRIGGER trg_numbering_notifications_updated_at
-BEFORE UPDATE ON numbering_notifications
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_rule_templates_updated_at ON rule_templates;
-CREATE TRIGGER trg_rule_templates_updated_at
-BEFORE UPDATE ON rule_templates
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_approval_rules_updated_at ON approval_rules;
-CREATE TRIGGER trg_approval_rules_updated_at
-BEFORE UPDATE ON approval_rules
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_approval_requests_updated_at ON approval_requests;
-CREATE TRIGGER trg_approval_requests_updated_at
-BEFORE UPDATE ON approval_requests
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_approval_batches_updated_at ON approval_batches;
-CREATE TRIGGER trg_approval_batches_updated_at
-BEFORE UPDATE ON approval_batches
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_approval_batch_items_updated_at ON approval_batch_items;
-CREATE TRIGGER trg_approval_batch_items_updated_at
-BEFORE UPDATE ON approval_batch_items
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_roles_updated_at ON roles;
-CREATE TRIGGER trg_roles_updated_at
-BEFORE UPDATE ON roles
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_role_permissions_updated_at ON role_permissions;
-CREATE TRIGGER trg_role_permissions_updated_at
-BEFORE UPDATE ON role_permissions
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_role_scope_rules_updated_at ON role_scope_rules;
-CREATE TRIGGER trg_role_scope_rules_updated_at
-BEFORE UPDATE ON role_scope_rules
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_import_batches_updated_at ON import_batches;
-CREATE TRIGGER trg_import_batches_updated_at
-BEFORE UPDATE ON import_batches
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_file_assets_updated_at ON file_assets;
-CREATE TRIGGER trg_file_assets_updated_at
-BEFORE UPDATE ON file_assets
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_drawing_revision_packages_updated_at ON drawing_revision_packages;
-CREATE TRIGGER trg_drawing_revision_packages_updated_at
-BEFORE UPDATE ON drawing_revision_packages
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_drawing_revision_package_supplements_updated_at ON drawing_revision_package_supplements;
 CREATE TRIGGER trg_drawing_revision_package_supplements_updated_at
 BEFORE UPDATE ON drawing_revision_package_supplements
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_monthly_audit_reports_updated_at ON monthly_audit_reports;
-CREATE TRIGGER trg_monthly_audit_reports_updated_at
-BEFORE UPDATE ON monthly_audit_reports
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_llm_conversations_updated_at ON llm_conversations;
-CREATE TRIGGER trg_llm_conversations_updated_at
-BEFORE UPDATE ON llm_conversations
+DROP TRIGGER IF EXISTS trg_drawing_revision_package_model_links_updated_at ON drawing_revision_package_model_links;
+CREATE TRIGGER trg_drawing_revision_package_model_links_updated_at
+BEFORE UPDATE ON drawing_revision_package_model_links
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMIT;

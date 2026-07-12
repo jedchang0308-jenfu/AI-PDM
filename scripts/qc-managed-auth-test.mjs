@@ -9,6 +9,7 @@ import Database from "better-sqlite3";
 const root = process.cwd();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-managed-auth-"));
 const bootstrapPassword = "Managed-QC-Password-2026";
+const expectedPersistentMaxAgeSeconds = 60 * 60 * 24 * 400;
 const bootstrapUsers = [
   {
     id: "user-qc-engineer",
@@ -49,6 +50,8 @@ function getFreePort() {
 }
 
 function startApp(port) {
+  const distDirRelative = ".tmp/next-qc-managed-auth";
+  const distDir = path.join(root, ...distDirRelative.split("/"));
   const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
   const child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
@@ -58,7 +61,8 @@ function startApp(port) {
       PDM_BOOTSTRAP_USERS: JSON.stringify(bootstrapUsers),
       PDM_DATA_DIR: tempDir,
       PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
-      PDM_RELEASE_MODE: "local_stub"
+      PDM_RELEASE_MODE: "local_stub",
+      PDM_NEXT_DIST_DIR: distDirRelative
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -71,7 +75,7 @@ function startApp(port) {
     output += chunk.toString();
   });
 
-  return { child, getOutput: () => output };
+  return { child, distDir, getOutput: () => output };
 }
 
 async function stopApp(child) {
@@ -123,10 +127,12 @@ async function login(baseUrl, email, password) {
     body: JSON.stringify({ email, password })
   });
   const body = await response.json().catch(() => ({}));
+  const setCookie = response.headers.get("set-cookie") ?? "";
   return {
     status: response.status,
     body,
-    cookie: response.headers.get("set-cookie")?.split(";")[0] ?? ""
+    setCookie,
+    cookie: setCookie.split(";")[0] ?? ""
   };
 }
 
@@ -174,10 +180,12 @@ try {
   const cookieMeResponse = await fetch(`${baseUrl}/api/auth/me`, {
     headers: { cookie: managedAdminLogin.cookie }
   });
+  const cookieMeSetCookie = cookieMeResponse.headers.get("set-cookie") ?? "";
   const cookieMeBody = await cookieMeResponse.json().catch(() => ({}));
   const tokenMeResponse = await fetch(`${baseUrl}/api/auth/me`, {
     headers: { authorization: `Bearer ${managedAdminToken.body?.token ?? ""}` }
   });
+  const tokenMeSetCookie = tokenMeResponse.headers.get("set-cookie") ?? "";
   const tokenMeBody = await tokenMeResponse.json().catch(() => ({}));
   const logoutResponse = await fetch(`${baseUrl}/api/auth/logout`, {
     method: "POST",
@@ -214,6 +222,21 @@ try {
   results.push(expect("AUTHMODE-016 login and token write audit logs", Number(adminLoginAudit?.count ?? 0) >= 2, true));
   results.push(expect("AUTHMODE-017 token audit records client marker", Number(adminTokenAudit?.count ?? 0) >= 1, true));
   results.push(expect("AUTHMODE-018 logout writes audit log", Number(adminLogoutAudit?.count ?? 0) >= 1, true));
+  results.push(
+    expect(
+      "AUTHMODE-019 login issues persistent session cookie",
+      managedAdminLogin.setCookie.includes(`Max-Age=${expectedPersistentMaxAgeSeconds}`),
+      true
+    )
+  );
+  results.push(
+    expect(
+      "AUTHMODE-020 cookie auth/me refreshes persistent session cookie",
+      cookieMeSetCookie.includes("pdm_session=") && cookieMeSetCookie.includes(`Max-Age=${expectedPersistentMaxAgeSeconds}`),
+      true
+    )
+  );
+  results.push(expect("AUTHMODE-021 bearer auth/me does not create browser session cookie", tokenMeSetCookie, ""));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
@@ -234,5 +257,6 @@ try {
   process.exitCode = 1;
 } finally {
   if (app) await stopApp(app.child);
+  if (app?.distDir) await removeTempDir(app.distDir);
   await removeTempDir(tempDir);
 }

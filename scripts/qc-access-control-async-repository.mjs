@@ -1313,7 +1313,7 @@ record(
       {
         source: bomReviewApproveRouteSource,
         helpers: [
-          "approveBomWorkbenchReviewAsync",
+          "decideApprovalPlatformLegacyBomAsync",
           "BomReleaseGateError",
           "getBomWorkbenchReviewByIdAsync",
           "getBomWorkbenchDraftByIdAsync",
@@ -1323,7 +1323,7 @@ record(
       },
       {
         source: bomReviewRejectRouteSource,
-        helpers: ["rejectBomWorkbenchReviewAsync", "getBomWorkbenchReviewByIdAsync", "getBomWorkbenchDraftByIdAsync", "canReadSubmission"]
+        helpers: ["decideApprovalPlatformLegacyBomAsync", "getBomWorkbenchReviewByIdAsync", "getBomWorkbenchDraftByIdAsync", "canReadSubmission"]
       }
     ].every(
       ({ source: routeSource, helpers }) =>
@@ -1718,13 +1718,13 @@ record(
     !numberingApprovalBatchesRouteSource.includes("createNumberingApprovalBatch(") &&
     !numberingApprovalBatchesRouteSource.includes('from "@/lib/db"') &&
     numberingApprovalBatchDetailRouteSource.includes("getNumberingApprovalBatchAsync") &&
-    numberingApprovalBatchDetailRouteSource.includes("decideNumberingApprovalBatchAsync") &&
+    numberingApprovalBatchDetailRouteSource.includes("decideApprovalPlatformLegacyNumberingBatchAsync") &&
     numberingApprovalBatchDetailRouteSource.includes("resubmitRejectedNumberingApprovalBatchItemsAsync") &&
     !numberingApprovalBatchDetailRouteSource.includes("getNumberingApprovalBatch(") &&
     !numberingApprovalBatchDetailRouteSource.includes("decideNumberingApprovalBatch(") &&
     !numberingApprovalBatchDetailRouteSource.includes("resubmitRejectedNumberingApprovalBatchItems(") &&
     !numberingApprovalBatchDetailRouteSource.includes('from "@/lib/db"') &&
-    numberingApprovalDecisionsRouteSource.includes("decideNumberingApprovalAsync") &&
+    numberingApprovalDecisionsRouteSource.includes("decideApprovalPlatformLegacyNumberingAsync") &&
     !numberingApprovalDecisionsRouteSource.includes("decideNumberingApproval(") &&
     !numberingApprovalDecisionsRouteSource.includes('from "@/lib/db"') &&
     numberingApprovalRequestsRouteSource.includes("requestNumberingApprovalAsync") &&
@@ -1842,7 +1842,7 @@ record(
     partsCostProfilesRouteSource.includes("createPartCostProfileAsync") &&
     !partsCostProfilesRouteSource.includes("createPartCostProfile(") &&
     !partsCostProfilesRouteSource.includes('from "@/lib/db"') &&
-    partsCostChangeRequestRouteSource.includes("decidePartCostChangeRequestAsync") &&
+    partsCostChangeRequestRouteSource.includes("decideApprovalPlatformLegacyPartCostAsync") &&
     !partsCostChangeRequestRouteSource.includes("decidePartCostChangeRequest(") &&
     !partsCostChangeRequestRouteSource.includes('from "@/lib/db"') &&
     partsCostResolutionRouteSource.includes("resolvePartCostAsync") &&
@@ -1951,7 +1951,7 @@ record(
     numberingApprovalBatchDetailRouteSource.includes("canUserUseNumberingActionAsync") &&
     (numberingApprovalBatchDetailRouteSource.match(/await canUserUseNumberingActionAsync/gu)?.length ?? 0) === 2 &&
     numberingApprovalBatchDetailRouteSource.includes("getNumberingApprovalBatchAsync") &&
-    numberingApprovalBatchDetailRouteSource.includes("decideNumberingApprovalBatchAsync") &&
+    numberingApprovalBatchDetailRouteSource.includes("decideApprovalPlatformLegacyNumberingBatchAsync") &&
     numberingApprovalBatchDetailRouteSource.includes("resubmitRejectedNumberingApprovalBatchItemsAsync") &&
     !numberingApprovalBatchDetailRouteSource.includes('from "@/lib/db"') &&
     !numberingApprovalBatchDetailRouteSource.includes("requireAuth(request") &&
@@ -3043,8 +3043,8 @@ record(
     bomReviewRejectRouteSource.includes("await getBomWorkbenchDraftByIdAsync") &&
     bomReviewRejectRouteSource.includes("getSubmissionAsync") &&
     bomReviewRejectRouteSource.includes("await getSubmissionAsync") &&
-    bomReviewRejectRouteSource.includes("rejectBomWorkbenchReviewAsync") &&
-    bomReviewRejectRouteSource.includes("await rejectBomWorkbenchReviewAsync") &&
+    bomReviewRejectRouteSource.includes("decideApprovalPlatformLegacyBomAsync") &&
+    bomReviewRejectRouteSource.includes("await decideApprovalPlatformLegacyBomAsync") &&
     !bomReviewRejectRouteSource.includes('from "@/lib/db"') &&
     !bomReviewRejectRouteSource.includes("getBomWorkbenchReviewById(") &&
     !bomReviewRejectRouteSource.includes("getBomWorkbenchDraftById(") &&
@@ -3060,8 +3060,8 @@ record(
     bomReviewApproveRouteSource.includes("await getBomWorkbenchDraftByIdAsync") &&
     bomReviewApproveRouteSource.includes("getSubmissionAsync") &&
     bomReviewApproveRouteSource.includes("await getSubmissionAsync") &&
-    bomReviewApproveRouteSource.includes("approveBomWorkbenchReviewAsync") &&
-    bomReviewApproveRouteSource.includes("await approveBomWorkbenchReviewAsync") &&
+    bomReviewApproveRouteSource.includes("decideApprovalPlatformLegacyBomAsync") &&
+    bomReviewApproveRouteSource.includes("await decideApprovalPlatformLegacyBomAsync") &&
     bomReviewApproveRouteSource.includes("BomReleaseGateError") &&
     !bomReviewApproveRouteSource.includes('from "@/lib/db"') &&
     !bomReviewApproveRouteSource.includes("getBomWorkbenchReviewById(") &&

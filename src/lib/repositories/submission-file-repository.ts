@@ -25,7 +25,9 @@ export function updateFileGDriveStatus(
 
 export function getFilesNeedingUpload(submissionId: string) {
   return getDb()
-    .prepare("SELECT * FROM submission_files WHERE submission_id = ? AND gdrive_status IN ('none', 'failed')")
+    .prepare(
+      "SELECT * FROM submission_files WHERE submission_id = ? AND gdrive_status IN ('none', 'failed') AND storage_provider = 'local_repository'"
+    )
     .all(submissionId) as SubmissionFile[];
 }
 

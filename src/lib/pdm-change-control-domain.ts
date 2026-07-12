@@ -1,11 +1,12 @@
 import type { LifecycleActionPolicy, LifecycleDetailTag } from "@/lib/pdm-lifecycle-policy";
+import { NUMBERING_RULE_V2_ID, NUMBERING_RULE_V3_ID, parseNumberingIdentity } from "./numbering-identity.ts";
 
-const NUMBERING_RULE_V2_ID = "numbering-rule-v2";
-
-function parseCompactV2PartNumber(value: string): { rootCode: string; sequenceCode: string } | null {
-  const match = /^([0-9]{5})-P([0-9]{2})$/.exec(value.trim().toUpperCase());
-  if (!match || match[2] === "00") return null;
-  return { rootCode: match[1], sequenceCode: match[2] };
+function parseCompactPartNumber(value: string): { rootCode: string; sequenceCode: string; ruleVersionId: string } | null {
+  const identity = parseNumberingIdentity(value);
+  if (identity.kind !== "part" || !identity.rootCode || !identity.sequenceCode || identity.sequenceCode === "00") return null;
+  if (/^[A-Z][0-9]{4}$/.test(identity.rootCode)) return { rootCode: identity.rootCode, sequenceCode: identity.sequenceCode, ruleVersionId: NUMBERING_RULE_V3_ID };
+  if (/^[0-9]{5}$/.test(identity.rootCode)) return { rootCode: identity.rootCode, sequenceCode: identity.sequenceCode, ruleVersionId: NUMBERING_RULE_V2_ID };
+  return null;
 }
 
 export type PdmChangeControlDatabaseKind = "sqlite" | "postgres";
@@ -1330,9 +1331,9 @@ export class PdmChangeControlDomainService {
 
   private async createReleasedPartNumberFromDraft(companyId: string, draft: PartNumberDraftRecord, actorUserId: string) {
     const partNumber = draft.reservedPartNumber.trim().toUpperCase();
-    const identity = parseCompactV2PartNumber(partNumber);
+    const identity = parseCompactPartNumber(partNumber);
     if (!identity) {
-      throw new PdmChangeControlError("replacement_part_number_format_invalid", "Replacement release requires a compact v2 part number.");
+      throw new PdmChangeControlError("replacement_part_number_format_invalid", "Replacement release requires a compact part number.");
     }
     const existing = await this.getFormalPartId(companyId, partNumber);
     if (existing) throw new PdmChangeControlError("replacement_part_already_released", undefined, { partNumberId: existing });
@@ -1358,7 +1359,7 @@ export class PdmChangeControlDomainService {
           rootCode: identity.rootCode,
           coreName: partNumber,
           itemKind: itemKindForDraftItemType(draft.itemType),
-          ruleVersionId: NUMBERING_RULE_V2_ID,
+          ruleVersionId: identity.ruleVersionId,
           createdBy: actorUserId,
           createdAt: now,
           updatedAt: now
@@ -1384,7 +1385,7 @@ export class PdmChangeControlDomainService {
         sequenceCode: identity.sequenceCode,
         partName: partNumber,
         itemKind: itemKindForDraftItemType(draft.itemType),
-        ruleVersionId: NUMBERING_RULE_V2_ID,
+        ruleVersionId: identity.ruleVersionId,
         createdBy: actorUserId,
         createdAt: now,
         updatedAt: now
