@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { buildPdmChangeControlActor, pdmChangeControlErrorResponse } from "@/lib/pdm-change-control-api";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import {
   listDeletedPartNumberDrafts,
   listPartNumberDrafts,
@@ -60,12 +61,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireNumberingActionAsync(request, "numbering.draft.update");
-  if (auth.response) return auth.response;
-
   const body = await request.json().catch(() => ({}));
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
-  if (companyResult.response) return companyResult.response;
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.draft.update", body });
+  if (access.response) return access.response;
 
   const reservedPartNumber = String(body.reservedPartNumber ?? body.reserved_part_number ?? "").trim();
   const draftType = normalizeEnum(body.draftType ?? body.draft_type, draftTypes) as PartNumberDraftType | undefined;
@@ -79,7 +77,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const actor = buildPdmChangeControlActor(auth, companyResult.company.companyId);
+    const actor = {
+      userId: access.actor.pdmUserId,
+      companyId: access.actor.organizationId,
+      role: access.auth.user.role,
+      roleCodes: access.actor.roles
+    };
     const draft = await reservePartNumberDraft({
       reservedPartNumber,
       draftType,
@@ -90,8 +93,8 @@ export async function POST(request: Request) {
       useType: nullableText(body.useType ?? body.use_type),
       departmentId: nullableText(body.departmentId ?? body.department_id),
       actor
-    });
-    return NextResponse.json({ draft, pdmCompany: companyResult.company }, { status: 201 });
+    }, access.metadata);
+    return NextResponse.json({ draft, pdmCompany: access.company }, { status: 201 });
   } catch (error) {
     return pdmChangeControlErrorResponse(error, "Failed to reserve part-number draft");
   }

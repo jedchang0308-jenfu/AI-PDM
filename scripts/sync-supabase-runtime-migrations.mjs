@@ -42,6 +42,11 @@ const sourceFiles = [
     source: "db/postgres/007_auth_identities_google_oauth.sql",
     target: "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
     description: "Add provider-neutral identities, account status, and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/008_erp_module_foundation.sql",
+    target: "supabase/migrations/20260712034956_erp_module_foundation.sql",
+    description: "Add ERP-ready platform mappings, command receipts, transactional outbox, and deny direct Data API access"
   }
 ];
 

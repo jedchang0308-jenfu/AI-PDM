@@ -1,7 +1,7 @@
 # QA-PDM-ERP-MODULE-FOUNDATION-001 - ERP-ready AI_PDM platform validation plan
 
 Date: 2026-07-12
-Status: QA contract ready; no product implementation or QC execution requested this turn
+Status: QA executed for Phase 1-3 local development; QC report passed 2026-07-12
 Related DEV: `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`
@@ -125,7 +125,7 @@ Fixtures must be disposable. No production or user-owned controlled record may b
 
 ## Phase 3 Contract Tests
 
-These tests are not executable until shared IAM decisions are approved.
+These contract tests are executable against the provider-neutral mapping foundation after ADR-002 approval. Live provider/MFA/session-revocation tests remain release-gated.
 
 | ID | Priority | Scenario | Expected |
 |---|---|---|---|

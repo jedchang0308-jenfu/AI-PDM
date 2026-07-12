@@ -1,4 +1,10 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  createFallbackCommandMetadata,
+  createPdmCommand,
+  type PdmCommandMetadata
+} from "@/lib/platform-command";
+import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import type { NumberingRootBundleRecord } from "@/lib/repositories/numbering-async-repository";
 import type {
@@ -102,14 +108,44 @@ import type {
 
 export type { NumberingRootBundleRecord } from "@/lib/repositories/numbering-async-repository";
 
-export async function createNumberingRecordAsync(input: CreateNumberingRecordInput): Promise<{
+export async function createNumberingRecordAsync(input: CreateNumberingRecordInput, metadata?: PdmCommandMetadata): Promise<{
   root: PartRootRecord;
   partNumber: PartNumberRecord;
   drawingNumber: DrawingNumberRecord | null;
 }> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.createNumberingRecord(input);
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    pdmUserId: input.createdBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.create_official_record",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.create_official_record",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: {
+      coreName: input.coreName,
+      itemKind: input.itemKind,
+      drawingPurposeCode: input.drawingPurposeCode ?? null
+    }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).createNumberingRecord(input),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result.root.id,
+      eventType: "pdm.numbering.official_record_created.v1",
+      payload: {
+        rootCode: result.root.rootCode,
+        partNumber: result.partNumber.partNumber,
+        drawingNumber: result.drawingNumber?.drawingNumber ?? null
+      }
+    })
+  });
+  return executed.result;
 }
 
 export async function updateDraftNumberingRecordAsync(
@@ -152,22 +188,124 @@ export async function requestNumberingObsoleteApprovalAsync(input: RequestNumber
   return repository.requestNumberingObsoleteApproval(input);
 }
 
-export async function addDrawingNumberToRootAsync(input: AddDrawingNumberInput): Promise<AddDrawingNumberToRootResult> {
+export async function addDrawingNumberToRootAsync(
+  input: AddDrawingNumberInput,
+  metadata?: PdmCommandMetadata
+): Promise<AddDrawingNumberToRootResult> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.addDrawingNumberToRoot(input);
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    pdmUserId: input.createdBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.append_drawing",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.append_drawing",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    execute: (transactionClient) =>
+      new AsyncNumberingRepository(transactionClient).addDrawingNumberToRoot({
+        ...input,
+        idempotencyKey: commandMetadata.idempotencyKey
+      }),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result.root.id,
+      eventType: "pdm.numbering.drawing_appended.v1",
+      payload: {
+        rootCode: result.root.rootCode,
+        drawingNumber: result.drawingNumber.drawingNumber,
+        linkedPartNumber: result.linkedPart?.partNumber ?? null,
+        linkType: result.linkType
+      }
+    })
+  });
+  return { ...executed.result, reusedFromIdempotency: executed.reusedFromCommandReceipt || executed.result.reusedFromIdempotency };
 }
 
-export async function addPartNumberToRootAsync(input: AddPartNumberInput): Promise<AddPartNumberToRootResult> {
+export async function addPartNumberToRootAsync(
+  input: AddPartNumberInput,
+  metadata?: PdmCommandMetadata
+): Promise<AddPartNumberToRootResult> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.addPartNumberToRoot(input);
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    pdmUserId: input.createdBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.append_part",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.append_part",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { rootCode: input.rootCode, itemKind: input.itemKind ?? null }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    execute: (transactionClient) =>
+      new AsyncNumberingRepository(transactionClient).addPartNumberToRoot({
+        ...input,
+        idempotencyKey: commandMetadata.idempotencyKey
+      }),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result.root.id,
+      eventType: "pdm.numbering.part_appended.v1",
+      payload: {
+        rootCode: result.root.rootCode,
+        partNumber: result.partNumber.partNumber,
+        linkedDrawingNumber: result.linkedDrawing?.drawingNumber ?? null,
+        linkType: result.linkType
+      }
+    })
+  });
+  return { ...executed.result, reusedFromIdempotency: executed.reusedFromCommandReceipt || executed.result.reusedFromIdempotency };
 }
 
-export async function addDrawingAndPartToRootAsync(input: AddDrawingAndPartToRootInput): Promise<AddDrawingAndPartToRootResult> {
+export async function addDrawingAndPartToRootAsync(
+  input: AddDrawingAndPartToRootInput,
+  metadata?: PdmCommandMetadata
+): Promise<AddDrawingAndPartToRootResult> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.addDrawingAndPartToRoot(input);
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    pdmUserId: input.createdBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.append_drawing_part",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.append_drawing_part",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode, itemKind: input.itemKind ?? null }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    execute: (transactionClient) =>
+      new AsyncNumberingRepository(transactionClient).addDrawingAndPartToRoot({
+        ...input,
+        idempotencyKey: commandMetadata.idempotencyKey
+      }),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result.root.id,
+      eventType: "pdm.numbering.drawing_part_appended.v1",
+      payload: {
+        rootCode: result.root.rootCode,
+        drawingNumber: result.drawingNumber.drawingNumber,
+        partNumber: result.partNumber.partNumber,
+        linkType: result.linkType
+      }
+    })
+  });
+  return { ...executed.result, reusedFromIdempotency: executed.reusedFromCommandReceipt || executed.result.reusedFromIdempotency };
 }
 
 export async function getRootObsoleteImpactAsync(input: { companyId?: string; rootCode?: string; rootId?: string }): Promise<RootObsoleteImpactResult> {

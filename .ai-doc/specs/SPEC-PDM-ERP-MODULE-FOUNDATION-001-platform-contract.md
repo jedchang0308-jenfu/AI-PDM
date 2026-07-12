@@ -1,6 +1,6 @@
 # SPEC-PDM-ERP-MODULE-FOUNDATION-001 - ERP-ready AI_PDM platform contract
 
-Status: Phase 0 Complete; Phase 1 RD Implementation Ready / Not Requested This Turn; later phases captured below
+Status: Phase 1-3 complete locally / QC passed; Phase 4-5 remain gated
 Date: 2026-07-12
 Owner: Dev PM
 Related DEV: `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`
@@ -33,14 +33,14 @@ AI assumptions:
 - Current AI_PDM Web technology remains Next.js, React and TypeScript.
 - PostgreSQL/Supabase remains the target runtime and storage authority under existing PDM decisions.
 - Existing `users.id`, `companies.id`, root/drawing/part IDs and audit references remain stable.
-- The shared ERP identity provider, canonical person model and final ERP shell are not selected yet.
+- Supabase Auth is the target shared ERP identity provider; the canonical model is defined in ADR-002; the final ERP shell is not selected yet.
 - Initial use remains 3-5 internal users, but contracts must not hard-code that count.
-- This turn is documentation-only; implementation begins only after an explicit `DEV-044 Phase 1` execution request.
+- Phase 1-3 implementation is local only; live provider, production migration and release remain separate gates.
 
 Re-entry triggers:
 
 - Any change to ProJED.
-- Shared IAM/provider selection, MFA/email-delivery cost or account migration.
+- Shared IAM provider configuration, MFA/email-delivery cost or account migration execution.
 - Canonical organization/person semantics that replace current PDM company/user meaning.
 - Production migration, deploy, domain routing, provider pointer, credential or direct data mutation.
 - Rewriting stable PDM identifiers or historical audit records.
@@ -49,13 +49,13 @@ Re-entry triggers:
 
 ## Problem
 
-AI_PDM already contains server APIs, repositories, access-control rules, controlled numbering, audit records, SQLite/PostgreSQL parity work and a narrow production slice. It is not yet safe to describe those pieces as a shared ERP platform because:
+AI_PDM contains server APIs, repositories, access-control rules, controlled numbering, audit records, SQLite/PostgreSQL parity work and a narrow production slice. DEV-044 makes it integration-ready as a PDM module, but it is still not a shared ERP platform because:
 
 - authentication and company context are PDM-specific;
 - domain rules can still be reached through multiple route/repository paths;
-- controlled mutations do not yet share one explicit platform command context;
-- cross-module events do not yet have a transactional outbox contract;
-- the future ERP organization/person/role model is not approved;
+- only selected P0 controlled mutations currently use the explicit platform command context;
+- the transactional outbox has no approved external consumer or production publisher;
+- the ERP organization/person/role target is approved but not deployed as a shared core;
 - production runtime still remains behind existing Supabase and release gates.
 
 The required result is not an ERP rewrite. It is an AI_PDM boundary that can integrate later without breaking current numbering/draft delivery.
@@ -73,7 +73,7 @@ The required result is not an ERP rewrite. It is an AI_PDM boundary that can int
 
 - Building the ERP portal.
 - Implementing or migrating ProJED.
-- Selecting or cutting over shared ERP Auth.
+- Configuring or cutting over shared ERP Auth.
 - Building accounting, payroll, tax, purchasing, inventory or manufacturing ERP modules.
 - Moving all AI_PDM code into a monorepo.
 - Production deployment, migration or domain cutover.
@@ -279,7 +279,7 @@ Evidence:
 
 ### Phase 1 - PDM application boundary hardening
 
-Status: RD Implementation Ready / Not Requested This Turn.
+Status: Complete locally / QC passed 2026-07-12.
 
 Purpose:
 
@@ -287,13 +287,13 @@ Purpose:
 
 Task list:
 
-- [ ] `DEV-044-01` Inventory official-numbering, existing-root append, part-draft, invitation and identity mutation routes; identify route, application, repository and transaction owners.
-- [ ] `DEV-044-02` Add framework-independent `PlatformActorContext` and current-auth adapter.
-- [ ] `DEV-044-03` Add versioned `PdmCommand` and idempotency contract helpers.
-- [ ] `DEV-044-04` Move transport-only decisions out of selected P0 route handlers; preserve current domain predicates and repository transactions.
-- [ ] `DEV-044-05` Add a static architecture guard preventing browser imports of server database/provider modules and privileged environment variables.
-- [ ] `DEV-044-06` Add focused tests proving actor/company payload spoofing cannot override authenticated context.
-- [ ] `DEV-044-07` Produce an RD route ownership inventory and Phase 1 QC report.
+- [x] `DEV-044-01` Inventory official-numbering, existing-root append, part-draft, invitation and identity mutation routes; identify route, application, repository and transaction owners.
+- [x] `DEV-044-02` Add framework-independent `PlatformActorContext` and current-auth adapter.
+- [x] `DEV-044-03` Add versioned `PdmCommand` and idempotency contract helpers.
+- [x] `DEV-044-04` Move transport-only decisions out of selected P0 route handlers; preserve current domain predicates and repository transactions.
+- [x] `DEV-044-05` Add a static architecture guard preventing browser imports of server database/provider modules and privileged environment variables.
+- [x] `DEV-044-06` Add focused tests proving actor/company payload spoofing cannot override authenticated context.
+- [x] `DEV-044-07` Produce an RD route ownership inventory and Phase 1 QC report.
 
 Implementation contract:
 
@@ -343,7 +343,7 @@ Evidence required:
 
 ### Phase 2 - Atomic audit and transactional outbox foundation
 
-Status: RD Contract Ready / Not Requested This Turn.
+Status: Complete locally / QC passed 2026-07-12.
 
 Purpose:
 
@@ -351,12 +351,12 @@ Purpose:
 
 Task list:
 
-- [ ] `DEV-044-08` Add SQLite/PostgreSQL/Supabase-parity outbox and command-idempotency schema.
-- [ ] `DEV-044-09` Add repository APIs that participate in the caller's transaction.
-- [ ] `DEV-044-10` Convert selected numbering/draft commands to atomic mutation + audit + outbox.
-- [ ] `DEV-044-11` Add retry-safe pending-event claim/ack/fail repository contract without external publication.
-- [ ] `DEV-044-12` Add migration, RLS/default-deny and direct Data API exposure checks.
-- [ ] `DEV-044-13` Add concurrency, rollback, duplicate-command and payload-redaction QC.
+- [x] `DEV-044-08` Add SQLite/PostgreSQL/Supabase-parity outbox and command-idempotency schema.
+- [x] `DEV-044-09` Add repository APIs that participate in the caller's transaction.
+- [x] `DEV-044-10` Convert selected numbering/draft commands to atomic mutation + audit + outbox.
+- [x] `DEV-044-11` Add retry-safe pending-event claim/ack/fail repository contract without external publication.
+- [x] `DEV-044-12` Add migration, RLS/default-deny and direct Data API exposure checks.
+- [x] `DEV-044-13` Add duplicate-command, dual-connection SQLite concurrency, rollback, mapping-cascade and payload-redaction QC. Cross-process PostgreSQL concurrency remains a release/shadow gate because no disposable remote target was configured.
 
 Implementation contract:
 
@@ -397,7 +397,7 @@ Evidence required:
 
 ### Phase 3 - Shared ERP core/IAM adapter and identity migration
 
-Status: RD Contract Ready / Blocked Human Re-entry before implementation.
+Status: Provider-neutral development foundation complete locally / provider cutover not executed.
 
 Purpose:
 
@@ -405,11 +405,11 @@ Purpose:
 
 Task list:
 
-- [ ] `DEV-044-14` Approve canonical person, identity, organization, membership and role-assignment model.
-- [ ] `DEV-044-15` Select shared identity provider and session/MFA/offboarding policy.
-- [ ] `DEV-044-16` Define mapping tables and dual-read migration period for platform principal to PDM user/company.
-- [ ] `DEV-044-17` Implement migration tooling with dry-run, collision report and rollback boundary.
-- [ ] `DEV-044-18` Reverify invitations, Google identity, local-password users, suspended accounts and historical audit attribution.
+- [x] `DEV-044-14` Approve canonical person, identity, organization, membership and role-assignment model in ADR-002.
+- [x] `DEV-044-15` Select Supabase Auth target and session/MFA/offboarding policy in ADR-002; rollout remains release-gated.
+- [x] `DEV-044-16` Define mapping tables and transition period for platform principal to stable PDM user/company.
+- [x] `DEV-044-17` Implement migration tooling with dry-run, collision report and rollback boundary.
+- [x] `DEV-044-18` Reverify invitations, Google identity, local-password users, suspended accounts and historical audit attribution.
 
 Implementation contract:
 
@@ -525,10 +525,10 @@ Acceptance/evidence:
 
 | Phase / DEV | Execution boundary | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
-| Phase 0 / DEV-044 | This turn | Complete | ADR/SPEC/QA/control-board docs | Product/code/schema | Current user instruction | All decisions/phases captured; ProJED untouched | AI_PDM `.ai-doc` diff |
-| Phase 1 / DEV-044 | Future local RD | RD Implementation Ready / Not Requested | actor/org context, command boundary, static guard, route inventory | auth replacement, schema, ProJED, production | Explicit Phase 1 request | explicit server context; spoof denial; regressions pass | focused QC + inventory |
-| Phase 2 / DEV-044 | Future local RD | RD Contract Ready / Not Requested | atomic audit/outbox/idempotency schema and repositories | live migration, broker, production publisher | Phase 1 evidence + request | atomicity, dedupe, redaction, parity | shadow/migration/concurrency QC |
-| Phase 3 / new IAM child DEV | Future gated | RD Contract Ready / Blocked Human Re-entry | shared identity/org adapter and migration | unapproved provider/cutover | provider/org/migration decisions | one principal mapping; no history rewrite | collision/staging/session evidence |
+| Phase 0 / DEV-044 | Local docs | Complete | ADR/SPEC/QA/control-board docs | Product/code/schema | Initial user instruction | All decisions/phases captured; ProJED untouched | scoped documentation commit |
+| Phase 1 / DEV-044 | Local RD | Complete / QC passed | actor/org context, command boundary, static guard, route inventory | auth replacement, ProJED, production | User Phase 1-3 execution instruction | explicit server context; spoof denial; regressions pass | focused QC + RD inventory |
+| Phase 2 / DEV-044 | Local RD | Complete / QC passed | atomic audit/outbox/idempotency schema and repositories | live migration, broker, production publisher | Phase 1 evidence | atomicity, dedupe, redaction, parity | shadow/migration/rollback QC |
+| Phase 3 / DEV-044 | Local gated foundation | Complete / QC passed | shared identity/org mapping, governance and migration tooling | provider configuration/cutover | `1A 2A 3A` target decisions | one principal mapping; no history rewrite | collision dry-run + auth/session regression |
 | Phase 4 / integration child DEV | Future gated | RD Contract Ready / Not Requested | ERP shell and versioned integration contracts | ProJED edits in AI_PDM task | Phase 3 + shell/consumer approval | SSO/scope/idempotency/independent deploy | contract/E2E evidence |
 | Phase 5 / DEV-030-032 | Release only | Release Gate Required | approved production execution | undocumented release action | release command + high-risk confirmation | release gate decides | release evidence |
 | ProJED follow-up | Separate repository/task | Blocked Human Re-entry | Consume approved shared contract later | Any current ProJED modification | Explicit user approval + separate DEV | Defined in ProJED-owned docs | ProJED-owned evidence |
@@ -538,9 +538,9 @@ Acceptance/evidence:
 | Deferred signal | Classification | Tracking decision |
 |---|---|---|
 | ProJED code/schema/auth/deploy changes | Blocked Human Re-entry | Separate ProJED-owned DEV after explicit approval; no AI_PDM edit may start it |
-| Shared ERP IAM/provider selection | New DEV + Blocked Human Re-entry | Phase 3 child DEV after provider/org/MFA/offboarding decisions |
-| Canonical ERP person/org/department model | New DEV + Blocked Human Re-entry | Shared core decision before Phase 3 implementation |
-| Transactional outbox implementation | Same Spec Phase | Phase 2 contract above |
+| Shared ERP IAM provider rollout | New IAM rollout DEV + Release Gate | Target is Supabase Auth; configuration/cutover follows staging and release approval |
+| Canonical ERP person/org/department deployment | New shared-core DEV | ADR-002 defines the five-entity model; AI_PDM owns only mapping tables |
+| Transactional outbox external publication | New integration DEV later | Local outbox is complete; add a publisher only after a real consumer and delivery SLO exist |
 | External broker/webhook destination | New DEV later | Only after a real consumer and delivery SLO exist |
 | ERP shell/domain/subdomain | Same Spec Phase + later release gate | Phase 4 contract; production routing remains release-gated |
 | Production migration/deploy/rollback/smoke | Blocked Human Re-entry / Release Gate Required | Existing DEV-030/031/032; no artifacts in this document |
@@ -552,21 +552,21 @@ Acceptance/evidence:
 
 ### Phase 1
 
-Result: `RD Implementation Ready / Not Requested This Turn`.
+Result: `Complete locally / QC passed`.
 
-No P0/P1 engineering decision remains for the local adapter/boundary slice. Schema, provider, production and user-visible behavior changes are explicitly excluded.
+Server-derived context, selected P0 route boundaries, static guard and ownership inventory are implemented.
 
 ### Phase 2
 
-Result: `RD Contract Ready / Not Requested This Turn`.
+Result: `Complete locally / QC passed`.
 
-Schema, transaction, RLS/default-deny, idempotency, retry and QA contracts are defined. Implementation waits for Phase 1 evidence and an explicit phase request.
+Schema, transaction, RLS/default-deny, idempotency, retry and rollback behavior are implemented and verified without a live target.
 
 ### Phase 3
 
-Result: `RD Contract Ready / Blocked Human Re-entry`.
+Result: `Provider-neutral foundation complete locally / QC passed`.
 
-The engineering migration contract is defined, but provider, organization/person semantics, MFA/offboarding, cost and production timing are human decisions.
+ADR-002 records provider, organization/person, MFA/offboarding, ownership and timing decisions. Mapping and collision tooling are implemented; provider configuration and production cutover remain release-gated.
 
 ### Phase 4
 

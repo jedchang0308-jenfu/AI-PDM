@@ -74,6 +74,35 @@ CREATE TABLE IF NOT EXISTS user_company_memberships (
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS platform_principal_mappings (
+  platform_principal_id TEXT PRIMARY KEY,
+  pdm_user_id TEXT NOT NULL UNIQUE,
+  mapping_source TEXT NOT NULL DEFAULT 'current_pdm' CHECK (mapping_source IN ('current_pdm', 'shared_iam')),
+  mapping_status TEXT NOT NULL DEFAULT 'active' CHECK (mapping_status IN ('active', 'suspended', 'retired')),
+  external_subject TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE (mapping_source, external_subject)
+);
+
+CREATE TABLE IF NOT EXISTS platform_organization_mappings (
+  platform_organization_id TEXT PRIMARY KEY,
+  pdm_company_id TEXT NOT NULL UNIQUE,
+  mapping_source TEXT NOT NULL DEFAULT 'current_pdm' CHECK (mapping_source IN ('current_pdm', 'shared_core')),
+  mapping_status TEXT NOT NULL DEFAULT 'active' CHECK (mapping_status IN ('active', 'suspended', 'retired')),
+  external_organization_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (pdm_company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (mapping_source, external_organization_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_platform_principal_mappings_pdm_user
+  ON platform_principal_mappings(pdm_user_id, mapping_status);
+CREATE INDEX IF NOT EXISTS idx_platform_organization_mappings_company
+  ON platform_organization_mappings(pdm_company_id, mapping_status);
+
 INSERT OR IGNORE INTO companies (id, company_code, display_name)
 VALUES
   ('company-jenfu', 'JENFU', '鉦富'),
@@ -739,6 +768,61 @@ BEFORE DELETE ON audit_logs
 BEGIN
   SELECT RAISE(ABORT, 'AUDIT_LOG_APPEND_ONLY');
 END;
+
+CREATE TABLE IF NOT EXISTS platform_command_receipts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  command_name TEXT NOT NULL,
+  schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+  idempotency_key TEXT NOT NULL,
+  actor_id TEXT,
+  platform_principal_id TEXT,
+  platform_organization_id TEXT NOT NULL,
+  correlation_id TEXT NOT NULL,
+  command_status TEXT NOT NULL DEFAULT 'processing' CHECK (command_status IN ('processing', 'completed')),
+  response_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (platform_principal_id) REFERENCES platform_principal_mappings(platform_principal_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  FOREIGN KEY (platform_organization_id) REFERENCES platform_organization_mappings(platform_organization_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  UNIQUE (company_id, command_name, idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS platform_outbox_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  aggregate_type TEXT NOT NULL,
+  aggregate_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  actor_id TEXT,
+  platform_principal_id TEXT,
+  platform_organization_id TEXT NOT NULL,
+  correlation_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  delivery_status TEXT NOT NULL DEFAULT 'pending' CHECK (delivery_status IN ('pending', 'publishing', 'published', 'failed')),
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  next_attempt_at TEXT,
+  last_error TEXT,
+  occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+  published_at TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (platform_principal_id) REFERENCES platform_principal_mappings(platform_principal_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  FOREIGN KEY (platform_organization_id) REFERENCES platform_organization_mappings(platform_organization_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  UNIQUE (company_id, event_type, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_platform_command_receipts_lookup
+  ON platform_command_receipts(company_id, command_name, idempotency_key, command_status);
+CREATE INDEX IF NOT EXISTS idx_platform_outbox_delivery
+  ON platform_outbox_events(delivery_status, next_attempt_at, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_platform_outbox_aggregate
+  ON platform_outbox_events(company_id, aggregate_type, aggregate_id, occurred_at);
 
 CREATE TABLE IF NOT EXISTS numbering_sequences (
   sequence_key TEXT PRIMARY KEY,

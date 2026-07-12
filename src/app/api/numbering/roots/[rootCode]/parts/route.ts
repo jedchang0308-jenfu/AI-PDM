@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { addPartNumberToRootAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { NumberingItemKind } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
@@ -14,16 +14,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
   const linkDrawingNumber = String(body.linkDrawingNumber ?? body.link_drawing_number ?? body.drawingNumber ?? body.drawing_number ?? "").trim();
   const linkRelationType = normalizeEnum(body.linkRelationType ?? body.link_relation_type ?? "auto", linkTypes) as "auto" | "primary_manufacturing" | "reference" | "none" | undefined;
 
-  const auth = await requireNumberingActionAsync(request, "numbering.create");
-  if (auth.response) return auth.response;
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.create", body });
+  if (access.response) return access.response;
   if (linkDrawingNumber && linkRelationType !== "none") {
     const linkAuth = await requireNumberingActionAsync(request, "numbering.link_variant");
     if (linkAuth.response) return linkAuth.response;
   }
 
   const { rootCode } = await params;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
-  if (companyResult.response) return companyResult.response;
 
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
@@ -36,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
 
   try {
     const result = await addPartNumberToRootAsync({
-      companyId: companyResult.company.companyId,
+      companyId: access.company.companyId,
       rootCode: decodeURIComponent(rootCode),
       itemKind,
       customSpecification,
@@ -44,12 +42,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       universalReason,
       reason: String(body.reason ?? "").trim(),
       sourceEntrypoint: String(body.sourceEntrypoint ?? body.source_entrypoint ?? "root_drawer").trim(),
-      idempotencyKey: String(body.idempotencyKey ?? body.idempotency_key ?? "").trim() || undefined,
+      idempotencyKey: access.metadata.idempotencyKey,
       linkDrawingNumber: linkDrawingNumber || undefined,
       linkRelationType,
-      createdBy: auth.user.id
-    });
-    return NextResponse.json({ ...result, pdmCompany: companyResult.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
+      createdBy: access.actor.pdmUserId
+    }, access.metadata);
+    return NextResponse.json({ ...result, pdmCompany: access.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to add part number";
     return NextResponse.json({ error: message }, { status: errorStatus(message) });

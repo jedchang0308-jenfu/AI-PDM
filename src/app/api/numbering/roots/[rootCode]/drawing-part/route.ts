@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { addDrawingAndPartToRootAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { DrawingPurposeCode, NumberingItemKind } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
@@ -11,15 +11,13 @@ const purposeCodes = new Set(["M", "R"]);
 const linkTypes = new Set(["auto", "primary_manufacturing", "reference"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ rootCode: string }> }) {
-  const auth = await requireNumberingActionAsync(request, "numbering.create");
-  if (auth.response) return auth.response;
+  const body = await request.json().catch(() => ({}));
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.create", body });
+  if (access.response) return access.response;
   const linkAuth = await requireNumberingActionAsync(request, "numbering.link_variant");
   if (linkAuth.response) return linkAuth.response;
 
-  const body = await request.json().catch(() => ({}));
   const { rootCode } = await params;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
-  if (companyResult.response) return companyResult.response;
 
   const purposeCode = normalizeEnum(body.purposeCode ?? body.purpose_code ?? body.drawingPurposeCode ?? body.drawing_purpose_code, purposeCodes) as
     | DrawingPurposeCode
@@ -43,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
 
   try {
     const result = await addDrawingAndPartToRootAsync({
-      companyId: companyResult.company.companyId,
+      companyId: access.company.companyId,
       rootCode: decodeURIComponent(rootCode),
       purposeCode,
       purposeDescription,
@@ -53,11 +51,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       universalReason,
       reason: String(body.reason ?? "").trim(),
       sourceEntrypoint: String(body.sourceEntrypoint ?? body.source_entrypoint ?? "numbering_request_append").trim(),
-      idempotencyKey: String(body.idempotencyKey ?? body.idempotency_key ?? "").trim() || undefined,
+      idempotencyKey: access.metadata.idempotencyKey,
       linkRelationType,
-      createdBy: auth.user.id
-    });
-    return NextResponse.json({ ...result, pdmCompany: companyResult.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
+      createdBy: access.actor.pdmUserId
+    }, access.metadata);
+    return NextResponse.json({ ...result, pdmCompany: access.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to add drawing and part number";
     return NextResponse.json({ error: message }, { status: errorStatus(message) });

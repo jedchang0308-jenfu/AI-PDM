@@ -410,6 +410,7 @@ export type CreateNumberingRecordInput = {
   drawingPurposeDescription?: string;
   createdBy?: string | null;
   ruleVersionId?: string;
+  idempotencyKey?: string;
 };
 
 export type AddPartNumberInput = {

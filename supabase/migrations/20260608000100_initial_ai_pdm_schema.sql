@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: bcaef508a14e7e29679fcf99bef5f2cf393ec87113d7d818ef10ffe63fefce97
+-- Source SHA-256: c23ebdb14cf1faffea9ac6c9977f399592293d1b2209b6f1c8a8f759ef3eff05
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -108,6 +108,18 @@ CREATE TABLE IF NOT EXISTS users (
   FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
+CREATE TABLE IF NOT EXISTS platform_organization_mappings (
+  platform_organization_id TEXT PRIMARY KEY,
+  pdm_company_id TEXT NOT NULL UNIQUE,
+  mapping_source TEXT NOT NULL DEFAULT 'current_pdm' CHECK (mapping_source IN ('current_pdm', 'shared_core')),
+  mapping_status TEXT NOT NULL DEFAULT 'active' CHECK (mapping_status IN ('active', 'suspended', 'retired')),
+  external_organization_key TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (pdm_company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (mapping_source, external_organization_key)
+);
+
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -186,6 +198,18 @@ CREATE TABLE IF NOT EXISTS user_company_memberships (
   PRIMARY KEY (user_id, company_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS platform_principal_mappings (
+  platform_principal_id TEXT PRIMARY KEY,
+  pdm_user_id TEXT NOT NULL UNIQUE,
+  mapping_source TEXT NOT NULL DEFAULT 'current_pdm' CHECK (mapping_source IN ('current_pdm', 'shared_iam')),
+  mapping_status TEXT NOT NULL DEFAULT 'active' CHECK (mapping_status IN ('active', 'suspended', 'retired')),
+  external_subject TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE (mapping_source, external_subject)
 );
 
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -889,6 +913,54 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS platform_command_receipts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  command_name TEXT NOT NULL,
+  schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+  idempotency_key TEXT NOT NULL,
+  actor_id TEXT,
+  platform_principal_id TEXT,
+  platform_organization_id TEXT NOT NULL,
+  correlation_id TEXT NOT NULL,
+  command_status TEXT NOT NULL DEFAULT 'processing' CHECK (command_status IN ('processing', 'completed')),
+  response_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (platform_principal_id) REFERENCES platform_principal_mappings(platform_principal_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  FOREIGN KEY (platform_organization_id) REFERENCES platform_organization_mappings(platform_organization_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  UNIQUE (company_id, command_name, idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS platform_outbox_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  aggregate_type TEXT NOT NULL,
+  aggregate_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  actor_id TEXT,
+  platform_principal_id TEXT,
+  platform_organization_id TEXT NOT NULL,
+  correlation_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  delivery_status TEXT NOT NULL DEFAULT 'pending' CHECK (delivery_status IN ('pending', 'publishing', 'published', 'failed')),
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  next_attempt_at TIMESTAMPTZ,
+  last_error TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  published_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (platform_principal_id) REFERENCES platform_principal_mappings(platform_principal_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  FOREIGN KEY (platform_organization_id) REFERENCES platform_organization_mappings(platform_organization_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  UNIQUE (company_id, event_type, idempotency_key)
 );
 
 CREATE TABLE IF NOT EXISTS part_roots (
@@ -1807,12 +1879,22 @@ CREATE INDEX IF NOT EXISTS idx_auth_identities_login
   ON auth_identities(provider, login_identifier, status);
 CREATE INDEX IF NOT EXISTS idx_auth_identities_user
   ON auth_identities(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_platform_principal_mappings_pdm_user
+  ON platform_principal_mappings(pdm_user_id, mapping_status);
+CREATE INDEX IF NOT EXISTS idx_platform_organization_mappings_company
+  ON platform_organization_mappings(pdm_company_id, mapping_status);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
 ON submission_snapshots(company_id, source_root_code);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
 ON submission_snapshots(company_id, source_drawing_number);
 CREATE INDEX IF NOT EXISTS idx_submission_attempts_source
 ON submission_attempts(company_id, source_root_code, source_drawing_number, source_revision, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_platform_command_receipts_lookup
+  ON platform_command_receipts(company_id, command_name, idempotency_key, command_status);
+CREATE INDEX IF NOT EXISTS idx_platform_outbox_delivery
+  ON platform_outbox_events(delivery_status, next_attempt_at, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_platform_outbox_aggregate
+  ON platform_outbox_events(company_id, aggregate_type, aggregate_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_part
 ON part_number_drafts(company_id, source_part_number_id, status);
 CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_drawing
@@ -1980,6 +2062,11 @@ CREATE TRIGGER trg_users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_platform_organization_mappings_updated_at ON platform_organization_mappings;
+CREATE TRIGGER trg_platform_organization_mappings_updated_at
+BEFORE UPDATE ON platform_organization_mappings
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
 CREATE TRIGGER trg_items_updated_at
 BEFORE UPDATE ON items
@@ -1998,6 +2085,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_auth_identities_updated_at ON auth_identities;
 CREATE TRIGGER trg_auth_identities_updated_at
 BEFORE UPDATE ON auth_identities
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_platform_principal_mappings_updated_at ON platform_principal_mappings;
+CREATE TRIGGER trg_platform_principal_mappings_updated_at
+BEFORE UPDATE ON platform_principal_mappings
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_system_settings_updated_at ON system_settings;
@@ -2113,6 +2205,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_submission_lifecycle_requests_updated_at ON submission_lifecycle_requests;
 CREATE TRIGGER trg_submission_lifecycle_requests_updated_at
 BEFORE UPDATE ON submission_lifecycle_requests
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_platform_outbox_events_updated_at ON platform_outbox_events;
+CREATE TRIGGER trg_platform_outbox_events_updated_at
+BEFORE UPDATE ON platform_outbox_events
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_part_roots_updated_at ON part_roots;

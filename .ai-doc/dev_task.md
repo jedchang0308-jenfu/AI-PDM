@@ -32,7 +32,7 @@ Owner：Dev PM
 - 狀態符號直接決定可否派工：`☐` 才是一般可派工；`○` 需先選定切片或使用者提出實作型指令；`!` 與 `↷` 不可由 RD 直接執行。
 - 目前沒有可直接正式部署的任務；若要開放內部人員使用，從 `DEV-032` release gate 恢復。
 - `DEV-005` Phase 1 本地切片已完成；技轉包 Phase 3 已依使用者決策抽成 `○ DEV-041`。`DEV-041` Phase 3A-0 已達 RD Implementation Ready，但本輪只完成文件且未要求產品實作，因此不可由 RD 自動啟動。
-- `DEV-044` 已建立 AI_PDM 作為未來 ERP 之 PDM 模組的架構契約。Phase 1 已達 `RD Implementation Ready / Not Requested This Turn`；本輪只寫文件，ProJED 不得被修改。
+- `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；Supabase Auth/MFA/session revocation 僅完成目標契約，production cutover 仍未授權，ProJED 未修改。
 - CAD 原檔解析、SolidWorks Add-in、完整離線還原演練、正式現場測試與 live Supabase 資料工作都不是本輪自動可執行範圍；第一版 release readiness 只把正式領號 / 草稿 production slice 的必要 gate 列為 blocker。
 
 ### 目前派工任務清單
@@ -54,10 +54,10 @@ Owner：Dev PM
   - 恢復條件：release gate 設定 Google Cloud OAuth Web client、consent screen、正式 redirect URI、secret 與 `PDM_GOOGLE_OAUTH_ENABLED=true`，並套用核准的 schema migration。
   - 不做：不允許 Google 自助註冊、email/domain 自動授權、Google 群組主控 PDM 角色，不執行 live provider setup、migration 或 deploy。
 
-- 待排可續接：`DEV-044` ERP-ready AI_PDM 模組基礎。
-  - 任務：Phase 1 建立 server-derived actor/company context、versioned command boundary、route ownership inventory、client/server import guard 與 payload spoofing QC；不改現有登入體驗與 schema。
-  - 恢復條件：使用者提出 `執行 DEV-044 Phase 1` 或等效產品實作指令。Phase 2 transactional outbox 必須等待 Phase 1 QC；Phase 3 shared IAM 必須重新確認 provider、組織/人員語意、MFA/offboarding 與 migration owner。
-  - 不做：本輪不改產品、schema、Supabase/live data、登入 provider、正式網域、部署或 ProJED；不把 ERP 準備工作併入 `DEV-040` 第一版領號/草稿 release scope。
+- 本機完成：`DEV-044` ERP-ready AI_PDM 模組基礎 Phase 1-3。
+  - 任務：已建立 server-derived command boundary、atomic receipt/outbox、SQLite/PostgreSQL/Supabase migration parity、shared principal/organization mapping 與 collision dry-run。
+  - 恢復條件：實際 Supabase Auth、MFA、中央 session revocation、staging/live migration 或 production cutover 需另立 IAM rollout/release DEV，並續接 `DEV-030`、`DEV-031`、`DEV-032`。
+  - 不做：未變更正式登入 provider、正式網域、production data/deploy 或 ProJED；不把 ERP 基礎工作計入 `DEV-040` 第一版領號/草稿使用者交付完成率。
 
 - 已完成父交付：`DEV-005` 研發 / 技術移轉送審關卡 Phase 1。
   - 任務：保留研發/技轉模式、readiness resolver、direct single-item fail-closed 與 package-context 入口的完成證據；後續技轉包交付改由 `DEV-041` 管理。
@@ -93,22 +93,22 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ○ DEV-044 [開發點] [待排] [P0] [Phase 1 RD Implementation Ready / 本輪未要求實作] ERP-ready AI_PDM 模組基礎
+- ✓ DEV-044 [開發點] [本機完成] [P0] [Phase 1-3 QC Passed] ERP-ready AI_PDM 模組基礎
   - 摘要：把 AI_PDM 固化為未來 ERP 的獨立 PDM 模組，先建立 server-authoritative actor/company/command 邊界，再分期加入 atomic audit/outbox、shared IAM adapter 與 ERP shell contract；不把現有 ProJED 架構升格成 ERP 母架構，也不在本任務修改 ProJED。
   - 來源 ID：`DEV-PDM-ERP-MODULE-FOUNDATION-001`
   - 父任務：未來 ERP platform program；現階段不計入 `DEV-040` 正式領號/草稿交付完成率。
   - 任務清單：
     - [x] Phase 0：建立 ADR、SPEC、QA、All-Phase Coverage Matrix、Deferred Scope Audit 與 PM 續接入口。
-    - [ ] Phase 1：route ownership inventory、`PlatformActorContext`、versioned command/idempotency contract、selected P0 route boundary、client/server import guard、spoofing QC。
-    - [ ] Phase 2：SQLite/PostgreSQL/Supabase parity transactional outbox、atomic mutation/audit/event、claim/ack/fail repository、RLS/default-deny、concurrency QC。
-    - [ ] Phase 3：待人類確認 shared IAM provider、canonical person/organization model、MFA/offboarding、migration owner 與 timing 後，建立 mapping/collision migration child DEV。
+    - [x] Phase 1：route ownership inventory、`PlatformActorContext`、versioned command/idempotency contract、selected P0 route boundary、client/server import guard、spoofing QC。
+    - [x] Phase 2：SQLite/PostgreSQL/Supabase parity transactional outbox、atomic mutation/audit/event、claim/ack/fail repository、RLS/default-deny、duplicate/rollback QC。
+    - [x] Phase 3：採用 `1A 2A 3A` 治理決策，完成 shared IAM/core mapping、雙 ID 證據鏈、collision dry-run/apply tooling 與 auth/suspension/audit regression；provider cutover 另走 release gate。
     - [ ] Phase 4：待 ERP shell/consumer 決策後提供 versioned PDM integration contract；ProJED 需另外建立其 repository-owned DEV。
     - [ ] Phase 5：任何 production migration/deploy/cutover 續接既有 `DEV-030`、`DEV-031`、`DEV-032` release gate。
-  - 執行範圍：本輪只有文件；下一個可執行切片為 Phase 1，狀態為 `RD Implementation Ready / Not Requested This Turn`。
+  - 執行範圍：Phase 1-3 本機開發與驗證完成；Phase 4 ERP shell contract、Phase 5 production/release 未執行。
   - 驗收標準：PDM controlled mutations 只能使用 server-derived actor/company context；browser 不得持有 privileged DB/provider secret；current PDM IDs/history 不被改寫；Phase 2 mutation/audit/outbox atomic；跨模組只能走 versioned command/read/event contract；ProJED 零修改。
-  - 必讀文件：`.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`、`.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`、`.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`。
+  - 必讀文件：`.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`、`.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`、`.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`、`.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`、Phase 1-3 RD/QC reports。
   - 停止條件：需要改登入 provider、canonical org/person 產品語意、stable ID/history、ProJED、live migration、production、外部成本、merge/PR/deploy/release 時停止並進對應 human/release gate。
-  - 證據：Phase 0 為 AI_PDM `.ai-doc` diff；Phase 1 需 route inventory、focused QC、spoof/idempotency、typecheck/lint/build 與既有 numbering/draft/auth regression；後續 phase 依 SPEC/QA 累加。
+  - 證據：`.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`、`.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md`、`qc:pdm-erp-module-foundation` 26/26、production slice 27/27、invitation 25/25、Google identity 19/19、managed auth 21/21、Supabase migration 36/36、Postgres shadow 26/26、typecheck/lint/build pass。
   - 計入交付：否（平台開發點，不直接增加第一版使用者交付完成率）
 
 - ✓ DEV-001 [交付點] [完成] [P0] [已歸檔] 全系統審核平台化

@@ -1,7 +1,7 @@
 # ADR-PDM-ERP-MODULE-FOUNDATION-001: ERP-ready PDM module boundary
 
 Date: 2026-07-12
-Status: Accepted / Development document prepared; product implementation not requested this turn
+Status: Accepted / Phase 1-3 implemented locally on 2026-07-12
 Owner: Dev PM
 Related DEV: `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
@@ -46,8 +46,8 @@ AI assumptions:
 - AI_PDM continues to use Next.js, React and TypeScript for its Web/BFF surface.
 - PostgreSQL/Supabase remains the target PDM database and object-storage authority under existing ADRs.
 - Current `users.id`, `companies.id` and controlled PDM object identifiers remain stable; future platform identities map to them instead of rewriting history.
-- A shared ERP identity provider has not yet been finally selected. Current PDM local-password and Google identity behavior remains authoritative until a separately approved migration.
-- Documentation is the only execution boundary in this turn.
+- Supabase Auth is the target shared ERP identity provider under ADR-002. Current PDM local-password and Google identity behavior remains authoritative until a separately approved migration.
+- Phase 1-3 local development is complete; production migration, provider cutover and release remain outside this execution boundary.
 
 ## Decision
 
@@ -133,9 +133,8 @@ Costs and risks:
 
 ## Execution Boundary
 
-This ADR authorizes documentation only. It does not authorize:
+DEV-044 now authorizes and records local Phase 1-3 implementation. It does not authorize:
 
-- Product or schema implementation.
 - ProJED changes of any kind.
 - Supabase Auth or other shared-IAM cutover.
 - Live PostgreSQL/Supabase migration or provider pointer change.

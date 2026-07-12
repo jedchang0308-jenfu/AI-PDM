@@ -21,15 +21,15 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "bcaef508a14e7e29679fcf99bef5f2cf393ec87113d7d818ef10ffe63fefce97",
-      "targetSha256": "701c17aaee36e02251d4d31dd210bf214d217f292bd6bbe486dc705d11c2f851"
+      "sourceSha256": "c23ebdb14cf1faffea9ac6c9977f399592293d1b2209b6f1c8a8f759ef3eff05",
+      "targetSha256": "8cb55018f04c2c09f0ad73fc9c81ae50fb64eae4820f5af860fc8544dff7f8e3"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
       "target": "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
       "description": "Force RLS and deny direct anon/authenticated public table access",
-      "sourceSha256": "43963d7d3e8f0bd891aca8b62a3b97623a58d96bae5d69122f53f943f6c4afb3",
-      "targetSha256": "d263c4a3c8c641f7ac92cc453b1c9aefc555cb55b42eb45242d55ddb19934530"
+      "sourceSha256": "485169a33d018cb49fdacd34ccdecc9a186bd0b38ce40c49c910fd0c3879b006",
+      "targetSha256": "659230ff99af1dbd688129ae2a94532b0a1c2e7f13ccbabd9830c73e16f76a8d"
     },
     {
       "source": "db/postgres/003_harden_set_updated_at_search_path.sql",
@@ -65,6 +65,13 @@
       "description": "Add provider-neutral identities, account status, and deny direct Data API access",
       "sourceSha256": "499d45e5bc1ec4b265e2ee844f43294b5638102793882c487c4939429e692f7b",
       "targetSha256": "d443f5d0a053b42bc737a7488d5644c18dd1d2d190ff2b732a99164cbb09fb50"
+    },
+    {
+      "source": "db/postgres/008_erp_module_foundation.sql",
+      "target": "supabase/migrations/20260712034956_erp_module_foundation.sql",
+      "description": "Add ERP-ready platform mappings, command receipts, transactional outbox, and deny direct Data API access",
+      "sourceSha256": "7b71c5c0d9c876a2853492f5e79124ba1de7c76e6908b36461d2c663dacc1d97",
+      "targetSha256": "a8c3970bb88371150f30733f8ad6ab814ae0ee37daf7553b35e5cf5a829a44fd"
     }
   ]
 }

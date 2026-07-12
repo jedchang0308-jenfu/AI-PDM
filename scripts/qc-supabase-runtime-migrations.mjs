@@ -30,16 +30,20 @@ function extractTableNames(sql) {
 const sync = runNode("scripts/sync-supabase-runtime-migrations.mjs");
 record("SUPA-MIG-001 sync script exits successfully", sync.status === 0, sync.stderr || sync.stdout);
 
-const requiredFiles = [
-  "supabase/README.md",
-  "supabase/migrations/manifest.json",
+const requiredMigrationFiles = [
   "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
   "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
   "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
   "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
   "supabase/migrations/20260707010000_access_control_launch_governance.sql",
   "supabase/migrations/20260710020000_account_invitations.sql",
-  "supabase/migrations/20260710030000_auth_identities_google_oauth.sql"
+  "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
+  "supabase/migrations/20260712034956_erp_module_foundation.sql"
+];
+const requiredFiles = [
+  "supabase/README.md",
+  "supabase/migrations/manifest.json",
+  ...requiredMigrationFiles
 ];
 for (const file of requiredFiles) {
   record(`SUPA-MIG-002 required file exists: ${file}`, projectFileExists(root, file), file);
@@ -53,6 +57,7 @@ const compactNumbering = readProjectFile(root, "db/postgres/004_numbering_v2_com
 const accessControlLaunch = readProjectFile(root, "db/postgres/005_access_control_launch_governance.sql");
 const accountInvitations = readProjectFile(root, "db/postgres/006_account_invitations.sql");
 const authIdentities = readProjectFile(root, "db/postgres/007_auth_identities_google_oauth.sql");
+const erpModuleFoundation = readProjectFile(root, "db/postgres/008_erp_module_foundation.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
@@ -60,6 +65,7 @@ const migrationCompactNumbering = readProjectFile(root, "supabase/migrations/202
 const migrationAccessControlLaunch = readProjectFile(root, "supabase/migrations/20260707010000_access_control_launch_governance.sql");
 const migrationAccountInvitations = readProjectFile(root, "supabase/migrations/20260710020000_account_invitations.sql");
 const migrationAuthIdentities = readProjectFile(root, "supabase/migrations/20260710030000_auth_identities_google_oauth.sql");
+const migrationErpModuleFoundation = readProjectFile(root, "supabase/migrations/20260712034956_erp_module_foundation.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -100,7 +106,30 @@ record(
     /REVOKE ALL ON TABLE public\.auth_identities FROM anon, authenticated/u.test(migrationAuthIdentities),
   "auth identity security boundary"
 );
-record("SUPA-MIG-008 manifest records all migrations", Array.isArray(manifest.migrations) && manifest.migrations.length === 7, JSON.stringify(manifest.migrations ?? []));
+record("SUPA-MIG-007J ERP module foundation migration embeds source hash", migrationErpModuleFoundation.includes(`Source SHA-256: ${sha256(erpModuleFoundation)}`), "ERP module foundation source hash");
+record(
+  "SUPA-MIG-007K ERP module foundation migration enforces RLS and denies direct access",
+  [
+    "platform_principal_mappings",
+    "platform_organization_mappings",
+    "platform_command_receipts",
+    "platform_outbox_events"
+  ].every(
+    (tableName) =>
+      new RegExp(`ALTER TABLE public\\.${tableName} ENABLE ROW LEVEL SECURITY`, "u").test(migrationErpModuleFoundation) &&
+      new RegExp(`ALTER TABLE public\\.${tableName} FORCE ROW LEVEL SECURITY`, "u").test(migrationErpModuleFoundation) &&
+      new RegExp(`REVOKE ALL ON TABLE public\\.${tableName} FROM anon, authenticated`, "u").test(migrationErpModuleFoundation)
+  ),
+  "ERP module foundation security boundary"
+);
+const manifestTargets = Array.isArray(manifest.migrations)
+  ? manifest.migrations.map((migration) => migration.target)
+  : [];
+record(
+  "SUPA-MIG-008 manifest records all migrations",
+  JSON.stringify(manifestTargets) === JSON.stringify(requiredMigrationFiles),
+  JSON.stringify(manifestTargets)
+);
 record(
   "SUPA-MIG-009 manifest source hashes match db/postgres",
   manifest.migrations?.[0]?.sourceSha256 === sha256(postgresSchema) &&
@@ -109,7 +138,8 @@ record(
     manifest.migrations?.[3]?.sourceSha256 === sha256(compactNumbering) &&
     manifest.migrations?.[4]?.sourceSha256 === sha256(accessControlLaunch) &&
     manifest.migrations?.[5]?.sourceSha256 === sha256(accountInvitations) &&
-    manifest.migrations?.[6]?.sourceSha256 === sha256(authIdentities),
+    manifest.migrations?.[6]?.sourceSha256 === sha256(authIdentities) &&
+    manifest.migrations?.[7]?.sourceSha256 === sha256(erpModuleFoundation),
   JSON.stringify(manifest.migrations ?? [])
 );
 record(

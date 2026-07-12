@@ -7,7 +7,7 @@ This project uses `.ai-doc` as the single project documentation center. Cold sta
 | Need | Read |
 |---|---|
 | Current task, blockers, next executable work | `.ai-doc/dev_task.md` |
-| ERP-ready AI_PDM module boundary and phased RD contract | `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`; `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`; `.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md` |
+| ERP-ready AI_PDM Phase 1-3 boundary, identity decisions and evidence | `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`; `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`; `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`; `.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`; `.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md` |
 | Pre-deploy local development completion audit | `.ai-doc/reports/pm/pm-predeploy-development-completion-audit-2026-07-10.md` |
 | Completed DEV / gate evidence index | `.ai-doc/archived/completed-dev-index-2026-06.md`; `.ai-doc/archived/completed-dev-index-2026-07.md` |
 | Archive policy and snapshots | `.ai-doc/archived/README.md` |
@@ -32,12 +32,14 @@ Historical snapshots:
 Current dispatch rule:
 
 - No local product DEV is automatically executable from this section. The authoritative PM dispatch entry is `.ai-doc/dev_task.md` Section `目前派工任務清單`.
-- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` is documentation-complete for Phase 0. Phase 1 is `RD Implementation Ready / Not Requested This Turn`; it must not start without an explicit execution request, and no phase in this package may modify ProJED.
+- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` Phase 1-3 is complete locally with QC evidence. Phase 4 ERP shell and all production IAM/migration/release work remain unexecuted; no phase may modify ProJED.
 - Local pre-deploy development is closed from the current `dev_task.md` completion-audit perspective; production readiness remains false until `DEV-032` release gate and external blockers are satisfied.
 - The package entries below are current implementation context, protected evidence, or read-order guidance. They must not override `dev_task.md` status symbols, stop conditions, release gate wording, or external-evidence blockers.
 - Documentation-only governance work remains allowed when scoped to `.ai-doc/dev_task.md`, `.ai-doc/documentation_map.md`, `.ai-doc/archived/`, or the current PM audit report.
 
 Implemented / protected context:
+
+- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`: Phase 1-3 local implementation and QC passed on 2026-07-12. Server-derived actor/company command boundaries protect selected numbering/draft mutations; command receipts and transactional outbox are additive across SQLite/PostgreSQL/Supabase with RLS/default-deny; provider-neutral principal/organization mappings preserve PDM IDs and carry platform IDs in evidence; guarded collision tooling passed against a copied local database with 5 users, 2 companies and zero collisions. Target governance is Supabase Auth plus `Person/Identity/Organization/Membership/RoleAssignment`, Admin/Approver MFA and central suspension/session revocation. This is not a provider cutover or production release. ProJED was not modified. Read ADR-001, ADR-002, the SPEC, QA plan, RD report and QC report in Section 1.
 
 - `DEV-PDM-APPROVAL-PLATFORM-001`: Phase 1A-1B local implementation, Phase 1C-A reviewer entrypoint consolidation, Phase 1C-B legacy reviewer page convergence and Phase 1C-C drawing object pending-review projection complete; transitional adapters, friendly-route delegation and guarded migration dry-run/apply tooling present; release/live migration not authorized. 2026-07-08 architecture decisions: launch timing is not urgent, stability is preferred, and full-system approval platformization should be done before launch. ADR 002 selected additive `approval_platform_*` v2 tables. Local implementation added platform schema, repository/service, `/api/approvals/*`, `/approvals`, legacy adapters including drawing revision impact reviews, friendly decision routes delegating through the platform facade, focused QC, guarded migration dry-run/apply self-test, build and browser evidence. Phase 1C-A makes `審核工作台` the single primary reviewer approval sidebar entry, adds a reviewer-role/company-scoped pending badge, and exposes status/domain/action filters with URL query deep links; Phase 1C-B redirects `/numbering/approvals`, `/bom/reviews` and `/numbering/change-reviews` into equivalent workbench filter states with compatibility messages; Phase 1C-C projects pending drawing revision impact reviews onto the affected drawing number, drawing detail and attachment revision/history rows as compact read-only cues with reviewer deep links. 2026-07-09 system drawer, numbering and lifecycle QC governance was aligned so `/numbering/approvals` and `/bom/reviews` are verified as legacy redirects into canonical `/approvals`, not as stale independent reviewer pages. Production deploy/cutover, Supabase live migration, direct data repair/deletion, merge, PR, rollback and release artifacts are not authorized. Read `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`, `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`, `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md` and `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`.
 
@@ -69,7 +71,7 @@ Implemented / protected context:
 
 Not executable without explicit approval:
 
-- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`: Phase 0 architecture documentation is complete. Phase 1 may later add server-derived actor/company context, a versioned command boundary, route ownership inventory, client/server import guards and spoofing QC without changing auth provider or schema. Phase 2 adds atomic audit/transactional outbox under SQLite/PostgreSQL parity. Phase 3 shared IAM requires human decisions for provider, canonical person/organization semantics, MFA/offboarding, migration owner and timing. Phase 4 ERP shell/integration remains contract-only; ProJED requires a separate repository-owned DEV and is explicitly untouched. Production work remains under `DEV-030`/`DEV-031`/`DEV-032`. Read the ERP module ADR, SPEC and QA plan listed in Section 1.
+- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` release continuation only: Phase 1-3 is complete locally. Actual Supabase Auth configuration, MFA, central session revocation, staging/live migration and production cutover remain under a new IAM rollout DEV plus `DEV-030`/`DEV-031`/`DEV-032`. Phase 4 ERP shell/integration remains contract-only; ProJED requires a separate repository-owned DEV and is explicitly untouched.
 - `DEV-PDM-PRODUCTION-SLICE-001`: Phase 1 local product slice implemented and verified; release gate required for production execution. This captures the user's 2026-07-09 decision to launch only the Web `正式領號 / 草稿 production slice`, not full PDM production readiness, plus RD supervisor follow-up `1B 2C 3A`: include `/numbering/part-drafts`, allow provisional part-number draft delete/recycle before controlled boundary, and use smoke company / tenant as the default smoke isolation path. Local implementation now includes central production-slice capability helpers, method-level API allowlist/default-deny, direct URL blocked state, sidebar roadmap `未開放` state, `/numbering/part-drafts` slice-mode inert actions, and direct API fail-closed for `submit-review`, `reconfirm` and `restore`. Delete/recycle reuses the existing controlled-boundary predicate; official root/drawing/part numbers remain controlled and non-recyclable. Production target readiness, deploy, provider pointer switch, rollback and production smoke remain in `DEV-032` release gate. Read `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`, `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`, `.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md` and `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
 - `DEV-PDM-APPROVAL-PLATFORM-001`: Phase 1A-1B local implementation, Phase 1C-A reviewer entrypoint consolidation, Phase 1C-B legacy reviewer page convergence and Phase 1C-C drawing object pending-review projection complete; transitional adapters, friendly-route delegation and guarded migration dry-run/apply tooling present; release/live migration not authorized. Stop if work needs fragmented formal approval inboxes at launch, multiple primary reviewer approval sidebar entries, badge counts that ignore reviewer-role/company scope, one monolithic all-domain apply module, direct formal lifecycle mutation without platform audit, root obsolete without aggregate intent/impact preview, cost/supplement adapters as final launch-readiness state, production/Supabase live migration, provider pointer switch, direct data repair/deletion, merge, PR, rollback or release artifacts.
 - `DEV-PDM-NUMBERING-004` Phase 4 release/live work: Phase 1-3 are implemented locally. Do not perform production deploy, Supabase live migration/cutover, provider pointer change, direct data repair/deletion, merge, PR, rollback or release artifacts without explicit release authorization.
@@ -94,17 +96,20 @@ Not executable without explicit approval:
 
 ### DEV-PDM-ERP-MODULE-FOUNDATION-001
 
-Status: Phase 0 documentation complete; Phase 1 RD Implementation Ready / Not Requested This Turn. This package makes AI_PDM integration-ready as a future ERP PDM module while preserving the current official-numbering/draft launch boundary. It does not promote the current ProJED architecture to ERP authority and does not permit any ProJED change.
+Status: Phase 1-3 complete locally / QC passed; Phase 4 and production IAM/release work remain pending. This package makes AI_PDM integration-ready as a future ERP PDM module while preserving the current official-numbering/draft launch boundary. It does not promote the current ProJED architecture to ERP authority and does not permit any ProJED change.
 
 Read:
 
 1. `.ai-doc/dev_task.md` (`DEV-044`)
 2. `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`
-3. `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
-4. `.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`
-5. Current identity authority: `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
-6. Current runtime target authority: `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
-7. Current first-launch authority: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
+3. `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`
+4. `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
+5. `.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`
+6. `.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`
+7. `.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md`
+8. Current identity authority: `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+9. Current runtime target authority: `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
+10. Current first-launch authority: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
 
 Human decisions:
 
@@ -116,10 +121,8 @@ Human decisions:
 
 Execution boundary:
 
-- This turn completed documents only.
-- Phase 1 may execute only after an explicit `DEV-044 Phase 1` request.
-- Phase 2 requires Phase 1 QC evidence and a separate phase request.
-- Phase 3 requires shared IAM/provider and canonical organization/person human decisions.
+- Phase 1-3 local development and QC are complete.
+- Phase 3 target decisions do not authorize Supabase Auth, MFA or session-revocation production rollout.
 - Phase 4 cannot modify ProJED; any ProJED consumption requires a separate ProJED-owned task.
 - Production, migration, domain routing, rollback and smoke remain release-gated.
 
