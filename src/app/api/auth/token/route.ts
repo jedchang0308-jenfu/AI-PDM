@@ -28,7 +28,13 @@ export async function POST(request: Request) {
   }
 
   const identity = await getLocalPasswordIdentityAsync(email);
-  if (!identity || identity.status !== "active" || identity.user.account_status !== "active") {
+  if (
+    !identity ||
+    identity.status !== "active" ||
+    identity.user.account_status !== "active" ||
+    identity.user.system_role_enabled === 0 ||
+    identity.user.system_role_enabled === false
+  ) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
   const user = identity.user;

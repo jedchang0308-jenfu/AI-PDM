@@ -9,6 +9,12 @@ type UserRow = {
   role: DbUser["role"];
   company_id: string;
   account_status: DbUser["account_status"];
+  session_invalid_before: string | null;
+  account_lifecycle_version: number;
+  system_role_enabled: number | boolean;
+  account_status_changed_at: string | null;
+  account_status_changed_by: string | null;
+  account_status_reason: string | null;
 };
 
 type UserWithPasswordRow = UserRow & {
@@ -16,19 +22,25 @@ type UserWithPasswordRow = UserRow & {
 };
 
 export const SELECT_ASYNC_USER_BY_ID_SQL = `
-  SELECT id, display_name, email, role, company_id, account_status
+  SELECT id, display_name, email, role, company_id, account_status,
+         session_invalid_before, account_lifecycle_version, system_role_enabled,
+         account_status_changed_at, account_status_changed_by, account_status_reason
   FROM users
   WHERE id = :id
 `;
 
 export const SELECT_ASYNC_USER_BY_EMAIL_SQL = `
-  SELECT id, display_name, email, role, company_id, account_status
+  SELECT id, display_name, email, role, company_id, account_status,
+         session_invalid_before, account_lifecycle_version, system_role_enabled,
+         account_status_changed_at, account_status_changed_by, account_status_reason
   FROM users
   WHERE lower(email) = lower(:email)
 `;
 
 export const SELECT_ASYNC_USER_BY_EMAIL_WITH_PASSWORD_SQL = `
-  SELECT id, display_name, email, password_hash, role, company_id, account_status
+  SELECT id, display_name, email, password_hash, role, company_id, account_status,
+         session_invalid_before, account_lifecycle_version, system_role_enabled,
+         account_status_changed_at, account_status_changed_by, account_status_reason
   FROM users
   WHERE lower(email) = lower(:email)
 `;
@@ -87,7 +99,6 @@ export const UPSERT_ASYNC_LOCAL_IDENTITY_SQL = `
     provider_subject = excluded.provider_subject,
     login_identifier = excluded.login_identifier,
     email_normalized = excluded.email_normalized,
-    status = 'active',
     updated_at = excluded.updated_at
 `;
 

@@ -1,9 +1,13 @@
 # ADR-PDM-ERP-MODULE-FOUNDATION-002: Shared identity and organization governance
 
 Date: 2026-07-12
-Status: Accepted for target architecture; production cutover not authorized
+Status: Partially superseded on 2026-07-13; canonical model and stable-ID governance remain accepted
 Owner: ERP Platform RD; mapping approval owner: designated Admin/HR data owner
 Related DEV: `DEV-044` Phase 3
+
+## 2026-07-13 Supersession
+
+`ADR-PDM-ERP-PLATFORM-002` supersedes only the provider/cutover parts of Decision 1 and Decision 8: Firebase Authentication with Identity Platform is the sole shared ERP IAM target, Firebase terminates at the Next.js BFF, and Cloud SQL PostgreSQL in Taiwan is the operational database. Existing credentials are not migrated; approved identities are reprovisioned and mapped to stable PDM IDs. Decisions 2-7, stable-ID mapping, fail-closed collision handling and historical DEV-044 evidence remain authoritative. No Firebase project configuration, reprovisioning, MFA rollout or production cutover was performed by this amendment.
 
 ## Decision Source
 
@@ -30,7 +34,7 @@ The user instructed Dev PM to complete DEV-044 Phase 1 through Phase 3. The guid
 
 ## Deferred Release Work
 
-- Supabase Auth project configuration, email provider, secrets and redirect domains.
+- Firebase Auth / Identity Platform project configuration, TOTP, Firebase-managed action email, server session exchange, secrets and redirect domains.
 - MFA enrollment and recovery UX.
 - Central session-revocation integration and account lifecycle administration UI.
 - Approved staging/live migration, production cutover and rollback.

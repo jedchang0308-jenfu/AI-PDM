@@ -49,7 +49,7 @@ function getSessionToken(request: Request) {
   return null;
 }
 
-export function getSessionUserId(request: Request): string | null {
+function getSessionPayload(request: Request): { userId: string; createdAt: number } | null {
   const value = getSessionToken(request);
   if (!value) return null;
 
@@ -57,21 +57,37 @@ export function getSessionUserId(request: Request): string | null {
   if (!payload || !signature || sign(payload) !== signature) return null;
 
   try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string };
-    return decoded.userId || null;
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string; createdAt?: number };
+    if (!decoded.userId) return null;
+    const createdAt = Number(decoded.createdAt);
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return null;
+    return { userId: decoded.userId, createdAt };
   } catch {
     return null;
   }
 }
 
+export function getSessionUserId(request: Request): string | null {
+  return getSessionPayload(request)?.userId ?? null;
+}
+
+function isSessionUserAllowed(user: DbUser | null, tokenCreatedAt: number) {
+  if (!user || user.account_status !== "active") return false;
+  if (user.system_role_enabled === 0 || user.system_role_enabled === false) return false;
+  if (tokenCreatedAt > Date.now() + 5 * 60 * 1000) return false;
+  const invalidBefore = user.session_invalid_before ? Date.parse(user.session_invalid_before) : Number.NaN;
+  if (Number.isFinite(invalidBefore) && tokenCreatedAt <= invalidBefore) return false;
+  return true;
+}
+
 export async function getSessionUserAsync(request: Request): Promise<DbUser | null> {
-  const userId = getSessionUserId(request);
-  if (!userId) return null;
+  const session = getSessionPayload(request);
+  if (!session) return null;
 
   const client = getAsyncDatabaseClient();
   const repository = new AsyncUserRepository(client);
-  const user = await repository.getUserById(userId);
-  return user?.account_status === "active" ? user : null;
+  const user = await repository.getUserById(session.userId);
+  return isSessionUserAllowed(user, session.createdAt) ? user : null;
 }
 
 export async function getUserByEmailWithPasswordAsync(email: string): Promise<DbUserWithPassword | null> {

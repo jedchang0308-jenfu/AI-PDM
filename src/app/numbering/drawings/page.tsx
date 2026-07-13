@@ -137,6 +137,8 @@ async function copyTextToClipboard(text: string) {
 export default function DrawingNumbersPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
+  const [productSeries, setProductSeries] = useState("");
+  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
   const [purposeCode, setPurposeCode] = useState("");
@@ -178,6 +180,7 @@ export default function DrawingNumbersPage() {
     setError("");
     const params = new URLSearchParams({ limit: "80" });
     if (query.trim()) params.set("query", query.trim());
+    if (productSeries) params.set("productSeries", productSeries);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
     if (purposeCode) params.set("purposeCode", purposeCode);
@@ -194,6 +197,7 @@ export default function DrawingNumbersPage() {
       return;
     }
     const nextDrawings = (body.drawings ?? []) as DrawingListRecord[];
+    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
     setCanReviewApprovals(Boolean(body.approvalProjection?.canReview));
     const currentSelection = selectedDrawingNumberRef.current;
     const nextSelection = currentSelection && nextDrawings.some((drawing) => drawing.drawingNumber === currentSelection) ? currentSelection : null;
@@ -202,7 +206,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [developmentPhase, purposeCode, query, recordStatus]);
+  }, [developmentPhase, productSeries, purposeCode, query, recordStatus]);
 
   useEffect(() => {
     void loadDrawings();
@@ -471,6 +475,7 @@ export default function DrawingNumbersPage() {
                 <span>關鍵字</span>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖號 / 料號 / 文件用途" />
               </label>
+              <SelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
               <SelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <SelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
@@ -609,13 +614,15 @@ function SelectField({
   value,
   onChange,
   options,
-  formatOption
+  formatOption,
+  allLabel = "全部"
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
   formatOption?: (option: string) => string;
+  allLabel?: string;
 }) {
   return (
     <label className="pdm-master-field">
@@ -623,7 +630,7 @@ function SelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option || "all"} value={option}>
-            {option ? formatOption?.(option) ?? option : "全部"}
+            {option ? formatOption?.(option) ?? option : allLabel}
           </option>
         ))}
       </select>

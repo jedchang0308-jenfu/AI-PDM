@@ -282,7 +282,7 @@ type DrawingPartRelationPart = {
 type DrawingPartRelationCell = {
   drawingNumber: string;
   partNumber: string;
-  relationType: "manufacturing_basis" | "reference" | "none" | "blocked";
+  relationType: "manufacturing_basis" | "reference" | "pending" | "not_applicable" | "required_missing" | "blocked";
   isPrimary?: boolean;
 };
 
@@ -336,6 +336,8 @@ async function copyTextToClipboard(text: string) {
 export default function NumberingSearchPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
+  const [productSeries, setProductSeries] = useState("");
+  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
   const [entityType, setEntityType] = useState<EntityType>("all");
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
@@ -410,6 +412,7 @@ export default function NumberingSearchPage() {
     setError("");
     const params = new URLSearchParams({ limit: "60" });
     if (query.trim()) params.set("query", query.trim());
+    if (productSeries) params.set("productSeries", productSeries);
     if (entityType !== "all") params.set("entityType", entityType);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
@@ -426,6 +429,7 @@ export default function NumberingSearchPage() {
       return;
     }
     const nextRoots = (body.roots ?? []) as DrawingPartRelationRoot[];
+    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
     const currentSelection = selectedRootCodeRef.current;
     const selectedStillVisible = currentSelection && nextRoots.some((root) => root.rootCode === currentSelection);
     const nextSelectedRootCode = selectedStillVisible ? currentSelection : nextRoots[0]?.rootCode ?? null;
@@ -454,7 +458,7 @@ export default function NumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [developmentPhase, entityType, query, recordStatus]);
+  }, [developmentPhase, entityType, productSeries, query, recordStatus]);
 
   useEffect(() => {
     void loadResults();
@@ -759,6 +763,17 @@ export default function NumberingSearchPage() {
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="主根號 / 料號 / 圖號 / 名稱" />
               </label>
               <label className="pdm-master-field">
+                <span>產品系列</span>
+                <select value={productSeries} onChange={(event) => setProductSeries(event.target.value)}>
+                  <option value="">全部系列</option>
+                  {productSeriesOptions.map((option) => (
+                    <option value={option} key={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="pdm-master-field">
                 <span>類型</span>
                 <select value={entityType} onChange={(event) => setEntityType(event.target.value as EntityType)}>
                   <option value="all">全部</option>
@@ -878,12 +893,6 @@ function RelationResultsPanel({
 
   return (
     <section className="panel pdm-master-table-panel">
-      <div className="panel-header">
-        <div>
-          <h2>{viewMode === "tree" ? "圖料關係樹" : "圖料關係矩陣"}</h2>
-          <p style={mutedTextStyle}>主根號只出現一次；圖號底下直接顯示關聯料號，矩陣用來檢查多圖多料。</p>
-        </div>
-      </div>
       <div
         ref={listRef}
         className="pdm-relation-scroll"
@@ -907,7 +916,13 @@ function RelationResultsPanel({
             ))}
           </div>
         ) : (
-          <RelationMatrixView roots={roots} selectedRootCode={selectedRootCode} onOpenDetailTarget={onOpenDetailTarget} />
+          <RelationMatrixView
+            roots={roots}
+            selectedRootCode={selectedRootCode}
+            expandedRootCodes={expandedRootCodes}
+            onOpenDetailTarget={onOpenDetailTarget}
+            onToggleRoot={onToggleRoot}
+          />
         )}
       </div>
     </section>
@@ -929,59 +944,11 @@ function RelationRootGroup({
   onOpenDetailTarget: (target: DetailTarget) => void;
   onToggleRoot: (rootCode: string) => void;
 }) {
-  const manufacturingCount = root.drawings.filter((drawing) => drawing.isManufacturing).length;
-  const referenceCount = root.drawings.filter((drawing) => drawing.isReferenceOnly).length;
-  const blockerSummaries = summarizeRelationBlockers(root.blockers);
   return (
     <article className={`pdm-relation-root${selected ? " selected" : ""}`} data-search-row="true" data-row-index={rowIndex}>
-      <div className="pdm-relation-root-header" onClick={() => onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode })} role="button" tabIndex={-1}>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label={expanded ? `收合 ${root.rootCode}` : `展開 ${root.rootCode}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleRoot(root.rootCode);
-          }}
-        >
-          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-        <div className="pdm-relation-root-main">
-          <button
-            type="button"
-            className="pdm-identity-code"
-            style={linkButtonStyle}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode });
-            }}
-          >
-            {root.rootCode}
-          </button>
-          <strong title={root.coreName || undefined}>{root.coreName || "-"}</strong>
-          <RelationHealthChip health={root.relationshipHealth} severity={root.nextStep.severity} />
-        </div>
-        <div className="pdm-relation-root-meta">
-          <span className="pdm-meta-chip">製造圖 {manufacturingCount}</span>
-          <span className="pdm-meta-chip">參考圖 {referenceCount}</span>
-          <span className="pdm-meta-chip">料號 {root.parts.length}</span>
-          <StatusBadge status={root.recordStatus} context="masterRecord" />
-          <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(root.developmentPhase)}</span>
-          <span className={`pdm-relation-next ${root.nextStep.severity}`}>{root.nextStep.label}</span>
-        </div>
-      </div>
+      <RelationRootHeader root={root} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
       {expanded ? (
         <div className="pdm-relation-root-body">
-          {blockerSummaries.length > 0 ? (
-            <div className="pdm-relation-blockers">
-              {blockerSummaries.slice(0, 3).map((blocker) => (
-                <span className="pdm-relation-blocker" title={blocker.detail} key={blocker.key}>
-                  {blocker.label}
-                </span>
-              ))}
-              {blockerSummaries.length > 3 ? <span className="pdm-meta-chip">+{blockerSummaries.length - 3} 項</span> : null}
-            </div>
-          ) : null}
           <div className="pdm-relation-drawing-list">
             {root.drawings.map((drawing) => (
               <RelationDrawingNode drawing={drawing} root={root} onOpenDetailTarget={onOpenDetailTarget} key={drawing.id} />
@@ -994,35 +961,51 @@ function RelationRootGroup({
   );
 }
 
-function summarizeRelationBlockers(blockers: DrawingPartRelationRoot["blockers"]) {
-  const drawingWithoutPart = blockers.filter((blocker) => blocker.code === "drawing_without_part");
-  const partWithoutManufacturing = blockers.filter((blocker) => blocker.code === "part_without_manufacturing_drawing");
-  const groupedKeys = new Set<string>();
-  const summaries: Array<{ key: string; label: string; detail: string }> = [];
-
-  if (drawingWithoutPart.length > 0) {
-    drawingWithoutPart.forEach((blocker) => groupedKeys.add(`${blocker.code}:${blocker.targetId ?? blocker.message}`));
-    summaries.push({
-      key: "drawing_without_part",
-      label: `${drawingWithoutPart.length} 張圖尚未關聯料號`,
-      detail: drawingWithoutPart.map((blocker) => blocker.message).join("\n")
-    });
-  }
-  if (partWithoutManufacturing.length > 0) {
-    partWithoutManufacturing.forEach((blocker) => groupedKeys.add(`${blocker.code}:${blocker.targetId ?? blocker.message}`));
-    summaries.push({
-      key: "part_without_manufacturing_drawing",
-      label: `${partWithoutManufacturing.length} 個料號缺製造圖`,
-      detail: partWithoutManufacturing.map((blocker) => blocker.message).join("\n")
-    });
-  }
-
-  for (const blocker of blockers) {
-    const key = `${blocker.code}:${blocker.targetId ?? blocker.message}`;
-    if (groupedKeys.has(key)) continue;
-    summaries.push({ key, label: blocker.message, detail: blocker.message });
-  }
-  return summaries;
+function RelationRootHeader({
+  root,
+  expanded,
+  onOpenDetailTarget,
+  onToggleRoot
+}: {
+  root: DrawingPartRelationRoot;
+  expanded: boolean;
+  onOpenDetailTarget: (target: DetailTarget) => void;
+  onToggleRoot: (rootCode: string) => void;
+}) {
+  return (
+    <div className="pdm-relation-root-header" onClick={() => onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode })} role="button" tabIndex={-1}>
+      <button
+        className="icon-button"
+        type="button"
+        aria-label={expanded ? `收合 ${root.rootCode}` : `展開 ${root.rootCode}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleRoot(root.rootCode);
+        }}
+      >
+        {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+      </button>
+      <div className="pdm-relation-root-main">
+        <button
+          type="button"
+          className="pdm-identity-code"
+          style={linkButtonStyle}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode });
+          }}
+        >
+          {root.rootCode}
+        </button>
+        <strong title={root.coreName || undefined}>{root.coreName || "-"}</strong>
+        <RelationHealthChip health={root.relationshipHealth} severity={root.nextStep.severity} />
+      </div>
+      <div className="pdm-relation-root-meta">
+        <StatusBadge status={root.recordStatus} context="masterRecord" />
+        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(root.developmentPhase)}</span>
+      </div>
+    </div>
+  );
 }
 
 function RelationDrawingNode({
@@ -1035,7 +1018,6 @@ function RelationDrawingNode({
   onOpenDetailTarget: (target: DetailTarget) => void;
 }) {
   const linkedParts = root.parts.filter((part) => drawing.linkedPartNumbers.includes(part.partNumber));
-  const relationGroupLabel = drawing.isReferenceOnly ? "參考關聯料號" : "關聯料號";
   return (
     <section className={`pdm-relation-node ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`}>
       <div className="pdm-relation-node-header">
@@ -1054,13 +1036,9 @@ function RelationDrawingNode({
       </div>
       {linkedParts.length > 0 ? (
         <div className="pdm-relation-part-group">
-          <div className="pdm-relation-part-group-heading">
-            <span>{relationGroupLabel}</span>
-            <small>{linkedParts.length} 筆</small>
-          </div>
           <div className="pdm-relation-part-list">
             {linkedParts.map((part) => {
-              const relationType = root.matrix.find((cell) => cell.drawingNumber === drawing.drawingNumber && cell.partNumber === part.partNumber)?.relationType ?? "none";
+              const relationType = root.matrix.find((cell) => cell.drawingNumber === drawing.drawingNumber && cell.partNumber === part.partNumber)?.relationType ?? "pending";
               const role = relationCellLabel(relationType);
               const showRole = role !== "製造依據";
               return (
@@ -1113,69 +1091,94 @@ function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRe
 function RelationMatrixView({
   roots,
   selectedRootCode,
-  onOpenDetailTarget
+  expandedRootCodes,
+  onOpenDetailTarget,
+  onToggleRoot
 }: {
   roots: DrawingPartRelationRoot[];
   selectedRootCode: string | null;
+  expandedRootCodes: Set<string>;
   onOpenDetailTarget: (target: DetailTarget) => void;
+  onToggleRoot: (rootCode: string) => void;
 }) {
-  const root = roots.find((candidate) => candidate.rootCode === selectedRootCode) ?? roots[0];
-  if (!root) return null;
   return (
-    <div className="pdm-relation-matrix-shell">
-      <div className="pdm-relation-matrix-heading">
-        <button className="pdm-identity-code" style={linkButtonStyle} type="button" onClick={() => onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode })}>
-          {root.rootCode}
-        </button>
-        <strong title={root.coreName}>{root.coreName}</strong>
-        <span className={`pdm-relation-next ${root.nextStep.severity}`}>{root.nextStep.label}</span>
-      </div>
-      <div className="pdm-relation-matrix-wrap">
-        <table className="pdm-relation-matrix">
-          <thead>
-            <tr>
-              <th className="sticky-col">料號 / 圖號</th>
-              {root.drawings.map((drawing) => (
-                <th key={drawing.id}>
-                  <button
-                    className="pdm-relation-matrix-identity"
-                    type="button"
-                    onClick={() => onOpenDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber })}
-                  >
-                    <span>{drawing.drawingNumber}</span>
-                    <small>{drawing.purposeLabel}</small>
-                  </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {root.parts.map((part) => (
-              <tr key={part.id}>
-                <th className="sticky-col">
-                  <button
-                    className="pdm-relation-matrix-identity"
-                    type="button"
-                    onClick={() => onOpenDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber })}
-                  >
-                    <span>{part.partNumber}</span>
-                    <small title={part.partName}>{part.partName}</small>
-                  </button>
-                </th>
-                {root.drawings.map((drawing) => {
-                  const cell = root.matrix.find((item) => item.partNumber === part.partNumber && item.drawingNumber === drawing.drawingNumber);
-                  const relationType = cell?.relationType ?? "none";
-                  return (
-                    <td className={`relation-${relationType}`} key={`${part.id}:${drawing.id}`}>
-                      {relationCellLabel(relationType)}
-                    </td>
-                  );
-                })}
-              </tr>
+    <div className="pdm-relation-list pdm-relation-matrix-list">
+      {roots.map((root, index) => {
+        const expanded = expandedRootCodes.has(root.rootCode);
+        return (
+          <article
+            className={`pdm-relation-root${selectedRootCode === root.rootCode ? " selected" : ""}`}
+            data-search-row="true"
+            data-row-index={index}
+            key={root.rootId}
+          >
+            <RelationRootHeader root={root} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
+            {expanded ? (
+              <div className="pdm-relation-root-body pdm-relation-matrix-body">
+                {root.drawings.length === 0 || root.parts.length === 0 ? (
+                  <div className="pdm-relation-empty-line">{root.drawings.length === 0 ? "尚無圖號" : "尚無料號"}</div>
+                ) : (
+                  <RelationRootMatrix root={root} onOpenDetailTarget={onOpenDetailTarget} />
+                )}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRelationRoot; onOpenDetailTarget: (target: DetailTarget) => void }) {
+  return (
+    <div className="pdm-relation-matrix-wrap">
+      <table className="pdm-relation-matrix">
+        <thead>
+          <tr>
+            <th className="sticky-col pdm-relation-axis-header" aria-label="縱軸料號，橫軸圖號">
+              <span className="pdm-relation-axis-drawing" aria-hidden="true">圖號</span>
+              <span className="pdm-relation-axis-part" aria-hidden="true">料號</span>
+            </th>
+            {root.drawings.map((drawing) => (
+              <th key={drawing.id}>
+                <button
+                  className="pdm-relation-matrix-identity"
+                  type="button"
+                  onClick={() => onOpenDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber })}
+                >
+                  <span>{drawing.drawingNumber}</span>
+                  <small>{drawing.purposeLabel}</small>
+                </button>
+              </th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {root.parts.map((part) => (
+            <tr key={part.id}>
+              <th className="sticky-col">
+                <button
+                  className="pdm-relation-matrix-identity"
+                  type="button"
+                  onClick={() => onOpenDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber })}
+                >
+                  <span>{part.partNumber}</span>
+                  <small title={part.partName}>{part.partName}</small>
+                </button>
+              </th>
+              {root.drawings.map((drawing) => {
+                const cell = root.matrix.find((item) => item.partNumber === part.partNumber && item.drawingNumber === drawing.drawingNumber);
+                const relationType = cell?.relationType ?? "pending";
+                return (
+                  <td className={`relation-${relationType}`} key={`${part.id}:${drawing.id}`}>
+                    {relationCellLabel(relationType)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1199,8 +1202,11 @@ function relationHealthLabel(health: DrawingPartRelationRoot["relationshipHealth
 function relationCellLabel(relationType: DrawingPartRelationCell["relationType"]) {
   if (relationType === "manufacturing_basis") return "製造依據";
   if (relationType === "reference") return "參考";
+  if (relationType === "pending") return "待判定";
+  if (relationType === "not_applicable") return "不適用";
+  if (relationType === "required_missing") return "缺必要";
   if (relationType === "blocked") return "阻擋";
-  return "缺關聯";
+  return "待判定";
 }
 
 function relationLinkTypeLabel(linkType: NumberingLink["linkType"]) {

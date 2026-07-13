@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { listDrawingModuleRecordsAsync } from "@/lib/numbering-async";
+import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import type { DrawingPurposeCode, NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
@@ -33,18 +33,24 @@ export async function GET(request: Request) {
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const purposeCode = normalizeEnum(url.searchParams.get("purposeCode"), purposeCodes) as DrawingPurposeCode | undefined;
+  const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
 
-  const drawings = await listDrawingModuleRecordsAsync({
-    companyId: companyResult.company.companyId,
-    query: url.searchParams.get("query") ?? "",
-    recordStatus,
-    developmentPhase,
-    purposeCode,
-    limit: Number(url.searchParams.get("limit") ?? 50)
-  });
+  const [drawings, productSeriesOptions] = await Promise.all([
+    listDrawingModuleRecordsAsync({
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      productSeries,
+      recordStatus,
+      developmentPhase,
+      purposeCode,
+      limit: Number(url.searchParams.get("limit") ?? 50)
+    }),
+    listProductSeriesOptionsAsync(companyResult.company.companyId)
+  ]);
 
   return NextResponse.json({
     drawings,
+    productSeriesOptions,
     pdmCompany: companyResult.company,
     approvalProjection: {
       canReview: auth.user.role === "R&D Manager" || auth.user.role === "Admin"

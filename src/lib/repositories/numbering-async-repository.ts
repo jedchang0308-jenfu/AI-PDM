@@ -24,6 +24,7 @@ import {
   rootCodeToV3Ordinal
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
+import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
@@ -2092,6 +2093,8 @@ export const SELECT_ASYNC_NUMBERING_ASSIGNED_ROLE_CODES_SQL = `
   JOIN roles r ON r.id = a.role_id
   WHERE a.user_id = :userId
     AND a.revoked_at IS NULL
+    AND (a.starts_at IS NULL OR a.starts_at <= :now)
+    AND (a.hard_ends_at IS NULL OR a.hard_ends_at > :now)
     AND r.enabled = 1
   ORDER BY a.assigned_at DESC, r.role_code ASC
 `;
@@ -3451,8 +3454,20 @@ function partRequiresPrimaryManufacturingDrawing(partNumber: PartNumberRecord) {
   return ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind);
 }
 
+function escapeLikeLiteral(query: string) {
+  return query.replace(/[\\%_]/g, "\\$&");
+}
+
 function escapeLikeQuery(query: string) {
-  return `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+  return `%${escapeLikeLiteral(query)}%`;
+}
+
+function addProductSeriesFilter(filters: string[], params: Record<string, unknown>, productSeries: string | undefined) {
+  const normalized = normalizeProductSeries(productSeries);
+  if (!normalized) return;
+  filters.push("(r.core_name = :productSeries OR r.core_name LIKE :productSeriesPrefix ESCAPE '\\')");
+  params.productSeries = normalized;
+  params.productSeriesPrefix = `${escapeLikeLiteral(normalized)}\\_%`;
 }
 
 function buildNumberingSearchWhere(
@@ -3467,6 +3482,7 @@ function buildNumberingSearchWhere(
     filters.push(queryFilter);
     params.queryLike = escapeLikeQuery(input.query);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push(`${recordStatusColumn} = :recordStatus`);
     params.recordStatus = input.recordStatus;
@@ -3501,6 +3517,7 @@ function buildDrawingModuleWhere(input: Required<Pick<DrawingModuleListInput, "q
     )`);
     params.queryLike = escapeLikeQuery(input.query);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("d.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
@@ -3529,6 +3546,7 @@ function buildPartModuleWhere(input: Required<Pick<PartModuleListInput, "query" 
     );
     params.queryLike = `%${input.query}%`;
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("p.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
@@ -6859,6 +6877,14 @@ export class AsyncNumberingRepository {
       .slice(0, normalizedInput.limit);
   }
 
+  async listProductSeriesOptions(companyId: string = DEFAULT_COMPANY_ID): Promise<string[]> {
+    const rows = await this.client.query<{ core_name: string }>(
+      "SELECT core_name FROM part_roots WHERE company_id = :companyId ORDER BY core_name ASC",
+      { companyId }
+    );
+    return productSeriesOptionsFromCoreNames(rows.map((row) => row.core_name));
+  }
+
   async listDrawingModuleRecords(input: DrawingModuleListInput = {}): Promise<DrawingModuleListRecord[]> {
     const normalizedInput = {
       ...input,
@@ -7214,7 +7240,10 @@ export class AsyncNumberingRepository {
   }
 
   private async listUserRoleCodes(user: NumberingUserScope): Promise<string[]> {
-    const rows = await this.client.query<NumberingAssignedRoleRow>(SELECT_ASYNC_NUMBERING_ASSIGNED_ROLE_CODES_SQL, { userId: user.id });
+    const rows = await this.client.query<NumberingAssignedRoleRow>(SELECT_ASYNC_NUMBERING_ASSIGNED_ROLE_CODES_SQL, {
+      userId: user.id,
+      now: this.clock()
+    });
     return uniqueStrings([...numberingRoleCodes(user), ...rows.map((row) => row.role_code)]);
   }
 

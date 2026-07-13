@@ -43,6 +43,16 @@ export function createLogoutCookie() {
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
 }
 
+function isSessionUserAllowed(user: DbUser | undefined | null, tokenCreatedAt: number) {
+  if (!user || user.account_status !== "active") return false;
+  if (user.system_role_enabled === 0 || user.system_role_enabled === false) return false;
+  if (!Number.isFinite(tokenCreatedAt) || tokenCreatedAt <= 0) return false;
+  if (tokenCreatedAt > Date.now() + 5 * 60 * 1000) return false;
+  const invalidBefore = user.session_invalid_before ? Date.parse(user.session_invalid_before) : Number.NaN;
+  if (Number.isFinite(invalidBefore) && tokenCreatedAt <= invalidBefore) return false;
+  return true;
+}
+
 export function getSessionUser(request: Request): DbUser | null {
   let value = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE_NAME);
 
@@ -59,10 +69,10 @@ export function getSessionUser(request: Request): DbUser | null {
   if (!payload || !signature || sign(payload) !== signature) return null;
 
   try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string };
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string; createdAt?: number };
     if (!decoded.userId) return null;
     const user = getUserById(decoded.userId);
-    return user?.account_status === "active" ? user : null;
+    return isSessionUserAllowed(user, Number(decoded.createdAt)) ? user ?? null : null;
   } catch {
     return null;
   }

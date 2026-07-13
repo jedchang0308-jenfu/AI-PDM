@@ -1,9 +1,11 @@
 # ADR-SUPABASE-DB-001: Runtime Provider 與 Supabase Target 決策
 
 日期：2026-06-08  
-狀態：Accepted for planning  
+狀態：Superseded for staging/production execution by `ADR-PDM-ERP-PLATFORM-002`; historical compatibility evidence only
 關聯任務：`DEV-SUPABASE-DB-001`  
 關聯規格：`SPEC-SUPABASE-DB-001`
+
+2026-07-13 superseding amendment：`ADR-PDM-ERP-PLATFORM-002` 已將 staging/production operational relational authority 改為 Google Cloud SQL PostgreSQL `asia-east1`。本 ADR 的 Supabase target、GATE-B、RLS、migration history 與 adapter 證據只保留為 historical/disposable compatibility evidence，不得再據此建立 production Supabase target。Local SQLite 與 provider-neutral PostgreSQL 工作仍可重用。
 
 ## Context
 

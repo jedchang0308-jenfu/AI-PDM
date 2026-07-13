@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-07-08T01:42:41.044Z",
+  "dataDir": "C:\\VIBE CODING\\AI_PDM\\tmp\\pdm-numbering-contextual-entrypoints-20260708094114",
+  "created": {
+    "drawingM": "A0001-M02",
+    "drawingR": "A0001-R01",
+    "part": "A0001-P02",
+    "combinedDrawing": "A0001-M03",
+    "combinedPart": "A0001-P03",
+    "linkType": "primary_manufacturing"
+  },
+  "assertions": [
+    {
+      "name": "existing root count unchanged",
+      "passed": true
+    },
+    {
+      "name": "M drawing created under existing root",
+      "passed": true
+    },
+    {
+      "name": "R drawing created under existing root",
+      "passed": true
+    },
+    {
+      "name": "part created under existing root",
+      "passed": true
+    },
+    {
+      "name": "part idempotency replay reuses record",
+      "passed": true
+    },
+    {
+      "name": "combined drawing-part creates both records",
+      "passed": true
+    },
+    {
+      "name": "combined relation is manufacturing basis",
+      "passed": true
+    },
+    {
+      "name": "database contains created drawings",
+      "passed": true
+    },
+    {
+      "name": "database contains created parts",
+      "passed": true
+    },
+    {
+      "name": "root obsolete impact API returns root context",
+      "passed": true
+    }
+  ]
+}

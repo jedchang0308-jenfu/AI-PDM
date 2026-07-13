@@ -168,6 +168,8 @@ async function copyTextToClipboard(text: string) {
 export default function PartsPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
+  const [productSeries, setProductSeries] = useState("");
+  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
@@ -199,6 +201,7 @@ export default function PartsPage() {
     setError("");
     const params = new URLSearchParams();
     if (query.trim()) params.set("query", query.trim());
+    if (productSeries) params.set("productSeries", productSeries);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
     const response = await fetch(`/api/parts?${params.toString()}`);
@@ -213,6 +216,7 @@ export default function PartsPage() {
       return;
     }
     const nextParts = (body.parts ?? []) as PartListRecord[];
+    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
     const currentSelection = selectedPartNumberRef.current;
     const nextSelection = currentSelection && nextParts.some((part) => part.partNumber === currentSelection) ? currentSelection : null;
     setParts(nextParts);
@@ -223,7 +227,7 @@ export default function PartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [developmentPhase, query, recordStatus]);
+  }, [developmentPhase, productSeries, query, recordStatus]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -549,6 +553,7 @@ export default function PartsPage() {
                 <span>關鍵字</span>
                 <input value={query} placeholder="料號、主根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
+              <FilterSelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
               <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
@@ -1505,13 +1510,15 @@ function FilterSelectField({
   value,
   onChange,
   options,
-  formatOption
+  formatOption,
+  allLabel
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
   formatOption?: (option: string) => string;
+  allLabel?: string;
 }) {
   return (
     <label className="pdm-master-field">
@@ -1519,7 +1526,7 @@ function FilterSelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option value={option} key={option || "all"}>
-            {option ? formatOption?.(option) ?? partKindLabel(option) : `全部${label}`}
+            {option ? formatOption?.(option) ?? partKindLabel(option) : allLabel ?? `全部${label}`}
           </option>
         ))}
       </select>

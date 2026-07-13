@@ -1,5 +1,7 @@
 "use client";
 
-import SettingsPage from "../page";
+import { SettingsScreen } from "../page";
 
-export default SettingsPage;
+export default function SettingsSecurityPage() {
+  return <SettingsScreen initialArea="security" />;
+}

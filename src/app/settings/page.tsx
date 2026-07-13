@@ -46,6 +46,16 @@ type SettingsState =
   | { status: "ready"; settings: Record<string, boolean | string> }
   | { status: "error"; message: string };
 
+export type SettingsArea = "overview" | "integrations" | "security" | "workflow" | "system";
+
+const settingsAreas: Array<{ id: SettingsArea; label: string; href: string; hash: string }> = [
+  { id: "overview", label: "總覽", href: "/settings", hash: "settings-overview" },
+  { id: "integrations", label: "整合", href: "/settings/integrations", hash: "settings-integrations" },
+  { id: "security", label: "安全", href: "/settings/security", hash: "settings-security" },
+  { id: "workflow", label: "流程", href: "/settings/workflow", hash: "settings-workflow" },
+  { id: "system", label: "系統", href: "/settings/system", hash: "settings-system" }
+];
+
 type AdminRole = {
   id: string;
   roleCode: string;
@@ -317,7 +327,12 @@ function defaultReviewDueDateFromToday() {
 }
 
 export default function SettingsPage() {
+  return <SettingsScreen initialArea="overview" />;
+}
+
+export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
   const [state, setState] = useState<SettingsState>({ status: "loading" });
+  const [activeArea, setActiveArea] = useState<SettingsArea>(initialArea);
 
   const fetchSettings = () => {
     fetch("/api/settings")
@@ -344,12 +359,26 @@ export default function SettingsPage() {
     fetchSettings();
   }, []);
 
+  useEffect(() => {
+    function syncLegacyHash() {
+      const hash = window.location.hash.replace(/^#/, "");
+      const area = settingsAreas.find((item) => item.hash === hash)?.id;
+      if (area) setActiveArea(area);
+    }
+
+    syncLegacyHash();
+    window.addEventListener("hashchange", syncLegacyHash);
+    return () => window.removeEventListener("hashchange", syncLegacyHash);
+  }, []);
+
+  const activeAreaLabel = settingsAreas.find((area) => area.id === activeArea)?.label ?? "總覽";
+
   return (
     <>
       <div className="topbar">
         <div>
           <h1>系統設定</h1>
-          <p>僅系統管理員可以查看與調整系統設定。</p>
+          <p>目前位於「{activeAreaLabel}」；請從分頁切換要管理的設定區域。</p>
         </div>
       </div>
 
@@ -361,7 +390,7 @@ export default function SettingsPage() {
       {state.status === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看系統設定。" /> : null}
       {state.status === "forbidden" ? <AccessPanel title="需要系統管理員權限" message="只有系統管理員可以管理系統設定。" /> : null}
       {state.status === "error" ? <AccessPanel title="無法讀取設定" message={state.message} /> : null}
-      {state.status === "ready" ? <SettingsPanel settings={state.settings} onSaved={fetchSettings} /> : null}
+      {state.status === "ready" ? <SettingsPanel settings={state.settings} activeArea={activeArea} onSaved={fetchSettings} /> : null}
     </>
   );
 }
@@ -387,7 +416,15 @@ function AccessPanel({ title, message }: { title: string; message: string }) {
   );
 }
 
-function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean | string>; onSaved: () => void }) {
+function SettingsPanel({
+  settings,
+  activeArea,
+  onSaved
+}: {
+  settings: Record<string, boolean | string>;
+  activeArea: SettingsArea;
+  onSaved: () => void;
+}) {
   const [pendingFolder, setPendingFolder] = useState(String(settings.gdrive_pending_folder_id ?? ""));
   const [releasedFolder, setReleasedFolder] = useState(String(settings.gdrive_released_folder_id ?? ""));
   const [masterAttachmentsFolder, setMasterAttachmentsFolder] = useState(String(settings.gdrive_master_attachments_folder_id ?? ""));
@@ -625,23 +662,33 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
   const googleDriveReady = Boolean(pendingSnapshot && releasedSnapshot && masterAttachmentsSnapshot);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <SettingsAreaNav />
-      <SettingsCenterOverview solidWorksStatus={solidWorksStatus} googleDriveReady={googleDriveReady} vaultProvider={solidWorksStatus.liveGate.provider} />
+    <div className="settings-center-shell">
+      <SettingsAreaNav activeArea={activeArea} />
 
-      <SolidWorksSecretPanel
-        status={solidWorksStatus}
-        secretValue={solidWorksSecret}
-        loading={secretLoading}
-        action={secretAction}
-        message={secretMessage}
-        onSecretValueChange={setSolidWorksSecret}
-        onCreateDraft={createSolidWorksSecretDraft}
-        onRefresh={loadSecretStatuses}
-        onRunAction={runSecretAction}
-      />
+      <div className="settings-center-page">
+        {activeArea === "overview" ? (
+          <SettingsCenterOverview
+            solidWorksStatus={solidWorksStatus}
+            googleDriveReady={googleDriveReady}
+            vaultProvider={solidWorksStatus.liveGate.provider}
+          />
+        ) : null}
 
-      <section className="panel" id="settings-integrations">
+        {activeArea === "security" ? (
+          <SolidWorksSecretPanel
+            status={solidWorksStatus}
+            secretValue={solidWorksSecret}
+            loading={secretLoading}
+            action={secretAction}
+            message={secretMessage}
+            onSecretValueChange={setSolidWorksSecret}
+            onCreateDraft={createSolidWorksSecretDraft}
+            onRefresh={loadSecretStatuses}
+            onRunAction={runSecretAction}
+          />
+        ) : null}
+
+        {activeArea === "integrations" ? <section className="panel" id="settings-integrations">
         <div className="panel-header">
           <h2>Google Drive 設定</h2>
         </div>
@@ -822,13 +869,13 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
             </button>
           </div>
         </form>
-      </section>
+        </section> : null}
 
-      <div id="settings-workflow">
-        <ApprovalMatrixSettings />
-      </div>
+        {activeArea === "workflow" ? <div id="settings-workflow">
+          <ApprovalMatrixSettings />
+        </div> : null}
 
-      <section className="panel" id="settings-system">
+        {activeArea === "system" ? <section className="panel" id="settings-system">
         <div className="panel-header">
           <h2>環境設定（唯讀）</h2>
         </div>
@@ -840,7 +887,8 @@ function SettingsPanel({ settings, onSaved }: { settings: Record<string, boolean
             </div>
           ))}
         </div>
-      </section>
+        </section> : null}
+      </div>
     </div>
   );
 }
@@ -903,14 +951,19 @@ function ApprovalRuleSummaryDisplay({
   );
 }
 
-function SettingsAreaNav() {
+function SettingsAreaNav({ activeArea }: { activeArea: SettingsArea }) {
   return (
     <nav className="settings-center-nav" aria-label="設定區域">
-      <a href="#settings-overview">總覽</a>
-      <a href="#settings-integrations">整合</a>
-      <a href="#settings-security">安全</a>
-      <a href="#settings-workflow">流程</a>
-      <a href="#settings-system">系統</a>
+      {settingsAreas.map((area) => (
+        <Link
+          className={activeArea === area.id ? "is-active" : undefined}
+          href={area.href}
+          aria-current={activeArea === area.id ? "page" : undefined}
+          key={area.id}
+        >
+          {area.label}
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -938,25 +991,45 @@ function SettingsCenterOverview({
           title="SolidWorks CAD 讀取器"
           status={settingWorkQueueLabel(solidWorksStatus.workQueueState)}
           detail={solidWorksStatus.workQueueMessage}
+          href="/settings/security"
+          actionLabel="前往安全設定"
         />
         <SettingsStatusTile
           icon={googleDriveReady ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
           title="Google Drive"
           status={googleDriveReady ? "已驗證" : "待設定"}
           detail={googleDriveReady ? "三個用途資料夾皆有驗證快照。" : "審核中、發布與主檔附件庫需各自驗證。"}
+          href="/settings/integrations"
+          actionLabel="管理整合設定"
         />
         <SettingsStatusTile
           icon={vaultProvider === "supabase_vault" ? <LockKeyhole size={18} /> : <Ban size={18} />}
           title="機密資料保管庫"
           status={solidWorksStatus.liveGate.status === "ready" ? "已連到保管庫" : "待正式驗證"}
           detail={solidWorksStatus.liveGate.message}
+          href="/settings/security"
+          actionLabel="查看安全狀態"
         />
       </div>
     </section>
   );
 }
 
-function SettingsStatusTile({ icon, title, status, detail }: { icon: React.ReactNode; title: string; status: string; detail: string }) {
+function SettingsStatusTile({
+  icon,
+  title,
+  status,
+  detail,
+  href,
+  actionLabel
+}: {
+  icon: React.ReactNode;
+  title: string;
+  status: string;
+  detail: string;
+  href: string;
+  actionLabel: string;
+}) {
   return (
     <div className="settings-status-tile">
       <div className="settings-status-tile-icon" aria-hidden="true">
@@ -966,6 +1039,10 @@ function SettingsStatusTile({ icon, title, status, detail }: { icon: React.React
         <span>{title}</span>
         <strong>{status}</strong>
         <small>{detail}</small>
+        <Link className="settings-status-tile-action" href={href}>
+          {actionLabel}
+          <ChevronRight size={14} aria-hidden="true" />
+        </Link>
       </div>
     </div>
   );
@@ -1297,7 +1374,7 @@ function folderUseLabel(use: DriveFolderUse) {
   return "主檔附件庫";
 }
 
-function ApprovalMatrixSettings() {
+export function ApprovalMatrixSettings() {
   const [matrix, setMatrix] = useState<MatrixResponse | null>(null);
   const [drafts, setDrafts] = useState<Record<string, RuleDraft>>({});
   const [newRule, setNewRule] = useState<RuleDraft>(emptyRuleDraft);
@@ -2355,6 +2432,16 @@ function RoleAssignmentPanel({
           </select>
         </label>
         <label style={labelStyle}>
+          開始生效
+          <input
+            data-testid="role-assignment-starts-at"
+            type="date"
+            value={draft.startsAt}
+            onChange={(event) => setDraft((current) => ({ ...current, startsAt: event.target.value }))}
+            style={fieldStyle}
+          />
+        </label>
+        <label style={labelStyle}>
           下次複核
           <input
             data-testid="role-assignment-review-due"
@@ -2434,12 +2521,13 @@ function RoleAssignmentPanel({
                   </td>
                   <td>
                     {assignment.reviewDueAt ?? "未設定"}
+                    {assignment.startsAt ? <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}> / 開始 {assignment.startsAt}</span> : null}
                     {assignment.hardEndsAt ? <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}> / 到期停用 {assignment.hardEndsAt}</span> : null}
                   </td>
                   <td>{assignment.reason}</td>
                   <td>{formatDateTime(assignment.assignedAt)}</td>
                   <td>
-                    <StatusBadge status={assignment.revokedAt ? "revoked" : "active"} context="settingsLifecycle" />
+                    <StatusBadge status={roleAssignmentStatus(assignment)} context="settingsLifecycle" />
                     {assignment.revokedAt ? <p style={{ color: "var(--muted)", fontSize: "0.8rem", margin: "0.2rem 0 0" }}>{formatDateTime(assignment.revokedAt)}</p> : null}
                   </td>
                   <td>
@@ -3161,6 +3249,14 @@ function assignmentSaveDisabledReason(draft: AssignmentDraft, role: AdminRole | 
     if (!draft.reviewDueAt) return "外部專員必須有第一次複核日期。";
   }
   return "";
+}
+
+function roleAssignmentStatus(assignment: RoleAssignment) {
+  if (assignment.revokedAt) return "revoked";
+  const today = new Date().toISOString().slice(0, 10);
+  if (assignment.startsAt && assignment.startsAt > today) return "scheduled";
+  if (assignment.hardEndsAt && assignment.hardEndsAt <= today) return "expired";
+  return "active";
 }
 
 function accessAuditActionLabel(action: string) {

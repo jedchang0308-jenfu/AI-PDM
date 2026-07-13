@@ -21,7 +21,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
-  UserPlus,
+  UserCog,
   UploadCloud
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -93,7 +93,7 @@ const navSections: NavSection[] = [
     label: "管理",
     items: [
       { href: "/policy", label: "管理辦法", icon: FileText },
-      { href: "/settings/account-invitations", label: "帳號邀請", icon: UserPlus },
+      { href: "/settings/accounts", label: "帳號與權限", icon: UserCog },
       { href: "/settings", label: "系統設定", icon: Settings },
       { href: "/login", label: "登入", icon: LogIn }
     ]
@@ -113,7 +113,7 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
 
 export function SidebarNav() {
   const pathname = usePathname() || "/";
-  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/");
+  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);

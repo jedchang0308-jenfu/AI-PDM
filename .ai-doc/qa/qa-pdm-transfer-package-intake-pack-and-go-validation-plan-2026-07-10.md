@@ -3,9 +3,9 @@
 Spec: `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
 DEV: `DEV-041` / `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
 Parent DEV: `DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`
-Status: Phase 3A-0 QA Implementation Ready / Not Requested This Turn; Phase 3A-1 QA Contract Ready / Not Requested This Turn; Phase 3A-2 to 3C QA contract pending design-change configuration decisions
+Status: Phase 3A-0 QA Passed 2026-07-13; Phase 3A-1 to 3C QA Contract Ready / Not Requested This Turn
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-07-13
 
 ## 1. Objective And Verification Boundary
 
@@ -39,7 +39,15 @@ This plan does not authorize product implementation, schema migration, live Supa
 | RD `3A` | work is tracked under child delivery `DEV-041`; Phase 1 evidence remains under `DEV-005` |
 | RD re-review `1A` | exact materialized candidate configuration must pass real SolidWorks open/missing-reference verification before formal submit; no Add-in is required |
 | RD re-review `2B` | one package may contain multiple top assemblies; every governed root has explicit scope and complete evidence |
-| RD re-review `3/4` | design-change delta/effective-configuration and multi-top approval semantics remain pending and block final Phase 3A-2 to 3C QA contract |
+| Design-change `1A` | later change uses a new delta package, inherits immutable prior evidence and creates complete candidates; approved package remains terminal |
+| Multi-top `2A` | all governed roots approve atomically; staged roots require separate packages |
+| Assembly-impact annotation | system suggests; human decides `no_change`, `defer` or `update`; impact status does not overwrite master lifecycle |
+| Lane isolation | development decimal changes affect only development configurations; formal integer changes affect only formal configurations |
+| Formal defer `1C` | only compatible, non-critical, sufficiently evidenced impacts with R&D Manager reason, owner, due date and follow-up may defer; all others block |
+| Visible-state simplification | verified `no_change` shows `不需進版`; internal defer/update states both show only `已非最新版 / 待更新` |
+| Suggestion authority `1A` | deterministic versioned resolver only; stable rule IDs/reasons/input hash; no AI/LLM/network call |
+| Formal no-change `2B` | every formal no-change requires R&D Manager approval after exact candidate/SolidWorks evidence |
+| Follow-up integration `3A` | canonical transfer follow-up owns due time and projects into existing task center; no standalone page/global task due-date change |
 
 ## 3. FMEA
 
@@ -60,6 +68,18 @@ This plan does not authorize product implementation, schema migration, live Supa
 | Deep edit loses package context | no stable ID/return contract | user cannot resume blocker | BOM/drawing/part return flow | P1 | return-context browser test |
 | Adapter shows zero/ready when unavailable | placeholder coerced to success | user believes transfer is complete | capability fixture and counter sanity | P1 | explicit `unavailable` state test |
 | Required sign-off role exists only in UI text | auth/access model not extended | unauthorized or impossible approval | role/API/assignment test | P0 for 3C | access-control entry gate |
+| Development upload marks formal assembly stale | impact lookup crosses revision lanes | released configuration appears invalid without formal change | dev-child revision fixture with formal where-used | P0 | strict same-lane query and no-formal-write assertion |
+| System automatically revisions every parent assembly | suggestion treated as command | revision noise and RD rework | impact candidate fixture | P0 | human-decision and canonical allocator gate |
+| `no_change` silently ignores new child revision | assembly-file decision conflated with configuration content | candidate does not represent intended design | no-change rebuild fixture | P0 | complete candidate/hash/open-verification assertion |
+| `已非最新版` overwrites Released/Obsolete status | impact and lifecycle state conflated | broken release/workflow reporting | lifecycle before/after assertion | P0 | separate alignment-status storage |
+| One root commits in failed multi-top package | non-atomic configuration transaction | partial technical-transfer truth | injected second-root failure | P0 | all-or-none transaction test |
+| Formal defer passes without compatibility/manager/follow-up | defer treated as unrestricted exception | incompatible part may be released while assembly remains unsafe | negative eligibility matrix | P0 | fail-closed defer gate |
+| UI exposes internal defer/in-progress state vocabulary | implementation state leaks into task UI | RD sees unnecessary status complexity | DOM/text sweep | P1 | one visible stale badge contract |
+| Failed/replaced upload becomes ambiguous current intake | no atomic current pointer/supersession | baseline uses wrong package bytes | upload failure and re-upload fixture | P0 | same-package current-pointer transaction test |
+| Cancellation deletes evidence or reopens approved package | cancel implemented as hard delete/reset | audit history and approved truth are lost | lifecycle/API negative test | P0 | terminal soft cancellation and preserved-evidence assertion |
+| Suggestion changes between identical runs | non-pure resolver, unordered rules or hidden AI dependency | engineers receive inconsistent impact advice | repeat/snapshot/network-spy test | P0 | deterministic byte-equivalent output and zero external calls |
+| Formal no-change finalized by assembly owner | formal manager gate missing | high-impact parent revision avoidance lacks accountability | permission matrix test | P0 | R&D Manager-only approval endpoint |
+| Follow-up exists but task projection is missing/duplicated | non-idempotent cross-domain sync | deferred work becomes invisible or noisy | outbox failure/retry fixture | P0 | canonical follow-up plus one projection and visible pending state |
 
 ## 4. Test Data And Fixtures
 
@@ -118,6 +138,18 @@ This plan does not authorize product implementation, schema migration, live Supa
 | TP-202 | file-composition preview cannot pass as canonical BOM | BOM source test | manual-completion blocker |
 | TP-203 | next baseline is one positive integer and immutable | concurrency/snapshot test | baseline preview/confirmation |
 | TP-204 | item revisions and master lifecycle do not change during baseline | before/after DB assertion | impact summary screenshot |
+| TP-205 | one-part delta inherits unchanged evidence and produces complete candidates for every governed root | overlay/closure/hash test | inherited/direct diff and candidate preview |
+| TP-206 | system suggestion never auto-promotes an assembly; human disposition and final allocator decision are required | authorization/domain test | impact decision walkthrough |
+| TP-207 | development decimal change creates no formal impact/stale/revision/pointer mutation | cross-lane negative test | formal configuration remains unchanged |
+| TP-208 | `no_change` keeps assembly file revision but verifies the complete candidate with the new child revision | candidate/hash/open-evidence test | no-change impact and verification view |
+| TP-209 | multi-top candidate/baseline confirmation is all-or-none | failure-injection transaction test | all roots remain unconfirmed after one failure |
+| TP-210 | formal defer passes only with compatible/non-critical evidence plus manager, owner, due date and follow-up | defer eligibility matrix | approved/blocked defer states |
+| TP-211 | UI collapses internal deferred/in-progress states to one `已非最新版 / 待更新` badge; verified no-change shows `不需進版` | DOM/text assertion | impact-state screenshots |
+| TP-212 | identical normalized input/rule version produces identical ordered suggestion with zero AI/network calls | resolver snapshot/network-spy test | rule IDs/reasons view |
+| TP-213 | formal no-change cannot finalize without R&D Manager approval and exact candidate/SolidWorks evidence | permission/state test | manager approval walkthrough |
+| TP-214 | formal defer atomically creates one canonical follow-up and one idempotent task projection; retry cannot duplicate | transaction/outbox/retry test | package and `/numbering/tasks` evidence |
+| TP-215 | formal download/materialization resolves the exact configuration manifest, revisions and hashes instead of filename-based `latest` | retrieval contract/hash fixture | downloaded manifest and audit evidence |
+| TP-216 | re-upload, cleanup and cancellation cannot mutate canonical confirmed/approved evidence; released Drive evidence is required/permanent, pre-release backup is selective and no mirrored blob is overwritten/deleted | retention/lifecycle/storage test | immutable evidence and backup history |
 | TP-301 | readiness references current baseline and rule version | resolver/hash test | readiness dashboard |
 | TP-302 | stale owner data invalidates readiness/affected sign-offs | stale-dependency test | stale Now What state |
 | TP-401 | formal submit uses shared approval platform | action registry/handler test | `/approvals` deep link |
@@ -142,6 +174,20 @@ This plan does not authorize product implementation, schema migration, live Supa
 - attempt to use `file_composition_preview` as `file_manifest` BOM source
 - attempt two concurrent baseline confirms
 - verify no item revision, item status or master lifecycle mutation during baseline
+- upload a development decimal child revision and assert zero formal impact rows, stale states, revision suggestions or current-effective pointer changes
+- attempt automatic assembly revision allocation without human decision
+- select `no_change` but omit the changed child from the candidate configuration
+- select `update` and verify same-lane `已非最新版` remains until assembly upload/rebuild/verification succeeds
+- overwrite canonical `Released`/`Obsolete` master status with `已非最新版`
+- fail candidate construction for the second root and assert no root candidate/baseline commits
+- reopen or mutate an `ApprovedForTransfer` package instead of creating a linked delta package
+- approve formal defer with incompatible/critical/low-confidence impact, missing exact old revision, or missing manager/reason/owner/due date/follow-up
+- display separate human-facing `更新中` and `延後更新` badges instead of the single simplified stale badge
+- invoke AI/LLM/network or return different rule ordering for identical impact inputs
+- finalize formal no-change as Engineer/assembly owner/Admin path that bypasses configured R&D Manager approval evidence
+- approve formal defer without canonical follow-up, create duplicate projections, or close impact by directly handling the generic task
+- retrieve a formal configuration through filename-only or ambiguous `latest` resolution and substitute a newer child revision
+- mutate/delete canonical confirmed or approved evidence during re-upload, cancellation or cleanup; overwrite/delete an existing Drive mirror; or incorrectly require every pre-release transient file to be mirrored forever
 - re-parse after human classification and mapping decisions
 - submit readiness against a non-current baseline
 - sign against a stale readiness snapshot
@@ -159,7 +205,9 @@ Automated checks:
 - route/source check that `/new` GET has no mutation
 - POST create validation, transaction, idempotency and package-code uniqueness
 - prefilled source item and company-scope check
+- `drawing`/`part` boundary alias normalization to canonical owner entity types; unknown aliases fail closed
 - optimistic concurrency and duplicate scope item check
+- terminal cancel idempotency/permission/reason/evidence-preservation and no-approved-reopen tests
 - workbench-context and readiness-summary response schema
 - adapter status/deep-link allowlist contract
 - return-context query preservation
@@ -171,6 +219,7 @@ Browser checks:
 - drawing and part entry land on the same unsaved workbench pattern
 - no record is created before `建立技轉包`
 - create shows stable code/URL and prefilled scope
+- cancel shows terminal outcome and safe next action without deleting history
 - adapter cards show status, owner and one next action
 - parser card says unavailable without looking complete
 - BOM and owner deep links return to package/section/blocker
@@ -191,6 +240,7 @@ Automated checks:
 - classification confidence/reasons and human effective decision
 - re-parse preservation and audit append-only behavior
 - upload/parse idempotency and company scope
+- current-intake pointer/supersession transaction; failed upload never becomes current and old intake remains immutable
 
 Browser checks:
 
@@ -212,6 +262,16 @@ Automated checks:
 - deterministic snapshot hashes and current intake generation check
 - next-major transaction, duplicate concurrency and immutable historical baseline
 - item revision/master lifecycle non-mutation
+- same-lane where-used and strict development/formal isolation
+- suggestion/confidence/reasons plus audited human `no_change`/`defer`/`update`
+- deterministic resolver repeatability, rule-version/input-hash capture and zero AI/network dependency
+- formal no-change R&D Manager-only approval after exact configuration/SolidWorks evidence
+- formal defer compatibility/criticality/confidence/manager/owner/due-date/follow-up eligibility matrix
+- canonical follow-up/outbox/task-projection idempotency, pending/retry/overdue and domain-validated resolution
+- exact configuration-manifest retrieval with revision/hash/path checks and no ambiguous `latest` substitution
+- immutable canonical confirmed/approved evidence plus tiered released/pre-release Drive coverage under re-upload/cancel/cleanup attempts
+- delta overlay with inherited unchanged evidence and complete per-root closure
+- atomic multi-top candidate/baseline commit and approved-package terminal lineage
 
 Browser checks:
 
@@ -219,6 +279,11 @@ Browser checks:
 - convert/complete BOM through BOM workbench and return
 - preview exact files, independent revisions, hashes and BOM before confirmation
 - confirm one baseline; view prior baseline as immutable history
+- compare direct-change, impacted-context and inherited-unchanged evidence per top assembly
+- verify development impact UI cannot display or mutate formal staleness
+- verify only `不需進版` and `已非最新版 / 待更新` are normal human-facing impact badges; internal defer/update differences remain audit/workflow-only
+- verify rule IDs/reasons are explainable without AI language or model metadata
+- verify follow-up is visible in the package and existing task center with one return-context link and no standalone page
 
 ### Phase 3B - Readiness Integration
 
@@ -228,6 +293,10 @@ Automated checks:
 - blocker aggregation by item/module/owner role
 - item/readiness dependency hashes
 - stale owner-data and active-rule behavior
+- exact per-root SolidWorks open/missing-reference evidence and hash binding
+- one failed/unverified root blocks atomic package readiness
+- approved formal defer satisfies eligibility evidence and unresolved/overdue impact remains visible/actionable
+- projection failure shows saved-follow-up/pending-sync state and retry does not duplicate work
 - formal submit remains unavailable until Phase 3C capability exists
 
 Browser checks:
@@ -247,6 +316,8 @@ Entry-gate checks:
 Automated checks:
 
 - submit transaction captures package/baseline/readiness snapshot and approval work item atomically
+- all governed roots approve/reject atomically; no partial root approval state
+- ApprovedForTransfer is terminal and later design change starts a linked package
 - one-item declaration and reviewer confirmation
 - applicability, sign-off, not-applicable reason and duplicate/stale decision guards
 - changed package/readiness data invalidates affected evidence
@@ -304,6 +375,16 @@ Stop and return to PM/user if:
 - original ZIP/path evidence cannot be preserved
 - human overrides cannot survive re-parse
 - incomplete manual BOM or unmapped formal assembly would pass baseline
+- development/formal revision lanes cannot be isolated
+- assembly revision suggestion would auto-promote without human decision
+- `已非最新版` must overwrite a canonical master lifecycle state
+- a multi-root candidate/package can commit or approve partially
+- an approved package must be reopened for a later design change
+- assembly-impact resolver requires AI/LLM/network access or cannot reproduce stable ordered rules/reasons
+- formal no-change can finalize without R&D Manager approval
+- formal defer follow-up cannot be canonical while projecting idempotently into the existing task center
+- formal download/materialization depends on filename-only or ambiguous `latest` resolution
+- canonical confirmed/approved evidence can be mutated/deleted, an existing mirror can be overwritten/deleted, or tiered backup coverage cannot be preserved
 - quality/applicable sign-off capability does not exist before Phase 3C
 - transfer approval would directly release master records
 - work requires production migration, direct repair/deletion, provider change, deploy or release
@@ -323,11 +404,11 @@ Phase-specific evidence:
 
 | Phase | Required evidence |
 |---|---|
-| 3A-0 | no-write GET, create idempotency, company scope, adapters/return context, required viewport screenshots |
-| 3A-1 | archive safety matrix, storage compensation, parser generation, manifest/classification browser evidence |
-| 3A-2 | mapping/BOM source, baseline concurrency/immutability, item non-mutation, preview/confirm screenshots |
-| 3B | readiness/hash/stale tests and blocker dashboard screenshots |
-| 3C | access-control/action registry, sign-off/stale/approval-release separation and `/approvals` evidence |
+| 3A-0 | no-write GET, source alias normalization, create/cancel idempotency, terminal evidence preservation, company scope, adapters/return context, required viewport screenshots |
+| 3A-1 | archive safety matrix, storage compensation, current-intake supersession, parser generation, manifest/classification browser evidence |
+| 3A-2 | deterministic no-AI resolver, formal no-change manager gate, canonical follow-up/task projection, mapping/BOM, lane isolation, delta inheritance, atomic multi-root baseline, immutability and preview screenshots |
+| 3B | configuration readiness/hash/stale, follow-up pending/overdue/projection retry, exact SolidWorks evidence binding, formal-lane defer policy and blocker dashboard screenshots |
+| 3C | atomic multi-root approval, terminal/new-package lineage, access-control/action registry, sign-off/stale/approval-release separation and `/approvals` evidence |
 
 ## 12. Residual Risk And Deferred Evidence
 
@@ -340,3 +421,14 @@ Even after DEV-041 local phases pass, these remain outside that local completion
 - ERP or supplier integration
 
 These residuals must not be restated as local Phase 3A-0 blockers unless its implementation actually depends on them.
+
+## 13. Phase 3A-0 Execution Evidence
+
+Phase 3A-0 passed on 2026-07-13. The controlled evidence report is `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`.
+
+- Focused transfer-package QC: 18/18.
+- Parent submission-gate regression: 15/15.
+- Account-lifecycle regression after compatibility migration repair: 26/26.
+- Typecheck, full lint and isolated production build: passed.
+- Runtime API contract and browser checks at 1440/1024/390: passed.
+- Live Supabase migration, native SolidWorks validation, Phase 3A-1 to 3C and production release remain unexecuted.

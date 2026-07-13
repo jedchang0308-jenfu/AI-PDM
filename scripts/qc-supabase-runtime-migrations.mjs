@@ -38,7 +38,8 @@ const requiredMigrationFiles = [
   "supabase/migrations/20260707010000_access_control_launch_governance.sql",
   "supabase/migrations/20260710020000_account_invitations.sql",
   "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
-  "supabase/migrations/20260712034956_erp_module_foundation.sql"
+  "supabase/migrations/20260712034956_erp_module_foundation.sql",
+  "supabase/migrations/20260713010000_account_lifecycle.sql"
 ];
 const requiredFiles = [
   "supabase/README.md",
@@ -58,6 +59,7 @@ const accessControlLaunch = readProjectFile(root, "db/postgres/005_access_contro
 const accountInvitations = readProjectFile(root, "db/postgres/006_account_invitations.sql");
 const authIdentities = readProjectFile(root, "db/postgres/007_auth_identities_google_oauth.sql");
 const erpModuleFoundation = readProjectFile(root, "db/postgres/008_erp_module_foundation.sql");
+const accountLifecycle = readProjectFile(root, "db/postgres/009_account_lifecycle.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
@@ -66,6 +68,7 @@ const migrationAccessControlLaunch = readProjectFile(root, "supabase/migrations/
 const migrationAccountInvitations = readProjectFile(root, "supabase/migrations/20260710020000_account_invitations.sql");
 const migrationAuthIdentities = readProjectFile(root, "supabase/migrations/20260710030000_auth_identities_google_oauth.sql");
 const migrationErpModuleFoundation = readProjectFile(root, "supabase/migrations/20260712034956_erp_module_foundation.sql");
+const migrationAccountLifecycle = readProjectFile(root, "supabase/migrations/20260713010000_account_lifecycle.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -122,6 +125,18 @@ record(
   ),
   "ERP module foundation security boundary"
 );
+record("SUPA-MIG-007L account lifecycle migration embeds source hash", migrationAccountLifecycle.includes(`Source SHA-256: ${sha256(accountLifecycle)}`), "account lifecycle source hash");
+record(
+  "SUPA-MIG-007M account lifecycle migration stores only recovery token hashes and denies direct access",
+  migrationAccountLifecycle.includes("session_invalid_before") &&
+    migrationAccountLifecycle.includes("identity_lifecycle_version") &&
+    migrationAccountLifecycle.includes("account_recovery_requests") &&
+    migrationAccountLifecycle.includes("token_hash") &&
+    !/\btoken\s+TEXT/iu.test(migrationAccountLifecycle) &&
+    /ENABLE ROW LEVEL SECURITY/u.test(migrationAccountLifecycle) &&
+    /REVOKE ALL ON TABLE public\.account_recovery_requests FROM anon, authenticated/u.test(migrationAccountLifecycle),
+  "account lifecycle security boundary"
+);
 const manifestTargets = Array.isArray(manifest.migrations)
   ? manifest.migrations.map((migration) => migration.target)
   : [];
@@ -139,7 +154,8 @@ record(
     manifest.migrations?.[4]?.sourceSha256 === sha256(accessControlLaunch) &&
     manifest.migrations?.[5]?.sourceSha256 === sha256(accountInvitations) &&
     manifest.migrations?.[6]?.sourceSha256 === sha256(authIdentities) &&
-    manifest.migrations?.[7]?.sourceSha256 === sha256(erpModuleFoundation),
+    manifest.migrations?.[7]?.sourceSha256 === sha256(erpModuleFoundation) &&
+    manifest.migrations?.[8]?.sourceSha256 === sha256(accountLifecycle),
   JSON.stringify(manifest.migrations ?? [])
 );
 record(

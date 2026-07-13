@@ -1,9 +1,11 @@
 # SPEC-PDM-ACCESS-CONTROL-001 使用者身分、組織範圍與權限架構
 
-狀態: 本地上線切片與無 Google 帳號邀請/首次密碼設定已完成並通過驗證；Google 身分提供者、完整帳號生命週期、完整權限切換與正式環境階段需另行授權。
+狀態: 本地上線切片、帳號邀請、Google provider-neutral identity 與 `DEV-045` 帳號生命週期 Phase 1 已完成並通過驗證；完整權限切換與正式環境仍分別受後續 gate 管理。
 日期: 2026-07-07
 負責: Dev PM
 關聯開發任務: `DEV-PDM-ACCESS-CONTROL-001`
+
+2026-07-13 架構續接：`ADR-PDM-ERP-PLATFORM-001` 已選定 Firebase Auth with Identity Platform 作為未來共用 IAM；RD 完整性決策再確認 Firebase 終止於 Next.js BFF、browser 不直連 Supabase、Admin/Approver 採 TOTP、application session 上限八小時，兩位 cloud break-glass 管理員不取得 PDM business role。本文件既有 provider-neutral identity、stable PDM user ID、角色/公司範圍與 fail-closed 規則維持有效。此變更不代表 Firebase 已實作或已切換正式登入。
 
 關聯脈絡:
 
@@ -18,7 +20,7 @@
 
 ## 1. 使用者決策摘要
 
-來源: 2026-07-07 使用者討論、系統圖、公司/部門/角色複雜度追問、角色權限設定 UI 討論、HCS 引導決策 `1C / 2A / 3A`、外部專員複核策略、第一版角色範圍預設、無 Google 帳號處理、RD 主管完整性審視、鉦富先上線且保留未來久方擴充策略。
+來源: 2026-07-07 使用者討論、系統圖、公司/部門/角色複雜度追問、角色權限設定 UI 討論、HCS 引導決策 `1C / 2A / 3A`、外部專員複核策略、第一版角色範圍預設、無 Google 帳號處理、RD 主管完整性審視、鉦富先上線且保留未來久方擴充策略；2026-07-12 使用者要求將角色指派時間區間設定功能加回。
 
 已確認的產品規則:
 
@@ -36,6 +38,7 @@
 - 範圍決定「這個角色可以用在哪裡」。
 - 第一版先提供簡單範圍模板，不讓一般管理員直接面對公司、部門、專案、日期等底層規則。
 - 生效日、複核日、到期停用日主要用於外部專員、臨時支援與代理，不要讓一般員工角色設定變得過重。
+- 時間區間不是純 UI metadata：未到生效日或已達硬性到期邊界的角色指派，所有同步／非同步 permission path 都必須拒絕其角色權限。
 - 角色權限 UI 要拆成兩件事:
   - 角色定義: 這個角色能做哪些動作。
   - 使用者指派: 誰拿到這個角色、套用在哪個範圍、是否需要複核或到期。
@@ -59,6 +62,7 @@
   - 製造與採購: 僅正式發布資料。
   - 外部專員: 指定範圍。
 - 沒有 Google 信箱的使用者由管理員邀請，第一次登入時設定密碼。
+- 未來 Firebase production IAM 路徑採 email-link 先驗證信箱與 canonical `account_invitations`，再於 freshly authenticated setup state 連結密碼；Firebase password reset 只用於啟用後復原，不等於邀請接受。DEV-042/045 既有本機 token 流程仍是已完成 local evidence，不被改寫成 Firebase 已實作。
 - 鉦富先上線，先做一個自動判斷的 `JENFU` 工作區；保留未來久方擴充抽象層。
 - 現階段不做平台級 SaaS 管理台，也不做一般管理員跨公司切換。
 - Google SSO 或本機登入只能連到已由管理員建立或邀請的 PDM 使用者。
@@ -136,6 +140,7 @@ PDM 使用者 ID = 可追責的穩定使用者或系統身分
 
 - 工作區必須在權限判斷前先被判斷，不是一般管理員日常逐筆設定的欄位。
 - PDM 授權必須由 PDM 角色、權限代碼、指派狀態、指派範圍、帳號狀態與有效期間共同計算。
+- 角色有效條件統一為 `revoked_at IS NULL AND (starts_at IS NULL OR starts_at <= now) AND (hard_ends_at IS NULL OR now < hard_ends_at)`；代理使用對應的 `starts_at/ends_at`，不得只有管理 UI 套用。
 - 部門歸屬不能單獨給予動作權限。
 - 登入提供者資料不能繞過 PDM 權限檢查。
 - 外部專員權限必須有內部負責人與複核日期。
@@ -285,14 +290,14 @@ flowchart LR
 
 - 許多非編號權限仍由 `users.role` 決定。
 - `users.email` 仍是登入識別與唯一 handle。
-- 尚未有 `auth_identities` 身分提供者表。
+- 已有 `auth_identities` provider-neutral 身分表與 local/Google/invite identity。
 - 尚未有從 `companies` 拆出的正式工作區模型。
 - 尚未有員工與外部專員的一級帳號分類。
 - 尚未有外部專員的內部負責人欄位。
 - 尚未有正式部門或組織單位模型。
 - `role_scope_rules` 偏角色層級，不足以描述每個人的指派範圍。
 - 尚未有給管理員使用的簡單範圍模板。
-- 已有管理員邀請、一次性啟用與邀請撤銷；尚未有完整帳號生命週期: 停用、復權、密碼重設、複核逾期、離職與 session 撤銷。
+- 已有管理員邀請、一次性啟用、邀請撤銷、帳號停權/復權/離職/復職、密碼重設、identity 停用/復用與全部 session 撤銷；DEV-045 Phase 1 本機 QC 已通過，正式 release 仍需 DEV-032 gate。
 
 ## 7. 分階段路線圖
 
@@ -302,7 +307,7 @@ flowchart LR
 | Phase 1 身分提供者邊界 | 部分授權 / 無 Google 邀請已實作 | 邀請切片驗證通過；Google/provider model 仍待授權 | 讓 Google 與無 Google 使用者都能對應到穩定 PDM 使用者 |
 | Phase 2 工作區、部門與外部人員模型 | 部分授權 / 本地已實作 | 上線切片驗證通過；完整模型仍待授權 | 鉦富唯讀工作區、外部專員負責人、指定範圍與複核資料 |
 | Phase 3 權限整合與範圍模板 | 部分授權 / 本地已實作 | 上線切片驗證通過；完整路由切換仍待授權 | 製造、採購、外部專員角色、保守範圍模板與權限預設 |
-| Phase 4 管理 UI 與治理 | 部分授權 / 本地已實作 | 上線切片驗證通過；完整帳號生命週期仍待授權 | `/settings/workflow` 權限分頁、指派表單、預覽、外部專員與異動紀錄 |
+| Phase 4 管理 UI 與治理 | 本地已實作；DEV-045 Phase 1 QC Passed | 權限 UI 與帳號生命週期 Phase 1 已通過本機 QC | `/settings/workflow` 權限治理；`/settings/accounts` 帳號生命週期已落地 |
 | Phase 5 正式環境上線與遷移 | 需要 release 授權 | RD Contract Ready / 未授權 | 資料遷移、正式 smoke、rollback 與 release gate |
 
 ## 7.1 已完成的本地上線切片
@@ -321,7 +326,8 @@ flowchart LR
 - 角色指派 API 會接收範圍資料，並檢查外部專員必須有指定範圍、內部負責人與 90 天複核日。
 - 同步與非同步 repository 都套用相同的角色指派治理規則。
 - `/settings/workflow` 已分成「角色管理、使用者權限、外部專員、異動紀錄」。
-- 使用者指派表單包含適用範圍、指定範圍、內部負責人、下次複核、到期停用日、指派原因與儲存前權限預覽。
+- 使用者指派表單包含適用範圍、指定範圍、內部負責人、開始生效、下次複核、到期停用日、指派原因與儲存前權限預覽。
+- DEV-045 Phase 1 已讓本地 permission role-code queries 套用 `starts_at <= now < hard_ends_at`；未生效與已到期指派不得授權。
 - 外部專員在指定範圍、內部負責人、複核日與原因未填完前不能儲存。
 - 權限異動紀錄由管理矩陣 API 回傳，並顯示在「異動紀錄」分頁。
 - 角色管理中的審核規則矩陣必須顯示中文管理語言，不直接顯示 `actionCode`、`riskFlag`、狀態代碼或硬性規則代碼；內部代碼只能保留在 API/value 層。
@@ -628,7 +634,8 @@ role_assignment_scopes(
 - 在設定、流程、安全頁面加入帳號與角色指派 UI。
 - 第一版依設定中心資訊架構:
   - `/settings/workflow`: 角色定義、權限矩陣、角色指派、範圍模板、審核/流程矩陣。
-  - `/settings/security`: 帳號生命週期、登入提供者狀態與高敏感金鑰狀態。
+  - `/settings/accounts`: DEV-045 帳號生命週期、登入 identity 狀態與 session/recovery 操作。
+  - `/settings/security`: 保留高敏感金鑰狀態與受控 secret lifecycle，不再混用為帳號管理頁。
   - `/settings`: 工作佇列總覽，包含待複核權限、外部專員複核提醒與高風險阻擋。
 - 預設流程:
 
@@ -658,7 +665,8 @@ role_assignment_scopes(
   - 角色選擇。
   - 範圍模板。
   - 只有選到需要指定範圍時才填指定範圍。
-  - 只有外部、臨時或代理才填有效期間。
+  - 外部、臨時或代理預設填有效期間；一般員工也可由 Admin 展開「設定有效期間」後填寫。
+  - 有效期間提供開始生效與到期停用兩個控制；空白開始表示立即，空白到期表示無硬性到期。
   - 原因。
   - 只有外部專員才必填內部負責人。
 - 儲存前必須顯示使用者看得懂的權限預覽，例如:
@@ -757,6 +765,7 @@ UX 目標:
 
 - 管理員能看到帳號啟用、停用或到期狀態。
 - 管理員能帶原因指派與撤銷角色。
+- 管理員能設定角色開始／到期時間；未生效與已到期指派在所有 permission path 都不得授權，複核到期仍只提醒。
 - 管理員能設定外部專員內部負責人、範圍與下次複核日。
 - 外部專員複核到期或逾期狀態可見、可稽核並可提醒，但第一版不自動停權。
 - 權限說明會顯示已評估的角色與範圍，不暴露 secret。
@@ -781,6 +790,7 @@ UX 目標:
 - 無一般管理員公司選擇器的負向 UI 證據。
 - 部門歸屬不能單獨授權動作的負向 UI/API 證據。
 - 非管理員拒絕 API 測試。
+- fake-clock 驗證開始／到期 boundary 前、當下、之後，並比較同步／非同步、numbering 與 approval permission 結果一致。
 - 建立、更新、撤銷的異動紀錄。
 - 桌機與筆電主操作面、窄版 overflow sanity 的 viewport 證據。
 
@@ -841,6 +851,7 @@ QA 需驗證:
 - 外部專員必須有內部負責人、指定範圍與複核日。
 - 外部專員預設不能改資料、審核、發行或匯出。
 - 沒有 Google 帳號者可走邀請與首次設定密碼流程。
+- Firebase rollout 時，email-link、canonical invitation、password linking、重放/碰撞拒絕與「reset 不得接受邀請」皆有獨立證據。
 - Google 登入不會自行註冊或自動授權。
 - 權限預覽與異動紀錄可被使用者理解。
 
@@ -881,7 +892,7 @@ QC 需保留證據:
 | 範圍 | 分類 | 原因 |
 |---|---|---|
 | Google OAuth implementation | `DEV-PDM-GOOGLE-IDENTITY-001` / 本地已實作 | 邀請式綁定、OIDC 與 provider-neutral lookup 已通過本地 QC；live credential/provider 啟用、migration 與 deploy 仍需 release gate |
-| 無 Google 憑證發放 | `DEV-PDM-ACCOUNT-INVITATION-001` / 本地已實作 | 管理員邀請 + 第一次設定密碼已通過本地 QC；自動寄信與 production release 仍延後 |
+| 無 Google 憑證發放 | `DEV-PDM-ACCOUNT-INVITATION-001` 本地已實作；DEV-046 Firebase rollout | 管理員邀請 + 第一次設定密碼已通過本地 QC；production 目標改為 Firebase-managed email-link -> canonical invitation -> password linking，自動寄信/provider/release 仍未實作 |
 | 工作區模型 | 本地上線切片已實作；完整 Phase 2 未授權 | 目前只顯示鉦富唯讀工作區；未來久方 provisioning 需另行授權 |
 | 法律公司或資料所有者分類 | Same Spec Phase 2 / Not Authorized | 如鉦富/久方隱藏分類，需另行決策 |
 | 組織、部門與專案模型 | Same Spec Phase 2 / Not Authorized | 已定義為分派與預設範圍，不是權限主體 |
@@ -890,7 +901,7 @@ QC 需保留證據:
 | 範圍模板層 | 本地上線切片已實作；完整 scope engine 是 Phase 3 | 管理員 UI/API 已有保守模板；完整路由範圍判斷仍延後 |
 | 編號以外權限整合 | Same Spec Phase 3 / Not Authorized | 需要路由盤點、旁路比對、差異報告與受控切換 |
 | 一次性完整權限切換 | No Tracking / rejected | 上線風險過高，與 RD guard 衝突 |
-| 帳號、角色、範圍 UI | 本地上線切片已實作；完整帳號生命週期是 Phase 4 | `/settings/workflow` 已有分頁、指派、預覽、外部專員與異動紀錄 |
+| 帳號、角色、範圍 UI | 角色/範圍已實作；帳號生命週期 DEV-045 Phase 1 本機完成 | `/settings/workflow` 保留權限治理；`/settings/accounts` 依 DEV-045 SPEC/QA/QC 已實作 |
 | 權限矩陣 draft/test/Admin activation | Same Spec Phase 4 + `DEV-PDM-SETTINGS-CENTER-001` / Not Authorized | 高風險權限變更正式使用前應接上設定中心生命週期 |
 | 平台級多 tenant console | Blocked Human Re-entry | 屬於平台營運範圍，不是一般管理員權限設定 |
 | 底層進階規則 builder 預設 UI | No Tracking / rejected for first version | 與第一版簡單範圍模板決策衝突 |
@@ -915,4 +926,4 @@ QC 需保留證據:
 - 這份規格已把使用者決策、架構邊界、分階段契約、UI 契約、驗收、QC 與停止條件集中到同一份文件。
 - 目前授權涵蓋本地上線切片與無 Google 帳號邀請/首次密碼設定。已完成部分可以作為 UI 與資料模型的第一版基準。
 - 未授權項目不得被 RD 自動擴張成正式部署、live migration、Google OAuth cutover、完整 route cutover 或久方 provisioning。
-- 後續若使用者要求繼續做 Google OAuth、自動寄信 provider、完整帳號生命週期、全路由權限切換、久方工作區或正式環境上線，需先建立新的授權邊界與 QA/QC 證據。
+- Google identity 本地切片已由 DEV-043 完成；帳號生命週期 Phase 1 已由 DEV-045 完成本機實作與 QC。Firebase-managed email-link/password-link、全路由權限切換、久方工作區、Firebase Auth/Identity Platform MFA 或正式環境上線仍需依 DEV-046 與 release gate 建立證據。

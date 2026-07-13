@@ -1,8 +1,10 @@
 # QA Plan: DEV-PDM-FILE-STORAGE-001 Supabase Core and Google Drive Backup
 
-Status: Local QA/QC Passed for RD Implementation; Production/Live Cutover Not Authorized
+Status: Historical local adapter QA/QC passed; production target superseded on 2026-07-13
 Date: 2026-07-08
 Related SPEC: `.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`
+
+Current validation authority is `.ai-doc/qa/qa-pdm-erp-google-supabase-platform-validation-plan-2026-07-13.md`. This plan remains evidence for the completed provider-neutral storage pointer, integrity, fail-closed, and migration controls; it does not authorize or validate the current GCS production target.
 
 ## 1. QA Objective
 

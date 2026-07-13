@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-07-12
+更新日期：2026-07-13
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -31,43 +31,65 @@ Owner：Dev PM
 - 本節的多行索引是權威任務清單；後方表格只保留給 release gate、外部阻塞與 QC 腳本相容。
 - 狀態符號直接決定可否派工：`☐` 才是一般可派工；`○` 需先選定切片或使用者提出實作型指令；`!` 與 `↷` 不可由 RD 直接執行。
 - 目前沒有可直接正式部署的任務；若要開放內部人員使用，從 `DEV-032` release gate 恢復。
-- `DEV-005` Phase 1 本地切片已完成；技轉包 Phase 3 已依使用者決策抽成 `○ DEV-041`。`DEV-041` Phase 3A-0 已達 RD Implementation Ready，但本輪只完成文件且未要求產品實作，因此不可由 RD 自動啟動。
-- `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；Supabase Auth/MFA/session revocation 僅完成目標契約，production cutover 仍未授權，ProJED 未修改。
-- CAD 原檔解析、SolidWorks Add-in、完整離線還原演練、正式現場測試與 live Supabase 資料工作都不是本輪自動可執行範圍；第一版 release readiness 只把正式領號 / 草稿 production slice 的必要 gate 列為 blocker。
+- `DEV-005` Phase 1 本地切片已完成；技轉包 Phase 3 已依使用者決策抽成 `○ DEV-041`。`DEV-041` Phase 3A-0 已於 2026-07-13 完成本機實作與 QA；Phase 3A-1 之後仍須明確提出實作需求並逐階段進入。
+- `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；原 Supabase Auth provider 目標已由 `DEV-046` 的 Firebase Auth / Identity Platform 決策取代，既有 provider-neutral evidence 仍有效，production cutover 仍未授權，ProJED 未修改。
+- `DEV-045` Phase 1 已完成本機 RD/QA/QC：包含「帳號與權限」單一管理入口、帳號生命週期、identity 狀態、session revoke、一次性密碼重設、角色時間區間 UI 與 permission-path enforcement。Phase 2/3、production、Firebase Auth / Identity Platform、MFA 與 release 仍未授權。
+- `DEV-046` 架構基線與全階段文件已補齊；`HD-8-1..4` 均已關閉。`HD-8-1..3` 選定 `asia-east1` Cloud Run + Next.js 16 Active LTS/external ALB/restricted CDN、primary+backup all-hours 60-minute critical acknowledgement，以及 Google-only Wave 0/non-Google Wave 1；`HD-8-4 / 1A` 延後完整 PDM/GCS/offline restore，但要求 automated Cloud SQL backups/PITR 及一次 pre-canary separate-target restore + numbering-ledger reconciliation。Phase 1A-1E 均為 RD Implementation Ready / Not Requested。正式 business/operational data 僅 Cloud SQL、正式檔案終局僅 direct GCS、商業邏輯僅 portable HTTP/BFF，禁用 Firestore/Firebase Storage/Functions/Callable/Firestore trigger authority。Production 仍拆成 3A 領號／草稿與 3B GCS 檔案切換；完整 PDM 檔案／離線還原演練延後且不阻擋 no-file 3A。Google Cloud/Firebase/Cloud SQL staging、計費、credential、production cutover 與 ProJED 變更均未授權。
+- CAD 原檔解析、SolidWorks Add-in、完整 PDM 離線檔案還原演練、正式現場測試與 live Supabase 資料工作都不是本輪自動可執行範圍。`DEV-FIELD-001` 必須在 named-user production canary 上執行，因此阻擋擴大開放與 pilot accepted，不阻擋通過技術 gate 後的首次受控部署。`HD-8-4 / 1A` 的 automated backup/PITR、pre-canary separate-target restore 與 numbering-ledger reconciliation 屬 production DB continuity gate，不等於恢復 `DEV-BACKUP-001` 完整檔案演練。
 
 ### 目前派工任務清單
 
 此段是 PM / RD 下一輪派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
 - 已完成待上線：`DEV-040` 正式領號 / 草稿 production slice。
-  - 任務：本地產品切片已完成；若要給內部人員正式使用，下一步不是再補本地功能，而是恢復 `DEV-032`。
-  - 恢復條件：使用者提出 release 型指令，並確認 production target、smoke company / tenant、部署、rollback 與 post-deploy smoke。
+  - 任務：領號／草稿本地產品切片已完成；帳號邀請之後的 Admin 生命週期治理由 `DEV-045` 補齊。
+  - 恢復條件：`DEV-045` Phase 1 本機 QC 與 DEV-046 `HD-8-1..4` 決策已完成；若要正式開放內部使用，先完成適用的 Phase 1/2 no-file evidence，再由 release 型指令恢復 `DEV-032`，確認 Cloud Run/Next.js 16 target、Cloud SQL Taiwan target、Firebase US identity-data privacy acceptance、新 production ID reprovision manifest、`HD-8-4 / 1A` pre-canary restore/reconciliation、smoke company/tenant、build evidence 與 release gate。GCS live integration於 Phase 3B 開檔案流程前完成。
   - 不做：不把送審、發行、CAD、BOM 或完整 PDM production ready 併入本 slice。
 
 - 已完成待上線：`DEV-042` 內部帳號邀請與首次密碼設定。
   - 任務：管理員建立一次性邀請連結，內部人員自行設定密碼；邀請建立/接受/撤銷可稽核，且納入正式領號 / 草稿 slice 必要帳號入口。
-  - 恢復條件：正式部署時設定 `PDM_PUBLIC_BASE_URL`；Google OAuth 本地切片已續接至 `DEV-043`，自動寄信、忘記密碼、停權/復權管理 UI 或 session 撤銷仍需後續切片。
-  - 不做：本切片不宣稱完整 IAM，不接未選定的 SMTP/Outlook provider，不授權 live Supabase migration 或 production deploy。
+  - 恢復條件：本機 token/invite flow 只保留為既有行為與遷移證據；production 邀請終局由 `DEV-046` 的 Firebase-managed email-link -> canonical invitation -> password linking 接手。Admin 停權/復權、session 撤銷與一次性密碼重設由 `DEV-045` Phase 1 管理。
+  - 不做：不得把本機邀請 token 或 password-reset 當成 Firebase production invitation acceptance；不宣稱完整 IAM，不授權 live migration 或 production deploy。
 
 - 已完成待上線：`DEV-043` Google 身分與 provider-neutral identity。
   - 任務：有 Google 的受邀者可用受邀帳號啟用並登入；無 Google 的使用者繼續使用本機密碼，兩者共用穩定 PDM User ID。
-  - 恢復條件：release gate 設定 Google Cloud OAuth Web client、consent screen、正式 redirect URI、secret 與 `PDM_GOOGLE_OAUTH_ENABLED=true`，並套用核准的 schema migration。
-  - 不做：不允許 Google 自助註冊、email/domain 自動授權、Google 群組主控 PDM 角色，不執行 live provider setup、migration 或 deploy。
+  - 恢復條件：既有 Google OIDC/provider-neutral mapping 只作 Firebase reprovision inventory 與 collision evidence；production 不直接啟用舊 `PDM_GOOGLE_OAUTH_ENABLED` 路徑，不搬既有憑證，改由 `DEV-046` 與 `DEV-032` 執行 stable-ID mapping、legacy route closure 和 cutover。
+  - 不做：不允許 Google 自助註冊、email/domain 自動授權、Google 群組主控 PDM 角色，也不得讓 legacy Google OAuth 與 Firebase 在 production 未定義地同時簽發 session。
+
+- 已完成待上線：`DEV-045` 帳號生命週期與安全管理台。
+  - 任務：Phase 1 已新增「帳號與權限」單一管理入口，分成帳號管理、邀請新帳號、角色與權限、異動紀錄；其中 `/settings/accounts` 讓 Admin 查詢帳號、停權/復權/離職/復職、停用/復用 identity、撤銷全部 session，並產生一次性密碼重設連結；所有 mutation 具理由、audit、session invalidation 與防最後 Admin 鎖死。
+  - 恢復條件：若要正式提供內部人員使用，需由 release 型指令恢復 `DEV-032`，並先補 `npm run build` evidence；若要自助密碼、email、裝置 session、MFA 或 Firebase Auth / Identity Platform，續接 DEV-045 Phase 2/3 與 `DEV-046`。
+  - 不做：本地完成不等於 production ready；Phase 1 不含自動寄信、MFA、Firebase Auth / Identity Platform cutover、跨公司 membership、production migration/deploy 或 ProJED。
 
 - 本機完成：`DEV-044` ERP-ready AI_PDM 模組基礎 Phase 1-3。
   - 任務：已建立 server-derived command boundary、atomic receipt/outbox、SQLite/PostgreSQL/Supabase migration parity、shared principal/organization mapping 與 collision dry-run。
-  - 恢復條件：實際 Supabase Auth、MFA、中央 session revocation、staging/live migration 或 production cutover 需另立 IAM rollout/release DEV，並續接 `DEV-030`、`DEV-031`、`DEV-032`。
+  - 恢復條件：實際 Firebase Auth / Identity Platform、MFA、中央 session revocation、staging/live migration 或 production cutover 續接 `DEV-046` 與 `DEV-030`、`DEV-031`、`DEV-032`。
   - 不做：未變更正式登入 provider、正式網域、production data/deploy 或 ProJED；不把 ERP 基礎工作計入 `DEV-040` 第一版領號/草稿使用者交付完成率。
+
+- 待排平台開發：`DEV-046` Google control plane + Cloud SQL PostgreSQL + ERP ontology foundation；`HD-6` / `HD-7` / `HD-8-1..4` 已記錄並關閉。Phase 1A-1E 均為 RD Implementation Ready / Not Requested；Phase 2/3 受 provider/cost/credential/privacy/release gate 阻擋，且 production canary 前必須通過 `HD-8-4 / 1A` restore/reconciliation evidence。
+  - 任務：依現行 `ADR-PDM-ERP-PLATFORM-002`，以 Google Workspace/Cloud/Firebase 作 control plane，Firebase Auth with Identity Platform 作唯一 IAM，Cloud SQL PostgreSQL 作 staging/production operational relational authority，先讓 Phase 3A 領號／草稿上線，再由 Phase 3B 切換 GCS file authority；第一個 ontology MVP 僅使用 Drawing/Part/BOM。
+  - 恢復條件：提出 `執行 DEV-046 Phase 1A-1E` 或指定切片，即可開始不連外的 Cloud Run/Next.js 16 container foundation、portable HTTP/BFF、Cloud SQL、GCS interfaces/fakes、clean-seed/archive/SLO 與 restore-reconciliation local contract implementation。live direct-GCS adapter/integration 位於 Phase 3B；任何 staging project、Cloud Billing、credential、網域、production cutover 另經 provider/cost/credential/privacy-evidence/release gate。
+  - 不做：本輪不建立雲端資源、不切換登入/儲存 provider、不搬資料、不修改 ProJED、不宣稱 Palantir 等級 ontology 已完成。
+
+- 待排 post-pilot 平台治理：`DEV-047` legacy `public` -> bounded schema migration。
+  - 任務：在第一版穩定後，盤點並分批把核准的 legacy PDM/platform tables、SQL、FK、view、function、script 與 repository 移往 bounded schemas。
+  - 恢復條件：DEV-046 Phase 3A pilot 穩定且收到明確 DEV-047 指令後可做 Phase A inventory；Phase B-D 另依完整 inventory、compatibility/rehearsal/rollback evidence 進入。
+  - 不做：不列為第一版 blocker，不在 DEV-046 Phase 1/3A 做 big-bang rename，不建立重複 PDM authority tables。
 
 - 已完成父交付：`DEV-005` 研發 / 技術移轉送審關卡 Phase 1。
   - 任務：保留研發/技轉模式、readiness resolver、direct single-item fail-closed 與 package-context 入口的完成證據；後續技轉包交付改由 `DEV-041` 管理。
   - 恢復條件：若要做 research exception 或 parent rule admin，依 `DEV-005` parent SPEC 指定對應 phase。
   - 不做：不把 `DEV-041` 未實作範圍重新藏回已完成的 `DEV-005`。
 
-- 待排可續接：`DEV-041` 技轉包工作台、Pack-and-Go Intake 與整數 Baseline。
-  - 任務：Phase 3A-0 已達 RD Implementation Ready；第一切片建立明確按鈕後才持久化的 Draft、穩定 package ID、adapter cards、blocker 匯總與 return context。
-  - 恢復條件：使用者提出 `執行 DEV-041 Phase 3A-0` 或等效產品實作指令；後續 phase 需依前一 phase QC evidence 進入。
+- 待排可續接：`DEV-041` Phase 3A-1 Pack-and-Go Intake；後續再進入整數 Baseline。
+  - 任務：Phase 3A-0 已完成明確按鈕後才持久化的 Draft、穩定 package ID、adapter cards、blocker 匯總與 return context；下一切片才處理安全 ZIP intake、manifest 與人工最終分類。
+  - 恢復條件：使用者提出 `執行 DEV-041 Phase 3A-1` 或等效產品實作指令，並沿用 Phase 3A-0 QC evidence；不得自動跨到 3A-2。
   - 不做：本輪不實作產品、不解析 ZIP、不建立 baseline、不做 migration/deploy/release。
+
+- 功能規格完成 / 待架構續接：`DEV-048` 圖料號、草稿、狀態與技術移轉入口整合。
+  - 任務：已把 `＋建立圖料號` 入口、技轉包整批送審，以及「只有已發布號碼永久占用」寫成純功能規格，並收斂料號草稿、上傳送審、領號申請與製造交接的一級入口。
+  - 恢復條件：使用者提出「補架構規格」、「進入 RD 規格」或等效指令後，才修訂衝突 ADR 並補資料、API、權限、交易、併發、migration、QA/QC 工程契約。
+  - 不做：本輪不寫架構、不修改產品、schema、資料或 release artifact，且 `DEV-048` 尚不可派給 RD 實作。
 
 - 可恢復候選：`DEV-015` 圖面送審工作台第 2+ 階段交接包。
   - 任務：在主資料補完/寫回、附件上傳、協作、dashboard/todo 去噪中先選一個切片。
@@ -80,18 +102,98 @@ Owner：Dev PM
   - 不做：不承諾 bucket/RLS production 變更、正式資料清理或 live migration。
 
 - 正式環境關卡：`DEV-030`、`DEV-031`、`DEV-032`。
-  - 任務：分別處理 Supabase provider 切換決策、資料一致性政策、正式部署 / cutover / smoke / release evidence。
+  - 任務：分別處理 local SQLite -> Cloud SQL provider 切換、資料一致性政策，以及 Google/Firebase/BFF/Cloud SQL/GCS production deploy / IAM reprovision / smoke / release evidence。
   - 恢復條件：需要 release 型指令、高風險確認、target identity、rollback owner 與 smoke tenant。
   - 不做：尚未出現 release 型指令前，不產生 merge plan、PR checklist、deployment plan、rollback plan、production smoke plan 或 release report。
 
 - 第一版外部 gate / 延後範圍：`DEV-034` 到 `DEV-038`。
-  - 任務：`DEV-034` disposable Postgres shadow gate 已完成；第一版仍需 `DEV-038` 正式領號 / 草稿現場測試證據。
-  - 延後：`DEV-035` CAD 2D 預覽 / native metadata、`DEV-036` SolidWorks Add-in、`DEV-037` 完整離線還原演練不列第一版 blocker。
+  - 任務：`DEV-034` disposable Postgres shadow gate 已完成；`DEV-038` 正式領號 / 草稿現場測試在 Phase 3A.0 named-user canary 部署後執行，阻擋擴大開放與 pilot accepted。
+  - 延後：`DEV-035` CAD 2D 預覽 / native metadata、`DEV-036` SolidWorks Add-in、`DEV-037` 完整 PDM 離線檔案還原演練不列第一版 blocker；`DEV-046 HD-8-4 / 1A` 的 pre-canary DB restore/reconciliation evidence 仍是第一版 release gate，不得與 `DEV-037` 混算。
   - 不做：不宣稱完整 PDM production ready，不把 CAD / Add-in / 完整備份演練混入正式領號 / 草稿 slice。
 
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ○ DEV-046 [開發點] [P0] [HD-8-1..4 Closed / Phase 1A-1E RD Implementation Ready / Not Requested] Google Cloud SQL 五年 ERP 平台與本體論基礎
+  - 摘要：建立 AI_PDM 作為未來 ERP 模組的 Google control plane、Firebase 單一 IAM、Cloud SQL PostgreSQL、GCS binary authority、Shared Drive delivery boundary 與 ontology-ready object/link/action/event 契約；operational DB/files 位於 Google Taiwan，Firebase identity data 的 US location exception 已依 `HD-6-1 / 1A` 接受並保留 privacy implementation gate。
+  - 來源 ID：`DEV-PDM-ERP-GOOGLE-CLOUDSQL-001`
+  - 父任務：ERP platform program；承接 `DEV-044` provider-neutral foundation，修正 `DEV-002` 與 `DEV-045` 的未來 provider 目標。
+  - 任務清單：
+    - [x] Phase 0 architecture baseline：完成 superseding ADR、五年 SPEC、QA、account reprovision、Taiwan primary data placement、wave rollout、Architecture Memory Capsule、Failure/Recovery、RD Handoff Contracts、Deferred Scope Audit 與 All-Phase Coverage Matrix；使用者以 `1A/2A/3A` 關閉 `HD-6-1` identity US processing、`HD-6-2` Taiwan-only/no regional DR、`HD-6-3` canary day-one regional HA。
+    - [x] Human Decision Gate `HD-8-1..3`：`1A` 選定 `asia-east1` Cloud Run + Next.js 16 Active LTS container + external ALB/managed TLS/custom domain，CDN 只允許 reviewed immutable assets；`2A` 選定 internal primary+backup all-hours on-call、critical security/data-loss event 60 分鐘內 acknowledgement/containment，且不承諾 24x7 restoration；`3B` 選定 staging 同測 Google/non-Google、Wave 0 Google Workspace only、Wave 1 至少一位受控 non-Google。
+    - [x] Human Decision Gate `HD-8-4 / 1A`：完整 PDM/GCS/offline restore 延後；Cloud SQL automated backup/PITR 與一次 separate-target isolated restore + numbering-ledger/sequence/non-reuse-reservation reconciliation 必須在 canary 前完成，來源不得被覆寫，未通過則 no-go。
+    - [ ] Phase 1A runtime foundation：建立/驗證 Next.js 16 Active LTS 與 Node Active LTS container、Cloud Run runtime adapter/config、external ALB/serverless NEG/managed TLS/custom-domain 契約及 restricted CDN cache policy，完成必要 codemod/manual diff 與全回歸；production source auto-rollout 一律關閉，base-image/update policy、immutable artifact、build/start/support-policy validator 使用 local/static evidence。
+    - [ ] Phase 1B IAM/BFF contract：由 DEV-046 完成 Firebase BFF 八小時 `pdm_session` v2、current/previous signing-key rotation、AAL/replay/TOTP enrollment、deny-first revoke saga、cloud break-glass/PDM TOTP recovery 分界、Firebase-managed email-link/setup-state/orphan compensation；一併建立 identity-reprovision manifest、canonical email/new-production-ID/Firebase UID collision report、legacy-login closure scanner，禁止搬憑證、來源 actor ID 或連接 live provider。DEV-045 僅擁有帳號 console/self-service UI。
+    - [ ] Phase 1C Cloud SQL database/migration contract：所有正式 business/workflow/role/session/audit/outbox data 只進 Cloud SQL；補 connector/socket、自動 IAM database authentication、dedicated service identity、non-owner `pdm_runtime` grant manifest、browser-direct denial、70% connection capacity validator、timeout/retry/saturation、singleton migration identity/advisory lock/checksum/version/rollback 與 app-start DDL scanner；拒絕 static DB password 與 Firestore dependency/config/runtime path，只用 local/disposable PostgreSQL。
+    - [ ] Phase 1D storage/continuity contract：定義 direct-GCS v2 intent/finalize/quarantine/export interfaces、bucket/key/generation/hash pointer schema、fake adapter 與 fail-closed tests；加入 scanner 拒絕 Firebase Storage SDK/API/rules/provider pointer；完成 `numbering_recovery_reservations`/KMS-signed-ledger fixtures、public/bounded schema transition guard及 observability test doubles。live GCS adapter/integration/provisioning 屬 Phase 3B，不阻擋 Phase 3A。
+    - [ ] Phase 1E portability/data/SLO/cost governance：所有商業 command/query 只走 standard HTTP/BFF 與 provider-neutral domain service，Route Handler/middleware/Server Action 僅作薄 transport，scanner 拒絕 Firebase Functions/Callable/Firestore trigger business logic；依 `HD-7-2 / 2B` 建立 clean-production allowlisted seed/new production IDs/zero source-business-and-actor migration/read-only source archive與正式號 non-reuse validator；依 `HD-7-3 / 3B` 與 `HD-8-2 / 2A` 建立 business-hours RTO、internal primary+backup all-hours on-call、critical event 60-minute acknowledgement/containment 與 RPO calculator，且不得寫成 24x7 restoration guarantee；另建立 location-retention inventory 與 cost governance 範本。
+    - [ ] Phase 2：通過 provider/cost/credential/privacy-evidence gate 後建立隔離 Google Taiwan staging：Cloud Run/Next.js 16、external ALB/restricted CDN、Identity Platform/TOTP、portable HTTP/BFF、VPC/private-IP/IAM-auth Cloud SQL、regional HA、`HD-8-4 / 1A` backup/PITR/restore-reconciliation contract、privacy與成本告警；實測 no Firestore/Firebase Storage/Functions/Callable/trigger path、manual rollout、70% connection budget、singleton migration、clean-seed/archive rehearsal、business-hours RTO/60-minute critical acknowledgement、完整 location inventory 與 staging run-rate。Phase 3A file paths全關閉，direct-GCS integration可延到 Phase 3B。
+    - [ ] Phase 3A.0：immutable Cloud Run/Next.js 16 release 落實全部適用 HD-6/HD-7/HD-8；production 建 clean Cloud SQL，僅 seed `jedchang0308@jenfu.com.tw` initial Admin 的新 production PDM ID、最低 company/role/config、numbering sequence 與所有曾使用/對外正式號的 non-reusable reservations，local business/draft/demo/test/history/source actor 零搬移且 source read-only archive 留存 inventory/hash/owner；完成 Firebase reprovision/TOTP、legacy closure、portable BFF、day-one HA/PITR/Taiwan-only backup、`HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation、business-hours RTO/60-minute critical acknowledgement、3-5-user Google Workspace allowlist cutover/rollback/smoke。非 Google 帳號已在 staging 驗證但 Wave 0 不納入，Wave 1 才加入至少一位受控 non-Google；Phase 3A file writer/UI/API 全關閉，需 `DEV-030/031/032`。
+    - [ ] Phase 3A.1：在 healthy Wave 0 canary 執行 `DEV-038` 五個工作天；無 open P0 且每個 P1 有 accepted disposition/owner/date 後，Wave 1 增加約 5 人並重複五日 gate；Wave 2 才開放剩餘 approved internal users。
+    - [ ] Phase 3B：實作並在 staging 驗證 direct-GCS adapter/IAM/signed URL/finalize/quarantine/recovery，再進行 inventory/pre-copy/final-delta/hash/generation/backup/pointer cutover/smoke；不是 Phase 3A blocker，另走 release gate。
+    - [ ] Phase 4：先做 Drawing -> Part -> BOM traceability ontology MVP、`request_pdm_change` delegated action、versioned transactional outbox -> Pub/Sub/BigQuery projection；provider-neutral dedicated worker採 at-least-once、row lease/lock、attempt/checkpoint、bounded retry/DLQ，不能形成第二 command path或依賴 Firebase trigger。consumer 必須具 idempotent checkpoint、DLQ/replay owner與 projection SLO，Project/Equipment 等 ProJED owner contract 後再接。
+    - [ ] Phase 5：第 12/18 個月 review Cloud SQL edition/sizing、storage、pool、latency、HA/restore、support effort 與 cost；預設在 Cloud SQL 內 right-size，任何 provider change 另立 ADR/release DEV。
+    - [ ] Phase 6：第 3-5 年依 customer/project、supplier/procurement、production/quality、service、finance 順序另立 domain-owned DEV，再擴充 shared ERP shell、ontology 與 governed Vertex AI；ProJED 必須另立 repository-owned DEV。
+  - 執行範圍：本輪已關閉 `HD-8-4 / 1A` 並同步文件，未實作 Phase 1。Phase 1A-1E 均為 RD Implementation Ready / Not Requested；Phase 2-6 均為 gated contract。人類架構決策已關閉，但 provider/staging/release 與 pre-canary restore/reconciliation evidence 尚未執行。Phase 3B 與 DEV-047 不得阻擋 Phase 3A 領號／草稿交付。
+  - 驗收標準：Cloud Run/Next.js 16 runtime具 current support/LTS posture、upgrade runway且 production source auto-rollout 關閉；external ALB/managed TLS/custom domain 正確，CDN 不快取 private/auth responses；Firebase 僅作 Auth/identity metadata，所有正式 business/workflow/role/session/audit/outbox 只進 Cloud SQL，enabled正式 file 只進 direct GCS，所有 business command/query 只走 portable HTTP/BFF domain services，無 Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority；clean production 僅 seed initial Admin的新 production ID/最低 config/numbering integrity，local business/draft/demo/test/history/source actor 零搬移且 archive read-only，已用正式號不重發；continuous RPO <= 1 小時，RTO <= 4 Taiwan business support hours，critical event 由 primary+backup all-hours on-call 於 60 分鐘內 acknowledgement/containment；Wave 0 Google Workspace only，Wave 1 包含至少一位受控 non-Google；Cloud SQL restore evidence 符合 closed `HD-8-4`；其餘 IAM、HA、privacy、cost 與 ProJED 邊界依 ADR/SPEC/QA。
+  - 必讀文件：`.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`、`.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`、`.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`、DEV-044/045 與歷史 Supabase compatibility evidence。
+  - 停止條件：偏離任何 closed HD-6/HD-7/HD-8、canary 前缺少/未通過 `HD-8-4 / 1A` separate-target restore/numbering reconciliation、runtime migration造成未處置 regression、Route Handler/middleware/Server Action持有 domain rules、引入 Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority、production 搬入非 seed allowlist row/source actor mapping、修改/刪除 source archive、static DB password、runtime support 不明、production auto-rollout，或需要 Cloud Billing、live credential/domain/data、GCS file workflow、production、ProJED、merge/PR/deploy/release 時停止並進相應 gate。
+  - 證據：`.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md`、Phase 0 文件一致性與 doc QC；後續各 phase 依 QA 計畫產出 local、staging、location/retention、connection capacity、singleton migration、cost alert、Cloud SQL continuity、release、wave、ontology/event 與 12/18-month right-sizing evidence。
+  - 計入交付：否（平台開發點，不直接增加第一版領號/草稿使用者交付完成率）
+
+- ○ DEV-047 [開發點] [P1] [Phase A RD Contract Ready / Not Requested This Turn] Legacy public schema bounded migration
+  - 摘要：在 production slice 穩定後，將核准的 legacy PDM/platform tables 從鎖定的 `public` 分批移往 bounded schemas，清除 hybrid schema 技術債而不影響第一版上線。
+  - 來源 ID：`DEV-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001`
+  - 父任務：`DEV-046`；不計入 `DEV-040` 第一版領號／草稿完成率。
+  - 任務清單：
+    - [ ] Phase A Inventory：在穩定 pilot 後產出 machine-readable dependency inventory，涵蓋 table/sequence/index/constraint/FK/view/materialized view/function/trigger/grant/RLS、migration history、SQLite/PostgreSQL mirror、repository raw SQL、script/QC 與外部 consumer；未知 consumer 只阻擋其候選 batch。
+    - [ ] Phase B Contract：依 owner domain/dependency order 排定 migration batches、schema-qualified SQL、old/new app deployment boundary、compatibility behavior、lock/downtime、rollback point 與 evidence preservation；不得以永久 dual write、compatibility view 或 broad search path 收尾。
+    - [ ] Phase C Rehearsal：以代表性快照在 disposable PostgreSQL target 逐批 dry-run/apply/rollback，驗證 schema/RLS/grant/migration-history diff、old/new app compatibility、runtime regression 與 downtime。
+    - [ ] Phase D Release：只在獨立 release 指令、target identity、backup/restore evidence、downtime owner與每批 go/no-go 齊備後執行；遇未知 dependency、lock、grant/checksum drift 或 regression 立即停止。
+  - 執行範圍：Phase A 只在 Phase 3A pilot 穩定且收到 DEV-047 實作指令後可開始；Phase B-D 依前階段 evidence 推進，production schema move 仍需專屬 release gate。
+  - 驗收標準：無斷裂 SQL/FK/view/function/script；stable ID/history 不變；browser grants 仍為零；owner/runtime grants 最小化；每批 rollback/rehearsal/evidence 完整。
+  - 必讀文件：DEV-046 ADR/SPEC/QA、provider-neutral PostgreSQL schema/migration authorities、歷史 Supabase migration evidence、所有 repository/QC dependency inventory。
+  - 停止條件：需要 live schema move、table lock/downtime、compatibility view、direct data repair、production、ProJED 或 release artifact 時進專屬 high-risk/release gate。
+  - 證據：未來 dedicated inventory、migration rehearsal、schema/RLS/grant diff、runtime regression 與 release evidence。
+  - 計入交付：否（post-pilot 平台治理開發點）
+
+- ○ DEV-048 [開發點] [待排] [P1] [Spec Ready / Human Confirmed / Architecture Deferred] 圖料號、草稿、狀態與技術移轉入口整合
+  - 摘要：把分散的料號草稿、領號、上傳送審與製造交接入口收斂成物件導向建立與案件式技轉流程，並以「正式發布」而非「號碼曾顯示或送審」作為永久占號邊界。
+  - 來源 ID：`DEV-PDM-NUMBER-STATE-FLOW-001`
+  - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-040`、`DEV-041`、`DEV-PDM-STATUS-UX-002`
+  - 任務清單：
+    - [x] Functional Spec：完成 UI 入口、候選號 / 審核鎖定 / 待發布 / 正式號、回收政策、狀態維度、技轉整批送審、錯誤復原與功能 AC。
+    - [ ] Architecture / ADR alignment：修訂「送審即永久受控」、固定 7 天冷卻與 formal numbering create 即 official 的衝突語意，補工程契約。
+    - [ ] RD / QA / QC：只在架構與 ADR 對齊完成且使用者提出實作型指令後進入。
+  - 執行範圍：本輪只有功能規格與文件治理；尚未進入架構、RD、QA、QC 或 release。
+  - 範圍外：系統架構、資料模型、API、權限實作、transaction、migration、歷史資料修復、產品程式與 release artifact。
+  - 驗收：功能規格必須回答 `＋建立圖料號` 放置、技轉整批送審入口、已發布才永久占號；所有 deferred scope 具分類與恢復條件，且明示尚非 RD Implementation Ready。
+  - 停止條件：若需保留三個舊側欄入口、技轉核准即發布、草稿一律永久占號、重用正式號、加入固定冷卻 / 自動回收，或進入任何架構與 release 工作，須先人類 re-entry。
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`
+  - 下一步：等待使用者提出「補架構規格」或「進入 RD 規格」；本任務目前不可直接派給 RD 實作。
+  - 計入交付：否；待架構階段確認實作交付點後再調整，避免把 spec-only 工作誤算為產品完成。
+
+- ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1 QC Passed / Release Gate Required] 帳號生命週期與安全管理台
+  - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
+  - 來源 ID：`DEV-PDM-ACCOUNT-LIFECYCLE-001`
+  - 父任務：`DEV-003`、`DEV-040`、`DEV-042`、`DEV-043`、`DEV-044`
+  - 任務清單：
+    - [x] 文件 Phase 0：Human Decision Brief、End-State、Architecture Memory Capsule、Deferred Scope Audit、All-Phase Coverage Matrix。
+    - [x] Phase 1：「帳號與權限」單一管理入口、`/settings/accounts` list/detail、account lifecycle、identity status、global session revoke、Admin one-time password reset、邀請新帳號入口整合、角色／代理有效時間區間恢復與全 permission-path enforcement、SQLite/PostgreSQL/Supabase migration parity、RLS/default-deny、API/security QC。
+    - [x] Phase 1A：在 `/settings/workflow` 角色指派恢復「開始生效／到期停用」控制；帳號管理區以分頁整合角色與權限，不建立第二個角色寫入入口。
+    - [x] Phase 1B：同步／非同步、numbering 與 production-slice guards 統一套用 `starts_at <= now < hard_ends_at`；複核日只提醒。
+    - [x] Phase 1C：offboard 關閉 system role、撤銷角色、停用 login identities；disabled local identity reset 後保持 disabled；self/last-admin/last-identity guard 由 server 檢查。
+    - [x] Phase 1D：recovery fragment token、same-origin JSON、no-store/no-referrer、integer lifecycle version、migration mirror 與 token/audit redaction QC。
+    - [x] Phase 1E 本機 Admin bootstrap：先 online backup SQLite，再將 `jedchang0308@jenfu.com.tw` 設為唯一 active Admin、offboard 其他 demo 帳號並撤銷其 session/identity/role；`1655` 因不符 10-128 字元政策未寫入，改建立 24 小時一次性 recovery link。DB integrity `ok`，raw token 不進文件/evidence；production Firebase reprovision 仍未執行。
+    - [ ] Phase 2：self-service password change/forgot-password、first-class session/device visibility 與 provider-neutral email adapter；需 email/privacy 人類決策後實作。
+    - [ ] Phase 3：不搬既有憑證，於 Firebase/Identity Platform 重新佈建 approved accounts，BFF 八小時 session、Admin/Approver TOTP、email-link invitation/password linking、雙人 break-glass 與 deny-first central offboarding rollout；browser 不直連 Cloud SQL，需 `DEV-046` staging/release gate。
+  - 執行範圍：Phase 1 本機 RD/QA/QC 已完成；Phase 2-3 只達 RD Contract Ready；正式部署、live migration、Firebase Auth/Identity Platform/MFA、merge、PR、rollback與 production smoke 未執行。
+  - 驗收標準：帳號邀請、既有帳號管理、角色與權限、異動紀錄從同一「帳號與權限」入口可發現，且不混成一張大表；非 Admin/跨公司/body spoof fail closed；停權/離職/revoke/reset 後所有舊 cookie/bearer 立即失效且復權不復活；不能鎖死自己、最後 Admin 或最後 login identity；角色時間區間在所有 permission path 真正生效；offboard/return-to-work 不殘留或恢復舊權限；disabled identity reset 不自動啟用；recovery token/hash/secret/自由文字理由不外洩；mutation/audit/outbox atomic；stable PDM IDs/history 不改寫。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`、`.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`、DEV-042/043/044 與 access-control authorities。
+  - 停止條件：需要 hard delete/merge、live email/provider、Firebase Auth/Identity Platform/MFA、production migration/deploy、資料修復、ProJED 或 release artifacts 時停止並進對應 human/release gate。
+  - 證據：`.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`、`npm run qc:pdm-account-lifecycle` 26/26、`qc:pdm-account-invitations` 25/25、`qc:pdm-google-identity` 19/19、`qc:pdm-production-slice-numbering-draft` 27/27、`qc:supabase-runtime-migrations` 39/39、`npx tsc --noEmit` 通過、`npm run lint` 0 errors。`npm run build` 被本機 3000 dev server guard 擋下，release gate 前需補。
+  - 計入交付：是（內部 pilot 前 P0 帳號治理）
 
 - ✓ DEV-044 [開發點] [本機完成] [P0] [Phase 1-3 QC Passed] ERP-ready AI_PDM 模組基礎
   - 摘要：把 AI_PDM 固化為未來 ERP 的獨立 PDM 模組，先建立 server-authoritative actor/company/command 邊界，再分期加入 atomic audit/outbox、shared IAM adapter 與 ERP shell contract；不把現有 ProJED 架構升格成 ERP 母架構，也不在本任務修改 ProJED。
@@ -121,12 +223,12 @@ Owner：Dev PM
   - 計入交付：是
 
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
-  - 摘要：把 PDM 檔案權威轉向 Supabase Storage/Postgres metadata，Google Drive 降為 best-effort 備份鏡像，並保留 local fallback。
+  - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
   - 來源 ID：`DEV-PDM-FILE-STORAGE-001`
   - 父任務：`DEV-SUPABASE-DB-001`、`DEV-STORAGE-COST-001`
   - 證據：`.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`、`.ai-doc/qc/qc-pdm-file-storage-supabase-core-drive-backup-report-2026-07-08.md`、`qc:pdm-file-storage-supabase-core-drive-backup` 37/37。
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-002）
-  - 批次發版：見 `DEV-030`、`DEV-032`；bucket/RLS、一次性遷移、provider pointer、live Drive backup 與 production release 需走 release gate 或高風險確認。
+  - 批次發版：不得依本歷史目標直接切換；後續依 `DEV-046`、`DEV-030`、`DEV-032` 處理 GCS bucket/IAM、一次性遷移、provider pointer、Shared Drive export 與 production release。
   - 計入交付：是
 
 - ✓ DEV-003 [交付點] [完成] [P0] [已歸檔] 使用者身分、組織範圍與權限架構
@@ -153,7 +255,7 @@ Owner：Dev PM
   - 驗收標準：管理員能產生可寄送連結；受邀者能自行設定符合政策的密碼並登入；token 不落明文、不可重用；非 Admin、逾期與撤銷路徑被拒絕。
   - 證據：`.ai-doc/qa/qa-pdm-account-invitation-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-account-invitation-report-2026-07-10.md`、`npm.cmd run qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:pdm-production-slice-numbering-draft` 27/27、`qc:postgres-shadow` 26/26、`qc:supabase-runtime-migrations` 33/33、typecheck、lint、isolated production build 與 Playwright screenshots。
   - 停止條件：需要自動寄信 provider/secret、Google OAuth、帳號停用/復權、密碼重設、session 撤銷、live Supabase migration 或 production deploy 時停止並另立切片/release gate。
-  - 下一步：併入 `DEV-038` 的 3-5 人 field test；正式部署設定 canonical `PDM_PUBLIC_BASE_URL`。
+  - 下一步：Phase 3A.0 canary 正式部署時設定 canonical `PDM_PUBLIC_BASE_URL`；部署後併入 `DEV-038` 的 3-5 人 field test，通過前不擴大使用者。
   - 計入交付：是
 
 - ✓ DEV-043 [交付點] [本地完成] [P0] Google 身分與 provider-neutral identity
@@ -171,7 +273,7 @@ Owner：Dev PM
   - 驗收標準：有 Google 與無 Google 使用者共用穩定 PDM User ID；未知 Google 身分不可自助註冊；受邀 email mismatch、重複 subject、竄改 state、停用帳號與舊 session 都被拒絕；OAuth token/secret 不持久化。
   - 證據：`.ai-doc/qa/qa-pdm-google-identity-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-google-identity-report-2026-07-10.md`、`qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:supabase-runtime-migrations` 33/33、`qc:postgres-shadow` 26/26、typecheck、lint 與 isolated production build。
   - 停止條件：需要 live Google credential/consent screen、正式 redirect URI、live Supabase migration、provider rollout、production smoke/deploy、自助註冊、domain/group 授權或帳號生命週期管理 UI 時停止並進 release/new DEV gate。
-  - 下一步：納入 `DEV-038` 3-5 人 field test；正式開放前由 `DEV-032` release gate 完成 provider credential、migration、HTTPS cookie 與 post-deploy smoke。
+  - 下一步：由 `DEV-032` release gate 完成 provider credential、migration、HTTPS cookie 與 Phase 3A.0 named-user canary/post-deploy smoke；其後納入 `DEV-038` 3-5 人 field test，通過前不擴大開放。
   - 計入交付：是
 
 - ✓ DEV-004 [交付點] [完成] [P0] [已歸檔] 情境式編號生命週期入口
@@ -201,23 +303,23 @@ Owner：Dev PM
   - 下一步：技轉包產品能力改從 `DEV-041` 續接；`DEV-005` 只在指定 research exception 或 Parent Phase 4 rule admin 時恢復。
   - 計入交付：是
 
-- ○ DEV-041 [交付點] [待排] [P1] [Phase 3A-0 RD Implementation Ready / 本輪未要求實作] 技轉包工作台、Pack-and-Go Intake 與整數 Baseline
+- ○ DEV-041 [交付點] [待排] [P1] [Phase 3A-0 本機完成 / QA Passed；Phase 3A-1 to 3C RD Contract Ready] 技轉包工作台、Pack-and-Go Intake 與整數 Baseline
   - 摘要：把技轉從 unsaved entry、明確建立的 persistent Draft、Pack-and-Go intake、人工分類/對應、完整 BOM、整數 package baseline、readiness、共用審核簽核一路管到 release-work-item handoff；不強迫所有零件同步進版。
   - 來源 ID：`DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
   - 父任務：`DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`
   - 任務清單：
-    - [ ] Phase 3A-0：實作明確建立後才持久化的 Draft、穩定 package ID、共用工作台、scope、adapter cards、blocker 匯總與 return context。
+    - [x] Phase 3A-0：實作明確建立後才持久化的 Draft、穩定 package ID、共用工作台、scope、adapter cards、blocker 匯總與 return context。
     - [ ] Phase 3A-1：實作 streaming ZIP safety、原始封包保存、manifest/hash、分類建議與人類 override。
-    - [ ] Phase 3A-2：待 Q3/Q4 決策後，實作 controlled mapping、canonical BOM、package baseline、design-change delta 與完整有效配置基線。
-    - [ ] Phase 3B：待 Q3/Q4 決策後，實作 root-scoped configuration/readiness、owner blocker、SolidWorks 實機開啟證據與 stale detection。
-    - [ ] Phase 3C：待 Q3/Q4 決策後，整合多總組件共用審核、applicable sign-offs、ApprovedForTransfer 與 release-work-item handoff。
-  - 執行範圍：本輪只有文件；下一個可請求切片為 Phase 3A-0。
-  - 範圍外：本輪不改產品程式、schema/migration、正式資料、SolidWorks Add-in/Document Manager、production、merge/PR/deploy/release。
+    - [ ] Phase 3A-2：實作 deterministic impact resolver、formal no-change manager gate、canonical transfer follow-up/task projection、controlled mapping/BOM、delta package、完整候選配置與 atomic multi-root baseline。
+    - [ ] Phase 3B：實作 configuration readiness、follow-up pending/overdue/projection blocker、簡化 `已非最新版 / 待更新`、SolidWorks 證據與 stale detection。
+    - [ ] Phase 3C：整合 atomic multi-root 共用審核、terminal ApprovedForTransfer、applicable sign-offs 與 release-work-item handoff。
+  - 執行範圍：Phase 3A-0 本機產品、SQLite schema、provider-neutral PostgreSQL migration artifact、API、共用工作台與 QC 已完成；下一個可請求切片為 Phase 3A-1。
+  - 範圍外：未執行 live PostgreSQL/Supabase migration、正式資料操作、ZIP parser、分類、mapping/BOM/baseline、SolidWorks Add-in/Document Manager、production、merge/PR/deploy/release。
   - 必讀文件：`.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`、`.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`、parent SPEC/ADR、BOM、approval、access-control 與 file-storage authority。
-  - 驗收：各 phase 必須依 SPEC 保持 package baseline 與 item revision 分離、明確 Draft create、canonical owner 邊界、company/RLS 安全、不可變快照及 ApprovedForTransfer 不自動 release。
-  - 停止條件：需要改變任何已確認 HCS 決策、繞過完整 BOM/controlled identity/實機開啟證據、複製 owner logic、缺 role/company 安全、要求 live migration/direct repair/deploy/release 時停止。Phase 3A-2 到 3C 在 Q3/Q4 未決前不得宣告 implementation ready。
-  - 證據：Phase 3A-0 需 typecheck、lint、focused repository/API/idempotency/company-scope QC、`qc:pdm-submission-gate-phase1` regression 與 1440/1024/390 browser/visible-error evidence；後續 phase 依 QA plan 累加。
-  - 下一步：使用者提出 `執行 DEV-041 Phase 3A-0` 後，由 RD 依 implementation-ready contract 開始；不得自動跨 phase。
+  - 驗收：各 phase 必須依 SPEC 保持 deterministic/no-AI impact evidence、formal no-change manager approval、canonical follow-up/idempotent task projection、package baseline 與 item revision 分離、明確 Draft create、canonical owner 邊界、company/RLS 安全、不可變快照、同軌影響、formal defer Gate、簡化可見狀態及 ApprovedForTransfer 不自動 release。
+  - 停止條件：需要改變任何已確認 HCS 決策、impact resolver 需要 AI/LLM/network、formal no-change 可繞過 RD 主管、generic task 成為 follow-up authority、研發版影響正式版、系統自動替組合件進版、無條件 formal defer、允許 partial multi-root approval、重開已核准 package、繞過完整 BOM/controlled identity/實機開啟證據、複製 owner logic、缺 role/company 安全、要求 live migration/direct repair/deploy/release 時停止。
+  - 證據：`.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`；focused QC 18/18、submission-gate regression 15/15、account-lifecycle regression 26/26、typecheck/lint/isolated build 通過，並完成 1440/1024/390 browser/visible-error evidence。
+  - 下一步：Phase 3A-1 只在使用者提出明確實作指令後開始；不得自動跨到 mapping/BOM/baseline 或正式送審。
   - 計入交付：是
 
 - ✓ DEV-006 [交付點] [完成] [P1] [已歸檔] 圖料模組關係視圖
@@ -450,67 +552,71 @@ Owner：Dev PM
   - 批次發版：無；剩餘改善需拆成新的聚焦任務。
   - 計入交付：否
 
-- ↷ DEV-030 [關卡] [延後] [P0] [Release Gate Required] Supabase 執行期提供者與正式環境切換
-  - 摘要：集中管理 SQLite/local provider 轉向 Supabase runtime provider 的正式切換決策，包含目標、成本、遷移、回復與責任邊界。
-  - 來源 ID：`DEV-SUPABASE-DB-001`
+- ↷ DEV-030 [關卡] [延後] [P0] [Release Gate Required] Cloud SQL operational provider 與正式環境切換
+  - 摘要：集中管理 SQLite/local provider 轉向 Google Cloud SQL PostgreSQL 的正式切換，包含 Taiwan target、connector/service identity、成本、遷移、HA/PITR、回復與責任邊界；IAM、hosting 與整體 platform release 由 DEV-046/032 管理。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001`（supersedes active execution of `DEV-SUPABASE-DB-001`）
   - 父任務：無
   - 任務清單：
-    - [ ] 確認正式或準正式 Supabase target、費用承擔、資料保存責任與 fallback owner。
-    - [ ] 確認 local SQLite、staging Supabase、production Supabase 的用途切分與 provider pointer 切換規則。
-    - [ ] 確認 migration / rollback / smoke owner 後，才允許進入 `DEV-032` release gate。
+    - [ ] 確認 staging/production Cloud SQL project、instance、`asia-east1` region、edition/sizing、HA/PITR/backup location、費用承擔、資料保存責任與 fallback owner。
+    - [x] `HD-6-2 / 2A`：cloud backup 留台灣、full-region RPO/RTO 不承諾且同區 HA 不得被記錄為區域級 DR；`HD-6-3 / 3A`：canary day one regional HA。實際費用 owner/預估/告警仍未完成。
+    - [ ] 確認 local SQLite、disposable PostgreSQL、staging Cloud SQL、production Cloud SQL 的用途切分與 provider pointer 切換規則。
+    - [ ] 依 closed `HD-8-1 / 1A` 確認 Cloud Run `maxInstances`/concurrency、supported Next.js 16/Node Active LTS、Cloud SQL `max_connections`、`poolMax`、migration/admin reserve、timeouts 與 saturation threshold，並證明總配置不超過 70% connection budget。
+    - [ ] 確認 Cloud SQL connector/socket、automatic IAM database authentication、service identity、`pdm_runtime` grants，以及 singleton migration identity/advisory lock/checksum/version/rollback/smoke owner 後，才允許進入 `DEV-032`；static DB password 與 application-start DDL 均禁止。
   - 停止條件：缺 target identity、缺成本確認、缺 rollback owner、或要求直接切 live provider 時停止。
   - 下一步：PM 決定正式目標、成本、資料庫建議分流、遷移與回復負責人
   - 計入交付：否
 
-- ! DEV-031 [QA/QC] [阻塞] [P0] [需高風險確認] Supabase 資料一致性政策執行
-  - 摘要：定義正式遷移或資料比對前的資料一致性政策與 QC 邊界，避免未確認情況下直接比對、修復或清理 live data。
-  - 來源 ID：`DEV-SUPABASE-DB-001-DATA-PARITY`
-  - 父任務：`DEV-SUPABASE-DB-001`
+- ! DEV-031 [QA/QC] [阻塞] [P0] [需高風險確認] Cloud SQL clean-production seed / archive 一致性執行
+  - 摘要：依 `HD-7-2 / 2B` 驗證 production 為乾淨資料庫，只 seed 初始 Admin、最低 config、numbering sequence/non-reuse reservations，並把 local source 留為 read-only archive；不得把 parity 誤作 business-row migration。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001-DATA-PARITY`
+  - 父任務：`DEV-CLOUDSQL-DB-001`
   - 任務清單：
-    - [ ] 確認要比對的資料表、時間點、來源快照、目標環境與一致性層級。
-    - [ ] 先產出 read-only compare plan；任何 repair / cleanup 必須另走高風險確認。
+    - [ ] 盤點 source business/draft/demo/test/history rows、所有曾使用/對外正式號與 production seed allowlist，產出 inventory/hash/owner。
+    - [ ] 驗證 production 零搬移非 allowlist rows/source actor IDs、initial Admin new production PDM ID/config 正確、source history維持唯讀封存且不以email自動映射、sequence/reservations 不會重發舊正式號；任何 repair/cleanup 另走高風險確認。
     - [ ] QC 只可在確認的 disposable/staging target 上執行，且不得輸出 secrets。
   - 停止條件：要求 live data repair、資料刪除、資料覆寫、未確認 target compare 或缺憑證邊界時停止。
-  - 下一步：確認一致性層級、來源快照、資料表範圍、目標與憑證邊界
+  - 下一步：Phase 1 建立 validator；release gate 確認 source snapshot、seed manifest、archive owner 與 target credential boundary
   - 計入交付：否
 
-- ↷ DEV-032 [關卡] [延後] [P0] [Release Gate Required] Supabase 正式環境關卡
-  - 摘要：集中承接所有 production deploy、Supabase cutover、rollback、production smoke 與 release evidence；尚未進入 release gate 前只作為發版入口。
-  - 來源 ID：`DEV-SUPABASE-DB-001-PROD-GATE`
-  - 父任務：`DEV-SUPABASE-DB-001`
+- ↷ DEV-032 [關卡] [延後] [P0] [Release Gate Required] ERP 平台正式環境與 production canary 關卡
+  - 摘要：集中承接 closed `HD-8-1` 的 Cloud Run/Next.js 16 runtime、Identity Platform/portable BFF、Cloud SQL Taiwan、Phase 3A file fail-close、clean-production seed/archive、正式網域、rollback、production smoke、3-5-user canary 與 release evidence；direct-GCS live adapter/cutover由 Phase 3B另行進 gate。尚未進入 release gate 前只作為發版入口。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001-PROD-GATE`
+  - 父任務：`DEV-CLOUDSQL-DB-001`
   - 任務清單：
     - [ ] 使用者提出 release 型指令後，套用 `deployment-release-gate`。
     - [ ] 確認 release scope：目前最小可上線範圍是 `DEV-040` 正式領號 / 草稿 production slice。
-    - [ ] 確認 production target、smoke company / tenant、環境變數、migration plan、rollback owner 與 post-deploy smoke。
-    - [ ] 完成 pre-build、build、production-like smoke、deploy evidence、post-deploy smoke 與 release report。
-  - 停止條件：尚未明確要求 release、production target 不明、rollback 不明、migration/資料修復未確認或 smoke tenant 不明時停止。
+    - [ ] 確認全部適用 HD-6/HD-7/HD-8 已關閉；Cloud Run/Next.js 16/Node support posture、manual immutable rollout、external ALB/restricted CDN、Cloud SQL Taiwan、Phase 3A no-file/direct-GCS fail-close、no Firestore/Firebase Storage/Functions/Callable/trigger evidence、identity/location/privacy evidence、new-production-ID clean seed/read-only source archive/non-reuse manifest、business-hours support calendar、primary+backup all-hours 60-minute critical acknowledgement/containment、Wave 0 Google Workspace only/Wave 1 controlled non-Google、day-one HA、smoke tenant/allowlist、migration/rollback owner 與 post-deploy smoke。
+    - [ ] 確認 immutable `maxInstances`/pool/connection 70% budget、singleton migration manifest/identity、成本 owner/月預估/50-80-100 budget alert 與 anomaly monitoring evidence。
+    - [ ] 驗證 legacy login closure、session signing-key rotation、TOTP recovery/cloud break-glass 分界、automated backup/PITR 與 closed `HD-8-4 / 1A` pre-canary separate-target restore/numbering-ledger reconciliation evidence；Phase 3A file workflow 全關閉。
+    - [ ] 完成 pre-build、build、production-like smoke、deploy evidence、post-deploy smoke 與 canary release report；field acceptance 另由 DEV-038 執行。
+  - 停止條件：尚未明確要求 release、Cloud Run/Next.js 16 support/upgrade runway 或 artifact provenance 不明、`HD-8-4 / 1A` restore/reconciliation evidence 未通過、production auto-rollout 未關閉、出現 Firebase data/storage/function authority、privacy 未完成、clean seed/source archive/non-reuse 或 business-hours/60-minute critical acknowledgement evidence 未清、connection/cost/migration/rollback/continuity/smoke tenant 不明時停止。
   - 下一步：提出 release 型指令並完成高風險確認。
   - 計入交付：否
 
-- ○ DEV-033 [交付點] [待排] [P2] [需產品上線決策] 儲存治理與成本上線推廣
+- ○ DEV-033 [交付點] [待排] [P2] [需產品上線決策] GCS 儲存治理、保留與成本上線推廣
   - 摘要：把儲存治理、成本控制、保留政策與真實儲存盤點轉成產品上線決策；目前不是 RD 可直接執行任務。
   - 來源 ID：`DEV-STORAGE-COST-001`
   - 父任務：儲存權威 / 成本控制
   - 任務清單：
     - [ ] 盤點目前檔案量、附件類型、保留年限、預期增長與備份需求。
-    - [ ] 決定 Supabase Storage、Google Drive backup mirror 與離線備份的責任邊界。
+    - [ ] 依 DEV-046 決定 GCS primary/backup-project、30-day soft delete、Shared Drive approved export 與離線/獨立備份的責任邊界；Supabase Storage 只作 legacy migration source。
     - [ ] 建立成本估算、保留政策與清理政策；未確認前不做 production rollout。
   - 驗收標準：上線前可說明儲存成本、保留策略、備份責任與不可自動清理的資料範圍。
   - 停止條件：需要外部費用承諾、正式資料刪除、bucket/RLS production 變更或 live migration 時停止。
   - 下一步：確認真實儲存盤點、目標、成本、保留政策與正式時程
   - 計入交付：是
 
-- ✓ DEV-034 [關卡] [完成] [P0] [本機 disposable Postgres shadow gate 通過] SQLite 到 Postgres / Supabase 影子遷移
-  - 摘要：已在 disposable local Postgres target 完成 shadow migration、RLS 與 schema/RLS compare 證據，避免直接碰正式資料或正式 schema。
+- ✓ DEV-034 [關卡] [完成] [P0] [本機 disposable Postgres shadow gate 通過] SQLite 到 PostgreSQL 影子遷移
+  - 摘要：已在 disposable local PostgreSQL target 完成 shadow migration、RLS 與 schema/RLS compare 證據，作為 Cloud SQL migration compatibility evidence，避免直接碰正式資料或正式 schema。
   - 來源 ID：`DEV-IND-007`
-  - 父任務：`DEV-SUPABASE-DB-001`
+  - 父任務：`DEV-CLOUDSQL-DB-001`；歷史來源為 `DEV-SUPABASE-DB-001`
   - 任務清單：
     - [x] 準備 disposable Postgres target，不使用 production target。
     - [x] 跑 schema migration apply、RLS plan 與 shadow compare。
     - [x] 取得 `qc:postgres-shadow` 與 target guard 證據。
   - 證據：`data/quality/postgres-shadow/shadow-compare-1783676196559.json`；`npm.cmd run qc:postgres-shadow` 通過 26/26；`npm.cmd run qc:postgres-shadow-target-guard` 通過 11/11。
-  - 停止條件：若未來改成正式 Supabase branch / project、正式資料遷移、direct repair 或 production schema 變更，必須回到 `DEV-030` / `DEV-032` release gate。
-  - 下一步：第一版不再因 `DEV-IND-007` 阻塞；正式 Supabase target、provider pointer、advisor 與 production smoke 仍由 `DEV-030` / `DEV-032` 管控。
+  - 停止條件：若未來改成 staging/production Cloud SQL、正式資料遷移、direct repair 或 production schema 變更，必須回到 `DEV-030` / `DEV-032` release gate。
+  - 下一步：第一版不再因 `DEV-IND-007` 阻塞；正式 Cloud SQL target/connector/grants、provider pointer 與 production smoke 仍由 `DEV-030` / `DEV-032` 管控。
   - 計入交付：否
 
 - ↷ DEV-035 [關卡] [延後] [P2] [完整 CAD / PDM 階段] SolidWorks Document Manager 或等效讀取器
@@ -538,7 +644,7 @@ Owner：Dev PM
   - 計入交付：否
 
 - ↷ DEV-037 [關卡] [延後] [P2] [完整 PDM / 檔案保存階段] 離線單向備份與還原演練
-  - 摘要：完整離線單向備份與隔離還原演練不列第一版正式領號 / 草稿 blocker；第一版正式上線前仍需在 `DEV-032` release gate 確認最小 DB snapshot / rollback owner。
+  - 摘要：完整 PDM 檔案離線單向備份、GCS 檔案復原與隔離還原演練依本輪使用者決策延後，不列第一版正式領號 / 草稿 blocker；closed `DEV-046 HD-8-4 / 1A` 只要求 Cloud SQL automated backup/PITR 與 pre-canary separate-target restore/numbering-ledger reconciliation，兩者不得混算。
   - 來源 ID：`DEV-BACKUP-001`
   - 父任務：儲存 / 發版準備
   - 任務清單：
@@ -546,25 +652,26 @@ Owner：Dev PM
     - [ ] 執行一次備份與隔離還原演練，不碰 production 原始資料。
     - [ ] 留存 restore drill report、校驗值、耗時與失敗復原步驟。
   - 恢復條件：上線範圍包含正式 CAD 檔案保存、Google Drive mirror、Supabase Storage、完整 PDM production ready 或正式資料保存政策時恢復。
-  - 下一步：第一版 release gate 只要求最小 snapshot / rollback owner；完整 restore drill 延後。
+  - 下一步：第一版 Phase 3A 依 closed `HD-8-4 / 1A` 驗證最低 DB continuity evidence；本 DEV 的完整 file-storage/offline restore drill 延後到 Phase 3B 或完整 PDM file release。
   - 計入交付：否
 
-- ! DEV-038 [關卡] [阻塞] [P0] [需外部證據] 正式現場測試證據
-  - 摘要：要求在正式或準正式現場取得端到端操作證據，作為 release / 上線判定前的外部驗證關卡。
+- ! DEV-038 [關卡] [阻塞] [P0] [Production Canary Acceptance / 需外部證據] 正式現場測試證據
+  - 摘要：在 Phase 3A.0 named-user production canary 上取得端到端操作證據；它阻擋擴大開放與 pilot accepted，不是第一次受控部署前的循環 blocker。
   - 來源 ID：`DEV-FIELD-001`
   - 父任務：正式環境準備
   - 任務清單：
-    - [ ] 選定 3-5 位內部 pilot 使用者、smoke company / tenant、測試資料與操作腳本。
+    - [ ] Canary 部署前選定 3-5 位內部 pilot 使用者、精確 allowlist、smoke company / tenant、測試資料、操作腳本、evidence owner 與 issue-intake 路徑。
     - [ ] 驗證正式領號、草稿建立、未開放功能 inert state、權限與錯誤復原。
-    - [ ] 收集現場截圖、操作紀錄、問題清單與 go/no-go 判定。
-  - 停止條件：未進入 `DEV-032` release gate、缺 pilot 範圍、缺測試資料隔離或要求宣稱完整 PDM production ready 時停止。
-  - 下一步：取得正式現場測試證據
+    - [ ] 驗證非 allowlist 使用者在 session/business API 均被拒絕，DB outage 不允許紙本、Excel、offline 領號或事後補登。
+    - [ ] 收集現場截圖、操作/audit correlation、問題清單、P0/P1 disposition 與 accountable signed go/no-go。
+  - 停止條件：Phase 3A.0 canary 不健康、缺 pilot allowlist/測試資料隔離、出現未關閉 P0、P1 無 owner/deadline，或要求在通過前擴大使用者/宣稱完整 PDM production ready 時停止。
+  - 下一步：先由 `DEV-032` 在 release gate 內完成 Phase 3A.0 受控 canary；部署後執行本 gate，通過前維持 named-user allowlist。
   - 計入交付：否
 
 - ✓ DEV-040 [交付點] [本輪本地範圍已完成] [P0] [Release Gate Required for production use] 正式領號 / 草稿 production slice
   - 摘要：Web 正式領號與 `/numbering/part-drafts` 草稿 production slice 已完成 local product slice；未開放功能保留藍圖可見性，但 UI 與 API fail-closed。
   - 來源 ID：`DEV-PDM-PRODUCTION-SLICE-001`
-  - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-PDM-NUMBERING-SEQUENCE-CAPA-001`、`DEV-PDM-ACCESS-CONTROL-001`、`DEV-SUPABASE-DB-001-PROD-GATE`
+  - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-PDM-NUMBERING-SEQUENCE-CAPA-001`、`DEV-PDM-ACCESS-CONTROL-001`、`DEV-CLOUDSQL-DB-001-PROD-GATE`
   - 已完成任務清單：
     - ✓ 建立 central production-slice capability model 與 method-level allowlist / default-deny gate。
     - ✓ 新增 production-slice status API 與直接 URL blocked state。
@@ -574,8 +681,8 @@ Owner：Dev PM
     - ✓ Draft delete/recycle 仍使用既有 controlled-boundary predicate；正式 root/drawing/part 號碼不可回收。
     - ✓ `.env.example` 補上 `PDM_PRODUCTION_SLICE_MODE`。
     - ✓ Focused QC 與既有 numbering/UI/access-control regression 已通過。
-  - 下一步：若要讓內部人員正式使用，先走 `DEV-032` release gate，確認 production target、smoke company / tenant、部署、rollback 與 post-deploy smoke；若要擴大到送審、發行、CAD、BOM 或完整 PDM，另開對應 DEV，不併入本 slice。
-  - 阻塞 / 恢復條件：production release/deploy、live Supabase target、provider pointer、rollback、production smoke、資料恢復與直接資料修復仍由 `DEV-032` release gate / 高風險確認管控。
+  - 下一步：若要讓內部人員正式使用，先走 `DEV-032` release gate，確認 production target、named 3-5-user allowlist、smoke company / tenant、部署、rollback 與 post-deploy smoke；再執行 `DEV-038`，通過前不得擴大 allowlist。若要擴大到送審、發行、CAD、BOM 或完整 PDM，另開對應 DEV，不併入本 slice。
+  - 阻塞 / 恢復條件：production release/deploy、live Cloud SQL target、provider pointer、rollback、production smoke、資料恢復與直接資料修復仍由 `DEV-032` release gate / 高風險確認管控。
   - 證據：`.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`、`.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`、`.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md`、`.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`
   - 批次發版：見 `DEV-032`；merge、PR、deploy、rollback、production smoke 與 release report 延後到 release 型指令或高風險確認。
   - 計入交付：是
@@ -587,26 +694,29 @@ Owner：Dev PM
 | 狀態 | DEV | 來源 ID | 類型 | 下一步 / 恢復條件 |
 |---|---|---|---|---|
 | ✓ 本輪本地範圍已完成 | `DEV-005` | `DEV-PDM-SUBMISSION-GATE-001` | 交付點 | Phase 1 local QC passed；Phase 2+ 需另指定，release/deploy 走 `DEV-032` |
+| ○ 待排 | `DEV-046` | `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` | 開發點 | `HD-8-1..4` 已關閉；Phase 1A-1E RD Implementation Ready / Not Requested，可依指定切片實作；Phase 2/3 仍受 provider/release 與 required evidence gate 管控 |
 | ○ 待排 | `DEV-015` | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P` | 開發點 | 本輪未要求執行；指定第 2+ 階段切片後可進 RD |
-| ↷ 延後 | `DEV-030` | `DEV-SUPABASE-DB-001` | 關卡 | PM 決定正式目標、成本、資料庫建議分流、遷移與回復負責人 |
-| ! 阻塞 | `DEV-031` | `DEV-SUPABASE-DB-001-DATA-PARITY` | QA/QC | 確認一致性層級、來源快照、資料表範圍、目標與憑證邊界 |
-| ↷ 延後 | `DEV-032` | `DEV-SUPABASE-DB-001-PROD-GATE` | 關卡 | 需要 release 型指令與高風險確認 |
+| ↷ 延後 | `DEV-030` | `DEV-CLOUDSQL-DB-001` | 關卡 | 確認 Taiwan target、成本、connector/grants、遷移與回復負責人 |
+| ! 阻塞 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | 確認一致性層級、來源快照、資料表範圍、目標與憑證邊界 |
+| ↷ 延後 | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | 需要 release 型指令與高風險確認 |
 | ○ 待排 | `DEV-033` | `DEV-STORAGE-COST-001` | 交付點 | 確認真實儲存盤點、目標、成本、保留政策與正式時程 |
-| ✓ 完成 | `DEV-034` | `DEV-IND-007` | 關卡 | disposable local Postgres shadow gate 已通過；正式 Supabase release 仍走 `DEV-030` / `DEV-032` |
+| ✓ 完成 | `DEV-034` | `DEV-IND-007` | 關卡 | disposable local PostgreSQL shadow gate 已通過；正式 Cloud SQL release 仍走 `DEV-030` / `DEV-032` |
 | ↷ 延後 | `DEV-035` | `DEV-CAD-001` | 關卡 | 3D 預覽人類實測 OK；2D 預覽 / native metadata 延後到完整 CAD 階段 |
 | ↷ 延後 | `DEV-036` | `DEV-SW-001` | 關卡 | 目前無明確 Add-in 產品路線；保留歷史 ID，不列第一版 blocker |
-| ↷ 延後 | `DEV-037` | `DEV-BACKUP-001` | 關卡 | 完整 restore drill 延後；第一版 release gate 只要求最小 snapshot / rollback owner |
-| ! 阻塞 | `DEV-038` | `DEV-FIELD-001` | 關卡 | 取得正式現場測試證據 |
+| ↷ 延後 | `DEV-037` | `DEV-BACKUP-001` | 關卡 | 完整 PDM file/GCS/offline restore drill 延後；Phase 3A 另依 closed `DEV-046 HD-8-4 / 1A` 完成 pre-canary DB restore/reconciliation |
+| ! 阻塞 | `DEV-038` | `DEV-FIELD-001` | 關卡 | Phase 3A.0 canary 部署後取得正式 field evidence；通過前阻擋擴大開放/pilot accepted，不阻擋首次 named-user canary deploy |
 | ✓ 本輪本地範圍已完成 | `DEV-040` | `DEV-PDM-PRODUCTION-SLICE-001` | 交付點 | Phase 1 local product slice 已完成並驗證；正式部署、production smoke、release report 另走 `DEV-032` |
+
+稽核限制：`qc:dev-task-completion-audit` 目前只把既有 external-evidence table 納入 open-task 計數，因此通過結果只證明 `DEV-FIELD-001` 等既有 external blocker 可見，不證明待排的 `DEV-046` Phase 1 已實作，也不得用來宣稱 staging/production ready。
 
 ## 2. 批次發版與正式環境關卡
 
-共用 release、production、Supabase、migration、provider pointer、rollback 與 production smoke 不掛在每個已完成 DEV 底下，集中由下列 active gate 管控：
+共用 release、production、Cloud SQL、migration、provider pointer、rollback 與 production smoke 不掛在每個已完成 DEV 底下，集中由下列 active gate 管控：
 
-- `DEV-030`：Supabase 執行期提供者與正式環境切換。
-- `DEV-031`：Supabase 資料一致性政策執行。
-- `DEV-032`：Supabase 正式環境關卡。
-- `DEV-034`：SQLite 到 Postgres / Supabase 影子遷移已完成本機 disposable Postgres gate；正式 Supabase target 仍走 `DEV-030` / `DEV-032`。
+- `DEV-030`：Cloud SQL operational provider 與正式環境切換。
+- `DEV-031`：Cloud SQL 資料一致性政策執行。
+- `DEV-032`：ERP 平台正式環境與 production canary 關卡。
+- `DEV-034`：SQLite 到 PostgreSQL 影子遷移已完成本機 disposable gate；正式 Cloud SQL target 仍走 `DEV-030` / `DEV-032`。
 - `DEV-040`：正式領號 / 草稿 production slice；Phase 1 local product slice 已完成並驗證，release/deploy 仍走 `DEV-032`。
 
 尚未出現 release 型指令或高風險確認前，不得產生 merge plan、PR checklist、deployment plan、rollback plan、production smoke plan 或 release report。
@@ -620,8 +730,8 @@ Owner：Dev PM
 | [x] | DEV-IND-007 | SQLite to Postgres / Supabase shadow migration | Disposable local Postgres shadow gate passed with schema/RLS compare evidence; formal Supabase target/advisor work, if needed, remains in `DEV-030` / `DEV-032`. |
 | [/] | DEV-CAD-001 | SolidWorks Document Manager or equivalent reader | Human test: SW upload OK and 3D preview OK; 2D preview/native metadata remains deferred to full CAD phase and is not a first-version blocker. |
 | [ ] | DEV-SW-001 | SolidWorks Add-in real-machine validation | No current Add-in product route; task is retained as future optional integration, not deleted and not a first-version blocker. |
-| [ ] | DEV-BACKUP-001 | Offline one-way backup and restore drill | Full restore drill deferred to full PDM/file-storage production readiness; first-version release gate only requires minimal snapshot / rollback owner. |
-| [!] | DEV-FIELD-001 | Formal field-test evidence | Needs 正式現場測試 evidence. |
+| [ ] | DEV-BACKUP-001 | Offline one-way backup and restore drill | Full PDM file/GCS/offline restore drill deferred to Phase 3B/full file readiness; Phase 3A separately requires closed DEV-046 `HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence. |
+| [!] | DEV-FIELD-001 | Formal field-test evidence | Execute on the healthy named-user production canary; blocks wider opening/pilot acceptance, not the first controlled deployment. |
 | [!] | DEV-STORAGE-COST-001 | Storage governance and cost rollout | Parked until real storage target, inventory, lifecycle policy, cost, and production timing are approved. |
 
 保留給 `qc:dev-task-evidence-sync` 的外部證據 checklist：
@@ -708,6 +818,26 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-07-13: 使用者以 `1A` 關閉 DEV-046 `HD-8-4`：完整 PDM/GCS/offline backup-and-restore 功能與演練繼續由 `DEV-037` 延後；正式領號 canary 前則必須啟用 Cloud SQL automated backups/PITR，將一個 production-like recovery point 還原到 separate isolated target，且通過 schema/migration、account mapping、audit/outbox、numbering ledger/sequence/non-reuse reservations 核對，來源不得被覆寫。這是 release evidence，不是產品還原 UI，也不代表完整 PDM recovery ready。`HD-8-1..4` 至此全數關閉；Phase 1A-1E 維持 RD Implementation Ready / Not Requested，provider/staging/release evidence仍未執行。本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 使用者以 `1A / 2A / 3B` 關閉 DEV-046 `HD-8-1..3`：production hosting 採 `asia-east1` Cloud Run + Next.js 16 Active LTS container，經 external ALB/managed TLS/custom domain，CDN 僅允許 reviewed immutable assets；重大 security/data-loss 事件由內部 primary+backup all-hours on-call 在 60 分鐘內 acknowledgement 並啟動 containment，不宣稱 24x7 restoration；staging 同測 Google/non-Google，Wave 0 Google Workspace only，Wave 1 至少納入一位受控 non-Google。使用者另要求把完整備份還原功能延後，故 `DEV-037` 維持 deferred，並開啟 `HD-8-4` 單獨決定正式 canary 前最低 Cloud SQL backup/PITR/隔離 restore 與 numbering-ledger reconciliation evidence 的執行時點。Phase 1A-1E 改為 RD Implementation Ready / Not Requested；本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: RD 主管以 #批判 / #多層次分析完成 DEV-046 第三輪獨立文件稽核。官方支援複核確認 App Hosting 對 Next.js 15.2.x 的相容性不等於五年 security/LTS 維護保證，故開啟 `HD-8-1` runtime posture；「24x7 即時 escalation」不可驗收，開啟 `HD-8-2` acknowledgement/coverage；non-Google production admission 未指定 wave，開啟 `HD-8-3`。同步修正 clean production 必須建立新 production PDM IDs、source actor/history只留唯讀封存且不得同 email auto-link；Firebase-managed action email 初版不需 custom SMTP；Phase 1D只做GCS interface/fake/fail-close，live adapter移至Phase 3B；outbox補 dedicated worker/at-least-once/lease/checkpoint/retry/DLQ；Cloud SQL補 automatic IAM DB auth與禁止static password。DEV-046改為 `!` blocked；本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 依使用者指定 `dev-pm`，建立 `DEV-048` 純功能規格，收斂 `＋建立圖料號` 的模組頁首與物件脈絡入口、`發行 / 交接 > 技術移轉` 的技轉包整批送審，以及未領號草稿 / 候選號 / 審核鎖定 / 待發布 / 已發布 / 已作廢的分層規則。最新人類決策以正式發布作永久占號邊界，草稿候選號在零有效引用且未鎖定時可立即回收，第一版不強制 7 天冷卻；此語意刻意取代既有「送審即永久受控」與 formal create 即 official 的舊邊界。本輪只修改功能規格與文件索引，未寫架構、未改產品、schema、API、資料、QA/QC 或 release artifact；下一步須由使用者提出「補架構規格」或等效指令。
+- 2026-07-13: 使用者以 `1A / 2B / 3B` 關閉 `HD-7`：App Hosting 搭配實作時核准並 exact pin 的 Next.js 15.2.x；production 建 clean Cloud SQL，只 seed initial Admin/最低 config/numbering sequence/non-reuse reservations，local business/draft/demo/test/history 零搬移且 source read-only archive；continuous RPO <= 1 小時，RTO <= 4 Taiwan business hours（週一至週五 08:00-17:00、排除公司假日），security/data-loss 24x7 即時 escalation。另固定平台不變量：所有正式資料只在 Cloud SQL、正式檔案只在 direct GCS、business logic 只經 portable HTTP/BFF，禁止 Firestore/Firebase Storage/Firebase Functions/Callable/Firestore trigger authority。Phase 1A-1E 已達 RD Implementation Ready / Not Requested；本輪未改 package/code、未降版、未建立 provider/billing/credential、未搬資料、未部署或修改 ProJED。
+- 2026-07-13: RD 主管以 #批判 / #多層次分析完成 DEV-046 二次文件審查。發現 active Cloud SQL SPEC 缺少其任務索引已宣稱完成的 Architecture Memory Capsule、各 phase RD Handoff、Failure/Recovery、Deferred Scope Audit 與 All-Phase Coverage Matrix，並確認 repository `next@16.2.6` 超出目前 Firebase App Hosting 官方 Next.js 支援矩陣至 15.2。文件已補齊上述契約與 ontology event version/idempotency/DLQ/replay 邊界，production source auto-rollout 改為一律禁止；另重開 `HD-7-1` runtime compatibility、`HD-7-2` production data cutover/archive class、`HD-7-3` RTO support clock。DEV-046 從 Phase 1 RD Implementation Ready 修正為 provider-neutral RD Contract Ready / target-dependent decision-gated。本輪只修改開發文件，未執行產品程式、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: DEV-046 第四輪 RD 完整性審查中，使用者以「繼續」採用 HCS 建議預設 `1B / 2A / 3A`：Phase 3A 拆為 3A.0 named 3-5-user production canary 與 3A.1 `DEV-038` field acceptance，field evidence 阻擋擴大 allowlist/pilot accepted 而非首次受控部署；DB outage 完全停止正式領號，不允許紙本、Excel、offline 或事後補登；非 Google 邀請採 Firebase-managed email-link，完成 canonical invitation/email proof 後於 freshly authenticated setup state 連結密碼，password reset 僅供啟用後 recovery。RD 同時修正跨 Firebase/PostgreSQL 停權為 deny-first saga，將 DEV-047 拆為 inventory/design/rehearsal/release 契約，並將 Google project names 明定為 logical labels。本輪只修改開發文件，未實作產品/schema/migration、未建立 cloud resource、未部署或修改 ProJED。
+- 2026-07-13: 使用者以 `1A/2A/3A` 關閉 RD 主管審查的 `HD-6`：接受 Firebase US identity processing 並要求 privacy minimization/notice/retention-deletion inventory；所有 cloud recovery copies 留台灣，接受 full `asia-east1` outage 無承諾 RPO/RTO且不得宣稱 regional DR；Cloud SQL regional HA 自首批 3-5-user canary 起強制。文件已同步，實際 privacy evidence、billing owner/budget/alerts、provider resources、deployment/release 仍未執行。
+- 2026-07-13: 使用者完成第五輪決策：既有登入憑證不保留、approved users 於 Firebase 重新佈建並 mapping stable PDM IDs；canary 後採 Wave 1 約 5 人、Wave 2 剩餘 approved staff 的五工作天 gates；Cloud SQL/GCS/App Hosting operational data/files 位於 Google Taiwan，Firebase Auth identity data 是明示 US-location exception。新增 `ADR-PDM-ERP-PLATFORM-002`、Cloud SQL SPEC/QA，Supabase 僅保留歷史/disposable compatibility evidence。另完成本機 managed-auth bootstrap：online backup 後將 `jedchang0308@jenfu.com.tw` 設為唯一 active Admin，offboard demo accounts，建立 24 小時一次性 recovery link；未採用不符 10 字元政策的 `1655`，未把 raw token 寫入文件。未建立 Google/Firebase/Cloud SQL/GCS live resource、未部署、未修改 ProJED。
+- 2026-07-13: 使用者完成 DEV-046 第三輪 RD 完整性決策 `1A / 2C / 3A`：production 拆成 Phase 3A App Hosting/Firebase/BFF/Supabase 正式領號／草稿上線與 Phase 3B GCS file migration/pointer/file-workflow opening，3B 不得阻擋 3A；現有 PDM/既有 platform tables 暫留鎖定的 `public`，新 post-DEV-046 platform/ontology/integration tables 進 bounded schemas，另建立 `DEV-047` 管 post-pilot legacy schema migration；第一個 ontology MVP 收斂為 AI_PDM-owned Drawing -> Part -> BOM，Project/Equipment 等 ProJED owner contract。RD 並補齊 `pdm_session` v2 AAL/replay/MFA enrollment、GCS 50 MiB 內 hash worker/TTL/retry/quarantine、business-hours observability/alert/log retention、DB outage 禁止離線領號、Phase 3B migration/rollback 與 QA negative/visible-error gates。本輪只修改開發文件，未實作產品/schema/migration、未建立 cloud resource、未部署或修改 ProJED。
+- 2026-07-13: 使用者完成 DEV-046 RD 完整性引導決策 `1A / 2B / 3A`：Firebase 止於 Next.js BFF，browser 不以 Firebase JWT 直連 Supabase；production 採 RPO <= 1 小時/RTO <= 4 小時、七天 PITR、每週獨立 logical backup、GCS 30 天 soft delete/跨專案 no-delete backup 與每季隔離 restore drill；Admin/Approver 採 TOTP、八小時 session，兩位 hardware-key break-glass 管理員，邀請/復原先用 Firebase-managed action email。同步補齊 GCS v2 intent/finalize 狀態機、storage schema/API/transaction contract、server-only PostgreSQL role/pool boundary、18 個月量化門檻、第一個 traceability ontology use case、FMEA、visible-error/data-sanity gate、Deferred Scope Audit 與完整 All-Phase matrix。本輪只修改開發文件，未實作產品/schema/migration、未建立 billing/project/credential、未部署或修改 ProJED。
+- 2026-07-13: 依使用者五年 ERP 平台引導決策 `1B / 2A / 3A` 建立 `DEV-046` Phase 0 初版文件：Supabase PostgreSQL 作初期 operational relational authority，18 個月後依量化 gate 決定是否遷移 Cloud SQL；Firebase Auth with Identity Platform 作唯一共用 IAM；GCS 作 PDM binary authority，Shared Drive 僅作核准交付/協作出口。初版曾假設 Supabase 信任 Firebase JWT，該假設已由後續 RD 完整性決策 `1A` 明確取代為 BFF-only。未建立 Cloud Billing/project/credential/domain，未切換登入或儲存 provider，未搬資料、未修改 ProJED、未執行 production/release artifact。
+- 2026-07-13: 執行 `DEV-041` Phase 3A-0 本機開發。新增技轉包 counter/package/item/event SQLite schema 與 provider-neutral PostgreSQL migration artifact、company-scoped repository/service、明確且 idempotent 的 Draft 建立、header/scope CRUD、readiness summary、terminal cancel API，以及 `/transfer-packages/new` 與 `/transfer-packages/[id]` 共用工作台；owner module adapter、return context、blocker/next action 與未開放能力均維持誠實邊界。另修復既有資料庫初始化時 account lifecycle compatibility column 晚於 index 建立的順序問題。驗證通過 focused QC 18/18、submission-gate regression 15/15、account-lifecycle regression 26/26、typecheck、full lint、isolated production build、runtime API contract，以及 1440/1024/390 Playwright UI/overflow/visible-error checks。完整證據見 `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`。未執行 ZIP parser、分類、mapping/BOM/baseline、SolidWorks integration、live PostgreSQL/Supabase migration、正式資料、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 依使用者確認「邀請帳號、角色權限管理、所有已啟用帳號生命週期」應收斂到同一頁面，完成 `DEV-045` Phase 1 本機 RD/QA/QC。實作包含 `/settings/accounts`「帳號與權限」分頁入口、帳號清單/明細、停權/復權/離職/復職、identity 停用/復用、全部 session 撤銷、Admin 一次性密碼重設、`/account-recovery`、account lifecycle schema/migration mirror、session invalidation、角色開始/到期 UI 與 permission-path enforcement。證據：`.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`、`qc:pdm-account-lifecycle` 26/26、`qc:pdm-account-invitations` 25/25、`qc:pdm-google-identity` 19/19、`qc:pdm-production-slice-numbering-draft` 27/27、`qc:supabase-runtime-migrations` 39/39、`tsc` 通過、lint 0 errors。`npm run build` 因本機 3000 dev server guard 阻止清 `.next` 而未完成；未停止 server、未使用 bypass。未執行 production deploy、production smoke、live Supabase migration、provider pointer、Supabase Auth/MFA、merge、PR、rollback 或 release artifact。
+- 2026-07-13: 使用者完成第三輪引導決策 `1A 2B 3A`：組合件 impact suggestion 採 deterministic/versioned pure resolver，記錄 input hash/rule IDs/reasons，禁止 AI/LLM/network authority；所有 formal `no_change` 必須在 exact candidate/SolidWorks evidence 後由 RD 主管核准，Admin 不得代替工程決策；formal defer 建立 canonical `transfer_follow_up`（owner/due_at/evidence），再以 outbox/idempotent projection 顯示於既有 package workbench 與 `/numbering/tasks`，不新增頁面、不改 generic task 無期限政策。正式取檔固定 exact configuration/revision/hash；canonical confirmed/approved evidence 不可變，Drive 備份依 file-storage 權威維持 released required/permanent、pre-release selective、既有 mirror 不自動覆寫/刪除。Phase 3A-1 到 3C 恢復 RD Contract Ready / Not Requested This Turn。文件治理通過 `qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、target whitespace checks，並確認 150 個唯一 `.ai-doc` Markdown 引用皆存在。未執行產品程式、schema/migration、正式資料、AI provider、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: RD 主管第三輪完整性審查發現 Q6-Q8 高影響缺口：組合件進版建議的 deterministic/AI 權威與成本邊界、formal `no_change` 的核准責任，以及 formal defer 必須有期限但既有 numbering task policy 明定一般待辦不設期限的跨 SPEC 衝突。Phase 3A-2 到 3C 暫回 `Need Human Decisions Q6-Q8`；Phase 3A-0/3A-1 邊界不變。已由既有規格確定、不再詢問：正式 CAD 下載必須依 exact configuration/revision，不得用模糊 latest；第一版正式/備份檔案不自動刪除；不新增獨立一般操作頁。未執行產品程式、schema/migration、正式資料、外部 AI、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 使用者以 `1A 2A` 確認前輪 Q3/Q4：設變採新 delta package，繼承前一 current-effective 配置並產生完整候選配置；已核准 package 不重開；同包多總組件採 atomic approval，需分批則拆包。系統只能提出組合件是否進版建議，人類選 `不變更`、`晚點執行`、`變更`；研發小數版只評估研發配置，正式整數版只評估正式配置，研發上傳不得造成正式 stale/進版。Q5 選 `1C`：formal defer 僅限可互換/向下相容、非關鍵且證據充足，並須 RD 主管理由、owner、due date、follow-up 與 exact old revision；否則阻擋。UI 依註解收斂：驗證後 no-change 顯示 `不需進版`，defer/update 內部狀態一律只顯示 `已非最新版 / 待更新`，不得覆寫 master lifecycle。Phase 3A-1 到 3C 恢復 RD Contract Ready / Not Requested This Turn。文件治理通過 `qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、target whitespace checks，並確認 140 個 `.ai-doc` Markdown 引用皆存在。未執行產品程式、schema/migration、正式資料、SolidWorks integration、production、merge、PR、deploy 或 release artifact。
+- 2026-07-12: 依 RD 主管完整性審查與使用者「將時間區間設定功能加回去」指示，DEV-045 採用上一輪 HCS 建議預設 `1A / 2C / 3A`：停權保留權限狀態、離職原子關閉 system-role gate、撤銷角色／代理並停用 identities，復職重選 system role/identity 且不恢復舊額外權限；disabled local identity reset 後保持 disabled；pilot 離職採單 Admin 原因＋typed confirmation。角色指派恢復開始／到期 UI，`/settings/accounts` 顯示摘要並深連結 `/settings/workflow`，所有同步／非同步、numbering、approval 與 production-slice permission paths 必須套用時間條件。另補 recovery fragment/CSRF/rate-limit/security headers、integer version、stable cursor、outbox reasonCode、offboard atomicity 與 accessibility QA。只修改開發文件，未實作產品程式、schema/migration、資料、provider、deploy 或 release artifact。
+- 2026-07-13: 依使用者對「邀請帳號、角色權限管理、所有已啟用帳號生命週期」是否應整合的追問，DEV-045 UI IA 增補為「帳號與權限」單一管理入口，分成帳號管理、邀請新帳號、角色與權限、異動紀錄。原則是同入口、分任務，不做一張混雜帳號/邀請/角色制度的大表；`/settings/workflow` 仍是角色與審核規則唯一寫入權威，`/settings/accounts` 顯示角色摘要與深連結，既有 `/settings/account-invitations` 可作相容路由但 UI 上必須歸入同一管理區。本輪只修改開發文件，未實作產品程式、schema/migration、資料、provider、deploy 或 release artifact。
+- 2026-07-12: 依使用者要求建立 `DEV-045` / `DEV-PDM-ACCOUNT-LIFECYCLE-001` 開發文件。Phase 1 針對內部 pilot 補 `/settings/accounts`、停權/復權/離職/復職、identity enable/disable、全部 session 撤銷與 Admin 一次性密碼重設連結，採 hash-only token、`session_invalid_before`、防 self/last-admin/last-login-identity lockout、server-derived command、atomic audit/outbox 與 SQLite/PostgreSQL/Supabase parity，狀態達 `RD Implementation Ready / Not Requested This Turn`。Phase 2 self-service/session visibility/email adapter 與 Phase 3 Supabase Auth/MFA/central offboarding 已達 RD Contract Ready；email/provider/production/ProJED 維持 human/release gate。本輪只修改開發文件，未實作產品、schema/migration、資料、provider、deploy 或 release artifact。
 - 2026-07-10: 依使用者要求完成 `DEV-043` / `DEV-PDM-GOOGLE-IDENTITY-001` 本地切片：新增 `auth_identities`、`users.account_status`、本機身分 backfill、Google OIDC code flow/state/nonce/PKCE、邀請式 Google 綁定、stable `sub` lookup、停用帳號/session fail-closed、token/secret redaction、未設定 provider 時的停用 UI 與 SQLite/PostgreSQL/Supabase migration mirror。證據為 `qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:supabase-runtime-migrations` 33/33、`qc:postgres-shadow` 26/26、typecheck、lint 0 errors、isolated production build 與 desktop/mobile UI screenshots。Supabase CLI 未安裝；未執行 Google Cloud credential/consent screen、live migration、provider enable、production deploy/smoke、merge、PR、rollback 或 release report。
 - 2026-07-10: 依使用者最新決策處理第一版上線 blocker：`DEV-034` / `DEV-IND-007` 已在 disposable local Postgres target 完成 schema migration、RLS plan、target guard、schema/RLS-only live compare 與 `qc:postgres-shadow` 26/26，evidence 為 `data/quality/postgres-shadow/shadow-compare-1783676196559.json`；同時修正 Postgres migration generator 的 FK 建表順序並新增 `PG-010A` 回歸檢查。`DEV-035` / `DEV-CAD-001` 記錄人類實測 SW 上傳 OK、3D 預覽 OK、2D 預覽未支援，改列完整 CAD 階段延後；`DEV-036` / `DEV-SW-001` 因目前無明確 Add-in 產品路線而移出第一版 blocker、保留歷史 ID；`DEV-037` / `DEV-BACKUP-001` 完整 restore drill 延後到完整 PDM / 檔案保存階段，第一版 release gate 僅需最小 snapshot / rollback owner。`DEV-038` 正式 field-test 仍是第一版外部 blocker。未執行 production deploy、production smoke、live Supabase cutover、provider pointer、正式 schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
 - 2026-07-10: RD 主管第二輪完整性審查收到使用者決策 `1A 2B`：正式送審前必須對「完整候選有效配置」執行 SolidWorks 實機開啟與缺件/參照驗證，但不要求 Add-in；單一技轉包可包含多個明確治理的總組件。使用者同時指出設計變更範圍可能只含一個零件，因此 Phase 3A-2 到 3C 暫列 `Need Human Decisions`，等待確認 delta change package 如何繼承舊配置，以及多總組件採整包或逐根核准。Phase 3A-0/3A-1 邊界不變；未執行產品程式、schema/migration、正式資料、SolidWorks integration、production、merge、PR、deploy 或 release artifact。

@@ -27,6 +27,8 @@ The user later confirmed RD supervisor follow-up decisions on 2026-07-10:
 - Allow delete/recycle for provisional part-number drafts before controlled boundary.
 - Use smoke company / tenant as the default production smoke isolation strategy.
 
+The 2026-07-13 fourth completeness review continued without explicit option overrides, so HCS default `1B` is adopted: after technical release gates pass, deploy a named-user production canary for the 3-5 pilot users. `DEV-FIELD-001` is collected on the canary and blocks wider internal opening and pilot acceptance; it does not create a circular prerequisite for the first controlled deployment.
+
 ## Decision
 
 1. AI_PDM may prepare a narrow production slice named `official numbering / draft production slice`.
@@ -108,5 +110,7 @@ This ADR fixes the product decision and development-document boundary only. It d
 ## Supersedes / Amends
 
 - Amends the launch interpretation of `DEV-SUPABASE-DB-001-PROD-GATE` by defining a narrower production slice that is not equivalent to full PDM production readiness.
-- Amends current first-version readiness triage: `DEV-IND-007` is complete for the disposable local Postgres/Supabase-shadow boundary; `DEV-FIELD-001` remains the first-version field-test blocker; `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes and are not required before the Web official numbering / draft production slice.
+- Amends current first-version readiness triage: `DEV-IND-007` is complete for the disposable local Postgres/Supabase-shadow boundary; `DEV-FIELD-001` remains the first-version pilot-acceptance/wider-opening blocker; `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes and are not required before the Web official numbering / draft production slice.
+- Clarifies that `DEV-FIELD-001` blocks expansion beyond the named production canary and the claim that the pilot is accepted. Before the canary deploy, only its user list, script, evidence owner and issue-intake mechanism must be ready; completed field evidence cannot be a pre-deploy requirement.
+- DEV-046 later narrows that deferral: `DEV-BACKUP-001` still owns the full PDM file/offline restore drill, while Phase 3A production release separately requires database PITR, an independent logical backup, the hourly control ledger, and isolated restore evidence.
 - Does not change numbering identity ADRs or formal number reuse policy.

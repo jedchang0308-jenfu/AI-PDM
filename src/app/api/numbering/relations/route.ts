@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { getNumberingRootDetailAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
+import { getNumberingRootDetailAsync, listProductSeriesOptionsAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import type {
@@ -45,7 +45,7 @@ type DrawingPartRelationBlocker = {
 type DrawingPartRelationCell = {
   drawingNumber: string;
   partNumber: string;
-  relationType: "manufacturing_basis" | "reference" | "none" | "blocked";
+  relationType: "manufacturing_basis" | "reference" | "pending" | "not_applicable" | "required_missing" | "blocked";
   isPrimary?: boolean;
 };
 
@@ -60,16 +60,21 @@ export async function GET(request: Request) {
   const entityType = normalizeEnum(url.searchParams.get("entityType"), entityTypes) as NumberingSearchEntityType | undefined;
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const limit = Number(url.searchParams.get("limit") ?? 60);
 
-  const matches = await searchNumberingRecordsAsync({
-    companyId: companyResult.company.companyId,
-    query: url.searchParams.get("query") ?? "",
-    entityType,
-    recordStatus,
-    developmentPhase,
-    limit: Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 60, 1), 100)
-  });
+  const [matches, productSeriesOptions] = await Promise.all([
+    searchNumberingRecordsAsync({
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      productSeries,
+      entityType,
+      recordStatus,
+      developmentPhase,
+      limit: Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 60, 1), 100)
+    }),
+    listProductSeriesOptionsAsync(companyResult.company.companyId)
+  ]);
   const rootCodes = Array.from(new Set(matches.map((match) => match.rootCode))).slice(0, 60);
   const details = (
     await Promise.all(rootCodes.map((rootCode) => getNumberingRootDetailAsync(rootCode, companyResult.company.companyId)))
@@ -83,7 +88,7 @@ export async function GET(request: Request) {
     blockerCount: roots.reduce((sum, root) => sum + root.blockers.length, 0)
   };
 
-  return NextResponse.json({ roots, summary, pdmCompany: companyResult.company });
+  return NextResponse.json({ roots, summary, productSeriesOptions, pdmCompany: companyResult.company });
 }
 
 export async function POST(request: Request) {
@@ -189,10 +194,30 @@ function buildRelationMatrix(
   drawingById: Map<string, DrawingNumberRecord>
 ): DrawingPartRelationCell[] {
   const linkByPair = new Map(links.map((link) => [`${link.partNumberId}:${link.drawingNumberId}`, link]));
+  const manufacturingDrawingIds = new Set(drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).map((drawing) => drawing.id));
+  const manufacturingDrawingCount = manufacturingDrawingIds.size;
+  const partHasManufacturingDrawing = new Map(
+    parts.map((part) => [
+      part.id,
+      links.some((link) => link.partNumberId === part.id && link.linkType === "primary_manufacturing" && manufacturingDrawingIds.has(link.drawingNumberId))
+    ])
+  );
   return parts.flatMap((part) =>
     drawings.map((drawing) => {
       const link = linkByPair.get(`${part.id}:${drawing.id}`);
-      if (!link) return { drawingNumber: drawing.drawingNumber, partNumber: part.partNumber, relationType: "none" };
+      if (!link) {
+        if (!isManufacturingDrawingPurpose(drawing.purposeCode)) {
+          return { drawingNumber: drawing.drawingNumber, partNumber: part.partNumber, relationType: "not_applicable" };
+        }
+        if (!requiresManufacturingDrawing(part.itemKind) || partHasManufacturingDrawing.get(part.id)) {
+          return { drawingNumber: drawing.drawingNumber, partNumber: part.partNumber, relationType: "not_applicable" };
+        }
+        return {
+          drawingNumber: drawing.drawingNumber,
+          partNumber: part.partNumber,
+          relationType: manufacturingDrawingCount === 1 ? "required_missing" : "pending"
+        };
+      }
       const linkedDrawing = drawingById.get(link.drawingNumberId);
       if (link.linkType === "primary_manufacturing" && linkedDrawing && isManufacturingDrawingPurpose(linkedDrawing.purposeCode)) {
         return { drawingNumber: drawing.drawingNumber, partNumber: part.partNumber, relationType: "manufacturing_basis", isPrimary: true };
@@ -232,7 +257,7 @@ function buildRelationBlockers(
         targetId: part.id
       });
     }
-    if (!hasManufacturing && ["manufactured", "outsourced", "custom"].includes(part.itemKind)) {
+    if (!hasManufacturing && requiresManufacturingDrawing(part.itemKind)) {
       blockers.push({
         code: "part_without_manufacturing_drawing",
         message: `料號 ${part.partNumber} 尚未連到製造圖，請先建立圖料關係。`,
@@ -264,6 +289,10 @@ function buildRelationBlockers(
     }
   }
   return blockers;
+}
+
+function requiresManufacturingDrawing(itemKind: string) {
+  return ["manufactured", "outsourced", "custom"].includes(itemKind);
 }
 
 function relationshipHealth(

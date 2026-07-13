@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
-Status: Phase 1 Local Implementation Complete; Release Gate Required for production execution
+Status: Product Phase 1 Local Implementation Complete; DEV-046 `HD-8-1..4` closed and Phase 1 RD Implementation Ready / Not Requested; production waits for platform implementation/staging and Release Gate
 Date: 2026-07-10
 Owner: Dev PM
 Related DEV: `DEV-PDM-PRODUCTION-SLICE-001`
@@ -10,7 +10,7 @@ Related QC: `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-1
 Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
 Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-SEQUENCE-CAPA-001-qc-isolation-and-sequence-integrity.md`
 Extends: `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
-Extends: `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
+Extends: `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
 
 ## Human Decision Brief
 
@@ -30,24 +30,57 @@ Confirmed RD supervisor follow-up from 2026-07-10:
 - `Smoke 3A`: Release-gate smoke isolation defaults to a smoke company / tenant. If any normal Jenfu list, search, report, export, counter, or dashboard can see smoke-company data without an explicit admin/test filter, the production write smoke path is blocked.
 - `Guided completion`: RD supervisor review found no new product decision requiring another A/B/C question. The document is completed under the existing decisions by explicitly closing existing `submit-review`, `reconfirm`, and `restore` part-draft actions in the production slice, requiring reuse of the existing part-number draft controlled-boundary domain predicates, and aligning smoke wording to `smoke company / tenant`.
 
+Fourth RD completeness review default adopted on 2026-07-13 after the user said to continue:
+
+- `Canary 1B`: after technical release gates pass, first deploy a production canary restricted to the named 3-5 users. `DEV-FIELD-001` runs on this canary and blocks wider opening/pilot acceptance, not the initial controlled deployment.
+- `Outage 2A`: database outage stops official numbering; no paper/Excel/offline issuance or later backfill is allowed in this first slice.
+
+Fifth RD completeness review resolved on 2026-07-13:
+
+- `HD-5-1 resolved`: do not migrate existing credentials/provider bindings. Reprovision Firebase identities and assign reviewed new stable production PDM user IDs; source actor IDs/history remain in the separate read-only archive and legacy login is closed before canary.
+- `HD-5-2 resolved`: expand by Google Workspace-only Wave 0 (3-5 users), Wave 1 (about 5 additional users including at least one controlled non-Google email-link account) and Wave 2 (remaining approved staff). Wave 0 and Wave 1 each require five business days, no open P0 and accepted owner/date/disposition for every P1.
+- `HD-5-3 resolved, location scope only`: Cloud SQL operational database, direct GCS primary files and Cloud Run runtime target Google Taiwan. The fifth-review wording that also called Firebase Authentication's US identity processing "explicitly accepted" is superseded by the sixth-review correction below.
+
+Sixth RD supervisor review correction:
+
+- At the sixth-review stage, the phrase "explicitly accepted US-location exception" above was too strong. `HD-5-3` selected Taiwan placement for operational DB/files but did not prove acceptance of Firebase US identity processing, so the review opened `HD-6-1`.
+- The same review opened `HD-6-2` to separate Taiwan-region disaster recovery from in-region HA/PITR. Same-region HA/backups cannot satisfy a regional-outage claim.
+- The same review opened `HD-6-3` for canary day-one regional HA cost. Those gates temporarily blocked live Phase 2/3 and are superseded by the decision closure below.
+
+2026-07-13 human decision closure:
+
+- `HD-6-1 / 1A`: Firebase US identity processing is accepted with data minimization, employee/privacy notice, retention/deletion ownership and privacy inventory.
+- `HD-6-2 / 2A`: all cloud recovery copies remain in Taiwan; full `asia-east1` outage RPO/RTO is uncommitted and no regional-DR claim is permitted.
+- `HD-6-3 / 3A`: Cloud SQL regional HA is mandatory from the first 3-5-user canary. Actual budget/owner/alert evidence remains required before provisioning.
+
+2026-07-13 DEV-046 second-pass decision closure:
+
+- `HD-7-1 / 1A`: App Hosting with an exact reviewed Next.js 15.2.x pin; current Next.js 16 must be downgraded and regression-tested before staging. Production source auto-rollout remains prohibited.
+- `HD-7-2 / 2B`: clean production; only initial Admin, minimum configuration, numbering seed and non-reusable reservations are seeded. Local business/draft/demo/test/history rows do not migrate and remain in a read-only archive.
+- `HD-7-3 / 3B`: continuous wall-clock RPO; RTO is measured Monday-Friday 08:00-17:00 `Asia/Taipei` excluding company holidays. Security/data-loss response remains all-hours, while the measurable acknowledgement/coverage rule waits for `HD-8-2`.
+- Platform invariants: all formal data uses Cloud SQL, all formal files use direct GCS, and all business operations use portable HTTP/BFF. Firestore, Firebase Storage, Firebase Functions, Callable Functions and Firestore triggers are not authorities.
+
+Third-pass decisions are now closed: `HD-8-1 / 1A` selects Cloud Run `asia-east1` + Next.js 16 behind an external Application Load Balancer/custom domain with private-response cache denial; `HD-8-2 / 2A` selects internal primary+backup and 60-minute all-hours acknowledgement; `HD-8-3 / 3B` selects Google-only Wave 0 and controlled non-Google admission in Wave 1 after both paths pass staging; `HD-8-4 / 1A` defers full PDM/GCS/offline recovery but requires Cloud SQL automated backups/PITR and one separate-target restore with numbering-ledger reconciliation before canary. The implemented slice cannot enter production until that platform evidence and release gate pass.
+
 Rejected options:
 
 - Hide all unopened features from the UI.
 - Use frontend disabled state as the only protection.
 - Open formal submission, release, CAD parsing, SolidWorks Add-in, BOM/manufacturing baseline, or full PDM production workflows in this slice.
 - Claim `qc:production-readiness` full-system readiness from this slice.
-- Run browser-side direct Supabase Data API access.
+- Run browser-side direct database or provider table API access.
 - Let routine smoke testing consume normal Jenfu official sequence numbers.
 - Treat `Draft delete 2C` as permission to hard-delete or recycle official root, drawing, or part numbers.
 
 AI assumptions:
 
-- `AI_PDM_PROD` is the intended production Supabase target, but live target execution is outside this document and requires release gate confirmation.
+- `AI_PDM_PROD` is a logical production database label. The physical target is Cloud SQL PostgreSQL in `asia-east1`; live target execution remains outside this document and requires release gate confirmation.
 - Application database access remains through server-side APIs and server-only credentials.
 - Existing local evidence for numbering, access control, sequence integrity, and detail drawers can be reused as development baseline, but must be reverified for the production slice.
 - `/numbering/part-drafts` is backed by provisional `part_number_drafts` reservations with controlled-boundary checks and recycle metadata. If implementation discovers that a draft reservation is already represented as a formal `part_roots` / `part_numbers` / `drawing_numbers` record, RD must stop and split the provisional draft model before enabling recycle.
 - Existing `part_number_drafts` domain predicates such as `getPartNumberControlBoundary` and `assertPartNumberDraftIsRecyclable` are the preferred controlled-boundary authority. RD must not create a separate weaker recycle/delete predicate for this production slice.
 - Smoke-company isolation requires proven company/tenant filtering in every normal user list, report, search, export, counter and dashboard before production write smoke can run.
+- `AI_PDM_PROD` names the production Cloud SQL database only; it is not the whole production platform. DEV-046 and DEV-032 jointly govern Cloud Run/Next.js 16, external Application Load Balancer/cache policy, Identity Platform/portable BFF, direct GCS Phase 3B cutover, clean seed/archive, continuity and IAM cutover.
 
 Re-entry triggers:
 
@@ -59,7 +92,7 @@ Re-entry triggers:
 - RD cannot separate recyclable provisional part-number drafts from official numbering records.
 - RD cannot reuse or faithfully wrap the existing part-number draft controlled-boundary predicate for delete/recycle.
 - RD needs to recycle or hard-delete official root, drawing, or part numbers.
-- RD needs production deployment, Supabase live migration, provider pointer switch, backup/restore execution, production smoke, merge, PR, rollback, direct data repair, or data deletion.
+- RD needs production deployment, Cloud SQL live migration, provider pointer switch, backup/restore execution, production smoke, merge, PR, rollback, direct data repair, or data deletion.
 - RD needs to open a route or API method not listed in the Phase 1 Route / API Boundary Matrix.
 
 使用思考習慣：#目的、#效用理論、#批判
@@ -107,7 +140,7 @@ Roadmap visibility is allowed, but every unopened action must still pass the Now
 - Server-side API denylist for unopened write operations.
 - Role-gated access for 3-5 internal users.
 - Smoke company / tenant isolation contract.
-- Supabase production readiness checks needed for this slice: target identity, server-only credentials, RLS/direct-access denial, schema/RLS parity, and app API path readiness.
+- Cloud SQL production readiness checks needed for this slice: target identity/region, connector/service identity, non-owner runtime role, bounded pool, RLS/direct-access denial, schema/grant parity, HA/PITR, the `HD-8-4 / 1A` pre-canary separate-target restore and numbering-ledger reconciliation evidence, and app API path readiness.
 - QA/QC evidence for official numbering, draft creation, permission denial, UI disabled states, API blocked states, sequence/idempotency, and smoke isolation.
 
 Candidate in-scope UI surfaces:
@@ -127,7 +160,7 @@ Candidate in-scope UI surfaces:
 - Approval workbench production use except disabled roadmap or read-only cues.
 - CAD source-file parsing, Document Manager production readiness, and SolidWorks Add-in production readiness.
 - BOM release, manufacturing baseline, procurement handoff, and full downstream integration.
-- Supabase Storage production file cutover.
+- GCS controlled-file production cutover (owned by Phase 3B).
 - Full-system `qc:production-readiness` pass.
 - Direct DB mutation, data repair, deletion, sequence reset, or manual backfill.
 - Merge, PR, deployment, rollback, production smoke execution, or release report.
@@ -201,13 +234,15 @@ Fixed decisions:
 - Real user-created numbers are official controlled records.
 - Routine production smoke must avoid normal Jenfu sequence consumption.
 - First launch users are intentionally small and internal.
+- First production availability is an allowlisted canary; field evidence is a post-deploy acceptance/expansion gate.
+- Database outage is fail closed for numbering with no manual/offline fallback.
 
 Rejected directions:
 
 - Hide the roadmap.
 - Use UI-only disabled buttons as control.
 - Open all implemented local features just because local QC passed.
-- Treat CAD/Add-in/full field-test blockers as solved by the numbering slice.
+- Treat canary deployment as accepted pilot evidence, or expand beyond named users before `DEV-FIELD-001` passes.
 
 Non-negotiable rules:
 
@@ -224,8 +259,9 @@ Non-negotiable rules:
 | Phase 0 - Development document | Complete this turn | Complete | Capture human decisions, scope, ADR, QA/QC and RD contract |
 | Phase 1 - Product slice gate | Complete locally | Local implementation complete | Implement UI unopened states, server feature gate, method-level allowlist/denylist and role-gated Web flows |
 | Phase 2 - Production target readiness | Release Gate Required | RD Contract Ready | Prove `AI_PDM_PROD` target identity, RLS/direct-access denial, migration/schema parity and server-side credential boundary |
-| Phase 3 - First internal use | Release Gate Required | RD Contract Ready | Run 3-5 user controlled launch, collect evidence and feedback without opening full PDM |
-| Phase 4 - Full PDM production readiness | Blocked Human Re-entry | Existing DEV gates remain authoritative | Field-test evidence remains the first-version blocker; CAD / Add-in / full restore drill remain deferred full-PDM scopes |
+| Phase 3A.0 - Controlled production canary | Release Gate Required | RD Contract Ready | Deploy only to the named 3-5 users after technical/security/continuity gates; field-test package must be ready but not already completed |
+| Phase 3A.1 - Field acceptance and expansion gate | External Evidence Required | RD Contract Ready | Run `DEV-FIELD-001`, close/disposition issues and require signed go/no-go before widening access or reporting pilot acceptance |
+| Phase 4 - Full PDM production readiness | Blocked Human Re-entry | Existing DEV gates remain authoritative | CAD / Add-in / full file restore and other full-PDM scopes remain separately deferred; canary field acceptance does not prove full PDM readiness |
 
 ## RD Handoff Contract
 
@@ -371,22 +407,26 @@ Stop conditions:
 Scope:
 
 - Prepare evidence requirements for `AI_PDM_PROD` as the production target for this slice.
+- Overlay the DEV-046 target: Next.js 16 Active LTS container on Cloud Run `asia-east1`, external Application Load Balancer/serverless NEG/custom domain, restricted CDN cache policy, Identity Platform, portable HTTP/BFF and Cloud SQL PostgreSQL in Google Taiwan. Direct GCS remains the formal file authority but its live adapter/cutover is Phase 3B; every file route stays fail-closed in this slice. Firestore/Firebase Storage/Functions/Callable/Firestore-trigger business paths are forbidden. Database readiness alone cannot make the slice deployable.
 - Keep live execution blocked until a release-type command and high-risk confirmation.
 
 Implementation contract:
 
-- The production target must be an AI_PDM dedicated target and follow `supabase/README.md` target rules.
+- The production database must be a dedicated Cloud SQL instance in `asia-east1` and use the approved connector, automatic IAM database authentication, service identity and non-owner runtime-role contract; static database passwords are rejected.
 - Server-side runtime credentials must stay outside frontend and outside committed files.
 - Public base tables must remain RLS enabled and forced; direct table access denied by default.
 - Migration history and schema/RLS parity must be checked before any provider pointer switch.
-- If Supabase CLI or MCP behavior is needed, current Supabase documentation/changelog must be verified before execution.
+- Identity reprovision must use a per-account new-production-ID/Firebase mapping manifest, collision disposition, TOTP state, legacy-login closure and rollback evidence; no legacy credential/session/provider binding or source actor ID is imported or same-email mapped.
+- Session signing-key scheduled/emergency rotation, privileged TOTP recovery, cloud break-glass separation, Taiwan resource inventory and Firebase Authentication US identity-data privacy acceptance are production preconditions under DEV-046.
+- Current Google Cloud/Firebase documentation must be verified before any live resource or release execution.
 
 Acceptance:
 
-- Target identity proves `AI_PDM_PROD`, not `ProJED`, `ProJED_TEST`, or a non-empty unrelated schema.
+- Target identity proves the approved AI_PDM Cloud SQL production instance/project/region, not `ProJED`, `ProJED_TEST`, or an unrelated database/schema.
 - Schema/RLS compare is clean for the slice-required tables.
 - App APIs, not direct browser Data API, are the only approved access path.
-- Backup/restore evidence requirement is acknowledged before release.
+- Automated backup/PITR remains mandatory. Under `HD-8-4 / 1A`, a documented production-like recovery point must be restored to a separate isolated target before canary without overwriting the source. The restored schema/migration checksum, account mapping, audit/outbox, sequence/high-water state, issued numbers and non-reuse reservations must reconcile; release claims cannot exceed the tested path. Independent/offline/GCS/full-PDM recovery remains deferred.
+- Production slice evidence covers Google/Firebase/BFF/Cloud SQL plus fail-closed file paths; full direct-GCS integration evidence becomes mandatory before Phase 3B. No legacy auth path may issue an ungoverned parallel session.
 
 Evidence required:
 
@@ -398,13 +438,15 @@ Stop conditions:
 - Direct Data API exposure is proposed as the application access path.
 - RLS/direct-access denial baseline is weakened without separate approval.
 
-### Phase 3 - First Internal Use
+### Phase 3A.0 / 3A.1 - Controlled Canary and Field Acceptance
 
 Scope:
 
-- 3-5 users use only the opened slice.
-- Collect feedback on official numbering and draft work.
-- Keep full PDM functions unopened.
+- Phase 3A.0 deploys only to a named 3-5-user Google Workspace production allowlist after technical release gates pass; the field-test script, evidence owner and issue intake must already be ready.
+- Phase 3A.0 requires a complete pilot identity-reprovision manifest, approved Firebase US identity-data exception and verified closure of every unapproved legacy login/token/recovery/callback path.
+- Server-only `PDM_PRODUCTION_CANARY_USER_IDS` accepts exact newly assigned production PDM user IDs only and is checked at session issuance plus every production-slice business request. Missing/malformed/empty configuration denies all business access; email, source actor ID, role, domain and wildcard entries are invalid.
+- Phase 3A.1 runs `DEV-FIELD-001` on the canary and collects feedback on official numbering and draft work.
+- Keep full PDM functions unopened and keep all non-canary users denied until signed acceptance.
 
 Acceptance:
 
@@ -412,12 +454,18 @@ Acceptance:
 - Admin can identify who created which record.
 - RD Manager can review whether the workflow fits real work.
 - No out-of-scope production workflow is executed.
+- Field evidence includes screenshots, audit correlation, issue disposition and signed go/no-go. No open P0 is accepted; P1 requires an accountable, time-bounded disposition.
+- Wider internal access remains blocked until Phase 3A.1 passes; canary deployment alone is not pilot acceptance.
+- A passed Wave 0 gate permits an explicitly approved Wave 1 of about five additional users, including at least one controlled non-Google Firebase-managed email-link account, for another five-business-day observation; a passed Wave 1 gate permits an explicitly approved Wave 2. No gate changes the allowlist automatically.
+- Release evidence records the sorted allowlist hash; changing or disabling it never occurs automatically from smoke/field success.
 
 Stop conditions:
 
 - User group expands beyond the approved first group.
+- Completed field-test evidence is incorrectly required before the controlled canary exists, recreating a circular release gate.
 - Users need release/CAD/Add-in workflows to complete the intended slice.
 - Feedback requires changing official numbering identity, reuse policy, or production data policy.
+- Database unavailability leads to paper, spreadsheet, offline numbering or later backfill rather than fail-closed recovery.
 
 ## API / Data / Permission Impact
 
@@ -435,6 +483,7 @@ Data:
 - Official root, drawing, or part numbers must not be recycled through the draft workbench.
 - Smoke company / tenant data must be logically isolated from normal Jenfu records.
 - No direct production data repair, deletion, or sequence reset is in this execution boundary.
+- PostgreSQL unavailability denies official-number create/reserve and displays a controlled unavailable state. Paper, Excel, offline reservation and later backfill are not supported in this slice.
 
 Permission:
 
@@ -492,12 +541,15 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 | Narrow admin setup | Same Spec Phase 1 / Complete locally | User setup is needed, but role/auth model expansion is not opened |
 | Smoke company / tenant | Same Spec Phase 1 plus Phase 2 / Release Gate Required for production smoke | User selected `3A`; isolation must be proven before any production write smoke |
 | Dedicated smoke sequence namespace | No Tracking for first slice / possible future release-gate design | Not selected as default first release-gate strategy |
-| Supabase production target readiness | Blocked Human Re-entry / Release Gate Required | Needs live target identity, migration/schema/RLS evidence and release gate |
+| Cloud SQL production target readiness | Release Gate Required | Needs Cloud SQL Taiwan target identity, connector/grants, migration/schema/RLS, HA/PITR, `HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation and release evidence |
+| Firebase identity reprovision / legacy-login closure | Confirmed policy + DEV-046 Phase 3A | No credential/source-actor import; requires per-account new production ID manifest, collision/MFA disposition, route/session closure and rollback evidence |
+| Canary expansion cadence | Confirmed waves + Phase 3A.1 | Wave 0 is Google Workspace-only; Wave 1 includes at least one controlled non-Google account; both require five business days, no open P0 and accepted P1 owner/date/disposition |
+| Google data placement | Confirmed + DEV-046 Phase 2/3A/3B | Cloud SQL, Cloud Run and later direct-GCS operational rows/files in Taiwan; global ALB/CDN and Firebase Auth US identity-data exceptions remain disclosed |
 | Production deploy, provider pointer, rollback, production smoke | Blocked Human Re-entry / Release Gate Required | Release artifacts are intentionally deferred |
 | Formal submission / approval / release production use | New DEV or existing DEV gate / Not Requested This Turn | Outside first production slice |
 | CAD parsing / Document Manager / SolidWorks Add-in | Existing DEV gates / Deferred full-PDM scope | `DEV-035` records human upload evidence: SW upload OK and 3D preview OK; 2D preview remains unavailable. `DEV-036` is retained as optional future Add-in scope, not a first-version blocker |
-| Offline restore drill | Existing DEV gate / Deferred full-PDM scope | Full offline restore drill remains under `DEV-037`; first-version release still needs a minimal snapshot / rollback owner under the release gate |
-| Formal field-test evidence | Existing DEV gate / First-version blocker | Required before first internal production use of official numbering / draft; this is the remaining `DEV-FIELD-001` evidence gate and does not claim full PDM production readiness |
+| Full PDM/GCS/offline restore drill | Existing DEV gate / Deferred full-PDM scope | Remains under `DEV-037` and is not a first-version blocker. Closed `HD-8-4 / 1A` separately requires only the minimum pre-canary Cloud SQL isolated-restore/numbering-reconciliation evidence for the official numbering slice. |
+| Formal field-test evidence | Existing DEV gate / Canary acceptance and expansion blocker | The script/evidence owner/issue intake must be ready before canary deploy; completed evidence is collected on the named production canary and required before wider opening or pilot acceptance, not before first controlled deployment |
 | Full PDM production readiness claim | No Tracking / rejected | Explicitly rejected by production-slice decision |
 
 ## All-Phase Coverage Matrix
@@ -506,15 +558,16 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 |---|---|---|---|---|---|---|---|
 | Phase 0 / `DEV-PDM-PRODUCTION-SLICE-001` | Complete this turn | Complete | ADR, SPEC, QA plan, dev_task and documentation_map | Product implementation and release artifacts | User requested development document / dev-task refactor | Decisions and contracts captured | This document set |
 | Phase 1 / product slice gate | Complete locally | Local implementation complete | UI unopened states, API feature gate, numbering/draft allowlist, `/numbering/part-drafts`, provisional draft delete/recycle guards, route blocked states, narrow admin setup, non-production smoke-company isolation proof | Production deploy, live migration, production smoke, official-number recycle | Completed by local implementation work | Allowed flows work; unopened APIs deny; provisional drafts recycle only before controlled boundary; smoke data isolated | `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md` |
-| Phase 2 / production target readiness | Release Gate Required | RD Contract Ready | `AI_PDM_PROD` target, schema/RLS parity, server credential boundary, recovery evidence requirement | Unapproved provider pointer switch or direct migration | Release-type command and high-risk confirmation | Release gate can evaluate slice readiness | Future release-gate evidence |
-| Phase 3 / first internal use | Release Gate Required | RD Contract Ready | 3-5 internal users use official numbering/drafts | Full PDM use and wider rollout | Phase 1 implemented, Phase 2 release gate passed | Users can create allowed records; out-of-scope stays closed | Future launch evidence |
-| Phase 4 / full PDM production | Blocked Human Re-entry | Existing DEV gates remain authoritative | CAD/Add-in/backup/field/full readiness | Treating slice as full readiness | Separate full production decision and release gate | Full readiness gate pass | Future full readiness evidence |
+| Phase 2 / production target readiness | Release Gate Required | `RD Contract Ready / Provider Evidence Not Requested` | Verify Cloud Run/Next.js 16/ALB/cache/manual promotion, portable HTTP/BFF, Cloud SQL Taiwan, file-path fail-close, both auth paths, clean seed/read-only archive/non-reuse manifest, business-hours RTO/60-minute response, full location inventory, VPC/private-IP/IAM DB auth, 70% connection budget, singleton migration, HA/PITR/pre-canary restore contract and cost alerts | unsupported runtime, private CDN caching, source auto-rollout, provider-specific authority, migrated business/source-actor rows, mutable archive, database-only/all-Taiwan/regional-DR claim, app-start DDL or direct migration | Closed HD-8-1..4, platform Phase 1/2 evidence, release command, approved targets, privacy/cost ownership and high-risk confirmation | Release gate can evaluate the no-file production slice | Future release-gate evidence |
+| Phase 3A.0 / controlled canary | Release Gate Required | `RD Contract Ready / Release Not Requested` | newly mapped named 3-5 Google Workspace users use official numbering/drafts | non-Google until Wave 1, wider users, source actor mapping, unspecified legacy auth, file/full PDM use | Phase 1 implemented, Phase 2 technical/security/continuity release gate passed, `HD-8-4 / 1A` restore/reconciliation passed, account manifest and field package ready | allowlist/legacy closure enforced; allowed records work; out-of-scope stays closed; rollback evidence exists | Future canary release evidence |
+| Phase 3A.1 / `DEV-FIELD-001` waves | External Evidence Required | RD Contract Ready | Wave 0 then Wave 1 users execute formal script, feedback and issue closure | automatic wider rollout or full PDM claim | healthy Phase 3A.0 canary | each five-day gate has signed go/no-go, no open P0 and accepted P1 owner/date/disposition; Wave 2 is explicitly approved | field report, screenshots, audit and issue evidence |
+| Phase 4 / full PDM production | Blocked Human Re-entry | Existing DEV gates remain authoritative | CAD/Add-in/full-file backup and full readiness | treating canary field pass as full readiness | separate full production decision and release gate | full readiness gate pass | future full readiness evidence |
 
 ## RD Readiness Review
 
 Phase 1 has no known P0/P1 product-decision gap and is locally implemented. The open/closed scope, UI behavior, route/API matrix, draft operation boundary, permission boundary, data isolation requirement, acceptance, stop conditions and QA/QC gate are defined and verified by `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
 
-Phase 2 and Phase 3 are not executable in this turn because they require release gate confirmation and live production target evidence.
+Phase 2 and Phase 3 remain not requested: `HD-8-1..4` are closed, but provider, staging and release-gate implementation/evidence are still required. The product-slice implementation remains locally complete, but that fact does not make the platform production-ready.
 
 ## Release Artifact Boundary
 

@@ -47,6 +47,11 @@ const sourceFiles = [
     source: "db/postgres/008_erp_module_foundation.sql",
     target: "supabase/migrations/20260712034956_erp_module_foundation.sql",
     description: "Add ERP-ready platform mappings, command receipts, transactional outbox, and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/009_account_lifecycle.sql",
+    target: "supabase/migrations/20260713010000_account_lifecycle.sql",
+    description: "Add account lifecycle controls, session revocation cutoffs, and password recovery requests"
   }
 ];
 

@@ -1,10 +1,12 @@
 # SPEC-PDM-FILE-STORAGE-001: Supabase Core File Storage and Google Drive Backup Mirror
 
-Status: Local RD Implementation Complete / Local QC Passed; Production Cutover Not Authorized
+Status: Historical local adapter implementation / QC passed; production target superseded on 2026-07-13
 Date: 2026-07-08
 DEV: `DEV-PDM-FILE-STORAGE-001`
 Decision source: User HCS guided answers `1B 2A 3A`; RD supervisor follow-up `1C 2A 3B` on 2026-07-08
 Related: `DEV-SUPABASE-DB-001`, `DEV-STORAGE-COST-001`, `SPEC-SUPABASE-DB-001`, `ADR-SUPABASE-DB-001`
+
+> Current authority: `ADR-PDM-ERP-PLATFORM-001` and `SPEC-PDM-ERP-GOOGLE-SUPABASE-001` select Google Cloud Storage as authoritative PDM binary storage and Shared Drive as approved delivery/collaboration only. GCS migration/pointer cutover is Phase 3B and is not a blocker for Phase 3A official-numbering/draft launch while file workflows remain closed. This document preserves completed Supabase Storage/Drive adapter evidence and migration guardrails; it no longer defines the production target.
 
 ## 1. Human Decision Brief
 

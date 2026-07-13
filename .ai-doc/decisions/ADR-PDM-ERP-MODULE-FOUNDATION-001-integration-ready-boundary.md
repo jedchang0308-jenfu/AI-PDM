@@ -7,6 +7,10 @@ Related DEV: `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
 Related QA: `.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`
 
+## 2026-07-13 Architecture Amendment
+
+`ADR-PDM-ERP-PLATFORM-002` keeps this provider-neutral module boundary but updates its external targets: Firebase Auth with Identity Platform is the shared IAM authority terminating at the Next.js BFF, browsers do not directly access operational database APIs, Google Cloud Storage is the authoritative binary store, and Cloud SQL PostgreSQL in Taiwan is the staging/production operational relational authority. The plan also requires account reprovisioning without credential migration, Admin/Approver TOTP, eight-hour sessions, dual hardware-key break-glass administrators, wave rollout and tiered recovery SLOs. Phase 3A numbering/draft launch remains separate from Phase 3B file cutover; existing locked-down `public` tables may remain while new platform tables use bounded schemas; the first ontology MVP is PDM-owned Drawing/Part/BOM. The completed DEV-044 command, outbox, stable-ID and organization-mapping evidence remains valid; this amendment does not claim live provider implementation or production cutover.
+
 ## Context
 
 The long-term product direction is a unified ERP experience in which AI_PDM is the PDM module and ProJED may later become the project-management module. The immediate instruction is to prepare AI_PDM development documents only and leave ProJED unchanged.
@@ -44,9 +48,9 @@ Rejected options:
 AI assumptions:
 
 - AI_PDM continues to use Next.js, React and TypeScript for its Web/BFF surface.
-- PostgreSQL/Supabase remains the target PDM database and object-storage authority under existing ADRs.
+- Cloud SQL PostgreSQL in Taiwan is the target staging/production PDM relational authority; Google Cloud Storage in Taiwan is the target PDM binary authority under `ADR-PDM-ERP-PLATFORM-002`.
 - Current `users.id`, `companies.id` and controlled PDM object identifiers remain stable; future platform identities map to them instead of rewriting history.
-- Supabase Auth is the target shared ERP identity provider under ADR-002. Current PDM local-password and Google identity behavior remains authoritative until a separately approved migration.
+- Firebase Auth with Identity Platform is the target shared ERP identity provider under `ADR-PDM-ERP-PLATFORM-002`. Current PDM local-password and Google identity behavior remains local-only until approved Firebase reprovisioning; existing credentials are not migrated.
 - Phase 1-3 local development is complete; production migration, provider cutover and release remain outside this execution boundary.
 
 ## Decision
@@ -78,7 +82,7 @@ flowchart TD
   App --> DB["PostgreSQL / Supabase"]
   App --> Audit["Audit + transactional outbox"]
   Audit --> Worker["Node / Python / CAD workers"]
-  DB --> Storage["Supabase Storage / object storage"]
+  DB --> Storage["Google Cloud Storage / object storage"]
 ```
 
 ## Module Ownership
@@ -111,7 +115,7 @@ Conditionally accepted as the initial ERP direction. It minimizes operational co
 
 Rejected. There is no measured scale, deployment independence or team ownership evidence that justifies the operational cost.
 
-### E. Supabase Auth cutover now
+### E. Shared IAM cutover now
 
 Deferred. A shared provider may be appropriate, but current PDM and ProJED identity migrations, session invalidation, email delivery, MFA, offboarding and production cutover require a separate human and release decision.
 
@@ -136,7 +140,7 @@ Costs and risks:
 DEV-044 now authorizes and records local Phase 1-3 implementation. It does not authorize:
 
 - ProJED changes of any kind.
-- Supabase Auth or other shared-IAM cutover.
+- Firebase Auth / Identity Platform shared-IAM cutover.
 - Live PostgreSQL/Supabase migration or provider pointer change.
 - Production domain, gateway, deployment, rollback or smoke execution.
 - Direct data repair, identifier rewrite or account migration.

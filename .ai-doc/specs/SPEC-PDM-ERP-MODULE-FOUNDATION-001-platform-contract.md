@@ -6,6 +6,7 @@ Owner: Dev PM
 Related DEV: `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`
 Related ADR: `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`
 Related QA: `.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`
+Amended by: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-001-google-control-plane-supabase-postgres.md`
 Extends: `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
 Extends: `.ai-doc/specs/SPEC-SUPABASE-DB-001-runtime-postgres-migration.md`
 Extends: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
@@ -31,9 +32,9 @@ Rejected options:
 AI assumptions:
 
 - Current AI_PDM Web technology remains Next.js, React and TypeScript.
-- PostgreSQL/Supabase remains the target runtime and storage authority under existing PDM decisions.
+- Cloud SQL PostgreSQL in Taiwan is the target staging/production relational authority; Google Cloud Storage in Taiwan is the target binary authority.
 - Existing `users.id`, `companies.id`, root/drawing/part IDs and audit references remain stable.
-- Supabase Auth is the target shared ERP identity provider; the canonical model is defined in ADR-002; the final ERP shell is not selected yet.
+- Firebase Auth with Identity Platform is the target shared ERP identity provider. `ADR-PDM-ERP-MODULE-FOUNDATION-002` still owns the canonical identity model and stable-ID governance, while `ADR-PDM-ERP-PLATFORM-002` owns provider, reprovisioning and data-placement choices.
 - Initial use remains 3-5 internal users, but contracts must not hard-code that count.
 - Phase 1-3 implementation is local only; live provider, production migration and release remain separate gates.
 
@@ -406,7 +407,7 @@ Purpose:
 Task list:
 
 - [x] `DEV-044-14` Approve canonical person, identity, organization, membership and role-assignment model in ADR-002.
-- [x] `DEV-044-15` Select Supabase Auth target and session/MFA/offboarding policy in ADR-002; rollout remains release-gated.
+- [x] `DEV-044-15` Record the original IAM target and session/MFA/offboarding policy in ADR-002; the provider choice was superseded by `ADR-PDM-ERP-PLATFORM-001`, while rollout remains release-gated.
 - [x] `DEV-044-16` Define mapping tables and transition period for platform principal to stable PDM user/company.
 - [x] `DEV-044-17` Implement migration tooling with dry-run, collision report and rollback boundary.
 - [x] `DEV-044-18` Reverify invitations, Google identity, local-password users, suspended accounts and historical audit attribution.
@@ -538,7 +539,7 @@ Acceptance/evidence:
 | Deferred signal | Classification | Tracking decision |
 |---|---|---|
 | ProJED code/schema/auth/deploy changes | Blocked Human Re-entry | Separate ProJED-owned DEV after explicit approval; no AI_PDM edit may start it |
-| Shared ERP IAM provider rollout | New IAM rollout DEV + Release Gate | Target is Supabase Auth; configuration/cutover follows staging and release approval |
+| Shared ERP IAM provider rollout | `DEV-046` + New IAM rollout DEV + Release Gate | Target is Firebase Auth with Identity Platform terminating at the Next.js BFF; Supabase third-party Firebase JWT access remains unconfigured unless a later direct-read/Realtime ADR approves it |
 | Canonical ERP person/org/department deployment | New shared-core DEV | ADR-002 defines the five-entity model; AI_PDM owns only mapping tables |
 | Transactional outbox external publication | New integration DEV later | Local outbox is complete; add a publisher only after a real consumer and delivery SLO exist |
 | External broker/webhook destination | New DEV later | Only after a real consumer and delivery SLO exist |

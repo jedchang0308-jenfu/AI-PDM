@@ -15,6 +15,9 @@ artifacts/
 !.env.example
 secrets/
 tsconfig.tsbuildinfo
+.playwright-cli/
+output/qc-runtime/
+output/**/*.sqlite
 
 # Generated build outputs
 sw-addin/bin/

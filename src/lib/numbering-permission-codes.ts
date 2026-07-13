@@ -64,6 +64,7 @@ export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
   "/numbering/tasks": "numbering.tasks",
   "/numbering/imports": "numbering.imports",
   "/numbering/reports": "numbering.reports",
+  "/settings/accounts": "settings.admin_matrix",
   "/settings/account-invitations": "settings.admin_matrix",
   "/settings": "settings.admin_matrix"
 };

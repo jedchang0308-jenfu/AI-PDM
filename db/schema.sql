@@ -8,9 +8,16 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded')),
+  session_invalid_before TEXT,
+  account_lifecycle_version INTEGER NOT NULL DEFAULT 1,
+  system_role_enabled INTEGER NOT NULL DEFAULT 1 CHECK (system_role_enabled IN (0, 1)),
+  account_status_changed_at TEXT,
+  account_status_changed_by TEXT,
+  account_status_reason TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (company_id) REFERENCES companies(id)
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (account_status_changed_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS companies (
@@ -31,6 +38,7 @@ CREATE TABLE IF NOT EXISTS auth_identities (
   verified_at TEXT,
   last_login_at TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  identity_lifecycle_version INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -42,6 +50,27 @@ CREATE INDEX IF NOT EXISTS idx_auth_identities_login
   ON auth_identities(provider, login_identifier, status);
 CREATE INDEX IF NOT EXISTS idx_auth_identities_user
   ON auth_identities(user_id, status);
+
+CREATE TABLE IF NOT EXISTS account_recovery_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  identity_id TEXT,
+  request_type TEXT NOT NULL DEFAULT 'admin_password_reset' CHECK (request_type IN ('admin_password_reset', 'account_recovery')),
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'revoked', 'expired')),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  used_by TEXT,
+  revoked_at TEXT,
+  revoked_by TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (identity_id) REFERENCES auth_identities(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (used_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
 
 CREATE TABLE IF NOT EXISTS account_invitations (
   id TEXT PRIMARY KEY,
@@ -2410,6 +2439,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_account_invitations_pending_email
   ON account_invitations(email)
   WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_account_invitations_status_expires ON account_invitations(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_users_account_status ON users(account_status, system_role_enabled);
+CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status ON account_recovery_requests(user_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
 CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
@@ -2419,5 +2450,107 @@ CREATE INDEX IF NOT EXISTS idx_preview_jobs_claim ON preview_jobs(status, priori
 CREATE INDEX IF NOT EXISTS idx_file_derivatives_source_status
   ON file_derivatives(source_file_asset_id, source_content_hash, derivative_kind, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_file_derivatives_preview_job ON file_derivatives(preview_job_id);
+
+-- DEV-041 Phase 3A-0: persistent transfer-package workbench shell.
+CREATE TABLE IF NOT EXISTS transfer_package_counters (
+  company_id TEXT NOT NULL,
+  counter_year INTEGER NOT NULL CHECK (counter_year >= 2000),
+  next_value INTEGER NOT NULL CHECK (next_value >= 1),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (company_id, counter_year),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE TABLE IF NOT EXISTS transfer_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  case_type TEXT NOT NULL CHECK (case_type IN ('development_case', 'design_change_case')),
+  case_reason TEXT NOT NULL,
+  source_reference_status TEXT NOT NULL DEFAULT 'not_available'
+    CHECK (source_reference_status IN ('provided', 'not_available')),
+  source_reference TEXT,
+  source_reference_reason TEXT,
+  package_status TEXT NOT NULL DEFAULT 'Draft'
+    CHECK (package_status IN ('Draft', 'Cancelled')),
+  owner_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  create_idempotency_key TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  cancel_reason TEXT,
+  cancelled_by TEXT,
+  cancelled_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (owner_id) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (cancelled_by) REFERENCES users(id),
+  UNIQUE (company_id, package_code),
+  UNIQUE (company_id, created_by, create_idempotency_key),
+  CHECK (
+    (source_reference_status = 'provided' AND source_reference IS NOT NULL)
+    OR (source_reference_status = 'not_available' AND source_reference_reason IS NOT NULL)
+  ),
+  CHECK (
+    (package_status = 'Cancelled' AND cancel_reason IS NOT NULL AND cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL)
+    OR package_status = 'Draft'
+  )
+);
+
+CREATE TABLE IF NOT EXISTS transfer_package_items (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing_number', 'part_number')),
+  entity_id TEXT NOT NULL,
+  entity_code TEXT NOT NULL,
+  display_label TEXT NOT NULL,
+  root_code TEXT,
+  record_status TEXT,
+  added_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+  FOREIGN KEY (added_by) REFERENCES users(id),
+  UNIQUE (package_id, entity_type, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS transfer_package_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('DraftCreated', 'HeaderUpdated', 'ScopeItemAdded', 'ScopeItemRemoved', 'PackageCancelled')),
+  actor_id TEXT NOT NULL,
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_transfer_packages_company_status_updated
+  ON transfer_packages(company_id, package_status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transfer_packages_owner_status
+  ON transfer_packages(company_id, owner_id, package_status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_items_package
+  ON transfer_package_items(company_id, package_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_items_entity
+  ON transfer_package_items(company_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_events_package
+  ON transfer_package_events(company_id, package_id, created_at);
+
+CREATE TRIGGER IF NOT EXISTS trg_transfer_package_events_no_update
+BEFORE UPDATE ON transfer_package_events
+BEGIN
+  SELECT RAISE(ABORT, 'TRANSFER_PACKAGE_EVENT_APPEND_ONLY');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_transfer_package_events_no_delete
+BEFORE DELETE ON transfer_package_events
+BEGIN
+  SELECT RAISE(ABORT, 'TRANSFER_PACKAGE_EVENT_APPEND_ONLY');
+END;
 CREATE INDEX IF NOT EXISTS idx_numbering_export_jobs_generated ON numbering_export_jobs(export_mode, generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monthly_audit_reports_month ON monthly_audit_reports(report_type, report_month);

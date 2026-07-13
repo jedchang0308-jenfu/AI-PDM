@@ -19,6 +19,12 @@ type AuthIdentityRow = {
   role: DbUserWithPassword["role"];
   company_id: string;
   account_status: DbUserWithPassword["account_status"];
+  session_invalid_before: string | null;
+  account_lifecycle_version: number;
+  system_role_enabled: number | boolean;
+  account_status_changed_at: string | null;
+  account_status_changed_by: string | null;
+  account_status_reason: string | null;
 };
 
 export type ResolvedAuthIdentity = {
@@ -54,7 +60,13 @@ const AUTH_IDENTITY_SELECT = `
     users.password_hash,
     users.role,
     users.company_id,
-    users.account_status
+    users.account_status,
+    users.session_invalid_before,
+    users.account_lifecycle_version,
+    users.system_role_enabled,
+    users.account_status_changed_at,
+    users.account_status_changed_by,
+    users.account_status_reason
   FROM auth_identities identity
   JOIN users ON users.id = identity.user_id
 `;
@@ -105,7 +117,6 @@ const UPDATE_IDENTITY_SQL = `
   SET login_identifier = :loginIdentifier,
       email_normalized = :emailNormalized,
       verified_at = COALESCE(verified_at, :verifiedAt),
-      status = 'active',
       updated_at = :now
   WHERE id = :id
 `;
@@ -133,7 +144,13 @@ function mapIdentity(row: AuthIdentityRow): ResolvedAuthIdentity {
       password_hash: row.password_hash,
       role: row.role,
       company_id: row.company_id,
-      account_status: row.account_status
+      account_status: row.account_status,
+      session_invalid_before: row.session_invalid_before,
+      account_lifecycle_version: row.account_lifecycle_version,
+      system_role_enabled: row.system_role_enabled,
+      account_status_changed_at: row.account_status_changed_at,
+      account_status_changed_by: row.account_status_changed_by,
+      account_status_reason: row.account_status_reason
     }
   };
 }

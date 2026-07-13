@@ -177,6 +177,8 @@ const importBatchStatuses: StatusDefinition[] = [
 
 const settingsLifecycleStatuses: StatusDefinition[] = [
   { keys: ["active", "enabled", "allowed", "valid"], label: "啟用中", description: "此設定目前生效，可作為系統判斷依據。", tone: "success", actionable: true },
+  { keys: ["scheduled", "not_started"], label: "未生效", description: "此設定已有安排，但尚未到開始生效日。", tone: "info" },
+  { keys: ["expired"], label: "已到期", description: "此設定已過到期日，不再套用到作業判斷。", tone: "neutral", terminal: true },
   { keys: ["inactive", "disabled", "blocked", "denied"], label: "停用", description: "此設定目前停用，不會套用到作業判斷。", tone: "neutral" },
   { keys: ["retired", "revoked"], label: "已退役", description: "此設定已退役或撤銷，僅保留追溯。", tone: "neutral", terminal: true },
   { keys: ["builtin", "default", "mocked"], label: "內建預設", description: "目前使用系統預設設定；需要正式設定時請由 Admin 建立。", tone: "info" }

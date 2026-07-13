@@ -26,6 +26,7 @@ import {
   type DrawingPurposeCode
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
+import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 export type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
@@ -133,6 +134,7 @@ export type DrawingModuleListRecord = DrawingNumberRecord & {
 export type DrawingModuleListInput = {
   companyId?: string;
   query?: string;
+  productSeries?: string;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
   purposeCode?: DrawingPurposeCode;
@@ -144,6 +146,7 @@ export type NumberingSearchEntityType = "all" | "part_root" | "part_number" | "d
 export type NumberingSearchInput = {
   companyId?: string;
   query?: string;
+  productSeries?: string;
   entityType?: NumberingSearchEntityType;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
@@ -330,6 +333,7 @@ export type PartModuleListRecord = PartNumberRecord & {
 export type PartModuleListInput = {
   companyId?: string;
   query?: string;
+  productSeries?: string;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
   limit?: number;
@@ -4366,6 +4370,7 @@ function numberingRoleCodes(user: NumberingUserScope) {
 }
 
 function getAssignedNumberingRoleCodes(database: SqliteDatabase, userId: string) {
+  const now = new Date().toISOString();
   return (
     database
       .prepare(
@@ -4375,11 +4380,13 @@ function getAssignedNumberingRoleCodes(database: SqliteDatabase, userId: string)
         JOIN roles r ON r.id = a.role_id
         WHERE a.user_id = ?
           AND a.revoked_at IS NULL
+          AND (a.starts_at IS NULL OR a.starts_at <= ?)
+          AND (a.hard_ends_at IS NULL OR a.hard_ends_at > ?)
           AND r.enabled = 1
         ORDER BY a.assigned_at DESC, r.role_code ASC
       `
       )
-      .all(userId) as Array<{ role_code: string }>
+      .all(userId, now, now) as Array<{ role_code: string }>
   ).map((row) => row.role_code);
 }
 
@@ -6827,8 +6834,19 @@ export function checkNumberingDuplicates(input: DuplicateCheckInput): DuplicateC
   })();
 }
 
+function escapeLikeLiteral(query: string) {
+  return query.replace(/[\\%_]/g, "\\$&");
+}
+
 function escapeLikeQuery(query: string) {
-  return `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+  return `%${escapeLikeLiteral(query)}%`;
+}
+
+function addProductSeriesFilter(filters: string[], params: unknown[], productSeries: string | undefined) {
+  const normalized = normalizeProductSeries(productSeries);
+  if (!normalized) return;
+  filters.push("(r.core_name = ? OR r.core_name LIKE ? ESCAPE '\\')");
+  params.push(normalized, `${escapeLikeLiteral(normalized)}\\_%`);
 }
 
 function searchRootRecords(database: SqliteDatabase, input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput) {
@@ -6839,6 +6857,7 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
     filters.push("(r.root_code LIKE ? ESCAPE '\\' OR r.core_name LIKE ? ESCAPE '\\')");
     params.push(like, like);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("r.record_status = ?");
     params.push(input.recordStatus);
@@ -6896,6 +6915,7 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
     filters.push("(p.part_number LIKE ? ESCAPE '\\' OR p.part_name LIKE ? ESCAPE '\\' OR r.root_code LIKE ? ESCAPE '\\' OR r.core_name LIKE ? ESCAPE '\\')");
     params.push(like, like, like, like);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("p.record_status = ?");
     params.push(input.recordStatus);
@@ -6959,6 +6979,7 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
     filters.push("(d.drawing_number LIKE ? ESCAPE '\\' OR d.purpose_description LIKE ? ESCAPE '\\' OR r.root_code LIKE ? ESCAPE '\\' OR r.core_name LIKE ? ESCAPE '\\')");
     params.push(like, like, like, like);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
@@ -7025,6 +7046,13 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
     .slice(0, normalizedInput.limit);
 }
 
+export function listProductSeriesOptions(companyId: string = "company-jenfu") {
+  const rows = getDb()
+    .prepare("SELECT core_name FROM part_roots WHERE company_id = ? ORDER BY core_name ASC")
+    .all(companyId) as Array<{ core_name: string }>;
+  return productSeriesOptionsFromCoreNames(rows.map((row) => row.core_name));
+}
+
 export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
   const database = getDb();
   const query = input.query?.trim() ?? "";
@@ -7048,6 +7076,7 @@ export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
     )`);
     params.push(like, like, like, like, like, like);
   }
+  addProductSeriesFilter(filters, params, input.productSeries);
   if (input.recordStatus) {
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
@@ -7382,6 +7411,7 @@ function buildPartModuleWhere(input: PartModuleListInput) {
     const token = `%${query}%`;
     params.push(token, token, token, token, token, token);
   }
+  addProductSeriesFilter(where, params, input.productSeries);
   if (input.recordStatus) {
     where.push("p.record_status = ?");
     params.push(input.recordStatus);

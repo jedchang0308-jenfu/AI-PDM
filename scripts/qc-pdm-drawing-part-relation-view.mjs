@@ -13,6 +13,8 @@ const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-draw
 const unique = Date.now().toString().slice(-8);
 const rootCode = `QCR${unique}`;
 const rootId = `qc-relation-root-${unique}`;
+const secondaryRootCode = `QCS${unique}`;
+const secondaryRootId = `qc-relation-root-secondary-${unique}`;
 const drawingM01 = `${rootCode}-M01`;
 const drawingM02 = `${rootCode}-M02`;
 const drawingR01 = `${rootCode}-R01`;
@@ -35,18 +37,20 @@ function read(relativePath) {
 function cleanupRelationData() {
   const db = new Database(dbPath);
   try {
-    const existingRoot = db.prepare("SELECT id FROM part_roots WHERE root_code = ?").get(rootCode);
-    if (!existingRoot) return;
-    const drawingIds = db.prepare("SELECT id FROM drawing_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
-    const partIds = db.prepare("SELECT id FROM part_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
-    for (const drawingId of drawingIds) db.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id = ?").run(drawingId);
-    for (const partId of partIds) db.prepare("DELETE FROM same_drawing_variants WHERE part_number_id = ?").run(partId);
-    for (const drawingId of drawingIds) db.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id = ?").run(drawingId);
-    for (const partId of partIds) db.prepare("DELETE FROM drawing_part_links WHERE part_number_id = ?").run(partId);
-    db.prepare("DELETE FROM warning_events WHERE entity_id = ?").run(existingRoot.id);
-    db.prepare("DELETE FROM drawing_numbers WHERE part_root_id = ?").run(existingRoot.id);
-    db.prepare("DELETE FROM part_numbers WHERE part_root_id = ?").run(existingRoot.id);
-    db.prepare("DELETE FROM part_roots WHERE id = ?").run(existingRoot.id);
+    for (const code of [rootCode, secondaryRootCode]) {
+      const existingRoot = db.prepare("SELECT id FROM part_roots WHERE root_code = ?").get(code);
+      if (!existingRoot) continue;
+      const drawingIds = db.prepare("SELECT id FROM drawing_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
+      const partIds = db.prepare("SELECT id FROM part_numbers WHERE part_root_id = ?").all(existingRoot.id).map((row) => row.id);
+      for (const drawingId of drawingIds) db.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id = ?").run(drawingId);
+      for (const partId of partIds) db.prepare("DELETE FROM same_drawing_variants WHERE part_number_id = ?").run(partId);
+      for (const drawingId of drawingIds) db.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id = ?").run(drawingId);
+      for (const partId of partIds) db.prepare("DELETE FROM drawing_part_links WHERE part_number_id = ?").run(partId);
+      db.prepare("DELETE FROM warning_events WHERE entity_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM drawing_numbers WHERE part_root_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM part_numbers WHERE part_root_id = ?").run(existingRoot.id);
+      db.prepare("DELETE FROM part_roots WHERE id = ?").run(existingRoot.id);
+    }
   } finally {
     db.close();
   }
@@ -64,6 +68,13 @@ function seedRelationData() {
       ) VALUES (?, 'company-jenfu', ?, 'QC 關係視圖總成', 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(rootId, rootCode, now, now);
+    db.prepare(
+      `
+      INSERT INTO part_roots (
+        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+    `
+    ).run(secondaryRootId, secondaryRootCode, `QC ${rootCode} 空白關係主根`, now, now);
     for (const [index, partNumber, partName] of [
       [1, partP01, "QC 關係主料"],
       [2, partP02, "QC 多料一圖 A"],
@@ -126,10 +137,14 @@ function staticChecks() {
 
   record("Relation page fetches grouped endpoint", pageSource.includes("/api/numbering/relations"), "src/app/numbering/search/page.tsx");
   record("Relation page has tree and matrix modes", pageSource.includes("關係樹") && pageSource.includes("矩陣") && pageSource.includes("RelationMatrixView"));
+  record("Relation result omits redundant tree/matrix title row", !pageSource.includes("圖料關係樹") && !pageSource.includes("圖料關係矩陣"));
   record("Relation page renders root groups instead of flat identity table", pageSource.includes("RelationRootGroup") && !pageSource.includes("function SearchResultsTable"));
+  record("Relation matrix maps every root through the shared root header", pageSource.includes("roots.map((root, index)") && pageSource.includes("<RelationRootHeader root={root}"));
+  record("Relation matrix uses a diagonal drawing/part axis header", pageSource.includes("pdm-relation-axis-header") && cssSource.includes("linear-gradient(to top right"));
+  record("Relation matrix sizes to fixed content-based columns", cssSource.includes("width: fit-content") && cssSource.includes("width: max-content") && cssSource.includes("min-width: 160px"));
   record(
-    "Relation tree suppresses repeated manufacturing-basis labels in part chips",
-    pageSource.includes('showRole = role !== "製造依據"') && pageSource.includes("pdm-relation-part-group-heading"),
+    "Relation tree suppresses repeated relation summaries and manufacturing-basis labels",
+    pageSource.includes('showRole = role !== "製造依據"') && !pageSource.includes("relationGroupLabel") && !pageSource.includes("summarizeRelationBlockers"),
     "src/app/numbering/search/page.tsx"
   );
   record("Relation page exposes controlled maintenance panel", pageSource.includes("RelationMaintenancePanel") && pageSource.includes("onRelationChange"));
@@ -137,10 +152,11 @@ function staticChecks() {
   record("Relation route read is search permission gated", routeSource.includes('requireNumberingPageAsync(request, "numbering.search")'));
   record("Relation route write is action permission gated", routeSource.includes('requireNumberingActionAsync(request, "numbering.link_variant")'));
   record("Relation route classifies manufacturing/reference/ambiguous server-side", routeSource.includes("isManufacturingDrawingPurpose") && routeSource.includes("reference_only") && routeSource.includes("ambiguous_primary"));
+  record("Relation matrix uses compact non-misleading empty states", routeSource.includes("pending") && routeSource.includes("not_applicable") && pageSource.includes("待判定") && pageSource.includes("不適用"));
   record("Relation repository writes relation audit", repositorySource.includes("numbering.drawing_part.relation_maintain") && repositorySource.includes("before") && repositorySource.includes("after"));
   record("Relation repository protects locked statuses", repositorySource.includes("RELATION_MAINTENANCE_RECORD_LOCKED") && repositorySource.includes("Released") && repositorySource.includes("Obsolete"));
   record("Relation CSS defines tree/matrix containers", cssSource.includes(".pdm-relation-root") && cssSource.includes(".pdm-relation-matrix-wrap"));
-  record("Relation CSS defines compact part grouping", cssSource.includes(".pdm-relation-part-group-heading") && cssSource.includes(".pdm-relation-part-chip.has-role"), "src/app/globals.css");
+  record("Relation CSS defines compact part grouping", cssSource.includes(".pdm-relation-part-group") && cssSource.includes(".pdm-relation-part-chip.has-role"), "src/app/globals.css");
   record("Relation matrix horizontal scroll is contained", cssSource.includes(".pdm-relation-matrix-wrap") && cssSource.includes("overflow: auto"));
   record("Package exposes relation QC script", packageSource.includes('"qc:pdm-drawing-part-relation-view"'));
 }
@@ -170,10 +186,12 @@ async function verifyRelationApi(sessionCookie) {
   });
   record("Relation API returns 200", response.ok, `HTTP ${response.status}`);
   const body = await response.json();
-  const relationRoot = body.roots?.[0];
-  record("Relation API returns one grouped root", body.roots?.length === 1 && relationRoot.rootCode === rootCode, JSON.stringify(body.summary));
+  const relationRoot = body.roots?.find((root) => root.rootCode === rootCode);
+  record("Relation API returns both grouped roots", body.roots?.length === 2 && body.roots.some((root) => root.rootCode === secondaryRootCode), JSON.stringify(body.summary));
   record("Relation API includes all drawings and parts", relationRoot.drawings.length === 3 && relationRoot.parts.length === 4, JSON.stringify({ drawings: relationRoot.drawings.length, parts: relationRoot.parts.length }));
   record("Relation API marks reference relationships", relationRoot.matrix.some((cell) => cell.drawingNumber === drawingR01 && cell.partNumber === partP01 && cell.relationType === "reference"));
+  record("Relation API marks selectable manufacturing candidates as pending", relationRoot.matrix.some((cell) => cell.drawingNumber === drawingM02 && cell.partNumber === partP04 && cell.relationType === "pending"));
+  record("Relation API marks non-required empty cells as not applicable", relationRoot.matrix.some((cell) => cell.drawingNumber === drawingM02 && cell.partNumber === partP01 && cell.relationType === "not_applicable"));
   record("Relation API marks missing manufacturing coverage", relationRoot.blockers.some((blocker) => blocker.code === "part_without_manufacturing_drawing"), JSON.stringify(relationRoot.blockers));
 
   const afterDb = new Database(dbPath);
@@ -197,8 +215,9 @@ async function verifyViewport(browser, viewport, screenshotName) {
   await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
   await page.getByLabel("關鍵字").fill(rootCode);
   await page.getByRole("button", { name: "查詢", exact: true }).click();
-  await page.locator(".pdm-relation-root", { hasText: rootCode }).waitFor({ timeout: 10_000 });
-  record(`Root appears once in relation tree at ${viewport.width}px`, (await page.locator(".pdm-relation-root", { hasText: rootCode }).count()) === 1);
+  await page.getByRole("button", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });
+  record(`Tree lists every matching root at ${viewport.width}px`, (await page.locator(".pdm-relation-root").count()) === 2 && (await page.getByRole("button", { name: secondaryRootCode, exact: true }).count()) === 1);
+  record(`Tree omits redundant result title at ${viewport.width}px`, (await page.getByRole("heading", { name: "圖料關係樹", exact: true }).count()) === 0);
   record(`Manufacturing drawing renders linked parts at ${viewport.width}px`, await page.locator(".pdm-relation-node", { hasText: drawingM01 }).locator(`text=${partP03}`).isVisible());
   record(`Reference drawing renders reference relation at ${viewport.width}px`, await page.locator(".pdm-relation-node", { hasText: drawingR01 }).locator("text=參考").first().isVisible());
   record(`Missing manufacturing state is visible at ${viewport.width}px`, await page.locator(".pdm-relation-orphan", { hasText: partP04 }).isVisible());
@@ -209,18 +228,48 @@ async function verifyViewport(browser, viewport, screenshotName) {
 
   await page.getByRole("tab", { name: "矩陣" }).click();
   await page.locator(".pdm-relation-matrix", { hasText: partP01 }).waitFor({ timeout: 10_000 });
+  record(`Matrix lists the same roots as tree at ${viewport.width}px`, (await page.locator(".pdm-relation-root").count()) === 2 && (await page.getByRole("button", { name: secondaryRootCode, exact: true }).count()) === 1);
+  record(`Matrix omits redundant result title at ${viewport.width}px`, (await page.getByRole("heading", { name: "圖料關係矩陣", exact: true }).count()) === 0);
+  const axisLayout = await page.locator(".pdm-relation-axis-header").first().evaluate((header) => {
+    const drawing = header.querySelector(".pdm-relation-axis-drawing")?.getBoundingClientRect();
+    const part = header.querySelector(".pdm-relation-axis-part")?.getBoundingClientRect();
+    const bounds = header.getBoundingClientRect();
+    return {
+      valid: Boolean(drawing && part && drawing.top < part.top && drawing.left > part.left),
+      contained: Boolean(drawing && part && drawing.right <= bounds.right && part.left >= bounds.left),
+      background: getComputedStyle(header).backgroundImage
+    };
+  });
+  record(`Matrix axis labels occupy opposite corners at ${viewport.width}px`, axisLayout.valid && axisLayout.contained && axisLayout.background.includes("linear-gradient"), JSON.stringify(axisLayout));
   record(`Matrix shows manufacturing basis at ${viewport.width}px`, await page.locator(".pdm-relation-matrix td.relation-manufacturing_basis", { hasText: "製造依據" }).first().isVisible());
   record(`Matrix shows reference cell at ${viewport.width}px`, await page.locator(".pdm-relation-matrix td.relation-reference", { hasText: "參考" }).first().isVisible());
-  record(`Matrix shows missing relation cells at ${viewport.width}px`, await page.locator(".pdm-relation-matrix td.relation-none", { hasText: "缺關聯" }).first().isVisible());
+  record(`Matrix shows pending candidate cells at ${viewport.width}px`, await page.locator(".pdm-relation-matrix td.relation-pending", { hasText: "待判定" }).first().isVisible());
+  record(`Matrix shows not-applicable cells at ${viewport.width}px`, await page.locator(".pdm-relation-matrix td.relation-not_applicable", { hasText: "不適用" }).first().isVisible());
+  record(`Matrix no longer labels every empty cell as missing at ${viewport.width}px`, (await page.locator(".pdm-relation-matrix", { hasText: "缺關聯" }).count()) === 0);
   if (viewport.width === 1440) {
     await page.screenshot({ path: path.join(outputDir, "matrix-desktop.png"), fullPage: true });
   }
   const matrixOverflowOwner = await page.locator(".pdm-relation-matrix-wrap").evaluate((element) => getComputedStyle(element).overflowX);
   record(`Matrix horizontal scroll is container-owned at ${viewport.width}px`, matrixOverflowOwner === "auto" || matrixOverflowOwner === "scroll", matrixOverflowOwner);
+  const matrixSizing = await page.locator(".pdm-relation-matrix").first().evaluate((table) => {
+    const wrap = table.parentElement;
+    const body = wrap?.parentElement;
+    const drawingHeaders = Array.from(table.querySelectorAll("thead th:not(.sticky-col)"));
+    return {
+      tableWidth: table.getBoundingClientRect().width,
+      wrapWidth: wrap?.getBoundingClientRect().width ?? 0,
+      bodyWidth: body?.getBoundingClientRect().width ?? 0,
+      drawingWidths: drawingHeaders.map((header) => header.getBoundingClientRect().width),
+      contentFits: Array.from(table.querySelectorAll("th, td")).every((cell) => cell.scrollWidth <= cell.clientWidth + 1)
+    };
+  });
+  const compactAtDesktop = viewport.width !== 1440 || matrixSizing.tableWidth < matrixSizing.bodyWidth;
+  const fixedDrawingWidths = matrixSizing.drawingWidths.every((width) => width >= 159 && width <= 220);
+  record(`Matrix uses compact content columns at ${viewport.width}px`, compactAtDesktop && fixedDrawingWidths && matrixSizing.contentFits, JSON.stringify(matrixSizing));
 
   if (viewport.width === 1440) {
     await page.getByRole("tab", { name: "關係樹" }).click();
-    await page.locator(".pdm-relation-root-header", { hasText: rootCode }).click();
+    await page.getByRole("button", { name: rootCode, exact: true }).click();
     await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
     record("Root click opens root detail drawer", (await page.locator(".pdm-master-detail-panel[data-detail-target='part_root'][data-detail-code='" + rootCode + "']").count()) === 1);
 
@@ -234,7 +283,7 @@ async function verifyViewport(browser, viewport, screenshotName) {
     record("Part click opens part detail drawer", (await page.locator(".pdm-master-detail-panel[data-detail-target='part_number'][data-detail-code='" + partP03 + "']").count()) === 1);
 
     await page.getByLabel("關閉圖料明細").click();
-    await page.locator(".pdm-relation-root-header", { hasText: rootCode }).click();
+    await page.getByRole("button", { name: rootCode, exact: true }).click();
     await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
     await page.getByText("關係維護").waitFor({ timeout: 10_000 });
     const maintenance = page.locator(".pdm-relation-maintenance-grid");

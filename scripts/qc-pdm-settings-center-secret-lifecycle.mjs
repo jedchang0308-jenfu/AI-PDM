@@ -77,10 +77,29 @@ try {
   record("SETTINGS-SECRET-012 UI uses password field and never displays secret value", settingsPage.includes('type="password"') && settingsPage.includes('autoComplete="new-password"') && !settingsPage.includes("solidworks_api_key"));
   record("SETTINGS-SECRET-013 UI exposes settings center areas", includesAll(settingsPage, ["settings-overview", "settings-integrations", "settings-security", "settings-workflow", "settings-system"]));
   record(
-    "SETTINGS-SECRET-014 settings subpage routes exist",
-    [integrationsPage, securityPage, workflowPage, systemPage].every((source) => source.includes("SettingsPage"))
+    "SETTINGS-SECRET-014 settings subpage routes render their own area",
+    [
+      [integrationsPage, 'initialArea="integrations"'],
+      [securityPage, 'initialArea="security"'],
+      [workflowPage, 'initialArea="workflow"'],
+      [systemPage, 'initialArea="system"']
+    ].every(([source, area]) => source.includes("SettingsScreen") && source.includes(area))
   );
   record("SETTINGS-SECRET-015 UI calls server APIs only", includesAll(settingsPage, ["/api/settings/secrets", "/api/settings/secrets/solidworks_document_manager/draft"]) && !settingsPage.includes("vault.decrypted_secrets"));
+  record(
+    "SETTINGS-SECRET-015A settings areas are conditionally rendered instead of accumulated",
+    includesAll(settingsPage, [
+      'activeArea === "overview"',
+      'activeArea === "integrations"',
+      'activeArea === "security"',
+      'activeArea === "workflow"',
+      'activeArea === "system"'
+    ])
+  );
+  record(
+    "SETTINGS-SECRET-015B settings tabs expose current page and preserve legacy hashes",
+    includesAll(settingsPage, ["aria-current", "syncLegacyHash", "hashchange", 'hash: "settings-security"'])
+  );
 
   const insertReferenceSql = extractSqlConstant(repository, "INSERT_SECRET_REFERENCE_SQL");
   const insertTestRunSql = extractSqlConstant(repository, "INSERT_SECRET_TEST_RUN_SQL");

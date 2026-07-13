@@ -1,15 +1,16 @@
 # SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001 技轉包工作台與 Pack-and-Go 組合分類
 
-Status: Phase 3A-0 RD Implementation Ready / Not Requested This Turn; Phase 3A-1 RD Contract Ready / Not Requested This Turn; Phase 3A-2 to 3C Need Human Decisions for design-change configuration semantics; Release Gate Required
+Status: Phase 3A-0 Local Implementation Complete / QA Passed 2026-07-13; Phase 3A-1 to 3C RD Contract Ready / Not Requested This Turn; Release Gate Required
 Owner: Dev PM
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-07-13
 Related DEV: `DEV-041` / `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
 Parent DEV: `DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`
 Parent SPEC: `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SUBMISSION-GATE-001-transfer-package-and-exception-policy.md`
 Related SPEC: `.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`
 Related QA: `.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`
+Related QC: `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`
 
 ## 1. Human Decision Brief
 
@@ -26,11 +27,20 @@ Confirmed decisions from 2026-07-10 HCS guided mode:
 - RD completeness Q3 `3A`: Phase 3A is tracked as the new child delivery point `DEV-041`; `DEV-005` remains complete for its Phase 1 product evidence and parent governance.
 - RD re-review Q1 `1A`: after a complete candidate configuration has been materialized, a designated RD/CAD verifier must open the exact baseline content on a real SolidWorks workstation and confirm no missing files or unresolved references before formal submit. This evidence does not require an Add-in.
 - RD re-review Q2 `2B`: one transfer package may include multiple top assemblies. Every governed top assembly must be explicitly selected and must have its own complete configuration/readiness result inside the package.
+- Design-change Q1 `1A` (maps prior Q3): an approved package is terminal. Every later design change creates a new delta package linked to prior current effective configuration(s), inherits unchanged evidence and produces new complete candidate configuration(s). It never reopens or mutates the approved package.
+- Multi-top Q2 `2A` (maps prior Q4): approval is atomic across every governed top assembly in one package. If staged approval is needed, RD must split the scope into separate packages before submit.
+- Assembly-impact annotation: the system proposes whether each affected assembly should receive a new assembly revision; a permitted human makes the final decision using `no_change`, `defer` or `update`.
+- Revision-lane isolation: a development decimal revision evaluates only development decimal assembly configurations. A formal integer revision evaluates only formal integer assembly configurations. Uploading or revising development content never marks a formal released/effective configuration stale or changes its revision.
+- Formal defer Q5 `1C`: a formal impact may be deferred only when the change is interchangeable/backward-compatible, non-safety-critical, supported by sufficient evidence and approved by an R&D Manager with reason, owner, due date and mandatory follow-up reference. Incompatible, safety/regulatory/critical, low-confidence or exact-revision-unavailable cases remain hard blockers.
+- Visible-state simplification: after verification, `no_change` shows `不需進版`. Both internal `update_deferred` and `update_in_progress` show the same human-facing `已非最新版 / 待更新`; users do not need to distinguish internal workflow states from the badge.
+- Suggestion authority Q6 `1A`: assembly-impact suggestions use a deterministic, versioned pure-rule resolver only. The resolver records input hash, rule-set version, matched rule IDs and reasons; it makes no AI/LLM/network call and never decides for the human.
+- Formal no-change responsibility Q7 `2B`: every formal-lane `no_change` requires R&D Manager approval after exact candidate/SolidWorks evidence. Development-lane `no_change` may remain with the configured assembly owner under development rules.
+- Deferred follow-up Q8 `3A`: formal defer creates a dedicated `transfer_follow_up` with owner and due time, then projects it into the existing package workbench and `/numbering/tasks`. The follow-up is canonical; the generic task is a projection. No standalone page and no global due-date policy change are introduced.
 
-Pending human decisions:
+Remaining human decisions:
 
-- RD re-review Q3: when a design change affects only part of an earlier transfer scope, decide whether to create a new delta package that inherits unchanged content and produces new complete effective configuration baselines, reopen the approved package, or require a full re-upload.
-- RD re-review Q4: for a package containing multiple top assemblies, decide whether approval is atomic for the entire package or can complete per top assembly.
+- None for local Phase 3A-0 through 3C product semantics.
+- Production migration, deployment and release remain separate high-risk/release re-entry gates.
 
 Rejected or clarified options:
 
@@ -41,6 +51,12 @@ Rejected or clarified options:
 - Do not add `file_manifest` as a canonical BOM workbench source. It is an intake-only preview that must be converted to an accepted `manual`, `solidworks_xls` or `cad_reference` draft.
 - Do not treat a newly detected formal subassembly as controlled merely because it was marked as a candidate. It must receive or map to a controlled identity before baseline confirmation.
 - Do not treat path preservation or manifest completeness as proof that SolidWorks can open the resulting configuration.
+- Do not use `已非最新版` as a drawing/part/assembly lifecycle status. It is a lane-scoped configuration-impact signal and must not overwrite `Draft`, `Released`, `Obsolete` or other canonical lifecycle values.
+- `no_change` means the assembly file itself does not require a new revision; it does not mean the changed child is ignored. The resulting configuration must still capture and verify the selected child revision.
+- Do not use AI/LLM output, embeddings or an external model as the assembly-impact recommendation authority.
+- Do not add due dates to every generic task merely to support formal defer; due time belongs to `transfer_follow_up` and is projected read-only into the task view.
+- Do not materialize, download or verify a formal package by filename or an ambiguous `latest` pointer. Formal retrieval must resolve the baseline/configuration manifest to exact controlled identities, item revisions, content hashes and relative paths.
+- Do not mutate or auto-delete confirmed/approved package ZIPs, immutable baselines, materialized verification bundles or SolidWorks verification evidence in canonical PDM storage. Replacement evidence is a new immutable version linked to the prior record. Drive backup remains tiered: formally released evidence is required/permanent in the first version; pre-release evidence is selectively mirrored, and any mirrored blob is never auto-overwritten or auto-deleted.
 
 AI assumptions:
 
@@ -58,6 +74,11 @@ Re-entry triggers:
 - Require a new standalone upload, classification, BOM or sign-off page.
 - Remove the confirmed real-machine SolidWorks open-verification gate before formal submit.
 - Reduce the confirmed multi-top package model to exactly one top assembly without a new user decision.
+- Reopen or mutate an `ApprovedForTransfer` package instead of creating a new design-change package.
+- Allow a development revision event to update, stale or renumber a formal configuration.
+- Allow formal `defer` without compatibility evidence, manager decision, owner, due date and follow-up reference.
+- Allow formal `no_change` without R&D Manager approval.
+- Replace deterministic Q6 rules with AI-first or opaque recommendation behavior.
 - Require production migration, direct data repair, live provider change, merge, PR, deploy or release.
 
 使用思考習慣：`#效用理論`、`#系統描繪`、`#當責`
@@ -143,7 +164,7 @@ Authoritative cross-spec rules:
 - Company/role scope: access-control architecture.
 - Original file bytes and storage pointers: file-storage architecture.
 
-### 4.1 Recommended Design-Change Configuration Model - Pending Q3/Q4
+### 4.1 Confirmed Design-Change Configuration Model
 
 The package and the product configuration are different controlled objects:
 
@@ -153,7 +174,7 @@ The package and the product configuration are different controlled objects:
 | resulting configuration baseline | complete reconstructable file/BOM/revision closure for one governed top assembly after applying the package | must always be complete, even when the package changes one part only |
 | current effective configuration | the released configuration currently valid for manufacturing/procurement | changes only after the existing release workflow succeeds |
 
-Recommended flow:
+Confirmed flow:
 
 ```mermaid
 flowchart LR
@@ -197,7 +218,75 @@ Hard blockers:
 
 For a one-part geometry change with unchanged filename/path/reference topology, RD uploads the new part revision only. AI-PDM inherits the unchanged assembly closure, creates a new complete candidate configuration for every affected top assembly, materializes it for verification and records the exact verified hash. If any prerequisite evidence is unavailable, the fallback is an affected-assembly or full Pack-and-Go re-upload, not a guessed merge.
 
-Q4 remains necessary because a package may govern multiple top assemblies under confirmed decision `2B`: the product must decide whether all root candidates approve atomically or may reach different approval states inside one package.
+All governed top assemblies approve atomically under confirmed decision `2A`. A blocked, deferred or failed root blocks package approval. RD must split roots into separate packages when they need different approval timing.
+
+### 4.2 Assembly Revision Impact And Lane Isolation
+
+An affected assembly does not automatically receive a new revision. The system creates a same-lane impact proposal with confidence and reasons; a permitted human chooses the disposition.
+
+| Human decision | Assembly revision behavior | Configuration behavior | Visible impact state |
+|---|---|---|---|
+| `no_change` | keep the current assembly file/revision | candidate may use the new child revision with the unchanged assembly file; rebuild and SolidWorks verification remain required | `不需進版` after evidence passes |
+| `defer` | do not allocate/upload the assembly revision yet | keep the currently effective child mapping until the follow-up is resolved | `已非最新版` / `待更新` |
+| `update` | system suggests a same-lane next assembly revision; human confirms and uploads through the canonical owner flow | mark impact stale while work is open; rebuild the candidate after upload | `已非最新版` / `待更新` until resolved |
+
+`已非最新版` is a UI label for `configuration_alignment_status`, not a master lifecycle state. Minimum states are:
+
+- `aligned`
+- `resolved_no_revision`
+- `update_deferred`
+- `update_in_progress`
+- `verification_failed`
+
+The UI maps both `update_deferred` and `update_in_progress` to one visible badge: `已非最新版 / 待更新`. Their distinction is retained only for workflow logic, responsibility, due-date handling and audit. `resolved_no_revision` maps to `不需進版`. Normal aligned state needs no extra badge.
+
+Lane contract:
+
+| Source revision lane | Candidate assemblies evaluated | Suggested assembly revision | Must not affect |
+|---|---|---|---|
+| `development` | development configurations that currently use the source item | next decimal development revision, allocated by the existing owner/version service after human confirmation | formal integer revisions, formal readiness, released/effective pointers |
+| `formal` | formal configurations that use the released/formal source revision lineage | next integer formal revision, allocated by the existing owner/version service after human confirmation | development working revisions unless a separate human action explicitly starts development work |
+
+The impact engine never promotes an assembly revision by itself. It proposes action, target lane, candidate revision and reasons. Human confirmation plus the canonical revision allocator remains authoritative.
+
+Impact signals may include BOM structure change, filename/path/reference change, mate/interface change, geometry envelope, mass/critical-property change, drawing/process change, interchangeability and where-used breadth. Low confidence must be visible and cannot silently become `no_change`.
+
+The first implementation uses a deterministic pure resolver:
+
+- Inputs are normalized same-lane master/BOM/reference/where-used facts, exact revisions/hashes, criticality/interchangeability fields and available deterministic CAD-extractor facts.
+- Output is `suggested_disposition`, deterministic evidence grade, matched rule IDs, human-readable reasons, missing inputs and `input_hash` under a captured `rule_set_version`.
+- The same normalized input and rule version must produce byte-equivalent ordered output.
+- Missing/unsupported/contradictory inputs return `human_review_required`; they never default to `no_change`.
+- No LLM, embedding, external AI provider, prompt, token cost or probabilistic model is called by the resolver.
+- Rule implementation may be code/config, but activation/versioning follows the existing rule-governance principles and must remain testable and auditable.
+
+Formal `defer` eligibility requires all of the following:
+
+- the old and new formal child revisions may coexist and exact old-revision retrieval remains available
+- the change is classified `interchangeable` or `backward_compatible`
+- no safety, regulatory, critical-characteristic, interface/mate, fit/function or mandatory BOM-structure blocker applies
+- suggestion/evidence confidence meets the configured reviewed threshold
+- an R&D Manager records approval reason, responsible owner, due date and mandatory follow-up task/package reference
+
+If any condition fails, `defer` is unavailable and the formal package remains blocked. An approved defer keeps the prior formal configuration pinned to its exact old child revision, records the package impact atomically and exposes the simplified `已非最新版 / 待更新` badge. Overdue follow-up is escalated and blocks later transfer work that depends on the unresolved assembly impact; it does not silently rewrite historical/effective configurations.
+
+Every formal `no_change` requires an R&D Manager decision after the candidate configuration and exact SolidWorks verification exist. The assembly owner may prepare the evidence but cannot self-finalize formal `no_change`. Development-lane `no_change` remains governed by the development owner policy and never changes formal state.
+
+### 4.3 Formal Defer Follow-Up Projection
+
+`transfer_follow_up` is the source of truth for an approved formal defer. It is created in the same domain transaction as defer approval and contains the impact/package/root, owner, `due_at`, reason, status and required resolution evidence.
+
+The system creates or updates one projection in existing `numbering_task_items` with entity type `transfer_follow_up`, source ID, risk, owner/role, action URL back to the package impact section and transfer-specific due information in projection detail. This does not add a generic task due-date column or change the general no-due-date policy.
+
+Projection rules:
+
+- one open canonical follow-up per formal impact
+- one active task projection per follow-up
+- projection creation/update uses an outbox/idempotent synchronizer; failure leaves the follow-up valid but visibly `projection_pending` and retries
+- direct generic-task closure delegates to the transfer follow-up handler and cannot mark the impact resolved by itself
+- resolution requires linked same-lane package/configuration evidence and the applicable update or manager-approved no-change verification
+- overdue is computed from canonical `due_at`; the task view displays it but does not own it
+- no standalone route is added; workbench and `/numbering/tasks` link to the same package impact context
 
 ## 5. Product Rules
 
@@ -219,6 +308,9 @@ Hard rules:
 - Baseline confirmation requires complete classification, mapping and accepted BOM.
 - A baseline captures exact `entity_revision` and `content_hash`; it never updates those item revisions.
 - A later item revision marks applicable readiness/where-used impact stale but does not mutate a prior baseline.
+- Package baseline major `1`, `2`, `3` is not an item/assembly revision. Item revision lane remains independently `development` decimal or `formal` integer.
+- Where-used impact, revision suggestion, configuration candidate and `已非最新版` state are computed only within the source revision lane.
+- `no_change` may keep the assembly file revision while producing a new configuration snapshot that captures the changed child revision.
 
 ### 5.2 Draft Creation And Persistence
 
@@ -297,7 +389,7 @@ File classes:
 | `part_drawing` | manufacturing/reference drawing attachment | link to controlled drawing when formal |
 | `transient_subassembly` | CAD grouping/helper assembly | no number by default; retained in file snapshot only |
 | `formal_subassembly` | manufactured, purchased, maintained or reused assembly | controlled identity required before baseline |
-| `top_assembly` | package's primary assembly | controlled identity required before baseline |
+| `top_assembly` | one governed top assembly root; a package may contain multiple roots | controlled identity and per-root complete candidate required before baseline |
 | `reference_attachment` | STEP, image, note or supporting file | controlled only when owner policy requires it |
 | `solidworks_bom_export` | BOM export input | not a controlled identity |
 | `unknown` | unresolved | baseline blocked |
@@ -357,6 +449,7 @@ Parent tables remain authoritative. This child contract adds/clarifies these fie
 - `scope_reason TEXT NOT NULL`
 - `owner_user_id TEXT NOT NULL`
 - `package_status TEXT NOT NULL`
+- `current_intake_id TEXT`
 - `current_baseline_id TEXT`
 - `row_version BIGINT NOT NULL DEFAULT 1`
 - existing one-item declaration, scope confirmation, rule-set, submit/approval and timestamps from the parent SPEC
@@ -364,6 +457,7 @@ Parent tables remain authoritative. This child contract adds/clarifies these fie
 Field checks:
 
 - `case_type IN ('development_case', 'design_change_case')` for technical-transfer packages. `new_development` and `engineering_change` are accepted only as boundary aliases and normalize to the canonical Phase 1 codes before persistence.
+- Workbench boundary aliases `drawing` and `part` normalize before persistence to canonical existing owner entity types `drawing_number` and `part_number`. Unknown source types fail closed; aliases are never stored as a second entity enum.
 - `source_reference_status IN ('provided', 'not_available')`.
 - `source_reference_status = 'provided'` requires non-empty `source_reference`; `not_available` requires non-empty `source_reference_missing_reason`.
 - `package_status` uses the parent state machine only; intake states are not persisted in this column.
@@ -406,7 +500,7 @@ Field checks:
 
 | Table | Minimum fields / purpose |
 |---|---|
-| `transfer_package_intakes` | `id`, `company_id`, `package_id`, `storage_object_id`, `original_filename`, `package_sha256`, `archive_bytes`, `status`, `path_status`, `parser_version`, `parse_generation`, `idempotency_key`, error fields, actor/timestamps |
+| `transfer_package_intakes` | `id`, `company_id`, `package_id`, `storage_object_id`, `original_filename`, `package_sha256`, `archive_bytes`, `status`, `path_status`, `parser_version`, `parse_generation`, `idempotency_key`, `superseded_by_intake_id`, error fields, actor/timestamps; package `current_intake_id` identifies the only editable/current candidate |
 | `transfer_package_intake_files` | `id`, `company_id`, `intake_id`, original `relative_path`, normalized comparison key, basename, extension, bytes, SHA-256, MIME, depth, ordinal; unique `(intake_id, normalized_path_key)` |
 | `transfer_package_file_classifications` | `file_id`, suggested class/confidence/reasons/parser generation, effective class, decision source, human reason/actor/time, `row_version` |
 | `transfer_package_file_match_candidates` | `id`, `file_id`, entity type/id/revision/hash, match method/confidence, selected flag, resolution actor/reason/time |
@@ -416,17 +510,46 @@ Field checks:
 
 JSON snapshot fields are immutable evidence, not a replacement for indexed company, package, status, actor, hash and foreign-key columns.
 
-### 6.3 Constraints And Indexes
+### 6.3 Configuration And Assembly-Impact Tables
+
+| Table | Minimum fields / purpose |
+|---|---|
+| `assembly_revision_impacts` | `id`, `company_id`, source entity/revision/hash, `revision_lane`, target assembly/top assembly, prior configuration ID, deterministic `rule_set_version`, `input_hash`, matched rule IDs, suggested action/evidence grade/reasons/missing inputs, compatibility class/evidence, criticality flags, human disposition/reason/actor/time, formal no-change approver, defer approver/owner/due date/follow-up ID, alignment status, candidate configuration ID, `row_version`, timestamps |
+| `assembly_configuration_baselines` | `id`, `company_id`, top assembly entity ID, `revision_lane`, configuration revision, status, source package/baseline ID, previous configuration ID, manifest/BOM/item-set hashes, open-verification ID, created/approved/released actors and timestamps |
+| `assembly_configuration_baseline_items` | configuration ID, entity/file ID, exact item revision, relative path, content hash, relation/quantity, source kind (`direct_change`, `impacted_context`, `inherited_unchanged`) and inherited-from configuration ID |
+| `solidworks_open_verifications` | configuration ID/hash, materialized bundle hash, workstation identity, SolidWorks version/build, opened result, missing-file count, unresolved-reference count, verifier, verified time and immutable evidence pointer |
+| `transfer_follow_ups` | `id`, `company_id`, package/impact/top assembly IDs, owner user/role, required resolution kind, reason, `due_at`, status (`open`, `in_progress`, `resolved`, `cancelled`), resolution package/configuration/evidence IDs, projection status/task ID, created/updated/resolved actors and timestamps, `row_version` |
+
+Checks:
+
+- `revision_lane IN ('development', 'formal')`.
+- Development revision suggestions use a decimal revision format; formal revision suggestions use a positive integer format. The canonical owner/version allocator validates and assigns the final revision.
+- `human_disposition IN ('no_change', 'defer', 'update')` when decided.
+- Formal `defer` requires `compatibility_class IN ('interchangeable', 'backward_compatible')`, reviewed confidence, no blocking criticality flag and non-empty manager approver, reason, owner, due date and follow-up reference.
+- Formal `no_change` requires non-empty R&D Manager approver plus candidate configuration and passing exact SolidWorks verification IDs.
+- Deterministic suggestion rows require non-empty `rule_set_version`, `input_hash`, ordered matched rule IDs/reasons and must not store AI provider/model/prompt fields.
+- `transfer_follow_ups.due_at` is required for formal defer. Generic `numbering_task_items` remains the projection and does not become the due-date authority.
+- `configuration_alignment_status IN ('aligned', 'resolved_no_revision', 'update_deferred', 'update_in_progress', 'verification_failed')`.
+- `configuration_status IN ('candidate', 'working_current', 'approved_for_transfer', 'released_effective', 'superseded')`.
+- A formal `released_effective` pointer changes only through the existing formal release transaction. Transfer approval may produce `approved_for_transfer` but cannot activate it.
+- A configuration item with `source_kind = 'inherited_unchanged'` must identify the prior configuration evidence from which it was inherited.
+
+### 6.4 Constraints And Indexes
 
 - Every child table has `company_id` and a foreign key to the company-scoped parent.
 - Every foreign-key column used for joins has an index.
 - Index package `(company_id, package_status, updated_at)`, intake `(company_id, package_id, status)`, file `(company_id, sha256)` and adjustment `(company_id, package_id, created_at)`.
 - Unique `(company_id, idempotency_key)` or the narrower actor/action equivalent prevents duplicate create/upload/confirm operations.
 - Baseline allocation uses a unique `(package_id, baseline_major)` constraint as the final duplicate guard.
+- Index impact `(company_id, target_top_assembly_id, revision_lane, configuration_alignment_status)` and configuration `(company_id, top_assembly_entity_id, revision_lane, configuration_status)`.
+- Index follow-up `(company_id, owner_user_id, status, due_at)` and projection-retry `(projection_status, updated_at)`.
+- Only one current pointer per `(company_id, top_assembly_entity_id, revision_lane)` is allowed for the applicable `working_current` or `released_effective` state.
+- Only one non-terminal follow-up per formal impact and one active task projection per follow-up are allowed.
+- `current_intake_id` must reference the same company/package. Re-upload changes this pointer and sets the prior current intake's `superseded_by_intake_id` in one short transaction; historical intakes remain immutable evidence.
 - Human adjustment records are append-only; corrections create a new event.
 - No cascade from package to immutable baseline/audit evidence after the package has any confirmed baseline.
 
-### 6.4 RLS, Grants And Company Scope
+### 6.5 RLS, Grants And Company Scope
 
 - All new tables in an exposed schema enable RLS. No `anon` access is allowed.
 - Data API grants are explicit and separate from RLS. Grant only the operations actually used by `authenticated`; server-only tables may remain unexposed/revoked.
@@ -436,12 +559,14 @@ JSON snapshot fields are immutable evidence, not a replacement for indexed compa
 - Server APIs repeat company and permission checks even when repository access is service-side.
 - Service-role or secret credentials never enter browser code.
 
-### 6.5 Migration And Compatibility
+### 6.6 Migration And Compatibility
 
 - Phase 3A-0 may add provider-neutral/local repository structures only when product implementation is requested.
 - Postgres/Supabase migration SQL is specified by this contract but is not executed or added to a live target in this documentation turn.
 - Any future migration must include tables, constraints, FK indexes, explicit grants, RLS/policies and schema/QC evidence as one migration unit.
 - Existing drawing, part, BOM, attachment, approval and release rows are not backfilled or rewritten by Phase 3A-0.
+- Formal package retrieval delegates to exact configuration-manifest and file-storage APIs. A UI label such as `最新版` may describe a selected effective configuration, but it cannot replace exact revision/hash resolution in the request or audit evidence.
+- Confirmed/approved package source ZIPs, baselines, materialized verification bundles and open-verification records remain immutable canonical PDM evidence. File-storage backup policy applies separately: formally released package evidence is a required permanent mirror in the first version; pre-release evidence uses selective coverage; every existing mirrored blob is append-only with no automatic overwrite/delete.
 
 ## 7. API And Transaction Contract
 
@@ -454,7 +579,8 @@ JSON snapshot fields are immutable evidence, not a replacement for indexed compa
 | `GET /api/transfer-packages/[id]` | Company-scoped package header, scope, row version and adapter summaries |
 | `PATCH /api/transfer-packages/[id]` | Update Draft header with `expectedRowVersion`; stale write returns 409 |
 | `POST /api/transfer-packages/[id]/items` | Add one controlled scope item idempotently |
-| `DELETE /api/transfer-packages/[id]/items/[itemId]` | Remove Draft scope item; forbidden after immutable baseline unless a new Draft revision is opened |
+| `DELETE /api/transfer-packages/[id]/items/[itemId]` | Remove scope item only before PendingReview/Approved/Cancelled; after a baseline it invalidates readiness, returns package to CollectingData and requires a new baseline while preserving old evidence |
+| `POST /api/transfer-packages/[id]/cancel` | Idempotent terminal cancellation with reason; no hard delete or evidence deletion |
 | `GET /api/transfer-packages/[id]/readiness-summary` | Aggregate adapter availability/status/blockers without duplicating owner data |
 
 Create is one short transaction: validate actor/company and source item, allocate package code, insert package, insert prefilled item and append audit event. No storage or external call occurs while DB locks are held.
@@ -463,16 +589,24 @@ Create is one short transaction: validate actor/company and source item, allocat
 
 | API | Phase | Purpose |
 |---|---|---|
-| `POST /api/transfer-packages/[id]/intakes` | 3A-1 | Stream/store ZIP and create intake; idempotent |
+| `POST /api/transfer-packages/[id]/intakes` | 3A-1 | Stream/store ZIP, create intake and atomically supersede/update the package current-intake pointer; idempotent |
 | `GET /api/transfer-packages/[id]/intakes/[intakeId]` | 3A-1 | Manifest, classifications, matches, parser generation and blockers |
 | `POST /api/transfer-packages/[id]/intakes/[intakeId]/parse` | 3A-1 | Queue/re-run parser with expected generation |
 | `PATCH /api/transfer-packages/[id]/intakes/[intakeId]/classifications` | 3A-1 | Save audited human decisions with optimistic concurrency |
 | `PATCH /api/transfer-packages/[id]/intakes/[intakeId]/matches` | 3A-2 | Resolve controlled identity/revision mapping |
 | `POST /api/transfer-packages/[id]/intakes/[intakeId]/bom-candidates` | 3A-2 | Refresh canonical-source candidates or file-composition preview |
 | `PATCH /api/transfer-packages/[id]/bom-candidates/[candidateId]` | 3A-2 | Accept/reject/convert candidate through BOM owner contract |
+| `POST /api/transfer-packages/[id]/assembly-impacts/resolve` | 3A-2 | Run deterministic versioned pure rules over same-lane normalized inputs and persist rule IDs/reasons/input hash; no AI/network call or automatic promotion |
+| `PATCH /api/transfer-packages/[id]/assembly-impacts/[impactId]` | 3A-2 | Record audited human `no_change`, `defer` or `update` decision with expected row version |
+| `POST /api/transfer-packages/[id]/assembly-impacts/[impactId]/approve-no-change` | 3A-2 | R&D Manager approves formal no-change after exact candidate/SolidWorks evidence; idempotent |
+| `POST /api/transfer-packages/[id]/assembly-impacts/[impactId]/approve-defer` | 3A-2 | R&D Manager confirms formal compatibility/risk evidence, reason, owner, due date and follow-up reference |
+| `GET /api/transfer-packages/[id]/follow-ups` | 3A-2 | List canonical follow-ups with computed overdue and task-projection state |
+| `PATCH /api/transfer-packages/[id]/follow-ups/[followUpId]` | 3A-2/3B | Start or resolve through domain validation; generic task cannot directly resolve impact |
+| `POST /api/transfer-packages/[id]/configuration-candidates` | 3A-2 | Overlay direct changes on prior same-lane configuration evidence and materialize complete per-root candidates atomically for preview |
 | `POST /api/transfer-packages/[id]/baseline-preview` | 3A-2 | Return exact files/items/BOM/hash and remaining blockers; no write |
 | `POST /api/transfer-packages/[id]/baselines` | 3A-2 | Confirm next integer immutable baseline in one transaction |
 | `POST /api/transfer-packages/[id]/readiness` | 3B | Resolve rule-set readiness for current baseline |
+| `POST /api/transfer-packages/[id]/configurations/[configurationId]/solidworks-verifications` | 3B | Record immutable real-machine open/missing-reference evidence for the exact candidate hash |
 | `POST /api/transfer-packages/[id]/submit` | 3C | Persist readiness snapshot and create shared approval work item |
 | `POST /api/transfer-packages/[id]/signoffs` | 3C | Record applicable role sign-off against current readiness snapshot |
 | `POST /api/transfer-packages/[id]/release-work-items` | 3C | After approval, delegate to existing release workflow |
@@ -490,6 +624,16 @@ Stable error codes include:
 - `TRANSFER_FORMAL_IDENTITY_REQUIRED`
 - `TRANSFER_BOM_INCOMPLETE`
 - `TRANSFER_BASELINE_STALE`
+- `TRANSFER_REVISION_LANE_MISMATCH`
+- `TRANSFER_ASSEMBLY_IMPACT_UNDECIDED`
+- `TRANSFER_ASSEMBLY_UPDATE_DEFERRED`
+- `TRANSFER_ASSEMBLY_DEFER_NOT_ELIGIBLE`
+- `TRANSFER_FORMAL_NO_CHANGE_APPROVAL_REQUIRED`
+- `TRANSFER_IMPACT_RULE_INPUT_INCOMPLETE`
+- `TRANSFER_FOLLOW_UP_REQUIRED`
+- `TRANSFER_FOLLOW_UP_PROJECTION_PENDING`
+- `TRANSFER_CONFIGURATION_INCOMPLETE`
+- `TRANSFER_SOLIDWORKS_VERIFICATION_REQUIRED`
 - `TRANSFER_READINESS_BLOCKED`
 
 UI receives Chinese action-oriented messages and remediation routes; raw DB/storage/parser errors are audit-only.
@@ -498,11 +642,19 @@ UI receives Chinese action-oriented messages and remediation routes; raw DB/stor
 
 - Upload streams to private storage while computing SHA-256.
 - After storage succeeds, intake header creation is a short DB transaction.
+- Successful intake-header commit updates `current_intake_id` and supersedes the prior current intake atomically. Failed/compensated uploads never become current.
 - If DB commit fails, delete the just-created storage object.
 - If compensation delete fails, append an orphan-storage audit event and queue/admin-surface a cleanup retry; never expose the object as a valid intake.
 - Parser work happens outside a DB transaction. Commit parsed rows only if `parse_generation` still matches; otherwise discard the stale result.
 - Re-parse inserts a new suggestion generation and invalidates readiness, but preserves human effective decisions.
 - Baseline confirmation locks the package row, allocates `current max + 1`, validates all hashes/generations, inserts baseline/items and updates `current_baseline_id` in consistent lock order.
+- Candidate construction reads one immutable prior configuration version, applies only same-lane human-confirmed impact decisions and writes a complete new candidate snapshot; a changed prior pointer or source hash returns stale/conflict instead of silently rebasing.
+- Impact resolution is a pure deterministic function of normalized input plus rule-set version. Repository/service tests must prove no network/AI dependency and stable ordered output.
+- Multi-top baseline/configuration confirmation is atomic. Either every governed root candidate and package baseline commit, or none commit.
+- Formal current-effective pointers are updated only inside the existing release workflow after all relevant release conditions pass; package approval never updates those pointers.
+- Cancellation is terminal and preserves package/intake/baseline/audit evidence. Draft/CollectingData/ReadyForReview/ReturnedForCorrection cancellation is allowed to owner/R&D Manager/Admin; PendingReview withdrawal/cancellation must delegate through the shared approval handler; ApprovedForTransfer cannot be cancelled or reopened.
+- Formal defer approval writes the impact decision, canonical `transfer_follow_up` and outbox/projection intent in one short transaction. Task projection occurs idempotently after commit; projection failure is retried and visible but cannot erase the follow-up.
+- Resolving a follow-up locks the impact/follow-up, verifies linked same-lane package/configuration evidence, marks follow-up resolved, updates alignment and emits task-projection closure atomically/outbox-backed. Closing the generic task alone is rejected or delegated.
 
 ## 8. State Machines And Stale Rules
 
@@ -534,12 +686,37 @@ State mapping:
 | current baseline readiness passes | `ReadyForReview` |
 | submitted through approval platform | `PendingReview` |
 
+Assembly-impact states are lane-scoped and separate from package/master lifecycle:
+
+| Alignment state | Human meaning | Transition |
+|---|---|---|
+| `aligned` | this lane's configuration matches the accepted impact decision | terminal for this source change |
+| `resolved_no_revision` | assembly revision stays unchanged, but the rebuilt configuration has been verified | terminal for this source change |
+| `update_deferred` | assembly is intended to change later | remains `已非最新版` until a follow-up resolves it |
+| `update_in_progress` | assembly update was chosen and the same-lane revision/upload is open | remains `已非最新版` until rebuild and verification pass |
+| `verification_failed` | candidate failed bundle/SolidWorks verification | blocked; correct files/relationships and retry |
+
+Formal-defer follow-up states:
+
+| State | Meaning |
+|---|---|
+| `open` | assigned and not started |
+| `in_progress` | owner is resolving through a linked package/configuration |
+| `resolved` | domain evidence passed and impact alignment was updated |
+| `cancelled` | allowed only when the underlying impact/package disposition is replaced by an audited valid decision |
+
+`overdue` is computed from `due_at`; it is not a writable status. Task projection state does not replace canonical follow-up state.
+
 Stale rules:
 
 - File replacement, classification, identity mapping or accepted BOM change after baseline requires a new baseline major.
 - Readiness-driving owner data change invalidates current readiness snapshot and affected sign-offs; it does not edit the baseline.
 - Rule-set activation does not rewrite historical snapshots. Re-resolve uses the active rule unless the parent workflow explicitly pins the captured version.
 - A stale baseline/readiness state is a blocker with a next action, not a warning.
+- Development-lane changes never stale formal baselines/readiness/configuration pointers. Formal-lane changes never silently rewrite development working configurations.
+- Selecting `update` marks only the affected same-lane configuration impacts as `update_in_progress`; it does not globally mark the assembly master obsolete.
+- Selecting `defer` marks only affected same-lane configuration impacts as `update_deferred`. Formal defer follows the confirmed compatibility/risk/manager/follow-up gate; development defer never changes formal package state.
+- `ApprovedForTransfer` is terminal. Later changes create a new linked package; no state transition reopens an approved package.
 
 ## 9. UI / UX Contract
 
@@ -570,6 +747,9 @@ Workbench sections:
 | Classification | suggestion/human decision summary |
 | Mapping | controlled identity/revision conflicts |
 | BOM | canonical draft source, completeness and owner link |
+| Assembly impact | per-root same-lane suggestion, confidence/reasons, human decision and `已非最新版` state |
+| Configuration | inherited/direct evidence, complete candidate hash, per-root SolidWorks verification and current-effective pointer |
+| Follow-up | formal-defer owner, due time, overdue/projection state and link to the existing task center |
 | Blockers | grouped by role and module, each with one next action |
 | Baseline | preview and explicit confirmation |
 | Review/sign-off | shared approval status and applicable roles |
@@ -605,6 +785,12 @@ Returning restores package ID, section and blocker focus. If owner data no longe
 | ready for baseline | `資料已完整；請先預覽將被鎖定的檔案、版次與 BOM。` | `預覽整數 baseline` |
 | baseline confirmed | `整數 baseline 已建立；下一步檢查技轉 readiness。` | `執行送審檢查` |
 | stale | `資料已變更，舊檢查或簽核不可再用。` | `建立新 baseline` or `重新檢查` |
+| no assembly revision | `組合件不需進版；仍須驗證採用新零件後的完整配置。` | `建立並驗證候選配置` |
+| assembly pending update | `此版本軌的組合配置已非最新版，仍有更新工作待完成。` | `查看更新工作` |
+| follow-up projection pending | `延後工作已保存，待辦同步尚未完成；不需要重複建立。` | `重新整理` or `查看技轉包` |
+| follow-up overdue | `此組合件仍待更新，已超過約定期限。` | `查看更新工作` |
+| lane isolated | `這是研發小版變更，不會影響正式版組合配置。` | `查看研發影響建議` |
+| cancelled | `此技轉包已取消，不會再進入送審。` | `查看歷史` or `建立新技轉包` |
 
 ### 9.5 UI Evidence Boundary
 
@@ -649,6 +835,44 @@ confirmNextBaseline(package, intake, expectedRowVersion):
   append audit and invalidate prior readiness/sign-offs
 ```
 
+```text
+resolveAssemblyRevisionImpacts(sourceChange):
+  determine source revision lane from controlled revision metadata
+  query where-used only within the same lane
+  normalize inputs and hash them with active deterministic rule-set version
+  for each affected formal/top assembly:
+    run pure rules and record ordered rule IDs, evidence grade, reasons and missing inputs
+    make no AI, LLM or network call
+    never allocate or promote an assembly revision automatically
+    wait for human no_change, defer or update decision
+    if no_change:
+      keep assembly file revision and rebuild complete candidate with changed child
+      if formal: require R&D Manager approval after exact SolidWorks verification
+    if defer:
+      require formal defer eligibility and R&D Manager approval
+      atomically create canonical transfer_follow_up plus projection outbox intent
+      mark same-lane impact update_deferred
+    if update:
+      mark same-lane impact update_in_progress
+      request same-lane next revision from canonical allocator after human confirmation
+  never write any other revision lane
+```
+
+```text
+buildAtomicConfigurationCandidates(package):
+  require approved package is not being reopened
+  for every governed top assembly:
+    load immutable prior same-lane current configuration
+    overlay direct changes and resolved impact decisions
+    reuse inherited content-addressed files by hash
+    require complete file/BOM/reference closure
+  materialize and hash every complete candidate
+  require real SolidWorks open verification before formal submit
+  commit all root candidates atomically or none
+  on package approval mark candidates approved_for_transfer only
+  activate formal released_effective pointers only through release workflow
+```
+
 ## 11. Permission And Audit Contract
 
 | Action | Required product role/capability |
@@ -656,6 +880,12 @@ confirmNextBaseline(package, intake, expectedRowVersion):
 | Create/edit Draft scope | Engineer owner, R&D Manager, Admin with company scope |
 | Upload intake | Engineer owner, R&D Manager, Admin |
 | Change classification/match | Engineer owner where allowed, R&D Manager, Admin; reason required for high-impact override |
+| Prepare assembly revision impact | Responsible Engineer, R&D Manager or configured assembly owner; reason required for `no_change`/`defer` and evidence overrides |
+| Approve formal no-change | R&D Manager only, after exact candidate and SolidWorks evidence; Admin cannot substitute for the engineering decision |
+| Approve formal defer | R&D Manager only, with eligibility evidence and canonical follow-up fields; Admin cannot substitute for the engineering decision |
+| Work/resolve transfer follow-up | Assigned owner may work; domain handler validates resolution evidence; R&D Manager handles governed cancellation/override; Admin may repair projection delivery but cannot alter the technical disposition |
+| Confirm suggested assembly revision | Canonical assembly owner/version capability; system suggestion alone is insufficient |
+| Record SolidWorks open evidence | Designated RD/CAD verifier with company/package/configuration scope |
 | Confirm baseline | R&D Manager, Admin, or explicitly configured package owner capability |
 | Submit transfer review | R&D Manager or authorized package owner after readiness |
 | Manufacturing sign-off | manufacturing sign-off capability |
@@ -665,13 +895,13 @@ confirmNextBaseline(package, intake, expectedRowVersion):
 
 Phase 3C must not add `QA/QC` only to one hardcoded UI union. The access-control engine, auth mapping, API authorization and approval assignment must all recognize the capability before quality sign-off is enabled.
 
-Audit events include Draft create/update, scope add/remove, upload/reject/parse, suggestion generation, human adjustment, top selection, mapping resolution, BOM candidate decision, baseline preview/blocked/confirmed, readiness resolve/stale, submit, sign-off decision/invalidation and release-work-item creation.
+Audit events include Draft create/update, scope add/remove, upload/reject/parse, deterministic suggestion rule version/input hash/matched rules, human adjustment, top selection, mapping resolution, BOM candidate decision, assembly-impact proposal/decision/manager approval, revision-lane and suggested revision, alignment-state change, follow-up create/start/resolve/cancel/overdue/projection retry, candidate build/materialization, SolidWorks verification, baseline preview/blocked/confirmed, readiness resolve/stale, submit, sign-off decision/invalidation and release-work-item creation.
 
 ## 12. RD Handoff Contracts
 
 ### Phase 3A-0 - Persistent Transfer Workbench Shell
 
-Document status: `RD Implementation Ready / Not Requested This Turn`.
+Document status: `Local Implementation Complete / QA Passed 2026-07-13`.
 
 Purpose:
 
@@ -682,6 +912,7 @@ Scope:
 - Shared create/detail workbench shell.
 - Explicit `建立技轉包` persistence with stable ID and package code.
 - Header/scope CRUD, source drawing/part prefill and optimistic concurrency.
+- Terminal package cancellation with reason and preserved evidence; no hard delete/reopen.
 - Adapter-card summaries for intake, drawing/part, BOM, attachments and approval.
 - Grouped blockers, capability states and return-context links.
 
@@ -693,6 +924,8 @@ Implementation contract:
 
 - Add transfer package domain/repository/service using existing async-provider patterns.
 - GET create context is read-only; POST create is the only Draft creation action.
+- Boundary source aliases normalize to canonical `drawing_number`/`part_number` identities before persistence.
+- Cancellation follows package/approval ownership rules in Section 7 and never deletes package evidence.
 - `/new` and `/[id]` share the workbench shell.
 - Adapter summaries read canonical owner APIs/repositories and expose status/deep links only.
 - Full-parser controls show `unavailable`, not fake zero/ready states.
@@ -706,6 +939,7 @@ Acceptance:
 - Opening/refreshing `/new` creates zero records.
 - One explicit create produces one Draft and stable URL, including repeated-submit idempotency.
 - Source drawing/part is pre-added in the create transaction.
+- Cancel produces one terminal audited state, preserves all evidence and cannot cancel/reopen an approved package.
 - Cards show honest unavailable/blocked/ready states and one next action.
 - BOM/attachment/drawing/part/approval edits remain in owner modules.
 - Return context restores package/section/blocker.
@@ -716,9 +950,17 @@ QA/QC gate and evidence:
 - Regression `qc:pdm-submission-gate-phase1`.
 - Browser evidence at required viewports for unsaved, created, blocked, unavailable and return-context states.
 
+Implementation evidence:
+
+- Local SQLite schema and provider-neutral PostgreSQL migration artifact define package, scope, event and package-code counter persistence with company scope, uniqueness, optimistic versioning and terminal cancellation constraints.
+- Shared repository/service and `/api/transfer-packages/*` routes implement read-only create context, explicit idempotent creation, header/scope CRUD, readiness summary and cancellation.
+- `/transfer-packages/new` and `/transfer-packages/[id]` use one shared workbench; owner modules remain authoritative and unavailable later-phase capabilities are labeled honestly.
+- Focused QC passed 18/18, parent submission-gate regression passed 15/15, account-lifecycle regression passed 26/26, typecheck/lint/build passed, and browser checks covered 1440/1024/390 viewports.
+- No live PostgreSQL/Supabase migration, production data mutation, Pack-and-Go parsing, baseline, formal submit, deploy or release was executed.
+
 Stop conditions:
 
-- GET creates data, stable package ID cannot be preserved, owner logic must be duplicated, cross-company access is possible, or implementation requires live migration/release.
+- GET creates data, source aliases create a second entity enum, cancellation deletes evidence/reopens an approved package, stable package ID cannot be preserved, owner logic must be duplicated, cross-company access is possible, or implementation requires live migration/release.
 
 ### Phase 3A-1 - Streaming Intake, Manifest And Classification
 
@@ -759,15 +1001,15 @@ Stop conditions:
 
 ### Phase 3A-2 - Controlled Mapping, BOM And Integer Baseline
 
-Document status: `Need Human Decisions` for design-change delta/effective-configuration and multi-top approval semantics.
+Document status: `RD Contract Ready / Not Requested This Turn`.
 
 Purpose:
 
-- Convert an intake into a complete, immutable package baseline without synchronizing child revisions.
+- Convert a full or delta intake into an immutable package baseline and complete same-lane candidate configuration(s) without synchronizing child revisions.
 
 Scope:
 
-- Controlled identity/revision mapping, canonical BOM candidate handoff, baseline preview, next-major allocation and immutable snapshots.
+- Controlled identity/revision mapping, same-lane assembly-impact suggestions/human decisions, canonical BOM handoff, inherited/direct configuration overlay, per-root candidate preview, next-major allocation and immutable snapshots.
 
 Out of scope:
 
@@ -778,6 +1020,13 @@ Implementation contract:
 - Formal/top assemblies require actual controlled identity mapping.
 - File-composition preview requires manual BOM conversion/completion.
 - Baseline transaction and hashes follow Sections 6-7; no owner master revision is mutated.
+- Development/formal where-used, revision suggestions and alignment states never cross lanes.
+- Assembly-impact suggestions come only from the versioned deterministic resolver; no AI/LLM/network dependency is permitted.
+- `no_change` preserves the assembly file revision but still rebuilds/verifies the resulting configuration; `update` remains stale until the same-lane assembly upload and verification pass.
+- One package may contain multiple roots, but candidate/baseline confirmation is atomic.
+- Formal `defer` is accepted only through the Section 4.2 compatibility/risk/manager/follow-up gate; otherwise it is a hard blocker.
+- Formal `no_change` requires R&D Manager approval after exact candidate/SolidWorks evidence.
+- Approved formal defer atomically creates canonical `transfer_follow_up` and task-projection intent.
 
 Entry condition:
 
@@ -788,15 +1037,22 @@ Acceptance/evidence:
 - Incomplete BOM/formal identity/unknown assembly blocks confirmation.
 - Concurrent confirms create one next baseline only.
 - Baseline `N` stores exact independent item revisions and hashes; old baseline remains unchanged.
+- A one-part delta inherits unchanged evidence and produces a complete candidate configuration for every affected root.
+- Development decimal changes create no formal impact rows, stale flags, revision suggestions or pointer changes.
+- `no_change`, `defer` and `update` decisions remain human-authoritative and audited.
+- Same input/rule version produces stable ordered suggestion output with no external call.
+- Formal no-change cannot finalize under an assembly-owner-only identity.
+- Follow-up source-of-truth, idempotent task projection and domain-validated resolution pass failure/retry tests.
+- UI maps both deferred and in-progress internal impacts to one `已非最新版 / 待更新` state; `no_change` shows `不需進版` only after verification passes.
 - Mapping/BOM/baseline API tests, concurrency QC and browser preview/confirm evidence pass.
 
 Stop conditions:
 
-- Baseline requires shared child revision promotion, BOM workbench source contract must be bypassed, or immutable snapshot cannot be guaranteed.
+- Baseline requires shared child revision promotion, crosses revision lanes, reopens an approved package, partially commits a multi-root package, bypasses BOM owner contract, or cannot guarantee immutable complete snapshots.
 
 ### Phase 3B - Readiness Integration And Review Preparation
 
-Document status: `Need Human Decisions` pending the Phase 3A-2 configuration model.
+Document status: `RD Contract Ready / Not Requested This Turn`.
 
 Purpose:
 
@@ -804,7 +1060,7 @@ Purpose:
 
 Scope:
 
-- Rule-set resolution, owner-role blockers, item/readiness hashes, stale detection and `ReadyForReview` state.
+- Rule-set resolution, root/configuration blockers, SolidWorks open evidence, item/readiness hashes, lane-scoped stale detection and `ReadyForReview` state.
 
 Out of scope:
 
@@ -815,6 +1071,9 @@ Implementation contract:
 - Readiness always references current baseline and rule-set version.
 - Owner data remains read-only in package domain; remediation uses adapter links.
 - Phase 3B may show submit preparation but keeps formal submit unavailable until Phase 3C.
+- Every governed root must have a complete candidate and passing SolidWorks verification for the exact candidate hash.
+- Approved formal defer counts as a resolved package impact only when compatibility, criticality, manager, owner, due-date, follow-up and exact-old-revision checks all pass.
+- Projection pending is visible/retryable but does not duplicate the canonical follow-up; unresolved/overdue dependent impacts remain readiness blockers per Section 4.2.
 
 Entry condition:
 
@@ -823,6 +1082,7 @@ Entry condition:
 Acceptance/evidence:
 
 - Zero-blocker baseline reaches `ReadyForReview`; stale/missing data returns to `CollectingData`.
+- One failed/unverified root blocks the atomic package; development-lane changes never block formal readiness.
 - Readiness snapshot/hash and owner blocker tests plus browser dashboard evidence pass.
 
 Stop conditions:
@@ -831,7 +1091,7 @@ Stop conditions:
 
 ### Phase 3C - Shared Review, Sign-Off And Release-Work-Item Handoff
 
-Document status: `Need Human Decisions` pending multi-top approval atomicity and approved-package lifecycle.
+Document status: `RD Contract Ready / Not Requested This Turn`.
 
 Purpose:
 
@@ -839,7 +1099,7 @@ Purpose:
 
 Scope:
 
-- Shared approval-platform action/handler, formal submit transaction, one-item scope confirmation, applicable Manufacturing/Procurement/QA/QC sign-offs, stale invalidation and release-work-item creation.
+- Shared approval-platform action/handler, atomic multi-root submit/decision, one-item scope confirmation, applicable Manufacturing/Procurement/QA/QC sign-offs, stale invalidation, terminal approved package and release-work-item creation.
 
 Out of scope:
 
@@ -851,6 +1111,9 @@ Implementation contract:
 - Use the shared approval platform and domain handler; do not create a reviewer island.
 - Role capabilities and auth mapping must support all applicable sign-offs before enabling submit.
 - `ApprovedForTransfer` requires final reviewer decision and all applicable sign-offs.
+- All governed roots approve or fail atomically; staged timing requires separate packages.
+- `ApprovedForTransfer` is terminal. Later design changes create a new linked delta package.
+- Approval marks resulting configurations `approved_for_transfer`; only release workflow may activate formal `released_effective` pointers.
 - Release work-item creation delegates to the existing release workflow and is idempotent.
 
 Entry condition:
@@ -859,7 +1122,7 @@ Entry condition:
 
 Acceptance/evidence:
 
-- One-item scope guard, sign-off applicability/not-applicable audit, stale invalidation and approval-vs-release separation pass API and browser QC.
+- One-item scope guard, atomic multi-root decision, terminal package, new-delta lineage, sign-off applicability, stale invalidation and approval-vs-release separation pass API and browser QC.
 - Approved package leaves all master lifecycle states unchanged until release workflow succeeds.
 
 Stop conditions:
@@ -891,6 +1154,8 @@ Global gates:
 | Rule matrix admin | `New DEV / Parent Phase 4` | governed by parent SPEC/DEV-005 |
 | New standalone subtask pages | `No Tracking` | rejected by confirmed UX decision |
 | Canonical `file_manifest` BOM source | `No Tracking` | rejected; intake preview must convert to canonical BOM source |
+| AI/LLM assembly-impact recommendation | `No Tracking` | rejected by Q6 `1A`; deterministic resolver is authoritative unless a future human decision replaces it |
+| Global generic-task due-date policy change | `No Tracking` | rejected by Q8 `3A`; due time belongs to canonical transfer follow-up only |
 | SolidWorks Document Manager extraction | `New DEV / external blocker DEV-035` | validated reader evidence available |
 | SolidWorks Add-in / real-machine open validation | `New DEV / external blocker DEV-036` | CAD workstation evidence available |
 | ERP/supplier integration | `New DEV later` | separately requested product scope |
@@ -904,14 +1169,14 @@ Global gates:
 | Parent Phase 1 / DEV-005 | Completed locally | Implemented / QC Passed | mode selector, resolver, direct single-item fail-closed, package-context entry | full persistent package | existing evidence | technical transfer cannot submit as a direct item | existing Phase 1 QC/browser evidence |
 | 3A-0 / DEV-041 | Not requested this turn | RD Implementation Ready | persistent Draft workbench, adapters, blockers, return context | parser/baseline/review/release | decisions `1A 2A 3A` | explicit create produces one stable package; no duplicated owner logic | API/repository/QC + required viewport evidence |
 | 3A-1 / DEV-041 | Future phase | RD Contract Ready / Not Requested This Turn | streaming ZIP safety, original preservation, manifest, classification | mapping/BOM/baseline | 3A-0 QC + parser spike | safe intake and durable human override | parser/API/security/browser QC |
-| 3A-2 / DEV-041 | Future phase | Need Human Decisions | controlled mapping, canonical BOM, package baseline and resulting configuration | readiness/review/release | Q3/Q4 confirmed + 3A-1 QC | exact independent revisions/hashes; no incomplete baseline; smaller design-change scope yields complete effective configuration | mapping/BOM/configuration/concurrency/browser QC |
-| 3B / DEV-041 | Future phase | Need Human Decisions | configuration-scoped readiness, blocker ownership, SolidWorks open evidence and stale detection | formal approval/sign-off | Q3/Q4 confirmed + 3A-2 QC | every governed top root deterministically passes or fails readiness | resolver/configuration/open-evidence/browser QC |
-| 3C / DEV-041 | Future phase | Need Human Decisions | multi-top shared review, sign-offs, approval, release-work-item handoff | direct release/ERP | Q3/Q4 confirmed + 3B QC + role/platform capability | approved-package lifecycle and root approval semantics are deterministic; no master auto-release | approval/access/stale/browser QC |
+| 3A-2 / DEV-041 | Future phase | RD Contract Ready / Not Requested This Turn | deterministic impact rules, formal no-change manager approval, canonical defer follow-up/task projection, mapping, lane isolation, BOM, package baseline and complete candidates | readiness/review/release | 3A-1 QC | reproducible no-AI suggestions; exact multi-root delta; no owner-only formal no-change; follow-up projection is idempotent | resolver/permission/follow-up/mapping/BOM/configuration/lane/concurrency/browser QC |
+| 3B / DEV-041 | Future phase | RD Contract Ready / Not Requested This Turn | configuration readiness, follow-up/overdue/projection blockers, SolidWorks evidence and lane-scoped stale detection | formal approval/sign-off | 3A-2 QC | every root and applicable follow-up deterministically passes/fails; development cannot stale formal | resolver/follow-up/configuration/open-evidence/browser QC |
+| 3C / DEV-041 | Future phase | RD Contract Ready / Not Requested This Turn | atomic multi-top review, sign-offs, terminal approval, release-work-item handoff | direct release/ERP | 3B QC + role/platform capability | atomic approval; later change uses new package; no master/effective-pointer auto-release | approval/access/stale/browser QC |
 | Parent Phase 4 / DEV-005 | Outside DEV-041 | RD Contract Ready / Not Requested This Turn | rule matrix administration | transfer intake implementation | parent phase entry condition | versioned audited rules | parent QA/QC contract |
 | Production / DEV-032 | Release-gated | Release Gate Required | migration, deploy and production evidence | unapproved direct mutation | explicit release command | deployment-release gate passes | release evidence only after re-entry |
 
 ## 16. RD Readiness Result
 
 - Phase 3A-0 has no remaining P0/P1 product or engineering-contract gap and may enter RD when the user requests `DEV-041 Phase 3A-0`.
-- Phase 3A-1 remains `RD Contract Ready`. Phases 3A-2 through 3C are `Need Human Decisions` until Q3/Q4 define design-change inheritance, effective-configuration output, approved-package lifecycle and multi-top approval atomicity.
+- Phases 3A-1 through 3C are `RD Contract Ready / Not Requested This Turn`. Q3-Q8 are confirmed; no local product-decision blocker remains.
 - No product implementation, schema migration, production change or release artifact is requested by this document update.

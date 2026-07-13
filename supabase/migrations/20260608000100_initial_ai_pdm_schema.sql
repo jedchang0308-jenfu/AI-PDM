@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: c23ebdb14cf1faffea9ac6c9977f399592293d1b2209b6f1c8a8f759ef3eff05
+-- Source SHA-256: a2e7cfb8a5df1c4e0f9c1c8cf7ba539415e4be53de9f6f379df3649bcf999fee
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -103,9 +103,16 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL CHECK (role IN ('Engineer', 'R&D Manager', 'Admin', 'Manufacturing', 'Procurement')),
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded')),
+  session_invalid_before TIMESTAMPTZ,
+  account_lifecycle_version INTEGER NOT NULL DEFAULT 1,
+  system_role_enabled INTEGER NOT NULL DEFAULT 1 CHECK (system_role_enabled IN (0, 1)),
+  account_status_changed_at TIMESTAMPTZ,
+  account_status_changed_by TEXT,
+  account_status_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id)
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (account_status_changed_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS platform_organization_mappings (
@@ -162,6 +169,7 @@ CREATE TABLE IF NOT EXISTS auth_identities (
   verified_at TIMESTAMPTZ,
   last_login_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  identity_lifecycle_version INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -187,6 +195,27 @@ CREATE TABLE IF NOT EXISTS account_invitations (
   FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (invited_by) REFERENCES users(id),
   FOREIGN KEY (accepted_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS account_recovery_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  identity_id TEXT,
+  request_type TEXT NOT NULL DEFAULT 'admin_password_reset' CHECK (request_type IN ('admin_password_reset', 'account_recovery')),
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'revoked', 'expired')),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  used_by TEXT,
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (identity_id) REFERENCES auth_identities(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (used_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
 
@@ -1879,6 +1908,10 @@ CREATE INDEX IF NOT EXISTS idx_auth_identities_login
   ON auth_identities(provider, login_identifier, status);
 CREATE INDEX IF NOT EXISTS idx_auth_identities_user
   ON auth_identities(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_users_account_status
+  ON users(account_status, system_role_enabled);
+CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status
+  ON account_recovery_requests(user_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_platform_principal_mappings_pdm_user
   ON platform_principal_mappings(pdm_user_id, mapping_status);
 CREATE INDEX IF NOT EXISTS idx_platform_organization_mappings_company

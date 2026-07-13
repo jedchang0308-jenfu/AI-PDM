@@ -614,6 +614,12 @@ export async function searchNumberingRecordsAsync(input: NumberingSearchInput = 
   return repository.searchNumberingRecords(input);
 }
 
+export async function listProductSeriesOptionsAsync(companyId?: string): Promise<string[]> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.listProductSeriesOptions(companyId);
+}
+
 export async function listDrawingModuleRecordsAsync(input: DrawingModuleListInput = {}): Promise<DrawingModuleListRecord[]> {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);

@@ -39,7 +39,12 @@ export async function GET(request: Request) {
     } else {
       const resolved = await getGoogleIdentityAsync(completed.identity.subject);
       if (!resolved) return redirectWithError(request, "google_account_not_linked");
-      if (resolved.status !== "active" || resolved.user.account_status !== "active") {
+      if (
+        resolved.status !== "active" ||
+        resolved.user.account_status !== "active" ||
+        resolved.user.system_role_enabled === 0 ||
+        resolved.user.system_role_enabled === false
+      ) {
         return redirectWithError(request, "google_account_inactive");
       }
       userId = resolved.user.id;
@@ -47,7 +52,9 @@ export async function GET(request: Request) {
     }
 
     const user = await getUserByIdAsync(userId);
-    if (!user || user.account_status !== "active") return redirectWithError(request, "google_account_inactive");
+    if (!user || user.account_status !== "active" || user.system_role_enabled === 0 || user.system_role_enabled === false) {
+      return redirectWithError(request, "google_account_inactive");
+    }
 
     await recordIdentityLoginAsync(identityId, completed.identity.email);
     await createAuditLogAsync({

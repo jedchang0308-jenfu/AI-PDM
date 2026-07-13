@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-07-07T19:03:19.673Z",
+  "mode": "dry-run",
+  "databasePath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+  "mutation": "none",
+  "appliedMigrations": 0,
+  "totals": {
+    "legacyRecords": 0,
+    "platformLegacyLinks": 0,
+    "alreadyLinked": 0,
+    "proposedMigrations": 0
+  },
+  "statusInventory": {
+    "approval_requests": [],
+    "submission_lifecycle_requests": [],
+    "bom_review_requests": [],
+    "part_cost_change_requests": [],
+    "drawing_revision_package_supplements": []
+  },
+  "byTable": {},
+  "blocked": [],
+  "proposed": []
+}

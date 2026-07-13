@@ -1,6 +1,6 @@
 # SPEC-PDM-SUBMISSION-GATE-001 Research / Transfer Submission Gate
 
-Status: Phase 1 Local Implementation Complete; Phase 2 and Parent Phase 4 RD Contract Ready / Not Requested This Turn; Technical Transfer Phase 3 is delegated to DEV-041 with Phase 3A-0 RD Implementation Ready, Phase 3A-1 RD Contract Ready and Phase 3A-2 to 3C Need Human Decisions; Release Gate Required
+Status: Phase 1 Local Implementation Complete; Phase 2 and Parent Phase 4 RD Contract Ready / Not Requested This Turn; Technical Transfer Phase 3 is delegated to DEV-041 with Phase 3A-0 Local Implementation Complete / QA Passed 2026-07-13 and Phase 3A-1 to 3C RD Contract Ready / Not Requested This Turn; Release Gate Required
 Owner: Dev PM
 Created: 2026-07-07
 Related DEV: `DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`; child delivery `DEV-041` / `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
@@ -24,6 +24,15 @@ Confirmed decisions:
 - Transfer-package completeness review Q1: User selected `1A`: integer major version belongs to the immutable transfer-package baseline. Controlled parts, formal subassemblies and top assembly keep independent revisions; the baseline captures exact revisions and hashes without promoting all items together.
 - Transfer-package completeness review Q2: User selected `2A`: `/transfer-packages/new` is read-only until the user completes the required case header and selects `建立技轉包`; only then is a persistent Draft and stable package ID created.
 - Transfer-package completeness review Q3: User selected `3A`: technical-transfer workbench/intake/baseline implementation is tracked as child delivery `DEV-041`; `DEV-005` remains complete for Phase 1 and parent governance.
+- Design-change review Q1: User selected `1A` (prior Q3 A): later design change creates a new delta package that inherits prior current-effective evidence and produces complete candidate configurations; approved packages are terminal.
+- Multi-top review Q2: User selected `2A` (prior Q4 A): all governed top assemblies in one package approve atomically; staged timing requires separate packages.
+- Assembly revision impact: system proposes `no_change`, `defer` or `update`; a permitted human decides. Configuration-alignment status is separate from master lifecycle.
+- Revision lanes are isolated: development decimal revisions affect only development configurations; formal integer revisions affect only formal configurations.
+- Formal defer Q5: User selected `1C`: only compatible, non-critical, sufficiently evidenced formal impacts may defer with R&D Manager reason, owner, due date, mandatory follow-up and exact old-revision availability; otherwise the package blocks.
+- Human-facing state: verified `no_change` shows `不需進版`; deferred and in-progress internal states both show only `已非最新版 / 待更新`.
+- Suggestion Q6: User selected `1A`: deterministic versioned rules only; no AI/LLM/network recommendation authority.
+- Formal no-change Q7: User selected `2B`: every formal no-change requires R&D Manager approval after exact candidate/SolidWorks evidence.
+- Follow-up Q8: User selected `3A`: canonical transfer follow-up owns owner/due time and projects into the existing task center; generic task policy and page structure remain unchanged.
 
 Critical evaluation:
 
@@ -617,7 +626,7 @@ Research hard rules:
 | Phase 0 - Development document | Complete | Capture human decisions and RD contract | Authorized documentation only |
 | Phase 1 - Rule resolver and mode entry | Local Implementation Complete / QC Passed | Add submission-mode selector, active rule resolver, field-state output and blocker routing without full transfer package UI | Completed locally on 2026-07-10; release still requires release gate |
 | Phase 2 - Research submission redesign | RD Contract Ready / Not Requested This Turn | Apply rule matrix to research submission UI and exception workflow | Requires Phase 1 evidence and a user request for this slice |
-| Phase 3 - Technical transfer package builder | Delegated to `DEV-041`: 3A-0 RD Implementation Ready; 3A-1 RD Contract Ready; 3A-2 to 3C Need Human Decisions | Persistent Draft workbench, Pack-and-Go intake, controlled mapping/BOM/baseline, resulting effective configuration, readiness, sign-offs and release-work-item handoff | Execute only the requested child phase after its entry gate; do not start 3A-2+ before Q3/Q4 |
+| Phase 3 - Technical transfer package builder | Delegated to `DEV-041`: 3A-0 Local Implementation Complete / QA Passed; 3A-1 to 3C RD Contract Ready / Not Requested This Turn | Persistent Draft workbench, Pack-and-Go intake, deterministic impact rules, formal no-change manager gate, defer follow-up/task projection, mapping/BOM/baseline, complete configurations, readiness, sign-offs and release-work-item handoff | Execute only the requested child phase after its documented entry gate |
 | Phase 4 - Rule matrix admin governance | RD Contract Ready / Not Requested This Turn | Add PDM Admin rule-set draft/activate/retire UI with preview and audit | Requires Phase 2/3 rule-consumer evidence and a user request for settings/admin scope |
 | Phase 5 - Production release | Release Authorization Required | Deployment, migration, production smoke and rollback planning | Requires explicit release authorization |
 
@@ -855,7 +864,7 @@ Visible-error hard gate:
 |---|---|---|
 | One-shot Phase 2+ implementation | No Tracking / rejected | Research, transfer child phases and rule admin remain separate evidence-gated slices |
 | Research submission redesign | Same Spec Phase 2 / Not Requested This Turn | Captured as a separate phase because UI and exception semantics change |
-| Transfer package builder | New child delivery `DEV-041`; child phases in same child SPEC | Phase 3A-0 is RD Implementation Ready / Not Requested This Turn; later child phases are RD Contract Ready |
+| Transfer package builder | New child delivery `DEV-041`; child phases in same child SPEC | Phase 3A-0 is Local Implementation Complete / QA Passed; later child phases are RD Contract Ready |
 | Rule matrix admin UI | Same Spec Phase 4 / Not Requested This Turn | Settings/admin governance scope with its own entry gate |
 | Production migration/deploy | Blocked Human Re-entry / Release Gate Required | Requires release command/high-risk confirmation |
 | ERP sync / procurement external integration | New DEV later | Separate from PDM readiness gate |
@@ -869,6 +878,6 @@ Visible-error hard gate:
 | Phase 0 / docs | Authorized | Complete | spec, ADR, QA outline, dev_task/doc map entries | product implementation | user answered HCS decisions | decisions and contracts captured | git diff |
 | Phase 1 / rule resolver + mode entry | Authorized locally / release not authorized | Implemented / QC Passed | mode selector, resolver, field states, redirect transfer to package | full package builder, admin UI, production release | local implementation completed on 2026-07-10 | single-item tech transfer blocked; resolver works; no transfer required override | tsc, lint, focused QC, browser smoke |
 | Phase 2 / research redesign | Not requested this turn | RD Contract Ready / Not Requested This Turn | conditional required UI and exception request/decision | transfer package UI | Phase 1 passed + shared approval action + user request | warning exception requested and reviewer/supervisor decision audited | resolver/API/approval/browser QC |
-| Phase 3 / transfer package builder / `DEV-041` | Not requested this turn | 3A-0 RD Implementation Ready; 3A-1 RD Contract Ready; 3A-2 to 3C Need Human Decisions | persistent Draft, intake, immutable package baseline, resulting effective configuration, readiness, shared review/sign-offs and release-work-item creation | synchronized item revisions, automatic master release, production, ERP sync, graph | requested child phase plus prior child-phase evidence; Q3/Q4 before 3A-2+ | smaller design-change scope produces complete configuration; multi-top approval is deterministic; sign-offs captured; ApprovedForTransfer does not auto-release | child phase API/security/configuration/concurrency/browser QC |
+| Phase 3 / transfer package builder / `DEV-041` | Phase 3A-0 completed locally; later child phases not requested | 3A-0 Local Implementation Complete / QA Passed; 3A-1 to 3C RD Contract Ready / Not Requested This Turn | persistent Draft, intake, immutable package baseline, deterministic impact rules, manager-approved formal no-change, canonical defer follow-up/task projection, complete configurations, readiness, atomic review/sign-offs and release-work-item creation | AI impact authority, synchronized revisions, cross-lane staleness, automatic master release, production, ERP sync, graph | requested child phase plus prior child-phase evidence | reproducible no-AI suggestion; one-part delta produces complete configuration; formal no-change is manager-approved; follow-up is traceable; multi-top approval is atomic; ApprovedForTransfer does not auto-release | child phase API/security/resolver/follow-up/configuration/lane/concurrency/browser QC |
 | Phase 4 / rule admin | Not requested this turn | RD Contract Ready / Not Requested This Turn | rule draft/test/preview/activate/retire | full no-code engine | stable rule consumer + settings capability + user request | versioned rules and historical snapshots audited | resolver/API/concurrency/admin browser QC |
 | Phase 5 / release | Release-gated | Release Gate Required | deployment and migration | direct unapproved data mutation | explicit release command/high-risk confirmation | release gate pass | deployment-release-gate evidence |

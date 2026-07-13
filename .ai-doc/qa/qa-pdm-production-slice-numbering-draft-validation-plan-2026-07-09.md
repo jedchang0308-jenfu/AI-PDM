@@ -12,7 +12,7 @@ Verify that AI_PDM can safely open only the official numbering and draft product
 
 This QA plan is for development and pre-release validation. It does not authorize production deployment or production smoke execution.
 
-Local execution evidence is recorded in `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`. Production deployment, production smoke, live Supabase target validation, provider pointer switch, rollback and release report remain outside this QA execution and require `DEV-032` release gate.
+Local execution evidence is recorded in `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`. DEV-046 `HD-8-1..4` are closed. Production deployment, production smoke, live Cloud Run/Cloud SQL/Firebase target validation, provider pointer switch, rollback and release report remain outside this QA execution and require `HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation plus the `DEV-032` release gate. Live direct-GCS integration belongs to Phase 3B; this no-file slice instead requires every file path to fail closed.
 
 ## Scope
 
@@ -27,7 +27,7 @@ In scope:
 - API denial for unopened write actions.
 - Permission boundary for Admin, RD Manager and 2-3 engineers.
 - Smoke company / tenant isolation.
-- Supabase production target readiness requirements for the slice.
+- Cloud SQL Taiwan production target, Firebase identity and continuity readiness requirements for the slice.
 
 Out of scope:
 
@@ -35,7 +35,7 @@ Out of scope:
 - Formal submission, approval and release production workflows.
 - CAD source parsing, Document Manager production readiness and SolidWorks Add-in.
 - BOM release, manufacturing baseline and procurement handoff.
-- Supabase Storage production file cutover.
+- GCS controlled-file production cutover.
 - Production deploy, rollback, provider pointer switch, production smoke execution or release report.
 
 ## Required Fixtures
@@ -132,14 +132,16 @@ Use disposable local or controlled staging fixtures before release gate confirma
 | SLICE-SMOKE-004 | P0 | Export/counter/dashboard without smoke filter | Smoke records are excluded |
 | SLICE-SMOKE-005 | P0 | Company/tenant isolation is not implemented or not provable | Production smoke-company approach is blocked |
 
-### Supabase / Security Boundary
+### Cloud SQL / Security Boundary
 
 | ID | Priority | Scenario | Expected |
 |---|---|---|---|
 | SLICE-SEC-001 | P0 | Frontend bundle/config is inspected | No database URL, service role key, secret key, or admin credential is exposed |
-| SLICE-SEC-002 | P0 | Direct base table access is attempted through public Data API path | Not approved; access remains denied by default |
+| SLICE-SEC-002 | P0 | Direct base table/provider table API access is attempted from browser | Not approved; access remains denied by default |
 | SLICE-SEC-003 | P0 | Public tables in exposed schema are reviewed | RLS remains enabled and forced where applicable |
-| SLICE-SEC-004 | P0 | Target identity evidence is required | Target must be `AI_PDM_PROD`, not `ProJED`, `ProJED_TEST`, or unrelated schema |
+| SLICE-SEC-004 | P0 | Target identity evidence is required | Target must be approved AI_PDM Cloud SQL project/instance in `asia-east1`, not `ProJED`, `ProJED_TEST`, or unrelated schema |
+| SLICE-SEC-005 | P0 | Connection/IAM evidence is reviewed | BFF uses approved Cloud SQL connector, automatic IAM database authentication, service identity, non-owner runtime role and bounded pool; no static key/password in browser/repo |
+| SLICE-SEC-006 | P0 | Data-location statement is reviewed | Operational DB/files are evidenced in Taiwan and Firebase Auth US identity-data exception is explicitly disclosed; no false all-Taiwan claim |
 
 ### Admin Setup Boundary
 
@@ -209,6 +211,18 @@ Focused QC must verify:
 - no frontend secret exposure;
 - no raw backend errors are visible in blocked states.
 
+## Future Phase 3A.0 / 3A.1 Canary Validation Contract
+
+Phase 3A.0 pre-deploy evidence requires all technical/security/continuity release gates, an exact 3-5-user production allowlist, and a ready `DEV-FIELD-001` script/evidence owner/issue-intake path. It does not require completed field evidence before the canary environment exists.
+
+The server-only allowlist accepts newly assigned production PDM user IDs only, fails closed when missing/malformed/empty, is checked at session issuance and every business request, and records a sorted configuration hash. Email, source actor ID, role, domain and wildcard entries are invalid.
+
+After deployment, verify every non-canary identity is denied at both session and business API boundaries. Named users may access only the official-numbering/draft capability allowlist; all file/formal-release/CAD/BOM paths remain closed.
+
+Phase 3A.1 executes the formal script for five business days on Google Workspace-only Wave 0. Evidence must include screenshots, audit correlation, issue disposition and signed go/no-go. No open P0 is accepted; every P1 requires an accepted owner/date/disposition. Wave 1 adds about five named users, including at least one controlled non-Google Firebase-managed email-link account, and repeats the five-business-day gate; only then may an explicit decision open Wave 2. No gate expands access automatically.
+
+During a database-unavailable exercise, create/reserve fails closed with a controlled Traditional Chinese unavailable state. Paper, Excel, offline issuance and later backfill are prohibited.
+
 ## No-Go Criteria
 
 QC must fail the slice if any of these occur:
@@ -229,6 +243,10 @@ QC must fail the slice if any of these occur:
 - Any secret or server-only credential appears in frontend code or committed env files.
 - Raw SQL, stack trace, `Internal Server Error` or route text appears in normal UI blocked states.
 - Production deploy, rollback, provider pointer switch, production smoke execution, direct production data repair or deletion is performed without release gate confirmation.
+- A user outside the named canary allowlist receives a session or can call an allowed business mutation before field acceptance.
+- Wider access is enabled, or the pilot is reported accepted, before `DEV-FIELD-001` issue/go-no-go evidence passes.
+- Completed field evidence is required before the named production canary exists, making the gate impossible to execute.
+- Database outage permits paper, Excel, offline numbering or later backfill.
 
 ## Evidence Handoff
 

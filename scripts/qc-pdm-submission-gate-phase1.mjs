@@ -31,6 +31,7 @@ const readinessRoute = readRequired("src/app/api/submission-readiness/resolve/ro
 const drawingSubmissionRoute = readRequired("src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts");
 const uploadPage = readRequired("src/app/upload/page.tsx");
 const transferPackagePage = readRequired("src/app/transfer-packages/new/page.tsx");
+const transferPackageContextRoute = readRequired("src/app/api/transfer-packages/workbench-context/route.ts");
 const packageJson = readRequired("package.json");
 
 record("GATE-001 active rule set is versioned and Phase 1 scoped", gate.includes("submission-gate-v1.2026-07-10.phase1") && gate.includes("phase1_local_slice"));
@@ -46,7 +47,13 @@ record("GATE-010 active rule API uses the shared rule resolver", activeRulesRout
 record("GATE-011 readiness API uses the shared readiness resolver", readinessRoute.includes("resolveSubmissionReadiness") && readinessRoute.includes("requireAuthAsync"));
 record("GATE-012 workbench exposes mode selector and package CTA", uploadPage.includes('data-submission-mode-selector="true"') && uploadPage.includes("setSubmissionMode(\"technical_transfer\")") && uploadPage.includes("buildTransferPackageHref") && uploadPage.includes("transferPackageHref"));
 record("GATE-013 workbench does not allow technical transfer through direct submit", uploadPage.includes("isTechnicalTransferMode") && uploadPage.includes("不能從單一圖號直接建立正式送審"));
-record("GATE-014 transfer package placeholder is real and non-mutating", transferPackagePage.includes('data-transfer-package-placeholder="true"') && transferPackagePage.includes("正式送審尚未開放") && !transferPackagePage.includes("fetch("));
+record(
+  "GATE-014 transfer package create route remains non-mutating on GET",
+  transferPackagePage.includes("TransferPackageWorkbenchShell") &&
+    !transferPackagePage.includes("fetch(") &&
+    transferPackageContextRoute.includes("getTransferPackageWorkbenchContext") &&
+    !transferPackageContextRoute.includes("createTransferPackageDraft")
+);
 record("GATE-015 package script is registered", packageJson.includes('"qc:pdm-submission-gate-phase1": "node scripts/qc-pdm-submission-gate-phase1.mjs"'));
 
 const failed = results.filter((result) => !result.passed);

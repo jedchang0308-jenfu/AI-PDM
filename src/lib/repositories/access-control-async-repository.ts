@@ -129,6 +129,8 @@ export const SELECT_ACCESS_CONTROL_ASSIGNED_ROLE_CODES_SQL = `
   JOIN roles r ON r.id = a.role_id
   WHERE a.user_id = :userId
     AND a.revoked_at IS NULL
+    AND (a.starts_at IS NULL OR a.starts_at <= :now)
+    AND (a.hard_ends_at IS NULL OR a.hard_ends_at > :now)
     AND r.enabled = 1
   ORDER BY a.assigned_at DESC, r.role_code ASC
 `;
@@ -294,7 +296,10 @@ export class AsyncAccessControlRepository {
   }
 
   async listAssignedRoleCodes(userId: string): Promise<string[]> {
-    const rows = await this.client.query<AccessControlAssignedRoleRow>(SELECT_ACCESS_CONTROL_ASSIGNED_ROLE_CODES_SQL, { userId });
+    const rows = await this.client.query<AccessControlAssignedRoleRow>(SELECT_ACCESS_CONTROL_ASSIGNED_ROLE_CODES_SQL, {
+      userId,
+      now: this.clock()
+    });
     return rows.map((row) => row.role_code);
   }
 

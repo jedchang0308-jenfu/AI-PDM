@@ -7,6 +7,9 @@ This project uses `.ai-doc` as the single project documentation center. Cold sta
 | Need | Read |
 |---|---|
 | Current task, blockers, next executable work | `.ai-doc/dev_task.md` |
+| Five-year Google Cloud ERP platform, IAM, Cloud SQL Taiwan, storage and ontology authority | `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`; `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`; `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md` |
+| RD supervisor multi-level review and closed `HD-6` / `HD-7` / `HD-8-1..4` decisions | `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md` |
+| Internal-pilot account lifecycle and security console | `.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`; `.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`; `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md` |
 | ERP-ready AI_PDM Phase 1-3 boundary, identity decisions and evidence | `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`; `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`; `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`; `.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`; `.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md` |
 | Pre-deploy local development completion audit | `.ai-doc/reports/pm/pm-predeploy-development-completion-audit-2026-07-10.md` |
 | Completed DEV / gate evidence index | `.ai-doc/archived/completed-dev-index-2026-06.md`; `.ai-doc/archived/completed-dev-index-2026-07.md` |
@@ -33,13 +36,17 @@ Current dispatch rule:
 
 - No local product DEV is automatically executable from this section. The authoritative PM dispatch entry is `.ai-doc/dev_task.md` Section `目前派工任務清單`.
 - `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` Phase 1-3 is complete locally with QC evidence. Phase 4 ERP shell and all production IAM/migration/release work remain unexecuted; no phase may modify ProJED.
-- Local pre-deploy development is closed from the current `dev_task.md` completion-audit perspective; production readiness remains false until `DEV-032` release gate and external blockers are satisfied.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` Phase 1 is complete locally with QC evidence. It adds the consolidated 「帳號與權限」 settings area, Admin account list/detail, lifecycle, identity status, global session revoke, one-time password reset and role time-window enforcement without starting Firebase Auth / Identity Platform/MFA/live provider/release work.
+- Local product-slice implementation is complete, but platform implementation/release is not. DEV-046 `HD-8-1..4` are closed: `asia-east1` Cloud Run + Next.js 16 Active LTS behind external ALB/managed TLS/custom domain with restricted CDN; internal primary+backup all-hours critical-event response with 60-minute acknowledgement/containment and no 24x7 restoration claim; staging Google/non-Google coverage with Google Workspace-only Wave 0 and controlled non-Google Wave 1; automated Cloud SQL backup/PITR plus one pre-canary separate-target restore/numbering reconciliation while full PDM/GCS/offline restore remains deferred. Phase 1A-1E are RD Implementation Ready / Not Requested. Live Phase 2/3 still require implementation, provider/cost/credential/privacy evidence and the broadened `DEV-032` release gate. General internal readiness remains false until technical gates and post-deploy `DEV-FIELD-001` wave acceptance pass.
 - The package entries below are current implementation context, protected evidence, or read-order guidance. They must not override `dev_task.md` status symbols, stop conditions, release gate wording, or external-evidence blockers.
 - Documentation-only governance work remains allowed when scoped to `.ai-doc/dev_task.md`, `.ai-doc/documentation_map.md`, `.ai-doc/archived/`, or the current PM audit report.
+- `DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` is `Spec Ready / Human Confirmed` but deliberately not architecture-ready or RD-executable. It defines the unified create entrypoints, case-scoped technical-transfer entry, and the new product rule that only published numbers are permanently non-reusable; read `.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md` before changing numbering, draft, status, sidebar or transfer-entry behavior.
 
 Implemented / protected context:
 
-- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`: Phase 1-3 local implementation and QC passed on 2026-07-12. Server-derived actor/company command boundaries protect selected numbering/draft mutations; command receipts and transactional outbox are additive across SQLite/PostgreSQL/Supabase with RLS/default-deny; provider-neutral principal/organization mappings preserve PDM IDs and carry platform IDs in evidence; guarded collision tooling passed against a copied local database with 5 users, 2 companies and zero collisions. Target governance is Supabase Auth plus `Person/Identity/Organization/Membership/RoleAssignment`, Admin/Approver MFA and central suspension/session revocation. This is not a provider cutover or production release. ProJED was not modified. Read ADR-001, ADR-002, the SPEC, QA plan, RD report and QC report in Section 1.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`: Phase 1 local implementation and QC passed on 2026-07-13. `/settings/accounts` is the consolidated Admin-facing 「帳號與權限」 area with tabs for 帳號管理、邀請新帳號、角色與權限、異動紀錄. Account management covers list/detail, suspend/reactivate/offboard/return-to-work, identity enable/disable, global session revoke and Admin-issued one-time password reset through `/account-recovery`. Local bootstrap evidence now has `jedchang0308@jenfu.com.tw` as the only active Admin; demo users are offboarded, the database backup exists and integrity is `ok`. The requested `1655` was not stored because it violates the 10-character minimum; a 24-hour one-time recovery request was created and its raw token is intentionally absent from documentation. This is local managed-auth state, not production Firebase reprovisioning. Production deploy, live migration, provider pointer, Firebase Auth / Identity Platform/MFA, merge, PR, rollback and production smoke remain unauthorized.
+
+- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`: Phase 1-3 local implementation and QC passed on 2026-07-12. Server-derived actor/company command boundaries protect selected numbering/draft mutations; command receipts and transactional outbox are additive across SQLite/PostgreSQL/Supabase with RLS/default-deny; provider-neutral principal/organization mappings preserve PDM IDs and carry platform IDs in evidence; guarded collision tooling passed against a copied local database with 5 users, 2 companies and zero collisions. The original Supabase Auth target is superseded by `DEV-046`; current target governance is Firebase Auth / Identity Platform plus `Person/Identity/Organization/Membership/RoleAssignment`, Admin/Approver MFA and central suspension/session revocation. This is not a provider cutover or production release. ProJED was not modified.
 
 - `DEV-PDM-APPROVAL-PLATFORM-001`: Phase 1A-1B local implementation, Phase 1C-A reviewer entrypoint consolidation, Phase 1C-B legacy reviewer page convergence and Phase 1C-C drawing object pending-review projection complete; transitional adapters, friendly-route delegation and guarded migration dry-run/apply tooling present; release/live migration not authorized. 2026-07-08 architecture decisions: launch timing is not urgent, stability is preferred, and full-system approval platformization should be done before launch. ADR 002 selected additive `approval_platform_*` v2 tables. Local implementation added platform schema, repository/service, `/api/approvals/*`, `/approvals`, legacy adapters including drawing revision impact reviews, friendly decision routes delegating through the platform facade, focused QC, guarded migration dry-run/apply self-test, build and browser evidence. Phase 1C-A makes `審核工作台` the single primary reviewer approval sidebar entry, adds a reviewer-role/company-scoped pending badge, and exposes status/domain/action filters with URL query deep links; Phase 1C-B redirects `/numbering/approvals`, `/bom/reviews` and `/numbering/change-reviews` into equivalent workbench filter states with compatibility messages; Phase 1C-C projects pending drawing revision impact reviews onto the affected drawing number, drawing detail and attachment revision/history rows as compact read-only cues with reviewer deep links. 2026-07-09 system drawer, numbering and lifecycle QC governance was aligned so `/numbering/approvals` and `/bom/reviews` are verified as legacy redirects into canonical `/approvals`, not as stale independent reviewer pages. Production deploy/cutover, Supabase live migration, direct data repair/deletion, merge, PR, rollback and release artifacts are not authorized. Read `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`, `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`, `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md` and `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`.
 
@@ -71,28 +78,119 @@ Implemented / protected context:
 
 Not executable without explicit approval:
 
-- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` release continuation only: Phase 1-3 is complete locally. Actual Supabase Auth configuration, MFA, central session revocation, staging/live migration and production cutover remain under a new IAM rollout DEV plus `DEV-030`/`DEV-031`/`DEV-032`. Phase 4 ERP shell/integration remains contract-only; ProJED requires a separate repository-owned DEV and is explicitly untouched.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` continuation only: Phase 1 is complete locally. Phase 2 self-service password/session visibility/provider-neutral email delivery, Phase 3 Firebase Auth / Identity Platform/MFA/central offboarding through `DEV-046`, production migration/deploy/smoke, hard delete/merge and ProJED integration remain not executable without explicit human/release gate. Release gate must also rerun `npm run build` after resolving the local 3000 dev-server guard.
+
+- `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` release continuation only: Phase 1-3 provider-neutral foundation is complete locally. The original Supabase Auth provider target is superseded by `DEV-046`; Firebase Auth / Identity Platform configuration, MFA, central session revocation, staging/live migration and production cutover remain gated through `DEV-046` plus `DEV-030`/`DEV-031`/`DEV-032`. Phase 4 ERP shell/integration remains contract-only; ProJED requires a separate repository-owned DEV and is explicitly untouched.
+- `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`: architecture authority is coherent and `HD-8-1..4` are closed. The runtime is `asia-east1` Cloud Run + Next.js 16 Active LTS container behind external ALB/managed TLS/custom domain, with CDN limited to reviewed immutable assets; internal primary+backup all-hours on-call acknowledges and starts containment for critical security/data-loss events within 60 minutes without promising 24x7 restoration; staging covers Google/non-Google, Wave 0 is Google Workspace only and Wave 1 includes at least one controlled non-Google account; `HD-8-4 / 1A` requires automated Cloud SQL backups/PITR plus one pre-canary separate-target restore and numbering reconciliation while deferring full PDM/GCS/offline recovery. Formal business/operational data is Cloud SQL, enabled formal files direct GCS and business logic portable HTTP/BFF; no Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority. Phase 1A-1E are RD Implementation Ready / Not Requested; live Phase 2-6 remain provider/release gated. No live resource, billing, credential, migration, source deletion, release or ProJED change is authorized.
 - `DEV-PDM-PRODUCTION-SLICE-001`: Phase 1 local product slice implemented and verified; release gate required for production execution. This captures the user's 2026-07-09 decision to launch only the Web `正式領號 / 草稿 production slice`, not full PDM production readiness, plus RD supervisor follow-up `1B 2C 3A`: include `/numbering/part-drafts`, allow provisional part-number draft delete/recycle before controlled boundary, and use smoke company / tenant as the default smoke isolation path. Local implementation now includes central production-slice capability helpers, method-level API allowlist/default-deny, direct URL blocked state, sidebar roadmap `未開放` state, `/numbering/part-drafts` slice-mode inert actions, and direct API fail-closed for `submit-review`, `reconfirm` and `restore`. Delete/recycle reuses the existing controlled-boundary predicate; official root/drawing/part numbers remain controlled and non-recyclable. Production target readiness, deploy, provider pointer switch, rollback and production smoke remain in `DEV-032` release gate. Read `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`, `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`, `.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md` and `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
 - `DEV-PDM-APPROVAL-PLATFORM-001`: Phase 1A-1B local implementation, Phase 1C-A reviewer entrypoint consolidation, Phase 1C-B legacy reviewer page convergence and Phase 1C-C drawing object pending-review projection complete; transitional adapters, friendly-route delegation and guarded migration dry-run/apply tooling present; release/live migration not authorized. Stop if work needs fragmented formal approval inboxes at launch, multiple primary reviewer approval sidebar entries, badge counts that ignore reviewer-role/company scope, one monolithic all-domain apply module, direct formal lifecycle mutation without platform audit, root obsolete without aggregate intent/impact preview, cost/supplement adapters as final launch-readiness state, production/Supabase live migration, provider pointer switch, direct data repair/deletion, merge, PR, rollback or release artifacts.
 - `DEV-PDM-NUMBERING-004` Phase 4 release/live work: Phase 1-3 are implemented locally. Do not perform production deploy, Supabase live migration/cutover, provider pointer change, direct data repair/deletion, merge, PR, rollback or release artifacts without explicit release authorization.
-- `DEV-PDM-ACCESS-CONTROL-001` 剩餘階段：本地上線切片與 `DEV-PDM-ACCOUNT-INVITATION-001` 無 Google 帳號邀請/首次密碼設定已完成並驗證；Google OAuth / 完整身分提供者、帳號停用/復權/密碼重設/session 撤銷、自動寄信 provider、完整路由盤點與旁路權限切換、未來久方工作區、正式環境遷移/部署、live Supabase migration、外部專員到期自動停權與平台級多公司管理台仍需另行授權。
+- `DEV-PDM-ACCESS-CONTROL-001` 剩餘階段：本地上線切片、邀請、Google identity 與 `DEV-045` Phase 1 帳號生命週期已完成；複核日仍只提醒，不自動停權；角色硬性到期只撤銷該角色效力，不冒充帳號停權。自助密碼、email provider 與 session visibility 由 `DEV-045` Phase 2；Firebase Auth / Identity Platform/MFA 由 Phase 3 與 `DEV-046`。完整路由旁路權限切換、未來久方工作區、外部專員帳號級自動停權與平台級多公司管理台仍需各自續接。
 - `DEV-PDM-ACCOUNT-INVITATION-001` / `DEV-042`: 本地完成 / release 未授權。Admin 可在 `/settings/account-invitations` 建立、查看、撤銷一次性邀請；受邀者在 `/invite/accept` 自行設定密碼。資料庫只存 token hash，清單不洩漏 token，接受/撤銷/到期/重複與非 Admin 路徑 fail closed，audit、provider-neutral identities 與 JENFU membership 已接上；managed login 不顯示 demo 帳密。邀請交付目前使用預填郵件或複製連結，不宣稱自動寄信。證據：`qc:pdm-account-invitations` 25/25、`qc:postgres-shadow` 26/26、`qc:supabase-runtime-migrations` 33/33、desktop/mobile screenshots。讀 `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`、`.ai-doc/qa/qa-pdm-account-invitation-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-account-invitation-report-2026-07-10.md`。
 - `DEV-PDM-GOOGLE-IDENTITY-001` / `DEV-043`: 本地完成 / live provider 與 release 未執行。Google 初次綁定只能從有效 Admin 邀請進入，verified email 必須符合邀請；一般登入只依已綁定 Google `sub`，不做 email/domain 自動授權。OAuth 使用 server-side code flow、state、nonce、PKCE，token/secret 不落 DB/audit；`suspended` 等非 active 帳號會拒絕新登入與既有 session。未設定 credential 時 UI 保留停用按鈕與未開放提示。證據：`qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、migration QC、typecheck、lint、isolated build 與 desktop/mobile screenshots。讀 `.ai-doc/qa/qa-pdm-google-identity-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-google-identity-report-2026-07-10.md`。
 - `DEV-PDM-SUBMISSION-GATE-001` / `DEV-005`: Phase 1 local implementation passed on 2026-07-10. It owns the research/technical-transfer mode split, rule resolver, direct single-item technical-transfer fail-closed guard, parent package/readiness/sign-off/release policy and Parent Phase 2/4 contracts. Its Phase 1 completion remains valid; future transfer-package product delivery is no longer hidden beneath this completed DEV.
-- `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001` / `DEV-041`: child technical-transfer delivery created by user decision `3A`. Phase 3A-0 is `RD Implementation Ready / Not Requested This Turn`; Phase 3A-1 is `RD Contract Ready / Not Requested This Turn`; Phase 3A-2 through 3C are `Need Human Decisions` for design-change effective-configuration and multi-top approval semantics. Confirmed rules: integer major version belongs to immutable package baseline; controlled items keep independent revisions; opening `/transfer-packages/new` writes nothing; explicit `建立技轉包` creates the persistent Draft and stable ID; Pack-and-Go intake preserves original ZIP/path/hash without falsely claiming openability; exact materialized configuration must pass real SolidWorks open verification before submit; humans own final classification; one package may govern multiple top assemblies; formal/top assemblies need controlled identity; incomplete/manual-preview BOM cannot baseline; owner modules remain canonical; shared approval and formal release stay separate. Read the child SPEC/QA, parent SPEC/ADR, BOM, approval, access-control and file-storage authorities before implementation.
+- `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001` / `DEV-041`: child technical-transfer delivery created by user decision `3A`. Phase 3A-0 is locally implemented and QA-passed on 2026-07-13; Phase 3A-1 through 3C are `RD Contract Ready / Not Requested This Turn`. The implemented slice adds explicit idempotent Draft creation, stable package identity, shared create/detail workbench, scope/header maintenance, adapter summaries, blocker guidance, audit events and terminal cancellation. Q3-Q8 remain authoritative for later phases: linked delta packages, atomic multi-top approval, deterministic rules without AI authority, manager-approved formal `no_change` and canonical defer follow-up. Read the child SPEC/QA/QC, parent SPEC/ADR, BOM, approval, access-control, numbering-task and file-storage authorities before later-phase implementation.
 - `DEV-PDM-NUMBERING-003`: Implemented / verification passed locally for Phase 1-3. New normal v3 creation uses `A0001-Z9999` alphanumeric roots and `A0001-P01`, `A0001-M01`, `A0001-R01`; root letters are capacity bands only; existing v1/v2 identities remain readable; v3 allocation reserves legacy numeric root ordinals and audit/control root evidence; `M` is category only and `R` cannot be manufacturing basis. Local/runtime master identities were converted from v2 numeric roots to v3 through scripted dry-run, backup, apply and independent check; historical audit/file/release evidence strings were retained. `I/O/Q` exclusion, production/Supabase migration, direct data repair/deletion outside the scripted local cutover boundary and release artifacts remain not authorized. Read `.ai-doc/specs/SPEC-PDM-NUMBERING-003-alphanumeric-root-identity.md`, `.ai-doc/decisions/ADR-PDM-NUMBERING-003-alphanumeric-root-identity.md` and `.ai-doc/qa/qa-pdm-numbering-003-alphanumeric-root-validation-plan-2026-07-07.md`.
 - `DEV-PDM-NUMBERING-SEQUENCE-CAPA-001` Phase 4 and any further data repair: Phase 1-3 local CAPA controls and the authorized local repair are implemented and verified. Production/Supabase rollout, visible formal-number renumbering, reset/reuse/backfill/voiding/deletion beyond the captured repair audit, merge, deploy, rollback and production smoke remain not executable without explicit human authorization. Runtime evidence is retained under `output/qc-pdm-numbering-sequence-integrity/` and `output/pdm-numbering-sequence-repair-runtime/`.
 - `DEV-PDM-NEXT-STEP-UX-001` Phase 2+: regression scanner/checklist hardening and production release are not authorized. DB/API/permission/state-machine changes, production deploy, direct data repair, historical cleanup, admin/debug raw payload full localization and full platform navigation redesign are excluded unless separately approved.
 - `DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`: Prepared / RD Implementation Ready for Phase 1 documentation only. It captures the D-0014-MA1 mismatch where submission release state is `Released` while drawing/part/root master statuses remain `Draft`. Phase 1 requires release-time master lifecycle sync in the same DB transaction as submission `Released`, audit and visible inconsistency guard. Phase 2 historical scanner/Admin repair and Phase 3 production cutover are documented but not authorized. No historical D-0014 repair, production migration, direct DB mutation or data deletion is authorized.
-- `DEV-PDM-FILE-STORAGE-001`: Implemented / local QC passed; production cutover not authorized. Supabase Postgres + Supabase Storage are the target PDM core authority; local implementation now has provider/bucket/key storage pointers, provider-aware submission/release/master attachment/preview reads, Supabase fail-closed runtime config, local fallback, local-provider-only legacy Drive release movement, Drive backup plan/execution helpers, version/hash folder isolation, no first-version delete/overwrite behavior, manifest templates, non-secret `.metadata.json` sidecars, restore index and drift report templates. Supabase bucket creation, provider pointer switch, one-time migration execution, live Google Drive backup writes, retention cleanup/deletion, production deploy/cutover, direct data repair/deletion, public PDM source bucket, service-role/S3 secret exposure, secret-bearing metadata snapshot, Drive reverse sync, backup-as-release-blocker, merge, PR, rollback and release artifacts are not authorized. Read `.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`, `.ai-doc/decisions/ADR-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`, `.ai-doc/qa/qa-pdm-file-storage-supabase-core-drive-backup-validation-plan-2026-07-08.md` and `.ai-doc/qc/qc-pdm-file-storage-supabase-core-drive-backup-report-2026-07-08.md`.
-- `DEV-SUPABASE-DB-001-DATA-PARITY`: prepared but blocked; requires parity tier, target, data scope, cleanup owner, and credential boundary.
+- `DEV-PDM-FILE-STORAGE-001`: Historical adapter implementation / local QC passed. Provider pointer, hash/manifest, migration guard, fail-closed Supabase Storage adapter and Drive backup helper evidence remain protected, but the unexecuted production target is superseded by `DEV-046`: GCS is the binary authority and Shared Drive is approved delivery/collaboration only. No provider switch, file migration, live bucket/Drive action or production release is authorized. Read the historical SPEC/ADR/QA/QC plus the current `DEV-046` package.
+- `DEV-CLOUDSQL-DB-001-DATA-PARITY`: prepared but blocked; requires parity tier, Cloud SQL target, data scope, cleanup owner, and credential boundary. The former Supabase policy is historical input only.
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P`: Phase 2+ RD Contract Ready only and rechecked under the latest `dev-pm` All-Phase Gate. Phase 2 requires Phase 1 implemented/verified and explicit authorization; Phase 3 requires Phase 2 implemented/verified and explicit authorization; Phase 4 requires production release-gate approval. Continuation commands must not start Phase 2+ unless `.ai-doc/dev_task.md` is explicitly updated.
-- `DEV-SUPABASE-DB-001-PROD-GATE`: deferred; production/cutover remains unapproved and deferred.
-- First-version launch evidence split: `DEV-IND-007` is complete for the disposable local Postgres/Supabase-shadow boundary; `DEV-FIELD-001` remains the only first-version external field-test blocker; `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` are deferred full-PDM scopes, not blockers for Web official numbering / draft production slice. Current readiness evidence is `npm run qc:production-readiness -- --allow-open`, which intentionally reports `ready=false` until the field-test proof and release-gate evidence exist.
+- `DEV-CLOUDSQL-DB-001-PROD-GATE`: deferred; production/cutover remains unapproved and deferred.
+- First-version launch evidence split: `DEV-IND-007` is complete for disposable local PostgreSQL compatibility. `DEV-FIELD-001` executes after a named 3-5-user production canary and blocks Wave 1/pilot acceptance; Wave 1 then runs its own five-business-day gate before Wave 2. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes. Closed `HD-8-4 / 1A` separately requires minimum Cloud SQL automated-backup/PITR, pre-canary separate-target restore and numbering-ledger reconciliation evidence.
 - `DEV-STORAGE-COST-001`: product rollout backlog / parked scope; requires real storage inventory, target, cost, retention policy, and production timing approval.
-- Any production deployment, Supabase production cutover, schema migration, direct DB mutation, data deletion, provider pointer switch, or cost-incurring external action.
+- Any production deployment, Cloud SQL/GCS production cutover, schema migration, direct DB mutation, data deletion, provider pointer switch, or cost-incurring external action.
 
 ## 3. Active Package Read Order
+
+### DEV-PDM-ERP-GOOGLE-CLOUDSQL-001
+
+Status: `DEV-046` architecture recorded; `HD-8-1..4 Closed`; Phase 1A-1E RD Implementation Ready / Not Requested; live Phase 2-6 provider/release gated. Phase 3A numbering/draft release retains pre-canary DB restore/reconciliation but remains independent from Phase 3B direct-GCS file cutover and deferred full-PDM file/offline restore.
+
+Read:
+
+1. `.ai-doc/dev_task.md` (`DEV-046`)
+2. `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
+3. `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
+4. `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`
+5. `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md`
+6. DEV-044 platform contract and shared-identity ADR
+7. DEV-045 account lifecycle SPEC
+8. Historical Supabase runtime/file-storage package, compatibility evidence only
+
+Confirmed decisions:
+
+- Current authority: Cloud SQL PostgreSQL in `asia-east1` is staging/production operational relational authority; Supabase is not a production target.
+- `2A`: Firebase Auth with Identity Platform is the sole shared ERP IAM.
+- `3A`: GCS is authoritative for PDM binaries; Shared Drive is approved delivery/collaboration only.
+- RD review `1A`: Firebase terminates at the Next.js BFF; browsers do not connect directly to Cloud SQL or provider table APIs.
+- Earlier RD review `2B` proposed operational PITR continuity, weekly independent logical backup, hourly control-ledger reconciliation and GCS restore drills. `HD-8-4 / 1A` supersedes the first-version execution scope: retain automated Cloud SQL backup/PITR plus one pre-canary separate-target restore/numbering reconciliation; defer independent long-retention/offline/GCS/full-PDM recovery work.
+- RD review `3A`: Admin/Approver TOTP, eight-hour BFF session, two hardware-key break-glass administrators and Firebase-managed action email; the fourth review later fixes the invitation variant to email-link followed by password linking.
+- Third review `1A`: Phase 3A launches App Hosting/Firebase/BFF/Cloud SQL official-numbering/drafts with file workflows closed; Phase 3B later owns GCS file migration and cannot block 3A.
+- Third review `2C`: existing PDM/already-implemented platform tables stay locked in `public`; new post-DEV-046 platform/ontology/integration tables use bounded schemas; `DEV-047` owns post-pilot legacy migration.
+- Third review `3A`: first ontology MVP is Drawing -> Part -> BOM only; Project/Equipment waits for a ProJED-owned source contract.
+- Fourth review HCS default `1B`: Phase 3A.0 deploys only to a named 3-5-user production canary; Phase 3A.1 `DEV-FIELD-001` blocks allowlist expansion and pilot acceptance, not the initial controlled deployment.
+- Fourth review HCS default `2A`: database outage stops official numbering; no paper/Excel/offline issuance or later backfill exists in the first version.
+- Fourth review HCS default `3A`: non-Google invitation uses Firebase-managed email-link, canonical invitation/email validation and freshly authenticated password linking; password reset is recovery-only.
+- Fifth RD review confirmed credential reprovisioning, Wave 0 -> Wave 1 -> Wave 2 rollout and Google Taiwan primary DB/file placement. Its production stable-ID preservation wording is superseded by the tenth review: clean production creates new production PDM IDs and keeps source actor/history separate. Its wording that Firebase Authentication's US identity processing was already accepted is superseded by the sixth review.
+- At the sixth RD supervisor review stage, Taiwan primary DB/file placement was confirmed but Firebase US identity processing was not yet accepted (`HD-6-1`); same-region HA/PITR was separated from regional DR (`HD-6-2`); and day-one regional HA cost remained open (`HD-6-3`). The seventh decision record below supersedes those open statuses.
+- Seventh decision closure `1A/2A/3A`: accept Firebase US identity processing with required privacy controls; keep cloud recovery copies Taiwan-only and accept no committed full-region RPO/RTO/no regional-DR claim; require Cloud SQL regional HA from the first canary. Actual privacy notice/inventory, billing owner/budget/alerts, provider resources and release evidence remain unexecuted.
+- Eighth RD multi-level review reopened three non-inferable choices: `HD-7-1` because the repository pins `next@16.2.6` while current App Hosting official support lists through Next.js 15.2; `HD-7-2` because the production migrate/seed/archive/exclude row classes were undefined; `HD-7-3` because RPO/RTO lacked a support calendar and incident clock. The active SPEC now includes the Architecture Memory Capsule, five Phase 1 handoff slices, failure/recovery contracts, Deferred Scope Audit and All-Phase Coverage Matrix. Production source auto-rollout is prohibited regardless of the eventual runtime.
+- Ninth decision closure `1A/2B/3B`: use App Hosting after an exact Next.js 15.2.x downgrade/pin; create clean production with only initial Admin/minimum configuration/numbering seed/non-reuse reservations and retain local source read-only; measure RPO continuously and RTO during Monday-Friday 08:00-17:00 `Asia/Taipei` excluding company holidays with immediate 24x7 security/data-loss escalation. The user further fixed Cloud SQL as all formal-data authority, direct GCS as all formal-file authority and portable HTTP/BFF as all business-logic boundary, explicitly rejecting Firestore, Firebase Storage, Firebase Functions, Callable and Firestore triggers.
+- Tenth RD independent review reopened `HD-8-1` because App Hosting/Next.js 15.2 compatibility does not prove five-year security/LTS maintainability, `HD-8-2` because "immediate 24x7" is not measurable, and `HD-8-3` because non-Google production admission has no wave. It also corrected clean production to new production PDM IDs with source actor/history archive-only, Firebase-managed action email without mandatory custom SMTP, Phase 1 GCS interfaces/fakes with live adapter deferred to 3B, automatic IAM DB auth/no static password, thin Route Handler/middleware/Server Action adapters and a concrete outbox worker retry/DLQ contract.
+- Eleventh decision closure `1A/2A/3B`: close `HD-8-1` with `asia-east1` Cloud Run + Next.js 16 Active LTS container behind external ALB/managed TLS/custom domain and restricted immutable-asset CDN; close `HD-8-2` with internal primary+backup all-hours on-call, critical security/data-loss acknowledgement/containment within 60 minutes and no 24x7 restoration claim; close `HD-8-3` with Google/non-Google staging coverage, Google Workspace-only Wave 0 and at least one controlled non-Google user in Wave 1. The user also deferred full PDM/GCS/offline backup-and-restore work and opened `HD-8-4` only for minimum Cloud SQL restore-evidence timing.
+- Twelfth decision closure `1A`: close `HD-8-4` by retaining automated Cloud SQL backup/PITR plus one pre-canary separate-target restore and numbering-ledger/sequence/non-reuse-reservation reconciliation. Full PDM/GCS/offline and independent long-retention recovery work remains deferred under `DEV-037`; the minimum DB drill is release evidence, not a product restore feature.
+
+Execution boundary:
+
+- Phase 0 architecture baseline and `HD-8-1..4` decisions are complete.
+- Phase 1A-1E require an explicit implementation instruction but no longer wait for `HD-8-1..3`. Work remains local/no-credential and covers Cloud Run/Next.js 16 container foundation, ALB/restricted CDN contract, IAM/portable BFF, Cloud SQL/no-Firestore, GCS interfaces/fakes/no-Firebase-Storage, new-production-ID clean seed/archive/non-reuse, no-Functions/Callable/triggers and business-hours SLO/60-minute critical acknowledgement/cost governance.
+- Continuity staging and production require billing/credential/target ownership, least privilege, runtime support/upgrade runway and immutable manual rollout, no Firebase data/storage/function authority, clean seed/read-only archive/non-reuse manifest, continuous-RPO/business-hours-RTO and primary+backup 60-minute critical acknowledgement evidence, full location inventory, VPC/private Cloud SQL/IAM DB auth, connection/migration/cost/IAM evidence and the `HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation. Phase 3A.0 keeps direct-GCS PDM writes dormant and restricts access to a Google Workspace new-production-ID canary allowlist; Phase 3A.1 Wave 1 includes at least one controlled non-Google account and supplies field acceptance. Phase 3B requires GCS adapter/integration and its own file migration release gate.
+- ProJED is not modified; any future adoption requires a separate ProJED-owned DEV.
+
+Stop local Phase 1 only if work deviates from closed HD-6/HD-7/HD-8, runtime migration regressions are undispositioned, Route Handler/middleware/Server Action owns domain rules, Firebase data/storage/function authority appears, static DB password is introduced, or work needs external cost/live credential/data/production/ProJED/release artifacts. Separately stop production canary if the `HD-8-4 / 1A` restore/reconciliation is missing or failed, non-seed source rows/source actor mappings enter production, the source archive is mutated/deleted, production can auto-roll out, or merge/PR/deploy/rollback/release is requested without its gate.
+
+### DEV-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001
+
+Status: `DEV-047` Phase A inventory is RD Contract Ready / Not Requested This Turn; Phase B-D design/rehearsal/release are evidence-sequenced, post-pilot only and not a first-launch blocker.
+
+Read:
+
+1. `.ai-doc/dev_task.md` (`DEV-047`)
+2. DEV-046 ADR/SPEC/QA transition contract
+3. Provider-neutral PostgreSQL schema/migration authorities plus historical Supabase compatibility evidence
+
+Execution boundary:
+
+- Inventory and implementation start only after an explicit DEV-047 instruction and a stable Phase 3A pilot.
+- No big-bang legacy table move, duplicate PDM authority schema or launch-time compatibility rewrite is permitted.
+- Any live schema move/table lock/downtime remains migration/release gated.
+
+### DEV-PDM-ACCOUNT-LIFECYCLE-001
+
+Status: Phase 1 `本機完成 / QC Passed`; Phase 2-3 `RD Contract Ready / Not Requested This Turn`; production `Release Gate Required`.
+
+Read:
+
+1. `.ai-doc/dev_task.md` (`DEV-045`)
+2. `.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`
+3. `.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`
+4. `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`
+5. `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+6. `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`
+7. DEV-042/043 invitation and identity QA/QC reports
+8. DEV-044 RD/QC reports and platform command/outbox contract
+
+Execution boundary:
+
+- Phase 1 local implementation is complete and should not be reimplemented from scratch.
+- Before release, rerun build evidence in a clean condition because the 2026-07-13 build attempt was blocked by the local 3000 dev-server guard.
+- Phase 2 requires Phase 1 evidence and human confirmation for email provider/cost/privacy.
+- Phase 3 and all production work require shared-IAM and release gates.
+- No phase may modify ProJED under this AI_PDM task.
+
+Stop if work needs account hard delete/merge, historical actor rewrite, live provider/credential, direct data repair, production migration/deploy, release artifacts or ProJED changes.
 
 ### DEV-PDM-ERP-MODULE-FOUNDATION-001
 
@@ -122,7 +220,7 @@ Human decisions:
 Execution boundary:
 
 - Phase 1-3 local development and QC are complete.
-- Phase 3 target decisions do not authorize Supabase Auth, MFA or session-revocation production rollout.
+- Phase 3 provider-neutral decisions do not authorize Firebase Auth / Identity Platform, MFA or session-revocation production rollout; current provider execution is owned by `DEV-046`.
 - Phase 4 cannot modify ProJED; any ProJED consumption requires a separate ProJED-owned task.
 - Production, migration, domain routing, rollback and smoke remain release-gated.
 
@@ -133,6 +231,38 @@ Stop if:
 - RD needs browser-authoritative state, browser service-role access or direct cross-module table writes.
 - RD needs any ProJED change.
 - RD needs live schema/data migration, production, merge, PR, deploy, rollback or release artifacts.
+
+### DEV-PDM-NUMBER-STATE-FLOW-001
+
+Status: `Spec Ready / Human Confirmed`; architecture, ADR alignment, RD, QA/QC and release are not requested this turn.
+
+Read:
+
+1. `.ai-doc/dev_task.md` entry `DEV-048`
+2. `.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`
+3. Existing contextual-entry authority: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
+4. Existing status authority: `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
+5. Existing draft/recycle authority: `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`
+6. Existing production-slice authority: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
+7. Existing transfer authority: `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
+
+Human decisions:
+
+- `＋建立圖料號` belongs at the top-right of the drawing-part module; drawing and part modules retain their task-specific create CTAs and contextual drawer shortcuts.
+- Technical-transfer batch submission belongs under `發行 / 交接 > 技術移轉` and must operate through a case-scoped transfer package, not generic upload or direct single-item transfer submission.
+- Permanent number control begins at formal publication. Unpublished draft candidates may be recycled when explicitly cancelled, unreferenced and not review-locked; the first version has no mandatory seven-day cooling period.
+
+Intentional replacement:
+
+- The latest product rule replaces the older semantics that submission itself makes a candidate permanently non-reusable.
+- It also replaces the production-slice assumption that every root/drawing/part record created through the formal form is immediately an official permanent number.
+- ADR and engineering-spec alignment is mandatory before RD implementation; the current functional spec is authoritative for product behavior but is not an engineering contract.
+
+Execution boundary:
+
+- This turn changed documentation only.
+- Do not implement, design schema/API/permission/transaction/migration, repair historical data or produce QA/QC/release artifacts from this entry without the corresponding user re-entry instruction.
+- Next re-entry phrase: `補架構規格`, `進入 RD 規格`, or equivalent.
 
 ### DEV-PDM-PRODUCTION-SLICE-001
 
@@ -267,7 +397,7 @@ Stop if:
 
 ### DEV-PDM-FILE-STORAGE-001
 
-Status: Implemented / local QC passed; production cutover not authorized. It captures the user's 2026-07-08 decisions `1B 2A 3A` and RD supervisor follow-up `1C 2A 3B`: Supabase Postgres + Supabase Storage are the target single PDM core authority; existing local / legacy Drive files must be migrated once and verified before cutover; Google Drive is demoted to an async non-authoritative backup mirror with Windows/File Explorer-compatible folder isolation, tiered coverage, no first-version auto delete/overwrite and non-secret metadata snapshots. Local implementation includes provider/bucket/key storage pointers, provider-aware file and release package reads, fail-closed Supabase runtime config, local fallback, local-only legacy Drive release movement, Drive backup helpers, manifest templates, metadata sidecars, restore index and drift report templates.
+Status: Historical adapter implementation / local QC passed; its unexecuted production target was superseded on 2026-07-13 by `DEV-046`. The completed provider/bucket/key pointers, provider-aware reads, fail-closed Supabase adapter, local fallback, hash/manifest and migration/backup helpers remain reusable evidence. Current target: Cloud SQL PostgreSQL metadata/transactions + GCS binary authority in Google Taiwan; Shared Drive is approved delivery/collaboration only.
 
 Read:
 
@@ -286,6 +416,8 @@ Read:
 
 Human decisions:
 
+- 2026-07-13 supersession: `DEV-046` decisions `1B / 2A / 3A` replace the following storage-provider target while retaining its completed adapter evidence.
+
 - `1B`: Supabase Postgres and Supabase Storage become the PDM core authority.
 - `2A`: Existing local / legacy Google Drive files are migrated in one controlled migration before cutover; no long-term dual-primary.
 - `3A`: Google Drive is async best-effort backup only, using version/type folders and manifest/hash evidence to avoid same-folder same-filename conflicts.
@@ -297,7 +429,7 @@ Authorization boundary:
 
 - Local RD implementation and local QC are complete.
 - Supabase bucket creation, RLS policy changes, provider pointer switch, one-time migration execution, Google Drive live backup worker/external writes, real restore drill, retention cleanup/deletion, production deploy/cutover, direct data repair/deletion, merge, PR, rollback and release artifacts require explicit separate authorization.
-- `DEV-STORAGE-COST-001` remains cost-control / alternate-provider background; it does not override this Supabase-core architecture.
+- `DEV-STORAGE-COST-001` remains cost-control / alternate-provider background; current production-provider authority is `DEV-046`.
 
 Stop if:
 
@@ -421,7 +553,7 @@ Stop if:
 
 ### DEV-PDM-SUBMISSION-GATE-001
 
-Status: Phase 1 local implementation passed on 2026-07-10. Parent Phase 2 and Phase 4 are RD Contract Ready / Not Requested This Turn. Technical-transfer Phase 3 implementation is delegated to child `DEV-041`: Phase 3A-0 RD Implementation Ready / Not Requested This Turn; Phase 3A-1 RD Contract Ready / Not Requested This Turn; Phase 3A-2 through 3C Need Human Decisions. Release Gate Required for production work.
+Status: Phase 1 local implementation passed on 2026-07-10. Parent Phase 2 and Phase 4 are RD Contract Ready / Not Requested This Turn. Technical-transfer Phase 3 implementation is delegated to child `DEV-041`: Phase 3A-0 Local Implementation Complete / QA Passed 2026-07-13; Phase 3A-1 through 3C RD Contract Ready / Not Requested This Turn. Release Gate Required for production work.
 
 Read:
 
@@ -432,11 +564,12 @@ Read:
 5. `.ai-doc/qc/qc-pdm-submission-gate-phase1-report-2026-07-10.md`
 6. Phase 3A transfer intake spec: `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
 7. Phase 3A QA plan: `.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`
-8. Existing drawing submission authority: `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-001-review-only-from-drawing.md`
-9. Existing workbench authority: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
-10. Existing relation view context: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
-11. Existing release lifecycle authority: `.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`
-12. Phase 1 implemented surfaces: `src/lib/submission-gate.ts`, `src/app/upload/page.tsx`, `src/app/api/submission-rules/active/route.ts`, `src/app/api/submission-readiness/resolve/route.ts`, `src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts`, `src/app/transfer-packages/new/page.tsx`, `scripts/qc-pdm-submission-gate-phase1.mjs`, `package.json`.
+8. Phase 3A-0 QC report: `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`
+9. Existing drawing submission authority: `.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-001-review-only-from-drawing.md`
+10. Existing workbench authority: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
+11. Existing relation view context: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
+12. Existing release lifecycle authority: `.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`
+13. Implemented surfaces: `src/lib/transfer-packages.ts`, `src/lib/transfer-package-api.ts`, `src/lib/repositories/transfer-package-async-repository.ts`, `src/app/api/transfer-packages`, `src/components/transfer-package-workbench.tsx`, `src/app/transfer-packages`, `db/postgres/010_transfer_package_phase3a0.sql`, `scripts/qc-pdm-transfer-package-phase3a0.mjs`.
 
 Human decisions:
 
@@ -459,12 +592,19 @@ Human decisions:
 - 2026-07-10 RD completeness decision `1A`: positive integer major belongs to immutable transfer-package baseline; controlled parts, formal subassemblies and top assembly retain independent revisions, and each baseline stores exact revision/hash snapshots.
 - 2026-07-10 RD completeness decision `2A`: opening `/transfer-packages/new` is read-only; only required case data plus explicit `建立技轉包` creates a persistent Draft and stable package ID.
 - 2026-07-10 RD completeness decision `3A`: child product delivery is `DEV-041`; `DEV-005` remains complete for Phase 1 and parent governance.
+- 2026-07-13 design-change decision `1A`: later changes create a new delta package linked to prior current-effective configurations; approved packages are terminal and unchanged evidence is inherited into complete candidates.
+- 2026-07-13 multi-top decision `2A`: all governed top assemblies inside one package approve atomically; staged timing requires separate packages.
+- 2026-07-13 formal defer decision `1C`: only interchangeable/backward-compatible, non-critical and sufficiently evidenced impacts may defer with R&D Manager reason, owner, due date, follow-up and exact-old-revision availability.
+- 2026-07-13 visible-state decision: verified no-change shows `不需進版`; defer/update internal states both show only `已非最新版 / 待更新`.
+- 2026-07-13 suggestion-authority decision `1A`: assembly-impact suggestions use deterministic, versioned pure rules with normalized input hash, matched rule IDs and reasons; no AI/LLM/network call or automatic decision authority is allowed.
+- 2026-07-13 formal no-change decision `2B`: every formal-lane `no_change` requires R&D Manager approval after exact candidate configuration and SolidWorks verification evidence.
+- 2026-07-13 defer-follow-up decision `3A`: formal defer creates canonical `transfer_follow_up` data with owner/due time/evidence and projects it idempotently into the existing workbench and `/numbering/tasks`; no standalone page or global generic-task due-date change is introduced.
 
 Authorization boundary:
 
 - Phase 1 local product slice is implemented and QC-passed.
-- `DEV-041` Phase 3A-0 is implementation-ready but was not requested for product implementation in this turn; it must not auto-start.
-- `DEV-041` Phase 3A-1 is contract-ready. Phase 3A-2 through 3C require Q3/Q4 plus prior child-phase evidence before contract/readiness completion.
+- `DEV-041` Phase 3A-0 is implemented locally and QA-passed; its local evidence does not authorize live migration or release.
+- `DEV-041` Phase 3A-1 through 3C are contract-ready. Each phase still requires the prior child-phase entry evidence before implementation or promotion.
 - Parent Phase 2 research exception and Parent Phase 4 rule admin remain under `DEV-005` and were not requested this turn.
 - Schema migration, production deploy, Supabase live cutover, direct data repair/deletion, merge, PR, rollback and release artifacts require separate release/high-risk authorization.
 
@@ -484,32 +624,37 @@ Stop if:
 
 ### DEV-PDM-TRANSFER-PACKAGE-INTAKE-001
 
-Status: `DEV-041` Phase 3A-0 RD Implementation Ready / Not Requested This Turn; Phase 3A-1 RD Contract Ready / Not Requested This Turn; Phase 3A-2 to 3C Need Human Decisions for design-change effective-configuration and multi-top approval semantics.
+Status: `DEV-041` Phase 3A-0 Local Implementation Complete / QA Passed 2026-07-13; Phase 3A-1 to 3C RD Contract Ready / Not Requested This Turn.
 
 Read:
 
 1. `.ai-doc/dev_task.md` entry `DEV-041`
 2. `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
 3. `.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`
-4. `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
-5. `.ai-doc/decisions/ADR-PDM-SUBMISSION-GATE-001-transfer-package-and-exception-policy.md`
-6. `.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`
-7. `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`
-8. `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
-9. `.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`
+4. `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`
+5. `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
+6. `.ai-doc/decisions/ADR-PDM-SUBMISSION-GATE-001-transfer-package-and-exception-policy.md`
+7. `.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`
+8. `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`
+9. `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+10. `.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`
 
 Execution boundary:
 
-- The next requestable product slice is Phase 3A-0 only: explicit persistent Draft creation, stable package ID, shared workbench shell, scope, adapters, blockers and return context.
-- ZIP parser, mapping/BOM/baseline, readiness and review/sign-off remain later child phases with explicit entry evidence.
+- Phase 3A-0 is complete locally: explicit persistent Draft creation, stable package ID, shared workbench shell, scope, adapters, blockers and return context.
+- The next possible product slice is Phase 3A-1 only after an explicit implementation request and acceptance of Phase 3A-0 evidence. ZIP parsing/classification belongs to 3A-1; mapping/BOM/baseline, readiness and review/sign-off remain later phases.
 - Package baseline integer never synchronizes item revisions; incomplete manual/file-preview BOM never passes baseline.
 - Formal submit requires real-machine SolidWorks open/missing-reference evidence for the exact materialized candidate configuration, without requiring an Add-in.
-- One package may govern multiple explicitly selected top assemblies. Phase 3A-2 to 3C cannot become implementation-ready until delta inheritance and atomic/partial multi-top approval are confirmed.
+- One package may govern multiple explicitly selected top assemblies and approves atomically. Later design change uses a new delta package with inherited unchanged evidence; approved packages are terminal.
+- System assembly-revision suggestions require human `no_change`/`defer`/`update`; development decimal and formal integer impacts are strictly isolated. Formal defer follows the Q5 `1C` compatibility/risk/manager/follow-up Gate. Human-visible status is limited to verified `不需進版` or `已非最新版 / 待更新`.
+- Impact suggestions are deterministic and versioned with no AI/LLM/network authority. Every formal `no_change` requires R&D Manager approval. Formal defer owns a canonical `transfer_follow_up` with due time and an idempotent projection into the existing task center; the generic task remains non-canonical and its global no-due-date policy is unchanged.
+- Formal package download, candidate materialization and SolidWorks verification resolve the exact configuration manifest, item revisions and hashes; ambiguous filename-based `latest` resolution is forbidden. Confirmed/approved canonical evidence is immutable. Drive backup remains tiered: released evidence is required/permanent in the first version, pre-release evidence is selective and existing mirrored blobs are never auto-overwritten or auto-deleted.
 - No product code, schema migration, production data, provider change, SolidWorks integration or release work was performed by the document-completeness review.
 
 Stop if:
 
 - GET/open must create a package, owner logic must be duplicated, company/RLS boundary cannot be enforced, parser cannot stream/fail closed, a formal/top assembly can baseline without controlled identity, or transfer approval would directly release a master.
+- Development impact would stale formal configuration, formal defer could bypass its Gate, UI must expose separate normal defer/in-progress badges, multi-root approval cannot be atomic, or an approved package must be reopened.
 
 ### DEV-PDM-DRAWING-PART-RELATION-VIEW-001
 
@@ -1233,10 +1378,10 @@ Verification evidence:
 
 - `npm run qc:dev-task-evidence-sync`: passed 13/13.
 - `npm run qc:dev-task-completion-audit`: passed 8/8.
-- `npm run qc:production-readiness -- --allow-open`: passed with `ready=false`, `supabaseShadowEvidenceReady=true`, and one first-version `external_field_test` blocker visible.
+- `npm run qc:production-readiness -- --allow-open`: passed with `ready=false`, `supabaseShadowEvidenceReady=true`, and one `external_field_test` gate visible; under the later Phase 3A.0/3A.1 decision this blocks wider opening/pilot acceptance, not the first named-user canary deploy.
 - `npx tsc --noEmit`, `npm run lint -- --quiet`, and `npm run build`: passed.
 
-Remaining first-version blocker is `DEV-FIELD-001` field-test evidence, plus release-gate execution before production deploy. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes; `DEV-IND-007` is complete for the disposable shadow gate.
+Remaining post-deploy external acceptance blocker is `DEV-FIELD-001`, executed after Phase 3A.0 canary deployment. Before that deploy, DEV-046/DEV-032 technical release gates, including the closed `HD-8-4 / 1A` pre-canary production DB restore/reconciliation evidence, still apply; `HD-8-1..4` are closed. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes; `DEV-IND-007` is complete for the disposable shadow gate.
 
 ### DEV-PDM-DRAWING-PART-WORKBENCH-001
 
@@ -1429,7 +1574,7 @@ Read:
 
 ### Storage Cost-Control Package
 
-`DEV-STORAGE-COST-001` is parked / product rollout backlog. It must not be treated as part of `DEV-SUPABASE-DB-001` completion. Current product authority for file storage direction is `DEV-PDM-FILE-STORAGE-001`: Supabase Postgres + Supabase Storage core, with Google Drive as backup mirror only.
+`DEV-STORAGE-COST-001` is parked / product rollout backlog. It must not be treated as part of the historical `DEV-SUPABASE-DB-001` completion. Current product authority for file storage direction is `DEV-046` / `ADR-PDM-ERP-PLATFORM-002`: Cloud SQL PostgreSQL metadata/transactions + Google Cloud Storage binary authority in Taiwan, with Shared Drive limited to approved delivery/collaboration. `DEV-PDM-FILE-STORAGE-001` is retained as historical adapter and migration-safety evidence.
 
 Read:
 

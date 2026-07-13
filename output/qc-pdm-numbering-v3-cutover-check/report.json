@@ -1,0 +1,496 @@
+{
+  "mode": "check",
+  "generatedAt": "2026-07-07T13:24:53.681Z",
+  "dbPath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+  "backupPath": null,
+  "summary": {
+    "roots": 8,
+    "parts": 8,
+    "drawings": 8,
+    "safe_map": 0,
+    "collision": 0,
+    "manual_review": 0,
+    "protected_evidence_retained": 0,
+    "out_of_scope": 24,
+    "blockers": 0,
+    "exactReferences": 0,
+    "jsonReferences": 0
+  },
+  "mutation": {
+    "dryRun": true,
+    "unchanged": true
+  },
+  "rootMappings": [
+    {
+      "id": "f07862e3-99bb-457a-82e9-06557bb089a1",
+      "companyId": "company-jenfu",
+      "from": "A0001",
+      "to": "A0001",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "30a4f107-bb67-4285-8c11-b227b9418deb",
+      "companyId": "company-jenfu",
+      "from": "A0002",
+      "to": "A0002",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "companyId": "company-jenfu",
+      "from": "A0007",
+      "to": "A0007",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "companyId": "company-jenfu",
+      "from": "A0014",
+      "to": "A0014",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "9585210c-2cdf-4be0-b429-d2551c435b16",
+      "companyId": "company-jenfu",
+      "from": "A0056",
+      "to": "A0056",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "d9b8bab9-4c3c-4a0a-beb9-482f19ebe17f",
+      "companyId": "company-jenfu",
+      "from": "A0057",
+      "to": "A0057",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "f840f1e0-1e0d-41a3-976f-912bb2a37734",
+      "companyId": "company-jenfu",
+      "from": "A0058",
+      "to": "A0058",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "d215cb17-306f-4b2b-887a-12097a0491fc",
+      "companyId": "company-jenfu",
+      "from": "A0059",
+      "to": "A0059",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    }
+  ],
+  "partMappings": [
+    {
+      "id": "7a2a6050-60aa-42d6-9216-6262d1326d08",
+      "companyId": "company-jenfu",
+      "rootId": "f07862e3-99bb-457a-82e9-06557bb089a1",
+      "rootFrom": "A0001",
+      "rootTo": "A0001",
+      "from": "A0001-P01",
+      "to": "A0001-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "758de2f3-da00-46a1-b1e0-08dda1dda664",
+      "companyId": "company-jenfu",
+      "rootId": "30a4f107-bb67-4285-8c11-b227b9418deb",
+      "rootFrom": "A0002",
+      "rootTo": "A0002",
+      "from": "A0002-P01",
+      "to": "A0002-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "167c6104-9b97-4267-89ac-a066de4a807f",
+      "companyId": "company-jenfu",
+      "rootId": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "rootFrom": "A0007",
+      "rootTo": "A0007",
+      "from": "A0007-P01",
+      "to": "A0007-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "43dea30b-608a-4d45-89ff-c0a6de9aa75b",
+      "companyId": "company-jenfu",
+      "rootId": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "rootFrom": "A0014",
+      "rootTo": "A0014",
+      "from": "A0014-P01",
+      "to": "A0014-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "5e4afaa1-eb57-4a87-8cb7-a3090c75e36f",
+      "companyId": "company-jenfu",
+      "rootId": "9585210c-2cdf-4be0-b429-d2551c435b16",
+      "rootFrom": "A0056",
+      "rootTo": "A0056",
+      "from": "A0056-P01",
+      "to": "A0056-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "9cd2eb23-6480-47e3-aa57-3cf776d27e23",
+      "companyId": "company-jenfu",
+      "rootId": "d9b8bab9-4c3c-4a0a-beb9-482f19ebe17f",
+      "rootFrom": "A0057",
+      "rootTo": "A0057",
+      "from": "A0057-P01",
+      "to": "A0057-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "3bbafcb6-338b-47ea-bbbe-7c4ac96538e8",
+      "companyId": "company-jenfu",
+      "rootId": "f840f1e0-1e0d-41a3-976f-912bb2a37734",
+      "rootFrom": "A0058",
+      "rootTo": "A0058",
+      "from": "A0058-P01",
+      "to": "A0058-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "fda6baeb-2e40-4daf-be03-16a7f681c494",
+      "companyId": "company-jenfu",
+      "rootId": "d215cb17-306f-4b2b-887a-12097a0491fc",
+      "rootFrom": "A0059",
+      "rootTo": "A0059",
+      "from": "A0059-P01",
+      "to": "A0059-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    }
+  ],
+  "drawingMappings": [
+    {
+      "id": "740d8484-f8ca-46b1-a08b-961305b00ce1",
+      "companyId": "company-jenfu",
+      "rootId": "f07862e3-99bb-457a-82e9-06557bb089a1",
+      "rootFrom": "A0001",
+      "rootTo": "A0001",
+      "from": "A0001-M01",
+      "to": "A0001-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "ece82158-0032-4a47-af9e-b288505bf763",
+      "companyId": "company-jenfu",
+      "rootId": "30a4f107-bb67-4285-8c11-b227b9418deb",
+      "rootFrom": "A0002",
+      "rootTo": "A0002",
+      "from": "A0002-M01",
+      "to": "A0002-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "5ad8984c-5492-4f22-8258-d1190c915200",
+      "companyId": "company-jenfu",
+      "rootId": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "rootFrom": "A0007",
+      "rootTo": "A0007",
+      "from": "A0007-M01",
+      "to": "A0007-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "b4f05151-763f-4ccf-b116-08943ad28859",
+      "companyId": "company-jenfu",
+      "rootId": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "rootFrom": "A0014",
+      "rootTo": "A0014",
+      "from": "A0014-M01",
+      "to": "A0014-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "c87ade49-549a-4370-917c-0ccd37293a3f",
+      "companyId": "company-jenfu",
+      "rootId": "9585210c-2cdf-4be0-b429-d2551c435b16",
+      "rootFrom": "A0056",
+      "rootTo": "A0056",
+      "from": "A0056-M01",
+      "to": "A0056-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "bbaede71-fdc7-40d0-823d-991b6cfbcba2",
+      "companyId": "company-jenfu",
+      "rootId": "d9b8bab9-4c3c-4a0a-beb9-482f19ebe17f",
+      "rootFrom": "A0057",
+      "rootTo": "A0057",
+      "from": "A0057-M01",
+      "to": "A0057-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "199e9e8d-9736-4445-8cb5-6364bef5b319",
+      "companyId": "company-jenfu",
+      "rootId": "f840f1e0-1e0d-41a3-976f-912bb2a37734",
+      "rootFrom": "A0058",
+      "rootTo": "A0058",
+      "from": "A0058-M01",
+      "to": "A0058-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    },
+    {
+      "id": "58514093-57f8-40d2-8d18-7ce6e3d03747",
+      "companyId": "company-jenfu",
+      "rootId": "d215cb17-306f-4b2b-887a-12097a0491fc",
+      "rootFrom": "A0059",
+      "rootTo": "A0059",
+      "from": "A0059-M01",
+      "to": "A0059-M01",
+      "purposeFrom": "M",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "ruleFrom": "numbering-rule-v3-alpha-root",
+      "ruleTo": "numbering-rule-v3-alpha-root",
+      "classification": "out_of_scope",
+      "reason": "already_v3",
+      "collisionId": null
+    }
+  ],
+  "referencePlan": {
+    "exact": [],
+    "json": [],
+    "protectedEvidence": []
+  },
+  "blockers": [],
+  "updatedRows": [],
+  "status": {
+    "activeRules": [
+      {
+        "id": "numbering-rule-v1",
+        "status": "retired",
+        "retired_at": "2026-07-07T05:24:03.010Z"
+      },
+      {
+        "id": "numbering-rule-v2",
+        "status": "retired",
+        "retired_at": "2026-07-07 12:32:11"
+      },
+      {
+        "id": "numbering-rule-v3-alpha-root",
+        "status": "active",
+        "retired_at": null
+      }
+    ],
+    "masterCounts": {
+      "legacyRoots": 0,
+      "legacyParts": 0,
+      "legacyDrawings": 0,
+      "invalidV3Roots": 0,
+      "invalidV3Parts": 0,
+      "invalidV3Drawings": 0
+    },
+    "operationalLegacyReferences": {
+      "exact": [],
+      "json": []
+    },
+    "retainedHistoricalEvidence": [
+      {
+        "table": "audit_logs",
+        "column": "detail_json",
+        "occurrences": 101,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_assets",
+        "column": "original_path",
+        "occurrences": 11,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_assets",
+        "column": "storage_key",
+        "occurrences": 11,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_assets",
+        "column": "file_name",
+        "occurrences": 11,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_assets",
+        "column": "display_name",
+        "occurrences": 11,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_derivatives",
+        "column": "storage_key",
+        "occurrences": 7,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_derivatives",
+        "column": "original_path",
+        "occurrences": 7,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "file_derivatives",
+        "column": "file_name",
+        "occurrences": 7,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "release_packages",
+        "column": "manifest_json",
+        "occurrences": 6,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "submission_files",
+        "column": "original_filename",
+        "occurrences": 9,
+        "classification": "protected_evidence_retained"
+      },
+      {
+        "table": "submission_files",
+        "column": "local_path",
+        "occurrences": 9,
+        "classification": "protected_evidence_retained"
+      }
+    ]
+  },
+  "retainedHistoricalEvidencePolicy": "正式主檔與可查詢營運欄位會 cut over 到 v3。audit、匯出結果、附件檔名、實體路徑與 release package manifest 保留原字串作為歷史證據，不以防呆方式改寫。"
+}

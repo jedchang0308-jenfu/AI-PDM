@@ -105,7 +105,6 @@ function upsertLocalPasswordIdentity(database: SqliteDatabase, userId: string, e
          provider_subject = excluded.provider_subject,
          login_identifier = excluded.login_identifier,
          email_normalized = excluded.email_normalized,
-         status = 'active',
          updated_at = excluded.updated_at`
     )
     .run(`identity-local-${userId}`, userId, normalizedEmail, normalizedEmail, normalizedEmail, now, now, now);
@@ -180,23 +179,49 @@ export type DbUser = {
   role: UserRole;
   company_id: string;
   account_status?: UserAccountStatus;
+  session_invalid_before?: string | null;
+  account_lifecycle_version?: number;
+  system_role_enabled?: number | boolean;
+  account_status_changed_at?: string | null;
+  account_status_changed_by?: string | null;
+  account_status_reason?: string | null;
 };
 
 export type DbUserWithPassword = DbUser & { password_hash: string | null };
 
 export function getUserById(id: string) {
-  return getDb().prepare("SELECT id, display_name, email, role, company_id, account_status FROM users WHERE id = ?").get(id) as DbUser | undefined;
+  return getDb()
+    .prepare(
+      `SELECT id, display_name, email, role, company_id, account_status,
+              session_invalid_before, account_lifecycle_version, system_role_enabled,
+              account_status_changed_at, account_status_changed_by, account_status_reason
+       FROM users
+       WHERE id = ?`
+    )
+    .get(id) as DbUser | undefined;
 }
 
 export function getUserByEmail(email: string) {
   return getDb()
-    .prepare("SELECT id, display_name, email, role, company_id, account_status FROM users WHERE lower(email) = lower(?)")
+    .prepare(
+      `SELECT id, display_name, email, role, company_id, account_status,
+              session_invalid_before, account_lifecycle_version, system_role_enabled,
+              account_status_changed_at, account_status_changed_by, account_status_reason
+       FROM users
+       WHERE lower(email) = lower(?)`
+    )
     .get(email) as DbUser | undefined;
 }
 
 export function getUserByEmailWithPassword(email: string) {
   return getDb()
-    .prepare("SELECT id, display_name, email, password_hash, role, company_id, account_status FROM users WHERE lower(email) = lower(?)")
+    .prepare(
+      `SELECT id, display_name, email, password_hash, role, company_id, account_status,
+              session_invalid_before, account_lifecycle_version, system_role_enabled,
+              account_status_changed_at, account_status_changed_by, account_status_reason
+       FROM users
+       WHERE lower(email) = lower(?)`
+    )
     .get(email) as DbUserWithPassword | undefined;
 }
 

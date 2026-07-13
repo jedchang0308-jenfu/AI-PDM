@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { listPartModuleRecordsAsync } from "@/lib/numbering-async";
+import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { canViewPartCostAmounts, redactPartListCosts } from "@/lib/part-cost-visibility";
 import type { NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
@@ -32,16 +32,25 @@ export async function GET(request: Request) {
 
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
 
-  const parts = await listPartModuleRecordsAsync({
-    companyId: companyResult.company.companyId,
-    query: url.searchParams.get("query") ?? "",
-    recordStatus,
-    developmentPhase,
-    limit: Number(url.searchParams.get("limit") ?? 50)
+  const [parts, productSeriesOptions] = await Promise.all([
+    listPartModuleRecordsAsync({
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      productSeries,
+      recordStatus,
+      developmentPhase,
+      limit: Number(url.searchParams.get("limit") ?? 50)
+    }),
+    listProductSeriesOptionsAsync(companyResult.company.companyId)
+  ]);
+
+  return NextResponse.json({
+    parts: redactPartListCosts(parts, canViewPartCostAmounts(auth)),
+    productSeriesOptions,
+    pdmCompany: companyResult.company
   });
-
-  return NextResponse.json({ parts: redactPartListCosts(parts, canViewPartCostAmounts(auth)), pdmCompany: companyResult.company });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

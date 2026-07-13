@@ -1,7 +1,7 @@
 # ADR-PDM-SUBMISSION-GATE-001 - 技術移轉包與例外政策
 
 Status: Accepted
-Date: 2026-07-07; amended 2026-07-10
+Date: 2026-07-07; amended 2026-07-10 and 2026-07-13
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
 Related DEV: `DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`; child `DEV-041` / `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
@@ -36,11 +36,20 @@ Adopt the following rules:
 18. Technical-transfer workbench, intake, mapping, BOM and baseline delivery is tracked as child delivery `DEV-041`; `DEV-005` remains complete for Phase 1 and parent submission-gate governance.
 19. Path preservation is not openability evidence. Before formal submit, a designated RD/CAD verifier must open the exact materialized candidate configuration on a real SolidWorks workstation and record the baseline/configuration hash, SolidWorks version, result, missing-file/reference result, actor and time. This gate does not require an Add-in.
 20. One transfer package may govern multiple top assemblies. Every governed top assembly is explicitly selected and must have complete configuration/readiness evidence.
+21. An approved package is terminal. A later design change creates a new delta package linked to prior current effective configuration(s), inherits unchanged controlled evidence and produces complete candidate configuration(s); it never reopens or mutates the approved package.
+22. A multi-top package is approved atomically. Every governed root passes or the package remains unapproved; different approval timing requires separate packages.
+23. The system proposes whether affected assemblies need a new assembly revision, but a permitted human selects `no_change`, `defer` or `update`. `已非最新版` is a lane-scoped configuration-alignment signal, not a master lifecycle status.
+24. Revision impact cannot cross lanes. Development decimal revisions evaluate only development configurations; formal integer revisions evaluate only formal configurations. A development upload cannot stale, renumber or update a formal released/effective configuration.
+25. Formal `defer` follows controlled option `1C`: only interchangeable/backward-compatible, non-critical, sufficiently evidenced changes may proceed, and only with R&D Manager reason, owner, due date, mandatory follow-up reference and exact old-revision availability. All other formal defer attempts block.
+26. Human-facing impact status is intentionally compressed. Verified `no_change` shows `不需進版`; internal deferred and in-progress states both show `已非最新版 / 待更新`. Internal distinctions remain only for workflow and audit.
+27. Assembly-impact suggestions use deterministic versioned pure rules only (`Q6 1A`). They record normalized input hash, matched rule IDs and reasons and make no AI/LLM/network call.
+28. Every formal-lane `no_change` requires R&D Manager approval after exact candidate and SolidWorks evidence (`Q7 2B`). Assembly-owner preparation alone cannot finalize the decision.
+29. Formal defer creates a canonical `transfer_follow_up` with owner and due time and projects it into the existing package workbench and task center (`Q8 3A`). The generic task is not canonical, no standalone page is added and the global no-due-date task policy is unchanged.
 
 Pending amendment decisions:
 
-- How a design-change package with a smaller scope derives a new complete effective configuration from an earlier approved baseline.
-- Whether a multi-top package is approved atomically or may be partially approved per top assembly.
+- None for local transfer-package product semantics.
+- Production/release execution remains separately gated.
 
 ## Options Considered
 
@@ -69,6 +78,24 @@ Pending amendment decisions:
 | Require real-machine open verification of the exact candidate configuration before submit, without requiring an Add-in | Accepted | Preserves a web-first intake while making CAD usability verifiable. |
 | Restrict every package to exactly one top assembly | Rejected | Does not fit cases where one transfer decision governs several related top assemblies. |
 | Allow multiple explicitly governed top assemblies in one package | Accepted | Supports project-level transfer while retaining root-level evidence. |
+| Reopen an approved package for a later design change | Rejected | Mutates the meaning of an already approved decision and weakens audit traceability. |
+| New delta package inheriting unchanged prior configuration evidence | Accepted | Lets one-part design changes remain small while producing complete reconstructable candidates. |
+| Partial approval of roots inside one multi-top package | Rejected | Creates ambiguous shared-part and sign-off states. Staged timing uses separate packages. |
+| Atomic multi-top package approval | Accepted | Keeps one package equal to one controlled approval decision. |
+| Automatically promote every impacted assembly revision | Rejected | Confuses impact detection with human engineering judgment and creates unnecessary revisions. |
+| System suggestion plus human `no_change` / `defer` / `update` decision | Accepted | Preserves automation value while assigning engineering accountability. |
+| Let development uploads stale formal configurations | Rejected | Breaks the development/formal baseline boundary. |
+| Lane-scoped impact and revision suggestion | Accepted | Development decimal and formal integer configurations remain independently governed. |
+| Allow every formal defer with only an outdated badge | Rejected | A status label cannot compensate for incompatible, critical or untraceable released configurations. |
+| Rule-gated formal defer with manager ownership and mandatory follow-up | Accepted | Preserves controlled flexibility without turning defer into a missing-data exception. |
+| Show separate normal badges for deferred and in-progress updates | Rejected | Adds human-visible state complexity without changing the user's next decision. |
+| One visible `已非最新版 / 待更新` badge backed by distinct internal workflow states | Accepted | Keeps the UI simple while preserving system control and audit. |
+| AI/LLM-first assembly-impact recommendation | Rejected | Adds opaque, non-reproducible behavior, external-data/cost questions and a second authority path. |
+| Deterministic versioned impact resolver | Accepted | Gives stable, explainable and testable suggestions while humans retain decisions. |
+| Let assembly owner finalize formal no-change | Rejected | Avoiding a formal parent revision requires explicit management accountability. |
+| Require R&D Manager approval for every formal no-change | Accepted | Creates one unambiguous formal responsibility gate. |
+| Add due dates to all generic tasks | Rejected | Unnecessarily changes the established no-due-date task policy. |
+| Canonical transfer follow-up projected into existing task center | Accepted | Tracks formal-defer deadlines without a new page or global task-policy change. |
 
 ## Consequences
 
@@ -85,7 +112,15 @@ Positive:
 - Opening or refreshing the creation surface does not create empty records.
 - DEV status separates completed Phase 1 evidence from future transfer-package delivery.
 - Formal submit now requires evidence that the exact resulting configuration, not merely the uploaded ZIP, opens in SolidWorks without missing references.
-- Multi-top packages require root-level completeness/readiness evidence and a pending decision on atomic versus partial approval.
+- Multi-top packages require root-level completeness/readiness evidence and approve atomically.
+- A one-part design change can remain a small delta package while the system materializes complete per-root candidates from immutable inherited evidence.
+- Development uploads cannot create false formal staleness.
+- Assembly revision impact becomes visible and auditable without forcing automatic parent revisions.
+- Compatible low-risk formal impacts may be deferred with explicit accountability; incompatible/critical/low-confidence impacts still fail closed.
+- RD sees only the decisions needed for work, while internal defer/in-progress states remain available to automation and audit.
+- Impact suggestions are reproducible and do not introduce AI provider, token, privacy or network dependencies.
+- Formal no-change has one accountable approver.
+- Formal defer remains visible in the existing task center while due-date ownership stays inside the transfer domain.
 
 Costs / tradeoffs:
 
@@ -96,6 +131,8 @@ Costs / tradeoffs:
 - Implementation must compute package item-set/readiness hashes and sign-off dependency hashes.
 - Implementation must create release work items without directly mutating master lifecycle records.
 - Baseline confirmation needs a concurrency-safe next-major allocator and immutable baseline item/file snapshots.
+- Implementation needs complete configuration snapshots, same-lane where-used impact records, human dispositions, alignment states and real-machine verification evidence.
+- Formal defer requires compatibility/criticality/confidence evidence, exact old-revision retrieval, manager approval, owner, due date and follow-up tracking.
 - The first workbench slice must add explicit create persistence and stable return context; a purely query-string placeholder no longer satisfies Phase 3A-0.
 
 ## Migration / Compatibility Impact
@@ -105,6 +142,8 @@ Costs / tradeoffs:
 - Additive schema is expected for transfer package scope declaration, exception review decisions and applicable sign-offs.
 - Additive schema is expected for idempotency keys, item-set/readiness hashes, sign-off dependency hashes and stale invalidation metadata.
 - Additive schema is expected for transfer-package baselines and baseline item/file snapshots. Baseline major is unique within a package and does not replace item revision fields.
+- Additive schema is expected for assembly revision impacts, configuration baselines/items, lane isolation, current effective pointers and SolidWorks verification evidence.
+- Additive schema is expected for deterministic rule evidence, formal no-change approval and canonical transfer follow-up/outbox/task-projection references.
 - Existing item revisions and master lifecycle values are not migrated, renumbered or synchronized by this amendment.
 - `ApprovedForTransfer` is compatible with existing release-master-status synchronization because formal release still goes through the existing release workflow.
 - Production migration, production deploy, direct data repair, historical backfill and release artifacts are not authorized by this ADR.

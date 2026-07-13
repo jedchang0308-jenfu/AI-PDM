@@ -18,14 +18,18 @@ const openPagePaths = [
   "/numbering/search",
   "/numbering/drawings",
   "/numbering/part-drafts",
+  "/settings/accounts",
   "/settings/account-invitations",
+  "/account-recovery",
   "/production-slice-blocked"
 ];
 
 const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
   { method: "POST", pattern: /^\/api\/auth\/login$/ },
   { method: "POST", pattern: /^\/api\/auth\/logout$/ },
-  { method: "POST", pattern: /^\/api\/account-invitations\/accept$/ }
+  { method: "POST", pattern: /^\/api\/account-invitations\/accept$/ },
+  { method: "POST", pattern: /^\/api\/account-recovery\/lookup$/ },
+  { method: "POST", pattern: /^\/api\/account-recovery\/complete$/ }
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
@@ -38,8 +42,14 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "PATCH", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+$/ },
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/void$/ },
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/recycle$/ },
+  { method: "PATCH", pattern: /^\/api\/numbering\/admin\/matrix$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/admin\/matrix$/ },
   { method: "POST", pattern: /^\/api\/admin\/account-invitations$/ },
-  { method: "PATCH", pattern: /^\/api\/admin\/account-invitations$/ }
+  { method: "PATCH", pattern: /^\/api\/admin\/account-invitations$/ },
+  { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/lifecycle$/ },
+  { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/sessions\/revoke$/ },
+  { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/identities\/[^/]+$/ },
+  { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/password-reset$/ }
 ];
 
 export function getProductionSliceState(env: EnvLike = process.env): ProductionSliceState {

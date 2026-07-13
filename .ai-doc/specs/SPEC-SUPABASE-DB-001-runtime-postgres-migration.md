@@ -1,12 +1,14 @@
 # SPEC-SUPABASE-DB-001: Supabase 正式資料庫 Runtime 遷移
 
-狀態：Draft  
+狀態：Superseded for staging/production by `SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002`; historical migration evidence only
 日期：2026-06-08  
 關聯任務：`DEV-SUPABASE-DB-001`  
 關聯前置任務：`DEV-IND-007`  
 產品：AI_PDM
 
 2026-06-29 PM consistency note: this spec was written before the approved `AI_PDM_STAGING` GATE-B execution. Current authoritative state is recorded in `.ai-doc/dev_task.md`: staging GATE-B passed with target identity, schema/RLS compare, migration history evidence, permission/rule seed repair, app API smoke, cleanup proof, and rollback proof. Production/cutover and full data parity remain unapproved and deferred.
+
+2026-07-13 supersession: the user later selected Cloud SQL PostgreSQL in Google Taiwan for staging/production. Read `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md` and `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md` before any execution. Supabase target instructions below are non-executable history.
 
 ## 1. 背景
 

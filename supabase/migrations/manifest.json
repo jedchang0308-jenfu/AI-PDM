@@ -21,8 +21,8 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "c23ebdb14cf1faffea9ac6c9977f399592293d1b2209b6f1c8a8f759ef3eff05",
-      "targetSha256": "8cb55018f04c2c09f0ad73fc9c81ae50fb64eae4820f5af860fc8544dff7f8e3"
+      "sourceSha256": "a2e7cfb8a5df1c4e0f9c1c8cf7ba539415e4be53de9f6f379df3649bcf999fee",
+      "targetSha256": "930d5049faebcf4e5c6dd76a7bd622ebeef196ab495c54e44406e1ee400f58c0"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
@@ -72,6 +72,13 @@
       "description": "Add ERP-ready platform mappings, command receipts, transactional outbox, and deny direct Data API access",
       "sourceSha256": "7b71c5c0d9c876a2853492f5e79124ba1de7c76e6908b36461d2c663dacc1d97",
       "targetSha256": "a8c3970bb88371150f30733f8ad6ab814ae0ee37daf7553b35e5cf5a829a44fd"
+    },
+    {
+      "source": "db/postgres/009_account_lifecycle.sql",
+      "target": "supabase/migrations/20260713010000_account_lifecycle.sql",
+      "description": "Add account lifecycle controls, session revocation cutoffs, and password recovery requests",
+      "sourceSha256": "ed52059d2aa64f2a632498e0339629e3172b136668cd5d70ab2fb7e9ca957d0a",
+      "targetSha256": "7951f4169fd5218cc606064450917ae98ef4f280d9d4ed0b057e57a34afaa8c7"
     }
   ]
 }

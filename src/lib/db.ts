@@ -327,6 +327,7 @@ let dbProvider: DatabaseProvider | null = null;
 
 function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
+  ensurePreSchemaCompatibility(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureCompanyScopeSchema(database);
@@ -352,6 +353,27 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   seedConfiguredUsers(database);
+}
+
+function ensurePreSchemaCompatibility(database: SqliteDatabase) {
+  const usersTable = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'")
+    .get() as { name?: string } | undefined;
+  if (!usersTable) return;
+
+  // Schema-level indexes are evaluated before the full compatibility pass below.
+  ensureColumn(
+    database,
+    "users",
+    "account_status",
+    "TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded'))"
+  );
+  ensureColumn(
+    database,
+    "users",
+    "system_role_enabled",
+    "INTEGER NOT NULL DEFAULT 1 CHECK (system_role_enabled IN (0, 1))"
+  );
 }
 
 function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {
@@ -485,6 +507,12 @@ function ensureAuthIdentitySchema(database: SqliteDatabase) {
     "account_status",
     "TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'expired', 'offboarded'))"
   );
+  ensureColumn(database, "users", "session_invalid_before", "TEXT");
+  ensureColumn(database, "users", "account_lifecycle_version", "INTEGER NOT NULL DEFAULT 1");
+  ensureColumn(database, "users", "system_role_enabled", "INTEGER NOT NULL DEFAULT 1 CHECK (system_role_enabled IN (0, 1))");
+  ensureColumn(database, "users", "account_status_changed_at", "TEXT");
+  ensureColumn(database, "users", "account_status_changed_by", "TEXT");
+  ensureColumn(database, "users", "account_status_reason", "TEXT");
   database.exec(`
     CREATE TABLE IF NOT EXISTS auth_identities (
       id TEXT PRIMARY KEY,
@@ -496,6 +524,7 @@ function ensureAuthIdentitySchema(database: SqliteDatabase) {
       verified_at TEXT,
       last_login_at TEXT,
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+      identity_lifecycle_version INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -506,6 +535,30 @@ function ensureAuthIdentitySchema(database: SqliteDatabase) {
       ON auth_identities(provider, login_identifier, status);
     CREATE INDEX IF NOT EXISTS idx_auth_identities_user
       ON auth_identities(user_id, status);
+    CREATE TABLE IF NOT EXISTS account_recovery_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      identity_id TEXT,
+      request_type TEXT NOT NULL DEFAULT 'admin_password_reset' CHECK (request_type IN ('admin_password_reset', 'account_recovery')),
+      token_hash TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'revoked', 'expired')),
+      created_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      used_by TEXT,
+      revoked_at TEXT,
+      revoked_by TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (identity_id) REFERENCES auth_identities(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (used_by) REFERENCES users(id),
+      FOREIGN KEY (revoked_by) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_account_status
+      ON users(account_status, system_role_enabled);
+    CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status
+      ON account_recovery_requests(user_id, status, expires_at);
     INSERT OR IGNORE INTO auth_identities (
       id, user_id, provider, provider_subject, login_identifier, email_normalized,
       verified_at, status, created_at, updated_at
@@ -524,6 +577,7 @@ function ensureAuthIdentitySchema(database: SqliteDatabase) {
     FROM users
     WHERE email IS NOT NULL AND password_hash IS NOT NULL;
   `);
+  ensureColumn(database, "auth_identities", "identity_lifecycle_version", "INTEGER NOT NULL DEFAULT 1");
 }
 
 const defaultCompanies = [

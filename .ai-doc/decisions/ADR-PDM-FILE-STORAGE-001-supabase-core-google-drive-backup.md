@@ -1,9 +1,13 @@
 # ADR-PDM-FILE-STORAGE-001: Supabase Core and Google Drive Backup Mirror
 
 Date: 2026-07-08
-Status: Accepted / Local RD Implementation Complete; Production Cutover Not Authorized
+Status: Historical local adapter decision; target architecture superseded on 2026-07-13
 Related DEV: `DEV-PDM-FILE-STORAGE-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`
+
+## 2026-07-13 Supersession
+
+`ADR-PDM-ERP-PLATFORM-002` replaces the unexecuted production target in this ADR: Google Cloud Storage in Taiwan is now the authoritative PDM binary store, Cloud SQL PostgreSQL in Taiwan is the metadata/transaction authority, and Google Shared Drive is limited to approved delivery/collaboration exports rather than an authoritative or disaster-recovery mirror. The completed provider-pointer, hash, manifest, migration-safety, fail-closed and local fallback evidence remains reusable. Supabase Storage and Drive backup behavior below is retained as historical implementation evidence, not as the current production target. GCS migration is a separate Phase 3B file-workflow release and does not block the official-numbering/draft slice. No file migration, provider switch, GCS resource creation or production release occurred in this amendment.
 
 ## Context
 
