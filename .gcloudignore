@@ -1,0 +1,19 @@
+.gcloudignore
+.git
+.gitignore
+.next
+.tmp
+tmp
+node_modules
+data
+output
+artifacts
+secrets
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite
+
+# DEV-046 forbids source-based production deployment. This file only keeps
+# accidental uploads small during later reviewed staging diagnostics.

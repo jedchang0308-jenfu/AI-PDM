@@ -45,7 +45,12 @@ export function searchPdmPolicy(query: string) {
 }
 
 function loadPolicyChunks(): PdmPolicyChunk[] {
-  const policyPath = path.join(process.cwd(), ...PDM_POLICY_SOURCE.split("/"));
+  const policyPath = path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    ".ai-doc",
+    "reference",
+    "pdm-management-policy-draft.md"
+  );
   try {
     const markdown = fs.readFileSync(policyPath, "utf8");
     const chunks = parsePolicyMarkdown(markdown);

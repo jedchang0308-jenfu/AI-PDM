@@ -101,8 +101,9 @@ const clientBoundaryViolations = [];
 for (const absolute of sourceFiles(path.join(root, "src"))) {
   const source = fs.readFileSync(absolute, "utf8");
   if (!/^\s*["']use client["'];/mu.test(source)) continue;
+  const runtimeImports = [...source.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+["']([^"']+)["'];?/gu)].map((match) => match[1]);
   for (const restricted of restrictedClientImports) {
-    if (source.includes(`from "${restricted}`) || source.includes(`from '${restricted}`)) {
+    if (runtimeImports.some((importPath) => importPath === restricted || importPath.startsWith(restricted))) {
       clientBoundaryViolations.push(`${path.relative(root, absolute)} -> ${restricted}`);
     }
   }

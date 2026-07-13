@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.11.0 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:server": "next dev --hostname 127.0.0.1 --port 3000",
@@ -165,6 +169,12 @@
     "qc:pdm-account-lifecycle": "node scripts/qc-pdm-account-lifecycle.mjs",
     "qc:pdm-google-identity": "node scripts/qc-pdm-google-identity.mjs",
     "qc:pdm-erp-module-foundation": "node scripts/qc-pdm-erp-module-foundation.mjs",
+    "qc:dev-046-phase1a": "node scripts/qc-dev-046-phase1a-runtime.mjs",
+    "qc:dev-046-phase1b": "node --experimental-strip-types scripts/qc-dev-046-phase1b-identity.mjs",
+    "qc:dev-046-phase1c": "node --experimental-strip-types scripts/qc-dev-046-phase1c-cloud-sql.mjs",
+    "qc:dev-046-phase1d": "node --experimental-transform-types scripts/qc-dev-046-phase1d-storage-continuity.mjs",
+    "qc:dev-046-phase1e": "node --experimental-strip-types scripts/qc-dev-046-phase1e-governance.mjs",
+    "qc:dev-046-phase1": "npm run qc:dev-046-phase1a && npm run qc:dev-046-phase1b && npm run qc:dev-046-phase1c && npm run qc:dev-046-phase1d && npm run qc:dev-046-phase1e",
     "pdm:platform-mapping:dry-run": "node scripts/generate-pdm-platform-mapping-dry-run.mjs",
     "pdm:platform-mapping:apply-local": "node scripts/generate-pdm-platform-mapping-dry-run.mjs --apply --confirm-local-platform-mapping",
     "qc:pdm-auth-persistent-session": "node scripts/qc-pdm-auth-persistent-session.mjs",

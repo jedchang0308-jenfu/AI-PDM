@@ -1,7 +1,7 @@
 # QA PDM Google Cloud SQL Platform Validation Plan
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; Phase 1 QA contract ready / Not Requested; live staging/production provider/release gated
+Status: `HD-8-1..4` closed; Phase 1A-1E locally QC-accepted on 2026-07-13; live staging/production provider/release gated
 DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 ADR: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 SPEC: `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
@@ -149,6 +149,8 @@ Existing Supabase QC may run only as disposable compatibility/migration evidence
 - Fake-provider contract tests, new-production-ID manifest/collision scanner, Cloud SQL config/grant static checks, auth/session controls, GCS interfaces/fail-closed fakes and numbering-ledger fixtures pass.
 - Next.js 16/container/Cloud Run/ALB/cache-policy support and immutable-promotion tests, no-Firestore/no-Firebase-Storage/no-Functions/no-Callable/no-Firestore-trigger/portable-BFF scans, capacity formula, singleton migration, clean-seed/archive, business-hours/60-minute-primary+backup calculation, full location-inventory and cost-policy tests pass.
 - No live provider call or credential exists.
+
+Execution result: accepted for the Phase 1 local boundary on 2026-07-13. `qc:dev-046-phase1` passed 86/86 focused assertions; Docker production build and non-root standalone start passed; Playwright completed demo login and reached the authenticated workbench. See `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase1-report-2026-07-13.md`. This result does not credit any Phase 2 or production evidence.
 
 ### Phase 2 staging
 

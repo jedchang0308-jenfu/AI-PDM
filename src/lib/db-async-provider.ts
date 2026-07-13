@@ -1,8 +1,10 @@
 import type { SqliteDatabase } from "@/lib/db-provider";
 import { getDb } from "@/lib/db";
+import { resolveCloudSqlRuntimeConfig } from "@/lib/cloud-sql-contract";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 export type AsyncDatabaseProviderKind = "sqlite" | "postgres";
+type RuntimeAsyncDatabaseProviderKind = AsyncDatabaseProviderKind | "cloud_sql_postgres";
 export type AsyncDatabaseQueryParams = readonly unknown[] | Record<string, unknown>;
 
 export interface AsyncDatabaseClient {
@@ -24,6 +26,22 @@ export type CreateAsyncDatabaseClientInput =
       connectionString?: string;
       poolerMode?: string;
       maxConnections?: number;
+      connectionTimeoutMillis?: number;
+      idleTimeoutMillis?: number;
+      statementTimeoutMillis?: number;
+      queryTimeoutMillis?: number;
+    }
+  | {
+      kind: "cloud_sql_postgres";
+      host: "127.0.0.1";
+      port: number;
+      database: string;
+      user: string;
+      maxConnections: number;
+      connectionTimeoutMillis: number;
+      idleTimeoutMillis: number;
+      statementTimeoutMillis: number;
+      queryTimeoutMillis: number;
     };
 
 function bindAll<T>(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): T[] {
@@ -166,15 +184,35 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
   readonly kind = "postgres";
   private readonly pool: Pool;
 
-  constructor(input: Extract<CreateAsyncDatabaseClientInput, { kind: "postgres" }>) {
-    const connectionString = input.connectionString?.trim();
-    if (!connectionString) {
-      throw new Error("POSTGRES_CONNECTION_STRING_REQUIRED");
+  constructor(input: Extract<CreateAsyncDatabaseClientInput, { kind: "postgres" | "cloud_sql_postgres" }>) {
+    if (input.kind === "postgres") {
+      const connectionString = input.connectionString?.trim();
+      if (!connectionString) throw new Error("POSTGRES_CONNECTION_STRING_REQUIRED");
+      this.pool = new Pool({
+        connectionString,
+        max: input.maxConnections ?? 5,
+        connectionTimeoutMillis: input.connectionTimeoutMillis ?? 10_000,
+        idleTimeoutMillis: input.idleTimeoutMillis ?? 600_000,
+        statement_timeout: input.statementTimeoutMillis ?? 30_000,
+        query_timeout: input.queryTimeoutMillis ?? 35_000
+      });
+      return;
     }
 
+    if (input.host !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
     this.pool = new Pool({
-      connectionString,
-      max: input.maxConnections ?? 5
+      host: input.host,
+      port: input.port,
+      database: input.database,
+      user: input.user,
+      password: undefined,
+      ssl: false,
+      max: input.maxConnections,
+      connectionTimeoutMillis: input.connectionTimeoutMillis,
+      idleTimeoutMillis: input.idleTimeoutMillis,
+      statement_timeout: input.statementTimeoutMillis,
+      query_timeout: input.queryTimeoutMillis,
+      application_name: "ai-pdm-cloud-run"
     });
   }
 
@@ -223,9 +261,9 @@ export function createAsyncDatabaseClient(input: CreateAsyncDatabaseClientInput)
 let runtimeClient: AsyncDatabaseClient | null = null;
 let runtimeClientSignature = "";
 
-function normalizeRuntimeProviderKind(provider: string | undefined): AsyncDatabaseProviderKind {
+function normalizeRuntimeProviderKind(provider: string | undefined): RuntimeAsyncDatabaseProviderKind {
   const normalized = (provider ?? "sqlite").trim().toLowerCase();
-  if (normalized === "sqlite" || normalized === "postgres") return normalized;
+  if (normalized === "sqlite" || normalized === "postgres" || normalized === "cloud_sql_postgres") return normalized;
   throw new Error(`UNSUPPORTED_ASYNC_DB_PROVIDER: ${normalized}`);
 }
 
@@ -239,8 +277,19 @@ function parseMaxConnections(value: string | undefined): number | undefined {
   return parsed;
 }
 
-function getRuntimeClientSignature(kind: AsyncDatabaseProviderKind) {
+function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
   if (kind === "sqlite") return "sqlite";
+  if (kind === "cloud_sql_postgres") {
+    return [
+      kind,
+      process.env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME?.trim() ?? "",
+      process.env.PDM_CLOUD_SQL_HOST?.trim() ?? "",
+      process.env.PDM_CLOUD_SQL_PORT?.trim() ?? "",
+      process.env.PDM_CLOUD_SQL_DATABASE?.trim() ?? "",
+      process.env.PDM_CLOUD_SQL_USER?.trim() ?? "",
+      process.env.PDM_CLOUD_SQL_POOL_MAX?.trim() ?? ""
+    ].join("|");
+  }
   return [
     "postgres",
     process.env.PDM_POSTGRES_URL?.trim() ?? "",
@@ -254,19 +303,18 @@ export function getAsyncDatabaseClient(): AsyncDatabaseClient {
   const signature = getRuntimeClientSignature(kind);
   if (runtimeClient && runtimeClientSignature === signature) return runtimeClient;
 
-  runtimeClient = createAsyncDatabaseClient(
-    kind === "sqlite"
-      ? {
-          kind,
-          database: getDb()
-        }
-      : {
-          kind,
-          connectionString: process.env.PDM_POSTGRES_URL,
-          poolerMode: process.env.PDM_POSTGRES_POOLER_MODE,
-          maxConnections: parseMaxConnections(process.env.PDM_POSTGRES_MAX_CONNECTIONS)
-        }
-  );
+  if (kind === "sqlite") {
+    runtimeClient = createAsyncDatabaseClient({ kind, database: getDb() });
+  } else if (kind === "cloud_sql_postgres") {
+    runtimeClient = createAsyncDatabaseClient(resolveCloudSqlRuntimeConfig());
+  } else {
+    runtimeClient = createAsyncDatabaseClient({
+      kind,
+      connectionString: process.env.PDM_POSTGRES_URL,
+      poolerMode: process.env.PDM_POSTGRES_POOLER_MODE,
+      maxConnections: parseMaxConnections(process.env.PDM_POSTGRES_MAX_CONNECTIONS)
+    });
+  }
   runtimeClientSignature = signature;
   return runtimeClient;
 }

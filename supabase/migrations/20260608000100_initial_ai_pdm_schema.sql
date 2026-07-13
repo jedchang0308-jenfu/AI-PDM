@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: a2e7cfb8a5df1c4e0f9c1c8cf7ba539415e4be53de9f6f379df3649bcf999fee
+-- Source SHA-256: 66b41c21143959fa64a9df8065a1bf55427fcffff943c00469bfde05804c6507
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -67,9 +67,12 @@ CREATE TABLE IF NOT EXISTS roles (
 
 CREATE TABLE IF NOT EXISTS file_assets (
   id TEXT PRIMARY KEY,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage', 'external')),
   original_path TEXT,
+  storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   file_name TEXT NOT NULL,
   file_ext TEXT NOT NULL DEFAULT '',
   mime_type TEXT,
@@ -147,6 +150,21 @@ CREATE TABLE IF NOT EXISTS numbering_sequences (
   FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
+CREATE TABLE IF NOT EXISTS numbering_recovery_reservations (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  number_kind TEXT NOT NULL CHECK (number_kind IN ('root', 'drawing', 'part')),
+  number_value TEXT NOT NULL,
+  reservation_reason TEXT NOT NULL CHECK (reservation_reason IN ('source_archive', 'restored_ledger', 'communicated_number', 'manual_hold')),
+  source_archive_ref TEXT NOT NULL,
+  ledger_entry_hash TEXT NOT NULL CHECK (length(ledger_entry_hash) = 64),
+  reservation_status TEXT NOT NULL DEFAULT 'reserved' CHECK (reservation_status IN ('reserved', 'reconciled')),
+  reserved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reconciled_at TIMESTAMPTZ,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  UNIQUE (company_id, number_kind, number_value)
+);
+
 CREATE TABLE IF NOT EXISTS role_permissions (
   id TEXT PRIMARY KEY,
   role_id TEXT NOT NULL,
@@ -157,6 +175,15 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
   UNIQUE (role_id, permission_kind, permission_code)
+);
+
+CREATE TABLE IF NOT EXISTS transfer_package_counters (
+  company_id TEXT NOT NULL,
+  counter_year INTEGER NOT NULL CHECK (counter_year >= 2000),
+  next_value INTEGER NOT NULL CHECK (next_value >= 1),
+  updated_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (company_id, counter_year),
+  FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
 CREATE TABLE IF NOT EXISTS auth_identities (
@@ -195,27 +222,6 @@ CREATE TABLE IF NOT EXISTS account_invitations (
   FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (invited_by) REFERENCES users(id),
   FOREIGN KEY (accepted_by) REFERENCES users(id),
-  FOREIGN KEY (revoked_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS account_recovery_requests (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  identity_id TEXT,
-  request_type TEXT NOT NULL DEFAULT 'admin_password_reset' CHECK (request_type IN ('admin_password_reset', 'account_recovery')),
-  token_hash TEXT NOT NULL UNIQUE,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'revoked', 'expired')),
-  created_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  used_at TIMESTAMPTZ,
-  used_by TEXT,
-  revoked_at TIMESTAMPTZ,
-  revoked_by TEXT,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (identity_id) REFERENCES auth_identities(id) ON DELETE SET NULL,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (used_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
 
@@ -643,6 +649,65 @@ CREATE TABLE IF NOT EXISTS llm_conversations (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS transfer_packages (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  case_type TEXT NOT NULL CHECK (case_type IN ('development_case', 'design_change_case')),
+  case_reason TEXT NOT NULL,
+  source_reference_status TEXT NOT NULL DEFAULT 'not_available'
+    CHECK (source_reference_status IN ('provided', 'not_available')),
+  source_reference TEXT,
+  source_reference_reason TEXT,
+  package_status TEXT NOT NULL DEFAULT 'Draft'
+    CHECK (package_status IN ('Draft', 'Cancelled')),
+  owner_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  create_idempotency_key TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  cancel_reason TEXT,
+  cancelled_by TEXT,
+  cancelled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (owner_id) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (cancelled_by) REFERENCES users(id),
+  UNIQUE (company_id, package_code),
+  UNIQUE (company_id, created_by, create_idempotency_key),
+  CHECK (
+    (source_reference_status = 'provided' AND source_reference IS NOT NULL)
+    OR (source_reference_status = 'not_available' AND source_reference_reason IS NOT NULL)
+  ),
+  CHECK (
+    (package_status = 'Cancelled' AND cancel_reason IS NOT NULL AND cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL)
+    OR package_status = 'Draft'
+  )
+);
+
+CREATE TABLE IF NOT EXISTS account_recovery_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  identity_id TEXT,
+  request_type TEXT NOT NULL DEFAULT 'admin_password_reset' CHECK (request_type IN ('admin_password_reset', 'account_recovery')),
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'revoked', 'expired')),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  used_by TEXT,
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (identity_id) REFERENCES auth_identities(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (used_by) REFERENCES users(id),
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS setting_test_runs (
   id TEXT PRIMARY KEY,
   secret_reference_id TEXT NOT NULL,
@@ -677,9 +742,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   gdrive_file_id TEXT,
   gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed', 'moved')),
   sha256 TEXT NOT NULL,
@@ -772,9 +839,11 @@ CREATE TABLE IF NOT EXISTS release_packages (
   submission_id TEXT NOT NULL UNIQUE,
   package_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   sha256 TEXT NOT NULL,
   file_size BIGINT NOT NULL,
   manifest_json JSONB NOT NULL,
@@ -1105,8 +1174,11 @@ CREATE TABLE IF NOT EXISTS file_derivatives (
   source_file_asset_id TEXT NOT NULL,
   source_content_hash TEXT NOT NULL,
   derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage', 'external')),
+  storage_bucket TEXT,
   storage_key TEXT NOT NULL,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   original_path TEXT,
   file_name TEXT NOT NULL,
   mime_type TEXT NOT NULL,
@@ -1157,6 +1229,37 @@ CREATE TABLE IF NOT EXISTS llm_messages (
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (conversation_id) REFERENCES llm_conversations(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS transfer_package_items (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing_number', 'part_number')),
+  entity_id TEXT NOT NULL,
+  entity_code TEXT NOT NULL,
+  display_label TEXT NOT NULL,
+  root_code TEXT,
+  record_status TEXT,
+  added_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+  FOREIGN KEY (added_by) REFERENCES users(id),
+  UNIQUE (package_id, entity_type, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS transfer_package_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('DraftCreated', 'HeaderUpdated', 'ScopeItemAdded', 'ScopeItemRemoved', 'PackageCancelled')),
+  actor_id TEXT NOT NULL,
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+  FOREIGN KEY (actor_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS file_references (
@@ -1908,10 +2011,6 @@ CREATE INDEX IF NOT EXISTS idx_auth_identities_login
   ON auth_identities(provider, login_identifier, status);
 CREATE INDEX IF NOT EXISTS idx_auth_identities_user
   ON auth_identities(user_id, status);
-CREATE INDEX IF NOT EXISTS idx_users_account_status
-  ON users(account_status, system_role_enabled);
-CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status
-  ON account_recovery_requests(user_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_platform_principal_mappings_pdm_user
   ON platform_principal_mappings(pdm_user_id, mapping_status);
 CREATE INDEX IF NOT EXISTS idx_platform_organization_mappings_company
@@ -2045,6 +2144,8 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role
 CREATE INDEX IF NOT EXISTS idx_role_scope_rules_role_kind ON role_scope_rules(role_id, scope_kind);
 CREATE INDEX IF NOT EXISTS idx_user_role_assignments_user_active ON user_role_assignments(user_id, revoked_at);
 CREATE INDEX IF NOT EXISTS idx_account_invitations_status_expires ON account_invitations(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_users_account_status ON users(account_status, system_role_enabled);
+CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status ON account_recovery_requests(user_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
 CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
@@ -2054,6 +2155,16 @@ CREATE INDEX IF NOT EXISTS idx_preview_jobs_claim ON preview_jobs(status, priori
 CREATE INDEX IF NOT EXISTS idx_file_derivatives_source_status
   ON file_derivatives(source_file_asset_id, source_content_hash, derivative_kind, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_file_derivatives_preview_job ON file_derivatives(preview_job_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_packages_company_status_updated
+  ON transfer_packages(company_id, package_status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transfer_packages_owner_status
+  ON transfer_packages(company_id, owner_id, package_status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_items_package
+  ON transfer_package_items(company_id, package_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_items_entity
+  ON transfer_package_items(company_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_events_package
+  ON transfer_package_events(company_id, package_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_numbering_export_jobs_generated ON numbering_export_jobs(export_mode, generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monthly_audit_reports_month ON monthly_audit_reports(report_type, report_month);
 
@@ -2113,6 +2224,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_role_permissions_updated_at ON role_permissions;
 CREATE TRIGGER trg_role_permissions_updated_at
 BEFORE UPDATE ON role_permissions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_transfer_package_counters_updated_at ON transfer_package_counters;
+CREATE TRIGGER trg_transfer_package_counters_updated_at
+BEFORE UPDATE ON transfer_package_counters
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_auth_identities_updated_at ON auth_identities;
@@ -2188,6 +2304,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_llm_conversations_updated_at ON llm_conversations;
 CREATE TRIGGER trg_llm_conversations_updated_at
 BEFORE UPDATE ON llm_conversations
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_transfer_packages_updated_at ON transfer_packages;
+CREATE TRIGGER trg_transfer_packages_updated_at
+BEFORE UPDATE ON transfer_packages
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_submission_attempts_updated_at ON submission_attempts;

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-07-13",
+  "productionPolicy": "supported-lts-only",
+  "next": {
+    "version": "16.2.6",
+    "updatePolicy": "exact-version-lockfile-and-focused-regression"
+  },
+  "node": {
+    "major": 24,
+    "minimum": "24.11.0",
+    "containerVersion": "24.17.0",
+    "releaseLine": "Krypton LTS",
+    "scheduledEndOfLife": "2028-04-30"
+  },
+  "container": {
+    "platform": "linux/amd64",
+    "baseImage": "node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532",
+    "nextOutput": "standalone",
+    "runsAsRoot": false,
+    "listensOn": "0.0.0.0:$PORT"
+  },
+  "reviewCadenceDays": 30,
+  "rejectWhen": [
+    "node-release-line-is-eol",
+    "next-version-does-not-match-package-lock",
+    "base-image-is-not-digest-pinned",
+    "linux-amd64-manifest-is-missing",
+    "support-review-is-older-than-30-days-at-release"
+  ]
+}

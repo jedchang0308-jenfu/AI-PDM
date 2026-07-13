@@ -1,7 +1,7 @@
 # SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002 - Five-year Google Cloud ERP platform and ontology roadmap
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; Phase 1A-1E RD Implementation Ready / Not Requested; Phase 2-6 provider/release gated
+Status: `HD-8-1..4` closed; Phase 1A-1E implemented and locally QC-accepted on 2026-07-13; Phase 2-6 provider/release gated
 DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Authority: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`
@@ -230,28 +230,30 @@ Ontology/event version-one contract:
 - [x] Close `HD-8-1 / 1A`, `HD-8-2 / 2A` and `HD-8-3 / 3B`; record Cloud Run/Next.js 16, 60-minute primary+backup response and non-Google Wave 1.
 - [x] Close `HD-8-4 / 1A`: defer full PDM/GCS/offline restore; require automated backups/PITR and one isolated Cloud SQL restore with numbering-ledger reconciliation before canary.
 
-### Phase 1 - Local contracts and adapters (RD Implementation Ready / Not Requested)
+### Phase 1 - Local contracts and adapters (implemented / local QC accepted 2026-07-13)
 
-- [ ] Rename active provider contracts from Supabase-specific to operational PostgreSQL/Cloud SQL without deleting historical migration evidence.
-- [ ] Add Cloud SQL connector configuration contract, `pdm_runtime` grant manifest and bounded-pool validation using local/test doubles only.
-- [ ] Add a production Docker/standalone Next.js 16 contract, supported Node LTS pin, Cloud Run `asia-east1` service configuration and external Application Load Balancer/serverless-NEG/custom-domain contract; preserve current UI/API behavior through build/start/browser regression.
-- [ ] Add Cloud Run/Cloud SQL capacity validator for effective maximum instances/concurrency, `poolMax`, `migrationAdminReserve`, `max_connections`, timeout and saturation thresholds.
-- [ ] Add Next.js/Node/container support-policy matrix, immutable-image/manual-traffic-promotion and base-image/update-policy checks according to `HD-8-1 / 1A`; reject source-push production deployment.
-- [ ] Add cache-policy tests proving Cloud CDN only caches reviewed public immutable assets and never caches authenticated HTML, API, cookie or session-sensitive responses.
-- [ ] Add a singleton migration-runner contract with advisory-lock/checksum/version tests and a scanner that rejects app-start DDL.
-- [ ] Under `DEV-046`, implement Firebase BFF session v2, signing-key rotation, AAL/TOTP/replay controls and deny-first offboarding saga behind provider interfaces; `DEV-045` owns account-console/self-service UX, not shared session-core ownership.
-- [ ] Implement account reprovision manifest validator, duplicate-email/stable-ID collision report and legacy-login closure scanner.
-- [ ] Implement Firebase email-link invitation/password-link setup-state and orphan compensation using fake provider adapters.
-- [ ] Define GCS upload intent/finalize/quarantine/export interfaces, additive pointer schema, fake adapters and fail-closed tests only; the live direct-GCS adapter/integration belongs to Phase 3B and does not block Phase 3A numbering/drafts.
-- [ ] Implement signed numbering-ledger and recovery-reservation fixtures.
-- [ ] Add observability fields for request, actor, company, command, DB instance, storage object and provider operation without logging secrets/PII payloads.
-- [ ] Add a machine-readable data-location/retention inventory schema covering identity, DB, files, backups, runtime, builds/images, logs, secrets/keys and exports.
-- [ ] Add cost-forecast/budget-policy templates with owner, monthly assumption, 50/80/100 alert recipients and variance escalation.
-- [ ] Add a clean-production seed manifest and read-only archive validator according to `HD-7-2 / 2B`; only newly created production user IDs, minimum company/role/configuration, numbering sequence and non-reusable reservations are accepted. Source actor IDs/history remain unchanged in the source archive and are never auto-linked by email.
-- [ ] Add Monday-Friday 08:00-17:00 `Asia/Taipei` calendar/holiday, incident timestamp and RPO/RTO calculation schema; add internal primary+backup roster, 60-minute all-hours acknowledgement timer and containment checklist according to `HD-8-2 / 2A`.
-- [ ] Add dependency/config/bundle scanners that reject Firestore, Firebase Storage, Firebase Functions, Callable Functions and Firestore-trigger business paths; allow Firebase client use only for authentication bootstrap.
-- [ ] Add architecture tests proving all formal business/operational repositories use Cloud SQL, enabled formal-file repositories use direct GCS, and routes/middleware/Server Actions are thin transport adapters over portable HTTP/BFF domain services rather than business-logic owners.
-- [ ] Keep all live Google credentials, resources, billing and DNS out of Phase 1.
+- [x] Rename active provider contracts from Supabase-specific to operational PostgreSQL/Cloud SQL without deleting historical migration evidence.
+- [x] Add Cloud SQL connector configuration contract, `pdm_runtime` grant manifest and bounded-pool validation using local/test doubles only.
+- [x] Add a production Docker/standalone Next.js 16 contract, supported Node LTS pin, Cloud Run `asia-east1` service configuration and external Application Load Balancer/serverless-NEG/custom-domain contract; preserve current UI/API behavior through build/start/browser regression.
+- [x] Add Cloud Run/Cloud SQL capacity validator for effective maximum instances/concurrency, `poolMax`, `migrationAdminReserve`, `max_connections`, timeout and saturation thresholds.
+- [x] Add Next.js/Node/container support-policy matrix, immutable-image/manual-traffic-promotion and base-image/update-policy checks according to `HD-8-1 / 1A`; reject source-push production deployment.
+- [x] Add cache-policy tests proving Cloud CDN only caches reviewed public immutable assets and never caches authenticated HTML, API, cookie or session-sensitive responses.
+- [x] Add a singleton migration-runner contract with advisory-lock/checksum/version tests and a scanner that rejects app-start DDL.
+- [x] Under `DEV-046`, implement Firebase BFF session v2, signing-key rotation, AAL/TOTP/replay controls and deny-first offboarding saga behind provider interfaces; `DEV-045` owns account-console/self-service UX, not shared session-core ownership.
+- [x] Implement account reprovision manifest validator, duplicate-email/stable-ID collision report and legacy-login closure scanner.
+- [x] Implement Firebase email-link invitation/password-link setup-state and orphan compensation using fake provider adapters.
+- [x] Define GCS upload intent/finalize/quarantine/export interfaces, additive pointer schema, fake adapters and fail-closed tests only; the live direct-GCS adapter/integration belongs to Phase 3B and does not block Phase 3A numbering/drafts.
+- [x] Implement signed numbering-ledger and recovery-reservation fixtures.
+- [x] Add observability fields for request, actor, company, command, DB instance, storage object and provider operation without logging secrets/PII payloads.
+- [x] Add a machine-readable data-location/retention inventory schema covering identity, DB, files, backups, runtime, builds/images, logs, secrets/keys and exports.
+- [x] Add cost-forecast/budget-policy templates with owner, monthly assumption, 50/80/100 alert recipients and variance escalation.
+- [x] Add a clean-production seed manifest and read-only archive validator according to `HD-7-2 / 2B`; only newly created production user IDs, minimum company/role/configuration, numbering sequence and non-reusable reservations are accepted. Source actor IDs/history remain unchanged in the source archive and are never auto-linked by email.
+- [x] Add Monday-Friday 08:00-17:00 `Asia/Taipei` calendar/holiday, incident timestamp and RPO/RTO calculation schema; add internal primary+backup roster, 60-minute all-hours acknowledgement timer and containment checklist according to `HD-8-2 / 2A`.
+- [x] Add dependency/config/bundle scanners that reject Firestore, Firebase Storage, Firebase Functions, Callable Functions and Firestore-trigger business paths; allow Firebase client use only for authentication bootstrap.
+- [x] Add architecture tests proving all formal business/operational repositories use Cloud SQL, enabled formal-file repositories use direct GCS, and routes/middleware/Server Actions are thin transport adapters over portable HTTP/BFF domain services rather than business-logic owners.
+- [x] Keep all live Google credentials, resources, billing and DNS out of Phase 1.
+
+Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase1-implementation-2026-07-13.md` and `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase1-report-2026-07-13.md`. These checks do not satisfy staging, live-provider, backup/restore drill, cost-owner, privacy-notice, deployment or canary gates.
 
 ### Phase 2 - Isolated staging
 
@@ -320,11 +322,11 @@ Ontology/event version-one contract:
 
 | Slice | Status and execution boundary | Entry | Acceptance | Required evidence |
 |---|---|---|---|---|
-| Phase 1A runtime foundation | RD Implementation Ready / Not Requested; local only | explicit implementation request; no live credentials | Next.js 16/Node/container support agrees; Cloud Run/ALB/cache config static checks, migration regression, immutable manual promotion, no build-time private DB dependency and secret scan pass | Docker/config diff, support-policy check, build/start/browser regression, cache/rollout-policy tests |
-| Phase 1B identity/BFF | RD Implementation Ready / Not Requested; local fakes only | explicit implementation request; provider interfaces intact | issuer/audience/revocation, eight-hour session, key rotation, TOTP, invitation, offboarding and stable-ID collision tests pass | focused auth QC and redacted mapping fixtures |
-| Phase 1C database/migrations | RD Implementation Ready / Not Requested; local/disposable PostgreSQL only | explicit implementation request | least privilege, no browser DB path, bounded pool, singleton checksum migration and atomic command/audit/outbox pass | schema/grant diff, disposable DB receipts, concurrency tests |
-| Phase 1D storage/continuity | RD Implementation Ready / Not Requested; interfaces/fakes only | explicit implementation request | file interfaces/fail-closed state tests, signed ledger and recovery-reservation fixtures pass; no live adapter required | storage contract tests, hash/generation fixtures, restore-reconciliation simulation |
-| Phase 1E governance | RD Implementation Ready / Not Requested; local only | explicit implementation request | clean-seed/archive validator, new production-ID proof, official-number reservations, service inventory, business-hours calculation, 60-minute primary+backup response fixtures, portable-boundary scanners and cost templates fail closed | schema fixtures and policy QC |
+| Phase 1A runtime foundation | Implemented / local QC accepted; no live credentials | explicit implementation request satisfied | Next.js 16/Node/container support agrees; Cloud Run/ALB/cache config static checks, migration regression, immutable manual promotion, no build-time private DB dependency and secret scan pass | Docker/config diff, support-policy check, build/start/browser regression, cache/rollout-policy tests |
+| Phase 1B identity/BFF | Implemented / local fake-provider QC accepted | provider interfaces intact | issuer/audience/revocation, eight-hour session, key rotation, TOTP, invitation, offboarding and stable-ID collision tests pass | focused auth QC and redacted mapping fixtures |
+| Phase 1C database/migrations | Implemented / local contract QC accepted; no live Cloud SQL | local/test-double boundary | least privilege, no browser DB path, bounded pool, singleton checksum migration and atomic command/audit/outbox pass | schema/grant diff, generated migration trace and concurrency tests |
+| Phase 1D storage/continuity | Implemented / interfaces and fakes only | no live GCS adapter | file interfaces/fail-closed state tests, signed ledger and recovery-reservation fixtures pass; no live adapter required | storage contract tests, hash/generation fixtures, restore-reconciliation simulation |
+| Phase 1E governance | Implemented / local QC accepted | templates remain non-release evidence | clean-seed/archive validator, new production-ID proof, official-number reservations, service inventory, business-hours calculation, 60-minute primary+backup response fixtures, portable-boundary scanners and cost templates fail closed | schema fixtures and policy QC |
 | Phase 2 staging | RD Contract Ready; provider/cost/credential/privacy blocked | Phase 1 accepted, named owners, billing/project/domain/credentials | Cloud Run/ALB/cache, both IAM paths, Cloud SQL, no-Firebase-data/storage/functions, `HD-8-4 / 1A` restore contract, load, location, cost and failure gates pass; file APIs remain closed | immutable staging evidence package; GCS integration evidence may wait for Phase 3B |
 | Phase 3A.0 canary | RD Contract Ready; release gate required | Phase 1/2 accepted, pre-canary isolated restore/reconciliation passed, release instruction, target/data/account manifests, support roster | named Google Workspace 3-5 users only; official numbering/drafts only; required restore/smoke/rollback pass | signed pre-deploy, isolated-restore, deploy, smoke, rollback-readiness and canary evidence |
 | Phase 3A.1 waves | RD Contract Ready; external field evidence required | healthy canary and `DEV-FIELD-001` package | five-business-day gates; no open P0; every P1 dispositioned; signed expansion | field report, audit screenshots/logs, issue register, go/no-go |

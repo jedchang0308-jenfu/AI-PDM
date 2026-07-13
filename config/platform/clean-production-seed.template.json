@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "fixtureOnly": true,
+  "releaseReady": false,
+  "sameEmailAutoLinkAllowed": false,
+  "sourceArchive": {
+    "readOnly": true,
+    "sourceActorIdsPreserved": true,
+    "owner": "jenfu-source-archive-owner",
+    "inventorySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "legacyIdentityIds": [
+    "legacy-user-jedchang0308"
+  ],
+  "users": [
+    {
+      "id": "prod-pdm-user-admin-001",
+      "firebaseUid": "prod-firebase-user-admin-001",
+      "email": "jedchang0308@jenfu.com.tw",
+      "role": "Admin",
+      "companyId": "company-jenfu",
+      "credentialBootstrap": "google-federation"
+    }
+  ],
+  "companies": [
+    { "id": "company-jenfu", "name": "Jenfu Machinery" }
+  ],
+  "roles": [
+    { "code": "admin", "minimum": true },
+    { "code": "rd_engineer", "minimum": true }
+  ],
+  "configuration": [
+    { "key": "production_slice_mode", "value": "official-numbering-draft" }
+  ],
+  "numberingSequences": [
+    { "companyId": "company-jenfu", "sequenceKey": "root", "nextValue": 1 }
+  ],
+  "historicalOfficialNumbers": [
+    { "companyId": "company-jenfu", "numberKind": "drawing", "numberValue": "A0001-M01" }
+  ],
+  "numberingRecoveryReservations": [
+    {
+      "companyId": "company-jenfu",
+      "numberKind": "drawing",
+      "numberValue": "A0001-M01",
+      "sourceArchiveRef": "source-archive://numbering/A0001-M01",
+      "ledgerEntryHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "excludedRows": {
+    "businessRows": [],
+    "draftRows": [],
+    "demoRows": [],
+    "testRows": [],
+    "historicalAuditRows": [],
+    "credentials": [],
+    "sessions": []
+  }
+}

@@ -36,9 +36,14 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".tmp/next-qc-managed-auth/types/**/*.ts",
-    ".tmp/next-qc-managed-auth/dev/types/**/*.ts"
+    ".tmp/next-qc-managed-auth/dev/types/**/*.ts",
+    ".tmp/next-qc-account-lifecycle/types/**/*.ts",
+    ".tmp/next-qc-account-lifecycle/dev/types/**/*.ts",
+    ".tmp/next-qc-account-invitations/types/**/*.ts",
+    ".tmp/next-qc-account-invitations/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "output"
   ]
 }

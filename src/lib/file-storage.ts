@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export type FileStorageProvider = "local_repository" | "supabase_storage" | "s3_compatible";
+export type FileStorageProvider = "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
 
 export type PutObjectInput = {
   key: string;
@@ -46,6 +46,11 @@ export type S3CompatibleStorageConfig = {
   liveEnabled: boolean;
   forcePathStyle: boolean;
   providerProfile: "cloudflare_r2" | "aws_s3" | "backblaze_b2" | "wasabi" | "nas_gateway" | "custom";
+};
+
+export type GoogleCloudStorageDisabledConfig = {
+  projectId: string;
+  bucket: string;
 };
 
 export type DownloadAccessMode = "server_stream" | "signed_url";
@@ -354,6 +359,44 @@ export class S3CompatibleStorageAdapter implements FileStorageService {
   }
 }
 
+export class GoogleCloudStorageDisabledAdapter implements FileStorageService {
+  readonly provider = "google_cloud_storage" as const;
+
+  constructor(private readonly config: GoogleCloudStorageDisabledConfig) {}
+
+  async putObject(): Promise<StoredObject> {
+    return this.unavailable("putObject");
+  }
+
+  async getObjectMetadata(): Promise<StorageObjectMetadata | null> {
+    return this.unavailable("getObjectMetadata");
+  }
+
+  async createDownloadUrl(): Promise<DownloadUrl> {
+    return this.unavailable("createDownloadUrl");
+  }
+
+  async readObject(): Promise<Buffer> {
+    return this.unavailable("readObject");
+  }
+
+  async deleteObject(): Promise<void> {
+    return this.unavailable("deleteObject");
+  }
+
+  async verifyObjectHash(): Promise<boolean> {
+    return this.unavailable("verifyObjectHash");
+  }
+
+  buildPointer(key: string) {
+    return `gcs://${this.config.bucket}/${normalizeStorageKey(key)}`;
+  }
+
+  private unavailable(operation: string): never {
+    throw new Error(`GCS_LIVE_ADAPTER_NOT_AVAILABLE_PHASE_1:${operation}`);
+  }
+}
+
 export function createFileStorageService(): FileStorageService {
   return createConfiguredFileStorageService();
 }
@@ -362,7 +405,8 @@ export function createConfiguredFileStorageService(env: NodeJS.ProcessEnv = proc
   const provider = resolveFileStorageProvider(env);
   if (provider === "local_repository") return new LocalRepositoryStorageAdapter();
   if (provider === "supabase_storage") return new SupabaseStorageAdapter(resolveSupabaseStorageConfig(env));
-  return new S3CompatibleStorageAdapter(resolveS3CompatibleStorageConfig(env));
+  if (provider === "s3_compatible") return new S3CompatibleStorageAdapter(resolveS3CompatibleStorageConfig(env));
+  return new GoogleCloudStorageDisabledAdapter(resolveGoogleCloudStorageDisabledConfig(env));
 }
 
 export function createFileStorageServiceForPointer(
@@ -373,6 +417,13 @@ export function createFileStorageServiceForPointer(
   if (pointer.provider === "supabase_storage") {
     const config = resolveSupabaseStorageConfig(env);
     return new SupabaseStorageAdapter({
+      ...config,
+      bucket: pointer.bucket?.trim() || config.bucket
+    });
+  }
+  if (pointer.provider === "google_cloud_storage") {
+    const config = resolveGoogleCloudStorageDisabledConfig(env);
+    return new GoogleCloudStorageDisabledAdapter({
       ...config,
       bucket: pointer.bucket?.trim() || config.bucket
     });
@@ -391,6 +442,13 @@ export function createReleasePackageStorageService(env: NodeJS.ProcessEnv = proc
     return new SupabaseStorageAdapter({
       ...resolveSupabaseStorageConfig(env),
       bucket: env.PDM_SUPABASE_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_SUPABASE_STORAGE_BUCKET?.trim() || "pdm-release"
+    });
+  }
+  if (provider === "google_cloud_storage") {
+    const config = resolveGoogleCloudStorageDisabledConfig(env);
+    return new GoogleCloudStorageDisabledAdapter({
+      ...config,
+      bucket: env.PDM_GCS_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_GCS_BUCKET?.trim() || config.bucket
     });
   }
   const config = resolveS3CompatibleStorageConfig(env);
@@ -471,7 +529,7 @@ export function sha256(bytes: Buffer) {
 
 export function resolveFileStorageProvider(env: NodeJS.ProcessEnv = process.env): FileStorageProvider {
   const provider = env.PDM_STORAGE_PROVIDER?.trim() || "local_repository";
-  if (provider === "local_repository" || provider === "supabase_storage" || provider === "s3_compatible") return provider;
+  if (provider === "local_repository" || provider === "supabase_storage" || provider === "s3_compatible" || provider === "google_cloud_storage") return provider;
   throw new Error(`Unsupported file storage provider: ${provider}`);
 }
 
@@ -517,6 +575,19 @@ export function resolveS3CompatibleStorageConfig(env: NodeJS.ProcessEnv = proces
   };
 }
 
+export function resolveGoogleCloudStorageDisabledConfig(env: NodeJS.ProcessEnv = process.env): GoogleCloudStorageDisabledConfig {
+  if (env.NEXT_PUBLIC_GCS_BUCKET?.trim() || env.NEXT_PUBLIC_GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+    throw new Error("GCS server configuration must never be exposed through NEXT_PUBLIC_* variables");
+  }
+  if (env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+    throw new Error("GCS service-account key files are forbidden; use the Cloud Run service identity in Phase 3B");
+  }
+  const projectId = env.PDM_GCS_PROJECT_ID?.trim();
+  const bucket = env.PDM_GCS_BUCKET?.trim();
+  if (!projectId || !bucket) throw new Error("GCS pointer configuration requires PDM_GCS_PROJECT_ID and PDM_GCS_BUCKET");
+  return { projectId, bucket };
+}
+
 function resolveS3CompatibleProviderProfile(value: string | undefined): S3CompatibleStorageConfig["providerProfile"] {
   const profile = value?.trim() || "custom";
   if (profile === "cloudflare_r2" || profile === "aws_s3" || profile === "backblaze_b2" || profile === "wasabi" || profile === "nas_gateway" || profile === "custom") {
@@ -536,9 +607,10 @@ function normalizeStorageKey(key: string) {
 function resolveStoredProvider(value: string | null | undefined, pathOrPointer: string | null): FileStorageProvider {
   const provider = value?.trim();
   if (provider === "j_drive" || provider === "local" || provider === "local_repository") return "local_repository";
-  if (provider === "supabase_storage" || provider === "s3_compatible") return provider;
+  if (provider === "supabase_storage" || provider === "s3_compatible" || provider === "google_cloud_storage") return provider;
   if (pathOrPointer?.startsWith("supabase://")) return "supabase_storage";
   if (pathOrPointer?.startsWith("s3-compatible://")) return "s3_compatible";
+  if (pathOrPointer?.startsWith("gcs://")) return "google_cloud_storage";
   if (!provider) return "local_repository";
   throw new Error(`Unsupported stored file provider: ${provider}`);
 }
@@ -551,6 +623,10 @@ function parseStoragePointer(pointer: string): StoredFileStoragePointer | null {
   if (pointer.startsWith("s3-compatible://")) {
     const parsed = parseProviderPointer(pointer, "s3-compatible://");
     return { provider: "s3_compatible", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
+  }
+  if (pointer.startsWith("gcs://")) {
+    const parsed = parseProviderPointer(pointer, "gcs://");
+    return { provider: "google_cloud_storage", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
   }
   return null;
 }

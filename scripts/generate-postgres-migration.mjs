@@ -78,6 +78,7 @@ function toPostgresTable(statement) {
       let converted = line;
       converted = converted.replace(/\b([a-z0-9_]*_at)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
       converted = converted.replace(/\b(created_at|updated_at)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
+      converted = converted.replace(/\b(session_invalid_before)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
       converted = converted.replace(/DEFAULT \(datetime\('now'\)\)/giu, "DEFAULT now()");
       converted = converted.replace(/\b(file_size)\s+INTEGER\b/giu, "$1 BIGINT");
       converted = converted.replace(/\bREAL\b/gu, "DOUBLE PRECISION");

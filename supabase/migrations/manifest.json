@@ -21,15 +21,15 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "a2e7cfb8a5df1c4e0f9c1c8cf7ba539415e4be53de9f6f379df3649bcf999fee",
-      "targetSha256": "930d5049faebcf4e5c6dd76a7bd622ebeef196ab495c54e44406e1ee400f58c0"
+      "sourceSha256": "66b41c21143959fa64a9df8065a1bf55427fcffff943c00469bfde05804c6507",
+      "targetSha256": "243de480b13dcbbdedbcfa5274ef9dd5e4c9750e8aed611086362415fbad9f9a"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
       "target": "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
       "description": "Force RLS and deny direct anon/authenticated public table access",
-      "sourceSha256": "485169a33d018cb49fdacd34ccdecc9a186bd0b38ce40c49c910fd0c3879b006",
-      "targetSha256": "659230ff99af1dbd688129ae2a94532b0a1c2e7f13ccbabd9830c73e16f76a8d"
+      "sourceSha256": "aabffaca694aefacedb74acbb70f7bc1df4ea361d2e6ccea88d8c453b2de765c",
+      "targetSha256": "93ccd94321f42abfee32870bdab8abc55a6fabdd8bfa5c59108743ed66630a61"
     },
     {
       "source": "db/postgres/003_harden_set_updated_at_search_path.sql",

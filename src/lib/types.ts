@@ -56,7 +56,7 @@ export type SubmissionFile = {
   file_role: FileRole;
   original_filename: string;
   local_path: string;
-  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible";
+  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
   storage_bucket?: string | null;
   storage_key?: string | null;
   gdrive_file_id: string | null;
@@ -374,7 +374,7 @@ export type ReleasePackage = {
   submission_id: string;
   package_filename: string;
   local_path: string;
-  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible";
+  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
   storage_bucket?: string | null;
   storage_key?: string | null;
   sha256: string;

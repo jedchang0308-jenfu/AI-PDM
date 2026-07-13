@@ -997,9 +997,19 @@ function ensureSubmissionStoragePointerSchema(database: SqliteDatabase) {
   ensureColumn(database, "submission_files", "storage_provider", "TEXT NOT NULL DEFAULT 'local_repository'");
   ensureColumn(database, "submission_files", "storage_bucket", "TEXT");
   ensureColumn(database, "submission_files", "storage_key", "TEXT");
+  ensureColumn(database, "submission_files", "storage_generation", "TEXT");
+  ensureColumn(database, "submission_files", "storage_metageneration", "TEXT");
   ensureColumn(database, "release_packages", "storage_provider", "TEXT NOT NULL DEFAULT 'local_repository'");
   ensureColumn(database, "release_packages", "storage_bucket", "TEXT");
   ensureColumn(database, "release_packages", "storage_key", "TEXT");
+  ensureColumn(database, "release_packages", "storage_generation", "TEXT");
+  ensureColumn(database, "release_packages", "storage_metageneration", "TEXT");
+  ensureColumn(database, "file_assets", "storage_bucket", "TEXT");
+  ensureColumn(database, "file_assets", "storage_generation", "TEXT");
+  ensureColumn(database, "file_assets", "storage_metageneration", "TEXT");
+  ensureColumn(database, "file_derivatives", "storage_bucket", "TEXT");
+  ensureColumn(database, "file_derivatives", "storage_generation", "TEXT");
+  ensureColumn(database, "file_derivatives", "storage_metageneration", "TEXT");
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_submission_files_storage_pointer
       ON submission_files(storage_provider, storage_bucket, storage_key);

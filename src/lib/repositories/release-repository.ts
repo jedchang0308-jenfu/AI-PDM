@@ -12,7 +12,7 @@ export function upsertReleasePackageRecord(input: {
   submissionId: string;
   packageFilename: string;
   localPath: string;
-  storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible";
+  storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
   storageBucket?: string | null;
   storageKey?: string | null;
   sha256: string;

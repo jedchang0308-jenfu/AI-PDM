@@ -269,9 +269,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   gdrive_file_id TEXT,
   gdrive_status TEXT NOT NULL DEFAULT 'none' CHECK (gdrive_status IN ('none', 'uploading', 'uploaded', 'failed', 'moved')),
   sha256 TEXT NOT NULL,
@@ -538,9 +540,11 @@ CREATE TABLE IF NOT EXISTS release_packages (
   submission_id TEXT NOT NULL UNIQUE,
   package_filename TEXT NOT NULL,
   local_path TEXT NOT NULL,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   sha256 TEXT NOT NULL,
   file_size INTEGER NOT NULL,
   manifest_json TEXT NOT NULL,
@@ -859,6 +863,21 @@ CREATE TABLE IF NOT EXISTS numbering_sequences (
   next_value INTEGER NOT NULL CHECK (next_value > 0),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_recovery_reservations (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  number_kind TEXT NOT NULL CHECK (number_kind IN ('root', 'drawing', 'part')),
+  number_value TEXT NOT NULL,
+  reservation_reason TEXT NOT NULL CHECK (reservation_reason IN ('source_archive', 'restored_ledger', 'communicated_number', 'manual_hold')),
+  source_archive_ref TEXT NOT NULL,
+  ledger_entry_hash TEXT NOT NULL CHECK (length(ledger_entry_hash) = 64),
+  reservation_status TEXT NOT NULL DEFAULT 'reserved' CHECK (reservation_status IN ('reserved', 'reconciled')),
+  reserved_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reconciled_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  UNIQUE (company_id, number_kind, number_value)
 );
 
 CREATE TABLE IF NOT EXISTS numbering_rule_versions (
@@ -2012,9 +2031,12 @@ CREATE TABLE IF NOT EXISTS import_staging_rows (
 
 CREATE TABLE IF NOT EXISTS file_assets (
   id TEXT PRIMARY KEY,
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage', 'external')),
   original_path TEXT,
+  storage_bucket TEXT,
   storage_key TEXT,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   file_name TEXT NOT NULL,
   file_ext TEXT NOT NULL DEFAULT '',
   mime_type TEXT,
@@ -2072,8 +2094,11 @@ CREATE TABLE IF NOT EXISTS file_derivatives (
   source_file_asset_id TEXT NOT NULL,
   source_content_hash TEXT NOT NULL,
   derivative_kind TEXT NOT NULL CHECK (derivative_kind IN ('thumbnail_png', 'drawing_pdf', 'sheet_png', 'model_preview_png')),
-  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'external')),
+  storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage', 'external')),
+  storage_bucket TEXT,
   storage_key TEXT NOT NULL,
+  storage_generation TEXT,
+  storage_metageneration TEXT,
   original_path TEXT,
   file_name TEXT NOT NULL,
   mime_type TEXT NOT NULL,

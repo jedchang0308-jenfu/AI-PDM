@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "currency": "USD",
+  "planningEstimateOnly": true,
+  "pricingReviewDate": "2026-07-13",
+  "costOwner": "jenfu-finops-owner",
+  "businessOwner": "jenfu-business-owner",
+  "monthlyBudget": 300,
+  "monthlyAssumptions": [
+    { "service": "Cloud SQL regional HA and backups", "amount": 160, "basis": "phase1 planning placeholder; replace with Pricing Calculator evidence" },
+    { "service": "Cloud Run and external Application Load Balancer", "amount": 45, "basis": "small internal pilot assumption" },
+    { "service": "GCS primary, soft delete and backup copies", "amount": 20, "basis": "file workflows disabled in Phase 3A; revise before Phase 3B" },
+    { "service": "Firebase Auth with Identity Platform", "amount": 10, "basis": "internal user planning allowance" },
+    { "service": "Logging, monitoring, build and Artifact Registry", "amount": 35, "basis": "planning allowance pending measured staging run-rate" },
+    { "service": "Contingency", "amount": 30, "basis": "10 percent planning variance" }
+  ],
+  "alerts": [
+    { "threshold": 0.5, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner"] },
+    { "threshold": 0.8, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner", "jenfu-business-owner"] },
+    { "threshold": 1.0, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner", "jenfu-business-owner"] }
+  ],
+  "varianceEscalation": {
+    "monthlyVarianceRatio": 0.1,
+    "owner": "jenfu-finops-owner",
+    "decisionDueBusinessDays": 3
+  },
+  "programmaticNotificationTarget": "Pub/Sub budget topic in FinOps project during Phase 2",
+  "automaticBillingDisableAllowed": false,
+  "releaseReady": false
+}

@@ -17,6 +17,7 @@ secrets/
 tsconfig.tsbuildinfo
 .playwright-cli/
 output/qc-runtime/
+output/playwright/
 output/**/*.sqlite
 
 # Generated build outputs
