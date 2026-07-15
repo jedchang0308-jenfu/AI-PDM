@@ -100,6 +100,13 @@ function classifySourcePath(relativePath) {
       reason: "Platform, authority, cost, seed or continuity contract."
     };
   }
+  if (filePath.startsWith("infra/google-cloud/production/")) {
+    return {
+      bucket: "included_platform_contract",
+      includedInProductionSource: true,
+      reason: "Production infrastructure review package."
+    };
+  }
   if (filePath === "infra/google-cloud/README.md") {
     return {
       bucket: "included_platform_contract",

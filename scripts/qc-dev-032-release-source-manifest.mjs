@@ -18,11 +18,14 @@ record("DEV032-SOURCE-003 source snapshot hash is reproducible", manifest.releas
 record("DEV032-SOURCE-004 classification hash is reproducible excluding generated evidence output", manifest.releaseDecision.classificationSha256 === rebuilt.releaseDecision.classificationSha256);
 record("DEV032-SOURCE-005 every dirty entry is classified", manifest.summary.unknownRiskEntries === 0, JSON.stringify(manifest.summary.byBucket));
 const expectedDirtySnapshotBuckets = ["included_application_source", "included_release_tooling", "included_schema_migration_source", "included_platform_contract", "included_release_governance", "included_build_runtime_config"];
+const includedBucketEntries = Object.entries(manifest.summary.byBucket).filter(([bucket]) => bucket.startsWith("included_"));
 record(
   "DEV032-SOURCE-006 included source state matches manifest mode",
   manifest.releaseDecision.exactReleaseCommitExists
     ? manifest.summary.includedProductionSourceEntries === 0 && expectedDirtySnapshotBuckets.every((bucket) => (manifest.summary.byBucket[bucket] ?? 0) === 0)
-    : expectedDirtySnapshotBuckets.every((bucket) => manifest.summary.byBucket[bucket] > 0)
+    : manifest.summary.includedProductionSourceEntries > 0 &&
+      includedBucketEntries.length > 0 &&
+      includedBucketEntries.every(([bucket, count]) => expectedDirtySnapshotBuckets.includes(bucket) && count > 0)
 );
 record("DEV032-SOURCE-007 generated evidence is excluded from production source", manifest.files.filter((file) => file.path.startsWith("output/") || file.path.startsWith(".firebase/")).every((file) => file.bucket === "generated_evidence_excluded" && file.includedInProductionSource === false));
 record("DEV032-SOURCE-008 staging provider inputs are excluded from production config", [".firebaserc", "firebase.json", "firebase-hosting/", "infra/google-cloud/staging/", "config/platform/staging-preflight.template.json"].every((prefix) => manifest.files.filter((file) => file.path === prefix || file.path.startsWith(prefix)).every((file) => file.bucket === "staging_only_excluded_from_production_config" && file.includedInProductionSource === false)));

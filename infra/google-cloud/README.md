@@ -26,3 +26,12 @@ package. Its resource gate defaults to false and it has no approved backend,
 credentials, targets or apply authority. Actual staging resources belong to
 Phase 2B after all preflight blockers close; production remains under the
 deployment release gate.
+
+`infra/google-cloud/production` is the DEV-032 production Terraform review
+package. It is source-controlled production release input, but it is not apply
+authority. Its `local.create_resources` gate remains false until the exact
+DEV-032 acknowledgement, production target/env/secret readback, clean
+seed/allowlist, `HD-8-4 / 1A` restore/reconciliation, rollback readiness,
+Level 3 smoke plan and USD 240 plan-review stop all pass. A credentialled plan
+above USD 240, any delete/replace action, or any staging/Firebase Hosting
+shortcut is a no-go.

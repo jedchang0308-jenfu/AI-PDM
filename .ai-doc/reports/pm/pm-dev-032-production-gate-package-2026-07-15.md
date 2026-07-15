@@ -30,6 +30,11 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
   - `npm run preflight:dev-032-production-target`
   - `npm run qc:dev-032-production-target-preflight`
   - current report: `output/dev-032-production-target-preflight/report.json`
+- Added fail-closed production Terraform review package:
+  - `infra/google-cloud/production/`
+  - `npm run qc:dev-032-production-iac-package`
+  - every Google resource is gated by `local.create_resources`
+  - no production apply, import, migration, DNS change, traffic cutover, smoke or credentialled plan was executed
 - Added reproducible release-source commit plan:
   - `npm run dev-032:release-source-commit-plan`
   - `npm run qc:dev-032-release-source-commit-plan`
@@ -45,6 +50,7 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 - `npm run qc:dev-032-release-source-manifest`: 12/12 passed.
 - `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; no production action.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed.
+- `npm run qc:dev-032-production-iac-package`: 15/15 passed.
 - `npm run qc:dev-032-production-target-contract`: 13/13 passed.
 - `npm run preflight:dev-032-production-target`: generated `blocked_readonly_preflight`; production action `false`; 8 blockers.
 - `npm run qc:dev-032-production-target-preflight`: 15/15 passed.
@@ -55,7 +61,7 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 
 - Exact release-candidate commit exists and is recorded by the release-source manifest; production build still remains blocked by non-source gates.
 - `jenfu-ai-pdm-prod` remains inaccessible or missing for the active account.
-- Production target contract exists as template-only; real production env/secret source, provider config and resource readback are still absent.
+- Production target contract and Terraform review package exist as template-only/fail-closed source; real production env/secret source, provider config, credentialled plan and resource readback are still absent.
 - Clean seed/allowlist are still templates; real production inventory, official-number non-reuse coverage and allowlist hash evidence are missing.
 - `HD-8-4 / 1A` separate-target restore/reconciliation has a runbook but no execution evidence.
 - Rollback target, Level 3 production-like smoke and Level 4 post-deploy production smoke are missing.

@@ -34,6 +34,12 @@ The local application slice remains a viable candidate for later release work, b
   - `.firebaserc` defines only `staging = jenfu-ai-pdm-stg-361825`.
   - `firebase.json` points Hosting site `jenfu-ai-pdm-stg-361825` to Cloud Run `ai-pdm-stg`.
   - `infra/google-cloud/README.md` defines a production release contract but no applied production target.
+- Production IaC review package:
+  - `infra/google-cloud/production/` now contains a fail-closed Terraform review package for `jenfu-ai-pdm-prod`.
+  - `npm run qc:dev-032-production-iac-package`: 15/15 passed.
+  - All Google resources are gated by `local.create_resources`; default resource creation is false.
+  - Terraform is not installed in the current local shell, so no `terraform init`, `terraform plan` or provider validation was executed.
+  - No production apply, import, migration, DNS change, traffic cutover or smoke was executed.
 - Production env/secret source:
   - `.env.production` and `.env.production.local` are absent.
   - Required production runtime keys are represented by `config/platform/production-target.template.json`, but no production source of truth is present in repo.
@@ -50,6 +56,7 @@ The local application slice remains a viable candidate for later release work, b
 - `npm run qc:dev-032-release-source-manifest`: 12/12 passed; exact release commit exists with zero included dirty source and zero unknown-risk paths, but remains `safeToBuildForProduction=false` because production gates are still open.
 - `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; included pathspec is empty because source is already committed.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed; included pathspec excludes generated evidence, `.firebase`, staging Firebase Hosting config and staging Terraform.
+- `npm run qc:dev-032-production-iac-package`: 15/15 passed; static package QC only, because Terraform is not installed and no credentialled plan was authorized.
 - `npm run qc:dev-032-production-target-contract`: 13/13 passed; validates template-only production target, ALB/custom-domain baseline, regional private Cloud SQL, identity-only Firebase and required secret metadata IDs.
 - `npm run preflight:dev-032-production-target`: read-only report generated with `blocked_readonly_preflight`; no production action.
 - `npm run qc:dev-032-production-target-preflight`: 15/15 passed.
@@ -63,7 +70,7 @@ These are Level 0 / Level 2 local-artifact signals only. They do not replace Lev
 ## Blocking Conditions
 
 1. Production target identity is not proven: `jenfu-ai-pdm-prod` is not accessible or does not exist for the active account.
-2. Production provider config is absent: current Firebase/Hosting config is staging-only.
+2. Production provider config is absent: current Firebase/Hosting config is staging-only. A fail-closed production Terraform review package exists, but no credentialled production plan/readback exists.
 3. Production env/secret source is absent: production target/secret metadata contract exists as a template, but no real production env source or Secret Manager readback evidence is present.
 4. `HD-8-4 / 1A` pre-canary runbook/template exists, but Cloud SQL separate-target restore and numbering-ledger/sequence/non-reuse-reservation reconciliation execution evidence is missing.
 5. Clean production seed/allowlist template exists, but real production inventory is not proven: new production PDM IDs, initial Admin, minimum company/role/config, official-number non-reuse reservations, allowlist hash and source read-only archive manifest are not available as production evidence.
@@ -75,7 +82,7 @@ These are Level 0 / Level 2 local-artifact signals only. They do not replace Lev
 ## Next Executable Work
 
 1. Establish production target: create or grant access to `jenfu-ai-pdm-prod`, then rerun `npm run preflight:dev-032-production-target` for read-only project/Cloud Run/Cloud SQL/Firebase/Secret Manager target discovery.
-2. Prepare production IaC plan package only: no apply until plan review proves no delete/replace and cost remains within the approved cap.
+2. After production target access exists, run credentialled production IaC plan review only. Stop on any delete/replace or estimate above USD 240; do not apply without separate approval.
 3. Populate the clean production seed and allowlist manifests from real production/source-archive inventory: use new production PDM IDs, not source actor IDs or email-domain rules.
 4. Execute the `HD-8-4 / 1A` restore/reconciliation runbook on an approved separate target before any canary traffic.
 5. After all pre-build blockers close, build one immutable container image, run production-like smoke, then separately request deploy approval and post-deploy smoke.
