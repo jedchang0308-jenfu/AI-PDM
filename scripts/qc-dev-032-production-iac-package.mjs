@@ -119,6 +119,7 @@ record("DEV032-PROD-IAC-012 staging and Firebase Hosting shortcuts are absent fr
 record("DEV032-PROD-IAC-013 no Terraform state/provider cache or tfvars are committed in production package", fileStats.every((item) => !item.name.startsWith(".terraform") && !item.name.endsWith(".tfvars") && !item.name.endsWith(".tfstate")));
 record("DEV032-PROD-IAC-014 release-source classifier includes production IaC as included platform contract", classifier.includes('filePath.startsWith("infra/google-cloud/production/")') && classifier.includes("Production infrastructure review package."));
 record("DEV032-PROD-IAC-015 package exposes QC script", packageJson.scripts?.["qc:dev-032-production-iac-package"] === "node scripts/qc-dev-032-production-iac-package.mjs");
+record("DEV032-PROD-IAC-016 package exposes Docker Terraform static validate workflow", packageJson.scripts?.["dev-032:production-iac-terraform-validate"] === "node scripts/dev-032-production-iac-terraform-validate.mjs" && packageJson.scripts?.["qc:dev-032-production-iac-terraform-validate"] === "node scripts/qc-dev-032-production-iac-terraform-validate.mjs");
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

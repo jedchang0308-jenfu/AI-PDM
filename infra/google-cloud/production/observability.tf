@@ -57,6 +57,6 @@ resource "google_billing_budget" "production" {
 
   all_updates_rule {
     monitoring_notification_channels = var.budget_notification_channel_ids
-    disable_default_iam_recipients    = true
+    disable_default_iam_recipients   = true
   }
 }

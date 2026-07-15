@@ -42,9 +42,16 @@ nothing.
 
 ## Validation
 
-- `npm run qc:dev-032-production-iac-package`: 15/15 passed.
-- Terraform is not installed in the current local shell, so this is static QC
-  only. No `terraform init`, `terraform plan`, `terraform apply`, import,
+- `npm run qc:dev-032-production-iac-package`: 16/16 passed.
+- `npm run dev-032:production-iac-terraform-validate`: passed with Docker
+  Terraform 1.14.5.
+  - `terraform fmt -check -diff -recursive`: passed.
+  - `terraform init -backend=false -input=false -no-color`: passed.
+  - `terraform validate -no-color -json`: valid, zero errors and zero warnings.
+- `npm run qc:dev-032-production-iac-terraform-validate`: 12/12 passed.
+- Local Terraform CLI is still not installed in the current shell; the above
+  validation used the Docker executor against a copied workspace under
+  `output/`. No credentialled `terraform plan`, `terraform apply`, import,
   deploy, migration, DNS update, traffic cutover or production smoke was run.
 
 ## Remaining Gate

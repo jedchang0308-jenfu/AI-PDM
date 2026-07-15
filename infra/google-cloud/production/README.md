@@ -44,11 +44,18 @@ Without production credentials:
 
 ```powershell
 npm run qc:dev-032-production-iac-package
+npm run dev-032:production-iac-terraform-validate
+npm run qc:dev-032-production-iac-terraform-validate
 ```
 
-After explicit release-gate approval and target access, a future operator may run
-`terraform init -backend=false` and a credentialled `terraform plan` for review
-only. A plan file is not an apply approval.
+The Terraform validation command uses Docker Terraform 1.14.5 against a copied
+workspace under `output/`; it runs `fmt -check`, `init -backend=false` and
+`validate -json` only. It is not a credentialled plan.
+
+After explicit release-gate approval and target access, a future operator may
+run a credentialled `terraform plan` for review only.
+
+A plan file is not an apply approval.
 
 ## Prohibited
 

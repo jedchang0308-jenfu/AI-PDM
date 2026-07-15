@@ -204,6 +204,8 @@
     "qc:dev-047-local-inventory": "node scripts/qc-dev-047-local-inventory.mjs",
     "qc:dev-032-release-gate-package": "node scripts/qc-dev-032-release-gate-package.mjs",
     "qc:dev-032-production-iac-package": "node scripts/qc-dev-032-production-iac-package.mjs",
+    "dev-032:production-iac-terraform-validate": "node scripts/dev-032-production-iac-terraform-validate.mjs",
+    "qc:dev-032-production-iac-terraform-validate": "node scripts/qc-dev-032-production-iac-terraform-validate.mjs",
     "qc:dev-032-production-target-contract": "node scripts/qc-dev-032-production-target-contract.mjs",
     "preflight:dev-032-production-target": "node scripts/dev-032-production-target-preflight.mjs --allow-blocked",
     "qc:dev-032-production-target-preflight": "node scripts/qc-dev-032-production-target-preflight.mjs",

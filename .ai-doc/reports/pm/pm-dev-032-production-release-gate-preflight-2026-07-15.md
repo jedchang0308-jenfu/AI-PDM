@@ -36,9 +36,11 @@ The local application slice remains a viable candidate for later release work, b
   - `infra/google-cloud/README.md` defines a production release contract but no applied production target.
 - Production IaC review package:
   - `infra/google-cloud/production/` now contains a fail-closed Terraform review package for `jenfu-ai-pdm-prod`.
-  - `npm run qc:dev-032-production-iac-package`: 15/15 passed.
+  - `npm run qc:dev-032-production-iac-package`: 16/16 passed.
+  - `npm run dev-032:production-iac-terraform-validate`: Docker Terraform 1.14.5 ran `fmt -check -diff -recursive`, `init -backend=false -input=false -no-color` and `validate -no-color -json`; validation was valid with zero errors and zero warnings.
+  - `npm run qc:dev-032-production-iac-terraform-validate`: 12/12 passed.
   - All Google resources are gated by `local.create_resources`; default resource creation is false.
-  - Terraform is not installed in the current local shell, so no `terraform init`, `terraform plan` or provider validation was executed.
+  - Local Terraform CLI is not installed in the current shell; Docker Terraform was used against a copied `output/` workspace. No credentialled `terraform plan` was executed.
   - No production apply, import, migration, DNS change, traffic cutover or smoke was executed.
 - Production env/secret source:
   - `.env.production` and `.env.production.local` are absent.
@@ -56,7 +58,9 @@ The local application slice remains a viable candidate for later release work, b
 - `npm run qc:dev-032-release-source-manifest`: 12/12 passed; exact release commit exists with zero included dirty source and zero unknown-risk paths, but remains `safeToBuildForProduction=false` because production gates are still open.
 - `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; included pathspec is empty because source is already committed.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed; included pathspec excludes generated evidence, `.firebase`, staging Firebase Hosting config and staging Terraform.
-- `npm run qc:dev-032-production-iac-package`: 15/15 passed; static package QC only, because Terraform is not installed and no credentialled plan was authorized.
+- `npm run qc:dev-032-production-iac-package`: 16/16 passed.
+- `npm run dev-032:production-iac-terraform-validate`: passed; Docker Terraform 1.14.5 validated the copied production IaC workspace with backend disabled and no plan/apply/import.
+- `npm run qc:dev-032-production-iac-terraform-validate`: 12/12 passed.
 - `npm run qc:dev-032-production-target-contract`: 13/13 passed; validates template-only production target, ALB/custom-domain baseline, regional private Cloud SQL, identity-only Firebase and required secret metadata IDs.
 - `npm run preflight:dev-032-production-target`: read-only report generated with `blocked_readonly_preflight`; no production action.
 - `npm run qc:dev-032-production-target-preflight`: 15/15 passed.
