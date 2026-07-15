@@ -1,5 +1,7 @@
 locals {
   production_apply_acknowledgement = "DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED"
+  migration_job_acknowledgement    = "DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED"
+  migration_live_acknowledgement   = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
   name_prefix                      = "ai-pdm-prod"
   database                         = "ai_pdm"
   cloud_sql_instance_name          = "ai-pdm-prod-postgres"
@@ -71,6 +73,26 @@ locals {
     var.estimated_monthly_cost_usd <= var.plan_review_stop_usd
   )
 
+  migration_runner_image_ready = (
+    startswith(var.migration_runner_image, "asia-east1-docker.pkg.dev/${var.production_project_id}/ai-pdm/ai-pdm-migration@sha256:") &&
+    can(regex("@sha256:[a-f0-9]{64}$", var.migration_runner_image)) &&
+    !can(regex("@sha256:0{64}$", var.migration_runner_image))
+  )
+
+  migration_runner_job_ready = (
+    var.enable_migration_runner_job &&
+    var.migration_runner_job_acknowledgement == local.migration_job_acknowledgement &&
+    local.migration_runner_image_ready
+  )
+
+  migration_live_execution_ready = (
+    !var.migration_live_execution || (
+      local.migration_runner_job_ready &&
+      var.migration_live_execution_acknowledgement == local.migration_live_acknowledgement &&
+      var.clean_seed_allowlist_approved
+    )
+  )
+
   create_resources = (
     var.enable_resource_creation &&
     var.production_apply_acknowledgement == local.production_apply_acknowledgement &&
@@ -105,6 +127,20 @@ check "production_session_key_rotation_contract" {
   assert {
     condition     = var.session_current_key_id != var.session_previous_key_id
     error_message = "Current and previous session key IDs must differ."
+  }
+}
+
+check "production_migration_runner_job_guard" {
+  assert {
+    condition     = !var.enable_migration_runner_job || (local.create_resources && local.migration_runner_job_ready)
+    error_message = "The production migration Job requires Gate A resource approval, a digest-pinned production image and the exact Job acknowledgement."
+  }
+}
+
+check "production_migration_live_execution_guard" {
+  assert {
+    condition     = local.migration_live_execution_ready
+    error_message = "Live production migration requires the exact migration acknowledgement and completed clean-seed/admin-bootstrap gate."
   }
 }
 

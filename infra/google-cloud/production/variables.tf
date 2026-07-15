@@ -113,6 +113,41 @@ variable "application_image" {
   }
 }
 
+variable "migration_runner_image" {
+  description = "Immutable DEV-032 production migration-runner image. Tags and source deployment are forbidden."
+  type        = string
+  default     = "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+  validation {
+    condition     = can(regex("^asia-east1-docker\\.pkg\\.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:[a-f0-9]{64}$", var.migration_runner_image))
+    error_message = "migration_runner_image must be a digest-pinned production Artifact Registry image."
+  }
+}
+
+variable "enable_migration_runner_job" {
+  description = "Creates the private DEV-032 production migration Job. The Job remains dry-run unless live execution is separately enabled."
+  type        = bool
+  default     = false
+}
+
+variable "migration_runner_job_acknowledgement" {
+  description = "Exact acknowledgement required before the production migration Job can be created."
+  type        = string
+  default     = ""
+}
+
+variable "migration_live_execution" {
+  description = "Switches the migration Job from dry-run to live execution. Requires a separate exact acknowledgement and completed admin bootstrap."
+  type        = bool
+  default     = false
+}
+
+variable "migration_live_execution_acknowledgement" {
+  description = "Exact acknowledgement required before Terraform may configure the migration Job for live execution."
+  type        = string
+  default     = ""
+}
+
 variable "cloud_sql_proxy_image" {
   description = "Digest-pinned Cloud SQL Auth Proxy v2 image."
   type        = string

@@ -91,6 +91,7 @@ const resources = resourceBlocks(files);
 const resourceNames = resources.map((resource) => `${resource.type}.${resource.name}`);
 const guardedResources = resources.filter((resource) =>
   /count\s*=\s*local\.create_resources\s*\?\s*1\s*:\s*0/u.test(resource.body) ||
+  /count\s*=\s*local\.create_resources\s*&&/u.test(resource.body) ||
   /for_each\s*=\s*local\.create_resources\s*\?/u.test(resource.body)
 );
 const fileStats = existsSync(productionDir)

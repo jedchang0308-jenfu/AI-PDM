@@ -49,6 +49,12 @@ The reviewed monthly cap remains USD 300. Any credentialled plan above USD 240,
 any delete/replace action, or any drift from `config/platform/production-target.template.json`
 must stop before apply.
 
+The private migration Job is created only with
+`DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED` and remains dry-run by default.
+Switching the Job to live execution requires the separate
+`DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED` acknowledgement after the
+database admin bootstrap has completed.
+
 ## Allowed Local Commands
 
 Without production credentials:
