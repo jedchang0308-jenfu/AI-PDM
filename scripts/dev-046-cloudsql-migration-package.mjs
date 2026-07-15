@@ -142,8 +142,9 @@ function sanitizeSqlForCloudSql({ file, source }) {
 }
 
 function buildAdminBootstrapSql({ target, grantSql }) {
-  return `${[
-    "-- DEV-046 Cloud SQL admin bootstrap candidate",
+  const production = target.projectId === "jenfu-ai-pdm-prod";
+  const sql = `${[
+    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} Cloud SQL admin bootstrap candidate`,
     "-- Proposal only. Execute only through the approved privileged database bootstrap path.",
     "-- No secret values are present.",
     ""
@@ -152,10 +153,14 @@ function buildAdminBootstrapSql({ target, grantSql }) {
     .replaceAll(':"runtime_iam_user"', quoteIdentifier(target.runtimeIamDatabaseUser))
     .replaceAll(':"migration_iam_user"', quoteIdentifier(target.migrationIamDatabaseUser))
     .trimEnd()}\n`;
+  return production
+    ? sql.replaceAll("DEV-046 Phase 1 contract", "DEV-032 Gate C production contract")
+    : sql;
 }
 
-function buildRuntimeGrantRefreshSql() {
-  return `-- DEV-046 Cloud SQL runtime grant refresh candidate
+function buildRuntimeGrantRefreshSql(target) {
+  const label = target.projectId === "jenfu-ai-pdm-prod" ? "DEV-032 production" : "DEV-046 staging";
+  return `-- ${label} Cloud SQL runtime grant refresh candidate
 -- Proposal only. Execute after schema migrations and before runtime smoke.
 
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
@@ -171,8 +176,9 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
 }
 
 function buildRunnerContractMarkdown(report) {
+  const production = report.target.projectId === "jenfu-ai-pdm-prod";
   return `${[
-    "# DEV-046 Cloud SQL Migration Runner Contract",
+    `# ${production ? "DEV-032 Production" : "DEV-046 Staging"} Cloud SQL Migration Runner Contract`,
     "",
     "Status: proposal_only_not_approved_for_live_apply",
     "",
@@ -189,7 +195,7 @@ function buildRunnerContractMarkdown(report) {
     "2. Execute ordered schema files in `cloudsql-migration-manifest.json` through the migration identity.",
     "3. Execute `sql/999_runtime_grants_refresh.sql`.",
     "4. Run runtime database smoke through the Cloud Run runtime service account.",
-    "5. Only after runtime smoke passes, create/verify real staging principal mappings.",
+    `5. Only after runtime smoke passes, create/verify real ${production ? "production" : "staging"} principal mappings.`,
     "",
     "## Current Blockers",
     "",
@@ -236,7 +242,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
   }
 
   const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql });
-  const grantRefreshSql = buildRuntimeGrantRefreshSql();
+  const grantRefreshSql = buildRuntimeGrantRefreshSql(target);
   const supportFiles = [
     {
       output: `${candidateSqlDirectory}/000_admin_bootstrap_grants.sql`,
