@@ -16,6 +16,8 @@
 
 - `src/components/number-state-workspace.tsx`
   - 建立 modal 改用 `確定品名`，移除使用者可見的 `主根名稱`語意。
+  - 移除建立草稿表單可見的 `須製程管制`，讓一般使用者只判斷是否`包含圖號草稿`。
+  - 共用件不再推導圖號需求，且不顯示「共用不影響是否需要圖號」這類常識說明。
   - 品名建議依管理辦法保留三種模板：
     - 外購件：`[核心名詞]_[品牌]_[規格/型號]`
     - 自製/發包/客製非共用件：`[核心名詞]_[系列代號]_[特性]_[流水識別]`
@@ -54,6 +56,7 @@
 - API 結果：建立草稿 `201`、取得候選號 `200`、取消草稿並回收候選號 `200`
 - 正式主檔計數：`part_roots 10 -> 10`、`part_numbers 13 -> 13`、`drawing_numbers 13 -> 13`
 - 可見錯誤：0；console error：0；page error：0；桌面 1440 與手機 390 無水平 overflow。
+- Follow-up UI noise QC：確認 modal 不顯示`須製程管制`、不顯示共用件常識說明；自製預設包含圖號，外購與共用預設不包含圖號；桌面與手機無水平 overflow。
 
 截圖：
 
@@ -61,6 +64,8 @@
 - `output/playwright/number-state-phase1e/qc-name-builder-candidate-desktop.png`
 - `output/playwright/number-state-phase1e/qc-name-builder-candidate-mobile.png`
 - `output/playwright/number-state-phase1e/qc-name-builder-cancelled-desktop.png`
+- `output/playwright/number-state-phase1e/qc-remove-process-control-noise-desktop.png`
+- `output/playwright/number-state-phase1e/qc-remove-process-control-noise-mobile.png`
 
 ## 邊界
 
