@@ -32,12 +32,13 @@
 ## Current Dispatch Boundary
 
 - 目前沒有可直接正式部署的任務；production、Cloud SQL/GCS cutover、provider pointer、migration、release、rollback 或 production smoke 必須走 release gate。
-- `DEV-046` 仍是 active development package；不要搬移或重構 `.ai-doc/dev_task.md` 內的 DEV-046 phase/evidence 明細，除非使用者後續明確授權。
-- `DEV-046` 目前卡在 Phase 2B live isolated staging external gates；本地 application/IaC、employee login alias、privacy acknowledgement slices 已有本機 evidence。
+- `DEV-032` 是第一版 production 唯一 active launch-moving package；當前子關卡為 `Gate A` production Firebase/provider config、env source、Secret Manager metadata readback與credentialled plan review，仍不得apply。
+- `DEV-046` Phase 1A-1E、Phase 2A與Phase 2B staging activation已完成；Phase 3A production由`DEV-032`執行，Phase 3B+只保留future capsules或另行明確派工。
 - `DEV-048` 圖料號 / 草稿 / 狀態 / 技轉入口整合已本機完成；不得自動續做 provider/staging/release。
-- `DEV-047` bounded schema migration 只有 Phase A0 本機 inventory tooling 完成；authoritative inventory 要等 production slice 穩定與受控 target/snapshot。
-- `DEV-041` Phase 3A-1、`DEV-015` Phase 2+、`DEV-033` storage rollout 都是待使用者選定或外部決策後才可續接。
-- `DEV-030`、`DEV-031`、`DEV-032` 是正式環境 / release gates，不是一般 RD 任務。
+- `DEV-047` bounded schema migration只有Phase A0本機inventory tooling完成；authoritative inventory要等production canary穩定與受控target/snapshot，不要求固定觀察天數。
+- `DEV-041` Phase 3A-1是下一個可選產品切片；`DEV-015`需先選定單一切片；`DEV-033 + DEV-046 Phase 3B + DEV-037`是future GCS authority/cost/continuity package。
+- `DEV-030`與`DEV-031`只保留來源ID與角色分離證據，分別併入`DEV-032 Gate B/C`，不得再作為獨立派工入口。
+- `DEV-035`維持CAD 2D preview deferred；`DEV-036` SolidWorks Add-in已停止追蹤，只有新產品決策才能恢復。
 
 ## Read Guardrails
 

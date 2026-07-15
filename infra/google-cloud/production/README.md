@@ -15,8 +15,17 @@ target after the release gates close:
 - Database: Cloud SQL for PostgreSQL `POSTGRES_17`, `REGIONAL`, private IP,
   IAM DB auth, backups, PITR and deletion protection
 - Identity: Firebase Authentication with Identity Platform only
+- Auth handler: `jenfu-ai-pdm-prod.firebaseapp.com`; this is not the application
+  gateway and does not authorize a Firebase Hosting production entrypoint
 - Secrets: Secret Manager containers only; values are never stored here
+- Logs and signing: regional application-log bucket and HSM-backed numbering
+  ledger signing key
 - File authority: GCS remains disabled for Phase 3A
+
+Terraform state is isolated at
+`gs://jenfu-ai-pdm-prod-tfstate/ai-pdm/production`; the bucket uses regional
+placement, uniform access, public-access prevention, versioning and 30-day soft
+delete. Initialize it with `backend.production.hcl.example`.
 
 ## Hard Gates
 
@@ -28,11 +37,13 @@ target after the release gates close:
 3. production target readback is approved
 4. production environment source is approved
 5. production Secret Manager metadata readback is approved
-6. clean seed and allowlist package is approved
-7. `HD-8-4 / 1A` separate-target restore/reconciliation is approved
-8. rollback readiness is approved
-9. Level 3 production-like smoke plan is approved
-10. estimated monthly cost is at or below the USD 240 plan-review stop
+6. estimated monthly cost is at or below the USD 240 plan-review stop
+
+Clean seed/allowlist, `HD-8-4 / 1A` restore/reconciliation, rollback readiness
+and Level 3 smoke remain mandatory post-apply release gates. They cannot be
+preconditions for creating the empty Cloud SQL and runtime resources they must
+validate. Terraform exposes them as `post_apply_release_gates_ready`; Gate D
+must remain closed until all four pass.
 
 The reviewed monthly cap remains USD 300. Any credentialled plan above USD 240,
 any delete/replace action, or any drift from `config/platform/production-target.template.json`

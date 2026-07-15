@@ -74,6 +74,17 @@ variable "region" {
   }
 }
 
+variable "production_project_number" {
+  description = "Immutable Google Cloud project number used by billing-budget filters and readback."
+  type        = string
+  default     = "451715062958"
+
+  validation {
+    condition     = var.production_project_number == "451715062958"
+    error_message = "Production project number must match the DEV-032 target readback."
+  }
+}
+
 variable "production_domain" {
   description = "Production custom domain behind the external Application Load Balancer."
   type        = string
@@ -162,9 +173,9 @@ variable "firebase_web_api_key" {
 }
 
 variable "firebase_auth_domain" {
-  description = "Firebase Auth domain for production."
+  description = "Production Firebase Auth handler domain; this is not the application gateway."
   type        = string
-  default     = "pdm.jenfu.com.tw"
+  default     = "jenfu-ai-pdm-prod.firebaseapp.com"
 }
 
 variable "firebase_web_app_id" {

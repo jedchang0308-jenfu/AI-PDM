@@ -68,6 +68,7 @@ const requiredFiles = [
   "network.tf",
   "iam.tf",
   "security.tf",
+  "identity.tf",
   "database.tf",
   "runtime.tf",
   "edge.tf",
@@ -84,6 +85,7 @@ const database = readIfExists("database.tf");
 const runtime = readIfExists("runtime.tf");
 const edge = readIfExists("edge.tf");
 const security = readIfExists("security.tf");
+const identity = readIfExists("identity.tf");
 const observability = readIfExists("observability.tf");
 const resources = resourceBlocks(files);
 const resourceNames = resources.map((resource) => `${resource.type}.${resource.name}`);
@@ -98,7 +100,7 @@ const fileStats = existsSync(productionDir)
 record("DEV032-PROD-IAC-001 production IaC review package exists", existsSync(productionDir) && existingRequiredFiles.length === requiredFiles.length, existingRequiredFiles.join(", "));
 record("DEV032-PROD-IAC-002 package declares review-only / no apply posture", readme.includes("review package only") && readme.includes("does not authorize `terraform apply`") && readme.includes("A plan file is not an apply approval."));
 record("DEV032-PROD-IAC-003 package matches production target contract", combinedTf.includes(target.target.projectId) && combinedTf.includes(target.target.runtimeService) && combinedTf.includes(target.target.cloudSqlInstance) && combinedTf.includes(target.target.publicBaseUrl));
-record("DEV032-PROD-IAC-004 create_resources requires exact acknowledgement and all release gates", locals.includes("DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED") && [
+record("DEV032-PROD-IAC-004 create_resources requires exact acknowledgement, Gate A and cost gates while later release gates remain explicit", locals.includes("DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED") && [
   "production_target_readback_approved",
   "production_env_source_approved",
   "production_secret_metadata_readback_approved",
@@ -107,7 +109,7 @@ record("DEV032-PROD-IAC-004 create_resources requires exact acknowledgement and 
   "rollback_readiness_approved",
   "level3_smoke_plan_approved",
   "estimated_monthly_cost_usd <= var.plan_review_stop_usd"
-].every((needle) => locals.includes(needle)));
+].every((needle) => locals.includes(needle)) && locals.includes("local.pre_apply_gates_ready") && locals.includes("post_apply_release_gates_ready"));
 record("DEV032-PROD-IAC-005 every Google resource is gated by local.create_resources", resources.length >= 20 && guardedResources.length === resources.length, resourceNames.filter((_, index) => !guardedResources.includes(resources[index])).join(", "));
 record("DEV032-PROD-IAC-006 defaults cannot create production resources", variables.includes('default     = false') && variables.includes('default     = ""') && locals.includes("var.enable_resource_creation &&"));
 record("DEV032-PROD-IAC-007 Cloud SQL is regional, private, IAM-auth and recovery-ready", database.includes('availability_type           = "REGIONAL"') && database.includes("point_in_time_recovery_enabled = true") && database.includes('name  = "cloudsql.iam_authentication"') && database.includes("ipv4_enabled                                  = false") && database.includes("deletion_protection = true"));
@@ -120,6 +122,8 @@ record("DEV032-PROD-IAC-013 no Terraform state/provider cache or tfvars are comm
 record("DEV032-PROD-IAC-014 release-source classifier includes production IaC as included platform contract", classifier.includes('filePath.startsWith("infra/google-cloud/production/")') && classifier.includes("Production infrastructure review package."));
 record("DEV032-PROD-IAC-015 package exposes QC script", packageJson.scripts?.["qc:dev-032-production-iac-package"] === "node scripts/qc-dev-032-production-iac-package.mjs");
 record("DEV032-PROD-IAC-016 package exposes Docker Terraform static validate workflow", packageJson.scripts?.["dev-032:production-iac-terraform-validate"] === "node scripts/dev-032-production-iac-terraform-validate.mjs" && packageJson.scripts?.["qc:dev-032-production-iac-terraform-validate"] === "node scripts/qc-dev-032-production-iac-terraform-validate.mjs");
+record("DEV032-PROD-IAC-017 Identity Platform policy is modeled without OAuth secret state", identity.includes("google_identity_platform_config") && identity.includes("totp_provider_config") && identity.includes("provider credentials stay outside Terraform") && !identity.includes("client_secret"));
+record("DEV032-PROD-IAC-018 regional logs, connection reserve and numbering signing are modeled", observability.includes("google_logging_project_bucket_config") && observability.includes("cloud_sql_connections") && security.includes("numbering_ledger") && security.includes('protection_level = "HSM"'));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

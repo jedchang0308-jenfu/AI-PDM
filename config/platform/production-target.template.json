@@ -42,7 +42,7 @@
   "identity": {
     "provider": "Firebase Authentication with Identity Platform",
     "firebaseProjectId": "jenfu-ai-pdm-prod",
-    "authorizedDomains": ["pdm.jenfu.com.tw"],
+    "authorizedDomains": ["pdm.jenfu.com.tw", "jenfu-ai-pdm-prod.firebaseapp.com"],
     "firestoreAuthorityAllowed": false,
     "firebaseStorageAuthorityAllowed": false,
     "firebaseFunctionsAuthorityAllowed": false,

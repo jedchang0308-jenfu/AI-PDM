@@ -21,7 +21,7 @@ output "production_gate_summary" {
     hd84_restore         = var.hd84_restore_reconciliation_approved
     rollback_readiness   = var.rollback_readiness_approved
     level3_smoke_plan    = var.level3_smoke_plan_approved
+    post_apply_ready     = local.post_apply_release_gates_ready
     cost_gate_ready      = local.cost_gate_ready
   }
 }
-

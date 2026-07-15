@@ -52,10 +52,13 @@ locals {
     length(var.alert_notification_channel_ids) > 0
   )
 
-  release_gates_ready = (
+  pre_apply_gates_ready = (
     var.production_target_readback_approved &&
     var.production_env_source_approved &&
-    var.production_secret_metadata_readback_approved &&
+    var.production_secret_metadata_readback_approved
+  )
+
+  post_apply_release_gates_ready = (
     var.clean_seed_allowlist_approved &&
     var.hd84_restore_reconciliation_approved &&
     var.rollback_readiness_approved &&
@@ -72,7 +75,7 @@ locals {
     var.enable_resource_creation &&
     var.production_apply_acknowledgement == local.production_apply_acknowledgement &&
     local.real_target_values_ready &&
-    local.release_gates_ready &&
+    local.pre_apply_gates_ready &&
     local.cost_gate_ready
   )
 }
@@ -80,7 +83,7 @@ locals {
 check "production_resource_creation_guard" {
   assert {
     condition     = !var.enable_resource_creation || local.create_resources
-    error_message = "Production resource creation requires exact DEV-032 acknowledgement, real target values, all release gates and cost gate."
+    error_message = "Production resource creation requires exact DEV-032 acknowledgement, real target values, Gate A readback and the cost gate."
   }
 }
 
