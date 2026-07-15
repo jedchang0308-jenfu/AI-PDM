@@ -24,10 +24,12 @@ ARG SOURCE_REVISION
 ARG SOURCE_CREATED_AT
 ARG SOURCE_VERSION
 ARG SOURCE_STATE
+ARG MIGRATION_PACKAGE_TARGET=staging
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PDM_DB_PROVIDER=cloud_sql_postgres \
+    PDM_MIGRATION_PACKAGE_TARGET=${MIGRATION_PACKAGE_TARGET} \
     PDM_SOURCE_REVISION=${SOURCE_REVISION}
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
@@ -44,7 +46,7 @@ COPY --chown=nextjs:nodejs db ./db
 COPY --chown=nextjs:nodejs config ./config
 COPY --chown=nextjs:nodejs infra ./infra
 COPY --chown=nextjs:nodejs src/lib ./src/lib
-RUN npm run dev-046:cloudsql-migration-package
+RUN if [ "$MIGRATION_PACKAGE_TARGET" = "production" ]; then npm run dev-032:cloudsql-migration-package; else npm run dev-046:cloudsql-migration-package; fi
 USER nextjs
 CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 

@@ -361,14 +361,20 @@ function buildMarkdown(report) {
   return `${lines.join("\n")}\n`;
 }
 
-export function buildDev046CloudSqlMigrationPackage() {
-  const manifest = json("config/platform/staging-preflight.template.json");
-  const liveExecutionEvidence = fs.existsSync(projectPath(liveExecutionEvidencePath))
-    ? json(liveExecutionEvidencePath)
+export function buildDev046CloudSqlMigrationPackage(options = {}) {
+  const targetMode = options.target ?? process.env.PDM_MIGRATION_PACKAGE_TARGET ?? "staging";
+  if (!new Set(["staging", "production"]).has(targetMode)) throw new Error(`UNSUPPORTED_MIGRATION_PACKAGE_TARGET:${targetMode}`);
+  const production = targetMode === "production";
+  const manifest = production ? null : json("config/platform/staging-preflight.template.json");
+  const productionTarget = production ? json("config/platform/production-target.template.json") : null;
+  const executionEvidencePath = production ? "output/dev-032-live-migration/execution-summary.json" : liveExecutionEvidencePath;
+  const liveExecutionEvidence = fs.existsSync(projectPath(executionEvidencePath))
+    ? json(executionEvidencePath)
     : null;
   const cloudSqlAccess = json("config/platform/cloud-sql-access.json");
-  const runtimeTf = read("infra/google-cloud/staging/runtime.tf");
-  const databaseTf = read("infra/google-cloud/staging/database.tf");
+  const terraformDirectory = production ? "infra/google-cloud/production" : "infra/google-cloud/staging";
+  const runtimeTf = read(`${terraformDirectory}/runtime.tf`);
+  const databaseTf = read(`${terraformDirectory}/database.tf`);
   const grantsFile = "db/cloud-sql/pdm_runtime_grants.sql";
   const grantSql = read(grantsFile);
   const postgresFiles = listSqlFiles("db/postgres");
@@ -435,46 +441,49 @@ export function buildDev046CloudSqlMigrationPackage() {
     liveExecutionEvidence?.migrationResult?.status === "succeeded" &&
     liveExecutionEvidence?.migrationResult?.idempotenceVerified === true &&
     liveExecutionEvidence?.adminBootstrap?.status === "succeeded";
-  const runtimeSmokeExecuted = manifest.phase2Bootstrap?.runtimeSmoke?.status === "passed";
-  const currentAcceptanceBlockers = Array.isArray(manifest.knownApplicationBlockers)
+  const runtimeSmokeExecuted = production ? false : manifest.phase2Bootstrap?.runtimeSmoke?.status === "passed";
+  const currentAcceptanceBlockers = !production && Array.isArray(manifest.knownApplicationBlockers)
     ? manifest.knownApplicationBlockers
     : [];
-  const cloudSqlPackageReady = liveMigrationCompleted;
+  const cloudSqlPackageReady = production ? true : liveMigrationCompleted;
   const vpcAttachedRunnerRequired =
-    manifest.phase2Bootstrap?.cloudSql?.privateIp !== undefined &&
+    (production || manifest.phase2Bootstrap?.cloudSql?.privateIp !== undefined) &&
     runtimeTf.includes("--private-ip") &&
     runtimeTf.includes("--auto-iam-authn") &&
     databaseTf.includes("ipv4_enabled                                  = false");
-  const migrationRunnerPreflight = manifest.phase2Bootstrap?.cloudSqlMigrationRunnerPreflight ?? {};
+  const migrationRunnerPreflight = production ? {} : (manifest.phase2Bootstrap?.cloudSqlMigrationRunnerPreflight ?? {});
   const reviewedVpcAttachedRunnerPresent =
     migrationRunnerPreflight.cloudRunJobIacPresent === true &&
     migrationRunnerPreflight.cloudRunJobApplyExecuted === true &&
     migrationRunnerPreflight.cloudRunJobExistsAfterApply === true;
 
+  const targetProjectId = production ? productionTarget.target.projectId : manifest.target.stagingProjectId;
+  const targetRegion = production ? productionTarget.target.region : manifest.target.region;
+  const targetInstance = production ? productionTarget.target.cloudSqlInstance : (manifest.phase2Bootstrap?.cloudSql?.instance ?? "");
   const target = {
-    projectId: manifest.target.stagingProjectId,
-    region: manifest.target.region,
-    cloudSqlInstance: manifest.phase2Bootstrap?.cloudSql?.instance ?? "",
-    connectionName: manifest.phase2Bootstrap?.cloudSql?.connectionName ?? "",
+    projectId: targetProjectId,
+    region: targetRegion,
+    cloudSqlInstance: targetInstance,
+    connectionName: production ? `${targetProjectId}:${targetRegion}:${targetInstance}` : (manifest.phase2Bootstrap?.cloudSql?.connectionName ?? ""),
     databaseName: "ai_pdm",
     privateIpOnly: true,
-    privateIpObserved: manifest.phase2Bootstrap?.cloudSql?.privateIp ?? "",
-    runtimeServiceAccount: "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam.gserviceaccount.com",
-    runtimeIamDatabaseUser: "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam",
-    migrationIamDatabaseUser: "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
+    privateIpObserved: production ? "" : (manifest.phase2Bootstrap?.cloudSql?.privateIp ?? ""),
+    runtimeServiceAccount: production ? "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com" : "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam.gserviceaccount.com",
+    runtimeIamDatabaseUser: production ? "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam" : "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam",
+    migrationIamDatabaseUser: production ? "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam" : "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
   };
   const candidatePackage = buildCandidatePackage({ target, grantSql, postgresFiles });
 
   return {
     schemaVersion: 1,
-    reportType: "dev-046-cloudsql-migration-package-preflight",
-    dev: "DEV-046",
-    phase: "Phase-2B-staging-migration-preflight",
+    reportType: production ? "dev-032-production-cloudsql-migration-package" : "dev-046-cloudsql-migration-package-preflight",
+    dev: production ? "DEV-032" : "DEV-046",
+    phase: production ? "Gate-C-production-clean-seed-migration" : "Phase-2B-staging-migration-preflight",
     packageVersion: DEV046_CLOUDSQL_MIGRATION_PACKAGE_VERSION,
     generatedAt: new Date().toISOString(),
     target,
     liveExecutionEvidence: {
-      path: liveExecutionEvidencePath,
+      path: executionEvidencePath,
       present: liveExecutionEvidence !== null,
       status: liveExecutionEvidence?.status ?? "not-present",
       adminBootstrapSucceeded: liveExecutionEvidence?.adminBootstrap?.status === "succeeded",
@@ -533,10 +542,12 @@ export function buildDev046CloudSqlMigrationPackage() {
       vpcAttachedRunnerRequired,
       recommendedRunner: "reviewed Cloud Run Job or equivalent VPC-attached migration runner using the migration service account and Cloud SQL Auth Proxy automatic IAM database authentication",
       localMachineDirectApplyAllowed: false,
-      runtimeSmokeRequiresBrowserHttpsEntrypoint: manifest.phase2Bootstrap?.internalPilotAccess?.browserHttpsEntrypointRequired === true
+      runtimeSmokeRequiresBrowserHttpsEntrypoint: production ? true : manifest.phase2Bootstrap?.internalPilotAccess?.browserHttpsEntrypointRequired === true
     },
     readiness: {
-      status: liveMigrationCompleted && runtimeSmokeExecuted
+      status: production
+        ? "production_candidate_package_generated_not_applied"
+        : liveMigrationCompleted && runtimeSmokeExecuted
         ? "live_migration_and_runtime_smoke_completed_acceptance_gated"
         : liveMigrationCompleted
           ? "live_migration_completed_runtime_smoke_pending"
@@ -545,7 +556,9 @@ export function buildDev046CloudSqlMigrationPackage() {
       cloudSqlMigrationPackageReady: cloudSqlPackageReady,
       liveMigrationCompleted,
       runtimeSmokeReady: runtimeSmokeExecuted,
-      blockers: liveMigrationCompleted && runtimeSmokeExecuted
+      blockers: production
+        ? ["PRODUCTION_ADMIN_BOOTSTRAP_NOT_EXECUTED", "PRODUCTION_MIGRATION_NOT_EXECUTED", "PRODUCTION_RUNTIME_SMOKE_NOT_EXECUTED"]
+        : liveMigrationCompleted && runtimeSmokeExecuted
         ? currentAcceptanceBlockers
         : liveMigrationCompleted
           ? ["STAGING_RUNTIME_SMOKE_NOT_EXECUTED"]
@@ -559,7 +572,7 @@ export function buildDev046CloudSqlMigrationPackage() {
         "Do not apply db/postgres/*.sql directly to Cloud SQL until Supabase role references are removed or converted.",
         "Do not use a local private-IP proxy unless the executor is inside a network that can reach the Cloud SQL private IP.",
         "Do not use static database passwords, service-account keys, public IP enablement or browser-direct database access.",
-        "Stop before live execution if the reviewed plan would delete/replace resources, exceed the USD 240 review stop, or widen scope beyond DEV-046 Phase 2B staging."
+        `Stop before live execution if the reviewed plan would delete/replace resources, exceed the USD 240 review stop, or widen scope beyond ${production ? "DEV-032 Gate C production" : "DEV-046 Phase 2B staging"}.`
       ]
     },
     candidatePackage: {
@@ -575,7 +588,13 @@ export function buildDev046CloudSqlMigrationPackage() {
       excludedFiles: candidatePackage.excludedFiles,
       transformations: candidatePackage.transformations
     },
-    requiredNextWork: liveMigrationCompleted && runtimeSmokeExecuted
+    requiredNextWork: production
+      ? [
+          "Apply only after the DEV-032 production infrastructure plan and target readback pass.",
+          "Execute admin bootstrap separately, then run schema migration twice to prove idempotence.",
+          "Run production runtime, restore and numbering reconciliation before canary."
+        ]
+      : liveMigrationCompleted && runtimeSmokeExecuted
       ? [
           "Create or verify the staging principal mapping after a real provider UID exists.",
           "Resolve the deployed application artifact provenance and source drift before full staging acceptance."
@@ -592,7 +611,13 @@ export function buildDev046CloudSqlMigrationPackage() {
           "Use the reviewed VPC-attached runner Job for admin bootstrap, schema migration, checksum history and runtime grant verification only after separate live approvals.",
           "After migration succeeds, run runtime smoke through the Cloud Run service account and only then perform user/principal mapping smoke."
         ],
-    notes: liveMigrationCompleted && runtimeSmokeExecuted
+    notes: production
+      ? [
+          "This package is tied to the dedicated production project and IAM database users.",
+          "No source business rows, staging identities, credentials or GCS file-authority migration are included.",
+          "Generation performs no cloud or database action."
+        ]
+      : liveMigrationCompleted && runtimeSmokeExecuted
       ? [
           "This local report reads durable evidence but does not connect to Cloud SQL or execute cloud actions.",
           "Admin bootstrap and all 18 intended schema migrations completed; an immediate second run applied zero versions.",

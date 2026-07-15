@@ -12,6 +12,8 @@ export const PDM_MIGRATION_ADVISORY_LOCK_ID = 7_104_604_601;
 
 const root = process.cwd();
 const defaultManifestPath = "output/dev-046-cloudsql-migration-package/cloudsql-migration-manifest.json";
+const productionManifestPath = "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json";
+const DEV032_CLOUDSQL_MIGRATION_APPROVAL = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
 
 function projectPath(relativePath) {
   return path.join(root, ...relativePath.split("/"));
@@ -87,10 +89,14 @@ export function buildDev046CloudSqlMigrationRunPlan(manifestPath = defaultManife
 }
 
 function requireLiveExecutionApproval(plan) {
-  if (process.env.DEV046_CLOUDSQL_MIGRATION_APPROVAL !== DEV046_CLOUDSQL_MIGRATION_APPROVAL) {
+  const production = plan.target.projectId === "jenfu-ai-pdm-prod";
+  const requiredApproval = production ? DEV032_CLOUDSQL_MIGRATION_APPROVAL : DEV046_CLOUDSQL_MIGRATION_APPROVAL;
+  const suppliedApproval = production ? process.env.DEV032_CLOUDSQL_MIGRATION_APPROVAL : process.env.DEV046_CLOUDSQL_MIGRATION_APPROVAL;
+  const suppliedBootstrap = production ? process.env.DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED : process.env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED;
+  if (suppliedApproval !== requiredApproval) {
     throw new Error("LIVE_MIGRATION_APPROVAL_MISSING");
   }
-  if (process.env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED !== DEV046_CLOUDSQL_MIGRATION_APPROVAL) {
+  if (suppliedBootstrap !== requiredApproval) {
     throw new Error("ADMIN_BOOTSTRAP_CONFIRMATION_MISSING");
   }
   if (process.env.PDM_DB_PROVIDER !== "cloud_sql_postgres") throw new Error("PDM_DB_PROVIDER_MUST_BE_CLOUD_SQL_POSTGRES");
@@ -121,7 +127,7 @@ function connectionConfigFromEnv(plan) {
     idleTimeoutMillis: Number.parseInt(process.env.PDM_CLOUD_SQL_IDLE_TIMEOUT_MS || "600000", 10),
     statement_timeout: Number.parseInt(process.env.PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS || "30000", 10),
     query_timeout: Number.parseInt(process.env.PDM_CLOUD_SQL_QUERY_TIMEOUT_MS || "35000", 10),
-    application_name: "ai-pdm-dev-046-migration-runner"
+    application_name: plan.target.projectId === "jenfu-ai-pdm-prod" ? "ai-pdm-dev-032-production-migration-runner" : "ai-pdm-dev-046-migration-runner"
   };
 }
 
@@ -184,7 +190,7 @@ function summarizePlan(plan, mode) {
     runtimeGrantRefreshIncluded: Boolean(plan.runtimeGrantRefresh),
     liveApplyAllowedByManifest: plan.liveApplyAllowedByManifest,
     connectionAttempted: mode === "execute",
-    explicitApprovalRequired: DEV046_CLOUDSQL_MIGRATION_APPROVAL
+    explicitApprovalRequired: plan.target.projectId === "jenfu-ai-pdm-prod" ? DEV032_CLOUDSQL_MIGRATION_APPROVAL : DEV046_CLOUDSQL_MIGRATION_APPROVAL
   };
 }
 
@@ -192,7 +198,7 @@ const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).h
 if (isMain) {
   const args = new Set(process.argv.slice(2));
   const execute = args.has("--execute");
-  const manifestPath = argValue("--manifest", defaultManifestPath);
+  const manifestPath = argValue("--manifest", process.env.PDM_MIGRATION_PACKAGE_TARGET === "production" ? productionManifestPath : defaultManifestPath);
   try {
     const plan = buildDev046CloudSqlMigrationRunPlan(manifestPath);
     if (!execute) {

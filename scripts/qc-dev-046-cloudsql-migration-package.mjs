@@ -172,8 +172,9 @@ try {
       !manifest.includes("STAGING_CLOUD_SQL_MIGRATION_PACKAGE_NOT_READY")
   );
   record(
-    "DEV046-CLOUDSQL-MIG-019 docs expose completed migration without claiming staging acceptance",
-    devTask.includes("STAGING_APPLICATION_ARTIFACT_PROVENANCE_AND_DRIFT_EVIDENCE_MISSING") &&
+    "DEV046-CLOUDSQL-MIG-019 docs expose completed staging migration without claiming production acceptance",
+    devTask.includes("Phase 2B staging activation 已完成") &&
+      devTask.includes("DEV-032 Gate A-E") &&
       docMap.includes("live migration") &&
       stagingReadme.includes("Do not apply `db/postgres/*.sql` directly to Cloud SQL")
   );
