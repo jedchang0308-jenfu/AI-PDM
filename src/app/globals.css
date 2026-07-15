@@ -8723,7 +8723,7 @@ select.dropdown-select {
 
 .number-state-draft-outcome-item svg {
   flex: none;
-  color: var(--primary);
+  color: #0f766e;
 }
 
 .number-state-draft-outcome-item > div,
@@ -8796,8 +8796,8 @@ select.dropdown-select {
 }
 
 .number-state-drawing-toggle.is-on .number-state-switch {
-  border-color: var(--primary);
-  background: var(--primary);
+  border-color: #0f766e;
+  background: #0f766e;
 }
 
 .number-state-drawing-toggle.is-on .number-state-switch span {
