@@ -8739,6 +8739,7 @@ select.dropdown-select {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .number-state-draft-outcome-item strong,
@@ -8807,6 +8808,18 @@ select.dropdown-select {
 .number-state-drawing-toggle input:focus-visible + .number-state-switch {
   outline: 2px solid rgba(37, 99, 235, 0.45);
   outline-offset: 2px;
+}
+
+.number-state-preview-note {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.number-state-name-scope {
+  align-self: end;
+  min-height: 38px;
 }
 
 .number-state-checkbox {

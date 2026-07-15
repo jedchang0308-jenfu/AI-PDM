@@ -220,9 +220,6 @@ function normalizedCreateData(body: Record<string, unknown>, actor: PlatformActo
     if (kind === "custom" && !customSpecification) {
       throw new NumberStateFlowError("numbering_custom_specification_required", "Custom parts require a specification.", 400);
     }
-    if (isUniversal && !universalReason) {
-      throw new NumberStateFlowError("numbering_universal_reason_required", "Shared or universal parts require a reason.", 400);
-    }
     return {
       id,
       partName: requiredText(part.partName ?? part.part_name, "partName", 300),
@@ -442,9 +439,6 @@ function normalizePatchBody(body: Record<string, unknown>) {
       const kind = itemKind(part.itemKind ?? part.item_kind);
       const isUniversal = kind === "shared" || boolean(part.isUniversal ?? part.is_universal);
       const universalReason = text(part.universalReason ?? part.universal_reason, 1000) || null;
-      if (isUniversal && !universalReason) {
-        throw new NumberStateFlowError("numbering_universal_reason_required", "Shared or universal parts require a reason.", 400);
-      }
       return {
         id: requiredText(part.id, "part.id", 200),
         partName: requiredText(part.partName ?? part.part_name, "part.partName", 300),

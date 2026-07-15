@@ -20,6 +20,7 @@ const drawingsPage = readProjectFile(root, "src/app/numbering/drawings/page.tsx"
 const searchPage = readProjectFile(root, "src/app/numbering/search/page.tsx");
 const domain = readProjectFile(root, "src/lib/number-state-flow.ts");
 const repository = readProjectFile(root, "src/lib/repositories/number-state-flow-async-repository.ts");
+const previewApi = readProjectFile(root, "src/app/api/numbering/draft-workspaces/preview/route.ts");
 const sqliteSchema = readProjectFile(root, "db/schema.sql");
 const postgresInitial = readProjectFile(root, "db/postgres/001_initial_schema.sql");
 const postgresPhase1a = readProjectFile(root, "db/postgres/012_number_state_flow_phase1a.sql");
@@ -62,30 +63,33 @@ record(
 );
 
 record(
-  "NSF-REQ-EQ-003 create payload carries append, shared, and relation semantics",
+  "NSF-REQ-EQ-003 create payload carries append, naming-scope, and relation semantics",
   includesAll(workspace, [
     "sourceRootId: form.mode === \"new_bundle\" ? undefined : appendPolicy?.root.id",
     "appendReason: form.mode === \"new_bundle\" ? undefined : form.appendReason.trim() || null",
-    "isUniversal: sharedPart",
-    "universalReason: sharedPart ? form.universalReason.trim() : null",
-    "seriesCode: form.partItemKind === \"manufactured\" && !sharedPart ? form.seriesCode.trim() || null : null",
+    "sharedName",
+    "isUniversal: false",
+    "universalReason: null",
+    "seriesCode: form.partItemKind === \"manufactured\" ? form.seriesCode.trim() || null : null",
     "linkType: relationLinkType",
     "isManufacturingPurposeCode"
-  ]),
-  "create request must translate root code to ID and retain append reason, shared reason, series, and relation type"
+  ]) &&
+    workspace.includes("number-state-name-scope") &&
+    !workspace.includes("sharedPart"),
+  "create request must translate root code to ID, keep cross-project shared as naming-only, and retain relation type"
 );
 
 record(
-  "NSF-REQ-EQ-004 domain validation blocks missing reasons and invalid primary links",
+  "NSF-REQ-EQ-004 domain validation allows optional shared reasons and blocks invalid primary links",
   includesAll(domain, [
     "appendReason",
     "universalReason",
-    "numbering_universal_reason_required",
     "isManufacturingPurpose",
     "primary_manufacturing",
     "numbering_invalid_relation"
-  ]),
-  "normalizer must require universal reason and prevent non-manufacturing drawings from becoming primary links"
+  ]) &&
+    !domain.includes("numbering_universal_reason_required"),
+  "normalizer must allow shared/universal reason to be optional and prevent non-manufacturing drawings from becoming primary links"
 );
 
 record(
@@ -140,7 +144,10 @@ record(
     "料號系列代號（選填）",
     "可先自創，正式發行前再改正式名稱。",
     "包含圖號草稿",
-    "data-qc=\"drawing-need-guidance\"",
+    "data-qc=\"part-number-preview\"",
+    "data-qc=\"drawing-number-preview\"",
+    "data-qc=\"number-preview-note\"",
+    "預覽不佔號，儲存草稿後再取得候選號。",
     "duplicate-warning-only",
     "仍可繼續儲存草稿"
   ]) &&
@@ -149,6 +156,7 @@ record(
     !workspace.includes("共用件未標示製程管制") &&
     !workspace.includes("共用料件會自動標示為跨專案共用") &&
     !workspace.includes("說明為什麼此料件可跨專案共用") &&
+    !workspace.includes("共用件請填寫跨專案共用原因。") &&
     !workspace.includes('label="主根名稱"') &&
     !workspace.includes("請輸入主根名稱。") &&
     !workspace.includes("料號品名必須由主根名稱帶入") &&
@@ -163,15 +171,35 @@ record(
   includesAll(workspace, [
     "normalizeNameSegment",
     "replace(/[\\s_]+/gu, \"_\")",
-    "[core, brand, specification]",
-    "[core, feature || specification, serial]",
-    "[core, series, feature || specification, serial]",
+    "sharedScope",
+    "[core, brand, specification, sharedScope]",
+    "[core, series, feature || specification, serial, sharedScope]",
     "外購件建議：[核心名詞]_[品牌]_[規格/型號]",
-    "共用件建議：[核心名詞]_[特性]_[流水識別]",
     "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]",
     "依管理辦法由大到小、由主到次產生"
   ]),
   "suggested confirmed names must mirror the management method without changing v3 numbering authority"
+);
+
+record(
+  "NSF-REQ-EQ-010 preview API is read-only and follows candidate sequence scopes",
+  includesAll(previewApi, [
+    "export async function GET",
+    "requireNumberStateReadAccessAsync(request, \"numbering.workspace.create\")",
+    "reserved: false",
+    "part_roots WHERE company_id = :companyId",
+    "part_numbers WHERE company_id = :companyId",
+    "drawing_numbers WHERE company_id = :companyId",
+    "number_candidate_reservations",
+    "numbering_recovery_reservations",
+    "reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted')",
+    "`${companyId}:root:${ruleVersionId}`",
+    "`${companyId}:part:${rootCode}:${ruleVersionId}`",
+    "`${companyId}:drawing:${rootCode}:${purposeCode}:${ruleVersionId}`"
+  ]) &&
+    !/\b(?:INSERT|UPDATE|DELETE|UPSERT|CREATE|DROP|ALTER)\b/u.test(previewApi) &&
+    !previewApi.includes(".execute("),
+  "number preview may read official/reserved/recovery numbers, but must not reserve, mutate, or use a different sequence scope"
 );
 
 const failed = results.filter((result) => !result.passed);
