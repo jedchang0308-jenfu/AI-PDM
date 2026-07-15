@@ -210,7 +210,9 @@ export function buildDev032ReleaseSourceManifest(root = process.cwd()) {
     stopConditions: [
       "Do not deploy from this manifest alone.",
       "Do not treat staging-only Firebase Hosting or staging Terraform files as production provider config.",
-      "Do not build production until release owner selects the source path and an exact commit or immutable snapshot is created.",
+      exactReleaseCommitExists
+        ? "Do not build production until production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke gates are closed."
+        : "Do not build production until release owner selects the source path and an exact commit or immutable snapshot is created.",
       "Do not proceed while production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke are missing."
     ],
     files: entries

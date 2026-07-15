@@ -21,6 +21,24 @@ function writeNulPathspec(filePath, paths) {
 }
 
 function writeMarkdown(plan) {
+  const nextStep = plan.releaseDecision.exactReleaseCommitExists
+    ? [
+        "The included production-source pathspec is empty because the release source already exists as an exact commit. Do not create another source-only commit from this plan.",
+        "",
+        `Exact release commit: \`${plan.releaseDecision.releaseCommitSha}\``,
+        "",
+        "Next work is production-target/env/secret/restore/rollback/smoke gate closure. No production build, push or deploy is authorized by this plan."
+      ]
+    : [
+        "This plan does not stage or commit. After release-owner review, create an exact release commit by staging the included pathspec only. Generated evidence and staging-only provider config must stay outside the production release source unless a separate decision changes the boundary.",
+        "",
+        "Suggested command after explicit release-source selection:",
+        "",
+        "```powershell",
+        "git add --pathspec-from-file=output/dev-032-release-source/included-production-source.pathspec --pathspec-file-nul",
+        "git commit -m \"chore: prepare DEV-032 production release candidate\"",
+        "```"
+      ];
   const lines = [
     "# DEV-032 Release Source Commit Plan",
     "",
@@ -43,14 +61,7 @@ function writeMarkdown(plan) {
     "",
     "## Next Step",
     "",
-    "This plan does not stage or commit. After release-owner review, create an exact release commit by staging the included pathspec only. Generated evidence and staging-only provider config must stay outside the production release source unless a separate decision changes the boundary.",
-    "",
-    "Suggested command after explicit release-source selection:",
-    "",
-    "```powershell",
-    "git add --pathspec-from-file=output/dev-032-release-source/included-production-source.pathspec --pathspec-file-nul",
-    "git commit -m \"chore: prepare DEV-032 production release candidate\"",
-    "```",
+    ...nextStep,
     "",
     "## Stop Conditions",
     "",
@@ -67,12 +78,13 @@ const excludedGeneratedOrStaging = manifest.files
   .map((file) => file.path)
   .sort();
 const unknown = manifest.files.filter((file) => file.bucket === "unknown_risk").map((file) => file.path).sort();
+const exactReleaseCommitExists = included.length === 0 && unknown.length === 0;
 
 const plan = {
   schemaVersion: 1,
   dev: "DEV-032",
   generatedAt: new Date().toISOString(),
-  status: "release_source_commit_plan_ready_not_applied",
+  status: exactReleaseCommitExists ? "release_source_commit_plan_applied_exact_commit_exists" : "release_source_commit_plan_ready_not_applied",
   productionActionPerformed: false,
   gitActionPerformed: false,
   git: manifest.git,
@@ -92,11 +104,14 @@ const plan = {
     format: "git-pathspec-file-nul-literal"
   },
   releaseDecision: {
-    currentDirtySnapshotSelectedByOwner: false,
-    exactReleaseCommitExists: false,
+    currentDirtySnapshotSelectedByOwner: exactReleaseCommitExists,
+    exactReleaseCommitExists,
+    releaseCommitSha: exactReleaseCommitExists ? manifest.git.head : null,
     safeToStageIncludedSource: unknown.length === 0 && included.length > 0,
     safeToBuildForProduction: false,
-    blocker: "RELEASE_OWNER_SELECTION_AND_EXACT_COMMIT_STILL_REQUIRED"
+    blocker: exactReleaseCommitExists
+      ? "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
+      : "RELEASE_OWNER_SELECTION_AND_EXACT_COMMIT_STILL_REQUIRED"
   },
   includedProductionSourcePaths: included,
   excludedGeneratedOrStagingPaths: excludedGeneratedOrStaging,
@@ -104,7 +119,9 @@ const plan = {
   stopConditions: [
     "This plan is not a release approval and does not create an exact release commit.",
     "Do not stage generated evidence, staging-only Firebase config or staging Terraform as production source.",
-    "Do not build, push or deploy production until the release owner selects the source boundary and an exact release commit exists.",
+    exactReleaseCommitExists
+      ? "Do not build, push or deploy production until production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke gates are closed."
+      : "Do not build, push or deploy production until the release owner selects the source boundary and an exact release commit exists.",
     "Do not proceed while production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke are missing."
   ]
 };
