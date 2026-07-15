@@ -31,7 +31,10 @@ resource "google_cloud_run_v2_job" "migration_runner" {
         name    = "ai-pdm-migration-runner"
         image   = var.migration_runner_image
         command = ["node"]
-        args = concat(
+        args = var.principal_bootstrap_execution ? [
+          "scripts/run-dev-032-production-principal-bootstrap.mjs",
+          "--execute"
+          ] : concat(
           ["scripts/run-dev-046-cloudsql-migrations.mjs"],
           var.migration_live_execution ? ["--execute"] : []
         )
@@ -118,6 +121,21 @@ resource "google_cloud_run_v2_job" "migration_runner" {
           content {
             name  = env.value
             value = local.migration_live_acknowledgement
+          }
+        }
+
+        dynamic "env" {
+          for_each = var.principal_bootstrap_execution ? {
+            DEV032_PRODUCTION_PRINCIPAL_BOOTSTRAP_APPROVAL = local.principal_bootstrap_acknowledgement
+            DEV032_PRODUCTION_FIREBASE_UID                 = var.production_principal_firebase_uid
+            DEV032_PRODUCTION_PROJECT_ID                   = var.production_project_id
+            DEV032_PRODUCTION_REGION                       = var.region
+            DEV032_EXPECTED_SOURCE_REVISION                = var.migration_runner_source_revision
+          } : {}
+
+          content {
+            name  = env.key
+            value = env.value
           }
         }
       }

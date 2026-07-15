@@ -148,6 +148,52 @@ variable "migration_live_execution_acknowledgement" {
   default     = ""
 }
 
+variable "admin_bootstrap_readback_approved" {
+  description = "True only after the privileged Cloud SQL role bootstrap readback passes."
+  type        = bool
+  default     = false
+}
+
+variable "schema_migration_readback_approved" {
+  description = "True only after the production schema migration and immediate idempotent rerun readback pass."
+  type        = bool
+  default     = false
+}
+
+variable "principal_bootstrap_execution" {
+  description = "Switches the private migration Job to the production principal bootstrap runner."
+  type        = bool
+  default     = false
+}
+
+variable "principal_bootstrap_execution_acknowledgement" {
+  description = "Exact acknowledgement required before the production principal bootstrap runner may execute."
+  type        = string
+  default     = ""
+}
+
+variable "production_principal_firebase_uid" {
+  description = "Verified production Firebase UID for the initial admin. A template or staging UID is forbidden."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.production_principal_firebase_uid == "" || can(regex("^[A-Za-z0-9_-]{6,128}$", var.production_principal_firebase_uid))
+    error_message = "production_principal_firebase_uid must be empty or a verified Firebase UID."
+  }
+}
+
+variable "migration_runner_source_revision" {
+  description = "Exact Git source revision embedded in the migration runner image."
+  type        = string
+  default     = "0000000000000000000000000000000000000000"
+
+  validation {
+    condition     = can(regex("^[a-f0-9]{40}$", var.migration_runner_source_revision))
+    error_message = "migration_runner_source_revision must be a 40-character Git SHA."
+  }
+}
+
 variable "cloud_sql_proxy_image" {
   description = "Digest-pinned Cloud SQL Auth Proxy v2 image."
   type        = string

@@ -1,16 +1,17 @@
 output "production_review_target" {
   value = {
-    project_id            = var.production_project_id
-    region                = var.region
-    cloud_run_service     = local.name_prefix
-    cloud_sql_instance    = local.cloud_sql_instance_name
-    migration_runner_job  = local.migration_runner_job_ready ? "${local.name_prefix}-migration-runner" : null
-    migration_live_mode   = var.migration_live_execution
-    public_base_url       = var.runtime_public_base_url
-    create_resources      = local.create_resources
-    production_action     = false
-    firebase_hosting_used = false
-    phase3a_gcs_authority = false
+    project_id               = var.production_project_id
+    region                   = var.region
+    cloud_run_service        = local.name_prefix
+    cloud_sql_instance       = local.cloud_sql_instance_name
+    migration_runner_job     = local.migration_runner_job_ready ? "${local.name_prefix}-migration-runner" : null
+    migration_live_mode      = var.migration_live_execution
+    principal_bootstrap_mode = var.principal_bootstrap_execution
+    public_base_url          = var.runtime_public_base_url
+    create_resources         = local.create_resources
+    production_action        = false
+    firebase_hosting_used    = false
+    phase3a_gcs_authority    = false
   }
 }
 

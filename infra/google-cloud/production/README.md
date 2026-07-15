@@ -60,6 +60,12 @@ Switching the Job to live execution requires the separate
 `DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED` acknowledgement after the
 database admin bootstrap has completed.
 
+After schema migration and its immediate idempotent rerun pass, the same Job
+may be switched to the production principal bootstrap runner. That transition
+requires a verified production Firebase UID, exact image source revision and
+`DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED`; template or staging UIDs
+remain fail-closed.
+
 ## Allowed Local Commands
 
 Without production credentials:

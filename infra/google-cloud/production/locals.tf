@@ -1,10 +1,11 @@
 locals {
-  production_apply_acknowledgement = "DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED"
-  migration_job_acknowledgement    = "DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED"
-  migration_live_acknowledgement   = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
-  name_prefix                      = "ai-pdm-prod"
-  database                         = "ai_pdm"
-  cloud_sql_instance_name          = "ai-pdm-prod-postgres"
+  production_apply_acknowledgement    = "DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED"
+  migration_job_acknowledgement       = "DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED"
+  migration_live_acknowledgement      = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
+  principal_bootstrap_acknowledgement = "DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED"
+  name_prefix                         = "ai-pdm-prod"
+  database                            = "ai_pdm"
+  cloud_sql_instance_name             = "ai-pdm-prod-postgres"
 
   required_services = toset([
     "artifactregistry.googleapis.com",
@@ -91,7 +92,19 @@ locals {
     !var.migration_live_execution || (
       local.migration_runner_job_ready &&
       var.migration_live_execution_acknowledgement == local.migration_live_acknowledgement &&
-      var.clean_seed_allowlist_approved
+      var.admin_bootstrap_readback_approved &&
+      !var.principal_bootstrap_execution
+    )
+  )
+
+  principal_bootstrap_execution_ready = (
+    !var.principal_bootstrap_execution || (
+      local.migration_runner_job_ready &&
+      !var.migration_live_execution &&
+      var.schema_migration_readback_approved &&
+      var.principal_bootstrap_execution_acknowledgement == local.principal_bootstrap_acknowledgement &&
+      can(regex("^[A-Za-z0-9_-]{6,128}$", var.production_principal_firebase_uid)) &&
+      var.migration_runner_source_revision != "0000000000000000000000000000000000000000"
     )
   )
 
@@ -143,6 +156,13 @@ check "production_migration_live_execution_guard" {
   assert {
     condition     = local.migration_live_execution_ready
     error_message = "Live production migration requires the exact migration acknowledgement and completed clean-seed/admin-bootstrap gate."
+  }
+}
+
+check "production_principal_bootstrap_execution_guard" {
+  assert {
+    condition     = local.principal_bootstrap_execution_ready
+    error_message = "Production principal bootstrap requires completed schema migration readback, a verified Firebase UID, exact source revision and the exact bootstrap acknowledgement."
   }
 }
 
