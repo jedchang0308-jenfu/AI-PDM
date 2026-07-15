@@ -56,6 +56,7 @@ record("DEV032-ACTIVATION-014 runbook is handoff-only and requires separate appr
 record("DEV032-ACTIVATION-015 runbook and restore runbook both require HD-8-4 separate isolated restore", runbook.includes("HD-8-4 / 1A") && runbook.includes("separate isolated target") && restoreRunbook.includes("separate isolated"));
 record("DEV032-ACTIVATION-016 IaC README still treats plan as non-approval", iacReadme.includes("A plan file is not an apply approval.") && iacReadme.includes("After explicit release-gate approval"));
 record("DEV032-ACTIVATION-017 package exposes checklist QC", packageJson.scripts?.["qc:dev-032-production-activation-checklist"] === "node scripts/qc-dev-032-production-activation-checklist.mjs");
+record("DEV032-ACTIVATION-018 rollback drill contract forbids template mutation", runbook.includes("Do not use `gcloud run services update-traffic`") && runbook.includes("`updateMask=traffic`") && runbook.includes("template SHA-256") && runbook.includes("latestReadyRevision") && runbook.includes("Terraform no-drift"));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

@@ -1,6 +1,6 @@
 # DEV-032 Production Activation Runbook
 
-Status: template-only handoff; not executed
+Status: activation in progress; infrastructure, immutable runtime deployment and rollback drill executed; final canary closure pending
 Scope: DEV-032 / DEV-046 Phase 3A.0 official-numbering and draft production slice
 Production action authorized by this file: none
 
@@ -17,6 +17,9 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 - `.ai-doc/runbooks/runbook-dev-032-production-canary-restore-reconciliation-2026-07-15.md`
 - `output/dev-032-release-source/manifest.json`
 - `output/dev-032-production-target-preflight/report.json`
+- `output/dev-032-rollback-drill/v2-api-report.json`
+- `output/dev-032-rollback-drill/v2-api-closure.json`
+- `scripts/run-dev-032-production-traffic-rollback.mjs`
 
 ## Sequence
 
@@ -33,6 +36,20 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 11. Run Level 4 production smoke at the production entrypoint and feature-level smoke for login, privacy acknowledgement, numbering, draft persistence and non-canary denial.
 12. Decide Wave 0 go/no-go only when zero open P0/P1, rollback readiness and named-user allowlist evidence exist.
 
+## Cloud Run Traffic Rollback Contract
+
+The production service rollback changes traffic only. Do not use `gcloud run services update-traffic` for `ai-pdm-prod`; the 2026-07-16 drill proved that restoring traffic through that command can create a new revision by changing the service template. Use the guarded runner, which calls Cloud Run v2 with `updateMask=traffic`, or an equivalent reviewed REST request whose body contains only `traffic`.
+
+1. Run `npm run dev-032:production-traffic-rollback -- --mode validate --rollback-revision <previous-ready-revision>` first. This sends both rollback and latest-restore requests with `validateOnly=true` and performs no traffic mutation.
+2. Before execute mode, pin the exact project, region, service and current latest-ready revision in the required environment gates. A stale latest revision is a mandatory stop.
+3. Roll back to one explicit previous ready revision at 100%. Do not use tags, splits or an unspecified revision.
+4. Read back the service and require the template SHA-256, `latestCreatedRevision` and `latestReadyRevision` to remain unchanged. Only the service generation and traffic target may change.
+5. Restore 100% traffic with `TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST`. Cloud Run v2 intentionally omits the `revision` field for a LATEST target; validate the target type and compare `latestCreatedRevision` and `latestReadyRevision` to the pinned revision instead.
+6. Read back the restored state and repeat the template/revision invariants. Any mismatch is a release stop, not a warning.
+7. Run a credentialled Terraform plan after the drill and require Terraform no-drift evidence with zero add, change and destroy before closing rollback readiness.
+
+The accepted 2026-07-16 evidence is `v2-api-closure.json` with `allChecksPassed=true`, followed by `v2-post-drill-plan.txt` proving no Terraform drift. The earlier CLI-path attempt is retained as negative evidence and must not be repeated.
+
 ## Mandatory Stops
 
 - Plan contains delete or replace.
@@ -43,6 +60,7 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 - Clean seed includes source business, draft, demo, test, credential, session or historical actor rows.
 - `HD-8-4 / 1A` restore/reconciliation is missing or failed.
 - Level 3 or Level 4 smoke is missing or failed.
+- A rollback or restore changes the Cloud Run template, creates a revision, changes the latest-ready revision, or leaves Terraform drift.
 
 ## Explicit Non-Scope
 

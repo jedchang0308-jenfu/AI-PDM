@@ -82,6 +82,7 @@ Terraform plan prove 58 managed resources with no drift.
 - The exact application OCI index is deployed and its Cloud Run linux/amd64 child manifest is verified.
 - The approved Workspace AAL1 pilot flag is active without claiming Workspace MFA/AAL2.
 - Cloud Run v2 traffic-only rollback and restore passed; Terraform no-drift passed afterward.
+- The rollback path is now guarded by a target-pinned runner that permits only Cloud Run v2 `updateMask=traffic`, rejects template/latest-revision drift and keeps `gcloud run services update-traffic` out of the production procedure. A fresh `validateOnly` preflight passed against latest revision `ai-pdm-prod-00004-qw4` without changing traffic.
 
 No principal mapping, production numbering write, DNS change, isolated restore,
 Level 3 HTTP smoke or Level 4 smoke has been executed. Those actions remain
@@ -106,3 +107,4 @@ Evidence paths:
 - `output/dev-032-production-auth-activation/summary.json`
 - `output/dev-032-aal1-pilot-plan/post-apply-readback.json`
 - `output/dev-032-rollback-drill/v2-api-closure.json`
+- `output/dev-032-rollback-drill/traffic-rollback-validate-1784143002444.json`
