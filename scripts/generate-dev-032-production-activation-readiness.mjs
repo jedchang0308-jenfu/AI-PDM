@@ -195,6 +195,11 @@ const gates = [
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
 const blockerCodes = gates.flatMap((item) => item.blockers.map((gateBlocker) => gateBlocker.code));
+const activeProjectMatchesProductionTarget = Boolean(
+  preflight.activeIdentity?.project &&
+  (preflight.targetProject ?? checklist.target?.projectId ?? target.target?.projectId) &&
+  preflight.activeIdentity.project === (preflight.targetProject ?? checklist.target?.projectId ?? target.target?.projectId)
+);
 const report = {
   schemaVersion: 1,
   dev: "DEV-032",
@@ -221,7 +226,9 @@ const report = {
   },
   gates,
   nextRequiredAction: firstBlockedGate?.id === "A1-production-target-readback"
-    ? "Create or grant read access to jenfu-ai-pdm-prod, intentionally set active gcloud project to the production target, then rerun preflight:dev-032-production-target."
+    ? activeProjectMatchesProductionTarget
+      ? "Create or grant read access to jenfu-ai-pdm-prod, then rerun preflight:dev-032-production-target."
+      : "Create or grant read access to jenfu-ai-pdm-prod, intentionally set active gcloud project to the production target, then rerun preflight:dev-032-production-target."
     : firstBlockedGate?.id === "A2-provider-and-env-readback"
       ? "Provide production Firebase/provider config, production env source and Secret Manager metadata readback without secret values."
       : firstBlockedGate

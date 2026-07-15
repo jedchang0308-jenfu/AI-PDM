@@ -20,13 +20,30 @@ const gates = report?.gates ?? [];
 const gateMap = new Map(gates.map((gate) => [gate.id, gate]));
 const blockerCodes = new Set(report?.gateSummary?.blockerCodes ?? []);
 const reportText = report ? JSON.stringify(report) : "";
+const targetReadbackGate = gateMap.get("A1-production-target-readback");
+const targetActiveProject = targetReadbackGate?.evidence?.activeProject ?? null;
+const targetProject = targetReadbackGate?.evidence?.targetProject ?? null;
+const activeProjectMatchesTarget = Boolean(targetActiveProject && targetProject && targetActiveProject === targetProject);
+const requiredTargetBlockers = [
+  "PRODUCTION_PROJECT_UNAVAILABLE",
+  "PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN",
+  "PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN",
+  "PRODUCTION_SECRET_SOURCE_UNPROVEN"
+];
 
 record("DEV032-ACT-READY-001 report exists and identifies DEV-032", reportExists && report?.schemaVersion === 1 && report?.dev === "DEV-032");
 record("DEV032-ACT-READY-002 report is read-only and grants no production action", report?.readOnly === true && report?.productionActionPerformed === false && report?.releaseReady === false);
 record("DEV032-ACT-READY-003 target is dedicated production target", report?.target?.projectId === "jenfu-ai-pdm-prod" && report?.target?.runtimeService === "ai-pdm-prod" && report?.target?.cloudSqlInstance === "ai-pdm-prod-postgres");
 record("DEV032-ACT-READY-004 source gate is passed by exact release commit", gateMap.get("A0-release-source")?.status === "passed" && typeof report?.sourceCommit === "string" && /^[a-f0-9]{40}$/u.test(report.sourceCommit));
 record("DEV032-ACT-READY-005 first blocker is production target readback", report?.gateSummary?.firstBlockedGate === "A1-production-target-readback" && gateMap.get("A1-production-target-readback")?.status === "blocked");
-record("DEV032-ACT-READY-006 production target blockers are surfaced", ["ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION", "PRODUCTION_PROJECT_UNAVAILABLE", "PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN", "PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN", "PRODUCTION_SECRET_SOURCE_UNPROVEN"].every((code) => blockerCodes.has(code)));
+record(
+  "DEV032-ACT-READY-006 production target blockers are surfaced",
+  requiredTargetBlockers.every((code) => blockerCodes.has(code)) &&
+    (activeProjectMatchesTarget
+      ? !blockerCodes.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")
+      : blockerCodes.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")),
+  JSON.stringify({ targetActiveProject, targetProject, activeProjectMatchesTarget })
+);
 record("DEV032-ACT-READY-007 provider and env gate remains blocked", gateMap.get("A2-provider-and-env-readback")?.status === "blocked" && blockerCodes.has("FIREBASE_CONFIG_NOT_PRODUCTION_READY") && blockerCodes.has("PRODUCTION_ENV_SOURCE_MISSING"));
 record("DEV032-ACT-READY-008 credentialled plan/apply/bootstrap/restore/deploy gates remain missing evidence", ["A3-credentialled-terraform-plan-review", "A4-production-resource-apply", "A5-clean-seed-and-principal-bootstrap", "A6-hd84-restore-reconciliation", "A8-production-deploy-and-level4-smoke", "A9-wave0-go-no-go"].every((id) => gateMap.get(id)?.status === "missing_evidence"));
 record("DEV032-ACT-READY-009 Level 3 smoke is blocked by missing production runtime/database", gateMap.get("A7-level3-production-like-smoke")?.status === "blocked" && blockerCodes.has("LEVEL3_PRODUCTION_LIKE_SMOKE_MISSING"));

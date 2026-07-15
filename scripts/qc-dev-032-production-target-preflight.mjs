@@ -24,11 +24,20 @@ const packageJson = readJson(packagePath);
 const commands = report?.commands ?? [];
 const commandStrings = commands.map((item) => item.command.join(" "));
 const blockers = new Set((report?.blockers ?? []).map((item) => item.code));
+const activeProject = report?.activeIdentity?.project ?? null;
+const targetProject = report?.targetProject ?? null;
+const activeProjectMatchesTarget = Boolean(activeProject && targetProject && activeProject === targetProject);
 
 record("DEV032-TARGET-001 report exists and identifies DEV-032", reportExists && report?.dev === "DEV-032" && report?.schemaVersion === 1);
 record("DEV032-TARGET-002 preflight is read-only and records no production action", report?.readOnly === true && report?.productionActionPerformed === false);
 record("DEV032-TARGET-003 target defaults to dedicated production project", report?.targetProject === "jenfu-ai-pdm-prod" && report?.region === "asia-east1" && report?.expectedRunService === "ai-pdm-prod" && report?.expectedCloudSqlInstance === "ai-pdm-prod-postgres");
-record("DEV032-TARGET-004 active staging project does not satisfy production target", blockers.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION"));
+record(
+  "DEV032-TARGET-004 active project mismatch is fail-closed when present",
+  activeProjectMatchesTarget
+    ? !blockers.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")
+    : blockers.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION"),
+  JSON.stringify({ activeProject, targetProject, activeProjectMatchesTarget })
+);
 record("DEV032-TARGET-005 inaccessible or missing production project is a blocker", blockers.has("PRODUCTION_PROJECT_UNAVAILABLE"));
 record("DEV032-TARGET-006 staging-only Firebase config remains blocked", blockers.has("FIREBASE_CONFIG_NOT_PRODUCTION_READY") && report?.providerConfig?.firebaseOnlyStaging === true);
 record("DEV032-TARGET-007 production env source remains blocked when absent", blockers.has("PRODUCTION_ENV_SOURCE_MISSING") && report?.envSources?.every((item) => item.exists === false));
