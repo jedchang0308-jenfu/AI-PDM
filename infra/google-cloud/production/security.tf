@@ -31,10 +31,9 @@ resource "google_kms_key_ring" "pdm" {
 resource "google_kms_crypto_key" "numbering_ledger" {
   count = local.create_resources ? 1 : 0
 
-  name            = "numbering-ledger-signing"
-  key_ring        = google_kms_key_ring.pdm[0].id
-  purpose         = "ASYMMETRIC_SIGN"
-  rotation_period = "7776000s"
+  name     = "numbering-ledger-signing"
+  key_ring = google_kms_key_ring.pdm[0].id
+  purpose  = "ASYMMETRIC_SIGN"
 
   version_template {
     algorithm        = "EC_SIGN_P256_SHA256"

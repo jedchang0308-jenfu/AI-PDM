@@ -70,6 +70,8 @@ locals {
   cost_gate_ready = (
     var.monthly_budget_usd == 300 &&
     var.plan_review_stop_usd == 240 &&
+    var.billing_budget_currency_code == "TWD" &&
+    var.billing_budget_units == 9600 &&
     var.estimated_monthly_cost_usd <= var.plan_review_stop_usd
   )
 
@@ -118,8 +120,8 @@ check "production_target_identity" {
 
 check "production_cost_review_stop" {
   assert {
-    condition     = var.monthly_budget_usd == 300 && var.plan_review_stop_usd == 240 && var.estimated_monthly_cost_usd <= var.plan_review_stop_usd
-    error_message = "Stop before apply if the credentialled plan estimate exceeds USD 240 or the monthly cap differs from USD 300."
+    condition     = var.monthly_budget_usd == 300 && var.plan_review_stop_usd == 240 && var.billing_budget_currency_code == "TWD" && var.billing_budget_units == 9600 && var.estimated_monthly_cost_usd <= var.plan_review_stop_usd
+    error_message = "Stop before apply if the estimate exceeds USD 240, the cap differs from USD 300, or the Billing budget differs from TWD 9,600."
   }
 }
 

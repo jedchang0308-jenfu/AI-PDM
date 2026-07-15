@@ -45,9 +45,14 @@ preconditions for creating the empty Cloud SQL and runtime resources they must
 validate. Terraform exposes them as `post_apply_release_gates_ready`; Gate D
 must remain closed until all four pass.
 
-The reviewed monthly cap remains USD 300. Any credentialled plan above USD 240,
+The reviewed monthly cap remains USD 300. The approved Billing Account is
+denominated in TWD, so the API budget is TWD 9,600. Any credentialled plan above USD 240,
 any delete/replace action, or any drift from `config/platform/production-target.template.json`
 must stop before apply.
+
+The asymmetric numbering-ledger signing key uses reviewed manual key-version
+rotation because Google Cloud KMS does not support automatic rotation schedules
+for `ASYMMETRIC_SIGN` keys.
 
 The private migration Job is created only with
 `DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED` and remains dry-run by default.

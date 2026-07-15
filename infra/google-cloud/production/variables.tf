@@ -171,6 +171,28 @@ variable "monthly_budget_usd" {
   default     = 300
 }
 
+variable "billing_budget_currency_code" {
+  description = "Cloud Billing account currency. The approved account is denominated in TWD."
+  type        = string
+  default     = "TWD"
+
+  validation {
+    condition     = var.billing_budget_currency_code == "TWD"
+    error_message = "The approved production Billing Account requires a TWD budget."
+  }
+}
+
+variable "billing_budget_units" {
+  description = "TWD 9,600 operational budget, preserving the approved USD 300 monthly cap contract."
+  type        = number
+  default     = 9600
+
+  validation {
+    condition     = var.billing_budget_units == 9600
+    error_message = "Production budget units must remain TWD 9,600 unless the cost gate is re-approved."
+  }
+}
+
 variable "plan_review_stop_usd" {
   description = "Credentialled plan review stop threshold."
   type        = number

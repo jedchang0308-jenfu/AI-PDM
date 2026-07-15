@@ -94,8 +94,8 @@ resource "google_billing_budget" "production" {
 
   amount {
     specified_amount {
-      currency_code = "USD"
-      units         = tostring(var.monthly_budget_usd)
+      currency_code = var.billing_budget_currency_code
+      units         = tostring(var.billing_budget_units)
     }
   }
 
