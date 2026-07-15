@@ -183,6 +183,52 @@ variable "production_principal_firebase_uid" {
   }
 }
 
+variable "principal_bootstrap_readback_approved" {
+  description = "True only after the production principal bootstrap readback proves one active admin and the expected role/permission seed."
+  type        = bool
+  default     = false
+}
+
+variable "reconciliation_execution" {
+  description = "Switches the private migration Job to the read-only DEV-032 production/restore reconciliation runner."
+  type        = bool
+  default     = false
+}
+
+variable "reconciliation_execution_acknowledgement" {
+  description = "Exact acknowledgement required before the read-only reconciliation runner may execute."
+  type        = string
+  default     = ""
+}
+
+variable "reconciliation_mode" {
+  description = "Read-only reconciliation mode: pre_canary, post_smoke or restore."
+  type        = string
+  default     = "pre_canary"
+
+  validation {
+    condition     = contains(["pre_canary", "post_smoke", "restore"], var.reconciliation_mode)
+    error_message = "reconciliation_mode must be pre_canary, post_smoke or restore."
+  }
+}
+
+variable "reconciliation_restore_connection_name" {
+  description = "Independent restore-target Cloud SQL connection name. Empty outside restore mode."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.reconciliation_restore_connection_name == "" || can(regex("^jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-[a-z0-9-]{6,40}$", var.reconciliation_restore_connection_name))
+    error_message = "Restore reconciliation target must be an isolated ai-pdm-prod-restore-* instance in the production project and region."
+  }
+}
+
+variable "restore_target_readback_approved" {
+  description = "True only after the isolated restore target exists and its project, region and connection name are read back."
+  type        = bool
+  default     = false
+}
+
 variable "migration_runner_source_revision" {
   description = "Exact Git source revision embedded in the migration runner image."
   type        = string

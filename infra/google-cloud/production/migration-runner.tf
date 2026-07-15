@@ -31,7 +31,10 @@ resource "google_cloud_run_v2_job" "migration_runner" {
         name    = "ai-pdm-migration-runner"
         image   = var.migration_runner_image
         command = ["node"]
-        args = var.principal_bootstrap_execution ? [
+        args = var.reconciliation_execution ? [
+          "scripts/run-dev-032-production-reconciliation.mjs",
+          "--execute"
+          ] : var.principal_bootstrap_execution ? [
           "scripts/run-dev-032-production-principal-bootstrap.mjs",
           "--execute"
           ] : concat(
@@ -64,7 +67,7 @@ resource "google_cloud_run_v2_job" "migration_runner" {
 
         env {
           name  = "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME"
-          value = google_sql_database_instance.pdm[0].connection_name
+          value = var.reconciliation_execution ? local.reconciliation_connection_name : google_sql_database_instance.pdm[0].connection_name
         }
 
         env {
@@ -125,6 +128,22 @@ resource "google_cloud_run_v2_job" "migration_runner" {
         }
 
         dynamic "env" {
+          for_each = var.reconciliation_execution ? {
+            DEV032_PRODUCTION_RECONCILIATION_APPROVAL = local.reconciliation_acknowledgement
+            DEV032_RECONCILIATION_MODE                = var.reconciliation_mode
+            DEV032_PRODUCTION_PROJECT_ID              = var.production_project_id
+            DEV032_PRODUCTION_REGION                  = var.region
+            DEV032_EXPECTED_SOURCE_REVISION           = var.migration_runner_source_revision
+            CLOUD_RUN_JOB                             = "${local.name_prefix}-migration-runner"
+          } : {}
+
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
+
+        dynamic "env" {
           for_each = var.principal_bootstrap_execution ? {
             DEV032_PRODUCTION_PRINCIPAL_BOOTSTRAP_APPROVAL = local.principal_bootstrap_acknowledgement
             DEV032_PRODUCTION_FIREBASE_UID                 = var.production_principal_firebase_uid
@@ -151,7 +170,7 @@ resource "google_cloud_run_v2_job" "migration_runner" {
           "--lazy-refresh",
           "--structured-logs",
           "--max-connections=2",
-          google_sql_database_instance.pdm[0].connection_name
+          var.reconciliation_execution ? local.reconciliation_connection_name : google_sql_database_instance.pdm[0].connection_name
         ]
 
         resources {

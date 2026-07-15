@@ -3,9 +3,11 @@ locals {
   migration_job_acknowledgement       = "DEV-032-PRODUCTION-MIGRATION-JOB-REVIEWED"
   migration_live_acknowledgement      = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
   principal_bootstrap_acknowledgement = "DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED"
+  reconciliation_acknowledgement      = "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
   name_prefix                         = "ai-pdm-prod"
   database                            = "ai_pdm"
   cloud_sql_instance_name             = "ai-pdm-prod-postgres"
+  source_connection_name              = "${var.production_project_id}:${var.region}:${local.cloud_sql_instance_name}"
 
   required_services = toset([
     "artifactregistry.googleapis.com",
@@ -93,7 +95,8 @@ locals {
       local.migration_runner_job_ready &&
       var.migration_live_execution_acknowledgement == local.migration_live_acknowledgement &&
       var.admin_bootstrap_readback_approved &&
-      !var.principal_bootstrap_execution
+      !var.principal_bootstrap_execution &&
+      !var.reconciliation_execution
     )
   )
 
@@ -101,10 +104,31 @@ locals {
     !var.principal_bootstrap_execution || (
       local.migration_runner_job_ready &&
       !var.migration_live_execution &&
+      !var.reconciliation_execution &&
       var.schema_migration_readback_approved &&
       var.principal_bootstrap_execution_acknowledgement == local.principal_bootstrap_acknowledgement &&
       can(regex("^[A-Za-z0-9_-]{6,128}$", var.production_principal_firebase_uid)) &&
       var.migration_runner_source_revision != "0000000000000000000000000000000000000000"
+    )
+  )
+
+  reconciliation_connection_name = var.reconciliation_mode == "restore" ? var.reconciliation_restore_connection_name : local.source_connection_name
+
+  reconciliation_execution_ready = (
+    !var.reconciliation_execution || (
+      local.migration_runner_job_ready &&
+      !var.migration_live_execution &&
+      !var.principal_bootstrap_execution &&
+      var.schema_migration_readback_approved &&
+      var.principal_bootstrap_readback_approved &&
+      var.reconciliation_execution_acknowledgement == local.reconciliation_acknowledgement &&
+      var.migration_runner_source_revision != "0000000000000000000000000000000000000000" &&
+      (
+        var.reconciliation_mode != "restore" || (
+          var.restore_target_readback_approved &&
+          can(regex("^${var.production_project_id}:${var.region}:ai-pdm-prod-restore-[a-z0-9-]{6,40}$", var.reconciliation_restore_connection_name))
+        )
+      )
     )
   )
 
@@ -163,6 +187,13 @@ check "production_principal_bootstrap_execution_guard" {
   assert {
     condition     = local.principal_bootstrap_execution_ready
     error_message = "Production principal bootstrap requires completed schema migration readback, a verified Firebase UID, exact source revision and the exact bootstrap acknowledgement."
+  }
+}
+
+check "production_reconciliation_execution_guard" {
+  assert {
+    condition     = local.reconciliation_execution_ready
+    error_message = "Production reconciliation requires schema/principal readback, exact source revision and acknowledgement; restore mode also requires an independently read-back restore target."
   }
 }
 

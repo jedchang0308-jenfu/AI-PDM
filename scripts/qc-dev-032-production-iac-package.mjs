@@ -88,6 +88,7 @@ const edge = readIfExists("edge.tf");
 const security = readIfExists("security.tf");
 const identity = readIfExists("identity.tf");
 const observability = readIfExists("observability.tf");
+const migrationRunner = readIfExists("migration-runner.tf");
 const resources = resourceBlocks(files);
 const resourceNames = resources.map((resource) => `${resource.type}.${resource.name}`);
 const guardedResources = resources.filter((resource) =>
@@ -135,6 +136,13 @@ record("DEV032-PROD-IAC-015 package exposes QC script", packageJson.scripts?.["q
 record("DEV032-PROD-IAC-016 package exposes Docker Terraform static validate workflow", packageJson.scripts?.["dev-032:production-iac-terraform-validate"] === "node scripts/dev-032-production-iac-terraform-validate.mjs" && packageJson.scripts?.["qc:dev-032-production-iac-terraform-validate"] === "node scripts/qc-dev-032-production-iac-terraform-validate.mjs");
 record("DEV032-PROD-IAC-017 Identity Platform policy is modeled without OAuth secret state", identity.includes("google_identity_platform_config") && identity.includes("totp_provider_config") && identity.includes("provider credentials stay outside Terraform") && !identity.includes("client_secret"));
 record("DEV032-PROD-IAC-018 regional logs, connection reserve and numbering signing are modeled", observability.includes("google_logging_project_bucket_config") && observability.includes("cloud_sql_connections") && security.includes("numbering_ledger") && security.includes('protection_level = "HSM"'));
+record("DEV032-PROD-IAC-019 reconciliation runner is read-only, mutually exclusive and restore-target gated", [
+  "reconciliation_execution",
+  "reconciliation_execution_acknowledgement",
+  "principal_bootstrap_readback_approved",
+  "restore_target_readback_approved",
+  "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
+].every((needle) => combinedTf.includes(needle)) && locals.includes("!var.migration_live_execution") && locals.includes("!var.principal_bootstrap_execution") && locals.includes("ai-pdm-prod-restore-") && migrationRunner.includes("run-dev-032-production-reconciliation.mjs"));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

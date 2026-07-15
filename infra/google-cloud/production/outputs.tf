@@ -7,6 +7,8 @@ output "production_review_target" {
     migration_runner_job     = local.migration_runner_job_ready ? "${local.name_prefix}-migration-runner" : null
     migration_live_mode      = var.migration_live_execution
     principal_bootstrap_mode = var.principal_bootstrap_execution
+    reconciliation_mode      = var.reconciliation_execution ? var.reconciliation_mode : null
+    reconciliation_target    = var.reconciliation_execution ? local.reconciliation_connection_name : null
     public_base_url          = var.runtime_public_base_url
     create_resources         = local.create_resources
     production_action        = false

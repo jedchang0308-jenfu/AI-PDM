@@ -66,6 +66,14 @@ requires a verified production Firebase UID, exact image source revision and
 `DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED`; template or staging UIDs
 remain fail-closed.
 
+After schema and principal readback pass, the same Job may run the strictly
+read-only reconciliation runner in `pre_canary`, `post_smoke` or `restore`
+mode. The three live Job modes are mutually exclusive. Every reconciliation
+run requires `DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED` and the exact
+image source revision. `restore` additionally requires readback of a separate
+`ai-pdm-prod-restore-*` Cloud SQL instance; the source instance cannot be used
+as a restore target.
+
 ## Allowed Local Commands
 
 Without production credentials:
