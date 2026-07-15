@@ -30,6 +30,11 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
   - `npm run preflight:dev-032-production-target`
   - `npm run qc:dev-032-production-target-preflight`
   - current report: `output/dev-032-production-target-preflight/report.json`
+- Added template-only production activation handoff:
+  - `config/platform/production-activation-checklist.template.json`
+  - `.ai-doc/runbooks/runbook-dev-032-production-activation-2026-07-15.md`
+  - `npm run qc:dev-032-production-activation-checklist`
+  - this does not authorize credentialled plan, apply, bootstrap, migration, deploy or traffic cutover
 - Added fail-closed production Terraform review package:
   - `infra/google-cloud/production/`
   - `npm run qc:dev-032-production-iac-package`
@@ -49,7 +54,8 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 
 ## Validation
 
-- `npm run qc:dev-032-release-gate-package`: 13/13 passed.
+- `npm run qc:dev-032-release-gate-package`: 15/15 passed.
+- `npm run qc:dev-032-production-activation-checklist`: 17/17 passed.
 - `npm run qc:dev-032-release-source-manifest`: 12/12 passed.
 - `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; no production action.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed.

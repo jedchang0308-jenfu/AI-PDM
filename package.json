@@ -203,6 +203,7 @@
     "qc:dev-046-privacy-ack": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-046-privacy-acknowledgement.mjs",
     "qc:dev-047-local-inventory": "node scripts/qc-dev-047-local-inventory.mjs",
     "qc:dev-032-release-gate-package": "node scripts/qc-dev-032-release-gate-package.mjs",
+    "qc:dev-032-production-activation-checklist": "node scripts/qc-dev-032-production-activation-checklist.mjs",
     "qc:dev-032-production-iac-package": "node scripts/qc-dev-032-production-iac-package.mjs",
     "dev-032:production-iac-terraform-validate": "node scripts/dev-032-production-iac-terraform-validate.mjs",
     "qc:dev-032-production-iac-terraform-validate": "node scripts/qc-dev-032-production-iac-terraform-validate.mjs",

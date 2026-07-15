@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "phase": "DEV-046-Phase-3A.0-production-activation",
+  "templateOnly": true,
+  "releaseReady": false,
+  "productionActionAllowed": false,
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "publicBaseUrl": "https://pdm.jenfu.com.tw"
+  },
+  "costGate": {
+    "monthlyBudgetCapUsd": 300,
+    "credentialledPlanReviewStopUsd": 240,
+    "stopOnAnyDeleteAction": true,
+    "stopOnAnyReplaceAction": true
+  },
+  "approvalBoundaries": [
+    {
+      "id": "credentialled-plan-review",
+      "requiredBefore": "terraform-plan-with-credentials",
+      "separateApprovalRequired": true,
+      "approvalDoesNotAuthorize": ["terraform-apply", "sql-import", "cloud-run-job-execute", "deploy", "traffic-cutover"]
+    },
+    {
+      "id": "production-resource-apply",
+      "requiredBefore": "terraform-apply",
+      "separateApprovalRequired": true,
+      "acknowledgement": "DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED",
+      "mustStopIf": ["plan-has-delete", "plan-has-replace", "monthly-estimate-above-240-usd", "target-readback-mismatch"]
+    },
+    {
+      "id": "production-admin-bootstrap",
+      "requiredBefore": "admin-bootstrap-or-seed-import",
+      "separateApprovalRequired": true,
+      "mustStopIf": ["clean-seed-not-approved", "source-row-inclusion", "same-email-auto-link", "static-password-or-secret-material"]
+    },
+    {
+      "id": "production-live-migration",
+      "requiredBefore": "cloud-sql-migration-job-execution",
+      "separateApprovalRequired": true,
+      "mustStopIf": ["backup-missing", "migration-history-drift", "rollback-reference-missing"]
+    },
+    {
+      "id": "production-deploy",
+      "requiredBefore": "cloud-run-deploy-or-traffic-cutover",
+      "separateApprovalRequired": true,
+      "mustStopIf": ["level3-smoke-missing", "artifact-provenance-missing", "rollback-readiness-missing"]
+    }
+  ],
+  "activationSequence": [
+    {
+      "id": "A0-release-source",
+      "mode": "local-read-only",
+      "requiredEvidence": ["exact release commit", "source boundary manifest", "unknown risk paths equals zero"],
+      "status": "prepared"
+    },
+    {
+      "id": "A1-production-target-readback",
+      "mode": "cloud-read-only",
+      "requiredEvidence": ["project readback", "active project intentionally set", "Cloud Run target metadata", "Cloud SQL target metadata", "Secret Manager names only"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A2-provider-and-env-readback",
+      "mode": "cloud-and-repo-read-only",
+      "requiredEvidence": ["production Firebase project alias", "production auth domain", "production env source", "no staging forbidden values", "secret metadata without values"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A3-credentialled-terraform-plan-review",
+      "mode": "plan-review-only",
+      "requiredEvidence": ["saved plan summary", "zero delete", "zero replace", "monthly estimate at or below USD 240", "drift against production target contract equals zero"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A4-production-resource-apply",
+      "mode": "write-action-separate-approval",
+      "requiredEvidence": ["explicit apply approval", "apply transcript", "post-apply target readback", "deletion protection readback"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A5-clean-seed-and-principal-bootstrap",
+      "mode": "data-write-separate-approval",
+      "requiredEvidence": ["clean seed manifest", "named canary allowlist hash", "initial Admin new production PDM ID", "no source business or draft rows", "no credential material"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A6-hd84-restore-reconciliation",
+      "mode": "restore-separate-target",
+      "requiredEvidence": ["Cloud SQL backup/PITR readback", "separate isolated restore transcript", "schema and migration reconciliation", "numbering ledger reconciliation", "non-reuse reservation coverage"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A7-level3-production-like-smoke",
+      "mode": "pre-deploy-smoke",
+      "requiredEvidence": ["production artifact starts", "production-class auth path", "production-class Cloud SQL path", "fail-closed GCS file authority", "known staging regression API smoke"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A8-production-deploy-and-level4-smoke",
+      "mode": "deploy-separate-approval",
+      "requiredEvidence": ["deployed artifact provenance", "production URL HTTP success", "app shell nonblank", "authenticated admin smoke", "numbering and draft smoke", "non-canary denial smoke"],
+      "status": "missing_evidence"
+    },
+    {
+      "id": "A9-wave0-go-no-go",
+      "mode": "release-decision",
+      "requiredEvidence": ["zero open P0/P1", "named 3-5 user allowlist", "rollback target operational", "operator owner and backup owner acknowledged"],
+      "status": "missing_evidence"
+    }
+  ],
+  "prohibitedShortcuts": [
+    "Do not use Firebase Hosting web.app as production gateway.",
+    "Do not use staging project, staging Cloud Run, staging Cloud SQL or staging secrets.",
+    "Do not treat a credentialled plan as apply approval.",
+    "Do not skip HD-8-4 / 1A separate-target restore and reconciliation.",
+    "Do not move DEV-047 bounded schema migration into the Phase 3A release.",
+    "Do not enable GCS file authority during Phase 3A.",
+    "Do not widen allowlist beyond named canary users without separate DEV-032 approval."
+  ],
+  "stopConditions": [
+    "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
+    "Any production plan includes delete or replace.",
+    "Estimated monthly production cost exceeds USD 240 during credentialled plan review.",
+    "Any source business, draft, demo, test, credential, session or historical actor row enters clean production seed.",
+    "Any secret value is printed, committed or copied into a report.",
+    "Production artifact provenance does not match the selected release commit.",
+    "Level 4 post-deploy smoke fails or cannot be executed."
+  ]
+}
