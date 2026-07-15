@@ -139,10 +139,16 @@ record(
     "品名系列代號（選填）",
     "料號系列代號（選填）",
     "可先自創，正式發行前再改正式名稱。",
+    "包含圖號草稿",
     "data-qc=\"drawing-need-guidance\"",
     "duplicate-warning-only",
     "仍可繼續儲存草稿"
   ]) &&
+    !workspace.includes("須製程管制") &&
+    !workspace.includes("共用件已標示須製程管制") &&
+    !workspace.includes("共用件未標示製程管制") &&
+    !workspace.includes("共用料件會自動標示為跨專案共用") &&
+    !workspace.includes("說明為什麼此料件可跨專案共用") &&
     !workspace.includes('label="主根名稱"') &&
     !workspace.includes("請輸入主根名稱。") &&
     !workspace.includes("料號品名必須由主根名稱帶入") &&

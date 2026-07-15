@@ -283,7 +283,7 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 - `確定品名`是人類溝通與系統篩選名稱，不要求唯一；它作為圖料主題名稱與同一草稿下料號預設品名。唯一性只由圖號、料號與正式發布authority保證。
 - 建議品名模板必須依管理辦法保留三種型態，段落以半形底線`_`串接：外購件`[核心名詞]_[品牌]_[規格/型號]`；自製/發包/客製非共用件`[核心名詞]_[系列代號]_[特性]_[流水識別]`；共用件`[核心名詞]_[特性]_[流水識別]`。品牌、系列代號、特性與流水識別仍可選填；自製非共用件系列代號可先自創，正式發行前再修正，不得阻擋草稿建立。
 - 相似品名查重只作提醒與引導改用既有主根，不得阻擋使用者建立新主根。
-- 圖號需求以「是否須製程管制」與料件類型做預設引導：外購件預設不建圖號，自製/發包/客製預設建圖號，共用件依製程管制切換；使用者仍可手動覆寫。
+- 圖號需求不得由「共用件」推導，也不讓一般使用者在建立草稿時判斷「是否須製程管制」。建立表單只保留`包含圖號草稿`作為可見控制：外購件預設不建圖號，自製/發包/客製預設建圖號，共用件不參與圖號預設判斷；使用者仍可手動覆寫。
 - 本規格維持既有v3編碼、M/R用途碼與候選號/正式發布邊界；Phase 1E不得導入`000`萬用料號或改回`P-0001-001 / D-0001-MA1`格式。
 
 #### 6.2.1 建立模式與責任矩陣
@@ -1594,7 +1594,7 @@ Human decisions：
 Task list：
 
 - [x] `DEV-048-1E-01`：建立品名建議器，依料件類型顯示核心名詞、品牌、規格/型號、系列代號、特性與流水識別欄位，產生可套用建議品名；使用者可保留自由輸入/覆寫`確定品名`。
-- [x] `DEV-048-1E-02`：料件類型分流與圖號需求引導；外購預設不建圖號，自製/發包/客製預設建圖號，共用件依是否須製程管制引導，且不得硬擋使用者覆寫。
+- [x] `DEV-048-1E-02`：圖號需求引導改為只保留`包含圖號草稿`；外購預設不建圖號，自製/發包/客製預設建圖號，共用件不參與圖號判斷，且不得硬擋使用者覆寫。
 - [x] `DEV-048-1E-03`：duplicate-check UI改為warning-only；server仍可回相似資料，但create modal與submit不可因`duplicateResult.blocked`停止。
 - [x] `DEV-048-1E-04`：focused QC補靜態與瀏覽器檢查，確保品名建議、圖號預設與warning-only查重不再回歸。
 - [ ] `DEV-048-1E-05`：保存一圖多料號/既有圖號新增料號變體為後續1E slice；需先定義draft relation contract，不得呼叫舊正式寫入API繞過草稿/候選/發布邊界。
@@ -1603,7 +1603,7 @@ Acceptance / QC evidence：
 
 - `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：建議品名欄位存在、半形底線串接、確定品名、品名系列/料號系列欄位分工、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
 - TypeScript、source lint、Phase 1B focused regression與至少一個本機browser DOM check通過。
-- Browser evidence確認`/numbering/search?create=numbering`或等效create surface可以看到建議品名、製程管制/包含圖號引導，且查重提醒不使儲存草稿按鈕disabled。
+- Browser evidence確認`/numbering/search?create=numbering`或等效create surface可以看到建議品名與`包含圖號草稿`引導，不顯示`須製程管制`或共用件圖號說明，且查重提醒不使儲存草稿按鈕disabled。
 - 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 10/10、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-contextual-entrypoints` 46/46、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、TypeScript、lint、`dev:local:check`、本機Admin session browser smoke 1440/390通過。Browser smoke驗證建議品名`腳架測試121150_JF_100L_白鐵_A`、建立草稿201、候選號200、取消回收200、正式主檔計數不變；截圖在`output/playwright/number-state-phase1e/`。
 
 Stop conditions：需要新增schema、保存後新增/刪除typed item、支援既有official drawing連到新draft part、改編碼格式、導入`000`萬用料號、改用途碼、live provider、正式資料或release時停止並回PM重定範圍。

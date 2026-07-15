@@ -300,10 +300,10 @@ function defaultProcessControlled(kind: ItemKind) {
   return kind === "manufactured" || kind === "outsourced" || kind === "custom";
 }
 
-function defaultIncludeDrawing(kind: ItemKind, processControlled: boolean) {
+function defaultIncludeDrawing(kind: ItemKind) {
   if (kind === "purchased") return false;
   if (kind === "manufactured" || kind === "outsourced" || kind === "custom") return true;
-  return processControlled;
+  return false;
 }
 
 function normalizeNameSegment(value: string) {
@@ -332,10 +332,10 @@ function nameGuideFormula(kind: ItemKind) {
   return "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]";
 }
 
-function drawingNeedHint(kind: ItemKind, processControlled: boolean) {
-  if (kind === "purchased") return "外購件通常不需圖號；若公司仍需製程或安裝圖，可手動包含圖號草稿。";
-  if (kind === "shared") return processControlled ? "共用件已標示須製程管制，建議同時建立圖號草稿。" : "共用件未標示製程管制，預設只建立料號草稿。";
-  return processControlled ? "自製、發包或客製件通常需要製程管制，預設建立製造圖草稿。" : "已取消製程管制，仍可依需要手動包含圖號草稿。";
+function drawingNeedHint(kind: ItemKind) {
+  if (kind === "purchased") return "需要規格、檢驗或安裝圖時再勾選。";
+  if (kind === "manufactured" || kind === "outsourced" || kind === "custom") return "需要圖面文件時保留；不需要時可取消。";
+  return "需要圖面文件時再勾選。";
 }
 
 function newIdempotencyKey(action: string) {
@@ -880,7 +880,7 @@ function DraftCreateDialog({
   const manufacturingDrawing = isManufacturingPurposeCode(form.purposeCode);
   const relationLinkType = includesPart && includesDrawing && manufacturingDrawing && form.primaryManufacturing ? "primary_manufacturing" : "reference";
   const suggestedName = suggestedCoreName(form);
-  const drawingHint = drawingNeedHint(form.partItemKind, form.processControlled);
+  const drawingHint = drawingNeedHint(form.partItemKind);
   useOverlayLifecycle(dialogRef, onClose, busy);
 
   function switchMode(mode: DraftMode) {
@@ -899,7 +899,7 @@ function DraftCreateDialog({
       universalReason: current.universalReason,
       customSpecification: current.customSpecification,
       seriesCode: current.seriesCode,
-      includeDrawing: mode === "new_bundle" ? defaultIncludeDrawing(current.partItemKind, current.processControlled) : current.includeDrawing
+      includeDrawing: mode === "new_bundle" ? defaultIncludeDrawing(current.partItemKind) : current.includeDrawing
     }));
     setError("");
     setAppendPolicy(null);
@@ -1068,7 +1068,7 @@ function DraftCreateDialog({
                     partItemKind: nextKind,
                     isUniversal: nextKind === "shared" ? true : form.isUniversal,
                     processControlled,
-                    includeDrawing: defaultIncludeDrawing(nextKind, processControlled),
+                    includeDrawing: defaultIncludeDrawing(nextKind),
                     seriesCode: nextKind === "manufactured" ? form.seriesCode : ""
                   });
                 }}
@@ -1101,13 +1101,12 @@ function DraftCreateDialog({
           {form.mode === "new_bundle" ? (
             <div className="number-state-form-options">
               <span>新圖料一定建立 1 個料號草稿</span>
-              <label><input type="checkbox" checked={form.processControlled} onChange={(event) => { const processControlled = event.target.checked; setForm({ ...form, processControlled, includeDrawing: defaultIncludeDrawing(form.partItemKind, processControlled) }); }} />須製程管制</label>
               <label><input type="checkbox" checked={form.includeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} />包含圖號草稿</label>
               <span data-qc="drawing-need-guidance">{drawingHint}</span>
             </div>
           ) : null}
           {includesPart ? (
-            <div className="number-state-form-section"><h3>料號草稿</h3><div className="number-state-form-grid"><div className="number-state-locked-value"><span>料號品名</span><strong>{lockedPartName || "完成確定品名後自動帶入"}</strong><small>料號品名跟隨確定品名，避免同一圖料主題下名稱分歧。</small></div><SelectField label="料件類型" value={form.partItemKind} onChange={(value) => { const nextKind = value as ItemKind; const processControlled = form.mode === "new_bundle" ? defaultProcessControlled(nextKind) : form.processControlled; setForm({ ...form, partItemKind: nextKind, isUniversal: nextKind === "shared" ? true : form.isUniversal, processControlled, includeDrawing: form.mode === "new_bundle" ? defaultIncludeDrawing(nextKind, processControlled) : form.includeDrawing, seriesCode: nextKind === "manufactured" ? form.seriesCode : "" }); }} options={itemKindOptions} />{form.partItemKind === "manufactured" && !sharedPart ? <Field label="料號系列代號（選填）" hint="正式料號層的系列分類；品名系列請以上方品名建議為準。"><input value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：A、S1、JF-200" /></Field> : null}<Field label={form.partItemKind === "custom" ? "客製規格" : "客製規格（選填）"} required={form.partItemKind === "custom"}><textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} /></Field>{form.partItemKind === "shared" ? <div className="number-state-inline-note"><Check size={16} /><span>共用料件會自動標示為跨專案共用。</span></div> : <label className="number-state-checkbox"><input type="checkbox" checked={form.isUniversal} onChange={(event) => setForm({ ...form, isUniversal: event.target.checked, seriesCode: event.target.checked ? "" : form.seriesCode })} />跨專案共用</label>}{sharedPart ? <Field label="共用原因" required hint="說明為什麼此料件可跨專案共用，會寫入正式料號。"><input value={form.universalReason} onChange={(event) => setForm({ ...form, universalReason: event.target.value })} maxLength={1000} placeholder="例如：公司標準支架，跨機型共用" /></Field> : null}</div></div>
+            <div className="number-state-form-section"><h3>料號草稿</h3><div className="number-state-form-grid"><div className="number-state-locked-value"><span>料號品名</span><strong>{lockedPartName || "完成確定品名後自動帶入"}</strong><small>料號品名跟隨確定品名，避免同一圖料主題下名稱分歧。</small></div><SelectField label="料件類型" value={form.partItemKind} onChange={(value) => { const nextKind = value as ItemKind; const processControlled = form.mode === "new_bundle" ? defaultProcessControlled(nextKind) : form.processControlled; setForm({ ...form, partItemKind: nextKind, isUniversal: nextKind === "shared" ? true : form.isUniversal, processControlled, includeDrawing: form.mode === "new_bundle" ? defaultIncludeDrawing(nextKind) : form.includeDrawing, seriesCode: nextKind === "manufactured" ? form.seriesCode : "" }); }} options={itemKindOptions} />{form.partItemKind === "manufactured" && !sharedPart ? <Field label="料號系列代號（選填）" hint="正式料號層的系列分類；品名系列請以上方品名建議為準。"><input value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：A、S1、JF-200" /></Field> : null}<Field label={form.partItemKind === "custom" ? "客製規格" : "客製規格（選填）"} required={form.partItemKind === "custom"}><textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} /></Field>{form.partItemKind === "shared" ? null : <label className="number-state-checkbox"><input type="checkbox" checked={form.isUniversal} onChange={(event) => setForm({ ...form, isUniversal: event.target.checked, seriesCode: event.target.checked ? "" : form.seriesCode })} />跨專案共用</label>}{sharedPart ? <Field label="共用原因" required><input value={form.universalReason} onChange={(event) => setForm({ ...form, universalReason: event.target.value })} maxLength={1000} placeholder="例如：公司標準支架，跨機型共用" /></Field> : null}</div></div>
           ) : null}
           {includesDrawing ? (
             <div className="number-state-form-section"><h3>圖號草稿</h3><div className="number-state-form-grid"><SelectField label="圖面用途" value={form.purposeCode} onChange={(value) => { const purposeCode = value as PurposeCode; setForm({ ...form, purposeCode, primaryManufacturing: isManufacturingPurposeCode(purposeCode) ? true : false }); }} options={purposeOptions} /><Field label={form.purposeCode === "R" ? "用途說明" : "用途說明（選填）"} required={form.purposeCode === "R"}><input value={form.purposeDescription} onChange={(event) => setForm({ ...form, purposeDescription: event.target.value })} maxLength={1000} placeholder={form.purposeCode === "R" ? "例如：安裝參考或尺寸參考" : "可空白"} /></Field><label className={`number-state-checkbox${manufacturingDrawing ? "" : " is-disabled"}`} title={manufacturingDrawing ? "此圖號可作為主要製造圖" : "參考圖或其他圖不可設為主要製造圖"}><input type="checkbox" checked={manufacturingDrawing && form.primaryManufacturing} disabled={!manufacturingDrawing} onChange={(event) => setForm({ ...form, primaryManufacturing: event.target.checked })} />主要製造圖</label><div className="number-state-inline-note"><FileText size={16} /><span>{relationLinkType === "primary_manufacturing" ? "圖料關聯會建立為製造基準。" : "圖料關聯會建立為參考，不會誤設為製造基準。"}</span></div></div></div>
