@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
+import { numberStateFlowJson } from "@/lib/number-state-flow-api";
 
 export const runtime = "nodejs";
 
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     ]))
   );
 
-  return NextResponse.json({
+  return numberStateFlowJson({
     generatedAt: new Date().toISOString(),
     pages,
     actions

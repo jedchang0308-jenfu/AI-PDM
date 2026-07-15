@@ -1,0 +1,222 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
+export const DEV032_RELEASE_SOURCE_OUTPUT = "output/dev-032-release-source/manifest.json";
+
+const BUILD_CONFIG_FILES = new Set([
+  ".dockerignore",
+  ".env.example",
+  ".gitignore",
+  "Dockerfile",
+  "next-env.d.ts",
+  "next.config.mjs",
+  "package-lock.json",
+  "package.json",
+  "tsconfig.json"
+]);
+
+function normalizePath(input) {
+  return input.replaceAll("\\", "/").replace(/^"\s*/u, "").replace(/\s*"$/u, "");
+}
+
+function sha256Text(input) {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function sha256File(absolutePath) {
+  return createHash("sha256").update(readFileSync(absolutePath)).digest("hex");
+}
+
+function runGit(root, args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+}
+
+function gitStatusEntries(root) {
+  const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: root, encoding: "utf8" }).replace(/\r?\n$/u, "");
+  if (!status) return [];
+  return status.split(/\r?\n/u).filter(Boolean).map((line) => {
+    const statusCode = line.slice(0, 2);
+    const rawPath = normalizePath(line.slice(3));
+    return { statusCode, path: rawPath };
+  });
+}
+
+function classifySourcePath(relativePath) {
+  const filePath = normalizePath(relativePath);
+  if (filePath.startsWith("output/") || filePath.startsWith(".firebase/")) {
+    return {
+      bucket: "generated_evidence_excluded",
+      includedInProductionSource: false,
+      reason: "Generated evidence or local tool output; not deployment source."
+    };
+  }
+  if (
+    filePath === ".firebaserc" ||
+    filePath === "firebase.json" ||
+    filePath.startsWith("firebase-hosting/") ||
+    filePath.startsWith("infra/google-cloud/staging/") ||
+    filePath === "config/platform/staging-preflight.template.json"
+  ) {
+    return {
+      bucket: "staging_only_excluded_from_production_config",
+      includedInProductionSource: false,
+      reason: "Staging-only provider or IaC input; production requires a separate target contract."
+    };
+  }
+  if (filePath.startsWith(".ai-doc/")) {
+    return {
+      bucket: "included_release_governance",
+      includedInProductionSource: true,
+      reason: "Release-gate decisions, specs, QC, reports or runbooks."
+    };
+  }
+  if (filePath.startsWith("src/")) {
+    return {
+      bucket: "included_application_source",
+      includedInProductionSource: true,
+      reason: "Application/runtime source included in candidate artifact."
+    };
+  }
+  if (filePath.startsWith("scripts/")) {
+    return {
+      bucket: "included_release_tooling",
+      includedInProductionSource: true,
+      reason: "Build, migration, QC or release evidence tooling."
+    };
+  }
+  if (filePath.startsWith("db/") || filePath.startsWith("supabase/")) {
+    return {
+      bucket: "included_schema_migration_source",
+      includedInProductionSource: true,
+      reason: "Schema, migration or compatibility input."
+    };
+  }
+  if (filePath.startsWith("config/platform/")) {
+    return {
+      bucket: "included_platform_contract",
+      includedInProductionSource: true,
+      reason: "Platform, authority, cost, seed or continuity contract."
+    };
+  }
+  if (filePath === "infra/google-cloud/README.md") {
+    return {
+      bucket: "included_platform_contract",
+      includedInProductionSource: true,
+      reason: "Provider release contract documentation."
+    };
+  }
+  if (BUILD_CONFIG_FILES.has(filePath)) {
+    return {
+      bucket: "included_build_runtime_config",
+      includedInProductionSource: true,
+      reason: "Build, dependency or runtime config input."
+    };
+  }
+  return {
+    bucket: "unknown_risk",
+    includedInProductionSource: false,
+    reason: "No release-source classification rule matched this path."
+  };
+}
+
+function countBy(items, getKey) {
+  const counts = {};
+  for (const item of items) {
+    const key = getKey(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function fileRecord(root, entry) {
+  const classification = classifySourcePath(entry.path);
+  const absolutePath = path.join(root, ...entry.path.split("/"));
+  const exists = existsSync(absolutePath);
+  const stats = exists ? statSync(absolutePath) : null;
+  return {
+    path: entry.path,
+    statusCode: entry.statusCode,
+    ...classification,
+    exists,
+    sizeBytes: stats?.isFile() ? stats.size : null,
+    sha256: stats?.isFile() ? sha256File(absolutePath) : null
+  };
+}
+
+function stableRecordsDigest(records) {
+  const digestInput = records.map((record) => ({
+    path: record.path,
+    statusCode: record.statusCode,
+    bucket: record.bucket,
+    includedInProductionSource: record.includedInProductionSource,
+    exists: record.exists,
+    sizeBytes: record.sizeBytes,
+    sha256: record.sha256
+  }));
+  return sha256Text(JSON.stringify(digestInput));
+}
+
+export function buildDev032ReleaseSourceManifest(root = process.cwd()) {
+  const branchLine = runGit(root, ["status", "--short", "--branch"]).split(/\r?\n/u)[0] ?? "";
+  const head = runGit(root, ["rev-parse", "HEAD"]);
+  const headSubject = runGit(root, ["log", "-1", "--pretty=%s"]);
+  const entries = gitStatusEntries(root).map((entry) => fileRecord(root, entry)).sort((a, b) => a.path.localeCompare(b.path));
+  const included = entries.filter((entry) => entry.includedInProductionSource);
+  const excluded = entries.filter((entry) => !entry.includedInProductionSource && entry.bucket !== "unknown_risk");
+  const unknown = entries.filter((entry) => entry.bucket === "unknown_risk");
+  const generated = entries.filter((entry) => entry.bucket === "generated_evidence_excluded");
+  const stagingOnly = entries.filter((entry) => entry.bucket === "staging_only_excluded_from_production_config");
+
+  const sourceSnapshotSha256 = stableRecordsDigest(included);
+  const classificationSha256 = stableRecordsDigest(entries.filter((entry) => entry.bucket !== "generated_evidence_excluded"));
+
+  return {
+    schemaVersion: 1,
+    dev: "DEV-032",
+    generatedAt: new Date().toISOString(),
+    status: "source_snapshot_manifested_not_release_ready",
+    productionActionPerformed: false,
+    git: {
+      branchLine,
+      head,
+      headSubject,
+      dirty: entries.length > 0
+    },
+    releaseDecision: {
+      currentDirtySnapshotSelectedByOwner: false,
+      cleanReleaseBranchSelectedByOwner: false,
+      exactReleaseCommitExists: false,
+      sourceSnapshotSha256,
+      classificationSha256,
+      safeToBuildForProduction: false,
+      blocker: "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
+    },
+    summary: {
+      totalDirtyEntries: entries.length,
+      includedProductionSourceEntries: included.length,
+      excludedGeneratedOrStagingEntries: excluded.length,
+      generatedEvidenceEntries: generated.length,
+      stagingOnlyEntries: stagingOnly.length,
+      unknownRiskEntries: unknown.length,
+      byStatusCode: countBy(entries, (entry) => entry.statusCode),
+      byBucket: countBy(entries, (entry) => entry.bucket)
+    },
+    stopConditions: [
+      "Do not deploy from this manifest alone.",
+      "Do not treat staging-only Firebase Hosting or staging Terraform files as production provider config.",
+      "Do not build production until release owner selects the source path and an exact commit or immutable snapshot is created.",
+      "Do not proceed while production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke are missing."
+    ],
+    files: entries
+  };
+}
+
+export function writeDev032ReleaseSourceManifest(root = process.cwd(), outputPath = DEV032_RELEASE_SOURCE_OUTPUT) {
+  const manifest = buildDev032ReleaseSourceManifest(root);
+  const absoluteOutput = path.join(root, ...outputPath.split("/"));
+  mkdirSync(path.dirname(absoluteOutput), { recursive: true });
+  writeFileSync(absoluteOutput, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return { manifest, outputPath };
+}

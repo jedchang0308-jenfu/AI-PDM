@@ -9,6 +9,9 @@ import { verifyPassword } from "@/lib/password";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "Firebase BFF token exchange required" }, { status: 404 });
+  }
   const body = await request.json().catch(() => ({}));
   const email = String(body.email ?? "").trim();
   const password = String(body.password ?? "");

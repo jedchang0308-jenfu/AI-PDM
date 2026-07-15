@@ -29,6 +29,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   if (!match) return NextResponse.json({ error: `DRAWING_NUMBER_NOT_FOUND: ${decodedDrawingNumber}` }, { status: 404 });
 
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
+  const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
+  if (seriesCode.length > 80) return NextResponse.json({ error: "seriesCode must be 80 characters or fewer" }, { status: 400 });
 
   try {
     const result = await addPartNumberToRootAsync({
@@ -36,6 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
       rootCode: match.rootCode,
       itemKind,
       customSpecification: String(body.customSpecification ?? body.custom_specification ?? "").trim(),
+      seriesCode,
       reason: String(body.reason ?? "").trim(),
       sourceEntrypoint: String(body.sourceEntrypoint ?? body.source_entrypoint ?? "drawing_drawer").trim(),
       idempotencyKey: String(body.idempotencyKey ?? body.idempotency_key ?? "").trim() || undefined,

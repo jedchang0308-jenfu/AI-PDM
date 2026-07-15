@@ -1,7 +1,7 @@
 # SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002 - Five-year Google Cloud ERP platform and ontology roadmap
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; Phase 1A-1E implemented and locally QC-accepted on 2026-07-13; Phase 2-6 provider/release gated
+Status: `HD-8-1..4` closed; Phase 1A-1E, Phase 2A preflight/IaC and Phase 2B local application/IaC readiness implemented and locally QC-accepted on 2026-07-13; Phase 2B staging infrastructure, migration, Firebase Hosting default-domain entrypoint and runtime smoke complete; principal mapping plus exact-source artifact provenance/drift remain gated
 DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Authority: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`
@@ -10,14 +10,21 @@ QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.m
 
 ### Confirmed decisions
 
+- Phase 2B guided decision `1A / 2C / 3A` on 2026-07-13: use a dedicated staging Google Cloud project and a separate future production project; after target, billing, budget, privacy and backup gates close, a reviewed credentialled plan may continue into apply in the same controlled workflow; `jedchang0308@jenfu.com.tw` temporarily owns business/runtime/data/privacy/security/cost accountability, with one named internal backup required before apply.
+- Phase 2B guided decision `1A / Workspace-only / 3A` on 2026-07-13 originally selected `db-custom-1-3840` with Regional HA for staging, a USD 300 monthly budget, 50/80/100 alerts and a USD 240 plan-review stop. `HD-10-1 / 1A` on 2026-07-14 supersedes only the staging availability choice: staging is `ZONAL`, production remains `REGIONAL`, and the conservative Phase 2B/3A forecast is USD 210. `dani@jenfu.com.tw` remains continuity backup.
+- Phase 2B guided decision `1A / 2A / 3A` on 2026-07-13 authorized read-only Cloud discovery, a company-owned self-service Billing strategy and an AI-drafted employee privacy notice. Discovery under `jedchang0308@jenfu.com.tw` found organization `jenfu.com.tw` / `361825816000`, existing ProJED projects and existing Billing Account `018678-C2F032-7680E4` in free-trial state. No mutation occurred. The previous assumption that no Cloud organization/project/billing existed is disproved; reuse versus separate Billing remains a human decision, so `projectAndBillingApproved` and the target billing ID remain closed.
+- Phase 2B guided decision `1A / 2A / 3C` on 2026-07-13 approved AI_PDM staging reuse of Billing Account `018678-C2F032-7680E4`, the 30/180/365-day identity/security retention baseline with disclosure of the provider-managed 400-day `_Required` log retention, and `jedchang0308@jenfu.com.tw` / `dani@jenfu.com.tw` as primary/backup privacy contacts. On 2026-07-14 the user reported that this Billing Account is now a Paid account with a valid payment method, closing the payment-activation gate. This does not authorize chargeable resource creation. The privacy draft remains unpublished and unapproved until the business-audit retention and final version/effective-date review close.
+- Phase 2B guided decisions `1A / 2A` on 2026-07-13 permanently retain only the minimum official-number/non-reuse ledger, retain closed/cancelled drafts for three years, retain operation audit for three years using stable PDM User ID rather than email, and company-approve employee privacy notice Pilot v1.0 effective on staging opening. Approval closes the wording gate but not the implementation gate: immutable content hash, activation acknowledgement, permanent access and Admin evidence must be implemented and verified before employee activation. At this point the account model was still open and was closed by the following guided identity decision.
+- Phase 2B guided identity decision `3` on 2026-07-13 requires company-scoped employee-number login aliases and account mapping while explicitly rejecting an AI_PDM-owned password store, MFA engine and password-reset system. Cloud Identity/Firebase Identity Platform owns credentials, MFA and recovery; the alias only creates a short-lived provider-routing intent, and final authorization remains verified provider UID -> stable PDM User ID. Alias schema/API/UI and local QC were implemented on 2026-07-13; Cloud SQL migration and real-provider staging evidence remain live gates.
 - Existing login credentials, provider bindings, source actor IDs and history are not migrated. Production users are reprovisioned in Firebase and receive reviewed, newly created stable production PDM user IDs; source attribution remains unchanged in the read-only archive.
 - `jedchang0308@jenfu.com.tw` is the initial business Admin. A local managed-auth bootstrap exists, but it is not production Firebase/IAM completion.
-- Rollout uses Google Workspace-only Wave 0 (3-5 people), Wave 1 (about 5 more, including at least one controlled non-Google email-link user) and Wave 2 (remaining approved staff), each with a five-business-day observation gate.
+- Rollout starts with a Google Workspace-only named 3-5-user canary. `HD-9-1` cancels the former fixed five-business-day waves; every later allowlist change requires explicit DEV-032 release evidence, and controlled non-Google users require prior staging proof.
 - Cloud SQL PostgreSQL, Cloud Run Next.js 16 HTTP/BFF and GCS target `asia-east1`/Taiwan for operational data and files; the external Application Load Balancer/custom domain may use global control-plane/CDN resources that must be inventoried.
 - Firebase Authentication is the accepted IAM direction. US identity-data processing is accepted under `HD-6-1`; field minimization, employee/privacy notice, retention/deletion owner and privacy-inventory evidence remain mandatory before live setup.
 - The first production slice opens only official numbering and drafts. Roadmap functions remain visible but disabled with an unavailable indicator and tooltip.
 - ProJED is untouched. Project/Equipment integration waits for a ProJED-owned contract.
 - `HD-8-1 / 1A` supersedes the historical App Hosting/Next.js 15.2.x instruction: production runs a Next.js 16 Active LTS container on Cloud Run `asia-east1` behind an external Application Load Balancer/serverless NEG and managed TLS. Cloud CDN is restricted to reviewed public immutable assets.
+- Staging exception dated 2026-07-15: the internal pilot may use `https://jenfu-ai-pdm-stg-361825.web.app` as a Firebase Hosting rewrite gateway to the existing Cloud Run service. It requires public Cloud Run ingress/default URL and therefore carries a documented direct-`run.app` residual risk. This exception is forbidden in production and does not change Cloud SQL/GCS authority or permit Firestore, Firebase Storage or Firebase Functions.
 - `HD-7-2 / 2B`: production starts clean with only the initial Admin, minimum configuration, numbering seeds and non-reusable reservations; local business/draft/demo/test/history data remains in a read-only archive.
 - `HD-7-3 / 3B`: RPO <= 1 hour is continuous wall-clock; RTO <= 4 hours is measured Monday-Friday 08:00-17:00 `Asia/Taipei`, excluding company holidays. `HD-8-2 / 2A` adds an internal primary plus backup roster with all-hours acknowledgement within 60 minutes and immediate containment checklist start after acknowledgement.
 - All formal data is in Cloud SQL, all formal files are in direct GCS, and all business logic is exposed through portable HTTP/BFF contracts. Firestore, Firebase Storage, Firebase Functions, Callable Functions and Firestore triggers are not application authorities.
@@ -38,7 +45,7 @@ Round 7 closed the then-known choices but did not make the whole Phase 1 impleme
 
 ### Closed decision round 8 and open restore follow-up
 
-The user selected `HD-8-1 / 1A`, `HD-8-2 / 2A` and `HD-8-3 / 3B`: Cloud Run/Next.js 16, internal primary+backup with 60-minute acknowledgement, and non-Google admission in Wave 1 after both paths pass staging. These choices close the Phase 1A/1E human gaps; all Phase 1 slices are RD Implementation Ready / Not Requested and still require an explicit implementation instruction.
+The user selected `HD-8-1 / 1A`, `HD-8-2 / 2A` and `HD-8-3 / 3B`: Cloud Run/Next.js 16, internal primary+backup with 60-minute acknowledgement, and non-Google admission in Wave 1 after both paths pass staging. Phase 1A-1E were subsequently implemented and locally QC-accepted. Phase 2A now supplies fail-closed staging IaC and preflight; it does not authorize credentials or live resources.
 
 The user closed the backup/restore follow-up as `HD-8-4 / 1A`. Full PDM/GCS/offline restore functionality remains deferred, while the official-numbering canary requires Cloud SQL automated backups/PITR plus one pre-canary restore of a documented production-like recovery point to a separate isolated target. The drill validates schema/migration checksums, account mapping, audit/outbox and numbering-ledger/sequence/non-reuse-reservation consistency without overwriting the source. It is release evidence, not a user-facing restore feature or full-PDM recovery claim.
 
@@ -214,7 +221,7 @@ Ontology/event version-one contract:
 - Every billable project/service has a named cost owner, approved monthly forecast and environment/module labels before provisioning.
 - Billing budget alerts go to accountable owners at 50%, 80% and 100%; Monitoring detects abnormal Cloud SQL storage/connections, App Hosting usage, build minutes/artifact growth and egress. Alerts do not cap spend.
 - Staging produces a measured run-rate before production approval. Production go/no-go records forecast, actual-to-date, variance and the owner/date for corrective action.
-- `HD-6-3 / 3A` makes regional HA mandatory from canary day one. Actual billing owner, monthly budget and alert recipients remain required before provisioning; changing to single-zone requires a new human decision and ADR amendment.
+- `HD-6-3 / 3A` makes regional HA mandatory from production canary day one. `HD-10-1 / 1A` separately authorizes single-zone staging with PITR/backups/private access unchanged; actual plan, billing alerts and provider evidence remain required before provisioning.
 
 ## Delivery phases and task list
 
@@ -255,7 +262,29 @@ Ontology/event version-one contract:
 
 Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase1-implementation-2026-07-13.md` and `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase1-report-2026-07-13.md`. These checks do not satisfy staging, live-provider, backup/restore drill, cost-owner, privacy-notice, deployment or canary gates.
 
-### Phase 2 - Isolated staging
+### Phase 2A - Staging preflight and reviewed IaC
+
+- [x] Correct the authoritative task board to recognize Phase 1A-1E commit `ec68981` and focused QC 86/86.
+- [x] Add a Terraform 1.14.x / google provider 7.39.0 staging root with a GCS backend contract, no embedded backend bucket and a reviewed dependency lock.
+- [x] Model 37 gated Google resources across APIs/IAM, separate runtime/migration identities, private VPC, regional-HA/PITR Cloud SQL, Cloud Run proxy sidecar, external ALB/managed TLS, immutable-only CDN, Identity Platform/TOTP, regional logs, monitoring and 50/80/100 budget alerts.
+- [x] Default every resource to zero instances and require real approved targets, verified alert channels, `CHG-*` ticket and exact Phase 2B acknowledgement before resource creation can become true.
+- [x] Run Terraform `init -backend=false`, `fmt -check` and `validate` inside an isolated container without mounting Google credentials; validation passes with zero diagnostics.
+- [x] Produce machine-readable `blocked_expected` preflight and focused QC 20/20; explicitly surface missing owners, privacy/billing/target/state evidence, live Firebase adapter/auth mode, non-Google test account and credentialled plan.
+
+Phase 2A created no project, billing link, API enablement, IAM binding, DNS record, backend state, credential lookup, Terraform plan/apply/import, migration or deployment. Evidence: `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2a-preflight-implementation-2026-07-13.md` and `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2a-preflight-report-2026-07-13.md`.
+
+### Phase 2B - Isolated staging
+
+Local application/IaC readiness completed on 2026-07-13:
+
+- [x] Implement Firebase Web/Admin adapters for Google/password/TOTP, revoked-token verification and eight-hour rotatable BFF sessions; browser Firebase state is memory-only and signed out after exchange.
+- [x] Resolve authorization only through active `external_subject = Firebase UID` principal mappings; no email/domain auto-authorization or same-email fallback.
+- [x] Implement Firebase-managed email-link invitation followed by password linking, canonical invitation state tracking and deny-first provider/database compensation.
+- [x] Fail closed all legacy password/token/OAuth/invitation/recovery bypass routes while `PDM_AUTH_MODE=firebase_bff`.
+- [x] Add Cloud Run Firebase/session environment and Secret Manager contracts, independently gated empty-secret bootstrap, invitation SQLite/PostgreSQL schema artifacts and Firebase Admin standalone dependency tracing.
+- [x] Pass Phase 2B focused QC 14/14, local preflight 19/19 and production-image smoke against `sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3`.
+
+The local preflight remains `blocked_external`. It initially reported 25 live/organizational blockers and was reduced as ownership, billing, privacy, resource creation, Terraform, Firebase, migration and runtime evidence closed. On 2026-07-15 the approved Firebase Hosting default-domain entrypoint and Cloud Run runtime smoke passed. The two current staging-acceptance blockers are a real Firebase principal mapping and reconciliation of the deployed immutable application artifact against the much newer uncommitted source tree. Public custom-domain DNS/TLS remains explicitly deferred for the internal pilot and is not counted as passed. The following checklist separates completed local work from live staging evidence:
 
 - [ ] Prove the Cloud Run/Next.js 16/Node/container combination is in the approved support posture and production source auto-rollout is impossible; encode closed `HD-8-4 / 1A` in the continuity test/runbook.
 - [ ] Verify the deployed contract matches closed decisions: accepted Firebase US processing with notice/inventory, Taiwan-only backup with no regional-DR claim, and regional HA from canary day one.
@@ -268,8 +297,10 @@ Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-p
 - [ ] Set `maxInstances`/`poolMax`/timeouts from the approved connection budget; load-test saturation/failover and prove at least 30% database connection reserve.
 - [ ] Apply DDL/grants exactly once through the guarded migration identity/step; prove concurrent deployment cannot run the same migration twice and runtime identity cannot run DDL.
 - [ ] Reprovision newly identified staging users, test both Google Workspace and non-Google Firebase-managed email-link paths, enroll TOTP and verify session/offboarding/invitation flows; source actor IDs remain archive-only provenance and are not same-email mapped.
+- [x] Implement company-scoped employee-number alias schema/migration artifacts, `/settings/accounts` mapping, rate-limited single-use provider-routing intent and verified UID/PDM user/company consistency. Local negative QC proves unknown/collision/retired/UID-mismatch/cross-company/replay/rate-limit fail closed and no AI_PDM password/MFA/recovery secret exists; focused QC 21/21.
+- [ ] Apply the alias migration to isolated Cloud SQL staging and repeat Google/non-Google real-provider, cross-instance rate-limit, retirement and UID/company consistency tests with redacted evidence.
 - [ ] Run migration parity, API regression, concurrency/numbering and backup/PITR restore tests. GCS integration/finalize tests are Phase 3B entry evidence and do not block the no-file Phase 3A slice.
-- [ ] Record Firebase Auth US data exception and approved employee/privacy notice.
+- [ ] Publish the approved Pilot v1.0 content hash, record the staging-opening effective timestamp, and verify first-activation acknowledgement, permanent access and Admin evidence for the Firebase Auth US data exception.
 - [ ] Record measured staging run-rate, named cost owners, budget-alert delivery and anomaly-monitoring evidence before requesting production resources.
 
 ### Phase 3A.0 - Production canary
@@ -288,10 +319,9 @@ Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-p
 
 ### Phase 3A.1 - Field acceptance and waves
 
-- [ ] Run `DEV-FIELD-001` for five business days on Wave 0.
-- [ ] Triage all findings; no open P0 and each P1 has accepted disposition/owner/date.
-- [ ] Add about five users for Wave 1, including at least one controlled non-Google Firebase-managed email-link user, and repeat the five-business-day gate.
-- [ ] Open Wave 2 to remaining approved employees only after signed Wave 1 go/no-go.
+- [x] `HD-9-1` cancels `DEV-FIELD-001` and the fixed five-business-day Wave 0/Wave 1 observation; close without execution or pass claim.
+- [ ] Keep no-open-P0/P1, explicit allowlist approval and production post-deploy smoke in DEV-032 for every opening/expansion.
+- [ ] Add controlled non-Google Firebase-managed email-link users only after that path passes staging and an explicit DEV-032 allowlist release.
 - [ ] Do not claim complete PDM production readiness.
 
 ### Phase 3B - Controlled-file cutover
@@ -327,9 +357,10 @@ Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-p
 | Phase 1C database/migrations | Implemented / local contract QC accepted; no live Cloud SQL | local/test-double boundary | least privilege, no browser DB path, bounded pool, singleton checksum migration and atomic command/audit/outbox pass | schema/grant diff, generated migration trace and concurrency tests |
 | Phase 1D storage/continuity | Implemented / interfaces and fakes only | no live GCS adapter | file interfaces/fail-closed state tests, signed ledger and recovery-reservation fixtures pass; no live adapter required | storage contract tests, hash/generation fixtures, restore-reconciliation simulation |
 | Phase 1E governance | Implemented / local QC accepted | templates remain non-release evidence | clean-seed/archive validator, new production-ID proof, official-number reservations, service inventory, business-hours calculation, 60-minute primary+backup response fixtures, portable-boundary scanners and cost templates fail closed | schema fixtures and policy QC |
-| Phase 2 staging | RD Contract Ready; provider/cost/credential/privacy blocked | Phase 1 accepted, named owners, billing/project/domain/credentials | Cloud Run/ALB/cache, both IAM paths, Cloud SQL, no-Firebase-data/storage/functions, `HD-8-4 / 1A` restore contract, load, location, cost and failure gates pass; file APIs remain closed | immutable staging evidence package; GCS integration evidence may wait for Phase 3B |
+| Phase 2A preflight/IaC | Implemented / local QC accepted; no credentials or resources | Phase 1 accepted | 37 resources fail-closed gated; Terraform fmt/validate and blocked-expected preflight pass | provider lock, IaC, preflight output and focused QC report |
+| Phase 2B staging | Local application/IaC readiness accepted; live staging externally blocked | Phase 2A accepted, named owners, billing/project/domain/state/secrets/credentials and Firebase provider configuration | Cloud Run/ALB/cache, both IAM paths, Cloud SQL, no-Firebase-data/storage/functions, `HD-8-4 / 1A` restore contract, load, location, cost and failure gates pass; file APIs remain closed | local RD/QC plus future immutable staging evidence package; GCS integration evidence may wait for Phase 3B |
 | Phase 3A.0 canary | RD Contract Ready; release gate required | Phase 1/2 accepted, pre-canary isolated restore/reconciliation passed, release instruction, target/data/account manifests, support roster | named Google Workspace 3-5 users only; official numbering/drafts only; required restore/smoke/rollback pass | signed pre-deploy, isolated-restore, deploy, smoke, rollback-readiness and canary evidence |
-| Phase 3A.1 waves | RD Contract Ready; external field evidence required | healthy canary and `DEV-FIELD-001` package | five-business-day gates; no open P0; every P1 dispositioned; signed expansion | field report, audit screenshots/logs, issue register, go/no-go |
+| Phase 3A.1 fixed-duration field gate | Cancelled by Human Decision | `HD-9-1` | closed without execution or pass; no open P0/P1 and explicit DEV-032 expansion control remain | decision record and retained local functional evidence |
 | Phase 3B files | RD Contract Ready; staging implementation plus separate release | stable 3A and approved file inventory/recovery | direct-GCS adapter/IAM/finalize contract passes in staging; exact source/copy/backup/hash/generation evidence; no dual primary; selected workflows only | adapter tests, migration manifest, pointer diff, restore and smoke evidence |
 | Phase 4 ontology MVP | RD Contract Ready; future local/staging instruction | stable platform, named consumer and projection SLO | deterministic objects/links/actions/events, idempotent replay, governed change request, p95 projection target | ontology/event contract QC, replay/DLQ and projection report |
 | Phase 5 optimization | RD Contract Ready; time/evidence gated | month 12/18 measurements | right-size, remain or new-ADR decision supported by evidence | cost/performance/availability/support scorecard and ADR |
@@ -359,7 +390,8 @@ Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-p
 | Business-hours SLO runbook | Confirmed / Same SPEC Phase 1E/2/3A | `HD-8-2 / 2A`: primary+backup, 60-minute all-hours acknowledgement and containment checklist |
 | Non-Google production account wave | Confirmed / Same SPEC Phase 2/3A.1 | `HD-8-3 / 3B`: both paths in staging; Wave 0 Google-only; at least one controlled non-Google account in Wave 1 |
 | Backup/restore deferral boundary | Closed Decision / Deferred Full-PDM Scope (`HD-8-4 / 1A`) | require one pre-canary isolated Cloud SQL restore and numbering reconciliation; defer independent/offline/GCS/full-PDM recovery work |
-| Phase 1 local adapters | Same SPEC Phase; explicit implementation request | all five slices are RD Implementation Ready / Not Requested; no live provider/resource action |
+| Phase 1 local adapters | Same SPEC Phase | all five slices implemented and locally QC-accepted; no live provider/resource action |
+| Phase 2A IaC/preflight | Same SPEC Phase | local implementation complete; `blocked_expected` until named target/owner/privacy/application evidence closes |
 | Google staging resources and billing | Blocked Human Re-entry | owners, project IDs, budget, credentials, privacy evidence and staging instruction |
 | Production domain/IAM/DB/deploy/cutover/smoke | Release Gate Required | Phase 1/2 evidence and explicit `DEV-032` release instruction |
 | GCS file authority cutover | Same SPEC Phase 3B + Release Gate Required | Phase 3A stable, approved inventory and explicit file-workflow release |
@@ -376,9 +408,10 @@ Phase 1 evidence is recorded in `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-p
 |---|---|---|---|---|
 | 0 / DEV-046 architecture | authority, topology, decisions, memory capsule, handoffs, QA | product/provider/release | HD-6/HD-7 and HD-8-1..4 recorded | ADR/SPEC/QA/task/map consistency plus explicit restore-boundary status |
 | 1 / local adapters | five bounded slices 1A-1E including Cloud Run/container contract and portable-boundary scanners | live cloud, billing, DNS, credentials, pointer switch, live GCS adapter | explicit implementation request | per-slice tests/evidence in RD Handoff Contracts |
-| 2 / staging | Cloud Run/ALB/cache, both Firebase account paths, Cloud SQL, observability, restore and cost; file integration optional until 3B | production identities/data/domain and file-workflow opening | owners, billing, projects, credentials, privacy proof | complete no-file staging gate/evidence package; GCS evidence before 3B |
+| 2A / staging preflight | fail-closed Terraform, static target contract, owner/privacy/account blocker inventory | credential lookup, plan/apply/import, billing/resource/DNS creation | Phase 1 accepted and explicit local instruction | Terraform fmt/validate, provider lock, 20/20 QC and `blocked_expected` report |
+| 2B / isolated staging | Cloud Run/ALB/cache, both Firebase account paths, Cloud SQL, observability, restore and cost; file integration optional until 3B | production identities/data/domain and file-workflow opening | Phase 2A accepted plus owners, billing, projects, state backend, credentials, privacy proof and live Firebase adapter | complete no-file staging gate/evidence package; GCS evidence before 3B |
 | 3A.0 / canary | production official numbering/drafts for named Google Workspace users | non-Google until Wave 1, files, release/CAD/BOM/full PDM, general access | Phase 1/2 accepted + pre-canary isolated restore/reconciliation + release gate + manifests | immutable artifact, migration, required restore, smoke, rollback and canary proof |
-| 3A.1 / field | Wave 0/1 observation and governed expansion | automatic full opening | healthy canary and ready test package | signed `DEV-FIELD-001`, issue disposition and go/no-go |
+| 3A.1 / field | Preserve cancelled `DEV-FIELD-001` decision and explicit expansion control | field-test pass claim or automatic full opening | `HD-9-1` | cancelled without execution; later expansion uses DEV-032 release evidence |
 | 3B / files | controlled migration and selected workflow opening | unrelated ERP/ProJED | stable 3A, file instruction, inventory/recovery | exact pointer/hash/generation and rollback/smoke evidence |
 | 4 / ontology | Drawing/Part/BOM traceability, governed action/events/projection | Project/Equipment, generic EAV, direct AI write | stable platform, named owner/consumer/SLO | deterministic identity, authorization, replay and projection evidence |
 | 5 / optimize | measured Cloud SQL/runtime review | automatic migration | month 12/18 evidence | scorecard plus remain/right-size/new-ADR outcome |

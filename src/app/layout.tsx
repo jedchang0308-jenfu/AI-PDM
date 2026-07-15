@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PrivacyAccessGate } from "@/components/privacy-access-gate";
+import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 import "./styles/tokens.css";
 import "./globals.css";
 import "./styles/responsive.css";
@@ -18,10 +20,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant">
       <body>
-        <div className="app-shell">
-          <SidebarNav />
-          <main className="main">{children}</main>
-        </div>
+        <PrivacyAccessGate>
+          <div className="app-shell">
+            <SidebarNav numberStateFlowV1Enabled={isNumberStateFlowV1Enabled()} />
+            <main className="main">{children}</main>
+          </div>
+        </PrivacyAccessGate>
       </body>
     </html>
   );

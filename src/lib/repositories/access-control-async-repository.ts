@@ -84,6 +84,17 @@ type AccessControlDelegationRow = {
   delegated_from_role: string;
 };
 
+const EXPLICIT_ONLY_PERMISSION_CODES = new Set([
+  "numbering.candidate.review.submit",
+  "numbering.candidate.review.withdraw",
+  "numbering.candidate.review.decide",
+  "numbering.publish",
+  "transfer.package.review.submit",
+  "transfer.package.review.withdraw",
+  "transfer.package.review.decide",
+  "transfer.package.publish"
+]);
+
 export const SELECT_ACCESS_CONTROL_ROLES_SQL = `
   SELECT id, role_code, title, system_defined, enabled
   FROM roles
@@ -361,7 +372,7 @@ export class AsyncAccessControlRepository {
           reason: "explicit"
         };
       }
-      if (roleCode === "system_admin") {
+      if (roleCode === "system_admin" && !EXPLICIT_ONLY_PERMISSION_CODES.has(permissionCode)) {
         return {
           allowed: true,
           permissionKind: input.permissionKind,

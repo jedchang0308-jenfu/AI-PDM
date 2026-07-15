@@ -1,6 +1,9 @@
 .git
 .github
 .next
+**/.terraform
+*.tfstate
+*.tfstate.*
 .tmp
 tmp
 node_modules

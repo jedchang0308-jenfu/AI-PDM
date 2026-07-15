@@ -15,12 +15,14 @@ import {
   FileText,
   FileUp,
   GitPullRequestArrow,
+  KeyRound,
   ListTree,
   LogIn,
   PackageSearch,
   Search,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   UserCog,
   UploadCloud
 } from "lucide-react";
@@ -85,6 +87,7 @@ const navSections: NavSection[] = [
   {
     label: "發行 / 交接",
     items: [
+      { href: "/technical-transfer", label: "技術移轉", icon: Factory },
       { href: "/handoff", label: "製造交接", icon: Factory },
       { href: "/numbering/reports", label: "圖號報表", icon: FileText }
     ]
@@ -93,6 +96,8 @@ const navSections: NavSection[] = [
     label: "管理",
     items: [
       { href: "/policy", label: "管理辦法", icon: FileText },
+      { href: "/privacy", label: "隱私與資料使用", icon: ShieldCheck, exact: true },
+      { href: "/account/security", label: "我的帳號安全", icon: KeyRound },
       { href: "/settings/accounts", label: "帳號與權限", icon: UserCog },
       { href: "/settings", label: "系統設定", icon: Settings },
       { href: "/login", label: "登入", icon: LogIn }
@@ -100,7 +105,16 @@ const navSections: NavSection[] = [
   }
 ];
 
-function isVisibleItem(item: NavItem, pagePermissions: Record<string, boolean> | null, productionSlice: ProductionSliceClientStatus | null) {
+const NUMBER_STATE_LEGACY_NAV_PATHS = new Set(["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"]);
+
+function isVisibleItem(
+  item: NavItem,
+  pagePermissions: Record<string, boolean> | null,
+  productionSlice: ProductionSliceClientStatus | null,
+  numberStateFlowV1Enabled: boolean
+) {
+  if (item.href === "/technical-transfer" && !numberStateFlowV1Enabled) return false;
+  if (numberStateFlowV1Enabled && NUMBER_STATE_LEGACY_NAV_PATHS.has(item.href)) return false;
   if (productionSlice?.configured) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
   return !requiredPermission || !pagePermissions || pagePermissions[requiredPermission];
@@ -111,9 +125,9 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
   return productionSlice.openPagePaths.includes(item.href);
 }
 
-export function SidebarNav() {
+export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFlowV1Enabled?: boolean }) {
   const pathname = usePathname() || "/";
-  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery");
+  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
@@ -139,8 +153,9 @@ export function SidebarNav() {
   }, [publicAuthPage]);
 
   useEffect(() => {
-    if (publicAuthPage) {
-      setPagePermissions(null);
+    const canViewApprovals = pagePermissions?.["numbering.approvals"] === true;
+    if (publicAuthPage || !canViewApprovals) {
+      setPendingApprovalCount(null);
       return;
     }
     let cancelled = false;
@@ -169,9 +184,13 @@ export function SidebarNav() {
       window.removeEventListener("approval-inbox-changed", loadPendingApprovalCount);
       document.removeEventListener("visibilitychange", refreshOnVisible);
     };
-  }, [publicAuthPage]);
+  }, [pagePermissions, publicAuthPage]);
 
   useEffect(() => {
+    if (publicAuthPage) {
+      setPagePermissions(null);
+      return;
+    }
     let cancelled = false;
     fetch("/api/numbering/permissions")
       .then((response) => (response.ok ? response.json() : null))
@@ -184,7 +203,7 @@ export function SidebarNav() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [publicAuthPage]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("ai-pdm-sidebar-collapsed");
@@ -218,7 +237,7 @@ export function SidebarNav() {
       </div>
       <nav className="nav" aria-label="主導覽">
         {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice));
+          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice, numberStateFlowV1Enabled));
           if (visibleItems.length === 0) return null;
 
           return (

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { sendProviderRecoveryHandoffForUserAsync } from "@/lib/account-recovery-handoff";
 import { AccountLifecycleError, createAdminAccountPasswordResetAsync } from "@/lib/account-lifecycle";
 import { requireRoleAsync } from "@/lib/auth-async";
+import { getAuthMode } from "@/lib/auth-config";
 
 export const runtime = "nodejs";
 
@@ -34,6 +36,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ use
   const { userId } = await params;
   const body = await request.json().catch(() => ({}));
   try {
+    if (getAuthMode() === "firebase_bff") {
+      const handoff = await sendProviderRecoveryHandoffForUserAsync({
+        request,
+        actorId: auth.user.id,
+        userId
+      });
+      return NextResponse.json({ handoff }, { status: 202, headers: { "cache-control": "no-store" } });
+    }
     const created = await createAdminAccountPasswordResetAsync({
       actorId: auth.user.id,
       userId,

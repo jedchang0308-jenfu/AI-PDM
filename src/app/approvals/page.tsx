@@ -145,7 +145,7 @@ export default function ApprovalPlatformPage() {
   const [items, setItems] = useState<ApprovalInboxItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
-  const [busy, setBusy] = useState<ApprovalDecision | "reload" | "detail" | null>(null);
+  const [busy, setBusy] = useState<ApprovalDecision | "retry-apply" | "reload" | "detail" | null>(null);
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -235,7 +235,10 @@ export default function ApprovalPlatformPage() {
     setMessage("");
     const response = await fetch(`/api/approvals/requests/${encodeURIComponent(detail.id)}/decisions`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": `approval-decision:${detail.id}:${decision}:${crypto.randomUUID()}`
+      },
       body: JSON.stringify({ decision, comment })
     });
     const body = (await response.json().catch(() => ({}))) as { request?: ApprovalDetail; error?: string };
@@ -246,6 +249,31 @@ export default function ApprovalPlatformPage() {
     }
     setDetail(body.request);
     setMessage(`已${decision === "approved" ? "核准" : decision === "rejected" ? "駁回" : "要求補資料"}`);
+    window.dispatchEvent(new Event("approval-inbox-changed"));
+    await loadInbox();
+  }
+
+  async function retryApply() {
+    if (!detail) return;
+    setBusy("retry-apply");
+    setError("");
+    setMessage("");
+    const response = await fetch(`/api/approvals/requests/${encodeURIComponent(detail.id)}/apply`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": `approval-apply-retry:${detail.id}:${crypto.randomUUID()}`
+      },
+      body: "{}"
+    });
+    const body = (await response.json().catch(() => ({}))) as { request?: ApprovalDetail; error?: string };
+    setBusy(null);
+    if (!response.ok || !body.request) {
+      setError(body.error ?? "審核套用重試失敗");
+      return;
+    }
+    setDetail(body.request);
+    setMessage("審核決策已重新套用。候選號仍需由具發布權限者另行正式發布。");
     window.dispatchEvent(new Event("approval-inbox-changed"));
     await loadInbox();
   }
@@ -434,6 +462,18 @@ export default function ApprovalPlatformPage() {
                         駁回
                       </button>
                     ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {detail.status === "apply_failed" && detail.actionCode === "numbering.candidate_publication_review" ? (
+                <section className="approval-decision-box" aria-label="審核套用重試">
+                  <p className="approval-reason">決策已保存，但候選鎖定套用失敗；重試不會新增第二筆決策，也不會正式發布。</p>
+                  <div className="approval-decision-actions">
+                    <button className="primary-button" type="button" onClick={() => void retryApply()} disabled={Boolean(busy)}>
+                      <RefreshCw size={16} aria-hidden="true" />
+                      {busy === "retry-apply" ? "重試中..." : "重試套用"}
+                    </button>
                   </div>
                 </section>
               ) : null}

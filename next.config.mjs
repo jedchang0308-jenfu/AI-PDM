@@ -18,6 +18,15 @@ const nextConfig = {
   outputFileTracingExcludes: {
     "/*": ["./data/**/*"],
     "/api/*": ["./data/**/*"]
+  },
+  outputFileTracingIncludes: {
+    "/*": [
+      "./node_modules/gcp-metadata/**/*",
+      "./node_modules/gaxios/**/*",
+      "./node_modules/google-logging-utils/**/*",
+      "./node_modules/json-bigint/**/*",
+      "./node_modules/bignumber.js/**/*"
+    ]
   }
 };
 

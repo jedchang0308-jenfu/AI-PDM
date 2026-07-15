@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
 import type { AuthIdentityProvider, AuthIdentityStatus } from "@/lib/repositories/auth-identity-async-repository";
+import type { EmployeeLoginAlias } from "@/lib/repositories/employee-login-alias-async-repository";
 import type { DbUser, DbUserWithPassword, UserAccountStatus } from "@/lib/repositories/user-repository";
 
 export type AccountLifecycleAction = "suspend" | "reactivate" | "offboard" | "return_to_work";
@@ -41,6 +42,7 @@ export type AdminAccountIdentity = {
 
 export type AdminAccountDetail = AdminAccountSummary & {
   identities: AdminAccountIdentity[];
+  loginAliases: EmployeeLoginAlias[];
   activeRoleAssignments: Array<{
     id: string;
     roleCode: string;
@@ -108,6 +110,22 @@ type RecoveryRequestRow = {
   used_at: string | null;
 };
 
+type LoginAliasRow = {
+  id: string;
+  company_id: string;
+  alias_type: "employee_number";
+  alias_normalized: string;
+  pdm_user_id: string;
+  provider_route: "firebase_google";
+  status: "active" | "retired";
+  created_at: string | Date;
+  created_by: string;
+  retired_at: string | Date | null;
+  retired_by: string | null;
+  reason: string;
+  row_version: number | string;
+};
+
 const ACCOUNT_SELECT = `
   SELECT
     u.id,
@@ -154,6 +172,14 @@ const SELECT_ACCOUNT_IDENTITIES_SQL = `
   FROM auth_identities
   WHERE user_id = :userId
   ORDER BY provider ASC, created_at ASC
+`;
+
+const SELECT_ACCOUNT_LOGIN_ALIASES_SQL = `
+  SELECT id, company_id, alias_type, alias_normalized, pdm_user_id, provider_route,
+         status, created_at, created_by, retired_at, retired_by, reason, row_version
+  FROM employee_login_aliases
+  WHERE pdm_user_id = :userId
+  ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC
 `;
 
 const SELECT_ACTIVE_ROLE_ASSIGNMENTS_SQL = `
@@ -386,6 +412,24 @@ function mapIdentity(row: IdentityRow): AdminAccountIdentity {
   };
 }
 
+function mapLoginAlias(row: LoginAliasRow): EmployeeLoginAlias {
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    aliasType: row.alias_type,
+    aliasNormalized: row.alias_normalized,
+    pdmUserId: row.pdm_user_id,
+    providerRoute: row.provider_route,
+    status: row.status,
+    createdAt: normalizeTimestamp(row.created_at) ?? String(row.created_at),
+    createdBy: row.created_by,
+    retiredAt: normalizeTimestamp(row.retired_at),
+    retiredBy: row.retired_by,
+    reason: row.reason,
+    rowVersion: toNumber(row.row_version)
+  };
+}
+
 function mapRecoveryRequest(row: RecoveryRequestRow): AccountRecoveryRequest {
   return {
     id: row.id,
@@ -444,7 +488,7 @@ export class AsyncAccountLifecycleRepository {
       limit: Math.max(1, Math.min(200, Math.trunc(input.limit ?? 100)))
     };
     if (input.query?.trim()) {
-      where.push("(lower(u.display_name) LIKE :query OR lower(COALESCE(u.email, '')) LIKE :query)");
+      where.push("(lower(u.display_name) LIKE :query OR lower(COALESCE(u.email, '')) LIKE :query OR EXISTS (SELECT 1 FROM employee_login_aliases ela WHERE ela.pdm_user_id = u.id AND lower(ela.alias_normalized) LIKE :query))");
       params.query = `%${input.query.trim().toLowerCase()}%`;
     }
     if (input.status?.trim()) {
@@ -468,8 +512,9 @@ export class AsyncAccountLifecycleRepository {
   async getAccountDetail(userId: string): Promise<AdminAccountDetail | null> {
     const row = await this.client.queryOne<AccountRow>(SELECT_ACCOUNT_BY_ID_SQL, { userId });
     if (!row) return null;
-    const [identities, roleAssignments] = await Promise.all([
+    const [identities, loginAliases, roleAssignments] = await Promise.all([
       this.client.query<IdentityRow>(SELECT_ACCOUNT_IDENTITIES_SQL, { userId }),
+      this.client.query<LoginAliasRow>(SELECT_ACCOUNT_LOGIN_ALIASES_SQL, { userId }),
       this.client.query<{
         id: string;
         role_code: string;
@@ -483,6 +528,7 @@ export class AsyncAccountLifecycleRepository {
     return {
       ...mapAccount(row),
       identities: identities.map(mapIdentity),
+      loginAliases: loginAliases.map(mapLoginAlias),
       activeRoleAssignments: roleAssignments.map((assignment) => ({
         id: assignment.id,
         roleCode: assignment.role_code,

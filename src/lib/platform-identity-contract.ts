@@ -1,8 +1,14 @@
 import {
   issuePlatformSessionV2,
   type PlatformAssuranceLevel,
+  type PlatformSecondFactor,
   type PlatformSessionKeyRing
 } from "./platform-session-v2.ts";
+import {
+  getGoogleWorkspaceMfaTrustPolicy,
+  isTrustedGoogleWorkspaceEmail,
+  type GoogleWorkspaceMfaTrustPolicy
+} from "./auth-config.ts";
 
 export interface VerifiedFirebaseIdentity {
   uid: string;
@@ -10,7 +16,8 @@ export interface VerifiedFirebaseIdentity {
   emailVerified: boolean;
   disabled: boolean;
   authTimeSeconds: number;
-  secondFactor: "totp" | null;
+  signInProvider: string;
+  secondFactor: PlatformSecondFactor;
 }
 
 export interface FirebaseCreatedIdentity {
@@ -33,6 +40,7 @@ export interface PlatformIdentityPrincipal {
   companyId: string;
   sessionVersion: number;
   accountStatus: "active" | "disabled";
+  requiresPrivilegedAssurance?: boolean;
 }
 
 export type InvitationSetupState =
@@ -56,9 +64,10 @@ export interface InvitationMailProvider {
 export async function exchangeFirebaseIdTokenForPlatformSession(input: {
   idToken: string;
   firebase: FirebaseIdentityProvider;
-  repository: PlatformIdentityRepository;
+  repository: Pick<PlatformIdentityRepository, "resolvePrincipal">;
   keyRing: PlatformSessionKeyRing;
-  requireTotp?: boolean;
+  requirePrivilegedAssurance?: boolean;
+  workspaceMfaTrustPolicy?: GoogleWorkspaceMfaTrustPolicy;
   nowSeconds?: number;
 }) {
   const verified = await input.firebase.verifyIdToken(input.idToken, { checkRevoked: true });
@@ -66,8 +75,24 @@ export async function exchangeFirebaseIdTokenForPlatformSession(input: {
   if (!verified.emailVerified) throw new Error("FIREBASE_EMAIL_NOT_VERIFIED");
   const principal = await input.repository.resolvePrincipal(verified.uid);
   if (!principal || principal.accountStatus !== "active") throw new Error("PLATFORM_PRINCIPAL_NOT_ACTIVE");
-  const assuranceLevel: PlatformAssuranceLevel = verified.secondFactor === "totp" ? "aal2" : "aal1";
-  if (input.requireTotp && assuranceLevel !== "aal2") throw new Error("FIREBASE_TOTP_REQUIRED");
+  const workspaceMfaTrustPolicy = input.workspaceMfaTrustPolicy ?? getGoogleWorkspaceMfaTrustPolicy();
+  const trustedGoogleWorkspaceSignIn =
+    verified.signInProvider === "google.com" &&
+    isTrustedGoogleWorkspaceEmail(verified.email, workspaceMfaTrustPolicy);
+  const workspaceMfaTrusted = trustedGoogleWorkspaceSignIn && workspaceMfaTrustPolicy.enabled;
+  const secondFactor: PlatformSecondFactor = verified.secondFactor ?? (workspaceMfaTrusted ? "google_workspace_mfa" : null);
+  const assuranceLevel: PlatformAssuranceLevel = secondFactor ? "aal2" : "aal1";
+  const privilegedAssuranceRequired =
+    input.requirePrivilegedAssurance ||
+    principal.requiresPrivilegedAssurance;
+  const privilegedAal1PilotAllowed =
+    privilegedAssuranceRequired &&
+    assuranceLevel === "aal1" &&
+    trustedGoogleWorkspaceSignIn &&
+    workspaceMfaTrustPolicy.allowAal1PrivilegedPilot;
+  if (privilegedAssuranceRequired && assuranceLevel !== "aal2" && !privilegedAal1PilotAllowed) {
+    throw new Error("FIREBASE_PRIVILEGED_ASSURANCE_REQUIRED");
+  }
   return issuePlatformSessionV2(
     {
       subject: verified.uid,
@@ -76,7 +101,7 @@ export async function exchangeFirebaseIdTokenForPlatformSession(input: {
       authTime: verified.authTimeSeconds,
       sessionVersion: principal.sessionVersion,
       assuranceLevel,
-      secondFactor: verified.secondFactor
+      secondFactor
     },
     input.keyRing,
     input.nowSeconds

@@ -30,8 +30,7 @@ export async function GET(request: Request) {
     | ApprovalPlatformStatus;
   const limitParam = Number(url.searchParams.get("limit") ?? 100);
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 100;
-  const requestedCompanyId = url.searchParams.get("companyId")?.trim() || undefined;
-  const companyId = requestedCompanyId || auth.user.company_id || undefined;
+  const companyId = auth.user.company_id || undefined;
   const domainCode = url.searchParams.get("domain")?.trim() || undefined;
   const actionCode = url.searchParams.get("action")?.trim() || undefined;
   const items = await listApprovalPlatformInboxAsync({ companyId, status, limit, domainCode, actionCode });

@@ -1,11 +1,12 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
-狀態：`Spec Ready / Human Confirmed`
+狀態：`Phase 1A-1D Local QC Passed / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048`
-Current execution boundary：只建立功能規格；本輪不含架構、資料模型、API、migration、實作、QA 計畫或 release artifact。
-RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「進入 RD 規格」或等效指令後，才能進入工程契約與 RD Readiness Review。
+Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/compatibility、Phase 1C approval/publication及Phase 1D transfer integration均已完成RD與獨立QC。Live provider、正式資料、staging、deployment與release artifact仍未執行。
+RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
+Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
 
 關聯規格：
 
@@ -15,12 +16,21 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
 - `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
 - `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
+- `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
+- `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
+- `.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`
 
 關聯決策：
 
 - `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`
 - `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`
 - `.ai-doc/decisions/ADR-PDM-SUBMISSION-GATE-001-transfer-package-and-exception-policy.md`
+- `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
+- `.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`
+
+關聯 QA：
+
+- `.ai-doc/qa/qa-pdm-number-state-flow-validation-plan-2026-07-13.md`
 
 ---
 
@@ -37,6 +47,9 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 5. ISO 9001 的最低必要管制邊界採「已發布」：草稿階段不視同正式發布號碼，不因號碼曾顯示給使用者就永久占用。
 6. 草稿候選號可以回收；審核中只做暫時排他鎖定；只有已發布與已作廢的正式號碼永久保留且不得重用。
 7. 第一版不強制 7 天回收冷卻期。候選號在明確取消、零有效引用且未處於審核鎖定時，可立即回收。
+8. Phase 1B 開放時，舊側欄`料號草稿 / 領號申請 / 上傳送審 / 製造交接`立即退出可見側欄；功能整併到 owner surfaces。舊網址暫留 redirect / guidance 以保護 bookmark，不保留第二套可變更流程。
+9. 建立或發布 drawing，以及含 drawing 或被規則標示為必要檔案的技轉包，必須有 finalized controlled-file evidence；純 root 或不含 drawing/file obligation 的 part-only publication 可由版本化 server rule 明確回傳`not_required`。正式環境在 direct GCS evidence verifier 就緒前，所有需檔案的發布維持鎖定。
+10. 第一版不強制 submitter、approver、publisher 為不同自然人；同一人可完成三步，但每一步仍須有獨立明示權限、獨立 command / confirmation 與獨立 audit fact。任何角色或 Admin 身分都不隱含其他權限，approval 不得自動觸發 publication。
 
 ### 1.2 從已確認決策推導的產品預設
 
@@ -85,8 +98,22 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - 使用者要求審核通過即自動等同正式發布。
 - 使用者要求草稿候選號一律不可回收，或要求已發布 / 已作廢號碼可回收。
 - 使用者要求加入固定回收冷卻期、自動逾期回收或跨公司共享號池。
-- 進入資料、API、權限、交易、遷移、歷史資料相容或實作設計。
+- 實作需要改變本文件已固定的正式發布邊界、候選號回收條件、單一審核 inbox 或 DEV-046 平台權威。
+- 歷史資料存在無法分類為 `published/obsolete official`、`legacy official reservation` 或 `candidate draft` 的歧義，且自動處理會改變號碼可重用性。
+- 需要在 live Cloud SQL 執行資料修復、schema cutover、長時間 table lock 或 provider migration。
 - 進入 merge、PR、deploy、production smoke、rollback 或正式 release。
+
+### 1.7 RD主管完整性審查與Human Decision Gate（2026-07-13，已關閉）
+
+本輪以Phase 1B-1D能否直接交給RD/QA/QC為判準重新審查。工程契約已補正建立模式矩陣、同workspace內部relation回收語意、pre/post-commit publication failure、batch official event cardinality、failure-record transaction與320/768 responsive boundary。使用者於2026-07-13以`1C / 2C / 3C`關閉三項決策：
+
+| Gate | 已確認決策 | 工程後果 | 狀態 |
+|---|---|---|---|
+| `HD-048-01` / `1C` | Phase 1B 立即移除四個舊側欄項目，功能收斂到 owner surfaces | 可見側欄不得保留重複入口；舊URL暫留redirect/guidance並保留query/`returnTo`，不得保留第二套mutation | Closed |
+| `HD-048-02` / `2C` | drawing與含drawing/required-file技轉必須有finalized evidence；純root/part-only可由server rule回`not_required` | evidence policy fail closed；live direct GCS verifier未就緒前，需檔案的production publish保持disabled與API denial | Closed |
+| `HD-048-03` / `3C` | 不要求不同自然人；同一人可submit、approve、publish | 三個動作仍需各自明示permission、command、confirmation與audit；不可自動串接、不可由Admin/角色身分推定權限 | Closed |
+
+三項決策已轉成SPEC、ADR與QA可驗收規則。Phase 1A-1D已依序完成RD與獨立QC；本機完成不得跳接或取代live provider與release gate。
 
 ---
 
@@ -252,6 +279,25 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - 既有主根模式先搜尋並鎖定主根，不得誤建新主根。
 - 儲存前要明示結果是未領號草稿、候選號草稿或正式發布流程的哪一種。
 - 建立完成後回到原圖料脈絡，展開並高亮新項目。
+- Phase 1E修復範圍內，建立表單必須保留公司管理辦法的品名引導能力：使用者先填核心名詞與其他資訊，系統依料件類型產生可套用的建議品名，使用者可微調後形成`確定品名`；建議欄位不得變成阻擋性欄位。
+- `確定品名`是人類溝通與系統篩選名稱，不要求唯一；它作為圖料主題名稱與同一草稿下料號預設品名。唯一性只由圖號、料號與正式發布authority保證。
+- 建議品名模板必須依管理辦法保留三種型態，段落以半形底線`_`串接：外購件`[核心名詞]_[品牌]_[規格/型號]`；自製/發包/客製非共用件`[核心名詞]_[系列代號]_[特性]_[流水識別]`；共用件`[核心名詞]_[特性]_[流水識別]`。品牌、系列代號、特性與流水識別仍可選填；自製非共用件系列代號可先自創，正式發行前再修正，不得阻擋草稿建立。
+- 相似品名查重只作提醒與引導改用既有主根，不得阻擋使用者建立新主根。
+- 圖號需求以「是否須製程管制」與料件類型做預設引導：外購件預設不建圖號，自製/發包/客製預設建圖號，共用件依製程管制切換；使用者仍可手動覆寫。
+- 本規格維持既有v3編碼、M/R用途碼與候選號/正式發布邊界；Phase 1E不得導入`000`萬用料號或改回`P-0001-001 / D-0001-MA1`格式。
+
+#### 6.2.1 建立模式與責任矩陣
+
+四種模式共用同一資訊骨架，避免模式切換後來源、目標、CTA或審核責任悄悄改變：
+
+| Mode | 操作者 | 方向 / 來源 | 目標與範圍 | 安全策略 | 儲存結果 / 狀態 | Primary next CTA | 審核 / 發布責任 |
+|---|---|---|---|---|---|---|---|
+| `new_bundle` | RD / scoped RD Manager | 無既有來源 | 新root + 至少一part + 至少一drawing + relation | form open不寫DB；source root必須為null | stable未領號workspace | `取得候選號` | owner送審；`/approvals`決定；explicit publisher發布 |
+| `append_drawing` | RD / scoped RD Manager | 已選official root，只讀鎖定 | 該root下新增一或多個drawing | server驗證source root/company；不得另建root | stable未領號workspace | `取得候選號` | 同上 |
+| `append_part` | RD / scoped RD Manager | 已選official root，只讀鎖定 | 該root下新增一或多個part | server驗證source root/company；不得另建root | stable未領號workspace | `取得候選號` | 同上 |
+| `append_drawing_part` | RD / scoped RD Manager | 已選official root，只讀鎖定 | 同root新增drawing + part + relation | relation兩端必須同workspace/source root且由server驗證 | stable未領號workspace | `取得候選號` | 同上 |
+
+模式切換必須清除不屬於新模式的未提交欄位，不得把上一模式hidden values送入API。若workspace已保存，模式與typed item set在Phase 1B不可變；使用者須取消後依正確模式重建。
 
 ### 6.3 圖號模組
 
@@ -398,6 +444,8 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 4. 沒有其他使用者可見的有效草稿仍以該候選號識別。
 5. 畫面先顯示會被取消的草稿與引用檢查結果。
 
+`有效引用`不包含同一workspace內、會隨整個workspace一起取消的root/part/drawing內部relation；否則每個完整bundle都會永遠無法取消。會阻擋回收的是workspace外部或具有獨立生命週期的引用，例如其他active workspace、transfer package scope、approval snapshot/lock、正式BOM/替代/附件或publication command。Reference resolver必須回傳reference type、stable ID、owner與解除href，不得只回count。
+
 第一版規則：
 
 - 不強制等待 7 天。
@@ -410,7 +458,7 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - 發布成功後，候選號才提升為正式號。
 - 正式號發布與正式化必須視為同一個使用者結果；不得出現「內容已發布但號碼仍可回收」。
 - 已發布與已作廢正式號永久不可重用。
-- 正式號即使發布失敗、後續被取代或作廢，也不得退回候選號池。
+- publication transaction commit前失敗時仍是`approved_locked`候選號，不得誤標正式號；commit成功後即使outbox/ledger傳遞失敗、後續被取代或作廢，仍是正式號且不得退回候選號池。
 
 ### 8.5 草稿防誤用
 
@@ -538,7 +586,7 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 
 | 角色 | 可執行功能 | 不可執行功能 |
 |---|---|---|
-| RD | 建立 / 編輯草稿、取得候選號、建立關係、建立技轉包、補資料、送審、依規則撤回 | 將候選號直接標為正式號、核准自己的正式發布 |
+| RD | 建立 / 編輯草稿、取得候選號、建立關係、建立技轉包、補資料、送審、依規則撤回 | 只憑RD角色核准或發布；同一人若另有明示approval/publish權限，仍須分別執行三個受稽核動作 |
 | RD Manager / 審核者 | 審核、退回、核准、確認技轉範圍與例外責任 | 把技轉核准當成主檔已發布 |
 | 發布責任人 | 對已核准項目執行正式發布並確認交接資格 | 略過審核、發布候選資料或回收正式號 |
 | PDM Admin / 號碼管理員 | 查候選號歷程、處理回收阻擋、處理例外與資料異常 | 在有有效引用時強制回收、重用已發布或已作廢號碼 |
@@ -608,6 +656,18 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 | TRF-011 | 只有正式發布完成的內容可進入 `已發布交接`。 |
 | TRF-012 | `已發布交接` 只顯示最新有效正式版本與可追溯的發布 / 交接脈絡。 |
 
+### 12.5 正式發布、檔案證據與權限
+
+| ID | 功能需求 |
+|---|---|
+| PUB-001 | 核准與正式發布必須是不同command；核准不得自動建立正式master。 |
+| PUB-002 | 建立或發布drawing時必須驗證finalized controlled-file evidence；preview成功與否不得取代此證據。 |
+| PUB-003 | 純root或沒有drawing/required-file obligation的part-only publication，只有版本化server rule可回`not_required`；client不得自行宣告。 |
+| PUB-004 | 含drawing或required file的技轉包，任一必要evidence缺漏時整包發布fail closed。 |
+| PUB-005 | Production direct GCS evidence verifier未就緒時，所有需檔案publication維持disabled且direct API拒絕。 |
+| AUT-001 | 同一自然人可submit、approve、publish，但每一步都必須具獨立明示permission、confirmation、command、receipt與audit action。 |
+| AUT-002 | Admin或任一角色不隱含其他步驟permission；跨公司或超出scope一律server-side拒絕。 |
+
 ---
 
 ## 13. 可見錯誤與復原
@@ -632,10 +692,11 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 
 - AC-NAV-001：Given 使用者在圖料模組，When 查看頁首，Then 能直接看到 `＋建立圖料號`，且可選四種建立模式。
 - AC-NAV-002：Given 使用者在圖號或料號模組，Then 主要 CTA 分別是 `＋建立圖號`、`＋建立料號`，不需要先去 `領號申請`。
-- AC-NAV-003：Given 使用者要找自己的料號草稿，Then 可在料號模組 `草稿` 頁籤找到，側欄不再有獨立 `料號草稿`。
+- AC-NAV-003：Given Phase 1B flag開啟，When 使用者查看側欄並尋找自己的料號草稿，Then `料號草稿 / 領號申請 / 上傳送審 / 製造交接`不再顯示為側欄項目，且可從料號模組`草稿`頁籤找到草稿；直接開啟舊網址時只提供保留context的redirect/guidance，不出現第二套mutation流程。
 - AC-NAV-004：Given 使用者要送研發審核，Then 必須先選定圖號、料號或關係；不存在沒有對象的泛用送審。
 - AC-NAV-005：Given 使用者要整批技轉送審，Then 能從 `發行 / 交接 > 技術移轉` 建立技轉包。
 - AC-NAV-006：Given 390px 寬畫面，Then 主要建立 CTA 仍在首屏可見且不藏入三點選單。
+- AC-NAV-007：Given 768px navigation collapse或320px最窄支援畫面，Then主要CTA、tabs、tooltip/disabled reason與sheet仍可到達，且無水平overflow、雙重scroll混亂或文字遮擋。
 
 ### 14.2 號碼驗收
 
@@ -671,6 +732,15 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - AC-TRF-009：Given 正式發布完成，Then 最新有效內容出現在 `已發布交接`，並可查發布者、時間、版本與案件來源。
 - AC-TRF-010：Given 製造或採購使用者，Then 只能查詢與下載已發布交接，不會看到候選草稿作為正式依據。
 
+### 14.5 發布證據與同人多步驗收
+
+- AC-PUB-001：Given root-only或合格part-only scope，When版本化server rule回`not_required`且其他條件成立，Then可由明確publish command發布，receipt/audit記錄rule version與結果。
+- AC-PUB-002：Given drawing scope，When evidence缺漏、generation/hash/rule stale或production verifier不可用，Then回`publication_evidence_not_ready`且不建立任何master。
+- AC-PUB-003：Given drawing controlled-object evidence有效但2D/3D preview失敗，Then不得只因preview失敗否決evidence；若其他發布條件成立可繼續明確發布。
+- AC-PUB-004：Given技轉包含多個drawing/required file，When任一必要evidence未finalized，Then整包零promotion、零official event。
+- AC-AUT-001：Given同一actor具submit、approval decision與publish三項明示permission，When依序執行三步，Then系統允許且產生三組獨立command/confirmation/receipt/audit；approval後master count仍為零。
+- AC-AUT-002：Given同一actor缺任一permission或跨公司，When嘗試對應步驟，Thenserver拒絕且零mutation；既有角色或前一步成功不得賦予下一步權限。
+
 ---
 
 ## 15. 跨規格一致性與權威來源
@@ -696,16 +766,16 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 | `SPEC/ADR-PDM-PRODUCTION-SLICE-001` | 正式領號流程一建立的 root / drawing / part 即視為 official reserved record | 草稿建立可不領號；已取得的候選號仍非正式，發布後才是正式號 |
 | 現行側欄 | 料號草稿、上傳送審、領號申請皆為一級入口 | 依物件與業務任務收斂到料號草稿頁籤、物件送審與技轉包 |
 
-### 15.3 尚待治理動作
+### 15.3 已完成治理動作
 
-本輪只寫功能規格，不修改 ADR 或工程規格。進入架構階段前必須：
+本輪已完成下列文件治理；這些動作只建立工程契約，沒有執行資料修復或產品實作：
 
-1. 修訂或新增號碼正式化 / 回收政策 ADR，明確取代「送審即永久受控」與固定 7 天冷卻。
-2. 修訂 production slice 的 official numbering 邊界，避免既有正式領號流程與候選號語意並存。
-3. 對齊 change-control、numbering、release、approval、transfer-package 與 status UX 的狀態轉換。
-4. 盤點既有草稿、正式 Draft 主檔與歷史號碼的相容分類；本輪不得執行資料修復。
+1. 新增 `ADR-PDM-NUMBER-STATE-FLOW-001`，將永久不可重用邊界固定在正式發布，並明確取消第一版固定 7 天冷卻。
+2. 對舊 change-control 與 production-slice ADR/SPEC 加上 amendment，保留其既有完成證據，但由本規格接管未來候選號 / 正式號語意。
+3. 以 DEV-046 的 Cloud SQL、BFF、transactional audit/outbox 與 signed numbering ledger 契約作平台基線。
+4. 補齊資料、API、權限、交易、併發、migration、失敗復原、QA/QC 與 current-phase RD Handoff Contract。
 
-在上述治理動作完成前，本文件可視為 `Spec Ready / Human Confirmed`，但不得宣稱 `RD Implementation Ready`。
+本規格現為`Phase 1A-1D Local QC Passed / Release Gate Required`。navigation/evidence/SoD三項決策已關閉並轉成可驗收規則；本機QC不得誤算為live provider、staging或release完成。
 
 ---
 
@@ -713,28 +783,32 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 
 | Deferred scope | Classification | Recovery / reason |
 |---|---|---|
-| 系統架構、服務邊界、資料流 | `Blocked Human Re-entry` | 使用者本輪明確要求不寫架構；收到「補架構規格」或等效指令後續接。 |
-| schema、資料模型、API、權限、交易、併發、migration | `Blocked Human Re-entry` | 屬工程契約，須在下一階段補齊並通過 RD Readiness Gate。 |
-| 既有 ADR 與 production slice 修訂 | `Blocked Human Re-entry` | 下一階段建立或修訂 ADR，處理本文件列出的 intentional replacement。 |
-| 歷史草稿 / 正式 Draft 分類與資料相容 | `Blocked Human Re-entry` | 需先有架構與資料遷移策略；不得由本功能規格推動資料修復。 |
-| 舊側欄入口與舊網址的 redirect / compatibility | `Same DEV future phase` | 功能結果已定義；實作方式待架構與 RD 階段決定。 |
-| QA 計畫、QC 自動化、瀏覽器證據 | `Same DEV future phase` | 功能 AC 已定義；架構完成後再形成可執行 QA/QC 契約。 |
-| RD 實作 | `Blocked Human Re-entry` | 使用者只要求規格；需明確提出進入架構 / RD 階段。 |
-| merge、PR、deploy、production smoke、rollback、release | `Blocked Human Re-entry / Release Gate Required` | 只有 release 型指令與高風險確認後才能產生 release artifacts。 |
+| Phase 1B 獨立 QC | `Completed 2026-07-13` | disposable server/data、role/company、route、1440/1024/768/390/320、visible-error、data-sanity及253/253 access-control regression均通過。 |
+| Phase 1C-1D 產品實作 | `Local QC Passed` | `HD-048-01..03`已關閉；已依`1B QC -> 1C RD/QC -> 1D RD/QC`完成。 |
+| 歷史資料實際分類 / repair | `High-risk Human Re-entry` | 本文件只定 migration classifier 與 dry-run 契約；任何 live repair 需另列清單、owner、備份與逐筆處置。 |
+| 舊側欄入口與舊網址 compatibility removal | `Visible nav Phase 1B / route compatibility retained` | Phase 1B立即移除四個可見舊側欄項目；舊route仍以redirect/guidance保護bookmark與context，實際刪除route須有後續觀察證據與另行授權。 |
+| Phase 1B 獨立QC瀏覽器證據 | `Same DEV / Next Gate` | RD focused automation與瀏覽器self-verification已完成；獨立QC必須重建fixture並重新收集，不可直接沿用RD verdict。 |
+| Cloud SQL disposable/staging parity | `Future Phase Captured / Not Requested` | 依 DEV-046 Phase 1C/2 與本文件 migration contract 驗證，不阻擋文件完成。 |
+| direct GCS 正式檔案 publish adapter | `Future Phase Captured / DEV-046 Phase 3B` | Phase 1 只保留 `PublicationEvidencePort` interface/fake/fail-close；需要正式檔案的 publish 在 live adapter 前保持未開放。 |
+| signed numbering ledger / isolated restore evidence | `Future Phase Captured / DEV-046 + Release Gate` | DEV-046 擁有 KMS-signed/hash-chained ledger 與 pre-canary restore；DEV-048 只定義必須輸出的 official publish event/payload。 |
+| merge、PR、deploy、production smoke、rollback、release | `Release Gate Required` | 只有 release 型指令與高風險確認後才能產生 release artifacts。 |
 | 固定冷卻期、自動逾期回收、跨公司號池 | `No Tracking` | 第一版拒絕；若日後有明確風險或產品需求，再以新決策恢復。 |
 
 ---
 
 ## 17. All-Phase Coverage Matrix
 
-本矩陣只記錄後續邊界，不在本輪展開架構或實作內容。
+本矩陣區分 current local implementation、provider parity 與 production release，避免文件完成被誤算成產品完成。
 
 | Phase / DEV | Execution boundary | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
-| Functional Spec / `DEV-048` | 本輪 | `Spec Ready / Human Confirmed` | UI 入口、草稿 / 候選 / 發布政策、狀態維度、技轉整批送審與功能 AC | 架構、工程契約、實作、QA/QC、release | 使用者已確認本輪只寫功能規格 | 本文件決策、需求與 intentional replacement 完整且無未分類 deferred scope | 本文件、使用者註解與現行 repo 盤點 |
-| Architecture / ADR alignment | 未進入 | `Blocked - Human Re-entry` | 將已確認功能轉成資料、API、權限、交易、併發、遷移與相容工程契約；修訂衝突 ADR | 產品方向重選、實作、release | 使用者提出「補架構規格」或等效指令 | 無 P0/P1 RD readiness 缺口，跨規格權威來源完成對齊 | 未來 architecture spec、ADR、RD Readiness Review |
-| RD / QA / QC | 未要求 | `Not Requested This Turn` | 依核准工程契約實作，驗證本文件全部 AC 與負向路徑 | production release | Architecture / ADR alignment 完成且使用者提出實作型指令 | 功能 AC、錯誤復原、權限與資料一致性通過 | 未來 RD report、QA plan、QC report |
-| Production release | 未要求 | `Release Gate Required` | 只在未來 release 型指令下進入正式環境關卡 | 本文件不產生任何可執行 release artifact | RD / QA / QC 完成、release 型指令與高風險確認 | 由 deployment release gate 定義 | 未來 release evidence |
+| Functional + Architecture / `DEV-048` | 已完成文件契約 | `RD Contract Ready` | 人類決策、UI、資料、API、權限、交易、併發、migration、QA/QC、ADR及Phase 1B-1D handoff對齊 | live data、provider、release artifact | 使用者要求RD主管審查完整性 | 工程缺口補齊且`HD-048-01..03`關閉 | 本規格、ADR、QA、dev_task、documentation map |
+| Phase 1A Domain/Data | 已實作且QC通過 | `QC Passed` | 草稿 workspace、typed items、候選號 reservation/event、allocator、migration classifier、command/audit/outbox | UI 導航、正式發布、live provider | 已完成 | disposable role/company/API/concurrency gate通過 | RD report + independent QC report |
+| Phase 1B UI/Status | 已完成RD與獨立QC | `QC Passed` | 模組 CTA、料號草稿 tab、orthogonal status projection、Now What、candidate UX、old-route compatibility | approval decision/apply、formal publish | Phase 1A independent QC passed | 1440/1024/768/390/320、a11y、visible-error/data sanity、route/permission及功能AC通過 | RD report + focused UI/route logs + browser screenshots + Phase 1B QC report |
+| Phase 1C Review/Publish | 已完成本機切片 | `Independent QC Passed` | approval action/targets/snapshot、review locks、evidence port、atomic promotion、publication UI | live GCS adapter、production publish | Phase 1B QC passed；approval platform baseline green | approval != publication；all-or-none master promotion；failure leaves no partial official truth | transaction/API/DB/browser + approval regression evidence |
+| Phase 1D Transfer/Compatibility | 已完成本機切片 | `Independent QC Passed` | 技轉三頁籤、draft scope bridge、frozen scope、aggregate review、batch publish、published handoff、redirect closure | Pack-and-Go parser/baseline、production release | Phase 1C QC passed；transfer Phase 3A-0 baseline green | batch/event all-or-none；only-published handoff；old bookmarks與role visibility安全 | transfer/API/DB/browser/regression evidence |
+| Phase 2 Cloud SQL/Staging | future | `Future Phase Captured / Not Requested` | disposable PostgreSQL + staging parity、least privilege、pool/lock/schema migration、Google/non-Google coverage | production canary | DEV-046 provider phase + explicit instruction | Cloud SQL parity、permission denial、concurrency、observability gates pass | 未來 staging receipts |
+| Phase 3 Production | future | `Release Gate Required` | clean seed、signed ledger、isolated restore reconciliation、canary/waves、post-deploy smoke | full GCS recovery、regional DR claim | RD/QA/QC complete + release command + DEV-046/DEV-032 gates | only published/obsolete/recovery reservations seeded；no candidate migration；rollback ready | 未來 release evidence |
 
 ---
 
@@ -747,11 +821,835 @@ RD readiness：`Blocked - Human Re-entry`；需收到「補架構規格」、「
 - 未領號草稿、候選號、審核鎖定、待發布、已發布、已作廢與回收規則。
 - 技轉包建立、彙整、阻擋、整批送審、核准、發布與交接邊界。
 - 功能需求 ID、可見錯誤、角色責任與驗收標準。
-- 跨規格衝突分類、Deferred Scope Audit 與後續恢復條件。
+- DEV-046 Architecture Memory Capsule、候選號 / 正式號資料權威與發布 transaction boundary。
+- API、權限、事件、併發、migration、failure/recovery 與 compatibility contracts。
+- QA/QC gate、Deferred Scope Audit、All-Phase Coverage Matrix 與 current-phase RD Handoff Contract。
 
-本文件尚未完成且刻意不處理：
+本輪刻意不處理：
 
-- 架構與 ADR 修訂。
-- RD Implementation Contract。
-- QA / QC 執行文件。
-- 任何產品程式、資料、migration 或 release 變更。
+- 任何產品程式、測試、schema 或資料 migration 的實際變更。
+- QA/QC 的實際執行與 pass/fail 證據。
+- live Cloud SQL、Firebase、GCS、billing、credential、production seed 或 data repair。
+- merge、PR、deploy、production smoke、rollback 或 release artifact。
+
+---
+
+## 19. Architecture Memory Capsule
+
+後續 RD、QA、QC 若只讀一段架構記憶，必須保留以下不變量：
+
+1. `DEV-046` 是平台權威：production runtime 為 `asia-east1` Cloud Run 上的 Next.js 16 Active LTS container，經 external Application Load Balancer、managed TLS 與 custom domain；登入後 HTML/API/session 不得被 CDN cache。
+2. Cloud SQL PostgreSQL 是 staging / production 正式關聯資料唯一權威；browser 不得直連 DB，所有 business mutation 只經 same-origin HTTP/BFF。
+3. Firebase Auth with Identity Platform 只證明身分；Firebase UID 必須解析為 stable PDM user ID、company membership 與有效 role assignment，授權不可只看 email。
+4. 所有受控 mutation 都必須遵守 `resolve actor/company -> authorize -> validate state/version -> reserve idempotency -> mutate -> audit -> outbox -> commit`；domain row、audit 與 outbox 必須同 transaction。
+5. 正式檔案終局權威是 direct GCS；Phase 1 只可使用 interface/fake/fail-close。沒有有效正式檔案證據時，不得把需要檔案的 publication 假裝完成。
+6. 草稿 workspace、候選號與正式 master 是三種不同權威：草稿可沒有號；候選號可回收；只有 publication transaction 成功後才寫入正式 master。
+7. `part_roots / part_numbers / drawing_numbers` 只保存已正式化或舊制明確保留的 master identity；新候選號不得先寫入這三表再靠 `record_status = Draft` 猜測是否正式。
+8. 審核平台只有一個 reviewer inbox：`/approvals`。料號、圖號與技轉頁是 owner 的準備 / 追蹤 surface，不建立第二套 decision authority。
+9. `Approved` 只表示核准 snapshot；publication 必須是另一個明確、冪等、全有或全無的 command。技轉包核准不得直接改 master 為 `Released`。
+10. 正式發布 / 已作廢號永久不可重用；candidate recycle 只建立新的 reservation identity 重用同一 code，歷史 event 不刪除。
+11. DB 不可用時，候選號取得與正式發布均 fail closed；不提供紙本、Excel、offline allocation 或事後補登。
+12. Production 採 clean seed：candidate、local draft、demo/test/history 不搬；只 seed 必要設定、published/obsolete official numbers 與 recovery non-reuse reservations。
+
+## 20. End-State Architecture
+
+### 20.1 Authority topology
+
+```mermaid
+flowchart LR
+  U["User / browser"] --> BFF["Next.js HTTP/BFF"]
+  IDP["Firebase Auth / Identity Platform"] --> BFF
+  BFF --> ACTOR["PlatformActorContext + permission guard"]
+  ACTOR --> CMD["PdmCommand + idempotency"]
+  CMD --> TX["Cloud SQL / provider-neutral transaction"]
+  TX --> DRAFT["Draft workspaces + typed draft items"]
+  TX --> CAND["Candidate reservations + append-only events"]
+  TX --> APPR["Approval platform requests / immutable snapshots"]
+  TX --> MASTER["Published part roots / parts / drawings / links"]
+  TX --> AUDIT["Audit + transactional outbox"]
+  FILE["PublicationEvidencePort"] --> CMD
+  GCS["Direct GCS formal evidence - DEV-046 Phase 3B"] -. "live adapter later" .-> FILE
+  OUTBOX["At-least-once worker"] --> LEDGER["Signed numbering ledger / downstream consumers"]
+  AUDIT --> OUTBOX
+```
+
+### 20.2 Ownership table
+
+| Concern | Single authority | Prohibited duplicate authority |
+|---|---|---|
+| Draft content | `numbering_draft_workspaces` + typed child tables | `part_* / drawing_*` master rows with ambiguous `Draft` meaning |
+| Candidate exclusivity | `number_candidate_reservations` active-state uniqueness | UI preview, client cache, `numbering_sequences.next_value` alone |
+| Review decision | approval platform request/decision/immutable snapshot | workspace status copied as independent approval truth |
+| Formal publication | `pdm.numbering.publish_draft_workspace` transaction | approval handler, transfer submit, file upload or UI label |
+| Official identity | `part_roots / part_numbers / drawing_numbers` plus official publish event | candidate table exposed as official master |
+| Obsolete history | existing lifecycle/approval controlled-history flow | recycle / hard delete |
+| Formal file evidence | `PublicationEvidencePort`; live target direct GCS | local path, Firebase Storage, Shared Drive or browser-provided claim |
+| Technical-transfer readiness | transfer package aggregate + frozen scope/readiness snapshot | generic `/upload` page or scattered object flags |
+| Authorization | server-resolved actor/company/permission | email-only, browser-provided role/company |
+
+### 20.3 Publish boundary
+
+候選號成為正式號的唯一時點是 publication transaction commit。這個 transaction 必須同時：
+
+1. 鎖定 workspace、候選 reservation 與最新 approval snapshot。
+2. 驗證候選 code 尚未出現在正式 master、active/locked/promoted reservation 或 recovery non-reuse set。
+3. 驗證 approval 已核准、snapshot hash / workspace row version / candidate reservation version 完全一致。
+4. 驗證所需正式 evidence 已由 `PublicationEvidencePort` finalize；若該 publish 類型不要求檔案，rule 必須明確回傳 `not_required`，不可由 client 自稱不需要。
+5. 一次寫入完整 root / part / drawing / relation bundle；任何一筆失敗全部 rollback。
+6. 將 reservation 改為 `promoted`、workspace 改為 `published`，並記錄 master IDs。
+7. 同 transaction 寫入 audit、command receipt 與 `pdm.numbering.official_number_published.v1` outbox event。
+
+任何 approval、transfer-package apply、file upload、preview 或 status projection 都不得繞過此 boundary。
+
+## 21. Domain and Data Contract
+
+### 21.1 Schema placement
+
+- DEV-048 是既有 AI_PDM numbering domain，current local implementation 的新表沿用被鎖定的 PDM `public` schema，避免趁機執行 DEV-047 擁有的 legacy schema relocation。
+- PostgreSQL migration 必須提供同名、同 constraint、同 index 語意；SQLite 可使用 provider 對應語法，但 repository contract 與測試案例必須一致。
+- 所有新主鍵使用 stable opaque TEXT/UUID；candidate code 不是主鍵，回收後同一 code 可由另一 reservation ID 重新取得。
+- JSON 只允許不可查詢的 frozen snapshot / event detail；核心 root、part、drawing、relation、state、version、ownership 不得做成 JSON/EAV。
+
+### 21.2 `numbering_draft_workspaces`
+
+| Field | Contract |
+|---|---|
+| `id` | Stable workspace ID；review、transfer、audit 與 UI route 一律引用它，不以候選 code 當 identity。 |
+| `company_id` | Mandatory tenant scope；所有 unique/index/query 都含 company。 |
+| `draft_mode` | `new_bundle / append_drawing / append_part / append_drawing_part`。 |
+| `lifecycle_status` | 僅 `active / cancelled / published`；不複製 approval 或 readiness 狀態。 |
+| `owner_id`, `created_by` | Stable PDM user IDs。 |
+| `source_root_id` | append mode 指向既有正式 root；new bundle 為 null。 |
+| `row_version` | 從 1 遞增；所有 material PATCH、lock、cancel、publish 都做 optimistic check。 |
+| `published_at`, `published_by` | publication commit 後才填。 |
+| `cancelled_at`, `cancelled_by`, `cancel_reason` | 明確取消；取消不等於作廢。 |
+| timestamps | `created_at / updated_at`。 |
+
+Constraints：
+
+- `new_bundle` 不得有 `source_root_id`；append modes 必須有同 company 的 `source_root_id`。
+- `published` 必須有 `published_at/by`；`cancelled` 必須有取消三欄；兩者互斥。
+- `active` 才可編輯、取得候選號、送審或加入尚未凍結的技轉範圍。
+
+### 21.3 Typed child tables
+
+| Table | Minimum fields | Key constraints |
+|---|---|---|
+| `numbering_draft_roots` | `id, company_id, workspace_id, core_name, item_kind, rule_version_id, candidate_reservation_id` | 每個 `new_bundle` exactly one root；append mode zero root；不得存正式 `root_code` 副本，顯示值由 reservation projection。 |
+| `numbering_draft_parts` | `id, company_id, workspace_id, root_draft_id/source_root_id, part_name, item_kind, is_universal, custom_specification, candidate_reservation_id` | source root 二選一；候選 reservation entity type 必須為 `part`。 |
+| `numbering_draft_drawings` | `id, company_id, workspace_id, root_draft_id/source_root_id, purpose_code, purpose_description, is_primary_manufacturing, candidate_reservation_id` | purpose code 沿用 `MA/OT/M/R`；候選 reservation entity type 必須為 `drawing`。 |
+| `numbering_draft_relations` | `id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary` | 兩端都屬同 workspace/company；不可指向正式 master text code。 |
+
+若 append flow 需要把 draft item 連到既有正式 drawing / part，使用明確 nullable FK 欄位與 XOR check，不增加泛用 `entity_type + entity_id` 取代 referential integrity。
+
+### 21.4 `number_candidate_reservations`
+
+| Field | Contract |
+|---|---|
+| `id` | Stable reservation ID。 |
+| `company_id`, `workspace_id`, `draft_item_type`, `draft_item_id` | Ownership and tenant scope。 |
+| `candidate_code` | 可顯示候選字串；不是正式 identity。 |
+| `sequence_scope_key`, `sequence_no` | 例如 company root pool、root+part pool、root+purpose drawing pool。 |
+| `reservation_state` | `active / review_locked / approved_locked / promoted / recycled`。 |
+| `row_version` | lock/unlock/recycle/promote optimistic check。 |
+| `approval_request_id` | locked states 必填；active/recycled 可 null。 |
+| `promoted_master_type`, `promoted_master_id`, `promoted_at` | `promoted` 必填。 |
+| `recycled_at`, `recycled_by`, `recycle_reason` | `recycled` 必填。 |
+| timestamps/actors | create/update traceability。 |
+
+Required indexes / constraints：
+
+- Partial unique：`(company_id, draft_item_type, candidate_code)` where state in `active, review_locked, approved_locked, promoted`。
+- Unique active reservation per `(workspace_id, draft_item_type, draft_item_id)`。
+- `recycled` 不參與 exclusivity；同 code 再取得時建立新 ID，不復活舊 row。
+- `promoted` 不可回到任何 candidate state；其 code 同時受正式 master unique constraint 與 DEV-046 ledger/recovery reservation 保護。
+- candidate reservation 不可 cascade delete；workspace cancel 只改 state。
+
+### 21.5 `number_candidate_events`
+
+Append-only event types：
+
+- `workspace_created`
+- `candidate_reserved`
+- `review_locked`
+- `review_unlocked`
+- `approval_locked`
+- `candidate_recycled`
+- `candidate_promoted`
+- `publication_failed`
+
+Event 至少含 `id, company_id, workspace_id, reservation_id, event_type, actor_id, occurred_at, detail_json`。DB trigger 或 repository guard 必須拒絕 UPDATE/DELETE。`detail_json` 不得保存 raw token、正式檔案內容、email、session 或 secret。
+
+### 21.6 Transfer package additive data
+
+現有 `transfer_package_items` 只接受正式 drawing/part。為避免 SQLite table rebuild 與模糊 polymorphic FK，Phase 1D 新增：
+
+`transfer_package_draft_items`
+
+- `id, company_id, package_id, workspace_id`
+- `requiredness = required / optional`
+- `inclusion_reason`
+- `captured_workspace_version`
+- `added_by, created_at`
+- unique `(package_id, workspace_id)`
+
+送審 snapshot 再展開 workspace 的 typed items、candidate reservation IDs/versions、BOM/file evidence references；不把整個 mutable workspace payload複製成第二套可編輯 authority。
+
+現有 `transfer_packages.package_status` 在 Phase 1D 擴充為：
+
+`Draft / InReview / NeedsInfo / ApprovedPendingPublish / Publishing / Published / ReleaseFailed / Cancelled`
+
+SQLite migration 需 transactionally rebuild constraint；PostgreSQL 需先新增 allowed constraint、驗證既有值，再移除舊 constraint。所有 legacy `Draft/Cancelled` 原值不變。
+
+### 21.7 Status facts versus projections
+
+不得新增一個万能 `status` 欄存放全部 UI badge。持久化 facts 與 projection owner 如下：
+
+| Dimension | Authoritative fact |
+|---|---|
+| Number qualification | candidate reservation state + promoted master link |
+| Draft lifecycle | workspace lifecycle status |
+| Review | approval platform request / decision / apply status |
+| Publication | command receipt + promoted master link + publication audit |
+| Readiness | latest transfer/readiness snapshot hash + invalidation facts |
+| Formal usage | derived: published official + required release evidence valid + not obsolete |
+| Reminder | task/notification domain；不得反寫 lifecycle |
+
+## 22. Candidate Allocation and Optimization Algorithm
+
+### 22.1 Objective and constraints
+
+目標函數不是「永遠遞增」，而是在維持可追溯與不碰撞的前提下，選出該 scope 最小可用序號，降低不必要斷號。
+
+Hard constraints：
+
+- 排除正式 master、`promoted` reservation、DEV-046 recovery non-reuse reservation。
+- 排除其他 `active / review_locked / approved_locked` reservation。
+- `recycled` reservation 可重用，但舊 event/history 保留。
+- 不跨 company、rule version、root 或 drawing purpose scope。
+- preview / form open / validation 不得 reserve。
+- DB 不可用即失敗，不 fallback 到 client-generated code。
+
+### 22.2 Allocation steps
+
+1. 收到含 `Idempotency-Key`、workspace ID 與 expected version 的 acquire command。
+2. Server 解析 actor/company/permission，載入並鎖定 workspace。
+3. 依 `draft_mode` 建立 deterministic scope order：root first，再 part，再 drawing，再 relation validation。
+4. 對每個 sequence scope 取得 transaction lock：
+   - PostgreSQL：lock dedicated sequence/scope row，必要時 advisory lock；
+   - SQLite：使用 provider transaction 的 serialized write / immediate transaction。
+5. 查詢正式 master、active candidate、promoted/recovery reservation 的 used set。
+6. 由 1 起找第一個未使用序號；`numbering_sequences.next_value` 只可作 high-water/hint，不是 availability authority，也不得因 recycle 直接倒退。
+7. 插入 reservation 與 item link；unique collision 時在相同 idempotent command 內 bounded retry，最多 3 次。
+8. 一次寫入 audit/outbox/receipt 後 commit；重送相同 idempotency key 回傳原結果，不再配置第二組號。
+
+### 22.3 Complexity and safety
+
+- 現有 root pool 上限約 `26 * 9999`，v1 gap scan 可用 ordered used set，時間複雜度 `O(n)`；對小型公司資料量足夠。
+- 當單一 scope used count 超過 50,000 或 p95 acquire latency 超過 500 ms（不含網路）時，才開啟獨立 pool/free-list optimization ADR；不可預先增加複雜 allocator authority。
+- Cache 可加速 read，但不得決定唯一性。最終 safety 由 DB lock + unique constraint + idempotent command 保證。
+
+## 23. State Projection and Now-What Contract
+
+### 23.1 Projection payload
+
+所有 workspace、料號草稿 tab 與技轉 row 共用：
+
+```ts
+type NumberStateProjection = {
+  numberQualification: "unnumbered" | "candidate" | "official" | "legacy_official_reservation";
+  lifecycle: "draft" | "cancelled" | "published" | "obsolete";
+  review: "not_submitted" | "in_review" | "needs_info" | "rejected" | "approved";
+  publication: "not_ready" | "ready" | "publishing" | "failed" | "published";
+  readiness: "incomplete" | "ready" | "stale" | "not_applicable";
+  usage: "not_for_formal_use" | "formal_use_allowed" | "historical_only";
+  nowWhat: {
+    label: string;
+    href: string | null;
+    ownerRole: string;
+    blockedReason: string | null;
+  };
+};
+```
+
+### 23.2 Deterministic mapping
+
+| Facts | Visible projection | Now What |
+|---|---|---|
+| active workspace, no reservation | `未領號草稿 / 未送審 / 不可正式使用` | `取得候選號`；owner=草稿 owner |
+| active reservation | `候選號 / 草稿 / 不可正式使用` | `完成資料並送審` |
+| review_locked | `候選號 / 審核中 / 不可正式使用` | `查看審核` 或 permitted `撤回` |
+| approval needs info/rejected + reservation active | `候選號 / 待補資料或已退回` | `修正草稿` |
+| approved_locked | `候選號 / 已核准 / 待發布 / 不可正式使用` | `執行正式發布`；owner=explicit publisher permission |
+| approved_locked + evidence failure | `候選號 / 已核准 / 發布失敗` | `查看原因 / 重試發布` |
+| promoted + official master | `正式號 / 已發布 / 可正式使用` | `查看正式紀錄` |
+| official master obsolete | `正式號 / 已作廢 / 歷史限定` | `查看受控歷史` |
+| legacy Draft master | `舊制正式保留 / 未發布 / 不可正式使用` | `查看舊制處置`；不得顯示 candidate/recycle CTA |
+
+Projection 若找不到其宣稱的 approval request、master row 或 evidence，必須回傳 `state_inconsistent` blocker，不得猜測較樂觀狀態。
+
+## 24. HTTP/BFF API Contract
+
+### 24.1 Common mutation rules
+
+- Same-origin JSON only；所有 route 必須 server-side auth + company scope。
+- `Idempotency-Key`：create/acquire/cancel/submit/withdraw/decision-apply/publish 必填。
+- `expectedRowVersion`：material update、candidate transition、transfer scope/status transition 必填。
+- Error envelope：`{ error: { code, message, retryable, details? } }`；production 不回傳 SQL、stack、provider secret 或 raw exception。
+- Read responses set `Cache-Control: private, no-store`；authenticated mutation responses不可 CDN cache。
+- Browser 只能送 stable IDs 與 intent；candidate code、permission、company、approval finality、evidence validity由 server重算。
+
+### 24.2 Workspace endpoints
+
+| Method / path | Permission | Behavior |
+|---|---|---|
+| `POST /api/numbering/draft-workspaces` | `numbering.workspace.create` | 建立未領號 workspace + typed items；不配置 candidate。 |
+| `GET /api/numbering/draft-workspaces` | `numbering.workspace.view` | company/owner/scope filtered list，支援料號模組草稿 tab。 |
+| `GET /api/numbering/draft-workspaces/[id]` | `numbering.workspace.view` | 回傳 typed detail、status projection、capabilities、refs。 |
+| `PATCH /api/numbering/draft-workspaces/[id]` | `numbering.workspace.update` | 只允許 active + unlocked；version check；不接受 client state。 |
+| `POST /api/numbering/draft-workspaces/[id]/candidate-numbers` | `numbering.candidate.acquire` | 依 bundle 原子配置所需 candidates。 |
+| `POST /api/numbering/draft-workspaces/[id]/cancel` | `numbering.workspace.cancel` | 檢查 refs/lock；取消 workspace 並原子 recycle active candidates。 |
+| `POST /api/numbering/draft-workspaces/[id]/submit-review` | `numbering.review.submit` | freeze snapshot、建立 approval request/targets、lock candidates。 |
+| `POST /api/numbering/draft-workspaces/[id]/withdraw-review` | `numbering.review.withdraw` | 只允許 pending 且符合 withdrawal policy；unlock to active。 |
+| `POST /api/numbering/draft-workspaces/[id]/publish` | `numbering.publish` | 顯式 publication transaction；approval handler不得代叫。 |
+
+### 24.3 Approval platform actions
+
+新增 action registrations：
+
+| Action code | Handler | Risk | Batch | Apply effect |
+|---|---|---|---|---|
+| `numbering.candidate_publication_review` | `numbering.candidate-review` | high | yes | approve -> `approved_locked`; reject/needs_info -> unlock `active`；不寫 master。 |
+| `transfer.package_review` | `transfer.package-review` | high | aggregate | approve -> transfer `ApprovedPendingPublish`；不寫 numbering/BOM/file master。 |
+
+Targets 必須包含：
+
+- primary：workspace 或 transfer package stable ID；
+- child：每個 draft item stable ID；
+- impact：candidate reservation ID、code、state/version，與必要 BOM/file evidence pointer；
+- immutable snapshot hash：canonical JSON + workspace/package row version。
+
+Approval apply 失敗時 request 為 `apply_failed`，candidate 保持 locked；不得顯示 `已核准待發布`，直到 apply retry 成功。
+
+### 24.4 Transfer endpoints
+
+沿用既有 create/header/scope/cancel/readiness routes，新增：
+
+| Method / path | Permission | Behavior |
+|---|---|---|
+| `POST /api/transfer-packages/[id]/draft-items` | `transfer.package.update` | 加入 workspace stable ID；不得用 candidate text lookup。 |
+| `DELETE /api/transfer-packages/[id]/draft-items/[itemId]` | `transfer.package.update` | 只允許 Draft；必要項目需 reason/impact rule 同意。 |
+| `POST /api/transfer-packages/[id]/submit-review` | `transfer.review.submit` | readiness pass、freeze scope、建立 aggregate approval package。 |
+| `POST /api/transfer-packages/[id]/withdraw-review` | `transfer.review.withdraw` | pending only；失效舊 snapshot並回 Draft。 |
+| `POST /api/transfer-packages/[id]/publish` | `transfer.publish` + underlying publish permissions | explicit batch publication；all pending workspaces all-or-none，既有 released items只驗證不重發。 |
+
+`GET /api/transfer-packages/[id]/readiness-summary` 擴充回傳 blocker owner、action href、snapshot hash/version 與 `ready`；不得因 adapter unavailable 回傳假 ready。
+
+### 24.5 Stable error codes
+
+| HTTP | Code | Meaning / UI recovery |
+|---|---|---|
+| 400 | `candidate_required_before_review` | formal target 尚未取得 candidate；導向 acquire。 |
+| 403 | `numbering_permission_denied` | 顯示需要的 permission/owner；不洩漏他公司資料。 |
+| 409 | `workspace_version_conflict` | 重新整理並比較變更。 |
+| 409 | `candidate_collision` | bounded retry耗盡；保留草稿，重新取得。 |
+| 409 | `candidate_recycle_blocked` | 回傳可見引用摘要與 owner links。 |
+| 409 | `candidate_review_locked` | 查看/撤回審核。 |
+| 409 | `approval_snapshot_stale` | 舊核准不可發布；重建 review snapshot。 |
+| 409 | `publication_not_approved` | 不得發布；導向審核。 |
+| 409 | `publication_evidence_not_ready` | 導向 owner module；不建立 master。 |
+| 409 | `official_number_collision` | 立即停止；不得自動換號；PDM Admin調查。 |
+| 409 | `state_inconsistent` | fail closed，顯示 support correlation ID。 |
+| 503 | `numbering_authority_unavailable` | Cloud SQL/transaction authority不可用；禁止 offline issuance。 |
+
+## 25. Permission and Separation-of-Duties Contract
+
+### 25.1 Permission codes
+
+- `numbering.workspace.view`
+- `numbering.workspace.create`
+- `numbering.workspace.update`
+- `numbering.workspace.cancel`
+- `numbering.candidate.acquire`
+- `numbering.candidate.recycle`
+- `numbering.review.submit`
+- `numbering.review.withdraw`
+- `numbering.publish`
+- `transfer.package.view`
+- `transfer.package.create`
+- `transfer.package.update`
+- `transfer.review.submit`
+- `transfer.review.withdraw`
+- `transfer.publish`
+- `handoff.published.view`
+
+### 25.2 Default capability matrix
+
+| Capability | Engineer | RD Manager / package owner | Approver | Publisher permission holder | Manufacturing / procurement | PDM Admin |
+|---|---|---|---|---|---|---|
+| Create/update own draft | Yes, scoped | Yes, scoped | No by approval role alone | No by publish role alone | No | Support only if separately granted |
+| Acquire/recycle candidate | Own/scoped | Scoped | No | No | No | Exception only with explicit permission |
+| Submit/withdraw review | Own/scoped | Scoped | No | No | No | No by Admin identity alone |
+| Decide approval | No | No unless separately approver | Yes via `/approvals` | No | No | No by Admin identity alone |
+| Publish approved snapshot | No | Only if explicit `numbering.publish` / `transfer.publish` | No by approver role alone | Yes | No | No by Admin identity alone |
+| View candidate draft | Scoped need-to-know | Scoped | Assigned request snapshot | Assigned publish scope | No | Audited support scope |
+| View published handoff | Read permission | Read permission | Read permission | Read permission | Yes | Yes |
+
+Server 每次 request 都重算 role assignment effective period、company、project/action scope。前端 capability 只用於呈現，不是保護層。
+
+第一版不要求submitter、approver、publisher為不同自然人。同一actor可完成三步，但server必須逐步重算並驗證各自的submit、decision、publish permission與company/scope；三步使用不同command、receipt、confirmation與audit action，即使三個actor ID相同也要分別保存。Approval handler不得呼叫publish，任何Admin/approver/publisher角色都不隱含另一項permission，跨公司仍一律拒絕。
+
+## 26. Transaction, Concurrency and Failure Recovery
+
+### 26.1 Command matrix
+
+| Command | Transaction facts | Outbox event |
+|---|---|---|
+| `pdm.numbering.create_draft_workspace` | workspace + typed items + audit + receipt | `pdm.numbering.draft_workspace.created.v1` |
+| `pdm.numbering.acquire_candidate_numbers` | lock scopes + reservations + item links + events + audit + receipt | `pdm.numbering.candidate_reserved.v1` |
+| `pdm.numbering.cancel_draft_workspace` | ref/lock check + workspace cancel + candidate recycle + events + audit + receipt | `pdm.numbering.candidate_recycled.v1` |
+| `pdm.numbering.submit_candidate_review` | snapshot + approval request/targets + reservation lock + audit + receipt | `pdm.numbering.review_locked.v1` |
+| `pdm.numbering.apply_candidate_review` | approval apply + lock transition + event + audit + receipt | `pdm.numbering.candidate_approved.v1` or `review_unlocked.v1` |
+| `pdm.numbering.publish_draft_workspace` | evidence/snapshot check + full master bundle + promotion + audit + receipt | `pdm.numbering.official_number_published.v1` |
+| `pdm.transfer.submit_review` | readiness snapshot + approval aggregate + package status + audit + receipt | `pdm.transfer.package.submitted.v1` |
+| `pdm.transfer.publish` | package lock + all workspace promotions + package Published + audit + one command receipt | one `pdm.transfer.package.published.v1` + one `pdm.numbering.official_number_published.v1` per newly promoted workspace |
+
+Batch publication event cardinality是recovery contract，不可省略：一個package command只有一筆command receipt與package audit，但同一DB transaction內必須為每個新promoted workspace建立獨立、deterministic outbox event。每個official event含package correlation、workspace/reservation/master IDs/codes；既有released item只驗證identity，不重發official event。任一event insert失敗即整批rollback，避免master已存在但signed-ledger缺號。
+
+### 26.2 Lock order
+
+為避免 deadlock，所有 commands 使用固定順序：
+
+1. company / command receipt；
+2. workspace IDs ascending；
+3. sequence scope keys ascending；
+4. candidate reservation IDs ascending；
+5. approval request/package；
+6. transfer package；
+7. official master rows by root -> part -> drawing -> relation；
+8. audit/outbox。
+
+PostgreSQL 使用 `SELECT ... FOR UPDATE` 或 bounded advisory lock；SQLite 由 provider transaction serialize write。不得在 transaction 中等待使用者、呼叫長時間外部 GCS upload 或寄 email。
+
+### 26.3 Failure outcomes
+
+| Failure point | Required durable outcome |
+|---|---|
+| Candidate acquire collision | 整個 acquire rollback；相同 idempotency重試回原結果或 controlled conflict。 |
+| Cancel ref check fails | workspace/reservations均不變；回 blocker list。 |
+| Approval request insert fails | reservation 不得留在 orphan `review_locked`。 |
+| Approval apply fails | request `apply_failed`；candidate維持 locked；不可 publish。 |
+| Evidence finalize fails before publish | workspace保持 `approved_locked`；正式 master零新增。 |
+| Publish DB transaction fails | root/part/drawing/link/promote/audit/outbox全 rollback；記錄可重試 failure audit，不換號。 |
+| Outbox worker fails after commit | published DB truth不回滾；event維持 pending/retry/DLQ，UI顯示 propagation issue 而非未發布。 |
+| Transfer batch中一個 workspace失敗 | 全批promotion、package Published、official/package events、audit與receipt全部rollback；主transaction外可用同correlation做一次best-effort failure recording。 |
+| DB unavailable | 503 fail closed；不得 client allocation/manual backfill。 |
+
+Batch failure recording不得破壞原子性：若主transaction rollback後DB仍可用，獨立且idempotent的failure-record command可在package仍為相同version的`ApprovedPendingPublish`時轉`ReleaseFailed`並保存failed workspace/error code；若DB unavailable、version已變或failure-record本身失敗，package保持`ApprovedPendingPublish`，API回correlation ID供重試/調查。不得為了記錯誤而commit任何部分promotion。
+
+### 26.4 Recovery invariants
+
+- Application rollback 不得刪除已發布 master或把 `promoted` 改回 candidate。
+- Restore reconciliation 由 DEV-046 signed ledger 比對 official publish events、master rows、sequence/high-water與non-reuse reservations。
+- Ledger 有但 restored master 缺失的 official code，建立 recovery non-reuse reservation；不得重新配置為 candidate。
+- Candidate reservations不進 production clean seed；未發布 candidate 因 restore遺失時，不得從 screenshot/email猜號補回。Owner需重新取得 candidate。
+
+## 27. Migration and Compatibility Contract
+
+### 27.1 Migration sequence
+
+1. **Schema prepare**：新增 workspace/typed-item/reservation/event/transfer-draft-item tables、indexes、constraints；不切換 write path。
+2. **Classifier dry-run**：輸出每筆 legacy row 分類、理由、references、planned action；預設零 mutation。
+3. **Backfill local compatibility**：只對可明確分類的 `part_number_drafts` 建 workspace/reservation對照；保留 legacy ID mapping。
+4. **Dual read**：正式清單讀 master；料號草稿 tab讀新 workspace並可只讀顯示尚未轉換 legacy draft。不得把 candidate混入正式 master list。
+5. **Write switch**：feature flag `PDM_NUMBER_STATE_FLOW_V1` 開啟後，新 create/append/draft只寫新 workspace/reservation；舊 official create routes改呼叫新 service或 fail closed，不 dual-write兩套 authority。
+6. **Route compatibility**：啟用 redirects/guidance；觀察 bookmarks與錯誤，再停用舊 mutation。
+7. **Cleanup later**：舊表/欄位 removal 是獨立 future migration，不屬首次 cutover。
+
+### 27.2 Legacy classification
+
+| Legacy source | Classification | Default handling |
+|---|---|---|
+| `part_number_drafts` active, no formal master, no controlled refs | `candidate_draft` | 建 workspace + active reservation，保留 actor/time/version mapping。 |
+| `part_number_drafts` pending/released/with review refs | `controlled_legacy_draft` | 不自動 unlock/recycle；建立 read-only mapping，需 explicit reconciliation。 |
+| voided + recycled draft | `recycled_history` | 不建立 active reservation；保留 event/history。 |
+| Released/Obsolete master | `official_non_reusable` | 保持 master；納入 official ledger/non-reuse reconciliation。 |
+| Draft/NeedInfo/PendingReview/Rejected master with refs/audit/communication evidence | `legacy_official_reservation` | 不顯示 published；不可正式使用或自動 recycle；另案處置。 |
+| Draft master provably no refs/communication | `ambiguous_recyclable_candidate` | classifier只報告，不自動 demote；需要 high-risk human decision後才能轉。 |
+
+Local DB 中舊制未發布 master 的保守分類是相容措施，不改變新規則。Clean production 不搬這些 local Draft rows，所以不會延續「一建立即永久 official」到新 production。
+
+### 27.3 Rollback
+
+- Schema prepare / dual-read 可關閉 flag 回舊 UI；新增表保留，不 destructive down migration。
+- Write switch 後若尚無新 publication，可回舊 read UI但舊 write routes保持關閉，避免 split authority。
+- 一旦存在新 `promoted` reservation，rollback只能回退 application code且必須繼續讀正式 master；禁止刪除或重用已發布 code。
+- Transfer package constraint migration需先有 copy/row-count/checksum/foreign-key compare；失敗即回滾整個 migration transaction。
+
+## 28. UI / UX Implementation Contract
+
+### 28.1 Primary navigation
+
+| Area | Primary route | Primary CTA / tabs |
+|---|---|---|
+| 圖料模組 | `/numbering/search` | page header top-right `＋建立圖料號`；四種 mode。 |
+| 圖號模組 | `/numbering/drawings` | `＋建立圖號`。 |
+| 料號模組 | `/parts` | `＋建立料號`；tabs `正式料號 / 草稿`。 |
+| 發行 / 交接 > 技術移轉 | `/technical-transfer` | `＋建立技轉包`；tabs `準備中 / 審核中 / 已發布交接`。 |
+| 審核工作台 | `/approvals` | reviewer inbox；不在技轉頁複製 decision UI。 |
+
+Sidebar 移除一級項目：`料號草稿`、`上傳送審`、`領號申請`、獨立 `製造交接`。這些能力由上述 owner surface承接。
+
+### 28.2 Old-route compatibility
+
+| Old route | Compatibility behavior |
+|---|---|
+| `/numbering/part-drafts` | 308 to `/parts?tab=drafts` after parity；flag未開時 server redirect保留原 query/returnTo。 |
+| `/numbering/request` | 308 to `/numbering/search?create=numbering`。 |
+| `/handoff` | 308 to `/technical-transfer?tab=published`。 |
+| `/upload` | 從 object context帶 ID 時導向該 object submission workbench；無 context 時只顯示「先選擇圖號／料號」guidance與搜尋 CTA，不保留 generic submit mutation。 |
+
+### 28.3 Create flow
+
+- Open create drawer/modal不寫資料、不占號。
+- Primary action first為 `儲存草稿`；secondary為 `取消`。取得候選號是草稿保存後的明確 CTA。
+- `取得候選號` confirmation顯示將配置哪些 root/part/drawing candidate及「候選／非正式／不可供製造」。
+- `取消並回收` 為高影響 action：先顯示候選號、引用數、審核狀態、回收後果；有 blocker 時 disabled 並顯示 first recovery link。
+- `正式發布` confirmation顯示 approval snapshot、候選->正式 mapping、技轉/BOM/file evidence、不可逆 non-reuse後果；沒有permission或evidence時不可呈現 active-looking CTA。
+
+### 28.4 Lists and status density
+
+- 正式料號 tab不顯示 candidate為正式資料；草稿 tab分 `未領號 / 候選 / 審核中 / 已核准待發布` filters。
+- 一列最多兩個主 badge：primary lifecycle + number qualification。Review/readiness/reminder放次要欄或 expandable detail，避免 badge牆。
+- 非終態必須有唯一 primary Now What；若使用者無權，CTA disabled且說明 owner role與可前往位置。
+- `Approved` 永遠搭配 `待發布` 或 `已發布`，不可單獨讓使用者猜。
+- Candidate download/print/export固定 watermark：`草稿 / 候選號 / 不可供製造使用`。
+
+### 28.5 Responsive and accessibility
+
+- 1440px：table + detail drawer；primary CTA在page header右側。
+- 1024px：保留CTA與關鍵status columns；低優先欄收入drawer，不水平截斷主 action。
+- 768px：navigation可收合但目前位置、tabs與primary CTA仍可見；drawer/sheet不可形成難以判斷的雙重垂直scroll。
+- 390px：卡片式清單；primary create CTA在首屏或安全 sticky action bar，不能藏在三點選單；modal改full-height sheet並遵守safe area。
+- 320px：作為最窄支援邊界；長代碼/角色/disabled reason可換行，icon button尺寸穩定，頁面不得水平overflow或遮擋primary CTA。
+- Keyboard focus可到達CTA、tabs、tooltips、drawer/modal close與confirmation；disabled reason可由focus讀取。
+- Badge不只靠顏色；candidate/official/blocked都有文字與至少 WCAG AA 對比。
+- 所有 error/alert使用 `role=alert` 或適當 live region；不得顯示 raw `/api/...`、SQL、stack、404/500字串。
+
+## 29. Events, Observability and Data Minimization
+
+### 29.1 Event vocabulary
+
+| Event type | Aggregate | Minimum non-secret payload |
+|---|---|---|
+| `pdm.numbering.draft_workspace.created.v1` | workspace | company, mode, item counts |
+| `pdm.numbering.candidate_reserved.v1` | workspace | reservation IDs, entity types, candidate codes, rule version |
+| `pdm.numbering.candidate_recycled.v1` | workspace | old reservation IDs/codes, reason category |
+| `pdm.numbering.review_locked.v1` | approval request | workspace ID, snapshot hash, reservation IDs |
+| `pdm.numbering.review_unlocked.v1` | approval request | decision/withdraw category, reservation IDs |
+| `pdm.numbering.candidate_approved.v1` | approval request | workspace ID, approved snapshot hash |
+| `pdm.numbering.official_number_published.v1` | workspace | master IDs/codes, reservation IDs, evidence type/ID, published_at |
+| `pdm.transfer.package.submitted.v1` | transfer package | package ID/code, frozen scope hash, item counts |
+| `pdm.transfer.package.published.v1` | transfer package | package ID/code, published workspace/master IDs |
+
+Outbox delivery為at-least-once；consumer以 `event_id` idempotent。Event payload不含email、file bytes、raw path/token、approval comment全文或secret。
+
+### 29.2 Correlation fields
+
+每個 mutation log / audit至少可由以下欄位串接：
+
+- `request_id`
+- `command_id / idempotency_key_hash`
+- `company_id`
+- `actor_pdm_user_id`
+- `workspace_id / transfer_package_id / approval_request_id`
+- `reservation_ids / master_ids`
+- `schema_version`
+- `outbox_event_id`
+
+不得log raw `Idempotency-Key`、Firebase token、session cookie、signed GCS URL或PII payload。
+
+## 30. Current-Phase RD Handoff Contract
+
+### Phase 1A - Domain/Data Foundation
+
+Status：`QC Passed`（2026-07-13）。
+
+Implementation scope：
+
+- provider-neutral repositories/services for workspace, typed items, reservation, events and status projection facts；
+- SQLite + PostgreSQL migrations / parity tests；
+- allocator lock/unique/idempotency/concurrency；
+- legacy classifier dry-run and non-destructive mapping；
+- `PdmCommand + audit + outbox` for create/acquire/cancel/recycle；
+- API routes through candidate acquisition；不改sidebar。
+
+Must not：
+
+- 寫 candidate到正式 master；
+- 改 production provider、live Cloud SQL/GCS；
+- 自動demote legacy master或搬production data；
+- 加固定7天冷卻、自動逾期回收或offline allocation。
+
+Exit gate：QA Gate 0-3全部通過；parallel acquire、duplicate submit、recycle/ref blocker、SQLite/PostgreSQL parity有QC evidence。
+
+RD/QC evidence：`.ai-doc/reports/rd/rd-dev-048-phase1a-number-state-flow-report-2026-07-13.md`與`.ai-doc/qc/qc-pdm-number-state-flow-phase1a-report-2026-07-13.md`。Phase 1A獨立本機QC已通過；不含live provider、staging或release credit。
+
+### Phase 1B - Navigation, Draft Tab and Status UX
+
+Status：`QC Passed`。
+
+目的：讓內部使用者從既有圖料號、圖號與料號 owner surface 建立/查看草稿、取得候選號並理解下一步；不提前開放審核或正式發布。
+
+Entry gate：
+
+- Phase 1A independent QC判定 `通過`，至少含Company A/B、owner/manager/admin/denied role、20-way acquire、same-key replay、reference blocker與direct API bypass evidence；
+- Phase 1A schema/API/error envelope維持相容，無未處理P0/P1；
+- `HD-048-01`已關閉：flag開啟時四個舊側欄項目立即移除，舊URL只保留redirect/guidance compatibility；
+- 本階段固定沿用`PDM_NUMBER_STATE_FLOW_V1`，default off；不得另創相近flag，也不得以client-only flag作server authorization。
+
+Task list：
+
+- [x] `DEV-048-1B-01`：新增圖料、圖號、料號模組頁首CTA與owner-surface導覽；未開放的Phase 1C/1D actions維持disabled + `未開放` tooltip，direct mutation仍server fail closed。
+- [x] `DEV-048-1B-02`：完成`/parts?tab=drafts`草稿清單、filters、pagination/empty/error states與workspace detail/drawer；正式料號tab不得查入candidate authority。
+- [x] `DEV-048-1B-03`：完成四種create mode表單、`儲存草稿`與保存後`取得候選號`兩段式流程；打開/關閉表單不得寫DB或占號。
+- [x] `DEV-048-1B-04`：建立共用`NumberStateProjection`、badge與唯一primary `Now What`元件；UI只render server projection/capabilities，不自行推導權限或狀態。
+- [x] `DEV-048-1B-05`：完成candidate watermark、取得候選號確認、取消並回收確認、disabled reason與first recovery link。
+- [x] `DEV-048-1B-06`：以server-visible feature flag移除`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四個可見側欄項目，並完成舊route redirect/guidance compatibility；保留query/`returnTo`，parity未通過前不得刪除舊route或直接308。
+- [x] `DEV-048-1B-07`：完成1440/1024/768/390/320 RWD邊界、keyboard、focus、tooltip/live-region、WCAG AA與文字不重疊驗證。
+- [x] `DEV-048-1B-08`：新增focused UI/route/data-sanity automation與browser evidence，並執行numbering、sidebar、entity drawer、access-control regressions。
+
+Implementation contract：
+
+- **資料/API**：本階段不新增authority table；只讀寫Phase 1A workspace endpoints。Create request一次提交typed item set，PATCH只更新既有material facts；若產品要求在保存後新增/刪除typed item，必須先回PM補server mutation contract，不可用client state或直接DB繞過。
+- **路由/flag**：flag關閉時維持既有owner surface且新mutation routes仍需權限；flag開啟時顯示新CTA/tab、立即移除四個可見舊側欄項目，舊URL則redirect/guidance到owner surface並保留query/`returnTo`。不可因按鈕disabled或側欄移除就省略direct URL/API gate。
+- **權限**：list/detail/create/update/acquire/cancel分別使用Phase 1A permissions與server `capabilities`；owner scope、company scope、effective role interval均由BFF決定。
+- **狀態**：一列最多兩個primary badges；review/publication/readiness尚無authority fact時顯示`未送審 / 未開放`，不得偽造approved/published projection。
+- **互動**：create form不optimistically生成candidate；acquire/cancel成功後以server response取代local projection。重複提交沿用同一idempotency key直到取得terminal response，使用者明確重試才建立新key。
+- **錯誤復原**：401導登入/恢復原return target；403顯示owner/permission而不洩漏跨公司存在；409重新讀取version與blocker；503保留表單並明示不可離線領號。Known nonempty fixture若API失敗，不得降級成空清單。
+
+Must not：
+
+- 不新增approval request、review lock、publish mutation或official master write；
+- 不在UI自行判斷permission、approval finality、candidate uniqueness或official truth；
+- 不刪舊route、不改live provider、不建立deployment/release artifact。
+
+Acceptance / QC evidence：
+
+- AC-NAV、AC-NUM、AC-STA中適用Phase 1B的案例，以及QA `DFT-001..006`、`NUM-001..006`、`REC-001..008`、`SEC-001..010`、`DATA-001..004`通過；
+- `qc:pdm-number-state-flow-ui`與`qc:pdm-number-state-flow-routes`（實作時建立）通過，並保留1440/1024/768/390/320每個critical route的hard-reload或明確responsive boundary evidence；
+- browser console無unexpected error，network無未解釋4xx/5xx，DB/API/UI counts一致；
+- TypeScript、source lint、production build及既有numbering/navigation/access-control regressions通過。
+
+Stop conditions：需要改Phase 1A schema/API、允許保存後任意改typed item set、移除舊route、開放審核/發布、修改正式資料或接live provider時停止並回PM重定範圍。
+
+Next condition：Phase 1B independent QC通過後，才可派`執行 DEV-048 Phase 1C RD`。
+
+RD handoff evidence：`.ai-doc/reports/rd/rd-dev-048-phase1b-number-state-flow-ui-report-2026-07-13.md`。此證據只代表RD實作與self-verification完成，不代表Phase 1B independent QC passed。
+
+### Phase 1C - Approval and Atomic Publication
+
+Status：`RD Implemented / Independent QC Pending`。
+
+目的：在既有`/approvals`審核平台完成候選草稿送審、鎖定與核准，並由具`numbering.publish`權限者以第二個明確command原子建立正式圖料號；核准本身永遠不發布。
+
+Entry gate：
+
+- Phase 1B independent QC通過，owner surfaces、server projection/capabilities與visible-error gate穩定；
+- 既有approval platform、release-master lifecycle與numbering core regression baseline全綠；
+- `HD-048-02`的publication evidence rule matrix與`HD-048-03`的same-actor explicit-permission rule已固定於本規格、ADR與QA；
+- `numbering.candidate_publication_review` action code、snapshot canonicalization version與local `PublicationEvidencePort` policy固定。
+
+Task list：
+
+- [x] `DEV-048-1C-01`：新增review submit/withdraw/publish permissions、provider parity migration與deny-default checks；system Admin或approver身份不得隱含publish權限。
+- [x] `DEV-048-1C-02`：註冊`numbering.candidate_publication_review` action/handler，重用既有approval request/targets/impact snapshots，不建立第二套審核authority或review inbox。
+- [x] `DEV-048-1C-03`：實作submit-review/withdraw commands；snapshot、approval targets、candidate locks、audit、receipt、outbox同一transaction。
+- [x] `DEV-048-1C-04`：實作decision apply handler；approve只轉`approved_locked`，reject/needs-info解鎖回`active`，apply failure維持locked且不得投影為待發布。
+- [x] `DEV-048-1C-05`：定義`PublicationEvidencePort` interface、local fake與fail-close rules；只有rule明確回`not_required`或evidence finalized時可進publication transaction。
+- [x] `DEV-048-1C-06`：實作explicit publish command；驗證permission、approval/snapshot/evidence/collision後，root -> part -> drawing -> relation -> reservation promotion -> workspace published -> audit/receipt/outbox全有或全無。
+- [x] `DEV-048-1C-07`：在workspace detail加入送審、撤回、查看審核、正式發布與失敗重試surface；decision仍只在`/approvals`，publish需不可逆確認。
+- [x] `DEV-048-1C-08`：新增fault injection、snapshot immutability、permission/SoD、idempotency、outbox retry與release-master compatibility automation及browser evidence。
+
+State/transaction contract：
+
+| Command/result | Reservation | Workspace | Approval | Official master |
+|---|---|---|---|---|
+| submit review success | `active -> review_locked` | `active` | pending + immutable targets/snapshot | zero new row |
+| withdraw success | `review_locked -> active` | `active` | withdrawn/cancelled；snapshot保留歷史 | zero new row |
+| needs-info/reject apply | `review_locked -> active` | `active` | terminal decision + apply success | zero new row |
+| approve apply | `review_locked -> approved_locked` | `active` | approved + apply success | zero new row |
+| explicit publish success | `approved_locked -> promoted` | `published` | approved history retained | complete bundle exactly once |
+| any pre-commit publish failure | `approved_locked` | `active` | approved retained | zero partial row |
+
+Implementation contract：
+
+- **Snapshot**：canonical JSON至少含workspace/typed item/reservation IDs與versions、relations、source root、必要BOM/file evidence references、rule version；hash/version不可由client提供。Targets/impact snapshot建立後禁止UPDATE/DELETE。
+- **PublicationEvidencePort**：輸入stable IDs/snapshot hash/rule version，輸出`finalized | not_required | not_ready`及可稽核reference；不得傳raw file、signed URL或client claim。Phase 1C不接live GCS，沒有明確`not_required`規則時預設`not_ready`。
+
+| Publish scope | Evidence rule |
+|---|---|
+| Root-only | 版本化server rule可明確回`not_required`。 |
+| Part-only且沒有drawing或required-file obligation | 版本化server rule可明確回`not_required`。 |
+| 任何建立或發布drawing的scope | 必須有finalized controlled-file evidence。 |
+| 含drawing或宣告required file的transfer package | 每一個必要drawing/file evidence都必須finalized；任一缺漏整包fail closed。 |
+| Production尚未具備direct GCS adapter/verifier | 所有需檔案的publish回`publication_evidence_not_ready`，UI維持未開放/disabled。 |
+
+Controlled-file evidence最少包含bucket、object key或stable object ID、GCS generation、content hash、media/type、`finalized_at`與evidence rule version；command/audit不得保存signed URL或raw file。2D/3D preview只是衍生體驗，不是正式證據：`.SLDDRW`無法預覽本身不等於evidence失敗，只要權威GCS object evidence符合本矩陣；若日後要求PDF為發布條件，須另行變更規則版本與驗收。
+- **Publish transaction**：遵守Section 26 lock order；先完成不持鎖的evidence檢查，再於transaction重驗snapshot/evidence token version與collision。不得在DB transaction等待GCS、email或使用者操作。
+- **Master compatibility**：沿用既有`part_roots / part_numbers / drawing_numbers / drawing_part_links`及release-master lifecycle，不建立平行official表；published event使用`pdm.numbering.official_number_published.v1`。
+- **Idempotency**：submit/withdraw/apply/publish各自使用command type + company + idempotency key；相同key回相同receipt/result，已發布重試不得建立第二組master IDs或event。
+- **SoD**：v1不要求不同自然人；同一actor可submit、approve、publish，但每一步必須具獨立明示permission、command、confirmation、receipt與audit action。Approval不得自動publish；Admin或任何單一角色不得隱含另一項permission；跨公司與超出scope一律server-side拒絕。
+
+Must not：
+
+- approval apply不得呼叫publish或寫master；
+- 不接live GCS/Firebase Storage，不建立production publish或release artifacts；
+- 不因official collision自動換號，不將`approved_locked`當成formal-use allowed；
+- 不複製`/approvals`decision UI到workspace或技轉頁。
+
+Acceptance / QC evidence：
+
+- QA `APR-001..010`、`PUB-001..015`、`CON-004..006`、`SEC-004..012`、`EVT-001..005`全部通過；
+- `qc:pdm-number-state-flow-approval-integration`與`qc:pdm-number-state-flow-publication`（實作時建立）對每個root/part/drawing/link/promotion/audit/outbox fault point證明全rollback；
+- DB before/after證明approve後master count不變、publish後bundle/links/reservations/workspace/audit/receipt/outbox一致；
+- browser evidence涵蓋owner、approver、publisher、denied role與Company A/B；existing approval/release/lifecycle regressions全綠。
+
+Stop conditions：需要變更永久占號邊界、允許approval直接publish、改SoD產品政策、接live GCS、修復正式collision/歷史資料或進production時停止並回PM；official collision只記correlation/blocker，不自動處置。
+
+Next condition：Phase 1C independent QC通過後，才可派`執行 DEV-048 Phase 1D RD`。
+
+### Phase 1D - Technical Transfer and Compatibility Closure
+
+Status：`RD Complete / Independent QC Passed / Release Gate Required`。
+
+目的：把既有技轉包工作台收斂到`/technical-transfer`案件流程，允許同一package引用正式物件與draft workspace、整包送審及明確批次發布；製造/採購只看已發布交接。
+
+Entry gate：
+
+- Phase 1C independent QC通過，explicit single-workspace publication、approval snapshot與SoD契約穩定；
+- DEV-041 Phase 3A-0 transfer package baseline與現有transfer/lifecycle regressions全綠；
+- migration fixture涵蓋既有`Draft/Cancelled`package、official items及至少一個candidate workspace。
+
+Task list：
+
+- [x] `DEV-048-1D-01`：新增`transfer_package_draft_items`、擴充package status constraint、permissions/indexes/RLS/provider mirrors，完成fresh/upgrade/rollback-boundary parity。
+- [x] `DEV-048-1D-02`：實作draft workspace add/remove scope APIs與repository；只接受stable workspace ID，不以candidate文字查找authority。
+- [x] `DEV-048-1D-03`：擴充readiness aggregator，依workspace/BOM/file/owner/rule facts回傳first blocker owner/action、snapshot hash/version；adapter unavailable必須fail closed。
+- [x] `DEV-048-1D-04`：實作package submit/withdraw與`transfer.package_review` aggregate approval；freeze package/workspace/items/reservations/evidence references，approval只到`ApprovedPendingPublish`。
+- [x] `DEV-048-1D-05`：實作snapshot invalidation；scope/workspace/BOM/file/rule version改變即標stale，禁止沿用舊核准發布。
+- [x] `DEV-048-1D-06`：實作explicit batch publish command；package/workspaces依固定lock order一次promotion，任一失敗全rollback，既有released item只驗證identity不重發。
+- [x] `DEV-048-1D-07`：完成published-only handoff query/projection/export boundary；製造/採購不得取得candidate、Draft、InReview或ApprovedPendingPublish作正式依據。
+- [x] `DEV-048-1D-08`：完成`/technical-transfer`三tabs、single primary CTA、readiness/blocker/approval/publish/failed recovery UI；decision仍導`/approvals`。
+- [x] `DEV-048-1D-09`：完成`/handoff`、`/upload`及舊transfer入口redirect/guidance compatibility與bookmark/return context regression；不刪舊route implementation。
+- [x] `DEV-048-1D-10`：新增migration、batch fault injection、permission/company、published handoff、RWD/a11y與既有transfer/approval/numbering/lifecycle回歸證據。
+
+Implementation contract：
+
+- **Schema/migration**：依Section 21.6 additive table與status set；SQLite constraint rebuild必須同一transaction，PostgreSQL先加新constraint並validate後才移除舊constraint。Migration前後row count、status count、FK check與checksum必須一致。
+- **Scope authority**：official items續用`transfer_package_items`；draft workspace只用`transfer_package_draft_items`。Snapshot展開typed items/reservation IDs+versions，但不建立第二套可編輯workspace payload。
+- **Readiness**：required workspace未領號、snapshot stale、BOM/file/owner/evidence缺漏、adapter unavailable或state inconsistent皆`ready=false`。回傳blocker owner與可行href，不能只回boolean。
+- **Review**：submit transaction固定scope hash/version、建立aggregate approval targets並把相關candidate鎖定；withdraw只允許pending，失效舊snapshot並依policy解鎖。
+- **Batch publish**：command先鎖package，再按workspace ID、reservation ID、official root/part/drawing順序；重用不自行開transaction、不自行寫command receipt的Phase 1C transaction-scoped promotion primitive，並由outer command統一transaction/receipt。任一workspace或required outbox event失敗不得commit其他workspace。
+- **Batch events**：outer transaction寫一個package published event，並為每個新promoted workspace寫一個deterministic official-number-published event；既有released item不重發。Package event不可取代official events。
+- **Package failure state**：precondition失敗維持`ApprovedPendingPublish`；主transaction rollback後只能由獨立idempotent failure-record command在package version/state仍相符時標`ReleaseFailed`。DB unavailable或version已變時保持`ApprovedPendingPublish`並回correlation ID；不得以記錄失敗為由commit部分promotion。
+- **Published handoff**：只有package=`Published`且各item official/formal-use allowed才進handoff；API、UI、download/export都套同一server predicate與`handoff.published.view`。
+- **Compatibility**：redirect保留package ID、tab、query與`returnTo`；無object context的`/upload`只顯示選擇物件guidance，不保留generic mutation。
+
+Must not：
+
+- 不實作Pack-and-Go parser、ZIP intake或baseline（仍依DEV-041後續）；
+- 不把transfer approval當publish，不允許部分batch publication；
+- 不向製造/採購顯示candidate或approved-pending內容作正式依據；
+- 不刪舊資料/route、不接live provider、不進merge/deploy/release。
+
+Acceptance / QC evidence：
+
+- QA `TRF-001..015`、`CON-006`、`MIG-011..012`、`EVT-006`、`SEC-001..012`、`DATA-001..004`與適用UI cases全部通過；
+- `qc:pdm-number-state-flow-transfer`與`qc:pdm-number-state-flow-compatibility`（實作時建立）證明batch fault全rollback、published-only handoff與old bookmark安全；
+- DB before/after含package/status/scope/snapshot/master/reservation/audit/receipt/outbox cardinality一致性；browser evidence含1440/1024/768/390/320及engineer/RD manager/approver/publisher/manufacturing/denied roles；
+- existing transfer package、approval platform、numbering、release-master、lifecycle、sidebar/route regressions全綠。
+
+Completed evidence：`.ai-doc/reports/rd/rd-dev-048-phase1d-number-state-flow-transfer-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1d-report-2026-07-13.md`與`output/playwright/dev048-phase1d-qc/`。Phase 1D focused aggregate為60/60；Phase 1A/1B/1C regression為48/48、14/14、43/43。
+
+Stop conditions：需要解析Pack-and-Go、建立baseline、允許partial publish、變更manufacturing visibility、刪舊route/data、接live GCS/Cloud SQL staging或進release時停止並轉對應DEV或release gate。
+
+Next condition：Phase 1E P0原始建立圖料號等價修復已完成並通過QC；DEV-048可恢復local product integration complete。provider/staging或production release須另由使用者明確要求，並分別回 DEV-046 及 DEV-032/release gate。
+
+### Phase 1E - Original Create Numbering Equivalence Repair
+
+Status：`P0 QC Passed / Local Only`。
+
+目的：修復048導入新草稿flow後遺失的原始「建立圖料號」規則引導；本階段只補UI/flow等價，不改編碼authority、schema、正式發布、live provider或release。
+
+Human decisions：
+
+- 維持現行v3編碼原則，不改`A0001-P01`、`A0001-M01/R01`樣式。
+- `000`萬用料號先不落地。
+- 維持現行M/R用途碼設計，不改回MA/OT。
+- 品名查重不得阻擋建立，只能提醒可能重複並建議沿用既有主根；品名不要求唯一，唯一性由圖號/料號承擔。
+- 確定品名取代使用者可見的`主根名稱`。內部欄位可沿用`coreName`/root語意，但一般表單必須把核心名詞視為品名第一段，而不是完整主根名稱。
+- 系列代號維持選填，只影響建議品名產出，不影響使用者操作；自製非共用件可先自創，正式發行前再改正式名。
+
+Task list：
+
+- [x] `DEV-048-1E-01`：建立品名建議器，依料件類型顯示核心名詞、品牌、規格/型號、系列代號、特性與流水識別欄位，產生可套用建議品名；使用者可保留自由輸入/覆寫`確定品名`。
+- [x] `DEV-048-1E-02`：料件類型分流與圖號需求引導；外購預設不建圖號，自製/發包/客製預設建圖號，共用件依是否須製程管制引導，且不得硬擋使用者覆寫。
+- [x] `DEV-048-1E-03`：duplicate-check UI改為warning-only；server仍可回相似資料，但create modal與submit不可因`duplicateResult.blocked`停止。
+- [x] `DEV-048-1E-04`：focused QC補靜態與瀏覽器檢查，確保品名建議、圖號預設與warning-only查重不再回歸。
+- [ ] `DEV-048-1E-05`：保存一圖多料號/既有圖號新增料號變體為後續1E slice；需先定義draft relation contract，不得呼叫舊正式寫入API繞過草稿/候選/發布邊界。
+
+Acceptance / QC evidence：
+
+- `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：建議品名欄位存在、半形底線串接、確定品名、系列代號選填、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
+- TypeScript、source lint、Phase 1B focused regression與至少一個本機browser DOM check通過。
+- Browser evidence確認`/numbering/search?create=numbering`或等效create surface可以看到建議品名、製程管制/包含圖號引導，且查重提醒不使儲存草稿按鈕disabled。
+- 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 8/8、`qc:pdm-number-state-flow-phase1b` 14/14、TypeScript、lint、`dev:local:check`、本機登入態browser smoke 1440/390通過；截圖在`output/playwright/number-state-phase1e/`。
+
+Stop conditions：需要新增schema、保存後新增/刪除typed item、支援既有official drawing連到新draft part、改編碼格式、導入`000`萬用料號、改用途碼、live provider、正式資料或release時停止並回PM重定範圍。
+
+Next condition：Phase 1E P0 QC已通過，DEV-048恢復`local product integration complete`；一圖多料號/既有圖號新增料號變體另由Phase 1E後續slice或新contract接續。
+
+## 31. RD File/Module Impact Map
+
+以下是派工時的預期 owner，實作前 RD 仍需以現行 tree確認，不可因文件路徑變動直接猜：
+
+| Area | Likely owner files/modules |
+|---|---|
+| Schema/migrations | `db/schema.sql`, `db/postgres/`, provider migration mirror |
+| Platform command | `src/lib/platform-command*.ts`, existing `executePdmCommandWithOutbox` |
+| Numbering domain | new focused service/repository under `src/lib/`; reuse numbering format/rule helpers from `numbering-async-repository.ts` |
+| Draft compatibility | `src/lib/pdm-change-control-domain.ts`, `/api/numbering/part-number-drafts/**` adapters |
+| Approval | `src/lib/approval-platform.ts`, `approval-platform-async-repository.ts`, `/api/approvals/**` |
+| Publication | new numbering publication service; integrate facts with existing release master lifecycle contract, do not duplicate drawing revision release workflow |
+| Transfer | `src/lib/transfer-packages.ts`, transfer repository/routes/pages |
+| Navigation/UI | dashboard/sidebar, `/numbering/search`, `/numbering/drawings`, `/parts`, new `/technical-transfer` |
+| QA/QC | new focused scripts/package entries named by QA plan; existing numbering, approval, submission, transfer and lifecycle regressions |
+
+## 32. RD Readiness Review
+
+### 32.1 P0/P1 gap result
+
+| Area | Result | Evidence in this package |
+|---|---|---|
+| Human product decisions | Closed | Section 1.7；使用者以`1C / 2C / 3C`確認navigation、publication evidence、same-actor SoD政策 |
+| DEV-046 platform baseline | Closed for document phase | Sections 19-20；live provider仍release-gated |
+| Data ownership/schema | Closed | Section 21 |
+| Allocation algorithm/concurrency | Closed | Sections 22, 26 |
+| Status semantics/Now What | Closed | Section 23 |
+| API/error/idempotency | Closed | Section 24 |
+| Permission/SoD | Closed | Section 25；不要求不同自然人，但每一步維持獨立明示權限、command與audit |
+| Migration/rollback/compatibility | Closed | Section 27 |
+| UI/RWD/a11y | Closed as contract | Phase 1B立即移除四個可見舊側欄項目；舊URL保留redirect/guidance與context |
+| Publication evidence policy | Closed | Section 25/Phase 1C；drawing/required-file需finalized evidence，root/part-only可由server rule回`not_required` |
+| Audit/outbox/observability | Closed | Section 29 |
+| QA/QC gate | Closed as plan | linked QA document |
+| Release/provider evidence | Correctly deferred | Deferred Scope Audit + DEV-046/DEV-032 gates |
+
+結論：Phase 1A local authority、Phase 1B owner surfaces、Phase 1C review/publication、Phase 1D transfer integration及Phase 1E P0建立圖料號等價修復均已完成RD與QC，候選號仍與正式master隔離。DEV-048可重新標示為本機產品整合完成；provider、staging、production release與一圖多料號/既有圖號新增料號變體仍是獨立後續邊界。
+
+### 32.2 Approved next dispatch phrase
+
+DEV-048後續若要處理既有圖號新增料號變體 / 一圖多料號，下一個本機派工必須先補Phase 1E P1 relation contract。provider/staging或production release仍必須由使用者明確選擇 DEV-046 provider/staging 或 DEV-032 release gate。
+
+Phase 1C於2026-07-13獨立QC通過43/43，Phase 1D通過60/60 focused/HTTP/browser cases。Phase 1D只完成本契約的local transfer authority、review/batch publication、published handoff、UI及compatibility；未跨到Cloud SQL staging、live provider、歷史資料修復、merge、PR、deploy或release。

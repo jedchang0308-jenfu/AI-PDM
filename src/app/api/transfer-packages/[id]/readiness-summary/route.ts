@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import { requireTransferPackageAccessAsync, transferPackageErrorResponse } from "@/lib/transfer-package-api";
-import { buildTransferPackageReadinessSummary, getTransferPackageWorkbench } from "@/lib/transfer-packages";
+import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
+import { buildTransferPackageReadiness } from "@/lib/transfer-package-phase1d";
+import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const access = await requireTransferPackageAccessAsync(request);
+  const access = await requireNumberStateReadAccessAsync(request, "transfer.package.view");
   if (access.response) return access.response;
   const { id } = await params;
   try {
-    const workbench = await getTransferPackageWorkbench(id, access.company.companyId);
-    return NextResponse.json({ readiness: buildTransferPackageReadinessSummary(workbench), pdmCompany: access.company });
+    const readiness = await buildTransferPackageReadiness(id, access.company.companyId);
+    return NextResponse.json({ readiness, pdmCompany: access.company }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
-    return transferPackageErrorResponse(error, "技轉包阻擋摘要讀取失敗。");
+    return transferPhase1dErrorResponse(error, "readiness");
   }
 }

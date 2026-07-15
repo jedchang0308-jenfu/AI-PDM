@@ -1,6 +1,24 @@
 # AI_PDM Documentation Map
 
-This project uses `.ai-doc` as the single project documentation center. Cold start rule: read this file first, then `.ai-doc/dev_task.md`, then only the package docs for the selected task.
+This project uses `.ai-doc` as the single project documentation center.
+
+Cold start / progressive-read rule:
+
+1. Read `.ai-doc/cold-start.md` first for the low-token current boundary.
+2. Open `.ai-doc/dev_task.md` and read only `### 派工規則` and `### 目前派工任務清單`; do not load the full
+   `## 總任務清單` container.
+3. If a DEV ID is known, search its canonical index item and read only until the next peer DEV item.
+   If it is unknown, search by status symbol and feature term before opening any task detail.
+4. Select the target DEV / package from `dev_task.md`; then return to this map only for the matching package heading.
+5. Read only directly linked package docs for the selected DEV. Do not load unrelated `specs/`, `qa/`, `qc/`,
+   `reports/`, `archived/`, or historical package sections.
+6. Full-map reads are allowed only for documentation-map maintenance, archive restructuring, or explicit cross-package
+   consistency audits.
+7. Before product code/API/schema/state/permission/UI-flow/acceptance/release behavior changes, run the Spec Impact
+   Preflight in `.ai-doc/cold-start.md`; classify the result as `No conflict`, `Compatible exception`,
+   `Intentional replacement`, or `Unresolved conflict`.
+8. Active development warning: do not restructure or move `DEV-046` details from `.ai-doc/dev_task.md` unless the user
+   explicitly authorizes that later; it is still an active development package.
 
 ## 1. Authoritative Entry Points
 
@@ -9,6 +27,15 @@ This project uses `.ai-doc` as the single project documentation center. Cold sta
 | Current task, blockers, next executable work | `.ai-doc/dev_task.md` |
 | Five-year Google Cloud ERP platform, IAM, Cloud SQL Taiwan, storage and ontology authority | `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`; `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`; `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md` |
 | RD supervisor multi-level review and closed `HD-6` / `HD-7` / `HD-8-1..4` decisions | `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md` |
+| DEV-046 Phase 2B local Firebase BFF implementation and QC evidence | `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-implementation-2026-07-13.md`; `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-report-2026-07-13.md` |
+| DEV-046 Phase 2B Cloud SQL admin bootstrap and live migration evidence | `output/dev-046-live-migration/execution-summary.json`; `output/dev-046-live-migration/execution-summary.md` |
+| DEV-046 staging Firebase Hosting entrypoint, targeted Cloud Run plan/apply and runtime smoke | `output/dev-046-firebase-hosting/deployment-summary.json`; `output/dev-046-firebase-hosting/plan-summary.json`; `output/dev-046-firebase-hosting/runtime-smoke.json` |
+| DEV-046 application artifact provenance and local dirty-candidate evidence | `output/dev-046-artifact-provenance/report.json`; `output/dev-046-artifact-provenance/local-candidate-smoke.json` |
+| DEV-032 production release gate pre-build, source-boundary, commit-plan and production-target preflight evidence | `.ai-doc/reports/pm/pm-dev-032-production-release-gate-preflight-2026-07-15.md`; `.ai-doc/reports/pm/pm-dev-032-source-boundary-classification-2026-07-15.md`; `.ai-doc/reports/pm/pm-dev-032-release-source-manifest-2026-07-15.md`; `output/dev-032-release-source/manifest.json`; `output/dev-032-release-source/commit-plan.json`; `output/dev-032-production-target-preflight/report.json` |
+| DEV-032 production canary seed / allowlist / restore gate package | `config/platform/clean-production-seed.template.json`; `.ai-doc/runbooks/runbook-dev-032-production-canary-restore-reconciliation-2026-07-15.md`; `.ai-doc/reports/pm/pm-dev-032-production-gate-package-2026-07-15.md`; `scripts/qc-dev-032-release-gate-package.mjs` |
+| DEV-046 initial staging Admin principal bootstrap proposal, readback, access rollback and disposable PostgreSQL evidence | `output/dev-046-staging-principal-bootstrap/manifest.json`; `output/dev-046-staging-principal-bootstrap/report.md`; `output/dev-046-staging-principal-bootstrap/shadow-report.json` |
+| DEV-046 employee-number login alias local implementation and QC evidence | `.ai-doc/reports/rd/rd-dev-046-employee-login-alias-local-slice-2026-07-13.md`; `.ai-doc/qc/qc-dev-046-employee-login-alias-local-slice-2026-07-13.md` |
+| DEV-046 employee privacy notice and acknowledgement local implementation/QC | `.ai-doc/specs/SPEC-PDM-EMPLOYEE-PRIVACY-NOTICE-001-pilot-notice-and-acknowledgement.md`; `.ai-doc/reports/rd/rd-dev-046-privacy-notice-acknowledgement-local-slice-2026-07-13.md`; `.ai-doc/qc/qc-dev-046-privacy-notice-acknowledgement-local-slice-2026-07-13.md` |
 | Internal-pilot account lifecycle and security console | `.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`; `.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`; `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md` |
 | ERP-ready AI_PDM Phase 1-3 boundary, identity decisions and evidence | `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`; `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`; `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`; `.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`; `.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md` |
 | Pre-deploy local development completion audit | `.ai-doc/reports/pm/pm-predeploy-development-completion-audit-2026-07-10.md` |
@@ -36,15 +63,20 @@ Current dispatch rule:
 
 - No local product DEV is automatically executable from this section. The authoritative PM dispatch entry is `.ai-doc/dev_task.md` Section `目前派工任務清單`.
 - `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` Phase 1-3 is complete locally with QC evidence. Phase 4 ERP shell and all production IAM/migration/release work remain unexecuted; no phase may modify ProJED.
-- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` Phase 1 is complete locally with QC evidence. It adds the consolidated 「帳號與權限」 settings area, Admin account list/detail, lifecycle, identity status, global session revoke, one-time password reset and role time-window enforcement without starting Firebase Auth / Identity Platform/MFA/live provider/release work.
-- Local product-slice implementation is complete, but platform implementation/release is not. DEV-046 `HD-8-1..4` are closed: `asia-east1` Cloud Run + Next.js 16 Active LTS behind external ALB/managed TLS/custom domain with restricted CDN; internal primary+backup all-hours critical-event response with 60-minute acknowledgement/containment and no 24x7 restoration claim; staging Google/non-Google coverage with Google Workspace-only Wave 0 and controlled non-Google Wave 1; automated Cloud SQL backup/PITR plus one pre-canary separate-target restore/numbering reconciliation while full PDM/GCS/offline restore remains deferred. Phase 1A-1E are RD Implementation Ready / Not Requested. Live Phase 2/3 still require implementation, provider/cost/credential/privacy evidence and the broadened `DEV-032` release gate. General internal readiness remains false until technical gates and post-deploy `DEV-FIELD-001` wave acceptance pass.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` Phase 1 and Phase 2 local slice are complete locally with QC evidence. It adds the consolidated 「帳號與權限」 settings area, Admin account list/detail, lifecycle, identity status, global session revoke, provider-managed recovery handoff, self-service session/device visibility, one-time password reset compatibility and role time-window enforcement without starting live Firebase Auth / Identity Platform/MFA/provider/release work.
+- Local product-slice implementation is complete, but production release is not. DEV-046 Phase 1A-1E, Phase 2A staging IaC, Phase 2B local application slices and Phase 2B staging authentication activation are complete. Staging now runs through Firebase Hosting's default `web.app` domain and Cloud Run `ai-pdm-stg`; the current recorded staging revision is `ai-pdm-stg-00015-tim`, image `sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b`, 100% traffic. Admin bootstrap, 18-version Cloud SQL migration/idempotence, live principal mapping, AAL1 Workspace pilot exception, privacy acknowledgement cookie handoff and dashboard PostgreSQL compatibility hotfix evidence are recorded in `.ai-doc/dev_task.md`. No Firestore, Firebase Storage, Firebase Functions, GCS file authority, public DNS record or production resource was created. Public custom-domain DNS/TLS remains deferred. DEV-046 may still accept staging maintenance/hotfix work, but the next launch-moving boundary is `DEV-032` / DEV-046 Phase 3A.0 production release gate, including `HD-8-4 / 1A` pre-canary restore/reconciliation, explicit allowlist, rollback and post-deploy smoke.
+- 2026-07-15 DEV-032 production release gate pre-build result: blocked before production build/deploy. Evidence reports `.ai-doc/reports/pm/pm-dev-032-production-release-gate-preflight-2026-07-15.md`, `.ai-doc/reports/pm/pm-dev-032-source-boundary-classification-2026-07-15.md`, `.ai-doc/reports/pm/pm-dev-032-release-source-manifest-2026-07-15.md` and `.ai-doc/reports/pm/pm-dev-032-production-gate-package-2026-07-15.md` record Lane 3 release scope, classified and hashable dirty source boundary, verified release-source commit pathspec, template-checked clean seed/allowlist/restore package, inaccessible or missing `jenfu-ai-pdm-prod` target, staging-only Firebase config, missing production env/secret source, missing real `HD-8-4 / 1A` restore/reconciliation execution, real production inventory, rollback and smoke evidence. `output/dev-032-production-target-preflight/report.json` is the reproducible read-only production target preflight and currently returns `blocked_readonly_preflight` with production action `false`. `output/dev-032-release-source/commit-plan.json` and its included pathspec make the exact release commit step reviewable but have not been applied. Local checks passed (`build:isolated`, production-slice QC, DEV-046 Phase 2B QC, Hosting entrypoint QC, DEV-032 source/gate package QC, DEV-032 source commit-plan QC, DEV-032 production-target preflight QC, doc-paths and dev-task audit), but they are not Level 3/4 release evidence. Production remains untouched.
+- 2026-07-15 follow-up staging deploy: AI_PDM no longer starts its own TOTP enrollment for Google Workspace users. The user also deferred Google Workspace admin-side 2-Step Verification for the initial 3-person internal pilot, so staging now allows verified Firebase `google.com` sign-in plus configured Workspace domain (`jenfu.com.tw`) as an explicit AAL1 pilot exception via `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`; `PDM_TRUST_GOOGLE_WORKSPACE_MFA=false` because Workspace 2SV is not yet enforced. Deployed Cloud Run revision `ai-pdm-stg-00007-cam`, image `sha256:c677ab0822328944c304afc17877963f611f010c972400fed838ce5153d1818c`, 100% traffic; rollback target is `ai-pdm-stg-00005-4xp`.
+- 2026-07-15 privacy acknowledgement staging hotfix: fixed the Google sign-in -> employee privacy acknowledgement handoff that lost the session across Firebase Hosting/Cloud Run rewrite and left `/privacy/acknowledgement` at "確認工作階段已失效". Root cause: Firebase Hosting only forwards the reserved `__session` cookie to Cloud Run, while the app previously relied on `pdm_session`. The fix writes both `__session` and `pdm_session`, reads `__session` first for Firebase Hosting, uses `NextResponse.cookies.set()` and a 200 body-code `privacy_ack_required` login handoff while protected BFF APIs still fail closed with the privacy 428 gate until acknowledgement. Evidence: privacy QC 20/20, Phase 2B QC 15/15, employee alias QC 21/21, TypeScript, isolated build, local container smoke, candidate and official staging `/login` + `/api/auth/mode` + unauth privacy API gate, and browser smoke with no TOTP enrollment or material runtime failure. Human Google-account acknowledgement retest subsequently passed; production remains untouched.
+- 2026-07-15 dashboard PostgreSQL compatibility staging hotfix: after human login succeeded through `https://jenfu-ai-pdm-stg-361825.web.app`, dashboard startup showed 500s on `/api/submissions`, `/api/lifecycle/controlled-history`, `/api/notifications` and `/api/approvals/inbox`. Cloud Run stderr showed Postgres parameter type inference `42P08` in `listSubmissions` plus a notification aggregate `GROUP BY` incompatibility. Current staging Cloud Run revision is `ai-pdm-stg-00015-tim`, image `sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b`, 100% traffic. Evidence: TypeScript, isolated build, DEV-046 privacy QC 20/20, Phase 2B QC 15/15, employee alias QC 21/21, candidate and official staging `/login` + `/api/auth/mode` + unauth privacy API gate. Authenticated dashboard API retest is the remaining field confirmation for this specific hotfix; rollback target is `ai-pdm-stg-00013-vev`.
+- Employee privacy notice and UI contract: `.ai-doc/specs/SPEC-PDM-EMPLOYEE-PRIVACY-NOTICE-001-pilot-notice-and-acknowledgement.md`; machine-readable contract: `config/platform/employee-privacy-notice.template.json`. Pilot v1.0 is company-approved and becomes effective on staging opening; minimum official-number/non-reuse records are permanent, while closed/cancelled drafts and operation audit are retained for three years. Immutable version/hash, activation acknowledgement, permanent employee access, protected BFF recheck and read-only Admin evidence are locally implemented and QC-accepted. Actual staging effective timestamp, Cloud SQL migration and provider-backed Google/non-Google evidence remain live gates.
 - The package entries below are current implementation context, protected evidence, or read-order guidance. They must not override `dev_task.md` status symbols, stop conditions, release gate wording, or external-evidence blockers.
 - Documentation-only governance work remains allowed when scoped to `.ai-doc/dev_task.md`, `.ai-doc/documentation_map.md`, `.ai-doc/archived/`, or the current PM audit report.
-- `DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` is `Spec Ready / Human Confirmed` but deliberately not architecture-ready or RD-executable. It defines the unified create entrypoints, case-scoped technical-transfer entry, and the new product rule that only published numbers are permanently non-reusable; read `.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md` before changing numbering, draft, status, sidebar or transfer-entry behavior.
+- `DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` is `Phase 1E P0 QC Passed / Local Product Integration Complete / Local Only`. Phase 1A-1D local QC passed, and Phase 1E P0 repaired the post-048 create-numbering managed naming, drawing-need guidance and warning-only duplicate-check gap inside DEV-048, not a new DEV. Do not change v3 numbering, `000` universal number behavior, or M/R purpose-code design in this phase. G8/G9 live provider/staging/release remain unexecuted. `HD-048-01..03` are closed by human decisions `1C / 2C / 3C`. Read the package before changing numbering, draft, approval/publication, status, sidebar, transfer or handoff behavior.
 
 Implemented / protected context:
 
-- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`: Phase 1 local implementation and QC passed on 2026-07-13. `/settings/accounts` is the consolidated Admin-facing 「帳號與權限」 area with tabs for 帳號管理、邀請新帳號、角色與權限、異動紀錄. Account management covers list/detail, suspend/reactivate/offboard/return-to-work, identity enable/disable, global session revoke and Admin-issued one-time password reset through `/account-recovery`. Local bootstrap evidence now has `jedchang0308@jenfu.com.tw` as the only active Admin; demo users are offboarded, the database backup exists and integrity is `ok`. The requested `1655` was not stored because it violates the 10-character minimum; a 24-hour one-time recovery request was created and its raw token is intentionally absent from documentation. This is local managed-auth state, not production Firebase reprovisioning. Production deploy, live migration, provider pointer, Firebase Auth / Identity Platform/MFA, merge, PR, rollback and production smoke remain unauthorized.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`: Phase 1 local implementation and QC passed on 2026-07-13; Phase 2 provider-managed recovery handoff/session visibility local slice passed on 2026-07-14. `/settings/accounts` is the consolidated Admin-facing 「帳號與權限」 area with tabs for 帳號管理、邀請新帳號、角色與權限、異動紀錄. Account management covers list/detail, suspend/reactivate/offboard/return-to-work, identity enable/disable, global session revoke and Admin-issued one-time password reset through `/account-recovery`. `/account/security` covers current account security, session/device visibility and revoking other sessions; provider recovery handoff uses a generic response and does not create AI_PDM-owned reset tokens. Local bootstrap evidence now has `jedchang0308@jenfu.com.tw` as the only active Admin; demo users are offboarded, the database backup exists and integrity is `ok`. The requested `1655` was not stored because it violates the 10-character minimum; a 24-hour one-time recovery request was created and its raw token is intentionally absent from documentation. This is local managed-auth state, not production Firebase reprovisioning. Production deploy, live migration, provider pointer, live Firebase Auth / Identity Platform/MFA, merge, PR, rollback and production smoke remain unauthorized.
 
 - `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044`: Phase 1-3 local implementation and QC passed on 2026-07-12. Server-derived actor/company command boundaries protect selected numbering/draft mutations; command receipts and transactional outbox are additive across SQLite/PostgreSQL/Supabase with RLS/default-deny; provider-neutral principal/organization mappings preserve PDM IDs and carry platform IDs in evidence; guarded collision tooling passed against a copied local database with 5 users, 2 companies and zero collisions. The original Supabase Auth target is superseded by `DEV-046`; current target governance is Firebase Auth / Identity Platform plus `Person/Identity/Organization/Membership/RoleAssignment`, Admin/Approver MFA and central suspension/session revocation. This is not a provider cutover or production release. ProJED was not modified.
 
@@ -78,11 +110,11 @@ Implemented / protected context:
 
 Not executable without explicit approval:
 
-- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` continuation only: Phase 1 is complete locally. Phase 2 self-service password/session visibility/provider-neutral email delivery, Phase 3 Firebase Auth / Identity Platform/MFA/central offboarding through `DEV-046`, production migration/deploy/smoke, hard delete/merge and ProJED integration remain not executable without explicit human/release gate. Release gate must also rerun `npm run build` after resolving the local 3000 dev-server guard.
+- `DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045` continuation only: Phase 1, Phase 2 local recovery/session-visibility slice and the Phase 3 employee-login-alias local slice are complete locally. Phase 2 remains only an additive registry/UX layer bound to `DEV-046` BFF session v2, not a second session authority. Live Firebase Auth / Identity Platform provider MFA/central offboarding through `DEV-046`, Cloud SQL migration/provider-backed alias evidence, production deploy/smoke, hard delete/merge and ProJED integration remain not executable without explicit human/release gate. AI_PDM-owned password/reset/MFA authority is rejected for production.
 
 - `DEV-PDM-ERP-MODULE-FOUNDATION-001` / `DEV-044` release continuation only: Phase 1-3 provider-neutral foundation is complete locally. The original Supabase Auth provider target is superseded by `DEV-046`; Firebase Auth / Identity Platform configuration, MFA, central session revocation, staging/live migration and production cutover remain gated through `DEV-046` plus `DEV-030`/`DEV-031`/`DEV-032`. Phase 4 ERP shell/integration remains contract-only; ProJED requires a separate repository-owned DEV and is explicitly untouched.
-- `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`: architecture authority is coherent and `HD-8-1..4` are closed. The runtime is `asia-east1` Cloud Run + Next.js 16 Active LTS container behind external ALB/managed TLS/custom domain, with CDN limited to reviewed immutable assets; internal primary+backup all-hours on-call acknowledges and starts containment for critical security/data-loss events within 60 minutes without promising 24x7 restoration; staging covers Google/non-Google, Wave 0 is Google Workspace only and Wave 1 includes at least one controlled non-Google account; `HD-8-4 / 1A` requires automated Cloud SQL backups/PITR plus one pre-canary separate-target restore and numbering reconciliation while deferring full PDM/GCS/offline recovery. Formal business/operational data is Cloud SQL, enabled formal files direct GCS and business logic portable HTTP/BFF; no Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority. Phase 1A-1E are RD Implementation Ready / Not Requested; live Phase 2-6 remain provider/release gated. No live resource, billing, credential, migration, source deletion, release or ProJED change is authorized.
-- `DEV-PDM-PRODUCTION-SLICE-001`: Phase 1 local product slice implemented and verified; release gate required for production execution. This captures the user's 2026-07-09 decision to launch only the Web `正式領號 / 草稿 production slice`, not full PDM production readiness, plus RD supervisor follow-up `1B 2C 3A`: include `/numbering/part-drafts`, allow provisional part-number draft delete/recycle before controlled boundary, and use smoke company / tenant as the default smoke isolation path. Local implementation now includes central production-slice capability helpers, method-level API allowlist/default-deny, direct URL blocked state, sidebar roadmap `未開放` state, `/numbering/part-drafts` slice-mode inert actions, and direct API fail-closed for `submit-review`, `reconfirm` and `restore`. Delete/recycle reuses the existing controlled-boundary predicate; official root/drawing/part numbers remain controlled and non-recyclable. Production target readiness, deploy, provider pointer switch, rollback and production smoke remain in `DEV-032` release gate. Read `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`, `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`, `.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md` and `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
+- `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`: architecture authority is coherent and closed decisions remain recorded. The USD 210 forecast is below the USD 240 stop. Project, billing, protected state/secrets, Firebase identity, Cloud SQL/Run, ALB, budget, admin bootstrap, migration/idempotence, Firebase Hosting default-domain entrypoint, runtime smoke, live principal bootstrap and staging artifact/readback evidence exist. DNS/public managed TLS remains deferred. Phase 2B staging activation is complete; production deploy, GCS file authority and ProJED change do not exist. Executable without extra release approval: staging-only maintenance/hotfix and release-package preparation. Not executable without explicit high-risk release gate: Phase 3A production canary, production seed/migration/restore, allowlist rollout and production smoke.
+- `DEV-PDM-PRODUCTION-SLICE-001`: Phase 1 local product slice implemented and verified; release gate required for production execution. This captures the user's 2026-07-09 decision to launch only the Web `正式領號 / 草稿 production slice`, not full PDM production readiness, plus RD supervisor follow-up `1B 2C 3A`: include `/numbering/part-drafts`, allow provisional part-number draft delete/recycle before controlled boundary, and use smoke company / tenant as the default smoke isolation path. Local implementation now includes central production-slice capability helpers, method-level API allowlist/default-deny, direct URL blocked state, sidebar roadmap `未開放` state, `/numbering/part-drafts` slice-mode inert actions, pre-write `POST /api/numbering/duplicate-check` duplicate guard for new-root draft creation, and direct API fail-closed for `submit-review`, `reconfirm` and `restore`. Delete/recycle reuses the existing controlled-boundary predicate; official root/drawing/part numbers remain controlled and non-recyclable. Production target readiness, deploy, provider pointer switch, rollback and production smoke remain in `DEV-032` release gate. Read `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`, `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`, `.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md` and `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
 - `DEV-PDM-APPROVAL-PLATFORM-001`: Phase 1A-1B local implementation, Phase 1C-A reviewer entrypoint consolidation, Phase 1C-B legacy reviewer page convergence and Phase 1C-C drawing object pending-review projection complete; transitional adapters, friendly-route delegation and guarded migration dry-run/apply tooling present; release/live migration not authorized. Stop if work needs fragmented formal approval inboxes at launch, multiple primary reviewer approval sidebar entries, badge counts that ignore reviewer-role/company scope, one monolithic all-domain apply module, direct formal lifecycle mutation without platform audit, root obsolete without aggregate intent/impact preview, cost/supplement adapters as final launch-readiness state, production/Supabase live migration, provider pointer switch, direct data repair/deletion, merge, PR, rollback or release artifacts.
 - `DEV-PDM-NUMBERING-004` Phase 4 release/live work: Phase 1-3 are implemented locally. Do not perform production deploy, Supabase live migration/cutover, provider pointer change, direct data repair/deletion, merge, PR, rollback or release artifacts without explicit release authorization.
 - `DEV-PDM-ACCESS-CONTROL-001` 剩餘階段：本地上線切片、邀請、Google identity 與 `DEV-045` Phase 1 帳號生命週期已完成；複核日仍只提醒，不自動停權；角色硬性到期只撤銷該角色效力，不冒充帳號停權。自助密碼、email provider 與 session visibility 由 `DEV-045` Phase 2；Firebase Auth / Identity Platform/MFA 由 Phase 3 與 `DEV-046`。完整路由旁路權限切換、未來久方工作區、外部專員帳號級自動停權與平台級多公司管理台仍需各自續接。
@@ -98,7 +130,7 @@ Not executable without explicit approval:
 - `DEV-CLOUDSQL-DB-001-DATA-PARITY`: prepared but blocked; requires parity tier, Cloud SQL target, data scope, cleanup owner, and credential boundary. The former Supabase policy is historical input only.
 - `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P`: Phase 2+ RD Contract Ready only and rechecked under the latest `dev-pm` All-Phase Gate. Phase 2 requires Phase 1 implemented/verified and explicit authorization; Phase 3 requires Phase 2 implemented/verified and explicit authorization; Phase 4 requires production release-gate approval. Continuation commands must not start Phase 2+ unless `.ai-doc/dev_task.md` is explicitly updated.
 - `DEV-CLOUDSQL-DB-001-PROD-GATE`: deferred; production/cutover remains unapproved and deferred.
-- First-version launch evidence split: `DEV-IND-007` is complete for disposable local PostgreSQL compatibility. `DEV-FIELD-001` executes after a named 3-5-user production canary and blocks Wave 1/pilot acceptance; Wave 1 then runs its own five-business-day gate before Wave 2. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes. Closed `HD-8-4 / 1A` separately requires minimum Cloud SQL automated-backup/PITR, pre-canary separate-target restore and numbering-ledger reconciliation evidence.
+- First-version launch evidence split: `DEV-IND-007` is complete for disposable local PostgreSQL compatibility. `DEV-FIELD-001` and its fixed five-business-day Wave 0/Wave 1 observation were cancelled by `HD-9-1` on 2026-07-14; the task is closed without execution or acceptance evidence and no longer blocks the first-version release. The initial named 3-5-user canary, explicit allowlist changes, zero open P0/P1 and production post-deploy smoke remain under `DEV-032`. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes. Closed `HD-8-4 / 1A` separately requires minimum Cloud SQL automated-backup/PITR, pre-canary separate-target restore and numbering-ledger reconciliation evidence.
 - `DEV-STORAGE-COST-001`: product rollout backlog / parked scope; requires real storage inventory, target, cost, retention policy, and production timing approval.
 - Any production deployment, Cloud SQL/GCS production cutover, schema migration, direct DB mutation, data deletion, provider pointer switch, or cost-incurring external action.
 
@@ -106,7 +138,7 @@ Not executable without explicit approval:
 
 ### DEV-PDM-ERP-GOOGLE-CLOUDSQL-001
 
-Status: `DEV-046` architecture recorded; `HD-8-1..4 Closed`; Phase 1A-1E RD Implementation Ready / Not Requested; live Phase 2-6 provider/release gated. Phase 3A numbering/draft release retains pre-canary DB restore/reconciliation but remains independent from Phase 3B direct-GCS file cutover and deferred full-PDM file/offline restore.
+Status: `DEV-046` architecture recorded; `HD-8-1..4 Closed`; Phase 1A-1E, Phase 2A, Phase 2B local Firebase BFF, staging runtime/Cloud SQL migration, Firebase Hosting default-domain entrypoint, runtime smoke, live principal bootstrap, staging auth activation and current staging hotfix evidence complete. Public staging DNS/TLS remains deferred. Current executable work is limited to staging hotfix/maintenance or `DEV-032` release-gate preparation; Phase 3A production release requires explicit high-risk release instruction and `HD-8-4 / 1A` restore/reconciliation. Phase 3A numbering/draft release remains independent from Phase 3B direct-GCS file cutover and deferred full-PDM file/offline restore.
 
 Read:
 
@@ -115,9 +147,11 @@ Read:
 3. `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
 4. `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`
 5. `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md`
-6. DEV-044 platform contract and shared-identity ADR
-7. DEV-045 account lifecycle SPEC
-8. Historical Supabase runtime/file-storage package, compatibility evidence only
+6. `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-implementation-2026-07-13.md`
+7. `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-report-2026-07-13.md`
+8. DEV-044 platform contract and shared-identity ADR
+9. DEV-045 account lifecycle SPEC
+10. Historical Supabase runtime/file-storage package, compatibility evidence only
 
 Confirmed decisions:
 
@@ -130,7 +164,7 @@ Confirmed decisions:
 - Third review `1A`: Phase 3A launches App Hosting/Firebase/BFF/Cloud SQL official-numbering/drafts with file workflows closed; Phase 3B later owns GCS file migration and cannot block 3A.
 - Third review `2C`: existing PDM/already-implemented platform tables stay locked in `public`; new post-DEV-046 platform/ontology/integration tables use bounded schemas; `DEV-047` owns post-pilot legacy migration.
 - Third review `3A`: first ontology MVP is Drawing -> Part -> BOM only; Project/Equipment waits for a ProJED-owned source contract.
-- Fourth review HCS default `1B`: Phase 3A.0 deploys only to a named 3-5-user production canary; Phase 3A.1 `DEV-FIELD-001` blocks allowlist expansion and pilot acceptance, not the initial controlled deployment.
+- Fourth review HCS default `1B`: Phase 3A.0 deploys only to a named 3-5-user production canary. Its Phase 3A.1 `DEV-FIELD-001` expansion blocker was later superseded by `HD-9-1`: the fixed-duration validation is cancelled, while explicit allowlist/release control remains.
 - Fourth review HCS default `2A`: database outage stops official numbering; no paper/Excel/offline issuance or later backfill exists in the first version.
 - Fourth review HCS default `3A`: non-Google invitation uses Firebase-managed email-link, canonical invitation/email validation and freshly authenticated password linking; password reset is recovery-only.
 - Fifth RD review confirmed credential reprovisioning, Wave 0 -> Wave 1 -> Wave 2 rollout and Google Taiwan primary DB/file placement. Its production stable-ID preservation wording is superseded by the tenth review: clean production creates new production PDM IDs and keeps source actor/history separate. Its wording that Firebase Authentication's US identity processing was already accepted is superseded by the sixth review.
@@ -145,7 +179,7 @@ Confirmed decisions:
 Execution boundary:
 
 - Phase 0 architecture baseline and `HD-8-1..4` decisions are complete.
-- Phase 1A-1E require an explicit implementation instruction but no longer wait for `HD-8-1..3`. Work remains local/no-credential and covers Cloud Run/Next.js 16 container foundation, ALB/restricted CDN contract, IAM/portable BFF, Cloud SQL/no-Firestore, GCS interfaces/fakes/no-Firebase-Storage, new-production-ID clean seed/archive/non-reuse, no-Functions/Callable/triggers and business-hours SLO/60-minute critical acknowledgement/cost governance.
+- Phase 1A-1E were implemented and locally QC-accepted in `ec68981`. Phase 2A then added reviewed fail-closed Terraform, provider lock and no-credential preflight. Phase 2B runtime infrastructure, admin bootstrap, Cloud SQL migration, Firebase Hosting staging gateway and runtime smoke completed under explicit approvals. Public DNS/TLS is deferred; principal mapping and an exact reviewed source-to-image digest with no accepted-route drift remain required before staging acceptance.
 - Continuity staging and production require billing/credential/target ownership, least privilege, runtime support/upgrade runway and immutable manual rollout, no Firebase data/storage/function authority, clean seed/read-only archive/non-reuse manifest, continuous-RPO/business-hours-RTO and primary+backup 60-minute critical acknowledgement evidence, full location inventory, VPC/private Cloud SQL/IAM DB auth, connection/migration/cost/IAM evidence and the `HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation. Phase 3A.0 keeps direct-GCS PDM writes dormant and restricts access to a Google Workspace new-production-ID canary allowlist; Phase 3A.1 Wave 1 includes at least one controlled non-Google account and supplies field acceptance. Phase 3B requires GCS adapter/integration and its own file migration release gate.
 - ProJED is not modified; any future adoption requires a separate ProJED-owned DEV.
 
@@ -153,23 +187,27 @@ Stop local Phase 1 only if work deviates from closed HD-6/HD-7/HD-8, runtime mig
 
 ### DEV-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001
 
-Status: `DEV-047` Phase A inventory is RD Contract Ready / Not Requested This Turn; Phase B-D design/rehearsal/release are evidence-sequenced, post-pilot only and not a first-launch blocker.
+Status: `DEV-047` Phase A0 deterministic local inventory tooling is complete and QC-passed; authoritative Phase A remains blocked until DEV-046 Phase 3A production slice has a representative PostgreSQL target/snapshot, read-only operator and evidence owner. Do not run DEV-047 authoritative inventory from staging-only or local evidence, because it would produce a speculative schema migration plan. Phase B-D are evidence-sequenced, post-production-slice only and not a first-launch blocker.
 
 Read:
 
 1. `.ai-doc/dev_task.md` (`DEV-047`)
-2. DEV-046 ADR/SPEC/QA transition contract
-3. Provider-neutral PostgreSQL schema/migration authorities plus historical Supabase compatibility evidence
+2. `.ai-doc/specs/SPEC-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001.md`
+3. `.ai-doc/qa/qa-pdm-erp-bounded-schema-migration-validation-plan-2026-07-13.md`
+4. `.ai-doc/reports/rd/rd-dev-047-phase-a0-local-inventory-tooling-2026-07-13.md`
+5. `.ai-doc/qc/qc-dev-047-phase-a0-local-inventory-tooling-2026-07-13.md`
+6. DEV-046 ADR/SPEC/QA transition contract and provider-neutral PostgreSQL/Supabase compatibility evidence
 
 Execution boundary:
 
-- Inventory and implementation start only after an explicit DEV-047 instruction and a stable Phase 3A pilot.
+- Local Phase A0 may inventory repository artifacts without credentials or a database. It cannot classify live authority or propose a migration batch.
+- Authoritative Phase A starts only after a stable Phase 3A pilot, representative target/snapshot identity, read-only operator and evidence owner are recorded.
 - No big-bang legacy table move, duplicate PDM authority schema or launch-time compatibility rewrite is permitted.
 - Any live schema move/table lock/downtime remains migration/release gated.
 
 ### DEV-PDM-ACCOUNT-LIFECYCLE-001
 
-Status: Phase 1 `本機完成 / QC Passed`; Phase 2-3 `RD Contract Ready / Not Requested This Turn`; production `Release Gate Required`.
+Status: Phase 1 + Phase 2 local slice `本機完成 / QC Passed`; Phase 3A employee-login-alias local slice `Implemented / QC Accepted`; Phase 3B provider/staging/production `Release Gate Required`.
 
 Read:
 
@@ -177,17 +215,20 @@ Read:
 2. `.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`
 3. `.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`
 4. `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`
-5. `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
-6. `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`
-7. DEV-042/043 invitation and identity QA/QC reports
-8. DEV-044 RD/QC reports and platform command/outbox contract
+5. `.ai-doc/qc/qc-dev-045-phase2-session-recovery-2026-07-14.md`
+6. `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+7. `.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`
+8. DEV-042/043 invitation and identity QA/QC reports
+9. DEV-044 RD/QC reports and platform command/outbox contract
 
 Execution boundary:
 
-- Phase 1 local implementation is complete and should not be reimplemented from scratch.
+- Phase 1 and Phase 2 local implementation are complete and should not be reimplemented from scratch.
 - Before release, rerun build evidence in a clean condition because the 2026-07-13 build attempt was blocked by the local 3000 dev-server guard.
-- Phase 2 requires Phase 1 evidence and human confirmation for email provider/cost/privacy.
-- Phase 3 and all production work require shared-IAM and release gates.
+- Phase 2 live provider execution still requires human confirmation for provider recovery destination, authorized domain/quota, privacy retention and session metadata retention.
+- Phase 3 provider/session core belongs to `DEV-046`; DEV-045 may only continue account-console, self-service and Admin lifecycle UX after the shared-IAM contract is stable.
+- Production Wave 0 is limited to named Google Workspace users; controlled non-Google Wave 1 requires explicit `DEV-032` allowlist/release evidence.
+- Cloud break-glass identities are cloud governance accounts, not PDM business users, and must not receive PDM application sessions.
 - No phase may modify ProJED under this AI_PDM task.
 
 Stop if work needs account hard delete/merge, historical actor rewrite, live provider/credential, direct data repair, production migration/deploy, release artifacts or ProJED changes.
@@ -234,35 +275,65 @@ Stop if:
 
 ### DEV-PDM-NUMBER-STATE-FLOW-001
 
-Status: `Spec Ready / Human Confirmed`; architecture, ADR alignment, RD, QA/QC and release are not requested this turn.
+Status: `Phase 1E P0 QC Passed / Local Product Integration Complete / Local Only`. Local Phase 1A through Phase 1D independent QC are complete, and the 2026-07-14 post-048 request-equivalence repair restored part of the old numbering request rules inside the new draft flow. The 2026-07-15 Phase 1E P0 repair restored create-numbering naming guidance, drawing-need defaulting and warning-only duplicate-check behavior. Live provider, staging and release credit have not been granted.
 
 Read:
 
 1. `.ai-doc/dev_task.md` entry `DEV-048`
 2. `.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`
-3. Existing contextual-entry authority: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
-4. Existing status authority: `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
-5. Existing draft/recycle authority: `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`
-6. Existing production-slice authority: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
-7. Existing transfer authority: `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
+3. `.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`
+4. `.ai-doc/qa/qa-pdm-number-state-flow-validation-plan-2026-07-13.md`
+5. `.ai-doc/reports/rd/rd-dev-048-phase1a-number-state-flow-report-2026-07-13.md`
+6. `.ai-doc/qc/qc-pdm-number-state-flow-phase1a-report-2026-07-13.md`
+7. `.ai-doc/reports/rd/rd-dev-048-phase1b-number-state-flow-ui-report-2026-07-13.md`
+8. `.ai-doc/reports/rd/rd-dev-048-phase1c-number-state-flow-publication-report-2026-07-13.md`
+9. `.ai-doc/qc/qc-pdm-number-state-flow-phase1c-report-2026-07-13.md`
+10. `.ai-doc/reports/rd/rd-dev-048-phase1d-number-state-flow-transfer-report-2026-07-13.md`
+11. `.ai-doc/qc/qc-pdm-number-state-flow-phase1d-report-2026-07-13.md`
+12. `.ai-doc/reports/rd/rd-dev-048-request-equivalence-repair-2026-07-14.md`
+13. DEV-046 platform ADR: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
+14. DEV-046 platform SPEC: `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
+15. Platform command foundation: `.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`
+16. Existing contextual-entry authority: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
+17. Existing status authority: `.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`
+18. Existing transfer authority: `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`
+19. Existing release/master sync authority: `.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`
+20. Amended historical draft/recycle ADR: `.ai-doc/decisions/ADR-PDM-CHANGE-CONTROL-001-reserved-draft-number-policy.md`
+21. Amended production-slice SPEC: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`
 
 Human decisions:
 
 - `＋建立圖料號` belongs at the top-right of the drawing-part module; drawing and part modules retain their task-specific create CTAs and contextual drawer shortcuts.
 - Technical-transfer batch submission belongs under `發行 / 交接 > 技術移轉` and must operate through a case-scoped transfer package, not generic upload or direct single-item transfer submission.
 - Permanent number control begins at formal publication. Unpublished draft candidates may be recycled when explicitly cancelled, unreferenced and not review-locked; the first version has no mandatory seven-day cooling period.
+- 2026-07-15 Phase 1E decisions: keep current v3 numbering (`A0001-P01`, `A0001-M01/R01` style), keep current M/R purpose-code design, do not implement `000` universal number behavior now, keep series code optional and only use it for suggested naming, and convert similar-name duplicate checks from blocker to warning.
+- 2026-07-15 Phase 1E P0 evidence: `qc:pdm-number-state-flow-request-equivalence` 9/9, `qc:pdm-number-state-flow-phase1b` 14/14, `qc:pdm-number-state-flow-contract` 19/19, `qc:pdm-number-state-flow-runtime` 7/7, `qc:pdm-number-state-flow-http` 21/21, TypeScript, lint, `dev:local:check`, and authenticated local browser smoke at 1440/390 with screenshots under `output/playwright/number-state-phase1e/`. A later same-day QC reopen found existing local SQLite drift (`append_reason` missing) causing create-draft 500; RD fixed startup additive SQLite repair for `append_reason` / `universal_reason`, restarted 3000, then browser QC passed create 201, candidate acquire 200 and cancel/recycle 200 with no visible error, no console error, no horizontal overflow, no official master pollution and recycled candidates. The authenticated browser smoke used a local session cookie for the active local Admin only to verify the UI/API surface; it is not login-flow evidence.
+- `HD-048-01 / 1C`: Phase 1B removes `料號草稿 / 領號申請 / 上傳送審 / 製造交接` from the visible sidebar. Legacy URLs retain redirect/guidance plus query/`returnTo` compatibility, but no second mutation flow.
+- `HD-048-02 / 2C`: Drawing and drawing/required-file transfer publication requires finalized controlled-file evidence. Root-only and eligible part-only publication may use a versioned server-side `not_required` result. Production file-required publication remains locked until the direct GCS verifier is ready.
+- `HD-048-03 / 3C`: One natural person may submit, approve and publish only when independently granted every required permission. Each step retains a separate command, confirmation, receipt and audit action; approval never auto-publishes and no role/Admin identity implies another permission.
 
 Intentional replacement:
 
 - The latest product rule replaces the older semantics that submission itself makes a candidate permanently non-reusable.
 - It also replaces the production-slice assumption that every root/drawing/part record created through the formal form is immediately an official permanent number.
-- ADR and engineering-spec alignment is mandatory before RD implementation; the current functional spec is authoritative for product behavior but is not an engineering contract.
+- The replacement is now recorded in `ADR-PDM-NUMBER-STATE-FLOW-001` and amendment banners on the affected change-control and production-slice ADR/SPEC files. Historical implementation/QC evidence remains protected.
+
+Architecture authority:
+
+- New work uses stable `numbering_draft_workspaces` plus typed root/part/drawing/relation draft items. Draft may remain unnumbered.
+- Candidate exclusivity is owned by `number_candidate_reservations`; recycled code receives a new reservation ID, while events remain append-only.
+- New candidate data does not enter `part_roots / part_numbers / drawing_numbers` until the explicit publication transaction succeeds.
+- Approval and transfer review only freeze/lock an immutable snapshot. They do not publish. `/approvals` remains the single reviewer inbox.
+- Publication atomically creates the complete official master bundle, promotes reservations, writes audit/receipt/outbox and emits `pdm.numbering.official_number_published.v1` for DEV-046 signed-ledger/recovery handling.
+- Production clean seed excludes candidates/local drafts; only published/obsolete official numbers and recovery non-reuse reservations are eligible.
 
 Execution boundary:
 
-- This turn changed documentation only.
-- Do not implement, design schema/API/permission/transaction/migration, repair historical data or produce QA/QC/release artifacts from this entry without the corresponding user re-entry instruction.
-- Next re-entry phrase: `補架構規格`, `進入 RD 規格`, or equivalent.
+- Phase 1A local product code, tests and migration artifacts are implemented and independent local QC passed on 2026-07-13; no UI/sidebar, approval/publication, transfer integration, live provider, credential, production or release artifact was changed.
+- Independent QC passed aggregate 47/47 plus PostgreSQL/Supabase mirror checks; this does not grant live provider, staging or release evidence.
+- Phase 1B-1D future contracts are in SPEC Section 30; phase-specific QA/QC handoff and evidence are in QA Section 12. `HD-048-01..03` are closed in SPEC Section 1.7 and dev_task.
+- Phase 1B, Phase 1C and Phase 1D independent QC passed on 2026-07-13. DEV-048 Phase 1E P0 passed on 2026-07-15, so the local product integration boundary is complete again. Existing-drawing new part variants / one-drawing-many-parts remain a later relation-contract slice. Provider/staging/release work requires explicit DEV-046 / DEV-032 dispatch.
+- Live historical repair, Cloud SQL/Firebase/GCS execution, migration/cutover, merge, PR, deploy, smoke, rollback and release require their own high-risk/release gate.
 
 ### DEV-PDM-PRODUCTION-SLICE-001
 
@@ -1381,7 +1452,7 @@ Verification evidence:
 - `npm run qc:production-readiness -- --allow-open`: passed with `ready=false`, `supabaseShadowEvidenceReady=true`, and one `external_field_test` gate visible; under the later Phase 3A.0/3A.1 decision this blocks wider opening/pilot acceptance, not the first named-user canary deploy.
 - `npx tsc --noEmit`, `npm run lint -- --quiet`, and `npm run build`: passed.
 
-Remaining post-deploy external acceptance blocker is `DEV-FIELD-001`, executed after Phase 3A.0 canary deployment. Before that deploy, DEV-046/DEV-032 technical release gates, including the closed `HD-8-4 / 1A` pre-canary production DB restore/reconciliation evidence, still apply; `HD-8-1..4` are closed. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes; `DEV-IND-007` is complete for the disposable shadow gate.
+`HD-9-1` cancels the former post-deploy `DEV-FIELD-001` fixed five-business-day acceptance task without treating it as passed. The remaining first-version blocker is production release readiness: DEV-046 Phase 2B staging activation is complete, and the next launch-moving gate is `DEV-032` production release, including the closed `HD-8-4 / 1A` pre-canary production DB restore/reconciliation evidence, rollback readiness, explicit allowlist and post-deploy smoke. `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes; `DEV-IND-007` is complete for the disposable shadow gate.
 
 ### DEV-PDM-DRAWING-PART-WORKBENCH-001
 

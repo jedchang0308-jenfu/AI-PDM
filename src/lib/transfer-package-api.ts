@@ -1,39 +1,40 @@
-import { NextResponse } from "next/server";
-import type { DbUser } from "@/lib/db";
-import { requireRoleAsync } from "@/lib/auth-async";
-import {
-  requestedNumberingCompanyCodeFromRequest,
-  resolveNumberingCompanyContextAsync
-} from "@/lib/numbering-company-context";
+import type { NumberingUserScope } from "@/lib/db";
+import { numberStateFlowJson, requireNumberStateCommandAccessAsync, requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { TransferPackageError, type TransferPackageActor } from "@/lib/transfer-packages";
 import type { PdmCompanyContext } from "@/lib/company-context";
 
 export type TransferPackageApiAccess =
-  | { user: DbUser; company: PdmCompanyContext; actor: TransferPackageActor; response: null }
+  | { user: NumberingUserScope; company: PdmCompanyContext; actor: TransferPackageActor; response: null }
   | { user: null; company: null; actor: null; response: Response };
 
 export async function requireTransferPackageAccessAsync(
   request: Request,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
+  action = "transfer.package.view"
 ): Promise<TransferPackageApiAccess> {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin"]);
-  if (auth.response || !auth.user) {
-    return { user: null, company: null, actor: null, response: auth.response };
+  if (action === "transfer.package.view") {
+    const access = await requireNumberStateReadAccessAsync(request, action);
+    if (access.response) {
+      return { user: null, company: null, actor: null, response: access.response };
+    }
+    return {
+      user: access.user,
+      company: access.company,
+      actor: access.actor,
+      response: null
+    };
   }
-  const company = await resolveNumberingCompanyContextAsync(
-    auth.user.id,
-    requestedNumberingCompanyCodeFromRequest(request, body)
-  );
-  if (company.response || !company.company) {
-    return { user: null, company: null, actor: null, response: company.response };
+  const access = await requireNumberStateCommandAccessAsync(request, action, body ?? {});
+  if (access.response) {
+    return { user: null, company: null, actor: null, response: access.response };
   }
   return {
-    user: auth.user,
-    company: company.company,
+    user: access.auth.user,
+    company: access.company,
     actor: {
-      userId: auth.user.id,
-      companyId: company.company.companyId,
-      role: auth.user.role
+      userId: access.actor.pdmUserId,
+      companyId: access.actor.organizationId,
+      role: access.auth.user.role
     },
     response: null
   };
@@ -41,8 +42,8 @@ export async function requireTransferPackageAccessAsync(
 
 export function transferPackageErrorResponse(error: unknown, fallback: string) {
   if (error instanceof TransferPackageError) {
-    return NextResponse.json({ error: error.code, message: error.message }, { status: error.status });
+    return numberStateFlowJson({ error: error.code, message: error.message }, { status: error.status });
   }
   console.error(fallback, error);
-  return NextResponse.json({ error: "TRANSFER_PACKAGE_INTERNAL", message: fallback }, { status: 500 });
+  return numberStateFlowJson({ error: "TRANSFER_PACKAGE_INTERNAL", message: fallback }, { status: 500 });
 }

@@ -15,8 +15,8 @@ type DashboardStatusCountRow = {
 export const SELECT_ASYNC_DASHBOARD_STATUS_COUNTS_SQL = `
   SELECT status, COUNT(*) as count
   FROM submissions
-  WHERE (:submittedBy IS NULL OR submitted_by = :submittedBy)
-    AND (:companyId IS NULL OR company_id = :companyId)
+  WHERE (CAST(:submittedBy AS text) IS NULL OR submitted_by = CAST(:submittedBy AS text))
+    AND (CAST(:companyId AS text) IS NULL OR company_id = CAST(:companyId AS text))
     AND (status <> 'ReleaseFailed' OR resolved_by_submission_id IS NULL)
   GROUP BY status
 `;

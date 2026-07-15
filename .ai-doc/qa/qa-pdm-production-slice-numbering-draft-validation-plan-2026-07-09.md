@@ -211,15 +211,15 @@ Focused QC must verify:
 - no frontend secret exposure;
 - no raw backend errors are visible in blocked states.
 
-## Future Phase 3A.0 / 3A.1 Canary Validation Contract
+## Future Phase 3A.0 Canary Validation Contract / Cancelled Phase 3A.1
 
-Phase 3A.0 pre-deploy evidence requires all technical/security/continuity release gates, an exact 3-5-user production allowlist, and a ready `DEV-FIELD-001` script/evidence owner/issue-intake path. It does not require completed field evidence before the canary environment exists.
+Phase 3A.0 pre-deploy evidence requires all technical/security/continuity release gates and an exact 3-5-user production allowlist. `HD-9-1` cancelled the separate `DEV-FIELD-001` fixed-duration field-test package; cancellation is not acceptance evidence.
 
 The server-only allowlist accepts newly assigned production PDM user IDs only, fails closed when missing/malformed/empty, is checked at session issuance and every business request, and records a sorted configuration hash. Email, source actor ID, role, domain and wildcard entries are invalid.
 
 After deployment, verify every non-canary identity is denied at both session and business API boundaries. Named users may access only the official-numbering/draft capability allowlist; all file/formal-release/CAD/BOM paths remain closed.
 
-Phase 3A.1 executes the formal script for five business days on Google Workspace-only Wave 0. Evidence must include screenshots, audit correlation, issue disposition and signed go/no-go. No open P0 is accepted; every P1 requires an accepted owner/date/disposition. Wave 1 adds about five named users, including at least one controlled non-Google Firebase-managed email-link account, and repeats the five-business-day gate; only then may an explicit decision open Wave 2. No gate expands access automatically.
+Phase 3A.1 fixed-duration observation is not executed. Production opening and every later allowlist expansion still require explicit DEV-032 release evidence, no open P0/P1, target/allowlist identity, rollback readiness and post-deploy smoke. A controlled non-Google Firebase-managed email-link account may be added only after that path passes staging. No local test, elapsed period or successful smoke expands access automatically.
 
 During a database-unavailable exercise, create/reserve fails closed with a controlled Traditional Chinese unavailable state. Paper, Excel, offline issuance and later backfill are prohibited.
 
@@ -244,8 +244,8 @@ QC must fail the slice if any of these occur:
 - Raw SQL, stack trace, `Internal Server Error` or route text appears in normal UI blocked states.
 - Production deploy, rollback, provider pointer switch, production smoke execution, direct production data repair or deletion is performed without release gate confirmation.
 - A user outside the named canary allowlist receives a session or can call an allowed business mutation before field acceptance.
-- Wider access is enabled, or the pilot is reported accepted, before `DEV-FIELD-001` issue/go-no-go evidence passes.
-- Completed field evidence is required before the named production canary exists, making the gate impossible to execute.
+- Wider access is enabled without an explicit DEV-032 allowlist/release decision and zero open P0/P1.
+- `DEV-FIELD-001` cancellation is reported as a production field-test pass or pilot acceptance.
 - Database outage permits paper, Excel, offline numbering or later backfill.
 
 ## Evidence Handoff

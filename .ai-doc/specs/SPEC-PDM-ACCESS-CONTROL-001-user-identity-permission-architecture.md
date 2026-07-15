@@ -7,6 +7,10 @@
 
 2026-07-13 架構續接：`ADR-PDM-ERP-PLATFORM-001` 已選定 Firebase Auth with Identity Platform 作為未來共用 IAM；RD 完整性決策再確認 Firebase 終止於 Next.js BFF、browser 不直連 Supabase、Admin/Approver 採 TOTP、application session 上限八小時，兩位 cloud break-glass 管理員不取得 PDM business role。本文件既有 provider-neutral identity、stable PDM user ID、角色/公司範圍與 fail-closed 規則維持有效。此變更不代表 Firebase 已實作或已切換正式登入。
 
+2026-07-13 production identity amendment：正式登入支援「工號登入別名 -> 受管理身分 -> stable PDM User ID」映射，但工號不是 credential、provider subject 或授權 key。AI_PDM 不開發或保存自有密碼、MFA secret、復原碼及密碼重設引擎；Cloud Identity／Firebase Identity Platform 負責驗證、MFA 與 recovery，BFF 只在 provider 驗證成功後依不可變 UID 解析 PDM principal。既有本機密碼／recovery 實作只保留為 local historical evidence，production cutover 必須關閉。
+
+2026-07-15 Workspace pilot access amendment：Google Workspace 使用者不再由 AI_PDM 提供首次 TOTP enrollment UI；initial 3-person pilot 暫不要求 Workspace 2-Step Verification。BFF 只接受 Firebase `google.com` verified sign-in、受信 Workspace domain 與 stable UID principal mapping 的組合；在 `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true` 時僅作 AAL1 pilot 放行，不得把 session `secondFactor` 記為 `google_workspace_mfa`。只有實際強制 Workspace 2-Step Verification 且 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=true` 時，才可升級為 Workspace-managed MFA/AAL2；email 字串或工號別名本身不得授權。
+
 關聯脈絡:
 
 - `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
@@ -61,11 +65,11 @@
   - 品保: 由系統或 PDM 管理員預設的品質檢視範圍。
   - 製造與採購: 僅正式發布資料。
   - 外部專員: 指定範圍。
-- 沒有 Google 信箱的使用者由管理員邀請，第一次登入時設定密碼。
-- 未來 Firebase production IAM 路徑採 email-link 先驗證信箱與 canonical `account_invitations`，再於 freshly authenticated setup state 連結密碼；Firebase password reset 只用於啟用後復原，不等於邀請接受。DEV-042/045 既有本機 token 流程仍是已完成 local evidence，不被改寫成 Firebase 已實作。
+- 沒有既有 Google 帳號的內部使用者可由公司建立受管理的 Cloud Identity／Firebase identity；AI_PDM 支援工號登入別名與帳號映射，但不簽發或保存密碼。
+- 未來 production IAM 的密碼、MFA 與復原完全由 Cloud Identity／Firebase Identity Platform 管理。若啟用 Firebase email/password 路徑，email-link、password linking 與 reset 均使用 provider-managed flow；DEV-042/045 既有本機 token/password 流程只保留為已完成 local evidence，production cutover 必須關閉。
 - 鉦富先上線，先做一個自動判斷的 `JENFU` 工作區；保留未來久方擴充抽象層。
 - 現階段不做平台級 SaaS 管理台，也不做一般管理員跨公司切換。
-- Google SSO 或本機登入只能連到已由管理員建立或邀請的 PDM 使用者。
+- Google／Firebase provider 登入只能連到已由管理員建立或邀請的 PDM 使用者；工號別名只能啟動 provider routing，不能直接建立 session。
 - 不允許 Google 自行註冊成 PDM 使用者，也不允許只靠 email domain 自動給角色。
 - 權限切換採模型先行: 先補身分、組織、角色、範圍基礎，再做旁路比對與受控切換。
 - 不接受一次把所有路由直接切到新權限模型，除非已有路由盤點、差異證據、功能旗標與復原機制。
@@ -90,7 +94,7 @@ AI 實作假設:
 
 - `users.role` 在完整切換前保留相容用途。
 - 既有 `roles`、`role_permissions`、`user_role_assignments`、`role_priority_versions`、`role_scope_rules`、`approval_delegations` 是起點，不整批推倒重做。
-- 現有本機帳密登入可以保留，未來身分提供者透過 adapter 接上。
+- 現有本機帳密登入只保留於 local evidence 與遷移相容期；production 不保留 AI_PDM 自有 credential/recovery authority。
 - 既有 `company_id` 與 `user_company_memberships` 先視為相容表面。第一版對應到單一鉦富工作區，未來久方擴充仍走工作區抽象層。
 - `/settings/workflow` 是第一個使用者與權限治理畫面，因為設定中心已把它定位在流程、角色與審核矩陣。
 - Schema 變更先做加法，避免破壞 SQLite 與 Supabase/Postgres 兩條路徑。
@@ -154,14 +158,15 @@ PDM 使用者 ID = 可追責的穩定使用者或系統身分
 ```mermaid
 flowchart LR
   subgraph Sources["使用者來源"]
-    Google["有 Google 信箱的使用者"]
-    Local["沒有 Google 信箱的使用者"]
+    Google["既有受管理 Google 身分"]
+    Alias["工號登入別名"]
+    Managed["公司配發 Cloud Identity／Firebase 身分"]
     External["外部專員"]
   end
 
   subgraph Auth["登入身分"]
-    OAuth["Google OAuth 登入"]
-    Password["PDM 本機密碼登入"]
+    OAuth["Google／Firebase provider 登入"]
+    AliasIntent["短效登入 intent／provider routing"]
     Invite["邀請 / 暫時身分"]
   end
 
@@ -203,7 +208,8 @@ flowchart LR
   Audit["異動紀錄與複核證據"]
 
   Google --> OAuth --> User
-  Local --> Password --> User
+  Alias --> AliasIntent --> OAuth
+  Managed --> OAuth
   External --> OAuth
   External --> Invite
   Invite --> User
@@ -243,6 +249,17 @@ flowchart LR
   Assign --> Audit
   Delegation --> Audit
 ```
+
+### 4.1 Production 工號登入別名契約
+
+- `工號` 是公司範圍內的登入別名，只用於找出受管理身分的 provider route 與預先核准的 PDM user mapping；它不是密碼、provider UID、角色或權限來源。
+- 登入頁接受「工號或公司帳號」。工號送到同源 BFF 後，BFF 做正規化、rate limit 與泛化回應，建立最長 5 分鐘、single-use、綁定 company/nonce/return-path 的登入 intent，再轉交 Cloud Identity／Firebase provider。未知、停用、重複或跨公司別名不得洩漏帳號是否存在。
+- Provider 驗證成功後，BFF 必須以不可變 Firebase/Google UID 查詢 active platform principal；只有該 principal 的 PDM user/company 與登入 intent 目標一致時才能簽發 `pdm_session`。alias、email、domain、display name 或 user-editable claim 都不能作 fallback。
+- AI_PDM 不保存 password、password hash、MFA secret、recovery code 或 provider refresh token；Cloud Identity 路徑轉至 Google 登入，Firebase email/password 若保留則只透過 Firebase SDK/provider-managed action email，不建立第二套 application credential store。
+- `/settings/accounts` 的帳號詳情與邀請表單增加「工號／登入別名」欄位。新增、退役或更換別名需 Admin、原因、company scope、optimistic lock 與 audit；更換採「退役舊別名＋新增別名」，不得直接改寫歷史 audit actor。
+- Additive data contract 已實作為 `employee_login_aliases`、`employee_login_intents` 與 `employee_login_rate_limits`；`company_id + alias_normalized` 唯一，intent 只保存token hash且最長5分鐘，rate limit使用資料庫共用bucket。原始 retired alias 保存 3 年後移除，歷史行為只保留 stable PDM User ID。
+- 2026-07-13 本機slice已完成schema/PostgreSQL/Supabase migration artifact、repository、同源intent API、Firebase session exchange、登入UI、`/settings/accounts`新增／退役UI與production-slice allowlist；安全負向QC 21/21、TypeScript、lint、production build及desktop/mobile browser QC通過。
+- Local completion不代表provider或staging acceptance。正式解除live gate前仍須在Cloud SQL staging套用migration，並以真實Google/non-Google Firebase principal驗證enumeration、collision、retired alias、UID mismatch、cross-company、replay、跨instance rate-limit及no-credential-storage；不得把工號當成認證因子或授權來源。
 
 ## 5. 範圍
 
@@ -419,6 +436,8 @@ flowchart LR
 ## 8. RD 交接契約
 
 ### Phase 1 身分提供者邊界
+
+本段記錄已完成的 local historical slice。其 `local_password`、首次設定密碼與本機 recovery 行為不再是 production 目標；production 依本文件 2026-07-13 amendment 使用 provider-managed credentials 和工號登入別名映射。
 
 目的:
 
@@ -850,8 +869,8 @@ QA 需驗證:
 - 多角色優先序穩定。
 - 外部專員必須有內部負責人、指定範圍與複核日。
 - 外部專員預設不能改資料、審核、發行或匯出。
-- 沒有 Google 帳號者可走邀請與首次設定密碼流程。
-- Firebase rollout 時，email-link、canonical invitation、password linking、重放/碰撞拒絕與「reset 不得接受邀請」皆有獨立證據。
+- Local historical slice 的無 Google 邀請／首次設定密碼 evidence 保留，但 production 不啟用 AI_PDM 自有密碼或 recovery authority。
+- Production rollout 時，工號別名只能產生短效 provider routing intent；provider UID 驗證、重放／碰撞拒絕、未知別名泛化回應及「alias 不得授權」皆有獨立證據。
 - Google 登入不會自行註冊或自動授權。
 - 權限預覽與異動紀錄可被使用者理解。
 
@@ -892,7 +911,7 @@ QC 需保留證據:
 | 範圍 | 分類 | 原因 |
 |---|---|---|
 | Google OAuth implementation | `DEV-PDM-GOOGLE-IDENTITY-001` / 本地已實作 | 邀請式綁定、OIDC 與 provider-neutral lookup 已通過本地 QC；live credential/provider 啟用、migration 與 deploy 仍需 release gate |
-| 無 Google 憑證發放 | `DEV-PDM-ACCOUNT-INVITATION-001` 本地已實作；DEV-046 Firebase rollout | 管理員邀請 + 第一次設定密碼已通過本地 QC；production 目標改為 Firebase-managed email-link -> canonical invitation -> password linking，自動寄信/provider/release 仍未實作 |
+| 無既有 Google 帳號／工號登入 | `DEV-PDM-ACCOUNT-INVITATION-001` 本地 evidence；DEV-046 provider rollout | production 使用公司配發 Cloud Identity／Firebase identity，加上工號登入別名映射；AI_PDM 不保存密碼、MFA secret或復原碼，本地首次設定密碼只作歷史 evidence |
 | 工作區模型 | 本地上線切片已實作；完整 Phase 2 未授權 | 目前只顯示鉦富唯讀工作區；未來久方 provisioning 需另行授權 |
 | 法律公司或資料所有者分類 | Same Spec Phase 2 / Not Authorized | 如鉦富/久方隱藏分類，需另行決策 |
 | 組織、部門與專案模型 | Same Spec Phase 2 / Not Authorized | 已定義為分派與預設範圍，不是權限主體 |
@@ -924,6 +943,6 @@ QC 需保留證據:
 ## 14. 規格治理結果
 
 - 這份規格已把使用者決策、架構邊界、分階段契約、UI 契約、驗收、QC 與停止條件集中到同一份文件。
-- 目前授權涵蓋本地上線切片與無 Google 帳號邀請/首次密碼設定。已完成部分可以作為 UI 與資料模型的第一版基準。
+- 目前已完成範圍包含本地上線切片與無 Google 帳號邀請／首次密碼設定 evidence；它可作遷移與負向測試基準，但不得作為 production credential authority。
 - 未授權項目不得被 RD 自動擴張成正式部署、live migration、Google OAuth cutover、完整 route cutover 或久方 provisioning。
-- Google identity 本地切片已由 DEV-043 完成；帳號生命週期 Phase 1 已由 DEV-045 完成本機實作與 QC。Firebase-managed email-link/password-link、全路由權限切換、久方工作區、Firebase Auth/Identity Platform MFA 或正式環境上線仍需依 DEV-046 與 release gate 建立證據。
+- Google identity 本地切片已由 DEV-043 完成；帳號生命週期 Phase 1 已由 DEV-045 完成本機實作與 QC。工號登入別名／帳號映射、provider-managed credential/MFA/recovery、全路由權限切換、久方工作區及正式環境上線仍需依 DEV-046 與 release gate 建立證據。

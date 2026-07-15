@@ -1,5 +1,7 @@
 # SPEC-PDM-CHANGE-CONTROL-001：圖號進版、料號替代與 BOM 影響管制
 
+> 2026-07-13 Amendment：本文件的 FFF、replacement、BOM reconfirmation 與既有 implementation evidence 保留；候選號正式化、送審鎖定、回收與固定 7 天冷卻語意由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。只有正式發布後的 official number 永久不可重用。
+
 狀態：Implemented locally / Evidence captured; production/Supabase cutover deferred
 日期：2026-06-24  
 適用系統：AI_PDM  

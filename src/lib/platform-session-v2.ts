@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 export const PLATFORM_SESSION_V2_MAX_AGE_SECONDS = 8 * 60 * 60;
 export type PlatformAssuranceLevel = "aal1" | "aal2";
+export type PlatformSecondFactor = "totp" | "google_workspace_mfa" | null;
 
 export interface PlatformSessionKeyRing {
   issuer: string;
@@ -23,7 +24,7 @@ export interface PlatformSessionV2Claims {
   sessionId: string;
   sessionVersion: number;
   assuranceLevel: PlatformAssuranceLevel;
-  secondFactor: "totp" | null;
+  secondFactor: PlatformSecondFactor;
   identityProvider: "firebase";
 }
 
@@ -34,7 +35,7 @@ export interface IssuePlatformSessionV2Input {
   authTime: number;
   sessionVersion: number;
   assuranceLevel: PlatformAssuranceLevel;
-  secondFactor?: "totp" | null;
+  secondFactor?: PlatformSecondFactor;
   maxAgeSeconds?: number;
   sessionId?: string;
 }
@@ -90,7 +91,7 @@ export function issuePlatformSessionV2(
     throw new Error("SESSION_V2_MAX_AGE_EXCEEDED");
   }
   if (!Number.isInteger(input.sessionVersion) || input.sessionVersion < 1) throw new Error("SESSION_V2_VERSION_INVALID");
-  if (input.assuranceLevel === "aal2" && input.secondFactor !== "totp") throw new Error("SESSION_V2_AAL2_REQUIRES_TOTP");
+  if (input.assuranceLevel === "aal2" && !input.secondFactor) throw new Error("SESSION_V2_AAL2_REQUIRES_RECOGNIZED_MFA");
 
   const header: PlatformSessionHeader = {
     algorithm: "HS256",
@@ -138,6 +139,10 @@ export function verifyPlatformSessionV2(
   const nowSeconds = policy.nowSeconds ?? Math.floor(Date.now() / 1000);
   const clockSkewSeconds = policy.clockSkewSeconds ?? 60;
   if (claims.version !== 2 || claims.identityProvider !== "firebase") throw new Error("SESSION_V2_CLAIMS_INVALID");
+  if (claims.secondFactor !== null && claims.secondFactor !== "totp" && claims.secondFactor !== "google_workspace_mfa") {
+    throw new Error("SESSION_V2_SECOND_FACTOR_INVALID");
+  }
+  if (claims.assuranceLevel === "aal2" && !claims.secondFactor) throw new Error("SESSION_V2_AAL2_REQUIRES_RECOGNIZED_MFA");
   if (claims.issuer !== keyRing.issuer) throw new Error("SESSION_V2_ISSUER_INVALID");
   if (claims.audience !== keyRing.audience) throw new Error("SESSION_V2_AUDIENCE_INVALID");
   if (claims.issuedAt > nowSeconds + clockSkewSeconds || claims.authTime > nowSeconds + clockSkewSeconds) throw new Error("SESSION_V2_FUTURE_TIMESTAMP");
@@ -146,7 +151,7 @@ export function verifyPlatformSessionV2(
   if (policy.providerUserDisabled) throw new Error("SESSION_V2_PROVIDER_DISABLED");
   if (policy.currentSessionVersion !== undefined && claims.sessionVersion !== policy.currentSessionVersion) throw new Error("SESSION_V2_REVOKED_BY_VERSION");
   if (policy.revokedSessionIds?.has(claims.sessionId)) throw new Error("SESSION_V2_REVOKED_SESSION");
-  if (policy.requiredAssuranceLevel === "aal2" && (claims.assuranceLevel !== "aal2" || claims.secondFactor !== "totp")) {
+  if (policy.requiredAssuranceLevel === "aal2" && (claims.assuranceLevel !== "aal2" || !claims.secondFactor)) {
     throw new Error("SESSION_V2_AAL2_REQUIRED");
   }
   return claims;

@@ -1,27 +1,50 @@
 {
   "schemaVersion": 1,
   "currency": "USD",
+  "billingAccountCurrency": "TWD",
+  "cloudBillingBudget": {
+    "currency": "TWD",
+    "amount": 9600,
+    "usdCap": 300,
+    "exchangeRateBasis": "Bank of Taiwan 2026-07-14 USD spot selling rate around 32.22 TWD; TWD 9600 remains below the approved USD 300 cap."
+  },
   "planningEstimateOnly": true,
-  "pricingReviewDate": "2026-07-13",
-  "costOwner": "jenfu-finops-owner",
-  "businessOwner": "jenfu-business-owner",
+  "pricingReviewDate": "2026-07-14",
+  "costOwner": "jedchang0308@jenfu.com.tw",
+  "businessOwner": "jedchang0308@jenfu.com.tw",
   "monthlyBudget": 300,
+  "planReviewStopAtUsd": 240,
+  "approvalStatus": "approved_below_plan_review_stop_pending_credentialled_plan",
+  "currentForecast": {
+    "scope": "DEV-046 Phase 2B and Phase 3A staging, excluding deferred Phase 3B GCS file authority",
+    "estimatedMonthlyUsd": 210,
+    "knownFixedFloorUsd": 104.92,
+    "planReviewStopAtUsd": 240,
+    "stopTriggered": false,
+    "basis": "HD-10-1 / 1A uses single-zone staging while production retains Regional HA. Taiwan list pricing for one vCPU, 3.75 GiB memory and 20 GiB SSD is approximately USD 86.67 per 730-hour month; the budget rounds Cloud SQL plus backup allowance to USD 90. Existing non-GCS allowances produce a conservative USD 210 Phase 2B/3A forecast. The approximately USD 104.92 fixed floor combines USD 86.67 Cloud SQL and USD 18.25 for the first-five global forwarding-rule tier; variable usage remains covered by service allowances and contingency.",
+    "pricingSources": [
+      "https://cloud.google.com/sql/pricing",
+      "https://cloud.google.com/vpc/pricing",
+      "https://cloud.google.com/run/pricing",
+      "https://cloud.google.com/products/calculator"
+    ]
+  },
   "monthlyAssumptions": [
-    { "service": "Cloud SQL regional HA and backups", "amount": 160, "basis": "phase1 planning placeholder; replace with Pricing Calculator evidence" },
+    { "service": "Cloud SQL single-zone staging and backups", "amount": 90, "basis": "Taiwan list-price calculation is approximately USD 86.67 for compute and 20 GiB SSD; rounded up for backup usage" },
     { "service": "Cloud Run and external Application Load Balancer", "amount": 45, "basis": "small internal pilot assumption" },
     { "service": "GCS primary, soft delete and backup copies", "amount": 20, "basis": "file workflows disabled in Phase 3A; revise before Phase 3B" },
     { "service": "Firebase Auth with Identity Platform", "amount": 10, "basis": "internal user planning allowance" },
     { "service": "Logging, monitoring, build and Artifact Registry", "amount": 35, "basis": "planning allowance pending measured staging run-rate" },
-    { "service": "Contingency", "amount": 30, "basis": "10 percent planning variance" }
+    { "service": "Contingency and approved budget headroom", "amount": 100, "basis": "remaining approved monthly budget headroom; credentialled plan review still stops at USD 240 forecast" }
   ],
   "alerts": [
-    { "threshold": 0.5, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner"] },
-    { "threshold": 0.8, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner", "jenfu-business-owner"] },
-    { "threshold": 1.0, "recipients": ["jenfu-finops-owner", "jenfu-platform-owner", "jenfu-business-owner"] }
+    { "threshold": 0.5, "recipients": ["jedchang0308@jenfu.com.tw", "dani@jenfu.com.tw"] },
+    { "threshold": 0.8, "recipients": ["jedchang0308@jenfu.com.tw", "dani@jenfu.com.tw"] },
+    { "threshold": 1.0, "recipients": ["jedchang0308@jenfu.com.tw", "dani@jenfu.com.tw"] }
   ],
   "varianceEscalation": {
     "monthlyVarianceRatio": 0.1,
-    "owner": "jenfu-finops-owner",
+    "owner": "jedchang0308@jenfu.com.tw",
     "decisionDueBusinessDays": 3
   },
   "programmaticNotificationTarget": "Pub/Sub budget topic in FinOps project during Phase 2",

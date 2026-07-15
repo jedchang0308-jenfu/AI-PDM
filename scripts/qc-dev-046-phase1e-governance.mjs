@@ -55,7 +55,7 @@ record("DEV046-1E-009 machine-readable inventory schema enumerates authorities",
 const cost = json("config/platform/cost-budget.template.json");
 const costPlanning = validateCostBudgetPolicy(cost);
 const costRelease = validateCostBudgetPolicy(cost, { requireReleaseReady: true });
-record("DEV046-1E-010 monthly assumptions owners and budget reconcile", costPlanning.valid && costPlanning.assumptionTotal === cost.monthlyBudget);
+record("DEV046-1E-010 monthly assumptions owners budget and 80 percent plan stop reconcile", costPlanning.valid && costPlanning.assumptionTotal === cost.monthlyBudget && cost.planReviewStopAtUsd === 240);
 record("DEV046-1E-011 budget alerts are 50 80 100 with recipients", costPlanning.valid && cost.alerts.every((alert) => alert.recipients.length >= 2));
 record("DEV046-1E-012 planning costs cannot masquerade as measured release cost", !costRelease.valid && costRelease.errors.includes("COST_MEASURED_RELEASE_EVIDENCE_REQUIRED") && cost.automaticBillingDisableAllowed === false);
 
@@ -81,7 +81,7 @@ const lateAck = evaluateContinuityIncident({
   restoredAt: "2026-07-17T09:10:00.000Z"
 });
 record("DEV046-1E-015 acknowledgement over 60 wall-clock minutes fails", !lateAck.valid && lateAck.errors.includes("CONTINUITY_ACK_BREACHED"));
-record("DEV046-1E-016 real roster remains a release blocker until named backup exists", continuity.roster.backup.startsWith("ASSIGN_") && continuity.releaseReady === false && continuity.regionalDrClaimAllowed === false);
+record("DEV046-1E-016 named backup is recorded while live continuity evidence remains open", continuity.roster.backup === "dani@jenfu.com.tw" && continuity.releaseReady === false && continuity.regionalDrClaimAllowed === false);
 
 const safeLog = {
   requestId: "request-001",

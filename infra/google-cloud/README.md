@@ -20,6 +20,9 @@ Production and staging releases must satisfy all of these gates:
    IAM database authentication. No service-account key file or static database
    password may be supplied.
 
-The reviewed values live in `config/platform/cloud-run.contract.json`. Actual
-Google project IDs, service accounts, domains and resources belong to Phase 2
-and the deployment release gate.
+The reviewed values live in `config/platform/cloud-run.contract.json`.
+`infra/google-cloud/staging` is the Phase 2A fail-closed Terraform review
+package. Its resource gate defaults to false and it has no approved backend,
+credentials, targets or apply authority. Actual staging resources belong to
+Phase 2B after all preflight blockers close; production remains under the
+deployment release gate.

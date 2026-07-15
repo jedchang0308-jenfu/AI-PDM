@@ -330,6 +330,7 @@ function initDatabase(database: SqliteDatabase) {
   ensurePreSchemaCompatibility(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
+  ensureTransferPackagePhase1DSchema(database);
   ensureCompanyScopeSchema(database);
   ensureNumberingCompanyScopeSchema(database);
   ensureNumberingWorkflowCompanyScopeSchema(database);
@@ -347,12 +348,160 @@ function initDatabase(database: SqliteDatabase) {
   reconcileItemCurrentRevisions(database);
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
   ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
+  ensureColumn(database, "part_numbers", "series_code", "TEXT");
+  ensureColumn(database, "numbering_draft_workspaces", "append_reason", "TEXT");
+  ensureColumn(database, "numbering_draft_parts", "universal_reason", "TEXT");
+  ensureColumn(database, "numbering_draft_parts", "series_code", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
   ensureSolidWorksNativePreviewSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   seedConfiguredUsers(database);
+}
+
+function ensureTransferPackagePhase1DSchema(database: SqliteDatabase) {
+  const packageTable = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'transfer_packages'")
+    .get() as { sql?: string } | undefined;
+  if (!packageTable?.sql || packageTable.sql.includes("'ApprovedPendingPublish'")) return;
+
+  type ForeignKeyFailure = { table: string; rowid: number | null; parent: string; fkid: number };
+  const foreignKeyFailureKey = (failure: ForeignKeyFailure) =>
+    `${failure.table}:${failure.rowid ?? "null"}:${failure.parent}:${failure.fkid}`;
+  const existingForeignKeyFailures = database.prepare("PRAGMA foreign_key_check").all() as ForeignKeyFailure[];
+  const existingForeignKeyFailureKeys = new Set(existingForeignKeyFailures.map(foreignKeyFailureKey));
+
+  database.exec("PRAGMA foreign_keys = OFF;");
+  try {
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      CREATE TABLE transfer_packages_phase1d (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        package_code TEXT NOT NULL,
+        title TEXT NOT NULL,
+        case_type TEXT NOT NULL CHECK (case_type IN ('development_case', 'design_change_case')),
+        case_reason TEXT NOT NULL,
+        source_reference_status TEXT NOT NULL DEFAULT 'not_available'
+          CHECK (source_reference_status IN ('provided', 'not_available')),
+        source_reference TEXT,
+        source_reference_reason TEXT,
+        package_status TEXT NOT NULL DEFAULT 'Draft'
+          CHECK (package_status IN ('Draft', 'InReview', 'NeedsInfo', 'ApprovedPendingPublish', 'Publishing', 'Published', 'ReleaseFailed', 'Cancelled')),
+        owner_id TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        create_idempotency_key TEXT NOT NULL,
+        row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+        review_request_id TEXT,
+        review_snapshot_hash TEXT,
+        review_snapshot_version INTEGER NOT NULL DEFAULT 0 CHECK (review_snapshot_version >= 0),
+        submitted_by TEXT,
+        submitted_at TEXT,
+        approved_by TEXT,
+        approved_at TEXT,
+        published_by TEXT,
+        published_at TEXT,
+        release_failure_correlation_id TEXT,
+        cancel_reason TEXT,
+        cancelled_by TEXT,
+        cancelled_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (company_id) REFERENCES companies(id),
+        FOREIGN KEY (owner_id) REFERENCES users(id),
+        FOREIGN KEY (created_by) REFERENCES users(id),
+        FOREIGN KEY (submitted_by) REFERENCES users(id),
+        FOREIGN KEY (approved_by) REFERENCES users(id),
+        FOREIGN KEY (published_by) REFERENCES users(id),
+        FOREIGN KEY (cancelled_by) REFERENCES users(id),
+        UNIQUE (company_id, package_code),
+        UNIQUE (company_id, created_by, create_idempotency_key),
+        CHECK (
+          (source_reference_status = 'provided' AND source_reference IS NOT NULL)
+          OR (source_reference_status = 'not_available' AND source_reference_reason IS NOT NULL)
+        ),
+        CHECK (
+          (package_status = 'Cancelled' AND cancel_reason IS NOT NULL AND cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL)
+          OR package_status <> 'Cancelled'
+        )
+      );
+
+      INSERT INTO transfer_packages_phase1d (
+        id, company_id, package_code, title, case_type, case_reason,
+        source_reference_status, source_reference, source_reference_reason,
+        package_status, owner_id, created_by, create_idempotency_key, row_version,
+        cancel_reason, cancelled_by, cancelled_at, created_at, updated_at
+      )
+      SELECT
+        id, company_id, package_code, title, case_type, case_reason,
+        source_reference_status, source_reference, source_reference_reason,
+        package_status, owner_id, created_by, create_idempotency_key, row_version,
+        cancel_reason, cancelled_by, cancelled_at, created_at, updated_at
+      FROM transfer_packages;
+
+      DROP TABLE transfer_packages;
+      ALTER TABLE transfer_packages_phase1d RENAME TO transfer_packages;
+
+      CREATE TABLE transfer_package_events_phase1d (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        package_id TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN (
+          'DraftCreated', 'HeaderUpdated', 'ScopeItemAdded', 'ScopeItemRemoved',
+          'DraftWorkspaceAdded', 'DraftWorkspaceRemoved', 'ReviewSubmitted', 'ReviewWithdrawn',
+          'ReviewDecided', 'SnapshotInvalidated', 'PackagePublished', 'ReleaseFailed', 'PackageCancelled'
+        )),
+        actor_id TEXT NOT NULL,
+        detail_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (company_id) REFERENCES companies(id),
+        FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+        FOREIGN KEY (actor_id) REFERENCES users(id)
+      );
+
+      INSERT INTO transfer_package_events_phase1d
+      SELECT id, company_id, package_id, event_type, actor_id, detail_json, created_at
+      FROM transfer_package_events;
+      DROP TABLE transfer_package_events;
+      ALTER TABLE transfer_package_events_phase1d RENAME TO transfer_package_events;
+
+      CREATE INDEX IF NOT EXISTS idx_transfer_packages_company_status_updated
+        ON transfer_packages(company_id, package_status, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_transfer_packages_owner_status
+        ON transfer_packages(company_id, owner_id, package_status, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_transfer_package_events_package
+        ON transfer_package_events(company_id, package_id, created_at);
+      CREATE TRIGGER IF NOT EXISTS trg_transfer_package_events_no_update
+      BEFORE UPDATE ON transfer_package_events
+      BEGIN
+        SELECT RAISE(ABORT, 'TRANSFER_PACKAGE_EVENT_APPEND_ONLY');
+      END;
+      CREATE TRIGGER IF NOT EXISTS trg_transfer_package_events_no_delete
+      BEFORE DELETE ON transfer_package_events
+      BEGIN
+        SELECT RAISE(ABORT, 'TRANSFER_PACKAGE_EVENT_APPEND_ONLY');
+      END;
+    `);
+    const foreignKeyFailures = database.prepare("PRAGMA foreign_key_check").all() as ForeignKeyFailure[];
+    const introducedForeignKeyFailures = foreignKeyFailures.filter(
+      (failure) => !existingForeignKeyFailureKeys.has(foreignKeyFailureKey(failure))
+    );
+    if (introducedForeignKeyFailures.length > 0) {
+      throw new Error("TRANSFER_PACKAGE_PHASE1D_FOREIGN_KEY_CHECK_FAILED");
+    }
+    database.exec("COMMIT;");
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK;");
+    } catch {
+      // The original error is more useful when SQLite has already rolled back.
+    }
+    throw error;
+  } finally {
+    database.exec("PRAGMA foreign_keys = ON;");
+  }
 }
 
 function ensurePreSchemaCompatibility(database: SqliteDatabase) {

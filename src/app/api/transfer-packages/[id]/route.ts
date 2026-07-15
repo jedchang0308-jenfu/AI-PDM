@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { numberStateFlowJson, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import { requireTransferPackageAccessAsync, transferPackageErrorResponse } from "@/lib/transfer-package-api";
 import { getTransferPackageWorkbench, updateTransferPackageHeader } from "@/lib/transfer-packages";
 
@@ -10,15 +10,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const workbench = await getTransferPackageWorkbench(id, access.company.companyId);
-    return NextResponse.json({ workbench, pdmCompany: access.company });
+    return numberStateFlowJson({ workbench, pdmCompany: access.company });
   } catch (error) {
     return transferPackageErrorResponse(error, "技轉包讀取失敗。");
   }
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const access = await requireTransferPackageAccessAsync(request, body);
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  if (!body) return numberStateFlowJson({ error: "invalid_json", message: "請提供有效的 JSON。" }, { status: 400 });
+  const invalid = validateNumberStateMutationRequest({ request });
+  if (invalid) return invalid;
+  const access = await requireTransferPackageAccessAsync(request, body, "transfer.package.update");
   if (access.response) return access.response;
   const { id } = await params;
   try {
@@ -33,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       sourceReference: body.sourceReference ?? body.source_reference,
       sourceReferenceReason: body.sourceReferenceReason ?? body.source_reference_reason
     });
-    return NextResponse.json({ workbench, pdmCompany: access.company });
+    return numberStateFlowJson({ workbench, pdmCompany: access.company });
   } catch (error) {
     return transferPackageErrorResponse(error, "技轉包儲存失敗。");
   }

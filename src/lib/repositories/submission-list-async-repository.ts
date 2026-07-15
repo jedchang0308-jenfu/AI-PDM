@@ -105,11 +105,11 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
   LEFT JOIN submission_files f ON f.submission_id = s.id
   LEFT JOIN release_packages rp ON rp.submission_id = s.id
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
-  WHERE (:status IS NULL OR s.status = :status)
-    AND (:includeHistory = 1 OR s.status <> 'Obsolete')
-    AND (:includeHistory = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
-    AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
-    AND (:companyId IS NULL OR s.company_id = :companyId)
+  WHERE (CAST(:status AS text) IS NULL OR s.status = CAST(:status AS text))
+    AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'Obsolete')
+    AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
+    AND (CAST(:submittedBy AS text) IS NULL OR s.submitted_by = CAST(:submittedBy AS text))
+    AND (CAST(:companyId AS text) IS NULL OR s.company_id = CAST(:companyId AS text))
   GROUP BY
     s.id,
     s.company_id,
@@ -163,11 +163,11 @@ export const SELECT_ASYNC_SUBMISSION_SUMMARIES_POSTGRES = `
   LEFT JOIN submission_files f ON f.submission_id = s.id
   LEFT JOIN release_packages rp ON rp.submission_id = s.id
   LEFT JOIN item_locks il ON il.item_id = s.item_id AND il.expires_at > :now
-  WHERE (:status IS NULL OR s.status = :status)
-    AND (:includeHistory = 1 OR s.status <> 'Obsolete')
-    AND (:includeHistory = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
-    AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
-    AND (:companyId IS NULL OR s.company_id = :companyId)
+  WHERE (CAST(:status AS text) IS NULL OR s.status = CAST(:status AS text))
+    AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'Obsolete')
+    AND (CAST(:includeHistory AS integer) = 1 OR s.status <> 'ReleaseFailed' OR s.resolved_by_submission_id IS NULL)
+    AND (CAST(:submittedBy AS text) IS NULL OR s.submitted_by = CAST(:submittedBy AS text))
+    AND (CAST(:companyId AS text) IS NULL OR s.company_id = CAST(:companyId AS text))
   GROUP BY
     s.id,
     s.company_id,

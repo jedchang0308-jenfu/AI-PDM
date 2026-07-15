@@ -12,7 +12,15 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     aggregateId: string;
     eventType: string;
     payload: Record<string, unknown>;
-  };
+    idempotencyKeySuffix?: string;
+  } | Array<{
+    aggregateType: string;
+    aggregateId: string;
+    eventType: string;
+    payload: Record<string, unknown>;
+    idempotencyKeySuffix?: string;
+  }>;
+  faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 }): Promise<{ result: TResult; reusedFromCommandReceipt: boolean }> {
   return input.client.transaction(async (client) => {
     const mappingRepository = new PlatformMappingAsyncRepository(client);
@@ -45,9 +53,14 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     }
 
     const result = await input.execute(client);
-    const event = input.event(result);
-    await outbox.enqueue({ command, ...event });
+    const events = input.event(result);
+    input.faultInjector?.("before_outbox_enqueue");
+    for (const event of Array.isArray(events) ? events : [events]) {
+      await outbox.enqueue({ command, ...event });
+    }
+    input.faultInjector?.("before_command_complete");
     await outbox.completeCommand(command, result);
+    input.faultInjector?.("after_command_complete");
     return { result, reusedFromCommandReceipt: false };
   });
 }

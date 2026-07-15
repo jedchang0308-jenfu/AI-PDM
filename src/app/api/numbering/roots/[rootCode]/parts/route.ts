@@ -25,10 +25,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
 
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
+  const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
   const isUniversal = itemKind === "shared" || Boolean(body.isUniversal ?? body.is_universal);
   const universalReason = String(body.universalReason ?? body.universal_reason ?? "").trim();
   const errors: string[] = [];
   if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
+  if (seriesCode.length > 80) errors.push("seriesCode must be 80 characters or fewer");
   if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
   if (errors.length > 0) return NextResponse.json({ error: "Invalid contextual part request", details: errors }, { status: 400 });
 
@@ -38,6 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       rootCode: decodeURIComponent(rootCode),
       itemKind,
       customSpecification,
+      seriesCode,
       isUniversal,
       universalReason,
       reason: String(body.reason ?? "").trim(),

@@ -45,8 +45,11 @@ const targets = [
   {
     key: "formal_field_test",
     evidenceKey: "fieldTestReady",
-    matcher: (line) => line.includes("DEV-FIELD-001") || line.includes("正式現場測試"),
-    blocker: "Formal field-test evidence is not ready."
+    matcher: (line) =>
+      !/Cancelled by Human Decision|取消/u.test(line) &&
+      (line.includes("DEV-FIELD-001") || line.includes("正式現場測試")),
+    blocker: "Formal field-test evidence is not ready.",
+    required: false
   },
   {
     key: "supabase_shadow",

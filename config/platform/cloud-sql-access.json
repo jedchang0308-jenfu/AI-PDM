@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "runtimeServiceIdentityIamRoles": [
     "roles/cloudsql.client",
+    "roles/cloudsql.instanceUser",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter"
   ],

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "phase": "phase1-planning",
-  "reviewOwner": "jenfu-platform-owner",
+  "reviewOwner": "jedchang0308@jenfu.com.tw",
   "releaseReady": false,
   "entries": [
     {
@@ -9,8 +9,8 @@
       "authority": "Firebase Authentication with Identity Platform",
       "location": "provider-managed-US-processing",
       "placementStatus": "provider-managed-exception",
-      "retentionPolicy": "minimized identity fields; deletion schedule requires privacy approval before Phase 2",
-      "retentionOwner": "jenfu-privacy-owner",
+      "retentionPolicy": "disable immediately on offboarding; delete Firebase identity after 30 days unless a documented legal or security hold applies",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false,
       "exceptionApproved": true
     },
@@ -19,8 +19,8 @@
       "authority": "Cloud SQL for PostgreSQL",
       "location": "asia-east1",
       "placementStatus": "planned",
-      "retentionPolicy": "operational retention schedule must be frozen before production",
-      "retentionOwner": "jenfu-data-owner",
+      "retentionPolicy": "minimum official-number/non-reuse ledger permanent; closed or cancelled drafts 3 years; operation audit 3 years using stable PDM user ID; retired raw employee-login-alias mapping 3 years; remaining operational classes require an approved schedule before production",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": true
     },
     {
@@ -29,7 +29,7 @@
       "location": "asia-east1",
       "placementStatus": "planned",
       "retentionPolicy": "30-day soft delete target; record retention requires separate approval",
-      "retentionOwner": "jenfu-pdm-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": true
     },
     {
@@ -38,7 +38,7 @@
       "location": "asia-east1",
       "placementStatus": "planned",
       "retentionPolicy": "Cloud SQL PITR plus isolated pre-canary restore; long-term backup remains deferred",
-      "retentionOwner": "jenfu-continuity-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": true,
       "regionalDrClaimAllowed": false
     },
@@ -48,7 +48,7 @@
       "location": "asia-east1",
       "placementStatus": "planned",
       "retentionPolicy": "immutable revisions retained through release rollback window",
-      "retentionOwner": "jenfu-platform-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false
     },
     {
@@ -57,7 +57,7 @@
       "location": "asia-east1-where-configurable",
       "placementStatus": "planned",
       "retentionPolicy": "digest-pinned release images; deletion policy requires measured storage cost",
-      "retentionOwner": "jenfu-release-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false
     },
     {
@@ -65,8 +65,8 @@
       "authority": "Cloud Logging",
       "location": "asia-east1 custom application bucket plus global system buckets",
       "placementStatus": "provider-managed-exception",
-      "retentionPolicy": "application bucket schedule pending; global _Required bucket is fixed at 400 days",
-      "retentionOwner": "jenfu-security-owner",
+      "retentionPolicy": "application security logs 365 days; global _Required bucket provider retention is fixed at 400 days and disclosed separately",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false,
       "exceptionApproved": true
     },
@@ -76,7 +76,7 @@
       "location": "asia-east1 user-managed replication/key ring",
       "placementStatus": "planned",
       "retentionPolicy": "rotation and disabled-version destruction schedule required before live use",
-      "retentionOwner": "jenfu-security-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false
     },
     {
@@ -85,7 +85,7 @@
       "location": "Google Workspace provider-managed",
       "placementStatus": "provider-managed-exception",
       "retentionPolicy": "classification-specific Workspace retention requires business owner approval",
-      "retentionOwner": "jenfu-business-owner",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
       "containsFormalData": false,
       "exceptionApproved": true
     }

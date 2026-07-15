@@ -9,7 +9,7 @@ import { readProjectFileIfExists, readProjectJson } from "./qc-project-file-util
 const root = process.cwd();
 const results = [];
 const expectedBlockers = [
-  { id: "DEV-FIELD-001", category: "external_field_test" }
+  { id: "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001", category: "release_readiness_gate" }
 ];
 const deferredScopeIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"];
 const completedGateIds = ["DEV-IND-007"];
@@ -78,9 +78,13 @@ for (const blocker of expectedBlockers) {
   record(`EXT-CLOSE readiness includes ${blocker.id}`, Boolean(readinessBlocker), blocker.id);
   record(`EXT-CLOSE readiness category for ${blocker.id}`, readinessBlocker?.category === blocker.category, readinessBlocker?.category ?? "missing");
   record(`EXT-CLOSE dev_task keeps ${blocker.id} blocked`, taskText.includes(`| [!] | ${blocker.id} |`), blocker.id);
-  assertIncludes("EXT-CLOSE external handoff", externalHandoff, blocker.id);
-  assertIncludes("EXT-CLOSE active blocker report", activeBlockerReport, blocker.id);
 }
+
+record(
+  "EXT-CLOSE DEV-FIELD-001 is closed as cancelled, not blocked",
+  taskText.includes("| [x] | DEV-FIELD-001 |") && /DEV-FIELD-001[^\n]+Cancelled by Human Decision/u.test(taskText),
+  "HD-9-1"
+);
 
 for (const id of deferredScopeIds) {
   assertIncludes("EXT-CLOSE dev_task keeps deferred scope visible", taskText, id);

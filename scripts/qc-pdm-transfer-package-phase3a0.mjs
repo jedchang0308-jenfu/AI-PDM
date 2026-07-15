@@ -82,7 +82,7 @@ record("TP0-007 source aliases normalize to canonical entities", includesAll(dom
 ]));
 record("TP0-008 create API requires Idempotency-Key", createRoute.includes('request.headers.get("Idempotency-Key")'));
 record("TP0-009 workbench context GET cannot call create", contextRoute.includes("getTransferPackageWorkbenchContext") && !contextRoute.includes("createTransferPackageDraft"));
-record("TP0-010 Header, item, remove, cancel and readiness routes exist", includesAll(detailRoute, ["export async function GET", "export async function PATCH"]) && itemRoute.includes("export async function POST") && removeRoute.includes("export async function DELETE") && cancelRoute.includes("cancelTransferPackage") && readinessRoute.includes("buildTransferPackageReadinessSummary"));
+record("TP0-010 Header, item, remove, cancel and readiness routes exist", includesAll(detailRoute, ["export async function GET", "export async function PATCH"]) && itemRoute.includes("export async function POST") && removeRoute.includes("export async function DELETE") && cancelRoute.includes("cancelTransferPackage") && readinessRoute.includes("buildTransferPackageReadiness"));
 record("TP0-011 new and detail routes share one workbench shell", newPage.includes("TransferPackageWorkbenchShell") && detailPage.includes("TransferPackageWorkbenchShell"));
 record("TP0-012 UI exposes explicit create, scope, adapters, blockers and history", includesAll(workbench, [
   "建立技轉包",
@@ -92,9 +92,10 @@ record("TP0-012 UI exposes explicit create, scope, adapters, blockers and histor
   "異動紀錄",
   "data-transfer-package-mode"
 ]));
-record("TP0-013 parser and formal submit remain honest unavailable capabilities", includesAll(domain, [
+record("TP0-013 parser and baseline remain unavailable while Phase 1D formal submit is explicit", includesAll(domain, [
   "packAndGoIntake: false",
-  "formalSubmit: false",
+  "formalSubmit: true",
+  "baseline: false",
   'status: "unavailable"'
 ]));
 record("TP0-014 cancellation uses reason, confirmation and terminal evidence", includesAll(workbench, [
@@ -109,7 +110,7 @@ try {
   const db = new Database(":memory:");
   db.exec(schema);
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'transfer_package%' ORDER BY name").all();
-  record("TP0-016 SQLite schema initializes with all transfer tables", tables.length === 4, JSON.stringify(tables));
+  record("TP0-016 SQLite schema initializes with all transfer tables", tables.length === 5, JSON.stringify(tables));
 
   db.prepare("INSERT OR IGNORE INTO companies (id, company_code, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
     .run("qc-company", "QC041", "QC", new Date().toISOString(), new Date().toISOString());

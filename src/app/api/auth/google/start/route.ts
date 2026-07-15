@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { AccountInvitationError, lookupAccountInvitationAsync } from "@/lib/account-invitations";
 import { beginGoogleOAuth, GoogleOAuthError } from "@/lib/google-oauth";
+import { getAuthMode } from "@/lib/auth-config";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "legacy_google_oauth_disabled" }, { status: 404 });
+  }
   const url = new URL(request.url);
   const invitationToken = url.searchParams.get("invite_token")?.trim() ?? "";
   const returnTo = url.searchParams.get("return_to") ?? "/";

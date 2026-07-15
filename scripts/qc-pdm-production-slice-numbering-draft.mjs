@@ -31,6 +31,7 @@ const statusRoute = readRequired("src/app/api/production-slice/status/route.ts")
 const blockedPage = readRequired("src/app/production-slice-blocked/page.tsx");
 const sidebar = readRequired("src/components/sidebar-nav.tsx");
 const partDraftPage = readRequired("src/app/numbering/part-drafts/page.tsx");
+const numberStateWorkspace = readRequired("src/components/number-state-workspace.tsx");
 const globalCss = readRequired("src/app/globals.css");
 const envExample = readRequired(".env.example");
 const submitReviewRoute = readRequired("src/app/api/numbering/part-number-drafts/[draftId]/submit-review/route.ts");
@@ -46,6 +47,7 @@ record("SLICE-001 helper defines official numbering/draft mode", helper.includes
 record("SLICE-002 helper uses stable unopened machine code", helper.includes("feature_not_open_in_production_slice"));
 record("SLICE-003 helper documents Chinese unopened message", helper.includes("此功能未納入本次正式領號 / 草稿 production slice。"));
 record("SLICE-004 allowed mutation list opens official create", /method:\s*"POST"[\s\S]*\/records/.test(allowedSection));
+record("SLICE-004A allowed mutation list opens duplicate-check guard", /method:\s*"POST"[\s\S]*duplicate-check/.test(allowedSection));
 record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\[\^\/\]\+\\\/drawings/.test(allowedSection) && /roots\\\/\[\^\/\]\+\\\/parts/.test(allowedSection) && /drawing-part/.test(allowedSection));
 record("SLICE-006 allowed mutation list opens provisional draft create/edit/void/recycle", /part-number-drafts/.test(allowedSection) && /void/.test(allowedSection) && /recycle/.test(allowedSection) && /method:\s*"PATCH"/.test(allowedSection));
 record(
@@ -73,6 +75,7 @@ record("SLICE-024 void/recycle domain uses existing controlled-boundary predicat
 record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(allowedSection) && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
 record("SLICE-027 CSS styles unopened nav and icon controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
+record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 草稿 production slice 邊界封鎖"));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

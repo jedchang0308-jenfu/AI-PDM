@@ -66,7 +66,16 @@ export const SELECT_ASYNC_PENDING_REVIEW_NOTIFICATIONS_SQL = `
   LEFT JOIN approval_steps a ON a.submission_id = s.id AND a.decision = 'Approved'
   WHERE s.status = 'Pending'
     AND (:scopeEngineer = 0 OR s.submitted_by = :userId)
-  GROUP BY s.id
+  GROUP BY
+    s.id,
+    s.drawing_number,
+    s.revision,
+    i.part_number,
+    i.part_name,
+    s.submitted_by,
+    u.display_name,
+    s.approval_required,
+    s.created_at
   ORDER BY s.created_at DESC, s.id DESC
   LIMIT :limit
 `;

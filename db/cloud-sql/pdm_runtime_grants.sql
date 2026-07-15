@@ -23,10 +23,10 @@ GRANT USAGE, CREATE ON SCHEMA public TO pdm_migration;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO pdm_runtime;
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO pdm_runtime;
-ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO pdm_runtime;
-ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA public
-  GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO pdm_runtime;
+
+-- Cloud SQL's managed postgres role cannot alter another role's default
+-- privileges. Every successful migration must run pdm_runtime_grants_refresh.sql
+-- in the same transaction instead.
 
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM pdm_runtime;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM pdm_runtime;

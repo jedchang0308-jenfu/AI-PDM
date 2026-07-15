@@ -33,6 +33,7 @@ export class FakeFirebaseIdentityProvider implements FirebaseIdentityProvider {
       emailVerified: false,
       disabled: input.disabled,
       authTimeSeconds: 0,
+      signInProvider: "password",
       secondFactor: null
     });
     return { uid: input.uid, email: input.email };

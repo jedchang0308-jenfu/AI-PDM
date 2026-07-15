@@ -1,7 +1,7 @@
 # SPEC-PDM-ACCOUNT-LIFECYCLE-001 - 帳號生命週期與安全管理台
 
-日期：2026-07-13
-狀態：Phase 1 `本機完成 / QC Passed`；Phase 2-3 `RD Contract Ready / Not Requested`；production `Release Gate Required`（DEV-046 `HD-8-1..4` closed）
+日期：2026-07-13（最近更新：2026-07-14）
+狀態：Phase 1 + Phase 2 local slice `本機完成 / QC Passed`；Phase 3A 工號登入別名 local slice `Implemented / QC Accepted`；Phase 3B provider/staging/production `Release Gate Required`（DEV-046 `HD-8-1..4` closed）
 DEV：`DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`
 父任務：`DEV-003`、`DEV-040`、`DEV-042`、`DEV-043`、`DEV-044`
 相關 QA：`.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`
@@ -22,6 +22,9 @@ DEV：`DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`
 - `jedchang0308@jenfu.com.tw` 已在本機 managed-auth SQLite bootstrap 為唯一 active Admin，其他 demo 帳號已 offboard 並撤銷 session/identity/role；這是本機資料狀態，不是 production Firebase 帳號完成證據。
 - 使用者提出的初始密碼 `1655` 不符合既有 10-128 字元密碼政策，因此未寫入。系統改建立一次性 recovery link，由使用者自行設定合規密碼；raw link/token 不得寫入本文件、audit 或 QC evidence。
 - Phase 3 provider authority 為 `ADR-PDM-ERP-PLATFORM-002`：`HD-8-1 / 1A` 使用 Cloud Run `asia-east1` + Next.js 16；`HD-8-2 / 2A` 使用 internal primary+backup 與 60 分鐘 all-hours acknowledgement；`HD-8-3 / 3B` 要求 staging 測兩種帳號、Wave 0 Google-only、Wave 1 至少一個 controlled non-Google email-link 帳號。`HD-7-2 / 2B` 維持 clean production 與 source read-only archive。所有正式 business profile、公司、角色、lifecycle、session、audit data 只在 Cloud SQL；Firebase/Identity Platform 僅保存登入必要 credential、UID 與 auth metadata，不使用 Firestore、Firebase Storage、Functions、Callable 或 Firestore trigger 作 business authority。
+- 2026-07-13 使用者決定 production 支援工號登入別名與帳號映射，但不開發 AI_PDM 自有密碼儲存、MFA 或密碼重設系統。工號只啟動 provider routing；Cloud Identity／Firebase Identity Platform 擁有 credential、MFA 與 recovery，BFF 最終仍只依 verified provider UID 映射 stable PDM User ID。
+- 2026-07-14 Phase 2 本機切片已完成：provider-managed recovery handoff 只觸發 Firebase-managed action email contract，session/device visibility 以 server-owned `account_session_records` additive registry 呈現並撤銷其他 session；live provider寄信、authorized domain/quota/privacy審查、Cloud SQL live migration、staging/production與MFA rollout仍未執行。
+- 2026-07-15 使用者決定公司 Google Workspace 使用者不再由 AI_PDM 要求首次 TOTP enrollment，且 initial 3-person pilot 暫不要求 Google Workspace 管理端先強制 2-Step Verification。BFF 在 Firebase verified provider 為 `google.com`、email domain 在 `PDM_GOOGLE_WORKSPACE_DOMAINS`、且 `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true` 時，僅允許受控 pilot 以 AAL1 登入高權限帳號；不得把此路徑記為 `google_workspace_mfa` 或 AAL2。只有實際強制 Workspace 2SV 且 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=true` 時，才可視為 Workspace-managed MFA。AI_PDM 不產生、不保存、也不要求使用者新增 Authenticator App 金鑰；non-Google 或非受信 provider 若需要高權限 assurance 仍 fail closed。
 
 ### 採用的安全預設
 
@@ -39,6 +42,7 @@ DEV：`DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`
 ### 被拒絕選項
 
 - 在 UI 顯示、保存或寄送明文密碼。
+- 在 production 建立 AI_PDM 自有 password hash/store、MFA secret/recovery code store 或密碼重設引擎。
 - 將角色指派的「到期停用日」冒充為帳號停權。
 - 只顯示角色時間欄位，卻沒有讓同步／非同步 permission path 實際套用生效與到期條件。
 - 停權或離職時刪除使用者、identity、角色歷史或 audit。
@@ -385,48 +389,55 @@ recovery surface 安全規則：
 - UI screenshots與 viewport 檢查。
 - no-ProJED-change與 no-live-migration evidence。
 
-## Phase 2 RD Handoff Contract - Self-service and Session Visibility
+## Phase 2 RD Handoff Contract - Provider Recovery Handoff and Session Visibility
 
-狀態：`RD Contract Ready / Not Requested This Turn`
+狀態：`本機完成 / QC Passed`（local slice）；live provider/domain/quota/privacy/session-retention gate 仍為 `Release Gate Required`
 
-Purpose：讓 active 使用者變更自己的密碼、查看 session 摘要並撤銷其他 session；加入自助忘記密碼 adapter。live Identity Platform 階段預設使用 Firebase-managed action email；只有自訂品牌寄信才引入 custom SMTP/provider。
+Purpose：讓 active 使用者查看 session 摘要並撤銷其他 session，且能安全前往 Cloud Identity／Firebase provider-managed recovery；不在 AI_PDM 變更、保存或重設密碼。
 
 Implementation contract：
 
 - 引入 first-class opaque session records，DB 只存 token hash／session family ID、issued/last-seen/expires/revoked metadata；不存 raw token。
+- Phase 2 session records 是加掛於 DEV-046 `pdm_session` v2 / BFF session authority 的裝置與可視性登錄，不得成為第二套 token authority，也不得取代 `users.session_invalid_before`、central revocation 或 DEV-046 session policy。
 - 使用者可查看裝置類型、最近活動、建立時間與是否為目前 session；IP 僅保存縮減／hash 後資訊並定義 retention。
-- 變更密碼要求 current password 或已完成 MFA/re-auth；成功後可選擇保留目前 session、撤銷其他 session。
-- forgot-password service 定義 provider-neutral delivery adapter；local/Phase 2 使用 fake，Phase 3 live 預設接 Firebase-managed action email。自訂 SMTP 是可替換 adapter，不得成為 domain service 或 command path。
+- 「變更／忘記密碼」只建立 provider recovery handoff：Cloud Identity 轉至 Google 管理流程；Firebase email/password 只觸發 Firebase-managed action email。AI_PDM 不接收 current/new password、不產生 reset token，也不保存 provider MFA/recovery secret。
+- Provider handoff 使用泛化回應、rate limit、same-origin/CSRF 防護與 audit metadata；自訂 SMTP、application-owned token 或 application-owned recovery API 均不在範圍。
 - Admin action 與 self-service action 使用不同 permission/audit action code。
 
-Entry condition：Phase 1 QC complete；完成 Firebase action-email template、authorized domain、quota、寄送責任與隱私 retention 審查。只有選擇 custom SMTP 時才需另確認 provider、DNS、費用與 secret。
+Entry condition：本機切片以 Phase 1 QC complete 與 DEV-046 BFF session v2 contract stable 為入口；live provider 寄信前仍須完成 Google/Firebase recovery destination、authorized domain、action-email template/quota、寄送責任與隱私 retention 審查。
 
-Acceptance：session 可個別撤銷；重設／變更密碼不可被 CSRF、token reuse 或 user enumeration 利用；delivery failure 可重試且不產生第二個有效 token。
+Acceptance：session 可個別撤銷；recovery handoff 不洩漏帳號存在性、不讓密碼或 provider token 進入 AI_PDM BFF/DB/log，provider failure 可重試且不產生 application-owned credential。
 
-QA/QC：session fixation、CSRF、concurrent revoke、current-session retention、Firebase-managed email/fake adapter failure、privacy retention與跨裝置測試。
+QA/QC：session fixation、CSRF、concurrent revoke、current-session retention、Google/Firebase managed recovery failure、no-password-ingress、privacy retention與跨裝置測試。
 
-Stop conditions：需要未核准的 custom provider/DNS/secret、Firebase template/domain/quota/privacy 未審查、session metadata retention 未核准。
+Stop conditions：需要 application-owned password/reset/MFA store、未核准 custom provider/DNS/secret、Google/Firebase recovery/domain/quota/privacy 未審查或 session metadata retention 未核准。
 
-Evidence：provider contract tests、session-table migration parity、security tests、desktop/mobile self-service UI。
+Evidence：`.ai-doc/qc/qc-dev-045-phase2-session-recovery-2026-07-14.md`、`npm run qc:dev-045-phase2` 14/14、`npm run qc:supabase-runtime-migrations` 66/66、`npx tsc --noEmit`；live provider/domain/quota/privacy evidence 尚未建立。
 
 ## Phase 3 RD Handoff Contract - Shared IAM and MFA Rollout
 
-狀態：`RD Contract Ready / Not Requested This Turn`；production execution 為 `Release Gate Required`（DEV-046 `HD-8-1..4` closed）
+狀態：工號登入別名 local slice `Implemented / QC Accepted`；其餘 Phase 3 provider/staging/production execution 為 `Release Gate Required`（DEV-046 `HD-8-1..4` closed）
 
 Purpose：依 `ADR-PDM-ERP-PLATFORM-002` 將 Firebase Auth with Identity Platform 作為 ERP 共用 IAM，Admin/Approver 強制 TOTP MFA，中央 offboarding 撤銷所有 module sessions；Firebase 終止於 Next.js BFF，瀏覽器不以 Firebase JWT 直連 Cloud SQL 或任何 operational table API。
 
 Implementation contract：
 
 - 以 platform principal mapping 對應新建立的穩定 production PDM user；不以 email、domain、來源 actor ID 或 user-editable metadata 授權。
+- DEV-046 擁有 Firebase BFF 終止、TOTP/AAL policy、session core、principal mapping、Cloud SQL migration 與 provider rollout；DEV-045 只擁有 `/settings/accounts` 帳號管理 UX、self-service recovery/session visibility 入口與 Admin lifecycle operation surface。
+- 建立 company-scoped 工號登入別名映射；alias 只產生短效 single-use provider routing intent，provider callback 仍須以 verified UID 命中同一 active principal/company 才能簽發 session。
 - reprovision 必須先 collision dry-run、company isolation 與 session revocation rehearsal；不得匯入既有 password hash、OAuth subject、session、refresh token 或 recovery token。
-- production cutover 前，每個 approved pilot 帳號都必須進入 identity-reprovision manifest，明列 newly assigned production PDM user ID、canonical email、Firebase UID/provider、company、role/scope、MFA、legacy closure、collision 與最終 disposition；來源 actor ID/history 留在唯讀封存，不得靠相同 email 自動補映射。
+- provider rollout 的 staging 必須同時驗證 Google Workspace 與受控 non-Google 路徑；production Wave 0 僅限具名 Google Workspace 使用者，controlled non-Google 只可在 DEV-032 明確 allowlist/release 後進入 Wave 1。
+- production cutover 前，每個 staging／production approved 帳號都必須進入 identity-reprovision manifest，明列 newly assigned production PDM user ID、canonical email、Firebase UID/provider、company、role/scope、MFA、legacy closure、collision 與最終 disposition；來源 actor ID/history 留在唯讀封存，不得靠相同 email 自動補映射。
 - legacy managed-auth、`google_oauth` callback、token issuance 與 recovery 路徑在 Firebase cutover 前必須明確關閉；使用者已決定不保留既有憑證，因此不設 production 雙 IAM 共存期。
-- MFA policy、recovery、break-glass Admin、offboarding owner、support runbook 在 rollout 前完整定義。
+- MFA policy、recovery、break-glass Admin、offboarding owner、support runbook 在 rollout 前完整定義，但 MFA/recovery engine 與 secret authority 屬 Cloud Identity／Firebase Identity Platform，不得在 AI_PDM 重作。
+- Cloud break-glass identities 只屬雲端身分治理，不是 PDM business user，不得取得 PDM application session；PDM factor recovery 是獨立的雙人核准與稽核 action。
 - UI 管理狀態與受控 lifecycle；provider bootstrap、redirect domain、service secret 不由一般 UI 直接寫入。
+
+2026-07-13 local implementation evidence：`/settings/accounts` 已可由同公司Admin新增與退役工號／登入別名，要求原因並以row version防止競態；登入頁可輸入工號建立短效single-use intent，再由Firebase provider驗證並以UID/company一致性兌換BFF session。未知別名與有效別名使用相同公開challenge形狀，AI_PDM不接收或保存別名密碼。focused QC 21/21與desktop/mobile browser QC通過；Cloud SQL live migration、真實provider、TOTP與production cutover未執行。
 
 Entry condition：Phase 1-2 evidence、closed DEV-046 `HD-8-1..4`、`HD-7-2 / 2B`、`HD-7-3 / 3B`、approved Firebase/Cloud Run/Cloud SQL staging and production targets、完整 reprovision 與 clean-seed/read-only-archive manifests、Google/non-Google staging evidence、MFA/recovery/business-hours/60-minute primary+backup policy、`HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence、已記錄的 `HD-6-1 / 1A` 與 privacy notice/inventory implementation evidence、migration owner、release command與高風險確認。
 
-Acceptance：Google／non-Google users 映射到單一新 production platform principal；MFA policy 生效；中央停權拒絕新舊 session；來源 history actor 仍可在獨立唯讀封存解析且未被重鍵／自動映射；rollback 不改寫 production PDM IDs。
+Acceptance：Google／non-Google users 與工號登入別名映射到單一新 production platform principal；alias 本身不能驗證或授權；provider MFA policy 生效；中央停權拒絕新舊 session；來源 history actor 仍可在獨立唯讀封存解析且未被重鍵／自動映射；rollback 不改寫 production PDM IDs。
 
 QA/QC：staging SSO/MFA/offboarding/collision/company isolation/audit attribution；production evidence依 release gate另建。
 
@@ -438,10 +449,10 @@ Evidence：staging migration report、MFA policy tests、offboarding session evi
 
 | Deferred scope | 分類 | 追蹤方式 |
 |---|---|---|
-| 自助變更／忘記密碼 | Same Spec Phase | Phase 2 contract |
-| Firebase-managed reset/invite action email | Same Spec Phase 2-3 | 不需 custom SMTP 決策；須 template/domain/quota/privacy 與 live-provider gate |
+| AI_PDM 自有變更／忘記密碼 | No Tracking / rejected for production | production 只提供 Cloud Identity／Firebase provider-managed recovery handoff，不建立 application password/reset authority |
+| Provider-managed reset/invite action email | Same Spec Phase 2-3 | 不需 custom SMTP 決策；須 template/domain/quota/privacy 與 live-provider gate |
 | 自訂品牌 SMTP／第三方寄信 | Blocked Human Re-entry | 明確提出品牌化需求並完成 provider、成本、DNS、secret 決策後另行執行 |
-| 裝置級 session 清單 | Same Spec Phase | Phase 2 first-class session contract |
+| 裝置級 session 清單 | Same Spec Phase | Phase 2 additive session registry/device contract，綁定 DEV-046 BFF session v2，不建立第二套 session authority |
 | Firebase Auth / Identity Platform / MFA / central offboarding | `DEV-046` + Same Spec Phase + Release Gate | Phase 3 contract；production 由 DEV-030/031/032 gate |
 | 既有 managed-auth / Google OAuth -> Firebase 身分重建 | Confirmed / Same Spec Phase 3 | 不搬憑證或 source actor mapping；逐帳號配置新 production PDM ID、collision、MFA 與 legacy-route closure evidence 後啟用 |
 | Firebase / Cloud SQL provider secret bootstrap | Blocked Human Re-entry / Release Gate Required | 不由一般帳號 UI直接設定 |
@@ -455,8 +466,8 @@ Evidence：staging migration report、MFA policy tests、offboarding session evi
 | Phase / DEV | Execution boundary | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
 | Phase 1 / DEV-045 | Local RD | 本機完成 / QC Passed | Admin accounts UI、lifecycle、identity、global session revoke、admin reset link | email、MFA、shared IAM、production | 已完成本機實作 | pilot 帳號治理與安全 gate 全通過 | `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md` |
-| Phase 2 / DEV-045 | Future local/staging RD | RD Contract Ready / Not Requested This Turn | self-service password、session records/device revoke、provider-neutral delivery adapter；Firebase-managed email 為預設 live adapter | custom SMTP、未核准 live provider | Phase 1 evidence + template/domain/quota/privacy 審查 | self-service 安全且可追溯 | security/provider/session evidence |
-| Phase 3 / DEV-045 UI + DEV-046 IAM/session core | Staging/release gated | RD Contract Ready / Not Requested | Firebase reprovision、BFF session、TOTP MFA、email-link invitation/password linking、Google-only Wave 0、non-Google Wave 1、中央 deny-first offboarding | ProJED 修改、browser-direct DB、憑證/來源 actor 匯入、reset-as-invite、直接 live cutover | Phase 1-2 + closed IAM/privacy/continuity decisions；production另需 restore/reconciliation evidence與 release gate | new production principal、canonical invitation、TOTP、8-hour session、session revocation、source archive parity | staging + release-gate evidence |
+| Phase 2 / DEV-045 | Local RD complete; live provider gated | 本機完成 / QC Passed | provider-managed recovery handoff、additive session registry/device revoke、self-service `/account/security`、production-slice account-safety allowlist | AI_PDM password/reset/MFA store、custom SMTP、未核准 live provider、第二套 session authority | Phase 1 evidence + DEV-046 BFF session v2 contract stable；live provider另需provider/domain/quota/privacy/session metadata retention審查 | recovery不進入AI_PDM credential boundary；session visibility綁定DEV-046 session authority且治理可追溯 | `.ai-doc/qc/qc-dev-045-phase2-session-recovery-2026-07-14.md`、`qc:dev-045-phase2` 14/14、`qc:supabase-runtime-migrations` 66/66 |
+| Phase 3 / DEV-045 UI + DEV-046 IAM/session core | Staging/release gated | RD Contract Ready / Not Requested | DEV-045 account console/self-service UX；DEV-046 Firebase reprovision、BFF session、provider TOTP MFA、provider-managed invitation/recovery、Google-only Wave 0、non-Google Wave 1、中央 deny-first offboarding | ProJED 修改、application credential/MFA/recovery store、browser-direct DB、憑證/來源 actor 匯入、cloud break-glass 取得 PDM session、直接 live cutover | Phase 1-2 + closed IAM/privacy/continuity decisions；production另需 DEV-032 allowlist、restore/reconciliation evidence與 release gate | new production principal、alias不得驗證/授權、provider MFA、8-hour session、session revocation、source archive parity、cloud break-glass 不可取得 PDM session | staging + release-gate evidence |
 | Production / DEV-030-032 | Release only | Release Gate Required | approved migration/deploy/cutover | 未記錄高風險操作 | release command + target/owner/rollback confirmation | release gate決定 | release evidence |
 | ProJED follow-up | Separate repository | Blocked Human Re-entry | future shared contract consumer | AI_PDM task修改ProJED | explicit separate instruction | ProJED-owned acceptance | ProJED-owned evidence |
 
@@ -468,11 +479,17 @@ Result：`本機完成 / QC Passed`。
 
 DB、migration、API、permission、state transition、session invalidation、transaction、UI 與 focused QC 已完成。`npm run build` 因本機 3000 dev server guard 阻止清 `.next` 而未執行完成；release gate 前需補 isolated build 或停 server 後 build。
 
-### Phase 2-3
+### Phase 2
 
-Result：Phase 2-3 `RD Contract Ready / Not Requested This Turn`。
+Result：`本機完成 / QC Passed`。
 
-Phase 2 的 Firebase-managed email adapter 不依賴 SMTP 選型；custom SMTP 仍是未要求範圍。Phase 3 的 runtime、60-minute response、non-Google Wave 1 與 `HD-8-4 / 1A` pre-canary restore 邊界已固定；live provider與production仍受 privacy、credential、required evidence 和 release gate 管控。
+已完成 provider-managed recovery handoff contract、Firebase-managed `PASSWORD_RESET` adapter、server-owned additive session registry、self-service session list/revoke、logout registry revoke、PostgreSQL/Supabase migration mirror、RLS deny-list與 production-slice account-safety allowlist。首輪 QC 發現 production slice 擋住 account-safety revoke API，已補最小 allowlist 後重跑通過。尚未執行 live Firebase/Cloud Identity寄信、authorized domain/quota/privacy審查或正式 session-retention approval。
+
+### Phase 3
+
+Result：Phase 3A 工號登入別名 local slice `Implemented / QC Accepted`；Phase 3B provider/staging/production `Release Gate Required`。
+
+DEV-045只保留帳號管理／self-service UX與Admin lifecycle surface，DEV-046擁有shared IAM、BFF session、provider rollout與Cloud SQL migration。runtime、60-minute response、Wave 0 Google Workspace、non-Google Wave 1與`HD-8-4 / 1A` pre-canary restore邊界已固定；Cloud break-glass不得取得PDM session。Cloud SQL migration、live provider、staging與production仍受privacy、credential、required evidence和release gate管控。
 
 ## Release Boundary
 

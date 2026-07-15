@@ -65,7 +65,7 @@ try {
   );
   record(
     "Request UI creates M/R drawings and not normal MA/OT options",
-    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', "00001-M01 / 00001-R01"]) &&
+    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', "M · 製造圖", "R · 參考圖"]) &&
       sourceDoesNotMatch("src/app/numbering/request/page.tsx", /<option value="MA"|<option value="OT"|OT 其他圖/)
   );
   record(

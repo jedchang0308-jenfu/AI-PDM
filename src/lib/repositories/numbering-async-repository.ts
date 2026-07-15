@@ -195,6 +195,7 @@ type PartNumberRow = {
   item_kind: NumberingItemKind;
   is_universal: number;
   custom_specification: string | null;
+  series_code: string | null;
   development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   universal_reason: string | null;
@@ -959,6 +960,7 @@ const SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL = `
     AND p.is_universal = :isUniversal
     AND COALESCE(p.universal_reason, '') = :universalReason
     AND COALESCE(p.custom_specification, '') = :customSpecification
+    AND COALESCE(p.series_code, '') = :seriesCode
     AND (r.created_by = :createdBy OR (:createdBy IS NULL AND r.created_by IS NULL))
     AND r.created_at >= :notBefore
     AND (
@@ -1594,11 +1596,11 @@ export const INSERT_ASYNC_PART_ROOT_SQL = `
 export const INSERT_ASYNC_PART_NUMBER_SQL = `
   INSERT INTO part_numbers (
     id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-    item_kind, is_universal, custom_specification, development_phase, record_status, universal_reason,
+    item_kind, is_universal, custom_specification, series_code, development_phase, record_status, universal_reason,
     rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-    :itemKind, :isUniversal, :customSpecification, :developmentPhase, :recordStatus, :universalReason,
+    :itemKind, :isUniversal, :customSpecification, :seriesCode, :developmentPhase, :recordStatus, :universalReason,
     :ruleVersionId, :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -3218,6 +3220,13 @@ function normalizePurposeDescription(purposeCode: DrawingPurposeCode, descriptio
   return trimmed || displayDrawingPurposeLabel(purposeCode);
 }
 
+function normalizeSeriesCode(itemKind: NumberingItemKind, isUniversal: boolean, seriesCode: string | undefined) {
+  if (itemKind !== "manufactured" || isUniversal) return null;
+  const normalized = seriesCode?.trim() || null;
+  if (normalized && normalized.length > 80) throw new Error("SERIES_CODE_TOO_LONG");
+  return normalized;
+}
+
 function assertDraftMutableStatus(status: NumberingRecordStatus, label: string) {
   if (status !== "Draft" && status !== "NeedInfo") {
     throw new Error(`NUMBERING_${label}_NOT_DRAFT: ${status}`);
@@ -3719,6 +3728,7 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     itemKind: row.item_kind,
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
+    seriesCode: row.series_code,
     developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     universalReason: row.universal_reason,
@@ -4594,6 +4604,7 @@ export class AsyncNumberingRepository {
         isUniversal,
         universalReason: input.universalReason,
         customSpecification: input.customSpecification,
+        seriesCode: input.seriesCode,
         drawingPurposeCode: input.drawingPurposeCode,
         drawingPurposeDescription: input.drawingPurposeDescription,
         ruleVersionId,
@@ -4618,6 +4629,7 @@ export class AsyncNumberingRepository {
         isUniversal,
         universalReason: input.universalReason,
         customSpecification: input.customSpecification,
+        seriesCode: input.seriesCode,
         ruleVersionId,
         createdBy: input.createdBy
       });
@@ -4644,6 +4656,7 @@ export class AsyncNumberingRepository {
           rootCode: root.rootCode,
           partNumber: partNumber.partNumber,
           customSpecification: partNumber.customSpecification,
+          seriesCode: partNumber.seriesCode,
           drawingNumber: drawingNumber?.drawingNumber ?? null,
           ruleVersionId
         }
@@ -4783,6 +4796,7 @@ export class AsyncNumberingRepository {
         isUniversal: input.isUniversal ?? false,
         universalReason: input.universalReason,
         customSpecification: input.customSpecification,
+        seriesCode: input.seriesCode,
         ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
         createdBy: input.createdBy
       });
@@ -4893,6 +4907,7 @@ export class AsyncNumberingRepository {
         isUniversal: input.isUniversal ?? false,
         universalReason: input.universalReason,
         customSpecification: input.customSpecification,
+        seriesCode: input.seriesCode,
         ruleVersionId,
         createdBy: input.createdBy
       });
@@ -5007,6 +5022,7 @@ export class AsyncNumberingRepository {
       isUniversal: input.isUniversal ? 1 : 0,
       universalReason: input.universalReason?.trim() ?? "",
       customSpecification: input.customSpecification?.trim() ?? "",
+      seriesCode: normalizeSeriesCode(input.itemKind, input.itemKind === "shared" || input.isUniversal, input.seriesCode) ?? "",
       createdBy: input.createdBy ?? null,
       notBefore,
       drawingRequested: input.drawingPurposeCode ? 1 : 0,
@@ -9036,6 +9052,7 @@ export class AsyncNumberingRepository {
       isUniversal: boolean;
       universalReason?: string;
       customSpecification?: string;
+      seriesCode?: string;
       ruleVersionId: string;
       createdBy?: string | null;
     }
@@ -9043,6 +9060,7 @@ export class AsyncNumberingRepository {
     const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
     requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
     requireCustomSpecification(input.itemKind, input.customSpecification);
+    const seriesCode = normalizeSeriesCode(input.itemKind, effectiveIsUniversal, input.seriesCode);
     const sequenceNo =
       effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId)
         ? 0
@@ -9062,6 +9080,7 @@ export class AsyncNumberingRepository {
       itemKind: input.itemKind,
       isUniversal: effectiveIsUniversal ? 1 : 0,
       customSpecification: input.customSpecification?.trim() || null,
+      seriesCode,
       developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       universalReason: input.universalReason?.trim() || null,

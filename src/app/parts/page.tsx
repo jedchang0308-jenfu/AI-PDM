@@ -7,6 +7,7 @@ import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { NumberStateOwnerCreateAction, NumberStatePartsTabs, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
@@ -47,6 +48,7 @@ type PartListRecord = {
   partNumber: string;
   partName: string;
   itemKind: string;
+  seriesCode: string | null;
   developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   variant: PartVariant | null;
@@ -166,6 +168,7 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function PartsPage() {
+  const [activeTab, setActiveTab] = useState<"official" | "drafts" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
   const [productSeries, setProductSeries] = useState("");
@@ -188,6 +191,7 @@ export default function PartsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") === "drafts" ? "drafts" : "official");
     const initialQuery = params.get("query")?.trim();
     const detailPartNumber = params.get("detail")?.trim();
     const focusSection = params.get("focus")?.trim();
@@ -197,6 +201,7 @@ export default function PartsPage() {
   }, []);
 
   const loadParts = useCallback(async () => {
+    if (activeTab !== "official") return;
     setState("loading");
     setError("");
     const params = new URLSearchParams();
@@ -227,7 +232,7 @@ export default function PartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [developmentPhase, productSeries, query, recordStatus]);
+  }, [activeTab, developmentPhase, productSeries, query, recordStatus]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -505,6 +510,9 @@ export default function PartsPage() {
     visibleParts.length
   ]);
 
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟料號模組...</div></section>;
+  if (activeTab === "drafts") return <NumberStateWorkspaceWorkbench />;
+
   return (
     <>
       <div className="topbar">
@@ -512,11 +520,15 @@ export default function PartsPage() {
           <h1>料號模組</h1>
           <p>以主根號自動串聯圖號與料號，材質、顏色與成本都以料號為主體管理。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={refreshSelected}>
-          <RotateCcw size={16} />
-          重新整理
-        </button>
+        <div className="number-state-owner-actions">
+          <button className="secondary-button" type="button" onClick={refreshSelected}>
+            <RotateCcw size={16} />
+            重新整理
+          </button>
+          <NumberStateOwnerCreateAction surface="parts" />
+        </div>
       </div>
+      <NumberStatePartsTabs active="official" />
 
       {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號模組檢視權限。</div></section> : null}
       {state === "error" ? (
@@ -1028,6 +1040,7 @@ function PartDetailHero({
         <StatusBadge status={detail.recordStatus} context="masterRecord" />
         <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(detail.developmentPhase)}</span>
         <span className="pdm-meta-chip">{partKindLabel(detail.itemKind)}</span>
+        {detail.seriesCode ? <span className="pdm-meta-chip">系列 {detail.seriesCode}</span> : null}
         <span className="pdm-meta-chip">關聯圖號 {detail.linkedDrawings.length}</span>
       </div>
       <div className="drawing-detail-action-row">

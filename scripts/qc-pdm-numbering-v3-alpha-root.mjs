@@ -109,7 +109,7 @@ try {
   );
   record(
     "Normal request UI shows v3 examples and keeps M/R choices",
-    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', "A0001-M01 / A0001-R01"]) &&
+    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', 'placeholder="例如：A0001"']) &&
       sourceDoesNotMatch("src/app/numbering/request/page.tsx", /00001-M01 \/ 00001-R01/)
   );
   record(

@@ -24,7 +24,7 @@ function runNode(script, args = []) {
 }
 
 function extractTableNames(sql) {
-  return [...sql.matchAll(/^CREATE TABLE IF NOT EXISTS\s+([a-z0-9_]+)/gimu)].map((match) => match[1]);
+  return [...sql.matchAll(/^CREATE TABLE IF NOT EXISTS\s+(?:public\.)?([a-z0-9_]+)/gimu)].map((match) => match[1]);
 }
 
 const sync = runNode("scripts/sync-supabase-runtime-migrations.mjs");
@@ -39,7 +39,18 @@ const requiredMigrationFiles = [
   "supabase/migrations/20260710020000_account_invitations.sql",
   "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
   "supabase/migrations/20260712034956_erp_module_foundation.sql",
-  "supabase/migrations/20260713010000_account_lifecycle.sql"
+  "supabase/migrations/20260713010000_account_lifecycle.sql",
+  "supabase/migrations/20260713020000_transfer_package_phase3a0.sql",
+  "supabase/migrations/20260713030000_gcs_pointer_numbering_continuity.sql",
+  "supabase/migrations/20260713040000_number_state_flow_phase1a.sql",
+  "supabase/migrations/20260713050000_firebase_bff_identity_invitations.sql",
+  "supabase/migrations/20260713060000_employee_login_aliases.sql",
+  "supabase/migrations/20260713070000_employee_privacy_notice_acknowledgements.sql",
+  "supabase/migrations/20260713080000_number_state_flow_phase1c.sql",
+  "supabase/migrations/20260713090000_number_state_flow_phase1d.sql",
+  "supabase/migrations/20260714010000_part_number_series_code.sql",
+  "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql",
+  "supabase/migrations/20260714030000_account_session_records.sql"
 ];
 const requiredFiles = [
   "supabase/README.md",
@@ -60,6 +71,15 @@ const accountInvitations = readProjectFile(root, "db/postgres/006_account_invita
 const authIdentities = readProjectFile(root, "db/postgres/007_auth_identities_google_oauth.sql");
 const erpModuleFoundation = readProjectFile(root, "db/postgres/008_erp_module_foundation.sql");
 const accountLifecycle = readProjectFile(root, "db/postgres/009_account_lifecycle.sql");
+const transferPackagePhase3a0 = readProjectFile(root, "db/postgres/010_transfer_package_phase3a0.sql");
+const gcsPointerContinuity = readProjectFile(root, "db/postgres/011_gcs_pointer_numbering_continuity.sql");
+const numberStateFlowPhase1a = readProjectFile(root, "db/postgres/012_number_state_flow_phase1a.sql");
+const firebaseBffInvitations = readProjectFile(root, "db/postgres/013_firebase_bff_identity_invitations.sql");
+const employeeLoginAliases = readProjectFile(root, "db/postgres/014_employee_login_aliases.sql");
+const employeePrivacyNotice = readProjectFile(root, "db/postgres/015_employee_privacy_notice_acknowledgements.sql");
+const numberStateFlowPhase1d = readProjectFile(root, "db/postgres/017_number_state_flow_phase1d.sql");
+const numberStateFlowRequestEquivalence = readProjectFile(root, "db/postgres/019_number_state_flow_request_equivalence.sql");
+const accountSessionRecords = readProjectFile(root, "db/postgres/020_account_session_records.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
@@ -69,6 +89,15 @@ const migrationAccountInvitations = readProjectFile(root, "supabase/migrations/2
 const migrationAuthIdentities = readProjectFile(root, "supabase/migrations/20260710030000_auth_identities_google_oauth.sql");
 const migrationErpModuleFoundation = readProjectFile(root, "supabase/migrations/20260712034956_erp_module_foundation.sql");
 const migrationAccountLifecycle = readProjectFile(root, "supabase/migrations/20260713010000_account_lifecycle.sql");
+const migrationTransferPackagePhase3a0 = readProjectFile(root, "supabase/migrations/20260713020000_transfer_package_phase3a0.sql");
+const migrationGcsPointerContinuity = readProjectFile(root, "supabase/migrations/20260713030000_gcs_pointer_numbering_continuity.sql");
+const migrationNumberStateFlowPhase1a = readProjectFile(root, "supabase/migrations/20260713040000_number_state_flow_phase1a.sql");
+const migrationFirebaseBffInvitations = readProjectFile(root, "supabase/migrations/20260713050000_firebase_bff_identity_invitations.sql");
+const migrationEmployeeLoginAliases = readProjectFile(root, "supabase/migrations/20260713060000_employee_login_aliases.sql");
+const migrationEmployeePrivacyNotice = readProjectFile(root, "supabase/migrations/20260713070000_employee_privacy_notice_acknowledgements.sql");
+const migrationNumberStateFlowPhase1d = readProjectFile(root, "supabase/migrations/20260713090000_number_state_flow_phase1d.sql");
+const migrationNumberStateFlowRequestEquivalence = readProjectFile(root, "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql");
+const migrationAccountSessionRecords = readProjectFile(root, "supabase/migrations/20260714030000_account_session_records.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -77,7 +106,7 @@ const devTask = readProjectFile(root, ".ai-doc/dev_task.md");
 const migrationHistoryPolicy = readProjectFile(root, ".ai-doc/decisions/ADR-SUPABASE-DB-002-migration-history-policy.md");
 
 const sqliteTables = extractTableNames(sqliteSchema);
-const migrationTables = extractTableNames(migrationSchema);
+const migrationTables = requiredMigrationFiles.flatMap((file) => extractTableNames(readProjectFile(root, file)));
 const missingMigrationTables = sqliteTables.filter((tableName) => !migrationTables.includes(tableName));
 
 record("SUPA-MIG-003 migration mirror covers all SQLite tables", missingMigrationTables.length === 0, missingMigrationTables.join(", "));
@@ -137,6 +166,91 @@ record(
     /REVOKE ALL ON TABLE public\.account_recovery_requests FROM anon, authenticated/u.test(migrationAccountLifecycle),
   "account lifecycle security boundary"
 );
+record("SUPA-MIG-007N transfer package migration embeds source hash", migrationTransferPackagePhase3a0.includes(`Source SHA-256: ${sha256(transferPackagePhase3a0)}`), "transfer package source hash");
+record("SUPA-MIG-007O GCS continuity migration embeds source hash", migrationGcsPointerContinuity.includes(`Source SHA-256: ${sha256(gcsPointerContinuity)}`), "GCS continuity source hash");
+record("SUPA-MIG-007P number state flow migration embeds source hash", migrationNumberStateFlowPhase1a.includes(`Source SHA-256: ${sha256(numberStateFlowPhase1a)}`), "number state flow source hash");
+record(
+  "SUPA-MIG-007Q number state flow migration enforces candidate authority security",
+  migrationNumberStateFlowPhase1a.includes("idx_number_candidate_reservations_code_exclusive") &&
+    migrationNumberStateFlowPhase1a.includes("NUMBER_CANDIDATE_EVENT_APPEND_ONLY") &&
+    migrationNumberStateFlowPhase1a.includes("ENABLE ROW LEVEL SECURITY") &&
+    migrationNumberStateFlowPhase1a.includes("FROM anon, authenticated"),
+  "number state flow security boundary"
+);
+record("SUPA-MIG-007R Firebase BFF invitation migration embeds source hash", migrationFirebaseBffInvitations.includes(`Source SHA-256: ${sha256(firebaseBffInvitations)}`), "Firebase BFF invitation source hash");
+record(
+  "SUPA-MIG-007S Firebase BFF invitation state is server-only",
+  migrationFirebaseBffInvitations.includes("firebase_identity_invitations") &&
+    migrationFirebaseBffInvitations.includes("FORCE ROW LEVEL SECURITY") &&
+    migrationFirebaseBffInvitations.includes("FROM PUBLIC, anon, authenticated"),
+  "Firebase BFF invitation security boundary"
+);
+record("SUPA-MIG-007T employee login alias migration embeds source hash", migrationEmployeeLoginAliases.includes(`Source SHA-256: ${sha256(employeeLoginAliases)}`), "employee login alias source hash");
+record(
+  "SUPA-MIG-007U employee login aliases and intents are server-only and credential-free",
+  ["employee_login_aliases", "employee_login_intents", "employee_login_rate_limits"].every(
+    (tableName) =>
+      migrationEmployeeLoginAliases.includes(`ALTER TABLE public.${tableName} FORCE ROW LEVEL SECURITY`) &&
+      migrationEmployeeLoginAliases.includes(`REVOKE ALL ON TABLE public.${tableName} FROM PUBLIC, anon, authenticated`)
+  ) &&
+    migrationEmployeeLoginAliases.includes("token_hash") &&
+    !/(?:password_hash|mfa_secret|recovery_code|refresh_token)/iu.test(migrationEmployeeLoginAliases),
+  "employee login alias security boundary"
+);
+record("SUPA-MIG-007V employee privacy notice migration embeds source hash", migrationEmployeePrivacyNotice.includes(`Source SHA-256: ${sha256(employeePrivacyNotice)}`), "employee privacy notice source hash");
+record(
+  "SUPA-MIG-007W employee privacy versions and acknowledgements are immutable and server-only",
+  ["privacy_notice_versions", "privacy_notice_acknowledgements"].every(
+    (tableName) =>
+      migrationEmployeePrivacyNotice.includes(`ALTER TABLE public.${tableName} FORCE ROW LEVEL SECURITY`) &&
+      migrationEmployeePrivacyNotice.includes(`REVOKE ALL ON TABLE public.${tableName} FROM PUBLIC, anon, authenticated`)
+  ) &&
+    migrationEmployeePrivacyNotice.includes("prevent_privacy_evidence_change") &&
+    migrationEmployeePrivacyNotice.includes("content_sha256") &&
+    !/(?:password_hash|mfa_secret|recovery_code|refresh_token|browser_fingerprint)/iu.test(migrationEmployeePrivacyNotice),
+  "employee privacy notice security boundary"
+);
+record(
+  "SUPA-MIG-007X number state flow Phase 1D migration embeds source hash",
+  migrationNumberStateFlowPhase1d.includes(`Source SHA-256: ${sha256(numberStateFlowPhase1d)}`),
+  "number state flow Phase 1D source hash"
+);
+record(
+  "SUPA-MIG-007Y transfer Phase 1D authority is server-only and aggregate-review aware",
+  migrationNumberStateFlowPhase1d.includes("transfer_package_draft_items") &&
+    migrationNumberStateFlowPhase1d.includes("ApprovedPendingPublish") &&
+    migrationNumberStateFlowPhase1d.includes("transfer.package_review") &&
+    /FORCE ROW LEVEL SECURITY/u.test(migrationNumberStateFlowPhase1d) &&
+    /REVOKE ALL ON transfer_package_draft_items FROM anon, authenticated/u.test(migrationNumberStateFlowPhase1d),
+  "transfer Phase 1D security and lifecycle boundary"
+);
+record(
+  "SUPA-MIG-007Z number state flow request-equivalence migration embeds source hash",
+  migrationNumberStateFlowRequestEquivalence.includes(`Source SHA-256: ${sha256(numberStateFlowRequestEquivalence)}`),
+  "number state flow request-equivalence source hash"
+);
+record(
+  "SUPA-MIG-007ZA request-equivalence migration preserves append and universal reasons",
+  migrationNumberStateFlowRequestEquivalence.includes("numbering_draft_workspaces") &&
+    migrationNumberStateFlowRequestEquivalence.includes("append_reason") &&
+    migrationNumberStateFlowRequestEquivalence.includes("numbering_draft_parts") &&
+    migrationNumberStateFlowRequestEquivalence.includes("universal_reason"),
+  "request-equivalence schema fields"
+);
+record(
+  "SUPA-MIG-007ZB account session records migration embeds source hash",
+  migrationAccountSessionRecords.includes(`Source SHA-256: ${sha256(accountSessionRecords)}`),
+  "account session records source hash"
+);
+record(
+  "SUPA-MIG-007ZC account session records are server-owned and token-safe",
+  migrationAccountSessionRecords.includes("account_session_records") &&
+    migrationAccountSessionRecords.includes("session_id_hash") &&
+    !/\bsession_id\s+TEXT/iu.test(migrationAccountSessionRecords) &&
+    migrationAccountSessionRecords.includes("FORCE ROW LEVEL SECURITY") &&
+    /REVOKE ALL ON TABLE public\.account_session_records FROM PUBLIC, anon, authenticated/u.test(migrationAccountSessionRecords),
+  "account session records security boundary"
+);
 const manifestTargets = Array.isArray(manifest.migrations)
   ? manifest.migrations.map((migration) => migration.target)
   : [];
@@ -147,15 +261,14 @@ record(
 );
 record(
   "SUPA-MIG-009 manifest source hashes match db/postgres",
-  manifest.migrations?.[0]?.sourceSha256 === sha256(postgresSchema) &&
-    manifest.migrations?.[1]?.sourceSha256 === sha256(rlsPlan) &&
-    manifest.migrations?.[2]?.sourceSha256 === sha256(searchPathHardening) &&
-    manifest.migrations?.[3]?.sourceSha256 === sha256(compactNumbering) &&
-    manifest.migrations?.[4]?.sourceSha256 === sha256(accessControlLaunch) &&
-    manifest.migrations?.[5]?.sourceSha256 === sha256(accountInvitations) &&
-    manifest.migrations?.[6]?.sourceSha256 === sha256(authIdentities) &&
-    manifest.migrations?.[7]?.sourceSha256 === sha256(erpModuleFoundation) &&
-    manifest.migrations?.[8]?.sourceSha256 === sha256(accountLifecycle),
+  Array.isArray(manifest.migrations) &&
+    manifest.migrations.every(
+      (migration) =>
+        projectFileExists(root, migration.source) &&
+        projectFileExists(root, migration.target) &&
+        migration.sourceSha256 === sha256(readProjectFile(root, migration.source)) &&
+        migration.targetSha256 === sha256(readProjectFile(root, migration.target))
+    ),
   JSON.stringify(manifest.migrations ?? [])
 );
 record(

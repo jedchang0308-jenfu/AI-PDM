@@ -80,7 +80,14 @@ const fakeHandler: ApprovalHandler = {
   }
 };
 
-const handlers = new Map<string, ApprovalHandler>([[fakeHandler.handlerKey, fakeHandler]]);
+const candidatePublicationHandler: ApprovalHandler = {
+  handlerKey: "numbering.candidate-publication"
+};
+
+const handlers = new Map<string, ApprovalHandler>([
+  [fakeHandler.handlerKey, fakeHandler],
+  [candidatePublicationHandler.handlerKey, candidatePublicationHandler]
+]);
 
 function repository() {
   return new AsyncApprovalPlatformRepository(getAsyncDatabaseClient());
@@ -104,6 +111,11 @@ export async function listApprovalPlatformInboxAsync(input: ApprovalPlatformInbo
 
 export async function getApprovalPlatformRequestDetailAsync(requestId: string) {
   return repository().getRequestDetail(requestId);
+}
+
+export async function getApprovalPlatformRequestDetailForCompanyAsync(requestId: string, companyId: string) {
+  const detail = await repository().getRequestDetail(requestId);
+  return detail?.companyId === companyId ? detail : null;
 }
 
 export async function submitApprovalPlatformRequestAsync(input: SubmitApprovalPlatformRequestInput) {

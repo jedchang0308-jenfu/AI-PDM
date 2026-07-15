@@ -1,5 +1,7 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
+> 2026-07-13 Amendment：本文件的已完成 local slice與DEV-046 production/release gates仍有效；其「formal create即official permanent number」的未來行為已由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。新草稿可先無號，candidate可在未鎖定且零引用時立即回收，只有explicit publication成功後才寫正式master與non-reuse ledger input。
+
 Status: Product Phase 1 Local Implementation Complete; DEV-046 `HD-8-1..4` closed and Phase 1 RD Implementation Ready / Not Requested; production waits for platform implementation/staging and Release Gate
 Date: 2026-07-10
 Owner: Dev PM
@@ -32,13 +34,13 @@ Confirmed RD supervisor follow-up from 2026-07-10:
 
 Fourth RD completeness review default adopted on 2026-07-13 after the user said to continue:
 
-- `Canary 1B`: after technical release gates pass, first deploy a production canary restricted to the named 3-5 users. `DEV-FIELD-001` runs on this canary and blocks wider opening/pilot acceptance, not the initial controlled deployment.
+- `Canary 1B` historical decision: after technical release gates pass, first deploy a production canary restricted to the named 3-5 users. Its separate `DEV-FIELD-001` expansion blocker is superseded by `HD-9-1`; the named canary and explicit release-controlled expansion remain.
 - `Outage 2A`: database outage stops official numbering; no paper/Excel/offline issuance or later backfill is allowed in this first slice.
 
 Fifth RD completeness review resolved on 2026-07-13:
 
 - `HD-5-1 resolved`: do not migrate existing credentials/provider bindings. Reprovision Firebase identities and assign reviewed new stable production PDM user IDs; source actor IDs/history remain in the separate read-only archive and legacy login is closed before canary.
-- `HD-5-2 resolved`: expand by Google Workspace-only Wave 0 (3-5 users), Wave 1 (about 5 additional users including at least one controlled non-Google email-link account) and Wave 2 (remaining approved staff). Wave 0 and Wave 1 each require five business days, no open P0 and accepted owner/date/disposition for every P1.
+- `HD-5-2 historical`: the original rollout used Google Workspace-only Wave 0, a controlled Wave 1 and Wave 2, with fixed observation windows. Its fixed-duration requirement is superseded by `HD-9-1`; initial Google-only canary, prior staging proof for non-Google users and explicit allowlist release control remain.
 - `HD-5-3 resolved, location scope only`: Cloud SQL operational database, direct GCS primary files and Cloud Run runtime target Google Taiwan. The fifth-review wording that also called Firebase Authentication's US identity processing "explicitly accepted" is superseded by the sixth-review correction below.
 
 Sixth RD supervisor review correction:
@@ -46,6 +48,12 @@ Sixth RD supervisor review correction:
 - At the sixth-review stage, the phrase "explicitly accepted US-location exception" above was too strong. `HD-5-3` selected Taiwan placement for operational DB/files but did not prove acceptance of Firebase US identity processing, so the review opened `HD-6-1`.
 - The same review opened `HD-6-2` to separate Taiwan-region disaster recovery from in-region HA/PITR. Same-region HA/backups cannot satisfy a regional-outage claim.
 - The same review opened `HD-6-3` for canary day-one regional HA cost. Those gates temporarily blocked live Phase 2/3 and are superseded by the decision closure below.
+
+2026-07-14 acceptance-scope correction:
+
+- `HD-9-1 resolved`: the user cancelled the fixed five-business-day Wave 0/Wave 1 `DEV-FIELD-001` observation. The task is closed as `Cancelled by Human Decision`, not as passed evidence.
+- The cancellation does not waive DEV-046 Phase 2B credentialled isolated staging, the DEV-032 release gate, the initial named 3-5-user canary, non-allowlist fail-closed behavior, zero open P0/P1, `HD-8-4 / 1A` restore/reconciliation, rollback readiness or production post-deploy smoke.
+- Later allowlist expansion requires an explicit DEV-032 release decision; no elapsed time, local UI evidence or successful smoke expands access automatically.
 
 2026-07-13 human decision closure:
 
@@ -180,6 +188,7 @@ Phase 1 must not treat `/api/numbering/**` as open. The slice opens only the met
 | `GET /api/numbering/roots/[rootCode]/append-policy` | Allowed read for append preview | No | N/A | API read smoke |
 | `GET /api/numbering/permissions` | Allowed read for UI capability display | No | N/A | Permission smoke |
 | `GET /api/numbering/part-number-drafts` | Allowed read for draft workbench | No | N/A | Draft read smoke |
+| `POST /api/numbering/duplicate-check` | Allowed pre-write duplicate guard for new root / draft creation | No business mutation; audit/check event only | Permission denial for no-check user | Duplicate-check slice smoke and UI error-path evidence |
 | `POST /api/numbering/records` | Allowed official root/drawing/part create through approved form | Yes | Permission denial for no-create user | Numbering create, duplicate submit and audit evidence |
 | `POST /api/numbering/roots/[rootCode]/drawings` | Allowed existing-root drawing append | Yes | Permission denial or `feature_not_open_in_production_slice` if route disabled | Contextual entrypoint and idempotency evidence |
 | `POST /api/numbering/roots/[rootCode]/parts` | Allowed existing-root part append when the approved UI exposes it | Yes | Permission denial or `feature_not_open_in_production_slice` if route disabled | Contextual entrypoint and idempotency evidence |
@@ -242,7 +251,7 @@ Rejected directions:
 - Hide the roadmap.
 - Use UI-only disabled buttons as control.
 - Open all implemented local features just because local QC passed.
-- Treat canary deployment as accepted pilot evidence, or expand beyond named users before `DEV-FIELD-001` passes.
+- Treat local named-user evidence as production acceptance, or expand beyond the approved allowlist without an explicit DEV-032 release decision.
 
 Non-negotiable rules:
 
@@ -259,8 +268,8 @@ Non-negotiable rules:
 | Phase 0 - Development document | Complete this turn | Complete | Capture human decisions, scope, ADR, QA/QC and RD contract |
 | Phase 1 - Product slice gate | Complete locally | Local implementation complete | Implement UI unopened states, server feature gate, method-level allowlist/denylist and role-gated Web flows |
 | Phase 2 - Production target readiness | Release Gate Required | RD Contract Ready | Prove `AI_PDM_PROD` target identity, RLS/direct-access denial, migration/schema parity and server-side credential boundary |
-| Phase 3A.0 - Controlled production canary | Release Gate Required | RD Contract Ready | Deploy only to the named 3-5 users after technical/security/continuity gates; field-test package must be ready but not already completed |
-| Phase 3A.1 - Field acceptance and expansion gate | External Evidence Required | RD Contract Ready | Run `DEV-FIELD-001`, close/disposition issues and require signed go/no-go before widening access or reporting pilot acceptance |
+| Phase 3A.0 - Controlled production canary | Release Gate Required | RD Contract Ready | Deploy only to the named 3-5 users after technical/security/continuity gates and complete production post-deploy smoke |
+| Phase 3A.1 - Fixed-duration field acceptance | Cancelled by Human Decision | Closed without execution | `HD-9-1` cancelled `DEV-FIELD-001`; cancellation is not a pass and does not waive technical/release gates |
 | Phase 4 - Full PDM production readiness | Blocked Human Re-entry | Existing DEV gates remain authoritative | CAD / Add-in / full file restore and other full-PDM scopes remain separately deferred; canary field acceptance does not prove full PDM readiness |
 
 ## RD Handoff Contract
@@ -438,15 +447,15 @@ Stop conditions:
 - Direct Data API exposure is proposed as the application access path.
 - RLS/direct-access denial baseline is weakened without separate approval.
 
-### Phase 3A.0 / 3A.1 - Controlled Canary and Field Acceptance
+### Phase 3A.0 / Cancelled Phase 3A.1 - Controlled Canary and Explicit Expansion
 
 Scope:
 
-- Phase 3A.0 deploys only to a named 3-5-user Google Workspace production allowlist after technical release gates pass; the field-test script, evidence owner and issue intake must already be ready.
+- Phase 3A.0 deploys only to a named 3-5-user Google Workspace production allowlist after technical release gates pass.
 - Phase 3A.0 requires a complete pilot identity-reprovision manifest, approved Firebase US identity-data exception and verified closure of every unapproved legacy login/token/recovery/callback path.
 - Server-only `PDM_PRODUCTION_CANARY_USER_IDS` accepts exact newly assigned production PDM user IDs only and is checked at session issuance plus every production-slice business request. Missing/malformed/empty configuration denies all business access; email, source actor ID, role, domain and wildcard entries are invalid.
-- Phase 3A.1 runs `DEV-FIELD-001` on the canary and collects feedback on official numbering and draft work.
-- Keep full PDM functions unopened and keep all non-canary users denied until signed acceptance.
+- Phase 3A.1 `DEV-FIELD-001` is cancelled by `HD-9-1`; no fixed-duration observation or formal field report is required.
+- Keep full PDM functions unopened. Non-canary users remain denied until an explicit DEV-032 allowlist change is approved and released.
 
 Acceptance:
 
@@ -454,9 +463,9 @@ Acceptance:
 - Admin can identify who created which record.
 - RD Manager can review whether the workflow fits real work.
 - No out-of-scope production workflow is executed.
-- Field evidence includes screenshots, audit correlation, issue disposition and signed go/no-go. No open P0 is accepted; P1 requires an accountable, time-bounded disposition.
-- Wider internal access remains blocked until Phase 3A.1 passes; canary deployment alone is not pilot acceptance.
-- A passed Wave 0 gate permits an explicitly approved Wave 1 of about five additional users, including at least one controlled non-Google Firebase-managed email-link account, for another five-business-day observation; a passed Wave 1 gate permits an explicitly approved Wave 2. No gate changes the allowlist automatically.
+- Production release evidence includes target identity, audit correlation, issue disposition, rollback readiness and post-deploy smoke. No open P0/P1 is accepted for the first opening or allowlist expansion.
+- Wider internal access is not time-gated, but still requires an explicit DEV-032 release decision and revised allowlist evidence; canary deployment alone does not expand access.
+- A later approved allowlist may include controlled non-Google Firebase-managed email-link accounts only after that path passes staging. No test or elapsed period changes the allowlist automatically.
 - Release evidence records the sorted allowlist hash; changing or disabling it never occurs automatically from smoke/field success.
 
 Stop conditions:
@@ -543,13 +552,13 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 | Dedicated smoke sequence namespace | No Tracking for first slice / possible future release-gate design | Not selected as default first release-gate strategy |
 | Cloud SQL production target readiness | Release Gate Required | Needs Cloud SQL Taiwan target identity, connector/grants, migration/schema/RLS, HA/PITR, `HD-8-4 / 1A` pre-canary separate-target restore/numbering reconciliation and release evidence |
 | Firebase identity reprovision / legacy-login closure | Confirmed policy + DEV-046 Phase 3A | No credential/source-actor import; requires per-account new production ID manifest, collision/MFA disposition, route/session closure and rollback evidence |
-| Canary expansion cadence | Confirmed waves + Phase 3A.1 | Wave 0 is Google Workspace-only; Wave 1 includes at least one controlled non-Google account; both require five business days, no open P0 and accepted P1 owner/date/disposition |
+| Canary expansion cadence | `HD-9-1` supersedes fixed-duration waves | Initial canary remains Google Workspace-only and named 3-5 users; no five-day requirement remains. Every later allowlist change requires explicit DEV-032 approval, zero open P0/P1 and applicable staging/release evidence |
 | Google data placement | Confirmed + DEV-046 Phase 2/3A/3B | Cloud SQL, Cloud Run and later direct-GCS operational rows/files in Taiwan; global ALB/CDN and Firebase Auth US identity-data exceptions remain disclosed |
 | Production deploy, provider pointer, rollback, production smoke | Blocked Human Re-entry / Release Gate Required | Release artifacts are intentionally deferred |
 | Formal submission / approval / release production use | New DEV or existing DEV gate / Not Requested This Turn | Outside first production slice |
 | CAD parsing / Document Manager / SolidWorks Add-in | Existing DEV gates / Deferred full-PDM scope | `DEV-035` records human upload evidence: SW upload OK and 3D preview OK; 2D preview remains unavailable. `DEV-036` is retained as optional future Add-in scope, not a first-version blocker |
 | Full PDM/GCS/offline restore drill | Existing DEV gate / Deferred full-PDM scope | Remains under `DEV-037` and is not a first-version blocker. Closed `HD-8-4 / 1A` separately requires only the minimum pre-canary Cloud SQL isolated-restore/numbering-reconciliation evidence for the official numbering slice. |
-| Formal field-test evidence | Existing DEV gate / Canary acceptance and expansion blocker | The script/evidence owner/issue intake must be ready before canary deploy; completed evidence is collected on the named production canary and required before wider opening or pilot acceptance, not before first controlled deployment |
+| Formal field-test evidence | Cancelled by Human Decision | `DEV-FIELD-001` closed without execution or pass under `HD-9-1`; local named-user UI evidence remains functional evidence only |
 | Full PDM production readiness claim | No Tracking / rejected | Explicitly rejected by production-slice decision |
 
 ## All-Phase Coverage Matrix
@@ -560,7 +569,7 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 | Phase 1 / product slice gate | Complete locally | Local implementation complete | UI unopened states, API feature gate, numbering/draft allowlist, `/numbering/part-drafts`, provisional draft delete/recycle guards, route blocked states, narrow admin setup, non-production smoke-company isolation proof | Production deploy, live migration, production smoke, official-number recycle | Completed by local implementation work | Allowed flows work; unopened APIs deny; provisional drafts recycle only before controlled boundary; smoke data isolated | `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md` |
 | Phase 2 / production target readiness | Release Gate Required | `RD Contract Ready / Provider Evidence Not Requested` | Verify Cloud Run/Next.js 16/ALB/cache/manual promotion, portable HTTP/BFF, Cloud SQL Taiwan, file-path fail-close, both auth paths, clean seed/read-only archive/non-reuse manifest, business-hours RTO/60-minute response, full location inventory, VPC/private-IP/IAM DB auth, 70% connection budget, singleton migration, HA/PITR/pre-canary restore contract and cost alerts | unsupported runtime, private CDN caching, source auto-rollout, provider-specific authority, migrated business/source-actor rows, mutable archive, database-only/all-Taiwan/regional-DR claim, app-start DDL or direct migration | Closed HD-8-1..4, platform Phase 1/2 evidence, release command, approved targets, privacy/cost ownership and high-risk confirmation | Release gate can evaluate the no-file production slice | Future release-gate evidence |
 | Phase 3A.0 / controlled canary | Release Gate Required | `RD Contract Ready / Release Not Requested` | newly mapped named 3-5 Google Workspace users use official numbering/drafts | non-Google until Wave 1, wider users, source actor mapping, unspecified legacy auth, file/full PDM use | Phase 1 implemented, Phase 2 technical/security/continuity release gate passed, `HD-8-4 / 1A` restore/reconciliation passed, account manifest and field package ready | allowlist/legacy closure enforced; allowed records work; out-of-scope stays closed; rollback evidence exists | Future canary release evidence |
-| Phase 3A.1 / `DEV-FIELD-001` waves | External Evidence Required | RD Contract Ready | Wave 0 then Wave 1 users execute formal script, feedback and issue closure | automatic wider rollout or full PDM claim | healthy Phase 3A.0 canary | each five-day gate has signed go/no-go, no open P0 and accepted P1 owner/date/disposition; Wave 2 is explicitly approved | field report, screenshots, audit and issue evidence |
+| Phase 3A.1 / `DEV-FIELD-001` | Cancelled by Human Decision | Closed without execution | Preserve the cancellation decision and do not misreport it as a pass | formal field acceptance claim, automatic wider rollout or full PDM claim | `HD-9-1` | no fixed-duration evidence required; technical/release gates remain authoritative | decision record plus retained local functional evidence |
 | Phase 4 / full PDM production | Blocked Human Re-entry | Existing DEV gates remain authoritative | CAD/Add-in/full-file backup and full readiness | treating canary field pass as full readiness | separate full production decision and release gate | full readiness gate pass | future full readiness evidence |
 
 ## RD Readiness Review

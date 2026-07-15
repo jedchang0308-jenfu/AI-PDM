@@ -364,6 +364,7 @@ function AddPartDialog({
 }) {
   const [itemKind, setItemKind] = useState("manufactured");
   const [customSpecification, setCustomSpecification] = useState("");
+  const [seriesCode, setSeriesCode] = useState("");
   const [reason, setReason] = useState("");
   const [linkDrawing, setLinkDrawing] = useState(Boolean(drawing));
   const [linkRelationType, setLinkRelationType] = useState<"auto" | "reference">(drawing && !isManufacturingDrawingPurpose(drawing.purposeCode) ? "reference" : "auto");
@@ -374,9 +375,14 @@ function AddPartDialog({
   const dirty =
     itemKind !== initialItemKind ||
     Boolean(customSpecification.trim()) ||
+    Boolean(seriesCode.trim()) ||
     Boolean(reason.trim()) ||
     linkDrawing !== initialLinkDrawing ||
     linkRelationType !== initialLinkRelationType;
+
+  useEffect(() => {
+    if (itemKind !== "manufactured") setSeriesCode("");
+  }, [itemKind]);
 
   function cancel() {
     if (dirty && !window.confirm("放棄未儲存的新增料號內容？")) return;
@@ -392,6 +398,7 @@ function AddPartDialog({
       body: JSON.stringify({
         itemKind,
         customSpecification,
+        seriesCode: itemKind === "manufactured" ? seriesCode : "",
         reason,
         linkDrawingNumber: linkDrawing ? drawing?.drawingNumber : undefined,
         linkRelationType: linkDrawing ? linkRelationType : "none",
@@ -415,7 +422,7 @@ function AddPartDialog({
       <DialogHeader title={drawing ? "新增同圖料號" : part ? `以 ${part.partNumber} 新增同根料號` : "新增同根料號"} onClose={cancel} />
       <LockedRoot rootCode={rootCode} coreName={coreName} />
       <p className="pdm-contextual-preview">預計產生：<strong>{policy?.nextNumbers.part ?? "讀取中"}</strong></p>
-      <p className="pdm-contextual-preview">品名跟隨主根：<strong>{coreName?.trim() || "-"}</strong></p>
+      <p className="pdm-contextual-preview">品名跟隨確定品名：<strong>{coreName?.trim() || "-"}</strong></p>
       <label className="pdm-contextual-field">
         <span>料號類型</span>
         <select value={itemKind} onChange={(event) => setItemKind(event.target.value)}>
@@ -426,6 +433,7 @@ function AddPartDialog({
           <option value="custom">客製件</option>
         </select>
       </label>
+      {itemKind === "manufactured" ? <TextInput label="系列代號（選填）" value={seriesCode} onChange={setSeriesCode} maxLength={80} /> : null}
       {itemKind === "custom" ? <TextInput label="客製規格" value={customSpecification} onChange={setCustomSpecification} /> : null}
       {drawing ? (
         <label className="pdm-contextual-check">
@@ -673,11 +681,11 @@ function LockedRoot({ rootCode, coreName }: { rootCode: string; coreName?: strin
   return <p className="pdm-contextual-preview">主根鎖定：<strong>{rootCode}</strong>{coreName ? ` / ${coreName}` : ""}</p>;
 }
 
-function TextInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextInput({ label, value, onChange, maxLength }: { label: string; value: string; onChange: (value: string) => void; maxLength?: number }) {
   return (
     <label className="pdm-contextual-field">
       <span>{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} />
+      <input value={value} maxLength={maxLength} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

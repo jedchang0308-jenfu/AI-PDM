@@ -1,7 +1,7 @@
 # QA PDM Google Cloud SQL Platform Validation Plan
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; Phase 1A-1E locally QC-accepted on 2026-07-13; live staging/production provider/release gated
+Status: `HD-8-1..4` closed; Phase 1A-1E, Phase 2A preflight/IaC and Phase 2B local application/IaC readiness locally QC-accepted on 2026-07-13; live staging Hosting/runtime smoke passed on 2026-07-15; principal mapping and exact-source artifact provenance/drift remain gated
 DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 ADR: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 SPEC: `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
@@ -24,11 +24,14 @@ Prove that the first production slice uses one Firebase identity authority, one 
 |---|---|---|
 | `QA-ARCH-001` authority | All formal business/operational data is in Cloud SQL; enabled formal files use direct GCS; all business operations use portable HTTP/BFF domain services; no Firestore, Firebase Storage, Functions, Callable or Firestore-trigger authority | Any parallel/provider-specific authority or business logic in transport-only routes/Server Actions blocks |
 | `QA-HOST-001` support compatibility | Next.js 16 Active LTS, supported Node, standalone/container build and Cloud Run `asia-east1` have accepted support/upgrade runway and migration regression evidence under `HD-8-1 / 1A` | Unsupported/preview posture, unknown/mismatched runtime, non-reproducible image or behavior regression blocks |
+| `QA-HOST-002` staging Firebase gateway exception | `web.app` live/preview rewrite to reviewed `ai-pdm-stg` in `asia-east1`; private/no-store headers; canonical origin/issuer coupling; direct `run.app` origin session denial; no Firestore/Storage/Functions; production ALB baseline preserved | Wrong project/site/service/region, cached private response, origin mismatch, production adoption, or unrecorded direct-endpoint risk blocks |
+| `QA-HOST-003` artifact provenance and drift | Deployed digest maps to an exact reviewed source revision and its route manifest contains every Phase 2B accepted path | Dirty/uncommitted source, missing accepted route, or digest/source mismatch blocks staging acceptance even when entrypoint smoke passes |
 | `QA-HOST-002` rollout provenance | Production source auto-rollout is disabled; artifact revision/digest is immutable; base-image update policy has pre-deploy test, alert and rollback evidence | Branch push/merge can directly deploy production, or mutable/unknown artifact blocks release |
 | `QA-LOC-001` location | Cloud SQL, Cloud Run and later GCS primary inventory show Taiwan; global ALB/CDN metadata and Firebase Auth US processing are documented under `HD-6-1` | Missing acceptance/inventory or false all-Taiwan claim blocks |
 | `QA-LOC-002` full inventory | Identity, DB, files, backup/DR, runtime, build/image, log, secret/key and export locations/retention/owners are recorded; `_Required` global logging exception is disclosed | Missing class, unknown location or hidden global exception blocks |
 | `QA-IAM-001` reprovision | No credential/hash/session/source-actor migration; reviewed Firebase UID -> newly created stable production PDM ID manifest; source archive IDs/history remain separate | Missing/colliding mapping, same-email auto-link or source actor re-key blocks |
-| `QA-IAM-002` assurance | TOTP for Admin/Approver, eight-hour session, rotation, revoke/offboard, last-admin guard | Any bypass blocks |
+| `QA-IAM-002` assurance | Admin/Approver requires explicit assurance policy: either recognized MFA assurance (`google_workspace_mfa` only when Workspace 2SV is externally enforced and `PDM_TRUST_GOOGLE_WORKSPACE_MFA=true`) or a separately accepted internal-pilot AAL1 exception for verified `google.com` Workspace-domain users with `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`; eight-hour session, rotation, revoke/offboard, last-admin guard | Email-only trust, non-Google provider bypass, or recording the AAL1 pilot as MFA/AAL2 blocks |
+| `QA-IAM-003` employee login alias | Company-scoped employee-number alias creates only a rate-limited single-use provider-routing intent; verified provider UID must resolve to the same active PDM user/company; no application password/MFA/recovery store | Alias directly authenticates/authorizes, leaks account existence, crosses company, replays, collides, accepts retired alias or introduces application credential authority blocks |
 | `QA-DB-001` connection | Selected-runtime VPC access, private-IP Cloud SQL connector/socket, dedicated service identity, non-owner role, bounded pool, no browser path | Direct/public privileged access blocks |
 | `QA-DB-002` migration | Schema/grant parity, representative snapshot rehearsal, read-only compare, rollback point | Drift or ad hoc repair blocks |
 | `QA-DB-003` capacity | `effectiveMaxInstances * poolMax + migrationAdminReserve <= floor(0.70 * max_connections)` plus Cloud Run concurrency/load/failover saturation evidence | Missing budget, >70% allocation or unbounded autoscaling blocks |
@@ -41,7 +44,7 @@ Prove that the first production slice uses one Firebase identity authority, one 
 | `QA-STORAGE-001` direct GCS | Phase 1 proves interfaces/fakes and Phase 3A denies every file path; before Phase 3B release, formal pointer is provider/bucket/key/generation/hash and upload/finalize uses the direct GCS adapter/SDK/signed URL | Firebase Storage SDK/API/rules or Firebase file pointer appears; any Phase 3A file writer blocks canary |
 | `QA-NUM-001` numbering | Concurrency, idempotency, rollback, outage fail-close, recovery reservations | Duplicate/reused number blocks |
 | `QA-CAP-001` slice | Only official numbering/drafts enabled; direct URL/API/file attempts fail closed | Any roadmap command executes blocks |
-| `QA-WAVE-001` rollout | Wave 0 Google Workspace-only; Wave 1 includes at least one controlled non-Google email-link account after both paths pass staging; newly assigned production-ID allowlist, five-day reports and signed go/no-go | Non-Google in Wave 0, no controlled non-Google case in Wave 1, open P0 or undispositioned P1 blocks expansion |
+| `QA-WAVE-001` rollout | Initial canary is Google Workspace-only; later allowlists may include a controlled non-Google email-link account only after both paths pass staging; every change has an explicit newly assigned production-ID allowlist and DEV-032 release evidence | Non-Google in the initial canary, missing controlled non-Google staging evidence, automatic expansion, open P0 or open P1 blocks expansion |
 | `QA-COST-001` accountability | `HD-6-3 / 3A` day-one regional HA, named cost owners, measured staging run-rate, approved monthly forecast, 50/80/100 budget alert delivery and anomaly monitoring | Unknown owner, missing regional-HA forecast or absent alert evidence blocks production resources |
 | `QA-BOUNDARY-001` ProJED | Git/repository/config evidence shows no ProJED modification | Any unowned ProJED change blocks |
 
@@ -55,6 +58,9 @@ Prove that the first production slice uses one Firebase identity authority, one 
 - `jedchang0308@jenfu.com.tw` can become the initial production Admin only after Firebase activation, TOTP enrollment and BFF session smoke.
 - Demo login, legacy password/token login and legacy Google binding cannot issue a production session.
 - Google Workspace and non-Google Firebase-managed email-link paths both pass staging; Wave 0 production admits only Google Workspace users, and the first controlled non-Google user enters Wave 1 after canonical invitation proof.
+- Employee-number aliases are unique inside the company and Admin-managed with reason/audit. Unknown, duplicate, retired and cross-company aliases return a generic result; the login intent expires within five minutes and is single-use.
+- Alias resolution alone never creates a session. A provider callback with the wrong UID, company or PDM user is denied even when the employee number and email appear to match.
+- Static and runtime evidence proves AI_PDM stores no production password/hash, MFA secret, recovery code or reset token; Cloud Identity/Firebase provider owns these controls.
 - Disabled/offboarded accounts and pre-revocation cookies/refresh tokens fail immediately.
 - Browser/API responses and logs contain no password hash, raw reset token, provider secret or full provider subject.
 
@@ -125,8 +131,8 @@ Prove that the first production slice uses one Firebase identity authority, one 
 - Unnamed user cannot access canary even with a valid Firebase identity.
 - Named user can create an official number/draft within approved company/role/scope and sees an audit record.
 - Roadmap pages remain visible; unavailable controls cannot be focused/activated into a command and expose a clear tooltip/status.
-- Wave 0 runs five business days with 3-5 named Google Workspace users. `DEV-FIELD-001` captures role, task, result, defect, severity, owner and disposition.
-- Wave 1 adds about five users only after Wave 0 go/no-go and must include at least one controlled non-Google Firebase-managed email-link account. Wave 2 follows the same signed rule.
+- Initial canary uses 3-5 named Google Workspace users. `HD-9-1` cancels the fixed five-business-day `DEV-FIELD-001` observation without marking it passed.
+- Later allowlist changes are explicit DEV-032 releases and may include a controlled non-Google Firebase-managed email-link account only after staging evidence. No elapsed time or successful smoke expands access automatically.
 - No report uses "full PDM production ready" while file/release/CAD/add-in work remains closed.
 
 ## Regression suites
@@ -152,7 +158,19 @@ Existing Supabase QC may run only as disposable compatibility/migration evidence
 
 Execution result: accepted for the Phase 1 local boundary on 2026-07-13. `qc:dev-046-phase1` passed 86/86 focused assertions; Docker production build and non-root standalone start passed; Playwright completed demo login and reached the authenticated workbench. See `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase1-report-2026-07-13.md`. This result does not credit any Phase 2 or production evidence.
 
-### Phase 2 staging
+### Phase 2A staging preflight/IaC
+
+- All Google Terraform resources evaluate to zero by default and require the independent Phase 2B acknowledgement gate.
+- No credential lookup, remote backend initialization, plan/apply/import, API enablement, billing, IAM, DNS, migration or deployment occurs.
+- Terraform 1.14.5 `fmt -check` and `validate` pass against locked google provider 7.39.0 in an isolated Docker container with backend disabled and no Google configuration mounted.
+- Static QC proves private/regional Cloud SQL, IAM DB roles, Direct VPC/Cloud Run sidecar, LB-only ingress, authenticated/API no-CDN behavior, TOTP, regional logs, alerts/budget, no secrets in state and no Phase 3B file resource.
+- Preflight must be `blocked_expected`, never `ready`, while any target/owner/privacy/budget/state/credential/application blocker remains.
+
+Execution result: accepted for the Phase 2A local boundary on 2026-07-13. `qc:dev-046-phase2a` passed 20/20. The report lists 23 external/application blockers and grants no Phase 2B or production credit.
+
+### Phase 2B staging
+
+Local execution result on 2026-07-13: PASS for application/IaC readiness only. `qc:dev-046-phase2b` passed 14/14, including managed-invitation success and compensation behavior. The employee-login-alias local slice passed focused QC 21/21. The employee privacy acknowledgement local slice passed focused QC 20/20, covering exact immutable version/hash, fail-closed first session, transactional invitation activation, idempotency/replay, re-acknowledgement, API/BFF enforcement, permanent access and Admin evidence. Migration mirror QC passed 56/56, scoped lint passed, and an isolated Next.js production build completed its TypeScript phase and generated all routes. Desktop/mobile browser QC verified the three-line summary, full notice, unchecked/disabled gate, checked/enabled transition, expired-session visible error and zero overflow/cutoff/console errors. Local preflight remains `blocked_external` with 13 live blockers. No Firebase project/provider, Google credential, Cloud SQL migration, real principal, email delivery, TOTP enrollment, billable resource or deployment was exercised; those remain in the staging checklist below.
 
 - `HD-6-1 / 1A`, `HD-6-2 / 2A`, `HD-6-3 / 3A`, `HD-7-2 / 2B`, `HD-7-3 / 3B` and `HD-8-1..4` are recorded; accountable runtime, data, privacy, continuity and cost owners verify implementation evidence.
 - All no-file Phase 3A gates pass on isolated staging. `QA-STORAGE-001` requires fail-closed file paths now and full direct-GCS integration before Phase 3B, not before the numbering/draft canary.
@@ -164,11 +182,11 @@ Execution result: accepted for the Phase 1 local boundary on 2026-07-13. `qc:dev
 - Immutable Cloud Run image/traffic revision, target identity, approved clean-seed/archive and Google-only Wave 0 manifests, primary+backup 60-minute policy, HA/PITR, `HD-8-4 / 1A` separate-target restore and numbering-ledger reconciliation, DNS/secrets, smoke and rollback evidence pass.
 - Only 3-5 named stable IDs are allowed and file capabilities remain closed.
 
-### Phase 3A.1 waves
+### Phase 3A.1 fixed-duration field gate
 
-- `DEV-FIELD-001` completes for each required observation window.
-- No open P0; every P1 has accepted disposition, owner and date.
-- Product owner and release owner sign each expansion.
+- Cancelled by Human Decision `HD-9-1`; no observation window or field-test pass is claimed.
+- No open P0/P1 is accepted for production opening or allowlist expansion.
+- Product owner and release owner explicitly approve each allowlist change through DEV-032.
 
 ## Stop conditions
 

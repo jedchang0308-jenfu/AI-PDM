@@ -1,5 +1,9 @@
 # ADR-PDM-PRODUCTION-SLICE-001: Official Numbering and Draft Production Slice
 
+> 2026-07-13 Amendment：本文件既有 narrow production-slice、server-side feature gate、smoke-company isolation 與 QC evidence 保留；新 create flow 不再於 form create 時直接產生永久 official master。`ADR-PDM-NUMBER-STATE-FLOW-001` 改以獨立 candidate reservation + explicit publication transaction 作正式化邊界。Production clean seed 只含 published/obsolete official numbers 與 recovery non-reuse reservations，不 seed candidates/local drafts。
+>
+> 2026-07-14 Amendment (`HD-9-1`)：使用者取消 `DEV-FIELD-001` 固定五個工作日現場驗證。任務以 `Cancelled by Human Decision` 關閉，不視為通過；DEV-046 Phase 2B live staging、DEV-032、named 3-5-user canary、零 open P0/P1、continuity/rollback 與 production post-deploy smoke 仍為必要 gate。任何 allowlist 擴大必須明確 release 決策，不因時間或 local evidence 自動發生。
+
 Date: 2026-07-10
 Status: Accepted / Development document prepared; product implementation not requested this turn; production release gate required
 Owner: Dev PM
@@ -110,7 +114,7 @@ This ADR fixes the product decision and development-document boundary only. It d
 ## Supersedes / Amends
 
 - Amends the launch interpretation of `DEV-SUPABASE-DB-001-PROD-GATE` by defining a narrower production slice that is not equivalent to full PDM production readiness.
-- Amends current first-version readiness triage: `DEV-IND-007` is complete for the disposable local Postgres/Supabase-shadow boundary; `DEV-FIELD-001` remains the first-version pilot-acceptance/wider-opening blocker; `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes and are not required before the Web official numbering / draft production slice.
-- Clarifies that `DEV-FIELD-001` blocks expansion beyond the named production canary and the claim that the pilot is accepted. Before the canary deploy, only its user list, script, evidence owner and issue-intake mechanism must be ready; completed field evidence cannot be a pre-deploy requirement.
+- Historical first-version triage had `DEV-FIELD-001` as the pilot-acceptance/wider-opening blocker; `HD-9-1` supersedes that requirement and closes it as cancelled without evidence pass. `DEV-IND-007` remains complete for the disposable local Postgres/Supabase-shadow boundary; `DEV-CAD-001`, `DEV-SW-001`, and `DEV-BACKUP-001` remain deferred full-PDM scopes.
+- The current first-version blockers are DEV-046 Phase 2B live platform readiness and DEV-032 production release evidence. The initial canary remains named and fail-closed; later allowlist changes remain explicit release decisions.
 - DEV-046 later narrows that deferral: `DEV-BACKUP-001` still owns the full PDM file/offline restore drill, while Phase 3A production release separately requires database PITR, an independent logical backup, the hourly control ledger, and isolated restore evidence.
 - Does not change numbering identity ADRs or formal number reuse policy.

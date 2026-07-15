@@ -1,5 +1,7 @@
 # ADR-PDM-CHANGE-CONTROL-001: 預留草稿號與受控料號回收政策
 
+> 2026-07-13 Amendment：未來候選號 / 正式號邊界改由 `ADR-PDM-NUMBER-STATE-FLOW-001` 與 `SPEC-PDM-NUMBER-STATE-FLOW-001` 接管。送審現在是暫時 `review_locked`，不再自動造成永久不可回收；第一版取消固定 7 天冷卻。正式發布、已作廢 official number、既有 controlled-history 與本文件已完成的 change-control/QC evidence 仍然有效。
+
 日期：2026-06-24
 狀態：Accepted for planning
 關聯任務：`DEV-PDM-CHANGE-CONTROL-001`

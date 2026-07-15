@@ -40,7 +40,8 @@ export type TransferPackageWorkbench = TransferPackageRecord & {
     scopeEditing: true;
     packAndGoIntake: false;
     baseline: false;
-    formalSubmit: false;
+    formalSubmit: true;
+    batchPublication: true;
   };
 };
 
@@ -157,7 +158,8 @@ export async function getTransferPackageWorkbenchContext(input: {
       scopeEditing: true,
       packAndGoIntake: false,
       baseline: false,
-      formalSubmit: false
+      formalSubmit: true,
+      batchPublication: true
     }
   };
 }
@@ -278,8 +280,8 @@ export function buildTransferPackageReadinessSummary(workbench: TransferPackageW
   return {
     packageId: workbench.id,
     rowVersion: workbench.rowVersion,
-    ready: false,
-    phase: "3A-0",
+    ready: workbench.blockers.every((blocker) => blocker.severity !== "required"),
+    phase: "1D",
     packageStatus: workbench.status,
     blockerCount: workbench.blockers.filter((blocker) => blocker.severity === "required").length,
     blockers: workbench.blockers,
@@ -297,7 +299,7 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       : `/parts?query=${encodeURIComponent(firstItem.entityCode)}&returnTo=${encodeURIComponent(`${scopeHref}&blocker=scope`)}`
     : "/numbering/search";
   const blockers: TransferPackageBlocker[] = [];
-  if (record.status === "Draft" && record.items.length === 0) {
+  if (["Draft", "NeedsInfo", "ReleaseFailed"].includes(record.status) && record.items.length + record.draftItems.length === 0) {
     blockers.push({
       id: "scope",
       severity: "required",
@@ -308,7 +310,7 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       actionHref: scopeHref
     });
   }
-  if (record.status === "Draft") {
+  if (["Draft", "NeedsInfo", "ReleaseFailed"].includes(record.status)) {
     blockers.push({
       id: "intake-unavailable",
       severity: "warning",
@@ -324,8 +326,8 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
     {
       id: "drawing_part",
       label: "圖料範圍",
-      status: record.items.length ? "ready" : "blocked",
-      message: record.items.length ? `已納入 ${record.items.length} 個受控項目。` : "尚未加入受影響圖號或料號。",
+      status: record.items.length + record.draftItems.length ? "ready" : "blocked",
+      message: record.items.length + record.draftItems.length ? `已納入 ${record.items.length} 個正式項目與 ${record.draftItems.length} 個草稿。` : "尚未加入受影響圖號、料號或草稿工作區。",
       ownerModule: "圖料模組",
       actionLabel: record.items.length ? "查看圖料" : "搜尋圖料",
       actionHref: ownerHref
@@ -362,11 +364,11 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
     {
       id: "approval",
       label: "審核",
-      status: "unavailable",
-      message: "正式送審尚未開放；Draft 不會建立審核工作項目。",
+      status: record.status === "Published" ? "ready" : record.status === "Draft" ? "not_started" : "ready",
+      message: record.status === "Published" ? "技轉包已完成審核與正式發布。" : record.status === "Draft" ? "readiness 完成後可送交整包審核。" : `目前狀態：${record.status}。`,
       ownerModule: "審核工作台",
-      actionLabel: null,
-      actionHref: null
+      actionLabel: record.reviewRequestId ? "查看審核" : null,
+      actionHref: record.reviewRequestId ? `/approvals?requestId=${encodeURIComponent(record.reviewRequestId)}` : null
     }
   ];
   return {
@@ -378,7 +380,8 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       scopeEditing: true,
       packAndGoIntake: false,
       baseline: false,
-      formalSubmit: false
+      formalSubmit: true,
+      batchPublication: true
     }
   };
 }

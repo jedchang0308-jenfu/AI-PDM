@@ -66,6 +66,7 @@ export type PartNumberRecord = {
   itemKind: NumberingItemKind;
   isUniversal: boolean;
   customSpecification: string | null;
+  seriesCode: string | null;
   developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   universalReason: string | null;
@@ -410,6 +411,7 @@ export type CreateNumberingRecordInput = {
   isUniversal?: boolean;
   universalReason?: string;
   customSpecification?: string;
+  seriesCode?: string;
   drawingPurposeCode?: DrawingPurposeCode;
   drawingPurposeDescription?: string;
   createdBy?: string | null;
@@ -427,6 +429,7 @@ export type AddPartNumberInput = {
   isUniversal?: boolean;
   universalReason?: string;
   customSpecification?: string;
+  seriesCode?: string;
   createdBy?: string | null;
   ruleVersionId?: string;
   sourceEntrypoint?: string;
@@ -464,6 +467,7 @@ export type AddDrawingAndPartToRootInput = {
   isUniversal?: boolean;
   universalReason?: string;
   customSpecification?: string;
+  seriesCode?: string;
   createdBy?: string | null;
   ruleVersionId?: string;
   sourceEntrypoint?: string;
@@ -1429,6 +1433,7 @@ type PartNumberRow = {
   item_kind: NumberingItemKind;
   is_universal: number;
   custom_specification: string | null;
+  series_code: string | null;
   development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   universal_reason: string | null;
@@ -2122,6 +2127,7 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     itemKind: row.item_kind,
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
+    seriesCode: row.series_code,
     developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     universalReason: row.universal_reason,
@@ -3296,6 +3302,13 @@ function requireCustomSpecification(itemKind: NumberingItemKind, customSpecifica
   }
 }
 
+function normalizeSeriesCode(itemKind: NumberingItemKind, isUniversal: boolean, seriesCode: string | undefined) {
+  if (itemKind !== "manufactured" || isUniversal) return null;
+  const normalized = seriesCode?.trim() || null;
+  if (normalized && normalized.length > 80) throw new Error("SERIES_CODE_TOO_LONG");
+  return normalized;
+}
+
 function normalizePurposeDescription(purposeCode: DrawingPurposeCode, description: string | undefined) {
   const trimmed = description?.trim() ?? "";
   if (isReferenceDrawingPurpose(purposeCode) && !trimmed) {
@@ -3690,6 +3703,7 @@ function insertPartNumber(
     isUniversal: boolean;
     universalReason?: string;
     customSpecification?: string;
+    seriesCode?: string;
     ruleVersionId: string;
     createdBy?: string | null;
   }
@@ -3697,6 +3711,7 @@ function insertPartNumber(
   const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
   requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
   requireCustomSpecification(input.itemKind, input.customSpecification);
+  const seriesCode = normalizeSeriesCode(input.itemKind, effectiveIsUniversal, input.seriesCode);
   const sequenceNo = effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId) ? 0 : allocateSequence(database, `part:${root.rootCode}`);
   const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
   const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
@@ -3707,9 +3722,9 @@ function insertPartNumber(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, custom_specification, development_phase, record_status, universal_reason,
+        item_kind, is_universal, custom_specification, series_code, development_phase, record_status, universal_reason,
         rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -3722,6 +3737,7 @@ function insertPartNumber(
       input.itemKind,
       effectiveIsUniversal ? 1 : 0,
       input.customSpecification?.trim() || null,
+      seriesCode,
       input.developmentPhase,
       input.recordStatus,
       input.universalReason?.trim() || null,
@@ -7954,6 +7970,7 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
       isUniversal,
       universalReason: input.universalReason,
       customSpecification: input.customSpecification,
+      seriesCode: input.seriesCode,
       ruleVersionId,
       createdBy: input.createdBy
     });
@@ -7980,6 +7997,7 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
         rootCode: root.rootCode,
         partNumber: partNumber.partNumber,
         customSpecification: partNumber.customSpecification,
+        seriesCode: partNumber.seriesCode,
         drawingNumber: drawingNumber?.drawingNumber ?? null,
         ruleVersionId
       }
@@ -8006,6 +8024,7 @@ export function addPartNumberToRoot(input: AddPartNumberInput) {
       isUniversal,
       universalReason: input.universalReason,
       customSpecification: input.customSpecification,
+      seriesCode: input.seriesCode,
       ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
       createdBy: input.createdBy
     });

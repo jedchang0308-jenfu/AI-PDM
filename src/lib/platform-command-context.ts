@@ -37,7 +37,7 @@ function safeHeaderId(request: Request, name: string) {
 
 function requestedIdempotencyKey(request: Request, body: Record<string, unknown>, requestId: string) {
   const supplied = String(
-    request.headers.get("x-idempotency-key") ?? body.idempotencyKey ?? body.idempotency_key ?? ""
+    request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? body.idempotencyKey ?? body.idempotency_key ?? ""
   ).trim();
   return supplied || `request:${requestId}`;
 }

@@ -15,6 +15,9 @@ export async function POST(request: Request) {
   const targets = Array.isArray(body.targets) ? body.targets : [];
 
   if (!actionCode) return NextResponse.json({ error: "actionCode is required" }, { status: 400 });
+  if (actionCode === "numbering.candidate_publication_review") {
+    return NextResponse.json({ error: "APPROVAL_DOMAIN_SUBMIT_REQUIRED" }, { status: 400 });
+  }
   if (!reason) return NextResponse.json({ error: "reason is required" }, { status: 400 });
   if (targets.length === 0) return NextResponse.json({ error: "targets is required" }, { status: 400 });
 

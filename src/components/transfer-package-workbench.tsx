@@ -20,8 +20,11 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Send,
   ShieldAlert,
   Trash2,
+  Undo2,
+  UploadCloud,
   X
 } from "lucide-react";
 import type { TransferPackageWorkbench } from "@/lib/transfer-packages";
@@ -46,6 +49,14 @@ type Props = {
 };
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "not_found" | "error";
+
+type Phase1DReadiness = {
+  ready: boolean;
+  stale: boolean;
+  snapshotHash: string;
+  firstBlocker: null | { code: string; message: string; ownerRole: string; ownerModule: string; actionLabel: string; actionHref: string };
+  blockers: Array<{ code: string; message: string; ownerRole: string; ownerModule: string; actionLabel: string; actionHref: string; workspaceId: string | null }>;
+};
 
 const caseOptions = [
   { value: "design_change_case", label: "設變案" },
@@ -72,6 +83,9 @@ export function TransferPackageWorkbenchShell(props: Props) {
   const [sourceReferenceReason, setSourceReferenceReason] = useState("");
   const [scopeType, setScopeType] = useState<TransferPackageEntityType>("drawing_number");
   const [scopeValue, setScopeValue] = useState("");
+  const [workspaceId, setWorkspaceId] = useState("");
+  const [readiness, setReadiness] = useState<Phase1DReadiness | null>(null);
+  const [actionPermissions, setActionPermissions] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -114,8 +128,13 @@ export function TransferPackageWorkbenchShell(props: Props) {
           ...(props.sourceId ? { sourceId: props.sourceId } : {}),
           ...(props.initialCaseType ? { caseType: props.initialCaseType } : {})
         }).toString()}`;
-    const response = await fetch(url, { cache: "no-store" });
+    const [response, permissionsResponse] = await Promise.all([
+      fetch(url, { cache: "no-store" }),
+      fetch("/api/numbering/permissions", { cache: "no-store" })
+    ]);
     const body = await response.json().catch(() => ({}));
+    const permissionsBody = await permissionsResponse.json().catch(() => ({}));
+    setActionPermissions(permissionsResponse.ok && permissionsBody.actions ? permissionsBody.actions : {});
     if (response.status === 401) return setState("unauthorized");
     if (response.status === 403) return setState("forbidden");
     if (response.status === 404) return setState("not_found");
@@ -127,6 +146,9 @@ export function TransferPackageWorkbenchShell(props: Props) {
       const next = body.workbench as TransferPackageWorkbench;
       setWorkbench(next);
       syncHeader(next);
+      const readinessResponse = await fetch(`/api/transfer-packages/${encodeURIComponent(props.packageId)}/readiness-summary`, { cache: "no-store" });
+      const readinessBody = await readinessResponse.json().catch(() => ({}));
+      setReadiness(readinessResponse.ok ? readinessBody.readiness as Phase1DReadiness : null);
     } else {
       const next = body.context as WorkbenchContext;
       setContext(next);
@@ -147,7 +169,13 @@ export function TransferPackageWorkbenchShell(props: Props) {
     target?.focus({ preventScroll: true });
   }, [props.initialSection, state]);
 
-  const terminal = workbench?.status === "Cancelled";
+  const terminal = workbench?.status === "Cancelled" || workbench?.status === "Published";
+  const canCreate = actionPermissions["transfer.package.create"] === true;
+  const canUpdate = actionPermissions["transfer.package.update"] === true;
+  const canSubmit = actionPermissions["transfer.package.review.submit"] === true;
+  const canWithdraw = actionPermissions["transfer.package.review.withdraw"] === true;
+  const canPublish = actionPermissions["transfer.package.publish"] === true;
+  const editable = Boolean(workbench && canUpdate && ["Draft", "NeedsInfo", "ReleaseFailed"].includes(workbench.status));
   const headerDirty = Boolean(
     workbench &&
       (title !== workbench.title ||
@@ -165,19 +193,27 @@ export function TransferPackageWorkbenchShell(props: Props) {
     [caseReason, referenceStatus, sourceReference, sourceReferenceReason, title]
   );
 
-  async function requestAction(url: string, method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>, action: string) {
+  async function requestAction(
+    url: string,
+    method: "POST" | "PATCH" | "DELETE",
+    body: Record<string, unknown>,
+    action: string,
+    idempotencyKey?: string
+  ) {
     setBusy(action);
     setError("");
     setMessage("");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
     const response = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body)
     });
     const payload = await response.json().catch(() => ({}));
     setBusy(null);
     if (!response.ok) {
-      setError(payload.message ?? "操作失敗，請重新整理後再試。");
+      setError(payload.error?.message ?? payload.message ?? "操作失敗，請重新整理後再試。");
       if (response.status === 409) await load();
       return null;
     }
@@ -256,6 +292,60 @@ export function TransferPackageWorkbenchShell(props: Props) {
     if (next) setMessage("已從案件範圍移除項目。");
   }
 
+  async function addDraftWorkspace() {
+    if (!workbench || !workspaceId.trim()) return;
+    const next = await requestAction(`/api/transfer-packages/${encodeURIComponent(workbench.id)}/draft-items`, "POST", {
+      expectedRowVersion: workbench.rowVersion,
+      workspaceId: workspaceId.trim(),
+      requiredness: "required",
+      inclusionReason: "本次技術移轉必要草稿"
+    }, "add-workspace", `transfer:add-workspace:${workbench.id}:v${workbench.rowVersion}:${workspaceId.trim()}`);
+    if (next) {
+      setWorkspaceId("");
+      setMessage("草稿工作區已加入案件範圍。");
+      await load();
+    }
+  }
+
+  async function removeDraftWorkspace(itemId: string) {
+    if (!workbench) return;
+    const next = await requestAction(
+      `/api/transfer-packages/${encodeURIComponent(workbench.id)}/draft-items/${encodeURIComponent(itemId)}`,
+      "DELETE",
+      { expectedRowVersion: workbench.rowVersion, reason: "移出本次技轉範圍" },
+      `remove-workspace:${itemId}`,
+      `transfer:remove-workspace:${workbench.id}:v${workbench.rowVersion}:${itemId}`
+    );
+    if (next) {
+      setMessage("草稿工作區已移出案件範圍。");
+      await load();
+    }
+  }
+
+  async function lifecycleAction(action: "submit-review" | "withdraw-review" | "publish") {
+    if (!workbench) return;
+    setBusy(action);
+    setError("");
+    setMessage("");
+    const response = await fetch(`/api/transfer-packages/${encodeURIComponent(workbench.id)}/${action}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": `transfer:${action}:${workbench.id}:v${workbench.rowVersion}`
+      },
+      body: JSON.stringify({ expectedRowVersion: workbench.rowVersion, reason: "技術移轉整包審核" })
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(null);
+    if (!response.ok) {
+      setError(payload.error?.message ?? payload.message ?? "技轉狀態更新失敗。");
+      if (response.status === 409) await load();
+      return;
+    }
+    setMessage(action === "submit-review" ? "技轉包已送審。" : action === "withdraw-review" ? "技轉包已撤回。" : "技轉包已正式發布。");
+    await load();
+  }
+
   async function cancelPackage() {
     if (!workbench || !cancelConfirmed || cancelReason.trim().length < 3) return;
     const next = await requestAction(`/api/transfer-packages/${encodeURIComponent(workbench.id)}/cancel`, "POST", {
@@ -309,7 +399,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
             <button
               className="primary-button"
               type="button"
-              disabled={!formValid || Boolean(busy) || Boolean(context?.sourceRequested && !context.sourceResolved)}
+              disabled={!canCreate || !formValid || Boolean(busy) || Boolean(context?.sourceRequested && !context.sourceResolved)}
+              title={canCreate ? "建立技轉包" : "目前帳號沒有建立技轉包權限"}
               onClick={() => void createPackage()}
             >
               {busy === "create" ? <Loader2 className="spin" size={16} /> : <PackagePlus size={16} />}
@@ -334,7 +425,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
               <RefreshCw size={16} />
               重新整理
             </button>
-            {!terminal ? (
+            {editable ? (
               <button className="secondary-button danger-button" type="button" onClick={() => setCancelOpen(true)} disabled={Boolean(busy)}>
                 <Ban size={16} />
                 取消技轉包
@@ -346,12 +437,12 @@ export function TransferPackageWorkbenchShell(props: Props) {
 
       {error ? <InlineMessage kind="error" message={error} /> : null}
       {message ? <InlineMessage kind="success" message={message} /> : null}
-      <NowWhat workbench={workbench} />
+      <NowWhat workbench={workbench} readiness={readiness} />
 
       <section className="transfer-summary-band" aria-label="技轉包摘要">
-        <SummaryValue label="狀態" value={terminal ? "已取消" : "草稿"} tone={terminal ? "neutral" : "active"} />
-        <SummaryValue label="範圍" value={`${workbench.items.length} 項`} />
-        <SummaryValue label="必要阻擋" value={`${workbench.blockers.filter((item) => item.severity === "required").length} 項`} />
+        <SummaryValue label="狀態" value={packageStatusLabel(workbench.status)} tone={terminal ? "neutral" : "active"} />
+        <SummaryValue label="範圍" value={`${workbench.items.length + workbench.draftItems.length} 項`} />
+        <SummaryValue label="必要阻擋" value={`${readiness?.blockers.length ?? workbench.blockers.filter((item) => item.severity === "required").length} 項`} />
         <SummaryValue label="資料版本" value={`v${workbench.rowVersion}`} />
       </section>
 
@@ -361,7 +452,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
             <h2>案件資料</h2>
             <p>案件名稱、類型、原因與來源依據。</p>
           </div>
-          {!terminal ? (
+          {editable ? (
             <button className="primary-button" type="button" disabled={!headerDirty || !formValid || Boolean(busy)} onClick={() => void saveHeader()}>
               {busy === "save" ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
               儲存
@@ -381,7 +472,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
           setSourceReference={setSourceReference}
           sourceReferenceReason={sourceReferenceReason}
           setSourceReferenceReason={setSourceReferenceReason}
-          disabled={terminal || Boolean(busy)}
+          disabled={!editable || Boolean(busy)}
         />
       </section>
 
@@ -389,11 +480,11 @@ export function TransferPackageWorkbenchShell(props: Props) {
         <div className="panel-header">
           <div>
             <h2>案件範圍</h2>
-            <p>本次技轉直接受影響的圖號與料號。</p>
+            <p>本次技轉直接受影響的正式圖料與草稿工作區。</p>
           </div>
-          <span className="section-label">{workbench.items.length} 項</span>
+          <span className="section-label">{workbench.items.length + workbench.draftItems.length} 項</span>
         </div>
-        {!terminal ? (
+        {editable ? (
           <div className="transfer-scope-add">
             <label>
               <span>類型</span>
@@ -412,6 +503,23 @@ export function TransferPackageWorkbenchShell(props: Props) {
             </button>
           </div>
         ) : null}
+        {editable ? (
+          <div className="transfer-scope-add">
+            <label className="transfer-field-wide">
+              <span>草稿工作區 ID</span>
+              <input
+                value={workspaceId}
+                onChange={(event) => setWorkspaceId(event.target.value)}
+                placeholder="貼上完整 workspace ID"
+                disabled={Boolean(busy)}
+              />
+            </label>
+            <button className="secondary-button" type="button" disabled={!workspaceId.trim() || Boolean(busy)} onClick={() => void addDraftWorkspace()}>
+              {busy === "add-workspace" ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+              加入草稿
+            </button>
+          </div>
+        ) : null}
         {workbench.items.length ? (
           <div className="table-wrap">
             <table className="transfer-scope-table">
@@ -426,7 +534,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
                     <td>{item.displayLabel}<small>{item.rootCode ? `主根 ${item.rootCode}` : ""}</small></td>
                     <td>{item.recordStatus ?? "-"}</td>
                     <td>
-                      {!terminal ? (
+                      {editable ? (
                         <button className="icon-button" type="button" title="移除範圍項目" aria-label={`移除 ${item.entityCode}`} disabled={Boolean(busy)} onClick={() => void removeScope(item.id)}>
                           {busy === `remove:${item.id}` ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
                         </button>
@@ -437,9 +545,69 @@ export function TransferPackageWorkbenchShell(props: Props) {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : workbench.draftItems.length === 0 ? (
           <div className="empty transfer-empty"><Boxes size={22} /><h3>尚未加入案件範圍</h3><p>先加入本次受影響的圖號或料號。</p></div>
-        )}
+        ) : null}
+        {workbench.draftItems.length ? (
+          <div className="table-wrap">
+            <table className="transfer-scope-table">
+              <thead><tr><th>類型</th><th>工作區</th><th>必要性</th><th>草稿狀態</th><th aria-label="操作" /></tr></thead>
+              <tbody>
+                {workbench.draftItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>草稿</td>
+                    <td><strong>{item.workspaceId}</strong><small>加入時 v{item.capturedWorkspaceVersion} · 目前 v{item.workspaceVersion}</small></td>
+                    <td>{item.requiredness === "required" ? "必要" : "選用"}</td>
+                    <td>{item.workspaceLifecycle === "published" ? "已發布" : item.workspaceLifecycle === "cancelled" ? "已取消" : "準備中"}</td>
+                    <td>{editable ? (
+                      <button className="icon-button" type="button" title="移除草稿工作區" aria-label={`移除 ${item.workspaceId}`} disabled={Boolean(busy)} onClick={() => void removeDraftWorkspace(item.id)}>
+                        {busy === `remove-workspace:${item.id}` ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+                      </button>
+                    ) : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+
+      <section id="transfer-section-review" tabIndex={-1} className="panel">
+        <div className="panel-header">
+          <div><h2>審核與發布</h2><p>審核只鎖定快照；正式號碼需另行明確發布。</p></div>
+          {readiness ? <span className="section-label">{readiness.ready ? "可執行下一步" : `${readiness.blockers.length} 項阻擋`}</span> : null}
+        </div>
+        {readiness?.firstBlocker ? (
+          <div className="transfer-blocker">
+            <AlertTriangle size={18} />
+            <div><strong>{readiness.firstBlocker.message}</strong><p>{readiness.firstBlocker.ownerRole} · {readiness.firstBlocker.ownerModule}</p></div>
+            <Link className="secondary-button" href={readiness.firstBlocker.actionHref}>{readiness.firstBlocker.actionLabel}<ChevronRight size={16} /></Link>
+          </div>
+        ) : null}
+        <div className="transfer-primary-actions">
+          {["Draft", "NeedsInfo"].includes(workbench.status) ? (
+            <button className="primary-button" type="button" title={canSubmit ? "送交整包審核" : "目前帳號沒有送審權限"} disabled={!canSubmit || !readiness?.ready || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
+              {busy === "submit-review" ? <Loader2 className="spin" size={16} /> : <Send size={16} />}送交整包審核
+            </button>
+          ) : null}
+          {workbench.status === "InReview" ? <>
+            <Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>前往審核工作台</Link>
+            <button className="secondary-button" type="button" title={canWithdraw ? "撤回審核" : "目前帳號沒有撤回權限"} disabled={!canWithdraw || Boolean(busy)} onClick={() => void lifecycleAction("withdraw-review")}>
+              {busy === "withdraw-review" ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}撤回審核
+            </button>
+          </> : null}
+          {workbench.status === "ReleaseFailed" && readiness?.stale ? (
+            <button className="primary-button" type="button" title={canSubmit ? "重建快照並重新送審" : "目前帳號沒有送審權限"} disabled={!canSubmit || readiness.blockers.some((item) => item.code !== "approval_snapshot_stale") || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
+              {busy === "submit-review" ? <Loader2 className="spin" size={16} /> : <Send size={16} />}重建快照並重新送審
+            </button>
+          ) : null}
+          {workbench.status === "ApprovedPendingPublish" || (workbench.status === "ReleaseFailed" && !readiness?.stale) ? (
+            <button className="primary-button" type="button" title={canPublish ? "正式發布整包" : "目前帳號沒有正式發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
+              {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "正式發布整包"}
+            </button>
+          ) : null}
+          {workbench.status === "Published" ? <Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link> : null}
+        </div>
       </section>
 
       <section id="transfer-section-modules" tabIndex={-1} className="panel">
@@ -515,10 +683,14 @@ function SourceSummary({ item, fallbackLabel }: { item: ResolvedTransferPackageE
   return <div className="transfer-source-summary"><Link2 size={17} /><div><span>帶入來源</span><strong>{item.entityCode} · {fallbackLabel || item.displayLabel}</strong><small>{item.entityType === "drawing_number" ? "圖號" : "料號"}{item.rootCode ? ` · 主根 ${item.rootCode}` : ""}</small></div></div>;
 }
 
-function NowWhat({ workbench }: { workbench: TransferPackageWorkbench }) {
+function NowWhat({ workbench, readiness }: { workbench: TransferPackageWorkbench; readiness: Phase1DReadiness | null }) {
   if (workbench.status === "Cancelled") return <div className="transfer-now-what neutral"><Ban size={20} /><div><strong>此技轉包已取消，不會再進入送審。</strong><p>資料與異動紀錄已保留；需要繼續時請建立新技轉包。</p></div><Link className="secondary-button" href="/transfer-packages/new">建立新技轉包</Link></div>;
-  if (!workbench.items.length) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>下一步：加入本次受影響的圖號或料號。</strong><p>沒有案件範圍時，後續資料無法歸屬。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=scope`}>加入案件範圍</Link></div>;
-  return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已保存；目前可繼續補齊案件範圍。</strong><p>Pack and Go 解析將在下一階段開放。</p></div><Link className="secondary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=modules`}>查看模組狀態</Link></div>;
+  if (workbench.status === "Published") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已正式發布，可供製造與採購交接使用。</strong><p>交接資料只包含正式號碼與受控發布內容。</p></div><Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link></div>;
+  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與候選號已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
+  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行正式發布。</strong><p>發布前會重新驗證快照、檔案證據與所有候選號。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
+  if (!workbench.items.length && !workbench.draftItems.length) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>下一步：加入正式圖料或草稿工作區。</strong><p>沒有案件範圍時，後續資料無法歸屬。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=scope`}>加入案件範圍</Link></div>;
+  if (readiness?.firstBlocker) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>{readiness.firstBlocker.message}</strong><p>{readiness.firstBlocker.ownerRole} · {readiness.firstBlocker.ownerModule}</p></div><Link className="primary-button" href={readiness.firstBlocker.actionHref}>{readiness.firstBlocker.actionLabel}</Link></div>;
+  return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已準備完成，可送交整包審核。</strong><p>核准後仍需另行正式發布。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>前往送審</Link></div>;
 }
 
 function InlineMessage({ kind, message }: { kind: "error" | "success"; message: string }) {
@@ -554,8 +726,30 @@ function caseLabel(value: "development_case" | "design_change_case") {
   return value === "development_case" ? "開發案" : "設變案";
 }
 
+function packageStatusLabel(value: TransferPackageWorkbench["status"]) {
+  const labels: Record<TransferPackageWorkbench["status"], string> = {
+    Draft: "草稿",
+    InReview: "審核中",
+    NeedsInfo: "待補資料",
+    ApprovedPendingPublish: "已核准，待發布",
+    Publishing: "發布中",
+    Published: "已發布",
+    ReleaseFailed: "發布失敗",
+    Cancelled: "已取消"
+  };
+  return labels[value];
+}
+
 function eventLabel(value: string) {
-  const labels: Record<string, string> = { DraftCreated: "建立技轉包", HeaderUpdated: "更新案件資料", ScopeItemAdded: "加入案件範圍", ScopeItemRemoved: "移除案件範圍", PackageCancelled: "取消技轉包" };
+  const labels: Record<string, string> = {
+    DraftCreated: "建立技轉包", HeaderUpdated: "更新案件資料",
+    ScopeItemAdded: "加入正式範圍", ScopeItemRemoved: "移除正式範圍",
+    DraftWorkspaceAdded: "加入草稿工作區", DraftWorkspaceRemoved: "移除草稿工作區",
+    ReviewSubmitted: "送交整包審核", ReviewWithdrawn: "撤回整包審核",
+    ReviewDecided: "完成整包審核", SnapshotInvalidated: "審核快照失效",
+    PackagePublished: "正式發布技轉包", ReleaseFailed: "整包發布失敗",
+    PackageCancelled: "取消技轉包"
+  };
   return labels[value] ?? value;
 }
 

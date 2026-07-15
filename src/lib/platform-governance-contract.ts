@@ -108,6 +108,7 @@ export interface CostBudgetPolicy {
   costOwner: string;
   businessOwner: string;
   monthlyBudget: number;
+  planReviewStopAtUsd: number;
   monthlyAssumptions: Array<{ service: string; amount: number; basis: string }>;
   alerts: Array<{ threshold: number; recipients: string[] }>;
   varianceEscalation: { monthlyVarianceRatio: number; owner: string; decisionDueBusinessDays: number };
@@ -118,6 +119,7 @@ export interface CostBudgetPolicy {
 export function validateCostBudgetPolicy(policy: CostBudgetPolicy, options: { requireReleaseReady?: boolean } = {}) {
   const errors: string[] = [];
   if (!policy.costOwner.trim() || !policy.businessOwner.trim()) errors.push("COST_OWNER_REQUIRED");
+  if (policy.planReviewStopAtUsd <= 0 || policy.planReviewStopAtUsd > policy.monthlyBudget * 0.8) errors.push("COST_PLAN_REVIEW_STOP_INVALID");
   const assumptionTotal = policy.monthlyAssumptions.reduce((sum, item) => sum + item.amount, 0);
   if (assumptionTotal !== policy.monthlyBudget) errors.push("COST_MONTHLY_ASSUMPTIONS_DO_NOT_MATCH_BUDGET");
   const thresholds = policy.alerts.map((alert) => alert.threshold).sort((a, b) => a - b);

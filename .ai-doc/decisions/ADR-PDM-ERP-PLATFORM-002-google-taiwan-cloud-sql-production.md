@@ -1,7 +1,7 @@
 # ADR-PDM-ERP-PLATFORM-002 - Google Taiwan Cloud SQL production platform
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; core data/file/business/runtime/continuity decisions accepted; Phase 1 local contracts RD Implementation Ready / Not Requested; provider and release remain gated
+Status: `HD-8-1..4`, `HD-9-1` and `HD-10-1` closed; staging cost posture amended; core data/file/business/runtime/continuity decisions accepted; provider and release remain gated
 Owner: ERP Platform RD
 Related DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Supersedes: production-provider, data-placement and 18-month provider-decision sections of `ADR-PDM-ERP-PLATFORM-001`
@@ -49,6 +49,25 @@ The user closed the three decisions as follows:
 Engineering corrections that do not require a product decision are fixed now: clean production creates new production actor IDs rather than mapping source IDs; Identity Platform managed action email is distinct from optional custom SMTP; and Phase 3A proves file capabilities fail closed without requiring the Phase 3B GCS runtime adapter to block numbering/drafts.
 
 The user closed the follow-up decision with `HD-8-4 closed - 1A`: full PDM/GCS/offline backup-and-restore capability remains deferred, but the official-numbering canary must not start until Cloud SQL automated backups and PITR are enabled and one production-like recovery point has been restored to a separate isolated target. The drill must prove schema/migration state, account mapping, audit/outbox integrity and numbering-ledger/sequence/non-reuse-reservation consistency without overwriting the source. This is release evidence, not a user-facing restore feature and not evidence that later file/full-PDM recovery is complete.
+
+## 2026-07-14 Staging Cost Amendment
+
+`HD-10-1 closed - 1A`: isolated staging uses `db-custom-1-3840` with `ZONAL` availability. Automated backups, PITR, private IP, IAM database authentication and deletion protection remain mandatory. Production remains `REGIONAL` from the first production canary under `HD-6-3 / 3A`; this amendment does not weaken the production availability contract.
+
+The conservative Phase 2B/3A staging forecast is USD 210/month against the existing USD 300 cap and USD 240 pre-plan stop. This clears the planning-cost blocker only. A credentialled Terraform plan must still stop on an estimate above USD 240 or on any deletion/replacement, and all state, provider, secret, IAM, migration, smoke and rollback gates remain effective.
+
+## 2026-07-15 Staging Firebase Hosting Exception
+
+The user selected the Firebase Hosting default domain for the short-term internal staging pilot after deferring public DNS. This is an intentional staging-only exception to `HD-8-1 / 1A`, not a replacement for the production architecture:
+
+- Canonical staging origin: `https://jenfu-ai-pdm-stg-361825.web.app`.
+- Firebase Hosting only rewrites HTTP traffic to the existing Cloud Run service in `asia-east1`; it does not host business logic or formal data.
+- Cloud SQL remains the only formal relational authority. Firestore is not enabled or used. GCS remains the only approved future formal-file authority; Firebase Storage is not used. Firebase Functions, Callable and Firestore triggers remain prohibited.
+- Firebase Hosting's Cloud Run integration requires an unauthenticated Cloud Run endpoint. Therefore staging temporarily enables the Cloud Run default URL and all ingress. `PDM_PUBLIC_BASE_URL` and the session issuer are pinned to the `web.app` origin, secure host-only cookies remain required, and a request carrying the `run.app` browser origin is denied at session exchange.
+- This does not eliminate the direct `run.app` shell or denial-of-service surface. The direct response also bypasses Hosting's private/no-store header override. These are accepted staging residual risks only.
+- Production still requires the external Application Load Balancer, managed TLS, custom domain, load-balancer-only Cloud Run ingress and disabled default URL. Firebase Hosting is not an allowed production gateway under this ADR.
+
+Execution evidence records a targeted Terraform plan/apply of 0 added, 1 in-place change, 0 destroyed and 0 replaced; Firebase Hosting live version `c61e4ebfa2556848`; Cloud Run revision `ai-pdm-stg-00003-vz4`; and 6/6 live smoke including a read-only Cloud SQL query through the runtime identity. This closes the internal HTTPS and runtime-smoke gates only. Staging acceptance remains blocked by real principal mapping and exact-source artifact provenance/drift evidence because the deployed image predates at least one locally accepted route.
 
 ## Decision
 
@@ -116,9 +135,9 @@ The user closed the follow-up decision with `HD-8-4 closed - 1A`: full PDM/GCS/o
 ### 6. Controlled rollout
 
 - Wave 0: 3-5 named Google Workspace users receive production access to official numbering and drafts only.
-- `DEV-FIELD-001` runs for five business days on Wave 0. Expansion requires no open P0 and an owner/target date/accepted disposition for every P1.
-- Wave 1: add approximately five named users, including at least one controlled non-Google Firebase-managed email-link account, for another five-business-day observation window under the same gate.
-- Wave 2: open to the remaining approved internal users only after Wave 1 go/no-go evidence is signed.
+- `HD-9-1` on 2026-07-14 cancels the former fixed five-business-day `DEV-FIELD-001` observation. The task closes without execution or a pass claim.
+- Later allowlist expansion is not time-gated, but each change requires an explicit DEV-032 release decision, no open P0/P1, rollback readiness and production post-deploy smoke evidence.
+- A controlled non-Google Firebase-managed email-link account may enter a later allowlist only after that path passes staging.
 - Every wave uses stable user IDs and a fail-closed allowlist. File workflows, release, CAD parsing and other roadmap functions stay disabled until their own release gates pass.
 - Under `HD-7-2 / 2B`, production begins with no migrated business rows or drafts. The seed manifest is allowlist-only: initial Admin, minimum company/role/configuration rows, sequence state and non-reusable official-number reservations. Unknown, demo, test or historical source rows cannot enter production.
 - A read-only local archive preserves the excluded source inventory and hashes. It is evidence, not a runtime authority or fallback production database.
@@ -139,7 +158,7 @@ The user closed the follow-up decision with `HD-8-4 closed - 1A`: full PDM/GCS/o
 ## Environment Model
 
 - `jenfu-erp-dev`: local/test resources and disposable evidence.
-- `jenfu-erp-staging`: Cloud Run `asia-east1`, external Application Load Balancer/CDN policy, Identity Platform and Cloud SQL staging in Taiwan; GCS integration staging is required before Phase 3B, not before the no-file Phase 3A slice.
+- `jenfu-erp-staging`: Cloud Run `asia-east1`, Identity Platform and Cloud SQL staging in Taiwan. The normal edge baseline is the external Application Load Balancer/CDN policy; the short-term internal pilot may use the 2026-07-15 Firebase Hosting default-domain exception. GCS integration staging is required before Phase 3B, not before the no-file Phase 3A slice.
 - `jenfu-erp-prod`: Cloud Run `asia-east1`, external Application Load Balancer/custom domain, restricted CDN policy and Cloud SQL HA in Taiwan; direct GCS becomes formal file authority when Phase 3B is released.
 - `jenfu-erp-backup`: separately administered Taiwan recovery project; KMS, backup GCS and logical database restore artifacts remain in the approved Taiwan location and do not constitute regional DR.
 
@@ -167,7 +186,7 @@ At months 12 and 18, review Cloud SQL edition, machine/database sizing, storage 
 
 ## Execution Boundary
 
-This ADR authorizes documentation and local contract planning only. It does not authorize Google Cloud project creation, billing, Identity Platform upgrade, credentials, DNS, Cloud Run/Load Balancer/Cloud SQL/GCS resources, account provisioning, source-data deletion, live migration, production deploy, merge, PR, rollback or production smoke. `HD-8-1..4` are closed and Phase 1 local contracts are RD Implementation Ready / Not Requested. Phase 2/3 still require implementation/release instructions plus provider, cost, credential, privacy-evidence, the pre-canary isolated-restore evidence and release gates.
+The original ADR approval authorized documentation and local contract planning only. Subsequent project, Phase 2B resource, migration, Firebase Hosting and staging-smoke actions were separately authorized and are traceable in DEV-046 evidence; they do not grant standing authority for further account provisioning, source-data deletion, production deploy, merge, PR, rollback or production smoke. `HD-8-1..4` are closed. Remaining Phase 2/3 actions still require the applicable implementation/release instruction plus provider, cost, credential, privacy, artifact-provenance, principal-mapping, pre-canary isolated-restore and release gates.
 
 ## Official References
 
@@ -185,6 +204,8 @@ This ADR authorizes documentation and local contract planning only. It does not 
 - Cloud Run locations: https://cloud.google.com/run/docs/locations
 - Next.js self-hosting: https://nextjs.org/docs/app/guides/self-hosting
 - External Application Load Balancer with Cloud Run: https://cloud.google.com/load-balancing/docs/https/setting-up-https-serverless
+- Firebase Hosting integration with Cloud Run: https://firebase.google.com/docs/hosting/cloud-run
+- Cloud Run ingress restrictions: https://cloud.google.com/run/docs/securing/ingress
 - Cloud SQL restore overview: https://cloud.google.com/sql/docs/postgres/backup-recovery/restore
 - Firebase session cookies: https://firebase.google.com/docs/auth/admin/manage-cookies
 - Firebase TOTP MFA: https://firebase.google.com/docs/auth/web/totp-mfa

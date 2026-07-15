@@ -60,8 +60,8 @@ record(
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 record(
-  "Contextual part flow locks part name to the root core name",
-  includesAll(component, ["品名跟隨主根", "以此料號新增同根料號"]) && !component.includes('TextInput label="料號品名"') && !component.includes("const [partName"),
+  "Contextual part flow locks part name to the confirmed name",
+  includesAll(component, ["品名跟隨確定品名", "以此料號新增同根料號"]) && !component.includes('TextInput label="料號品名"') && !component.includes("const [partName"),
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 record(
@@ -119,7 +119,7 @@ record(
 
 record(
   "Numbering request page has new root and existing-root append modes",
-  includesAll(requestPage, ["RequestMode", "new_root", "append_existing_root", "既有主根號追加", "新增圖號 + 料號並建立關係"]),
+  includesAll(requestPage, ["RequestMode", "new_root", "append_existing_root", "建立全新圖料", "在既有主根下新增", "新增料號＋圖號"]),
   "src/app/numbering/request/page.tsx"
 );
 record(
@@ -129,7 +129,7 @@ record(
 );
 record(
   "Numbering request locks part name to root name instead of editable part-level naming",
-  includesAll(requestPage, ["主根品名", "料號與圖號共用主根品名", "partName: lockedPartName"]) &&
+  includesAll(requestPage, ["產品／零件名稱", "料號品名", "const lockedPartName = effectiveCoreName.trim()", "partName: name"]) &&
     !requestPage.includes("品名（系統建議，可微調）") &&
     !requestPage.includes("套用建議") &&
     !requestPage.includes("系統建議流水號"),
@@ -150,11 +150,16 @@ const appendDrawingPartRoute = read("src/app/api/numbering/roots/[rootCode]/draw
 const obsoleteImpactRoute = read("src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts");
 const draftDeleteRoute = read("src/app/api/numbering/records/[rootCode]/draft/route.ts");
 
+function hasCreatePermissionGate(source) {
+  return source.includes('requireNumberingActionAsync(request, "numbering.create")') ||
+    source.includes('requireNumberingPlatformCommandAsync(request, { action: "numbering.create", body })');
+}
+
 record("Append policy route is search permission gated", appendPolicyRoute.includes('requireNumberingPageAsync(request, "numbering.search")'), "append-policy route");
-record("Append drawing route is create permission gated", appendDrawingRoute.includes('requireNumberingActionAsync(request, "numbering.create")'), "drawings route");
+record("Append drawing route is create permission gated", hasCreatePermissionGate(appendDrawingRoute), "drawings route");
 record("Append drawing route checks link permission when linking to an existing part", includesAll(appendDrawingRoute, ['requireNumberingActionAsync(request, "numbering.link_variant")', "linkPartNumber", "linkRelationType"]), "drawings route");
-record("Append part route checks create and link permissions", includesAll(appendPartRoute, ['requireNumberingActionAsync(request, "numbering.create")', 'requireNumberingActionAsync(request, "numbering.link_variant")']), "parts route");
-record("Append drawing-part route checks create and link permissions", includesAll(appendDrawingPartRoute, ['requireNumberingActionAsync(request, "numbering.create")', 'requireNumberingActionAsync(request, "numbering.link_variant")']), "drawing-part route");
+record("Append part route checks create and link permissions", hasCreatePermissionGate(appendPartRoute) && appendPartRoute.includes('requireNumberingActionAsync(request, "numbering.link_variant")'), "parts route");
+record("Append drawing-part route checks create and link permissions", hasCreatePermissionGate(appendDrawingPartRoute) && appendDrawingPartRoute.includes('requireNumberingActionAsync(request, "numbering.link_variant")'), "drawing-part route");
 record(
   "Append part APIs no longer require editable partName",
   !appendPartRoute.includes("partName is required") && !appendDrawingPartRoute.includes("partName is required") && !read("src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts").includes("partName is required"),

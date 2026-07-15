@@ -6,7 +6,8 @@ import {
   revokeAccountInvitationAsync
 } from "@/lib/account-invitations";
 import { requireRoleAsync } from "@/lib/auth-async";
-import type { UserRole } from "@/lib/auth-config";
+import { getAuthMode, type UserRole } from "@/lib/auth-config";
+import { createFirebaseManagedInvitation, revokeFirebaseManagedInvitation } from "@/lib/firebase-managed-invitations";
 
 export const runtime = "nodejs";
 
@@ -54,6 +55,16 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   try {
+    if (getAuthMode() === "firebase_bff") {
+      const created = await createFirebaseManagedInvitation({
+        email: String(body.email ?? ""),
+        displayName: String(body.displayName ?? body.display_name ?? ""),
+        role: String(body.role ?? "") as UserRole,
+        expiresInDays: body.expiresInDays === undefined ? undefined : Number(body.expiresInDays),
+        invitedBy: auth.user.id
+      });
+      return NextResponse.json(created, { status: 201 });
+    }
     const created = await createAccountInvitationAsync({
       email: String(body.email ?? ""),
       displayName: String(body.displayName ?? body.display_name ?? ""),
@@ -79,10 +90,13 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const invitation = await revokeAccountInvitationAsync({
+    const revokeInput = {
       invitationId: String(body.invitationId ?? body.invitation_id ?? ""),
       revokedBy: auth.user.id
-    });
+    };
+    const invitation = getAuthMode() === "firebase_bff"
+      ? await revokeFirebaseManagedInvitation(revokeInput)
+      : await revokeAccountInvitationAsync(revokeInput);
     return NextResponse.json({ invitation });
   } catch (error) {
     return invitationError(error);

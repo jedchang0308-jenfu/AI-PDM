@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAuthMode } from "@/lib/auth-config";
-import { createSessionCookie } from "@/lib/auth";
-import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
+import { issueRegisteredLegacySessionCookieAsync } from "@/lib/account-session-registry";
+import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
 import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
@@ -45,17 +45,22 @@ export async function GET(request: Request) {
     role: account.dbRole
   });
   await createAuditLogAsync({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
+  const user = await getUserByIdAsync(account.id);
+  if (!user) return NextResponse.json({ error: "Demo account bootstrap failed" }, { status: 500 });
 
   const redirectUrl = new URL("/", url.origin);
   return NextResponse.redirect(redirectUrl, {
     status: 303,
     headers: {
-      "set-cookie": createSessionCookie(account.id)
+      "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user })
     }
   });
 }
 
 export async function POST(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "Firebase BFF login required" }, { status: 404 });
+  }
   const body = await request.json().catch(() => ({}));
   const email = String(body.email ?? "").trim();
   const password = String(body.password ?? "");
@@ -103,7 +108,7 @@ export async function POST(request: Request) {
     { user: await serializeAuthUserAsync(user) },
     {
       headers: {
-        "set-cookie": createSessionCookie(user.id)
+        "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user })
       }
     }
   );

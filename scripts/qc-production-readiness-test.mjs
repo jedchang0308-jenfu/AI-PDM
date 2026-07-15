@@ -155,6 +155,9 @@ function classify(task) {
 }
 
 function classifyReadinessTask(task) {
+  if (/DEV-PDM-ERP-GOOGLE-CLOUDSQL-001|live platform and release readiness|credentialled isolated staging/i.test(task)) {
+    return "release_readiness_gate";
+  }
   if (/DEV-IND-007|Supabase|Postgres\/Supabase shadow|Postgres shadow/i.test(task)) {
     return "external_supabase_shadow";
   }
@@ -195,6 +198,7 @@ function stripInlineCode(value) {
 }
 
 function externalBlockerPriority(id) {
+  if (id === "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001") return "P0";
   if (id === "DEV-FIELD-001") return "P1";
   if (id === "DEV-IND-007") return "P0";
   return null;

@@ -855,16 +855,17 @@ record(
 );
 record(
   "NUM-UI numbering request wizard renders create flow",
-  numberingRequestPageSource.includes("領號申請") &&
+  numberingRequestPageSource.includes("建立圖料號") &&
     numberingRequestPageSource.includes("/api/numbering/records") &&
-    numberingRequestPageSource.includes("查重預檢"),
+    numberingRequestPageSource.includes("正在檢查相似主根") &&
+    numberingRequestPageSource.includes("本次將建立"),
   "numbering/request/page.tsx"
 );
 record(
   "NUM-UI numbering request wizard supports item kinds and part-before-drawing",
-  numberingRequestPageSource.includes("客製尺寸") &&
-    numberingRequestPageSource.includes("共用件") &&
-    numberingRequestPageSource.includes("先料號後圖號"),
+  numberingRequestPageSource.includes("客製尺寸／規格") &&
+    numberingRequestPageSource.includes("跨專案共用") &&
+    numberingRequestPageSource.includes("只建立料號"),
   "numbering/request/page.tsx"
 );
 record(

@@ -11,6 +11,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
   const { requestId } = await params;
   const detail = await getApprovalPlatformRequestDetailAsync(safeDecode(requestId));
   if (!detail) return NextResponse.json({ error: "Approval request not found" }, { status: 404 });
+  if (detail.actionCode === "numbering.candidate_publication_review" && detail.companyId !== auth.user.company_id) {
+    return NextResponse.json({ error: "Approval request not found" }, { status: 404 });
+  }
   return NextResponse.json({ request: detail });
 }
 

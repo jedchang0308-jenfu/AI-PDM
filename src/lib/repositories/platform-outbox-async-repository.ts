@@ -151,7 +151,11 @@ export class PlatformOutboxAsyncRepository {
     aggregateId: string;
     eventType: string;
     payload: Record<string, unknown>;
+    idempotencyKeySuffix?: string;
   }): Promise<void> {
+    const eventIdempotencyKey = input.idempotencyKeySuffix
+      ? `${input.command.idempotencyKey}:${input.idempotencyKeySuffix}`
+      : input.command.idempotencyKey;
     await this.client.execute(
       `
       INSERT INTO platform_outbox_events (
@@ -180,7 +184,7 @@ export class PlatformOutboxAsyncRepository {
           input.command.actor.pdmUserId === "system" ? null : input.command.actor.principalId,
         platformOrganizationId: input.command.actor.platformOrganizationId,
         correlationId: input.command.actor.correlationId,
-        idempotencyKey: input.command.idempotencyKey,
+        idempotencyKey: eventIdempotencyKey,
         occurredAt: this.clock()
       }
     );

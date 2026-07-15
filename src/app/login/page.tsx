@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, LockKeyhole, LogIn } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from "lucide-react";
+import type { AuthMode, FirebaseWebConfig } from "@/lib/auth-config";
+import {
+  completeFirebaseTotp,
+  exchangeFirebaseBffSession,
+  firebaseLoginErrorMessage,
+  signInFirebaseGoogle,
+  signInFirebasePassword,
+  type FirebaseSignInResult,
+  type FirebaseTotpChallenge
+} from "@/lib/firebase-client-auth";
+
+type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: "authenticated" }>;
 
 const TEST_ACCOUNTS = [
   {
@@ -42,21 +55,34 @@ const googleErrorMessages: Record<string, string> = {
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpChallenge, setTotpChallenge] = useState<FirebaseTotpChallenge | null>(null);
+  const [pendingLoginIntentToken, setPendingLoginIntentToken] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<"demo" | "managed" | null>(null);
+  const [loginOperation, setLoginOperation] = useState<"google" | "password" | "totp" | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
+  const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
+
+  function loginReturnTo() {
+    const candidate = new URLSearchParams(window.location.search).get("returnTo") ?? "/";
+    return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.includes("\\") ? candidate : "/";
+  }
 
   useEffect(() => {
     fetch("/api/auth/mode")
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { authMode?: "demo" | "managed"; googleOAuth?: { enabled?: boolean } } | null) => {
+      .then((body: { authMode?: AuthMode; googleOAuth?: { enabled?: boolean }; firebase?: { config?: FirebaseWebConfig | null } } | null) => {
         setAuthMode(body?.authMode ?? "managed");
         setGoogleOAuthEnabled(body?.googleOAuth?.enabled === true);
+        setFirebaseConfig(body?.firebase?.config ?? null);
       })
       .catch(() => {
         setAuthMode("managed");
         setGoogleOAuthEnabled(false);
+        setFirebaseConfig(null);
       });
   }, []);
 
@@ -77,6 +103,41 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setNotice("");
+
+    if (authMode === "firebase_bff") {
+      if (!firebaseConfig) {
+        setError("Firebase 登入尚未完成系統設定。");
+        setLoading(false);
+        setLoginOperation(null);
+        return;
+      }
+      try {
+        const identifier = email.trim();
+        if (!identifier.includes("@")) {
+          setLoginOperation("google");
+          const response = await fetch("/api/auth/employee-login-intents", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ identifier, returnPath: loginReturnTo() })
+          });
+          const body = (await response.json().catch(() => ({}))) as { intentToken?: string; error?: string };
+          if (!response.ok || !body.intentToken) throw new Error(body.error || "EMPLOYEE_LOGIN_INTENT_FAILED");
+          await finishFirebaseSignIn(await signInFirebaseGoogle(firebaseConfig), body.intentToken);
+        } else {
+          setLoginOperation("password");
+          await finishFirebaseSignIn(await signInFirebasePassword(firebaseConfig, identifier, password));
+        }
+      } catch (firebaseError) {
+        const message = firebaseError instanceof Error && firebaseError.message.startsWith("登入")
+          ? firebaseError.message
+          : firebaseLoginErrorMessage(firebaseError);
+        setError(message);
+        setLoading(false);
+        setLoginOperation(null);
+      }
+      return;
+    }
 
     const response = await fetch("/api/auth/login", {
       method: "POST",
@@ -84,21 +145,78 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password })
     });
     const body = await response.json().catch(() => ({}));
-
     if (!response.ok) {
       setError(body.error ?? "登入失敗");
       setLoading(false);
+      setLoginOperation(null);
       return;
     }
-
     window.location.href = "/";
+  }
+
+  async function finishFirebaseSignIn(result: FirebaseSignInResult, loginIntentToken = "") {
+    if (result.kind === "totp_required") {
+      setTotpChallenge(result.challenge);
+      setPendingLoginIntentToken(loginIntentToken);
+      setTotpCode("");
+      setLoading(false);
+      setLoginOperation(null);
+      return;
+    }
+    await finishFirebaseBffLogin(result.user, result.auth, loginIntentToken);
+  }
+
+  async function finishFirebaseBffLogin(
+    user: FirebaseAuthenticatedResult["user"],
+    auth: FirebaseAuthenticatedResult["auth"],
+    loginIntentToken = ""
+  ) {
+    const exchange = await exchangeFirebaseBffSession(user, auth, {
+      loginIntentToken: loginIntentToken || undefined,
+      returnTo: loginReturnTo()
+    });
+    window.location.href = exchange.kind === "privacy_ack_required" ? exchange.acknowledgementUrl : loginReturnTo();
+  }
+
+  async function submitTotp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!totpChallenge) return;
+    setLoading(true);
+    setLoginOperation("totp");
+    setError("");
+    try {
+      const result = await completeFirebaseTotp(totpChallenge, totpCode);
+      await finishFirebaseBffLogin(result.user, result.auth, pendingLoginIntentToken);
+    } catch (firebaseError) {
+      setError(firebaseLoginErrorMessage(firebaseError));
+      setLoading(false);
+      setLoginOperation(null);
+    }
+  }
+
+  async function submitGoogle() {
+    if (!firebaseConfig) return;
+    setLoading(true);
+    setLoginOperation("google");
+    setError("");
+    setNotice("");
+    try {
+      await finishFirebaseSignIn(await signInFirebaseGoogle(firebaseConfig));
+    } catch (firebaseError) {
+      setError(firebaseLoginErrorMessage(firebaseError));
+      setLoading(false);
+      setLoginOperation(null);
+    }
   }
 
   function fillTestAccount(account: (typeof TEST_ACCOUNTS)[number]) {
     setEmail(account.email);
     setPassword(account.password);
     setError("");
+    setNotice("");
   }
+
+  const employeeAliasLogin = authMode === "firebase_bff" && email.trim().length > 0 && !email.includes("@");
 
   return (
     <div className="login-page">
@@ -147,13 +265,20 @@ export default function LoginPage() {
           </div>
         </div> : null}
 
-        {authMode === "managed" ? (
+        {authMode !== "demo" && !totpChallenge ? (
           <div className="google-auth-choice">
             {googleOAuthEnabled ? (
-              <a className="secondary-button google-auth-button" href="/api/auth/google/start">
-                <KeyRound size={16} aria-hidden="true" />
-                使用 Google 帳號登入
-              </a>
+              authMode === "firebase_bff" ? (
+                <button className="secondary-button google-auth-button" type="button" disabled={loading} onClick={submitGoogle}>
+                  <KeyRound size={16} aria-hidden="true" />
+                  {loginOperation === "google" ? "等待 Google 帳號選擇..." : "使用 Google 帳號登入"}
+                </button>
+              ) : (
+                <a className="secondary-button google-auth-button" href="/api/auth/google/start">
+                  <KeyRound size={16} aria-hidden="true" />
+                  使用 Google 帳號登入
+                </a>
+              )
             ) : (
               <button
                 className="secondary-button google-auth-button is-unopened"
@@ -167,39 +292,91 @@ export default function LoginPage() {
                 <span>未開放</span>
               </button>
             )}
-            <div className="auth-method-divider"><span>或使用密碼</span></div>
+            {loginOperation === "google" ? (
+              <div className="login-operation-status" role="status">
+                <span>Google 登入視窗已開啟，請完成公司帳號選擇。</span>
+                <button className="secondary-button login-operation-cancel" type="button" onClick={() => window.location.reload()}>
+                  <X size={16} aria-hidden="true" />
+                  取消登入
+                </button>
+              </div>
+            ) : null}
+            <div className="auth-method-divider"><span>{authMode === "firebase_bff" ? "或輸入公司帳號／工號" : "或使用密碼"}</span></div>
           </div>
         ) : null}
 
-        <form onSubmit={submit} className="login-form">
-          <label>
-            電子郵件
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              placeholder="you@company.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label>
-            密碼
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
-              placeholder="請輸入密碼"
-              autoComplete="current-password"
-              required
-            />
-          </label>
+        <form onSubmit={totpChallenge ? submitTotp : submit} className="login-form">
+          {totpChallenge ? (
+            <label>
+              驗證碼
+              <input
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value.replace(/\D/gu, "").slice(0, 8))}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="請輸入驗證碼"
+                required
+                autoFocus
+              />
+            </label>
+          ) : (
+            <>
+              <label>
+                {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
+                <input
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type={authMode === "firebase_bff" ? "text" : "email"}
+                  placeholder={authMode === "firebase_bff" ? "name@company.com 或工號" : "you@company.com"}
+                  autoComplete={authMode === "firebase_bff" ? "username" : "email"}
+                  required
+                />
+              </label>
+              {employeeAliasLogin ? (
+                <small className="login-provider-note">工號只用來找到公司帳號；密碼與驗證由公司身分服務處理，AI PDM 不會保存。</small>
+              ) : (
+                <label>
+                  密碼
+                  <input
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    type="password"
+                    placeholder="請輸入密碼"
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+              )}
+            </>
+          )}
+          {notice ? <div className="form-success" role="status">{notice}</div> : null}
           {error ? <div className="form-error">{error}</div> : null}
           <button className="primary-button" disabled={loading} type="submit">
-            <LogIn size={16} aria-hidden="true" />
-            {loading ? "登入中..." : "登入"}
+            {totpChallenge ? <ShieldCheck size={16} aria-hidden="true" /> : <LogIn size={16} aria-hidden="true" />}
+            {loading ? "處理中..." : totpChallenge ? "驗證" : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
+          {totpChallenge ? (
+            <button
+              className="secondary-button"
+              disabled={loading}
+              type="button"
+              onClick={() => {
+                  setTotpChallenge(null);
+                  setPendingLoginIntentToken("");
+                  setTotpCode("");
+                  setError("");
+                  setLoginOperation(null);
+                }}
+            >
+              返回其他登入方式
+            </button>
+          ) : null}
         </form>
+        <div className="login-privacy-footer">
+          <Link href="/account-recovery/request">忘記密碼</Link>
+          <Link href="/privacy">隱私與資料使用</Link>
+        </div>
       </section>
     </div>
   );

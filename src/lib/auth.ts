@@ -1,8 +1,26 @@
 import crypto from "node:crypto";
-import { getUserById, type DbUser } from "@/lib/db";
+import { getDb, getUserById, type DbUser } from "@/lib/db";
 
 export const SESSION_COOKIE_NAME = "pdm_session";
+export const FIREBASE_HOSTING_SESSION_COOKIE_NAME = "__session";
+export const PRIVACY_PENDING_COOKIE_NAME = "pdm_privacy_pending";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
+export const FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
+export const PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS = 10 * 60;
+
+export type LegacySessionPayload = {
+  userId: string;
+  createdAt: number;
+  sessionId: string | null;
+};
+
+export type IssuedLegacySession = {
+  token: string;
+  cookie: string;
+  sessionId: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+};
 
 function getAuthSecret() {
   return process.env.PDM_AUTH_SECRET || "dev-only-change-before-production";
@@ -12,10 +30,13 @@ function sign(payload: string) {
   return crypto.createHmac("sha256", getAuthSecret()).update(payload).digest("base64url");
 }
 
-function secureCookieDirective() {
+export function isSecureCookieEnabled() {
   const configured = String(process.env.PDM_COOKIE_SECURE ?? "").trim().toLowerCase();
-  const secure = ["1", "true", "yes", "on"].includes(configured) || String(process.env.PDM_PUBLIC_BASE_URL ?? "").startsWith("https://");
-  return secure ? "; Secure" : "";
+  return ["1", "true", "yes", "on"].includes(configured) || String(process.env.PDM_PUBLIC_BASE_URL ?? "").startsWith("https://");
+}
+
+function secureCookieDirective() {
+  return isSecureCookieEnabled() ? "; Secure" : "";
 }
 
 function parseCookies(header: string | null) {
@@ -29,18 +50,102 @@ function parseCookies(header: string | null) {
   return cookies;
 }
 
-export function generateToken(userId: string): string {
-  const payload = Buffer.from(JSON.stringify({ userId, createdAt: Date.now() })).toString("base64url");
+export function getSessionToken(request: Request) {
+  const cookies = parseCookies(request.headers.get("cookie"));
+  const cookieToken = cookies.get(FIREBASE_HOSTING_SESSION_COOKIE_NAME) ?? cookies.get(SESSION_COOKIE_NAME);
+  if (cookieToken) return cookieToken;
+
+  const authHeader = request.headers.get("authorization");
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    return authHeader.substring(7).trim();
+  }
+
+  return null;
+}
+
+export function decodeLegacySessionToken(value: string | null): LegacySessionPayload | null {
+  if (!value) return null;
+
+  const [payload, signature] = value.split(".");
+  if (!payload || !signature || sign(payload) !== signature) return null;
+
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      userId?: string;
+      createdAt?: number;
+      sessionId?: string;
+    };
+    if (!decoded.userId) return null;
+    const createdAt = Number(decoded.createdAt);
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return null;
+    const sessionId = typeof decoded.sessionId === "string" && decoded.sessionId.trim() ? decoded.sessionId.trim() : null;
+    return { userId: decoded.userId, createdAt, sessionId };
+  } catch {
+    return null;
+  }
+}
+
+export function getLegacySessionPayload(request: Request): LegacySessionPayload | null {
+  return decodeLegacySessionToken(getSessionToken(request));
+}
+
+export function generateToken(userId: string, input: { createdAt?: number; sessionId?: string } = {}): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      userId,
+      createdAt: input.createdAt ?? Date.now(),
+      sessionId: input.sessionId ?? crypto.randomUUID()
+    })
+  ).toString("base64url");
   return `${payload}.${sign(payload)}`;
 }
 
+export function issueSessionCookie(userId: string, input: { createdAt?: number; sessionId?: string } = {}): IssuedLegacySession {
+  const issuedAtMs = input.createdAt ?? Date.now();
+  const sessionId = input.sessionId ?? crypto.randomUUID();
+  const token = generateToken(userId, { createdAt: issuedAtMs, sessionId });
+  return {
+    token,
+    cookie: `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`,
+    sessionId,
+    issuedAtMs,
+    expiresAtMs: issuedAtMs + SESSION_COOKIE_MAX_AGE_SECONDS * 1000
+  };
+}
+
 export function createSessionCookie(userId: string) {
-  const value = generateToken(userId);
-  return `${SESSION_COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
+  return issueSessionCookie(userId).cookie;
+}
+
+export function createFirebaseBffSessionCookie(token: string) {
+  if (!/^[A-Za-z0-9_.-]+$/u.test(token)) throw new Error("SESSION_V2_COOKIE_TOKEN_INVALID");
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
+}
+
+export function createFirebaseHostingBffSessionCookie(token: string) {
+  if (!/^[A-Za-z0-9_.-]+$/u.test(token)) throw new Error("SESSION_V2_COOKIE_TOKEN_INVALID");
+  return `${FIREBASE_HOSTING_SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
+}
+
+export function createPrivacyPendingCookie(token: string) {
+  if (!/^[A-Za-z0-9_.-]+$/u.test(token)) throw new Error("PRIVACY_PENDING_COOKIE_TOKEN_INVALID");
+  return `${PRIVACY_PENDING_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
+}
+
+export function clearPrivacyPendingCookie() {
+  return `${PRIVACY_PENDING_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
+}
+
+export function getPrivacyPendingToken(request: Request) {
+  return parseCookies(request.headers.get("cookie")).get(PRIVACY_PENDING_COOKIE_NAME) ?? null;
 }
 
 export function createLogoutCookie() {
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
+}
+
+export function createFirebaseHostingLogoutCookie() {
+  return `${FIREBASE_HOSTING_SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
 }
 
 function isSessionUserAllowed(user: DbUser | undefined | null, tokenCreatedAt: number) {
@@ -53,29 +158,28 @@ function isSessionUserAllowed(user: DbUser | undefined | null, tokenCreatedAt: n
   return true;
 }
 
-export function getSessionUser(request: Request): DbUser | null {
-  let value = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE_NAME);
-
-  if (!value) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-      value = authHeader.substring(7).trim();
-    }
-  }
-
-  if (!value) return null;
-
-  const [payload, signature] = value.split(".");
-  if (!payload || !signature || sign(payload) !== signature) return null;
-
+function isLegacySessionRevoked(userId: string, sessionId: string | null) {
+  if (!sessionId) return false;
+  const sessionIdHash = crypto.createHash("sha256").update(`pdm-session-v2:${sessionId}`).digest("hex");
   try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string; createdAt?: number };
-    if (!decoded.userId) return null;
-    const user = getUserById(decoded.userId);
-    return isSessionUserAllowed(user, Number(decoded.createdAt)) ? user ?? null : null;
+    const row = getDb()
+      .prepare("SELECT revoked_at, expires_at FROM account_session_records WHERE user_id = ? AND session_id_hash = ? LIMIT 1")
+      .get(userId, sessionIdHash) as { revoked_at: string | null; expires_at: string | null } | undefined;
+    if (!row) return false;
+    if (row.revoked_at) return true;
+    const expiresAt = row.expires_at ? Date.parse(row.expires_at) : Number.NaN;
+    return Number.isFinite(expiresAt) && expiresAt <= Date.now();
   } catch {
-    return null;
+    return false;
   }
+}
+
+export function getSessionUser(request: Request): DbUser | null {
+  const decoded = getLegacySessionPayload(request);
+  if (!decoded) return null;
+  if (isLegacySessionRevoked(decoded.userId, decoded.sessionId)) return null;
+  const user = getUserById(decoded.userId);
+  return isSessionUserAllowed(user, decoded.createdAt) ? user ?? null : null;
 }
 
 export function unauthorized() {

@@ -54,7 +54,7 @@ const baseInput = {
   authTime: now - 60,
   sessionVersion: 3,
   assuranceLevel: "aal2",
-  secondFactor: "totp",
+  secondFactor: "google_workspace_mfa",
   sessionId: "session-identity-0001"
 };
 
@@ -64,7 +64,7 @@ const claims = verifyPlatformSessionV2(token, keyRing, {
   requiredAssuranceLevel: "aal2",
   currentSessionVersion: 3
 });
-record("DEV046-1B-001 issuer audience eight-hour and TOTP claims verify", claims.issuer === keyRing.issuer && claims.audience === "ai-pdm" && claims.expiresAt - claims.issuedAt === 28_800 && claims.secondFactor === "totp");
+record("DEV046-1B-001 issuer audience eight-hour and recognized MFA claims verify", claims.issuer === keyRing.issuer && claims.audience === "ai-pdm" && claims.expiresAt - claims.issuedAt === 28_800 && claims.secondFactor === "google_workspace_mfa");
 
 const previousRing = { ...keyRing, currentKeyId: "2026-06-previous" };
 const oldToken = issuePlatformSessionV2({ ...baseInput, sessionId: "session-identity-old1" }, previousRing, now);
@@ -73,7 +73,7 @@ record("DEV046-1B-003 wrong audience fails closed", await rejects(() => Promise.
 record("DEV046-1B-004 revoked session version fails closed", await rejects(() => Promise.resolve(verifyPlatformSessionV2(token, keyRing, { nowSeconds: now + 1, currentSessionVersion: 4 })), "SESSION_V2_REVOKED_BY_VERSION"));
 record("DEV046-1B-005 provider disabled state fails closed", await rejects(() => Promise.resolve(verifyPlatformSessionV2(token, keyRing, { nowSeconds: now + 1, providerUserDisabled: true })), "SESSION_V2_PROVIDER_DISABLED"));
 record("DEV046-1B-006 sessions cannot exceed eight hours", await rejects(() => Promise.resolve(issuePlatformSessionV2({ ...baseInput, maxAgeSeconds: 28_801 }, keyRing, now)), "SESSION_V2_MAX_AGE_EXCEEDED"));
-record("DEV046-1B-007 AAL2 cannot be issued without TOTP", await rejects(() => Promise.resolve(issuePlatformSessionV2({ ...baseInput, secondFactor: null }, keyRing, now)), "SESSION_V2_AAL2_REQUIRES_TOTP"));
+record("DEV046-1B-007 AAL2 cannot be issued without recognized MFA", await rejects(() => Promise.resolve(issuePlatformSessionV2({ ...baseInput, secondFactor: null }, keyRing, now)), "SESSION_V2_AAL2_REQUIRES_RECOGNIZED_MFA"));
 
 const replay = new InMemoryPrivilegedReplayGuard();
 replay.consume(claims.sessionId, "privileged-nonce-0001", now);
@@ -87,24 +87,28 @@ firebase.identities.set("firebase-token-aal2", {
   emailVerified: true,
   disabled: false,
   authTimeSeconds: now - 10,
-  secondFactor: "totp"
+  signInProvider: "google.com",
+  secondFactor: null
 });
 repository.principals.set("firebase-user-001", {
   firebaseUid: "firebase-user-001",
   pdmUserId: "prod-pdm-user-001",
   companyId: "company-jenfu",
   sessionVersion: 3,
-  accountStatus: "active"
+  accountStatus: "active",
+  requiresPrivilegedAssurance: true
 });
 const exchanged = await exchangeFirebaseIdTokenForPlatformSession({
   idToken: "firebase-token-aal2",
   firebase,
   repository,
   keyRing,
-  requireTotp: true,
+  requirePrivilegedAssurance: true,
+  workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: true, domains: ["jenfu.com.tw"] },
   nowSeconds: now
 });
-record("DEV046-1B-009 BFF exchange requires revoked-token verification", exchanged.split(".").length === 3 && firebase.operations.includes("verify:firebase-token-aal2:revoked=true"));
+const exchangedClaims = verifyPlatformSessionV2(exchanged, keyRing, { nowSeconds: now + 1 });
+record("DEV046-1B-009 BFF exchange allows approved Workspace AAL1 pilot after revoked-token verification", exchangedClaims.assuranceLevel === "aal1" && exchangedClaims.secondFactor === null && firebase.operations.includes("verify:firebase-token-aal2:revoked=true"));
 
 const mailer = new FakeInvitationMailProvider();
 const invitation = await provisionFirebasePasswordInvitation({

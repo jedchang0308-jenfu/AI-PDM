@@ -16,19 +16,22 @@ const results = [];
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
+  if (process.env.PDM_QC_PROGRESS === "true") {
+    console.error(`[qc-pdm-numbering-request-ui] ${passed ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
+  }
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 
-async function loginAsAdmin(context) {
+async function loginAsManager(context) {
   const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "admin@example.com", password })
+    body: JSON.stringify({ email: "manager@example.com", password })
   });
-  record("Admin login succeeds", response.ok, `HTTP ${response.status}`);
+  record("Manager login succeeds", response.ok, `HTTP ${response.status}`);
   const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
   const [name, ...valueParts] = cookie.split("=");
-  record("Admin login returns session cookie", Boolean(name && valueParts.length > 0), cookie ? "cookie received" : "missing cookie");
+  record("Manager login returns session cookie", Boolean(name && valueParts.length > 0), cookie ? "cookie received" : "missing cookie");
   const url = new URL(apiBaseUrl);
   await context.addCookies([{ name, value: valueParts.join("="), domain: url.hostname, path: "/", httpOnly: true, sameSite: "Lax" }]);
 }
@@ -73,7 +76,7 @@ function seedDuplicateCandidate() {
       `
       INSERT INTO part_roots (
         id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'manufactured', 'EVT', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
+      ) VALUES (?, ?, ?, 'manufactured', 'EVT', 'Active', 'numbering-rule-v1', 'user-manager-demo', ?, ?)
     `
     ).run(`qc-request-duplicate-root-${unique}`, `QCR${unique}`, duplicateCoreName, now, now);
     db.prepare(
@@ -115,7 +118,7 @@ function getCreatedPart(partName) {
 
 async function verifyNumberingResultDetailLinks(page, viewportWidth, created) {
   await page.getByRole("heading", { name: "領號結果" }).waitFor({ timeout: 10_000 });
-  const resultPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "領號結果" }) }).last();
+  const resultPanel = page.locator("section.numbering-request-success").filter({ has: page.getByRole("heading", { name: "領號結果" }) }).last();
   const detailLinks = resultPanel.getByRole("link", { name: "明細" });
   record(`Result shows three detail links beside generated numbers at ${viewportWidth}px`, (await detailLinks.count()) === 3, `${await detailLinks.count()} links`);
   record(`Duplicate lifecycle block is removed from result at ${viewportWidth}px`, (await page.getByText("這張圖料現在在哪一步").count()) === 0);
@@ -145,53 +148,28 @@ async function verifyNumberingResultDetailLinks(page, viewportWidth, created) {
 
 async function verifyBrowserRestoredRootNameLock(context, viewportWidth) {
   const page = await context.newPage();
-  await page.addInitScript(() => {
-    const restoredValues = [
-      { label: "主根品名", value: "馬達" }
-    ];
-
-    const applyRestoredValues = () => {
-      for (const item of restoredValues) {
-        const label = [...document.querySelectorAll("label")].find((candidate) => candidate.textContent?.includes(item.label));
-        const input = label?.querySelector("input");
-        if (input instanceof HTMLInputElement && !input.value) input.value = item.value;
-      }
-    };
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const observer = new MutationObserver(applyRestoredValues);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-      applyRestoredValues();
-      [50, 200, 800, 1600].forEach((delay) => window.setTimeout(applyRestoredValues, delay));
-      window.setTimeout(() => observer.disconnect(), 2200);
-    });
-  });
-
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
-  await page.waitForFunction(() => document.body.innerText.includes("料號與圖號共用主根品名") && document.body.innerText.includes("馬達"));
-  record(`Browser-restored root name locks part name at ${viewportWidth}px`, (await page.getByText("料號與圖號共用主根品名").count()) >= 1);
+  await page.getByRole("heading", { name: "建立圖料號" }).waitFor({ timeout: 10_000 });
+  await page.getByLabel(/產品／零件名稱/).evaluate((input) => {
+    if (input instanceof HTMLInputElement) input.value = "馬達";
+  });
+  await page.waitForFunction(() => document.body.innerText.includes("料號品名") && document.body.innerText.includes("馬達"));
+  record(`Browser-restored root name locks part name at ${viewportWidth}px`, (await page.getByText("馬達", { exact: true }).count()) >= 1);
   record(`Editable part-name field is absent at ${viewportWidth}px`, (await page.getByText("品名（系統建議，可微調）").count()) === 0);
   await page.close();
 }
 
 async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
-  await page.getByLabel("主根品名").fill(customRootName);
+  await page.getByRole("button", { name: "只建立料號", exact: true }).click();
+  const duplicateResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/duplicate-check"));
+  await page.getByLabel(/產品／零件名稱/).fill(customRootName);
   await page.getByLabel("料件類型").selectOption("custom");
-  await page.getByLabel("客製尺寸/規格").fill(customSpec);
-  await page.getByLabel("同步建立圖號").uncheck();
+  await page.getByLabel(/客製尺寸／規格/).fill(customSpec);
   record(`Part name sequence suggestion is removed at ${viewportWidth}px`, (await page.getByTestId("sequence-suggestion").count()) === 0);
 
-  const requestPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "基本資料" }) }).first();
-  await requestPanel.getByRole("button", { name: "查重預檢" }).waitFor({ timeout: 10_000 });
-  await page.waitForFunction(() => {
-    const button = [...document.querySelectorAll("button")].find((candidate) => candidate.textContent?.includes("查重預檢"));
-    return button instanceof HTMLButtonElement && !button.disabled;
-  });
+  const requestPanel = page.locator(".numbering-request-page");
   record(`Root-locked part name is visible at ${viewportWidth}px`, (await page.getByText(customRootName).count()) >= 1, customRootName);
 
-  const duplicateResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/duplicate-check"));
-  await requestPanel.getByRole("button", { name: "查重預檢" }).click();
   const duplicateResponse = await duplicateResponsePromise;
   record(`Duplicate precheck succeeds at ${viewportWidth}px`, duplicateResponse.ok(), `HTTP ${duplicateResponse.status()}`);
   await page.getByRole("heading", { name: "查重結果" }).waitFor({ timeout: 10_000 });
@@ -199,7 +177,7 @@ async function verifyCustomPartBeforeDrawing(page, viewportWidth) {
   record(`Duplicate result renders at ${viewportWidth}px`, duplicateBadges >= 1, `${duplicateBadges} status badges`);
 
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await requestPanel.getByRole("button", { name: "建立號碼" }).click();
+  await requestPanel.getByRole("button", { name: "建立料號草稿" }).click();
   const createResponse = await createResponsePromise;
   record(`Custom part-before-drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
   await page.waitForTimeout(100);
@@ -215,15 +193,18 @@ async function verifyManufacturedWithDrawing(page, viewportWidth) {
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
   record(`Initial phase is locked to EVT at ${viewportWidth}px`, (await page.getByTestId("initial-development-phase").innerText()).includes("EVT"));
   const rootName = `${drawingRootName} ${viewportWidth}`;
-  await page.getByLabel("主根品名").fill(rootName);
+  const duplicateResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/duplicate-check"));
+  await page.getByLabel(/產品／零件名稱/).fill(rootName);
   await page.getByLabel("料件類型").selectOption("manufactured");
-  await page.getByLabel("同步建立圖號").check();
-  await page.getByLabel("圖別").selectOption("M");
+  await page.getByRole("button", { name: /料號＋製造圖/ }).click();
+  await page.getByLabel("圖面用途").selectOption("M");
   record(`Manufactured part name follows visible root name at ${viewportWidth}px`, (await page.getByText(rootName).count()) >= 1, rootName);
 
-  const requestPanel = page.locator("section.panel").filter({ has: page.getByRole("heading", { name: "基本資料" }) }).first();
+  const duplicateResponse = await duplicateResponsePromise;
+  record(`Automatic duplicate precheck succeeds at ${viewportWidth}px`, duplicateResponse.ok(), `HTTP ${duplicateResponse.status()}`);
+  const requestPanel = page.locator(".numbering-request-page");
   const createResponsePromise = page.waitForResponse((response) => response.url().includes("/api/numbering/records") && response.request().method() === "POST");
-  await requestPanel.getByRole("button", { name: "建立號碼" }).click();
+  await requestPanel.getByRole("button", { name: "建立料號與製造圖草稿" }).click();
   const createResponse = await createResponsePromise;
   record(`Manufactured part with drawing creation succeeds at ${viewportWidth}px`, createResponse.ok(), `HTTP ${createResponse.status()}`);
   await page.waitForTimeout(100);
@@ -247,11 +228,11 @@ async function verifyViewport(browser, viewport) {
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
 
-  await loginAsAdmin(context);
+  await loginAsManager(context);
   await verifyBrowserRestoredRootNameLock(context, viewport.width);
   await page.goto(`${apiBaseUrl}/numbering/request`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "領號申請" }).waitFor({ timeout: 10_000 });
-  record(`Request wizard renders at ${viewport.width}px`, await page.getByText("基本資料").isVisible());
+  await page.getByRole("heading", { name: "建立圖料號" }).waitFor({ timeout: 10_000 });
+  record(`Request wizard renders at ${viewport.width}px`, await page.getByRole("heading", { name: "這次要做什麼" }).isVisible());
   record(`Request wizard omits redundant workflow strip at ${viewport.width}px`, (await page.getByText("領號流程").count()) === 0);
   record(`Request wizard omits redundant lifecycle guidance at ${viewport.width}px`, (await page.getByText("需求與領號").count()) === 0);
 

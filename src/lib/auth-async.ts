@@ -1,9 +1,12 @@
-import crypto from "node:crypto";
-import { SESSION_COOKIE_NAME, forbidden, unauthorized } from "@/lib/auth";
+import { forbidden, getLegacySessionPayload, getSessionToken, unauthorized } from "@/lib/auth";
+import { isAccountSessionRevokedAsync } from "@/lib/account-session-registry";
 import { getAuthMode } from "@/lib/auth-config";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { DbUser } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
+import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
+import { getPrivacyAcknowledgementStatusAsync, isPrivacyNoticeEnforced } from "@/lib/privacy-notice";
 import { AsyncAuthIdentityRepository, type ResolvedAuthIdentity } from "@/lib/repositories/auth-identity-async-repository";
 import type { DbUserWithPassword } from "@/lib/repositories/user-repository";
 import { AsyncUserRepository } from "@/lib/repositories/user-async-repository";
@@ -18,57 +21,9 @@ export type AsyncRoleResult =
 
 export { forbidden };
 
-function getAuthSecret() {
-  return process.env.PDM_AUTH_SECRET || "dev-only-change-before-production";
-}
-
-function sign(payload: string) {
-  return crypto.createHmac("sha256", getAuthSecret()).update(payload).digest("base64url");
-}
-
-function parseCookies(header: string | null) {
-  const cookies = new Map<string, string>();
-  if (!header) return cookies;
-  for (const part of header.split(";")) {
-    const [rawName, ...rawValue] = part.trim().split("=");
-    if (!rawName) continue;
-    cookies.set(rawName, rawValue.join("="));
-  }
-  return cookies;
-}
-
-function getSessionToken(request: Request) {
-  const cookieToken = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE_NAME);
-  if (cookieToken) return cookieToken;
-
-  const authHeader = request.headers.get("authorization");
-  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-    return authHeader.substring(7).trim();
-  }
-
-  return null;
-}
-
-function getSessionPayload(request: Request): { userId: string; createdAt: number } | null {
-  const value = getSessionToken(request);
-  if (!value) return null;
-
-  const [payload, signature] = value.split(".");
-  if (!payload || !signature || sign(payload) !== signature) return null;
-
-  try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string; createdAt?: number };
-    if (!decoded.userId) return null;
-    const createdAt = Number(decoded.createdAt);
-    if (!Number.isFinite(createdAt) || createdAt <= 0) return null;
-    return { userId: decoded.userId, createdAt };
-  } catch {
-    return null;
-  }
-}
-
 export function getSessionUserId(request: Request): string | null {
-  return getSessionPayload(request)?.userId ?? null;
+  if (getAuthMode() === "firebase_bff") return null;
+  return getLegacySessionPayload(request)?.userId ?? null;
 }
 
 function isSessionUserAllowed(user: DbUser | null, tokenCreatedAt: number) {
@@ -81,12 +36,30 @@ function isSessionUserAllowed(user: DbUser | null, tokenCreatedAt: number) {
 }
 
 export async function getSessionUserAsync(request: Request): Promise<DbUser | null> {
-  const session = getSessionPayload(request);
-  if (!session) return null;
-
   const client = getAsyncDatabaseClient();
   const repository = new AsyncUserRepository(client);
+  if (getAuthMode() === "firebase_bff") {
+    const token = getSessionToken(request);
+    if (!token) return null;
+    try {
+      const keyRing = getPlatformSessionKeyRing();
+      const initialClaims = verifyPlatformSessionV2(token, keyRing);
+      const user = await repository.getUserById(initialClaims.pdmUserId);
+      if (!user || user.company_id !== initialClaims.companyId) return null;
+      if (await isAccountSessionRevokedAsync({ userId: user.id, sessionId: initialClaims.sessionId })) return null;
+      verifyPlatformSessionV2(token, keyRing, {
+        currentSessionVersion: Number(user.account_lifecycle_version ?? 1)
+      });
+      return user.account_status === "active" && user.system_role_enabled !== 0 && user.system_role_enabled !== false ? user : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const session = getLegacySessionPayload(request);
+  if (!session) return null;
   const user = await repository.getUserById(session.userId);
+  if (user && session.sessionId && (await isAccountSessionRevokedAsync({ userId: user.id, sessionId: session.sessionId }))) return null;
   return isSessionUserAllowed(user, session.createdAt) ? user : null;
 }
 
@@ -160,6 +133,32 @@ export async function ensureDemoUserAsync(input: {
 export async function requireAuthAsync(request: Request): Promise<AsyncAuthResult> {
   const user = await getSessionUserAsync(request);
   if (!user) return { user: null, response: unauthorized() };
+  if (isPrivacyNoticeEnforced()) {
+    try {
+      const privacy = await getPrivacyAcknowledgementStatusAsync({ userId: user.id, companyId: user.company_id });
+      if (privacy.status !== "acknowledged") {
+        return {
+          user: null,
+          response: Response.json(
+            {
+              error: "privacy_acknowledgement_required",
+              message: "請先閱讀並確認目前版本的員工個人資料告知事項。",
+              acknowledgementUrl: "/privacy/acknowledgement"
+            },
+            { status: 428, headers: { "cache-control": "no-store" } }
+          )
+        };
+      }
+    } catch {
+      return {
+        user: null,
+        response: Response.json(
+          { error: "privacy_gate_unavailable", message: "隱私確認狀態暫時無法驗證，請稍後重試或聯絡系統管理員。" },
+          { status: 503, headers: { "cache-control": "no-store" } }
+        )
+      };
+    }
+  }
   return { user, response: null };
 }
 

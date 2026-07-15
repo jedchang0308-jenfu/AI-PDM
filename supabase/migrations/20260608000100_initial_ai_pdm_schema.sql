@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: 66b41c21143959fa64a9df8065a1bf55427fcffff943c00469bfde05804c6507
+-- Source SHA-256: ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -130,6 +130,33 @@ CREATE TABLE IF NOT EXISTS platform_organization_mappings (
   UNIQUE (mapping_source, external_organization_key)
 );
 
+CREATE TABLE IF NOT EXISTS employee_login_rate_limits (
+  company_id TEXT NOT NULL,
+  identifier_hash TEXT NOT NULL,
+  window_started_at TIMESTAMPTZ NOT NULL,
+  attempt_count INTEGER NOT NULL CHECK (attempt_count > 0),
+  blocked_until TEXT,
+  updated_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (company_id, identifier_hash),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS privacy_notice_versions (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'published', 'superseded')),
+  title TEXT NOT NULL,
+  content_sha256 TEXT NOT NULL CHECK (length(content_sha256) = 64),
+  content_json TEXT NOT NULL,
+  effective_at TIMESTAMPTZ,
+  published_by TEXT NOT NULL,
+  published_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (company_id, version)
+);
+
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -204,6 +231,32 @@ CREATE TABLE IF NOT EXISTS auth_identities (
   UNIQUE (user_id, provider)
 );
 
+CREATE TABLE IF NOT EXISTS account_session_records (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  session_id_hash TEXT NOT NULL UNIQUE,
+  auth_provider TEXT NOT NULL CHECK (auth_provider IN ('legacy_managed', 'firebase_bff')),
+  assurance_level TEXT NOT NULL CHECK (assurance_level IN ('aal1', 'aal2')),
+  device_type TEXT NOT NULL DEFAULT 'unknown' CHECK (device_type IN ('desktop', 'mobile', 'tablet', 'unknown')),
+  device_label TEXT NOT NULL DEFAULT '未知裝置',
+  user_agent_hash TEXT,
+  user_agent_hint TEXT NOT NULL DEFAULT '',
+  ip_hash TEXT,
+  ip_summary TEXT,
+  issued_at TIMESTAMPTZ NOT NULL,
+  last_seen_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
+  revoke_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS account_invitations (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
@@ -245,6 +298,44 @@ CREATE TABLE IF NOT EXISTS platform_principal_mappings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE,
   UNIQUE (mapping_source, external_subject)
+);
+
+CREATE TABLE IF NOT EXISTS employee_login_aliases (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  alias_type TEXT NOT NULL DEFAULT 'employee_number' CHECK (alias_type = 'employee_number'),
+  alias_normalized TEXT NOT NULL,
+  pdm_user_id TEXT NOT NULL,
+  provider_route TEXT NOT NULL DEFAULT 'firebase_google' CHECK (provider_route = 'firebase_google'),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'retired')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by TEXT NOT NULL,
+  retired_at TIMESTAMPTZ,
+  retired_by TEXT,
+  reason TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version > 0),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (retired_by) REFERENCES users(id),
+  UNIQUE (company_id, alias_normalized)
+);
+
+CREATE TABLE IF NOT EXISTS privacy_notice_acknowledgements (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  notice_version_id TEXT NOT NULL,
+  notice_version TEXT NOT NULL,
+  content_sha256 TEXT NOT NULL CHECK (length(content_sha256) = 64),
+  acknowledged_at TIMESTAMPTZ NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('firebase_bff_session', 'firebase_email_invitation', 'employee_alias_login', 'privacy_acknowledgement_page')),
+  request_id TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (notice_version_id) REFERENCES privacy_notice_versions(id),
+  UNIQUE (user_id, notice_version_id)
 );
 
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -661,11 +752,21 @@ CREATE TABLE IF NOT EXISTS transfer_packages (
   source_reference TEXT,
   source_reference_reason TEXT,
   package_status TEXT NOT NULL DEFAULT 'Draft'
-    CHECK (package_status IN ('Draft', 'Cancelled')),
+    CHECK (package_status IN ('Draft', 'InReview', 'NeedsInfo', 'ApprovedPendingPublish', 'Publishing', 'Published', 'ReleaseFailed', 'Cancelled')),
   owner_id TEXT NOT NULL,
   created_by TEXT NOT NULL,
   create_idempotency_key TEXT NOT NULL,
   row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  review_request_id TEXT,
+  review_snapshot_hash TEXT,
+  review_snapshot_version INTEGER NOT NULL DEFAULT 0 CHECK (review_snapshot_version >= 0),
+  submitted_by TEXT,
+  submitted_at TIMESTAMPTZ,
+  approved_by TEXT,
+  approved_at TIMESTAMPTZ,
+  published_by TEXT,
+  published_at TIMESTAMPTZ,
+  release_failure_correlation_id TEXT,
   cancel_reason TEXT,
   cancelled_by TEXT,
   cancelled_at TIMESTAMPTZ,
@@ -674,6 +775,9 @@ CREATE TABLE IF NOT EXISTS transfer_packages (
   FOREIGN KEY (company_id) REFERENCES companies(id),
   FOREIGN KEY (owner_id) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (submitted_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id),
+  FOREIGN KEY (published_by) REFERENCES users(id),
   FOREIGN KEY (cancelled_by) REFERENCES users(id),
   UNIQUE (company_id, package_code),
   UNIQUE (company_id, created_by, create_idempotency_key),
@@ -683,7 +787,7 @@ CREATE TABLE IF NOT EXISTS transfer_packages (
   ),
   CHECK (
     (package_status = 'Cancelled' AND cancel_reason IS NOT NULL AND cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL)
-    OR package_status = 'Draft'
+    OR package_status <> 'Cancelled'
   )
 );
 
@@ -706,6 +810,35 @@ CREATE TABLE IF NOT EXISTS account_recovery_requests (
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (used_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS firebase_identity_invitations (
+  invitation_id TEXT PRIMARY KEY,
+  firebase_uid TEXT NOT NULL UNIQUE,
+  pdm_user_id TEXT NOT NULL UNIQUE,
+  setup_state TEXT NOT NULL CHECK (setup_state IN ('requested', 'identity_created', 'password_setup_link_sent', 'active', 'compensated', 'failed')),
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (invitation_id) REFERENCES account_invitations(id) ON DELETE CASCADE,
+  FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS employee_login_intents (
+  id TEXT PRIMARY KEY,
+  alias_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  pdm_user_id TEXT NOT NULL,
+  provider_route TEXT NOT NULL CHECK (provider_route = 'firebase_google'),
+  token_hash TEXT NOT NULL UNIQUE,
+  return_path TEXT NOT NULL DEFAULT '/',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'expired')),
+  created_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  FOREIGN KEY (alias_id) REFERENCES employee_login_aliases(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (pdm_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS setting_test_runs (
@@ -1253,7 +1386,11 @@ CREATE TABLE IF NOT EXISTS transfer_package_events (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
   package_id TEXT NOT NULL,
-  event_type TEXT NOT NULL CHECK (event_type IN ('DraftCreated', 'HeaderUpdated', 'ScopeItemAdded', 'ScopeItemRemoved', 'PackageCancelled')),
+  event_type TEXT NOT NULL CHECK (event_type IN (
+    'DraftCreated', 'HeaderUpdated', 'ScopeItemAdded', 'ScopeItemRemoved',
+    'DraftWorkspaceAdded', 'DraftWorkspaceRemoved', 'ReviewSubmitted', 'ReviewWithdrawn',
+    'ReviewDecided', 'SnapshotInvalidated', 'PackagePublished', 'ReleaseFailed', 'PackageCancelled'
+  )),
   actor_id TEXT NOT NULL,
   detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL,
@@ -1466,6 +1603,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
+  series_code TEXT,
   development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   universal_reason TEXT,
@@ -1502,6 +1640,46 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   FOREIGN KEY (created_by) REFERENCES users(id),
   UNIQUE (company_id, drawing_number),
   UNIQUE (part_root_id, purpose_code, sequence_no)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_draft_workspaces (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  draft_mode TEXT NOT NULL CHECK (draft_mode IN ('new_bundle', 'append_drawing', 'append_part', 'append_drawing_part')),
+  lifecycle_status TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_status IN ('active', 'cancelled', 'published')),
+  owner_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  source_root_id TEXT,
+  append_reason TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  published_at TIMESTAMPTZ,
+  published_by TEXT,
+  cancelled_at TIMESTAMPTZ,
+  cancelled_by TEXT,
+  cancel_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (owner_id) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (source_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (published_by) REFERENCES users(id),
+  FOREIGN KEY (cancelled_by) REFERENCES users(id),
+  CHECK (
+    (draft_mode = 'new_bundle' AND source_root_id IS NULL)
+    OR (draft_mode <> 'new_bundle' AND source_root_id IS NOT NULL)
+  ),
+  CHECK (
+    (lifecycle_status = 'active'
+      AND published_at IS NULL AND published_by IS NULL
+      AND cancelled_at IS NULL AND cancelled_by IS NULL AND cancel_reason IS NULL)
+    OR (lifecycle_status = 'cancelled'
+      AND published_at IS NULL AND published_by IS NULL
+      AND cancelled_at IS NOT NULL AND cancelled_by IS NOT NULL AND cancel_reason IS NOT NULL)
+    OR (lifecycle_status = 'published'
+      AND published_at IS NOT NULL AND published_by IS NOT NULL
+      AND cancelled_at IS NULL AND cancelled_by IS NULL AND cancel_reason IS NULL)
+  )
 );
 
 CREATE TABLE IF NOT EXISTS approval_platform_targets (
@@ -1675,6 +1853,51 @@ CREATE TABLE IF NOT EXISTS drawing_part_links (
   UNIQUE (drawing_number_id, part_number_id, link_type)
 );
 
+CREATE TABLE IF NOT EXISTS number_candidate_reservations (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  draft_item_type TEXT NOT NULL CHECK (draft_item_type IN ('root', 'part', 'drawing')),
+  draft_item_id TEXT NOT NULL,
+  candidate_code TEXT NOT NULL,
+  sequence_scope_key TEXT NOT NULL,
+  sequence_no INTEGER NOT NULL CHECK (sequence_no >= 1),
+  reservation_state TEXT NOT NULL DEFAULT 'active'
+    CHECK (reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')),
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  approval_request_id TEXT,
+  promoted_master_type TEXT CHECK (promoted_master_type IS NULL OR promoted_master_type IN ('part_root', 'part_number', 'drawing_number')),
+  promoted_master_id TEXT,
+  promoted_at TIMESTAMPTZ,
+  recycled_at TIMESTAMPTZ,
+  recycled_by TEXT,
+  recycle_reason TEXT,
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE RESTRICT,
+  FOREIGN KEY (recycled_by) REFERENCES users(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  CHECK (
+    (reservation_state IN ('review_locked', 'approved_locked') AND approval_request_id IS NOT NULL)
+    OR (reservation_state IN ('active', 'recycled') AND approval_request_id IS NULL)
+    OR reservation_state = 'promoted'
+  ),
+  CHECK (
+    (reservation_state = 'promoted'
+      AND promoted_master_type IS NOT NULL AND promoted_master_id IS NOT NULL AND promoted_at IS NOT NULL)
+    OR (reservation_state <> 'promoted'
+      AND promoted_master_type IS NULL AND promoted_master_id IS NULL AND promoted_at IS NULL)
+  ),
+  CHECK (
+    (reservation_state = 'recycled'
+      AND recycled_at IS NOT NULL AND recycled_by IS NOT NULL AND recycle_reason IS NOT NULL)
+    OR (reservation_state <> 'recycled'
+      AND recycled_at IS NULL AND recycled_by IS NULL AND recycle_reason IS NULL)
+  )
+);
+
 CREATE TABLE IF NOT EXISTS same_drawing_variants (
   id TEXT PRIMARY KEY,
   drawing_number_id TEXT NOT NULL,
@@ -1777,6 +2000,23 @@ CREATE TABLE IF NOT EXISTS shared_cad_model_versions (
   UNIQUE (company_id, owner_scope, owner_id, model_revision, content_hash)
 );
 
+CREATE TABLE IF NOT EXISTS transfer_package_draft_items (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  requiredness TEXT NOT NULL DEFAULT 'required' CHECK (requiredness IN ('required', 'optional')),
+  inclusion_reason TEXT NOT NULL,
+  captured_workspace_version INTEGER NOT NULL CHECK (captured_workspace_version >= 1),
+  added_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (package_id) REFERENCES transfer_packages(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id),
+  FOREIGN KEY (added_by) REFERENCES users(id),
+  UNIQUE (package_id, workspace_id)
+);
+
 CREATE TABLE IF NOT EXISTS part_number_events (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1829,6 +2069,42 @@ CREATE TABLE IF NOT EXISTS drawing_revision_fff_assessments (
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (replacement_part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE SET NULL,
   FOREIGN KEY (assessed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_draft_roots (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL UNIQUE,
+  core_name TEXT NOT NULL,
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  rule_version_id TEXT NOT NULL,
+  candidate_reservation_id TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE CASCADE,
+  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+  FOREIGN KEY (candidate_reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS number_candidate_events (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  reservation_id TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'workspace_created', 'candidate_reserved', 'review_locked', 'review_unlocked',
+      'approval_locked', 'candidate_recycled', 'candidate_promoted', 'publication_failed'
+    )
+  ),
+  actor_id TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE RESTRICT,
+  FOREIGN KEY (reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS part_cost_tiers (
@@ -1969,6 +2245,49 @@ CREATE TABLE IF NOT EXISTS manufacturing_baselines (
   UNIQUE (company_id, owner_scope, owner_id, baseline_revision)
 );
 
+CREATE TABLE IF NOT EXISTS numbering_draft_parts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  root_draft_id TEXT,
+  source_root_id TEXT,
+  part_name TEXT NOT NULL,
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
+  universal_reason TEXT,
+  custom_specification TEXT,
+  series_code TEXT,
+  candidate_reservation_id TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE CASCADE,
+  FOREIGN KEY (root_draft_id) REFERENCES numbering_draft_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT,
+  CHECK ((root_draft_id IS NOT NULL AND source_root_id IS NULL) OR (root_draft_id IS NULL AND source_root_id IS NOT NULL))
+);
+
+CREATE TABLE IF NOT EXISTS numbering_draft_drawings (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  root_draft_id TEXT,
+  source_root_id TEXT,
+  purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT', 'M', 'R')),
+  purpose_description TEXT NOT NULL DEFAULT '',
+  is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
+  candidate_reservation_id TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE CASCADE,
+  FOREIGN KEY (root_draft_id) REFERENCES numbering_draft_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT,
+  CHECK ((root_draft_id IS NOT NULL AND source_root_id IS NULL) OR (root_draft_id IS NULL AND source_root_id IS NOT NULL))
+);
+
 CREATE TABLE IF NOT EXISTS drawing_revision_package_supplement_files (
   id TEXT PRIMARY KEY,
   supplement_id TEXT NOT NULL,
@@ -2007,14 +2326,68 @@ CREATE TABLE IF NOT EXISTS manufacturing_baseline_items (
   UNIQUE (baseline_id, drawing_number_id)
 );
 
+CREATE TABLE IF NOT EXISTS numbering_publication_evidence (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  drawing_draft_id TEXT NOT NULL,
+  provider TEXT NOT NULL DEFAULT 'google_cloud_storage' CHECK (provider = 'google_cloud_storage'),
+  bucket TEXT NOT NULL CHECK (length(trim(bucket)) > 0),
+  object_key TEXT NOT NULL CHECK (length(trim(object_key)) > 0),
+  generation TEXT NOT NULL CHECK (length(trim(generation)) > 0),
+  content_hash TEXT NOT NULL CHECK (length(trim(content_hash)) > 0),
+  media_type TEXT NOT NULL CHECK (length(trim(media_type)) > 0),
+  finalized_at TIMESTAMPTZ NOT NULL,
+  rule_version TEXT NOT NULL CHECK (length(trim(rule_version)) > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_draft_id) REFERENCES numbering_draft_drawings(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, workspace_id, drawing_draft_id, provider, bucket, object_key, generation)
+);
+
+CREATE TABLE IF NOT EXISTS numbering_draft_relations (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  drawing_draft_id TEXT NOT NULL,
+  part_draft_id TEXT NOT NULL,
+  link_type TEXT NOT NULL CHECK (link_type IN ('primary_manufacturing', 'reference')),
+  is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE CASCADE,
+  FOREIGN KEY (drawing_draft_id) REFERENCES numbering_draft_drawings(id) ON DELETE CASCADE,
+  FOREIGN KEY (part_draft_id) REFERENCES numbering_draft_parts(id) ON DELETE CASCADE,
+  UNIQUE (workspace_id, drawing_draft_id, part_draft_id, link_type)
+);
+
 CREATE INDEX IF NOT EXISTS idx_auth_identities_login
   ON auth_identities(provider, login_identifier, status);
 CREATE INDEX IF NOT EXISTS idx_auth_identities_user
   ON auth_identities(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_account_session_records_user
+  ON account_session_records(user_id, revoked_at, expires_at, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_account_session_records_company
+  ON account_session_records(company_id, auth_provider, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_platform_principal_mappings_pdm_user
   ON platform_principal_mappings(pdm_user_id, mapping_status);
 CREATE INDEX IF NOT EXISTS idx_platform_organization_mappings_company
   ON platform_organization_mappings(pdm_company_id, mapping_status);
+CREATE INDEX IF NOT EXISTS idx_firebase_identity_invitations_state
+  ON firebase_identity_invitations(setup_state, updated_at);
+CREATE INDEX IF NOT EXISTS idx_employee_login_aliases_user
+  ON employee_login_aliases(pdm_user_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_employee_login_intents_expiry
+  ON employee_login_intents(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_employee_login_rate_limits_expiry
+  ON employee_login_rate_limits(blocked_until, updated_at);
+CREATE INDEX IF NOT EXISTS idx_privacy_notice_versions_company_status
+  ON privacy_notice_versions(company_id, status, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_privacy_notice_acknowledgements_user
+  ON privacy_notice_acknowledgements(user_id, acknowledged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
 ON submission_snapshots(company_id, source_root_code);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
@@ -2043,6 +2416,22 @@ CREATE INDEX IF NOT EXISTS idx_review_confirmation_events_review
 ON review_confirmation_events(company_id, review_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open
 ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
+CREATE INDEX IF NOT EXISTS idx_number_candidate_reservations_scope
+ON number_candidate_reservations(company_id, sequence_scope_key, reservation_state, sequence_no);
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_company_owner
+ON numbering_draft_workspaces(company_id, lifecycle_status, owner_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_source_root
+ON numbering_draft_workspaces(company_id, source_root_id, lifecycle_status);
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_parts_workspace
+ON numbering_draft_parts(company_id, workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_drawings_workspace
+ON numbering_draft_drawings(company_id, workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_numbering_publication_evidence_workspace
+ON numbering_publication_evidence(company_id, workspace_id, drawing_draft_id, finalized_at);
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_relations_workspace
+ON numbering_draft_relations(company_id, workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_number_candidate_events_workspace
+ON number_candidate_events(company_id, workspace_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_submissions_status_created_at ON submissions(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON submissions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_created_at ON submissions(submitted_by, created_at DESC);
@@ -2163,6 +2552,10 @@ CREATE INDEX IF NOT EXISTS idx_transfer_package_items_package
   ON transfer_package_items(company_id, package_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_transfer_package_items_entity
   ON transfer_package_items(company_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_draft_items_package
+  ON transfer_package_draft_items(company_id, package_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_transfer_package_draft_items_workspace
+  ON transfer_package_draft_items(company_id, workspace_id, package_id);
 CREATE INDEX IF NOT EXISTS idx_transfer_package_events_package
   ON transfer_package_events(company_id, package_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_numbering_export_jobs_generated ON numbering_export_jobs(export_mode, generated_at DESC);
@@ -2209,6 +2602,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_platform_organization_mappings_updated_at ON platform_organization_mappings;
 CREATE TRIGGER trg_platform_organization_mappings_updated_at
 BEFORE UPDATE ON platform_organization_mappings
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_employee_login_rate_limits_updated_at ON employee_login_rate_limits;
+CREATE TRIGGER trg_employee_login_rate_limits_updated_at
+BEFORE UPDATE ON employee_login_rate_limits
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
@@ -2309,6 +2707,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_transfer_packages_updated_at ON transfer_packages;
 CREATE TRIGGER trg_transfer_packages_updated_at
 BEFORE UPDATE ON transfer_packages
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_firebase_identity_invitations_updated_at ON firebase_identity_invitations;
+CREATE TRIGGER trg_firebase_identity_invitations_updated_at
+BEFORE UPDATE ON firebase_identity_invitations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_submission_attempts_updated_at ON submission_attempts;
@@ -2426,6 +2829,11 @@ CREATE TRIGGER trg_drawing_numbers_updated_at
 BEFORE UPDATE ON drawing_numbers
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_numbering_draft_workspaces_updated_at ON numbering_draft_workspaces;
+CREATE TRIGGER trg_numbering_draft_workspaces_updated_at
+BEFORE UPDATE ON numbering_draft_workspaces
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_approval_platform_legacy_links_updated_at ON approval_platform_legacy_links;
 CREATE TRIGGER trg_approval_platform_legacy_links_updated_at
 BEFORE UPDATE ON approval_platform_legacy_links
@@ -2441,6 +2849,11 @@ CREATE TRIGGER trg_part_number_drafts_updated_at
 BEFORE UPDATE ON part_number_drafts
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_number_candidate_reservations_updated_at ON number_candidate_reservations;
+CREATE TRIGGER trg_number_candidate_reservations_updated_at
+BEFORE UPDATE ON number_candidate_reservations
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 DROP TRIGGER IF EXISTS trg_part_variant_attributes_updated_at ON part_variant_attributes;
 CREATE TRIGGER trg_part_variant_attributes_updated_at
 BEFORE UPDATE ON part_variant_attributes
@@ -2454,6 +2867,11 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_drawing_revision_packages_updated_at ON drawing_revision_packages;
 CREATE TRIGGER trg_drawing_revision_packages_updated_at
 BEFORE UPDATE ON drawing_revision_packages
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_draft_roots_updated_at ON numbering_draft_roots;
+CREATE TRIGGER trg_numbering_draft_roots_updated_at
+BEFORE UPDATE ON numbering_draft_roots
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
@@ -2474,6 +2892,26 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_drawing_revision_package_model_links_updated_at ON drawing_revision_package_model_links;
 CREATE TRIGGER trg_drawing_revision_package_model_links_updated_at
 BEFORE UPDATE ON drawing_revision_package_model_links
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_draft_parts_updated_at ON numbering_draft_parts;
+CREATE TRIGGER trg_numbering_draft_parts_updated_at
+BEFORE UPDATE ON numbering_draft_parts
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_draft_drawings_updated_at ON numbering_draft_drawings;
+CREATE TRIGGER trg_numbering_draft_drawings_updated_at
+BEFORE UPDATE ON numbering_draft_drawings
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_publication_evidence_updated_at ON numbering_publication_evidence;
+CREATE TRIGGER trg_numbering_publication_evidence_updated_at
+BEFORE UPDATE ON numbering_publication_evidence
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_numbering_draft_relations_updated_at ON numbering_draft_relations;
+CREATE TRIGGER trg_numbering_draft_relations_updated_at
+BEFORE UPDATE ON numbering_draft_relations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMIT;

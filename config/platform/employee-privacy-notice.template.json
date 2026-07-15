@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "approved_ui_implemented_pending_staging_effective_date",
+  "version": "1.0",
+  "contentSha256": "94eccfc2b519db02e410c9fa057f582fae2f057eb03ce37cf0a77df4697b0d6d",
+  "company": "鉦富機械有限公司",
+  "scope": "AI PDM internal pilot: official numbering and draft creation",
+  "contentSpec": ".ai-doc/specs/SPEC-PDM-EMPLOYEE-PRIVACY-NOTICE-001-pilot-notice-and-acknowledgement.md",
+  "contact": {
+    "primary": "jedchang0308@jenfu.com.tw",
+    "backup": "dani@jenfu.com.tw"
+  },
+  "retention": {
+    "firebaseIdentityAfterOffboardingDays": 30,
+    "invitationRecoveryAndSessionSecurityDays": 180,
+    "applicationSecurityLogDays": 365,
+    "googleRequiredLogProviderDays": 400,
+    "officialNumberAndNonReuseLedger": "permanent-minimal-record",
+    "closedOrCancelledDraftYears": 3,
+    "operationAuditYears": 3,
+    "retiredEmployeeLoginAliasYears": 3,
+    "auditActorIdentifier": "stable-pdm-user-id-no-email",
+    "documentedLegalOrSecurityHoldMayOverrideDeletion": true,
+    "numberingDraftAndBusinessAuditScheduleApproved": true
+  },
+  "processingLocations": {
+    "businessData": "asia-east1",
+    "firebaseIdentity": "provider-managed-US-processing",
+    "applicationLogs": "asia-east1-custom-bucket",
+    "requiredSystemLogs": "provider-managed-global"
+  },
+  "ui": {
+    "activationRoutes": [
+      "/account-invitation/firebase",
+      "/privacy/acknowledgement"
+    ],
+    "permanentRoute": "/privacy",
+    "adminEvidenceRoute": "/settings/accounts",
+    "acknowledgementLabel": "我已閱讀並了解 AI PDM 員工個人資料告知事項",
+    "normalLoginModalAllowed": false,
+    "localImplementationComplete": true,
+    "focusedQcScript": "npm run qc:dev-046-privacy-ack"
+  },
+  "privacyNoticeApproved": true,
+  "applicationCredentialStorageAllowed": false,
+  "effectiveAt": null,
+  "effectiveAtTrigger": "staging-opening",
+  "releaseReady": false
+}

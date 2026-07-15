@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { acceptAccountInvitationWithGoogleAsync, AccountInvitationError } from "@/lib/account-invitations";
+import { issueRegisteredLegacySessionCookieAsync } from "@/lib/account-session-registry";
 import { createAuditLogAsync } from "@/lib/audit-async";
-import { createSessionCookie } from "@/lib/auth";
 import { getGoogleIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
+import { getAuthMode } from "@/lib/auth-config";
 import { clearGoogleOAuthStateCookie, completeGoogleOAuth, GoogleOAuthError } from "@/lib/google-oauth";
 import { AuthIdentityError } from "@/lib/repositories/auth-identity-async-repository";
 
@@ -17,6 +18,9 @@ function redirectWithError(request: Request, code: string) {
 }
 
 export async function GET(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "legacy_google_oauth_disabled" }, { status: 404 });
+  }
   const callbackUrl = new URL(request.url);
   if (callbackUrl.searchParams.has("error")) {
     return redirectWithError(request, callbackUrl.searchParams.get("error") === "access_denied" ? "google_cancelled" : "google_failed");
@@ -66,7 +70,7 @@ export async function GET(request: Request) {
     const redirectUrl = new URL(completed.state.returnTo, request.url);
     const response = NextResponse.redirect(redirectUrl, { status: 303 });
     response.headers.append("set-cookie", clearGoogleOAuthStateCookie());
-    response.headers.append("set-cookie", createSessionCookie(user.id));
+    response.headers.append("set-cookie", await issueRegisteredLegacySessionCookieAsync({ request, user }));
     return response;
   } catch (error) {
     if (error instanceof AccountInvitationError && error.code === "invitation_email_mismatch") {

@@ -28,7 +28,7 @@
   "containmentStartMinutesAfterAcknowledgement": 15,
   "roster": {
     "primary": "jedchang0308@jenfu.com.tw",
-    "backup": "ASSIGN_NAMED_BACKUP_BEFORE_PHASE_2"
+    "backup": "dani@jenfu.com.tw"
   },
   "containmentChecklist": [
     "stop official numbering writes",

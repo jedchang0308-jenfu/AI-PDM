@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { acceptAccountInvitationAsync, AccountInvitationError } from "@/lib/account-invitations";
-import { createSessionCookie } from "@/lib/auth";
+import { issueRegisteredLegacySessionCookieAsync } from "@/lib/account-session-registry";
 import { getUserByIdAsync } from "@/lib/auth-async";
+import { getAuthMode } from "@/lib/auth-config";
 import { serializeAuthUserAsync } from "@/lib/company-context";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "legacy_invitation_disabled", message: "請使用 Firebase 管理的邀請連結。" }, { status: 404 });
+  }
   const body = await request.json().catch(() => ({}));
   try {
     const accepted = await acceptAccountInvitationAsync({
@@ -19,7 +23,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { invitation: accepted.invitation, user: await serializeAuthUserAsync(user) },
-      { headers: { "set-cookie": createSessionCookie(user.id) } }
+      { headers: { "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user }) } }
     );
   } catch (error) {
     if (error instanceof AccountInvitationError) {

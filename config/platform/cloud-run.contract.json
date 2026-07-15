@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "phase": "DEV-046-Phase-1-local-contract-only",
+  "phase": "DEV-046-Phase-2B-staging-runtime-created",
   "service": {
     "name": "ai-pdm",
     "region": "asia-east1",
     "executionEnvironment": "gen2",
-    "ingress": "internal-and-cloud-load-balancing",
+    "ingress": "all-for-firebase-hosting-staging-exception",
     "port": 8080,
     "hostname": "0.0.0.0",
     "timeoutSeconds": 60,
@@ -19,14 +19,25 @@
     },
     "serviceIdentityRoleAllowlist": [
       "roles/cloudsql.client",
+      "roles/cloudsql.instanceUser",
+      "roles/firebaseauth.admin",
       "roles/logging.logWriter",
       "roles/monitoring.metricWriter"
-    ]
+    ],
+    "workspacePilotAccess": {
+      "trustedDomains": ["jenfu.com.tw"],
+      "providerRequired": "google.com",
+      "applicationTotpEnrollmentAllowed": false,
+      "workspaceMfaTrustEnabled": false,
+      "aal1PrivilegedPilotAllowed": true,
+      "acceptedResidualRisk": "Workspace admin-side 2-Step Verification enforcement is deferred for the 3-person staging internal pilot. Privileged Google Workspace sessions are recorded as AAL1, not MFA-backed AAL2."
+    }
   },
   "databaseSidecar": {
     "mode": "cloud-sql-auth-proxy",
     "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
-    "address": "127.0.0.1",
+    "address": "0.0.0.0",
+    "applicationConnectHost": "127.0.0.1",
     "port": 5432,
     "privateIp": true,
     "automaticIamDatabaseAuthentication": true,
@@ -42,7 +53,38 @@
     "serverlessNegRegion": "asia-east1",
     "managedTls": true,
     "customDomainRequired": true,
-    "directRunAppUrlPublic": false
+    "customDomainRequiredForPublicStaging": true,
+    "publicCustomDomainDeferredForInternalPilot": true,
+    "internalPilotHttpsEntrypointRequired": true,
+    "directRunAppUrlPublic": true,
+    "directRunAppOriginSessionExchange": "denied-when-origin-is-run-app"
+  },
+  "stagingInternalPilotGateway": {
+    "decision": "firebase-hosting-default-domain",
+    "canonicalOrigin": "https://jenfu-ai-pdm-stg-361825.web.app",
+    "firebaseHostingSite": "jenfu-ai-pdm-stg-361825",
+    "cloudRunService": "ai-pdm-stg",
+    "cloudRunRegion": "asia-east1",
+    "pinTag": false,
+    "firestoreAllowed": false,
+    "firebaseStorageAllowed": false,
+    "firebaseFunctionsAllowed": false,
+    "requiredControls": [
+      "canonical web.app origin enforced for PDM_PUBLIC_BASE_URL and session issuer",
+      "host-only secure session cookie",
+      "same-origin mutation checks",
+      "private no-store responses",
+      "requests carrying the run.app browser origin cannot exchange a business session"
+    ],
+    "acceptedResidualRisk": "The public run.app shell and denial-of-service surface bypass the external load balancer during this staging-only exception."
+  },
+  "productionEdgeBaseline": {
+    "type": "external-application-load-balancer",
+    "managedTls": true,
+    "customDomainRequired": true,
+    "cloudRunIngress": "internal-and-cloud-load-balancing",
+    "cloudRunDefaultUrlDisabled": true,
+    "firebaseHostingGatewayAllowed": false
   },
   "release": {
     "artifactRegistryRequired": true,

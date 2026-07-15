@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { numberStateFlowJson, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import { requireTransferPackageAccessAsync, transferPackageErrorResponse } from "@/lib/transfer-package-api";
 import { createTransferPackageDraft } from "@/lib/transfer-packages";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const access = await requireTransferPackageAccessAsync(request, body);
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  if (!body) return numberStateFlowJson({ error: "invalid_json", message: "請提供有效的 JSON。" }, { status: 400 });
+  const invalid = validateNumberStateMutationRequest({ request, idempotencyKey: request.headers.get("Idempotency-Key"), requireIdempotency: true });
+  if (invalid) return invalid;
+  const access = await requireTransferPackageAccessAsync(request, body, "transfer.package.create");
   if (access.response) return access.response;
   try {
     const workbench = await createTransferPackageDraft({
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
       sourceType: body.sourceType ?? body.source_type,
       sourceId: body.sourceId ?? body.source_id
     });
-    return NextResponse.json({ workbench, pdmCompany: access.company }, { status: 201 });
+    return numberStateFlowJson({ workbench, pdmCompany: access.company }, { status: 201 });
   } catch (error) {
     return transferPackageErrorResponse(error, "技轉包建立失敗。");
   }

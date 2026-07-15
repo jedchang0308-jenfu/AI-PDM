@@ -52,6 +52,61 @@ const sourceFiles = [
     source: "db/postgres/009_account_lifecycle.sql",
     target: "supabase/migrations/20260713010000_account_lifecycle.sql",
     description: "Add account lifecycle controls, session revocation cutoffs, and password recovery requests"
+  },
+  {
+    source: "db/postgres/010_transfer_package_phase3a0.sql",
+    target: "supabase/migrations/20260713020000_transfer_package_phase3a0.sql",
+    description: "Add transfer package Phase 3A-0 draft workbench tables and controls"
+  },
+  {
+    source: "db/postgres/011_gcs_pointer_numbering_continuity.sql",
+    target: "supabase/migrations/20260713030000_gcs_pointer_numbering_continuity.sql",
+    description: "Add GCS pointer metadata and numbering recovery reservations"
+  },
+  {
+    source: "db/postgres/012_number_state_flow_phase1a.sql",
+    target: "supabase/migrations/20260713040000_number_state_flow_phase1a.sql",
+    description: "Add DEV-048 Phase 1A draft workspace and candidate reservation authority"
+  },
+  {
+    source: "db/postgres/013_firebase_bff_identity_invitations.sql",
+    target: "supabase/migrations/20260713050000_firebase_bff_identity_invitations.sql",
+    description: "Add Firebase BFF invitation saga state and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/014_employee_login_aliases.sql",
+    target: "supabase/migrations/20260713060000_employee_login_aliases.sql",
+    description: "Add employee login aliases, short-lived intents, shared rate limits, and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/015_employee_privacy_notice_acknowledgements.sql",
+    target: "supabase/migrations/20260713070000_employee_privacy_notice_acknowledgements.sql",
+    description: "Add immutable employee privacy notice versions, acknowledgements, and deny direct Data API access"
+  },
+  {
+    source: "db/postgres/016_number_state_flow_phase1c.sql",
+    target: "supabase/migrations/20260713080000_number_state_flow_phase1c.sql",
+    description: "Add DEV-048 Phase 1C approval registration, immutable targets, publication evidence, and permissions"
+  },
+  {
+    source: "db/postgres/017_number_state_flow_phase1d.sql",
+    target: "supabase/migrations/20260713090000_number_state_flow_phase1d.sql",
+    description: "Add DEV-048 Phase 1D transfer review, batch publication, and published handoff authority"
+  },
+  {
+    source: "db/postgres/018_part_number_series_code.sql",
+    target: "supabase/migrations/20260714010000_part_number_series_code.sql",
+    description: "Add optional series code to manufactured non-universal part drafts and official part numbers"
+  },
+  {
+    source: "db/postgres/019_number_state_flow_request_equivalence.sql",
+    target: "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql",
+    description: "Add DEV-048 request-equivalence reasons to draft workspaces and parts"
+  },
+  {
+    source: "db/postgres/020_account_session_records.sql",
+    target: "supabase/migrations/20260714030000_account_session_records.sql",
+    description: "Add server-owned account session records for managed auth session visibility"
   }
 ];
 

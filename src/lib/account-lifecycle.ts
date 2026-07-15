@@ -5,13 +5,16 @@ import {
   AccountLifecycleError,
   AsyncAccountLifecycleRepository,
   type AccountLifecycleAction,
-  type AdminAccountDetail,
+  type AdminAccountDetail as RepositoryAdminAccountDetail,
   type AdminAccountSummary
 } from "@/lib/repositories/account-lifecycle-async-repository";
 import type { AuthIdentityStatus } from "@/lib/repositories/auth-identity-async-repository";
+import { getPrivacyAdminEvidenceAsync } from "@/lib/privacy-notice";
+import type { PrivacyAcknowledgementEvidence } from "@/lib/repositories/privacy-notice-async-repository";
 
 export { AccountLifecycleError };
-export type { AccountLifecycleAction, AdminAccountDetail, AdminAccountSummary };
+export type AdminAccountDetail = RepositoryAdminAccountDetail & { privacyEvidence: PrivacyAcknowledgementEvidence };
+export type { AccountLifecycleAction, AdminAccountSummary };
 
 function repository() {
   return new AsyncAccountLifecycleRepository(getAsyncDatabaseClient());
@@ -28,7 +31,12 @@ export async function listAdminAccountsAsync(input: {
 }
 
 export async function getAdminAccountDetailAsync(userId: string) {
-  return repository().getAccountDetail(userId.trim());
+  const account = await repository().getAccountDetail(userId.trim());
+  if (!account) return null;
+  return {
+    ...account,
+    privacyEvidence: await getPrivacyAdminEvidenceAsync({ userId: account.id, companyId: account.companyId })
+  };
 }
 
 export async function updateAdminAccountLifecycleAsync(input: {

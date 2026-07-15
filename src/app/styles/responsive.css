@@ -371,8 +371,10 @@
 
   .nav-section {
     display: flex;
+    flex: 0 0 auto;
     align-items: stretch;
     gap: 6px;
+    min-width: max-content;
   }
 
   .nav-section-label {
@@ -381,6 +383,7 @@
 
   .nav-section-items {
     display: flex;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
@@ -656,6 +659,7 @@
 
   .topbar {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .platform-workbench-grid {
@@ -817,6 +821,48 @@
   }
 }
 
+@media (max-width: 640px) {
+  .privacy-page {
+    padding-top: 4px;
+  }
+
+  .privacy-title-row h1,
+  .privacy-ack-heading h1 {
+    font-size: 20px;
+  }
+
+  .privacy-version-facts,
+  .privacy-evidence-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .privacy-notice-list {
+    padding-left: 22px;
+  }
+
+  .privacy-notice-list li {
+    padding-left: 4px;
+  }
+
+  .privacy-ack-page {
+    align-items: start;
+    justify-items: stretch;
+    padding: 4px 0 18px;
+  }
+
+  .privacy-ack-panel {
+    max-width: none;
+    padding: 14px;
+  }
+
+  .privacy-ack-form > .primary-button,
+  .privacy-ack-state > .primary-button,
+  .privacy-back-link {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media print {
   body {
     background: #ffffff;
@@ -863,5 +909,89 @@
 
   .handoff-card {
     page-break-inside: avoid;
+  }
+}
+
+@media (max-width: 960px) {
+  .numbering-request-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numbering-request-summary {
+    position: static;
+  }
+
+  .numbering-request-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .numbering-request-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numbering-request-heading .secondary-button {
+    width: 100%;
+  }
+
+  .numbering-request-section {
+    padding: 18px 16px 20px;
+  }
+
+  .numbering-request-step-heading {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .numbering-request-step-trailing {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .numbering-request-mode-selector,
+  .numbering-request-field-grid,
+  .numbering-request-summary dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numbering-request-output-selector {
+    display: grid;
+    width: 100%;
+  }
+
+  .numbering-request-output-selector button {
+    width: 100%;
+  }
+
+  .numbering-request-field-wide {
+    grid-column: auto;
+  }
+
+  .numbering-request-summary {
+    padding: 16px;
+  }
+
+  .numbering-request-summary dl > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .numbering-request-success {
+    padding: 20px 16px;
+  }
+
+  .numbering-request-success-heading {
+    align-items: flex-start;
+  }
+
+  .numbering-request-result-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .numbering-request-success-actions,
+  .numbering-request-success-actions .primary-button,
+  .numbering-request-success-actions .secondary-button {
+    width: 100%;
   }
 }

@@ -49,20 +49,24 @@ record(
   requestPageSource.includes('const currentCreated = requestMode === "new_root" ? createdRecord : appendCreatedRecord;') &&
     requestPageSource.includes("if (submitInFlightRef.current || currentCreated) return;") &&
     requestPageSource.includes('const hasCurrentCreated = requestMode === "new_root" ? Boolean(createdRecord) : Boolean(appendCreatedRecord);') &&
-    requestPageSource.includes('disabled={busy === "submit" || validation.length > 0 || hasCurrentCreated}'),
+    requestPageSource.includes('const submitBlocked = busy === "submit" || hasCurrentCreated') &&
+    requestPageSource.includes("disabled={submitBlocked}"),
   "submitRequest"
 );
 record(
-  "request page resets submit lock through new request",
-  requestPageSource.includes("function resetRequest()") &&
+  "request page resets submit lock and form through clear action",
+  requestPageSource.includes('function resetRequest(nextMode: RequestMode = "new_root")') &&
     requestPageSource.includes("submitInFlightRef.current = false") &&
-    requestPageSource.includes("setCreatedRecord(null)"),
+    requestPageSource.includes("setCreatedRecord(null)") &&
+    requestPageSource.includes('setCoreName("")') &&
+    requestPageSource.includes('setDrawingPurposeDescription("")'),
   "resetRequest"
 );
 record(
-  "request page marks created state on button",
-  requestPageSource.includes('const submitLabel = requestMode === "new_root" ? (createdRecord ? "已建立" : "建立號碼") : appendCreatedRecord ? "已追加" : "建立追加";') &&
-    requestPageSource.includes("{submitLabel}"),
+  "request page uses explicit outcome-based submit copy",
+  requestPageSource.includes('"建立料號草稿"') &&
+    requestPageSource.includes('`建立料號與${drawingKindLabel}草稿`') &&
+    requestPageSource.includes("{busy === \"submit\" ? \"建立中...\""),
   "submit button"
 );
 record(

@@ -44,6 +44,7 @@ const submissionStatusAsyncPath = path.join(root, "src", "lib", "submission-stat
 const releaseRecordsAsyncPath = path.join(root, "src", "lib", "release-records-async.ts");
 const releaseAsyncPath = path.join(root, "src", "lib", "release-async.ts");
 const releasePackageAsyncPath = path.join(root, "src", "lib", "release-package-async.ts");
+const submissionReleaseWorkflowPath = path.join(root, "src", "lib", "submission-release-workflow.ts");
 const notificationsAsyncPath = path.join(root, "src", "lib", "notifications-async.ts");
 const handoffAsyncPath = path.join(root, "src", "lib", "handoff-async.ts");
 const aiAsyncPath = path.join(root, "src", "lib", "ai-async.ts");
@@ -252,6 +253,7 @@ const submissionStatusAsyncHelperSource = readProjectPath(submissionStatusAsyncP
 const releaseRecordsAsyncHelperSource = readProjectPath(releaseRecordsAsyncPath);
 const releaseServiceAsyncSource = readProjectPath(releaseAsyncPath);
 const releasePackageAsyncSource = readProjectPath(releasePackageAsyncPath);
+const submissionReleaseWorkflowSource = readProjectPath(submissionReleaseWorkflowPath);
 const notificationsAsyncSource = readProjectPath(notificationsAsyncPath);
 const handoffAsyncHelperSource = readProjectPath(handoffAsyncPath);
 const aiAsyncHelperSource = readProjectPath(aiAsyncPath);
@@ -552,17 +554,21 @@ record(
   "numbering-permission-guard.ts"
 );
 record(
-  "AUTH-ASYNC-005 auth async exposes password lookup helper",
-  authAsyncSource.includes("export async function getUserByEmailWithPasswordAsync") &&
-    authAsyncSource.includes("repository.getUserByEmailWithPassword(email)"),
+  "AUTH-ASYNC-005 auth async resolves local-password identities through the async identity repository",
+  authAsyncSource.includes("export async function getLocalPasswordIdentityAsync") &&
+    authAsyncSource.includes("new AsyncAuthIdentityRepository(client).resolveLocalPassword(email)") &&
+    authAsyncSource.includes("export async function getUserByEmailWithPasswordAsync") &&
+    authAsyncSource.includes("await getLocalPasswordIdentityAsync(email)"),
   "auth-async.ts"
 );
 record(
-  "AUTH-ASYNC-006 login and token routes use async password lookup",
+  "AUTH-ASYNC-006 login and token routes use async identity lookup and record successful identity login",
   [loginRouteSource, tokenRouteSource].every(
     (routeSource) =>
-      routeSource.includes("getUserByEmailWithPasswordAsync") &&
-      routeSource.includes("await getUserByEmailWithPasswordAsync(email)") &&
+      routeSource.includes("getLocalPasswordIdentityAsync") &&
+      routeSource.includes("await getLocalPasswordIdentityAsync(email)") &&
+      routeSource.includes("recordIdentityLoginAsync") &&
+      routeSource.includes("await recordIdentityLoginAsync(identity.identityId, user.email)") &&
       !routeSource.includes("getUserByEmailWithPassword }") &&
       !routeSource.includes("getUserByEmailWithPassword,")
   ),
@@ -600,8 +606,10 @@ record(
 );
 record(
   "AUTH-ASYNC-010 auth me route uses async session lookup",
-  meRouteSource.includes("getSessionUserAsync") &&
-    meRouteSource.includes("await getSessionUserAsync(request)") &&
+  ((meRouteSource.includes("getSessionUserAsync") &&
+    meRouteSource.includes("await getSessionUserAsync(request)")) ||
+    (meRouteSource.includes("requireAuthAsync") &&
+      meRouteSource.includes("await requireAuthAsync(request)"))) &&
     !meRouteSource.includes("getSessionUser(request)") &&
     !meRouteSource.includes('from "@/lib/db"'),
   "auth/me route.ts"
@@ -1045,12 +1053,11 @@ record(
 record(
   "ROUTE-AUTH-ASYNC-015 submission approve and reject routes use async role guard",
   submissionApproveRouteSource.includes("requireRoleAsync") &&
-    submissionApproveRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
+  submissionApproveRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
     submissionApproveRouteSource.includes("listOpenRequiredPhaseGateChecksAsync") &&
     submissionApproveRouteSource.includes("listOpenApprovalMatrixRequirementsAsync") &&
-    submissionApproveRouteSource.includes("releaseSubmissionViaCloudFunctionAsync") &&
-    submissionApproveRouteSource.includes("createReleasePackageAsync") &&
-    submissionApproveRouteSource.includes("markSubmissionReleasedAndObsoletePreviousAsync") &&
+    submissionApproveRouteSource.includes("executeSubmissionReleaseWorkflowAsync") &&
+    submissionApproveRouteSource.includes("await executeSubmissionReleaseWorkflowAsync") &&
     submissionRejectRouteSource.includes("requireRoleAsync") &&
     submissionRejectRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
     submissionRejectRouteSource.includes("addApprovalAsync") &&
@@ -2220,21 +2227,12 @@ record(
   "submissions-async.ts"
 );
 record(
-  "SUBMISSION-WRITE-ASYNC-004 submissions POST route uses async write/settings/file helpers and avoids sync DB imports",
-  submissionsRouteSource.includes("submissionRevisionExistsAsync") &&
-    submissionsRouteSource.includes("await submissionRevisionExistsAsync") &&
-    submissionsRouteSource.includes("createSubmissionRecordAsync") &&
-    submissionsRouteSource.includes("await createSubmissionRecordAsync") &&
-    submissionsRouteSource.includes("getSystemSettingAsync") &&
-    submissionsRouteSource.includes("await getSystemSettingAsync") &&
-    submissionsRouteSource.includes("getFilesNeedingUploadAsync") &&
-    submissionsRouteSource.includes("await getFilesNeedingUploadAsync") &&
-    submissionsRouteSource.includes("updateFileGDriveStatusAsync") &&
+  "SUBMISSION-WRITE-ASYNC-004 retired generic submissions POST remains authenticated and fail-closed",
+  submissionsRouteSource.includes('await requireRoleAsync(request, ["Engineer", "Admin"])') &&
+    submissionsRouteSource.includes('error: "GENERIC_SUBMISSION_RETIRED"') &&
+    submissionsRouteSource.includes("{ status: 410 }") &&
     !submissionsRouteSource.includes('from "@/lib/db"') &&
-    !submissionsRouteSource.includes("createSubmissionRecord(") &&
-    !submissionsRouteSource.includes("submissionRevisionExists(") &&
-    !submissionsRouteSource.includes("getSystemSetting(") &&
-    !submissionsRouteSource.includes("updateFileGDriveStatus("),
+    !submissionsRouteSource.includes("getDb("),
   "submissions route.ts"
 );
 record(
@@ -2612,7 +2610,7 @@ record(
   "release-async.ts, release-package-async.ts"
 );
 record(
-  "RELEASE-DECISION-ASYNC-005 approve route uses async helpers and avoids sync DB imports",
+  "RELEASE-DECISION-ASYNC-005 approve route delegates to the async release workflow without sync DB imports",
   submissionApproveRouteSource.includes("getSubmissionAsync") &&
     submissionApproveRouteSource.includes("getActiveSandboxBranchForSubmissionAsync") &&
     submissionApproveRouteSource.includes("listOpenRequiredPhaseGateChecksAsync") &&
@@ -2620,17 +2618,22 @@ record(
     submissionApproveRouteSource.includes("addApprovalAsync") &&
     submissionApproveRouteSource.includes("getApprovalSummaryAsync") &&
     submissionApproveRouteSource.includes("listOpenApprovalMatrixRequirementsAsync") &&
-    submissionApproveRouteSource.includes("markSubmissionReleasingAsync") &&
-    submissionApproveRouteSource.includes("releaseSubmissionViaCloudFunctionAsync") &&
-    submissionApproveRouteSource.includes("createReleasePackageAsync") &&
-    submissionApproveRouteSource.includes("markSubmissionReleasedAndObsoletePreviousAsync") &&
-    submissionApproveRouteSource.includes("markSubmissionReleaseFailedAsync") &&
+    submissionApproveRouteSource.includes("executeSubmissionReleaseWorkflowAsync") &&
+    submissionApproveRouteSource.includes("await executeSubmissionReleaseWorkflowAsync") &&
     submissionApproveRouteSource.includes("createAuditLogAsync") &&
     !submissionApproveRouteSource.includes('from "@/lib/db"') &&
     !submissionApproveRouteSource.includes("getSubmission(") &&
     !submissionApproveRouteSource.includes("updateSubmissionStatus(") &&
-    !submissionApproveRouteSource.includes("createAuditLog("),
-  "submissions/[id]/approve route.ts"
+    !submissionApproveRouteSource.includes("createAuditLog(") &&
+    submissionReleaseWorkflowSource.includes("markSubmissionReleasingAsync") &&
+    submissionReleaseWorkflowSource.includes("releaseSubmissionViaCloudFunctionAsync") &&
+    submissionReleaseWorkflowSource.includes("createReleasePackageAsync") &&
+    submissionReleaseWorkflowSource.includes("markSubmissionReleasedAndObsoletePreviousAsync") &&
+    submissionReleaseWorkflowSource.includes("markSubmissionReleaseFailedAsync") &&
+    submissionReleaseWorkflowSource.includes("createAuditLogAsync") &&
+    !submissionReleaseWorkflowSource.includes('from "@/lib/db"') &&
+    !submissionReleaseWorkflowSource.includes("getDb("),
+  "submissions/[id]/approve route.ts, submission-release-workflow.ts"
 );
 record(
   "RELEASE-PACKAGE-ASYNC-001 release package download route uses async submission detail and avoids sync DB imports",
@@ -3399,6 +3402,13 @@ try {
       password_hash TEXT,
       role TEXT NOT NULL,
       company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      account_status TEXT NOT NULL DEFAULT 'active',
+      session_invalid_before TEXT,
+      account_lifecycle_version INTEGER NOT NULL DEFAULT 1,
+      system_role_enabled INTEGER NOT NULL DEFAULT 1,
+      account_status_changed_at TEXT,
+      account_status_changed_by TEXT,
+      account_status_reason TEXT,
       created_at TEXT,
       updated_at TEXT
     );
@@ -3417,6 +3427,22 @@ try {
       is_default INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, company_id)
+    );
+
+    CREATE TABLE auth_identities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      provider_subject TEXT NOT NULL,
+      login_identifier TEXT,
+      email_normalized TEXT,
+      verified_at TEXT,
+      last_login_at TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (user_id, provider),
+      UNIQUE (provider, provider_subject)
     );
 
     CREATE TABLE roles (
@@ -3459,6 +3485,12 @@ try {
       user_id TEXT NOT NULL,
       role_id TEXT NOT NULL,
       reason TEXT NOT NULL DEFAULT '',
+      scope_template TEXT NOT NULL DEFAULT 'own_department',
+      named_scope TEXT NOT NULL DEFAULT '',
+      sponsor_user_id TEXT,
+      starts_at TEXT,
+      review_due_at TEXT,
+      hard_ends_at TEXT,
       assigned_by TEXT,
       assigned_at TEXT NOT NULL,
       revoked_at TEXT,
@@ -3782,6 +3814,17 @@ try {
       superseded_by_submission_id TEXT,
       obsolete_at TEXT,
       obsolete_by TEXT,
+      cancelled_at TEXT,
+      cancelled_by TEXT,
+      cancel_reason TEXT,
+      returned_for_correction_at TEXT,
+      returned_for_correction_by TEXT,
+      returned_for_correction_reason TEXT,
+      corrects_submission_id TEXT,
+      resolved_by_submission_id TEXT,
+      resolved_at TEXT,
+      source_entity_type TEXT,
+      source_entity_id TEXT,
       UNIQUE (drawing_number, revision),
       UNIQUE (company_id, drawing_number, revision)
     );
@@ -3792,10 +3835,16 @@ try {
       file_role TEXT NOT NULL,
       original_filename TEXT NOT NULL,
       local_path TEXT NOT NULL,
+      storage_provider TEXT NOT NULL DEFAULT 'local_repository',
+      storage_bucket TEXT,
+      storage_key TEXT,
+      storage_generation TEXT,
+      storage_metageneration TEXT,
       gdrive_file_id TEXT,
       gdrive_status TEXT NOT NULL DEFAULT 'none',
       sha256 TEXT NOT NULL DEFAULT '',
       file_size INTEGER NOT NULL DEFAULT 0,
+      source_master_attachment_id TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -3821,6 +3870,11 @@ try {
       submission_id TEXT NOT NULL,
       package_filename TEXT NOT NULL,
       local_path TEXT NOT NULL,
+      storage_provider TEXT NOT NULL DEFAULT 'local_repository',
+      storage_bucket TEXT,
+      storage_key TEXT,
+      storage_generation TEXT,
+      storage_metageneration TEXT,
       sha256 TEXT NOT NULL,
       file_size INTEGER NOT NULL,
       manifest_json TEXT NOT NULL,
@@ -4012,6 +4066,7 @@ try {
       submitted_by TEXT NOT NULL,
       change_reason TEXT NOT NULL,
       status TEXT NOT NULL,
+      lifecycle_action TEXT NOT NULL DEFAULT 'release',
       submitted_at TEXT NOT NULL,
       reviewed_by TEXT,
       reviewed_at TEXT,
@@ -4526,7 +4581,10 @@ try {
     permissionCode: "numbering.request"
   });
   const permissions = database.prepare(listPermissionsSql).all({ roleCode: "rd" });
-  const assignedRoles = database.prepare(assignedRolesSql).all({ userId: "user-engineer-demo" });
+  const assignedRoles = database.prepare(assignedRolesSql).all({
+    userId: "user-engineer-demo",
+    now: "2026-06-08T12:00:00.000Z"
+  });
   const activePriority = database.prepare(activeRolePrioritySql).get();
   const activeDelegations = database.prepare(activeDelegationsSql).all({
     userId: "user-engineer-demo",
@@ -4736,6 +4794,7 @@ try {
   });
   const allSubmissionListRows = database.prepare(submissionListSql).all({
     now: "2026-06-08T13:00:00.000Z",
+    includeHistory: 0,
     status: null,
     submittedBy: null,
     limit: 10,
@@ -4743,6 +4802,7 @@ try {
   });
   const scopedPendingSubmissionListRows = database.prepare(submissionListSql).all({
     now: "2026-06-08T13:00:00.000Z",
+    includeHistory: 0,
     status: "Pending",
     submittedBy: "user-engineer-demo",
     limit: 10,
@@ -4750,6 +4810,7 @@ try {
   });
   const pagedSubmissionListRows = database.prepare(submissionListSql).all({
     now: "2026-06-08T13:00:00.000Z",
+    includeHistory: 0,
     status: null,
     submittedBy: null,
     limit: 2,
@@ -4767,7 +4828,7 @@ try {
         )`
       )
     )
-    .all({ now: "2026-06-08T13:00:00.000Z", queryLike: "%pending.dwg%", limit: 10 });
+    .all({ now: "2026-06-08T13:00:00.000Z", includeHistory: 0, queryLike: "%pending.dwg%", limit: 10 });
   const scopedSearchFilterRows = database
     .prepare(
       submissionSearchSql.replace(
@@ -4777,6 +4838,7 @@ try {
     )
     .all({
       now: "2026-06-08T13:00:00.000Z",
+      includeHistory: 0,
       status: "Pending",
       submittedBy: "user-engineer-demo",
       productLineLike: "%pl-a%",
@@ -4798,7 +4860,7 @@ try {
         )`
       )
     )
-    .all({ now: "2026-06-08T13:00:00.000Z", childPartLike: "%pn-100%", limit: 10 });
+    .all({ now: "2026-06-08T13:00:00.000Z", includeHistory: 0, childPartLike: "%pn-100%", limit: 10 });
   const outdatedBomSearchRows = database
     .prepare(
       submissionSearchSql.replace(
@@ -4822,7 +4884,7 @@ try {
         )`
       )
     )
-    .all({ now: "2026-06-08T13:00:00.000Z", limit: 10 });
+    .all({ now: "2026-06-08T13:00:00.000Z", includeHistory: 0, limit: 10 });
   const parentDetail = database.prepare(submissionDetailSql).get({ id: "sub-parent-a" });
   const parentReferences = database.prepare(submissionReferencesSql).all({ id: "sub-parent-a" });
   const parentApprovals = database.prepare(submissionApprovalsSql).all({ id: "sub-parent-a" });
@@ -4868,6 +4930,9 @@ try {
     changeDescription: "Async create fixture",
     submittedBy: "user-engineer-demo",
     approvalRequired: 2,
+    sourceEntityType: null,
+    sourceEntityId: null,
+    correctsSubmissionId: null,
     now: "2026-06-08T13:12:00.000Z"
   });
   database.prepare(insertSubmissionFileSql).run({
@@ -4876,9 +4941,13 @@ try {
     fileRole: "sldasm",
     originalFilename: "create-assembly.sldasm",
     localPath: "/tmp/create-assembly.sldasm",
+    storageProvider: "local_repository",
+    storageBucket: null,
+    storageKey: null,
     gdriveFileId: null,
     sha256: "sha-create-asm",
     fileSize: 31,
+    sourceMasterAttachmentId: null,
     now: "2026-06-08T13:13:00.000Z"
   });
   database.prepare(insertSubmissionFileSql).run({
@@ -4887,9 +4956,13 @@ try {
     fileRole: "pdf",
     originalFilename: "create-assembly.pdf",
     localPath: "/tmp/create-assembly.pdf",
+    storageProvider: "local_repository",
+    storageBucket: null,
+    storageKey: null,
     gdriveFileId: null,
     sha256: "sha-create-pdf",
     fileSize: 17,
+    sourceMasterAttachmentId: null,
     now: "2026-06-08T13:13:01.000Z"
   });
   database.prepare(insertFileReferenceSql).run({
@@ -5682,6 +5755,9 @@ try {
     submissionId: "sub-release-pending",
     packageFilename: "release-a.zip",
     localPath: "/tmp/release-a.zip",
+    storageProvider: "local_repository",
+    storageBucket: null,
+    storageKey: null,
     sha256: "sha-release-a",
     fileSize: 101,
     manifestJson: JSON.stringify({ version: "a" }),
@@ -5693,6 +5769,9 @@ try {
     submissionId: "sub-release-pending",
     packageFilename: "release-b.zip",
     localPath: "/tmp/release-b.zip",
+    storageProvider: "local_repository",
+    storageBucket: null,
+    storageKey: null,
     sha256: "sha-release-b",
     fileSize: 202,
     manifestJson: JSON.stringify({ version: "b" }),
@@ -5998,6 +6077,7 @@ try {
     id: "bom-review-resubmitted-async",
     draftId: "bom-draft-pending",
     status: "PendingReview",
+    lifecycleAction: "release",
     submittedBy: "user-engineer-demo",
     changeReason: "Resubmit after async rejection",
     submittedAt: bomReviewSubmitAt
@@ -6714,6 +6794,9 @@ try {
     fileRole: "sldasm",
     originalFilename: "sandbox-source-a.sldasm",
     localPath: "/tmp/sandbox-source-a.sldasm",
+    storageProvider: "local_repository",
+    storageBucket: null,
+    storageKey: null,
     sha256: "sha-sandbox-source-a",
     fileSize: 1200,
     createdAt: "2026-06-08T12:41:00.000Z"
@@ -7436,7 +7519,10 @@ try {
       asyncTaskAfterCancelled?.handled_at === null,
     JSON.stringify({ asyncTaskBeforeUpdate, asyncTaskAfterHandled, asyncTaskHandledRaw, asyncTaskAfterCancelled, asyncTaskCancelledRaw })
   );
-  const asyncNumberingAssignedRoles = database.prepare(numberingAssignedRoleCodesSql).all({ userId: "user-engineer-demo" });
+  const asyncNumberingAssignedRoles = database.prepare(numberingAssignedRoleCodesSql).all({
+    userId: "user-engineer-demo",
+    now: "2026-06-08T12:48:00.000Z"
+  });
   const asyncNumberingRoleScopes = database.prepare(numberingAllowedRoleScopesSql).all();
   const asyncNumberingDelegations = database.prepare(numberingActiveDelegationsSql).all({
     userId: "user-engineer-demo",
@@ -8450,7 +8536,11 @@ try {
 
   database.close();
 } catch (error) {
-  record("ACCESS-ASYNC-015 SQLite semantic role list returns system roles first", false, error instanceof Error ? error.message : String(error));
+  record(
+    "ACCESS-ASYNC-015 SQLite semantic role list returns system roles first",
+    false,
+    error instanceof Error ? error.stack ?? error.message : String(error)
+  );
   record("ACCESS-ASYNC-016 SQLite semantic user list returns three users", false, "semantic setup failed");
   record("ACCESS-ASYNC-017 SQLite semantic role lookup works and missing role is undefined", false, "semantic setup failed");
   record("ACCESS-ASYNC-018 SQLite semantic permission upsert updates existing row", false, "semantic setup failed");

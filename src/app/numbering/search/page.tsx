@@ -8,6 +8,7 @@ import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
 import { StatusBadge } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
@@ -727,10 +728,13 @@ export default function NumberingSearchPage() {
           <h1>圖料模組</h1>
           <p>料件、料號與圖號集中查詢，明細標示風險與影響資訊。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={loadResults}>
-          <RotateCcw size={16} />
-          重新整理
-        </button>
+        <div className="number-state-owner-actions">
+          <button className="secondary-button" type="button" onClick={loadResults}>
+            <RotateCcw size={16} />
+            重新整理
+          </button>
+          <NumberStateOwnerCreateAction surface="search" />
+        </div>
       </div>
 
       {state === "unauthorized" ? <AccessPanel /> : null}

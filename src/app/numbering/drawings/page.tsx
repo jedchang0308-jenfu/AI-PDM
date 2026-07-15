@@ -7,6 +7,7 @@ import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, 
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
@@ -439,10 +440,13 @@ export default function DrawingNumbersPage() {
           <h1>圖號模組</h1>
           <p>管理圖面技術文件、版次用途、發行狀態與關聯料號；圖料模組維持跨物件追溯入口。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={loadDrawings} disabled={busy}>
-          <RotateCcw size={16} />
-          重新整理
-        </button>
+        <div className="number-state-owner-actions">
+          <button className="secondary-button" type="button" onClick={loadDrawings} disabled={busy}>
+            <RotateCcw size={16} />
+            重新整理
+          </button>
+          <NumberStateOwnerCreateAction surface="drawings" />
+        </div>
       </div>
 
       {state === "unauthorized" ? <AccessPanel /> : null}

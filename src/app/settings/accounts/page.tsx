@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldOff, UserCog, UserPlus } from "lucide-react";
+import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
 import AccountInvitationsPage from "../account-invitations/page";
 import { ApprovalMatrixSettings } from "../page";
 
@@ -33,8 +33,30 @@ type AccountIdentity = {
   lastLoginAt: string | null;
 };
 
+type AccountLoginAlias = {
+  id: string;
+  aliasNormalized: string;
+  providerRoute: "firebase_google";
+  status: "active" | "retired";
+  createdAt: string;
+  retiredAt: string | null;
+  reason: string;
+  rowVersion: number;
+};
+
 type AccountDetail = AccountSummary & {
   identities: AccountIdentity[];
+  loginAliases: AccountLoginAlias[];
+  privacyEvidence: {
+    requiredVersion: string;
+    requiredContentSha256: string;
+    effectiveAt: string | null;
+    acknowledgedVersion: string | null;
+    acknowledgedContentSha256: string | null;
+    acknowledgedAt: string | null;
+    source: string | null;
+    status: "acknowledged" | "reacknowledgement_required" | "not_acknowledged";
+  };
   activeRoleAssignments: Array<{
     id: string;
     roleCode: string;
@@ -144,6 +166,8 @@ function AccountManagementPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [resetUrl, setResetUrl] = useState("");
+  const [loginAlias, setLoginAlias] = useState("");
+  const [loginAliasReason, setLoginAliasReason] = useState("");
   const didInitialLoad = useRef(false);
 
   const selectedAccount = useMemo(() => accounts.find((account) => account.id === selectedId) ?? null, [accounts, selectedId]);
@@ -263,8 +287,56 @@ function AccountManagementPanel() {
       setMessage({ type: "error", text: body.message ?? "密碼重設連結建立失敗。" });
       return;
     }
+    if (body.handoff?.delivery === "provider_managed_email") {
+      setResetUrl("");
+      setMessage({ type: "success", text: "已要求供應商寄送帳號復原郵件；AI PDM 未建立或保存重設 token。" });
+      return;
+    }
     setResetUrl(String(body.resetUrl ?? ""));
     setMessage({ type: "success", text: "一次性密碼重設連結已建立，請複製後交給本人。" });
+  }
+
+  async function createLoginAlias(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedId || !loginAlias.trim() || !loginAliasReason.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    const response = await fetch(`/api/admin/accounts/${encodeURIComponent(selectedId)}/login-aliases`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alias: loginAlias, reason: loginAliasReason })
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setMessage({ type: "error", text: body.message ?? "工號別名新增失敗。" });
+      return;
+    }
+    setLoginAlias("");
+    setLoginAliasReason("");
+    setMessage({ type: "success", text: "工號別名已新增。" });
+    await loadAccounts(selectedId);
+  }
+
+  async function retireLoginAlias(alias: AccountLoginAlias) {
+    if (!selectedId) return;
+    const reason = window.prompt("請輸入退役原因；原工號會保留於歷史紀錄，不可直接改寫。", "人員或工號異動");
+    if (!reason?.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    const response = await fetch(`/api/admin/accounts/${encodeURIComponent(selectedId)}/login-aliases/${encodeURIComponent(alias.id)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowVersion: alias.rowVersion, reason })
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setMessage({ type: "error", text: body.message ?? "工號別名退役失敗。" });
+      return;
+    }
+    setMessage({ type: "success", text: "工號別名已退役。" });
+    await loadAccounts(selectedId);
   }
 
   async function copyResetUrl() {
@@ -278,7 +350,7 @@ function AccountManagementPanel() {
       <div className="account-management-toolbar">
         <label>
           搜尋帳號
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="姓名或電子郵件" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="姓名、電子郵件或工號" />
         </label>
         <label>
           帳號狀態
@@ -407,10 +479,85 @@ function AccountManagementPanel() {
               </div>
 
               <div className="account-detail-section">
-                <h3>密碼重設</h3>
+                <h3>工號／登入別名</h3>
+                <p className="account-section-note">工號只負責導向公司 Google／Cloud Identity 驗證，不是密碼或權限來源。</p>
+                {detail?.loginAliases?.length ? detail.loginAliases.map((alias) => (
+                  <div className="account-identity-row" key={alias.id}>
+                    <div>
+                      <strong>{alias.aliasNormalized}</strong>
+                      <small>公司 Google／Cloud Identity</small>
+                      <small>{alias.status === "active" ? `啟用於 ${formatDateTime(alias.createdAt)}` : `已於 ${formatDateTime(alias.retiredAt)}退役`}</small>
+                    </div>
+                    <button
+                      className="danger-button"
+                      type="button"
+                      disabled={busy || alias.status !== "active"}
+                      onClick={() => void retireLoginAlias(alias)}
+                    >
+                      {alias.status === "active" ? "退役" : "已退役"}
+                    </button>
+                  </div>
+                )) : <p>尚未設定工號別名。</p>}
+                <form className="account-login-alias-form" onSubmit={createLoginAlias}>
+                  <label>
+                    工號
+                    <input
+                      value={loginAlias}
+                      onChange={(event) => setLoginAlias(event.target.value.toUpperCase())}
+                      placeholder="例如 JF00123"
+                      autoComplete="off"
+                      maxLength={32}
+                      disabled={busy || detail?.accountStatus !== "active"}
+                      required
+                    />
+                  </label>
+                  <label>
+                    新增原因
+                    <input
+                      value={loginAliasReason}
+                      onChange={(event) => setLoginAliasReason(event.target.value)}
+                      placeholder="例如 新進人員帳號建立"
+                      maxLength={500}
+                      disabled={busy || detail?.accountStatus !== "active"}
+                      required
+                    />
+                  </label>
+                  <button className="secondary-button" type="submit" disabled={busy || detail?.accountStatus !== "active" || !loginAlias.trim() || !loginAliasReason.trim()}>
+                    <KeyRound size={16} aria-hidden="true" />
+                    新增工號
+                  </button>
+                </form>
+              </div>
+
+              <div className="account-detail-section">
+                <div className="account-section-heading">
+                  <h3>個人資料告知確認</h3>
+                  <span className={`status-badge privacy-status-${detail?.privacyEvidence.status ?? "not_acknowledged"}`}>
+                    {detail?.privacyEvidence.status === "acknowledged"
+                      ? "已確認"
+                      : detail?.privacyEvidence.status === "reacknowledgement_required"
+                        ? "需重新確認"
+                        : "尚未確認"}
+                  </span>
+                </div>
+                <dl className="account-detail-facts privacy-evidence-facts">
+                  <div><dt>目前要求版本</dt><dd>{detail ? `Pilot v${detail.privacyEvidence.requiredVersion}` : "-"}</dd></div>
+                  <div><dt>已確認版本</dt><dd>{detail?.privacyEvidence.acknowledgedVersion ? `Pilot v${detail.privacyEvidence.acknowledgedVersion}` : "尚未確認"}</dd></div>
+                  <div><dt>確認時間</dt><dd>{formatDateTime(detail?.privacyEvidence.acknowledgedAt ?? null)}</dd></div>
+                  <div><dt>生效時間</dt><dd>{formatDateTime(detail?.privacyEvidence.effectiveAt ?? null)}</dd></div>
+                </dl>
+                <p className="account-section-note privacy-evidence-hash" title={detail?.privacyEvidence.requiredContentSha256 ?? undefined}>
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  版本內容 SHA-256：{detail?.privacyEvidence.requiredContentSha256 ?? "-"}
+                </p>
+                <p className="account-section-note">管理員只能查閱證據，不能代替員工確認或修改歷史紀錄。</p>
+              </div>
+
+              <div className="account-detail-section">
+                <h3>帳號復原</h3>
                 <button className="secondary-button" type="button" disabled={busy} onClick={() => void createPasswordReset()}>
                   <KeyRound size={16} aria-hidden="true" />
-                  建立一次性連結
+                  建立或寄送復原
                 </button>
                 {resetUrl ? (
                   <div className="account-reset-link">

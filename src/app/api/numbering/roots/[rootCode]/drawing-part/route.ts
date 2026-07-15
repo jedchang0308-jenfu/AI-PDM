@@ -25,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
   const purposeDescription = String(body.purposeDescription ?? body.purpose_description ?? body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim();
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
+  const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
   const isUniversal = itemKind === "shared" || Boolean(body.isUniversal ?? body.is_universal);
   const universalReason = String(body.universalReason ?? body.universal_reason ?? "").trim();
   const linkRelationType = normalizeEnum(body.linkRelationType ?? body.link_relation_type ?? "auto", linkTypes) as "auto" | "primary_manufacturing" | "reference" | undefined;
@@ -33,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
   if (!purposeCode) errors.push("purposeCode must be M or R");
   if (purposeCode === "R" && !purposeDescription) errors.push("purposeDescription is required for reference drawings");
   if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
+  if (seriesCode.length > 80) errors.push("seriesCode must be 80 characters or fewer");
   if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
   if (!linkRelationType) errors.push("linkRelationType is invalid");
   if (errors.length > 0 || !purposeCode || !linkRelationType) {
@@ -47,6 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       purposeDescription,
       itemKind,
       customSpecification,
+      seriesCode,
       isUniversal,
       universalReason,
       reason: String(body.reason ?? "").trim(),
