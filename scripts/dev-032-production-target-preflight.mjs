@@ -149,9 +149,15 @@ if (productionSecrets.length === 0) {
     commandOk: commands.secrets.ok
   }));
 }
-if (releaseManifest.parsed?.releaseDecision?.safeToBuildForProduction !== true) {
-  blockers.push(blocker("RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED", "Release-source manifest is not marked safe to build for production.", {
+const releaseSourceCommitted = releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists === true
+  && releaseManifest.parsed?.summary?.includedProductionSourceEntries === 0
+  && releaseManifest.parsed?.summary?.unknownRiskEntries === 0;
+if (!releaseSourceCommitted) {
+  blockers.push(blocker("RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED", "Release-source manifest does not prove an exact release commit.", {
     manifestPath: "output/dev-032-release-source/manifest.json",
+    exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
+    includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
+    unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,
     safeToBuildForProduction: releaseManifest.parsed?.releaseDecision?.safeToBuildForProduction ?? null,
     blocker: releaseManifest.parsed?.releaseDecision?.blocker ?? null
   }));
@@ -227,6 +233,9 @@ const report = {
   releaseSource: {
     manifestPath: releaseManifest.exists ? "output/dev-032-release-source/manifest.json" : null,
     manifestStatus: releaseManifest.parsed?.status ?? null,
+    exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
+    includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
+    unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,
     safeToBuildForProduction: releaseManifest.parsed?.releaseDecision?.safeToBuildForProduction ?? null,
     blocker: releaseManifest.parsed?.releaseDecision?.blocker ?? null
   },

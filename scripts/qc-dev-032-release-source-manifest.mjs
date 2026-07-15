@@ -17,7 +17,13 @@ record("DEV032-SOURCE-002 manifest is not release-ready evidence", ["source_snap
 record("DEV032-SOURCE-003 source snapshot hash is reproducible", manifest.releaseDecision.sourceSnapshotSha256 === rebuilt.releaseDecision.sourceSnapshotSha256);
 record("DEV032-SOURCE-004 classification hash is reproducible excluding generated evidence output", manifest.releaseDecision.classificationSha256 === rebuilt.releaseDecision.classificationSha256);
 record("DEV032-SOURCE-005 every dirty entry is classified", manifest.summary.unknownRiskEntries === 0, JSON.stringify(manifest.summary.byBucket));
-record("DEV032-SOURCE-006 included source covers app scripts schema config docs and build inputs", ["included_application_source", "included_release_tooling", "included_schema_migration_source", "included_platform_contract", "included_release_governance", "included_build_runtime_config"].every((bucket) => manifest.summary.byBucket[bucket] > 0));
+const expectedDirtySnapshotBuckets = ["included_application_source", "included_release_tooling", "included_schema_migration_source", "included_platform_contract", "included_release_governance", "included_build_runtime_config"];
+record(
+  "DEV032-SOURCE-006 included source state matches manifest mode",
+  manifest.releaseDecision.exactReleaseCommitExists
+    ? manifest.summary.includedProductionSourceEntries === 0 && expectedDirtySnapshotBuckets.every((bucket) => (manifest.summary.byBucket[bucket] ?? 0) === 0)
+    : expectedDirtySnapshotBuckets.every((bucket) => manifest.summary.byBucket[bucket] > 0)
+);
 record("DEV032-SOURCE-007 generated evidence is excluded from production source", manifest.files.filter((file) => file.path.startsWith("output/") || file.path.startsWith(".firebase/")).every((file) => file.bucket === "generated_evidence_excluded" && file.includedInProductionSource === false));
 record("DEV032-SOURCE-008 staging provider inputs are excluded from production config", [".firebaserc", "firebase.json", "firebase-hosting/", "infra/google-cloud/staging/", "config/platform/staging-preflight.template.json"].every((prefix) => manifest.files.filter((file) => file.path === prefix || file.path.startsWith(prefix)).every((file) => file.bucket === "staging_only_excluded_from_production_config" && file.includedInProductionSource === false)));
 record("DEV032-SOURCE-009 file records expose hashes without contents", manifest.files.every((file) => !("content" in file) && (file.exists === false || /^[a-f0-9]{64}$/u.test(file.sha256 ?? ""))));
