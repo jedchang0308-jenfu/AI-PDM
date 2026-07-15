@@ -13,7 +13,7 @@ const rebuilt = buildDev032ReleaseSourceManifest(root);
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
 record("DEV032-SOURCE-001 manifest has DEV-032 schema", manifest.schemaVersion === 1 && manifest.dev === "DEV-032");
-record("DEV032-SOURCE-002 manifest is not release-ready evidence", manifest.status === "source_snapshot_manifested_not_release_ready" && manifest.productionActionPerformed === false && manifest.releaseDecision.safeToBuildForProduction === false);
+record("DEV032-SOURCE-002 manifest is not release-ready evidence", ["source_snapshot_manifested_not_release_ready", "release_source_committed_production_gate_blocked"].includes(manifest.status) && manifest.productionActionPerformed === false && manifest.releaseDecision.safeToBuildForProduction === false);
 record("DEV032-SOURCE-003 source snapshot hash is reproducible", manifest.releaseDecision.sourceSnapshotSha256 === rebuilt.releaseDecision.sourceSnapshotSha256);
 record("DEV032-SOURCE-004 classification hash is reproducible excluding generated evidence output", manifest.releaseDecision.classificationSha256 === rebuilt.releaseDecision.classificationSha256);
 record("DEV032-SOURCE-005 every dirty entry is classified", manifest.summary.unknownRiskEntries === 0, JSON.stringify(manifest.summary.byBucket));
@@ -23,6 +23,7 @@ record("DEV032-SOURCE-008 staging provider inputs are excluded from production c
 record("DEV032-SOURCE-009 file records expose hashes without contents", manifest.files.every((file) => !("content" in file) && (file.exists === false || /^[a-f0-9]{64}$/u.test(file.sha256 ?? ""))));
 record("DEV032-SOURCE-010 stop conditions preserve release gate blockers", manifest.stopConditions.some((item) => item.includes("production target")) && manifest.stopConditions.some((item) => item.includes("Level 3/4")));
 record("DEV032-SOURCE-011 package exposes generator and QC scripts", packageJson.scripts["dev-032:release-source-manifest"] === "node scripts/generate-dev-032-release-source-manifest.mjs" && packageJson.scripts["qc:dev-032-release-source-manifest"] === "node scripts/qc-dev-032-release-source-manifest.mjs");
+record("DEV032-SOURCE-012 exact commit state matches remaining included source", manifest.releaseDecision.exactReleaseCommitExists === (manifest.summary.includedProductionSourceEntries === 0 && manifest.summary.unknownRiskEntries === 0));
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
 const failures = results.filter((result) => !result.passed);

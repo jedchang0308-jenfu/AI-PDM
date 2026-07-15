@@ -50,7 +50,7 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 
 ## Remaining Blockers
 
-- No exact release commit or intentionally named release snapshot exists.
+- Exact release-candidate commit exists and is recorded by the release-source manifest; production build still remains blocked by non-source gates.
 - `jenfu-ai-pdm-prod` remains inaccessible or missing for the active account.
 - Production env/secret source and provider config are absent.
 - Clean seed/allowlist are still templates; real production inventory, official-number non-reuse coverage and allowlist hash evidence are missing.

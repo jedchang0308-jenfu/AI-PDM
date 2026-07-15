@@ -10,6 +10,14 @@ const trackedGeneratedFiles = ["next-env.d.ts", "tsconfig.json"];
 const snapshots = new Map(trackedGeneratedFiles.map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
 const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
 
+function restoreTrackedGeneratedFiles() {
+  for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 let exitCode = 1;
 try {
   exitCode = await new Promise((resolve, reject) => {
@@ -22,7 +30,9 @@ try {
     child.once("exit", (code) => resolve(code ?? 1));
   });
 } finally {
-  for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+  restoreTrackedGeneratedFiles();
+  await delay(250);
+  restoreTrackedGeneratedFiles();
   const resolved = path.resolve(distDir);
   const tmpRoot = path.resolve(root, ".tmp");
   if (resolved.startsWith(`${tmpRoot}${path.sep}`)) {

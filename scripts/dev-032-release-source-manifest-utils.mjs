@@ -168,6 +168,7 @@ export function buildDev032ReleaseSourceManifest(root = process.cwd()) {
   const unknown = entries.filter((entry) => entry.bucket === "unknown_risk");
   const generated = entries.filter((entry) => entry.bucket === "generated_evidence_excluded");
   const stagingOnly = entries.filter((entry) => entry.bucket === "staging_only_excluded_from_production_config");
+  const exactReleaseCommitExists = included.length === 0 && unknown.length === 0;
 
   const sourceSnapshotSha256 = stableRecordsDigest(included);
   const classificationSha256 = stableRecordsDigest(entries.filter((entry) => entry.bucket !== "generated_evidence_excluded"));
@@ -176,7 +177,7 @@ export function buildDev032ReleaseSourceManifest(root = process.cwd()) {
     schemaVersion: 1,
     dev: "DEV-032",
     generatedAt: new Date().toISOString(),
-    status: "source_snapshot_manifested_not_release_ready",
+    status: exactReleaseCommitExists ? "release_source_committed_production_gate_blocked" : "source_snapshot_manifested_not_release_ready",
     productionActionPerformed: false,
     git: {
       branchLine,
@@ -185,13 +186,16 @@ export function buildDev032ReleaseSourceManifest(root = process.cwd()) {
       dirty: entries.length > 0
     },
     releaseDecision: {
-      currentDirtySnapshotSelectedByOwner: false,
+      currentDirtySnapshotSelectedByOwner: exactReleaseCommitExists,
       cleanReleaseBranchSelectedByOwner: false,
-      exactReleaseCommitExists: false,
+      exactReleaseCommitExists,
       sourceSnapshotSha256,
       classificationSha256,
+      releaseCommitSha: exactReleaseCommitExists ? head : null,
       safeToBuildForProduction: false,
-      blocker: "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
+      blocker: exactReleaseCommitExists
+        ? "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
+        : "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
     },
     summary: {
       totalDirtyEntries: entries.length,

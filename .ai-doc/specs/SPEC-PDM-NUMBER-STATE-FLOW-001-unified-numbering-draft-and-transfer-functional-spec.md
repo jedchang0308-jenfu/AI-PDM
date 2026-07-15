@@ -1601,10 +1601,10 @@ Task list：
 
 Acceptance / QC evidence：
 
-- `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：建議品名欄位存在、半形底線串接、確定品名、系列代號選填、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
+- `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：建議品名欄位存在、半形底線串接、確定品名、品名系列/料號系列欄位分工、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
 - TypeScript、source lint、Phase 1B focused regression與至少一個本機browser DOM check通過。
 - Browser evidence確認`/numbering/search?create=numbering`或等效create surface可以看到建議品名、製程管制/包含圖號引導，且查重提醒不使儲存草稿按鈕disabled。
-- 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 8/8、`qc:pdm-number-state-flow-phase1b` 14/14、TypeScript、lint、`dev:local:check`、本機登入態browser smoke 1440/390通過；截圖在`output/playwright/number-state-phase1e/`。
+- 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 10/10、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-contextual-entrypoints` 46/46、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、TypeScript、lint、`dev:local:check`、本機Admin session browser smoke 1440/390通過。Browser smoke驗證建議品名`腳架測試121150_JF_100L_白鐵_A`、建立草稿201、候選號200、取消回收200、正式主檔計數不變；截圖在`output/playwright/number-state-phase1e/`。
 
 Stop conditions：需要新增schema、保存後新增/刪除typed item、支援既有official drawing連到新draft part、改編碼格式、導入`000`萬用料號、改用途碼、live provider、正式資料或release時停止並回PM重定範圍。
 
