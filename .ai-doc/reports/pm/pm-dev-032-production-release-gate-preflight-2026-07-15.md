@@ -21,6 +21,7 @@ The local application slice remains a viable candidate for later release work, b
   - Current snapshot manifest: `output/dev-032-release-source/manifest.json`; unknown-risk paths `0`; exact snapshot SHA-256 is stored in the manifest and not repeated in PM docs to avoid self-referential source hashing.
   - Release-source commit plan: `output/dev-032-release-source/commit-plan.json`; included-source pathspec `output/dev-032-release-source/included-production-source.pathspec`; generated/staging exclusions `output/dev-032-release-source/excluded-generated-or-staging.pathspec`.
   - Release conclusion: dirty paths are classified, hashable and have a verified included-source pathspec. Included production-source paths have been committed into the current release-candidate HEAD; the manifest records the exact commit. Production build/deploy remains blocked by target, environment, restore/reconciliation, rollback and smoke gates.
+  - Post-commit source addendum: current release-candidate source includes the read-only draft number preview route, create-dialog preview UI, optional naming-scope handling and request-equivalence QC coverage. Preview is explicitly advisory (`reserved=false`) and does not reserve candidate numbers.
 - Google Cloud read-only target check:
   - Active project: `jenfu-ai-pdm-stg-361825`
   - Active account: `jedchang0308@jenfu.com.tw`
@@ -52,6 +53,13 @@ The local application slice remains a viable candidate for later release work, b
 
 - `npm run qc:production-readiness:report`: passed as a report command with `ready=false`; open blocker is the external platform release readiness gate.
 - `npm run qc:pdm-production-slice-numbering-draft`: 29/29 passed.
+- `npm run qc:pdm-number-state-flow-request-equivalence`: 11/11 passed; includes preview API read-only / no-reservation / sequence-scope assertions.
+- `npm run qc:pdm-number-state-flow-contract`: 19/19 passed.
+- `npm run qc:pdm-number-state-flow-http`: 21/21 passed.
+- `npm run qc:pdm-number-state-flow-runtime`: 7/7 passed.
+- `npm run qc:pdm-number-state-flow-ui`: 7/7 passed.
+- `npm run qc:pdm-number-state-flow-phase1b`: 14/14 passed.
+- `npm run qc:pdm-numbering-core`: 241/241 passed.
 - `npm run qc:dev-046-phase2b`: 15/15 passed.
 - `npm run qc:dev-046-firebase-hosting-entrypoint`: 11/11 passed.
 - `npm run qc:dev-032-release-gate-package`: 13/13 passed; local clean-seed/allowlist/restore package is template-only and not production evidence.
@@ -67,6 +75,8 @@ The local application slice remains a viable candidate for later release work, b
 - `npm run qc:dev-046-phase1e`: 24/24 passed after cost-template and privacy-notice scanner alignment.
 - `npm run qc:dev-task-completion-audit`: 8/8 passed and confirms production readiness remains not ready.
 - `npm run qc:doc-paths`: 23/23 passed.
+- `npx tsc --noEmit`: passed.
+- `npm run lint`: 0 errors, 3 existing warnings in `src/components/master-attachment-panel.tsx`.
 - `npm run build:isolated`: passed; Next.js 16.2.6 production build completed. Warning retained: `middleware` file convention is deprecated in favor of `proxy`.
 
 These are Level 0 / Level 2 local-artifact signals only. They do not replace Level 3 production-like pre-deploy smoke or Level 4 post-deploy production smoke for Lane 3.

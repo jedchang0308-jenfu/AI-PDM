@@ -61,6 +61,7 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 - `npm run qc:dev-032-production-target-preflight`: 15/15 passed.
 - `npm run qc:dev-046-phase1e`: 24/24 passed.
 - `npm run qc:production-readiness:report`: passed as report command with `ready=false`; DEV-032 remains blocked by release-readiness gate.
+- Post-commit release-candidate source check: draft number preview/no-reservation source is committed and covered by request-equivalence, number-state contract/HTTP/runtime/UI, production-slice, numbering-core, TypeScript, lint and isolated build evidence. This is still local Level 0/2 evidence, not production readiness.
 
 ## Remaining Blockers
 

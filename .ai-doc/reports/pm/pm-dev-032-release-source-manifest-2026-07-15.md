@@ -19,7 +19,7 @@ The manifest gives a reproducible source boundary and records the exact release 
 - Excluded generated/staging pathspec: `output/dev-032-release-source/excluded-generated-or-staging.pathspec`
 - Generator: `npm run dev-032:release-source-manifest`
 - QC: `npm run qc:dev-032-release-source-manifest`
-- QC result: 11/11 passed
+- QC result: 12/12 passed
 - Commit-plan generator: `npm run dev-032:release-source-commit-plan`
 - Commit-plan QC: `npm run qc:dev-032-release-source-commit-plan`
 - Commit-plan QC result: 11/11 passed
