@@ -332,10 +332,8 @@ function nameGuideFormula(kind: ItemKind) {
   return "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]";
 }
 
-function drawingNeedHint(kind: ItemKind) {
-  if (kind === "purchased") return "需要規格、檢驗或安裝圖時再勾選。";
-  if (kind === "manufactured" || kind === "outsourced" || kind === "custom") return "需要圖面文件時保留；不需要時可取消。";
-  return "需要圖面文件時再勾選。";
+function drawingToggleHint(includeDrawing: boolean) {
+  return includeDrawing ? "會出現圖號欄位，請確認圖面用途。" : "本次只建料號，之後仍可追加圖號。";
 }
 
 function newIdempotencyKey(action: string) {
@@ -880,7 +878,7 @@ function DraftCreateDialog({
   const manufacturingDrawing = isManufacturingPurposeCode(form.purposeCode);
   const relationLinkType = includesPart && includesDrawing && manufacturingDrawing && form.primaryManufacturing ? "primary_manufacturing" : "reference";
   const suggestedName = suggestedCoreName(form);
-  const drawingHint = drawingNeedHint(form.partItemKind);
+  const drawingHint = drawingToggleHint(form.includeDrawing);
   useOverlayLifecycle(dialogRef, onClose, busy);
 
   function switchMode(mode: DraftMode) {
@@ -1099,10 +1097,23 @@ function DraftCreateDialog({
             <><Field label="既有正式主根號" required hint="輸入使用者看得到的主根號，例如 A0001；系統會自動讀取主根 ID。"><input value={form.sourceRootCode} onChange={(event) => setForm({ ...form, sourceRootCode: event.target.value.toUpperCase() })} maxLength={80} placeholder="例如：A0001" /></Field><AppendPolicyPanel policy={appendPolicy} state={appendPolicyState} rootCode={form.sourceRootCode} />{appendPolicy ? <Field label={`新增原因${appendPolicy.reasonRequired ? "" : "（選填）"}`} required={appendPolicy.reasonRequired} hint="正式主根追加需留下人類可讀的原因，方便日後稽核。"><input value={form.appendReason} onChange={(event) => setForm({ ...form, appendReason: event.target.value })} maxLength={1000} placeholder="例如：同主根新增第二款料件或補參考圖" /></Field> : null}</>
           )}
           {form.mode === "new_bundle" ? (
-            <div className="number-state-form-options">
-              <span>新圖料一定建立 1 個料號草稿</span>
-              <label><input type="checkbox" checked={form.includeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} />包含圖號草稿</label>
-              <span data-qc="drawing-need-guidance">{drawingHint}</span>
+            <div className="number-state-draft-outcome" data-qc="draft-outcome-options" aria-label="草稿建立內容">
+              <div className="number-state-draft-outcome-item is-fixed">
+                <PackagePlus size={17} />
+                <div>
+                  <span>固定建立</span>
+                  <strong>1 個料號草稿</strong>
+                </div>
+              </div>
+              <label className={`number-state-drawing-toggle${form.includeDrawing ? " is-on" : ""}`}>
+                <input type="checkbox" checked={form.includeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} aria-label="包含圖號草稿" />
+                <span className="number-state-switch" aria-hidden="true"><span /></span>
+                <span className="number-state-drawing-toggle-copy">
+                  <span>{form.includeDrawing ? "同時建立" : "不建立"}</span>
+                  <strong>圖號草稿</strong>
+                  <small data-qc="drawing-need-guidance">{drawingHint}</small>
+                </span>
+              </label>
             </div>
           ) : null}
           {includesPart ? (
