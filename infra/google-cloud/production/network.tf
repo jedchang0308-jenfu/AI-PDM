@@ -25,6 +25,8 @@ resource "google_compute_subnetwork" "runtime" {
   ip_cidr_range = "10.46.0.0/24"
   region        = var.region
   network       = google_compute_network.pdm[0].id
+
+  private_ip_google_access = true
 }
 
 resource "google_compute_global_address" "private_services" {

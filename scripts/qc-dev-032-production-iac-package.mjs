@@ -83,6 +83,7 @@ const readme = readIfExists("README.md");
 const variables = readIfExists("variables.tf");
 const locals = readIfExists("locals.tf");
 const database = readIfExists("database.tf");
+const network = readIfExists("network.tf");
 const runtime = readIfExists("runtime.tf");
 const edge = readIfExists("edge.tf");
 const security = readIfExists("security.tf");
@@ -143,6 +144,7 @@ record("DEV032-PROD-IAC-019 reconciliation runner is read-only, mutually exclusi
   "restore_target_readback_approved",
   "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
 ].every((needle) => combinedTf.includes(needle)) && locals.includes("!var.migration_live_execution") && locals.includes("!var.principal_bootstrap_execution") && locals.includes("ai-pdm-prod-restore-") && migrationRunner.includes("run-dev-032-production-reconciliation.mjs"));
+record("DEV032-PROD-IAC-020 direct VPC runners can reach Google control-plane APIs", network.includes("private_ip_google_access = true") && runtime.includes('egress = "ALL_TRAFFIC"') && migrationRunner.includes('egress = "ALL_TRAFFIC"'));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
