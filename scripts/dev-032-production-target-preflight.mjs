@@ -35,7 +35,7 @@ function runReadOnlyCommand(name, command, commandArgs, options = {}) {
     });
     return {
       name,
-      command: [command, ...commandArgs],
+      command: [options.displayCommand ?? command, ...(options.displayArgs ?? commandArgs)],
       readOnly: true,
       ok: true,
       startedAt,
@@ -46,7 +46,7 @@ function runReadOnlyCommand(name, command, commandArgs, options = {}) {
   } catch (error) {
     return {
       name,
-      command: [command, ...commandArgs],
+      command: [options.displayCommand ?? command, ...(options.displayArgs ?? commandArgs)],
       readOnly: true,
       ok: false,
       startedAt,
@@ -55,6 +55,17 @@ function runReadOnlyCommand(name, command, commandArgs, options = {}) {
       error: error instanceof Error ? error.message : String(error)
     };
   }
+}
+
+function runGcloudReadOnlyCommand(name, commandArgs, options = {}) {
+  if (process.platform === "win32") {
+    return runReadOnlyCommand(name, "cmd.exe", ["/d", "/s", "/c", "gcloud", ...commandArgs], {
+      ...options,
+      displayCommand: "gcloud",
+      displayArgs: commandArgs
+    });
+  }
+  return runReadOnlyCommand(name, "gcloud", commandArgs, options);
 }
 
 function parseJsonCommand(commandResult) {
@@ -85,12 +96,12 @@ const requiredSecretIds = Array.isArray(contractSecrets.requiredSecretIds) && co
   : ["pdm-session-signing-current", "pdm-session-signing-previous"];
 
 const commands = {
-  activeAccount: runReadOnlyCommand("active-account", "gcloud", ["config", "get-value", "account"], { timeoutMs: 10000 }),
-  activeProject: runReadOnlyCommand("active-project", "gcloud", ["config", "get-value", "project"], { timeoutMs: 10000 }),
-  projectDescribe: runReadOnlyCommand("production-project-describe", "gcloud", ["projects", "describe", targetProject, "--format=json"]),
-  runServices: runReadOnlyCommand("production-cloud-run-services", "gcloud", ["run", "services", "list", "--project", targetProject, "--region", region, "--format=json"]),
-  sqlInstances: runReadOnlyCommand("production-cloud-sql-instances", "gcloud", ["sql", "instances", "list", "--project", targetProject, "--format=json"]),
-  secrets: runReadOnlyCommand("production-secret-metadata", "gcloud", ["secrets", "list", "--project", targetProject, "--format=json"])
+  activeAccount: runGcloudReadOnlyCommand("active-account", ["config", "get-value", "account"], { timeoutMs: 10000 }),
+  activeProject: runGcloudReadOnlyCommand("active-project", ["config", "get-value", "project"], { timeoutMs: 10000 }),
+  projectDescribe: runGcloudReadOnlyCommand("production-project-describe", ["projects", "describe", targetProject, "--format=json"]),
+  runServices: runGcloudReadOnlyCommand("production-cloud-run-services", ["run", "services", "list", "--project", targetProject, "--region", region, "--format=json"]),
+  sqlInstances: runGcloudReadOnlyCommand("production-cloud-sql-instances", ["sql", "instances", "list", "--project", targetProject, "--format=json"]),
+  secrets: runGcloudReadOnlyCommand("production-secret-metadata", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
 
 const envSources = [".env.production", ".env.production.local"].map((filePath) => ({
