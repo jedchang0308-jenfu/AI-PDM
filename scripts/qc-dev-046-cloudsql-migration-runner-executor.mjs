@@ -95,7 +95,10 @@ try {
   record(
     "DEV046-CLOUDSQL-EXEC-009 Dockerfile has a separate non-default migration-runner target",
     dockerfile.includes("AS migration-runner") &&
-      dockerfile.includes("RUN npm run dev-046:cloudsql-migration-package") &&
+      dockerfile.includes("MIGRATION_PACKAGE_TARGET=staging") &&
+      dockerfile.includes('if [ "$MIGRATION_PACKAGE_TARGET" = "production" ]') &&
+      dockerfile.includes("npm run dev-032:cloudsql-migration-package") &&
+      dockerfile.includes("npm run dev-046:cloudsql-migration-package") &&
       dockerfile.includes("scripts/run-dev-046-cloudsql-migrations.mjs") &&
       dockerfile.trimEnd().endsWith('CMD ["node", "server.js"]')
   );
