@@ -142,8 +142,8 @@ record(
     "品名不需唯一，唯一性由圖號 / 料號負責",
     "系列代號（選填）",
     "data-qc=\"root-series-code\"",
-    "主根號的系列分類，不會自動寫入品名",
-    "可先自創，正式發行前再改正式名稱。",
+    "非共用件會納入建議品名",
+    "勾選跨專案共用時不納入品名",
     "包含圖號草稿",
     "data-qc=\"part-number-preview\"",
     "data-qc=\"drawing-number-preview\"",
@@ -175,11 +175,12 @@ record(
   includesAll(workspace, [
     "normalizeNameSegment",
     "replace(/[\\s_]+/gu, \"_\")",
+    "const series = form.sharedName ? \"\" : normalizeNameSegment(form.seriesCode)",
     "sharedScope",
     "[core, brand, specification, sharedScope]",
-    "[core, feature || specification, serial, sharedScope]",
+    "[core, series, feature || specification, serial, sharedScope]",
     "外購件建議：[核心名詞]_[品牌]_[規格/型號]",
-    "自製/發包/客製建議：[核心名詞]_[特性]_[流水識別]",
+    "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]",
     "依管理辦法由大到小、由主到次產生"
   ]),
   "suggested confirmed names must mirror the management method without changing v3 numbering authority"

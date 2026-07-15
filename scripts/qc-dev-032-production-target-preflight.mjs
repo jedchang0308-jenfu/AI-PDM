@@ -38,7 +38,13 @@ record(
     : blockers.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION"),
   JSON.stringify({ activeProject, targetProject, activeProjectMatchesTarget })
 );
-record("DEV032-TARGET-005 inaccessible or missing production project is a blocker", blockers.has("PRODUCTION_PROJECT_UNAVAILABLE"));
+record(
+  "DEV032-TARGET-005 production project readback is explicit",
+  report?.project
+    ? !blockers.has("PRODUCTION_PROJECT_UNAVAILABLE") && report.project.projectId === report.targetProject
+    : blockers.has("PRODUCTION_PROJECT_UNAVAILABLE"),
+  JSON.stringify({ projectId: report?.project?.projectId ?? null, targetProject: report?.targetProject ?? null })
+);
 record("DEV032-TARGET-006 staging-only Firebase config remains blocked", blockers.has("FIREBASE_CONFIG_NOT_PRODUCTION_READY") && report?.providerConfig?.firebaseOnlyStaging === true);
 record("DEV032-TARGET-007 production env source remains blocked when absent", blockers.has("PRODUCTION_ENV_SOURCE_MISSING") && report?.envSources?.every((item) => item.exists === false));
 record("DEV032-TARGET-008 smoke remains blocked without production runtime/database", blockers.has("LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE"));

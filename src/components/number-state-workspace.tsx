@@ -324,18 +324,19 @@ function suggestedCoreName(form: CreateFormState) {
   if (!core) return "";
   const brand = normalizeNameSegment(form.nameBrand);
   const specification = normalizeNameSegment(form.nameSpecification);
+  const series = form.sharedName ? "" : normalizeNameSegment(form.seriesCode);
   const feature = normalizeNameSegment(form.nameFeature);
   const serial = normalizeNameSegment(form.nameSerial);
   const sharedScope = form.sharedName ? "共用" : "";
   const segments = form.rootItemKind === "purchased"
     ? [core, brand, specification, sharedScope]
-    : [core, feature || specification, serial, sharedScope];
+    : [core, series, feature || specification, serial, sharedScope];
   return segments.filter(Boolean).join("_");
 }
 
 function nameGuideFormula(kind: ItemKind) {
   if (kind === "purchased") return "外購件建議：[核心名詞]_[品牌]_[規格/型號]";
-  return "自製/發包/客製建議：[核心名詞]_[特性]_[流水識別]";
+  return "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]";
 }
 
 function drawingToggleHint(includeDrawing: boolean) {
@@ -1138,7 +1139,7 @@ function DraftCreateDialog({
                   <Field label="核心名詞" hint={`${nameGuideFormula(form.rootItemKind)}；每段會以半形底線 _ 串接。`}><input value={form.nameCore} onChange={(event) => setForm({ ...form, nameCore: event.target.value })} maxLength={80} placeholder="例如：馬達、外殼、腳架" /></Field>
                   {form.rootItemKind === "purchased" ? <Field label="品牌（選填）" hint="品牌會影響採購、替代或品質時再填。"><input value={form.nameBrand} onChange={(event) => setForm({ ...form, nameBrand: event.target.value })} maxLength={80} placeholder="例如：東元" /></Field> : null}
                   <Field label={form.rootItemKind === "purchased" ? "規格 / 型號（選填）" : "特性（選填）"} hint={form.rootItemKind === "purchased" ? "盡量填可區分3D檔名的關鍵規格。" : "可填規格、型號、材質或用途，可用空白或底線分段。"}><input value={form.rootItemKind === "purchased" ? form.nameSpecification : form.nameFeature} onChange={(event) => form.rootItemKind === "purchased" ? setForm({ ...form, nameSpecification: event.target.value }) : setForm({ ...form, nameFeature: event.target.value })} maxLength={120} placeholder={form.rootItemKind === "purchased" ? "例如：1HP_4P_220VAC" : "例如：白鐵 100L"} /></Field>
-                  {form.partItemKind === "manufactured" ? <Field label="系列代號（選填）" hint="主根號的系列分類，不會自動寫入品名；可先自創，正式發行前再改正式名稱。"><input data-qc="root-series-code" value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
+                  {form.partItemKind === "manufactured" ? <Field label="系列代號（選填）" hint="非共用件會納入建議品名；勾選跨專案共用時不納入品名。"><input data-qc="root-series-code" value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
                   {form.rootItemKind !== "purchased" ? <Field label="流水識別（選填）" hint="對應品名用的流水號，建議從 A 開始；不等於正式料號流水。"><input value={form.nameSerial} onChange={(event) => setForm({ ...form, nameSerial: event.target.value })} maxLength={40} placeholder="例如：A、B、01" /></Field> : null}
                   <label className="number-state-checkbox number-state-name-scope"><input type="checkbox" checked={form.sharedName} onChange={(event) => setForm({ ...form, sharedName: event.target.checked })} />跨專案共用</label>
                   <div className={`number-state-check-panel${suggestedName ? " is-ready" : ""}`} data-qc="suggested-part-name">
@@ -1295,7 +1296,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
         {parts.map((part, index) => (
           <div className="number-state-edit-list" key={part.id}>
             <Field label={`料號品名 ${index + 1}`} hint="品名由確定品名帶入，不能在料號層單獨改名。"><input value={root?.coreName ?? part.partName} readOnly /></Field>
-            {part.itemKind === "manufactured" && !part.isUniversal ? <Field label={`系列代號 ${index + 1}（選填）`} hint="主根號的系列分類，不會自動寫入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
+            {part.itemKind === "manufactured" && !part.isUniversal ? <Field label={`系列代號 ${index + 1}（選填）`} hint="非共用件會納入建議品名；跨專案共用時不納入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
             {part.isUniversal || part.itemKind === "shared" ? <Field label={`共用原因 ${index + 1}`} required><input value={part.universalReason ?? ""} maxLength={1000} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, universalReason: event.target.value } : item))} /></Field> : null}
           </div>
         ))}

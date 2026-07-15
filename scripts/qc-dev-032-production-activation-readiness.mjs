@@ -24,8 +24,12 @@ const targetReadbackGate = gateMap.get("A1-production-target-readback");
 const targetActiveProject = targetReadbackGate?.evidence?.activeProject ?? null;
 const targetProject = targetReadbackGate?.evidence?.targetProject ?? null;
 const activeProjectMatchesTarget = Boolean(targetActiveProject && targetProject && targetActiveProject === targetProject);
+const projectReadable = targetReadbackGate?.evidence?.projectReadable === true;
+const nextRequiredAction = typeof report?.nextRequiredAction === "string" ? report.nextRequiredAction : "";
+const nextActionAllowsApply =
+  /\bterraform\s+apply\b|\bapply\s+(?:the|this)\s+(?:plan|change|changes)\b|\bapply\s+to\s+production\b/iu.test(nextRequiredAction) &&
+  !/\bwithout\s+apply\b/iu.test(nextRequiredAction);
 const requiredTargetBlockers = [
-  "PRODUCTION_PROJECT_UNAVAILABLE",
   "PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN",
   "PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN",
   "PRODUCTION_SECRET_SOURCE_UNPROVEN"
@@ -41,13 +45,24 @@ record(
   requiredTargetBlockers.every((code) => blockerCodes.has(code)) &&
     (activeProjectMatchesTarget
       ? !blockerCodes.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")
-      : blockerCodes.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")),
-  JSON.stringify({ targetActiveProject, targetProject, activeProjectMatchesTarget })
+      : blockerCodes.has("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION")) &&
+    (projectReadable
+      ? !blockerCodes.has("PRODUCTION_PROJECT_UNAVAILABLE")
+      : blockerCodes.has("PRODUCTION_PROJECT_UNAVAILABLE")),
+  JSON.stringify({ targetActiveProject, targetProject, activeProjectMatchesTarget, projectReadable })
 );
 record("DEV032-ACT-READY-007 provider and env gate remains blocked", gateMap.get("A2-provider-and-env-readback")?.status === "blocked" && blockerCodes.has("FIREBASE_CONFIG_NOT_PRODUCTION_READY") && blockerCodes.has("PRODUCTION_ENV_SOURCE_MISSING"));
 record("DEV032-ACT-READY-008 credentialled plan/apply/bootstrap/restore/deploy gates remain missing evidence", ["A3-credentialled-terraform-plan-review", "A4-production-resource-apply", "A5-clean-seed-and-principal-bootstrap", "A6-hd84-restore-reconciliation", "A8-production-deploy-and-level4-smoke", "A9-wave0-go-no-go"].every((id) => gateMap.get(id)?.status === "missing_evidence"));
 record("DEV032-ACT-READY-009 Level 3 smoke is blocked by missing production runtime/database", gateMap.get("A7-level3-production-like-smoke")?.status === "blocked" && blockerCodes.has("LEVEL3_PRODUCTION_LIKE_SMOKE_MISSING"));
-record("DEV032-ACT-READY-010 next action directs production target readback, not apply", typeof report?.nextRequiredAction === "string" && report.nextRequiredAction.includes("jenfu-ai-pdm-prod") && report.nextRequiredAction.includes("preflight:dev-032-production-target") && !report.nextRequiredAction.includes("apply"));
+record(
+  "DEV032-ACT-READY-010 next action directs the next blocked gate without apply",
+  nextRequiredAction.length > 0 &&
+    !nextActionAllowsApply &&
+    (projectReadable
+      ? nextRequiredAction.includes("production Firebase/provider config") && nextRequiredAction.includes("credentialled production plan review")
+      : nextRequiredAction.includes("jenfu-ai-pdm-prod") && nextRequiredAction.includes("preflight:dev-032-production-target")),
+  nextRequiredAction
+);
 record("DEV032-ACT-READY-011 report does not persist secret values", !/private_key|client_secret|DATABASE_URL|BEGIN PRIVATE KEY|secretValue/u.test(reportText));
 record("DEV032-ACT-READY-012 generator does not execute production CLIs", !generator.includes("node:child_process") && !generator.includes("execFileSync") && !generator.includes("spawnSync") && !generator.includes("spawn("));
 record("DEV032-ACT-READY-013 package exposes readiness generator and QC", packageJson.scripts?.["dev-032:production-activation-readiness"] === "node scripts/generate-dev-032-production-activation-readiness.mjs" && packageJson.scripts?.["qc:dev-032-production-activation-readiness"] === "node scripts/qc-dev-032-production-activation-readiness.mjs");
