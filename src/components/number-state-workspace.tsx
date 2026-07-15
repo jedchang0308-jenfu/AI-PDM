@@ -186,7 +186,6 @@ type CreateFormState = {
   nameCore: string;
   nameBrand: string;
   nameSpecification: string;
-  nameSeries: string;
   nameFeature: string;
   nameSerial: string;
   sharedName: boolean;
@@ -287,7 +286,6 @@ function initialCreateForm(mode: DraftMode = "new_bundle", sourceRootCode = ""):
     nameCore: "",
     nameBrand: "",
     nameSpecification: "",
-    nameSeries: "",
     nameFeature: "",
     nameSerial: "",
     sharedName: false,
@@ -326,19 +324,18 @@ function suggestedCoreName(form: CreateFormState) {
   if (!core) return "";
   const brand = normalizeNameSegment(form.nameBrand);
   const specification = normalizeNameSegment(form.nameSpecification);
-  const series = normalizeNameSegment(form.nameSeries);
   const feature = normalizeNameSegment(form.nameFeature);
   const serial = normalizeNameSegment(form.nameSerial);
   const sharedScope = form.sharedName ? "共用" : "";
   const segments = form.rootItemKind === "purchased"
     ? [core, brand, specification, sharedScope]
-    : [core, series, feature || specification, serial, sharedScope];
+    : [core, feature || specification, serial, sharedScope];
   return segments.filter(Boolean).join("_");
 }
 
 function nameGuideFormula(kind: ItemKind) {
   if (kind === "purchased") return "外購件建議：[核心名詞]_[品牌]_[規格/型號]";
-  return "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]";
+  return "自製/發包/客製建議：[核心名詞]_[特性]_[流水識別]";
 }
 
 function drawingToggleHint(includeDrawing: boolean) {
@@ -903,7 +900,6 @@ function DraftCreateDialog({
       nameCore: current.nameCore,
       nameBrand: current.nameBrand,
       nameSpecification: current.nameSpecification,
-      nameSeries: current.nameSeries,
       nameFeature: current.nameFeature,
       nameSerial: current.nameSerial,
       sharedName: current.sharedName,
@@ -1142,7 +1138,7 @@ function DraftCreateDialog({
                   <Field label="核心名詞" hint={`${nameGuideFormula(form.rootItemKind)}；每段會以半形底線 _ 串接。`}><input value={form.nameCore} onChange={(event) => setForm({ ...form, nameCore: event.target.value })} maxLength={80} placeholder="例如：馬達、外殼、腳架" /></Field>
                   {form.rootItemKind === "purchased" ? <Field label="品牌（選填）" hint="品牌會影響採購、替代或品質時再填。"><input value={form.nameBrand} onChange={(event) => setForm({ ...form, nameBrand: event.target.value })} maxLength={80} placeholder="例如：東元" /></Field> : null}
                   <Field label={form.rootItemKind === "purchased" ? "規格 / 型號（選填）" : "特性（選填）"} hint={form.rootItemKind === "purchased" ? "盡量填可區分3D檔名的關鍵規格。" : "可填規格、型號、材質或用途，可用空白或底線分段。"}><input value={form.rootItemKind === "purchased" ? form.nameSpecification : form.nameFeature} onChange={(event) => form.rootItemKind === "purchased" ? setForm({ ...form, nameSpecification: event.target.value }) : setForm({ ...form, nameFeature: event.target.value })} maxLength={120} placeholder={form.rootItemKind === "purchased" ? "例如：1HP_4P_220VAC" : "例如：白鐵 100L"} /></Field>
-                  {form.rootItemKind !== "purchased" ? <Field label="品名系列代號（選填）" hint="對應管理辦法品名中的系列代號；可先自創，正式發行前再改正式名稱。"><input value={form.nameSeries} onChange={(event) => setForm({ ...form, nameSeries: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
+                  {form.partItemKind === "manufactured" ? <Field label="系列代號（選填）" hint="主根號的系列分類，不會自動寫入品名；可先自創，正式發行前再改正式名稱。"><input data-qc="root-series-code" value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
                   {form.rootItemKind !== "purchased" ? <Field label="流水識別（選填）" hint="對應品名用的流水號，建議從 A 開始；不等於正式料號流水。"><input value={form.nameSerial} onChange={(event) => setForm({ ...form, nameSerial: event.target.value })} maxLength={40} placeholder="例如：A、B、01" /></Field> : null}
                   <label className="number-state-checkbox number-state-name-scope"><input type="checkbox" checked={form.sharedName} onChange={(event) => setForm({ ...form, sharedName: event.target.checked })} />跨專案共用</label>
                   <div className={`number-state-check-panel${suggestedName ? " is-ready" : ""}`} data-qc="suggested-part-name">
@@ -1162,7 +1158,7 @@ function DraftCreateDialog({
             <><Field label="既有正式主根號" required hint="輸入使用者看得到的主根號，例如 A0001；系統會自動讀取主根 ID。"><input value={form.sourceRootCode} onChange={(event) => setForm({ ...form, sourceRootCode: event.target.value.toUpperCase() })} maxLength={80} placeholder="例如：A0001" /></Field><AppendPolicyPanel policy={appendPolicy} state={appendPolicyState} rootCode={form.sourceRootCode} />{appendPolicy ? <Field label={`新增原因${appendPolicy.reasonRequired ? "" : "（選填）"}`} required={appendPolicy.reasonRequired} hint="正式主根追加需留下人類可讀的原因，方便日後稽核。"><input value={form.appendReason} onChange={(event) => setForm({ ...form, appendReason: event.target.value })} maxLength={1000} placeholder="例如：同主根新增第二款料件或補參考圖" /></Field> : null}</>
           )}
           {includesPart ? (
-            <div className="number-state-form-section"><h3>料號草稿</h3><div className="number-state-form-grid"><div className="number-state-locked-value"><span>料號品名</span><strong>{lockedPartName || "完成確定品名後自動帶入"}</strong><small>料號品名跟隨確定品名，避免同一圖料主題下名稱分歧。</small></div><SelectField label="料件類型" value={form.partItemKind} onChange={(value) => { const nextKind = value as ItemKind; const processControlled = form.mode === "new_bundle" ? defaultProcessControlled(nextKind) : form.processControlled; setForm({ ...form, partItemKind: nextKind, processControlled, includeDrawing: form.mode === "new_bundle" ? defaultIncludeDrawing(nextKind) : form.includeDrawing, seriesCode: nextKind === "manufactured" ? form.seriesCode : "" }); }} options={createItemKindOptions} />{form.partItemKind === "manufactured" ? <Field label="料號系列代號（選填）" hint="正式料號層的系列分類；品名系列請以上方品名建議為準。"><input value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：A、S1、JF-200" /></Field> : null}<Field label={form.partItemKind === "custom" ? "客製規格" : "客製規格（選填）"} required={form.partItemKind === "custom"}><textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} /></Field></div></div>
+            <div className="number-state-form-section"><h3>料號草稿</h3><div className="number-state-form-grid"><div className="number-state-locked-value"><span>料號品名</span><strong>{lockedPartName || "完成確定品名後自動帶入"}</strong><small>料號品名跟隨確定品名，避免同一圖料主題下名稱分歧。</small></div><SelectField label="料件類型" value={form.partItemKind} onChange={(value) => { const nextKind = value as ItemKind; const processControlled = form.mode === "new_bundle" ? defaultProcessControlled(nextKind) : form.processControlled; setForm({ ...form, partItemKind: nextKind, processControlled, includeDrawing: form.mode === "new_bundle" ? defaultIncludeDrawing(nextKind) : form.includeDrawing, seriesCode: nextKind === "manufactured" ? form.seriesCode : "" }); }} options={createItemKindOptions} /><Field label={form.partItemKind === "custom" ? "客製規格" : "客製規格（選填）"} required={form.partItemKind === "custom"}><textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} /></Field></div></div>
           ) : null}
           {includesDrawing ? (
             <div className="number-state-form-section"><h3>圖號草稿</h3><div className="number-state-form-grid"><SelectField label="圖面用途" value={form.purposeCode} onChange={(value) => { const purposeCode = value as PurposeCode; setForm({ ...form, purposeCode, primaryManufacturing: isManufacturingPurposeCode(purposeCode) ? true : false }); }} options={purposeOptions} /><Field label={form.purposeCode === "R" ? "用途說明" : "用途說明（選填）"} required={form.purposeCode === "R"}><input value={form.purposeDescription} onChange={(event) => setForm({ ...form, purposeDescription: event.target.value })} maxLength={1000} placeholder={form.purposeCode === "R" ? "例如：安裝參考或尺寸參考" : "可空白"} /></Field><label className={`number-state-checkbox${manufacturingDrawing ? "" : " is-disabled"}`} title={manufacturingDrawing ? "此圖號可作為主要製造圖" : "參考圖或其他圖不可設為主要製造圖"}><input type="checkbox" checked={manufacturingDrawing && form.primaryManufacturing} disabled={!manufacturingDrawing} onChange={(event) => setForm({ ...form, primaryManufacturing: event.target.checked })} />主要製造圖</label><div className="number-state-inline-note"><FileText size={16} /><span>{relationLinkType === "primary_manufacturing" ? "圖料關聯會建立為製造基準。" : "圖料關聯會建立為參考，不會誤設為製造基準。"}</span></div></div></div>
@@ -1299,7 +1295,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
         {parts.map((part, index) => (
           <div className="number-state-edit-list" key={part.id}>
             <Field label={`料號品名 ${index + 1}`} hint="品名由確定品名帶入，不能在料號層單獨改名。"><input value={root?.coreName ?? part.partName} readOnly /></Field>
-            {part.itemKind === "manufactured" && !part.isUniversal ? <Field label={`料號系列代號 ${index + 1}（選填）`}><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
+            {part.itemKind === "manufactured" && !part.isUniversal ? <Field label={`系列代號 ${index + 1}（選填）`} hint="主根號的系列分類，不會自動寫入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
             {part.isUniversal || part.itemKind === "shared" ? <Field label={`共用原因 ${index + 1}`} required><input value={part.universalReason ?? ""} maxLength={1000} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, universalReason: event.target.value } : item))} /></Field> : null}
           </div>
         ))}

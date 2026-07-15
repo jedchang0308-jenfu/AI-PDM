@@ -140,8 +140,9 @@ record(
     "確定品名",
     "半形底線 _ 串接",
     "品名不需唯一，唯一性由圖號 / 料號負責",
-    "品名系列代號（選填）",
-    "料號系列代號（選填）",
+    "系列代號（選填）",
+    "data-qc=\"root-series-code\"",
+    "主根號的系列分類，不會自動寫入品名",
     "可先自創，正式發行前再改正式名稱。",
     "包含圖號草稿",
     "data-qc=\"part-number-preview\"",
@@ -157,6 +158,9 @@ record(
     !workspace.includes("共用料件會自動標示為跨專案共用") &&
     !workspace.includes("說明為什麼此料件可跨專案共用") &&
     !workspace.includes("共用件請填寫跨專案共用原因。") &&
+    !workspace.includes("品名系列代號（選填）") &&
+    !workspace.includes("料號系列代號（選填）") &&
+    !workspace.includes("品名系列請以上方品名建議為準。") &&
     !workspace.includes('label="主根名稱"') &&
     !workspace.includes("請輸入主根名稱。") &&
     !workspace.includes("料號品名必須由主根名稱帶入") &&
@@ -173,9 +177,9 @@ record(
     "replace(/[\\s_]+/gu, \"_\")",
     "sharedScope",
     "[core, brand, specification, sharedScope]",
-    "[core, series, feature || specification, serial, sharedScope]",
+    "[core, feature || specification, serial, sharedScope]",
     "外購件建議：[核心名詞]_[品牌]_[規格/型號]",
-    "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]",
+    "自製/發包/客製建議：[核心名詞]_[特性]_[流水識別]",
     "依管理辦法由大到小、由主到次產生"
   ]),
   "suggested confirmed names must mirror the management method without changing v3 numbering authority"
