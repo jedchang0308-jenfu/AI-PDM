@@ -83,6 +83,7 @@ function blocker(code, message, evidence = {}) {
 
 const firebaseRc = readJsonIfExists(".firebaserc");
 const firebaseJson = readJsonIfExists("firebase.json");
+const productionFirebaseHostingJson = readJsonIfExists("config/platform/firebase-hosting.production.json");
 const releaseManifest = readJsonIfExists("output/dev-032-release-source/manifest.json");
 const productionTargetContract = readJsonIfExists("config/platform/production-target.template.json");
 const contractTarget = productionTargetContract.parsed?.target ?? {};
@@ -104,7 +105,11 @@ const commands = {
   secrets: runGcloudReadOnlyCommand("production-secret-metadata", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
 
-const envSources = [".env.production", ".env.production.local"].map((filePath) => ({
+const envSources = [
+  ".env.production",
+  ".env.production.local",
+  "infra/google-cloud/production/production.auto.tfvars.json"
+].map((filePath) => ({
   path: filePath,
   exists: existsSync(path.join(root, filePath))
 }));
@@ -118,9 +123,15 @@ const secretMetadata = parseJsonCommand(commands.secrets);
 
 const firebaseProjects = firebaseRc.parsed?.projects ?? {};
 const firebaseHosting = firebaseJson.parsed?.hosting ?? null;
+const productionFirebaseHosting = productionFirebaseHostingJson.parsed?.hosting ?? null;
 const firebaseHasProductionAlias = Object.values(firebaseProjects).includes(targetProject);
-const firebaseDefaultIsProduction = firebaseProjects.default === targetProject;
 const firebaseOnlyStaging = Object.values(firebaseProjects).length > 0 && !firebaseHasProductionAlias;
+const firebaseProductionConfigReady = (
+  firebaseHasProductionAlias &&
+  productionFirebaseHosting?.site === targetProject &&
+  productionFirebaseHosting?.rewrites?.[0]?.run?.serviceId === expectedRunService &&
+  productionFirebaseHosting?.rewrites?.[0]?.run?.region === region
+);
 
 const productionRunService = Array.isArray(runServices)
   ? runServices.find((service) => service.metadata?.name === expectedRunService)
@@ -151,10 +162,11 @@ if (!project) {
     stderr: commands.projectDescribe.stderr
   }));
 }
-if (!firebaseHasProductionAlias || !firebaseDefaultIsProduction) {
+if (!firebaseProductionConfigReady) {
   blockers.push(blocker("FIREBASE_CONFIG_NOT_PRODUCTION_READY", "Repo Firebase config is not a production provider config.", {
     projects: firebaseProjects,
     firebaseOnlyStaging,
+    productionHostingConfigPath: productionFirebaseHostingJson.exists ? "config/platform/firebase-hosting.production.json" : null,
     targetProject
   }));
 }
@@ -231,8 +243,10 @@ const report = {
     firebaseJsonPath: firebaseJson.exists ? "firebase.json" : null,
     firebaseProjects,
     firebaseHostingSite: Array.isArray(firebaseHosting) ? firebaseHosting.map((item) => item.site ?? null) : firebaseHosting?.site ?? null,
+    productionFirebaseHostingPath: productionFirebaseHostingJson.exists ? "config/platform/firebase-hosting.production.json" : null,
+    productionFirebaseHostingSite: productionFirebaseHosting?.site ?? null,
     firebaseHasProductionAlias,
-    firebaseDefaultIsProduction,
+    firebaseProductionConfigReady,
     firebaseOnlyStaging
   },
   productionTargetContract: {

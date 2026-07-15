@@ -19,8 +19,8 @@ resource "google_cloud_run_v2_service" "pdm" {
   project              = var.production_project_id
   name                 = local.name_prefix
   location             = var.region
-  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  default_uri_disabled = true
+  ingress              = var.enable_firebase_hosting_gateway ? "INGRESS_TRAFFIC_ALL" : "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  default_uri_disabled = !var.enable_firebase_hosting_gateway
   invoker_iam_disabled = true
   deletion_protection  = true
   labels               = var.labels

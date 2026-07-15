@@ -97,9 +97,24 @@ variable "runtime_public_base_url" {
   default     = "https://pdm.jenfu.com.tw"
 
   validation {
-    condition     = var.runtime_public_base_url == "https://pdm.jenfu.com.tw"
-    error_message = "Production public base URL must be https://pdm.jenfu.com.tw."
+    condition = contains([
+      "https://pdm.jenfu.com.tw",
+      "https://jenfu-ai-pdm-prod.web.app"
+    ], var.runtime_public_base_url)
+    error_message = "Production public base URL must be the approved custom domain or production Firebase Hosting pilot origin."
   }
+}
+
+variable "enable_firebase_hosting_gateway" {
+  description = "Short-term production pilot exception. Enables Firebase Hosting rewrites by exposing the Cloud Run default URI and all ingress."
+  type        = bool
+  default     = false
+}
+
+variable "firebase_hosting_gateway_acknowledgement" {
+  description = "Exact acknowledgement required before the production Firebase Hosting pilot gateway can be enabled."
+  type        = string
+  default     = ""
 }
 
 variable "application_image" {
@@ -322,9 +337,17 @@ variable "firebase_web_api_key" {
 }
 
 variable "firebase_auth_domain" {
-  description = "Production Firebase Auth handler domain; this is not the application gateway."
+  description = "Production Firebase Auth handler domain. The Hosting pilot requires the same web.app origin."
   type        = string
   default     = "jenfu-ai-pdm-prod.firebaseapp.com"
+
+  validation {
+    condition = contains([
+      "jenfu-ai-pdm-prod.firebaseapp.com",
+      "jenfu-ai-pdm-prod.web.app"
+    ], var.firebase_auth_domain)
+    error_message = "firebase_auth_domain must be the approved production firebaseapp.com or web.app domain."
+  }
 }
 
 variable "firebase_web_app_id" {
@@ -355,6 +378,14 @@ variable "session_issuer" {
   description = "Issuer embedded in PDM BFF session v2 tokens."
   type        = string
   default     = "https://pdm.jenfu.com.tw"
+
+  validation {
+    condition = contains([
+      "https://pdm.jenfu.com.tw",
+      "https://jenfu-ai-pdm-prod.web.app"
+    ], var.session_issuer)
+    error_message = "session_issuer must match an approved production browser origin."
+  }
 }
 
 variable "session_audience" {

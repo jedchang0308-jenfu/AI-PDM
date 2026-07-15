@@ -4,10 +4,12 @@ locals {
   migration_live_acknowledgement      = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
   principal_bootstrap_acknowledgement = "DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED"
   reconciliation_acknowledgement      = "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
+  firebase_hosting_acknowledgement    = "DEV-032-PRODUCTION-FIREBASE-HOSTING-PILOT-APPROVED"
   name_prefix                         = "ai-pdm-prod"
   database                            = "ai_pdm"
   cloud_sql_instance_name             = "ai-pdm-prod-postgres"
   source_connection_name              = "${var.production_project_id}:${var.region}:${local.cloud_sql_instance_name}"
+  firebase_hosting_origin             = "https://${var.production_project_id}.web.app"
 
   required_services = toset([
     "artifactregistry.googleapis.com",
@@ -16,6 +18,7 @@ locals {
     "cloudkms.googleapis.com",
     "compute.googleapis.com",
     "firebase.googleapis.com",
+    "firebasehosting.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "identitytoolkit.googleapis.com",
@@ -45,11 +48,28 @@ locals {
     "pdm-session-signing-previous"
   ])
 
+  firebase_hosting_gateway_ready = (
+    var.enable_firebase_hosting_gateway &&
+    var.firebase_hosting_gateway_acknowledgement == local.firebase_hosting_acknowledgement &&
+    var.runtime_public_base_url == local.firebase_hosting_origin &&
+    var.session_issuer == local.firebase_hosting_origin &&
+    var.firebase_auth_domain == "${var.production_project_id}.web.app"
+  )
+
+  custom_domain_gateway_ready = (
+    !var.enable_firebase_hosting_gateway &&
+    var.runtime_public_base_url == "https://pdm.jenfu.com.tw" &&
+    var.session_issuer == "https://pdm.jenfu.com.tw" &&
+    var.firebase_auth_domain == "${var.production_project_id}.firebaseapp.com"
+  )
+
+  production_entrypoint_ready = local.firebase_hosting_gateway_ready || local.custom_domain_gateway_ready
+
   real_target_values_ready = (
     var.production_project_id == "jenfu-ai-pdm-prod" &&
     var.region == "asia-east1" &&
     var.production_domain == "pdm.jenfu.com.tw" &&
-    var.runtime_public_base_url == "https://pdm.jenfu.com.tw" &&
+    local.production_entrypoint_ready &&
     var.billing_account_id != "000000-000000-000000" &&
     !startswith(var.firebase_web_api_key, "ASSIGN_") &&
     !startswith(var.firebase_web_app_id, "ASSIGN_") &&
@@ -197,9 +217,9 @@ check "production_reconciliation_execution_guard" {
   }
 }
 
-check "production_firebase_hosting_forbidden" {
+check "production_entrypoint_guard" {
   assert {
-    condition     = !can(regex("web\\.app|firebaseapp\\.com|stg|staging", var.runtime_public_base_url))
-    error_message = "Production must not use Firebase Hosting default domains or staging origins."
+    condition     = local.production_entrypoint_ready && !can(regex("stg|staging", var.runtime_public_base_url))
+    error_message = "Production entrypoint must use either the custom-domain baseline or the explicitly acknowledged production web.app pilot origin; staging origins are forbidden."
   }
 }

@@ -12,7 +12,8 @@ output "production_review_target" {
     public_base_url          = var.runtime_public_base_url
     create_resources         = local.create_resources
     production_action        = false
-    firebase_hosting_used    = false
+    firebase_hosting_used    = var.enable_firebase_hosting_gateway
+    direct_run_app_reachable = var.enable_firebase_hosting_gateway
     phase3a_gcs_authority    = false
   }
 }

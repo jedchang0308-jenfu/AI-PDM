@@ -84,7 +84,23 @@
     "customDomainRequired": true,
     "cloudRunIngress": "internal-and-cloud-load-balancing",
     "cloudRunDefaultUrlDisabled": true,
-    "firebaseHostingGatewayAllowed": false
+    "firebaseHostingGatewayAllowed": false,
+    "status": "future-cutover-baseline-after-internal-pilot"
+  },
+  "productionInternalPilotGateway": {
+    "decision": "firebase-hosting-default-domain-no-dns",
+    "canonicalOrigin": "https://jenfu-ai-pdm-prod.web.app",
+    "firebaseHostingSite": "jenfu-ai-pdm-prod",
+    "cloudRunService": "ai-pdm-prod",
+    "cloudRunRegion": "asia-east1",
+    "cloudRunIngress": "all",
+    "cloudRunDefaultUrlDisabled": false,
+    "directRunAppOriginSessionExchange": "denied-when-origin-is-run-app",
+    "firestoreAllowed": false,
+    "firebaseStorageAllowed": false,
+    "firebaseFunctionsAllowed": false,
+    "gcsFileWorkflowEnabled": false,
+    "acceptedResidualRisk": "The public run.app shell and denial-of-service surface bypass the external load balancer during the bounded production internal pilot."
   },
   "release": {
     "artifactRegistryRequired": true,

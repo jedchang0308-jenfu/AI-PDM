@@ -69,6 +69,18 @@ The user selected the Firebase Hosting default domain for the short-term interna
 
 Execution evidence records a targeted Terraform plan/apply of 0 added, 1 in-place change, 0 destroyed and 0 replaced; Firebase Hosting live version `c61e4ebfa2556848`; Cloud Run revision `ai-pdm-stg-00003-vz4`; and 6/6 live smoke including a read-only Cloud SQL query through the runtime identity. This closes the internal HTTPS and runtime-smoke gates only. Staging acceptance remains blocked by real principal mapping and exact-source artifact provenance/drift evidence because the deployed image predates at least one locally accepted route.
 
+## 2026-07-16 Production Internal-Pilot Firebase Hosting Amendment
+
+The user reconfirmed that public DNS must remain deferred for the first internal production pilot. This amendment supersedes the staging-only restriction above for the bounded Phase 3A official-numbering/draft slice; it does not replace the five-year custom-domain edge baseline.
+
+- Canonical production pilot origin: `https://jenfu-ai-pdm-prod.web.app`.
+- Firebase Hosting performs HTTPS termination and an HTTP rewrite only. Cloud Run remains the portable Next.js/BFF runtime and Cloud SQL remains the only formal relational authority.
+- Firestore, Firebase Storage, Firebase Functions, Callable and provider-trigger business logic remain prohibited. Phase 3A GCS/file workflows remain fail-closed.
+- Firebase Hosting integration requires the Cloud Run default URL and `INGRESS_TRAFFIC_ALL`. This exposes the direct `run.app` shell and denial-of-service surface outside the external load balancer. The organization accepts this bounded pilot residual risk.
+- `PDM_PUBLIC_BASE_URL`, `PDM_SESSION_ISSUER` and `PDM_FIREBASE_AUTH_DOMAIN` must all use the production `web.app` origin. Secure host-only cookies and same-origin mutation checks remain mandatory; requests carrying a direct `run.app` browser origin cannot exchange a PDM business session.
+- The existing external ALB, reserved IP and managed-certificate resources are retained without DNS. Moving to `pdm.jenfu.com.tw`, restoring LB-only ingress and disabling the default Cloud Run URL is a later reviewed cutover, not a prerequisite for the internal pilot.
+- Hosting rollout must use the exact production site/service/region, private/no-store headers, `pinTag=false`, a credentialled Terraform saved plan with zero delete/replace and production post-deploy smoke.
+
 ## Decision
 
 ### 1. One Google platform, one PostgreSQL authority

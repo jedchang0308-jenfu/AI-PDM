@@ -2,10 +2,13 @@ resource "google_identity_platform_config" "pdm" {
   count = local.create_resources ? 1 : 0
 
   project = var.production_project_id
-  authorized_domains = distinct([
-    "${var.production_project_id}.firebaseapp.com",
-    var.production_domain
-  ])
+  authorized_domains = distinct(concat(
+    [
+      "${var.production_project_id}.firebaseapp.com",
+      var.production_domain
+    ],
+    var.enable_firebase_hosting_gateway ? ["${var.production_project_id}.web.app"] : []
+  ))
   autodelete_anonymous_users = true
 
   sign_in {

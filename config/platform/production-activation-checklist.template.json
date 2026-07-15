@@ -10,7 +10,7 @@
     "region": "asia-east1",
     "runtimeService": "ai-pdm-prod",
     "cloudSqlInstance": "ai-pdm-prod-postgres",
-    "publicBaseUrl": "https://pdm.jenfu.com.tw"
+    "publicBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
   "costGate": {
     "monthlyBudgetCapUsd": 300,
@@ -114,7 +114,8 @@
     }
   ],
   "prohibitedShortcuts": [
-    "Do not use Firebase Hosting web.app as production gateway.",
+    "Do not use staging Firebase Hosting web.app or any Hosting site other than jenfu-ai-pdm-prod as production gateway.",
+    "Do not treat direct run.app reachability as an approved browser origin or allow it to exchange a PDM session.",
     "Do not use staging project, staging Cloud Run, staging Cloud SQL or staging secrets.",
     "Do not treat a credentialled plan as apply approval.",
     "Do not skip HD-8-4 / 1A separate-target restore and reconciliation.",

@@ -13,6 +13,7 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 - `config/platform/production-target.template.json`
 - `config/platform/clean-production-seed.template.json`
 - `config/platform/production-activation-checklist.template.json`
+- `config/platform/firebase-hosting.production.json`
 - `infra/google-cloud/production/`
 - `.ai-doc/runbooks/runbook-dev-032-production-canary-restore-reconciliation-2026-07-15.md`
 - `output/dev-032-release-source/manifest.json`
@@ -49,6 +50,17 @@ The production service rollback changes traffic only. Do not use `gcloud run ser
 7. Run a credentialled Terraform plan after the drill and require Terraform no-drift evidence with zero add, change and destroy before closing rollback readiness.
 
 The accepted 2026-07-16 evidence is `v2-api-closure.json` with `allChecksPassed=true`, followed by `v2-post-drill-plan.txt` proving no Terraform drift. The earlier CLI-path attempt is retained as negative evidence and must not be repeated.
+
+## Firebase Hosting Production Pilot Contract
+
+The current production pilot intentionally does not wait for DNS. Use only `https://jenfu-ai-pdm-prod.web.app` with the reviewed rewrite to `ai-pdm-prod` in `asia-east1`.
+
+1. Terraform must set the canonical public URL, session issuer and Firebase Auth domain to the same production `web.app` origin.
+2. Cloud Run may use all ingress and an enabled default URL only while the exact Hosting acknowledgement is present. Direct `run.app` origin session exchange must remain denied.
+3. Deploy with `config/platform/firebase-hosting.production.json`; do not deploy the root staging `firebase.json` to production.
+4. Hosting must use private/no-store headers, `pinTag=false` and no Firebase Functions, Firestore or Firebase Storage.
+5. Read back the Hosting release, `/login`, `/api/auth/mode`, `/__/auth/handler` and an unauthenticated protected API. A direct `run.app` session-exchange request must fail closed.
+6. DNS, custom-domain managed TLS and LB-only ingress are deferred. Existing ALB resources remain untouched and must not be deleted merely because the pilot uses Hosting.
 
 ## Mandatory Stops
 

@@ -10,13 +10,15 @@ target after the release gates close:
 - Project: `jenfu-ai-pdm-prod`
 - Region: `asia-east1`
 - Runtime: Cloud Run `ai-pdm-prod`, default `run.app` URL disabled
-- Edge: external Application Load Balancer, managed TLS, custom domain
-  `pdm.jenfu.com.tw`
+- Pilot edge: Firebase Hosting default site `jenfu-ai-pdm-prod.web.app` rewrites
+  to the existing Cloud Run service. The external Application Load Balancer,
+  managed TLS resource and `pdm.jenfu.com.tw` remain provisioned but DNS is
+  intentionally deferred and they are not the current browser entrypoint.
 - Database: Cloud SQL for PostgreSQL `POSTGRES_17`, `REGIONAL`, private IP,
   IAM DB auth, backups, PITR and deletion protection
 - Identity: Firebase Authentication with Identity Platform only
-- Auth handler: `jenfu-ai-pdm-prod.firebaseapp.com`; this is not the application
-  gateway and does not authorize a Firebase Hosting production entrypoint
+- Auth handler and canonical pilot origin: `jenfu-ai-pdm-prod.web.app`.
+  `jenfu-ai-pdm-prod.firebaseapp.com` remains an authorized Firebase domain.
 - Secrets: Secret Manager containers only; values are never stored here
 - Logs and signing: regional application-log bucket and HSM-backed numbering
   ledger signing key
@@ -95,7 +97,12 @@ A plan file is not an apply approval.
 
 ## Prohibited
 
-- Do not use Firebase Hosting or `web.app` as the production gateway.
+- Do not use any Firebase Hosting site except `jenfu-ai-pdm-prod`, and do not
+  add Firebase Functions, Callable, Firestore, Firebase Storage or business
+  logic to the Hosting layer.
+- Do not treat the direct `run.app` endpoint as a canonical browser origin.
+  Its requests may load the shell, but same-origin session exchange must remain
+  pinned to `https://jenfu-ai-pdm-prod.web.app`.
 - Do not use staging project, staging Cloud Run, staging Cloud SQL or staging
   secrets.
 - Do not store secret values, Firebase private keys, database passwords or

@@ -13,18 +13,26 @@
     "database": "ai_pdm",
     "artifactRepository": "ai-pdm",
     "productionDomain": "pdm.jenfu.com.tw",
-    "publicBaseUrl": "https://pdm.jenfu.com.tw"
+    "publicBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+    "entrypointMode": "firebase-hosting-default-domain-production-pilot",
+    "deferredCustomDomainUrl": "https://pdm.jenfu.com.tw"
   },
   "edge": {
-    "type": "external-application-load-balancer",
+    "type": "firebase-hosting-cloud-run-rewrite",
     "serverlessNegRegion": "asia-east1",
-    "managedTlsRequired": true,
-    "customDomainRequired": true,
-    "firebaseHostingGatewayAllowed": false,
-    "cloudRunIngress": "internal-and-cloud-load-balancing",
-    "cloudRunDefaultUrlDisabled": true,
+    "firebaseHostingSite": "jenfu-ai-pdm-prod",
+    "firebaseHostingGatewayAllowed": true,
+    "firebaseHostingOwnsBusinessLogic": false,
+    "managedTlsRequired": false,
+    "customDomainRequired": false,
+    "customDomainDeferred": true,
+    "cloudRunIngress": "all",
+    "cloudRunDefaultUrlDisabled": false,
+    "directRunAppOriginSessionExchange": "denied-by-canonical-origin",
+    "directRunAppResidualRiskAccepted": true,
     "privateResponseCacheAllowed": false,
-    "immutableAssetCdnOnly": true
+    "immutableAssetCdnOnly": true,
+    "futureEdgeBaseline": "external-application-load-balancer-managed-tls-custom-domain"
   },
   "database": {
     "provider": "Cloud SQL for PostgreSQL",
@@ -42,7 +50,7 @@
   "identity": {
     "provider": "Firebase Authentication with Identity Platform",
     "firebaseProjectId": "jenfu-ai-pdm-prod",
-    "authorizedDomains": ["pdm.jenfu.com.tw", "jenfu-ai-pdm-prod.firebaseapp.com"],
+    "authorizedDomains": ["jenfu-ai-pdm-prod.web.app", "pdm.jenfu.com.tw", "jenfu-ai-pdm-prod.firebaseapp.com"],
     "firestoreAuthorityAllowed": false,
     "firebaseStorageAuthorityAllowed": false,
     "firebaseFunctionsAuthorityAllowed": false,
@@ -104,7 +112,8 @@
     "level4PostDeploySmokeRequired": true
   },
   "stopConditions": [
-    "Do not use Firebase Hosting default web.app as the production gateway.",
+    "Do not use any Firebase Hosting site except jenfu-ai-pdm-prod.web.app as the production pilot gateway.",
+    "Do not permit a direct run.app browser origin to exchange a PDM business session.",
     "Do not use staging Firebase project, staging Cloud Run service, staging Cloud SQL instance or staging secrets.",
     "Do not create, update, import, migrate or deploy production resources from this template.",
     "Do not proceed to production canary until HD-8-4 / 1A restore/reconciliation and rollback readiness pass.",

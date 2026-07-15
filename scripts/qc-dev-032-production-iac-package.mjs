@@ -90,6 +90,7 @@ const security = readIfExists("security.tf");
 const identity = readIfExists("identity.tf");
 const observability = readIfExists("observability.tf");
 const migrationRunner = readIfExists("migration-runner.tf");
+const productionHosting = JSON.parse(readFileSync(path.join(root, "config", "platform", "firebase-hosting.production.json"), "utf8"));
 const resources = resourceBlocks(files);
 const resourceNames = resources.map((resource) => `${resource.type}.${resource.name}`);
 const guardedResources = resources.filter((resource) =>
@@ -118,11 +119,11 @@ record("DEV032-PROD-IAC-004 create_resources requires exact acknowledgement, Gat
 record("DEV032-PROD-IAC-005 every Google resource is gated by local.create_resources", resources.length >= 20 && guardedResources.length === resources.length, resourceNames.filter((_, index) => !guardedResources.includes(resources[index])).join(", "));
 record("DEV032-PROD-IAC-006 defaults cannot create production resources", variables.includes('default     = false') && variables.includes('default     = ""') && locals.includes("var.enable_resource_creation &&"));
 record("DEV032-PROD-IAC-007 Cloud SQL is regional, private, IAM-auth and recovery-ready", database.includes('availability_type           = "REGIONAL"') && database.includes("point_in_time_recovery_enabled = true") && database.includes('name  = "cloudsql.iam_authentication"') && database.includes("ipv4_enabled                                  = false") && database.includes("deletion_protection = true"));
-record("DEV032-PROD-IAC-008 Cloud Run production ingress forbids direct default URL", runtime.includes('ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"') && runtime.includes("default_uri_disabled = true") && runtime.includes("cloud-sql-proxy") && runtime.includes("--private-ip") && runtime.includes("--auto-iam-authn"));
+record("DEV032-PROD-IAC-008 Cloud Run ingress/default URL follow the explicit Hosting pilot gate", runtime.includes('var.enable_firebase_hosting_gateway ? "INGRESS_TRAFFIC_ALL" : "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"') && runtime.includes("default_uri_disabled = !var.enable_firebase_hosting_gateway") && runtime.includes("cloud-sql-proxy") && runtime.includes("--private-ip") && runtime.includes("--auto-iam-authn"));
 record("DEV032-PROD-IAC-009 external ALB and immutable-asset CDN are modeled", edge.includes("EXTERNAL_MANAGED") && edge.includes('enable_cdn            = false') && edge.includes('enable_cdn            = true') && edge.includes('/_next/static/*') && edge.includes("google_compute_managed_ssl_certificate"));
 record("DEV032-PROD-IAC-010 session secrets are metadata-only", security.includes("google_secret_manager_secret") && combinedTf.includes("pdm-session-signing-current") && combinedTf.includes("pdm-session-signing-previous") && !combinedTf.match(/secret_data|private_key|DATABASE_URL|PASSWORD\s*=/u));
 record("DEV032-PROD-IAC-011 cost gates preserve USD 300 cap, TWD billing budget and USD 240 stop", variables.includes("default     = 300") && variables.includes("default     = 240") && variables.includes('default     = "TWD"') && variables.includes("default     = 9600") && observability.includes("google_billing_budget") && observability.includes("var.billing_budget_currency_code") && locals.includes("var.estimated_monthly_cost_usd <= var.plan_review_stop_usd"));
-record("DEV032-PROD-IAC-012 staging and Firebase Hosting shortcuts are absent from Terraform", !combinedTf.includes("jenfu-ai-pdm-stg-361825") && !combinedTf.includes("ai-pdm-stg") && !combinedTf.includes(".web.app") && !combinedTf.includes("firebase-hosting"));
+record("DEV032-PROD-IAC-012 production Hosting exception is exact-target and staging shortcuts remain absent", !combinedTf.includes("jenfu-ai-pdm-stg-361825") && !combinedTf.includes("ai-pdm-stg") && combinedTf.includes("jenfu-ai-pdm-prod.web.app") && locals.includes("DEV-032-PRODUCTION-FIREBASE-HOSTING-PILOT-APPROVED") && locals.includes("production_entrypoint_ready"));
 record("DEV032-PROD-IAC-013 no Terraform state/provider cache or tfvars are committed in production package", trackedProductionFiles.every((filePath) => {
   const name = path.basename(filePath);
   return name === ".terraform.lock.hcl" || (
@@ -145,6 +146,7 @@ record("DEV032-PROD-IAC-019 reconciliation runner is read-only, mutually exclusi
   "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
 ].every((needle) => combinedTf.includes(needle)) && locals.includes("!var.migration_live_execution") && locals.includes("!var.principal_bootstrap_execution") && locals.includes("ai-pdm-prod-restore-") && migrationRunner.includes("run-dev-032-production-reconciliation.mjs"));
 record("DEV032-PROD-IAC-020 direct VPC runners can reach Google control-plane APIs", network.includes("private_ip_google_access = true") && runtime.includes('egress = "ALL_TRAFFIC"') && migrationRunner.includes('egress = "ALL_TRAFFIC"'));
+record("DEV032-PROD-IAC-021 production Hosting config is target-pinned, no-store and does not pin Cloud Run traffic", productionHosting.hosting?.site === "jenfu-ai-pdm-prod" && productionHosting.hosting?.rewrites?.[0]?.run?.serviceId === "ai-pdm-prod" && productionHosting.hosting?.rewrites?.[0]?.run?.region === "asia-east1" && productionHosting.hosting?.rewrites?.[0]?.run?.pinTag === false && productionHosting.hosting?.headers?.[0]?.headers?.some((item) => item.key === "Cache-Control" && item.value === "private, no-store, max-age=0"));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
