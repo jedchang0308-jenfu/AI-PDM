@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -94,9 +95,10 @@ const guardedResources = resources.filter((resource) =>
   /count\s*=\s*local\.create_resources\s*&&/u.test(resource.body) ||
   /for_each\s*=\s*local\.create_resources\s*\?/u.test(resource.body)
 );
-const fileStats = existsSync(productionDir)
-  ? readdirSync(productionDir).map((name) => ({ name, stats: statSync(path.join(productionDir, name)) }))
-  : [];
+const trackedProductionFiles = execFileSync("git", ["ls-files", "--", "infra/google-cloud/production"], {
+  cwd: root,
+  encoding: "utf8"
+}).trim().split(/\r?\n/u).filter(Boolean);
 
 record("DEV032-PROD-IAC-001 production IaC review package exists", existsSync(productionDir) && existingRequiredFiles.length === requiredFiles.length, existingRequiredFiles.join(", "));
 record("DEV032-PROD-IAC-002 package declares review-only / no apply posture", readme.includes("review package only") && readme.includes("does not authorize `terraform apply`") && readme.includes("A plan file is not an apply approval."));
@@ -119,7 +121,15 @@ record("DEV032-PROD-IAC-009 external ALB and immutable-asset CDN are modeled", e
 record("DEV032-PROD-IAC-010 session secrets are metadata-only", security.includes("google_secret_manager_secret") && combinedTf.includes("pdm-session-signing-current") && combinedTf.includes("pdm-session-signing-previous") && !combinedTf.match(/secret_data|private_key|DATABASE_URL|PASSWORD\s*=/u));
 record("DEV032-PROD-IAC-011 cost gates preserve USD 300 cap and USD 240 stop", variables.includes("default     = 300") && variables.includes("default     = 240") && observability.includes("google_billing_budget") && locals.includes("var.estimated_monthly_cost_usd <= var.plan_review_stop_usd"));
 record("DEV032-PROD-IAC-012 staging and Firebase Hosting shortcuts are absent from Terraform", !combinedTf.includes("jenfu-ai-pdm-stg-361825") && !combinedTf.includes("ai-pdm-stg") && !combinedTf.includes(".web.app") && !combinedTf.includes("firebase-hosting"));
-record("DEV032-PROD-IAC-013 no Terraform state/provider cache or tfvars are committed in production package", fileStats.every((item) => !item.name.startsWith(".terraform") && !item.name.endsWith(".tfvars") && !item.name.endsWith(".tfstate")));
+record("DEV032-PROD-IAC-013 no Terraform state/provider cache or tfvars are committed in production package", trackedProductionFiles.every((filePath) => {
+  const name = path.basename(filePath);
+  return name === ".terraform.lock.hcl" || (
+    name !== ".terraform" &&
+    !name.includes(".tfvars") &&
+    !name.endsWith(".tfstate") &&
+    !name.endsWith(".tfplan")
+  );
+}));
 record("DEV032-PROD-IAC-014 release-source classifier includes production IaC as included platform contract", classifier.includes('filePath.startsWith("infra/google-cloud/production/")') && classifier.includes("Production infrastructure review package."));
 record("DEV032-PROD-IAC-015 package exposes QC script", packageJson.scripts?.["qc:dev-032-production-iac-package"] === "node scripts/qc-dev-032-production-iac-package.mjs");
 record("DEV032-PROD-IAC-016 package exposes Docker Terraform static validate workflow", packageJson.scripts?.["dev-032:production-iac-terraform-validate"] === "node scripts/dev-032-production-iac-terraform-validate.mjs" && packageJson.scripts?.["qc:dev-032-production-iac-terraform-validate"] === "node scripts/qc-dev-032-production-iac-terraform-validate.mjs");

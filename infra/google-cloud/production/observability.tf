@@ -19,6 +19,11 @@ resource "google_logging_project_sink" "default" {
   name                   = "_Default"
   destination            = "logging.googleapis.com/${google_logging_project_bucket_config.application[0].id}"
   unique_writer_identity = true
+
+  lifecycle {
+    # Preserve Google's existing _Default audit exclusions during destination regionalization.
+    ignore_changes = [filter]
+  }
 }
 
 resource "google_monitoring_alert_policy" "cloud_run_errors" {

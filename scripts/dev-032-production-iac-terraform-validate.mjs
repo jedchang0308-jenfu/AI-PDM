@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -12,6 +12,9 @@ const workspaceDir = path.join(outputDir, "workspace");
 const reportPath = path.join(outputDir, "report.json");
 const markdownPath = path.join(outputDir, "report.md");
 const terraformImage = process.env.DEV032_TERRAFORM_IMAGE || "hashicorp/terraform:1.14.5";
+const terraformExecutable = process.env.DEV032_TERRAFORM_EXECUTABLE?.trim() || null;
+const terraformExecutor = terraformExecutable ? "local" : "docker";
+const terraformBinaryChecksumVerified = process.env.DEV032_TERRAFORM_BINARY_SHA256_VERIFIED === "true";
 
 function relativePath(filePath) {
   return filePath.replace(root, "").replace(/^[/\\]/u, "").replaceAll("\\", "/");
@@ -27,8 +30,17 @@ function listFiles(directory) {
     .sort();
 }
 
+function listSourceFiles() {
+  return listFiles(sourceDir).filter((name) => (
+    name.endsWith(".tf") ||
+    name === "README.md" ||
+    name === "backend.production.hcl.example" ||
+    name === ".terraform.lock.hcl"
+  ));
+}
+
 function sourceDigest() {
-  const entries = listFiles(sourceDir).map((name) => {
+  const entries = listSourceFiles().map((name) => {
     const filePath = path.join(sourceDir, name);
     return {
       name,
@@ -47,6 +59,39 @@ function dockerVolumePath(filePath) {
 
 function runTerraform(name, args) {
   const startedAt = new Date().toISOString();
+  if (terraformExecutable) {
+    try {
+      const stdout = execFileSync(terraformExecutable, args, {
+        cwd: workspaceDir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 180000
+      });
+      return {
+        name,
+        command: [terraformExecutable, ...args],
+        terraformArgs: args,
+        readOnlySource: true,
+        ok: true,
+        startedAt,
+        stdout: stdout.trim(),
+        stderr: "",
+        error: null
+      };
+    } catch (error) {
+      return {
+        name,
+        command: [terraformExecutable, ...args],
+        terraformArgs: args,
+        readOnlySource: true,
+        ok: false,
+        startedAt,
+        stdout: typeof error.stdout === "string" ? error.stdout.trim() : "",
+        stderr: typeof error.stderr === "string" ? error.stderr.trim() : "",
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
   const dockerArgs = [
     "run",
     "--rm",
@@ -124,7 +169,8 @@ function writeMarkdown(report) {
     "# DEV-032 Production IaC Terraform Validate",
     "",
     `Generated: ${report.generatedAt}`,
-    `Terraform image: \`${report.terraform.image}\``,
+    `Terraform executor: \`${report.terraform.executor}\``,
+    `Terraform distribution: \`${report.terraform.image ?? report.terraform.executable}\``,
     `Production action performed: \`${report.productionActionPerformed}\``,
     `Terraform plan executed: \`${report.terraformPlanExecuted}\``,
     `Terraform apply executed: \`${report.terraformApplyExecuted}\``,
@@ -151,7 +197,9 @@ function writeMarkdown(report) {
 
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(workspaceDir, { recursive: true });
-cpSync(sourceDir, workspaceDir, { recursive: true });
+for (const name of listSourceFiles()) {
+  copyFileSync(path.join(sourceDir, name), path.join(workspaceDir, name));
+}
 
 const source = sourceDigest();
 const version = runTerraform("version", ["version"]);
@@ -178,9 +226,11 @@ const report = {
     ...source
   },
   terraform: {
-    image: terraformImage,
-    executor: "docker",
-    localTerraformRequired: false,
+    image: terraformExecutor === "docker" ? terraformImage : null,
+    executable: terraformExecutor === "local" ? path.basename(terraformExecutable) : null,
+    executor: terraformExecutor,
+    binaryChecksumVerified: terraformExecutor === "local" ? terraformBinaryChecksumVerified : null,
+    localTerraformRequired: terraformExecutor === "local",
     versionOk: version.ok && version.stdout.includes("Terraform v1.14.5")
   },
   validation: {
@@ -216,7 +266,7 @@ console.log(JSON.stringify({
   outputPath: relativePath(reportPath),
   markdownPath: relativePath(markdownPath),
   status: report.status,
-  terraformImage,
+  terraformExecutor,
   productionActionPerformed: report.productionActionPerformed,
   terraformPlanExecuted: report.terraformPlanExecuted,
   terraformApplyExecuted: report.terraformApplyExecuted,

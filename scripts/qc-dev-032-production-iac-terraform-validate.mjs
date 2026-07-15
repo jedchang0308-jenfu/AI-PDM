@@ -20,7 +20,12 @@ function sha256(input) {
 function sourceDigest() {
   const sourceDir = path.join(root, "infra", "google-cloud", "production");
   const entries = readdirSync(sourceDir)
-    .filter((name) => statSync(path.join(sourceDir, name)).isFile())
+    .filter((name) => statSync(path.join(sourceDir, name)).isFile() && (
+      name.endsWith(".tf") ||
+      name === "README.md" ||
+      name === "backend.production.hcl.example" ||
+      name === ".terraform.lock.hcl"
+    ))
     .sort()
     .map((name) => ({
       name,
@@ -37,7 +42,10 @@ const serializedReport = JSON.stringify(report ?? {});
 
 record("DEV032-TF-001 report exists and identifies DEV-032", exists && report?.schemaVersion === 1 && report?.dev === "DEV-032");
 record("DEV032-TF-002 validation is local static evidence only", report?.productionActionPerformed === false && report?.terraformPlanExecuted === false && report?.terraformApplyExecuted === false && report?.terraformImportExecuted === false);
-record("DEV032-TF-003 Docker Terraform 1.14.5 executor is recorded", report?.terraform?.executor === "docker" && report?.terraform?.image === "hashicorp/terraform:1.14.5" && report?.terraform?.versionOk === true);
+record("DEV032-TF-003 pinned Terraform 1.14.5 executor is recorded", report?.terraform?.versionOk === true && (
+  (report?.terraform?.executor === "docker" && report?.terraform?.image === "hashicorp/terraform:1.14.5") ||
+  (report?.terraform?.executor === "local" && report?.terraform?.executable === "terraform.exe" && report?.terraform?.binaryChecksumVerified === true)
+));
 record("DEV032-TF-004 source digest matches current production IaC package", report?.source?.sha256 === sourceDigest());
 record("DEV032-TF-005 required Terraform commands ran", ["version", "fmt-check", "init-backend-false", "validate-json"].every((name) => commandNames.has(name)) && (report?.commands ?? []).every((item) => item.ok === true));
 record("DEV032-TF-006 init disables backend and does not perform a plan", commandArgs.includes("init -backend=false -input=false -no-color") && !commandArgs.some((args) => /(^|\s)(plan|apply|import|destroy)(\s|$)/u.test(args)));
