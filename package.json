@@ -204,6 +204,8 @@
     "qc:dev-047-local-inventory": "node scripts/qc-dev-047-local-inventory.mjs",
     "qc:dev-032-release-gate-package": "node scripts/qc-dev-032-release-gate-package.mjs",
     "qc:dev-032-production-activation-checklist": "node scripts/qc-dev-032-production-activation-checklist.mjs",
+    "dev-032:production-activation-readiness": "node scripts/generate-dev-032-production-activation-readiness.mjs",
+    "qc:dev-032-production-activation-readiness": "node scripts/qc-dev-032-production-activation-readiness.mjs",
     "qc:dev-032-production-iac-package": "node scripts/qc-dev-032-production-iac-package.mjs",
     "dev-032:production-iac-terraform-validate": "node scripts/dev-032-production-iac-terraform-validate.mjs",
     "qc:dev-032-production-iac-terraform-validate": "node scripts/qc-dev-032-production-iac-terraform-validate.mjs",

@@ -13,6 +13,7 @@ const seed = json("config/platform/clean-production-seed.template.json");
 const activation = json("config/platform/production-activation-checklist.template.json");
 const runbook = read(".ai-doc/runbooks/runbook-dev-032-production-canary-restore-reconciliation-2026-07-15.md");
 const activationRunbook = read(".ai-doc/runbooks/runbook-dev-032-production-activation-2026-07-15.md");
+const readinessGenerator = read("scripts/generate-dev-032-production-activation-readiness.mjs");
 const devTask = read(".ai-doc/dev_task.md");
 const map = read(".ai-doc/documentation_map.md");
 const preflight = read(".ai-doc/reports/pm/pm-dev-032-production-release-gate-preflight-2026-07-15.md");
@@ -32,8 +33,9 @@ record("DEV032-GATE-010 runbook denies source overwrite and in-place restore", /
 record("DEV032-GATE-011 runbook keeps full PDM file restore deferred", /not the full PDM\/GCS\/offline restore drill/u.test(runbook) && /DEV-037/u.test(runbook));
 record("DEV032-GATE-012 activation checklist remains template-only and gates write actions", activation.templateOnly === true && activation.productionActionAllowed === false && activation.activationSequence?.some((item) => item.id === "A3-credentialled-terraform-plan-review") && activation.activationSequence?.some((item) => item.id === "A8-production-deploy-and-level4-smoke"));
 record("DEV032-GATE-013 activation runbook is handoff-only", /not an approval/u.test(activationRunbook) && /does not authorize production apply/u.test(activationRunbook) && /does not start DEV-047/u.test(activationRunbook));
-record("DEV032-GATE-014 PM docs reference source-boundary report and gate remains blocked", devTask.includes("pm-dev-032-source-boundary-classification-2026-07-15.md") && map.includes("pm-dev-032-source-boundary-classification-2026-07-15.md") && /dirty paths are classified/u.test(preflight) && sourceBoundary.includes("not releaseable"));
-record("DEV032-GATE-015 package exposes QC scripts", packageJson.scripts["qc:dev-032-release-gate-package"] === "node scripts/qc-dev-032-release-gate-package.mjs" && packageJson.scripts["qc:dev-032-production-activation-checklist"] === "node scripts/qc-dev-032-production-activation-checklist.mjs");
+record("DEV032-GATE-014 activation readiness generator is local-only", readinessGenerator.includes("blocked_activation_readiness") && readinessGenerator.includes("productionActionPerformed: false") && !readinessGenerator.includes("execFileSync"));
+record("DEV032-GATE-015 PM docs reference source-boundary report and gate remains blocked", devTask.includes("pm-dev-032-source-boundary-classification-2026-07-15.md") && map.includes("pm-dev-032-source-boundary-classification-2026-07-15.md") && /dirty paths are classified/u.test(preflight) && sourceBoundary.includes("not releaseable"));
+record("DEV032-GATE-016 package exposes QC scripts", packageJson.scripts["qc:dev-032-release-gate-package"] === "node scripts/qc-dev-032-release-gate-package.mjs" && packageJson.scripts["qc:dev-032-production-activation-checklist"] === "node scripts/qc-dev-032-production-activation-checklist.mjs" && packageJson.scripts["dev-032:production-activation-readiness"] === "node scripts/generate-dev-032-production-activation-readiness.mjs" && packageJson.scripts["qc:dev-032-production-activation-readiness"] === "node scripts/qc-dev-032-production-activation-readiness.mjs");
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
 const failures = results.filter((result) => !result.passed);

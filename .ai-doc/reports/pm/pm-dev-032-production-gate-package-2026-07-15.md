@@ -35,6 +35,11 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
   - `.ai-doc/runbooks/runbook-dev-032-production-activation-2026-07-15.md`
   - `npm run qc:dev-032-production-activation-checklist`
   - this does not authorize credentialled plan, apply, bootstrap, migration, deploy or traffic cutover
+- Added local-only production activation readiness aggregator:
+  - `npm run dev-032:production-activation-readiness`
+  - `npm run qc:dev-032-production-activation-readiness`
+  - output: `output/dev-032-production-activation-readiness/report.json`
+  - first blocked gate currently remains production target readback, not apply
 - Added fail-closed production Terraform review package:
   - `infra/google-cloud/production/`
   - `npm run qc:dev-032-production-iac-package`
@@ -54,8 +59,10 @@ This package adds the local template/runbook/QC needed to prevent the clean seed
 
 ## Validation
 
-- `npm run qc:dev-032-release-gate-package`: 15/15 passed.
+- `npm run qc:dev-032-release-gate-package`: 16/16 passed.
 - `npm run qc:dev-032-production-activation-checklist`: 17/17 passed.
+- `npm run dev-032:production-activation-readiness`: generated `blocked_activation_readiness`; production action `false`; first blocked gate `A1-production-target-readback`.
+- `npm run qc:dev-032-production-activation-readiness`: 13/13 passed.
 - `npm run qc:dev-032-release-source-manifest`: 12/12 passed.
 - `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; no production action.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed.
