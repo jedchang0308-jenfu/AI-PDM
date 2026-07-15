@@ -15,8 +15,8 @@ The local application slice remains a viable candidate for later release work, b
 
 - Source boundary:
   - Branch: `codex/pdm-lifecycle-unified-history`
-  - HEAD: `ec68981 feat: implement DEV-046 phase 1 platform contracts`
-  - Worktree: heavily dirty with many modified and untracked source, config, infra, docs, migration and output files.
+  - Exact release commit: recorded in `output/dev-032-release-source/manifest.json`; this report intentionally avoids pinning a self-referential commit hash.
+  - Worktree: source release boundary is exact; remaining dirty entries are generated evidence or staging-only config excluded by the manifest.
   - Follow-up classification: `.ai-doc/reports/pm/pm-dev-032-source-boundary-classification-2026-07-15.md`.
   - Current snapshot manifest: `output/dev-032-release-source/manifest.json`; unknown-risk paths `0`; exact snapshot SHA-256 is stored in the manifest and not repeated in PM docs to avoid self-referential source hashing.
   - Release-source commit plan: `output/dev-032-release-source/commit-plan.json`; included-source pathspec `output/dev-032-release-source/included-production-source.pathspec`; generated/staging exclusions `output/dev-032-release-source/excluded-generated-or-staging.pathspec`.
@@ -25,7 +25,8 @@ The local application slice remains a viable candidate for later release work, b
   - Active project: `jenfu-ai-pdm-stg-361825`
   - Active account: `jedchang0308@jenfu.com.tw`
   - Reproducible preflight: `npm run preflight:dev-032-production-target`; report `output/dev-032-production-target-preflight/report.json`.
-  - Preflight status: `blocked_readonly_preflight`; production action performed `false`; blocker count `9`.
+  - Production target contract: `config/platform/production-target.template.json`; template-only, production action allowed `false`, Firebase Hosting gateway forbidden, expected Cloud Run `ai-pdm-prod`, expected Cloud SQL `ai-pdm-prod-postgres`, required secret IDs `pdm-session-signing-current` and `pdm-session-signing-previous`.
+  - Preflight status: `blocked_readonly_preflight`; production action performed `false`; blocker count `8`.
   - `gcloud projects describe jenfu-ai-pdm-prod`: permission denied or project does not exist.
   - `gcloud run services list --project jenfu-ai-pdm-prod --region asia-east1`: denied / invalid consumer.
   - `gcloud sql instances list --project jenfu-ai-pdm-prod`: project not found or deleted.
@@ -33,9 +34,10 @@ The local application slice remains a viable candidate for later release work, b
   - `.firebaserc` defines only `staging = jenfu-ai-pdm-stg-361825`.
   - `firebase.json` points Hosting site `jenfu-ai-pdm-stg-361825` to Cloud Run `ai-pdm-stg`.
   - `infra/google-cloud/README.md` defines a production release contract but no applied production target.
-- Production env source:
+- Production env/secret source:
   - `.env.production` and `.env.production.local` are absent.
-  - Required production runtime keys are represented by staging Terraform/env contracts, but no production source of truth is present in repo.
+  - Required production runtime keys are represented by `config/platform/production-target.template.json`, but no production source of truth is present in repo.
+  - Required production Secret Manager metadata IDs are specified by template and checked by read-only preflight; no secret values are printed or persisted.
   - The generic env probe timed out while scanning the large workspace output tree; this is treated as unproven rather than passed.
 
 ## Local Checks Executed
@@ -45,11 +47,12 @@ The local application slice remains a viable candidate for later release work, b
 - `npm run qc:dev-046-phase2b`: 15/15 passed.
 - `npm run qc:dev-046-firebase-hosting-entrypoint`: 11/11 passed.
 - `npm run qc:dev-032-release-gate-package`: 13/13 passed; local clean-seed/allowlist/restore package is template-only and not production evidence.
-- `npm run qc:dev-032-release-source-manifest`: 11/11 passed; current dirty snapshot has deterministic file-level hashes and zero unknown-risk paths, but remains `safeToBuildForProduction=false`.
-- `npm run dev-032:release-source-commit-plan`: generated included/excluded pathspecs for the exact release commit plan.
+- `npm run qc:dev-032-release-source-manifest`: 12/12 passed; exact release commit exists with zero included dirty source and zero unknown-risk paths, but remains `safeToBuildForProduction=false` because production gates are still open.
+- `npm run dev-032:release-source-commit-plan`: generated applied exact-commit plan/pathspecs; included pathspec is empty because source is already committed.
 - `npm run qc:dev-032-release-source-commit-plan`: 11/11 passed; included pathspec excludes generated evidence, `.firebase`, staging Firebase Hosting config and staging Terraform.
+- `npm run qc:dev-032-production-target-contract`: 13/13 passed; validates template-only production target, ALB/custom-domain baseline, regional private Cloud SQL, identity-only Firebase and required secret metadata IDs.
 - `npm run preflight:dev-032-production-target`: read-only report generated with `blocked_readonly_preflight`; no production action.
-- `npm run qc:dev-032-production-target-preflight`: 13/13 passed.
+- `npm run qc:dev-032-production-target-preflight`: 15/15 passed.
 - `npm run qc:dev-046-phase1e`: 24/24 passed after cost-template and privacy-notice scanner alignment.
 - `npm run qc:dev-task-completion-audit`: 8/8 passed and confirms production readiness remains not ready.
 - `npm run qc:doc-paths`: 23/23 passed.
@@ -61,7 +64,7 @@ These are Level 0 / Level 2 local-artifact signals only. They do not replace Lev
 
 1. Production target identity is not proven: `jenfu-ai-pdm-prod` is not accessible or does not exist for the active account.
 2. Production provider config is absent: current Firebase/Hosting config is staging-only.
-3. Production env/secret source is absent: no production env source or Secret Manager readback contract is present.
+3. Production env/secret source is absent: production target/secret metadata contract exists as a template, but no real production env source or Secret Manager readback evidence is present.
 4. `HD-8-4 / 1A` pre-canary runbook/template exists, but Cloud SQL separate-target restore and numbering-ledger/sequence/non-reuse-reservation reconciliation execution evidence is missing.
 5. Clean production seed/allowlist template exists, but real production inventory is not proven: new production PDM IDs, initial Admin, minimum company/role/config, official-number non-reuse reservations, allowlist hash and source read-only archive manifest are not available as production evidence.
 6. Production allowlist is not proven: named 3-5-user production PDM-ID allowlist, fail-closed hash and non-canary denial evidence are missing.

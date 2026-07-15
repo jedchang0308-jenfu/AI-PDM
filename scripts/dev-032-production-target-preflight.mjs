@@ -6,9 +6,6 @@ import path from "node:path";
 
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
-const targetProject = process.env.DEV032_PRODUCTION_PROJECT || "jenfu-ai-pdm-prod";
-const region = process.env.DEV032_PRODUCTION_REGION || "asia-east1";
-const expectedRunService = process.env.DEV032_PRODUCTION_CLOUD_RUN_SERVICE || "ai-pdm-prod";
 const outputDir = path.join(root, "output", "dev-032-production-target-preflight");
 const jsonPath = path.join(outputDir, "report.json");
 const mdPath = path.join(outputDir, "report.md");
@@ -73,6 +70,20 @@ function blocker(code, message, evidence = {}) {
   return { code, message, evidence };
 }
 
+const firebaseRc = readJsonIfExists(".firebaserc");
+const firebaseJson = readJsonIfExists("firebase.json");
+const releaseManifest = readJsonIfExists("output/dev-032-release-source/manifest.json");
+const productionTargetContract = readJsonIfExists("config/platform/production-target.template.json");
+const contractTarget = productionTargetContract.parsed?.target ?? {};
+const contractSecrets = productionTargetContract.parsed?.secrets ?? {};
+const targetProject = process.env.DEV032_PRODUCTION_PROJECT || contractTarget.projectId || "jenfu-ai-pdm-prod";
+const region = process.env.DEV032_PRODUCTION_REGION || contractTarget.region || "asia-east1";
+const expectedRunService = process.env.DEV032_PRODUCTION_CLOUD_RUN_SERVICE || contractTarget.runtimeService || "ai-pdm-prod";
+const expectedCloudSqlInstance = process.env.DEV032_PRODUCTION_CLOUD_SQL_INSTANCE || contractTarget.cloudSqlInstance || "ai-pdm-prod-postgres";
+const requiredSecretIds = Array.isArray(contractSecrets.requiredSecretIds) && contractSecrets.requiredSecretIds.length > 0
+  ? contractSecrets.requiredSecretIds
+  : ["pdm-session-signing-current", "pdm-session-signing-previous"];
+
 const commands = {
   activeAccount: runReadOnlyCommand("active-account", "gcloud", ["config", "get-value", "account"], { timeoutMs: 10000 }),
   activeProject: runReadOnlyCommand("active-project", "gcloud", ["config", "get-value", "project"], { timeoutMs: 10000 }),
@@ -81,10 +92,6 @@ const commands = {
   sqlInstances: runReadOnlyCommand("production-cloud-sql-instances", "gcloud", ["sql", "instances", "list", "--project", targetProject, "--format=json"]),
   secrets: runReadOnlyCommand("production-secret-metadata", "gcloud", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
-
-const firebaseRc = readJsonIfExists(".firebaserc");
-const firebaseJson = readJsonIfExists("firebase.json");
-const releaseManifest = readJsonIfExists("output/dev-032-release-source/manifest.json");
 
 const envSources = [".env.production", ".env.production.local"].map((filePath) => ({
   path: filePath,
@@ -108,10 +115,21 @@ const productionRunService = Array.isArray(runServices)
   ? runServices.find((service) => service.metadata?.name === expectedRunService)
   : null;
 const productionSqlInstances = Array.isArray(sqlInstances) ? sqlInstances : [];
+const productionSqlInstance = productionSqlInstances.find((instance) => instance.name === expectedCloudSqlInstance) ?? null;
 const productionSecrets = Array.isArray(secretMetadata) ? secretMetadata : [];
+const productionSecretIds = productionSecrets
+  .map((secret) => String(secret.name ?? "").split("/").pop())
+  .filter(Boolean);
+const missingRequiredSecretIds = requiredSecretIds.filter((secretId) => !productionSecretIds.includes(secretId));
 
 const blockers = [];
 
+if (!productionTargetContract.exists || !productionTargetContract.parsed) {
+  blockers.push(blocker("PRODUCTION_TARGET_CONTRACT_MISSING", "Production target contract template is missing or unreadable.", {
+    path: "config/platform/production-target.template.json",
+    parseError: productionTargetContract.error
+  }));
+}
 if (activeProject !== targetProject) {
   blockers.push(blocker("ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION", "Active gcloud project is not the DEV-032 production target.", { activeProject, targetProject }));
 }
@@ -139,14 +157,19 @@ if (!productionRunService) {
     serviceCount: Array.isArray(runServices) ? runServices.length : null
   }));
 }
-if (productionSqlInstances.length === 0) {
-  blockers.push(blocker("PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN", "No production Cloud SQL instance metadata was proven readable.", {
-    commandOk: commands.sqlInstances.ok
+if (!productionSqlInstance) {
+  blockers.push(blocker("PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN", "Expected production Cloud SQL instance metadata was not proven readable.", {
+    expectedCloudSqlInstance,
+    commandOk: commands.sqlInstances.ok,
+    instanceCount: productionSqlInstances.length
   }));
 }
-if (productionSecrets.length === 0) {
-  blockers.push(blocker("PRODUCTION_SECRET_SOURCE_UNPROVEN", "No production Secret Manager metadata was proven readable; no secret values were requested.", {
-    commandOk: commands.secrets.ok
+if (!commands.secrets.ok || missingRequiredSecretIds.length > 0) {
+  blockers.push(blocker("PRODUCTION_SECRET_SOURCE_UNPROVEN", "Required production Secret Manager metadata was not proven readable; no secret values were requested.", {
+    commandOk: commands.secrets.ok,
+    requiredSecretIds,
+    visibleSecretIds: productionSecretIds,
+    missingRequiredSecretIds
   }));
 }
 const releaseSourceCommitted = releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists === true
@@ -162,7 +185,7 @@ if (!releaseSourceCommitted) {
     blocker: releaseManifest.parsed?.releaseDecision?.blocker ?? null
   }));
 }
-if (!project || !productionRunService || productionSqlInstances.length === 0) {
+if (!project || !productionRunService || !productionSqlInstance) {
   blockers.push(blocker("LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE", "Production-like and post-deploy smoke cannot run until production runtime/database target is proven.", {
     level3Required: true,
     level4Required: true
@@ -176,6 +199,7 @@ const report = {
   targetProject,
   region,
   expectedRunService,
+  expectedCloudSqlInstance,
   productionActionPerformed: false,
   readOnly: true,
   releaseReady: false,
@@ -200,6 +224,18 @@ const report = {
     firebaseDefaultIsProduction,
     firebaseOnlyStaging
   },
+  productionTargetContract: {
+    path: productionTargetContract.exists ? "config/platform/production-target.template.json" : null,
+    parseError: productionTargetContract.error,
+    templateOnly: productionTargetContract.parsed?.templateOnly ?? null,
+    releaseReady: productionTargetContract.parsed?.releaseReady ?? null,
+    productionActionAllowed: productionTargetContract.parsed?.productionActionAllowed ?? null,
+    publicBaseUrl: productionTargetContract.parsed?.target?.publicBaseUrl ?? null,
+    firebaseHostingGatewayAllowed: productionTargetContract.parsed?.edge?.firebaseHostingGatewayAllowed ?? null,
+    cloudRunIngress: productionTargetContract.parsed?.edge?.cloudRunIngress ?? null,
+    cloudRunDefaultUrlDisabled: productionTargetContract.parsed?.edge?.cloudRunDefaultUrlDisabled ?? null,
+    requiredSecretIds
+  },
   envSources,
   cloudRun: {
     commandOk: commands.runServices.ok,
@@ -217,6 +253,8 @@ const report = {
   cloudSql: {
     commandOk: commands.sqlInstances.ok,
     instanceCount: productionSqlInstances.length,
+    expectedCloudSqlInstance,
+    expectedInstanceFound: Boolean(productionSqlInstance),
     instances: productionSqlInstances.map((instance) => ({
       name: instance.name ?? null,
       region: instance.region ?? null,
@@ -228,6 +266,8 @@ const report = {
   secrets: {
     commandOk: commands.secrets.ok,
     secretCount: productionSecrets.length,
+    requiredSecretIds,
+    missingRequiredSecretIds,
     namesOnly: productionSecrets.map((secret) => secret.name ?? null).filter(Boolean)
   },
   releaseSource: {
@@ -275,6 +315,15 @@ function writeMarkdown(reportData) {
     "",
     `- Account: \`${reportData.activeIdentity.account ?? "unknown"}\``,
     `- Active project: \`${reportData.activeIdentity.project ?? "unknown"}\``,
+    "",
+    "## Production Target Contract",
+    "",
+    `- Contract: \`${reportData.productionTargetContract.path ?? "missing"}\``,
+    `- Public base URL: \`${reportData.productionTargetContract.publicBaseUrl ?? "unknown"}\``,
+    `- Firebase Hosting gateway allowed: \`${reportData.productionTargetContract.firebaseHostingGatewayAllowed}\``,
+    `- Cloud Run ingress: \`${reportData.productionTargetContract.cloudRunIngress ?? "unknown"}\``,
+    `- Expected Cloud SQL instance: \`${reportData.expectedCloudSqlInstance}\``,
+    `- Required secret IDs: ${reportData.productionTargetContract.requiredSecretIds.map((item) => `\`${item}\``).join(", ")}`,
     "",
     "## Blockers",
     "",
