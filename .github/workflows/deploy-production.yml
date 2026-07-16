@@ -182,9 +182,8 @@ jobs:
           AFTER_JSON=output/production-release/service-candidate.json
           REVISION_JSON=output/production-release/revision-candidate.json
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$BEFORE_JSON"
-          PREVIOUS_REVISION="$(jq -r '.status.traffic[] | select((.percent // 0) == 100 and (.tag // "") == "") | .revisionName' "$BEFORE_JSON" | head -n1)"
+          PREVIOUS_REVISION="$(node scripts/select-production-serving-revision.mjs "$BEFORE_JSON")"
           DIRECT_BASE_URL="$(jq -r '.status.url' "$BEFORE_JSON")"
-          [[ "$PREVIOUS_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
           [[ "$DIRECT_BASE_URL" =~ ^https://ai-pdm-prod-[a-z0-9-]+\.a\.run\.app$ ]]
 
           TAG="candidate-${GITHUB_SHA:0:8}-${GITHUB_RUN_ID}"

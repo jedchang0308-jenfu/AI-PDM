@@ -11,6 +11,7 @@ import {
   buildReleaseTrafficPatch,
   snapshotReleaseService
 } from "./run-production-release-traffic.mjs";
+import { selectProductionServingRevision } from "./select-production-serving-revision.mjs";
 
 const root = process.cwd();
 const read = (relativePath) => readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
@@ -107,6 +108,7 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(workflow, /--tag "\$TAG"/u);
   assert.match(workflow, /--kind candidate/u);
   assert.match(workflow, /\.percent \/\/ 0/u);
+  assert.match(workflow, /select-production-serving-revision\.mjs/u);
 });
 
 record("PROD-PIPE-009 promotion and rollback use reviewed traffic-only REST runner", () => {
@@ -172,6 +174,33 @@ record("PROD-PIPE-015 package exposes release and QC commands", () => {
   assert.equal(packageJson.scripts?.["production:release-traffic"], "node scripts/run-production-release-traffic.mjs");
   assert.equal(packageJson.scripts?.["production:release-smoke"], "node scripts/run-production-release-smoke.mjs");
   assert.equal(packageJson.scripts?.["qc:production-deployment-pipeline"], "node scripts/qc-production-deployment-pipeline.mjs");
+});
+
+record("PROD-PIPE-016 tagged 100 percent revision remains the rollback baseline", () => {
+  const taggedService = {
+    status: {
+      traffic: [
+        { revisionName: "ai-pdm-prod-00010-quc", tag: "old-hotfix" },
+        { revisionName: previousRevision, percent: 100, tag: "hotfix-3ab5cffa" }
+      ]
+    }
+  };
+  assert.equal(selectProductionServingRevision(taggedService), previousRevision);
+  assert.throws(
+    () => selectProductionServingRevision({ status: { traffic: [] } }),
+    /PRODUCTION_SERVING_REVISION_COUNT_INVALID:0/u
+  );
+  assert.throws(
+    () => selectProductionServingRevision({
+      status: {
+        traffic: [
+          { revisionName: previousRevision, percent: 100 },
+          { revisionName: candidateRevision, percent: 100 }
+        ]
+      }
+    }),
+    /PRODUCTION_SERVING_REVISION_COUNT_INVALID:2/u
+  );
 });
 
 for (const result of results) {
