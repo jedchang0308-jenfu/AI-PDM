@@ -1,7 +1,7 @@
 {
   "hosting": {
     "site": "jenfu-ai-pdm-prod",
-    "public": "config/platform/firebase-hosting-production",
+    "public": "firebase-hosting-production",
     "ignore": [
       "firebase-hosting.production.json",
       "**/.*",

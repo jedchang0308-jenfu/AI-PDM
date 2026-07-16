@@ -12,6 +12,8 @@ Status: superseded DNS handoff; production Firebase Hosting pilot activation is 
 - The immutable application image is deployed. OCI index-to-linux/amd64 runtime manifest provenance is verified.
 - Workspace pilot AAL1 exception is enabled exactly as previously approved; Workspace MFA is not represented as trusted or AAL2.
 - Cloud Run v2 traffic-only rollback and restore passed without changing the service template; Terraform no-drift passed afterward.
+- Production Firebase Hosting is live at `https://jenfu-ai-pdm-prod.web.app`. The reviewed gateway plan contained 1 create, 2 in-place updates, 0 deletes and 0 replacements; post-apply Terraform is no-drift.
+- The production OAuth client now contains the `web.app` JavaScript origin and `/__/auth/handler` redirect URI. A popup smoke reaches the Google account chooser without `redirect_uri_mismatch`.
 
 ## Human Actions
 
