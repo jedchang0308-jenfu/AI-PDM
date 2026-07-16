@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "dev-032-production-level4-ui/hotfix-1936e93d/v1",
+  "generatedAt": "2026-07-16T06:06:42.669Z",
+  "target": "jenfu-ai-pdm-prod",
+  "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+  "currentUiUrl": "https://jenfu-ai-pdm-prod.web.app/parts?query=A0001-P01&detail=A0001-P01",
+  "revision": "ai-pdm-prod-00010-quc",
+  "imageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "sourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "previousFailedAttempt": {
+    "coreName": "DEV-032 正式上線驗收測試件 202607160543",
+    "failure": "operator does not exist: jsonb ~~ unknown",
+    "retried": false,
+    "noPartialRecordObservedByUiSearch": true
+  },
+  "authenticatedUiBasis": "Chrome page was already signed in; UI created a production numbering record and then loaded the authenticated part detail page. No cookies or storage were inspected.",
+  "productionSlice": {
+    "status": 200,
+    "configured": true,
+    "active": true,
+    "mode": "official-numbering-draft"
+  },
+  "uiAcceptanceInput": {
+    "coreName": "DEV-032 hotfix production acceptance 20260716140505",
+    "seriesCode": "DEV032-HF",
+    "drawingDescription": "DEV-032 production hotfix Level 4 smoke manufacturing drawing",
+    "submitted": true,
+    "result": {
+      "rootCode": "A0001",
+      "partNumber": "A0001-P01",
+      "drawingNumber": "A0001-M01",
+      "seriesCode": "DEV032-HF"
+    },
+    "partDetailVerified": true
+  },
+  "uiAcceptanceResult": {
+    "rootCode": "A0001",
+    "partNumber": "A0001-P01",
+    "drawingNumber": "A0001-M01",
+    "seriesCode": "DEV032-HF"
+  },
+  "checks": [
+    {
+      "name": "authenticated UI is not on login wall",
+      "passed": true,
+      "actual": "https://jenfu-ai-pdm-prod.web.app/parts?query=A0001-P01&detail=A0001-P01",
+      "expected": "authenticated /parts detail page"
+    },
+    {
+      "name": "production slice is active",
+      "passed": true,
+      "actual": "200/true/true/official-numbering-draft",
+      "expected": "200/true/true/official-numbering-draft"
+    },
+    {
+      "name": "single production submit succeeded",
+      "passed": true,
+      "actual": "A0001-P01",
+      "expected": "part number created once"
+    },
+    {
+      "name": "root code persisted in UI detail",
+      "passed": true,
+      "actual": "A0001",
+      "expected": "root visible"
+    },
+    {
+      "name": "manufactured non-shared series persisted in UI detail",
+      "passed": true,
+      "actual": "true/true",
+      "expected": "part and series visible"
+    },
+    {
+      "name": "drawing linked to part",
+      "passed": true,
+      "actual": "A0001-M01",
+      "expected": "drawing number visible"
+    },
+    {
+      "name": "unopened roadmap remains visible and blocked",
+      "passed": true,
+      "actual": "true/true",
+      "expected": "roadmap disabled markers visible"
+    }
+  ],
+  "passed": 7,
+  "failed": 0
+}

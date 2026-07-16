@@ -446,6 +446,49 @@ CREATE TABLE IF NOT EXISTS numbering_rule_versions (
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json)
+VALUES (
+  'numbering-rule-v1',
+  'PDM-NUMBERING-V1',
+  'PDM numbering rule v1',
+  'retired',
+  now(),
+  '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v2',
+  'PDM-NUMBERING-V2',
+  'PDM compact numbering rule v2',
+  'retired',
+  '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v3-alpha-root',
+  'PDM-NUMBERING-V3',
+  'PDM alphanumeric root numbering rule v3',
+  'active',
+  '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE numbering_rule_versions
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
+WHERE id = 'numbering-rule-v1';
+
+UPDATE numbering_rule_versions
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
+WHERE id = 'numbering-rule-v2';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = now()
+WHERE id = 'numbering-rule-v3-alpha-root';
+
 CREATE TABLE IF NOT EXISTS review_confirmation_events (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',

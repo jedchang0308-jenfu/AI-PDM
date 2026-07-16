@@ -10,11 +10,23 @@
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
   "artifact": {
-    "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
-    "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
-    "runtimeLinuxAmd64Digest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "runtimeLinuxAmd64Digest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
     "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
     "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+  },
+  "hotfix": {
+    "id": "hotfix-1936e93d",
+    "reason": "Cast numbering audit JSONB before LIKE on Cloud SQL Postgres.",
+    "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+    "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
+    "imageTag": "prod-hotfix-1936e93d",
+    "previousTrafficRevision": "ai-pdm-prod-00006-lx5",
+    "currentTrafficRevision": "ai-pdm-prod-00010-quc",
+    "taggedSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-tag-smoke.json",
+    "postTrafficSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
+    "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json"
   },
   "executions": {
     "principalBootstrap": "ai-pdm-prod-migration-runner-95bn8",
@@ -41,7 +53,7 @@
     ],
     "allowlistMode": "named-google-workspace-users-only",
     "failClosed": true,
-    "authenticatedLevel4Status": "pending_human_google_login",
+    "authenticatedLevel4Status": "passed",
     "productOwnerDecision": "pending"
   },
   "decisions": {

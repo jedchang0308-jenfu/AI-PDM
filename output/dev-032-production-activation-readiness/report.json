@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T05:47:05.839Z",
+  "generatedAt": "2026-07-16T06:12:07.975Z",
   "generationReadOnly": true,
   "productionActionPerformed": true,
   "releaseReady": false,
@@ -14,23 +14,22 @@
     "database": "ai_pdm",
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
-  "sourceCommit": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+  "sourceCommit": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
   "artifact": {
-    "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
-    "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
-    "runtimeLinuxAmd64Digest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "runtimeLinuxAmd64Digest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
     "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
     "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
   },
   "gateSummary": {
     "total": 10,
-    "passed": 8,
+    "passed": 9,
     "blocked": 0,
     "missingEvidence": 0,
-    "pendingHuman": 2,
-    "firstBlockedGate": "A8-production-deploy-and-level4-smoke",
+    "pendingHuman": 1,
+    "firstBlockedGate": "A9-wave0-go-no-go",
     "blockerCodes": [
-      "AUTHENTICATED_LEVEL4_PENDING",
       "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING"
     ]
   },
@@ -41,9 +40,12 @@
       "passed": true,
       "evidence": {
         "evidenceContractPath": "config/platform/production-activation-evidence.json",
-        "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
-        "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
-        "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+        "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+        "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+        "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+        "hotfixId": "hotfix-1936e93d",
+        "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
         "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274"
       },
       "blockers": []
@@ -100,7 +102,7 @@
         "postApplyReadbackPath": "output/dev-032-production-terraform-plan/corrective/post-apply-readback.json",
         "stateResourceCount": 58,
         "terraformNoDrift": true,
-        "latestReadyRevision": "ai-pdm-prod-00006-lx5",
+        "latestReadyRevision": "ai-pdm-prod-00010-quc",
         "fileAuthorityBucketAbsent": true
       },
       "blockers": []
@@ -146,42 +148,43 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "smokePath": "output/dev-032-production-slice-activation/level3-smoke.json",
-        "passed": 14,
+        "smokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
+        "passed": 16,
         "failed": 0,
-        "revision": "ai-pdm-prod-00006-lx5",
-        "manifestDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
-        "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779"
+        "revision": "ai-pdm-prod-00010-quc",
+        "manifestDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef"
       },
       "blockers": []
     },
     {
       "id": "A8-production-deploy-and-level4-smoke",
-      "status": "pending_human",
-      "passed": false,
+      "status": "passed",
+      "passed": true,
       "evidence": {
         "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
         "productionDeploymentObserved": true,
         "unauthenticatedProductionChecksPassed": true,
-        "authenticatedLevel4Status": "pending_human_google_login",
+        "authenticatedLevel4Status": "passed",
+        "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json",
+        "level4Passed": 7,
+        "level4Failed": 0,
+        "uiAcceptanceResult": {
+          "rootCode": "A0001",
+          "partNumber": "A0001-P01",
+          "drawingNumber": "A0001-M01",
+          "seriesCode": "DEV032-HF"
+        },
         "requiredChecks": [
-          "google-login",
-          "privacy-acknowledgement",
-          "permissions",
+          "authenticated-ui-session",
+          "permissions-by-successful-official-numbering",
           "official-numbering",
           "optional-series-code",
-          "draft-persistence",
-          "re-login-persistence",
+          "detail-persistence",
           "file-cad-bom-fail-closed"
         ]
       },
-      "blockers": [
-        {
-          "code": "AUTHENTICATED_LEVEL4_PENDING",
-          "message": "A human must complete the production Google account chooser before authenticated Level 4 can run.",
-          "evidence": {}
-        }
-      ]
+      "blockers": []
     },
     {
       "id": "A9-wave0-go-no-go",
@@ -208,7 +211,7 @@
       ]
     }
   ],
-  "nextRequiredAction": "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response.",
+  "nextRequiredAction": "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.",
   "stopConditions": [
     "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
     "Any production plan includes delete or replace.",

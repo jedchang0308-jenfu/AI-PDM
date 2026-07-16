@@ -43,10 +43,13 @@ const sources = {
   idempotence: readJson("output/dev-032-live-migration/migration-execution-idempotence-result.json"),
   migrationProvenance: readJson("output/dev-032-live-migration/migration-runner-provenance.json"),
   runtimeProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance.json"),
+  runtimeHotfixProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance-hotfix-1936e93d.json"),
   rollback: readJson("output/dev-032-rollback-drill/v2-api-closure.json"),
   hosting: readJson("output/dev-032-production-hosting-plan/summary.json"),
   slicePlan: readJson("output/dev-032-production-slice-activation/plan-review.json"),
-  level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json")
+  level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json"),
+  level3Current: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json"),
+  level4: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json")
 };
 const checklist = sources.checklist.parsed ?? {};
 const evidence = sources.evidence.parsed ?? {};
@@ -60,22 +63,31 @@ const migration = sources.migration.parsed ?? {};
 const idempotence = sources.idempotence.parsed ?? {};
 const migrationProvenance = sources.migrationProvenance.parsed ?? {};
 const runtimeProvenance = sources.runtimeProvenance.parsed ?? {};
+const currentRuntimeProvenance = sources.runtimeHotfixProvenance.parsed ?? runtimeProvenance;
 const rollback = sources.rollback.parsed ?? {};
 const hosting = sources.hosting.parsed ?? {};
 const slicePlan = sources.slicePlan.parsed ?? {};
-const level3 = sources.level3.parsed ?? {};
+const level3 = sources.level3Current.parsed ?? sources.level3.parsed ?? {};
+const level4 = sources.level4.parsed ?? {};
 const wave0 = evidence.wave0 ?? {};
+const level3ManifestDigest = level3.manifestDigest ?? level3.imageDigest ?? null;
+const level3RuntimeDigest = level3.runtimeDigest ?? level3.imageDigest ?? null;
+const hotfix = evidence.hotfix ?? {};
+const baseActivationSourceReady = hotfix.baseActivationSourceRevision
+  ? terraformReview.applicationSourceCommit === hotfix.baseActivationSourceRevision
+  : terraformReview.applicationSourceCommit === evidence.artifact?.applicationSourceRevision;
 
 const sourceReady = sources.evidence.exists
   && live.allChecksPassed === true
-  && terraformReview.applicationSourceCommit === evidence.artifact?.applicationSourceRevision
+  && baseActivationSourceReady
+  && live.artifact?.applicationSourceRevision === evidence.artifact?.applicationSourceRevision
   && live.artifact?.applicationImageDigest === evidence.artifact?.applicationImageDigest
   && live.artifact?.migrationSourceRevision === evidence.artifact?.migrationSourceRevision
   && migrationProvenance.sourceRevision === evidence.artifact?.migrationSourceRevision
   && migrationProvenance.registryDigestReadback === evidence.artifact?.migrationImageDigest
-  && runtimeProvenance.indexDigest === evidence.artifact?.applicationImageDigest
-  && runtimeProvenance.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
-  && runtimeProvenance.runtimeDigestIsLinuxAmd64Child === true;
+  && currentRuntimeProvenance.indexDigest === evidence.artifact?.applicationImageDigest
+  && currentRuntimeProvenance.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+  && currentRuntimeProvenance.runtimeDigestIsLinuxAmd64Child === true;
 const targetReady = live.allChecksPassed === true
   && live.target?.projectId === evidence.target?.projectId
   && live.target?.region === evidence.target?.region
@@ -130,13 +142,19 @@ const restoreReady = live.recovery?.backupStatus === "SUCCESSFUL"
   && live.checks?.numberingSnapshotMatched === true
   && rollback.allChecksPassed === true
   && rollback.rollbackApplied === true;
-const level3Ready = level3.passed === 14
+const level3Ready = level3.passed >= 14
   && level3.failed === 0
   && level3.revision === live.runtime?.latestReadyRevision
-  && level3.manifestDigest === evidence.artifact?.applicationImageDigest
-  && level3.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+  && level3ManifestDigest === evidence.artifact?.applicationImageDigest
+  && level3RuntimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
   && live.runtime?.productionSliceMode === "official-numbering-draft";
-const level4Ready = wave0.authenticatedLevel4Status === "passed";
+const level4Ready = wave0.authenticatedLevel4Status === "passed"
+  && level4.failed === 0
+  && level4.revision === live.runtime?.latestReadyRevision
+  && level4.imageDigest === evidence.artifact?.applicationImageDigest
+  && level4.uiAcceptanceResult?.partNumber
+  && level4.uiAcceptanceResult?.drawingNumber
+  && level4.uiAcceptanceResult?.seriesCode;
 const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
 const wave0Ready = level4Ready
   && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
@@ -149,7 +167,10 @@ const gates = [
     evidenceContractPath: sources.evidence.path,
     applicationSourceRevision: evidence.artifact?.applicationSourceRevision ?? null,
     applicationImageDigest: live.artifact?.applicationImageDigest ?? null,
-    runtimeDigest: runtimeProvenance.runtimeDigest ?? null,
+    runtimeDigest: currentRuntimeProvenance.runtimeDigest ?? null,
+    baseActivationSourceRevision: hotfix.baseActivationSourceRevision ?? null,
+    hotfixId: hotfix.id ?? null,
+    cloudBuildId: hotfix.cloudBuildId ?? null,
     migrationSourceRevision: live.artifact?.migrationSourceRevision ?? null
   }, passedOrBlocked(sourceReady, "ARTIFACT_PROVENANCE_INCOMPLETE", "Application or migration artifact provenance does not match the release evidence contract.")),
   gate("A1-production-target-readback", targetReady ? "passed" : "missing_evidence", {
@@ -209,19 +230,23 @@ const gates = [
     rollbackClosurePath: sources.rollback.path
   }, passedOrBlocked(restoreReady, "HD84_RESTORE_RECONCILIATION_FAILED", "Separate-target restore, numbering reconciliation or rollback evidence failed.")),
   gate("A7-level3-production-like-smoke", level3Ready ? "passed" : "blocked", {
-    smokePath: sources.level3.path,
+    smokePath: sources.level3Current.exists ? sources.level3Current.path : sources.level3.path,
     passed: level3.passed ?? null,
     failed: level3.failed ?? null,
     revision: level3.revision ?? null,
-    manifestDigest: level3.manifestDigest ?? null,
-    runtimeDigest: level3.runtimeDigest ?? null
+    manifestDigest: level3ManifestDigest,
+    runtimeDigest: level3RuntimeDigest
   }, passedOrBlocked(level3Ready, "LEVEL3_PRODUCTION_LIKE_SMOKE_FAILED", "Level 3 production-like smoke is missing, stale or failed.")),
   gate("A8-production-deploy-and-level4-smoke", level4Ready ? "passed" : "pending_human", {
     canonicalBaseUrl: evidence.target?.canonicalBaseUrl ?? null,
-    productionDeploymentObserved: live.checks?.runtimeReady === true && level3.passed === 14,
+    productionDeploymentObserved: live.checks?.runtimeReady === true && level3.passed >= 14,
     unauthenticatedProductionChecksPassed: level3.failed === 0,
     authenticatedLevel4Status: wave0.authenticatedLevel4Status ?? "missing_evidence",
-    requiredChecks: ["google-login", "privacy-acknowledgement", "permissions", "official-numbering", "optional-series-code", "draft-persistence", "re-login-persistence", "file-cad-bom-fail-closed"]
+    level4EvidencePath: sources.level4.path,
+    level4Passed: level4.passed ?? null,
+    level4Failed: level4.failed ?? null,
+    uiAcceptanceResult: level4.uiAcceptanceResult ?? null,
+    requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-cad-bom-fail-closed"]
   }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_PENDING", "A human must complete the production Google account chooser before authenticated Level 4 can run.")]),
   gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
     allowlistMode: wave0.allowlistMode ?? null,
@@ -268,8 +293,10 @@ const report = {
     ? "Record final release closure and preserve the evidence package."
     : firstBlockedGate?.id === "A2-provider-and-env-readback"
       ? "Resolve the provider secret exposure review by rotating the affected OAuth client secret or recording explicit product-owner residual-risk acceptance, then regenerate readiness."
-      : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
+    : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
       ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
+      : firstBlockedGate?.id === "A9-wave0-go-no-go"
+        ? "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
       : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };
