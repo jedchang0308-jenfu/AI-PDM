@@ -767,7 +767,7 @@ record(
 );
 record(
   "SOURCE-BOUNDARY clean next script uses explicit workspace rm",
-  cleanNextSource.includes('import { rm } from "node:fs/promises"') &&
+  /import\s*{[^}]*\brm\b[^}]*}\s*from\s*["']node:fs\/promises["']/.test(cleanNextSource) &&
     cleanNextSource.includes('const nextDir = path.join(process.cwd(), ".next")') &&
     cleanNextSource.includes("await rm(nextDir, { recursive: true, force: true })") &&
     !cleanNextSource.includes('import fs from "node:fs/promises"') &&
