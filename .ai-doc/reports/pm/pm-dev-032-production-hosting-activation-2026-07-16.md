@@ -24,6 +24,7 @@ Risk lane: Lane 3 production infrastructure and authentication configuration
 
 - Firebase Hosting deployment used only `config/platform/firebase-hosting.production.json` and site `jenfu-ai-pdm-prod`.
 - The first deploy attempt stopped before upload because the config-relative public path was incorrect. The path was corrected to `firebase-hosting-production`; the second deploy finalized and released successfully.
+- Hosting readback: release `sites/jenfu-ai-pdm-prod/releases/1784160101842000`, version `sites/jenfu-ai-pdm-prod/versions/07034b9c63cd54dd`, status `FINALIZED`.
 - Identity Platform authorized domains include `jenfu-ai-pdm-prod.web.app`, `jenfu-ai-pdm-prod.firebaseapp.com` and `pdm.jenfu.com.tw`.
 - Initial Google popup smoke exposed `redirect_uri_mismatch` for `https://jenfu-ai-pdm-prod.web.app/__/auth/handler`.
 - The production OAuth client was updated through Google Auth Platform with the `https://jenfu-ai-pdm-prod.web.app` JavaScript origin and matching `/__/auth/handler` redirect URI. The console reported `OAuth client saved`.
