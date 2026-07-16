@@ -174,7 +174,10 @@ const SELECT_REISSUABLE_FIREBASE_INVITATION_SQL = `
   JOIN platform_principal_mappings principal_mapping
     ON principal_mapping.pdm_user_id = invited_user.id
   WHERE lower(invitation.email) = lower(:email)
-    AND (:invitationId IS NULL OR invitation.id = :invitationId)
+    AND (
+      CAST(:invitationId AS text) IS NULL
+      OR invitation.id = CAST(:invitationId AS text)
+    )
     AND invitation.status = 'revoked'
     AND firebase_invitation.setup_state = 'compensated'
     AND invited_user.account_status = 'suspended'
