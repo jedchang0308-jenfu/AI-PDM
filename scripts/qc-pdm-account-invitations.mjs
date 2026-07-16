@@ -10,6 +10,10 @@ import { chromium } from "playwright";
 const root = process.cwd();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-account-invitations-"));
 const generatedFileSnapshots = new Map(["next-env.d.ts", "tsconfig.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
+const asyncInvitationRepositorySource = fs.readFileSync(
+  path.join(root, "src", "lib", "repositories", "account-invitation-async-repository.ts"),
+  "utf8"
+);
 const bootstrapPassword = "Managed-QC-Password-2026";
 const invitedPassword = "Invite-QC-Password-2026";
 const bootstrapUsers = [
@@ -395,6 +399,12 @@ try {
   results.push(expect("INVITE-033 revoked invitation exposes a reissue action that prefills and locks identity", reissueFormPrefilled, true));
   results.push(expect("INVITE-034 reissue UI submits the exact revoked invitation record", reissueUiSubmittedExactRecord, true));
   results.push(expect("INVITE-035 reissue UI confirms that Firebase sent a fresh invitation email", await managedDeliveryPage.getByText("邀請信已重新寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。", { exact: true }).isVisible(), true));
+  results.push(expect(
+    "INVITE-036 PostgreSQL reissue filter explicitly types the nullable invitation ID",
+    asyncInvitationRepositorySource.includes("CAST(:invitationId AS text) IS NULL") &&
+      asyncInvitationRepositorySource.includes("invitation.id = CAST(:invitationId AS text)"),
+    true
+  ));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
