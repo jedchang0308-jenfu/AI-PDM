@@ -5,9 +5,11 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
+import { chromium } from "playwright";
 
 const root = process.cwd();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-account-invitations-"));
+const generatedFileSnapshots = new Map(["next-env.d.ts", "tsconfig.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
 const bootstrapPassword = "Managed-QC-Password-2026";
 const invitedPassword = "Invite-QC-Password-2026";
 const bootstrapUsers = [
@@ -96,6 +98,10 @@ async function removeTempDir(dir) {
   }
 }
 
+function restoreGeneratedFiles() {
+  for (const [file, content] of generatedFileSnapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+}
+
 async function waitForApp(baseUrl, getOutput) {
   const deadline = Date.now() + 40000;
   let lastError = "";
@@ -133,6 +139,7 @@ function expect(name, actual, expected) {
 }
 
 let app;
+let browser;
 const results = [];
 
 try {
@@ -166,6 +173,51 @@ try {
     body: JSON.stringify({ displayName: "Invited User", email: "invited.user@example.com", role: "Engineer", expiresInDays: 7 })
   });
   const listBefore = await requestJson(`${app.baseUrl}/api/admin/account-invitations`, { headers: { cookie: admin.cookie } });
+  browser = await chromium.launch({ headless: true });
+  const browserContext = await browser.newContext();
+  const [sessionCookieName, ...sessionCookieValueParts] = admin.cookie.split("=");
+  await browserContext.addCookies([{
+    name: sessionCookieName,
+    value: sessionCookieValueParts.join("="),
+    url: app.baseUrl
+  }]);
+  const managedDeliveryPage = await browserContext.newPage();
+  const managedPageErrors = [];
+  managedDeliveryPage.on("pageerror", (error) => managedPageErrors.push(error.message));
+  await managedDeliveryPage.route("**/api/admin/account-invitations", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        invitation: {
+          id: "managed-delivery-ui",
+          email: "managed.delivery@example.com",
+          displayName: "Managed Delivery",
+          role: "Engineer",
+          status: "pending",
+          invitedByName: "Invite QC Admin",
+          invitedAt: "2026-07-16T00:00:00.000Z",
+          expiresAt: "2026-07-23T00:00:00.000Z",
+          acceptedAt: null,
+          revokedAt: null
+        },
+        delivery: "firebase_managed_email"
+      })
+    });
+  });
+  await managedDeliveryPage.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "networkidle" });
+  await managedDeliveryPage.getByLabel("姓名").fill("Managed Delivery");
+  await managedDeliveryPage.getByLabel("公司電子郵件").fill("managed.delivery@example.com");
+  await managedDeliveryPage.getByRole("button", { name: "建立邀請" }).click();
+  await managedDeliveryPage.getByText("邀請信已寄出", { exact: true }).waitFor();
+  const managedDeliveryUiCorrect =
+    await managedDeliveryPage.getByText("目前不用再傳送連結", { exact: false }).isVisible() &&
+    await managedDeliveryPage.getByRole("button", { name: "複製連結" }).count() === 0 &&
+    await managedDeliveryPage.getByLabel("一次性邀請連結").count() === 0;
   const lookup = await requestJson(`${app.baseUrl}/api/account-invitations/lookup?token=${encodeURIComponent(token)}`);
   const weakPassword = await requestJson(`${app.baseUrl}/api/account-invitations/accept`, {
     method: "POST",
@@ -210,11 +262,80 @@ try {
     body: JSON.stringify({ token: revokedToken, password: invitedPassword })
   });
 
+  const compensatedUserId = "user-invite-qc-compensated";
+  const compensatedFirebaseUid = "firebase-invite-qc-compensated";
+  const reissueSeedDatabase = new Database(databasePath);
+  reissueSeedDatabase.prepare(
+    `INSERT INTO users (
+       id, display_name, email, password_hash, role, company_id,
+       account_status, system_role_enabled, account_status_changed_at,
+       account_status_changed_by, account_status_reason, created_at, updated_at
+     ) VALUES (?, ?, ?, NULL, ?, 'company-jenfu', 'suspended', 0, ?, ?, 'firebase_invitation_compensated', ?, ?)`
+  ).run(
+    compensatedUserId,
+    "Revoked User",
+    "revoked.user@example.com",
+    "Manufacturing",
+    "2026-07-16T01:00:00.000Z",
+    "user-invite-qc-admin",
+    "2026-07-16T00:00:00.000Z",
+    "2026-07-16T01:00:00.000Z"
+  );
+  reissueSeedDatabase.prepare(
+    `INSERT INTO platform_principal_mappings (
+       platform_principal_id, pdm_user_id, mapping_source, mapping_status,
+       external_subject, created_at, updated_at
+     ) VALUES (?, ?, 'shared_iam', 'suspended', ?, ?, ?)`
+  ).run(
+    `firebase:${compensatedFirebaseUid}`,
+    compensatedUserId,
+    compensatedFirebaseUid,
+    "2026-07-16T00:00:00.000Z",
+    "2026-07-16T01:00:00.000Z"
+  );
+  reissueSeedDatabase.prepare(
+    `INSERT INTO firebase_identity_invitations (
+       invitation_id, firebase_uid, pdm_user_id, setup_state, last_error, created_at, updated_at
+     ) VALUES (?, ?, ?, 'compensated', 'firebase_invitation_revoked', ?, ?)`
+  ).run(
+    createRevoked.body.invitation?.id,
+    compensatedFirebaseUid,
+    compensatedUserId,
+    "2026-07-16T00:00:00.000Z",
+    "2026-07-16T01:00:00.000Z"
+  );
+  reissueSeedDatabase.close();
+
+  const { SQLiteAsyncDatabaseClient } = await import("../src/lib/db-async-provider.ts");
+  const { AsyncAccountInvitationRepository } = await import("../src/lib/repositories/account-invitation-async-repository.ts");
+  const reissueDatabase = new Database(databasePath);
+  const reissueRepository = new AsyncAccountInvitationRepository(
+    new SQLiteAsyncDatabaseClient(reissueDatabase),
+    () => "2026-07-16T02:00:00.000Z"
+  );
+  const reissuedInvitation = await reissueRepository.reissueCompensatedFirebase({
+    email: "revoked.user@example.com",
+    displayName: "Reinvited User",
+    role: "Engineer",
+    tokenHash: "d".repeat(64),
+    invitedBy: "user-invite-qc-admin",
+    expiresAt: "2026-07-23T02:00:00.000Z"
+  });
+  const activeAccountReissue = await reissueRepository.reissueCompensatedFirebase({
+    email: "invite.qc.admin@example.com",
+    displayName: "Must Stay Active",
+    role: "Admin",
+    tokenHash: "e".repeat(64),
+    invitedBy: "user-invite-qc-admin",
+    expiresAt: "2026-07-23T02:00:00.000Z"
+  });
+  reissueDatabase.close();
+
   const afterDatabase = new Database(databasePath, { readonly: true });
   const storedAfter = afterDatabase.prepare("SELECT status, accepted_by FROM account_invitations WHERE id = ?").get(create.body.invitation?.id);
   const acceptedUser = afterDatabase.prepare("SELECT id, password_hash, role FROM users WHERE lower(email) = lower(?)").get("invited.user@example.com");
   const acceptedIdentities = afterDatabase.prepare("SELECT provider FROM auth_identities WHERE user_id = ? ORDER BY provider").all(acceptedUser?.id);
-  const audits = afterDatabase.prepare("SELECT action, COUNT(*) count FROM audit_logs WHERE action IN ('AccountInvitationCreated', 'AccountInvitationAccepted', 'AccountInvitationRevoked') GROUP BY action").all();
+  const audits = afterDatabase.prepare("SELECT action, COUNT(*) count FROM audit_logs WHERE action IN ('AccountInvitationCreated', 'AccountInvitationAccepted', 'AccountInvitationRevoked', 'AccountInvitationReissued') GROUP BY action").all();
   const acceptedAudit = afterDatabase.prepare("SELECT detail_json FROM audit_logs WHERE actor_id = ? AND action = 'AccountInvitationAccepted' ORDER BY created_at DESC LIMIT 1").get(acceptedUser?.id);
   afterDatabase.close();
   const auditCounts = Object.fromEntries(audits.map((row) => [row.action, Number(row.count)]));
@@ -244,6 +365,13 @@ try {
   results.push(expect("INVITE-023 invitation lifecycle writes audit evidence", (auditCounts.AccountInvitationCreated ?? 0) >= 2 && (auditCounts.AccountInvitationAccepted ?? 0) >= 1 && (auditCounts.AccountInvitationRevoked ?? 0) >= 1, true));
   results.push(expect("INVITE-024 password acceptance creates provider-neutral identities", acceptedIdentities.map((item) => item.provider).join(","), "invite,local_password"));
   results.push(expect("INVITE-025 local password audit records provider without secret", String(acceptedAudit?.detail_json ?? "").includes('"provider":"local_password"') && !String(acceptedAudit?.detail_json ?? "").includes(invitedPassword), true));
+  results.push(expect("INVITE-026 Firebase managed delivery confirms email without exposing copy controls", managedDeliveryUiCorrect, true));
+  results.push(expect("INVITE-027 Firebase managed delivery UI has no page errors", managedPageErrors.length, 0));
+  results.push(expect("INVITE-028 compensated Firebase invitation can be reissued", reissuedInvitation?.invitation.status, "pending"));
+  results.push(expect("INVITE-029 reissue preserves PDM and Firebase identity IDs", `${reissuedInvitation?.pdmUserId}:${reissuedInvitation?.firebaseUid}`, `${compensatedUserId}:${compensatedFirebaseUid}`));
+  results.push(expect("INVITE-030 reissue applies new display name and role", `${reissuedInvitation?.invitation.displayName}:${reissuedInvitation?.invitation.role}`, "Reinvited User:Engineer"));
+  results.push(expect("INVITE-031 active account cannot enter compensated reissue path", activeAccountReissue, null));
+  results.push(expect("INVITE-032 invitation reissue writes audit evidence", (auditCounts.AccountInvitationReissued ?? 0) >= 1, true));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
@@ -252,7 +380,9 @@ try {
   console.error(JSON.stringify({ passed: 0, failed: 1, results, error: error instanceof Error ? error.message : String(error), appOutput: app?.getOutput() ?? "" }, null, 2));
   process.exitCode = 1;
 } finally {
+  if (browser) await browser.close();
   if (app) await stopApp(app.child);
+  restoreGeneratedFiles();
   if (app?.distDir) await removeTempDir(app.distDir);
   await removeTempDir(tempDir);
 }

@@ -22,7 +22,8 @@ type Invitation = {
 
 type CreatedInvitation = {
   invitation: Invitation;
-  inviteUrl: string;
+  inviteUrl: string | null;
+  delivery: "manual_email" | "firebase_managed_email";
 };
 
 const roleOptions: Array<{ value: InvitationRole; label: string }> = [
@@ -65,7 +66,7 @@ export default function AccountInvitationsPage() {
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const mailtoHref = useMemo(() => {
-    if (!created) return "";
+    if (!created?.inviteUrl) return "";
     const subject = "AI PDM 帳號邀請";
     const body = [
       `${created.invitation.displayName} 您好：`,
@@ -118,16 +119,24 @@ export default function AccountInvitationsPage() {
       setMessage({ type: "error", text: body.message ?? "邀請建立失敗，請確認資料後重試。" });
       return;
     }
-    setCreated({ invitation: body.invitation, inviteUrl: body.inviteUrl });
-    setMessage({ type: "success", text: "邀請連結已建立。下一步請開啟郵件並完成寄送。" });
+    const delivery = body.delivery === "firebase_managed_email" ? "firebase_managed_email" : "manual_email";
+    setCreated({
+      invitation: body.invitation,
+      inviteUrl: typeof body.inviteUrl === "string" && body.inviteUrl ? body.inviteUrl : null,
+      delivery
+    });
+    const successMessage = delivery === "firebase_managed_email"
+      ? "邀請信已寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。"
+      : "邀請連結已建立。下一步請開啟郵件並完成寄送。";
+    setMessage({ type: "success", text: successMessage });
     setDisplayName("");
     setEmail("");
     await loadInvitations();
-    setMessage({ type: "success", text: "邀請連結已建立。下一步請開啟郵件並完成寄送。" });
+    setMessage({ type: "success", text: successMessage });
   }
 
   async function copyInviteLink() {
-    if (!created) return;
+    if (!created?.inviteUrl) return;
     try {
       await navigator.clipboard.writeText(created.inviteUrl);
       setMessage({ type: "success", text: "邀請連結已複製。請貼到公司核准的通訊工具並寄給受邀者。" });
@@ -163,7 +172,7 @@ export default function AccountInvitationsPage() {
       <header className="page-header">
         <div>
           <h1>帳號邀請</h1>
-          <p>建立一次性邀請連結，讓內部人員自行設定密碼。</p>
+          <p>建立帳號邀請，讓內部人員依收到的連結完成啟用。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void loadInvitations()} disabled={loading || saving}>
           <RefreshCw size={16} aria-hidden="true" />
@@ -207,7 +216,7 @@ export default function AccountInvitationsPage() {
             </label>
             <button className="primary-button account-invitation-submit" type="submit" disabled={saving}>
               <Send size={16} aria-hidden="true" />
-              {saving ? "建立中..." : "建立邀請連結"}
+              {saving ? "建立中..." : "建立邀請"}
             </button>
           </form>
         </div>
@@ -215,25 +224,34 @@ export default function AccountInvitationsPage() {
         {message ? <div className={`account-invitation-message is-${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</div> : null}
 
         {created ? (
-          <div className="account-invitation-created" aria-label="新建立的邀請連結">
-            <div>
-              <strong>下一步：寄出邀請</strong>
-              <p>系統目前不會自動寄信。請開啟預填郵件完成寄送，或複製連結後使用公司核准的通訊工具傳送。</p>
-            </div>
-            <label>
-              一次性邀請連結
-              <input value={created.inviteUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-            </label>
-            <div className="account-invitation-created-actions">
-              <a className="primary-button" href={mailtoHref}>
-                <Mail size={16} aria-hidden="true" />
-                開啟郵件
-              </a>
-              <button className="secondary-button" type="button" onClick={() => void copyInviteLink()}>
-                <ClipboardCopy size={16} aria-hidden="true" />
-                複製連結
-              </button>
-            </div>
+          <div className={`account-invitation-created${created.delivery === "firebase_managed_email" ? " is-managed-delivery" : ""}`} aria-label="新建立的邀請">
+            {created.delivery === "firebase_managed_email" ? (
+              <div>
+                <strong>邀請信已寄出</strong>
+                <p>已寄至 {created.invitation.email}。目前不用再傳送連結；若未收到，請先檢查垃圾郵件，再由管理員撤銷並重新邀請。</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <strong>下一步：寄出邀請</strong>
+                  <p>請開啟預填郵件完成寄送，或複製連結後使用公司核准的通訊工具傳送。</p>
+                </div>
+                <label>
+                  一次性邀請連結
+                  <input value={created.inviteUrl ?? ""} readOnly onFocus={(event) => event.currentTarget.select()} />
+                </label>
+                <div className="account-invitation-created-actions">
+                  <a className="primary-button" href={mailtoHref}>
+                    <Mail size={16} aria-hidden="true" />
+                    開啟郵件
+                  </a>
+                  <button className="secondary-button" type="button" onClick={() => void copyInviteLink()}>
+                    <ClipboardCopy size={16} aria-hidden="true" />
+                    複製連結
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
 
@@ -241,7 +259,7 @@ export default function AccountInvitationsPage() {
           <div className="account-invitation-list-heading">
             <div>
               <h2>邀請紀錄</h2>
-              <p>連結只在建立當下顯示；遺失時請撤銷舊邀請，再建立新邀請。</p>
+              <p>邀請只在建立當下寄送或顯示；未收到時請先檢查垃圾郵件，再撤銷並重新邀請。</p>
             </div>
             <span>{invitations.length} 筆</span>
           </div>

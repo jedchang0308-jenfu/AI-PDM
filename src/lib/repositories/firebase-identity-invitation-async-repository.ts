@@ -1,4 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { UserRole } from "@/lib/auth-config";
 import type { InvitationSetupState } from "@/lib/platform-identity-contract";
 
 export type FirebaseIdentityInvitation = {
@@ -38,6 +39,62 @@ export class FirebaseIdentityInvitationAsyncRepository {
        ) VALUES (:invitationId, :firebaseUid, :pdmUserId, 'requested', :now, :now)`,
       { ...input, now }
     );
+  }
+
+  async prepareCompensatedReissue(input: {
+    invitationId: string;
+    firebaseUid: string;
+    pdmUserId: string;
+    displayName: string;
+    role: UserRole;
+    actorId: string;
+    now?: string;
+  }) {
+    const now = input.now ?? new Date().toISOString();
+    await this.client.execute(
+      `UPDATE users
+       SET display_name = :displayName,
+           role = :role,
+           account_status = 'active',
+           system_role_enabled = 1,
+           account_status_changed_at = :now,
+           account_status_changed_by = :actorId,
+           account_status_reason = 'firebase_invitation_reissued',
+           updated_at = :now
+       WHERE id = :pdmUserId
+         AND account_status = 'suspended'
+         AND system_role_enabled = 0
+         AND account_status_reason = 'firebase_invitation_compensated'
+         AND password_hash IS NULL`,
+      { ...input, now }
+    );
+    await this.client.execute(
+      `UPDATE firebase_identity_invitations
+       SET setup_state = 'requested', last_error = NULL, updated_at = :now
+       WHERE invitation_id = :invitationId
+         AND firebase_uid = :firebaseUid
+         AND pdm_user_id = :pdmUserId
+         AND setup_state = 'compensated'`,
+      { ...input, now }
+    );
+
+    const user = await this.client.queryOne<{ account_status: string; system_role_enabled: number | boolean; account_status_reason: string | null }>(
+      `SELECT account_status, system_role_enabled, account_status_reason
+       FROM users
+       WHERE id = :pdmUserId`,
+      { pdmUserId: input.pdmUserId }
+    );
+    const invitation = await this.getByInvitationId(input.invitationId);
+    if (
+      user?.account_status !== "active" ||
+      !Boolean(Number(user.system_role_enabled)) ||
+      user.account_status_reason !== "firebase_invitation_reissued" ||
+      invitation?.setupState !== "requested" ||
+      invitation.firebaseUid !== input.firebaseUid ||
+      invitation.pdmUserId !== input.pdmUserId
+    ) {
+      throw new Error("FIREBASE_INVITATION_REISSUE_PREPARE_FAILED");
+    }
   }
 
   async setState(invitationId: string, state: InvitationSetupState, detail?: string) {

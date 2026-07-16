@@ -140,6 +140,9 @@ record("DEV046-2B-013 invitation, Firebase Web config and Google provider eviden
 
 function fakeInvitationClient(operations) {
   let sharedMapping = false;
+  let externalSubject = "pdm-firebase-fixed";
+  let reissuedUser = false;
+  let reissuedInvitation = false;
   return {
     kind: "sqlite",
     async query() { return []; },
@@ -151,13 +154,40 @@ function fakeInvitationClient(operations) {
           pdm_user_id: params.pdmUserId,
           mapping_source: sharedMapping ? "shared_iam" : "current_pdm",
           mapping_status: "active",
-          external_subject: sharedMapping ? "pdm-firebase-fixed" : null
+          external_subject: sharedMapping ? externalSubject : null
         };
+      }
+      if (sql.includes("FROM users") && sql.includes("account_status_reason")) {
+        return reissuedUser ? {
+          account_status: "active",
+          system_role_enabled: 1,
+          account_status_reason: "firebase_invitation_reissued"
+        } : null;
+      }
+      if (sql.includes("FROM firebase_identity_invitations")) {
+        return reissuedInvitation ? {
+          invitation_id: "invitation-fixed",
+          firebase_uid: "pdm-firebase-existing",
+          pdm_user_id: "prod-pdm-existing",
+          setup_state: "requested",
+          last_error: null
+        } : null;
       }
       return null;
     },
     async execute(sql, params = {}) {
-      if (sql.includes("SET platform_principal_id")) sharedMapping = true;
+      if (sql.includes("SET platform_principal_id")) {
+        sharedMapping = true;
+        externalSubject = params.externalSubject;
+      }
+      if (sql.includes("account_status = 'active'")) {
+        reissuedUser = true;
+        operations.push("reissue:user");
+      }
+      if (sql.includes("SET setup_state = 'requested'")) {
+        reissuedInvitation = true;
+        operations.push("reissue:invitation");
+      }
       if (params.state) operations.push(`state:${params.state}`);
       if (sql.includes("setup_state = 'compensated'")) operations.push("state:compensated");
     },
@@ -198,6 +228,7 @@ try {
       client: fakeInvitationClient(successOperations),
       idFactory: () => "fixed",
       createCanonical: async () => canonicalInvitation(),
+      reissueCanonical: async () => null,
       revokeCanonical: async () => canonicalInvitation().invitation,
       firebase: {
         async verifyIdToken() { throw new Error("not-used"); },
@@ -223,6 +254,7 @@ try {
         client: fakeInvitationClient(failureOperations),
         idFactory: () => "fixed",
         createCanonical: async () => canonicalInvitation(),
+        reissueCanonical: async () => null,
         revokeCanonical: async () => { failureOperations.push("canonical:revoked"); return canonicalInvitation().invitation; },
         firebase: {
           async verifyIdToken() { throw new Error("not-used"); },
@@ -239,6 +271,49 @@ try {
     failureCompensated = error instanceof Error && error.message === "EMAIL_DELIVERY_FAILED";
   }
   record("DEV046-2B-015 invitation delivery failure compensates provider and database", failureCompensated && ["disable:pdm-firebase-fixed", "revoke:pdm-firebase-fixed", "delete:pdm-firebase-fixed", "state:compensated", "canonical:revoked"].every((item) => failureOperations.includes(item)));
+
+  const reissueOperations = [];
+  const reissued = await createFirebaseManagedInvitation(
+    { email: "invitee@jenfu.com.tw", displayName: "Invitee Reissued", role: "Engineer", invitedBy: "admin-001" },
+    {
+      client: fakeInvitationClient(reissueOperations),
+      idFactory: () => "must-not-be-used",
+      createCanonical: async () => { throw new Error("NEW_CANONICAL_MUST_NOT_BE_CREATED"); },
+      reissueCanonical: async () => ({
+        ...canonicalInvitation(),
+        pdmUserId: "prod-pdm-existing",
+        firebaseUid: "pdm-firebase-existing"
+      }),
+      revokeCanonical: async () => canonicalInvitation().invitation,
+      firebase: {
+        async verifyIdToken() { throw new Error("not-used"); },
+        async createEmailPasswordIdentity(input) { reissueOperations.push(`identity:${input.uid}`); return { uid: input.uid, email: input.email }; },
+        async generatePasswordSetupLink() { return "not-used"; },
+        async disableIdentity(uid) { reissueOperations.push(`disable:${uid}`); },
+        async revokeRefreshTokens(uid) { reissueOperations.push(`revoke:${uid}`); },
+        async deleteIdentity(uid) { reissueOperations.push(`delete:${uid}`); }
+      },
+      actionEmail: {
+        async sendEmailSignInLink(input) { reissueOperations.push(`email:${input.email}`); }
+      }
+    }
+  );
+  record(
+    "DEV046-2B-016 compensated invitation reuses stable IDs and sends a fresh managed email",
+    reissued.reissued === true &&
+      reissued.pdmUserId === "prod-pdm-existing" &&
+      reissued.firebaseUid === "pdm-firebase-existing" &&
+      [
+        "reissue:user",
+        "reissue:invitation",
+        "disable:pdm-firebase-existing",
+        "revoke:pdm-firebase-existing",
+        "delete:pdm-firebase-existing",
+        "identity:pdm-firebase-existing",
+        "email:invitee@jenfu.com.tw",
+        "state:password_setup_link_sent"
+      ].every((item) => reissueOperations.includes(item))
+  );
 } finally {
   if (originalPublicUrl === undefined) delete process.env.PDM_PUBLIC_BASE_URL;
   else process.env.PDM_PUBLIC_BASE_URL = originalPublicUrl;

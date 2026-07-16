@@ -45,17 +45,15 @@ function invitationRepository() {
   return new AsyncAccountInvitationRepository(getAsyncDatabaseClient());
 }
 
-export async function listAccountInvitationsAsync(limit = 100) {
-  return invitationRepository().list(limit);
-}
-
-export async function createAccountInvitationAsync(input: {
+type CreateInvitationInput = {
   email: string;
   displayName: string;
   role: UserRole;
   invitedBy: string;
   expiresInDays?: number;
-}): Promise<{ invitation: AccountInvitationSummary; token: string }> {
+};
+
+function validateInvitationInput(input: CreateInvitationInput) {
   const email = input.email.trim().toLowerCase();
   const displayName = input.displayName.trim();
   if (!validateEmail(email)) {
@@ -74,19 +72,46 @@ export async function createAccountInvitationAsync(input: {
   if (expiresInDays < 1 || expiresInDays > 30) {
     throw new AccountInvitationError("invalid_invitation", "邀請有效期限需為 1 至 30 天。", 400);
   }
+  return { email, displayName, expiresInDays };
+}
 
+function invitationCredential(expiresInDays: number) {
   const token = crypto.randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+  return { token, tokenHash: hashToken(token), expiresAt };
+}
+
+export async function listAccountInvitationsAsync(limit = 100) {
+  return invitationRepository().list(limit);
+}
+
+export async function createAccountInvitationAsync(input: CreateInvitationInput): Promise<{ invitation: AccountInvitationSummary; token: string }> {
+  const { email, displayName, expiresInDays } = validateInvitationInput(input);
+  const { token, tokenHash, expiresAt } = invitationCredential(expiresInDays);
   const invitation = await invitationRepository().create({
     email,
     displayName,
     role: input.role,
     companyId: "company-jenfu",
-    tokenHash: hashToken(token),
+    tokenHash,
     invitedBy: input.invitedBy,
     expiresAt
   });
   return { invitation, token };
+}
+
+export async function reissueCompensatedFirebaseInvitationAsync(input: CreateInvitationInput) {
+  const { email, displayName, expiresInDays } = validateInvitationInput(input);
+  const { token, tokenHash, expiresAt } = invitationCredential(expiresInDays);
+  const reissued = await invitationRepository().reissueCompensatedFirebase({
+    email,
+    displayName,
+    role: input.role,
+    tokenHash,
+    invitedBy: input.invitedBy,
+    expiresAt
+  });
+  return reissued ? { ...reissued, token } : null;
 }
 
 export async function lookupAccountInvitationAsync(token: string) {

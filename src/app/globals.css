@@ -6872,6 +6872,10 @@ tr.selected-row td:first-child {
   background: #f4fcf8;
 }
 
+.account-invitation-created.is-managed-delivery {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .account-invitation-created-actions {
   display: flex;
   flex-wrap: wrap;

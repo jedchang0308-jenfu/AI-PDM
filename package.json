@@ -176,7 +176,7 @@
     "qc:industrialization": "node scripts/qc-industrialization-test.mjs",
     "qc:list-summary-payload": "node scripts/qc-list-summary-payload-test.mjs",
     "qc:managed-auth": "node scripts/qc-managed-auth-test.mjs",
-    "qc:pdm-account-invitations": "node scripts/qc-pdm-account-invitations.mjs",
+    "qc:pdm-account-invitations": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-pdm-account-invitations.mjs",
     "qc:pdm-account-lifecycle": "node scripts/qc-pdm-account-lifecycle.mjs",
     "qc:dev-045-phase2": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-045-phase2-session-recovery.mjs",
     "qc:pdm-google-identity": "node scripts/qc-pdm-google-identity.mjs",

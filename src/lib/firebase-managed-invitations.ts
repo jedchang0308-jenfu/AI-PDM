@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import {
   AccountInvitationError,
   createAccountInvitationAsync,
+  reissueCompensatedFirebaseInvitationAsync,
   revokeAccountInvitationAsync
 } from "@/lib/account-invitations";
 import type { UserRole } from "@/lib/auth-config";
@@ -19,6 +20,7 @@ type FirebaseInvitationDependencies = {
   actionEmail: Pick<FirebaseManagedActionEmail, "sendEmailSignInLink">;
   idFactory: () => string;
   createCanonical: typeof createAccountInvitationAsync;
+  reissueCanonical: typeof reissueCompensatedFirebaseInvitationAsync;
   revokeCanonical: typeof revokeAccountInvitationAsync;
 };
 
@@ -29,6 +31,7 @@ function dependencies(overrides: Partial<FirebaseInvitationDependencies> = {}): 
     actionEmail: overrides.actionEmail ?? new FirebaseManagedActionEmail(),
     idFactory: overrides.idFactory ?? (() => crypto.randomUUID()),
     createCanonical: overrides.createCanonical ?? createAccountInvitationAsync,
+    reissueCanonical: overrides.reissueCanonical ?? reissueCompensatedFirebaseInvitationAsync,
     revokeCanonical: overrides.revokeCanonical ?? revokeAccountInvitationAsync
   };
 }
@@ -52,33 +55,53 @@ export async function createFirebaseManagedInvitation(
   overrides: Partial<FirebaseInvitationDependencies> = {}
 ) {
   const deps = dependencies(overrides);
-  const canonical = await deps.createCanonical(input);
+  const reissued = await deps.reissueCanonical(input);
+  const canonical = reissued ?? await deps.createCanonical(input);
   const suffix = deps.idFactory();
-  const pdmUserId = `prod-pdm-${suffix}`;
-  const firebaseUid = `pdm-firebase-${suffix}`;
+  const pdmUserId = reissued?.pdmUserId ?? `prod-pdm-${suffix}`;
+  const firebaseUid = reissued?.firebaseUid ?? `pdm-firebase-${suffix}`;
   const invitationRepository = new FirebaseIdentityInvitationAsyncRepository(deps.client);
   let identityCreated = false;
 
   try {
     await deps.client.transaction(async (transaction) => {
-      await new AsyncUserRepository(transaction).createUser({
-        id: pdmUserId,
-        displayName: input.displayName.trim(),
-        email: input.email.trim().toLowerCase(),
-        passwordHash: null,
-        role: input.role,
-        companyCodes: ["JENFU"]
-      });
+      const transactionInvitationRepository = new FirebaseIdentityInvitationAsyncRepository(transaction);
+      if (reissued) {
+        await transactionInvitationRepository.prepareCompensatedReissue({
+          invitationId: canonical.invitation.id,
+          firebaseUid,
+          pdmUserId,
+          displayName: input.displayName.trim(),
+          role: input.role,
+          actorId: input.invitedBy
+        });
+      } else {
+        await new AsyncUserRepository(transaction).createUser({
+          id: pdmUserId,
+          displayName: input.displayName.trim(),
+          email: input.email.trim().toLowerCase(),
+          passwordHash: null,
+          role: input.role,
+          companyCodes: ["JENFU"]
+        });
+      }
       const mappings = new PlatformMappingAsyncRepository(transaction);
       await mappings.ensureCurrentPrincipal(pdmUserId);
       await mappings.linkSharedPrincipal({ platformPrincipalId: `firebase:${firebaseUid}`, pdmUserId, externalSubject: firebaseUid });
-      await new FirebaseIdentityInvitationAsyncRepository(transaction).createRequested({
-        invitationId: canonical.invitation.id,
-        firebaseUid,
-        pdmUserId
-      });
+      if (!reissued) {
+        await transactionInvitationRepository.createRequested({
+          invitationId: canonical.invitation.id,
+          firebaseUid,
+          pdmUserId
+        });
+      }
     });
 
+    if (reissued) {
+      await deps.firebase.disableIdentity(firebaseUid).catch(() => undefined);
+      await deps.firebase.revokeRefreshTokens(firebaseUid).catch(() => undefined);
+      await deps.firebase.deleteIdentity(firebaseUid).catch(() => undefined);
+    }
     await deps.firebase.createEmailPasswordIdentity({
       uid: firebaseUid,
       email: input.email,
@@ -96,6 +119,7 @@ export async function createFirebaseManagedInvitation(
       invitation: canonical.invitation,
       pdmUserId,
       firebaseUid,
+      reissued: Boolean(reissued),
       delivery: "firebase_managed_email" as const
     };
   } catch (error) {

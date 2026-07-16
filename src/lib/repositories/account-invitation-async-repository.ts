@@ -43,6 +43,12 @@ export type AccountInvitationSummary = {
   revokedAt: string | null;
 };
 
+export type ReissuedFirebaseInvitation = {
+  invitation: AccountInvitationSummary;
+  pdmUserId: string;
+  firebaseUid: string;
+};
+
 export type AccountInvitationErrorCode =
   | "invitation_already_pending"
   | "invitation_public_url_not_configured"
@@ -154,6 +160,57 @@ const REVOKE_INVITATION_SQL = `
   RETURNING id
 `;
 
+const SELECT_REISSUABLE_FIREBASE_INVITATION_SQL = `
+  SELECT
+    invitation.id,
+    invitation.role,
+    firebase_invitation.firebase_uid,
+    firebase_invitation.pdm_user_id
+  FROM account_invitations invitation
+  JOIN firebase_identity_invitations firebase_invitation
+    ON firebase_invitation.invitation_id = invitation.id
+  JOIN users invited_user
+    ON invited_user.id = firebase_invitation.pdm_user_id
+  JOIN platform_principal_mappings principal_mapping
+    ON principal_mapping.pdm_user_id = invited_user.id
+  WHERE lower(invitation.email) = lower(:email)
+    AND invitation.status = 'revoked'
+    AND firebase_invitation.setup_state = 'compensated'
+    AND invited_user.account_status = 'suspended'
+    AND invited_user.system_role_enabled = 0
+    AND invited_user.account_status_reason = 'firebase_invitation_compensated'
+    AND invited_user.password_hash IS NULL
+    AND principal_mapping.mapping_source = 'shared_iam'
+    AND principal_mapping.mapping_status = 'suspended'
+    AND principal_mapping.external_subject = firebase_invitation.firebase_uid
+    AND NOT EXISTS (
+      SELECT 1
+      FROM auth_identities identity
+      WHERE identity.user_id = invited_user.id
+        AND identity.status = 'active'
+    )
+  ORDER BY invitation.revoked_at DESC, invitation.invited_at DESC
+  LIMIT 1
+`;
+
+const REISSUE_FIREBASE_INVITATION_SQL = `
+  UPDATE account_invitations
+  SET display_name = :displayName,
+      role = :role,
+      token_hash = :tokenHash,
+      status = 'pending',
+      invited_by = :invitedBy,
+      invited_at = :invitedAt,
+      expires_at = :expiresAt,
+      accepted_by = NULL,
+      accepted_at = NULL,
+      revoked_by = NULL,
+      revoked_at = NULL
+  WHERE id = :id
+    AND status = 'revoked'
+  RETURNING id
+`;
+
 function toIso(value: TimestampValue | null): string | null {
   if (value === null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -260,6 +317,61 @@ export class AsyncAccountInvitationRepository {
       const created = await client.queryOne<AccountInvitationRow>(SELECT_INVITATION_BY_ID_SQL, { id });
       if (!created) throw new Error("ACCOUNT_INVITATION_CREATE_READBACK_FAILED");
       return mapInvitation(created);
+    });
+  }
+
+  async reissueCompensatedFirebase(input: {
+    email: string;
+    displayName: string;
+    role: UserRole;
+    tokenHash: string;
+    invitedBy: string;
+    expiresAt: string;
+  }): Promise<ReissuedFirebaseInvitation | null> {
+    const invitedAt = this.clock();
+    return this.client.transaction(async (client) => {
+      await client.execute(EXPIRE_PENDING_INVITATIONS_SQL, { now: invitedAt });
+
+      const pending = await client.queryOne<AccountInvitationRow>(SELECT_PENDING_INVITATION_BY_EMAIL_SQL, { email: input.email });
+      if (pending) {
+        throw new AccountInvitationError("invitation_already_pending", "這個電子郵件已有有效邀請。請使用者檢查收件匣與垃圾郵件。", 409);
+      }
+
+      const candidate = await client.queryOne<{
+        id: string;
+        role: UserRole;
+        firebase_uid: string;
+        pdm_user_id: string;
+      }>(SELECT_REISSUABLE_FIREBASE_INVITATION_SQL, { email: input.email });
+      if (!candidate) return null;
+
+      const updated = await client.queryOne<{ id: string }>(REISSUE_FIREBASE_INVITATION_SQL, {
+        id: candidate.id,
+        invitedAt,
+        ...input
+      });
+      if (!updated) throw new Error("ACCOUNT_INVITATION_REISSUE_CONFLICT");
+
+      await new AsyncAuditRepository(client).createAuditLog({
+        actorId: input.invitedBy,
+        action: "AccountInvitationReissued",
+        detail: {
+          invitationId: candidate.id,
+          email: input.email,
+          previousRole: candidate.role,
+          role: input.role,
+          expiresAt: input.expiresAt,
+          reusedPdmUserId: candidate.pdm_user_id
+        }
+      });
+
+      const invitation = await client.queryOne<AccountInvitationRow>(SELECT_INVITATION_BY_ID_SQL, { id: candidate.id });
+      if (!invitation) throw new Error("ACCOUNT_INVITATION_REISSUE_READBACK_FAILED");
+      return {
+        invitation: mapInvitation(invitation),
+        pdmUserId: candidate.pdm_user_id,
+        firebaseUid: candidate.firebase_uid
+      };
     });
   }
 
