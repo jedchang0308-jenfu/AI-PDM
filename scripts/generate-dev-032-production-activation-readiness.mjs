@@ -49,7 +49,9 @@ const sources = {
   slicePlan: readJson("output/dev-032-production-slice-activation/plan-review.json"),
   level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json"),
   level3Current: readJson("output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json"),
-  level4: readJson("output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json")
+  level4: readJson("output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json"),
+  gateE: readJson("output/dev-032-gate-e-automation/gate-e-automation-readback.json"),
+  gateEHumanWorkPackage: readJson("output/dev-032-gate-e-automation/human-work-package.json")
 };
 const checklist = sources.checklist.parsed ?? {};
 const evidence = sources.evidence.parsed ?? {};
@@ -69,6 +71,7 @@ const hosting = sources.hosting.parsed ?? {};
 const slicePlan = sources.slicePlan.parsed ?? {};
 const level3 = sources.level3Current.parsed ?? sources.level3.parsed ?? {};
 const level4 = sources.level4.parsed ?? {};
+const gateE = sources.gateE.parsed ?? {};
 const wave0 = evidence.wave0 ?? {};
 const level3ManifestDigest = level3.manifestDigest ?? level3.imageDigest ?? null;
 const level3RuntimeDigest = level3.runtimeDigest ?? level3.imageDigest ?? null;
@@ -156,7 +159,14 @@ const level4Ready = wave0.authenticatedLevel4Status === "passed"
   && level4.uiAcceptanceResult?.drawingNumber
   && level4.uiAcceptanceResult?.seriesCode;
 const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
+const gateEReady = sources.gateE.exists
+  && gateE.status === "machine_gate_e_passed_human_closure_pending"
+  && gateE.summary?.machineChecksPassed === true
+  && gateE.summary?.failed === 0
+  && gateE.target?.projectId === evidence.target?.projectId
+  && gateE.target?.canonicalBaseUrl === evidence.target?.canonicalBaseUrl;
 const wave0Ready = level4Ready
+  && gateEReady
   && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
   && namedUsers.length <= (wave0.maximumNamedUsers ?? 5)
   && wave0.failClosed === true
@@ -255,9 +265,16 @@ const gates = [
     maximumNamedUsers: wave0.maximumNamedUsers ?? 5,
     namedUsers,
     namedUserCount: namedUsers.length,
+    gateEAutomationStatus: wave0.gateEAutomationStatus ?? gateE.status ?? "missing_evidence",
+    gateEMachineChecksPassed: gateEReady,
+    gateEAutomationEvidencePath: wave0.gateEAutomationEvidencePath ?? sources.gateE.path,
+    humanWorkPackagePath: wave0.humanWorkPackagePath ?? sources.gateEHumanWorkPackage.path,
+    nonAllowlistNegativeAccessRequiresHuman: true,
     productOwnerDecision: wave0.productOwnerDecision ?? "pending",
     fixedFiveBusinessDayObservationCancelled: evidence.decisions?.fixedFiveBusinessDayObservationCancelled === true
-  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.")])
+  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", gateEReady
+    ? "Wave 0 still needs 3-5 explicitly named users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go."
+    : "Wave 0 still needs Gate E machine evidence, 3-5 explicitly named users, non-allowlist human negative access evidence and product-owner go/no-go.")])
 ];
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
@@ -296,8 +313,8 @@ const report = {
     : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
       ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
       : firstBlockedGate?.id === "A9-wave0-go-no-go"
-        ? "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
-      : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
+        ? "Complete the human work package at output/dev-032-gate-e-automation/human-work-package.md: provide 3-5 explicitly named Wave 0 users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
+        : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };
 

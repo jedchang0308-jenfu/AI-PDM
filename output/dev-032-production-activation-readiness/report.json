@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T07:06:05.057Z",
+  "generatedAt": "2026-07-16T07:20:30.459Z",
   "generationReadOnly": true,
   "productionActionPerformed": true,
   "releaseReady": false,
@@ -199,19 +199,24 @@
           "jedchang0308@jenfu.com.tw"
         ],
         "namedUserCount": 1,
+        "gateEAutomationStatus": "machine_gate_e_passed_human_closure_pending",
+        "gateEMachineChecksPassed": true,
+        "gateEAutomationEvidencePath": "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
+        "humanWorkPackagePath": "output/dev-032-gate-e-automation/human-work-package.md",
+        "nonAllowlistNegativeAccessRequiresHuman": true,
         "productOwnerDecision": "pending",
         "fixedFiveBusinessDayObservationCancelled": true
       },
       "blockers": [
         {
           "code": "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING",
-          "message": "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.",
+          "message": "Wave 0 still needs 3-5 explicitly named users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go.",
           "evidence": {}
         }
       ]
     }
   ],
-  "nextRequiredAction": "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.",
+  "nextRequiredAction": "Complete the human work package at output/dev-032-gate-e-automation/human-work-package.md: provide 3-5 explicitly named Wave 0 users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.",
   "stopConditions": [
     "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
     "Any production plan includes delete or replace.",

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "generatedAt": "2026-07-16T07:19:41.718Z",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "currentNamedUsers": [
+    "jedchang0308@jenfu.com.tw"
+  ],
+  "minimumNamedUsers": 3,
+  "maximumNamedUsers": 5,
+  "missingNamedUserCount": 2,
+  "fixedFiveBusinessDayObservationCancelled": true,
+  "machineEvidence": {
+    "status": "machine_gate_e_passed_human_closure_pending",
+    "gateEAutomationPath": "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
+    "chromeUiReadbackPath": "output/dev-032-gate-e-automation/production-ui-readback.json",
+    "chromeUiScreenshotPath": "output/dev-032-gate-e-automation/production-ui-readback.jpg",
+    "productionLevel4Path": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json",
+    "postTrafficSmokePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json"
+  },
+  "requiredHumanInputs": [
+    {
+      "id": "wave0_named_users",
+      "required": true,
+      "description": "Provide 3-5 named Wave 0 users total. Current list has 1; add at least 2.",
+      "replyFormat": "Wave0 users: user1@jenfu.com.tw, user2@jenfu.com.tw, user3@jenfu.com.tw"
+    },
+    {
+      "id": "named_user_ui_acceptance",
+      "required": true,
+      "description": "For each Wave 0 user, confirm production login, privacy acknowledgement if shown, create draft or formal numbering by role, optional series code for self-made non-shared item, relog persistence, and unopened UI remains disabled.",
+      "replyFormat": "UI acceptance: PASS for all named users / list exceptions"
+    },
+    {
+      "id": "non_allowlist_negative_access",
+      "required": true,
+      "description": "Use a Google account that is not allowlisted and confirm it cannot enter the production core app. If no safe test account exists, state that this remains pending.",
+      "replyFormat": "Non-allowlist test: PASS with account <email> / PENDING no account"
+    },
+    {
+      "id": "product_owner_go_no_go",
+      "required": true,
+      "description": "Product owner records final go/no-go for the official numbering / draft production slice only.",
+      "replyFormat": "Product owner decision: GO / NO-GO"
+    },
+    {
+      "id": "open_p0_p1",
+      "required": true,
+      "description": "Confirm there are no unresolved P0/P1 issues for the production slice.",
+      "replyFormat": "P0/P1: none / list issue"
+    }
+  ],
+  "explicitNonActions": [
+    "Do not configure custom DNS in this closure; Firebase Hosting default URL remains canonical.",
+    "Do not reintroduce the cancelled fixed five-business-day observation gate.",
+    "Do not include GCS file authority, CAD, BOM or full PDM workflows in this release scope."
+  ]
+}

@@ -59,6 +59,9 @@
     "allowlistMode": "named-google-workspace-users-only",
     "failClosed": true,
     "authenticatedLevel4Status": "passed",
+    "gateEAutomationStatus": "machine_gate_e_passed_human_closure_pending",
+    "gateEAutomationEvidencePath": "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
+    "humanWorkPackagePath": "output/dev-032-gate-e-automation/human-work-package.md",
     "productOwnerDecision": "pending"
   },
   "decisions": {
