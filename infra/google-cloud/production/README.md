@@ -98,6 +98,29 @@ run a credentialled `terraform plan` for review only.
 
 A plan file is not an apply approval.
 
+## Keyless GitHub Production Releases
+
+The optional GitHub deployment identity is disabled by default. It is created
+only when `enable_github_deployment_identity = true` and the separate
+`DEV-032-PRODUCTION-GITHUB-WIF-DEPLOYMENT-APPROVED` acknowledgement is present
+inside an otherwise approved production apply.
+
+The OIDC provider accepts only repository ID `1260972060`, owner ID
+`257207597`, `refs/heads/main`, the tracked `deploy-production.yml` workflow
+and the GitHub `production` Environment. The deployer has no key and no Cloud
+SQL, Secret Manager, Firebase Auth, project IAM or Terraform state role. Its
+permissions are limited to pushing the application image, deploying a revision
+of `ai-pdm-prod`, changing that service's traffic, and attaching the existing
+runtime service account.
+
+Terraform continues to own the full Cloud Run service. The application
+container image is the one deliberate split-ownership field: the production
+workflow updates it by immutable digest while Terraform ignores only that
+nested image attribute. Firebase Hosting remains a stable no-`pinTag` rewrite,
+so application releases do not create redundant Hosting versions; every release
+is instead smoked through `https://jenfu-ai-pdm-prod.web.app` after traffic
+promotion.
+
 ## Prohibited
 
 - Do not use any Firebase Hosting site except `jenfu-ai-pdm-prod`, and do not

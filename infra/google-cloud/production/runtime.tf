@@ -252,6 +252,8 @@ resource "google_cloud_run_v2_service" "pdm" {
 
   lifecycle {
     prevent_destroy = true
+    # Terraform owns service configuration; the reviewed GitHub release workflow owns only the ingress image revision.
+    ignore_changes = [template[0].containers[0].image]
   }
 
   depends_on = [

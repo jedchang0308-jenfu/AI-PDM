@@ -5,6 +5,7 @@ locals {
   principal_bootstrap_acknowledgement = "DEV-032-PRODUCTION-PRINCIPAL-BOOTSTRAP-APPROVED"
   reconciliation_acknowledgement      = "DEV-032-PRODUCTION-RECONCILIATION-READONLY-APPROVED"
   firebase_hosting_acknowledgement    = "DEV-032-PRODUCTION-FIREBASE-HOSTING-PILOT-APPROVED"
+  github_deployment_acknowledgement   = "DEV-032-PRODUCTION-GITHUB-WIF-DEPLOYMENT-APPROVED"
   name_prefix                         = "ai-pdm-prod"
   database                            = "ai_pdm"
   cloud_sql_instance_name             = "ai-pdm-prod-postgres"
@@ -27,7 +28,8 @@ locals {
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
-    "sqladmin.googleapis.com"
+    "sqladmin.googleapis.com",
+    "sts.googleapis.com"
   ])
 
   runtime_roles = toset([
@@ -150,6 +152,15 @@ locals {
         )
       )
     )
+  )
+
+  github_deployment_identity_ready = (
+    var.enable_github_deployment_identity &&
+    var.github_deployment_identity_acknowledgement == local.github_deployment_acknowledgement &&
+    var.github_repository == "jedchang0308-jenfu/AI-PDM" &&
+    var.github_repository_id == "1260972060" &&
+    var.github_repository_owner_id == "257207597" &&
+    var.github_production_workflow_ref == "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-production.yml@refs/heads/main"
   )
 
   create_resources = (

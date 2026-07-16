@@ -4,6 +4,62 @@ variable "enable_resource_creation" {
   default     = false
 }
 
+variable "enable_github_deployment_identity" {
+  description = "Creates the keyless GitHub Actions production deployment identity. Defaults false and remains separately acknowledged."
+  type        = bool
+  default     = false
+}
+
+variable "github_deployment_identity_acknowledgement" {
+  description = "Exact acknowledgement required before the production GitHub WIF identity can be created."
+  type        = string
+  default     = ""
+}
+
+variable "github_repository" {
+  description = "Exact GitHub repository allowed to request the production deployment identity."
+  type        = string
+  default     = "jedchang0308-jenfu/AI-PDM"
+
+  validation {
+    condition     = var.github_repository == "jedchang0308-jenfu/AI-PDM"
+    error_message = "Production deployment identity is pinned to jedchang0308-jenfu/AI-PDM."
+  }
+}
+
+variable "github_repository_id" {
+  description = "Immutable GitHub repository ID used to prevent repository-name reuse."
+  type        = string
+  default     = "1260972060"
+
+  validation {
+    condition     = var.github_repository_id == "1260972060"
+    error_message = "Production deployment identity repository ID does not match the approved GitHub repository."
+  }
+}
+
+variable "github_repository_owner_id" {
+  description = "Immutable GitHub owner ID used to prevent owner-name reuse."
+  type        = string
+  default     = "257207597"
+
+  validation {
+    condition     = var.github_repository_owner_id == "257207597"
+    error_message = "Production deployment identity owner ID does not match the approved GitHub owner."
+  }
+}
+
+variable "github_production_workflow_ref" {
+  description = "Only this workflow on main may exchange the production GitHub OIDC token."
+  type        = string
+  default     = "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-production.yml@refs/heads/main"
+
+  validation {
+    condition     = var.github_production_workflow_ref == "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-production.yml@refs/heads/main"
+    error_message = "Production deployment identity workflow ref must remain pinned to deploy-production.yml on main."
+  }
+}
+
 variable "production_apply_acknowledgement" {
   description = "Exact acknowledgement required before any resource can be planned for creation."
   type        = string

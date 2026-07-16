@@ -31,3 +31,12 @@ output "production_gate_summary" {
     cost_gate_ready      = local.cost_gate_ready
   }
 }
+
+output "github_production_deployment_identity" {
+  value = local.github_deployment_identity_ready && local.create_resources ? {
+    service_account            = google_service_account.github_production_deployer[0].email
+    workload_identity_provider = google_iam_workload_identity_pool_provider.github_production[0].name
+    repository                 = var.github_repository
+    workflow_ref               = var.github_production_workflow_ref
+  } : null
+}
