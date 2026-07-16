@@ -8,235 +8,255 @@ const outputDir = path.join(root, "output", "dev-032-production-activation-readi
 const jsonPath = path.join(outputDir, "report.json");
 const mdPath = path.join(outputDir, "report.md");
 
-function relativePath(filePath) {
-  return filePath.replace(root, "").replace(/^[/\\]/u, "").replaceAll("\\", "/");
-}
-
-function readJson(relativePathValue) {
-  const filePath = path.join(root, ...relativePathValue.split("/"));
-  if (!existsSync(filePath)) return { path: relativePathValue, exists: false, parsed: null, error: null };
+function readJson(relativePath) {
+  const filePath = path.join(root, ...relativePath.split("/"));
+  if (!existsSync(filePath)) return { path: relativePath, exists: false, parsed: null, error: null };
   try {
-    return {
-      path: relativePathValue,
-      exists: true,
-      parsed: JSON.parse(readFileSync(filePath, "utf8")),
-      error: null
-    };
+    return { path: relativePath, exists: true, parsed: JSON.parse(readFileSync(filePath, "utf8")), error: null };
   } catch (error) {
-    return {
-      path: relativePathValue,
-      exists: true,
-      parsed: null,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    return { path: relativePath, exists: true, parsed: null, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
 function gate(id, status, evidence = {}, blockers = []) {
-  return {
-    id,
-    status,
-    passed: status === "passed",
-    evidence,
-    blockers
-  };
+  return { id, status, passed: status === "passed", evidence, blockers };
 }
 
 function blocker(code, message, evidence = {}) {
   return { code, message, evidence };
 }
 
-const activationChecklist = readJson("config/platform/production-activation-checklist.template.json");
-const productionTarget = readJson("config/platform/production-target.template.json");
-const cleanSeed = readJson("config/platform/clean-production-seed.template.json");
-const releaseManifest = readJson("output/dev-032-release-source/manifest.json");
-const targetPreflight = readJson("output/dev-032-production-target-preflight/report.json");
+function passedOrBlocked(passed, missingCode, missingMessage) {
+  return passed ? [] : [blocker(missingCode, missingMessage)];
+}
 
-const release = releaseManifest.parsed ?? {};
-const preflight = targetPreflight.parsed ?? {};
-const checklist = activationChecklist.parsed ?? {};
-const seed = cleanSeed.parsed ?? {};
-const target = productionTarget.parsed ?? {};
-const targetBlockers = new Set((preflight.blockers ?? []).map((item) => item.code));
-const envSourceExists = Array.isArray(preflight.envSources) && preflight.envSources.some((source) => source.exists === true);
-const secretsMissing = (preflight.secrets?.missingRequiredSecretIds ?? []).length > 0;
-const exactReleaseSourceReady = release.releaseDecision?.exactReleaseCommitExists === true
-  && release.summary?.includedProductionSourceEntries === 0
-  && release.summary?.unknownRiskEntries === 0;
-const productionTargetReady = preflight.activeIdentity?.project === preflight.targetProject
-  && Boolean(preflight.project)
-  && preflight.cloudRun?.expectedServiceFound === true
-  && preflight.cloudSql?.expectedInstanceFound === true
-  && preflight.secrets?.commandOk === true
-  && secretsMissing === false;
-const providerEnvReady = preflight.providerConfig?.firebaseHasProductionAlias === true
-  && preflight.providerConfig?.firebaseDefaultIsProduction === true
-  && envSourceExists
-  && secretsMissing === false;
+const sources = {
+  checklist: readJson("config/platform/production-activation-checklist.template.json"),
+  evidence: readJson("config/platform/production-activation-evidence.json"),
+  live: readJson("output/dev-032-production-live-readback/report.json"),
+  terraformReview: readJson("output/dev-032-production-terraform-plan/review-summary.json"),
+  terraformReadback: readJson("output/dev-032-production-terraform-plan/corrective/post-apply-readback.json"),
+  auth: readJson("output/dev-032-production-auth-activation/summary.json"),
+  bootstrap: readJson("output/dev-032-live-migration/admin-bootstrap-summary.json"),
+  migration: readJson("output/dev-032-live-migration/migration-execution-retry-result.json"),
+  idempotence: readJson("output/dev-032-live-migration/migration-execution-idempotence-result.json"),
+  migrationProvenance: readJson("output/dev-032-live-migration/migration-runner-provenance.json"),
+  runtimeProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance.json"),
+  rollback: readJson("output/dev-032-rollback-drill/v2-api-closure.json"),
+  hosting: readJson("output/dev-032-production-hosting-plan/summary.json"),
+  slicePlan: readJson("output/dev-032-production-slice-activation/plan-review.json"),
+  level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json")
+};
+const checklist = sources.checklist.parsed ?? {};
+const evidence = sources.evidence.parsed ?? {};
+const live = sources.live.parsed ?? {};
+const terraformReview = sources.terraformReview.parsed ?? {};
+const terraformReadback = sources.terraformReadback.parsed ?? {};
+const auth = sources.auth.parsed ?? {};
+const bootstrap = sources.bootstrap.parsed ?? {};
+const migration = sources.migration.parsed ?? {};
+const idempotence = sources.idempotence.parsed ?? {};
+const migrationProvenance = sources.migrationProvenance.parsed ?? {};
+const runtimeProvenance = sources.runtimeProvenance.parsed ?? {};
+const rollback = sources.rollback.parsed ?? {};
+const hosting = sources.hosting.parsed ?? {};
+const slicePlan = sources.slicePlan.parsed ?? {};
+const level3 = sources.level3.parsed ?? {};
+const wave0 = evidence.wave0 ?? {};
+
+const sourceReady = sources.evidence.exists
+  && live.allChecksPassed === true
+  && terraformReview.applicationSourceCommit === evidence.artifact?.applicationSourceRevision
+  && live.artifact?.applicationImageDigest === evidence.artifact?.applicationImageDigest
+  && live.artifact?.migrationSourceRevision === evidence.artifact?.migrationSourceRevision
+  && migrationProvenance.sourceRevision === evidence.artifact?.migrationSourceRevision
+  && migrationProvenance.registryDigestReadback === evidence.artifact?.migrationImageDigest
+  && runtimeProvenance.indexDigest === evidence.artifact?.applicationImageDigest
+  && runtimeProvenance.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+  && runtimeProvenance.runtimeDigestIsLinuxAmd64Child === true;
+const targetReady = live.allChecksPassed === true
+  && live.target?.projectId === evidence.target?.projectId
+  && live.target?.region === evidence.target?.region
+  && live.recovery?.sourceInstance === evidence.target?.cloudSqlInstance
+  && live.runtime?.service === evidence.target?.runtimeService
+  && live.checks?.sourceCloudSqlReady === true
+  && live.checks?.runtimeReady === true;
+const providerReady = auth.deployPassed === true
+  && auth.readback?.googleEnabled === true
+  && auth.readback?.anonymousEnabled === false
+  && terraformReadback.checks?.sessionSecretMetadata === true
+  && live.runtime?.canonicalBaseUrl === evidence.target?.canonicalBaseUrl;
+const planReady = terraformReview.costGatePassed === true
+  && terraformReview.actions?.delete === 0
+  && terraformReview.actions?.replace === 0
+  && terraformReview.estimatedMonthlyCostUsd <= (checklist.costGate?.credentialledPlanReviewStopUsd ?? 240)
+  && Array.isArray(terraformReview.gcsFileAuthorityResources)
+  && terraformReview.gcsFileAuthorityResources.length === 0
+  && slicePlan.safeToApply === true
+  && slicePlan.delete === 0
+  && slicePlan.replace === 0
+  && slicePlan.imageDigestUnchanged === true;
+const applyReady = Array.isArray(terraformReadback.failed)
+  && terraformReadback.failed.length === 0
+  && terraformReadback.checks?.terraformNoDrift === true
+  && terraformReadback.checks?.cloudSqlRunnable === true
+  && terraformReadback.checks?.cloudRunReady === true
+  && terraformReadback.checks?.fileAuthorityBucketAbsent === true
+  && hosting.safeToApply === true
+  && hosting.stopConditions?.hasDelete === false
+  && hosting.stopConditions?.hasReplace === false
+  && live.runtime?.latestReadyRevision === level3.revision;
+const seedReady = bootstrap.bootstrapSucceeded === true
+  && bootstrap.readbackAssertionsSucceeded === true
+  && bootstrap.staticCredentialUsed === false
+  && migration.allExpectedApplied === true
+  && migration.schemaMigrationCount === 18
+  && idempotence.success === true
+  && idempotence.idempotenceVerified === true
+  && Array.isArray(idempotence.appliedVersions)
+  && idempotence.appliedVersions.length === 0
+  && live.principal?.passed === true
+  && live.reconciliation?.preCanaryPassed === true
+  && Object.values(live.reconciliation?.counts ?? {}).every((count) => count === 0);
+const restoreReady = live.recovery?.backupStatus === "SUCCESSFUL"
+  && live.recovery?.separateTarget === true
+  && live.recovery?.privateOnly === true
+  && live.reconciliation?.restorePassed === true
+  && live.checks?.numberingSnapshotMatched === true
+  && rollback.allChecksPassed === true
+  && rollback.rollbackApplied === true;
+const level3Ready = level3.passed === 14
+  && level3.failed === 0
+  && level3.revision === live.runtime?.latestReadyRevision
+  && level3.manifestDigest === evidence.artifact?.applicationImageDigest
+  && level3.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+  && live.runtime?.productionSliceMode === "official-numbering-draft";
+const level4Ready = wave0.authenticatedLevel4Status === "passed";
+const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
+const wave0Ready = level4Ready
+  && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
+  && namedUsers.length <= (wave0.maximumNamedUsers ?? 5)
+  && wave0.failClosed === true
+  && wave0.productOwnerDecision === "go";
 
 const gates = [
-  gate(
-    "A0-release-source",
-    exactReleaseSourceReady ? "passed" : "blocked",
-    {
-      manifestPath: releaseManifest.path,
-      exactReleaseCommitExists: release.releaseDecision?.exactReleaseCommitExists ?? null,
-      releaseCommitSha: release.releaseDecision?.releaseCommitSha ?? null,
-      includedProductionSourceEntries: release.summary?.includedProductionSourceEntries ?? null,
-      unknownRiskEntries: release.summary?.unknownRiskEntries ?? null
-    },
-    exactReleaseSourceReady ? [] : [blocker("RELEASE_SOURCE_NOT_EXACT_COMMIT", "Release source is not an exact committed source boundary.")]
-  ),
-  gate(
-    "A1-production-target-readback",
-    productionTargetReady ? "passed" : "blocked",
-    {
-      preflightPath: targetPreflight.path,
-      activeProject: preflight.activeIdentity?.project ?? null,
-      targetProject: preflight.targetProject ?? checklist.target?.projectId ?? target.target?.projectId ?? null,
-      projectReadable: Boolean(preflight.project),
-      expectedRunServiceFound: preflight.cloudRun?.expectedServiceFound ?? null,
-      expectedCloudSqlInstanceFound: preflight.cloudSql?.expectedInstanceFound ?? null,
-      requiredSecretMetadataReadable: preflight.secrets?.commandOk === true && secretsMissing === false
-    },
-    (preflight.blockers ?? []).filter((item) => [
-      "ACTIVE_GCLOUD_PROJECT_IS_NOT_PRODUCTION",
-      "PRODUCTION_PROJECT_UNAVAILABLE",
-      "PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN",
-      "PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN",
-      "PRODUCTION_SECRET_SOURCE_UNPROVEN"
-    ].includes(item.code))
-  ),
-  gate(
-    "A2-provider-and-env-readback",
-    providerEnvReady ? "passed" : "blocked",
-    {
-      firebaseHasProductionAlias: preflight.providerConfig?.firebaseHasProductionAlias ?? null,
-      firebaseDefaultIsProduction: preflight.providerConfig?.firebaseDefaultIsProduction ?? null,
-      envSourceExists,
-      missingRequiredSecretIds: preflight.secrets?.missingRequiredSecretIds ?? []
-    },
-    (preflight.blockers ?? []).filter((item) => [
-      "FIREBASE_CONFIG_NOT_PRODUCTION_READY",
-      "PRODUCTION_ENV_SOURCE_MISSING",
-      "PRODUCTION_SECRET_SOURCE_UNPROVEN"
-    ].includes(item.code))
-  ),
-  gate(
-    "A3-credentialled-terraform-plan-review",
-    "missing_evidence",
-    {
-      required: true,
-      monthlyEstimateStopUsd: checklist.costGate?.credentialledPlanReviewStopUsd ?? 240,
-      stopOnDelete: checklist.costGate?.stopOnAnyDeleteAction === true,
-      stopOnReplace: checklist.costGate?.stopOnAnyReplaceAction === true
-    },
-    [blocker("CREDENTIALLED_PRODUCTION_PLAN_MISSING", "No credentialled production Terraform plan review evidence exists.")]
-  ),
-  gate(
-    "A4-production-resource-apply",
-    "missing_evidence",
-    {
-      separateApprovalRequired: true,
-      acknowledgement: "DEV-032-PRODUCTION-RESOURCE-CREATION-APPROVED"
-    },
-    [blocker("PRODUCTION_RESOURCE_APPLY_NOT_EXECUTED", "Production apply has not been approved or executed.")]
-  ),
-  gate(
-    "A5-clean-seed-and-principal-bootstrap",
-    "missing_evidence",
-    {
-      cleanSeedTemplatePath: cleanSeed.path,
-      templateOnly: seed.fixtureOnly === true,
-      releaseReady: seed.releaseReady === true,
-      productionMutationAllowed: seed.releaseGate?.productionMutationAllowed === true
-    },
-    [blocker("REAL_CLEAN_SEED_AND_BOOTSTRAP_MISSING", "Clean production seed and principal bootstrap evidence is still template-only.")]
-  ),
-  gate(
-    "A6-hd84-restore-reconciliation",
-    "missing_evidence",
-    {
-      decision: seed.preCanaryRestoreReconciliation?.decision ?? "HD-8-4 / 1A",
-      requiredBeforeCanary: seed.preCanaryRestoreReconciliation?.requiredBeforeCanary === true,
-      currentStatus: seed.preCanaryRestoreReconciliation?.status ?? "missing_evidence"
-    },
-    [blocker("HD84_RESTORE_RECONCILIATION_MISSING", "Separate-target restore and numbering reconciliation has not been executed.")]
-  ),
-  gate(
-    "A7-level3-production-like-smoke",
-    targetBlockers.has("LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE") ? "blocked" : "missing_evidence",
-    {
-      productionLikeSmokeRequired: true,
-      productionRuntimeDatabaseTargetProven: productionTargetReady
-    },
-    [blocker("LEVEL3_PRODUCTION_LIKE_SMOKE_MISSING", "Production-like smoke cannot pass until production runtime/database target is proven.")]
-  ),
-  gate(
-    "A8-production-deploy-and-level4-smoke",
-    "missing_evidence",
-    {
-      productionActionPerformed: false,
-      postDeploySmokeRequired: true
-    },
-    [blocker("LEVEL4_POST_DEPLOY_SMOKE_MISSING", "Production deploy and post-deploy smoke have not been executed.")]
-  ),
-  gate(
-    "A9-wave0-go-no-go",
-    "missing_evidence",
-    {
-      namedUserCanaryRequired: true,
-      zeroOpenP0P1Required: true,
-      rollbackOperationalRequired: true
-    },
-    [blocker("WAVE0_GO_NO_GO_MISSING", "Wave 0 go/no-go cannot be decided until release gates and smoke evidence pass.")]
-  )
+  gate("A0-release-source", sourceReady ? "passed" : "missing_evidence", {
+    evidenceContractPath: sources.evidence.path,
+    applicationSourceRevision: evidence.artifact?.applicationSourceRevision ?? null,
+    applicationImageDigest: live.artifact?.applicationImageDigest ?? null,
+    runtimeDigest: runtimeProvenance.runtimeDigest ?? null,
+    migrationSourceRevision: live.artifact?.migrationSourceRevision ?? null
+  }, passedOrBlocked(sourceReady, "ARTIFACT_PROVENANCE_INCOMPLETE", "Application or migration artifact provenance does not match the release evidence contract.")),
+  gate("A1-production-target-readback", targetReady ? "passed" : "missing_evidence", {
+    liveReadbackPath: sources.live.path,
+    projectId: live.target?.projectId ?? null,
+    region: live.target?.region ?? null,
+    runtimeService: live.runtime?.service ?? null,
+    cloudSqlInstance: live.recovery?.sourceInstance ?? null
+  }, passedOrBlocked(targetReady, "PRODUCTION_TARGET_READBACK_INCOMPLETE", "Live production target readback is missing or failed.")),
+  gate("A2-provider-and-env-readback", providerReady ? "passed" : "missing_evidence", {
+    authEvidencePath: sources.auth.path,
+    googleEnabled: auth.readback?.googleEnabled ?? null,
+    anonymousEnabled: auth.readback?.anonymousEnabled ?? null,
+    secretMetadataReadable: terraformReadback.checks?.sessionSecretMetadata ?? null,
+    canonicalBaseUrl: live.runtime?.canonicalBaseUrl ?? null
+  }, passedOrBlocked(providerReady, "PROVIDER_ENV_READBACK_INCOMPLETE", "Production provider, secret metadata or canonical runtime environment evidence is incomplete.")),
+  gate("A3-credentialled-terraform-plan-review", planReady ? "passed" : "blocked", {
+    planEvidencePath: sources.terraformReview.path,
+    create: terraformReview.actions?.create ?? null,
+    update: terraformReview.actions?.update ?? null,
+    delete: terraformReview.actions?.delete ?? null,
+    replace: terraformReview.actions?.replace ?? null,
+    estimatedMonthlyCostUsd: terraformReview.estimatedMonthlyCostUsd ?? null,
+    stopUsd: checklist.costGate?.credentialledPlanReviewStopUsd ?? 240,
+    productionSlicePlanSha256: slicePlan.planSha256 ?? null
+  }, passedOrBlocked(planReady, "PRODUCTION_PLAN_GATE_FAILED", "Credentialled plan exceeds a safety boundary or lacks required review evidence.")),
+  gate("A4-production-resource-apply", applyReady ? "passed" : "blocked", {
+    postApplyReadbackPath: sources.terraformReadback.path,
+    stateResourceCount: terraformReadback.stateResourceCount ?? null,
+    terraformNoDrift: terraformReadback.checks?.terraformNoDrift ?? null,
+    latestReadyRevision: live.runtime?.latestReadyRevision ?? null,
+    fileAuthorityBucketAbsent: terraformReadback.checks?.fileAuthorityBucketAbsent ?? null
+  }, passedOrBlocked(applyReady, "PRODUCTION_APPLY_READBACK_FAILED", "Production apply readback, no-drift or file-authority boundary failed.")),
+  gate("A5-clean-seed-and-principal-bootstrap", seedReady ? "passed" : "blocked", {
+    bootstrapEvidencePath: sources.bootstrap.path,
+    migrationEvidencePath: sources.migration.path,
+    idempotenceEvidencePath: sources.idempotence.path,
+    pdmUserId: live.principal?.pdmUserId ?? null,
+    roleCount: live.principal?.roleCount ?? null,
+    permissionCount: live.principal?.permissionCount ?? null,
+    migrationCount: live.reconciliation?.migrationCount ?? null,
+    businessObjectCounts: live.reconciliation?.counts ?? null
+  }, passedOrBlocked(seedReady, "CLEAN_SEED_BOOTSTRAP_FAILED", "Clean seed, principal bootstrap, migration or idempotence evidence failed.")),
+  gate("A6-hd84-restore-reconciliation", restoreReady ? "passed" : "blocked", {
+    liveReadbackPath: sources.live.path,
+    backupId: live.recovery?.backupId ?? null,
+    restoreTarget: live.recovery?.restoreTarget ?? null,
+    separateTarget: live.recovery?.separateTarget ?? null,
+    numberingSnapshotSha256: live.reconciliation?.sourceNumberingSnapshotSha256 ?? null,
+    rollbackClosurePath: sources.rollback.path
+  }, passedOrBlocked(restoreReady, "HD84_RESTORE_RECONCILIATION_FAILED", "Separate-target restore, numbering reconciliation or rollback evidence failed.")),
+  gate("A7-level3-production-like-smoke", level3Ready ? "passed" : "blocked", {
+    smokePath: sources.level3.path,
+    passed: level3.passed ?? null,
+    failed: level3.failed ?? null,
+    revision: level3.revision ?? null,
+    manifestDigest: level3.manifestDigest ?? null,
+    runtimeDigest: level3.runtimeDigest ?? null
+  }, passedOrBlocked(level3Ready, "LEVEL3_PRODUCTION_LIKE_SMOKE_FAILED", "Level 3 production-like smoke is missing, stale or failed.")),
+  gate("A8-production-deploy-and-level4-smoke", level4Ready ? "passed" : "pending_human", {
+    canonicalBaseUrl: evidence.target?.canonicalBaseUrl ?? null,
+    productionDeploymentObserved: live.checks?.runtimeReady === true && level3.passed === 14,
+    unauthenticatedProductionChecksPassed: level3.failed === 0,
+    authenticatedLevel4Status: wave0.authenticatedLevel4Status ?? "missing_evidence",
+    requiredChecks: ["google-login", "privacy-acknowledgement", "permissions", "official-numbering", "optional-series-code", "draft-persistence", "re-login-persistence", "file-cad-bom-fail-closed"]
+  }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_PENDING", "A human must complete the production Google account chooser before authenticated Level 4 can run.")]),
+  gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
+    allowlistMode: wave0.allowlistMode ?? null,
+    failClosed: wave0.failClosed ?? null,
+    minimumNamedUsers: wave0.minimumNamedUsers ?? 3,
+    maximumNamedUsers: wave0.maximumNamedUsers ?? 5,
+    namedUsers,
+    namedUserCount: namedUsers.length,
+    productOwnerDecision: wave0.productOwnerDecision ?? "pending",
+    fixedFiveBusinessDayObservationCancelled: evidence.decisions?.fixedFiveBusinessDayObservationCancelled === true
+  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.")])
 ];
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
-const blockerCodes = gates.flatMap((item) => item.blockers.map((gateBlocker) => gateBlocker.code));
-const activeProjectMatchesProductionTarget = Boolean(
-  preflight.activeIdentity?.project &&
-  (preflight.targetProject ?? checklist.target?.projectId ?? target.target?.projectId) &&
-  preflight.activeIdentity.project === (preflight.targetProject ?? checklist.target?.projectId ?? target.target?.projectId)
-);
-const productionProjectReadable = Boolean(preflight.project);
+const blockerCodes = gates.flatMap((item) => item.blockers.map((itemBlocker) => itemBlocker.code));
+const releaseReady = gates.every((item) => item.passed);
+const status = releaseReady
+  ? "release_ready"
+  : firstBlockedGate?.status === "pending_human"
+    ? "pending_human_activation_readiness"
+    : "blocked_activation_readiness";
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   dev: "DEV-032",
   generatedAt: new Date().toISOString(),
-  productionActionPerformed: false,
-  readOnly: true,
-  releaseReady: false,
-  status: firstBlockedGate ? "blocked_activation_readiness" : "ready_for_separate_production_approval",
-  target: {
-    projectId: checklist.target?.projectId ?? target.target?.projectId ?? "jenfu-ai-pdm-prod",
-    region: checklist.target?.region ?? target.target?.region ?? "asia-east1",
-    runtimeService: checklist.target?.runtimeService ?? target.target?.runtimeService ?? "ai-pdm-prod",
-    cloudSqlInstance: checklist.target?.cloudSqlInstance ?? target.target?.cloudSqlInstance ?? "ai-pdm-prod-postgres",
-    publicBaseUrl: checklist.target?.publicBaseUrl ?? target.target?.publicBaseUrl ?? "https://pdm.jenfu.com.tw"
-  },
-  sourceCommit: release.releaseDecision?.releaseCommitSha ?? null,
+  generationReadOnly: true,
+  productionActionPerformed: true,
+  releaseReady,
+  status,
+  target: evidence.target ?? checklist.target ?? {},
+  sourceCommit: evidence.artifact?.applicationSourceRevision ?? null,
+  artifact: evidence.artifact ?? {},
   gateSummary: {
     total: gates.length,
     passed: gates.filter((item) => item.passed).length,
     blocked: gates.filter((item) => item.status === "blocked").length,
     missingEvidence: gates.filter((item) => item.status === "missing_evidence").length,
+    pendingHuman: gates.filter((item) => item.status === "pending_human").length,
     firstBlockedGate: firstBlockedGate?.id ?? null,
     blockerCodes
   },
   gates,
-  nextRequiredAction: firstBlockedGate?.id === "A1-production-target-readback"
-    ? !activeProjectMatchesProductionTarget
-      ? "Set active gcloud project to jenfu-ai-pdm-prod, then rerun preflight:dev-032-production-target."
-      : !productionProjectReadable
-        ? "Create or grant read access to jenfu-ai-pdm-prod, then rerun preflight:dev-032-production-target."
-        : "Provide production Firebase/provider config, production env source and Secret Manager metadata readback, then prepare a credentialled production plan review without apply."
-    : firstBlockedGate?.id === "A2-provider-and-env-readback"
-      ? "Provide production Firebase/provider config, production env source and Secret Manager metadata readback without secret values."
-      : firstBlockedGate
-        ? `Close gate ${firstBlockedGate.id} with required evidence.`
-        : "Request separate production approval for the next release-gate action.",
+  nextRequiredAction: releaseReady
+    ? "Record final release closure and preserve the evidence package."
+    : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
+      ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
+      : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };
 
@@ -246,16 +266,17 @@ function writeMarkdown(reportData) {
     "",
     `Generated: ${reportData.generatedAt}`,
     `Status: \`${reportData.status}\``,
-    `Production action performed: \`${reportData.productionActionPerformed}\``,
     `Target: \`${reportData.target.projectId}\` / \`${reportData.target.region}\``,
     `Source commit: \`${reportData.sourceCommit ?? "missing"}\``,
+    `Release ready: \`${reportData.releaseReady}\``,
     "",
     "## Gate Summary",
     "",
     `- Passed: ${reportData.gateSummary.passed}/${reportData.gateSummary.total}`,
     `- Blocked: ${reportData.gateSummary.blocked}`,
     `- Missing evidence: ${reportData.gateSummary.missingEvidence}`,
-    `- First blocked gate: \`${reportData.gateSummary.firstBlockedGate ?? "none"}\``,
+    `- Pending human: ${reportData.gateSummary.pendingHuman}`,
+    `- First incomplete gate: \`${reportData.gateSummary.firstBlockedGate ?? "none"}\``,
     "",
     "## Gates",
     "",
@@ -264,10 +285,6 @@ function writeMarkdown(reportData) {
     "## Next Required Action",
     "",
     reportData.nextRequiredAction,
-    "",
-    "## Stop Conditions",
-    "",
-    ...reportData.stopConditions.map((item) => `- ${item}`),
     ""
   ];
   return `${lines.join("\n")}\n`;
@@ -276,12 +293,10 @@ function writeMarkdown(reportData) {
 mkdirSync(outputDir, { recursive: true });
 writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 writeFileSync(mdPath, writeMarkdown(report), "utf8");
-
 console.log(JSON.stringify({
-  outputPath: relativePath(jsonPath),
-  markdownPath: relativePath(mdPath),
+  outputPath: path.relative(root, jsonPath).replaceAll("\\", "/"),
+  markdownPath: path.relative(root, mdPath).replaceAll("\\", "/"),
   status: report.status,
-  productionActionPerformed: report.productionActionPerformed,
   firstBlockedGate: report.gateSummary.firstBlockedGate,
   passed: report.gateSummary.passed,
   total: report.gateSummary.total,

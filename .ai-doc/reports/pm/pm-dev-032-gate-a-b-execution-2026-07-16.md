@@ -3,6 +3,8 @@
 Date: 2026-07-16
 Status: Gate A and Gate B complete; Gate C migration complete, principal/restore pending verified Firebase UID
 
+Historical checkpoint: the pending principal, restore, DNS and Level 3 items below were superseded later on 2026-07-16 by `pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md` and `pm-dev-032-production-hosting-activation-2026-07-16.md`. Keep this report as execution history; do not use its resume order as current state.
+
 ## Scope
 
 - Project: `jenfu-ai-pdm-prod`

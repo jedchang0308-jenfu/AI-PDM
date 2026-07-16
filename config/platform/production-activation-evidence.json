@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "artifact": {
+    "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+    "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+    "runtimeLinuxAmd64Digest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+  },
+  "executions": {
+    "principalBootstrap": "ai-pdm-prod-migration-runner-95bn8",
+    "preCanaryReconciliation": "ai-pdm-prod-migration-runner-2szd5",
+    "restoreReconciliation": "ai-pdm-prod-migration-runner-9ss25"
+  },
+  "recovery": {
+    "backupId": "1784162806569",
+    "restoreTarget": "ai-pdm-prod-restore-20260716a",
+    "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57"
+  },
+  "initialPrincipal": {
+    "pdmUserId": "prod-pdm-admin-001",
+    "email": "jedchang0308@jenfu.com.tw",
+    "firebaseUid": "U57t2eIOzLdhAmNDUbFyOz3fdMm2",
+    "expectedRoleCount": 9,
+    "expectedPermissionCount": 237
+  },
+  "wave0": {
+    "minimumNamedUsers": 3,
+    "maximumNamedUsers": 5,
+    "namedUsers": [
+      "jedchang0308@jenfu.com.tw"
+    ],
+    "allowlistMode": "named-google-workspace-users-only",
+    "failClosed": true,
+    "authenticatedLevel4Status": "pending_human_google_login",
+    "productOwnerDecision": "pending"
+  },
+  "decisions": {
+    "customDnsDeferred": true,
+    "fixedFiveBusinessDayObservationCancelled": true,
+    "phase3aFileAuthorityEnabled": false
+  }
+}
