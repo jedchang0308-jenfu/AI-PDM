@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 2,
+  "dev": "DEV-032",
+  "generatedAt": "2026-07-16T04:38:57.837Z",
+  "generationReadOnly": true,
+  "productionActionPerformed": true,
+  "releaseReady": false,
+  "status": "blocked_activation_readiness",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "sourceCommit": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+  "artifact": {
+    "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+    "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+    "runtimeLinuxAmd64Digest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+  },
+  "gateSummary": {
+    "total": 10,
+    "passed": 7,
+    "blocked": 1,
+    "missingEvidence": 0,
+    "pendingHuman": 2,
+    "firstBlockedGate": "A2-provider-and-env-readback",
+    "blockerCodes": [
+      "PROVIDER_SECRET_EXPOSURE_REVIEW_PENDING",
+      "AUTHENTICATED_LEVEL4_PENDING",
+      "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING"
+    ]
+  },
+  "gates": [
+    {
+      "id": "A0-release-source",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "evidenceContractPath": "config/platform/production-activation-evidence.json",
+        "applicationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+        "applicationImageDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+        "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+        "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274"
+      },
+      "blockers": []
+    },
+    {
+      "id": "A1-production-target-readback",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "liveReadbackPath": "output/dev-032-production-live-readback/report.json",
+        "projectId": "jenfu-ai-pdm-prod",
+        "region": "asia-east1",
+        "runtimeService": "ai-pdm-prod",
+        "cloudSqlInstance": "ai-pdm-prod-postgres"
+      },
+      "blockers": []
+    },
+    {
+      "id": "A2-provider-and-env-readback",
+      "status": "blocked",
+      "passed": false,
+      "evidence": {
+        "authEvidencePath": "output/dev-032-production-auth-activation/summary.json",
+        "googleEnabled": true,
+        "anonymousEnabled": false,
+        "secretMetadataReadable": true,
+        "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+        "secretExposureReviewPath": "output/dev-032-production-auth-activation/secret-exposure-review.json",
+        "secretExposureStatus": "pending_rotation_or_explicit_risk_acceptance"
+      },
+      "blockers": [
+        {
+          "code": "PROVIDER_SECRET_EXPOSURE_REVIEW_PENDING",
+          "message": "Provider config readback returned OAuth client secret material in command output; rotate the affected secret or explicitly accept the residual risk before release closure.",
+          "evidence": {
+            "secretExposureReviewPath": "output/dev-032-production-auth-activation/secret-exposure-review.json",
+            "plaintextStoredInWorkspace": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "A3-credentialled-terraform-plan-review",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "planEvidencePath": "output/dev-032-production-terraform-plan/review-summary.json",
+        "create": 53,
+        "update": 5,
+        "delete": 0,
+        "replace": 0,
+        "estimatedMonthlyCostUsd": 210,
+        "stopUsd": 240,
+        "productionSlicePlanSha256": "25f6f28a74d27e988e13301793488cf736fe0fedcc8ec72779cfc90b9497221e"
+      },
+      "blockers": []
+    },
+    {
+      "id": "A4-production-resource-apply",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "postApplyReadbackPath": "output/dev-032-production-terraform-plan/corrective/post-apply-readback.json",
+        "stateResourceCount": 58,
+        "terraformNoDrift": true,
+        "latestReadyRevision": "ai-pdm-prod-00006-lx5",
+        "fileAuthorityBucketAbsent": true
+      },
+      "blockers": []
+    },
+    {
+      "id": "A5-clean-seed-and-principal-bootstrap",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "bootstrapEvidencePath": "output/dev-032-live-migration/admin-bootstrap-summary.json",
+        "migrationEvidencePath": "output/dev-032-live-migration/migration-execution-retry-result.json",
+        "idempotenceEvidencePath": "output/dev-032-live-migration/migration-execution-idempotence-result.json",
+        "pdmUserId": "prod-pdm-admin-001",
+        "roleCount": 9,
+        "permissionCount": 237,
+        "migrationCount": 18,
+        "businessObjectCounts": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0,
+          "legacyDrafts": 0,
+          "workspaces": 0
+        }
+      },
+      "blockers": []
+    },
+    {
+      "id": "A6-hd84-restore-reconciliation",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "liveReadbackPath": "output/dev-032-production-live-readback/report.json",
+        "backupId": "1784162806569",
+        "restoreTarget": "ai-pdm-prod-restore-20260716a",
+        "separateTarget": true,
+        "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57",
+        "rollbackClosurePath": "output/dev-032-rollback-drill/v2-api-closure.json"
+      },
+      "blockers": []
+    },
+    {
+      "id": "A7-level3-production-like-smoke",
+      "status": "passed",
+      "passed": true,
+      "evidence": {
+        "smokePath": "output/dev-032-production-slice-activation/level3-smoke.json",
+        "passed": 14,
+        "failed": 0,
+        "revision": "ai-pdm-prod-00006-lx5",
+        "manifestDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+        "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779"
+      },
+      "blockers": []
+    },
+    {
+      "id": "A8-production-deploy-and-level4-smoke",
+      "status": "pending_human",
+      "passed": false,
+      "evidence": {
+        "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+        "productionDeploymentObserved": true,
+        "unauthenticatedProductionChecksPassed": true,
+        "authenticatedLevel4Status": "pending_human_google_login",
+        "requiredChecks": [
+          "google-login",
+          "privacy-acknowledgement",
+          "permissions",
+          "official-numbering",
+          "optional-series-code",
+          "draft-persistence",
+          "re-login-persistence",
+          "file-cad-bom-fail-closed"
+        ]
+      },
+      "blockers": [
+        {
+          "code": "AUTHENTICATED_LEVEL4_PENDING",
+          "message": "A human must complete the production Google account chooser before authenticated Level 4 can run.",
+          "evidence": {}
+        }
+      ]
+    },
+    {
+      "id": "A9-wave0-go-no-go",
+      "status": "pending_human",
+      "passed": false,
+      "evidence": {
+        "allowlistMode": "named-google-workspace-users-only",
+        "failClosed": true,
+        "minimumNamedUsers": 3,
+        "maximumNamedUsers": 5,
+        "namedUsers": [
+          "jedchang0308@jenfu.com.tw"
+        ],
+        "namedUserCount": 1,
+        "productOwnerDecision": "pending",
+        "fixedFiveBusinessDayObservationCancelled": true
+      },
+      "blockers": [
+        {
+          "code": "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING",
+          "message": "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.",
+          "evidence": {}
+        }
+      ]
+    }
+  ],
+  "nextRequiredAction": "Resolve the provider secret exposure review by rotating the affected OAuth client secret or recording explicit product-owner residual-risk acceptance, then regenerate readiness.",
+  "stopConditions": [
+    "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
+    "Any production plan includes delete or replace.",
+    "Estimated monthly production cost exceeds USD 240 during credentialled plan review.",
+    "Any source business, draft, demo, test, credential, session or historical actor row enters clean production seed.",
+    "Any secret value is printed, committed or copied into a report.",
+    "Production artifact provenance does not match the selected release commit.",
+    "Level 4 post-deploy smoke fails or cannot be executed."
+  ]
+}

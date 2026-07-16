@@ -37,6 +37,7 @@ const sources = {
   terraformReview: readJson("output/dev-032-production-terraform-plan/review-summary.json"),
   terraformReadback: readJson("output/dev-032-production-terraform-plan/corrective/post-apply-readback.json"),
   auth: readJson("output/dev-032-production-auth-activation/summary.json"),
+  secretExposure: readJson("output/dev-032-production-auth-activation/secret-exposure-review.json"),
   bootstrap: readJson("output/dev-032-live-migration/admin-bootstrap-summary.json"),
   migration: readJson("output/dev-032-live-migration/migration-execution-retry-result.json"),
   idempotence: readJson("output/dev-032-live-migration/migration-execution-idempotence-result.json"),
@@ -53,6 +54,7 @@ const live = sources.live.parsed ?? {};
 const terraformReview = sources.terraformReview.parsed ?? {};
 const terraformReadback = sources.terraformReadback.parsed ?? {};
 const auth = sources.auth.parsed ?? {};
+const secretExposure = sources.secretExposure.parsed ?? {};
 const bootstrap = sources.bootstrap.parsed ?? {};
 const migration = sources.migration.parsed ?? {};
 const idempotence = sources.idempotence.parsed ?? {};
@@ -86,6 +88,9 @@ const providerReady = auth.deployPassed === true
   && auth.readback?.anonymousEnabled === false
   && terraformReadback.checks?.sessionSecretMetadata === true
   && live.runtime?.canonicalBaseUrl === evidence.target?.canonicalBaseUrl;
+const providerSecretExposureBlocked = sources.secretExposure.exists
+  && secretExposure?.impact?.releaseStopConditionMatched === true
+  && secretExposure?.requiredResolution?.status !== "resolved";
 const planReady = terraformReview.costGatePassed === true
   && terraformReview.actions?.delete === 0
   && terraformReview.actions?.replace === 0
@@ -154,13 +159,20 @@ const gates = [
     runtimeService: live.runtime?.service ?? null,
     cloudSqlInstance: live.recovery?.sourceInstance ?? null
   }, passedOrBlocked(targetReady, "PRODUCTION_TARGET_READBACK_INCOMPLETE", "Live production target readback is missing or failed.")),
-  gate("A2-provider-and-env-readback", providerReady ? "passed" : "missing_evidence", {
+  gate("A2-provider-and-env-readback", providerReady && !providerSecretExposureBlocked ? "passed" : providerSecretExposureBlocked ? "blocked" : "missing_evidence", {
     authEvidencePath: sources.auth.path,
     googleEnabled: auth.readback?.googleEnabled ?? null,
     anonymousEnabled: auth.readback?.anonymousEnabled ?? null,
     secretMetadataReadable: terraformReadback.checks?.sessionSecretMetadata ?? null,
-    canonicalBaseUrl: live.runtime?.canonicalBaseUrl ?? null
-  }, passedOrBlocked(providerReady, "PROVIDER_ENV_READBACK_INCOMPLETE", "Production provider, secret metadata or canonical runtime environment evidence is incomplete.")),
+    canonicalBaseUrl: live.runtime?.canonicalBaseUrl ?? null,
+    secretExposureReviewPath: sources.secretExposure.exists ? sources.secretExposure.path : null,
+    secretExposureStatus: secretExposure?.requiredResolution?.status ?? null
+  }, providerSecretExposureBlocked
+    ? [blocker("PROVIDER_SECRET_EXPOSURE_REVIEW_PENDING", "Provider config readback returned OAuth client secret material in command output; rotate the affected secret or explicitly accept the residual risk before release closure.", {
+      secretExposureReviewPath: sources.secretExposure.path,
+      plaintextStoredInWorkspace: secretExposure?.finding?.plaintextStoredInWorkspace ?? null
+    })]
+    : passedOrBlocked(providerReady, "PROVIDER_ENV_READBACK_INCOMPLETE", "Production provider, secret metadata or canonical runtime environment evidence is incomplete.")),
   gate("A3-credentialled-terraform-plan-review", planReady ? "passed" : "blocked", {
     planEvidencePath: sources.terraformReview.path,
     create: terraformReview.actions?.create ?? null,
@@ -254,7 +266,9 @@ const report = {
   gates,
   nextRequiredAction: releaseReady
     ? "Record final release closure and preserve the evidence package."
-    : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
+    : firstBlockedGate?.id === "A2-provider-and-env-readback"
+      ? "Resolve the provider secret exposure review by rotating the affected OAuth client secret or recording explicit product-owner residual-risk acceptance, then regenerate readiness."
+      : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
       ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
       : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
