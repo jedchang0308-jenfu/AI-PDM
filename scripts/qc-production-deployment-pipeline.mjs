@@ -9,6 +9,7 @@ import {
   assertReleaseExecutionEnvironment,
   assertReleaseTrafficTransition,
   buildReleaseTrafficPatch,
+  isReleaseTrafficApplied,
   snapshotReleaseService
 } from "./run-production-release-traffic.mjs";
 import { selectProductionServingRevision } from "./select-production-serving-revision.mjs";
@@ -22,6 +23,7 @@ const locals = read("infra/google-cloud/production/locals.tf");
 const variables = read("infra/google-cloud/production/variables.tf");
 const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
 const smoke = read("scripts/run-production-release-smoke.mjs");
+const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const packageJson = JSON.parse(read("package.json"));
 const results = [];
 
@@ -201,6 +203,24 @@ record("PROD-PIPE-016 tagged 100 percent revision remains the rollback baseline"
     }),
     /PRODUCTION_SERVING_REVISION_COUNT_INVALID:2/u
   );
+});
+
+record("PROD-PIPE-017 traffic convergence polling stays within service-scoped permissions", () => {
+  const promoted = snapshotReleaseService({
+    ...candidateService,
+    generation: "13",
+    traffic: [{ type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", percent: 100 }]
+  });
+  const rolledBack = snapshotReleaseService({
+    ...candidateService,
+    generation: "14",
+    traffic: [{ type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", revision: previousRevision, percent: 100 }]
+  });
+  assert.equal(isReleaseTrafficApplied(candidateService, { kind: "latest" }), false);
+  assert.equal(isReleaseTrafficApplied(promoted, { kind: "latest" }), true);
+  assert.equal(isReleaseTrafficApplied(rolledBack, { kind: "revision", revision: previousRevision }), true);
+  assert.match(trafficRunner, /waitForReleaseTraffic/u);
+  assert.doesNotMatch(trafficRunner, /waitForOperation|operation\.name/u);
 });
 
 for (const result of results) {
