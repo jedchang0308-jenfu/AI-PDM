@@ -1,0 +1,24 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --target
+  - runner
+  - --build-arg
+  - SOURCE_REVISION=3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728
+  - --build-arg
+  - SOURCE_CREATED_AT=2026-07-16T14:36:41+08:00
+  - --build-arg
+  - SOURCE_VERSION=prod-hotfix-3ab5cffa
+  - --build-arg
+  - SOURCE_STATE=clean-worktree
+  - --build-arg
+  - MIGRATION_PACKAGE_TARGET=production
+  - -t
+  - asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm:prod-hotfix-3ab5cffa
+  - .
+images:
+- asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm:prod-hotfix-3ab5cffa
+options:
+  logging: CLOUD_LOGGING_ONLY
+

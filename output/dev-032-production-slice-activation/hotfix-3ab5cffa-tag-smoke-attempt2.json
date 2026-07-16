@@ -1,0 +1,216 @@
+{
+  "kind": "dev-032-production-hotfix-tag-smoke",
+  "baseUrl": "https://hotfix-3ab5cffa---ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "release": {
+    "commit": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
+    "shortCommit": "3ab5cffa",
+    "revision": "ai-pdm-prod-00012-kaf",
+    "imageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+    "cloudBuildId": "7abc8bd3-b2fe-47cb-81f1-6bfe05915412"
+  },
+  "startedAt": "2026-07-16T06:53:20.646Z",
+  "finishedAt": "2026-07-16T06:53:21.081Z",
+  "passed": false,
+  "summary": {
+    "checks": 12,
+    "passed": 8,
+    "failed": 4
+  },
+  "checks": [
+    {
+      "name": "TAG-001 login shell loads",
+      "pass": true,
+      "status": 200,
+      "headers": {
+        "cacheControl": "s-maxage=31536000",
+        "contentType": "text/html; charset=utf-8"
+      },
+      "containsShell": true
+    },
+    {
+      "name": "TAG-002 auth mode uses firebase_bff with Google/Firebase enabled",
+      "pass": true,
+      "status": 200,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "parseError": null,
+      "authMode": "firebase_bff",
+      "googleOAuthEnabled": true,
+      "firebaseEnabled": true,
+      "firebaseProjectIdPresent": true,
+      "firebaseAuthDomainPresent": true,
+      "firebaseApiKeyPresent": true
+    },
+    {
+      "name": "TAG-003 production slice active official-numbering-draft",
+      "pass": true,
+      "status": 200,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "configured": true,
+      "active": true,
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-004 protected GET /api/numbering/permissions denies anonymous with no-store",
+      "pass": true,
+      "path": "/api/numbering/permissions",
+      "status": 401,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "需要登入"
+    },
+    {
+      "name": "TAG-004 protected GET /api/numbering/draft-workspaces denies anonymous with no-store",
+      "pass": true,
+      "path": "/api/numbering/draft-workspaces",
+      "status": 401,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": {
+        "code": "authentication_required",
+        "message": "Authentication is required.",
+        "retryable": false
+      }
+    },
+    {
+      "name": "TAG-005 unopened route /upload shell remains reachable",
+      "pass": true,
+      "path": "/upload",
+      "status": 200,
+      "headers": {
+        "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "contentType": "text/html; charset=utf-8"
+      },
+      "containsShell": true
+    },
+    {
+      "name": "TAG-005 unopened route /handoff shell remains reachable",
+      "pass": true,
+      "path": "/handoff",
+      "status": 200,
+      "headers": {
+        "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "contentType": "text/html; charset=utf-8"
+      },
+      "containsShell": true
+    },
+    {
+      "name": "TAG-005 unopened route /approvals shell remains reachable",
+      "pass": true,
+      "path": "/approvals",
+      "status": 200,
+      "headers": {
+        "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "contentType": "text/html; charset=utf-8"
+      },
+      "containsShell": true
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review fail-closed",
+      "pass": false,
+      "path": "/api/numbering/part-number-drafts/smoke-only/submit-review",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/files/upload fail-closed",
+      "pass": false,
+      "path": "/api/files/upload",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/cad/preview fail-closed",
+      "pass": false,
+      "path": "/api/cad/preview",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/bom/publish fail-closed",
+      "pass": false,
+      "path": "/api/bom/publish",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    }
+  ],
+  "failures": [
+    {
+      "name": "TAG-006 unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review fail-closed",
+      "pass": false,
+      "path": "/api/numbering/part-number-drafts/smoke-only/submit-review",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/files/upload fail-closed",
+      "pass": false,
+      "path": "/api/files/upload",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/cad/preview fail-closed",
+      "pass": false,
+      "path": "/api/cad/preview",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    },
+    {
+      "name": "TAG-006 unopened mutation /api/bom/publish fail-closed",
+      "pass": false,
+      "path": "/api/bom/publish",
+      "status": 403,
+      "headers": {
+        "cacheControl": "private, no-store, max-age=0",
+        "contentType": "application/json"
+      },
+      "code": "feature_not_open_in_production_slice",
+      "mode": "official-numbering-draft"
+    }
+  ]
+}

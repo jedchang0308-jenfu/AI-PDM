@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T06:12:07.975Z",
+  "generatedAt": "2026-07-16T07:06:05.057Z",
   "generationReadOnly": true,
   "productionActionPerformed": true,
   "releaseReady": false,
@@ -14,11 +14,11 @@
     "database": "ai_pdm",
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
-  "sourceCommit": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "sourceCommit": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
   "artifact": {
-    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
-    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-    "runtimeLinuxAmd64Digest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "applicationSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
+    "applicationImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+    "runtimeLinuxAmd64Digest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
     "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
     "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
   },
@@ -40,12 +40,12 @@
       "passed": true,
       "evidence": {
         "evidenceContractPath": "config/platform/production-activation-evidence.json",
-        "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
-        "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+        "applicationSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
+        "applicationImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+        "runtimeDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
         "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
-        "hotfixId": "hotfix-1936e93d",
-        "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
+        "hotfixId": "hotfix-3ab5cffa",
+        "cloudBuildId": "7abc8bd3-b2fe-47cb-81f1-6bfe05915412",
         "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274"
       },
       "blockers": []
@@ -102,7 +102,7 @@
         "postApplyReadbackPath": "output/dev-032-production-terraform-plan/corrective/post-apply-readback.json",
         "stateResourceCount": 58,
         "terraformNoDrift": true,
-        "latestReadyRevision": "ai-pdm-prod-00010-quc",
+        "latestReadyRevision": "ai-pdm-prod-00012-kaf",
         "fileAuthorityBucketAbsent": true
       },
       "blockers": []
@@ -148,12 +148,12 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "smokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
+        "smokePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json",
         "passed": 16,
         "failed": 0,
-        "revision": "ai-pdm-prod-00010-quc",
-        "manifestDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef"
+        "revision": "ai-pdm-prod-00012-kaf",
+        "manifestDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+        "runtimeDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d"
       },
       "blockers": []
     },
@@ -166,8 +166,8 @@
         "productionDeploymentObserved": true,
         "unauthenticatedProductionChecksPassed": true,
         "authenticatedLevel4Status": "passed",
-        "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json",
-        "level4Passed": 7,
+        "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json",
+        "level4Passed": 15,
         "level4Failed": 0,
         "uiAcceptanceResult": {
           "rootCode": "A0001",

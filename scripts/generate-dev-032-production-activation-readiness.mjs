@@ -43,13 +43,13 @@ const sources = {
   idempotence: readJson("output/dev-032-live-migration/migration-execution-idempotence-result.json"),
   migrationProvenance: readJson("output/dev-032-live-migration/migration-runner-provenance.json"),
   runtimeProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance.json"),
-  runtimeHotfixProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance-hotfix-1936e93d.json"),
+  runtimeHotfixProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance-hotfix-3ab5cffa.json"),
   rollback: readJson("output/dev-032-rollback-drill/v2-api-closure.json"),
   hosting: readJson("output/dev-032-production-hosting-plan/summary.json"),
   slicePlan: readJson("output/dev-032-production-slice-activation/plan-review.json"),
   level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json"),
-  level3Current: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json"),
-  level4: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json")
+  level3Current: readJson("output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json"),
+  level4: readJson("output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json")
 };
 const checklist = sources.checklist.parsed ?? {};
 const evidence = sources.evidence.parsed ?? {};
