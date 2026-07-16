@@ -174,6 +174,7 @@ const SELECT_REISSUABLE_FIREBASE_INVITATION_SQL = `
   JOIN platform_principal_mappings principal_mapping
     ON principal_mapping.pdm_user_id = invited_user.id
   WHERE lower(invitation.email) = lower(:email)
+    AND (:invitationId IS NULL OR invitation.id = :invitationId)
     AND invitation.status = 'revoked'
     AND firebase_invitation.setup_state = 'compensated'
     AND invited_user.account_status = 'suspended'
@@ -321,6 +322,7 @@ export class AsyncAccountInvitationRepository {
   }
 
   async reissueCompensatedFirebase(input: {
+    invitationId?: string | null;
     email: string;
     displayName: string;
     role: UserRole;
@@ -342,7 +344,10 @@ export class AsyncAccountInvitationRepository {
         role: UserRole;
         firebase_uid: string;
         pdm_user_id: string;
-      }>(SELECT_REISSUABLE_FIREBASE_INVITATION_SQL, { email: input.email });
+      }>(SELECT_REISSUABLE_FIREBASE_INVITATION_SQL, {
+        email: input.email,
+        invitationId: input.invitationId ?? null
+      });
       if (!candidate) return null;
 
       const updated = await client.queryOne<{ id: string }>(REISSUE_FIREBASE_INVITATION_SQL, {

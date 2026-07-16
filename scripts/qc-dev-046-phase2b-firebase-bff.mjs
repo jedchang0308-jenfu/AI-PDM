@@ -274,16 +274,19 @@ try {
 
   const reissueOperations = [];
   const reissued = await createFirebaseManagedInvitation(
-    { email: "invitee@jenfu.com.tw", displayName: "Invitee Reissued", role: "Engineer", invitedBy: "admin-001" },
+    { email: "invitee@jenfu.com.tw", displayName: "Invitee Reissued", role: "Engineer", invitedBy: "admin-001", reissueInvitationId: "invitation-fixed" },
     {
       client: fakeInvitationClient(reissueOperations),
       idFactory: () => "must-not-be-used",
       createCanonical: async () => { throw new Error("NEW_CANONICAL_MUST_NOT_BE_CREATED"); },
-      reissueCanonical: async () => ({
-        ...canonicalInvitation(),
-        pdmUserId: "prod-pdm-existing",
-        firebaseUid: "pdm-firebase-existing"
-      }),
+      reissueCanonical: async (input) => {
+        reissueOperations.push(`canonical:${input.reissueInvitationId}`);
+        return {
+          ...canonicalInvitation(),
+          pdmUserId: "prod-pdm-existing",
+          firebaseUid: "pdm-firebase-existing"
+        };
+      },
       revokeCanonical: async () => canonicalInvitation().invitation,
       firebase: {
         async verifyIdToken() { throw new Error("not-used"); },
@@ -306,6 +309,7 @@ try {
       [
         "reissue:user",
         "reissue:invitation",
+        "canonical:invitation-fixed",
         "disable:pdm-firebase-existing",
         "revoke:pdm-firebase-existing",
         "delete:pdm-firebase-existing",

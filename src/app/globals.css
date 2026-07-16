@@ -6843,6 +6843,13 @@ tr.selected-row td:first-child {
   white-space: nowrap;
 }
 
+.account-invitation-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .account-invitation-message {
   margin: 14px 16px 0;
   border-radius: 6px;
@@ -7411,8 +7418,15 @@ tr.selected-row td:first-child {
   }
 
   .account-invitation-submit,
+  .account-invitation-form-actions,
+  .account-invitation-form-actions > *,
   .account-invitation-created-actions > * {
     width: 100%;
+  }
+
+  .account-invitation-form-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .account-invitation-created-actions {

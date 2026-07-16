@@ -51,6 +51,7 @@ type CreateInvitationInput = {
   role: UserRole;
   invitedBy: string;
   expiresInDays?: number;
+  reissueInvitationId?: string | null;
 };
 
 function validateInvitationInput(input: CreateInvitationInput) {
@@ -104,6 +105,7 @@ export async function reissueCompensatedFirebaseInvitationAsync(input: CreateInv
   const { email, displayName, expiresInDays } = validateInvitationInput(input);
   const { token, tokenHash, expiresAt } = invitationCredential(expiresInDays);
   const reissued = await invitationRepository().reissueCompensatedFirebase({
+    invitationId: input.reissueInvitationId?.trim() || null,
     email,
     displayName,
     role: input.role,

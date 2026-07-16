@@ -61,6 +61,9 @@ export async function POST(request: Request) {
         displayName: String(body.displayName ?? body.display_name ?? ""),
         role: String(body.role ?? "") as UserRole,
         expiresInDays: body.expiresInDays === undefined ? undefined : Number(body.expiresInDays),
+        reissueInvitationId: typeof body.reissueInvitationId === "string" && body.reissueInvitationId.trim()
+          ? body.reissueInvitationId.trim()
+          : undefined,
         invitedBy: auth.user.id
       });
       return NextResponse.json(created, { status: 201 });

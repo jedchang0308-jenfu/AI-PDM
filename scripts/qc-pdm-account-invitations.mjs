@@ -183,21 +183,24 @@ try {
   }]);
   const managedDeliveryPage = await browserContext.newPage();
   const managedPageErrors = [];
+  const managedPostBodies = [];
   managedDeliveryPage.on("pageerror", (error) => managedPageErrors.push(error.message));
   await managedDeliveryPage.route("**/api/admin/account-invitations", async (route) => {
     if (route.request().method() !== "POST") {
       await route.continue();
       return;
     }
+    const submitted = route.request().postDataJSON();
+    managedPostBodies.push(submitted);
     await route.fulfill({
       status: 201,
       contentType: "application/json",
       body: JSON.stringify({
         invitation: {
-          id: "managed-delivery-ui",
-          email: "managed.delivery@example.com",
-          displayName: "Managed Delivery",
-          role: "Engineer",
+          id: submitted.reissueInvitationId ?? "managed-delivery-ui",
+          email: submitted.email,
+          displayName: submitted.displayName,
+          role: submitted.role,
           status: "pending",
           invitedByName: "Invite QC Admin",
           invitedAt: "2026-07-16T00:00:00.000Z",
@@ -205,6 +208,7 @@ try {
           acceptedAt: null,
           revokedAt: null
         },
+        reissued: Boolean(submitted.reissueInvitationId),
         delivery: "firebase_managed_email"
       })
     });
@@ -262,6 +266,21 @@ try {
     body: JSON.stringify({ token: revokedToken, password: invitedPassword })
   });
 
+  await managedDeliveryPage.reload({ waitUntil: "networkidle" });
+  const reissueButton = managedDeliveryPage.getByRole("button", { name: "重新邀請", exact: true });
+  await reissueButton.click();
+  const reissueFormPrefilled =
+    await managedDeliveryPage.getByLabel("姓名").inputValue() === "Revoked User" &&
+    await managedDeliveryPage.getByLabel("公司電子郵件").inputValue() === "revoked.user@example.com" &&
+    await managedDeliveryPage.getByLabel("公司電子郵件").isEditable() === false &&
+    await managedDeliveryPage.getByLabel("初始角色").inputValue() === "Manufacturing";
+  await managedDeliveryPage.getByRole("button", { name: "重新寄出邀請", exact: true }).click();
+  await managedDeliveryPage.getByText("邀請信已重新寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。", { exact: true }).waitFor();
+  const reissuePostBody = managedPostBodies.at(-1);
+  const reissueUiSubmittedExactRecord =
+    reissuePostBody?.reissueInvitationId === createRevoked.body.invitation?.id &&
+    reissuePostBody?.email === "revoked.user@example.com";
+
   const compensatedUserId = "user-invite-qc-compensated";
   const compensatedFirebaseUid = "firebase-invite-qc-compensated";
   const reissueSeedDatabase = new Database(databasePath);
@@ -314,6 +333,7 @@ try {
     () => "2026-07-16T02:00:00.000Z"
   );
   const reissuedInvitation = await reissueRepository.reissueCompensatedFirebase({
+    invitationId: createRevoked.body.invitation?.id,
     email: "revoked.user@example.com",
     displayName: "Reinvited User",
     role: "Engineer",
@@ -372,6 +392,9 @@ try {
   results.push(expect("INVITE-030 reissue applies new display name and role", `${reissuedInvitation?.invitation.displayName}:${reissuedInvitation?.invitation.role}`, "Reinvited User:Engineer"));
   results.push(expect("INVITE-031 active account cannot enter compensated reissue path", activeAccountReissue, null));
   results.push(expect("INVITE-032 invitation reissue writes audit evidence", (auditCounts.AccountInvitationReissued ?? 0) >= 1, true));
+  results.push(expect("INVITE-033 revoked invitation exposes a reissue action that prefills and locks identity", reissueFormPrefilled, true));
+  results.push(expect("INVITE-034 reissue UI submits the exact revoked invitation record", reissueUiSubmittedExactRecord, true));
+  results.push(expect("INVITE-035 reissue UI confirms that Firebase sent a fresh invitation email", await managedDeliveryPage.getByText("邀請信已重新寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。", { exact: true }).isVisible(), true));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

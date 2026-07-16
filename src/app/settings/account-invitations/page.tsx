@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Ban, ClipboardCopy, Mail, RefreshCw, Send, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Ban, ClipboardCopy, Mail, RefreshCw, RotateCcw, Send, UserPlus, X } from "lucide-react";
 
 type InvitationRole = "Engineer" | "R&D Manager" | "Admin" | "Manufacturing" | "Procurement";
 type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -63,7 +63,10 @@ export default function AccountInvitationsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
+  const [reissueInvitationId, setReissueInvitationId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const isReissuing = reissueInvitationId !== null;
 
   const mailtoHref = useMemo(() => {
     if (!created?.inviteUrl) return "";
@@ -103,15 +106,37 @@ export default function AccountInvitationsPage() {
     void loadInvitations();
   }, []);
 
+  function beginReissue(invitation: Invitation) {
+    setReissueInvitationId(invitation.id);
+    setDisplayName(invitation.displayName);
+    setEmail(invitation.email);
+    setRole(invitation.role);
+    setCreated(null);
+    setMessage({ type: "success", text: "已帶入撤銷邀請資料。確認姓名、角色與期限後，重新寄出邀請。" });
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formRef.current?.querySelector<HTMLInputElement>('input[name="displayName"]')?.focus();
+    });
+  }
+
+  function cancelReissue() {
+    setReissueInvitationId(null);
+    setDisplayName("");
+    setEmail("");
+    setRole("Engineer");
+    setMessage(null);
+  }
+
   async function createInvitation(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const requestedReissueId = reissueInvitationId;
     setSaving(true);
     setCreated(null);
     setMessage(null);
     const response = await fetch("/api/admin/account-invitations", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ displayName, email, role, expiresInDays })
+      body: JSON.stringify({ displayName, email, role, expiresInDays, reissueInvitationId: requestedReissueId })
     });
     const body = await response.json().catch(() => ({}));
     setSaving(false);
@@ -126,11 +151,16 @@ export default function AccountInvitationsPage() {
       delivery
     });
     const successMessage = delivery === "firebase_managed_email"
-      ? "邀請信已寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。"
-      : "邀請連結已建立。下一步請開啟郵件並完成寄送。";
+      ? requestedReissueId
+        ? "邀請信已重新寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。"
+        : "邀請信已寄出。下一步請通知受邀者檢查公司信箱與垃圾郵件。"
+      : requestedReissueId
+        ? "新邀請連結已建立。下一步請開啟郵件並完成寄送。"
+        : "邀請連結已建立。下一步請開啟郵件並完成寄送。";
     setMessage({ type: "success", text: successMessage });
     setDisplayName("");
     setEmail("");
+    setReissueInvitationId(null);
     await loadInvitations();
     setMessage({ type: "success", text: successMessage });
   }
@@ -185,19 +215,19 @@ export default function AccountInvitationsPage() {
           <div className="account-invitation-heading">
             <UserPlus size={20} aria-hidden="true" />
             <div>
-              <h2 id="create-invitation-heading">邀請內部人員</h2>
-              <p>目前工作區固定為鉦富；受邀者完成密碼設定後才會建立可登入帳號。</p>
+              <h2 id="create-invitation-heading">{isReissuing ? "重新邀請內部人員" : "邀請內部人員"}</h2>
+              <p>{isReissuing ? "已選取撤銷邀請；確認資料後將重新寄出，原稽核紀錄會保留。" : "目前工作區固定為鉦富；受邀者完成密碼設定後才會建立可登入帳號。"}</p>
             </div>
           </div>
 
-          <form className="account-invitation-form" onSubmit={createInvitation}>
+          <form ref={formRef} className="account-invitation-form" onSubmit={createInvitation}>
             <label>
               姓名
-              <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} autoComplete="off" required />
+              <input name="displayName" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} autoComplete="off" required />
             </label>
             <label>
               公司電子郵件
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" maxLength={254} autoComplete="email" required />
+              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" maxLength={254} autoComplete="email" readOnly={isReissuing} required />
             </label>
             <label>
               初始角色
@@ -214,10 +244,18 @@ export default function AccountInvitationsPage() {
                 <option value={30}>30 天</option>
               </select>
             </label>
-            <button className="primary-button account-invitation-submit" type="submit" disabled={saving}>
-              <Send size={16} aria-hidden="true" />
-              {saving ? "建立中..." : "建立邀請"}
-            </button>
+            <div className="account-invitation-form-actions">
+              <button className="primary-button account-invitation-submit" type="submit" disabled={saving}>
+                <Send size={16} aria-hidden="true" />
+                {saving ? (isReissuing ? "重新寄送中..." : "建立中...") : (isReissuing ? "重新寄出邀請" : "建立邀請")}
+              </button>
+              {isReissuing ? (
+                <button className="secondary-button" type="button" onClick={cancelReissue} disabled={saving}>
+                  <X size={16} aria-hidden="true" />
+                  取消重邀
+                </button>
+              ) : null}
+            </div>
           </form>
         </div>
 
@@ -292,6 +330,11 @@ export default function AccountInvitationsPage() {
                           <button className="danger-button" type="button" onClick={() => void revokeInvitation(invitation)} disabled={saving}>
                             <Ban size={15} aria-hidden="true" />
                             撤銷
+                          </button>
+                        ) : invitation.status === "revoked" ? (
+                          <button className="secondary-button" type="button" onClick={() => beginReissue(invitation)} disabled={saving}>
+                            <RotateCcw size={15} aria-hidden="true" />
+                            重新邀請
                           </button>
                         ) : <span className="account-invitation-no-action">不用處理</span>}
                       </td>

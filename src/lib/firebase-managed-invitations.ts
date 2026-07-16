@@ -51,6 +51,7 @@ export async function createFirebaseManagedInvitation(
     role: UserRole;
     invitedBy: string;
     expiresInDays?: number;
+    reissueInvitationId?: string | null;
   },
   overrides: Partial<FirebaseInvitationDependencies> = {}
 ) {
