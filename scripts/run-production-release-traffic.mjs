@@ -104,6 +104,15 @@ export function assertReleaseTrafficTransition(before, after, expected) {
   return true;
 }
 
+export function isReleaseTrafficApplied(snapshot, expected) {
+  if (!snapshot || !Array.isArray(snapshot.traffic) || snapshot.traffic.length !== 1) return false;
+  const target = snapshot.traffic[0];
+  if (target.percent !== 100 || target.tag !== null) return false;
+  if (expected.kind === "latest") return target.type === LATEST && target.revision === null;
+  if (expected.kind === "revision") return target.type === REVISION && target.revision === expected.revision;
+  return false;
+}
+
 export function assertReleaseExecutionEnvironment(expectedLatestRevision, env = process.env) {
   if (env.PDM_PRODUCTION_RELEASE_TRAFFIC_APPROVAL !== PRODUCTION_RELEASE_TRAFFIC_APPROVAL) {
     throw new Error("PRODUCTION_RELEASE_TRAFFIC_APPROVAL_MISSING");
@@ -170,29 +179,25 @@ async function apiRequest(url, token, init = {}) {
   return body;
 }
 
-async function waitForOperation(operation, token) {
-  if (!operation?.name) return operation;
-  let current = operation;
-  for (let attempt = 0; attempt < 60 && !current.done; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    current = await apiRequest(`${API_ROOT}/${operation.name}`, token);
-  }
-  if (!current.done) throw new Error("PRODUCTION_RELEASE_TRAFFIC_OPERATION_TIMEOUT");
-  if (current.error) throw new Error(`PRODUCTION_RELEASE_TRAFFIC_OPERATION_FAILED:${current.error.code ?? "UNKNOWN"}`);
-  return current;
-}
-
 async function readService(token) {
   return snapshotReleaseService(await apiRequest(serviceUrl(), token));
 }
 
+async function waitForReleaseTraffic(token, expected) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const snapshot = await readService(token);
+    if (isReleaseTrafficApplied(snapshot, expected)) return snapshot;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error("PRODUCTION_RELEASE_TRAFFIC_CONVERGENCE_TIMEOUT");
+}
+
 async function patchTraffic(token, body, validateOnly) {
   const query = new URLSearchParams({ updateMask: "traffic", validateOnly: String(validateOnly) });
-  const operation = await apiRequest(`${serviceUrl()}?${query}`, token, {
+  return apiRequest(`${serviceUrl()}?${query}`, token, {
     method: "PATCH",
     body: JSON.stringify(body)
   });
-  return validateOnly ? operation : waitForOperation(operation, token);
 }
 
 function assertExpectedLatest(snapshot, expectedLatestRevision) {
@@ -239,7 +244,7 @@ async function run(argv = process.argv.slice(2), env = process.env) {
       ? buildReleaseTrafficPatch("latest")
       : buildReleaseTrafficPatch("revision", args.rollbackRevision);
     await patchTraffic(token, body, false);
-    report.after = await readService(token);
+    report.after = await waitForReleaseTraffic(token, expected);
     assertReleaseTrafficTransition(before, report.after, expected);
   }
 
