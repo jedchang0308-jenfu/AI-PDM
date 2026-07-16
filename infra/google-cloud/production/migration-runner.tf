@@ -134,7 +134,6 @@ resource "google_cloud_run_v2_job" "migration_runner" {
             DEV032_PRODUCTION_PROJECT_ID              = var.production_project_id
             DEV032_PRODUCTION_REGION                  = var.region
             DEV032_EXPECTED_SOURCE_REVISION           = var.migration_runner_source_revision
-            CLOUD_RUN_JOB                             = "${local.name_prefix}-migration-runner"
           } : {}
 
           content {

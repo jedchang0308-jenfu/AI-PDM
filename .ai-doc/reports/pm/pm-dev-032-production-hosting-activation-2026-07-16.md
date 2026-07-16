@@ -43,6 +43,8 @@ Risk lane: Lane 3 production infrastructure and authentication configuration
 
 ## Remaining Gate
 
-Production still has zero real Firebase users. `jedchang0308@jenfu.com.tw` must complete one interactive Google login. Only then may Codex read the verified Firebase UID, apply principal mapping, run independent restore/reconciliation and complete authenticated Level 4 and named-user canary checks.
+The first interactive login created a verified production Firebase identity. Principal bootstrap and independent restore/reconciliation have since passed; see `pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md`.
+
+`jedchang0308@jenfu.com.tw` must now sign in again after provisioning so authenticated Level 4 and named-user canary checks can run.
 
 DNS remains intentionally deferred.

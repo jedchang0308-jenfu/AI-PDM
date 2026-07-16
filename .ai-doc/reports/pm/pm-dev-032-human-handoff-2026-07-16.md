@@ -1,7 +1,7 @@
 # DEV-032 Production Human Handoff
 
 Date: 2026-07-16
-Status: superseded DNS handoff; production Firebase Hosting pilot activation is now the active path
+Status: final interactive login handoff; principal and restore gates are complete
 
 ## Completed Before Handoff
 
@@ -14,17 +14,19 @@ Status: superseded DNS handoff; production Firebase Hosting pilot activation is 
 - Cloud Run v2 traffic-only rollback and restore passed without changing the service template; Terraform no-drift passed afterward.
 - Production Firebase Hosting is live at `https://jenfu-ai-pdm-prod.web.app`. The reviewed gateway plan contained 1 create, 2 in-place updates, 0 deletes and 0 replacements; post-apply Terraform is no-drift.
 - The production OAuth client now contains the `web.app` JavaScript origin and `/__/auth/handler` redirect URI. A popup smoke reaches the Google account chooser without `redirect_uri_mismatch`.
+- The production Firebase user and Admin principal mapping are complete: `prod-pdm-admin-001`, 9 roles and 237 permissions.
+- Pre-canary reconciliation and separate-target restore reconciliation passed with matching numbering snapshot SHA-256. The runner is back in dry-run and Terraform is no-drift.
 
 ## Human Actions
 
 DNS action is cancelled. After Codex reports the production Hosting gateway ready:
 
-1. Open `https://jenfu-ai-pdm-prod.web.app`.
-2. Click Google sign-in and select `jedchang0308@jenfu.com.tw` once. A temporary "account not provisioned" or equivalent denial is acceptable at this point: the purpose is to create a verified production Firebase `google.com` identity so Codex can map its immutable UID.
-3. Report the visible result and provide the remaining 1-3 canary email addresses. Known candidates are `jedchang0308@jenfu.com.tw` and `dani@jenfu.com.tw`; no other identity will be guessed or allowlisted.
+1. In the production Google account chooser already opened by Codex, select `jedchang0308@jenfu.com.tw`.
+2. Wait until the popup closes and the AI PDM page changes, then report `已登入`.
+3. Provide the remaining 1-3 canary email addresses before Gate E. Known candidates are `jedchang0308@jenfu.com.tw` and `dani@jenfu.com.tw`; no other identity will be guessed or allowlisted.
 
 Do not create a Firebase user manually, do not send a password and do not add DNS records for this pilot.
 
 ## Codex Resume Work
 
-After the single human response, Codex will verify the real Firebase provider UID, run the principal bootstrap, pre-canary reconciliation, isolated Cloud SQL restore and restore reconciliation, then execute Level 3/4 HTTP/UI, allowlist, negative-access, numbering, draft, series-code, persistence and file fail-closed smoke. DEV-032 remains incomplete until those checks and final UI acceptance pass.
+After the single human response, Codex will execute authenticated Level 4 HTTP/UI, allowlist, negative-access, numbering, draft, series-code, persistence and file fail-closed smoke. DEV-032 remains incomplete until those checks and final UI acceptance pass.
