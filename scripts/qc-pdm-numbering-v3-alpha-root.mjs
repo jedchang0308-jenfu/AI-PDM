@@ -85,7 +85,7 @@ try {
     fileIncludes("src/lib/repositories/numbering-repository.ts", [
       "selectV3ReservedRootCodes",
       "extractAuditRootCodesFromJson",
-      "detail_json LIKE '%rootCode%'",
+      "CAST(detail_json AS TEXT) LIKE '%rootCode%'",
       "rootCodeToV3Ordinal(rootCode)"
     ]) &&
       fileIncludes("src/lib/repositories/numbering-async-repository.ts", [

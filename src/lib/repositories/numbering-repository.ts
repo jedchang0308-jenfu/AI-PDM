@@ -3250,7 +3250,11 @@ function selectV3ReservedRootCodes(database: SqliteDatabase): string[] {
       SELECT detail_json
       FROM audit_logs
       WHERE action LIKE 'numbering.%'
-        AND (detail_json LIKE '%rootCode%' OR detail_json LIKE '%rootCodes%' OR detail_json LIKE '%root_code%')
+        AND (
+          CAST(detail_json AS TEXT) LIKE '%rootCode%'
+          OR CAST(detail_json AS TEXT) LIKE '%rootCodes%'
+          OR CAST(detail_json AS TEXT) LIKE '%root_code%'
+        )
       ORDER BY created_at ASC
     `
     )

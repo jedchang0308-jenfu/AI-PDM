@@ -1,24 +1,24 @@
 # DEV-032 Production Activation Readiness
 
-Generated: 2026-07-16T04:38:57.837Z
-Status: `blocked_activation_readiness`
+Generated: 2026-07-16T05:47:05.839Z
+Status: `pending_human_activation_readiness`
 Target: `jenfu-ai-pdm-prod` / `asia-east1`
 Source commit: `68b89f088b46a2e66b6949c177549f9e51054f7d`
 Release ready: `false`
 
 ## Gate Summary
 
-- Passed: 7/10
-- Blocked: 1
+- Passed: 8/10
+- Blocked: 0
 - Missing evidence: 0
 - Pending human: 2
-- First incomplete gate: `A2-provider-and-env-readback`
+- First incomplete gate: `A8-production-deploy-and-level4-smoke`
 
 ## Gates
 
 - `A0-release-source`: passed
 - `A1-production-target-readback`: passed
-- `A2-provider-and-env-readback`: blocked
+- `A2-provider-and-env-readback`: passed
 - `A3-credentialled-terraform-plan-review`: passed
 - `A4-production-resource-apply`: passed
 - `A5-clean-seed-and-principal-bootstrap`: passed
@@ -29,4 +29,4 @@ Release ready: `false`
 
 ## Next Required Action
 
-Resolve the provider secret exposure review by rotating the affected OAuth client secret or recording explicit product-owner residual-risk acceptance, then regenerate readiness.
+Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response.

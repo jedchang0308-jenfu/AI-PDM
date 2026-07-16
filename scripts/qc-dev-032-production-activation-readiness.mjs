@@ -6,6 +6,8 @@ import path from "node:path";
 const root = process.cwd();
 const reportPath = path.join(root, "output", "dev-032-production-activation-readiness", "report.json");
 const livePath = path.join(root, "output", "dev-032-production-live-readback", "report.json");
+const secretExposurePath = path.join(root, "output", "dev-032-production-auth-activation", "secret-exposure-review.json");
+const sanitizedReadbackPath = path.join(root, "output", "dev-032-production-auth-activation", "provider-readback-sanitized.json");
 const generatorPath = path.join(root, "scripts", "generate-dev-032-production-activation-readiness.mjs");
 const capturePath = path.join(root, "scripts", "capture-dev-032-production-live-readback.mjs");
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
@@ -17,8 +19,12 @@ function record(name, passed, detail = "") {
 
 const reportExists = existsSync(reportPath);
 const liveExists = existsSync(livePath);
+const secretExposureExists = existsSync(secretExposurePath);
+const sanitizedReadbackExists = existsSync(sanitizedReadbackPath);
 const report = reportExists ? JSON.parse(readFileSync(reportPath, "utf8")) : null;
 const live = liveExists ? JSON.parse(readFileSync(livePath, "utf8")) : null;
+const secretExposure = secretExposureExists ? JSON.parse(readFileSync(secretExposurePath, "utf8")) : null;
+const sanitizedReadback = sanitizedReadbackExists ? JSON.parse(readFileSync(sanitizedReadbackPath, "utf8")) : null;
 const generator = readFileSync(generatorPath, "utf8");
 const capture = readFileSync(capturePath, "utf8");
 const gates = report?.gates ?? [];
@@ -43,12 +49,13 @@ record("DEV032-ACT-READY-001 report exists and identifies the evidence-driven sc
 record("DEV032-ACT-READY-002 generation is read-only while prior production actions are represented", report?.generationReadOnly === true && report?.productionActionPerformed === true && report?.releaseReady === false);
 record("DEV032-ACT-READY-003 target is the dedicated Firebase Hosting production target", report?.target?.projectId === "jenfu-ai-pdm-prod" && report?.target?.runtimeService === "ai-pdm-prod" && report?.target?.cloudSqlInstance === "ai-pdm-prod-postgres" && report?.target?.canonicalBaseUrl === "https://jenfu-ai-pdm-prod.web.app");
 record("DEV032-ACT-READY-004 live readback exists, is read-only and passed", liveExists && live?.readOnlyCapture === true && live?.productionMutationPerformed === false && live?.allChecksPassed === true && Array.isArray(live?.failed) && live.failed.length === 0);
-record("DEV032-ACT-READY-005 machine-verifiable gates stop when provider secret exposure is unresolved", provider.status === "blocked" && (provider.blockers ?? []).some((item) => item.code === "PROVIDER_SECRET_EXPOSURE_REVIEW_PENDING") && passedMachineGates.filter((id) => id !== "A2-provider-and-env-readback").every((id) => gateMap.get(id)?.status === "passed"), JSON.stringify(passedMachineGates.map((id) => [id, gateMap.get(id)?.status])));
-record("DEV032-ACT-READY-006 first incomplete gate is provider secret exposure review", report?.status === "blocked_activation_readiness" && report?.gateSummary?.firstBlockedGate === "A2-provider-and-env-readback" && report?.gateSummary?.blocked === 1 && report?.gateSummary?.missingEvidence === 0);
+record("DEV032-ACT-READY-005 machine-verifiable gates A0-A7 pass after provider secret rotation closure", provider.status === "passed" && passedMachineGates.every((id) => gateMap.get(id)?.status === "passed"), JSON.stringify(passedMachineGates.map((id) => [id, gateMap.get(id)?.status])));
+record("DEV032-ACT-READY-006 first incomplete gate is authenticated Level 4 human smoke", report?.status === "pending_human_activation_readiness" && report?.gateSummary?.firstBlockedGate === "A8-production-deploy-and-level4-smoke" && report?.gateSummary?.blocked === 0 && report?.gateSummary?.missingEvidence === 0 && report?.gateSummary?.pendingHuman === 2);
+record("DEV032-ACT-READY-006B provider secret exposure review is resolved by rotation plus sanitized readback", secretExposure?.requiredResolution?.status === "resolved" && secretExposure.requiredResolution?.resolutionType === "human_confirmed_secret_rotation_plus_sanitized_readback" && sanitizedReadback?.assertions?.noSecretFieldsReturned === true && sanitizedReadback?.google?.clientSecretRead === false);
 record("DEV032-ACT-READY-007 Level 3 evidence is exact and current", level3.passed === 14 && level3.failed === 0 && level3.revision === "ai-pdm-prod-00006-lx5" && level3.manifestDigest === "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3" && level3.runtimeDigest === "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779");
 record("DEV032-ACT-READY-008 authenticated Level 4 is not inferred from unauthenticated checks", level4.evidence?.productionDeploymentObserved === true && level4.evidence?.unauthenticatedProductionChecksPassed === true && level4.evidence?.authenticatedLevel4Status === "pending_human_google_login" && (level4.blockers ?? []).some((item) => item.code === "AUTHENTICATED_LEVEL4_PENDING"));
 record("DEV032-ACT-READY-009 Wave 0 does not guess users or restore the cancelled five-day gate", wave0.status === "pending_human" && wave0.evidence?.minimumNamedUsers === 3 && wave0.evidence?.maximumNamedUsers === 5 && wave0.evidence?.namedUserCount === 1 && wave0.evidence?.namedUsers?.[0] === "jedchang0308@jenfu.com.tw" && wave0.evidence?.fixedFiveBusinessDayObservationCancelled === true);
-record("DEV032-ACT-READY-010 next action resolves provider secret exposure before UI closure", report?.nextRequiredAction?.includes("provider secret exposure review") && report.nextRequiredAction.includes("rotating the affected OAuth client secret") && !/terraform\s+apply/iu.test(report.nextRequiredAction));
+record("DEV032-ACT-READY-010 next action is authenticated Level 4 and Wave 0 closure", report?.nextRequiredAction?.includes("production Google account chooser") && report.nextRequiredAction.includes("authenticated Level 4") && !/terraform\s+apply/iu.test(report.nextRequiredAction));
 record("DEV032-ACT-READY-011 report does not persist secret values", !/private_key|client_secret|DATABASE_URL|BEGIN PRIVATE KEY|secretValue/iu.test(reportText));
 record("DEV032-ACT-READY-012 readiness generator performs no cloud or production command", !generator.includes("node:child_process") && !generator.includes("execFileSync") && !generator.includes("spawnSync") && !generator.includes("gcloud "));
 record("DEV032-ACT-READY-013 live capture is read-only and contains no mutation verb", capture.includes("readOnlyCapture: true") && capture.includes("productionMutationPerformed: false") && !/"run",\s*"jobs",\s*"execute"|terraform\s+apply|sql",\s*"backups",\s*"restore|run",\s*"services",\s*"update/iu.test(capture));

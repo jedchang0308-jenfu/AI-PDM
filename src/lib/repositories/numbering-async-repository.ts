@@ -1567,7 +1567,11 @@ export const SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL = `
   SELECT detail_json
   FROM audit_logs
   WHERE action LIKE 'numbering.%'
-    AND (detail_json LIKE '%rootCode%' OR detail_json LIKE '%rootCodes%' OR detail_json LIKE '%root_code%')
+    AND (
+      CAST(detail_json AS TEXT) LIKE '%rootCode%'
+      OR CAST(detail_json AS TEXT) LIKE '%rootCodes%'
+      OR CAST(detail_json AS TEXT) LIKE '%root_code%'
+    )
   ORDER BY created_at ASC
 `;
 
@@ -8908,7 +8912,7 @@ export class AsyncNumberingRepository {
         WHERE action = :action
           AND (actor_id = :actorId OR (:actorId IS NULL AND actor_id IS NULL))
           AND created_at >= :notBefore
-          AND detail_json LIKE :needle
+          AND CAST(detail_json AS TEXT) LIKE :needle
         ORDER BY created_at DESC
         LIMIT 1
       `,

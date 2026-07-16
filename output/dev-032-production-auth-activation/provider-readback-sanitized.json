@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "dev-032-production-auth-sanitized-readback/v1",
+  "capturedAt": "2026-07-16T05:41:28.8903740Z",
+  "project": "jenfu-ai-pdm-prod",
+  "projectNumber": "451715062958",
+  "api": "identitytoolkit.googleapis.com",
+  "fieldMask": {
+    "provider": "name,enabled,clientId",
+    "projectConfig": "signIn.email.enabled,signIn.anonymous.enabled,authorizedDomains"
+  },
+  "google": {
+    "name": "projects/451715062958/defaultSupportedIdpConfigs/google.com",
+    "enabled": true,
+    "clientIdPresent": true,
+    "clientSecretRead": false,
+    "clientSecretPresent": null
+  },
+  "signIn": {
+    "emailPasswordEnabled": true,
+    "anonymousEnabled": false
+  },
+  "authorizedDomains": [
+    "jenfu-ai-pdm-prod.firebaseapp.com",
+    "pdm.jenfu.com.tw",
+    "jenfu-ai-pdm-prod.web.app"
+  ],
+  "assertions": {
+    "noSecretFieldsReturned": true,
+    "googleEnabled": true,
+    "anonymousDisabled": true,
+    "emailPasswordEnabled": true
+  }
+}

@@ -298,8 +298,7 @@ function writeMarkdown(reportData) {
     "",
     "## Next Required Action",
     "",
-    reportData.nextRequiredAction,
-    ""
+    reportData.nextRequiredAction
   ];
   return `${lines.join("\n")}\n`;
 }
