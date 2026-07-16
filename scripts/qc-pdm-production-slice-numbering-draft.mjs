@@ -31,6 +31,8 @@ const statusRoute = readRequired("src/app/api/production-slice/status/route.ts")
 const blockedPage = readRequired("src/app/production-slice-blocked/page.tsx");
 const sidebar = readRequired("src/components/sidebar-nav.tsx");
 const partDraftPage = readRequired("src/app/numbering/part-drafts/page.tsx");
+const partsPage = readRequired("src/app/parts/page.tsx");
+const masterAttachmentPanel = readRequired("src/components/master-attachment-panel.tsx");
 const numberStateWorkspace = readRequired("src/components/number-state-workspace.tsx");
 const globalCss = readRequired("src/app/globals.css");
 const envExample = readRequired(".env.example");
@@ -66,6 +68,10 @@ record("SLICE-015 part-drafts submit-review UI is inert in slice mode", partDraf
 record("SLICE-016 part-drafts reconfirm UI is inert in slice mode", partDraftPage.includes('action === "reconfirm"') && partDraftPage.includes('<UnopenedAction label="重新確認"'));
 record("SLICE-017 part-drafts restore UI is inert in slice mode", partDraftPage.includes("function restoreDraft") && partDraftPage.includes('<UnopenedAction label="還原"'));
 record("SLICE-018 unopened UI remains focusable with aria-disabled instead of native disabled only", partDraftPage.includes('aria-disabled="true"') && partDraftPage.includes('data-production-slice-unopened="true"'));
+record("SLICE-018A parts detail reads production-slice status", partsPage.includes("/api/production-slice/status") && partsPage.includes("productionSliceEnforced"));
+record("SLICE-018B parts detail disables unopened formal workflow actions", partsPage.includes("送審製造圖") && partsPage.includes("production-slice-unopened") && partsPage.includes("data-production-slice-unopened"));
+record("SLICE-018C parts detail does not call unopened 3D/MA mutations in production slice", partsPage.includes("if (productionSliceEnforced) return;") && partsPage.includes("setModels([])") && partsPage.includes("setResolver(null)"));
+record("SLICE-018D master attachment panel disables unopened file workflow actions", masterAttachmentPanel.includes("productionSliceEnforced") && masterAttachmentPanel.includes("FileDropzone") && masterAttachmentPanel.includes("disabled={productionSliceEnforced}") && masterAttachmentPanel.includes("data-production-slice-unopened"));
 record("SLICE-019 submit-review route gates before domain mutation", submitReviewRoute.includes("isProductionSliceEnforced") && appearsBefore(submitReviewRoute, "isProductionSliceEnforced()", "submitPartNumberDraft("));
 record("SLICE-020 reconfirm route gates before domain mutation", reconfirmRoute.includes("isProductionSliceEnforced") && appearsBefore(reconfirmRoute, "isProductionSliceEnforced()", "reconfirmPartNumberDraft("));
 record("SLICE-021 restore route gates before domain mutation", restoreRoute.includes("isProductionSliceEnforced") && appearsBefore(restoreRoute, "isProductionSliceEnforced()", "restorePartNumberDraft("));
@@ -74,7 +80,7 @@ record("SLICE-023 recycle route continues to use change-control service", recycl
 record("SLICE-024 void/recycle domain uses existing controlled-boundary predicate", changeControlDomain.includes("async assertPartNumberDraftIsRecyclable") && changeControlDomain.includes("const boundary = await this.assertPartNumberDraftIsRecyclable(input.draftId, input.actor);"));
 record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(allowedSection) && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
-record("SLICE-027 CSS styles unopened nav and icon controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
+record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
 record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 草稿 production slice 邊界封鎖"));
 
 const failed = results.filter((result) => !result.passed);

@@ -124,6 +124,12 @@ type PendingRevisionReviews = {
   workbenchHref: string;
   canReview: boolean;
 };
+type ProductionSliceClientStatus = {
+  configured: boolean;
+  unopenedMessage?: string;
+};
+
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 草稿 production slice。";
 
 const drawingCategories = [
   { value: "cad_3d", label: "3D CAD" },
@@ -163,13 +169,17 @@ export function MasterAttachmentPanel({
   entityCode,
   developmentPhase,
   processControlled = true,
-  pendingRevisionReviews = null
+  pendingRevisionReviews = null,
+  productionSliceEnforced: productionSliceEnforcedOverride,
+  productionSliceUnopenedMessage: productionSliceUnopenedMessageOverride
 }: {
   entityType: AttachmentEntityType;
   entityCode: string;
   developmentPhase?: NumberingPhase | null;
   processControlled?: boolean;
   pendingRevisionReviews?: PendingRevisionReviews | null;
+  productionSliceEnforced?: boolean;
+  productionSliceUnopenedMessage?: string;
 }) {
   const categories = entityType === "drawing_number" ? drawingCategories : partCategories;
   const baseUrl =
@@ -192,6 +202,26 @@ export function MasterAttachmentPanel({
   const [deletedLoaded, setDeletedLoaded] = useState(false);
   const [deletedAttachments, setDeletedAttachments] = useState<DeletedMasterAttachment[]>([]);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+  const productionSliceEnforced = productionSliceEnforcedOverride ?? productionSlice?.configured === true;
+  const productionSliceUnopenedMessage = productionSliceUnopenedMessageOverride ?? productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
+  const productionSliceTitle = `未開放。${productionSliceUnopenedMessage}`;
+
+  useEffect(() => {
+    if (typeof productionSliceEnforcedOverride === "boolean") return;
+    let cancelled = false;
+    fetch("/api/production-slice/status", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: ProductionSliceClientStatus | null) => {
+        if (!cancelled && body?.configured) setProductionSlice(body);
+      })
+      .catch(() => {
+        if (!cancelled) setProductionSlice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productionSliceEnforcedOverride]);
   const revisionStage = useMemo(
     () => revisionLifecycleStageForAttachment(entityType, developmentPhase, processControlled),
     [developmentPhase, entityType, processControlled]
@@ -275,6 +305,10 @@ export function MasterAttachmentPanel({
 
   async function uploadAttachment(event: FormEvent) {
     event.preventDefault();
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     if (files.length === 0) {
       setMessage({ type: "error", text: "請先選擇附件檔案" });
       return;
@@ -309,6 +343,10 @@ export function MasterAttachmentPanel({
 
   async function requestSupplement(event: FormEvent) {
     event.preventDefault();
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     if (!currentRevisionPackageId) {
       setMessage({ type: "error", text: "目前正式版尚未建立版次附件包，不能申請補件。" });
       return;
@@ -356,6 +394,10 @@ export function MasterAttachmentPanel({
   }
 
   async function deleteAttachment(attachment: MasterAttachment) {
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     if (!window.confirm(`刪除附件「${attachment.displayName || attachment.fileName}」？`)) return;
     setLoading(true);
     setMessage(null);
@@ -378,6 +420,10 @@ export function MasterAttachmentPanel({
   }
 
   async function restoreAttachment(deleted: DeletedMasterAttachment) {
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     const { attachment } = deleted;
     setLoading(true);
     setMessage(null);
@@ -400,6 +446,10 @@ export function MasterAttachmentPanel({
   }
 
   async function retryDriveSync(attachment: MasterAttachment) {
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -416,6 +466,10 @@ export function MasterAttachmentPanel({
   }
 
   async function generatePreview(attachment: MasterAttachment) {
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -436,6 +490,10 @@ export function MasterAttachmentPanel({
   }
 
   async function decideSupplement(attachment: MasterAttachment, decision: "approve" | "reject") {
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
     if (!attachment.revisionPackageSupplementId) return;
     setLoading(true);
     setMessage(null);
@@ -530,21 +588,53 @@ export function MasterAttachmentPanel({
             </a>
           ) : null}
           {attachment.gdriveStatus === "failed" || attachment.gdriveStatus === "none" ? (
-            <button className="icon-button" type="button" onClick={() => void retryDriveSync(attachment)} disabled={loading} title="重新同步 Google Drive" aria-label="重新同步 Google Drive">
+            <button
+              className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+              type="button"
+              onClick={() => void retryDriveSync(attachment)}
+              disabled={loading || productionSliceEnforced}
+              title={productionSliceEnforced ? productionSliceTitle : "重新同步 Google Drive"}
+              aria-label={productionSliceEnforced ? `重新同步 Google Drive：${productionSliceTitle}` : "重新同步 Google Drive"}
+              data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+            >
               <RefreshCw size={16} />
             </button>
           ) : null}
           {attachment.revisionPackageFileKind === "supplement" && attachment.revisionPackageSupplementStatus === "Pending" ? (
             <>
-              <button className="icon-button success" type="button" onClick={() => void decideSupplement(attachment, "approve")} disabled={loading} title="核准補件" aria-label="核准補件">
+              <button
+                className={`icon-button success${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                type="button"
+                onClick={() => void decideSupplement(attachment, "approve")}
+                disabled={loading || productionSliceEnforced}
+                title={productionSliceEnforced ? productionSliceTitle : "核准補件"}
+                aria-label={productionSliceEnforced ? `核准補件：${productionSliceTitle}` : "核准補件"}
+                data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+              >
                 <Check size={16} />
               </button>
-              <button className="icon-button danger" type="button" onClick={() => void decideSupplement(attachment, "reject")} disabled={loading} title="駁回補件" aria-label="駁回補件">
+              <button
+                className={`icon-button danger${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                type="button"
+                onClick={() => void decideSupplement(attachment, "reject")}
+                disabled={loading || productionSliceEnforced}
+                title={productionSliceEnforced ? productionSliceTitle : "駁回補件"}
+                aria-label={productionSliceEnforced ? `駁回補件：${productionSliceTitle}` : "駁回補件"}
+                data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+              >
                 <X size={16} />
               </button>
             </>
           ) : null}
-          <button className="icon-button danger" type="button" onClick={() => void deleteAttachment(attachment)} disabled={loading} title="刪除附件" aria-label="刪除附件">
+          <button
+            className={`icon-button danger${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+            type="button"
+            onClick={() => void deleteAttachment(attachment)}
+            disabled={loading || productionSliceEnforced}
+            title={productionSliceEnforced ? productionSliceTitle : "刪除附件"}
+            aria-label={productionSliceEnforced ? `刪除附件：${productionSliceTitle}` : "刪除附件"}
+            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+          >
             <Trash2 size={16} />
           </button>
         </div>
@@ -578,12 +668,13 @@ export function MasterAttachmentPanel({
               <span>{previewPlaceholder.text}</span>
               {attachment && previewPlaceholder.action ? (
                 <button
-                  className="secondary-button preview-generate-button"
+                  className={`secondary-button preview-generate-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
                   onClick={() => void generatePreview(attachment)}
-                  disabled={loading || previewPlaceholder.action.disabled}
-                  title={previewPlaceholder.action.label}
-                  aria-label={`${slot.title}${previewPlaceholder.action.label}`}
+                  disabled={loading || productionSliceEnforced || previewPlaceholder.action.disabled}
+                  title={productionSliceEnforced ? productionSliceTitle : previewPlaceholder.action.label}
+                  aria-label={productionSliceEnforced ? `${slot.title}${productionSliceTitle}` : `${slot.title}${previewPlaceholder.action.label}`}
+                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
                 >
                   <RefreshCw size={15} />
                   {previewPlaceholder.action.label}
@@ -605,12 +696,13 @@ export function MasterAttachmentPanel({
               ) : null}
               {isNativeSolidWorksAttachment(attachment) ? (
                 <button
-                  className="icon-button"
+                  className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
                   onClick={() => void generatePreview(attachment)}
-                  disabled={loading}
-                  title="重新產生預覽"
-                  aria-label={`重新產生${slot.title}預覽`}
+                  disabled={loading || productionSliceEnforced}
+                  title={productionSliceEnforced ? productionSliceTitle : "重新產生預覽"}
+                  aria-label={productionSliceEnforced ? `重新產生${slot.title}預覽：${productionSliceTitle}` : `重新產生${slot.title}預覽`}
+                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
                 >
                   <RefreshCw size={16} />
                 </button>
@@ -629,7 +721,7 @@ export function MasterAttachmentPanel({
     <form className="master-attachment-form" onSubmit={uploadAttachment}>
       <label>
         類別
-        <select className="dropdown-select" value={category} onChange={(event) => setCategory(event.target.value)}>
+        <select className="dropdown-select" value={category} disabled={productionSliceEnforced} onChange={(event) => setCategory(event.target.value)}>
           {categories.map((item) => (
             <option value={item.value} key={item.value}>
               {item.label}
@@ -641,6 +733,7 @@ export function MasterAttachmentPanel({
         版次
         <input
           value={revision}
+          disabled={productionSliceEnforced}
           onChange={(event) => {
             setRevisionTouched(true);
             setRevision(event.target.value);
@@ -651,11 +744,11 @@ export function MasterAttachmentPanel({
       </label>
       <label>
         顯示名稱
-        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="未填則使用檔名" />
+        <input value={displayName} disabled={productionSliceEnforced} onChange={(event) => setDisplayName(event.target.value)} placeholder="未填則使用檔名" />
       </label>
       <label>
         說明
-        <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="用途、來源或注意事項" />
+        <input value={description} disabled={productionSliceEnforced} onChange={(event) => setDescription(event.target.value)} placeholder="用途、來源或注意事項" />
       </label>
       <div className="master-attachment-file">
         <FileDropzone
@@ -664,13 +757,22 @@ export function MasterAttachmentPanel({
           multiple
           selectedFiles={files}
           variant="compact"
+          disabled={productionSliceEnforced}
           onClearSelected={() => setFiles([])}
           onFilesSelected={(selected) => setFiles(selected)}
         />
       </div>
-      <button className="primary-button" type="submit" disabled={loading || files.length === 0}>
+      <button
+        className={`primary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+        type="submit"
+        disabled={productionSliceEnforced || loading || files.length === 0}
+        title={productionSliceEnforced ? productionSliceTitle : "上傳附件"}
+        aria-label={productionSliceEnforced ? `上傳附件：${productionSliceTitle}` : "上傳附件"}
+        data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+      >
         <UploadCloud size={16} />
         上傳附件
+        {productionSliceEnforced ? <span className="nav-unopened-badge">未開放</span> : null}
       </button>
     </form>
   );
@@ -703,6 +805,7 @@ export function MasterAttachmentPanel({
 
       {entityType === "drawing_number" ? drawingPreviewBoard : null}
 
+      {productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
 
       {entityType === "drawing_number" ? (
@@ -761,7 +864,7 @@ export function MasterAttachmentPanel({
                 <div className="master-attachment-supplement-grid">
                   <label>
                     補件原因
-                    <select className="dropdown-select" value={supplementReason} onChange={(event) => setSupplementReason(event.target.value as SupplementReasonCode)}>
+                    <select className="dropdown-select" value={supplementReason} disabled={productionSliceEnforced} onChange={(event) => setSupplementReason(event.target.value as SupplementReasonCode)}>
                       {supplementReasons.map((reason) => (
                         <option value={reason.code} key={reason.code}>
                           {reason.label}
@@ -771,7 +874,7 @@ export function MasterAttachmentPanel({
                   </label>
                   <label>
                     說明{supplementReasonDefinition.noteRequired ? "（必填）" : ""}
-                    <input value={supplementNote} onChange={(event) => setSupplementNote(event.target.value)} placeholder={supplementReasonDefinition.wording} />
+                    <input value={supplementNote} disabled={productionSliceEnforced} onChange={(event) => setSupplementNote(event.target.value)} placeholder={supplementReasonDefinition.wording} />
                   </label>
                 </div>
                 {supplementReasonDefinition.revisionWarning ? (
@@ -788,6 +891,7 @@ export function MasterAttachmentPanel({
                       <input
                         type="checkbox"
                         checked={selectedSupplementAttachmentIds.includes(attachment.id)}
+                        disabled={productionSliceEnforced}
                         onChange={(event) => {
                           setSelectedSupplementAttachmentIds((current) =>
                             event.target.checked ? [...current, attachment.id] : current.filter((id) => id !== attachment.id)
@@ -799,8 +903,16 @@ export function MasterAttachmentPanel({
                     </label>
                   ))}
                 </div>
-                <button className="secondary-button" type="submit" disabled={supplementLoading || selectedSupplementAttachmentIds.length === 0}>
+                <button
+                  className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                  type="submit"
+                  disabled={productionSliceEnforced || supplementLoading || selectedSupplementAttachmentIds.length === 0}
+                  title={productionSliceEnforced ? productionSliceTitle : "申請補件"}
+                  aria-label={productionSliceEnforced ? `申請補件：${productionSliceTitle}` : "申請補件"}
+                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                >
                   申請補件
+                  {productionSliceEnforced ? <span className="nav-unopened-badge">未開放</span> : null}
                 </button>
               </form>
             ) : null}
@@ -904,12 +1016,13 @@ export function MasterAttachmentPanel({
                   </div>
                   <div className="master-attachment-actions">
                     <button
-                      className="icon-button"
+                      className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                       type="button"
                       onClick={() => void restoreAttachment(deleted)}
-                      disabled={loading || deletedLoading || !canRestore}
-                      title={canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
-                      aria-label={canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
+                      disabled={productionSliceEnforced || loading || deletedLoading || !canRestore}
+                      title={productionSliceEnforced ? productionSliceTitle : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
+                      aria-label={productionSliceEnforced ? `還原附件：${productionSliceTitle}` : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
+                      data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
                     >
                       <RotateCcw size={16} />
                     </button>
