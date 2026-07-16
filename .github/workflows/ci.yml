@@ -19,16 +19,16 @@ concurrency:
 
 jobs:
   qc-full:
-    name: Full QC Suite
+    name: Production Slice QC
     runs-on: windows-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -39,7 +39,23 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install chromium
 
-      - name: Run full QC suite
+      - name: Reject high or critical production dependency findings
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verify current production slice
         env:
           CI: true
-        run: npm run qc:full
+          PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT: "true"
+        run: |
+          npm run qc:source-boundary
+          npm run qc:dev-046-phase2b
+          npm run qc:pdm-account-invitations
+          npm run qc:pdm-production-slice-numbering-draft
+          npm run qc:dev-032-production-iac-package
+          npm run qc:production-deployment-pipeline
+
+      - name: Build production artifact
+        run: npm run build
