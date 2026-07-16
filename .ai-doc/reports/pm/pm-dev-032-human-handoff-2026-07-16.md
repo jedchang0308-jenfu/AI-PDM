@@ -16,12 +16,17 @@ Status: final interactive login handoff; principal and restore gates are complet
 - The production OAuth client now contains the `web.app` JavaScript origin and `/__/auth/handler` redirect URI. A popup smoke reaches the Google account chooser without `redirect_uri_mismatch`.
 - The production Firebase user and Admin principal mapping are complete: `prod-pdm-admin-001`, 9 roles and 237 permissions.
 - Pre-canary reconciliation and separate-target restore reconciliation passed with matching numbering snapshot SHA-256. The runner is back in dry-run and Terraform is no-drift.
+- Production runtime now enforces the exact server-only
+  `official-numbering-draft` slice on revision `ai-pdm-prod-00006-lx5` with the
+  same immutable image. Level 3 production-like smoke passed 14/14, unopened
+  file/CAD/BOM/submission mutations remain stable 403 fail-closed, all
+  post-apply Terraform gates are true and final Terraform is no-drift.
 
 ## Human Actions
 
 DNS action is cancelled. After Codex reports the production Hosting gateway ready:
 
-1. In the production Google account chooser already opened by Codex, select `jedchang0308@jenfu.com.tw`.
+1. In the production Google account chooser already opened by Codex, select `jedchang0308@jenfu.com.tw`. The red password-path message on the underlying login page is not the Google principal result.
 2. Wait until the popup closes and the AI PDM page changes, then report `已登入`.
 3. Provide the remaining 1-3 canary email addresses before Gate E. Known candidates are `jedchang0308@jenfu.com.tw` and `dani@jenfu.com.tw`; no other identity will be guessed or allowlisted.
 

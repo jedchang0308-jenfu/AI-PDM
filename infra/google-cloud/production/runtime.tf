@@ -93,6 +93,11 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
+        name  = "PDM_PRODUCTION_SLICE_MODE"
+        value = "official-numbering-draft"
+      }
+
+      env {
         name  = "PDM_DB_PROVIDER"
         value = "cloud_sql_postgres"
       }

@@ -41,10 +41,43 @@ Risk lane: Lane 3 production infrastructure and authentication configuration
 - Main login page browser smoke: zero console errors; one nonblocking unused-preload warning.
 - Google popup emits existing COOP `window.closed` polling messages while open, but it reaches the account chooser and is no longer blocked by OAuth configuration.
 
+## Production Slice Runtime Activation
+
+- A post-deploy readback found `/api/production-slice/status` returning
+  `configured=false` and `active=false`. This was treated as a P0 release
+  configuration defect; authenticated mutation smoke stopped before any data
+  write.
+- Production Terraform now fixes the server-only
+  `PDM_PRODUCTION_SLICE_MODE=official-numbering-draft` value. Focused static
+  evidence passed: production slice 29/29, production IaC 23/23 and Terraform
+  validate 12/12. The IaC guard also confirms no `NEXT_PUBLIC_*` equivalent and
+  no GCS/file authority resource or environment setting.
+- Saved plan SHA-256
+  `25f6f28a74d27e988e13301793488cf736fe0fedcc8ec72779cfc90b9497221e`
+  contained 0 create, 1 Cloud Run in-place update, 0 delete and 0 replace. The
+  application image index remained exactly
+  `sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3`.
+- Apply created ready revision `ai-pdm-prod-00006-lx5` with 100% traffic. Its
+  linux/amd64 runtime digest remains
+  `sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779`.
+- Direct Cloud Run and Firebase Hosting status readback both return HTTP 200,
+  `configured=true`, `active=true`, mode `official-numbering-draft` and private
+  no-store headers.
+- Level 3 production-like smoke passed 14/14: login shell, Firebase BFF mode,
+  protected GET 401/no-store, blocked roadmap pages, stable 403
+  `feature_not_open_in_production_slice` for submission/file/CAD/BOM mutations,
+  and direct `run.app` session denial.
+- The outputs-only post-smoke plan changed zero resources and recorded rollback,
+  Level 3 and `post_apply_ready` as true. Final credentialled Terraform plan
+  reported no drift.
+
 ## Remaining Gate
 
 The first interactive login created a verified production Firebase identity. Principal bootstrap and independent restore/reconciliation have since passed; see `pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md`.
 
-`jedchang0308@jenfu.com.tw` must now sign in again after provisioning so authenticated Level 4 and named-user canary checks can run.
+`jedchang0308@jenfu.com.tw` must now complete the open Google account chooser
+after provisioning so authenticated Level 4 and named-user canary checks can
+run. Gate D remains incomplete until that authenticated production evidence
+passes.
 
 DNS remains intentionally deferred.

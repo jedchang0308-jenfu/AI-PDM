@@ -19,6 +19,9 @@ target after the release gates close:
 - Identity: Firebase Authentication with Identity Platform only
 - Auth handler and canonical pilot origin: `jenfu-ai-pdm-prod.web.app`.
   `jenfu-ai-pdm-prod.firebaseapp.com` remains an authorized Firebase domain.
+- Runtime boundary: server-only `PDM_PRODUCTION_SLICE_MODE` is fixed to
+  `official-numbering-draft`; unopened workflows remain UI disabled and API
+  fail-closed.
 - Secrets: Secret Manager containers only; values are never stored here
 - Logs and signing: regional application-log bucket and HSM-backed numbering
   ledger signing key
@@ -108,5 +111,7 @@ A plan file is not an apply approval.
 - Do not store secret values, Firebase private keys, database passwords or
   service-account keys.
 - Do not enable GCS file authority in Phase 3A.
+- Do not remove, rename or expose `PDM_PRODUCTION_SLICE_MODE` through a
+  `NEXT_PUBLIC_*` variable.
 - Do not apply this package until DEV-032 gates and explicit production
   authorization are recorded.
