@@ -1,7 +1,8 @@
-import fs from "node:fs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
-const source = fs.readFileSync("src/components/dashboard.tsx", "utf8");
-const layoutParts = fs.readFileSync("src/components/dashboard/layout-parts.tsx", "utf8");
+const root = process.cwd();
+const source = readProjectFile(root, "src/components/dashboard.tsx");
+const layoutParts = readProjectFile(root, "src/components/dashboard/layout-parts.tsx");
 const results = [];
 
 function record(name, passed, detail = "") {

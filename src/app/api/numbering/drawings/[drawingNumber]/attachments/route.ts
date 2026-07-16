@@ -1,25 +1,36 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachment, listMasterAttachments } from "@/lib/db";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 
 export const runtime = "nodejs";
+const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.drawings.view");
+  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
 
   const { drawingNumber } = await params;
-  const result = listMasterAttachments({
+  const surface = new URL(request.url).searchParams.get("surface");
+  if (surface === "deleted_data") {
+    const result = await listDeletedMasterAttachmentsAsync({
+      entityType: "drawing_number",
+      entityCode: decodeURIComponent(drawingNumber)
+    });
+    if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" }, { headers: noStoreHeaders });
+  }
+
+  const result = await listMasterAttachmentsAsync({
     entityType: "drawing_number",
     entityCode: decodeURIComponent(drawingNumber)
   });
   if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ entity: result.entity, attachments: result.attachments });
+  return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { drawingNumber } = await params;
@@ -30,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   }
 
   try {
-    const attachment = await createMasterAttachment({
+    const attachment = await createMasterAttachmentAsync({
       entityType: "drawing_number",
       entityCode: decodeURIComponent(drawingNumber),
       file,

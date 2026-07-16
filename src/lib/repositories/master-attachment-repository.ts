@@ -1,15 +1,53 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import crypto from "node:crypto";
 import { createAuditLog, getDb, getSystemSetting } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
+import {
+  buildStorageKey,
+  createFileStorageService,
+  createFileStorageServiceForPointer,
+  sha256,
+  storagePointerFromRecord
+} from "@/lib/file-storage";
 import { isGoogleDriveServiceConfigured, setFileAppProperties, uploadFileToDrive } from "@/lib/gdrive";
+import { normalizeRevisionCode, revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
+import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
 
 export type MasterAttachmentEntityType = "drawing_number" | "part_number";
-export type DrawingAttachmentCategory = "cad_3d" | "drawing_2d" | "dwg" | "pdf" | "other";
-export type PartAttachmentCategory = "catalog" | "spec_sheet" | "supplier_doc" | "test_report" | "other";
+export type DrawingAttachmentCategory = "cad_3d" | "intermediate" | "drawing_2d" | "dwg" | "pdf" | "other";
+export type PartAttachmentCategory = "cad_3d" | "intermediate" | "catalog" | "spec_sheet" | "supplier_doc" | "test_report" | "other";
 export type MasterAttachmentCategory = DrawingAttachmentCategory | PartAttachmentCategory;
 export type MasterAttachmentDriveStatus = "none" | "uploading" | "uploaded" | "failed";
+export type MasterAttachmentPreviewJobStatus = "queued" | "running" | "succeeded" | "failed" | "skipped" | "cancelled";
+export type MasterAttachmentPreviewDerivativeStatus = "ready" | "stale" | "retired" | "failed";
+export type MasterAttachmentPreviewDerivative = {
+  id: string;
+  derivativeKind: string;
+  mimeType: string;
+  fileName: string;
+  fileSize: number;
+  width: number | null;
+  height: number | null;
+  pageCount: number | null;
+  sourceContentHash: string;
+  generatorProfile: string;
+  generatorVersion: string | null;
+  status: MasterAttachmentPreviewDerivativeStatus;
+  createdAt: string;
+};
+export type MasterAttachmentPreviewJob = {
+  id: string;
+  requestedKind: string;
+  status: MasterAttachmentPreviewJobStatus;
+  sourceContentHash: string;
+  sourceExtension: string;
+  generatorProfile: string;
+  attemptCount: number;
+  errorCode: string | null;
+  errorSummary: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+};
 
 export type MasterAttachmentRecord = {
   id: string;
@@ -33,6 +71,22 @@ export type MasterAttachmentRecord = {
   gdriveSyncedAt: string | null;
   uploadedBy: string | null;
   uploadedByName: string | null;
+  sourceSubmissionId: string | null;
+  sourceSubmissionStatus: string | null;
+  sourceSubmissionRevision: string | null;
+  sourceSubmissionCreatedAt: string | null;
+  sourceSubmissionReleasedAt: string | null;
+  revisionPackageId: string | null;
+  revisionPackageStatus: string | null;
+  revisionPackageRevision: string | null;
+  revisionPackageSourceSubmissionId: string | null;
+  revisionPackageFileKind: string | null;
+  revisionPackageSupplementId: string | null;
+  revisionPackageSupplementStatus: string | null;
+  revisionPackageSupplementReasonCode: string | null;
+  revisionPackageSupplementReviewedAt: string | null;
+  previewDerivatives: MasterAttachmentPreviewDerivative[];
+  previewJob: MasterAttachmentPreviewJob | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -64,6 +118,20 @@ type MasterAttachmentRow = {
   gdrive_error: string | null;
   gdrive_synced_at: string | null;
   sync_status: string;
+  source_submission_id?: string | null;
+  source_submission_status?: string | null;
+  source_submission_revision?: string | null;
+  source_submission_created_at?: string | null;
+  source_submission_released_at?: string | null;
+  revision_package_id?: string | null;
+  revision_package_status?: string | null;
+  revision_package_revision?: string | null;
+  revision_package_source_submission_id?: string | null;
+  revision_package_file_kind?: string | null;
+  revision_package_supplement_id?: string | null;
+  revision_package_supplement_status?: string | null;
+  revision_package_supplement_reason_code?: string | null;
+  revision_package_supplement_reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
   entity_code?: string;
@@ -75,8 +143,8 @@ type EntityRef = {
   code: string;
 };
 
-const drawingCategories = new Set<MasterAttachmentCategory>(["cad_3d", "drawing_2d", "dwg", "pdf", "other"]);
-const partCategories = new Set<MasterAttachmentCategory>(["catalog", "spec_sheet", "supplier_doc", "test_report", "other"]);
+const drawingCategories = new Set<MasterAttachmentCategory>(["cad_3d", "intermediate", "drawing_2d", "dwg", "pdf", "other"]);
+const partCategories = new Set<MasterAttachmentCategory>(["cad_3d", "intermediate", "catalog", "spec_sheet", "supplier_doc", "test_report", "other"]);
 const allowedAttachmentExtensions = new Set([
   "sldprt",
   "sldasm",
@@ -85,6 +153,7 @@ const allowedAttachmentExtensions = new Set([
   "stp",
   "iges",
   "igs",
+  "x_t",
   "dwg",
   "dxf",
   "pdf",
@@ -107,7 +176,49 @@ export function listMasterAttachments(input: { entityType: MasterAttachmentEntit
   const rows = database
     .prepare(
       `
-      SELECT a.*, u.display_name AS uploaded_by_name
+      SELECT
+        a.*,
+        u.display_name AS uploaded_by_name,
+        (
+          SELECT s.id
+          FROM submission_files sf
+          JOIN submissions s ON s.id = sf.submission_id
+          WHERE sf.source_master_attachment_id = a.id
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT 1
+        ) AS source_submission_id,
+        (
+          SELECT s.status
+          FROM submission_files sf
+          JOIN submissions s ON s.id = sf.submission_id
+          WHERE sf.source_master_attachment_id = a.id
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT 1
+        ) AS source_submission_status,
+        (
+          SELECT s.revision
+          FROM submission_files sf
+          JOIN submissions s ON s.id = sf.submission_id
+          WHERE sf.source_master_attachment_id = a.id
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT 1
+        ) AS source_submission_revision,
+        (
+          SELECT s.created_at
+          FROM submission_files sf
+          JOIN submissions s ON s.id = sf.submission_id
+          WHERE sf.source_master_attachment_id = a.id
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT 1
+        ) AS source_submission_created_at,
+        (
+          SELECT s.released_at
+          FROM submission_files sf
+          JOIN submissions s ON s.id = sf.submission_id
+          WHERE sf.source_master_attachment_id = a.id
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT 1
+        ) AS source_submission_released_at
       FROM file_assets a
       LEFT JOIN users u ON u.id = a.uploaded_by
       WHERE a.linked_entity_type = ?
@@ -116,6 +227,7 @@ export function listMasterAttachments(input: { entityType: MasterAttachmentEntit
       ORDER BY
         CASE a.document_category
           WHEN 'cad_3d' THEN 0
+          WHEN 'intermediate' THEN 1
           WHEN 'drawing_2d' THEN 1
           WHEN 'dwg' THEN 2
           WHEN 'pdf' THEN 3
@@ -147,6 +259,7 @@ export async function createMasterAttachment(input: {
   if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
 
   const category = normalizeCategory(entity.type, input.documentCategory);
+  const revision = normalizeAttachmentRevision(input.revision);
   const fileBuffer = Buffer.from(await input.file.arrayBuffer());
   validateAttachmentFile(input.file.name, fileBuffer.byteLength);
   const originalFilename = input.file.name.trim();
@@ -155,7 +268,7 @@ export async function createMasterAttachment(input: {
   const duplicate = findActiveDuplicate(database, {
     entity,
     category,
-    revision: normalizeNullableText(input.revision),
+    revision,
     filename: originalFilename
   });
   if (duplicate) throw new Error("MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE");
@@ -166,7 +279,7 @@ export async function createMasterAttachment(input: {
     bytes: fileBuffer
   });
   const id = crypto.randomUUID();
-  const contentHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+  const contentHash = sha256(fileBuffer);
   const driveFolderId = getMasterAttachmentsDriveFolderId();
   const initialDriveStatus: MasterAttachmentDriveStatus = driveFolderId && isGoogleDriveServiceConfigured() ? "uploading" : "none";
 
@@ -182,7 +295,7 @@ export async function createMasterAttachment(input: {
     )
     .run(
       id,
-      "j_drive",
+      storageProviderForFileAsset(saved.storageProvider),
       saved.localPath,
       saved.storageKey,
       originalFilename,
@@ -196,7 +309,7 @@ export async function createMasterAttachment(input: {
       category,
       normalizeDisplayName(input.displayName, originalFilename),
       normalizeNullableText(input.description) ?? "",
-      normalizeNullableText(input.revision),
+      revision,
       input.uploadedBy,
       initialDriveStatus,
       "local_only",
@@ -212,7 +325,7 @@ export async function createMasterAttachment(input: {
       entityType: entity.type,
       entityCode: entity.code,
       documentCategory: category,
-      revision: normalizeNullableText(input.revision),
+      revision,
       fileName: originalFilename,
       sha256: contentHash,
       gdriveStatus: initialDriveStatus
@@ -248,12 +361,13 @@ export async function getMasterAttachmentBytes(input: {
   if (!entity) return null;
   const row = selectMasterAttachmentRow(database, entity, input.attachmentId);
   if (!row?.original_path) return null;
-  const repositoryRoot = path.resolve(getRepositoryDir());
-  const resolvedPath = path.resolve(row.original_path);
-  if (!resolvedPath.startsWith(repositoryRoot + path.sep)) {
+  let storagePointer;
+  try {
+    storagePointer = storagePointerFromRecord(row);
+  } catch {
     throw new Error("MASTER_ATTACHMENT_PATH_OUTSIDE_REPOSITORY");
   }
-  const bytes = await fs.readFile(resolvedPath);
+  const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
   return { attachment: mapMasterAttachment(row, entity.code), bytes };
 }
 
@@ -439,15 +553,20 @@ async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFile
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const safeName = sanitizeFilename(input.originalFilename);
   const entityDir = input.entity.type === "drawing_number" ? "drawing-number" : "part-number";
-  const targetDir = path.join(getRepositoryDir(), "master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm);
-  await fs.mkdir(targetDir, { recursive: true });
   const storedName = `${crypto.randomUUID()}-${safeName}`;
-  const localPath = path.join(targetDir, storedName);
-  await fs.writeFile(localPath, input.bytes);
+  const stored = await createFileStorageService().putObject({
+    key: buildStorageKey(["master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm, storedName]),
+    bytes: input.bytes
+  });
   return {
-    localPath,
-    storageKey: path.relative(getRepositoryDir(), localPath).split(path.sep).join("/")
+    localPath: stored.localPath,
+    storageProvider: stored.provider,
+    storageKey: stored.key
   };
+}
+
+function storageProviderForFileAsset(provider: string) {
+  return provider === "local_repository" ? "j_drive" : provider;
 }
 
 function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): MasterAttachmentRecord {
@@ -473,6 +592,22 @@ function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): Mast
     gdriveSyncedAt: row.gdrive_synced_at,
     uploadedBy: row.uploaded_by,
     uploadedByName: row.uploaded_by_name ?? null,
+    sourceSubmissionId: row.source_submission_id ?? null,
+    sourceSubmissionStatus: row.source_submission_status ?? null,
+    sourceSubmissionRevision: row.source_submission_revision ?? null,
+    sourceSubmissionCreatedAt: row.source_submission_created_at ?? null,
+    sourceSubmissionReleasedAt: row.source_submission_released_at ?? null,
+    revisionPackageId: row.revision_package_id ?? null,
+    revisionPackageStatus: row.revision_package_status ?? null,
+    revisionPackageRevision: row.revision_package_revision ?? null,
+    revisionPackageSourceSubmissionId: row.revision_package_source_submission_id ?? null,
+    revisionPackageFileKind: row.revision_package_file_kind ?? null,
+    revisionPackageSupplementId: row.revision_package_supplement_id ?? null,
+    revisionPackageSupplementStatus: row.revision_package_supplement_status ?? null,
+    revisionPackageSupplementReasonCode: row.revision_package_supplement_reason_code ?? null,
+    revisionPackageSupplementReviewedAt: row.revision_package_supplement_reviewed_at ?? null,
+    previewDerivatives: [],
+    previewJob: null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -499,6 +634,14 @@ function normalizeNullableText(value: string | null | undefined) {
   return text ? text : null;
 }
 
+function normalizeAttachmentRevision(value: string | null | undefined) {
+  const text = normalizeNullableText(value);
+  if (!text) return null;
+  const error = validateRevisionCode(text, { required: false });
+  if (error) throw new Error(`MASTER_ATTACHMENT_REVISION_INVALID: ${revisionValidationMessage(error)}`);
+  return normalizeRevisionCode(text);
+}
+
 function getFileExtension(filename: string) {
   const normalized = filename.trim().toLowerCase();
   const index = normalized.lastIndexOf(".");
@@ -523,13 +666,5 @@ function inferMimeType(filename: string) {
 }
 
 function getMaxAttachmentBytes() {
-  const configured = process.env.PDM_MASTER_ATTACHMENT_MAX_UPLOAD_FILE_BYTES || process.env.PDM_MAX_UPLOAD_FILE_BYTES || "";
-  const parsed = Number.parseInt(configured, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 50 * 1024 * 1024;
-}
-
-function getRepositoryDir() {
-  const configured = process.env.PDM_REPOSITORY_DIR?.trim();
-  if (!configured) return path.join(process.cwd(), "data", "repository");
-  return path.isAbsolute(configured) ? configured : path.join(/* turbopackIgnore: true */ process.cwd(), configured);
+  return getMasterAttachmentUploadPolicy().maxUploadFileBytes;
 }

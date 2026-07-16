@@ -4,8 +4,12 @@ export function getDashboardMetrics(submittedBy?: string) {
   const database = getDb();
   const statuses = (
     submittedBy
-      ? database.prepare("SELECT status, COUNT(*) as count FROM submissions WHERE submitted_by = ? GROUP BY status").all(submittedBy)
-      : database.prepare("SELECT status, COUNT(*) as count FROM submissions GROUP BY status").all()
+      ? database
+          .prepare(
+            "SELECT status, COUNT(*) as count FROM submissions WHERE submitted_by = ? AND (status <> 'ReleaseFailed' OR resolved_by_submission_id IS NULL) GROUP BY status"
+          )
+          .all(submittedBy)
+      : database.prepare("SELECT status, COUNT(*) as count FROM submissions WHERE status <> 'ReleaseFailed' OR resolved_by_submission_id IS NULL GROUP BY status").all()
   ) as Array<{ status: string; count: number }>;
   return {
     pending: statuses.find((row) => row.status === "Pending")?.count ?? 0,

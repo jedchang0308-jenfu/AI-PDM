@@ -246,7 +246,9 @@
                 </StackPanel>
 
                 <!-- Reviewer flow options -->
-                <StackPanel Grid.Column="1" Width="140">
+                <StackPanel Grid.Column="1" Width="160">
+                    <TextBlock Text="PDM Company" Style="{StaticResource ModernLabel}"/>
+                    <ComboBox x:Name="CmbPdmCompany" Height="32" Margin="0,0,0,8" Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"/>
                     <TextBlock Text="簽審層級" Style="{StaticResource ModernLabel}"/>
                     <ComboBox x:Name="CmbApprovalRequired" Height="32" SelectedIndex="0" Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A">
                         <ComboBoxItem Content="單級審核 (1位主管)" Tag="1"/>

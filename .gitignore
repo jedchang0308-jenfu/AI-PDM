@@ -15,6 +15,26 @@ artifacts/
 !.env.example
 secrets/
 tsconfig.tsbuildinfo
+.playwright-cli/
+output/qc-runtime/
+output/playwright/
+output/**/*.sqlite
+output/dev-046-phase2a-preflight/
+output/dev-046-phase2b-preflight/
+
+# Terraform working/state files. Reviewed dependency locks stay versioned.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.auto.tfvars
+*.auto.tfvars.json
 
 # Generated build outputs
 sw-addin/bin/

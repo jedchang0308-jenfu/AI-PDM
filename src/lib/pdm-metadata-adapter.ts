@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
 import type { PdmMetadata } from "@/lib/pdm-metadata";
 
 export type NativeMetadataExtraction = {
@@ -31,12 +32,15 @@ const aliases: Record<keyof PdmMetadata, string[]> = {
   document_type: ["document_type", "documenttype", "type", "doctype", "doc_type"]
 };
 
-export async function extractNativeCadMetadata(files: File[]): Promise<NativeMetadataExtraction[]> {
+export async function extractNativeCadMetadata(
+  files: File[],
+  options: { extractor?: ExtractorRuntimeProfile } = {}
+): Promise<NativeMetadataExtraction[]> {
   const nativeFiles = files.filter((file) => nativeSolidWorksExtensions.has(getFileExtension(file.name)));
   const results: NativeMetadataExtraction[] = [];
 
   for (const file of nativeFiles) {
-    const external = await extractWithExternalCommand(file);
+    const external = await extractWithExternalCommand(file, options.extractor);
     if (hasMetadata(external.metadata)) {
       results.push(external);
       continue;
@@ -51,8 +55,8 @@ export async function extractNativeCadMetadata(files: File[]): Promise<NativeMet
   return results;
 }
 
-async function extractWithExternalCommand(file: File): Promise<NativeMetadataExtraction> {
-  const command = process.env.PDM_METADATA_EXTRACTOR_CMD?.trim();
+async function extractWithExternalCommand(file: File, extractor?: ExtractorRuntimeProfile): Promise<NativeMetadataExtraction> {
+  const command = extractor?.command ?? process.env.PDM_METADATA_EXTRACTOR_CMD?.trim();
   if (!command) return { metadata: {}, source: file.name, warnings: [] };
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-pdm-metadata-"));
@@ -60,7 +64,7 @@ async function extractWithExternalCommand(file: File): Promise<NativeMetadataExt
 
   try {
     await fs.writeFile(tempPath, Buffer.from(await file.arrayBuffer()));
-    const args = parseExtractorArgs(tempPath);
+    const args = parseExtractorArgs(tempPath, extractor);
     const { stdout } = await execFileAsync(command, args, {
       timeout: 8000,
       windowsHide: true,
@@ -75,15 +79,15 @@ async function extractWithExternalCommand(file: File): Promise<NativeMetadataExt
     return {
       metadata: {},
       source: file.name,
-      warnings: [`Native CAD metadata adapter failed for ${file.name}: ${error instanceof Error ? error.message : "未知錯誤"}`]
+      warnings: [`Native CAD metadata adapter failed for ${file.name}: ${error instanceof Error ? error.message : "unknown_error"}`]
     };
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
 
-function parseExtractorArgs(filePath: string) {
-  const raw = process.env.PDM_METADATA_EXTRACTOR_ARGS?.trim();
+function parseExtractorArgs(filePath: string, extractor?: ExtractorRuntimeProfile) {
+  const raw = extractor?.args ?? process.env.PDM_METADATA_EXTRACTOR_ARGS?.trim();
   if (!raw) return [filePath];
 
   const parsed = JSON.parse(raw) as unknown;

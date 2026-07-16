@@ -8,6 +8,18 @@ const root = process.cwd();
 const dbPath = path.join(root, "data", "ai-pdm.sqlite");
 const repositoryPath = path.join(root, "data", "repository");
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const qcStorageAuditRunId = `qc-api-${Date.now().toString(36)}`;
+const qcStorageAuditHeaderName = "x-ai-pdm-qc-storage-audit-run-id";
+const qcStorageAuditHeaders = { [qcStorageAuditHeaderName]: qcStorageAuditRunId };
+const expectedStorageAuditSource = process.env.PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE === "runtime" ? "runtime" : "qc_api";
+
+function storageAuditHasExpectedProvenance(audit) {
+  if (!audit?.detail) return false;
+  if (expectedStorageAuditSource === "runtime") {
+    return audit.detail.storageAccessSource === "runtime" && audit.detail.qcRunId === null;
+  }
+  return audit.detail.storageAccessSource === "qc_api" && audit.detail.qcRunId === qcStorageAuditRunId;
+}
 
 function ensureTestUser(input) {
   const db = new Database(dbPath);
@@ -76,6 +88,31 @@ function getConversationMessageCount(conversationId) {
     .get(conversationId);
   db.close();
   return row?.count ?? 0;
+}
+
+function getStorageAccessAudits(submissionId) {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    return db
+      .prepare(
+        `SELECT id, actor_id, detail_json, created_at
+         FROM audit_logs
+         WHERE submission_id = ? AND action = 'StorageAccessed'
+         ORDER BY created_at ASC, id ASC`
+      )
+      .all(submissionId)
+      .map((row) => {
+        let detail = {};
+        try {
+          detail = JSON.parse(String(row.detail_json ?? "{}"));
+        } catch {
+          detail = {};
+        }
+        return { ...row, detail };
+      });
+  } finally {
+    db.close();
+  }
 }
 
 function seedAssemblyReferences(submissionId, children) {
@@ -536,17 +573,35 @@ const unauthDownloadResponse = await fetch(`${baseUrl}/api/submissions/${duplica
 results.push(await expectStatus("AUTH-003 unauthenticated file download returns 401", unauthDownloadResponse.status, 401));
 
 const downloadResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/files/${pdfFile?.id ?? "missing"}`, {
-  headers: { cookie: engineerCookie }
+  headers: { cookie: engineerCookie, ...qcStorageAuditHeaders }
 });
 results.push(await expectStatus("FILE-001 submission file download returns 200", downloadResponse.status, 200));
 results.push(await expectStatus("FILE-002 download uses attachment disposition", downloadResponse.headers.get("content-disposition")?.startsWith("attachment") ?? false, true));
 
 const previewResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/files/preview/${pdfFile?.id ?? "missing"}`, {
-  headers: { cookie: engineerCookie }
+  headers: { cookie: engineerCookie, ...qcStorageAuditHeaders }
 });
 results.push(await expectStatus("FILE-003 PDF preview returns 200", previewResponse.status, 200));
 results.push(await expectStatus("FILE-004 PDF preview content type is application/pdf", previewResponse.headers.get("content-type"), "application/pdf"));
 results.push(await expectStatus("FILE-005 PDF preview uses inline disposition", previewResponse.headers.get("content-disposition")?.startsWith("inline") ?? false, true));
+
+const fileStorageAudits = getStorageAccessAudits(duplicateSeed.body.submissionId);
+const downloadAudit = fileStorageAudits.find((audit) => audit.detail.accessKind === "submission_file" && audit.detail.fileId === pdfFile?.id);
+const previewAudit = fileStorageAudits.find((audit) => audit.detail.accessKind === "submission_file_preview" && audit.detail.fileId === pdfFile?.id);
+const fileAuditText = JSON.stringify(fileStorageAudits);
+results.push(await expectStatus("FILE-006 file download writes StorageAccessed audit", Boolean(downloadAudit), true));
+results.push(await expectStatus("FILE-007 file preview writes StorageAccessed audit", Boolean(previewAudit), true));
+results.push(await expectStatus("FILE-008 file audit records download route", downloadAudit?.detail.route, "/api/submissions/[id]/files/[...filePath]"));
+results.push(await expectStatus("FILE-009 preview audit records inline disposition", previewAudit?.detail.disposition, "inline"));
+results.push(await expectStatus("FILE-010 file audits record positive byte counts", Number(downloadAudit?.detail.bytes ?? 0) > 0 && Number(previewAudit?.detail.bytes ?? 0) > 0, true));
+results.push(await expectStatus("FILE-011 file audits record QC runtime provenance", storageAuditHasExpectedProvenance(downloadAudit) && storageAuditHasExpectedProvenance(previewAudit), true));
+results.push(
+  await expectStatus(
+    "FILE-012 file audits redact signed URL values",
+    !fileAuditText.includes('"url"') && !fileAuditText.includes("storage.example"),
+    true
+  )
+);
 
 const unauthDiscussionList = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/discussions`);
 results.push(await expectStatus("DISCUSS-001 unauthenticated discussion list returns 401", unauthDiscussionList.status, 401));
@@ -1809,7 +1864,7 @@ const blockedToolChat = await postChat("tool: approve_submission", {}, managerCo
 results.push(await expectStatus("AI-019 non-whitelisted AI tool is blocked", blockedToolChat.body.answer?.includes("AI_TOOL_BLOCKED") ?? false, true));
 
 const policyRagChat = await postChat("drawing revision policy", {}, managerCookie);
-results.push(await expectStatus("AI-020 policy RAG returns policy source", policyRagChat.body.sources?.some((source) => source.detail?.includes("docs/pdm-management-policy-draft.md")) ?? false, true));
+results.push(await expectStatus("AI-020 policy RAG returns policy source", policyRagChat.body.sources?.some((source) => source.detail?.includes(".ai-doc/reference/pdm-management-policy-draft.md")) ?? false, true));
 results.push(await expectStatus("AI-021 policy RAG answer includes matching rule", policyRagChat.body.answer?.includes("drawing_number + revision") ?? false, true));
 
 const engineerApproveResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/approve`, {
@@ -1938,7 +1993,7 @@ const unauthPackageResponse = await fetch(`${baseUrl}/api/submissions/${releasab
 results.push(await expectStatus("PKG-003 unauthenticated package download returns 401", unauthPackageResponse.status, 401));
 
 const packageResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/release-package`, {
-  headers: { cookie: managerCookie }
+  headers: { cookie: managerCookie, ...qcStorageAuditHeaders }
 });
 const packageBytes = Buffer.from(await packageResponse.arrayBuffer());
 results.push(await expectStatus("PKG-004 package download returns 200", packageResponse.status, 200));
@@ -1946,6 +2001,14 @@ results.push(await expectStatus("PKG-005 package content type is zip", packageRe
 results.push(await expectStatus("PKG-006 package has zip signature", packageBytes.subarray(0, 2).toString("utf8"), "PK"));
 results.push(await expectStatus("PKG-007 package contains manifest", packageBytes.includes(Buffer.from("manifest.json")), true));
 results.push(await expectStatus("PKG-008 package manifest contains drawing number", packageBytes.includes(Buffer.from(releasable.data.drawing_number)), true));
+
+const releasePackageAudits = getStorageAccessAudits(releasable.body.submissionId);
+const releasePackageAudit = releasePackageAudits.find((audit) => audit.detail.accessKind === "release_package");
+results.push(await expectStatus("PKG-009 package download writes StorageAccessed audit", Boolean(releasePackageAudit), true));
+results.push(await expectStatus("PKG-010 package audit records release route", releasePackageAudit?.detail.route, "/api/submissions/[id]/release-package"));
+results.push(await expectStatus("PKG-011 package audit records attachment disposition", releasePackageAudit?.detail.disposition, "attachment"));
+results.push(await expectStatus("PKG-012 package audit records positive byte count", Number(releasePackageAudit?.detail.bytes ?? 0) > 0, true));
+results.push(await expectStatus("PKG-013 package audit records QC runtime provenance", storageAuditHasExpectedProvenance(releasePackageAudit), true));
 
 const shareCreateResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
   method: "POST",
@@ -1995,10 +2058,28 @@ results.push(
   )
 );
 
-const publicPackageResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/package`);
+const publicPackageResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/package`, {
+  headers: qcStorageAuditHeaders
+});
 const publicPackageBytes = Buffer.from(await publicPackageResponse.arrayBuffer());
 results.push(await expectStatus("SHARE-010 public package download returns ZIP", publicPackageResponse.status, 200));
 results.push(await expectStatus("SHARE-011 public package has zip signature", publicPackageBytes.subarray(0, 2).toString("utf8"), "PK"));
+
+const packageShareAudits = getStorageAccessAudits(releasable.body.submissionId);
+const publicPackageAudit = packageShareAudits.find((audit) => audit.detail.accessKind === "public_share_package" && audit.detail.shareId === shareCreateBody.share?.id);
+const packageShareAuditText = JSON.stringify(packageShareAudits);
+results.push(await expectStatus("SHARE-012 public package writes StorageAccessed audit", Boolean(publicPackageAudit), true));
+results.push(await expectStatus("SHARE-013 public package audit records route", publicPackageAudit?.detail.route, "/api/public/shares/[token]/package"));
+results.push(await expectStatus("SHARE-014 public package audit records external access", publicPackageAudit?.detail.externalAccess, true));
+results.push(await expectStatus("SHARE-015 public package audit records positive byte count", Number(publicPackageAudit?.detail.bytes ?? 0) > 0, true));
+results.push(await expectStatus("SHARE-016 public package audit records QC runtime provenance", storageAuditHasExpectedProvenance(publicPackageAudit), true));
+results.push(
+  await expectStatus(
+    "SHARE-016A public package audit redacts raw token material",
+    !packageShareAuditText.includes(shareCreateBody.token) && !packageShareAuditText.includes("token_hash") && !packageShareAuditText.includes('"url"'),
+    true
+  )
+);
 
 const supplierInvalidTokenResponse = await fetch(`${baseUrl}/api/public/shares/not-a-valid-token/responses`, {
   method: "POST",
@@ -2025,15 +2106,17 @@ const supplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreate
   })
 });
 const supplierResponseBody = await supplierResponse.json().catch(() => ({}));
+const supplierResponseId = typeof supplierResponseBody.response?.id === "string" ? supplierResponseBody.response.id : "";
 results.push(await expectStatus("SUPPLIER-003 public supplier response returns 201", supplierResponse.status, 201));
 results.push(await expectStatus("SUPPLIER-004 public supplier response starts open", supplierResponseBody.response?.status, "open"));
+results.push(await expectStatus("SUPPLIER-004A public supplier response returns an id", supplierResponseId.length > 0, true));
 
 const publicShareAfterSupplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
 const publicShareAfterSupplierBody = await publicShareAfterSupplierResponse.json().catch(() => ({}));
 results.push(
   await expectStatus(
     "SUPPLIER-005 public portal shows supplier response",
-    publicShareAfterSupplierBody.supplier_responses?.some((response) => response.id === supplierResponseBody.response?.id),
+    Boolean(supplierResponseId) && publicShareAfterSupplierBody.supplier_responses?.some((response) => response.id === supplierResponseId),
     true
   )
 );
@@ -2047,17 +2130,19 @@ const managerSupplierListResponse = await fetch(`${baseUrl}/api/submissions/${re
   headers: { cookie: managerCookie }
 });
 const managerSupplierListBody = await managerSupplierListResponse.json().catch(() => ({}));
+const listedSupplierResponse = managerSupplierListBody.responses?.find((response) => response.id === supplierResponseId);
+const closeSupplierResponseId = listedSupplierResponse?.id ?? supplierResponseId;
 results.push(await expectStatus("SUPPLIER-007 Manager lists supplier responses", managerSupplierListResponse.status, 200));
 results.push(
   await expectStatus(
     "SUPPLIER-008 Manager list includes supplier response",
-    managerSupplierListBody.responses?.some((response) => response.id === supplierResponseBody.response?.id),
+    Boolean(listedSupplierResponse),
     true
   )
 );
 
 const managerCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${supplierResponseBody.response?.id}`,
+  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
   {
     method: "PATCH",
     headers: { cookie: managerCookie }
@@ -2068,7 +2153,7 @@ results.push(await expectStatus("SUPPLIER-009 Manager closes supplier response",
 results.push(await expectStatus("SUPPLIER-010 closed supplier response status", managerCloseSupplierBody.response?.status, "closed"));
 
 const duplicateCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${supplierResponseBody.response?.id}`,
+  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
   {
     method: "PATCH",
     headers: { cookie: managerCookie }
@@ -2081,13 +2166,13 @@ const shareRevokeResponse = await fetch(`${baseUrl}/api/submissions/${releasable
   headers: { "content-type": "application/json", cookie: managerCookie },
   body: JSON.stringify({ revoked: true })
 });
-results.push(await expectStatus("SHARE-012 manager revokes share", shareRevokeResponse.status, 200));
+results.push(await expectStatus("SHARE-017 manager revokes share", shareRevokeResponse.status, 200));
 
 const revokedPublicShareResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
-results.push(await expectStatus("SHARE-013 revoked public share metadata returns 404", revokedPublicShareResponse.status, 404));
+results.push(await expectStatus("SHARE-018 revoked public share metadata returns 404", revokedPublicShareResponse.status, 404));
 
 const revokedPublicPackageResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/package`);
-results.push(await expectStatus("SHARE-014 revoked public package download returns 404", revokedPublicPackageResponse.status, 404));
+results.push(await expectStatus("SHARE-019 revoked public package download returns 404", revokedPublicPackageResponse.status, 404));
 
 const unauthHandoffResponse = await fetch(`${baseUrl}/api/handoff`);
 results.push(await expectStatus("HANDOFF-001 unauthenticated handoff returns 401", unauthHandoffResponse.status, 401));

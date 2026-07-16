@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "artifact": {
+    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "runtimeLinuxAmd64Digest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+  },
+  "hotfix": {
+    "id": "hotfix-1936e93d",
+    "reason": "Cast numbering audit JSONB before LIKE on Cloud SQL Postgres.",
+    "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+    "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
+    "imageTag": "prod-hotfix-1936e93d",
+    "previousTrafficRevision": "ai-pdm-prod-00006-lx5",
+    "currentTrafficRevision": "ai-pdm-prod-00010-quc",
+    "taggedSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-tag-smoke.json",
+    "postTrafficSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
+    "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json"
+  },
+  "executions": {
+    "principalBootstrap": "ai-pdm-prod-migration-runner-95bn8",
+    "preCanaryReconciliation": "ai-pdm-prod-migration-runner-2szd5",
+    "restoreReconciliation": "ai-pdm-prod-migration-runner-9ss25"
+  },
+  "recovery": {
+    "backupId": "1784162806569",
+    "restoreTarget": "ai-pdm-prod-restore-20260716a",
+    "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57"
+  },
+  "initialPrincipal": {
+    "pdmUserId": "prod-pdm-admin-001",
+    "email": "jedchang0308@jenfu.com.tw",
+    "firebaseUid": "U57t2eIOzLdhAmNDUbFyOz3fdMm2",
+    "expectedRoleCount": 9,
+    "expectedPermissionCount": 237
+  },
+  "wave0": {
+    "minimumNamedUsers": 3,
+    "maximumNamedUsers": 5,
+    "namedUsers": [
+      "jedchang0308@jenfu.com.tw"
+    ],
+    "allowlistMode": "named-google-workspace-users-only",
+    "failClosed": true,
+    "authenticatedLevel4Status": "passed",
+    "productOwnerDecision": "pending"
+  },
+  "decisions": {
+    "customDnsDeferred": true,
+    "fixedFiveBusinessDayObservationCancelled": true,
+    "phase3aFileAuthorityEnabled": false
+  }
+}

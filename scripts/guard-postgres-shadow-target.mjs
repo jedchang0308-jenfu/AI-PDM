@@ -3,6 +3,7 @@
 import {
   collectPostgresTargetSnapshot,
   evaluateShadowTarget,
+  evaluateSupabaseTargetIdentity,
   getExpectedAiPdmTables
 } from "./postgres-shadow-target-guard-utils.mjs";
 
@@ -10,6 +11,7 @@ const root = process.cwd();
 const args = parseArgs(process.argv.slice(2));
 const postgresUrl = process.env.PDM_POSTGRES_SHADOW_URL?.trim() || "";
 const expectedTables = getExpectedAiPdmTables(root);
+const targetIdentity = evaluateSupabaseTargetIdentity(postgresUrl, process.env);
 
 function parseArgs(argv) {
   const parsed = {
@@ -61,6 +63,8 @@ let error = "";
 try {
   if (args.mockPublicTables || args.mockRlsTables) {
     snapshot = buildMockSnapshot();
+  } else if (!targetIdentity.safe) {
+    error = targetIdentity.issues.map((issue) => issue.message).join(" ");
   } else if (!postgresUrl) {
     error = "PDM_POSTGRES_SHADOW_URL is not configured.";
   } else {
@@ -86,12 +90,13 @@ const evaluation = snapshot
       presentExpectedTables: [],
       missingExpectedTables: expectedTables,
       unknownTables: [],
-      issues: [{ type: "target_unavailable", message: error }]
+      issues: targetIdentity.safe ? [{ type: "target_unavailable", message: error }] : targetIdentity.issues
     };
 
 const report = {
   checkedAt: new Date().toISOString(),
   postgresShadowConfigured: Boolean(postgresUrl),
+  targetIdentity,
   ...evaluation
 };
 

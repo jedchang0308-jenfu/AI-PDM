@@ -20,7 +20,7 @@ function buildMarkdown(confirmation) {
     "",
     "## Fill-In Instructions",
     "",
-    "1. Review `docs/pdm-management-policy-draft.md` with management, PDM owner, and QA/QC.",
+    "1. Review `.ai-doc/reference/pdm-management-policy-draft.md` with management, PDM owner, and QA/QC.",
     "2. For each decision, set `status` to `approved` only after the decision is accepted.",
     "3. Fill `approvedBy`, `approvedAt`, and `evidence` for every approved decision.",
     "4. Fill all required signoffs and set `summary.finalResult` to `approved` only after all required decisions are approved.",

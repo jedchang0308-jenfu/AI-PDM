@@ -1,24 +1,25 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { getBomBySubmissionId, getSubmission, materializeBomDraftFromReferences } from "@/lib/db";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getBomBySubmissionIdAsync, materializeBomDraftFromReferencesAsync } from "@/lib/bom-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
+  const submission = await getSubmissionAsync(id);
   if (!submission) {
-    return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   const url = new URL(request.url);
   const materialize = url.searchParams.get("materialize") === "1";
-  const bom = materialize ? materializeBomDraftFromReferences(id) : getBomBySubmissionId(id);
+  const bom = materialize ? await materializeBomDraftFromReferencesAsync(id) : await getBomBySubmissionIdAsync(id);
 
   return NextResponse.json({
     submissionId: id,
@@ -26,3 +27,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     bom
   });
 }
+

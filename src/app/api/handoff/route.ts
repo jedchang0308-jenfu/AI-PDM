@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { listManufacturingHandoffEntries } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
 import { scopedSubmittedBy } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
-  const entries = listManufacturingHandoffEntries({ submittedBy: scopedSubmittedBy(auth.user) }).map((submission) => ({
+  const entries = (await listManufacturingHandoffEntriesAsync({ submittedBy: scopedSubmittedBy(auth.user) })).map((submission) => ({
     id: submission.id,
     drawing_number: submission.drawing_number,
     revision: submission.revision,

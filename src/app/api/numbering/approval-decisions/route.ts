@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
-import { forbidden } from "@/lib/auth";
-import { decideNumberingApproval } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { decideApprovalPlatformLegacyNumberingAsync } from "@/lib/approval-platform";
+import { forbidden } from "@/lib/auth-async";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "numbering.approval.batch.decide");
+  const auth = await requireNumberingActionAsync(request, "numbering.approval.batch.decide");
   if (auth.response) return auth.response;
   if (auth.user.role !== "R&D Manager" && auth.user.role !== "Admin") return forbidden();
 
   const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
   const approvalRequestId = String(body.approvalRequestId ?? body.approval_request_id ?? "").trim();
   const decision = String(body.decision ?? "").trim();
 
@@ -22,12 +25,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = decideNumberingApproval({
+    const result = await decideApprovalPlatformLegacyNumberingAsync({
+      companyId: companyResult.company.companyId,
       approvalRequestId,
       decision,
       comment: String(body.comment ?? "").trim(),
-      approverRole: auth.user.role,
-      approverId: auth.user.id
+      actor: auth.user
     });
     return NextResponse.json(result);
   } catch (error) {

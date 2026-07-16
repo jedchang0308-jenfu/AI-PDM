@@ -31,7 +31,7 @@ PowerShell 可能會攔截 `npm.ps1`，本專案建議使用 `npm.cmd`。
 npm.cmd install
 npm.cmd run db:init
 npm.cmd run db:seed
-npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
+npm.cmd run dev:local
 ```
 
 開啟：
@@ -39,6 +39,14 @@ npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
 ```text
 http://127.0.0.1:3000
 ```
+
+`dev:local` 是受控本機啟動入口，會檢查 `http://127.0.0.1:3000/login` 是否真的回應成功，不只檢查 port 是否 listen。若 3000 已被本專案舊 process 佔用但健康檢查失敗，使用：
+
+```powershell
+npm.cmd run dev:local:restart
+```
+
+此指令會停止本專案 stale process、清理 `.next`、重新啟動 3000，並把 log 寫到 `tmp/local-dev/`。若 3000 被非本專案 process 佔用，請先確認該 process 可停止，不要直接清 port。
 
 ## 帳號模式
 
@@ -92,7 +100,7 @@ npm.cmd run qc:full
 npm.cmd run qc:industrialization
 ```
 
-`qc:industrialization` 聚焦 source/data boundary、asset manifest、AI/API cost gate、DB contract、Postgres shadow、Dashboard/CSS/document boundary、Document Manager probe redaction、lint、build、API regression 與 UI E2E。詳細流程見 `docs/runbooks/industrialization-acceptance-gate.md`。
+`qc:industrialization` 聚焦 source/data boundary、asset manifest、AI/API cost gate、DB contract、Postgres shadow、Dashboard/CSS/document boundary、Document Manager probe redaction、lint、build、API regression 與 UI E2E。詳細流程見 `.ai-doc/runbooks/industrialization-acceptance-gate.md`。
 
 `qc:full` 會依序執行：
 
@@ -130,6 +138,7 @@ data/backups/
 PDM_DATA_DIR=./data
 PDM_REPOSITORY_DIR=./data/repository
 PDM_MAX_UPLOAD_FILE_BYTES=52428800
+PDM_STORAGE_LARGE_FILE_THRESHOLD_MB=500
 PDM_BACKUP_DIR=./data/backups
 PDM_BACKUP_EXTRA_PATHS=
 
@@ -191,7 +200,7 @@ sw-addin/AiPdmAddin.sln
 實機手動驗證清單：
 
 ```text
-docs/solidworks-addin-manual-test-checklist.md
+.ai-doc/runbooks/solidworks-addin-manual-test-checklist.md
 ```
 
 源碼級自動檢查：
@@ -256,7 +265,7 @@ npm.cmd run backup:handoff
 還原演練 SOP：
 
 ```text
-docs/restore-drill-sop.md
+.ai-doc/runbooks/restore-drill-sop.md
 ```
 
 `backup:handoff` 會產生 `data/restore-handoffs/<snapshotId>`，內含測試機還原用的 JSON 摘要、README 與 PowerShell 指令。

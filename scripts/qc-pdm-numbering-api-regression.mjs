@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import Database from "better-sqlite3";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-api-regression" });
 const unique = Date.now().toString().slice(-8);
 const results = [];
 const created = {
@@ -83,20 +83,49 @@ function getAdminUserId() {
   }
 }
 
+function nextPartIdentity(firstPartNumber) {
+  const compact = firstPartNumber.match(/^([A-Z][0-9]{4}|\d{5})-P(\d{2})$/);
+  if (compact) {
+    const nextSequenceNo = Number(compact[2]) + 1;
+    const sequenceCode = String(nextSequenceNo).padStart(2, "0");
+    const ruleVersionId = /^[A-Z][0-9]{4}$/u.test(compact[1]) ? "numbering-rule-v3-alpha-root" : "numbering-rule-v2";
+    return {
+      partNumber: `${compact[1]}-P${sequenceCode}`,
+      sequenceNo: nextSequenceNo,
+      sequenceCode,
+      ruleVersionId
+    };
+  }
+
+  const legacy = firstPartNumber.match(/^(.*?)(\d{3})$/);
+  if (legacy) {
+    const nextSequenceNo = Number(legacy[2]) + 1;
+    const sequenceCode = String(nextSequenceNo).padStart(3, "0");
+    return {
+      partNumber: `${legacy[1]}${sequenceCode}`,
+      sequenceNo: nextSequenceNo,
+      sequenceCode,
+      ruleVersionId: "numbering-rule-v1"
+    };
+  }
+
+  throw new Error(`UNSUPPORTED_PART_NUMBER_FORMAT: ${firstPartNumber}`);
+}
+
 function seedSecondPart(root, firstPartNumber, adminUserId) {
   const db = openDb();
   try {
     const now = new Date().toISOString();
-    const partNumber = firstPartNumber.replace(/001$/, "002");
+    const { partNumber, sequenceNo, sequenceCode, ruleVersionId } = nextPartIdentity(firstPartNumber);
     const partId = `qc-api-part-${unique}-002`;
     db.prepare(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
         item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 2, '002', ?, 'manufactured', 0, 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'EVT', 'Draft', ?, ?, ?, ?)
     `
-    ).run(partId, root.id, partNumber, `QC API ${unique} variant part`, adminUserId, now, now);
+    ).run(partId, root.id, partNumber, sequenceNo, sequenceCode, `QC API ${unique} variant part`, ruleVersionId, adminUserId, now, now);
     return { id: partId, partNumber };
   } finally {
     db.close();
@@ -147,9 +176,9 @@ try {
       coreName: `QC API regression ${unique}`,
       partName: `QC API part ${unique}-001`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
+      developmentPhase: "DVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -158,6 +187,15 @@ try {
   const drawingNumber = numbering.drawingNumber?.drawingNumber;
   created.rootCodes.push(rootCode);
   record("Numbering allocation returns root, part, and MA drawing", Boolean(rootCode && firstPartNumber && drawingNumber), JSON.stringify({ rootCode, firstPartNumber, drawingNumber }));
+  record(
+    "Numbering create API forces new records to EVT initial phase",
+    numbering.root?.developmentPhase === "EVT" && numbering.partNumber?.developmentPhase === "EVT" && numbering.drawingNumber?.developmentPhase === "EVT",
+    JSON.stringify({
+      root: numbering.root?.developmentPhase,
+      part: numbering.partNumber?.developmentPhase,
+      drawing: numbering.drawingNumber?.developmentPhase
+    })
+  );
 
   const duplicate = await request(
     "POST",
@@ -205,14 +243,14 @@ try {
     200
   );
   record(
-    "MA drawing invalidation API applies impact to linked parts",
+    "Manufacturing drawing invalidation API applies impact to linked parts",
     impact.applied === true && Array.isArray(impact.impactedPartNumbers) && impact.impactedPartNumbers.length >= 2,
     JSON.stringify({ applied: impact.applied, impacted: impact.impactedPartNumbers?.map((part) => part.partNumber) })
   );
 
-  const importRootCode = `QCIMP${unique}`;
-  const importPartNumber = `P-${importRootCode}-001`;
-  const importDrawingNumber = `D-${importRootCode}-MA1`;
+  const importRootCode = `7${unique.slice(-4)}`;
+  const importPartNumber = `${importRootCode}-P01`;
+  const importDrawingNumber = `${importRootCode}-M01`;
   const importBatch = await request(
     "POST",
     "/api/numbering/import-batches",
@@ -228,7 +266,7 @@ try {
           partName: `QC API imported part ${unique}`,
           itemKind: "manufactured",
           drawingNumber: importDrawingNumber,
-          purposeCode: "MA"
+          purposeCode: "M"
         }
       ]
     },

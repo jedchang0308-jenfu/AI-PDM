@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   CLOSED_STATUSES,
@@ -52,8 +52,8 @@ function isFilled(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+function readJsonFile(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
 function normalizeSteps(value) {
@@ -229,11 +229,11 @@ function fatalRegisterIssues(validation) {
   return validation.issues.filter((issue) => !allowedReadinessIssues.has(issue.type));
 }
 
-if (!fs.existsSync(issuePath)) {
+if (!existsSync(issuePath)) {
   console.error(`Field issue file not found: ${path.relative(root, issuePath)}`);
   process.exit(1);
 }
-if (!fs.existsSync(registerPath)) {
+if (!existsSync(registerPath)) {
   console.error(`Defect register not found: ${path.relative(root, registerPath)}`);
   process.exit(1);
 }
@@ -241,7 +241,7 @@ if (!fs.existsSync(registerPath)) {
 let bundle;
 let register;
 try {
-  bundle = readJson(issuePath);
+  bundle = readJsonFile(issuePath);
   register = readDefectRegister(registerPath);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
@@ -268,8 +268,8 @@ const validation = validateDefectRegister(merged.register);
 const fatalIssues = fatalRegisterIssues(validation);
 
 if (fatalIssues.length === 0 && args.write && (merged.imported.length > 0 || merged.updated.length > 0)) {
-  fs.mkdirSync(path.dirname(registerPath), { recursive: true });
-  fs.writeFileSync(registerPath, `${JSON.stringify(merged.register, null, 2)}\n`, "utf8");
+  mkdirSync(path.dirname(registerPath), { recursive: true });
+  writeFileSync(registerPath, `${JSON.stringify(merged.register, null, 2)}\n`, "utf8");
 }
 
 console.log(JSON.stringify({

@@ -8,18 +8,22 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
+  CircleCheckBig,
   ClipboardCheck,
   ClipboardList,
   Factory,
   FileText,
   FileUp,
   GitPullRequestArrow,
+  KeyRound,
   ListTree,
   LogIn,
   PackageSearch,
   Search,
   Settings,
   ShieldAlert,
+  ShieldCheck,
+  UserCog,
   UploadCloud
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -30,11 +34,19 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   exact?: boolean;
+  badge?: "approvalPending";
 };
 
 type NavSection = {
   label: string;
   items: NavItem[];
+};
+
+type ProductionSliceClientStatus = {
+  configured: boolean;
+  active: boolean;
+  openPagePaths: string[];
+  unopenedMessage: string;
 };
 
 const navSections: NavSection[] = [
@@ -51,6 +63,7 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "圖料模組", icon: Search },
       { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
       { href: "/parts", label: "料號模組", icon: PackageSearch },
+      { href: "/numbering/part-drafts", label: "料號草稿", icon: ClipboardList },
       { href: "/upload", label: "上傳送審", icon: UploadCloud },
       { href: "/numbering/request", label: "領號申請", icon: ClipboardList },
       { href: "/numbering/imports", label: "圖號總表匯入", icon: FileUp }
@@ -59,21 +72,22 @@ const navSections: NavSection[] = [
   {
     label: "BOM",
     items: [
-      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree },
-      { href: "/bom/reviews", label: "BOM 審核", icon: ClipboardCheck }
+      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
     ]
   },
   {
     label: "變更 / 審核",
     items: [
-      { href: "/numbering/dvt", label: "DVT 晉升", icon: GitPullRequestArrow },
-      { href: "/numbering/approvals", label: "發行審核", icon: ClipboardCheck },
-      { href: "/numbering/impact", label: "MA 影響分析", icon: ShieldAlert }
+      { href: "/numbering/revisions", label: "圖面進版", icon: GitPullRequestArrow },
+      { href: "/numbering/dvt", label: "階段晉升 EVT→DVT", icon: GitPullRequestArrow },
+      { href: "/approvals", label: "審核工作台", icon: CircleCheckBig, badge: "approvalPending" },
+      { href: "/numbering/impact", label: "製造圖影響分析", icon: ShieldAlert }
     ]
   },
   {
     label: "發行 / 交接",
     items: [
+      { href: "/technical-transfer", label: "技術移轉", icon: Factory },
       { href: "/handoff", label: "製造交接", icon: Factory },
       { href: "/numbering/reports", label: "圖號報表", icon: FileText }
     ]
@@ -81,23 +95,102 @@ const navSections: NavSection[] = [
   {
     label: "管理",
     items: [
+      { href: "/policy", label: "管理辦法", icon: FileText },
+      { href: "/privacy", label: "隱私與資料使用", icon: ShieldCheck, exact: true },
+      { href: "/account/security", label: "我的帳號安全", icon: KeyRound },
+      { href: "/settings/accounts", label: "帳號與權限", icon: UserCog },
       { href: "/settings", label: "系統設定", icon: Settings },
       { href: "/login", label: "登入", icon: LogIn }
     ]
   }
 ];
 
-function isVisibleItem(item: NavItem, pagePermissions: Record<string, boolean> | null) {
+const NUMBER_STATE_LEGACY_NAV_PATHS = new Set(["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"]);
+
+function isVisibleItem(
+  item: NavItem,
+  pagePermissions: Record<string, boolean> | null,
+  productionSlice: ProductionSliceClientStatus | null,
+  numberStateFlowV1Enabled: boolean
+) {
+  if (item.href === "/technical-transfer" && !numberStateFlowV1Enabled) return false;
+  if (numberStateFlowV1Enabled && NUMBER_STATE_LEGACY_NAV_PATHS.has(item.href)) return false;
+  if (productionSlice?.configured) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
   return !requiredPermission || !pagePermissions || pagePermissions[requiredPermission];
 }
 
-export function SidebarNav() {
+function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSliceClientStatus | null) {
+  if (!productionSlice?.configured) return true;
+  return productionSlice.openPagePaths.includes(item.href);
+}
+
+export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFlowV1Enabled?: boolean }) {
   const pathname = usePathname() || "/";
+  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
+  const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
 
   useEffect(() => {
+    if (publicAuthPage) {
+      setPendingApprovalCount(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/production-slice/status")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: ProductionSliceClientStatus | null) => {
+        if (!cancelled && body?.configured) setProductionSlice(body);
+      })
+      .catch(() => {
+        if (!cancelled) setProductionSlice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicAuthPage]);
+
+  useEffect(() => {
+    const canViewApprovals = pagePermissions?.["numbering.approvals"] === true;
+    if (publicAuthPage || !canViewApprovals) {
+      setPendingApprovalCount(null);
+      return;
+    }
+    let cancelled = false;
+    const loadPendingApprovalCount = () => {
+      fetch("/api/approvals/inbox?status=pending&limit=100")
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { summary?: { pending?: number }; items?: unknown[] } | null) => {
+          if (cancelled) return;
+          const pending = typeof body?.summary?.pending === "number" ? body.summary.pending : body?.items?.length ?? 0;
+          setPendingApprovalCount(pending);
+        })
+        .catch(() => {
+          if (!cancelled) setPendingApprovalCount(null);
+        });
+    };
+    const refreshOnVisible = () => {
+      if (document.visibilityState === "visible") loadPendingApprovalCount();
+    };
+
+    loadPendingApprovalCount();
+    window.addEventListener("approval-inbox-changed", loadPendingApprovalCount);
+    document.addEventListener("visibilitychange", refreshOnVisible);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("approval-inbox-changed", loadPendingApprovalCount);
+      document.removeEventListener("visibilitychange", refreshOnVisible);
+    };
+  }, [pagePermissions, publicAuthPage]);
+
+  useEffect(() => {
+    if (publicAuthPage) {
+      setPagePermissions(null);
+      return;
+    }
     let cancelled = false;
     fetch("/api/numbering/permissions")
       .then((response) => (response.ok ? response.json() : null))
@@ -110,7 +203,7 @@ export function SidebarNav() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [publicAuthPage]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("ai-pdm-sidebar-collapsed");
@@ -144,7 +237,7 @@ export function SidebarNav() {
       </div>
       <nav className="nav" aria-label="主導覽">
         {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions));
+          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice, numberStateFlowV1Enabled));
           if (visibleItems.length === 0) return null;
 
           return (
@@ -154,11 +247,31 @@ export function SidebarNav() {
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
+                  const hasBadge = typeof badgeCount === "number" && badgeCount > 0;
+                  const unopened = !isOpenInProductionSlice(item, productionSlice);
+                  const targetHref = unopened ? `/production-slice-blocked?from=${encodeURIComponent(item.href)}` : item.href;
+                  const itemTitle = unopened
+                    ? `${item.label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
+                    : hasBadge
+                      ? `${item.label}，${badgeCount} 件待審`
+                      : item.label;
+                  const className = [active ? "active" : "", unopened ? "nav-unopened" : ""].filter(Boolean).join(" ") || undefined;
 
                   return (
-                    <Link className={active ? "active" : undefined} href={item.href} aria-current={active ? "page" : undefined} title={item.label} key={item.href}>
+                    <Link
+                      className={className}
+                      href={targetHref}
+                      aria-current={active ? "page" : undefined}
+                      aria-disabled={unopened ? true : undefined}
+                      aria-label={itemTitle}
+                      title={itemTitle}
+                      key={item.href}
+                    >
                       <Icon size={18} aria-hidden="true" />
-                      <span>{item.label}</span>
+                      <span className="nav-link-label">{item.label}</span>
+                      {unopened ? <span className="nav-unopened-badge">未開放</span> : null}
+                      {hasBadge ? <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span> : null}
                     </Link>
                   );
                 })}

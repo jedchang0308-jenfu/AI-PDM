@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
+import { addLlmMessageAsync, createLlmConversationAsync, getLlmConversationAsync } from "@/lib/ai-async";
 import { answerPdmQuestion } from "@/lib/chat";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { addLlmMessage, createLlmConversation, getLlmConversation } from "@/lib/db";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));
@@ -15,26 +15,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "訊息為必填" }, { status: 400 });
   }
 
-  const conversationId = resolveConversationId(body.conversationId, auth.user.id);
+  const conversationId = await resolveConversationId(body.conversationId, auth.user.id);
   if (conversationId instanceof Response) return conversationId;
 
-  addLlmMessage({ conversationId, role: "user", content: message });
+  await addLlmMessageAsync({ conversationId, role: "user", content: message });
   const answer = await answerPdmQuestion(message, body.context, auth.user);
-  addLlmMessage({ conversationId, role: "assistant", content: answer.answer });
+  await addLlmMessageAsync({ conversationId, role: "assistant", content: answer.answer });
 
   return NextResponse.json({ answer: answer.answer, sources: answer.sources, conversationId });
 }
 
-function resolveConversationId(rawConversationId: unknown, userId: string) {
+async function resolveConversationId(rawConversationId: unknown, userId: string) {
   const requestedId = String(rawConversationId ?? "").trim();
   if (!requestedId) {
-    return createLlmConversation({
+    return createLlmConversationAsync({
       userId,
       title: "Chat: " + new Date().toISOString()
     });
   }
 
-  const conversation = getLlmConversation(requestedId);
+  const conversation = await getLlmConversationAsync(requestedId);
   if (!conversation) {
     return NextResponse.json({ error: "找不到對話" }, { status: 404 });
   }

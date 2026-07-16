@@ -1,8 +1,13 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
 import type { SubmissionDetail, SubmissionFile } from "@/lib/types";
 import { createAuditLog, upsertReleasePackageRecord } from "@/lib/db";
+import {
+  buildStorageKey,
+  createFileStorageServiceForPointer,
+  createReleasePackageStorageService,
+  sha256,
+  storagePointerFromRecord,
+  storagePointerFromStoredObject
+} from "@/lib/file-storage";
 import { createZip } from "@/lib/zip";
 
 type ReleasePackageResult = {
@@ -18,12 +23,10 @@ export async function createReleasePackage(
   createdBy: string,
   releaseResult: Record<string, unknown>
 ): Promise<ReleasePackageResult> {
-  const repositoryRoot = path.resolve(/*turbopackIgnore: true*/ getRepositoryDir());
+  const packageStorage = createReleasePackageStorageService();
   const packageFilename = sanitizeFilename(`${submission.drawing_number}_rev-${submission.revision}_release-package.zip`);
-  const packageDir = releasePackageDir(submission);
-  const packagePath = path.join(/*turbopackIgnore: true*/ packageDir, packageFilename);
   const manifest = buildManifest(submission, createdBy, releaseResult);
-  const entries = [
+  const entries: { path: string; data: Buffer }[] = [
     {
       path: "manifest.json",
       data: Buffer.from(JSON.stringify(manifest, null, 2), "utf8")
@@ -31,13 +34,15 @@ export async function createReleasePackage(
   ];
 
   for (const file of submission.files) {
-    const resolvedPath = path.resolve(/*turbopackIgnore: true*/ file.local_path);
-    if (!resolvedPath.startsWith(repositoryRoot + path.sep)) {
-      throw new Error(`RELEASE_PACKAGE_PATH_OUTSIDE_REPOSITORY: ${file.original_filename}`);
+    let storagePointer;
+    try {
+      storagePointer = storagePointerFromRecord(file);
+    } catch {
+      throw new Error(`RELEASE_PACKAGE_STORAGE_POINTER_INVALID: ${file.original_filename}`);
     }
 
-    const bytes = await fs.readFile(resolvedPath);
-    const actualHash = crypto.createHash("sha256").update(bytes).digest("hex");
+    const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
+    const actualHash = sha256(bytes);
     if (actualHash !== file.sha256) {
       throw new Error(`RELEASE_PACKAGE_HASH_MISMATCH: ${file.original_filename}`);
     }
@@ -49,13 +54,19 @@ export async function createReleasePackage(
   }
 
   const zip = createZip(entries);
-  await fs.mkdir(packageDir, { recursive: true });
-  await fs.writeFile(packagePath, zip.bytes);
+  const storedPackage = await packageStorage.putObject({
+    key: releasePackageStorageKey(submission, packageFilename),
+    bytes: zip.bytes
+  });
+  const packagePointer = storagePointerFromStoredObject(storedPackage);
 
   const record = upsertReleasePackageRecord({
     submissionId: submission.id,
     packageFilename,
-    localPath: packagePath,
+    localPath: storedPackage.localPath,
+    storageProvider: packagePointer.provider,
+    storageBucket: packagePointer.bucket,
+    storageKey: packagePointer.key,
     sha256: zip.sha256,
     fileSize: zip.bytes.byteLength,
     manifestJson: JSON.stringify(manifest),
@@ -81,7 +92,7 @@ export async function createReleasePackage(
   return {
     id: record.id,
     packageFilename,
-    localPath: packagePath,
+    localPath: storedPackage.localPath,
     sha256: zip.sha256,
     fileSize: zip.bytes.byteLength
   };
@@ -139,28 +150,19 @@ function fileManifest(file: SubmissionFile) {
     package_path: `files/${file.file_role}/${sanitizeZipSegment(file.original_filename)}`,
     sha256: file.sha256,
     file_size: file.file_size,
+    storage_provider: file.storage_provider ?? "local_repository",
+    storage_bucket: file.storage_bucket ?? null,
+    storage_key: file.storage_key ?? null,
     gdrive_file_id: file.gdrive_file_id,
     gdrive_status: file.gdrive_status
   };
 }
 
-function releasePackageDir(submission: SubmissionDetail) {
+function releasePackageStorageKey(submission: SubmissionDetail, packageFilename: string) {
   const created = new Date(submission.created_at);
   const yyyy = String(created.getFullYear());
   const mm = String(created.getMonth() + 1).padStart(2, "0");
-  return path.join(/*turbopackIgnore: true*/ getDataDir(), "release-packages", yyyy, mm, submission.id);
-}
-
-function getDataDir() {
-  const configured = process.env.PDM_DATA_DIR?.trim();
-  if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
-  return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
-}
-
-function getRepositoryDir() {
-  const configured = process.env.PDM_REPOSITORY_DIR?.trim();
-  if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "repository");
-  return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
+  return buildStorageKey([yyyy, mm, submission.id, packageFilename]);
 }
 
 function sanitizeFilename(filename: string) {

@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { chromium } from "playwright";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-permission-guard-ui" });
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -116,11 +118,11 @@ async function verifySidebar(browser, cookie, shouldShowRequestLink, viewportNam
   await addCookie(context, cookie);
   await page.goto(`${apiBaseUrl}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(
-    (expected) => Boolean(document.querySelector('a[href="/numbering/request"]')) === expected,
+    (expected) => Boolean(document.querySelector('.sidebar a[href="/numbering/request"]')) === expected,
     shouldShowRequestLink,
     { timeout: 10_000 }
   );
-  const requestLinkCount = await page.locator('a[href="/numbering/request"]').count();
+  const requestLinkCount = await page.locator('.sidebar a[href="/numbering/request"]').count();
   record(
     `${viewportName} sidebar request link ${shouldShowRequestLink ? "visible" : "hidden"}`,
     shouldShowRequestLink ? requestLinkCount > 0 : requestLinkCount === 0,

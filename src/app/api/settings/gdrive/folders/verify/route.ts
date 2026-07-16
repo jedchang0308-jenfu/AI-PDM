@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireRoleAsync } from "@/lib/auth-async";
 import { verifyDriveFolder } from "@/lib/gdrive";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const intendedUses = new Set(["pending", "released", "master_attachments"]);
 
 export async function POST(request: Request) {
-  const auth = requireRole(request, ["Admin"]);
+  const auth = await requireRoleAsync(request, ["Admin"]);
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));

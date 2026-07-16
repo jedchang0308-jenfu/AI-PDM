@@ -1,0 +1,161 @@
+{
+  "generatedAt": "deterministic",
+  "generatedBy": "scripts/sync-supabase-runtime-migrations.mjs",
+  "supabaseCli": {
+    "available": false,
+    "version": "",
+    "error": "supabase CLI detection skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+  },
+  "localMigrationList": {
+    "command": "supabase migration list",
+    "attempted": false,
+    "passed": false,
+    "status": null,
+    "stdout": "",
+    "stderr": "",
+    "reason": "supabase migration list skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+  },
+  "note": "Generated mirror of db/postgres SQL for AI_PDM runtime migration planning. If Supabase CLI is available, validate migration history with `supabase migration list` before applying to a live project.",
+  "migrations": [
+    {
+      "source": "db/postgres/001_initial_schema.sql",
+      "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
+      "description": "Initial AI_PDM public schema converted from SQLite",
+      "sourceSha256": "ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e",
+      "targetSha256": "3f38686dbe472126ecc196a821323e2ae5ffda8a0b4b64e8ffec54a17e36d241"
+    },
+    {
+      "source": "db/postgres/002_supabase_rls_plan.sql",
+      "target": "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql",
+      "description": "Force RLS and deny direct anon/authenticated public table access",
+      "sourceSha256": "86cd88375fb10295648cacefcd7d511983645496f81a2ee3f49ea1031fe0bbaa",
+      "targetSha256": "fa2128ab1bd3802b2203cab00d6d5b905fdc7cd64bd63be17efd9e081581b3c1"
+    },
+    {
+      "source": "db/postgres/003_harden_set_updated_at_search_path.sql",
+      "target": "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql",
+      "description": "Harden set_updated_at function search_path for Supabase",
+      "sourceSha256": "83d2883f59b7078898f4abf9b7cb8620ddf58b6f1f8a426f286417f37b4bbcdf",
+      "targetSha256": "c84ee2876fed9103887dd60ef81dc43baa974bec7705cb60364748f2bcc663b1"
+    },
+    {
+      "source": "db/postgres/004_numbering_v2_compact_identity.sql",
+      "target": "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
+      "description": "Add compact PDM numbering v2 seed and allow M/R drawing purpose codes",
+      "sourceSha256": "ae8a46c3aceb1524e1318470eb57217e47177a85087f7558dd16e0ca9b2446e0",
+      "targetSha256": "6f7b962a36127bf7c62bfb7db51410aa7b5b27ba0dbd578f6bc0f294d59cb159"
+    },
+    {
+      "source": "db/postgres/005_access_control_launch_governance.sql",
+      "target": "supabase/migrations/20260707010000_access_control_launch_governance.sql",
+      "description": "Add launch access-control governance role assignment metadata and seeded external roles",
+      "sourceSha256": "7aa48b17e01acbc05b8da60e155c9b1540fdd2db06d57b315bc03ecf9f349e46",
+      "targetSha256": "fb52d185e5aa77c531b34d9ef549d6d0a595e800d13c74a549ec7931845880a3"
+    },
+    {
+      "source": "db/postgres/006_account_invitations.sql",
+      "target": "supabase/migrations/20260710020000_account_invitations.sql",
+      "description": "Add one-time account invitations with hashed tokens and deny direct Data API access",
+      "sourceSha256": "79c3fe86f681df9cf936f02666d52f98992c2322e175493db9308278b1ffad51",
+      "targetSha256": "e7807ec4eae585b29ec7794efdaea07dd58d8d8b2b90b9ef7e73936760db26a7"
+    },
+    {
+      "source": "db/postgres/007_auth_identities_google_oauth.sql",
+      "target": "supabase/migrations/20260710030000_auth_identities_google_oauth.sql",
+      "description": "Add provider-neutral identities, account status, and deny direct Data API access",
+      "sourceSha256": "499d45e5bc1ec4b265e2ee844f43294b5638102793882c487c4939429e692f7b",
+      "targetSha256": "d443f5d0a053b42bc737a7488d5644c18dd1d2d190ff2b732a99164cbb09fb50"
+    },
+    {
+      "source": "db/postgres/008_erp_module_foundation.sql",
+      "target": "supabase/migrations/20260712034956_erp_module_foundation.sql",
+      "description": "Add ERP-ready platform mappings, command receipts, transactional outbox, and deny direct Data API access",
+      "sourceSha256": "7b71c5c0d9c876a2853492f5e79124ba1de7c76e6908b36461d2c663dacc1d97",
+      "targetSha256": "a8c3970bb88371150f30733f8ad6ab814ae0ee37daf7553b35e5cf5a829a44fd"
+    },
+    {
+      "source": "db/postgres/009_account_lifecycle.sql",
+      "target": "supabase/migrations/20260713010000_account_lifecycle.sql",
+      "description": "Add account lifecycle controls, session revocation cutoffs, and password recovery requests",
+      "sourceSha256": "ed52059d2aa64f2a632498e0339629e3172b136668cd5d70ab2fb7e9ca957d0a",
+      "targetSha256": "7951f4169fd5218cc606064450917ae98ef4f280d9d4ed0b057e57a34afaa8c7"
+    },
+    {
+      "source": "db/postgres/010_transfer_package_phase3a0.sql",
+      "target": "supabase/migrations/20260713020000_transfer_package_phase3a0.sql",
+      "description": "Add transfer package Phase 3A-0 draft workbench tables and controls",
+      "sourceSha256": "437319980699243de8e1ad0ce421ddd4486a556750d9b1b9eff80b9522162ce5",
+      "targetSha256": "8150c132d27e79dfac108d88c7f7f70d3afae873c4a3927fad3df72f695a6110"
+    },
+    {
+      "source": "db/postgres/011_gcs_pointer_numbering_continuity.sql",
+      "target": "supabase/migrations/20260713030000_gcs_pointer_numbering_continuity.sql",
+      "description": "Add GCS pointer metadata and numbering recovery reservations",
+      "sourceSha256": "0b23c592f4e8526788d553330c91f444287ae66cf1c33216e5b184bbafce28cb",
+      "targetSha256": "f311926c61f695c8856345fd49c05c73cc30a8f6ba089b228cd5912bdcfb2467"
+    },
+    {
+      "source": "db/postgres/012_number_state_flow_phase1a.sql",
+      "target": "supabase/migrations/20260713040000_number_state_flow_phase1a.sql",
+      "description": "Add DEV-048 Phase 1A draft workspace and candidate reservation authority",
+      "sourceSha256": "394683bcf1acbcb09a73d53a9d6ab184a3f313d8a8729a485f84a8231a40dd88",
+      "targetSha256": "d8ded9055085e54d1b2c7e67d09e5f82c4500d69160f34bf433b2b960604ca00"
+    },
+    {
+      "source": "db/postgres/013_firebase_bff_identity_invitations.sql",
+      "target": "supabase/migrations/20260713050000_firebase_bff_identity_invitations.sql",
+      "description": "Add Firebase BFF invitation saga state and deny direct Data API access",
+      "sourceSha256": "e2fff90a763a071fe57abeebeacd9d689fab63a872a73be8ddf78938d56e615d",
+      "targetSha256": "66a95f095d25799843db438e2d77d0d9e325772808d96bc493dc571edfd486a2"
+    },
+    {
+      "source": "db/postgres/014_employee_login_aliases.sql",
+      "target": "supabase/migrations/20260713060000_employee_login_aliases.sql",
+      "description": "Add employee login aliases, short-lived intents, shared rate limits, and deny direct Data API access",
+      "sourceSha256": "000d678e4f4f97277d3ffec1663a58dde5857da680dece22f86e94857f5dfebe",
+      "targetSha256": "842de46e99066eccf76f97740a8ef6e7d1ccf9555145f1dd070d008887cfbe61"
+    },
+    {
+      "source": "db/postgres/015_employee_privacy_notice_acknowledgements.sql",
+      "target": "supabase/migrations/20260713070000_employee_privacy_notice_acknowledgements.sql",
+      "description": "Add immutable employee privacy notice versions, acknowledgements, and deny direct Data API access",
+      "sourceSha256": "da8c330fae3b9c514528f5b1ac36d538e0b6520e4d28ea8b533abc9cc4635177",
+      "targetSha256": "35c00eecf05a204a972056c73c8cac5648b5b0a4c5bebbfcc7d3f9737f568f62"
+    },
+    {
+      "source": "db/postgres/016_number_state_flow_phase1c.sql",
+      "target": "supabase/migrations/20260713080000_number_state_flow_phase1c.sql",
+      "description": "Add DEV-048 Phase 1C approval registration, immutable targets, publication evidence, and permissions",
+      "sourceSha256": "6bbeb3a283171c1e99c0f2ae50661f6f1abc0ebc23c6281dd8f6128063e0e6f5",
+      "targetSha256": "831250e5bf69fe363dbc1373e472b8fd0d9d7d01296742dffcf3b14a7460f9ff"
+    },
+    {
+      "source": "db/postgres/017_number_state_flow_phase1d.sql",
+      "target": "supabase/migrations/20260713090000_number_state_flow_phase1d.sql",
+      "description": "Add DEV-048 Phase 1D transfer review, batch publication, and published handoff authority",
+      "sourceSha256": "e50c173e748664490d3fef1de0a6f08db9bef5f908867ec00aeca527e9b0eec9",
+      "targetSha256": "63b23422ba5d56d9bb97910344eb62c969ef3651f710973ea27a786fc6d55769"
+    },
+    {
+      "source": "db/postgres/018_part_number_series_code.sql",
+      "target": "supabase/migrations/20260714010000_part_number_series_code.sql",
+      "description": "Add optional series code to manufactured non-universal part drafts and official part numbers",
+      "sourceSha256": "06d274b9115a9e00900a0cb2e607eb248feca22b8ac56a29fd9d31c15920b512",
+      "targetSha256": "fe7b6e0cea1b0954626a13e4f5ce284f3d4b3e379df07100eb6ce60e613302ea"
+    },
+    {
+      "source": "db/postgres/019_number_state_flow_request_equivalence.sql",
+      "target": "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql",
+      "description": "Add DEV-048 request-equivalence reasons to draft workspaces and parts",
+      "sourceSha256": "b24bd3d58e86a63156c6de3108c16fcebeebe012fb159f96389c14c28c22a9cf",
+      "targetSha256": "5e37e13e9aaf98d2cb4f43e793eae42e75dfb6c88a4223ea60cb149bc600109b"
+    },
+    {
+      "source": "db/postgres/020_account_session_records.sql",
+      "target": "supabase/migrations/20260714030000_account_session_records.sql",
+      "description": "Add server-owned account session records for managed auth session visibility",
+      "sourceSha256": "db916f91dbccdbb09d7cbfd1dee0fde9d748b28d80e5610b2437a1966567eb78",
+      "targetSha256": "8d5d4db1b4bfb09874ac245c8c897a80959ce248e07e83cbda2c46d93c26c1b2"
+    }
+  ]
+}

@@ -1,62 +1,85 @@
 import { NextResponse } from "next/server";
 import {
-  addApproval,
-  createAuditLog,
-  getActiveSandboxBranchForSubmission,
-  getApprovalSummary,
-  listOpenRequiredPhaseGateChecks,
-  listOpenApprovalMatrixRequirements,
-  getSubmission,
-  markSubmissionReleasedAndObsoletePrevious,
-  reviewerHasDecision,
-  updateSubmissionStatus
-} from "@/lib/db";
-import { releaseSubmissionViaCloudFunction } from "@/lib/release";
-import { createReleasePackage } from "@/lib/release-package";
-import { requireRole } from "@/lib/auth";
+  addApprovalAsync,
+  getApprovalSummaryAsync,
+  listOpenApprovalMatrixRequirementsAsync,
+  reviewerHasDecisionAsync
+} from "@/lib/approval-async";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { listOpenRequiredPhaseGateChecksAsync } from "@/lib/collaboration-async";
+import { getDuplicateActiveSubmissionConflictForReviewAsync } from "@/lib/drawing-submission-workbench";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
+import { getActiveSandboxBranchForSubmissionAsync } from "@/lib/submission-status-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, ["R&D Manager", "Admin"]);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const reviewerId = auth.user.id;
   const comment = String(body.comment ?? "");
-  const submission = getSubmission(id);
+  const submission = await getSubmissionAsync(id);
 
   if (!submission) {
-    return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
   }
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
   if (submission.status !== "Pending") {
-    return NextResponse.json({ error: `Only Pending submissions can be approved. Current status: ${submission.status}` }, { status: 409 });
+    return NextResponse.json(
+      { error: "submission_not_pending", message: "只有審核中的送審可以核准。" },
+      { status: 409 }
+    );
   }
-  const activeSandboxBranch = getActiveSandboxBranchForSubmission(id);
+  const duplicateConflict = await getDuplicateActiveSubmissionConflictForReviewAsync(id);
+  if (duplicateConflict) {
+    await createAuditLogAsync({
+      submissionId: id,
+      actorId: reviewerId,
+      action: "submission.review.blocked_duplicate_active",
+      detail: duplicateConflict
+    });
+    return NextResponse.json(
+      {
+        error: duplicateConflict.code,
+        code: duplicateConflict.code,
+        group: duplicateConflict.group,
+        message: duplicateConflict.message,
+        currentSubmission: duplicateConflict.currentSubmission,
+        activeSubmissions: duplicateConflict.activeSubmissions
+      },
+      { status: 409 }
+    );
+  }
+  const activeSandboxBranch = await getActiveSandboxBranchForSubmissionAsync(id);
   if (activeSandboxBranch) {
     return NextResponse.json(
-      { error: "核准或發布前必須先合併啟用中的試作分支", branch: activeSandboxBranch },
+      { error: "active_sandbox_branch", message: "此送審仍有進行中的設計分支，請先完成或關閉分支後再核准。", branch: activeSandboxBranch },
       { status: 409 }
     );
   }
-  const openPhaseGateChecks = listOpenRequiredPhaseGateChecks(id);
+  const openPhaseGateChecks = await listOpenRequiredPhaseGateChecksAsync(id);
   if (openPhaseGateChecks.length > 0) {
     return NextResponse.json(
-      { error: "核准或發布前必須先完成或豁免必要階段關卡", checks: openPhaseGateChecks },
+      { error: "phase_gate_required", message: "此送審仍有必要檢查未完成，不能核准。", checks: openPhaseGateChecks },
       { status: 409 }
     );
   }
-  if (reviewerHasDecision({ submissionId: id, reviewerId })) {
-    return NextResponse.json({ error: "審核者已決議此送審資料" }, { status: 409 });
+  if (await reviewerHasDecisionAsync({ submissionId: id, reviewerId })) {
+    return NextResponse.json({ error: "reviewer_already_decided", message: "你已經判定過這筆送審。" }, { status: 409 });
   }
 
-  addApproval({ submissionId: id, reviewerId, decision: "Approved", comment });
-  createAuditLog({ submissionId: id, actorId: reviewerId, action: "ApproveRequested", detail: { comment } });
+  await addApprovalAsync({ submissionId: id, reviewerId, decision: "Approved", comment });
+  await createAuditLogAsync({ submissionId: id, actorId: reviewerId, action: "ApproveRequested", detail: { comment } });
 
-  const summary = getApprovalSummary(id);
+  const summary = await getApprovalSummaryAsync(id);
   if (summary.approved < submission.approval_required) {
-    createAuditLog({
+    await createAuditLogAsync({
       submissionId: id,
       actorId: reviewerId,
       action: "ApprovalPending",
@@ -68,9 +91,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       approval: { approved: summary.approved, required: submission.approval_required }
     });
   }
-  const openApprovalMatrixRequirements = listOpenApprovalMatrixRequirements(id);
+  const openApprovalMatrixRequirements = await listOpenApprovalMatrixRequirementsAsync(id);
   if (openApprovalMatrixRequirements.length > 0) {
-    createAuditLog({
+    await createAuditLogAsync({
       submissionId: id,
       actorId: reviewerId,
       action: "ApprovalMatrixPending",
@@ -84,20 +107,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
   }
 
-  updateSubmissionStatus({ id, status: "Releasing" });
-
-  try {
-    const latest = getSubmission(id);
-    if (!latest) throw new Error("發布前送審資料已不存在");
-    const result = await releaseSubmissionViaCloudFunction(latest, reviewerId);
-    const releasePackage = await createReleasePackage(latest, reviewerId, result);
-    const lifecycle = markSubmissionReleasedAndObsoletePrevious({ id, actorId: reviewerId });
-    createAuditLog({ submissionId: id, actorId: reviewerId, action: "ReleaseSucceeded", detail: { ...result, releasePackage, lifecycle } });
-    return NextResponse.json({ submissionId: id, status: "Released", release: { ...result, package: releasePackage }, lifecycle });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "未知發布錯誤";
-    updateSubmissionStatus({ id, status: "ReleaseFailed", releaseError: message });
-    createAuditLog({ submissionId: id, actorId: reviewerId, action: "ReleaseFailed", detail: { error: message } });
-    return NextResponse.json({ error: message, status: "ReleaseFailed" }, { status: 500 });
+  const releaseResult = await executeSubmissionReleaseWorkflowAsync({ submissionId: id, actorId: reviewerId });
+  if (!releaseResult.ok) {
+    return NextResponse.json(
+      { error: "release_failed", message: releaseResult.error, status: "ReleaseFailed" },
+      { status: 500 }
+    );
   }
+  return NextResponse.json({
+    submissionId: id,
+    status: "Released",
+    release: releaseResult.release,
+    lifecycle: releaseResult.lifecycle
+  });
 }

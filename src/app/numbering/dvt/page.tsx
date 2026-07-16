@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardList, PauseCircle, RotateCcw, Send, ShieldAlert, XCircle } from "lucide-react";
+import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
+import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge as SharedStatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
+import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type CandidateStatus = "ready" | "needs_override" | "blocked";
@@ -27,7 +32,7 @@ type DvtCandidate = {
   };
   drawingNumbers: Array<{
     drawingNumber: string;
-    purposeCode: "MA" | "OT";
+    purposeCode: "MA" | "OT" | "M" | "R";
     isPrimaryManufacturing: boolean;
     recordStatus: RecordStatus;
   }>;
@@ -61,7 +66,7 @@ type SubmitResult = {
 };
 
 const actionOptions: Array<{ value: DecisionAction; label: string }> = [
-  { value: "submit_dvt", label: "送入 DVT" },
+  { value: "submit_dvt", label: "送審 DVT 階段" },
   { value: "keep_evt", label: "保留 EVT" },
   { value: "disable_evt", label: "EVT 停用" },
   { value: "obsolete", label: "作廢" }
@@ -102,7 +107,7 @@ export default function NumberingDvtPromotionPage() {
     }
     const body = (await response.json().catch(() => ({}))) as Partial<DvtResponse> & { error?: string };
     if (!response.ok) {
-      setError(body.error ?? "DVT 晉升清單讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "階段晉升清單讀取失敗", "dvtReadiness"));
       setState("error");
       return;
     }
@@ -128,7 +133,7 @@ export default function NumberingDvtPromotionPage() {
     setBusy(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "DVT 晉升處理失敗");
+      setError(formatStatusErrorForUser(body.error ?? "階段晉升處理失敗", "dvtReadiness"));
       setState("error");
       return;
     }
@@ -151,7 +156,7 @@ export default function NumberingDvtPromotionPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>DVT 晉升</h1>
+          <h1>階段晉升：EVT → DVT</h1>
           <p>EVT 料號分流、批次送審與停用作廢處理。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadCandidates}>
@@ -160,8 +165,18 @@ export default function NumberingDvtPromotionPage() {
         </button>
       </div>
 
-      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看 DVT 晉升清單。" /> : null}
-      {state === "forbidden" ? <AccessPanel title="權限不足" message="DVT 晉升需 RD、主管或管理員權限。" /> : null}
+      <LifecycleStageGuidance
+        activeStage="gate"
+        metrics={[
+          { label: "可送審", value: summary.ready, tone: summary.ready > 0 ? "success" : "neutral" },
+          { label: "需例外", value: summary.needsOverride, tone: summary.needsOverride > 0 ? "warning" : "neutral" },
+          { label: "阻擋", value: summary.blocked, tone: summary.blocked > 0 ? "critical" : "neutral" },
+          { label: "已選取", value: summary.selected }
+        ]}
+      />
+
+      {state === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看階段晉升清單。" /> : null}
+      {state === "forbidden" ? <AccessPanel title="權限不足" message="階段晉升需 RD、主管或管理員權限。" /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={loadCandidates} /> : null}
 
       <div style={{ display: "grid", gap: "1rem" }}>
@@ -180,14 +195,14 @@ export default function NumberingDvtPromotionPage() {
                   selectedReadyPartNumbers.map((candidate) => ({
                     partNumber: candidate.partNumber.partNumber,
                     action: "submit_dvt",
-                    reason: "DVT 批次送審"
+                    reason: "DVT 階段批次送審"
                   })),
                   "batch"
                 )
               }
             >
               <Send size={16} />
-              批次送審
+              批次送審 DVT 階段
             </button>
           </div>
           <div className="metrics" style={{ marginBottom: 0 }}>
@@ -212,7 +227,16 @@ export default function NumberingDvtPromotionPage() {
           {state === "loading" ? <div className="empty">正在載入 DVT 候選...</div> : null}
           {state === "ready" ? (
             candidates.length === 0 ? (
-              <div className="empty">目前沒有 EVT 候選料號</div>
+              <NextStepState
+                compact
+                eyebrow="不用處理"
+                title="目前沒有 EVT 候選料號"
+                body="DVT 清單沒有待分流項目。若要讓料號進 DVT，請先回圖料模組補齊 EVT 主資料、主要製造圖與審核狀態。"
+                actions={[
+                  { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+                  { href: "/numbering/tasks", label: "查看待辦" }
+                ]}
+              />
             ) : (
               <div className="table-wrap">
                 <table style={{ minWidth: "1120px" }}>
@@ -222,8 +246,10 @@ export default function NumberingDvtPromotionPage() {
                       <th>料號</th>
                       <th>主根 / 品名</th>
                       <th>類型</th>
-                      <th>MA 圖</th>
-                      <th>狀態</th>
+                      <th>製造圖</th>
+                      <th>
+                        <StatusColumnHeader label="DVT 檢查" context="dvtReadiness" />
+                      </th>
                       <th>缺漏</th>
                       <th>分流</th>
                       <th>原因</th>
@@ -258,16 +284,19 @@ export default function NumberingDvtPromotionPage() {
                           <td>{kindLabel(candidate.partNumber.itemKind)}</td>
                           <td>{primaryMaLabel(candidate)}</td>
                           <td>
-                            <StatusBadge value={candidate.status} />
-                            <p style={mutedTextStyle}>{candidate.partNumber.recordStatus}</p>
+                            <CandidateStatusBadge value={candidate.status} />
+                            <p style={mutedTextStyle}>
+                              <SharedStatusBadge status={candidate.partNumber.recordStatus} context="masterRecord" />
+                            </p>
                           </td>
                           <td>
                             {candidate.missingItems.length === 0 ? (
                               <span style={mutedTextStyle}>-</span>
                             ) : (
-                              <button type="button" title={candidate.missingItems.join("、")} aria-label={candidate.missingItems.join("、")} style={warningDotStyle}>
-                                !
-                              </button>
+                              <div style={{ display: "grid", gap: "0.25rem" }}>
+                                <strong style={warningTextStyle}>需補：{candidate.missingItems.join("、")}</strong>
+                                <span style={mutedTextStyle}>{missingItemsNextStep(candidate.missingItems)}</span>
+                              </div>
                             )}
                           </td>
                           <td>
@@ -333,7 +362,7 @@ function ResultPanel({ result }: { result: SubmitResult }) {
         {result.decisions.map((decision) => (
           <div style={resultRowStyle} key={`${decision.partNumber}-${decision.action}`}>
             <strong>{decision.partNumber}</strong>
-            <span>{decision.status}</span>
+            <SharedStatusBadge status={decision.status} context="workflow" />
             <span>{decision.message}</span>
           </div>
         ))}
@@ -351,16 +380,8 @@ function Metric({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-function StatusBadge({ value }: { value: CandidateStatus }) {
-  const color = value === "ready" ? "#15803d" : value === "needs_override" ? "#b45309" : "#b91c1c";
-  const background = value === "ready" ? "#dcfce7" : value === "needs_override" ? "#fef3c7" : "#fee2e2";
-  return <span style={{ ...statusBadgeStyle, color, background }}>{statusLabel(value)}</span>;
-}
-
-function statusLabel(value: CandidateStatus) {
-  if (value === "ready") return "可送審";
-  if (value === "needs_override") return "待補/Override";
-  return "阻擋";
+function CandidateStatusBadge({ value }: { value: CandidateStatus }) {
+  return <SharedStatusBadge status={value} context="dvtReadiness" />;
 }
 
 function kindLabel(value: ItemKind) {
@@ -375,10 +396,16 @@ function kindLabel(value: ItemKind) {
 }
 
 function primaryMaLabel(candidate: DvtCandidate) {
-  const primary = candidate.drawingNumbers.find((drawing) => drawing.purposeCode === "MA" && drawing.isPrimaryManufacturing);
+  const primary = candidate.drawingNumbers.find((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode) && drawing.isPrimaryManufacturing);
   if (primary) return primary.drawingNumber;
-  const maCount = candidate.drawingNumbers.filter((drawing) => drawing.purposeCode === "MA").length;
-  return maCount > 0 ? `${maCount} 張 MA，未指定主要圖` : "無 MA";
+  const manufacturingCount = candidate.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).length;
+  return manufacturingCount > 0 ? `${manufacturingCount} 張製造圖，未指定主要圖` : "無製造圖";
+}
+
+function missingItemsNextStep(items: string[]) {
+  if (items.some((item) => item.includes("MA") || item.includes("製造圖"))) return "現在請回圖號模組指定主要製造圖，再回來送 DVT。";
+  if (items.some((item) => item.includes("料號") || item.includes("主資料"))) return "現在請回料號或圖料模組補齊主資料。";
+  return "現在請補齊缺漏項目；補完後重新整理 DVT 候選清單。";
 }
 
 function actionIcon(action: DecisionAction) {
@@ -405,8 +432,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
     <section className="panel">
       <div className="panel-header">
         <div>
-          <h2>處理失敗</h2>
-          <p style={bodyTextStyle}>{message}</p>
+          <h2>DVT 處理暫時無法完成</h2>
+          <p style={bodyTextStyle}>{message} 現在請重試；若仍失敗，請回圖料模組補齊候選資料或請主管 / Admin 協助。</p>
         </div>
         <button className="secondary-button" type="button" onClick={onRetry}>
           <RotateCcw size={16} />
@@ -419,26 +446,7 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
 
 const mutedTextStyle = { color: "#64748b", fontSize: "0.82rem", margin: "0.2rem 0 0" };
 const bodyTextStyle = { color: "#475569", fontSize: "0.88rem", margin: "0.2rem 0 0" };
-const warningDotStyle = {
-  border: "0",
-  width: "1.55rem",
-  height: "1.55rem",
-  borderRadius: "999px",
-  background: "#f59e0b",
-  color: "#111827",
-  fontWeight: 800,
-  cursor: "help"
-};
-const statusBadgeStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minWidth: "5.8rem",
-  borderRadius: "999px",
-  padding: "0.2rem 0.55rem",
-  fontSize: "0.78rem",
-  fontWeight: 700
-};
+const warningTextStyle = { color: "#b45309", fontSize: "0.82rem" };
 const resultRowStyle = {
   display: "grid",
   gridTemplateColumns: "minmax(130px, 1fr) minmax(80px, 120px) minmax(220px, 2fr)",

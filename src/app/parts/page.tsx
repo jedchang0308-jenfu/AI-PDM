@@ -2,9 +2,14 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, X } from "lucide-react";
+import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, X, XCircle } from "lucide-react";
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { NextStepState } from "@/components/next-step-state";
+import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { NumberStateOwnerCreateAction, NumberStatePartsTabs, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -43,6 +48,7 @@ type PartListRecord = {
   partNumber: string;
   partName: string;
   itemKind: string;
+  seriesCode: string | null;
   developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   variant: PartVariant | null;
@@ -65,16 +71,72 @@ type PartDetail = PartListRecord & {
     status: string;
     tiers: Array<{ id: string; minQty: number; maxQty: number | null; unitCost: number; setupCost: number; leadTimeDays: number | null }>;
   }>;
-  costChangeRequests: Array<{ id: string; requestType: string; reviewStatus: string; changeReason: string; requestedAt: string }>;
+  costChangeRequests: Array<{
+    id: string;
+    proposedCostProfileId: string | null;
+    requestType: string;
+    reviewStatus: string;
+    changeReason: string;
+    requestedAt: string;
+    reviewedAt: string | null;
+    reviewComment: string | null;
+  }>;
+};
+type SharedModelVersion = {
+  id: string;
+  sourceFileAssetId: string;
+  modelRevision: string;
+  contentHash: string;
+  hashAlgorithm: string;
+  status: string;
+  releasedAt: string | null;
+};
+type SharedModelAttachmentOption = {
+  id: string;
+  documentCategory: string;
+  displayName: string;
+  fileName: string;
+  revision: string | null;
+  createdAt: string;
+};
+type RequiredMaPackage = {
+  id: string;
+  drawingNumberId: string;
+  drawingNumber: string;
+  revision: string;
+  releasedAt: string | null;
+};
+type RequiredMaItem = {
+  drawingNumberId: string;
+  drawingNumber: string;
+  latestReleasedPackage: RequiredMaPackage | null;
+};
+type RequiredMaResolverState = {
+  required: RequiredMaItem[];
+  missing: Array<{ drawingNumberId: string; drawingNumber: string; reason: string }>;
+};
+type ManufacturingBaselineDraftState = {
+  id: string;
+  baselineCode: string;
+  baselineRevision: string;
+  status: string;
+};
+type PartDetailFocusSection = "cost" | null;
+type ProductionSliceClientStatus = {
+  configured: boolean;
+  active: boolean;
+  mode: string;
+  unopenedMessage?: string;
 };
 
-const statuses = ["", "Draft", "Active", "PendingReview", "Released", "Obsolete"] as const;
+const statuses = ["", ...partRecordStatusFilterValues] as const;
 const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
 const itemKinds = ["", "purchased", "manufactured", "outsourced", "shared", "custom"] as const;
 const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
 const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
 const DETAIL_DRAWER_MIN_WIDTH = 380;
 const DETAIL_DRAWER_MAX_WIDTH_RATIO = 0.72;
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 草稿 production slice。";
 
 const mutedStyle = { color: "var(--muted)" };
 
@@ -113,26 +175,63 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function PartsPage() {
+  const [activeTab, setActiveTab] = useState<"official" | "drafts" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
+  const [productSeries, setProductSeries] = useState("");
+  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
   const [parts, setParts] = useState<PartListRecord[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
   const selectedPartNumberRef = useRef<string | null>(null);
+  const initialDetailPartNumberRef = useRef<string | null>(null);
+  const initialDetailFocusRef = useRef<PartDetailFocusSection>(null);
   const partListRef = useRef<HTMLDivElement | null>(null);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailFocus, setDetailFocus] = useState<PartDetailFocusSection>(null);
   const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+  const productionSliceEnforced = productionSlice?.configured === true;
+  const productionSliceUnopenedMessage = productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") === "drafts" ? "drafts" : "official");
+    const initialQuery = params.get("query")?.trim();
+    const detailPartNumber = params.get("detail")?.trim();
+    const focusSection = params.get("focus")?.trim();
+    if (initialQuery) setQuery(initialQuery);
+    if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
+    if (focusSection === "cost") initialDetailFocusRef.current = "cost";
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/production-slice/status", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: ProductionSliceClientStatus | null) => {
+        if (!cancelled && body?.configured) setProductionSlice(body);
+      })
+      .catch(() => {
+        if (!cancelled) setProductionSlice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadParts = useCallback(async () => {
+    if (activeTab !== "official") return;
     setState("loading");
     setError("");
     const params = new URLSearchParams();
     if (query.trim()) params.set("query", query.trim());
+    if (productSeries) params.set("productSeries", productSeries);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
     const response = await fetch(`/api/parts?${params.toString()}`);
@@ -142,11 +241,12 @@ export default function PartsPage() {
     }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "料號清單讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號清單讀取失敗", "masterRecord"));
       setState("error");
       return;
     }
     const nextParts = (body.parts ?? []) as PartListRecord[];
+    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
     const currentSelection = selectedPartNumberRef.current;
     const nextSelection = currentSelection && nextParts.some((part) => part.partNumber === currentSelection) ? currentSelection : null;
     setParts(nextParts);
@@ -157,7 +257,7 @@ export default function PartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [developmentPhase, query, recordStatus]);
+  }, [activeTab, developmentPhase, productSeries, query, recordStatus]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -166,10 +266,11 @@ export default function PartsPage() {
     }
     const response = await fetch(`/api/parts/${encodeURIComponent(partNumber)}`);
     const body = await response.json().catch(() => ({}));
+    if (selectedPartNumberRef.current !== partNumber) return;
     if (response.ok) {
       setDetail(body.part);
     } else {
-      setError(body.error ?? "料號明細讀取失敗");
+      setError(formatStatusErrorForUser(body.error ?? "料號明細讀取失敗", "masterRecord"));
       setState("error");
     }
   }, []);
@@ -221,7 +322,10 @@ export default function PartsPage() {
       setSelectedPartNumber(part.partNumber);
       scrollPartRowIntoView(nextIndex);
       focusPartList();
-      if (isDetailOpen) void loadDetail(part.partNumber);
+      if (isDetailOpen) {
+        setDetailFocus(null);
+        void loadDetail(part.partNumber);
+      }
     },
     [focusPartList, isDetailOpen, loadDetail, scrollPartRowIntoView, visibleParts]
   );
@@ -249,15 +353,28 @@ export default function PartsPage() {
   }
 
   const openPartDetail = useCallback(
-    (partNumber: string) => {
+    (partNumber: string, focusSection: PartDetailFocusSection = null) => {
       selectedPartNumberRef.current = partNumber;
       setSelectedPartNumber(partNumber);
+      setDetail((currentDetail) => (currentDetail?.partNumber === partNumber ? currentDetail : null));
       setIsDetailOpen(true);
+      setDetailFocus(focusSection);
       void loadDetail(partNumber);
       focusPartList();
     },
     [focusPartList, loadDetail]
   );
+
+  useEffect(() => {
+    if (state !== "ready") return;
+    const detailPartNumber = initialDetailPartNumberRef.current;
+    if (!detailPartNumber) return;
+    if (!visibleParts.some((part) => part.partNumber === detailPartNumber)) return;
+    initialDetailPartNumberRef.current = null;
+    const focusSection = initialDetailFocusRef.current;
+    initialDetailFocusRef.current = null;
+    openPartDetail(detailPartNumber, focusSection);
+  }, [openPartDetail, state, visibleParts]);
 
   const openSelectedPartDetail = useCallback(() => {
     if (visibleParts.length === 0) return;
@@ -418,6 +535,9 @@ export default function PartsPage() {
     visibleParts.length
   ]);
 
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟料號模組...</div></section>;
+  if (activeTab === "drafts") return <NumberStateWorkspaceWorkbench />;
+
   return (
     <>
       <div className="topbar">
@@ -425,14 +545,30 @@ export default function PartsPage() {
           <h1>料號模組</h1>
           <p>以主根號自動串聯圖號與料號，材質、顏色與成本都以料號為主體管理。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={refreshSelected}>
-          <RotateCcw size={16} />
-          重新整理
-        </button>
+        <div className="number-state-owner-actions">
+          <button className="secondary-button" type="button" onClick={refreshSelected}>
+            <RotateCcw size={16} />
+            重新整理
+          </button>
+          <NumberStateOwnerCreateAction surface="parts" />
+        </div>
       </div>
+      <NumberStatePartsTabs active="official" />
 
       {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號模組檢視權限。</div></section> : null}
-      {state === "error" ? <section className="panel"><div className="empty">{error}</div></section> : null}
+      {state === "error" ? (
+        <section className="panel">
+          <NextStepState
+            eyebrow="重新嘗試"
+            title="料號資料暫時無法讀取"
+            body={`${error} 現在請重試或回圖料模組重新定位來源資料；若仍失敗，請 Admin 協助確認。`}
+            actions={[
+              { href: "/parts", label: "重新整理", variant: "primary" },
+              { href: "/numbering/search", label: "回圖料模組" }
+            ]}
+          />
+        </section>
+      ) : null}
       {state === "loading" ? <section className="panel"><div className="empty">正在讀取料號資料...</div></section> : null}
       {state === "ready" ? (
         <div className="pdm-master-workbench">
@@ -444,7 +580,7 @@ export default function PartsPage() {
                   items={[
                     { label: "料號", value: summary.total },
                     { label: "已關聯圖號", value: summary.linked },
-                    { label: "成本待審", value: summary.pendingCost, tone: summary.pendingCost > 0 ? "warning" : undefined }
+                    { label: "成本審核中", value: summary.pendingCost, tone: summary.pendingCost > 0 ? "warning" : undefined }
                   ]}
                 />
               </div>
@@ -454,9 +590,10 @@ export default function PartsPage() {
                 <span>關鍵字</span>
                 <input value={query} placeholder="料號、主根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
+              <FilterSelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
-              <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} />
-              <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} />
+              <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+              <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadParts}>
                 <PackageSearch size={16} />
                 查詢
@@ -472,10 +609,16 @@ export default function PartsPage() {
             busy={busy}
             open={isDetailOpen && selectedPartIsVisible}
             width={drawerWidth}
+            focusSection={detailFocus}
+            productionSliceEnforced={productionSliceEnforced}
+            productionSliceUnopenedMessage={productionSliceUnopenedMessage}
             setBusy={setBusy}
             onUpdated={refreshSelected}
             onStartResize={startDetailDrawerResize}
-            onClose={() => setIsDetailOpen(false)}
+            onClose={() => {
+              setIsDetailOpen(false);
+              setDetailFocus(null);
+            }}
           />
         </div>
       ) : null}
@@ -497,7 +640,15 @@ function PartList({
   if (parts.length === 0) {
     return (
       <section className="panel pdm-master-table-panel">
-        <div className="empty">沒有符合條件的料號。</div>
+        <NextStepState
+          eyebrow="查無結果"
+          title="目前沒有符合條件的料號"
+          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到編號申請建立來源資料。"
+          actions={[
+            { href: "/parts", label: "重新查詢", variant: "primary" },
+            { href: "/numbering/request", label: "建立編號申請" }
+          ]}
+        />
       </section>
     );
   }
@@ -529,7 +680,9 @@ function PartList({
               <th>料號</th>
               <th>品名</th>
               <th>圖號</th>
-              <th>其他</th>
+              <th>
+                <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -546,19 +699,21 @@ function PartList({
                   <div className="pdm-identity-meta">{partKindLabel(part.itemKind)}</div>
                 </td>
                 <td data-label="品名">
-                  <div className="pdm-identity-name">{part.partName}</div>
+                  <div className="pdm-identity-name" title={part.partName}>
+                    {part.partName}
+                  </div>
                 </td>
                 <td data-label="圖號">
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
                   <div className="pdm-identity-meta">{part.drawingCount > 0 ? `${part.drawingCount} 個圖號` : "尚無圖號關聯"}</div>
                 </td>
-                <td data-label="其他">
+                <td data-label="狀態 / 階段 / 提醒">
                   <div className="pdm-meta-strip">
-                    <span className={`badge ${part.recordStatus}`}>{part.recordStatus}</span>
-                    <span className="pdm-meta-chip">{part.developmentPhase}</span>
+                    <StatusBadge status={part.recordStatus} context="masterRecord" />
+                    <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
                     <span className="pdm-meta-chip">{variantLabel(part.variant)}</span>
-                    {part.standardCost ? <span className="pdm-meta-chip">{part.standardCost.currency} {formatNumber(part.standardCost.unitCost)}</span> : null}
-                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本待審</span> : null}
+                    {part.standardCost ? <span className="pdm-meta-chip">{standardCostChipLabel(part.standardCost)}</span> : null}
+                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本審核中</span> : null}
                   </div>
                 </td>
               </tr>
@@ -575,6 +730,9 @@ function PartDetailDrawer({
   busy,
   open,
   width,
+  focusSection,
+  productionSliceEnforced,
+  productionSliceUnopenedMessage,
   setBusy,
   onUpdated,
   onStartResize,
@@ -584,15 +742,28 @@ function PartDetailDrawer({
   busy: boolean;
   open: boolean;
   width: number;
+  focusSection: PartDetailFocusSection;
+  productionSliceEnforced: boolean;
+  productionSliceUnopenedMessage: string;
   setBusy: (value: boolean) => void;
   onUpdated: () => Promise<void>;
   onStartResize: (clientX: number) => void;
   onClose: () => void;
 }) {
-  if (!open || !detail) return null;
+  if (!open) return null;
   return (
     <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside className="pdm-detail-drawer" aria-label="料號明細" role="dialog" style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}>
+      <aside
+        className="pdm-detail-drawer"
+        aria-label="料號明細"
+        role="dialog"
+        data-detail-target="part_number"
+        data-detail-code={detail?.partNumber ?? ""}
+        data-entity-type="part_number"
+        data-entity-code={detail?.partNumber ?? ""}
+        data-source-context="parts"
+        style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}
+      >
         <button
           className="pdm-detail-drawer-resize-handle"
           type="button"
@@ -607,13 +778,45 @@ function PartDetailDrawer({
         <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉料號明細" onClick={onClose}>
           <X size={16} />
         </button>
-        <PartDetailPanel detail={detail} busy={busy} setBusy={setBusy} onUpdated={onUpdated} />
+        {detail ? (
+          <PartDetailPanel
+            detail={detail}
+            busy={busy}
+            focusSection={focusSection}
+            productionSliceEnforced={productionSliceEnforced}
+            productionSliceUnopenedMessage={productionSliceUnopenedMessage}
+            setBusy={setBusy}
+            onUpdated={onUpdated}
+          />
+        ) : (
+          <section className="panel pdm-master-detail-panel">
+            <div className="empty">正在載入料號明細...</div>
+          </section>
+        )}
       </aside>
     </div>
   );
 }
 
-function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDetail; busy: boolean; setBusy: (value: boolean) => void; onUpdated: () => Promise<void> }) {
+function PartDetailPanel({
+  detail,
+  busy,
+  focusSection,
+  productionSliceEnforced,
+  productionSliceUnopenedMessage,
+  setBusy,
+  onUpdated
+}: {
+  detail: PartDetail;
+  busy: boolean;
+  focusSection: PartDetailFocusSection;
+  productionSliceEnforced: boolean;
+  productionSliceUnopenedMessage: string;
+  setBusy: (value: boolean) => void;
+  onUpdated: () => Promise<void>;
+}) {
+  const costSectionRef = useRef<HTMLElement | null>(null);
+  const shared3dSectionRef = useRef<HTMLDivElement | null>(null);
   const [variantForm, setVariantForm] = useState(() => ({
     materialLabel: detail.variant?.materialLabel ?? "",
     colorLabel: detail.variant?.colorLabel ?? "",
@@ -639,7 +842,16 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
     });
   }, [detail.id, detail.variant]);
 
+  useEffect(() => {
+    if (focusSection !== "cost") return;
+    requestAnimationFrame(() => {
+      costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" });
+      costSectionRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    });
+  }, [detail.partNumber, focusSection]);
+
   async function saveVariant() {
+    if (productionSliceEnforced) return;
     setBusy(true);
     await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/variant`, {
       method: "PUT",
@@ -651,6 +863,7 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
   }
 
   async function createCostProfile() {
+    if (productionSliceEnforced) return;
     setBusy(true);
     await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/cost-profiles`, {
       method: "POST",
@@ -665,55 +878,92 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
     await onUpdated();
   }
 
+  async function decideCostRequest(requestId: string, decision: "approve" | "reject") {
+    if (productionSliceEnforced) return;
+    setBusy(true);
+    await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/cost-change-requests/${encodeURIComponent(requestId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        decision,
+        basisQty: 1,
+        reviewComment: decision === "approve" ? "主管核准成本設定並設為標準成本。" : "主管退回成本設定。"
+      })
+    });
+    setBusy(false);
+    await onUpdated();
+  }
+
   return (
     <div className="pdm-master-detail-panel pdm-master-detail-stack">
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>{detail.partNumber}</h2>
-            <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
-          </div>
-          <span className={`badge ${detail.recordStatus}`}>{detail.recordStatus}</span>
-        </div>
-        <div style={detailGridStyle}>
-          <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
-          <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
-          <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={detail.standardCost ? `${detail.standardCost.profileName}: ${detail.standardCost.currency} ${formatNumber(detail.standardCost.unitCost)} / ${detail.standardCost.uom}` : "尚未設定標準成本"} />
-          <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
-        </div>
-      </section>
+      <PartDetailHero
+        detail={detail}
+        productionSliceEnforced={productionSliceEnforced}
+        productionSliceUnopenedMessage={productionSliceUnopenedMessage}
+        onOpenCost={() => costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
+        onOpenShared3d={() => shared3dSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
+      />
 
-      <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} />
+      <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
+
+      <PartReadinessPanel detail={detail} />
+
+      <PartLinkedDrawingsPanel detail={detail} />
 
       <section className="panel">
         <div className="panel-header">
           <h2>料號變體</h2>
-          <button className="secondary-button" type="button" disabled={busy} onClick={saveVariant}>
+          <button
+            className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+            type="button"
+            disabled={busy || productionSliceEnforced}
+            onClick={saveVariant}
+            title={productionSliceEnforced ? productionSliceUnavailableTitle("儲存", productionSliceUnopenedMessage) : "儲存料號變體"}
+            aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("儲存", productionSliceUnopenedMessage) : "儲存料號變體"}
+            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+          >
             <Save size={16} />
             儲存
+            {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
           </button>
         </div>
         <div style={formGridStyle}>
-          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} />
-          <TextField label="顏色" value={variantForm.colorLabel} onChange={(value) => setVariantForm((form) => ({ ...form, colorLabel: value }))} />
-          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} />
-          <TextField label="差異說明" value={variantForm.variantNote} onChange={(value) => setVariantForm((form) => ({ ...form, variantNote: value }))} />
+          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} disabled={productionSliceEnforced} />
+          <TextField label="顏色" value={variantForm.colorLabel} onChange={(value) => setVariantForm((form) => ({ ...form, colorLabel: value }))} disabled={productionSliceEnforced} />
+          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} disabled={productionSliceEnforced} />
+          <TextField label="差異說明" value={variantForm.variantNote} onChange={(value) => setVariantForm((form) => ({ ...form, variantNote: value }))} disabled={productionSliceEnforced} />
         </div>
       </section>
 
-      <section className="panel">
+      <div ref={shared3dSectionRef}>
+        <Shared3dBaselinePanel partNumber={detail.partNumber} rootCode={detail.rootCode} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
+      </div>
+
+      <section className="panel" ref={costSectionRef} style={focusSection === "cost" ? focusPanelStyle : undefined}>
         <div className="panel-header">
-          <h2>成本設定檔</h2>
-          <button className="secondary-button" type="button" disabled={busy || !costForm.profileName || !costForm.unitCost} onClick={createCostProfile}>
+          <div>
+            <h2>成本設定檔</h2>
+            {focusSection === "cost" ? <p style={mutedStyle}>填成本名稱與單價後，按新增送審。</p> : null}
+          </div>
+          <button
+            className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+            type="button"
+            disabled={busy || productionSliceEnforced || !costForm.profileName || !costForm.unitCost}
+            onClick={createCostProfile}
+            title={productionSliceEnforced ? productionSliceUnavailableTitle("新增送審", productionSliceUnopenedMessage) : "新增成本送審"}
+            aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("新增送審", productionSliceUnopenedMessage) : "新增成本送審"}
+            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+          >
             <DollarSign size={16} />
             新增送審
+            {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
           </button>
         </div>
         <div style={formGridStyle}>
-          <TextField label="成本名稱" value={costForm.profileName} onChange={(value) => setCostForm((form) => ({ ...form, profileName: value }))} />
+          <TextField label="成本名稱" value={costForm.profileName} onChange={(value) => setCostForm((form) => ({ ...form, profileName: value }))} disabled={productionSliceEnforced} />
           <label style={fieldStyle}>
             <span>成本類型</span>
-            <select className="dropdown-select" value={costForm.costType} onChange={(event) => setCostForm((form) => ({ ...form, costType: event.target.value }))}>
+            <select className="dropdown-select" value={costForm.costType} disabled={productionSliceEnforced} onChange={(event) => setCostForm((form) => ({ ...form, costType: event.target.value }))}>
               <option value="outsourced">委外加工</option>
               <option value="in_house">自行製作</option>
               <option value="purchase">採購</option>
@@ -721,11 +971,11 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
               <option value="other">其他</option>
             </select>
           </label>
-          <TextField label="供應商" value={costForm.supplierName} onChange={(value) => setCostForm((form) => ({ ...form, supplierName: value }))} />
-          <TextField label="製程" value={costForm.processName} onChange={(value) => setCostForm((form) => ({ ...form, processName: value }))} />
-          <TextField label="最小數量" value={costForm.minQty} onChange={(value) => setCostForm((form) => ({ ...form, minQty: value }))} />
-          <TextField label="單價" value={costForm.unitCost} onChange={(value) => setCostForm((form) => ({ ...form, unitCost: value }))} />
-          <TextField label="設定費" value={costForm.setupCost} onChange={(value) => setCostForm((form) => ({ ...form, setupCost: value }))} />
+          <TextField label="供應商" value={costForm.supplierName} onChange={(value) => setCostForm((form) => ({ ...form, supplierName: value }))} disabled={productionSliceEnforced} />
+          <TextField label="製程" value={costForm.processName} onChange={(value) => setCostForm((form) => ({ ...form, processName: value }))} disabled={productionSliceEnforced} />
+          <TextField label="最小數量" value={costForm.minQty} onChange={(value) => setCostForm((form) => ({ ...form, minQty: value }))} disabled={productionSliceEnforced} />
+          <TextField label="單價" value={costForm.unitCost} onChange={(value) => setCostForm((form) => ({ ...form, unitCost: value }))} disabled={productionSliceEnforced} />
+          <TextField label="設定費" value={costForm.setupCost} onChange={(value) => setCostForm((form) => ({ ...form, setupCost: value }))} disabled={productionSliceEnforced} />
         </div>
         <div className="table-wrap">
           <table style={{ minWidth: 720 }}>
@@ -733,7 +983,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
               <tr>
                 <th>名稱</th>
                 <th>類型</th>
-                <th>狀態</th>
+                <th>
+                  <StatusColumnHeader context="cost" />
+                </th>
                 <th>級距</th>
               </tr>
             </thead>
@@ -742,7 +994,9 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
                 <tr key={profile.id}>
                   <td>{profile.profileName}</td>
                   <td>{costTypeLabel(profile.costType)}</td>
-                  <td>{profile.status}</td>
+                  <td>
+                    <StatusBadge status={profile.status} context="cost" />
+                  </td>
                   <td>{profile.tiers.map((tier) => `${tier.minQty}${tier.maxQty ? `-${tier.maxQty}` : "+"}: ${profile.currency} ${formatNumber(tier.unitCost)}`).join("、")}</td>
                 </tr>
               ))}
@@ -755,20 +1009,754 @@ function PartDetailPanel({ detail, busy, setBusy, onUpdated }: { detail: PartDet
           </table>
         </div>
       </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>成本審核</h2>
+            <p style={mutedStyle}>採購送審後，主管核准才會成為標準成本。</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table style={{ minWidth: 720 }}>
+            <thead>
+              <tr>
+                <th>類型</th>
+                <th>
+                  <StatusColumnHeader context="cost" />
+                </th>
+                <th>原因</th>
+                <th>送審時間</th>
+                <th>動作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.costChangeRequests.map((request) => (
+                <tr key={request.id}>
+                  <td>{costRequestTypeLabel(request.requestType)}</td>
+                  <td>
+                    <StatusBadge status={request.reviewStatus} context="cost" />
+                  </td>
+                  <td>{request.changeReason}</td>
+                  <td>{formatDateTime(request.requestedAt)}</td>
+                  <td>
+                    {request.reviewStatus === "pending" ? (
+                      <div style={inlineButtonRowStyle}>
+                        <button
+                          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                          type="button"
+                          disabled={busy || productionSliceEnforced}
+                          onClick={() => decideCostRequest(request.id, "approve")}
+                          title={productionSliceEnforced ? productionSliceUnavailableTitle("核准", productionSliceUnopenedMessage) : "核准成本設定"}
+                          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("核准", productionSliceUnopenedMessage) : "核准成本設定"}
+                          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                        >
+                          <CheckCircle2 size={16} />
+                          核准
+                          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+                        </button>
+                        <button
+                          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                          type="button"
+                          disabled={busy || productionSliceEnforced}
+                          onClick={() => decideCostRequest(request.id, "reject")}
+                          title={productionSliceEnforced ? productionSliceUnavailableTitle("退回", productionSliceUnopenedMessage) : "退回成本設定"}
+                          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("退回", productionSliceUnopenedMessage) : "退回成本設定"}
+                          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                        >
+                          <XCircle size={16} />
+                          退回
+                          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+                        </button>
+                      </div>
+                    ) : (
+                      request.reviewComment ?? "-"
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {detail.costChangeRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={mutedStyle}>目前沒有成本審核紀錄。</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <NumberingContextualEntrypoints
+        mode="part"
+        rootCode={detail.rootCode}
+        coreName={detail.partName}
+        rootRecordStatus={detail.recordStatus}
+        part={{
+          partNumber: detail.partNumber,
+          partName: detail.partName,
+          recordStatus: detail.recordStatus,
+          linkedDrawingNumbers: detail.linkedDrawings.map((link) => link.drawingNumber)
+        }}
+        onChanged={onUpdated}
+      />
     </div>
   );
+}
+
+function productionSliceUnavailableTitle(label: string, message: string) {
+  return `${label}：未開放。${message}`;
+}
+
+function ProductionSliceUnopenedBadge() {
+  return <span className="nav-unopened-badge">未開放</span>;
+}
+
+function ProductionSliceUnopenedButton({
+  children,
+  className,
+  label,
+  message
+}: {
+  children: ReactNode;
+  className: string;
+  label: string;
+  message: string;
+}) {
+  const title = productionSliceUnavailableTitle(label, message);
+  return (
+    <button
+      className={`${className} production-slice-unopened`}
+      type="button"
+      disabled
+      title={title}
+      aria-label={title}
+      data-production-slice-unopened="true"
+    >
+      {children}
+      <ProductionSliceUnopenedBadge />
+    </button>
+  );
+}
+
+function PartDetailHero({
+  detail,
+  productionSliceEnforced,
+  productionSliceUnopenedMessage,
+  onOpenCost,
+  onOpenShared3d
+}: {
+  detail: PartDetail;
+  productionSliceEnforced: boolean;
+  productionSliceUnopenedMessage: string;
+  onOpenCost: () => void;
+  onOpenShared3d: () => void;
+}) {
+  const primaryDrawingNumber = detail.primaryDrawingNumber ?? detail.linkedDrawings.find((link) => link.linkType === "primary_manufacturing")?.drawingNumber ?? "";
+  return (
+    <section className="panel drawing-detail-hero" data-part-detail-section="hero">
+      <div className="drawing-detail-hero-header">
+        <div>
+          <h2>{detail.partNumber}</h2>
+          <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
+        </div>
+      </div>
+      <div className="drawing-detail-hero-meta">
+        <StatusBadge status={detail.recordStatus} context="masterRecord" />
+        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(detail.developmentPhase)}</span>
+        <span className="pdm-meta-chip">{partKindLabel(detail.itemKind)}</span>
+        {detail.seriesCode ? <span className="pdm-meta-chip">系列 {detail.seriesCode}</span> : null}
+        <span className="pdm-meta-chip">關聯圖號 {detail.linkedDrawings.length}</span>
+      </div>
+      <div className="drawing-detail-action-row">
+        {primaryDrawingNumber ? productionSliceEnforced ? (
+          <ProductionSliceUnopenedButton className="primary-button" label="送審製造圖" message={productionSliceUnopenedMessage}>
+            <FileText size={16} />
+            送審製造圖
+          </ProductionSliceUnopenedButton>
+        ) : (
+          <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawingNumber)}/submission-workbench`}>
+            <FileText size={16} />
+            送審製造圖
+          </a>
+        ) : (
+          <a className="primary-button" href={`/numbering/search?query=${encodeURIComponent(detail.partNumber)}&entityType=part_number`}>
+            <Link2 size={16} />
+            補關聯
+          </a>
+        )}
+        <a className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(detail.partNumber)}&entityType=part_number`}>
+          <Search size={16} />
+          追溯
+        </a>
+        <button
+          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced}
+          onClick={onOpenShared3d}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("3D 基準", productionSliceUnopenedMessage) : "開啟 3D 基準"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("3D 基準", productionSliceUnopenedMessage) : "開啟 3D 基準"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          <Workflow size={16} />
+          3D 基準
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+        <button
+          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced}
+          onClick={onOpenCost}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("成本", productionSliceUnopenedMessage) : "開啟成本設定檔"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("成本", productionSliceUnopenedMessage) : "開啟成本設定檔"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          <DollarSign size={16} />
+          成本
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+      </div>
+      <div style={detailGridStyle}>
+        <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
+        <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
+        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
+        <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
+      </div>
+    </section>
+  );
+}
+
+function PartReadinessPanel({ detail }: { detail: PartDetail }) {
+  const hasManufacturingDrawing = detail.linkedDrawings.some((link) => link.linkType === "primary_manufacturing");
+  const hasVariantBasics = Boolean((detail.variant?.materialLabel || detail.variant?.materialCode)?.trim()) && Boolean(detail.variant?.surfaceTreatment?.trim());
+  const hasStandardCost = Boolean(detail.standardCost);
+  const pendingCostCount = detail.pendingCostRequestCount || detail.costChangeRequests.filter((request) => request.reviewStatus === "pending").length;
+  const nextStep = !hasManufacturingDrawing
+    ? "先建立製造圖關聯，再進行送審或製造基準確認。"
+    : !hasVariantBasics
+      ? "先補齊材質與表面處理，避免同圖多料號差異不清。"
+      : !hasStandardCost
+        ? "先補標準成本，讓採購與主管能完成成本審核。"
+        : pendingCostCount > 0
+          ? "等待成本審核完成；其餘主資料可先確認附件與 3D 基準。"
+          : "主資料狀態可用，接著確認附件、3D 基準與後續送審。";
+
+  return (
+    <section className="panel" data-part-detail-section="readiness">
+      <div className="panel-header">
+        <div>
+          <h2>料號完整度檢查</h2>
+          <p style={mutedStyle}>{nextStep}</p>
+        </div>
+      </div>
+      <div style={detailGridStyle}>
+        <InfoBlock icon={<Link2 size={16} />} title="製造圖關聯" value={hasManufacturingDrawing ? "已建立製造基準關聯" : "尚未建立製造基準關聯"} />
+        <InfoBlock icon={<Palette size={16} />} title="料號屬性" value={hasVariantBasics ? variantLabel(detail.variant) : "材質或表面處理待補"} />
+        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
+        <InfoBlock icon={<FileText size={16} />} title="成本審核" value={pendingCostCount > 0 ? `${pendingCostCount} 筆待審` : "目前無待審成本"} />
+      </div>
+    </section>
+  );
+}
+
+function PartLinkedDrawingsPanel({ detail }: { detail: PartDetail }) {
+  return (
+    <section className="panel" data-part-detail-section="linked-drawings">
+      <div className="panel-header">
+        <div>
+          <h2>圖號關聯</h2>
+          <p style={mutedStyle}>{detail.linkedDrawings.length > 0 ? `${detail.linkedDrawings.length} 張圖號連到此料號。` : "此料號尚未關聯圖號。"}</p>
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table style={{ minWidth: 560 }}>
+          <thead>
+            <tr>
+              <th>圖號</th>
+              <th>關係</th>
+              <th>處理</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detail.linkedDrawings.map((link) => (
+              <tr key={link.id}>
+                <td>{link.drawingNumber}</td>
+                <td>{linkTypeLabel(link.linkType)}</td>
+                <td>{link.linkType === "primary_manufacturing" ? "製造基準" : "參考"}</td>
+              </tr>
+            ))}
+            {detail.linkedDrawings.length === 0 ? (
+              <tr>
+                <td colSpan={3} style={mutedStyle}>尚未建立圖號關聯。請先從圖料模組或新增相關資料建立關係。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function Shared3dBaselinePanel({
+  partNumber,
+  rootCode,
+  productionSliceEnforced,
+  productionSliceUnopenedMessage
+}: {
+  partNumber: string;
+  rootCode: string;
+  productionSliceEnforced: boolean;
+  productionSliceUnopenedMessage: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState("");
+  const [models, setModels] = useState<SharedModelVersion[]>([]);
+  const [attachments, setAttachments] = useState<SharedModelAttachmentOption[]>([]);
+  const [resolver, setResolver] = useState<RequiredMaResolverState | null>(null);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [modelRevision, setModelRevision] = useState("");
+  const [baselineRevision, setBaselineRevision] = useState("1");
+  const [twoDOnlyReasonByDrawing, setTwoDOnlyReasonByDrawing] = useState<Record<string, string>>({});
+  const [draftBaseline, setDraftBaseline] = useState<ManufacturingBaselineDraftState | null>(null);
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  const selectedModel = useMemo(() => models.find((model) => model.id === selectedModelId) ?? null, [models, selectedModelId]);
+  const releasedModels = useMemo(() => models.filter((model) => model.status === "Released"), [models]);
+  const requiredMaWithPackage = resolver?.required.filter((item) => item.latestReleasedPackage) ?? [];
+  const requiredMissingCount = resolver?.missing.length ?? 0;
+
+  const loadShared3dState = useCallback(async () => {
+    if (productionSliceEnforced) {
+      setModels([]);
+      setAttachments([]);
+      setResolver(null);
+      setSelectedModelId("");
+      setSelectedAttachmentId("");
+      setMessage(null);
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    try {
+      const modelsResponse = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/shared-models`);
+      const modelsBody = await modelsResponse.json().catch(() => ({}));
+      if (!modelsResponse.ok) throw new Error(shared3dErrorMessage(modelsBody, "共用 3D 清單讀取失敗"));
+
+      const attachmentsResponse = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/attachments`);
+      const attachmentsBody = await attachmentsResponse.json().catch(() => ({}));
+      if (!attachmentsResponse.ok) throw new Error(shared3dErrorMessage(attachmentsBody, "料號附件讀取失敗"));
+
+      const resolverResponse = await fetch("/api/manufacturing-baselines/resolve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ownerScope: "part_number", ownerCode: partNumber })
+      });
+      const resolverBody = await resolverResponse.json().catch(() => ({}));
+      if (!resolverResponse.ok) throw new Error(shared3dErrorMessage(resolverBody, "required MA 解析失敗"));
+
+      const nextModels = (modelsBody.models ?? []) as SharedModelVersion[];
+      const nextAttachments = ((attachmentsBody.attachments ?? []) as SharedModelAttachmentOption[]).filter((attachment) =>
+        ["cad_3d", "intermediate"].includes(attachment.documentCategory)
+      );
+      const nextResolver = {
+        required: (resolverBody.required ?? []) as RequiredMaItem[],
+        missing: (resolverBody.missing ?? []) as RequiredMaResolverState["missing"]
+      };
+      setModels(nextModels);
+      setAttachments(nextAttachments);
+      setResolver(nextResolver);
+      setSelectedModelId((current) => {
+        if (current && nextModels.some((model) => model.id === current)) return current;
+        return nextModels.find((model) => model.status === "Released")?.id ?? nextModels[0]?.id ?? "";
+      });
+      setSelectedAttachmentId((current) => {
+        if (current && nextAttachments.some((attachment) => attachment.id === current)) return current;
+        return nextAttachments[0]?.id ?? "";
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "共用 3D 與製造基準資料讀取失敗，請重新整理。" });
+    } finally {
+      setLoading(false);
+    }
+  }, [partNumber, productionSliceEnforced]);
+
+  useEffect(() => {
+    setDraftBaseline(null);
+    setModelRevision("");
+    setBaselineRevision("1");
+    setTwoDOnlyReasonByDrawing({});
+    void loadShared3dState();
+  }, [loadShared3dState]);
+
+  async function createSharedModel() {
+    if (productionSliceEnforced) return;
+    if (!selectedAttachmentId) {
+      setMessage({ type: "error", text: "請先在料號附件上傳或選擇 3D CAD / 中繼模型檔。" });
+      return;
+    }
+    setActionBusy("create-model");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/parts/${encodeURIComponent(partNumber)}/shared-models`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceFileAssetId: selectedAttachmentId,
+          modelRevision: modelRevision.trim(),
+          status: "Released",
+          releaseReason: "由料號明細共用 3D 面板建立"
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "共用 3D 建立失敗"));
+      const model = body.model as SharedModelVersion;
+      setMessage({ type: "success", text: body.reused ? "相同 hash/model revision 已存在，已沿用既有共用 3D。" : "共用 3D model version 已建立。" });
+      setSelectedModelId(model.id);
+      setModelRevision("");
+      await loadShared3dState();
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "共用 3D 建立失敗，請重新整理後再試。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function bindPackageModel(packageId: string) {
+    if (productionSliceEnforced) return;
+    if (!selectedModelId) {
+      setMessage({ type: "error", text: "請先選擇已 Released 的共用 3D model version。" });
+      return;
+    }
+    setActionBusy(`bind-${packageId}`);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(packageId)}/model-basis`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sharedModelVersionId: selectedModelId })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "MA package 共用 3D 綁定失敗"));
+      setMessage({ type: "success", text: "MA package 已綁定共用 3D model basis。" });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "MA package 綁定失敗，請確認權限與 model root。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function confirmTwoDOnly(packageId: string, drawingNumberId: string) {
+    if (productionSliceEnforced) return;
+    const reason = (twoDOnlyReasonByDrawing[drawingNumberId] ?? "").trim();
+    if (!reason) {
+      setMessage({ type: "error", text: "2D-only / no 3D impact 例外需要明確原因。" });
+      return;
+    }
+    setActionBusy(`2d-${packageId}`);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(packageId)}/model-basis`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ twoDOnlyReason: reason, confirmTwoDOnly: true })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "2D-only 例外確認失敗"));
+      setMessage({ type: "success", text: "已確認 2D-only / no 3D impact 例外。" });
+      setTwoDOnlyReasonByDrawing((current) => ({ ...current, [drawingNumberId]: "" }));
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "2D-only 例外確認失敗，請確認權限與原因。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function createBaselineDraft() {
+    if (productionSliceEnforced) return;
+    if (!selectedModelId) {
+      setMessage({ type: "error", text: "請先選擇要納入製造基準包的共用 3D。" });
+      return;
+    }
+    setActionBusy("create-baseline");
+    setMessage(null);
+    try {
+      const response = await fetch("/api/manufacturing-baselines", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ownerScope: "part_number",
+          ownerCode: partNumber,
+          sharedModelVersionId: selectedModelId,
+          baselineRevision: baselineRevision.trim() || "1",
+          selectedPackageIds: requiredMaWithPackage.map((item) => item.latestReleasedPackage?.id).filter(Boolean)
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "製造基準包草稿建立失敗"));
+      setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
+      setMessage({
+        type: "success",
+        text: requiredMissingCount > 0 ? "製造基準包草稿已建立，但仍有必要製造圖缺少 Released package，發行前必須補齊或核准排除。" : "製造基準包草稿已建立。"
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包草稿建立失敗，請重新整理後再試。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function releaseBaselineDraft() {
+    if (productionSliceEnforced) return;
+    if (!draftBaseline) return;
+    setActionBusy("release-baseline");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/manufacturing-baselines/${encodeURIComponent(draftBaseline.id)}/release`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(shared3dErrorMessage(body, "製造基準包發行失敗"));
+      setDraftBaseline(body.baseline as ManufacturingBaselineDraftState);
+      setMessage({ type: "success", text: "製造基準包已 Released，snapshot 已凍結。" });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "製造基準包發行失敗，請確認必要製造圖與模型狀態。" });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2>共用 3D / MA 製造基準</h2>
+          <p style={mutedStyle}>{rootCode} 的 shared 3D 屬於料號/root；製造基準包會凍結 3D hash 與製造圖正式版次。</p>
+        </div>
+        <button
+          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced || loading || Boolean(actionBusy)}
+          onClick={loadShared3dState}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("重新整理共用 3D / MA 製造基準", productionSliceUnopenedMessage) : "重新整理共用 3D / MA 製造基準"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("重新整理共用 3D / MA 製造基準", productionSliceUnopenedMessage) : "重新整理共用 3D / MA 製造基準"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          <RotateCcw size={16} />
+          重新整理
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+      </div>
+
+      <div style={sharedPanelSummaryStyle}>
+        <InfoBlock icon={<Box size={16} />} title="已建模型" value={`${models.length} 個共用 3D model version`} />
+        <InfoBlock icon={<FileText size={16} />} title="必要 MA" value={resolver ? `${resolver.required.length} 張，缺 ${requiredMissingCount} 張 Released package` : "尚未解析"} />
+        <InfoBlock icon={<CheckCircle2 size={16} />} title="選定模型" value={selectedModel ? `${selectedModel.modelRevision} / ${formatShortHash(selectedModel.contentHash)}` : "尚未選定"} />
+      </div>
+
+      {message ? <div className={message.type === "error" ? "alert error" : "alert success"}>{message.text}</div> : null}
+      {loading ? <div className="empty">正在讀取共用 3D 與 MA 製造基準資料...</div> : null}
+
+      <div style={sharedPanelGridStyle}>
+        <label className="pdm-master-field">
+          <span>來源 3D 附件</span>
+          <select className="dropdown-select" value={selectedAttachmentId} disabled={productionSliceEnforced} onChange={(event) => setSelectedAttachmentId(event.target.value)}>
+            {attachments.map((attachment) => (
+              <option key={attachment.id} value={attachment.id}>
+                {attachment.displayName || attachment.fileName} / {attachment.documentCategory}
+              </option>
+            ))}
+            {attachments.length === 0 ? <option value="">尚無 3D CAD / 中繼模型附件</option> : null}
+          </select>
+        </label>
+        <TextField label="Model revision" value={modelRevision} onChange={setModelRevision} disabled={productionSliceEnforced} />
+        <button
+          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced || Boolean(actionBusy) || !selectedAttachmentId}
+          onClick={createSharedModel}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("建立共用 3D", productionSliceUnopenedMessage) : "建立共用 3D"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("建立共用 3D", productionSliceUnopenedMessage) : "建立共用 3D"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          <Box size={16} />
+          建立共用 3D
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+      </div>
+
+      <div className="table-wrap">
+        <table style={{ minWidth: 760 }}>
+          <thead>
+            <tr>
+              <th>共用 3D</th>
+              <th>Hash</th>
+              <th>
+                <StatusColumnHeader context="masterRecord" />
+              </th>
+              <th>發行時間</th>
+            </tr>
+          </thead>
+          <tbody>
+            {models.map((model) => (
+              <tr key={model.id} className={model.id === selectedModelId ? "selected-row" : undefined} onClick={() => setSelectedModelId(model.id)} style={{ cursor: "pointer" }}>
+                <td>
+                  <div className="pdm-identity-code">{model.modelRevision}</div>
+                  <div className="pdm-identity-meta">{model.id}</div>
+                </td>
+                <td>{formatShortHash(model.contentHash)}</td>
+                <td><StatusBadge status={model.status} context="masterRecord" /></td>
+                <td>{model.releasedAt ? formatDateTime(model.releasedAt) : "-"}</td>
+              </tr>
+            ))}
+            {models.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={mutedStyle}>尚未建立共用 3D。先在料號附件上傳 3D CAD / 中繼模型，再建立 model version。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="table-wrap">
+        <table style={{ minWidth: 900 }}>
+          <thead>
+            <tr>
+              <th>必要製造圖</th>
+              <th>最新 Released package</th>
+              <th>綁定共用 3D</th>
+              <th>2D-only 例外</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(resolver?.required ?? []).map((item) => {
+              const pkg = item.latestReleasedPackage;
+              return (
+                <tr key={item.drawingNumberId}>
+                  <td>{item.drawingNumber}</td>
+                  <td>{pkg ? `${pkg.revision} / ${pkg.id}` : "缺少 Released package"}</td>
+                  <td>
+                    {pkg ? (
+                      <button
+                        className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                        type="button"
+                        disabled={productionSliceEnforced || !selectedModelId || Boolean(actionBusy)}
+                        onClick={() => bindPackageModel(pkg.id)}
+                        title={productionSliceEnforced ? productionSliceUnavailableTitle("綁定共用 3D", productionSliceUnopenedMessage) : "綁定共用 3D"}
+                        aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("綁定共用 3D", productionSliceUnopenedMessage) : "綁定共用 3D"}
+                        data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                      >
+                        <Link2 size={16} />
+                        綁定
+                        {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+                      </button>
+                    ) : (
+                      <span style={mutedStyle}>先完成 MA package 發行</span>
+                    )}
+                  </td>
+                  <td>
+                    {pkg ? (
+                      <div style={inlineButtonRowStyle}>
+                        <input
+                          value={twoDOnlyReasonByDrawing[item.drawingNumberId] ?? ""}
+                          placeholder="例：只改標註，3D 不變"
+                          disabled={productionSliceEnforced}
+                          onChange={(event) => setTwoDOnlyReasonByDrawing((current) => ({ ...current, [item.drawingNumberId]: event.target.value }))}
+                        />
+                        <button
+                          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                          type="button"
+                          disabled={productionSliceEnforced || Boolean(actionBusy)}
+                          onClick={() => confirmTwoDOnly(pkg.id, item.drawingNumberId)}
+                          title={productionSliceEnforced ? productionSliceUnavailableTitle("確認 2D-only 例外", productionSliceUnopenedMessage) : "確認 2D-only 例外"}
+                          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("確認 2D-only 例外", productionSliceUnopenedMessage) : "確認 2D-only 例外"}
+                          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                        >
+                          確認
+                          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={mutedStyle}>無 package 可設定</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {resolver && resolver.required.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={mutedStyle}>目前 root 下沒有 Active / Released 製造圖。</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={sharedPanelGridStyle}>
+        <label className="pdm-master-field">
+          <span>Baseline 使用模型</span>
+          <select className="dropdown-select" value={selectedModelId} disabled={productionSliceEnforced} onChange={(event) => setSelectedModelId(event.target.value)}>
+            {releasedModels.map((model) => (
+              <option key={model.id} value={model.id}>{model.modelRevision} / {formatShortHash(model.contentHash)}</option>
+            ))}
+            {releasedModels.length === 0 ? <option value="">尚無 Released model</option> : null}
+          </select>
+        </label>
+        <TextField label="Baseline revision" value={baselineRevision} onChange={setBaselineRevision} disabled={productionSliceEnforced} />
+        <button
+          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced || !selectedModelId || Boolean(actionBusy)}
+          onClick={createBaselineDraft}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("建立 baseline 草稿", productionSliceUnopenedMessage) : "建立 baseline 草稿"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("建立 baseline 草稿", productionSliceUnopenedMessage) : "建立 baseline 草稿"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          建立 baseline 草稿
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+        <button
+          className={`primary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+          type="button"
+          disabled={productionSliceEnforced || !draftBaseline || draftBaseline.status !== "Draft" || Boolean(actionBusy)}
+          onClick={releaseBaselineDraft}
+          title={productionSliceEnforced ? productionSliceUnavailableTitle("發行 baseline", productionSliceUnopenedMessage) : "發行 baseline"}
+          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("發行 baseline", productionSliceUnopenedMessage) : "發行 baseline"}
+          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+        >
+          發行 baseline
+          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
+        </button>
+      </div>
+      {draftBaseline ? (
+        <p style={mutedStyle}>
+          目前草稿：{draftBaseline.baselineCode} / {draftBaseline.status} / {draftBaseline.id}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function shared3dErrorMessage(body: Record<string, unknown>, fallback: string) {
+  const text = String(body.message ?? body.error ?? fallback);
+  return formatStatusErrorForUser(text, "masterRecord");
+}
+
+function formatShortHash(hash: string | null | undefined) {
+  if (!hash) return "-";
+  return hash.length <= 16 ? hash : `${hash.slice(0, 8)}...${hash.slice(-6)}`;
 }
 
 function FilterSelectField({
   label,
   value,
   onChange,
-  options
+  options,
+  formatOption,
+  allLabel
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
+  formatOption?: (option: string) => string;
+  allLabel?: string;
 }) {
   return (
     <label className="pdm-master-field">
@@ -776,7 +1764,7 @@ function FilterSelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option value={option} key={option || "all"}>
-            {option ? partKindLabel(option) : `全部${label}`}
+            {option ? formatOption?.(option) ?? partKindLabel(option) : allLabel ?? `全部${label}`}
           </option>
         ))}
       </select>
@@ -794,11 +1782,30 @@ function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; val
   );
 }
 
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function EmptyBlock({ text }: { text: string }) {
+  return (
+    <div className="info-block" style={{ alignItems: "center", textAlign: "center" }}>
+      <PackageSearch size={24} aria-hidden="true" />
+      <p style={{ margin: 0, color: "var(--muted)" }}>{text}</p>
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  disabled = false
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
   return (
     <label style={fieldStyle}>
       <span>{label}</span>
-      <input className="text-input" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input className="text-input" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
@@ -813,17 +1820,39 @@ function costTypeLabel(value: string) {
   return ({ outsourced: "委外加工", in_house: "自行製作", purchase: "採購", trial: "試作", other: "其他" } as Record<string, string>)[value] ?? value;
 }
 
+function costRequestTypeLabel(value: string) {
+  return ({ set_standard: "指定標準成本", update_profile: "更新成本", retire_profile: "停用成本" } as Record<string, string>)[value] ?? value;
+}
+
 function partKindLabel(value: string) {
   return ({ purchased: "外購", manufactured: "自製", outsourced: "發包", shared: "共用", custom: "客製" } as Record<string, string>)[value] ?? value;
 }
 
 function linkTypeLabel(value: string) {
-  return ({ primary_manufacturing: "主要製造圖", reference: "參考圖" } as Record<string, string>)[value] ?? value;
+  return ({ primary_manufacturing: "製造基準關聯", reference: "參考圖" } as Record<string, string>)[value] ?? value;
+}
+
+function standardCostChipLabel(value: PartStandardCost) {
+  if (value.unitCost === null) return "標準成本已設定";
+  return `${value.currency} ${formatNumber(value.unitCost)}`;
+}
+
+function standardCostLabel(value: PartStandardCost | null) {
+  if (!value) return "尚未設定標準成本";
+  if (value.unitCost === null) return `${value.profileName}: 標準成本已設定`;
+  return `${value.profileName}: ${value.currency} ${formatNumber(value.unitCost)} / ${value.uom}`;
 }
 
 function formatNumber(value: number | null) {
   if (value === null || Number.isNaN(value)) return "-";
   return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value);
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-TW", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 const detailGridStyle: CSSProperties = {
@@ -833,9 +1862,29 @@ const detailGridStyle: CSSProperties = {
   padding: 12
 };
 
+const focusPanelStyle: CSSProperties = {
+  borderColor: "rgba(13, 148, 136, 0.45)",
+  boxShadow: "inset 3px 0 0 var(--accent-3)"
+};
+
 const formGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: 10,
+  padding: 12
+};
+
+const sharedPanelSummaryStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: 10,
+  padding: 12
+};
+
+const sharedPanelGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(180px, 1fr) minmax(120px, 180px) auto auto",
+  alignItems: "end",
   gap: 10,
   padding: 12
 };
@@ -846,4 +1895,10 @@ const fieldStyle: CSSProperties = {
   minWidth: 0,
   color: "var(--muted)",
   fontSize: 13
+};
+
+const inlineButtonRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8
 };

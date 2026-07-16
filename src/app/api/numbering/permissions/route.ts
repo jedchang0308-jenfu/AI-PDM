@@ -1,28 +1,28 @@
-import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { checkNumberingPermission } from "@/lib/db";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
+import { numberStateFlowJson } from "@/lib/number-state-flow-api";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const pages = Object.fromEntries(
-    NUMBERING_PAGE_PERMISSION_CODES.map((permissionCode) => [
+    await Promise.all(NUMBERING_PAGE_PERMISSION_CODES.map(async (permissionCode) => [
       permissionCode,
-      checkNumberingPermission({ user: auth.user, permissionKind: "page", permissionCode }).allowed
-    ])
+      (await checkNumberingPermissionAsync({ user: auth.user, permissionKind: "page", permissionCode })).allowed
+    ]))
   );
   const actions = Object.fromEntries(
-    NUMBERING_ACTION_PERMISSION_CODES.map((permissionCode) => [
+    await Promise.all(NUMBERING_ACTION_PERMISSION_CODES.map(async (permissionCode) => [
       permissionCode,
-      checkNumberingPermission({ user: auth.user, permissionKind: "action", permissionCode }).allowed
-    ])
+      (await checkNumberingPermissionAsync({ user: auth.user, permissionKind: "action", permissionCode })).allowed
+    ]))
   );
 
-  return NextResponse.json({
+  return numberStateFlowJson({
     generatedAt: new Date().toISOString(),
     pages,
     actions

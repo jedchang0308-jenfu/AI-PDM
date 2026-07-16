@@ -1,8 +1,11 @@
-export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete";
+import type { RevisionPackageFileRole, RevisionPackageWarning } from "@/lib/revision-package";
+
+export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete" | "Cancelled";
 export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
 
 export type SubmissionSummary = {
   id: string;
+  company_id?: string;
   item_id: string;
   part_number: string;
   part_name: string;
@@ -34,6 +37,17 @@ export type SubmissionSummary = {
   superseded_by_submission_id: string | null;
   obsolete_at: string | null;
   obsolete_by: string | null;
+  source_entity_type?: string | null;
+  source_entity_id?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  returned_for_correction_at?: string | null;
+  returned_for_correction_by?: string | null;
+  returned_for_correction_reason?: string | null;
+  corrects_submission_id?: string | null;
+  resolved_by_submission_id?: string | null;
+  resolved_at?: string | null;
 };
 
 export type SubmissionFile = {
@@ -42,10 +56,14 @@ export type SubmissionFile = {
   file_role: FileRole;
   original_filename: string;
   local_path: string;
+  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
+  storage_bucket?: string | null;
+  storage_key?: string | null;
   gdrive_file_id: string | null;
   gdrive_status: "none" | "uploading" | "uploaded" | "failed" | "moved";
   sha256: string;
   file_size: number;
+  source_master_attachment_id?: string | null;
   created_at: string;
 };
 
@@ -131,6 +149,19 @@ export type BomWorkbenchDraftSummary = {
   updated_at: string;
 };
 
+export type BomReconfirmationFlag = {
+  id: string;
+  bom_draft_id: string;
+  old_part_number_id: string;
+  old_part_number: string;
+  new_part_number_id: string;
+  new_part_number: string;
+  reason: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
 export type BomWorkbenchLine = {
   id: string;
   bom_draft_id: string;
@@ -155,6 +186,7 @@ export type BomWorkbenchLine = {
 
 export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
+  reconfirmation_flags: BomReconfirmationFlag[];
 };
 
 export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";
@@ -342,11 +374,57 @@ export type ReleasePackage = {
   submission_id: string;
   package_filename: string;
   local_path: string;
+  storage_provider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
+  storage_bucket?: string | null;
+  storage_key?: string | null;
   sha256: string;
   file_size: number;
   manifest_json: string;
   created_by: string | null;
   created_at: string;
+};
+
+export type SubmissionLifecycleRequest = {
+  id: string;
+  submission_id: string;
+  action_code: "obsolete_submission";
+  request_status: "pending" | "approved" | "rejected" | "cancelled";
+  requested_by: string;
+  requested_by_name: string;
+  reason: string;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decision_reason: string | null;
+  requested_at: string;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ControlledHistoryEntry = {
+  id: string;
+  entity_type: "submission" | "numbering_part_number" | "numbering_drawing_number" | "bom_release";
+  target_id: string;
+  display_code: string;
+  secondary_code: string;
+  title: string;
+  stage_label: "歷史";
+  result_label: "已作廢";
+  traceability_class: "controlled_history";
+  history_reason: string;
+  requested_by_name: string | null;
+  reviewed_by_name: string | null;
+  requested_at: string | null;
+  decided_at: string | null;
+  history_at: string | null;
+  decision_reason: string | null;
+  source_status: string;
+  release_package_available: boolean;
+  actions: {
+    delete: false;
+    restore: false;
+    obsolete: false;
+  };
 };
 
 export type ReadonlyShare = {
@@ -518,6 +596,17 @@ export type PdfMarkup = {
 export type SubmissionDetail = SubmissionSummary & {
   files: SubmissionFile[];
   references: FileReference[];
+  revision_package?: {
+    files: Array<{
+      source_attachment_id: string | null;
+      submission_file_id: string | null;
+      filename: string;
+      default_role: RevisionPackageFileRole;
+      role: RevisionPackageFileRole;
+      source: "extension" | "user";
+    }>;
+    warnings: RevisionPackageWarning[];
+  } | null;
   bom: BomDetail | null;
   active_lock: ItemLock | null;
   release_package: ReleasePackage | null;
@@ -537,6 +626,7 @@ export type SubmissionDetail = SubmissionSummary & {
     detail_json: string;
     created_at: string;
   }>;
+  lifecycle_requests: SubmissionLifecycleRequest[];
 };
 
 export type ItemRevisionHistoryEntry = {
@@ -565,7 +655,8 @@ export type NotificationKind =
   | "awaiting_review"
   | "active_lock"
   | "drive_upload_failed"
-  | "release_package_missing";
+  | "release_package_missing"
+  | "storage_evidence_alert";
 
 export type NotificationItem = {
   id: string;

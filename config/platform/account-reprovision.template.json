@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "sourceArchiveReadOnly": true,
+  "sameEmailAutoLinkAllowed": false,
+  "records": [
+    {
+      "sourceLegacyUserId": "legacy-user-jedchang0308",
+      "sourceActorArchiveRef": "source-archive://users/legacy-user-jedchang0308",
+      "targetPdmUserId": "prod-pdm-user-admin-001",
+      "targetFirebaseUid": "prod-firebase-user-admin-001",
+      "email": "jedchang0308@jenfu.com.tw",
+      "companyId": "company-jenfu",
+      "role": "Admin",
+      "loginMethod": "google_workspace",
+      "credentialBootstrap": "google-federation"
+    }
+  ]
+}

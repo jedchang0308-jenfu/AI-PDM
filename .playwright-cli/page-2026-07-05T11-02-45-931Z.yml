@@ -1,0 +1,113 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - generic [ref=e16]: AI PDM
+      - button "收合左側導覽" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+    - navigation "主導覽" [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]: 工作台
+        - generic [ref=e23]:
+          - link "工作台" [ref=e24] [cursor=pointer]:
+            - /url: /
+            - img [ref=e25]
+            - generic [ref=e29]: 工作台
+          - link "我的待辦" [ref=e30] [cursor=pointer]:
+            - /url: /numbering/tasks
+            - img [ref=e31]
+            - generic [ref=e34]: 我的待辦
+      - generic [ref=e35]:
+        - generic [ref=e36]: 專案 / 圖料
+        - generic [ref=e37]:
+          - link "圖料模組" [ref=e38] [cursor=pointer]:
+            - /url: /numbering/search
+            - img [ref=e39]
+            - generic [ref=e42]: 圖料模組
+          - link "圖號模組" [ref=e43] [cursor=pointer]:
+            - /url: /numbering/drawings
+            - img [ref=e44]
+            - generic [ref=e47]: 圖號模組
+          - link "料號模組" [ref=e48] [cursor=pointer]:
+            - /url: /parts
+            - img [ref=e49]
+            - generic [ref=e55]: 料號模組
+          - link "料號草稿" [ref=e56] [cursor=pointer]:
+            - /url: /numbering/part-drafts
+            - img [ref=e57]
+            - generic [ref=e60]: 料號草稿
+          - link "上傳送審" [ref=e61] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=e62]
+            - generic [ref=e65]: 上傳送審
+          - link "領號申請" [ref=e66] [cursor=pointer]:
+            - /url: /numbering/request
+            - img [ref=e67]
+            - generic [ref=e70]: 領號申請
+          - link "圖號總表匯入" [ref=e71] [cursor=pointer]:
+            - /url: /numbering/imports
+            - img [ref=e72]
+            - generic [ref=e76]: 圖號總表匯入
+      - generic [ref=e77]:
+        - generic [ref=e78]: BOM
+        - generic [ref=e79]:
+          - link "BOM 工作台" [ref=e80] [cursor=pointer]:
+            - /url: /bom/workbench
+            - img [ref=e81]
+            - generic [ref=e84]: BOM 工作台
+          - link "BOM 審核" [ref=e85] [cursor=pointer]:
+            - /url: /bom/reviews
+            - img [ref=e86]
+            - generic [ref=e90]: BOM 審核
+      - generic [ref=e91]:
+        - generic [ref=e92]: 變更 / 審核
+        - generic [ref=e93]:
+          - link "圖面進版" [ref=e94] [cursor=pointer]:
+            - /url: /numbering/revisions
+            - img [ref=e95]
+            - generic [ref=e100]: 圖面進版
+          - link "DVT 晉升" [ref=e101] [cursor=pointer]:
+            - /url: /numbering/dvt
+            - img [ref=e102]
+            - generic [ref=e107]: DVT 晉升
+          - link "發行審核" [ref=e108] [cursor=pointer]:
+            - /url: /numbering/approvals
+            - img [ref=e109]
+            - generic [ref=e113]: 發行審核
+          - link "變更審核" [ref=e114] [cursor=pointer]:
+            - /url: /numbering/change-reviews
+            - img [ref=e115]
+            - generic [ref=e119]: 變更審核
+          - link "MA 影響分析" [ref=e120] [cursor=pointer]:
+            - /url: /numbering/impact
+            - img [ref=e121]
+            - generic [ref=e123]: MA 影響分析
+      - generic [ref=e124]:
+        - generic [ref=e125]: 發行 / 交接
+        - generic [ref=e126]:
+          - link "製造交接" [ref=e127] [cursor=pointer]:
+            - /url: /handoff
+            - img [ref=e128]
+            - generic [ref=e130]: 製造交接
+          - link "圖號報表" [ref=e131] [cursor=pointer]:
+            - /url: /numbering/reports
+            - img [ref=e132]
+            - generic [ref=e135]: 圖號報表
+      - generic [ref=e136]:
+        - generic [ref=e137]: 管理
+        - generic [ref=e138]:
+          - link "系統設定" [ref=e139] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e140]
+            - generic [ref=e143]: 系統設定
+          - link "登入" [ref=e144] [cursor=pointer]:
+            - /url: /login
+            - img [ref=e145]
+            - generic [ref=e148]: 登入
+  - main [ref=e149]:
+    - generic [ref=e150]:
+      - heading "圖號模組" [level=1] [ref=e152]
+      - button "重新整理" [ref=e153] [cursor=pointer]:
+        - img [ref=e154]
+        - text: 重新整理
+    - generic [ref=e158]: 正在載入圖號清單...

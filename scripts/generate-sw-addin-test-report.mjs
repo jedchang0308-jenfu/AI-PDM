@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createBlankReport, makeReportId } from "./sw-addin-report-utils.mjs";
 import { getReportRoot } from "./pdm-paths.mjs";
@@ -65,9 +65,9 @@ function buildMarkdown(report) {
   return lines.join("\n");
 }
 
-fs.mkdirSync(outputDir, { recursive: true });
-fs.writeFileSync(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "report.md"), buildMarkdown(report), "utf8");
+mkdirSync(outputDir, { recursive: true });
+writeFileSync(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+writeFileSync(path.join(outputDir, "report.md"), buildMarkdown(report), "utf8");
 
 console.log(JSON.stringify({
   reportId,

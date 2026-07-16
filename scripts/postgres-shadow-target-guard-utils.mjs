@@ -1,13 +1,17 @@
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
+
+const forbiddenSupabaseTargets = [
+  { name: "ProJED", ref: "knodlkxqpcqyrtgwpdst" },
+  { name: "ProJED_TEST", ref: "fhisnnufoeulxqrchldf" }
+];
 
 export function extractTableNames(sql) {
   return [...sql.matchAll(/^CREATE TABLE IF NOT EXISTS\s+([a-z0-9_]+)/gimu)].map((match) => match[1]);
 }
 
 export function getExpectedAiPdmTables(root) {
-  return extractTableNames(fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8"));
+  return extractTableNames(readProjectFile(root, "db/schema.sql"));
 }
 
 export function quoteIdent(identifier) {
@@ -63,6 +67,34 @@ export function collectPostgresTargetSnapshot(postgresUrl, expectedTables, root 
       });
 
   return { publicTables, rlsRows };
+}
+
+export function evaluateSupabaseTargetIdentity(postgresUrl, env = process.env) {
+  const rawUrl = String(postgresUrl ?? "");
+  const configuredTargetName = env.PDM_SUPABASE_TARGET_NAME?.trim() ?? "";
+  const loweredUrl = rawUrl.toLowerCase();
+  const loweredTargetName = configuredTargetName.toLowerCase();
+  const issues = [];
+
+  for (const forbidden of forbiddenSupabaseTargets) {
+    const ref = forbidden.ref.toLowerCase();
+    const name = forbidden.name.toLowerCase();
+    if (loweredUrl.includes(ref) || loweredTargetName === name) {
+      issues.push({
+        type: "forbidden_supabase_project",
+        message: `Refusing to use existing non-AI_PDM Supabase project ${forbidden.name}.`,
+        projectName: forbidden.name,
+        projectRef: forbidden.ref
+      });
+    }
+  }
+
+  return {
+    safe: issues.length === 0,
+    configuredTargetName,
+    forbiddenProjectRefs: forbiddenSupabaseTargets.map((target) => target.ref),
+    issues
+  };
 }
 
 export function evaluateShadowTarget({ publicTables, expectedTables, rlsRows = [], phase = "compare" }) {

@@ -30,8 +30,13 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPanel, SubmissionTable, type ChatMessage } from "@/components/dashboard/layout-parts";
+import { LifecycleMap, ObjectLifecycleStatusPanel, buildUploadPrefillHref, type LifecycleMetric, type LifecycleStageId } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { revisionPackageRoleLabel } from "@/lib/revision-package";
+import { buildAdaptiveTaskFeed, type TaskSummary, type TaskSummarySeverity, type TaskSummarySource } from "@/lib/adaptive-task-feed";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -39,6 +44,7 @@ import type {
   AiRiskReport,
   BomLine,
   ChangeRequest,
+  ControlledHistoryEntry,
   DiscussionComment,
   DesignReuseCandidate,
   DuplicateGeometryCandidate,
@@ -52,39 +58,15 @@ import type {
   ReviewIssue,
   SandboxBranch,
   SubmissionDetail,
+  SubmissionLifecycleRequest,
   SubmissionStatus,
   SubmissionSummary,
   SupplierPortalResponse,
   WhereUsedEntry
 } from "@/lib/types";
 
-const statusLabels: Record<SubmissionStatus | "All", string> = {
-  Pending: "待審核",
-  Releasing: "發布中",
-  Released: "已發布",
-  Obsolete: "已廢止",
-  Rejected: "已駁回",
-  ReleaseFailed: "發布失敗",
-  All: "全部"
-};
-
 function formatWorkflowStatus(value: string) {
-  const labels: Record<string, string> = {
-    active: "啟用中",
-    closed: "已關閉",
-    merged: "已合併",
-    open: "未結案",
-    resolved: "已結案",
-    completed: "已完成",
-    waived: "已豁免",
-    satisfied: "已滿足",
-    approved: "已核准",
-    rejected: "已駁回",
-    sent: "已送出",
-    acknowledged: "已確認",
-    failed: "失敗"
-  };
-  return labels[value] ?? value;
+  return formatStatusForUser(value, "workflow");
 }
 
 function formatFileAvailability(submission: SubmissionSummary) {
@@ -99,6 +81,21 @@ function formatFileAvailability(submission: SubmissionSummary) {
 
 function latestActivityAt(submission: SubmissionSummary) {
   return submission.released_at ?? submission.updated_at ?? submission.created_at;
+}
+
+function humanSubmissionActionError(value: unknown, fallbackAction = "操作未完成") {
+  const text = String(value ?? "").trim();
+  if (!text) return `${fallbackAction}。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。`;
+  if (text === "FORBIDDEN" || text === "Insufficient role permission") return "你目前不能執行這個動作，請由主管或 Admin 處理。";
+  if (text.includes("DUPLICATE_RELEASE_FILENAME")) return "發行失敗：附件檔名已被其他正式紀錄使用。請回送審工作台移除錯誤附件或更換正確檔案後，再建立修正送審。";
+  if (text.includes("RELEASE_NOT_CONFIGURED")) return "發行失敗：系統尚未完成正式發行設定。請通知 Admin 檢查發行設定後再處理。";
+  if (text.includes("LOCAL_GDRIVE_RELEASE_FAILED")) return "發行失敗：檔案移到正式資料夾時失敗。請通知主管或 Admin 檢查發行資料夾與檔案權限。";
+  if (text.includes("主資料狀態同步失敗")) return "發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。";
+  return formatStatusErrorForUser(text, "submission");
+}
+
+function alertSubmissionActionError(body: Record<string, unknown>, fallbackAction: string) {
+  alert(humanSubmissionActionError(body.message ?? body.error ?? body.code, fallbackAction));
 }
 
 type ConditionFilter = "my" | "locked" | "missing_handoff";
@@ -125,6 +122,20 @@ type RecentDrawing = {
   part_name: string;
   revision: string;
   updated_at: string;
+};
+
+type NumberingDraftRecord = {
+  entityType: "part_root" | "part_number" | "drawing_number";
+  entityId: string;
+  rootCode: string;
+  coreName: string;
+  displayCode: string;
+  displayName: string;
+  developmentPhase: string;
+  recordStatus: string;
+  partNumber: string | null;
+  drawingNumber: string | null;
+  primaryDrawingNumber: string | null;
 };
 
 type SavedFinderSearch = {
@@ -155,11 +166,10 @@ const virtualOverscan = 8;
 
 const statusFilters: StatusFilterConfig[] = [
   { label: "全部", status: "All" },
-  { label: "待審核", status: "Pending" },
+  { label: "審核中", status: "Pending" },
   { label: "已發布", status: "Released" },
-  { label: "已廢止", status: "Obsolete" },
   { label: "已駁回", status: "Rejected" },
-  { label: "發布失敗", status: "ReleaseFailed" }
+  { label: "發行未完成", status: "ReleaseFailed" }
 ];
 
 const emptyFinderFilters: FinderFilters = {
@@ -200,7 +210,7 @@ const finderFilterConfigs: Array<{
     type: "select",
     options: [
       { value: "", label: "全部" },
-      { value: "unreleased", label: "含未 Released / 缺件" },
+      { value: "unreleased", label: "含未發布 / 缺件" },
       { value: "outdated", label: "含舊版子件" }
     ]
   }
@@ -243,11 +253,11 @@ function getPlatformWorkbenchSections({
       ? [
           { href: "/upload", label: "上傳送審", detail: "建立新的圖料送審", icon: UploadCloud },
           { href: "/numbering/request", label: "領號申請", detail: "先取得料號 / 圖號", icon: ClipboardList },
-          { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM Draft", icon: ListTree }
+          { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM 草稿", icon: ListTree }
         ]
       : [
-          { href: "/bom/reviews", label: "BOM 審核", detail: "處理待審 BOM 差異", icon: ListTree },
-          { href: "/numbering/approvals", label: "發行審核", detail: "審 DVT / Release gate", icon: GitPullRequestArrow },
+          { href: "/bom/reviews", label: "BOM 審核", detail: "處理審核中 BOM 差異", icon: ListTree },
+          { href: "/numbering/approvals", label: "發行審核", detail: "審 DVT / 發布關卡", icon: GitPullRequestArrow },
           { href: "/numbering/reports", label: "圖號報表", detail: "檢視審核與稽核摘要", icon: FileText }
         ];
 
@@ -261,11 +271,11 @@ function getPlatformWorkbenchSections({
         {
           href: "/numbering/tasks",
           label: "待辦中心",
-          detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} warning`,
+          detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} 注意`,
           icon: Bell
         },
         { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門 BOM gate", icon: ListTree },
-        { href: "/numbering/approvals", label: "發行審核", detail: "DVT / Release 決策", icon: GitPullRequestArrow }
+        { href: "/numbering/approvals", label: "發行審核", detail: "DVT / 發布決策", icon: GitPullRequestArrow }
       ]
     },
     {
@@ -276,7 +286,7 @@ function getPlatformWorkbenchSections({
       links: [
         { href: "/upload", label: "上傳送審", detail: "圖面 / 文件 / CAD 檔", icon: UploadCloud },
         { href: "/numbering/request", label: "領號申請", detail: "料號、圖號、用途", icon: ClipboardList },
-        { href: "/numbering/imports", label: "圖號總表匯入", detail: "既有主檔 staging", icon: FileText }
+        { href: "/numbering/imports", label: "圖號總表匯入", detail: "既有主檔暫存", icon: FileText }
       ]
     },
     {
@@ -286,17 +296,17 @@ function getPlatformWorkbenchSections({
       icon: Search,
       links: [
         { href: "/numbering/search", label: "圖料模組", detail: "圖號、料號、同圖多料號", icon: Search },
-        { href: "/numbering/impact", label: "MA 影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
+        { href: "/numbering/impact", label: "製造圖影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
         { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
       ]
     },
     {
       title: "我要交接輸出",
-      description: "讓製造、採購、供應商與管理者從 Released 狀態取得可用資料。",
+      description: "讓製造、採購、供應商與管理者從已發布狀態取得可用資料。",
       badge: "交接",
       icon: Factory,
       links: [
-        { href: "/handoff", label: "製造交接", detail: "Released 圖料與交接包", icon: Factory },
+        { href: "/handoff", label: "製造交接", detail: "已發布圖料與交接包", icon: Factory },
         { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM snapshot / 匯出", icon: ListTree },
         { href: "/numbering/reports", label: "報表輸出", detail: "跨角色狀態彙整", icon: FileText }
       ]
@@ -311,13 +321,276 @@ function getPlatformWorkbenchSections({
   ];
 }
 
+const taskSeverityClass: Record<TaskSummarySeverity, string> = {
+  critical: "critical",
+  warning: "warning",
+  info: "info",
+  success: "success"
+};
+
+const taskSourceIcons: Record<TaskSummarySource, LucideIcon> = {
+  numbering_task: ClipboardList,
+  notification: Bell,
+  bom_review: ListTree,
+  handoff_readiness: Factory,
+  storage_evidence: Archive,
+  submission: FileText
+};
+
+function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
+  return (
+    <section className="platform-workbench adaptive-task-feed" aria-label="自適應任務排序">
+      <div className="platform-workbench-header">
+        <div>
+          <span className="section-label">Adaptive task feed</span>
+          <h2>下一個該處理的任務</h2>
+          <p>依角色、風險、審核中、交接與系統異常排序。</p>
+        </div>
+      </div>
+      <div className="platform-workbench-grid adaptive-task-feed-grid">
+        {tasks.map((item) => {
+          const Icon = taskSourceIcons[item.source];
+          return (
+            <article className={`platform-workbench-card adaptive-task-card ${taskSeverityClass[item.severity]}`} key={item.id}>
+              <div className="platform-workbench-card-header">
+                <span className="workbench-card-icon">
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+                <div>
+                  <span className="metadata-badge">{item.signal}</span>
+                  <h3>{item.title}</h3>
+                </div>
+              </div>
+              <p>{item.detail}</p>
+              <div className="workbench-link-list">
+                <Link className="workbench-link" href={item.href}>
+                  <GitBranch size={15} aria-hidden="true" />
+                  <span>
+                    <strong>{item.primaryActionLabel}</strong>
+                    <small>{item.evidence}</small>
+                  </span>
+                </Link>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] }) {
+  const uniqueDrafts = dedupeNumberingDrafts(drafts);
+  if (uniqueDrafts.length === 0) return null;
+  const firstDraft = uniqueDrafts[0];
+  const firstDrawing = firstDraft.drawingNumber ?? firstDraft.primaryDrawingNumber;
+  const firstPart = firstDraft.partNumber;
+  return (
+    <section className="platform-workbench" aria-label="我的開發中圖料">
+      <ObjectLifecycleStatusPanel
+        title="我的開發中圖料"
+        objectName={`${firstDraft.rootCode} / ${firstPart ?? "未帶入料號"} / ${firstDrawing ?? "未帶入圖號"}`}
+        status={firstDraft.recordStatus}
+        phase={firstDraft.developmentPhase}
+        owner="RD"
+        identities={[
+          { label: "待送審草稿", value: uniqueDrafts.length },
+          { label: "主根號", value: firstDraft.rootCode },
+          { label: "料號", value: firstPart ?? "-" },
+          { label: "圖號", value: firstDrawing ?? "-" },
+          { label: "品名", value: firstDraft.displayName || firstDraft.coreName }
+        ]}
+        blockers={["草稿已有號碼，但尚未形成審核中送審單", "未送審前不可作為正式 BOM、製造或採購交接資料"]}
+        nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與 release 流程。"
+        primaryAction={{
+          href: buildUploadPrefillHref({
+            rootCode: firstDraft.rootCode,
+            drawingNumber: firstDrawing,
+            partNumber: firstPart,
+            partName: firstDraft.displayName || firstDraft.coreName,
+            developmentPhase: firstDraft.developmentPhase
+          }),
+          label: "接續送審"
+        }}
+        secondaryActions={[
+          { href: "/numbering/tasks", label: "看全部草稿" },
+          { href: `/numbering/search?query=${encodeURIComponent(firstDraft.rootCode)}`, label: "開主根明細" }
+        ]}
+      />
+      {uniqueDrafts.length > 1 ? (
+        <div className="workbench-link-list">
+          {uniqueDrafts.slice(1, 5).map((draft) => {
+            const drawingNumber = draft.drawingNumber ?? draft.primaryDrawingNumber;
+            return (
+              <Link
+                className="workbench-link"
+                href={buildUploadPrefillHref({
+                  rootCode: draft.rootCode,
+                  drawingNumber,
+                  partNumber: draft.partNumber,
+                  partName: draft.displayName || draft.coreName,
+                  developmentPhase: draft.developmentPhase
+                })}
+                key={draft.rootCode}
+              >
+                <UploadCloud size={15} aria-hidden="true" />
+                <span>
+                  <strong>{draft.rootCode}</strong>
+                  <small>
+                    {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"} / {formatDevelopmentPhaseForUser(draft.developmentPhase)}
+                  </small>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ControlledHistoryPanel({
+  entries,
+  loading,
+  onRefresh,
+  onOpenEntry
+}: {
+  entries: ControlledHistoryEntry[];
+  loading: boolean;
+  onRefresh: () => void;
+  onOpenEntry: (entry: ControlledHistoryEntry) => void;
+}) {
+  const entityLabels: Record<ControlledHistoryEntry["entity_type"], string> = {
+    submission: "正式圖面",
+    numbering_part_number: "正式料號",
+    numbering_drawing_number: "正式圖號",
+    bom_release: "正式 BOM"
+  };
+
+  return (
+    <details className="controlled-history-panel" data-controlled-history-surface="true">
+      <summary>
+        <span>
+          <Archive size={16} aria-hidden="true" />
+          受控歷史
+        </span>
+        <span className="metadata-badge">{loading ? "載入中" : `${entries.length} 筆`}</span>
+      </summary>
+      <div className="controlled-history-body">
+        <div className="controlled-history-toolbar">
+          <p>已作廢或被正式生命週期取代的資料只供追溯，不提供刪除或還原。</p>
+          <button className="secondary-button" type="button" onClick={onRefresh} disabled={loading}>
+            <RefreshCcw size={14} aria-hidden="true" />
+            重新整理
+          </button>
+        </div>
+        {entries.length === 0 ? (
+          <div className="empty compact-empty">目前沒有受控歷史資料。</div>
+        ) : (
+          <div className="table-wrap controlled-history-table-wrap">
+            <table className="controlled-history-table">
+              <thead>
+                <tr>
+                  <th>資料</th>
+                  <th>
+                    <StatusColumnHeader context="masterRecord" />
+                  </th>
+                  <th>作廢時間</th>
+                  <th>責任鏈</th>
+                  <th>原因</th>
+                  <th>動作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr key={entry.id} data-controlled-history-row={entry.entity_type}>
+                    <td>
+                      <strong className="identity-primary">{entry.display_code}</strong>
+                      <div className="metadata-list">
+                        <span className="metadata-badge">{entityLabels[entry.entity_type]}</span>
+                        <span className="metadata-badge">{entry.secondary_code}</span>
+                        <span className="metadata-value">{entry.title}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge Obsolete">{entry.result_label}</span>
+                      <div className="metadata-list">
+                        <span className="metadata-badge">{entry.stage_label}</span>
+                        <span className="metadata-badge">受控追溯</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="metadata-value">{formatNullableDate(entry.history_at)}</span>
+                    </td>
+                    <td>
+                      <div className="metadata-list vertical">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請</span>
+                          <span className="metadata-value">{entry.requested_by_name ?? "-"}</span>
+                        </span>
+                        <span className="metadata-pair">
+                          <span className="metadata-label">審核</span>
+                          <span className="metadata-value">{entry.reviewed_by_name ?? "-"}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="controlled-history-reason">{entry.history_reason}</span>
+                      {entry.decision_reason ? <small>決策：{entry.decision_reason}</small> : null}
+                    </td>
+                    <td>
+                      {entry.entity_type === "submission" ? (
+                        <button className="secondary-button" type="button" onClick={() => onOpenEntry(entry)}>
+                          <Eye size={14} aria-hidden="true" />
+                          查看追溯
+                        </button>
+                      ) : (
+                        <span className="metadata-badge">責任鏈已列出</span>
+                      )}
+                      <span
+                        className="sr-only"
+                        data-controlled-history-actions={`delete:${entry.actions.delete};restore:${entry.actions.restore};obsolete:${entry.actions.obsolete}`}
+                      >
+                        受控歷史不提供刪除、還原或再次作廢。
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function formatNullableDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString() : "-";
+}
+
+function dedupeNumberingDrafts(drafts: NumberingDraftRecord[]) {
+  const byRoot = new Map<string, NumberingDraftRecord>();
+  for (const draft of drafts) {
+    const current = byRoot.get(draft.rootCode);
+    if (!current) {
+      byRoot.set(draft.rootCode, draft);
+      continue;
+    }
+    const currentScore = (current.partNumber ? 1 : 0) + (current.drawingNumber ?? current.primaryDrawingNumber ? 1 : 0);
+    const nextScore = (draft.partNumber ? 1 : 0) + (draft.drawingNumber ?? draft.primaryDrawingNumber ? 1 : 0);
+    if (nextScore > currentScore) byRoot.set(draft.rootCode, draft);
+  }
+  return Array.from(byRoot.values());
+}
+
 function parseFileRoles(submission: SubmissionSummary) {
   return new Set((submission.file_roles ?? "").split(",").filter(Boolean));
 }
 
 function getBomLineState(line: BomLine) {
   if (!line.child_submission_id) return { className: "missing", label: "缺件" };
-  if (line.child_status !== "Released") return { className: "not-released", label: line.child_status ? statusLabels[line.child_status] : "未 Released" };
+  if (line.child_status !== "Released") return { className: "not-released", label: line.child_status ? formatStatusForUser(line.child_status, "submission") : "未發布" };
   if (
     line.child_latest_released_revision &&
     line.child_submission_revision &&
@@ -325,16 +598,16 @@ function getBomLineState(line: BomLine) {
   ) {
     return { className: "outdated", label: `舊版；最新版 ${line.child_latest_released_revision}` };
   }
-  return { className: "released", label: "Released" };
+  return { className: "released", label: "已發布" };
 }
 
 function getWhereUsedState(entry: WhereUsedEntry) {
   if (!entry.child_submission_id) return { className: "missing", label: "缺件" };
-  if (entry.child_status !== "Released") return { className: "not-released", label: entry.child_status ? statusLabels[entry.child_status] : "未 Released" };
+  if (entry.child_status !== "Released") return { className: "not-released", label: entry.child_status ? formatStatusForUser(entry.child_status, "submission") : "未發布" };
   if (entry.child_is_outdated && entry.child_latest_released_revision) {
     return { className: "outdated", label: `受影響；最新版 ${entry.child_latest_released_revision}` };
   }
-  return { className: "released", label: "Released" };
+  return { className: "released", label: "已發布" };
 }
 
 function readStringList(key: string) {
@@ -402,7 +675,7 @@ function isBomIssueFilter(value: unknown): value is FinderFilters["bomIssue"] {
 }
 
 function isSubmissionStatusOrAll(value: unknown): value is SubmissionStatus | "All" {
-  return value === "All" || value === "Pending" || value === "Releasing" || value === "Released" || value === "Rejected" || value === "ReleaseFailed" || value === "Obsolete";
+  return value === "All" || value === "Pending" || value === "Releasing" || value === "Released" || value === "Rejected" || value === "ReleaseFailed";
 }
 
 function readDrawingList(key: string) {
@@ -473,6 +746,176 @@ type CurrentUser = {
   role: "Engineer" | "R&D Manager" | "Admin";
 };
 
+  type StorageEvidenceDashboard = {
+  source: {
+    available: boolean;
+    error: string | null;
+    evidenceMarkdownPath: string | null;
+  };
+  run: {
+    period: string;
+    status: string;
+    severity: "normal" | "warning" | "critical" | "unknown";
+    generatedAt: string | null;
+    suggestedExitCode: number;
+  } | null;
+  summary: {
+    metadataObjectCount: number;
+    metadataStorageGb: number;
+    duplicateRecoverableBytes: number;
+    missingLocalObjectCount: number;
+    hashMismatchCount: number;
+    orphanLocalFileCount: number;
+    auditedEgressGb: number;
+    publicShareEgressBytes: number;
+  } | null;
+  readiness: {
+    migrationReady: boolean;
+    blockers: string[];
+    warnings: string[];
+  } | null;
+    thresholdUsage: {
+      storage: { includedGb: number; usageRatio: number } | null;
+      egress: { includedGb: number; usageRatio: number } | null;
+    };
+    governance: {
+      level: "stable" | "observe" | "review" | "control" | "blocked";
+      label: string;
+      reason: string;
+      storageUsageRatio: number | null;
+      egressUsageRatio: number | null;
+      providerMigrationAllowed: boolean;
+      lifecycleCleanupAllowed: boolean;
+      alternateProviderReviewRecommended: boolean;
+      nextReviewTrigger: string;
+    } | null;
+    recommendationCount: number;
+    nextActions: string[];
+  };
+
+function formatStorageGb(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value === 0) return "0 GB";
+  if (value < 0.01) return `${value.toFixed(6)} GB`;
+  if (value < 1) return `${value.toFixed(3)} GB`;
+  return `${value.toFixed(2)} GB`;
+}
+
+function formatByteSavings(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function formatUsageRatio(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return `${Math.round(value * 100)}%`;
+}
+
+function StorageEvidencePanel({
+  evidence,
+  loading,
+  onRefresh
+}: {
+  evidence: StorageEvidenceDashboard | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const severity = evidence?.run?.severity ?? (evidence?.source.available === false ? "warning" : "unknown");
+  const severityClass = severity === "critical" ? "critical" : severity === "warning" ? "warning" : "normal";
+  const blockerCount = evidence?.readiness?.blockers.length ?? 0;
+  const warningCount = evidence?.readiness?.warnings.length ?? 0;
+  const statusLabel = evidence?.run ? `${evidence.run.period} / ${formatStatusForUser(evidence.run.status, "fileSync")}` : evidence?.source.available === false ? "缺少證據" : "尚未載入";
+  const primaryAction = evidence?.nextActions[0] ?? "執行每月儲存證據工作。";
+
+  return (
+    <section className={`panel storage-evidence-panel ${severityClass}`} aria-label="儲存成本證據">
+      <div className="panel-header">
+        <h2>
+          <Archive size={16} aria-hidden="true" /> 儲存證據
+        </h2>
+        <div className="storage-evidence-actions">
+          <span className={`metadata-badge storage-evidence-status ${severityClass}`}>{statusLabel}</span>
+          <button className="icon-button" type="button" onClick={onRefresh} disabled={loading} title="重新整理儲存證據" aria-label="重新整理儲存證據">
+            <RefreshCcw size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      {!evidence || !evidence.source.available ? (
+        <NextStepState
+          compact
+          eyebrow="儲存證據"
+          title={loading ? "正在載入每月證據" : "每月證據尚未完成"}
+          body={loading ? "正在讀取最新受控儲存證據。" : primaryAction}
+        />
+      ) : (
+        <div className="storage-evidence-body">
+          <div className="storage-evidence-metrics" aria-label="儲存證據指標">
+            <span className="compact-summary-item">
+              <strong>{formatStorageGb(evidence.summary?.metadataStorageGb)}</strong>
+              <span>中繼資料儲存</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatStorageGb(evidence.summary?.auditedEgressGb)}</strong>
+              <span>已稽核流量</span>
+            </span>
+            <span className={blockerCount > 0 ? "compact-summary-item compact-summary-danger" : "compact-summary-item"}>
+              <strong>{blockerCount}</strong>
+              <span>阻擋</span>
+            </span>
+            <span className={warningCount > 0 ? "compact-summary-item compact-summary-warning" : "compact-summary-item"}>
+              <strong>{warningCount}</strong>
+              <span>注意</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatUsageRatio(evidence.thresholdUsage.storage?.usageRatio)}</strong>
+              <span>儲存門檻</span>
+            </span>
+            <span className="compact-summary-item">
+              <strong>{formatByteSavings(evidence.summary?.duplicateRecoverableBytes)}</strong>
+              <span>可回收重複資料</span>
+            </span>
+          </div>
+            <div className="storage-evidence-lists">
+              <div>
+                <span className="metadata-label">Next action</span>
+                <strong>{primaryAction}</strong>
+              </div>
+              <div>
+                <span className="metadata-label">Governance</span>
+                <strong>{evidence.governance?.label ?? "Not classified"}</strong>
+                <small>{evidence.governance?.nextReviewTrigger ?? "Run monthly storage evidence job."}</small>
+              </div>
+              <div className="metadata-list" aria-label="Storage evidence health">
+              <span className="metadata-pair">
+                <span className="metadata-label">Objects</span>
+                <span className="metadata-value">{evidence.summary?.metadataObjectCount ?? 0}</span>
+              </span>
+              <span className="metadata-pair">
+                <span className="metadata-label">Missing local</span>
+                <span className="metadata-value">{evidence.summary?.missingLocalObjectCount ?? 0}</span>
+              </span>
+              <span className="metadata-pair">
+                <span className="metadata-label">Hash mismatch</span>
+                <span className="metadata-value">{evidence.summary?.hashMismatchCount ?? 0}</span>
+              </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">Public share bytes</span>
+                  <span className="metadata-value">{formatByteSavings(evidence.summary?.publicShareEgressBytes)}</span>
+                </span>
+                <span className="metadata-pair">
+                  <span className="metadata-label">Provider review</span>
+                  <span className="metadata-value">{evidence.governance?.alternateProviderReviewRecommended ? "Yes" : "No"}</span>
+                </span>
+              </div>
+            </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Dashboard() {
   const detailPanelRef = useRef<HTMLElement | null>(null);
   const detailAbortRef = useRef<AbortController | null>(null);
@@ -494,6 +937,9 @@ export function Dashboard() {
   const [savedFinderSearches, setSavedFinderSearches] = useState<SavedFinderSearch[]>([]);
   const [savedFinderSearchName, setSavedFinderSearchName] = useState("");
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
+  const [controlledHistoryEntries, setControlledHistoryEntries] = useState<ControlledHistoryEntry[]>([]);
+  const [controlledHistoryLoading, setControlledHistoryLoading] = useState(false);
+  const [numberingDrafts, setNumberingDrafts] = useState<NumberingDraftRecord[]>([]);
   const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
   const [loadingMoreSubmissions, setLoadingMoreSubmissions] = useState(false);
   const [isSubmissionTransitionPending, startSubmissionTransition] = useTransition();
@@ -557,11 +1003,16 @@ export function Dashboard() {
   const [sandboxLoading, setSandboxLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationSummary, setNotificationSummary] = useState<NotificationSummary>(emptyNotificationSummary);
+  const [storageEvidence, setStorageEvidence] = useState<StorageEvidenceDashboard | null>(null);
+  const [storageEvidenceLoading, setStorageEvidenceLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [obsoleteReason, setObsoleteReason] = useState("");
+  const [obsoleteDecisionReason, setObsoleteDecisionReason] = useState("");
+  const [obsoleteActionLoading, setObsoleteActionLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "可詢問待審清單、統計數字、目前送審內容，或 PDM 圖號/料號/版次規則。" }
+    { role: "assistant", content: "可詢問審核中清單、統計數字、目前送審內容，或 PDM 圖號/料號/版次規則。" }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -607,6 +1058,9 @@ export function Dashboard() {
     () => submissions.find((submission) => submission.id === selectedId) ?? (detail?.id === selectedId ? detail : null),
     [detail, selectedId, submissions]
   );
+  const pendingSubmissionObsoleteRequest = useMemo<SubmissionLifecycleRequest | null>(() => {
+    return detail?.lifecycle_requests.find((request) => request.action_code === "obsolete_submission" && request.request_status === "pending") ?? null;
+  }, [detail?.lifecycle_requests]);
   const isDetailLoading = Boolean(loadingDetailId);
   const virtualTable = useMemo(() => {
     const visibleCount = Math.ceil(submissionTableViewportHeight / virtualRowHeight) + virtualOverscan * 2;
@@ -737,6 +1191,8 @@ export function Dashboard() {
     setCurrentSandboxBranch(null);
     setSandboxBranchName("原型試作");
     setSandboxReason("工程試作分支");
+    setObsoleteReason("");
+    setObsoleteDecisionReason("");
     setDetailResourcesLoaded({ ...emptyDetailResourceFlags });
     setDetailResourceLoading({ ...emptyDetailResourceFlags });
   }, []);
@@ -925,6 +1381,49 @@ export function Dashboard() {
     setNotificationSummary(data.summary ?? emptyNotificationSummary);
   }, []);
 
+  const loadStorageEvidence = useCallback(async () => {
+    setStorageEvidenceLoading(true);
+    try {
+      const response = await fetch("/api/storage/evidence");
+      if (response.status === 401 || response.status === 403) {
+        setStorageEvidence(null);
+        return;
+      }
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      setStorageEvidence(data);
+    } finally {
+      setStorageEvidenceLoading(false);
+    }
+  }, []);
+
+  const loadNumberingDrafts = useCallback(async () => {
+    const response = await fetch("/api/numbering/search?recordStatus=Draft&limit=8");
+    if (response.status === 401 || response.status === 403) {
+      setNumberingDrafts([]);
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json().catch(() => ({}));
+    setNumberingDrafts(data.results ?? []);
+  }, []);
+
+  const loadControlledHistory = useCallback(async () => {
+    setControlledHistoryLoading(true);
+    try {
+      const response = await fetch("/api/lifecycle/controlled-history?limit=50");
+      if (response.status === 401 || response.status === 403) {
+        setControlledHistoryEntries([]);
+        return;
+      }
+      if (!response.ok) return;
+      const data = await response.json().catch(() => ({}));
+      setControlledHistoryEntries(Array.isArray(data.entries) ? data.entries : []);
+    } finally {
+      setControlledHistoryLoading(false);
+    }
+  }, []);
+
   const rememberSearch = useCallback((query: string) => {
     const trimmed = query.trim();
     if (trimmed.length < 2 || typeof window === "undefined") return;
@@ -1038,6 +1537,19 @@ export function Dashboard() {
     setSearchFocused(false);
   }
 
+  async function openControlledHistoryEntry(entry: ControlledHistoryEntry) {
+    if (entry.entity_type !== "submission") return;
+    setActiveConditionFilters([]);
+    setFinderFilters(emptyFinderFilters);
+    setStatus("All");
+    setSearchQuery("");
+    setSelectedId(entry.target_id);
+    await loadDetail(entry.target_id);
+    requestAnimationFrame(() => {
+      detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function openChildSubmission(submissionId: string | null | undefined) {
     if (!submissionId) return;
     setSelectedId(submissionId);
@@ -1059,6 +1571,15 @@ export function Dashboard() {
 
   useEffect(() => {
     setSavedFinderSearches(currentUser ? readSavedFinderSearches(currentUser.id) : []);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const params = new URLSearchParams(window.location.search);
+    const submissionId = (params.get("submissionId") ?? params.get("submission_id") ?? "").trim();
+    if (!submissionId) return;
+
+    window.location.replace(`/submissions/${encodeURIComponent(submissionId)}`);
   }, [currentUser]);
 
   useEffect(() => {
@@ -1087,8 +1608,18 @@ export function Dashboard() {
   useEffect(() => {
     if (currentUser) {
       loadNotifications().catch(console.error);
+      loadNumberingDrafts().catch(console.error);
+      loadControlledHistory().catch(console.error);
     }
-  }, [currentUser, loadNotifications]);
+  }, [currentUser, loadControlledHistory, loadNotifications, loadNumberingDrafts]);
+
+  useEffect(() => {
+    if (canReview) {
+      loadStorageEvidence().catch(console.error);
+    } else {
+      setStorageEvidence(null);
+    }
+  }, [canReview, loadStorageEvidence]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -1109,9 +1640,14 @@ export function Dashboard() {
 
   useEffect(() => {
     setSelectedId((current) =>
-      current && visibleSubmissions.some((submission) => submission.id === current) ? current : null
+      current &&
+      (visibleSubmissions.some((submission) => submission.id === current) ||
+        controlledHistoryEntries.some((entry) => entry.target_id === current) ||
+        detail?.id === current)
+        ? current
+        : null
     );
-  }, [visibleSubmissions]);
+  }, [controlledHistoryEntries, detail?.id, visibleSubmissions]);
 
   useEffect(() => {
     if (currentUser) {
@@ -1199,12 +1735,57 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "操作失敗");
+      alertSubmissionActionError(body, action === "approve" ? "核准未完成" : "駁回未完成");
     }
     await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
     await loadDetail(selectedId);
     await loadNotifications();
     setActionLoading(false);
+  }
+
+  async function requestSubmissionObsolete() {
+    if (!selectedId) return;
+    const reason = obsoleteReason.trim();
+    if (!reason) return;
+    setObsoleteActionLoading(true);
+    const response = await fetch(`/api/submissions/${selectedId}/obsolete-request`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      alertSubmissionActionError(body, "申請作廢未完成");
+    } else {
+      setObsoleteReason("");
+    }
+    await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
+    await loadDetail(selectedId);
+    await loadNotifications();
+    setObsoleteActionLoading(false);
+  }
+
+  async function decideSubmissionObsolete(requestId: string, decision: "approve" | "reject") {
+    if (!selectedId) return;
+    setObsoleteActionLoading(true);
+    const response = await fetch(`/api/submission-lifecycle-requests/${requestId}/${decision}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ decisionReason: obsoleteDecisionReason.trim() || undefined })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      alertSubmissionActionError(body, "作廢審核未完成");
+    } else {
+      setObsoleteDecisionReason("");
+    }
+    await loadSubmissions(status, debouncedSearchQuery, finderFilters);
+    await loadControlledHistory();
+    await loadDetail(selectedId);
+    await loadNotifications();
+    setObsoleteActionLoading(false);
   }
 
   async function runCheckout(action: "lock" | "unlock") {
@@ -1217,7 +1798,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "編輯預約操作失敗");
+      alertSubmissionActionError(body, "編輯預約未完成");
     }
     await loadDetail(selectedId);
     await loadNotifications();
@@ -1237,7 +1818,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "建立試作分支失敗");
+      alertSubmissionActionError(body, "建立試作分支未完成");
     } else if (body.submissionId) {
       setSelectedId(body.submissionId);
       await loadSubmissions(status, debouncedSearchQuery, finderFilters);
@@ -1256,7 +1837,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "更新試作分支失敗");
+      alertSubmissionActionError(body, "更新試作分支未完成");
     }
     await loadSubmissions(status, debouncedSearchQuery, finderFilters);
     await loadDetail(selectedId);
@@ -1273,7 +1854,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "合併試作分支失敗");
+      alertSubmissionActionError(body, "合併試作分支未完成");
     }
     await loadSubmissions(status, debouncedSearchQuery, finderFilters);
     await loadDetail(selectedId);
@@ -1293,7 +1874,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "建立唯讀分享失敗");
+      alertSubmissionActionError(body, "建立唯讀分享未完成");
     } else {
       setLastShareUrl(body.public_url ?? "");
       setReadonlyShares((items) => [body.share, ...items].filter(Boolean));
@@ -1311,7 +1892,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "撤銷唯讀分享失敗");
+      alertSubmissionActionError(body, "撤銷唯讀分享未完成");
     } else if (body.share) {
       setReadonlyShares((items) => items.map((item) => (item.id === shareId ? body.share : item)));
       setLastShareUrl("");
@@ -1327,7 +1908,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "關閉供應商回覆失敗");
+      alertSubmissionActionError(body, "關閉供應商回覆未完成");
     } else if (body.response) {
       setSupplierResponses((items) => items.map((item) => (item.id === responseId ? body.response : item)));
       await loadDetail(selectedId);
@@ -1348,7 +1929,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "建立外部系統同步失敗");
+      alertSubmissionActionError(body, "建立外部系統同步未完成");
     } else if (body.run) {
       setProcurementSyncRuns((items) => [body.run, ...items]);
     }
@@ -1364,7 +1945,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "確認外部系統同步失敗");
+      alertSubmissionActionError(body, "確認外部系統同步未完成");
     } else if (body.run) {
       setProcurementSyncRuns((items) => items.map((item) => (item.id === runId ? body.run : item)));
     }
@@ -1389,7 +1970,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "新增討論留言失敗");
+      alertSubmissionActionError(body, "新增討論留言未完成");
     } else {
       setDiscussionBody("");
       setDiscussionFileId("");
@@ -1408,7 +1989,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "結案討論失敗");
+      alertSubmissionActionError(body, "結案討論未完成");
     } else if (body.comment) {
       setDiscussionComments((items) => items.map((item) => (item.id === commentId ? body.comment : item)));
     }
@@ -1429,7 +2010,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "建立審核問題失敗");
+      alertSubmissionActionError(body, "建立審核問題未完成");
     } else {
       setIssueTitle("");
       setIssueDescription("");
@@ -1452,7 +2033,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "結案審核問題失敗");
+      alertSubmissionActionError(body, "結案審核問題未完成");
     } else if (body.issue) {
       setReviewIssues((items) => items.map((item) => (item.id === issueId ? body.issue : item)));
       setIssueResolution((current) => {
@@ -1479,7 +2060,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "建立變更需求失敗");
+      alertSubmissionActionError(body, "建立變更需求未完成");
     } else {
       setChangeTitle("");
       setChangeReason("");
@@ -1502,7 +2083,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "更新變更決議失敗");
+      alertSubmissionActionError(body, "更新變更決議未完成");
     } else if (body.change) {
       setChangeRequests((items) => items.map((item) => (item.id === changeId ? body.change : item)));
       setChangeDecision((current) => {
@@ -1522,7 +2103,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "啟用階段關卡失敗");
+      alertSubmissionActionError(body, "啟用階段關卡未完成");
     } else {
       setPhaseGateChecks(body.checks ?? []);
     }
@@ -1542,7 +2123,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "更新階段關卡失敗");
+      alertSubmissionActionError(body, "更新階段關卡未完成");
     } else if (body.check) {
       setPhaseGateChecks((items) => items.map((item) => (item.id === checkId ? body.check : item)));
     }
@@ -1557,7 +2138,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "啟用簽核矩陣失敗");
+      alertSubmissionActionError(body, "啟用簽核矩陣未完成");
     } else {
       setApprovalMatrixRequirements(body.requirements ?? []);
     }
@@ -1577,7 +2158,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "更新簽核矩陣失敗");
+      alertSubmissionActionError(body, "更新簽核矩陣未完成");
     } else if (body.requirement) {
       setApprovalMatrixRequirements((items) => items.map((item) => (item.id === requirementId ? body.requirement : item)));
     }
@@ -1600,7 +2181,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "新增 PDF 標註失敗");
+      alertSubmissionActionError(body, "新增 PDF 標註未完成");
     } else {
       setMarkupBody("");
       setPdfMarkups((items) => [...items, body.markup].filter(Boolean));
@@ -1618,7 +2199,7 @@ export function Dashboard() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      alert(body.error ?? "結案 PDF 標註失敗");
+      alertSubmissionActionError(body, "結案 PDF 標註未完成");
     } else if (body.markup) {
       setPdfMarkups((items) => items.map((item) => (item.id === markupId ? body.markup : item)));
     }
@@ -1679,6 +2260,41 @@ export function Dashboard() {
     recentDrawings,
     favoriteDrawings
   });
+  const lifecycleActiveStage: LifecycleStageId =
+    currentUser.role === "Engineer" ? "submission" : currentUser.role === "R&D Manager" ? "review" : "gate";
+  const lifecycleMetrics: LifecycleMetric[] = [
+    { label: "草稿", value: numberingDrafts.length, tone: numberingDrafts.length > 0 ? "warning" : "neutral" },
+    { label: "審核中", value: visibleSubmissions.filter((submission) => submission.status === "Pending").length, tone: "warning" },
+    {
+      label: "發行未完成",
+      value: visibleSubmissions.filter((submission) => submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id).length,
+      tone: visibleSubmissions.some((submission) => submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id)
+        ? "critical"
+        : "neutral"
+    },
+    { label: "已發布", value: visibleSubmissions.filter((submission) => submission.status === "Released").length, tone: "success" }
+  ];
+  const adaptiveTaskFeed = buildAdaptiveTaskFeed({
+    role: currentUser.role,
+    submissions: visibleSubmissions,
+    notificationSummary,
+    notifications,
+    numberingDraftCount: numberingDrafts.length,
+    storageEvidence: storageEvidence
+      ? {
+          available: storageEvidence.source.available,
+          severity: storageEvidence.run?.severity ?? "unknown",
+          blockerCount: storageEvidence.readiness?.blockers.length ?? 0,
+          warningCount: storageEvidence.readiness?.warnings.length ?? 0,
+          migrationReady: storageEvidence.readiness?.migrationReady ?? false
+        }
+      : null,
+    limit: 5
+  });
+  const canRequestSubmissionObsolete =
+    Boolean(detail && detail.status === "Released" && !pendingSubmissionObsoleteRequest) &&
+    (currentUser.role === "Engineer" || currentUser.role === "R&D Manager" || currentUser.role === "Admin");
+  const canReviewSubmissionObsolete = Boolean(pendingSubmissionObsoleteRequest && canReview);
 
   return (
     <>
@@ -1699,7 +2315,9 @@ export function Dashboard() {
             className="secondary-button"
             onClick={() => {
               loadSubmissions(status, debouncedSearchQuery, finderFilters).catch(console.error);
+              loadControlledHistory().catch(console.error);
               loadNotifications().catch(console.error);
+              if (canReview) loadStorageEvidence().catch(console.error);
             }}
             disabled={loading}
             title="重新整理"
@@ -1713,6 +2331,14 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      <LifecycleMap activeStage={lifecycleActiveStage} roleLabel={roleLabels[currentUser.role]} metrics={lifecycleMetrics} />
+
+      <AdaptiveTaskFeedPanel tasks={adaptiveTaskFeed} />
+
+      {currentUser.role === "Engineer" || currentUser.role === "Admin" ? (
+        <NumberingDraftWorkbench drafts={numberingDrafts} />
+      ) : null}
 
       <section className="platform-workbench" aria-label="AI PDM multi-role workbench">
         <div className="platform-workbench-header">
@@ -1761,6 +2387,17 @@ export function Dashboard() {
         </div>
       </section>
 
+      <ControlledHistoryPanel
+        entries={controlledHistoryEntries}
+        loading={controlledHistoryLoading}
+        onRefresh={() => {
+          loadControlledHistory().catch(console.error);
+        }}
+        onOpenEntry={(entry) => {
+          openControlledHistoryEntry(entry).catch(console.error);
+        }}
+      />
+
       <FinderToolbar>
       <section className="finder-summary-row" aria-label="找圖與摘要">
         <section className="search-bar primary-search" aria-label="PDM search">
@@ -1799,7 +2436,7 @@ export function Dashboard() {
               <strong className="identity-line">
                 <span className="identity-primary">{submission.drawing_number}</span>
                 <span className="metadata-badge">版次 {submission.revision}</span>
-                <span className={`badge ${submission.status}`}>{statusLabels[submission.status]}</span>
+                <StatusBadge status={submission.status} context="submission" />
               </strong>
               <span className="metadata-list">
                 <span className="metadata-pair">
@@ -2004,6 +2641,16 @@ export function Dashboard() {
       </section>
       </FinderToolbar>
 
+      {canReview ? (
+        <StorageEvidencePanel
+          evidence={storageEvidence}
+          loading={storageEvidenceLoading}
+          onRefresh={() => {
+            loadStorageEvidence().catch(console.error);
+          }}
+        />
+      ) : null}
+
       <div className={selectedId ? "grid detail-focus-mode" : "grid"}>
         <SubmissionTable
           loading={loading}
@@ -2015,7 +2662,6 @@ export function Dashboard() {
           isSubmissionTransitionPending={isSubmissionTransitionPending}
           hasMoreSubmissions={hasMoreSubmissions}
           loadingMoreSubmissions={loadingMoreSubmissions}
-          statusLabels={statusLabels}
           formatFileAvailability={formatFileAvailability}
           latestActivityAt={latestActivityAt}
           onScrollTopChange={setSubmissionTableScrollTop}
@@ -2032,7 +2678,6 @@ export function Dashboard() {
             drawerWidth={detailDrawerWidth}
             isDetailLoading={isDetailLoading}
             selectedSummary={selectedSummary}
-            statusLabels={statusLabels}
             onClose={() => setSelectedId(null)}
             onStartResize={startDrawerResize}
           >
@@ -2044,6 +2689,37 @@ export function Dashboard() {
                   <strong>檔案與發布包</strong>
                   <small>{detail.files.length} 個檔案可操作</small>
                 </div>
+                <RevisionPackageReviewWarningCard detail={detail} />
+                {detail.status === "Pending" ? (
+                  <div className="review-decision-card">
+                    <div>
+                      <span className="section-label">審核決策</span>
+                      <strong>{canReview ? "這筆送審正在等待核准或駁回" : "這筆送審正在等待主管審核"}</strong>
+                      <small>
+                        {canReview
+                          ? "審核後核准會進入發布流程；駁回後需由建立者修正後重送。"
+                          : "只有 R&D Manager 或 Admin 可以在此核准或駁回。"}
+                      </small>
+                    </div>
+                    <div className="actions">
+                      {canReview ? (
+                        <>
+                          <button className="primary-button" type="button" onClick={() => runAction("approve")} disabled={actionLoading}>
+                            <Check size={16} aria-hidden="true" />
+                            {actionLoading ? "核准中..." : "核准發布"}
+                          </button>
+                          <button className="danger-button" type="button" onClick={() => runAction("reject")} disabled={actionLoading}>
+                            <X size={16} aria-hidden="true" />
+                            駁回送審
+                          </button>
+                        </>
+                      ) : null}
+                      <Link className="secondary-button" href={`/submissions/${encodeURIComponent(detail.id)}`}>
+                        查看完整送審頁
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="file-list detail-file-actions" aria-label="檔案">
                   <div className="section-label file-list-label">檔案</div>
                   {detail.files.map((file) => (
@@ -2055,6 +2731,16 @@ export function Dashboard() {
                         </span>
                         <span className="file-name">{file.original_filename}</span>
                       </strong>
+                      {revisionPackageFileForSubmissionFile(detail, file.id, file.original_filename) ? (
+                        <div className="metadata-list">
+                          <span className="metadata-pair">
+                            <span className="metadata-label">版次包類別</span>
+                            <span className="metadata-value">
+                              {revisionPackageRoleLabel(revisionPackageFileForSubmissionFile(detail, file.id, file.original_filename)?.role ?? "")}
+                            </span>
+                          </span>
+                        </div>
+                      ) : null}
                       <div className="file-actions">
                         {file.file_role === "pdf" ? (
                           <a
@@ -2115,8 +2801,11 @@ export function Dashboard() {
                   <div className="release-package-card missing">
                     <div>
                       <span className="section-label">發布包</span>
-                      <small>此筆已發布資料尚未產生 ZIP 發布包。</small>
+                      <small>製造端現在不能下載發布包。請 R&D Manager 或 Admin 回送審明細補齊發布包。</small>
                     </div>
+                    <Link className="secondary-button" href={`/submissions/${encodeURIComponent(detail.id)}`}>
+                      查看送審
+                    </Link>
                   </div>
                 ) : null}
               </section>
@@ -2164,7 +2853,7 @@ export function Dashboard() {
                               <strong>版次 {entry.revision}</strong>
                             </div>
                             <div className="revision-status">
-                              <span className={`badge ${entry.status}`}>{statusLabels[entry.status]}</span>
+                              <StatusBadge status={entry.status} context="submission" />
                               {entry.status === "Obsolete" ? (
                                 <small>廢止時間 {entry.obsolete_at ?? "-"}</small>
                               ) : null}
@@ -2221,9 +2910,9 @@ export function Dashboard() {
                       ) : null}
                     </div>
                     {!detail.bom ? (
-                      <small>尚未產生 BOM 草稿；可由組立件 CAD 引用關係產生。</small>
+                      <small>目前沒有 BOM 草稿。現在請 RD 從組立件 CAD 引用或 BOM 工作台建立草稿；若此件不需要 BOM，請在審核說明中註明。</small>
                     ) : detail.bom.lines.length === 0 ? (
-                      <small>BOM 草稿已建立，但目前沒有子件行。</small>
+                      <small>BOM 草稿已建立但沒有子件行。現在請 RD 補齊子件，或由審核者確認此件不需要子件。</small>
                     ) : (
                       detail.bom.lines.map((line) => {
                         const lineState = getBomLineState(line);
@@ -2358,7 +3047,7 @@ export function Dashboard() {
                           <div className="where-used-item" key={`${entry.parent_submission_id}-${entry.bom_header_id}`}>
                             <strong className="identity-line">
                               <span className="identity-primary">{entry.parent_part_number}</span>
-                              <span className={`badge ${entry.parent_status}`}>{statusLabels[entry.parent_status]}</span>
+                              <StatusBadge status={entry.parent_status} context="submission" />
                             </strong>
                             <div className="metadata-list">
                               <span className="metadata-pair">
@@ -2622,7 +3311,7 @@ export function Dashboard() {
                               <Copy size={14} aria-hidden="true" />
                               <span className="identity-primary">{candidate.part_number}</span>
                               <span className="metadata-badge">版次 {candidate.revision}</span>
-                              <span className={`badge ${candidate.status}`}>{statusLabels[candidate.status]}</span>
+                              <StatusBadge status={candidate.status} context="submission" />
                             </strong>
                             <div className="metadata-list">
                               <span className="score-badge">分數 {candidate.score}</span>
@@ -2669,7 +3358,7 @@ export function Dashboard() {
                               <Copy size={14} aria-hidden="true" />
                               <span className="identity-primary">{candidate.part_number}</span>
                               <span className="metadata-badge">{candidate.duplicate_level}</span>
-                              <span className={`badge ${candidate.status}`}>{statusLabels[candidate.status]}</span>
+                              <StatusBadge status={candidate.status} context="submission" />
                             </strong>
                             <div className="metadata-list">
                               <span className="score-badge">指紋 {candidate.fingerprint_score}</span>
@@ -3418,15 +4107,110 @@ export function Dashboard() {
                 </div>
               </div>
               {detail.status === "Pending" && canReview ? (
-                <div className="actions">
-                  <button className="primary-button" onClick={() => runAction("approve")} disabled={actionLoading}>
-                    <Check size={16} aria-hidden="true" />
-                    {actionLoading ? "核准中..." : "核准"}
-                  </button>
-                  <button className="danger-button" onClick={() => runAction("reject")} disabled={actionLoading}>
-                    <X size={16} aria-hidden="true" />
-                    駁回
-                  </button>
+                <>
+                  <RevisionPackageReviewWarningCard detail={detail} compact />
+                  <div className="actions">
+                    <button className="primary-button" onClick={() => runAction("approve")} disabled={actionLoading}>
+                      <Check size={16} aria-hidden="true" />
+                      {actionLoading ? "核准中..." : "核准"}
+                    </button>
+                    <button className="danger-button" onClick={() => runAction("reject")} disabled={actionLoading}>
+                      <X size={16} aria-hidden="true" />
+                      駁回
+                    </button>
+                  </div>
+                </>
+              ) : null}
+              {detail.status === "Released" || detail.status === "Obsolete" || pendingSubmissionObsoleteRequest ? (
+                <div className="readonly-share-panel">
+                  <div className="readonly-share-header">
+                    <div className="readonly-share-title">
+                      <span className="section-label">正式資料</span>
+                      <strong>
+                        <Archive size={14} aria-hidden="true" />{" "}
+                        {detail.status === "Obsolete" ? "已作廢" : pendingSubmissionObsoleteRequest ? "作廢審核中" : "申請作廢"}
+                      </strong>
+                      <small>正式圖面作廢需經主管審核；核准後資料進入受控歷史。</small>
+                    </div>
+                  </div>
+                  {detail.status === "Obsolete" ? (
+                    <div className="metadata-list">
+                      <span className="metadata-pair">
+                        <span className="metadata-label">作廢時間</span>
+                        <span className="metadata-value">{detail.obsolete_at ?? "-"}</span>
+                      </span>
+                      <span className="metadata-pair">
+                        <span className="metadata-label">作廢者</span>
+                        <span className="metadata-value">{detail.obsolete_by ?? "-"}</span>
+                      </span>
+                    </div>
+                  ) : pendingSubmissionObsoleteRequest ? (
+                    <div className="change-form">
+                      <div className="metadata-list">
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請者</span>
+                          <span className="metadata-value">{pendingSubmissionObsoleteRequest.requested_by_name}</span>
+                        </span>
+                        <span className="metadata-pair">
+                          <span className="metadata-label">申請時間</span>
+                          <span className="metadata-value">{pendingSubmissionObsoleteRequest.requested_at}</span>
+                        </span>
+                      </div>
+                      <p>{pendingSubmissionObsoleteRequest.reason}</p>
+                      {canReviewSubmissionObsolete ? (
+                        <>
+                          <textarea
+                            value={obsoleteDecisionReason}
+                            onChange={(event) => setObsoleteDecisionReason(event.target.value)}
+                            placeholder="審核意見"
+                            rows={3}
+                            disabled={obsoleteActionLoading}
+                          />
+                          <div className="file-actions">
+                            <button
+                              className="primary-button"
+                              type="button"
+                              onClick={() => decideSubmissionObsolete(pendingSubmissionObsoleteRequest.id, "approve")}
+                              disabled={obsoleteActionLoading}
+                            >
+                              <Check size={14} aria-hidden="true" />
+                              核准作廢
+                            </button>
+                            <button
+                              className="danger-button"
+                              type="button"
+                              onClick={() => decideSubmissionObsolete(pendingSubmissionObsoleteRequest.id, "reject")}
+                              disabled={obsoleteActionLoading}
+                            >
+                              <X size={14} aria-hidden="true" />
+                              退回申請
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <small>等待主管審核。</small>
+                      )}
+                    </div>
+                  ) : canRequestSubmissionObsolete ? (
+                    <div className="change-form">
+                      <textarea
+                        value={obsoleteReason}
+                        onChange={(event) => setObsoleteReason(event.target.value)}
+                        placeholder="作廢原因"
+                        rows={3}
+                        disabled={obsoleteActionLoading}
+                      />
+                      <button
+                        className="danger-button"
+                        type="button"
+                        onClick={requestSubmissionObsolete}
+                        disabled={!obsoleteReason.trim() || obsoleteActionLoading}
+                      >
+                        <Archive size={14} aria-hidden="true" />
+                        申請作廢
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
                 </div>
@@ -3511,7 +4295,7 @@ export function Dashboard() {
                             </span>
                             <span className="file-name">{file.original_filename}</span>
                           </strong>
-                          <span className="metadata-badge">{file.gdrive_status}</span>
+                          <span className="metadata-badge">{formatStatusForUser(file.gdrive_status, "fileSync")}</span>
                         </summary>
                         <div className="metadata-list">
                           <span className="metadata-pair">
@@ -3574,4 +4358,31 @@ export function Dashboard() {
 
 function drivePdfPreviewUrl(fileId: string) {
   return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+}
+
+function RevisionPackageReviewWarningCard({ detail, compact = false }: { detail: SubmissionDetail; compact?: boolean }) {
+  const warnings = detail.revision_package?.warnings ?? [];
+  if (warnings.length === 0) return null;
+  return (
+    <div className="upload-message warning revision-package-review-warning">
+      <AlertTriangle size={16} aria-hidden="true" />
+      <div>
+        <p>{compact ? "版次檔案包有提醒，核准前請確認。" : "審核前請先確認版次檔案包。"}</p>
+        {!compact ? <p>這些提醒不會阻擋核准；若檔案不足以審核，請駁回並請送審者補件。</p> : null}
+        <ul>
+          {warnings.map((warning) => (
+            <li key={`${warning.code}-${warning.affectedFileIds?.join(",") ?? ""}`}>{warning.messageForReviewer}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function revisionPackageFileForSubmissionFile(detail: SubmissionDetail, fileId: string, filename: string) {
+  return (
+    detail.revision_package?.files.find((file) => file.submission_file_id === fileId) ??
+    detail.revision_package?.files.find((file) => file.filename === filename) ??
+    null
+  );
 }

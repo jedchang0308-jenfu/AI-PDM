@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
-import { createAuditLog, getAllSystemSettings, setSystemSetting } from "@/lib/db";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { requireRoleAsync } from "@/lib/auth-async";
 import { isGoogleDriveServiceConfigured } from "@/lib/gdrive";
+import { llmConfig } from "@/lib/llm-config";
+import { getAllSystemSettingsAsync, setSystemSettingAsync } from "@/lib/system-settings-async";
 
 export const runtime = "nodejs";
 
@@ -24,10 +26,10 @@ const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folde
 const folderSnapshotKeys = [...ALLOWED_SETTINGS];
 
 export async function GET(request: Request) {
-  const auth = requireRole(request, ["Admin"]);
-  if (auth.response) return auth.response;
+  const auth = await requireRoleAsync(request, ["Admin"]);
+  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const dbSettings = getAllSystemSettings();
+  const dbSettings = await getAllSystemSettingsAsync();
 
   return NextResponse.json({
     settings: {
@@ -49,20 +51,20 @@ export async function GET(request: Request) {
       releaseMode: process.env.PDM_RELEASE_MODE ?? "auto",
       releaseFunctionConfigured: Boolean(process.env.RELEASE_FUNCTION_URL),
       releaseFunctionTokenConfigured: Boolean(process.env.RELEASE_FUNCTION_TOKEN),
-      llmProvider: process.env.LLM_PROVIDER ?? "local",
-      openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
-      openAiModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+      llmProvider: llmConfig.provider,
+      openAiConfigured: Boolean(llmConfig.openAiApiKey),
+      openAiModel: llmConfig.openAiModel,
       serviceAccountConfigured: isGoogleDriveServiceConfigured()
     }
   });
 }
 
 export async function POST(request: Request) {
-  const auth = requireRole(request, ["Admin"]);
-  if (auth.response) return auth.response;
+  const auth = await requireRoleAsync(request, ["Admin"]);
+  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const currentSettings = getAllSystemSettings();
+  const currentSettings = await getAllSystemSettingsAsync();
   const updates: Record<string, string> = {};
   const errors: string[] = [];
 
@@ -106,11 +108,11 @@ export async function POST(request: Request) {
 
   const before = pickSettingsSnapshot(currentSettings);
   for (const [key, value] of Object.entries(updates)) {
-    setSystemSetting(key, value, auth.user.id);
+    await setSystemSettingAsync(key, value, auth.user.id);
   }
   const after = pickSettingsSnapshot({ ...currentSettings, ...updates });
 
-  createAuditLog({
+  await createAuditLogAsync({
     actorId: auth.user.id,
     action: "SettingsUpdate",
     detail: { before, after, updates: pickSettingsSnapshot(updates) }

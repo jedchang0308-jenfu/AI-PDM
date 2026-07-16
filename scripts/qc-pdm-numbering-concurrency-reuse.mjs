@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import Database from "better-sqlite3";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-concurrency-reuse" });
 const unique = Date.now().toString().slice(-8);
 const results = [];
 const created = {
@@ -116,7 +116,7 @@ async function createRecord(cookie, label, index, drawingRequested = true) {
       itemKind: "manufactured",
       developmentPhase: "DVT",
       drawingRequested,
-      drawingPurposeCode: drawingRequested ? "MA" : undefined
+      drawingPurposeCode: drawingRequested ? "M" : undefined
     })
   });
   const text = await response.text();
@@ -233,9 +233,9 @@ try {
   record("Concurrent drawing numbers are unique", uniqueValues(drawingNumbers).size === concurrentCount, JSON.stringify(drawingNumbers));
   record(
     "Concurrent codes keep expected numbering formats",
-    rootCodes.every((code) => /^\d{4}$/.test(code)) &&
-      partNumbers.every((code) => /^P-\d{4}-\d{3}$/.test(code)) &&
-      drawingNumbers.every((code) => /^D-\d{4}-MA\d+$/.test(code)),
+    rootCodes.every((code) => /^\d{5}$/.test(code)) &&
+      partNumbers.every((code) => /^\d{5}-P\d{2}$/.test(code)) &&
+      drawingNumbers.every((code) => /^\d{5}-M\d{2}$/.test(code)),
     JSON.stringify({ rootCodes, partNumbers, drawingNumbers })
   );
   await assertDuplicateCheckBlocked(
@@ -254,7 +254,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "DVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -303,7 +303,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "DVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );
@@ -363,7 +363,7 @@ try {
       itemKind: "manufactured",
       developmentPhase: "DVT",
       drawingRequested: true,
-      drawingPurposeCode: "MA"
+      drawingPurposeCode: "M"
     },
     201
   );

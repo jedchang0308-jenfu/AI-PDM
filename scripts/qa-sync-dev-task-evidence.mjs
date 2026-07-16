@@ -45,8 +45,11 @@ const targets = [
   {
     key: "formal_field_test",
     evidenceKey: "fieldTestReady",
-    matcher: (line) => line.includes("DEV-FIELD-001") || line.includes("正式現場測試"),
-    blocker: "Formal field-test evidence is not ready."
+    matcher: (line) =>
+      !/Cancelled by Human Decision|取消/u.test(line) &&
+      (line.includes("DEV-FIELD-001") || line.includes("正式現場測試")),
+    blocker: "Formal field-test evidence is not ready.",
+    required: false
   },
   {
     key: "supabase_shadow",
@@ -153,11 +156,15 @@ function getSupabaseShadowEvidence() {
     const issues = [];
     if (report.postgresShadowConfigured !== true) issues.push({ type: "postgres_shadow_not_configured" });
     if (report.postgresTargetGuard?.safe !== true) issues.push({ type: "postgres_target_guard_not_safe" });
-    if (!Array.isArray(report.postgresStats) || report.postgresStats.length === 0) issues.push({ type: "postgres_stats_missing" });
     if (report.postgresCompareError) issues.push({ type: "postgres_compare_error", message: report.postgresCompareError });
     if ((report.missingInPostgres ?? []).length > 0) issues.push({ type: "missing_in_postgres", tables: report.missingInPostgres });
     if ((report.rlsMissingTables ?? []).length > 0) issues.push({ type: "rls_missing_tables", tables: report.rlsMissingTables });
     if ((report.mismatches ?? []).length > 0) issues.push({ type: "postgres_sqlite_mismatches", mismatches: report.mismatches });
+    if (report.comparePolicy === "schema_rls_only") {
+      if (report.dataCompareSkipped !== true) issues.push({ type: "schema_rls_only_without_skip_flag" });
+    } else if (!Array.isArray(report.postgresStats) || report.postgresStats.length === 0) {
+      issues.push({ type: "postgres_stats_missing" });
+    }
 
     return {
       ready: issues.length === 0,

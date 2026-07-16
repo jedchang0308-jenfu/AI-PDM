@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { searchNumberingRecords, type NumberingPhase, type NumberingRecordStatus, type NumberingSearchEntityType } from "@/lib/db";
-import { requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { searchNumberingRecordsAsync } from "@/lib/numbering-async";
+import type { NumberingPhase, NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
+import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
@@ -21,15 +23,19 @@ const recordStatuses = new Set([
 const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 
 export async function GET(request: Request) {
-  const auth = requireNumberingPage(request, "numbering.search");
+  const auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
+
   const entityType = normalizeEnum(url.searchParams.get("entityType"), entityTypes) as NumberingSearchEntityType | undefined;
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
 
-  const results = searchNumberingRecords({
+  const results = await searchNumberingRecordsAsync({
+    companyId: companyResult.company.companyId,
     query: url.searchParams.get("query") ?? "",
     entityType,
     recordStatus,
@@ -37,7 +43,7 @@ export async function GET(request: Request) {
     limit: Number(url.searchParams.get("limit") ?? 50)
   });
 
-  return NextResponse.json({ results });
+  return NextResponse.json({ results, pdmCompany: companyResult.company });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

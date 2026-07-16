@@ -23,7 +23,7 @@
 
 ## 1. 已完成內容壓縮摘要
 
-以下原本已完成的細項已壓縮，詳細歷史可查各 `docs/rd-*.md`、`docs/qc-*.md` 報告與原始程式碼。
+以下原本已完成的細項已壓縮，詳細歷史可查 `.ai-doc/reports/rd/`、`.ai-doc/qc/` 報告與原始程式碼。
 
 - [x] `P1` 文件與規劃：已建立系統設計、QA/QC 計畫、RD 報告、正式 PDM 管理辦法草案、README 與本任務追蹤文件。
 - [x] `P1` Web / Backend MVP：已完成 Next.js / React 後台、SQLite schema、本地 repository、送審/清單/明細/核准/駁回 API、設定頁、PDF preview/download、demo seed、smoke 與 API regression。
@@ -46,7 +46,7 @@
   - 阻塞：2026-05-27 QC `qc:production-readiness:report` 顯示 restore report `20260525-144844` 仍為 `draft/not_ready`，12 cases / 0 pass；缺 tester、testDate、testMachineName、windowsVersion、node/npm version、snapshot/handoff/targetDir、signoff 與 required cases pass。
 - [ ] `P0` SolidWorks Document Manager API 或等效授權元件：讓 Web/Windows 上傳可直接讀取 `.sldprt/.sldasm/.slddrw` 自訂屬性，不再依賴 sidecar 或檔名推測。
   - 阻塞：2026-05-27 QC `qc:document-manager-report:report` 顯示 report `20260527-145712` 仍為 `draft/not_ready`，缺 license owner、deployment host、extractor command/probe path、sample files、signoff 與 required cases pass。
-  - 證據：`docs/qc-remaining-external-blockers-report-2026-05-27.md`。
+  - 證據：`.ai-doc/qc/qc-remaining-external-blockers-report-2026-05-27.md`。
 - [x] `P0` CAD reference 資料表與可替換 extraction adapter 已建立；目前尚未接入 SolidWorks Document Manager 授權元件。
 - [x] `P0` 全站快速搜尋 API/UI 已建立，可搜尋圖號、料號、品名、版次、材質、狀態、檔名、提交者，並套用 Engineer 權限範圍。
 - [x] `P0` 進版與舊版廢止：維持手動輸入 revision，新版 Released 成功後自動將同一料號舊 Released 版轉為 Obsolete，避免找圖與製造交接拿到舊版。
@@ -90,7 +90,7 @@
   - 目標：首頁第一視覺從審核/通知改成大型搜尋入口。
   - 內容：大型搜尋框置頂，支援圖號、料號、品名、檔名、材質、版次、狀態、提交者關鍵字。
   - 驗收：進入首頁不用先選 Pending，即可直接搜尋或瀏覽圖面資料。
-  - 已完成：Dashboard 首屏標題改為 `PDM 圖面資料庫`，大型搜尋框置頂；QC 見 `docs/qc-dashboard-find-first-validation-report-2026-05-27.md`。
+  - 已完成：Dashboard 首屏標題改為 `PDM 圖面資料庫`，大型搜尋框置頂；QC 見 `.ai-doc/qc/qc-dashboard-find-first-validation-report-2026-05-27.md`。
 - [x] `P0` Dashboard 預設資料視角從 `Pending` 改成 `All` 或圖面資料庫。
   - 目標：符合日常 90% 找圖/查圖流程，審核不再主導預設畫面。
   - 內容：預設顯示全部可見圖面；狀態 filter 保留但不是第一主軸。
@@ -110,11 +110,11 @@
   - 目標：查圖時先看到圖面與檔案，不先看到審核區塊。
   - 內容：第一區顯示圖號、料號、品名、版次、狀態；第二區顯示預覽/下載；審核、問題、討論、AI 風險下移。
   - 驗收：點開搜尋結果後，三秒內可取得圖面資訊與主要檔案入口。
-  - 已完成：明細標題改為 `圖面明細`，檔案、版次紀錄、BOM、BOM diff、Where-used、CAD reference 視覺排序高於 checkout/討論/issue/審核；QC 見 `docs/qc-dashboard-detail-priority-validation-report-2026-05-27.md`。
+  - 已完成：明細標題改為 `圖面明細`，檔案、版次紀錄、BOM、BOM diff、Where-used、CAD reference 視覺排序高於 checkout/討論/issue/審核；QC 見 `.ai-doc/qc/qc-dashboard-detail-priority-validation-report-2026-05-27.md`。
 - [x] `P1` 新增找圖快速入口。
   - 內容：最近開啟、最近發布、我建立的、Checkout 中、Release 失敗、缺 PDF/DWG/Release package。
   - 驗收：常見找圖情境不需手動輸入完整搜尋字串。
-  - 已完成：Dashboard 新增全部圖面、最近發布、我建立的、Checkout 中、缺交接檔、Release 失敗 quick chips；QC 見 `docs/qc-dashboard-quick-access-validation-report-2026-05-27.md`。
+  - 已完成：Dashboard 新增全部圖面、最近發布、我建立的、Checkout 中、缺交接檔、Release 失敗 quick chips；QC 見 `.ai-doc/qc/qc-dashboard-quick-access-validation-report-2026-05-27.md`。
 - [x] `P1` 搜尋結果支援最近搜尋與最近瀏覽。
   - 目標：工程師能快速回到剛查過的圖面。
   - 驗收：重新整理頁面後仍可看到最近搜尋/最近瀏覽紀錄。
@@ -122,7 +122,7 @@
 - [x] `P2` 搜尋框支援 autocomplete / suggestion。
   - 內容：輸入部分圖號、料號或品名時提示候選項。
   - 驗收：可用鍵盤選擇建議並開啟結果。
-  - 已完成：主搜尋框輸入時顯示候選圖面，點擊 suggestion 會回填圖號並開啟明細；QC 見 `docs/qc-dashboard-search-assist-validation-report-2026-05-27.md`。
+  - 已完成：主搜尋框輸入時顯示候選圖面，點擊 suggestion 會回填圖號並開啟明細；QC 見 `.ai-doc/qc/qc-dashboard-search-assist-validation-report-2026-05-27.md`。
 - [x] `P2` 建立常用料號/圖面收藏。
   - 目標：讓高頻圖面可一鍵返回。
   - 驗收：使用者可收藏/取消收藏，首頁可快速開啟收藏圖面。
@@ -147,7 +147,7 @@
 - [x] `P1` 建立「設計重用候選」提示。
   - 依料號、品名關鍵字、材質、表面處理、檔名相似度推薦既有設計。
   - 先用資料庫查詢，不先做複雜 AI 幾何比對。
-  - 已完成：`/api/submissions/[id]/reuse-candidates`、Dashboard `Design reuse candidates`、metadata score/reasons/matched files、Engineer/Manager 權限範圍、API regression `REUSE-001` 至 `REUSE-010`，QC 報告見 `docs/qc-design-reuse-candidates-validation-report-2026-05-27.md`。
+  - 已完成：`/api/submissions/[id]/reuse-candidates`、Dashboard `Design reuse candidates`、metadata score/reasons/matched files、Engineer/Manager 權限範圍、API regression `REUSE-001` 至 `REUSE-010`，QC 報告見 `.ai-doc/qc/qc-design-reuse-candidates-validation-report-2026-05-27.md`。
 
 ### 4.2 Phase B：輕量協作與發布包
 

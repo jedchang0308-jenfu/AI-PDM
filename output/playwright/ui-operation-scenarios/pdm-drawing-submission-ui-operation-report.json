@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-07-04T14:36:49.153Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "fixture": {
+    "drawingNumber": "D-QC-SUBMIT-MA1",
+    "action": "created",
+    "detail": "Created minimal local D-QC-SUBMIT-MA1 fixture for real UI route checks; setup is not counted as UI evidence. QC-owned fixture rows and local files were removed after browser evidence was captured.",
+    "cleanup": "removed"
+  },
+  "total": 14,
+  "pass": 14,
+  "fail": 0,
+  "results": [
+    {
+      "id": "AUTH-001",
+      "title": "三種測試角色可用登入頁表單登入",
+      "status": "pass",
+      "detail": "Engineer / R&D Manager / Admin 均完成 UI 登入",
+      "evidence": {}
+    },
+    {
+      "id": "REAL-001",
+      "title": "從圖號模組點選 QC 專用圖號送審入口",
+      "status": "pass",
+      "detail": "導到同一圖號工作台且正式版次被鎖定",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-001-qc-submit-drawing-entry.png"
+      }
+    },
+    {
+      "id": "REAL-002",
+      "title": "Legacy drawing upload route 不回到泛用上傳表單",
+      "status": "pass",
+      "detail": "仍呈現圖面送審工作台",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-002-legacy-route.png"
+      }
+    },
+    {
+      "id": "REAL-003",
+      "title": "泛用 /upload 已退役且導向受控來源",
+      "status": "pass",
+      "detail": "未出現空白送審表單",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-003-retired-upload.png"
+      }
+    },
+    {
+      "id": "REAL-004",
+      "title": "既有送審明細導向同一 QC 專用正式紀錄",
+      "status": "pass",
+      "detail": "未導到無關圖號",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\REAL-004-qc-submit-submission-detail.png"
+      }
+    },
+    {
+      "id": "MOCK-READY-001",
+      "title": "可送審狀態：備註與附件條件控制送出審核",
+      "status": "pass",
+      "detail": "UI 完成送出審核成功訊息",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-READY-001-ready-submit.png"
+      }
+    },
+    {
+      "id": "MOCK-READY-002",
+      "title": "未選附件時阻擋送審",
+      "status": "pass",
+      "detail": "顯示附件需求並鎖住送出",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-READY-002-no-attachment.png"
+      }
+    },
+    {
+      "id": "MOCK-BLOCKER-001",
+      "title": "主資料缺漏 blocker 與同版次 blocker 分層顯示",
+      "status": "pass",
+      "detail": "主資料缺漏以中文說明並阻擋送審",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-BLOCKER-001-master-data-missing.png"
+      }
+    },
+    {
+      "id": "MOCK-BLOCKER-002",
+      "title": "Pending / Releasing / Released / History 狀態 UI 分流",
+      "status": "pass",
+      "detail": "四種同版次狀態皆完成 UI 模擬",
+      "evidence": {}
+    },
+    {
+      "id": "MOCK-RELFAIL-001",
+      "title": "發行未完成可整理附件並建立修正送審",
+      "status": "pass",
+      "detail": "移除、上傳、選取、建立修正送審皆由 UI 完成",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-RELFAIL-001-correction-flow.png"
+      }
+    },
+    {
+      "id": "MOCK-PERM-001",
+      "title": "建立修正送審被權限阻擋時顯示中文",
+      "status": "pass",
+      "detail": "權限不足由中文說明處理人",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-PERM-001-correction-forbidden.png"
+      }
+    },
+    {
+      "id": "MOCK-DETAIL-001",
+      "title": "送審明細：Pending 取消、非建立者限制、發行未完成角色差異",
+      "status": "pass",
+      "detail": "四個明細角色/狀態分支皆完成 UI 操作",
+      "evidence": {
+        "screenshot": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\ui-operation-scenarios\\MOCK-DETAIL-001-releasefailed-manager-retry.png"
+      }
+    },
+    {
+      "id": "MOCK-DETAIL-002",
+      "title": "送審明細：受限摘要與找不到資料",
+      "status": "pass",
+      "detail": "受限與 404 狀態皆以人類中文呈現",
+      "evidence": {}
+    },
+    {
+      "id": "RWD-001",
+      "title": "核心工作台 viewport 無水平 overflow",
+      "status": "pass",
+      "detail": "1440/1024/768/390 皆完成 UI 檢查",
+      "evidence": {}
+    }
+  ]
+}

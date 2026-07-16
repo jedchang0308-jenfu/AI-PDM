@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { getBomBySubmissionId, getSubmission } from "@/lib/db";
-import { canReadSubmission } from "@/lib/permissions";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getBomBySubmissionIdAsync } from "@/lib/bom-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { BomDetail } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -33,25 +34,25 @@ const columns = [
 ];
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
+  const submission = await getSubmissionAsync(id);
   if (!submission) {
-    return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
+    return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const bom = getBomBySubmissionId(id);
+  const bom = await getBomBySubmissionIdAsync(id);
   if (!bom) {
-    return NextResponse.json({ error: "找不到 BOM" }, { status: 404 });
+    return NextResponse.json({ error: "?曆???BOM" }, { status: 404 });
   }
 
   const url = new URL(request.url);
   const format = parseFormat(url.searchParams.get("format"));
   if (!format) {
-    return NextResponse.json({ error: "不支援的匯出格式" }, { status: 400 });
+    return NextResponse.json({ error: "銝?渡??臬?澆?" }, { status: 400 });
   }
 
   const rows = buildBomRows(id, bom, new Date().toISOString());
@@ -142,3 +143,4 @@ function xmlCell(value: string) {
 function sanitizeFilename(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "bom";
 }
+

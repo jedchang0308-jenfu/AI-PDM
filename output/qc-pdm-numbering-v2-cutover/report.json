@@ -1,0 +1,337 @@
+{
+  "mode": "apply",
+  "generatedAt": "2026-07-07T05:24:03.010Z",
+  "dbPath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+  "backupPath": "C:\\VIBE CODING\\AI_PDM\\data\\backups\\pdm-numbering-v2-cutover-20260707-052403\\ai-pdm.sqlite",
+  "summary": {
+    "roots": 2,
+    "parts": 2,
+    "drawings": 2,
+    "proposed": 6,
+    "unchanged": 0,
+    "blocked": 0
+  },
+  "rootMappings": [
+    {
+      "id": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "companyId": "company-jenfu",
+      "from": "0007",
+      "to": "00007",
+      "status": "proposed",
+      "collisionId": null
+    },
+    {
+      "id": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "companyId": "company-jenfu",
+      "from": "0014",
+      "to": "00014",
+      "status": "proposed",
+      "collisionId": null
+    }
+  ],
+  "partMappings": [
+    {
+      "id": "167c6104-9b97-4267-89ac-a066de4a807f",
+      "companyId": "company-jenfu",
+      "rootId": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "rootFrom": "0007",
+      "rootTo": "00007",
+      "from": "P-0007-001",
+      "to": "00007-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "status": "proposed",
+      "collisionId": null
+    },
+    {
+      "id": "43dea30b-608a-4d45-89ff-c0a6de9aa75b",
+      "companyId": "company-jenfu",
+      "rootId": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "rootFrom": "0014",
+      "rootTo": "00014",
+      "from": "P-0014-001",
+      "to": "00014-P01",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "status": "proposed",
+      "collisionId": null
+    }
+  ],
+  "drawingMappings": [
+    {
+      "id": "5ad8984c-5492-4f22-8258-d1190c915200",
+      "companyId": "company-jenfu",
+      "rootId": "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "rootFrom": "0007",
+      "rootTo": "00007",
+      "from": "D-0007-MA1",
+      "to": "00007-M01",
+      "purposeFrom": "MA",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "status": "proposed",
+      "collisionId": null
+    },
+    {
+      "id": "b4f05151-763f-4ccf-b116-08943ad28859",
+      "companyId": "company-jenfu",
+      "rootId": "0e1450f9-1ab3-44b7-9335-67088d63672d",
+      "rootFrom": "0014",
+      "rootTo": "00014",
+      "from": "D-0014-MA1",
+      "to": "00014-M01",
+      "purposeFrom": "MA",
+      "purposeTo": "M",
+      "sequenceNo": 1,
+      "sequenceCode": "01",
+      "status": "proposed",
+      "collisionId": null
+    }
+  ],
+  "blockers": [],
+  "updatedRows": [
+    {
+      "table": "items",
+      "column": "part_number",
+      "count": 1
+    },
+    {
+      "table": "submissions",
+      "column": "drawing_number",
+      "count": 6
+    },
+    {
+      "table": "submission_attempts",
+      "column": "source_root_code",
+      "count": 7
+    },
+    {
+      "table": "submission_attempts",
+      "column": "source_drawing_number",
+      "count": 7
+    },
+    {
+      "table": "submission_snapshots",
+      "column": "source_root_code",
+      "count": 6
+    },
+    {
+      "table": "submission_snapshots",
+      "column": "source_drawing_number",
+      "count": 6
+    },
+    {
+      "table": "submission_snapshots",
+      "column": "source_part_number",
+      "count": 6
+    },
+    {
+      "table": "file_references",
+      "column": "referenced_part_number",
+      "count": 0
+    },
+    {
+      "table": "file_references",
+      "column": "referenced_drawing_number",
+      "count": 0
+    },
+    {
+      "table": "bom_lines",
+      "column": "child_part_number",
+      "count": 0
+    },
+    {
+      "table": "bom_lines_tree",
+      "column": "part_number",
+      "count": 0
+    },
+    {
+      "table": "manufacturing_baseline_items",
+      "column": "drawing_number",
+      "count": 0
+    },
+    {
+      "table": "drawing_revision_packages",
+      "column": "drawing_number",
+      "count": 0
+    },
+    {
+      "table": "drawing_revision_fff_assessments",
+      "column": "detected_part_number",
+      "count": 0
+    },
+    {
+      "table": "drawing_revision_fff_assessments",
+      "column": "corrected_part_number",
+      "count": 0
+    },
+    {
+      "table": "part_number_drafts",
+      "column": "reserved_part_number",
+      "count": 0
+    },
+    {
+      "table": "submission_snapshots",
+      "column": "snapshot_json+snapshot_hash",
+      "count": 6
+    },
+    {
+      "table": "approval_requests",
+      "column": "payload_json",
+      "count": 1
+    },
+    {
+      "table": "numbering_task_items",
+      "column": "detail_json",
+      "count": 1
+    },
+    {
+      "table": "numbering_notifications",
+      "column": "detail_json",
+      "count": 1
+    },
+    {
+      "table": "warning_events",
+      "column": "detail_json",
+      "count": 1
+    },
+    {
+      "table": "manufacturing_baselines",
+      "column": "snapshot_json",
+      "count": 0
+    },
+    {
+      "table": "drawing_revision_packages",
+      "column": "snapshot_json",
+      "count": 0
+    },
+    {
+      "table": "bom_release_snapshots",
+      "column": "line_snapshot_json",
+      "count": 0
+    },
+    {
+      "table": "part_roots",
+      "column": "root_code/rule_version_id",
+      "count": 2
+    },
+    {
+      "table": "part_numbers",
+      "column": "part_number/sequence_code/rule_version_id",
+      "count": 2
+    },
+    {
+      "table": "drawing_numbers",
+      "column": "drawing_number/purpose_code/rule_version_id",
+      "count": 2
+    },
+    {
+      "table": "numbering_sequences",
+      "column": "sequence_key",
+      "count": 5
+    },
+    {
+      "table": "numbering_rule_versions",
+      "column": "status",
+      "count": 2
+    },
+    {
+      "table": "audit_logs",
+      "column": "append-only cutover audit",
+      "count": 1
+    }
+  ],
+  "status": {
+    "activeRules": [
+      {
+        "id": "numbering-rule-v1",
+        "status": "retired",
+        "retired_at": "2026-07-07T05:24:03.010Z"
+      },
+      {
+        "id": "numbering-rule-v2",
+        "status": "active",
+        "retired_at": null
+      }
+    ],
+    "masterCounts": {
+      "v1Roots": 0,
+      "v1Parts": 0,
+      "v1Drawings": 0
+    },
+    "retained": [
+      {
+        "table": "audit_logs",
+        "column": "detail_json",
+        "occurrences": 131
+      },
+      {
+        "table": "numbering_export_jobs",
+        "column": "result_json",
+        "occurrences": 12
+      },
+      {
+        "table": "file_assets",
+        "column": "original_path",
+        "occurrences": 22
+      },
+      {
+        "table": "file_assets",
+        "column": "storage_key",
+        "occurrences": 22
+      },
+      {
+        "table": "file_assets",
+        "column": "file_name",
+        "occurrences": 22
+      },
+      {
+        "table": "file_assets",
+        "column": "display_name",
+        "occurrences": 22
+      },
+      {
+        "table": "file_derivatives",
+        "column": "storage_key",
+        "occurrences": 14
+      },
+      {
+        "table": "file_derivatives",
+        "column": "original_path",
+        "occurrences": 14
+      },
+      {
+        "table": "file_derivatives",
+        "column": "file_name",
+        "occurrences": 14
+      },
+      {
+        "table": "release_packages",
+        "column": "package_filename",
+        "occurrences": 12
+      },
+      {
+        "table": "release_packages",
+        "column": "local_path",
+        "occurrences": 12
+      },
+      {
+        "table": "release_packages",
+        "column": "manifest_json",
+        "occurrences": 18
+      },
+      {
+        "table": "submission_files",
+        "column": "original_filename",
+        "occurrences": 18
+      },
+      {
+        "table": "submission_files",
+        "column": "local_path",
+        "occurrences": 18
+      }
+    ]
+  },
+  "retainedHistoricalEvidencePolicy": "Release packages, audit logs, attachment file names, derivative paths and physical repository paths are intentionally retained as historical evidence. Current master identities and operational lookup fields are cut over to v2."
+}

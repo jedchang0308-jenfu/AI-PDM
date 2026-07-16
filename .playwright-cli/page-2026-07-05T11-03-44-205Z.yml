@@ -1,0 +1,108 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - img [ref=f2e6]
+      - generic [ref=f2e16]: AI PDM
+      - button "收合左側導覽" [ref=f2e17] [cursor=pointer]:
+        - img [ref=f2e18]
+    - navigation "主導覽" [ref=f2e20]:
+      - generic [ref=f2e21]:
+        - generic [ref=f2e22]: 工作台
+        - generic [ref=f2e23]:
+          - link "工作台" [ref=f2e24] [cursor=pointer]:
+            - /url: /
+            - img [ref=f2e25]
+            - generic [ref=f2e29]: 工作台
+          - link "我的待辦" [ref=f2e30] [cursor=pointer]:
+            - /url: /numbering/tasks
+            - img [ref=f2e31]
+            - generic [ref=f2e34]: 我的待辦
+      - generic [ref=f2e35]:
+        - generic [ref=f2e36]: 專案 / 圖料
+        - generic [ref=f2e37]:
+          - link "圖料模組" [ref=f2e38] [cursor=pointer]:
+            - /url: /numbering/search
+            - img [ref=f2e39]
+            - generic [ref=f2e42]: 圖料模組
+          - link "圖號模組" [ref=f2e43] [cursor=pointer]:
+            - /url: /numbering/drawings
+            - img [ref=f2e44]
+            - generic [ref=f2e47]: 圖號模組
+          - link "料號模組" [ref=f2e48] [cursor=pointer]:
+            - /url: /parts
+            - img [ref=f2e49]
+            - generic [ref=f2e55]: 料號模組
+          - link "料號草稿" [ref=f2e56] [cursor=pointer]:
+            - /url: /numbering/part-drafts
+            - img [ref=f2e57]
+            - generic [ref=f2e60]: 料號草稿
+          - link "上傳送審" [ref=f2e61] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=f2e62]
+            - generic [ref=f2e65]: 上傳送審
+          - link "領號申請" [ref=f2e66] [cursor=pointer]:
+            - /url: /numbering/request
+            - img [ref=f2e67]
+            - generic [ref=f2e70]: 領號申請
+          - link "圖號總表匯入" [ref=f2e71] [cursor=pointer]:
+            - /url: /numbering/imports
+            - img [ref=f2e72]
+            - generic [ref=f2e76]: 圖號總表匯入
+      - generic [ref=f2e77]:
+        - generic [ref=f2e78]: BOM
+        - generic [ref=f2e79]:
+          - link "BOM 工作台" [ref=f2e80] [cursor=pointer]:
+            - /url: /bom/workbench
+            - img [ref=f2e81]
+            - generic [ref=f2e84]: BOM 工作台
+          - link "BOM 審核" [ref=f2e85] [cursor=pointer]:
+            - /url: /bom/reviews
+            - img [ref=f2e86]
+            - generic [ref=f2e90]: BOM 審核
+      - generic [ref=f2e91]:
+        - generic [ref=f2e92]: 變更 / 審核
+        - generic [ref=f2e93]:
+          - link "圖面進版" [ref=f2e94] [cursor=pointer]:
+            - /url: /numbering/revisions
+            - img [ref=f2e95]
+            - generic [ref=f2e100]: 圖面進版
+          - link "DVT 晉升" [ref=f2e101] [cursor=pointer]:
+            - /url: /numbering/dvt
+            - img [ref=f2e102]
+            - generic [ref=f2e107]: DVT 晉升
+          - link "發行審核" [ref=f2e108] [cursor=pointer]:
+            - /url: /numbering/approvals
+            - img [ref=f2e109]
+            - generic [ref=f2e113]: 發行審核
+          - link "變更審核" [ref=f2e114] [cursor=pointer]:
+            - /url: /numbering/change-reviews
+            - img [ref=f2e115]
+            - generic [ref=f2e119]: 變更審核
+          - link "MA 影響分析" [ref=f2e120] [cursor=pointer]:
+            - /url: /numbering/impact
+            - img [ref=f2e121]
+            - generic [ref=f2e123]: MA 影響分析
+      - generic [ref=f2e124]:
+        - generic [ref=f2e125]: 發行 / 交接
+        - generic [ref=f2e126]:
+          - link "製造交接" [ref=f2e127] [cursor=pointer]:
+            - /url: /handoff
+            - img [ref=f2e128]
+            - generic [ref=f2e130]: 製造交接
+          - link "圖號報表" [ref=f2e131] [cursor=pointer]:
+            - /url: /numbering/reports
+            - img [ref=f2e132]
+            - generic [ref=f2e135]: 圖號報表
+      - generic [ref=f2e136]:
+        - generic [ref=f2e137]: 管理
+        - generic [ref=f2e138]:
+          - link "系統設定" [ref=f2e139] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=f2e140]
+            - generic [ref=f2e143]: 系統設定
+          - link "登入" [ref=f2e144] [cursor=pointer]:
+            - /url: /login
+            - img [ref=f2e145]
+            - generic [ref=f2e148]: 登入
+  - main [ref=f2e149]:
+    - generic [ref=f2e150]: 正在檢查登入狀態...

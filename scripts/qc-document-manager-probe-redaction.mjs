@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const sampleDir = path.join(root, ".tmp", "qc-fixtures", "document-manager-probe-redaction");
@@ -15,6 +16,13 @@ const results = [];
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
+
+function cleanupProbePaths() {
+  fs.rmSync(sampleDir, { recursive: true, force: true });
+  fs.rmSync(outputDir, { recursive: true, force: true });
+}
+
+process.once("exit", cleanupProbePaths);
 
 fs.mkdirSync(sampleDir, { recursive: true });
 for (const filename of ["QC-REDACT-PART.sldprt", "QC-REDACT-ASM.sldasm", "QC-REDACT-DRAWING.slddrw"]) {
@@ -63,7 +71,9 @@ record("DM-REDACT-001 probe command exits 0", probe.status === 0, probe.stderr |
 const outputPath = path.join(outputDir, "probe.json");
 record("DM-REDACT-002 probe.json is written", fs.existsSync(outputPath), outputPath);
 
-const rawOutput = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : "";
+const rawOutput = fs.existsSync(outputPath)
+  ? readProjectFile(root, path.relative(root, outputPath).replaceAll(path.sep, "/"))
+  : "";
 const output = rawOutput ? JSON.parse(rawOutput) : {};
 
 for (const secret of secrets) {
@@ -76,5 +86,6 @@ record("DM-REDACT-006 metadata args remain machine-readable JSON", Array.isArray
 record("DM-REDACT-007 file placeholder is not redacted", (output.commands?.metadataArgs ?? "").includes("{file}") && (output.commands?.referenceArgs ?? "").includes("{file}"));
 
 const failed = results.filter((result) => !result.passed);
+cleanupProbePaths();
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
 if (failed.length > 0) process.exitCode = 1;

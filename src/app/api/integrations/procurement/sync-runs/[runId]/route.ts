@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { decideProcurementSyncRun } from "@/lib/db";
-import { forbidden, requireAuth } from "@/lib/auth";
+import { requireRoleAsync } from "@/lib/auth-async";
+import { decideProcurementSyncRunAsync } from "@/lib/release-records-async";
 
 export const runtime = "nodejs";
 
-function canManageProcurementSync(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
-
 export async function PATCH(request: Request, { params }: { params: Promise<{ runId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageProcurementSync(auth.user.role)) return forbidden();
 
   const { runId } = await params;
   const body = await request.json().catch(() => ({}));
@@ -22,7 +17,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ru
 
   const externalReference = String(body.externalReference ?? body.external_reference ?? "").trim() || undefined;
   const message = String(body.message ?? "").trim();
-  const result = decideProcurementSyncRun({
+  const result = await decideProcurementSyncRunAsync({
     runId,
     actorId: auth.user.id,
     status: action === "acknowledge" ? "acknowledged" : "failed",

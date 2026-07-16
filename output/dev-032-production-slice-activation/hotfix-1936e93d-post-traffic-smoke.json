@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-07-16T06:02:30.115Z",
+  "target": "jenfu-ai-pdm-prod",
+  "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+  "directBaseUrl": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "revision": "ai-pdm-prod-00010-quc",
+  "previousTrafficRevision": "ai-pdm-prod-00006-lx5",
+  "imageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "sourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "passed": 16,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "production hosting login entrypoint",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 with AI PDM shell"
+    },
+    {
+      "name": "production hosting cache header present",
+      "passed": true,
+      "actual": "private, no-store, max-age=0",
+      "expected": "cache-control present"
+    },
+    {
+      "name": "production firebase BFF auth mode",
+      "passed": true,
+      "actual": "200/firebase_bff",
+      "expected": "200/firebase_bff"
+    },
+    {
+      "name": "production auth mode no-store",
+      "passed": true,
+      "actual": "private, no-store, max-age=0",
+      "expected": "contains no-store"
+    },
+    {
+      "name": "production slice active",
+      "passed": true,
+      "actual": "200/true/true/official-numbering-draft",
+      "expected": "200/true/true/official-numbering-draft"
+    },
+    {
+      "name": "production slice no-store",
+      "passed": true,
+      "actual": "private, no-store, max-age=0",
+      "expected": "contains no-store"
+    },
+    {
+      "name": "production protected GET /api/numbering/permissions",
+      "passed": true,
+      "actual": "401/private, no-store, max-age=0",
+      "expected": "401/no-store"
+    },
+    {
+      "name": "production protected GET /api/numbering/draft-workspaces",
+      "passed": true,
+      "actual": "401/private, no-store, max-age=0",
+      "expected": "401/no-store"
+    },
+    {
+      "name": "production unopened page /upload",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page or app shell"
+    },
+    {
+      "name": "production unopened page /handoff",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page or app shell"
+    },
+    {
+      "name": "production unopened page /approvals",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page or app shell"
+    },
+    {
+      "name": "production unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft"
+    },
+    {
+      "name": "production unopened mutation /api/files/upload",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft"
+    },
+    {
+      "name": "production unopened mutation /api/cad/preview",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft"
+    },
+    {
+      "name": "production unopened mutation /api/bom/publish",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft"
+    },
+    {
+      "name": "direct run.app session exchange denied",
+      "passed": true,
+      "actual": 403,
+      "expected": "403"
+    }
+  ]
+}

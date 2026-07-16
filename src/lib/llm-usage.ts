@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "@/lib/config";
 
 export type LlmUsageEvent = {
   provider: "local" | "openai";
@@ -34,8 +33,8 @@ export function logLlmUsage(event: LlmUsageEvent) {
   const usageDir = configuredDir
     ? path.isAbsolute(configuredDir)
       ? configuredDir
-      : path.resolve(process.cwd(), configuredDir)
-    : path.join(config.dataDir, "usage");
+      : path.resolve(/*turbopackIgnore: true*/ process.cwd(), configuredDir)
+    : path.join(resolveDataDir(), "usage");
 
   const record = {
     createdAt: new Date().toISOString(),
@@ -48,4 +47,10 @@ export function logLlmUsage(event: LlmUsageEvent) {
   } catch (error) {
     console.warn("Unable to write LLM usage log", error instanceof Error ? error.message : String(error));
   }
+}
+
+function resolveDataDir() {
+  const configured = process.env.PDM_DATA_DIR?.trim();
+  if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
+  return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
 }

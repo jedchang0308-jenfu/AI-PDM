@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
-import { requestMainDrawingRestoreApproval, requestNumberingApproval, requestSameDrawingVariantApproval } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import {
+  requestMainDrawingRestoreApprovalAsync,
+  requestNumberingApprovalAsync,
+  requestSameDrawingVariantApprovalAsync
+} from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import type { RequestNumberingApprovalInput } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
@@ -10,7 +16,10 @@ const allowedActionCodes = new Set([
   "same_drawing_variant_after_release",
   "dvt_missing_ma_override",
   "release_missing_ma_confirm",
-  "main_drawing_restore"
+  "main_drawing_restore",
+  "obsolete_part_number",
+  "obsolete_ma_drawing",
+  "obsolete_part_root"
 ]);
 
 const allowedEntityTypes = new Set(["part_root", "part_number", "drawing_number", "same_drawing_variant"]);
@@ -27,12 +36,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "reason is required" }, { status: 400 });
   }
 
-  const auth = requireNumberingAction(request, actionCode, { actionCode });
+  const auth = await requireNumberingActionAsync(request, actionCode, { actionCode });
   if (auth.response) return auth.response;
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
 
   try {
     if (actionCode === "same_drawing_variant_after_release") {
-      const result = requestSameDrawingVariantApproval({
+      const result = await requestSameDrawingVariantApprovalAsync({
+        companyId: companyResult.company.companyId,
         drawingNumber: String(body.drawingNumber ?? body.drawing_number ?? "").trim(),
         partNumber: String(body.partNumber ?? body.part_number ?? "").trim(),
         variants: body.variants,
@@ -43,7 +55,8 @@ export async function POST(request: Request) {
     }
 
     if (actionCode === "main_drawing_restore") {
-      const result = requestMainDrawingRestoreApproval({
+      const result = await requestMainDrawingRestoreApprovalAsync({
+        companyId: companyResult.company.companyId,
         partNumber: String(body.partNumber ?? body.part_number ?? "").trim(),
         replacementDrawingNumber: String(body.replacementDrawingNumber ?? body.replacement_drawing_number ?? "").trim() || undefined,
         reason,
@@ -58,9 +71,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "entityType and entityId are required" }, { status: 400 });
     }
 
-    const result = requestNumberingApproval({
-      actionCode: actionCode as Parameters<typeof requestNumberingApproval>[0]["actionCode"],
-      entityType: entityType as Parameters<typeof requestNumberingApproval>[0]["entityType"],
+    const result = await requestNumberingApprovalAsync({
+      companyId: companyResult.company.companyId,
+      actionCode: actionCode as RequestNumberingApprovalInput["actionCode"],
+      entityType: entityType as RequestNumberingApprovalInput["entityType"],
       entityId,
       reason,
       payload: typeof body.payload === "object" && body.payload !== null ? body.payload : {},

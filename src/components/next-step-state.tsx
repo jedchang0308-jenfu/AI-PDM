@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { PageHelpDrawerButton, type SecondaryHelpContent } from "@/components/secondary-help";
 
 type NextStepAction = {
   href: string;
@@ -15,14 +16,37 @@ type NextStepStateProps = {
   body: string;
   actions?: NextStepAction[];
   compact?: boolean;
+  bodyPlacement?: "help" | "inline";
+  helpContent?: SecondaryHelpContent;
 };
 
-export function NextStepState({ eyebrow = "下一步", title, body, actions = [], compact = false }: NextStepStateProps) {
+export function NextStepState({
+  eyebrow = "下一步",
+  title,
+  body,
+  actions = [],
+  compact = false,
+  bodyPlacement = "inline",
+  helpContent
+}: NextStepStateProps) {
+  const resolvedHelpContent: SecondaryHelpContent = helpContent ?? {
+    title,
+    summary: body,
+    actions
+  };
+
   return (
     <div className={compact ? "next-step-state compact" : "next-step-state"}>
       <span className="section-label">{eyebrow}</span>
       <h3>{title}</h3>
-      <p>{body}</p>
+      {bodyPlacement === "help" ? (
+        <PageHelpDrawerButton content={resolvedHelpContent} buttonLabel="為什麼" className="next-step-help-trigger" />
+      ) : (
+        <>
+          <p>{body}</p>
+          {helpContent ? <PageHelpDrawerButton content={resolvedHelpContent} buttonLabel="更多說明" className="next-step-help-trigger" /> : null}
+        </>
+      )}
       {actions.length > 0 ? (
         <div className="next-step-actions">
           {actions.map((action) => (

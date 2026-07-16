@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { BomXlsImportError, createBomWorkbenchDraftFromSolidWorksXls, getSubmission } from "@/lib/db";
-import { canReadBomDraft } from "@/lib/permissions";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
+import { BomXlsImportError, createBomWorkbenchDraftFromSolidWorksXlsAsync } from "@/lib/bom-workbench-async";
+import { canReadBomDraftAsync } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,7 @@ type ImportPayload = {
 };
 
 export async function POST(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   let payload: ImportPayload;
@@ -38,14 +39,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
   }
 
-  const submission = getSubmission(payload.submissionId);
+  const submission = await getSubmissionAsync(payload.submissionId);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadBomDraft(auth.user, submission)) return forbidden();
+  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
 
   try {
-    const result = createBomWorkbenchDraftFromSolidWorksXls({
+    const result = await createBomWorkbenchDraftFromSolidWorksXlsAsync({
       submissionId: payload.submissionId,
       actorId: auth.user.id,
       draftName: payload.draftName,

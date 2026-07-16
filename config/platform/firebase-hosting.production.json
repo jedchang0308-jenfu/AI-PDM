@@ -1,0 +1,44 @@
+{
+  "hosting": {
+    "site": "jenfu-ai-pdm-prod",
+    "public": "firebase-hosting-production",
+    "ignore": [
+      "firebase-hosting.production.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "private, no-store, max-age=0"
+          },
+          {
+            "key": "Pragma",
+            "value": "no-cache"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "same-origin"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "ai-pdm-prod",
+          "region": "asia-east1",
+          "pinTag": false
+        }
+      }
+    ]
+  }
+}

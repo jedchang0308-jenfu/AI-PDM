@@ -5,15 +5,14 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-ux-attributes-"));
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const results = [];
-
-function readProjectFile(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
+const read = (relativePath) => readProjectFile(root, relativePath);
+const readJson = (relativePath) => readProjectJson(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -275,13 +274,13 @@ async function verifyPublicShare(browser, baseUrl, token, drawingNumber) {
 }
 
 function runStaticChecks() {
-  const css = readProjectFile("src/app/globals.css");
-  const dashboardLayout = readProjectFile("src/components/dashboard/layout-parts.tsx");
-  const dashboard = readProjectFile("src/components/dashboard.tsx");
-  const handoff = readProjectFile("src/app/handoff/page.tsx");
-  const share = readProjectFile("src/app/share/[token]/page.tsx");
-  const upload = readProjectFile("src/app/upload/page.tsx");
-  const packageJson = JSON.parse(readProjectFile("package.json"));
+  const css = read("src/app/globals.css");
+  const dashboardLayout = read("src/components/dashboard/layout-parts.tsx");
+  const dashboard = read("src/components/dashboard.tsx");
+  const handoff = read("src/app/handoff/page.tsx");
+  const share = read("src/app/share/[token]/page.tsx");
+  const upload = read("src/app/upload/page.tsx");
+  const packageJson = readJson("package.json");
 
   record("CSS limits detail row label selector to direct children", css.includes(".detail-row > span"));
   record("CSS includes diagnostic value primitive", css.includes(".diagnostic-value") && css.includes(".integrity-details .diagnostic-value"));

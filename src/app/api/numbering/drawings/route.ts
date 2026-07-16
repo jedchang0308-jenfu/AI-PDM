@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { listDrawingModuleRecords, type DrawingPurposeCode, type NumberingPhase, type NumberingRecordStatus } from "@/lib/db";
-import { requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync } from "@/lib/numbering-async";
+import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import type { DrawingPurposeCode, NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
@@ -18,26 +20,42 @@ const recordStatuses = new Set([
   "MainDrawingInvalid"
 ]);
 const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
-const purposeCodes = new Set(["MA", "OT"]);
+const purposeCodes = new Set(["MA", "OT", "M", "R"]);
 
 export async function GET(request: Request) {
-  const auth = requireNumberingPage(request, "numbering.drawings.view");
+  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
+
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const purposeCode = normalizeEnum(url.searchParams.get("purposeCode"), purposeCodes) as DrawingPurposeCode | undefined;
+  const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
 
-  const drawings = listDrawingModuleRecords({
-    query: url.searchParams.get("query") ?? "",
-    recordStatus,
-    developmentPhase,
-    purposeCode,
-    limit: Number(url.searchParams.get("limit") ?? 50)
+  const [drawings, productSeriesOptions] = await Promise.all([
+    listDrawingModuleRecordsAsync({
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      productSeries,
+      recordStatus,
+      developmentPhase,
+      purposeCode,
+      limit: Number(url.searchParams.get("limit") ?? 50)
+    }),
+    listProductSeriesOptionsAsync(companyResult.company.companyId)
+  ]);
+
+  return NextResponse.json({
+    drawings,
+    productSeriesOptions,
+    pdmCompany: companyResult.company,
+    approvalProjection: {
+      canReview: auth.user.role === "R&D Manager" || auth.user.role === "Admin"
+    }
   });
-
-  return NextResponse.json({ drawings });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

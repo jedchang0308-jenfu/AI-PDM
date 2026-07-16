@@ -1,147 +1,63 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
-const schema = fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8");
-const repositorySource = fs.readFileSync(path.join(root, "src", "lib", "repositories", "numbering-repository.ts"), "utf8");
-const dbExports = fs.readFileSync(path.join(root, "src", "lib", "db.ts"), "utf8");
-const variantsRouteSource = fs.readFileSync(path.join(root, "src", "app", "api", "numbering", "variants", "route.ts"), "utf8");
-const ruleSimulatorRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "rule-simulator", "route.ts"),
-  "utf8"
-);
-const impactAnalysisRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "impact-analysis", "route.ts"),
-  "utf8"
-);
-const duplicateCheckRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "duplicate-check", "route.ts"),
-  "utf8"
-);
-const numberingRecordsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "route.ts"),
-  "utf8"
-);
-const draftRecordRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "[rootCode]", "route.ts"),
-  "utf8"
-);
-const draftObsoleteRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "records", "[rootCode]", "obsolete", "route.ts"),
-  "utf8"
-);
-const overdueDraftRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "drafts", "overdue", "route.ts"),
-  "utf8"
-);
-const dvtCandidatesRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "dvt-candidates", "route.ts"),
-  "utf8"
-);
-const numberingSearchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "search", "route.ts"),
-  "utf8"
-);
-const numberingDrawingsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "drawings", "route.ts"),
-  "utf8"
-);
-const numberingRootDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "roots", "[rootCode]", "route.ts"),
-  "utf8"
-);
-const approvalRequestRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-requests", "route.ts"),
-  "utf8"
-);
-const approvalDecisionRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-decisions", "route.ts"),
-  "utf8"
-);
-const approvalBatchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-batches", "route.ts"),
-  "utf8"
-);
-const approvalBatchDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "approval-batches", "[batchId]", "route.ts"),
-  "utf8"
-);
-const numberingTasksRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "tasks", "route.ts"),
-  "utf8"
-);
-const numberingTaskDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "tasks", "[taskId]", "route.ts"),
-  "utf8"
-);
-const numberingNotificationsRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "route.ts"),
-  "utf8"
-);
-const numberingNotificationReadRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "[notificationId]", "read", "route.ts"),
-  "utf8"
-);
-const numberingNotificationHandledRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "notifications", "[notificationId]", "handled", "route.ts"),
-  "utf8"
-);
-const importBatchRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "route.ts"),
-  "utf8"
-);
-const importBatchDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "[batchId]", "route.ts"),
-  "utf8"
-);
-const importBatchConfirmRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "import-batches", "[batchId]", "confirm", "route.ts"),
-  "utf8"
-);
-const exportJobRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "export-jobs", "route.ts"),
-  "utf8"
-);
-const exportJobDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "export-jobs", "[jobId]", "route.ts"),
-  "utf8"
-);
-const monthlyAuditReportRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "monthly-audit-reports", "route.ts"),
-  "utf8"
-);
-const monthlyAuditReportDetailRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "monthly-audit-reports", "[reportId]", "route.ts"),
-  "utf8"
-);
-const adminMatrixRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "admin", "matrix", "route.ts"),
-  "utf8"
-);
-const permissionRouteSource = fs.readFileSync(
-  path.join(root, "src", "app", "api", "numbering", "permissions", "route.ts"),
-  "utf8"
-);
-const permissionGuardSource = fs.readFileSync(path.join(root, "src", "lib", "numbering-permission-guard.ts"), "utf8");
-const permissionCodesSource = fs.readFileSync(path.join(root, "src", "lib", "numbering-permission-codes.ts"), "utf8");
-const settingsPageSource = fs.readFileSync(path.join(root, "src", "app", "settings", "page.tsx"), "utf8");
-const numberingRequestPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "request", "page.tsx"), "utf8");
-const numberingDvtPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "dvt", "page.tsx"), "utf8");
-const numberingApprovalPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "approvals", "page.tsx"), "utf8");
-const numberingSearchPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "search", "page.tsx"), "utf8");
-const numberingDrawingsPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "drawings", "page.tsx"), "utf8");
-const numberingImpactPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "impact", "page.tsx"), "utf8");
-const numberingImportPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "imports", "page.tsx"), "utf8");
-const numberingTaskCenterPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "tasks", "page.tsx"), "utf8");
-const numberingReportCenterPageSource = fs.readFileSync(path.join(root, "src", "app", "numbering", "reports", "page.tsx"), "utf8");
-const sidebarNavSource = fs.readFileSync(path.join(root, "src", "components", "sidebar-nav.tsx"), "utf8");
-const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const concurrencyReuseScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-concurrency-reuse.mjs"), "utf8");
-const draftLifecycleScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-draft-lifecycle.mjs"), "utf8");
-const crossRoleAuditScriptSource = fs.readFileSync(path.join(root, "scripts", "qc-pdm-numbering-cross-role-audit-e2e.mjs"), "utf8");
+const read = (relativePath) => readProjectFile(root, relativePath);
+const readJson = (relativePath) => readProjectJson(root, relativePath);
+const schema = read("db/schema.sql");
+const repositorySource = read("src/lib/repositories/numbering-repository.ts");
+const dbExports = read("src/lib/db.ts");
+const variantsRouteSource = read("src/app/api/numbering/variants/route.ts");
+const ruleSimulatorRouteSource = read("src/app/api/numbering/rule-simulator/route.ts");
+const impactAnalysisRouteSource = read("src/app/api/numbering/impact-analysis/route.ts");
+const duplicateCheckRouteSource = read("src/app/api/numbering/duplicate-check/route.ts");
+const numberingRecordsRouteSource = read("src/app/api/numbering/records/route.ts");
+const draftRecordRouteSource = read("src/app/api/numbering/records/[rootCode]/route.ts");
+const draftObsoleteRouteSource = read("src/app/api/numbering/records/[rootCode]/obsolete/route.ts");
+const overdueDraftRouteSource = read("src/app/api/numbering/drafts/overdue/route.ts");
+const dvtCandidatesRouteSource = read("src/app/api/numbering/dvt-candidates/route.ts");
+const numberingSearchRouteSource = read("src/app/api/numbering/search/route.ts");
+const numberingDrawingsRouteSource = read("src/app/api/numbering/drawings/route.ts");
+const numberingRootDetailRouteSource = read("src/app/api/numbering/roots/[rootCode]/route.ts");
+const approvalRequestRouteSource = read("src/app/api/numbering/approval-requests/route.ts");
+const approvalDecisionRouteSource = read("src/app/api/numbering/approval-decisions/route.ts");
+const approvalBatchRouteSource = read("src/app/api/numbering/approval-batches/route.ts");
+const approvalBatchDetailRouteSource = read("src/app/api/numbering/approval-batches/[batchId]/route.ts");
+const numberingTasksRouteSource = read("src/app/api/numbering/tasks/route.ts");
+const numberingTaskDetailRouteSource = read("src/app/api/numbering/tasks/[taskId]/route.ts");
+const numberingNotificationsRouteSource = read("src/app/api/numbering/notifications/route.ts");
+const numberingNotificationReadRouteSource = read("src/app/api/numbering/notifications/[notificationId]/read/route.ts");
+const numberingNotificationHandledRouteSource = read("src/app/api/numbering/notifications/[notificationId]/handled/route.ts");
+const importBatchRouteSource = read("src/app/api/numbering/import-batches/route.ts");
+const importBatchDetailRouteSource = read("src/app/api/numbering/import-batches/[batchId]/route.ts");
+const importBatchConfirmRouteSource = read("src/app/api/numbering/import-batches/[batchId]/confirm/route.ts");
+const exportJobRouteSource = read("src/app/api/numbering/export-jobs/route.ts");
+const exportJobDetailRouteSource = read("src/app/api/numbering/export-jobs/[jobId]/route.ts");
+const monthlyAuditReportRouteSource = read("src/app/api/numbering/monthly-audit-reports/route.ts");
+const monthlyAuditReportDetailRouteSource = read("src/app/api/numbering/monthly-audit-reports/[reportId]/route.ts");
+const adminMatrixRouteSource = read("src/app/api/numbering/admin/matrix/route.ts");
+const permissionRouteSource = read("src/app/api/numbering/permissions/route.ts");
+const permissionGuardSource = read("src/lib/numbering-permission-guard.ts");
+const permissionCodesSource = read("src/lib/numbering-permission-codes.ts");
+const settingsPageSource = read("src/app/settings/page.tsx");
+const numberingRequestPageSource = read("src/app/numbering/request/page.tsx");
+const numberingDvtPageSource = read("src/app/numbering/dvt/page.tsx");
+const numberingApprovalPageSource = read("src/app/numbering/approvals/page.tsx");
+const approvalWorkbenchPageSource = read("src/app/approvals/page.tsx");
+const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-redirect.ts");
+const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
+const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
+const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
+const numberingImportPageSource = read("src/app/numbering/imports/page.tsx");
+const numberingTaskCenterPageSource = read("src/app/numbering/tasks/page.tsx");
+const numberingReportCenterPageSource = read("src/app/numbering/reports/page.tsx");
+const sidebarNavSource = read("src/components/sidebar-nav.tsx");
+const packageJson = readJson("package.json");
+const concurrencyReuseScriptSource = read("scripts/qc-pdm-numbering-concurrency-reuse.mjs");
+const draftLifecycleScriptSource = read("scripts/qc-pdm-numbering-draft-lifecycle.mjs");
+const crossRoleAuditScriptSource = read("scripts/qc-pdm-numbering-cross-role-audit-e2e.mjs");
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -208,6 +124,11 @@ for (const table of [
 record(
   "NUM-SCHEMA default numbering rule exists",
   Boolean(db.prepare("SELECT id FROM numbering_rule_versions WHERE id = 'numbering-rule-v1'").get()),
+  "numbering_rule_versions"
+);
+record(
+  "NUM-SCHEMA compact numbering rule exists",
+  Boolean(db.prepare("SELECT id FROM numbering_rule_versions WHERE id = 'numbering-rule-v2'").get()),
   "numbering_rule_versions"
 );
 record(
@@ -509,7 +430,7 @@ record(
     repositorySource.includes("numbering.draft.pending_admin_confirm"),
   "numbering-repository.ts"
 );
-record("NUM-REPO enforces OT purpose description", repositorySource.includes("OT_PURPOSE_DESCRIPTION_REQUIRED"), "numbering-repository.ts");
+record("NUM-REPO enforces reference purpose description", repositorySource.includes("REFERENCE_PURPOSE_DESCRIPTION_REQUIRED"), "numbering-repository.ts");
 record("NUM-REPO enforces universal reason", repositorySource.includes("UNIVERSAL_PART_REASON_REQUIRED"), "numbering-repository.ts");
 record("NUM-REPO treats shared item kind as universal", repositorySource.includes('itemKind === "shared" || input.isUniversal'), "numbering-repository.ts");
 record("NUM-REPO links same-drawing variants", repositorySource.includes("export function linkPartNumberToDrawing"), "numbering-repository.ts");
@@ -703,6 +624,13 @@ record(
 record("NUM-API numbering records route validates custom and shared inputs", numberingRecordsRouteSource.includes("customSpecification") && numberingRecordsRouteSource.includes("universalReason"), "records/route.ts");
 record("NUM-API numbering records route treats shared items as universal", numberingRecordsRouteSource.includes('itemKind === "shared"'), "records/route.ts");
 record(
+  "NUM-API numbering records route forces new numbering to EVT",
+  numberingRecordsRouteSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
+    numberingRecordsRouteSource.includes("const developmentPhase = initialDevelopmentPhase") &&
+    !numberingRecordsRouteSource.includes("body.developmentPhase ?? body.development_phase"),
+  "records/route.ts"
+);
+record(
   "NUM-API draft record route updates drafts through action guard",
   draftRecordRouteSource.includes("updateDraftNumberingRecord") && draftRecordRouteSource.includes("numbering.draft.update"),
   "records/[rootCode]/route.ts"
@@ -755,7 +683,9 @@ record(
 );
 record(
   "NUM-API approval decision route calls workflow through action guard",
-  approvalDecisionRouteSource.includes("decideNumberingApproval") && approvalDecisionRouteSource.includes("numbering.approval.batch.decide"),
+  (approvalDecisionRouteSource.includes("decideNumberingApproval") ||
+    approvalDecisionRouteSource.includes("decideApprovalPlatformLegacyNumberingAsync")) &&
+    approvalDecisionRouteSource.includes("numbering.approval.batch.decide"),
   "approval-decisions/route.ts"
 );
 record(
@@ -768,7 +698,8 @@ record(
 );
 record(
   "NUM-API approval batch detail route decides, resubmits, and accepts item comments",
-    approvalBatchDetailRouteSource.includes("decideNumberingApprovalBatch") &&
+    (approvalBatchDetailRouteSource.includes("decideNumberingApprovalBatch") ||
+      approvalBatchDetailRouteSource.includes("decideApprovalPlatformLegacyNumberingBatchAsync")) &&
     approvalBatchDetailRouteSource.includes("resubmitRejectedNumberingApprovalBatchItems") &&
     approvalBatchDetailRouteSource.includes("itemComments") &&
     approvalBatchDetailRouteSource.includes("numbering.approval.batch.decide") &&
@@ -924,16 +855,24 @@ record(
 );
 record(
   "NUM-UI numbering request wizard renders create flow",
-  numberingRequestPageSource.includes("領號申請") &&
+  numberingRequestPageSource.includes("建立圖料號") &&
     numberingRequestPageSource.includes("/api/numbering/records") &&
-    numberingRequestPageSource.includes("查重預檢"),
+    numberingRequestPageSource.includes("正在檢查相似主根") &&
+    numberingRequestPageSource.includes("本次將建立"),
   "numbering/request/page.tsx"
 );
 record(
   "NUM-UI numbering request wizard supports item kinds and part-before-drawing",
-  numberingRequestPageSource.includes("客製尺寸") &&
-    numberingRequestPageSource.includes("共用件") &&
-    numberingRequestPageSource.includes("先料號後圖號"),
+  numberingRequestPageSource.includes("客製尺寸／規格") &&
+    numberingRequestPageSource.includes("跨專案共用") &&
+    numberingRequestPageSource.includes("只建立料號"),
+  "numbering/request/page.tsx"
+);
+record(
+  "NUM-UI numbering request wizard locks initial phase instead of offering phase selection",
+  numberingRequestPageSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
+    numberingRequestPageSource.includes('data-testid="initial-development-phase"') &&
+    !numberingRequestPageSource.includes("setDevelopmentPhase"),
   "numbering/request/page.tsx"
 );
 record(
@@ -950,26 +889,28 @@ record(
   "numbering/dvt/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page renders batch review workflow",
-  numberingApprovalPageSource.includes("DVT/發行審核") &&
-    numberingApprovalPageSource.includes("同專案批次審核") &&
-    numberingApprovalPageSource.includes("/api/numbering/approval-batches"),
+  "NUM-UI formal-data legacy approval page redirects to workbench",
+  numberingApprovalPageSource.includes("redirect(buildLegacyApprovalWorkbenchRedirect") &&
+    numberingApprovalPageSource.includes('"numbering_approvals"') &&
+    approvalLegacyRedirectSource.includes('domain: "numbering"'),
   "numbering/approvals/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page supports shared and item comments with proxy markers",
-  numberingApprovalPageSource.includes("共用意見") &&
-    numberingApprovalPageSource.includes("異常項個別意見") &&
-    numberingApprovalPageSource.includes("代送審"),
-  "numbering/approvals/page.tsx"
+  "NUM-UI approval workbench exposes numbering review filters",
+  approvalWorkbenchPageSource.includes("<h1>審核工作台</h1>") &&
+    approvalWorkbenchPageSource.includes("numbering.release") &&
+    approvalWorkbenchPageSource.includes("numbering.dvt_promotion") &&
+    approvalWorkbenchPageSource.includes("numbering.obsolete_part_number") &&
+    approvalWorkbenchPageSource.includes("numbering.obsolete_ma_drawing"),
+  "approvals/page.tsx"
 );
 record(
-  "NUM-UI DVT release approval page renders delegated, override, and impact markers",
-  numberingApprovalPageSource.includes("MarkerList") &&
-    numberingApprovalPageSource.includes("代理審核") &&
-    numberingApprovalPageSource.includes("isDelegatedApproval") &&
-    numberingApprovalPageSource.includes("impact_scope"),
-  "numbering/approvals/page.tsx"
+  "NUM-UI approval workbench supports detail decisions and legacy redirect messages",
+  approvalWorkbenchPageSource.includes("allowedDecisionsForDetail") &&
+    approvalWorkbenchPageSource.includes("legacyRedirectMessages") &&
+    approvalWorkbenchPageSource.includes("buildInboxUrl") &&
+    approvalWorkbenchPageSource.includes("syncFilterQuery"),
+  "approvals/page.tsx"
 );
 record(
   "NUM-UI numbering import center renders staging workflow",
@@ -988,15 +929,16 @@ record(
 record(
   "NUM-UI numbering search page renders query and detail workflow",
   numberingSearchPageSource.includes("圖料模組") &&
-    numberingSearchPageSource.includes("/api/numbering/search") &&
-    numberingSearchPageSource.includes("/api/numbering/roots/"),
+    (numberingSearchPageSource.includes("/api/numbering/search") ||
+      numberingSearchPageSource.includes("/api/numbering/relations?${params.toString()}")) &&
+    numberingSearchPageSource.includes("/api/numbering/roots/${"),
   "numbering/search/page.tsx"
 );
 record(
   "NUM-UI numbering search page includes warning markers and impact panel",
   numberingSearchPageSource.includes("WarningDot") &&
     numberingSearchPageSource.includes("影響範圍") &&
-    numberingSearchPageSource.includes("MA 圖作廢影響頁"),
+    numberingSearchPageSource.includes("製造圖作廢影響"),
   "numbering/search/page.tsx"
 );
 record(
@@ -1009,8 +951,8 @@ record(
   "numbering/drawings/page.tsx"
 );
 record(
-  "NUM-UI numbering impact page renders MA impact workflow",
-  numberingImpactPageSource.includes("MA 圖影響") &&
+  "NUM-UI numbering impact page renders manufacturing drawing impact workflow",
+  numberingImpactPageSource.includes("製造圖影響") &&
     numberingImpactPageSource.includes("/api/numbering/impact-analysis") &&
     numberingImpactPageSource.includes("套用失效"),
   "numbering/impact/page.tsx"
@@ -1042,15 +984,15 @@ record(
   "sidebar-nav.tsx"
 );
 record("NUM-UI sidebar links numbering request page", sidebarNavSource.includes("/numbering/request") && sidebarNavSource.includes("領號申請"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("DVT 晉升"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("階段晉升"), "sidebar-nav.tsx");
 record(
-  "NUM-UI sidebar links DVT release approval page",
-  sidebarNavSource.includes("/numbering/approvals") && (sidebarNavSource.includes("DVT/發行審核") || sidebarNavSource.includes("發行審核")),
+  "NUM-UI sidebar links unified approval workbench",
+  sidebarNavSource.includes("/approvals") && sidebarNavSource.includes("審核工作台") && sidebarNavSource.includes('badge: "approvalPending"'),
   "sidebar-nav.tsx"
 );
 record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號模組"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("MA 影響"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("製造圖影響"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering import center", sidebarNavSource.includes("/numbering/imports") && sidebarNavSource.includes("總表匯入"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");
 record(

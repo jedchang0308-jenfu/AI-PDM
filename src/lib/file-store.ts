@@ -1,28 +1,63 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import crypto from "node:crypto";
+import { buildStorageKey, createFileStorageService, storagePointerFromStoredObject, type FileStorageProvider } from "@/lib/file-storage";
 import { normalizeFileRole } from "@/lib/validation";
 
+export type SavedSubmissionFile = {
+  fileRole: string;
+  originalFilename: string;
+  localPath: string;
+  storageProvider: FileStorageProvider;
+  storageBucket: string | null;
+  storageKey: string;
+  sha256: string;
+  fileSize: number;
+  sourceMasterAttachmentId?: string | null;
+};
+
+export type SubmissionFileBuffer = {
+  filename: string;
+  bytes: Buffer;
+  sourceMasterAttachmentId?: string | null;
+};
+
 export async function saveUploadedFiles(submissionFolderName: string, files: File[]) {
+  const buffers = await Promise.all(
+    files.map(async (file) => ({
+      filename: file.name,
+      bytes: Buffer.from(await file.arrayBuffer())
+    }))
+  );
+  return saveSubmissionFileBuffers(submissionFolderName, buffers);
+}
+
+export async function saveSubmissionFileBuffers(
+  submissionFolderName: string,
+  files: SubmissionFileBuffer[]
+): Promise<SavedSubmissionFile[]> {
   const now = new Date();
   const yyyy = String(now.getFullYear());
   const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const targetDir = path.join(/*turbopackIgnore: true*/ getRepositoryDir(), "pending", yyyy, mm, submissionFolderName);
+  const storage = createFileStorageService();
 
-  await fs.mkdir(targetDir, { recursive: true });
-
-  const saved = [];
+  const saved: SavedSubmissionFile[] = [];
   for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const safeName = sanitizeFilename(file.name);
-    const localPath = path.join(/*turbopackIgnore: true*/ targetDir, safeName);
-    await fs.writeFile(localPath, buffer);
+    const safeName = sanitizeFilename(file.filename);
+    const stored = await storage.putObject({
+      key: buildStorageKey(["pending", yyyy, mm, submissionFolderName, safeName]),
+      bytes: file.bytes
+    });
+    const pointer = storagePointerFromStoredObject(stored);
     saved.push({
-      fileRole: normalizeFileRole(file.name),
-      originalFilename: file.name,
-      localPath,
-      sha256: crypto.createHash("sha256").update(buffer).digest("hex"),
-      fileSize: buffer.byteLength
+      fileRole: normalizeFileRole(file.filename),
+      originalFilename: file.filename,
+      localPath: stored.localPath,
+      storageProvider: pointer.provider,
+      storageBucket: pointer.bucket,
+      storageKey: pointer.key,
+      sha256: stored.sha256,
+      fileSize: stored.bytes,
+      sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null
     });
   }
 

@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
-import { createPartCostProfile, type PartCostType } from "@/lib/db";
-import { requireNumberingAction } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { createPartCostProfileAsync } from "@/lib/numbering-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { canViewPartCostAmounts, redactPartDetailCosts } from "@/lib/part-cost-visibility";
+import type { PartCostType } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
 const costTypes = new Set(["outsourced", "in_house", "purchase", "trial", "other"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.approval.request");
+  const auth = await requireNumberingActionAsync(request, "numbering.approval.request");
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
   const body = await request.json().catch(() => ({}));
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
+  if (companyResult.response) return companyResult.response;
   const costType = String(body.costType ?? body.cost_type ?? "").trim();
   if (!costTypes.has(costType)) {
     return NextResponse.json({ error: "costType must be outsourced, in_house, purchase, trial, or other" }, { status: 400 });
@@ -21,7 +26,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
   }
 
   try {
-    const part = createPartCostProfile({
+    const part = await createPartCostProfileAsync({
+      companyId: companyResult.company.companyId,
       partNumber: decodeURIComponent(partNumber),
       costType: costType as PartCostType,
       profileName: String(body.profileName ?? body.profile_name ?? "").trim(),
@@ -42,7 +48,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
         note: stringOrNull(tier.note)
       }))
     });
-    return NextResponse.json({ part }, { status: 201 });
+    if (!part) {
+      return NextResponse.json({ error: "Part number not found" }, { status: 404 });
+    }
+    return NextResponse.json({ part: redactPartDetailCosts(part, canViewPartCostAmounts(auth)) }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "PART_COST_PROFILE_CREATE_FAILED" }, { status: 400 });
   }

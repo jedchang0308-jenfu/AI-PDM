@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-07-07T05:24:43.564Z",
+  "mode": "dry-run",
+  "mutation": {
+    "beforeHash": "474cbaa2de3256d3bd75360298e7c7b041eecb28cdae58147ca11f630ecb65dd",
+    "afterHash": "474cbaa2de3256d3bd75360298e7c7b041eecb28cdae58147ca11f630ecb65dd",
+    "unchanged": true
+  },
+  "summary": {
+    "roots": 3,
+    "parts": 3,
+    "drawings": 3,
+    "proposed": 5,
+    "blocked": 4
+  },
+  "proposedRoots": [
+    {
+      "id": "root-v1-capacity",
+      "from": "0099",
+      "to": "00099",
+      "status": "proposed",
+      "collisionId": null
+    },
+    {
+      "id": "root-v1-collision",
+      "from": "0001",
+      "to": "00001",
+      "status": "blocked_root_collision",
+      "collisionId": "root-v2-existing"
+    },
+    {
+      "id": "root-v1-ok",
+      "from": "0002",
+      "to": "00002",
+      "status": "proposed",
+      "collisionId": null
+    }
+  ],
+  "proposedParts": [
+    {
+      "id": "part-v1-capacity",
+      "from": "P-0099-100",
+      "to": null,
+      "status": "blocked_sequence_capacity",
+      "rootCode": "0099",
+      "sequenceNo": 100
+    },
+    {
+      "id": "part-v1-collision",
+      "from": "P-0001-001",
+      "to": "00001-P01",
+      "status": "blocked_root_mapping",
+      "rootCode": "0001",
+      "sequenceNo": 1
+    },
+    {
+      "id": "part-v1-ok",
+      "from": "P-0002-001",
+      "to": "00002-P01",
+      "status": "proposed",
+      "rootCode": "0002",
+      "sequenceNo": 1
+    }
+  ],
+  "proposedDrawings": [
+    {
+      "id": "drawing-v1-collision",
+      "from": "D-0001-MA1",
+      "to": "00001-M01",
+      "status": "blocked_root_mapping",
+      "rootCode": "0001",
+      "purposeCode": "MA",
+      "sequenceNo": 1
+    },
+    {
+      "id": "drawing-v1-ok-ma",
+      "from": "D-0002-MA1",
+      "to": "00002-M01",
+      "status": "proposed",
+      "rootCode": "0002",
+      "purposeCode": "MA",
+      "sequenceNo": 1
+    },
+    {
+      "id": "drawing-v1-ok-ot",
+      "from": "D-0002-OT1",
+      "to": "00002-R01",
+      "status": "proposed",
+      "rootCode": "0002",
+      "purposeCode": "OT",
+      "sequenceNo": 1
+    }
+  ]
+}

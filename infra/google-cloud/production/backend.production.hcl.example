@@ -1,0 +1,2 @@
+bucket = "jenfu-ai-pdm-prod-tfstate"
+prefix = "ai-pdm/production"

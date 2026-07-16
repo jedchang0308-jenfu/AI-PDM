@@ -43,7 +43,8 @@ export async function releaseSubmissionViaCloudFunction(submission: SubmissionDe
 
   if (!releaseFunctionUrl) {
     const releasedFolderId = getSystemSetting("gdrive_released_folder_id") || envReleasedFolderId;
-    if (releasedFolderId) {
+    const legacyLocalDriveRelease = (process.env.PDM_STORAGE_PROVIDER?.trim() || "local_repository") === "local_repository";
+    if (releasedFolderId && legacyLocalDriveRelease) {
       const movedFiles = [];
       const compensatedFiles: Array<{ fileId: string; previousParents: string[]; dbFileId: string; filename: string }> = [];
       const approvedAt = new Date().toISOString();

@@ -59,7 +59,8 @@ export function listNotifications(user: NotificationUser): NotificationItem[] {
       FROM submissions s
       JOIN items i ON i.id = s.item_id
       JOIN users u ON u.id = s.submitted_by
-      WHERE s.status = 'ReleaseFailed'${scope.sql}
+      WHERE s.status = 'ReleaseFailed'
+        AND s.resolved_by_submission_id IS NULL${scope.sql}
       ORDER BY s.updated_at DESC
       LIMIT 20
     `
@@ -71,8 +72,8 @@ export function listNotifications(user: NotificationUser): NotificationItem[] {
       id: `release_failed:${row.submission_id}`,
       kind: "release_failed",
       severity: "critical",
-      title: "Release 失敗需要處理",
-      message: `${submissionLabel(row)} 發布失敗：${row.detail ?? "未記錄錯誤原因"}`,
+      title: "發行未完成",
+      message: `${submissionLabel(row)} 發行未完成：${row.detail ?? "需要主管或 Admin 處理。"}`,
       submission_id: row.submission_id,
       drawing_number: row.drawing_number,
       revision: row.revision,
@@ -116,10 +117,10 @@ export function listNotifications(user: NotificationUser): NotificationItem[] {
       id: `${isReviewer ? "pending_review" : "awaiting_review"}:${row.submission_id}`,
       kind: isReviewer ? "pending_review" : "awaiting_review",
       severity: isReviewer ? "warning" : "info",
-      title: isReviewer ? "待審核送審" : "送審等待審核",
+      title: isReviewer ? "審核中送審" : "送審審核中",
       message: isReviewer
         ? `${submissionLabel(row)} 尚需 ${remaining} 位審核者核准。`
-        : `${submissionLabel(row)} 已送出，正在等待主管審核。`,
+        : `${submissionLabel(row)} 已送出，目前審核中。`,
       submission_id: row.submission_id,
       drawing_number: row.drawing_number,
       revision: row.revision,

@@ -1,0 +1,63 @@
+{
+  "reportType": "supabase-target-provisioning-execution-package",
+  "packageVersion": "storage-schema-target-provisioning-execution-package/v1",
+  "generatedAt": "2026-06-11T05:48:52.406Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "generatorDidNotCallSupabaseConnector": true,
+    "noSupabaseConfirmCostCalled": true,
+    "noSupabaseProjectCreated": true,
+    "noSupabaseBranchCreated": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "targetCreateRequestPath": "supabase-target-create-request.json",
+    "connectorReceiptEvidencePath": "supabase-target-connector-receipt-evidence.json",
+    "targetCreateResultEvidencePath": "supabase-target-create-result-evidence.json"
+  },
+  "sourceEvidence": {
+    "createRequestStatus": "blocked_user_cost_not_confirmed",
+    "createRequestReady": false,
+    "createRequestUpstreamEvidenceFresh": false,
+    "createRequestUserConfirmationSourceMatchesCostPackage": true,
+    "connectorReceiptStatus": "blocked_create_request_not_ready",
+    "receiptRecorded": false,
+    "targetCreateResultStatus": "blocked_create_request_not_ready",
+    "verifiedTargetCount": 0
+  },
+  "target": {
+    "organizationId": "igzdpafkvqqpsyadmage",
+    "targetName": "AI_PDM_STAGING",
+    "region": "ap-southeast-1",
+    "resourceType": "project"
+  },
+  "selectedCost": {
+    "amount": 0,
+    "recurrence": "monthly"
+  },
+  "connectorPlan": [],
+  "blockers": [
+    "target create request is not ready for connector execution"
+  ],
+  "summary": {
+    "status": "blocked_create_request_not_ready",
+    "readyForConnectorExecution": false,
+    "targetProvisioningVerified": false
+  },
+  "readiness": {
+    "readyForConnectorExecution": false,
+    "waitingForInventoryVerification": false,
+    "targetProvisioningVerified": false,
+    "readyForSchemaTargetReadinessPackage": false
+  },
+  "handoff": {
+    "nextActions": [
+      "Resolve upstream target create request blockers before any Supabase confirm_cost or create call",
+      "Do not create Supabase resources from this package while summary.readyForConnectorExecution is false"
+    ]
+  }
+}

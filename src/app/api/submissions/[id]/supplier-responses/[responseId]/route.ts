@@ -1,25 +1,21 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { closeSupplierPortalResponse, getSubmission } from "@/lib/db";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { closeSupplierPortalResponseAsync } from "@/lib/release-records-async";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
-function canManageSupplierPortal(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
-
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; responseId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canManageSupplierPortal(auth.user.role)) return forbidden();
 
   const { id, responseId } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const result = closeSupplierPortalResponse({
+  const result = await closeSupplierPortalResponseAsync({
     submissionId: id,
     responseId,
     closedBy: auth.user.id
@@ -27,3 +23,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ response: result.response });
 }
+

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Download, Eye, FileText, RefreshCw, RotateCcw, ShieldAlert, X } from "lucide-react";
+import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { formatStatusErrorForUser } from "@/lib/status-display";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -108,7 +111,7 @@ export default function NumberingReportsPage() {
     }
     const [reportBody, exportBody] = await Promise.all([reportResponse.json().catch(() => ({})), exportResponse.json().catch(() => ({}))]);
     if (!reportResponse.ok || !exportResponse.ok) {
-      setError(reportBody.error ?? exportBody.error ?? "稽核報表讀取失敗");
+      setError(formatStatusErrorForUser(reportBody.error ?? exportBody.error ?? "稽核報表讀取失敗", "jobStatus"));
       setState("error");
       return;
     }
@@ -179,7 +182,7 @@ export default function NumberingReportsPage() {
     setBusy(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "月報重產失敗");
+      setError(formatStatusErrorForUser(body.error ?? "月報重產失敗", "jobStatus"));
       setState(response.status === 403 ? "forbidden" : "error");
       return;
     }
@@ -199,7 +202,7 @@ export default function NumberingReportsPage() {
     setBusy(null);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setError(body.error ?? "總表匯出失敗");
+      setError(formatStatusErrorForUser(body.error ?? "總表匯出失敗", "jobStatus"));
       setState(response.status === 403 ? "forbidden" : "error");
       return;
     }
@@ -369,7 +372,18 @@ function ReportOverview({
 
 function DepartmentPanel({ page }: { page: DepartmentPage | null }) {
   if (!page) {
-    return <EmptyBlock icon="department" text="此分頁尚無資料" />;
+    return (
+      <NextStepState
+        compact
+        eyebrow="不用處理"
+        title="此分頁目前尚無資料"
+        body="目前沒有可彙整的部門資料。若要追查來源，請回圖料模組或待辦清單確認是否有未結項目。"
+        actions={[
+          { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+          { href: "/numbering/tasks", label: "查看待辦" }
+        ]}
+      />
+    );
   }
   const counts = page.counts ?? {};
   return (
@@ -391,7 +405,18 @@ function DepartmentPanel({ page }: { page: DepartmentPage | null }) {
 
 function ProjectBuckets({ buckets }: { buckets: ProjectBucket[] }) {
   if (buckets.length === 0) {
-    return <EmptyBlock icon="department" text="目前沒有專案待辦資料" />;
+    return (
+      <NextStepState
+        compact
+        eyebrow="不用處理"
+        title="目前沒有專案待辦資料"
+        body="專案沒有未結待辦時不需要處理。若你在找特定圖號或料號，請回圖料模組重新查詢。"
+        actions={[
+          { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+          { href: "/numbering/tasks", label: "查看待辦" }
+        ]}
+      />
+    );
   }
   return (
     <div className="table-wrap">
@@ -429,7 +454,9 @@ function ExportJobTable({ jobs }: { jobs: NumberingExportJob[] }) {
         <thead>
           <tr>
             <th>匯出模式</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader label="執行狀態" context="jobStatus" />
+            </th>
             <th>產生時間</th>
             <th>資料量</th>
             <th>操作</th>
@@ -440,7 +467,7 @@ function ExportJobTable({ jobs }: { jobs: NumberingExportJob[] }) {
             <tr key={job.id}>
               <td>{exportModeLabel(job.exportMode)}</td>
               <td>
-                <span className={`badge ${job.status === "failed" ? "Rejected" : "Released"}`}>{job.status}</span>
+                <StatusBadge status={job.status} context="jobStatus" />
               </td>
               <td>{formatDateTime(job.generatedAt)}</td>
               <td>{resultSummary(job.result)}</td>
@@ -476,7 +503,9 @@ function MonthlyReportTable({
         <thead>
           <tr>
             <th>月份</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader label="執行狀態" context="jobStatus" />
+            </th>
             <th>產生方式</th>
             <th>建立時間</th>
             <th>操作</th>
@@ -492,7 +521,7 @@ function MonthlyReportTable({
             >
               <td>{report.reportMonth}</td>
               <td>
-                <span className={`badge ${report.status === "failed" ? "Rejected" : "Released"}`}>{report.status}</span>
+                <StatusBadge status={report.status} context="jobStatus" />
               </td>
               <td>{report.generationMode === "manual" ? "手動" : "自動"}</td>
               <td>{formatDateTime(report.createdAt)}</td>
@@ -542,8 +571,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
     <section className="panel">
       <div className="empty">
         <ShieldAlert size={22} aria-hidden="true" />
-        <h2>讀取失敗</h2>
-        <p>{message}</p>
+        <h2>報表暫時無法讀取</h2>
+        <p>{message} 現在請重試；若仍失敗，請回待辦或圖料模組確認來源資料，或請 Admin 協助。</p>
         <div className="empty-actions">
           <button className="secondary-button" type="button" onClick={onRetry}>
             <RotateCcw size={16} />

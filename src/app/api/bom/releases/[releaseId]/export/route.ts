@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { getBomReleaseSnapshotById, getSubmission } from "@/lib/db";
-import { canReadBomReleasedSnapshot } from "@/lib/permissions";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { getBomReleaseSnapshotByIdAsync } from "@/lib/bom-workbench-async";
+import { canReadBomReleasedSnapshotAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { BomReleaseSnapshotDetail, BomWorkbenchLine } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -22,20 +23,20 @@ const exportColumns = [
 ];
 
 export async function GET(request: Request, { params }: { params: Promise<{ releaseId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { releaseId } = await params;
-  const snapshot = getBomReleaseSnapshotById(releaseId);
+  const snapshot = await getBomReleaseSnapshotByIdAsync(releaseId);
   if (!snapshot) {
     return NextResponse.json({ error: "BOM release snapshot not found" }, { status: 404 });
   }
 
-  const submission = getSubmission(snapshot.parent_submission_id);
+  const submission = await getSubmissionAsync(snapshot.parent_submission_id);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadBomReleasedSnapshot(auth.user, submission)) return forbidden();
+  if (!(await canReadBomReleasedSnapshotAsync(auth.user, submission))) return forbidden();
 
   const url = new URL(request.url);
   const format = parseFormat(url.searchParams.get("format"));

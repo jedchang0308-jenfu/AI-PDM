@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
 import { evaluateDefectRegister } from "./defect-register-utils.mjs";
+import { getQualityDir } from "./pdm-paths.mjs";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
 import { getRestoreDrillReportEvidence } from "./restore-drill-report-utils.mjs";
 import { findLatestReport, readReport, validateReport } from "./sw-addin-report-utils.mjs";
 import {
@@ -14,15 +16,15 @@ import {
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
 const allowOpen = args.has("--allow-open");
-const taskPath = resolveTaskFile();
+const taskRelativePath = resolveTaskFile();
 
 function resolveTaskFile() {
   const candidates = [
-    path.join(root, ".ai-doc", "dev_task.md"),
-    path.join(root, "dev_task.md"),
-    path.join(root, "PDM_dev_task.md")
+    ".ai-doc/dev_task.md",
+    "dev_task.md",
+    "PDM_dev_task.md"
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return candidates.find((candidate) => projectFileExists(root, candidate)) ?? candidates[0];
 }
 
 function getSolidWorksReportEvidence() {
@@ -59,44 +61,78 @@ function getDocumentManagerReportEvidence() {
   };
 }
 
-function getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence) {
+function getFieldTestEvidence() {
   return {
-    ready: solidWorksEvidence.ready && restoreDrillEvidence.ready && documentManagerEvidence.ready,
-    solidWorks: {
-      ready: solidWorksEvidence.ready,
-      reportPath: solidWorksEvidence.reportPath,
-      issues: solidWorksEvidence.issues
-    },
-    restore: {
-      ready: restoreDrillEvidence.ready,
-      reportPath: restoreDrillEvidence.reportPath,
-      issues: restoreDrillEvidence.issues
-    },
-    documentManager: {
-      ready: documentManagerEvidence.ready,
-      reportPath: documentManagerEvidence.reportPath,
-      issues: documentManagerEvidence.issues
-    }
+    ready: false,
+    requiredScope: "First-version formal numbering / draft pilot",
+    issues: [
+      { type: "missing_first_version_field_test_evidence" },
+      { type: "missing_signed_go_no_go" },
+      { type: "missing_field_issue_closure" }
+    ]
   };
 }
 
 function getSupabaseShadowEvidence() {
-  const evidenceDocs = [
-    "docs/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
-    "docs/industrialization/supabase-live-probe-2026-05-28.md",
-    "docs/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
-    "docs/industrialization/external-validation-handoff-2026-05-28.md"
-  ].map((docPath) => ({
-    path: docPath,
-    exists: fs.existsSync(path.join(root, docPath))
-  }));
+  const reportDir = path.join(getQualityDir(root), "postgres-shadow");
+  const reports = fs.existsSync(reportDir)
+    ? fs
+        .readdirSync(reportDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && /^shadow-compare-\d+\.json$/u.test(entry.name))
+        .map((entry) => path.join(reportDir, entry.name))
+        .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs)
+    : [];
+  const reportPath = reports[0] ?? "";
 
-  return {
-    ready: false,
-    requiredTarget: "Disposable AI_PDM Supabase project or branch",
-    issues: [{ type: "missing_disposable_supabase_target" }],
-    evidenceDocs
-  };
+  if (!reportPath) {
+    const evidenceDocs = [
+      ".ai-doc/reports/industrialization/postgres-shadow-migration-plan-2026-05-28.md",
+      ".ai-doc/reports/industrialization/supabase-live-probe-2026-05-28.md",
+      ".ai-doc/reports/industrialization/supabase-shadow-target-guard-verification-2026-05-28.md",
+      ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md"
+    ].map((docPath) => ({
+      path: docPath,
+      exists: projectFileExists(root, docPath)
+    }));
+
+    return {
+      ready: false,
+      reportPath: null,
+      requiredTarget: "Disposable AI_PDM Supabase/Postgres shadow target",
+      issues: [{ type: "missing_postgres_shadow_report" }],
+      evidenceDocs
+    };
+  }
+
+  try {
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    const issues = [];
+    if (report.postgresShadowConfigured !== true) issues.push({ type: "postgres_shadow_not_configured" });
+    if (report.postgresTargetGuard?.safe !== true) issues.push({ type: "postgres_target_guard_not_safe" });
+    if (report.postgresCompareError) issues.push({ type: "postgres_compare_error", message: report.postgresCompareError });
+    if ((report.missingInPostgres ?? []).length > 0) issues.push({ type: "missing_in_postgres", tables: report.missingInPostgres });
+    if ((report.rlsMissingTables ?? []).length > 0) issues.push({ type: "rls_missing_tables", tables: report.rlsMissingTables });
+    if ((report.mismatches ?? []).length > 0) issues.push({ type: "postgres_sqlite_mismatches", mismatches: report.mismatches });
+    if (report.comparePolicy === "schema_rls_only") {
+      if (report.dataCompareSkipped !== true) issues.push({ type: "schema_rls_only_without_skip_flag" });
+    } else if (!Array.isArray(report.postgresStats) || report.postgresStats.length === 0) {
+      issues.push({ type: "postgres_stats_missing" });
+    }
+
+    return {
+      ready: issues.length === 0,
+      reportPath: path.relative(root, reportPath).replaceAll(path.sep, "/"),
+      comparePolicy: report.comparePolicy,
+      targetMode: report.postgresTargetGuard?.mode ?? null,
+      issues
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      reportPath: path.relative(root, reportPath).replaceAll(path.sep, "/"),
+      issues: [{ type: "invalid_postgres_shadow_report", message: error instanceof Error ? error.message : String(error) }]
+    };
+  }
 }
 
 function classify(task) {
@@ -119,6 +155,9 @@ function classify(task) {
 }
 
 function classifyReadinessTask(task) {
+  if (/DEV-PDM-ERP-GOOGLE-CLOUDSQL-001|live platform and release readiness|credentialled isolated staging/i.test(task)) {
+    return "release_readiness_gate";
+  }
   if (/DEV-IND-007|Supabase|Postgres\/Supabase shadow|Postgres shadow/i.test(task)) {
     return "external_supabase_shadow";
   }
@@ -152,6 +191,17 @@ function readinessStatusFromToken(token) {
   if (token === "/") return "partial";
   if (token === "!") return "blocked";
   return "open";
+}
+
+function stripInlineCode(value) {
+  return value.replace(/^`|`$/g, "");
+}
+
+function externalBlockerPriority(id) {
+  if (id === "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001") return "P0";
+  if (id === "DEV-FIELD-001") return "P1";
+  if (id === "DEV-IND-007") return "P0";
+  return null;
 }
 
 function parseLegacyReadinessTask(line, index) {
@@ -207,13 +257,54 @@ function parseIndustrializationOverviewTask(line, index) {
   };
 }
 
+function parseParkedExternalBlockerTask(line, index) {
+  if (!line.trim().startsWith("|")) return null;
+
+  const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+  if (cells.length < 4) return null;
+
+  const statusMatch = cells[0].match(/^\[(x| |\/|!)\]$/);
+  if (!statusMatch) return null;
+
+  const id = stripInlineCode(cells[1] ?? "");
+  const priority = externalBlockerPriority(id);
+  if (!priority) return null;
+
+  const task = [id, cells[2] ?? "", cells[3] ?? ""].filter(Boolean).join(" | ");
+  return {
+    line: index + 1,
+    priority,
+    status: readinessStatusFromToken(statusMatch[1]),
+    task,
+    category: classifyReadinessTask(task)
+  };
+}
+
 function parseReadinessTasks(markdown) {
   const tasks = [];
   let currentPriority = null;
   let inIndustrializationBacklog = false;
   let inIndustrializationOverview = false;
+  let inParkedExternalBlockers = false;
+  const parkedExternalHeadingPattern = /^##\s+3\.\s+(?:Parked Scope And External Blockers|External Blockers\s*\/\s*Parked Scope)\b/i;
 
   markdown.split(/\r?\n/).forEach((line, index) => {
+    if (parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = true;
+      currentPriority = null;
+      return;
+    }
+
+    if (inParkedExternalBlockers && /^##\s+/i.test(line) && !parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = false;
+    }
+
+    if (inParkedExternalBlockers) {
+      const parkedTask = parseParkedExternalBlockerTask(line, index);
+      if (parkedTask) tasks.push(parkedTask);
+      return;
+    }
+
     if (/^#\s+Industrialization Optimization Backlog\b/i.test(line)) {
       inIndustrializationBacklog = true;
       inIndustrializationOverview = false;
@@ -252,16 +343,16 @@ function parseReadinessTasks(markdown) {
   return tasks;
 }
 
-if (!fs.existsSync(taskPath)) {
-  console.error(`Task file not found: ${path.relative(root, taskPath)}`);
+if (!projectFileExists(root, taskRelativePath)) {
+  console.error(`Task file not found: ${taskRelativePath}`);
   process.exit(1);
 }
 
-const tasks = parseReadinessTasks(fs.readFileSync(taskPath, "utf8"));
+const tasks = parseReadinessTasks(readProjectFile(root, taskRelativePath));
 const solidWorksEvidence = getSolidWorksReportEvidence();
 const restoreDrillEvidence = getRestoreDrillReportEvidence(root);
 const documentManagerEvidence = getDocumentManagerReportEvidence();
-const fieldTestEvidence = getFieldTestEvidence(solidWorksEvidence, restoreDrillEvidence, documentManagerEvidence);
+const fieldTestEvidence = getFieldTestEvidence();
 const supabaseShadowEvidence = getSupabaseShadowEvidence();
 const defectEvidence = evaluateDefectRegister(root);
 const blockers = tasks
@@ -300,7 +391,7 @@ const byCategory = blockers.reduce((acc, blocker) => {
 const report = {
   ready: blockers.length === 0,
   allowOpen,
-  taskFile: path.relative(root, taskPath).replaceAll(path.sep, "/"),
+  taskFile: taskRelativePath.replaceAll(path.sep, "/"),
   summary: {
     trackedTasks: tasks.length,
     blockers: blockers.length,

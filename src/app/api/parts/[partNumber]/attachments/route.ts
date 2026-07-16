@@ -1,25 +1,36 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachment, listMasterAttachments } from "@/lib/db";
+import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
+const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireNumberingPage(request, "numbering.search");
+  const auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
-  const result = listMasterAttachments({
+  const surface = new URL(request.url).searchParams.get("surface");
+  if (surface === "deleted_data") {
+    const result = await listDeletedMasterAttachmentsAsync({
+      entityType: "part_number",
+      entityCode: decodeURIComponent(partNumber)
+    });
+    if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" }, { headers: noStoreHeaders });
+  }
+
+  const result = await listMasterAttachmentsAsync({
     entityType: "part_number",
     entityCode: decodeURIComponent(partNumber)
   });
   if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ entity: result.entity, attachments: result.attachments });
+  return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = requireNumberingAction(request, "numbering.attachments.manage");
+  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
@@ -30,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
   }
 
   try {
-    const attachment = await createMasterAttachment({
+    const attachment = await createMasterAttachmentAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       file,

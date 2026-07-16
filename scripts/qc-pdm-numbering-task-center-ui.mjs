@@ -2,11 +2,11 @@
 
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-task-center-ui" });
 const unique = Date.now().toString();
 const taskId = `qc-task-center-${unique}`;
 const infoNotificationId = `qc-notice-info-${unique}`;

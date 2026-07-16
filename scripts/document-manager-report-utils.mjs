@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { getReportRoot } from "./pdm-paths.mjs";
 
@@ -165,26 +165,26 @@ export function buildReportMarkdown(input) {
 
 export function findLatestReport(root) {
   const reportRoot = getReportRoot(root, "document-manager-reports");
-  if (!fs.existsSync(reportRoot)) return null;
+  if (!existsSync(reportRoot)) return null;
 
   const reports = [];
-  for (const entry of fs.readdirSync(reportRoot, { withFileTypes: true })) {
+  for (const entry of readdirSync(reportRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const reportPath = path.join(reportRoot, entry.name, "report.json");
-    if (fs.existsSync(reportPath)) reports.push(reportPath);
+    if (existsSync(reportPath)) reports.push(reportPath);
   }
 
   return reports.sort().at(-1) ?? null;
 }
 
 export function readReport(reportPath) {
-  return JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  return JSON.parse(readFileSync(reportPath, "utf8"));
 }
 
 export function writeReport(reportPath, report) {
   const normalizedReport = normalizeReport(report);
-  fs.writeFileSync(reportPath, `${JSON.stringify(normalizedReport, null, 2)}\n`, "utf8");
-  fs.writeFileSync(reportPath.replace(/\.json$/u, ".md"), buildReportMarkdown(normalizedReport), "utf8");
+  writeFileSync(reportPath, `${JSON.stringify(normalizedReport, null, 2)}\n`, "utf8");
+  writeFileSync(reportPath.replace(/\.json$/u, ".md"), buildReportMarkdown(normalizedReport), "utf8");
 }
 
 export function validateReport(report) {
@@ -220,11 +220,11 @@ export function validateReport(report) {
   const probePath = String(report.environment?.extractorProbePath ?? "").trim();
   if (probePath) {
     const resolvedProbePath = path.isAbsolute(probePath) ? probePath : path.join(process.cwd(), probePath);
-    if (!fs.existsSync(resolvedProbePath)) {
+    if (!existsSync(resolvedProbePath)) {
       issues.push({ type: "probe_not_found", field: "environment.extractorProbePath", actual: probePath });
     } else {
       try {
-        const probe = JSON.parse(fs.readFileSync(resolvedProbePath, "utf8"));
+        const probe = JSON.parse(readFileSync(resolvedProbePath, "utf8"));
         if (probe.ready !== true) {
           issues.push({ type: "probe_not_ready", field: "environment.extractorProbePath", actual: probe.ready ?? null });
         }

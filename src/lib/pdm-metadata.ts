@@ -1,3 +1,6 @@
+﻿import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
+import { extractNativeCadMetadata } from "@/lib/pdm-metadata-adapter";
+
 export type PdmMetadata = {
   drawing_number: string;
   part_number: string;
@@ -61,6 +64,13 @@ const nativeSolidWorksExtensions = new Set(["sldprt", "sldasm", "slddrw"]);
 const propertyFileExtensions = new Set(["json", "txt", "properties", "csv"]);
 const submissionFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
 const maxPropertyFileBytes = 1024 * 1024;
+const primaryFilePriority: Record<string, number> = {
+  slddrw: 0,
+  sldasm: 1,
+  sldprt: 2,
+  pdf: 3,
+  dwg: 4
+};
 
 const aliases: Record<keyof PdmMetadata, string[]> = {
   product_line: ["product_line", "productline", "line", "product_family"],
@@ -68,31 +78,35 @@ const aliases: Record<keyof PdmMetadata, string[]> = {
   project_code: ["project_code", "project", "projectcode"],
   process_name: ["process_name", "process", "manufacturing_process"],
   machine: ["machine", "machine_type", "equipment"],
-  drawing_number: ["drawing_number", "drawingnumber", "drawing_no", "drawingno", "drawing", "dwg_no", "dwgno", "圖號"],
-  part_number: ["part_number", "partnumber", "part_no", "partno", "part", "料號"],
-  part_name: ["part_name", "partname", "name", "description", "品名"],
-  revision: ["revision", "rev", "版次"],
-  material: ["material", "材質"],
-  surface_finish: ["surface_finish", "surfacefinish", "finish", "surface", "表面處理"],
-  document_type: ["document_type", "documenttype", "type", "doctype", "doc_type", "文件類型"]
+  drawing_number: ["drawing_number", "drawingnumber", "drawing_no", "drawingno", "drawing", "dwg_no", "dwgno", "??"],
+  part_number: ["part_number", "partnumber", "part_no", "partno", "part", "??"],
+  part_name: ["part_name", "partname", "name", "description", "??"],
+  revision: ["revision", "rev", "?活"],
+  material: ["material", "?釭"],
+  surface_finish: ["surface_finish", "surfacefinish", "finish", "surface", "銵券??"],
+  document_type: ["document_type", "documenttype", "type", "doctype", "doc_type", "?辣憿?"]
 };
 
 export function isMetadataSidecarFilename(filename: string) {
   const ext = getFileExtension(filename);
   if (!propertyFileExtensions.has(ext)) return false;
   const base = filename.toLowerCase();
-  return base.includes("pdm") || base.includes("property") || base.includes("properties") || base.includes("屬性");
+  return base.includes("pdm") || base.includes("property") || base.includes("properties");
 }
 
-export async function detectPdmMetadata(files: File[]): Promise<PdmMetadataDetection> {
+export async function detectPdmMetadata(
+  files: File[],
+  options: { metadataExtractor?: ExtractorRuntimeProfile } = {}
+): Promise<PdmMetadataDetection> {
   const metadata: PdmMetadata = { ...EMPTY_METADATA };
   const sources: PdmMetadataSource[] = [];
   const warnings: string[] = [];
   const propertyFiles: string[] = [];
   const nativeMetadataFiles: string[] = [];
-  const uploadFiles = files.filter((file) => submissionFileExtensions.has(getFileExtension(file.name))).map((file) => file.name);
+  const submissionFiles = files.filter((file) => submissionFileExtensions.has(getFileExtension(file.name)));
+  const uploadFiles = submissionFiles.map((file) => file.name);
 
-  const nativeExtractions = await extractNativeCadMetadata(files);
+  const nativeExtractions = await extractNativeCadMetadata(files, { extractor: options.metadataExtractor });
   for (const extraction of nativeExtractions) {
     nativeMetadataFiles.push(extraction.source);
     warnings.push(...extraction.warnings);
@@ -113,7 +127,13 @@ export async function detectPdmMetadata(files: File[]): Promise<PdmMetadataDetec
     mergeMetadata(metadata, parsed, sources, file.name, "high");
   }
 
-  const primaryFile = files.find((file) => submissionFileExtensions.has(getFileExtension(file.name)));
+  const filenameHints = submissionFiles.map((file) => ({
+    filename: file.name,
+    metadata: inferMetadataFromFilename(file.name)
+  }));
+  warnings.push(...detectFilenameHintConflicts(filenameHints));
+
+  const primaryFile = selectPrimaryMetadataFile(submissionFiles);
   if (primaryFile) {
     mergeMetadata(metadata, inferMetadataFromFilename(primaryFile.name), sources, primaryFile.name, "low");
   }
@@ -244,6 +264,40 @@ function inferMetadataFromFilename(filename: string): Partial<PdmMetadata> {
   return inferred;
 }
 
+function selectPrimaryMetadataFile(files: File[]) {
+  return files
+    .map((file, index) => ({
+      file,
+      index,
+      priority: primaryFilePriority[getFileExtension(file.name)] ?? 99
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)[0]?.file;
+}
+
+function detectFilenameHintConflicts(hints: Array<{ filename: string; metadata: Partial<PdmMetadata> }>) {
+  const warnings: string[] = [];
+  const fields: Array<keyof PdmMetadata> = ["drawing_number", "part_number", "revision"];
+
+  for (const field of fields) {
+    const values = new Map<string, string[]>();
+    for (const hint of hints) {
+      const value = hint.metadata[field]?.trim();
+      if (!value) continue;
+      const key = value.toUpperCase();
+      values.set(key, [...(values.get(key) ?? []), hint.filename]);
+    }
+    if (values.size > 1) {
+      warnings.push(
+        `conflicting_filename_hint:${field}:${Array.from(values.entries())
+          .map(([value, filenames]) => `${value}=${filenames.join("|")}`)
+          .join(";")}`
+      );
+    }
+  }
+
+  return warnings;
+}
+
 function documentTypeFromExtension(ext: string) {
   if (ext === "sldprt") return "Part";
   if (ext === "sldasm") return "Assembly";
@@ -266,4 +320,3 @@ function normalizeKey(value: string) {
     .replace(/[()\[\]{}]/gu, "")
     .replace(/[\s_-]+/gu, "");
 }
-import { extractNativeCadMetadata } from "@/lib/pdm-metadata-adapter";

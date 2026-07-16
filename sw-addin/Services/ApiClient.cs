@@ -157,7 +157,8 @@ namespace AiPdmAddin.Services
                         var request = new LockPreflightRequest
                         {
                             DrawingNumber = drawingNumber,
-                            PartNumber = partNumber
+                            PartNumber = partNumber,
+                            PdmCompanyCode = GetMetadata(metadata, "pdm_company_code")
                         };
                         string json = JsonHelper.Serialize(request);
                         var content = new StringContent(json, Encoding.UTF8, "application/json");

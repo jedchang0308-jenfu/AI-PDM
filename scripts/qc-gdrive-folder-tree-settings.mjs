@@ -7,12 +7,14 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-gdrive-tree-"));
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const mockToken = "mock-drive-token";
 const results = [];
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 const folders = {
   "folder-ai-pdm": {
@@ -322,17 +324,23 @@ async function verifyUi(baseUrl) {
 }
 
 function staticChecks() {
-  const gdrive = fs.readFileSync(path.join(root, "src", "lib", "gdrive.ts"), "utf8");
-  const settingsRoute = fs.readFileSync(path.join(root, "src", "app", "api", "settings", "route.ts"), "utf8");
-  const foldersRoute = fs.readFileSync(path.join(root, "src", "app", "api", "settings", "gdrive", "folders", "route.ts"), "utf8");
-  const verifyRoute = fs.readFileSync(path.join(root, "src", "app", "api", "settings", "gdrive", "folders", "verify", "route.ts"), "utf8");
-  const settingsPage = fs.readFileSync(path.join(root, "src", "app", "settings", "page.tsx"), "utf8");
-  const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const gdrive = read("src/lib/gdrive.ts");
+  const settingsRoute = read("src/app/api/settings/route.ts");
+  const foldersRoute = read("src/app/api/settings/gdrive/folders/route.ts");
+  const verifyRoute = read("src/app/api/settings/gdrive/folders/verify/route.ts");
+  const settingsPage = read("src/app/settings/page.tsx");
+  const packageJson = read("package.json");
 
   record("gdrive.ts exposes folder list and verify functions", gdrive.includes("listDriveFolders") && gdrive.includes("verifyDriveFolder"));
   record("Folder list uses shared drive flags", gdrive.includes("supportsAllDrives") && gdrive.includes("includeItemsFromAllDrives"));
-  record("Folder list route is Admin-only", foldersRoute.includes('requireRole(request, ["Admin"])'));
-  record("Folder verify route is Admin-only", verifyRoute.includes('requireRole(request, ["Admin"])'));
+  record(
+    "Folder list route is Admin-only",
+    foldersRoute.includes('await requireRoleAsync(request, ["Admin"])') && !foldersRoute.includes("requireRole(request")
+  );
+  record(
+    "Folder verify route is Admin-only",
+    verifyRoute.includes('await requireRoleAsync(request, ["Admin"])') && !verifyRoute.includes("requireRole(request")
+  );
   record("Settings route stores folder metadata snapshots", settingsRoute.includes("gdrive_pending_folder_name") && settingsRoute.includes("gdrive_released_folder_verified_at"));
   record("Settings route supports verified-save mode", settingsRoute.includes("gdrive_require_verified"));
   record("Settings UI renders folder tree and manual fallback", settingsPage.includes("gdrive-folder-tree") && settingsPage.includes("進階：手動貼 Folder ID"));

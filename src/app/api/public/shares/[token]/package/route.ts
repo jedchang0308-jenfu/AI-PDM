@@ -1,19 +1,50 @@
 import { NextResponse } from "next/server";
-import { getPublicShare, recordPublicShareAccess } from "@/lib/readonly-share";
-import { contentDispositionFilename, readReleasePackage } from "@/lib/release-package-file";
+import { getPublicShareAsync, recordPublicShareAccessAsync } from "@/lib/readonly-share-async";
+import {
+  contentDispositionFilename,
+  createReleasePackageStorageServiceForRecord,
+  getReleasePackageStorageKey,
+  readReleasePackage
+} from "@/lib/release-package-file";
+import { auditStorageAccess, resolveStorageAccessAuditProvenance } from "@/lib/storage-access-audit";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const publicShare = getPublicShare(token);
+  const publicShare = await getPublicShareAsync(token);
   if (!publicShare || !publicShare.submission.release_package) {
     return NextResponse.json({ error: "找不到分享連結" }, { status: 404 });
   }
 
   try {
+    const storageKey = getReleasePackageStorageKey(publicShare.submission.release_package);
     const bytes = await readReleasePackage(publicShare.submission.release_package);
-    recordPublicShareAccess(publicShare.share.id, publicShare.submission.id);
+    const access = await createReleasePackageStorageServiceForRecord(publicShare.submission.release_package).createDownloadUrl({
+      key: storageKey,
+      filename: publicShare.submission.release_package.package_filename,
+      forceDownload: true,
+      purpose: "supplier_share"
+    });
+    await auditStorageAccess({
+      actorId: null,
+      submissionId: publicShare.submission.id,
+      accessKind: "public_share_package",
+      fileId: publicShare.submission.release_package.id,
+      shareId: publicShare.share.id,
+      filename: publicShare.submission.release_package.package_filename,
+      bytes: bytes.byteLength,
+      disposition: "attachment",
+      provider: access.provider,
+      storageKey,
+      bucket: access.bucket ?? null,
+      access,
+      route: "/api/public/shares/[token]/package",
+      externalAccess: true,
+      provenance: resolveStorageAccessAuditProvenance(request.headers)
+    });
+    await recordPublicShareAccessAsync(publicShare.share.id, publicShare.submission.id);
+
     return new Response(new Uint8Array(bytes), {
       headers: {
         "content-type": "application/zip",

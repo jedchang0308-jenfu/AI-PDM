@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { sha256File } from "./qc-file-hash-utils.mjs";
+import { projectPath, readProjectFile, readProjectFileIfExists, readProjectJson } from "./qc-project-file-utils.mjs";
 import { getPostgresShadowHandoffsDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
@@ -27,18 +28,6 @@ function findLatestHandoff() {
   return entries[0] ?? null;
 }
 
-function readText(filePath) {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-}
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
-}
-
 function assertFile(baseDir, relativePath, label = relativePath) {
   const filePath = path.join(baseDir, relativePath);
   record(`PG-HANDOFF file exists: ${label}`, fs.existsSync(filePath) && fs.statSync(filePath).isFile(), relative(filePath));
@@ -54,16 +43,16 @@ record("PG-HANDOFF-001 latest handoff package exists", Boolean(latest), latest ?
 if (latest) {
   const latestRelative = relative(latest);
   const manifestPath = path.join(latest, "postgres-shadow-handoff.json");
-  const manifest = fs.existsSync(manifestPath) ? readJson(manifestPath) : {};
-  const readme = readText(path.join(latest, "README.md"));
-  const advisorChecklist = readText(path.join(latest, "supabase-advisor-checklist.md"));
-  const qcChecklist = readText(path.join(latest, "qc-checklist.ps1"));
-  const preMigrationGuard = readText(path.join(latest, "commands", "01-pre-migration-guard.ps1"));
-  const applyMigration = readText(path.join(latest, "commands", "02-apply-migration.ps1"));
-  const compareShadow = readText(path.join(latest, "commands", "03-compare-shadow.ps1"));
-  const finalReadiness = readText(path.join(latest, "commands", "04-final-readiness.ps1"));
-  const rlsPlanCopy = readText(path.join(latest, "db", "postgres", "002_supabase_rls_plan.sql"));
-  const packageJson = JSON.parse(readText(path.join(root, "package.json")));
+  const manifest = fs.existsSync(manifestPath) ? readProjectJson(root, relative(manifestPath)) : {};
+  const readme = readProjectFileIfExists(root, relative(path.join(latest, "README.md")));
+  const advisorChecklist = readProjectFileIfExists(root, relative(path.join(latest, "supabase-advisor-checklist.md")));
+  const qcChecklist = readProjectFileIfExists(root, relative(path.join(latest, "qc-checklist.ps1")));
+  const preMigrationGuard = readProjectFileIfExists(root, relative(path.join(latest, "commands", "01-pre-migration-guard.ps1")));
+  const applyMigration = readProjectFileIfExists(root, relative(path.join(latest, "commands", "02-apply-migration.ps1")));
+  const compareShadow = readProjectFileIfExists(root, relative(path.join(latest, "commands", "03-compare-shadow.ps1")));
+  const finalReadiness = readProjectFileIfExists(root, relative(path.join(latest, "commands", "04-final-readiness.ps1")));
+  const rlsPlanCopy = readProjectFileIfExists(root, relative(path.join(latest, "db", "postgres", "002_supabase_rls_plan.sql")));
+  const packageJson = readProjectJson(root, "package.json");
 
   for (const filePath of [
     "postgres-shadow-handoff.json",
@@ -98,10 +87,15 @@ if (latest) {
     ["postgresRlsPlan", "db/postgres/002_supabase_rls_plan.sql"]
   ];
   for (const [key, sourceRelativePath] of sourceChecks) {
-    const sourcePath = path.join(root, sourceRelativePath);
+    const sourcePath = projectPath(root, sourceRelativePath);
     const copyPath = path.join(latest, manifest.sqlSources?.[key]?.copy ?? "");
-    record(`PG-HANDOFF source hash matches manifest: ${key}`, manifest.sqlSources?.[key]?.sha256 === sha256File(sourcePath), sourceRelativePath);
-    record(`PG-HANDOFF source copy hash matches source: ${key}`, fs.existsSync(copyPath) && sha256File(copyPath) === sha256File(sourcePath), relative(copyPath));
+    const sourceHash = await sha256File(sourcePath);
+    record(`PG-HANDOFF source hash matches manifest: ${key}`, manifest.sqlSources?.[key]?.sha256 === sourceHash, sourceRelativePath);
+    record(
+      `PG-HANDOFF source copy hash matches source: ${key}`,
+      fs.existsSync(copyPath) && (await sha256File(copyPath)) === sourceHash,
+      relative(copyPath)
+    );
   }
 
   assertTextIncludes("PG-HANDOFF README", readme, "disposable AI_PDM");
@@ -149,7 +143,7 @@ if (latest) {
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(entry.parentPath ?? latest, entry.name))
     .filter((filePath) => /\.(json|md|ps1|sql)$/iu.test(filePath))
-    .map((filePath) => [filePath, readText(filePath)]);
+    .map((filePath) => [filePath, readProjectFileIfExists(root, relative(filePath))]);
   const hardcodedUrls = packageTexts
     .flatMap(([filePath, content]) => [...content.matchAll(/postgres(?:ql)?:\/\/[^\s'"`]+/giu)].map((match) => `${relative(filePath)}:${match[0]}`));
   record("PG-HANDOFF package does not hardcode Postgres URLs", hardcodedUrls.length === 0, JSON.stringify(hardcodedUrls));
@@ -158,12 +152,11 @@ if (latest) {
   record("PG-HANDOFF QC script exists", packageJson.scripts?.["qc:postgres-shadow-handoff-package"] === "node scripts/qc-postgres-shadow-handoff-package.mjs", "package.json");
 
   for (const docPath of [
-    "docs/external-evidence-handoff-checklist-2026-05-27.md",
-    "docs/industrialization/external-validation-handoff-2026-05-28.md",
-    "docs/qc-active-goal-remaining-blockers-report-2026-06-02.md"
+    ".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md",
+    ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md",
+    ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md"
   ]) {
-    const absoluteDocPath = path.join(root, docPath);
-    const content = readText(absoluteDocPath);
+    const content = readProjectFile(root, docPath);
     const referencedHandoffs = [...content.matchAll(/data[\\/]+postgres-shadow-handoffs[\\/]+(\d{8}-\d{6})/gu)].map((match) => match[1]);
     const staleHandoffs = referencedHandoffs.filter((id) => id !== path.basename(latest));
     record(`PG-HANDOFF doc references latest package: ${docPath}`, content.includes(latestRelative), docPath);

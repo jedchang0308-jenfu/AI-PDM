@@ -1,3 +1,5 @@
+import { revisionValidationMessage, validateRevisionCode } from "@/lib/revision-policy";
+
 export type SubmissionInput = {
   drawingNumber: string;
   partNumber: string;
@@ -11,7 +13,9 @@ export type SubmissionInput = {
 };
 
 const weakDescriptions = new Set(["change", "update", "modify", "fix"]);
-const allowedFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
+const allowedFileExtensions = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "x_t"]);
+const directFileRoles = new Set(["sldprt", "sldasm", "slddrw", "pdf", "dwg"]);
+const intermediateFileExtensions = new Set(["step", "stp", "iges", "igs", "x_t"]);
 
 export function validateSubmissionInput(input: SubmissionInput) {
   const errors: string[] = [];
@@ -33,6 +37,9 @@ export function validateSubmissionInput(input: SubmissionInput) {
     }
   }
 
+  const revisionError = validateRevisionCode(input.revision, { required: false });
+  if (revisionError) errors.push(revisionValidationMessage(revisionError));
+
   const desc = input.changeDescription.trim();
   if (desc.length < 5 || desc.length > 100) {
     errors.push("變更原因需為 5 到 100 個字");
@@ -52,13 +59,15 @@ export function validateSubmissionInput(input: SubmissionInput) {
 
 export function normalizeFileRole(filename: string) {
   const ext = getFileExtension(filename);
-  if (ext && allowedFileExtensions.has(ext)) {
+  if (ext === "dxf") return "dwg";
+  if (ext && directFileRoles.has(ext)) {
     return ext;
   }
+  if (ext && intermediateFileExtensions.has(ext)) return "other";
   return "other";
 }
 
-export function validateUploadedFiles(files: File[], maxFileBytes: number) {
+export function validateUploadedFiles(files: File[], maxFileBytes: number, options: { allowOversizedFiles?: boolean } = {}) {
   const errors: string[] = [];
 
   for (const file of files) {
@@ -69,7 +78,7 @@ export function validateUploadedFiles(files: File[], maxFileBytes: number) {
     if (file.size <= 0) {
       errors.push(`檔案為空：${file.name}`);
     }
-    if (file.size > maxFileBytes) {
+    if (!options.allowOversizedFiles && file.size > maxFileBytes) {
       errors.push(`檔案超過 ${formatBytes(maxFileBytes)} 限制：${file.name}`);
     }
   }

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "region": "asia-east1",
+  "maxInstancesPerRevision": 5,
+  "maximumConcurrentRevisions": 2,
+  "effectiveMaximumInstances": 10,
+  "containerConcurrency": 20,
+  "poolMax": 5,
+  "migrationAdminReserve": 2,
+  "maxConnections": 100,
+  "minimumReserveRatio": 0.3,
+  "connectionTimeoutMs": 10000,
+  "idleTimeoutMs": 600000,
+  "statementTimeoutMs": 30000,
+  "queryTimeoutMs": 35000,
+  "saturationResponse": "fail-fast-503-with-retry-after",
+  "formula": "effectiveMaximumInstances * poolMax + migrationAdminReserve <= floor(maxConnections * (1 - minimumReserveRatio))"
+}

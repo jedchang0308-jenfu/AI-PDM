@@ -1,0 +1,40 @@
+{
+  "mode": "check",
+  "generatedAt": "2026-07-07T05:39:40.195Z",
+  "dbPath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+  "backupPath": null,
+  "summary": {
+    "roots": 0,
+    "parts": 0,
+    "drawings": 0,
+    "proposed": 0,
+    "unchanged": 0,
+    "blocked": 0
+  },
+  "rootMappings": [],
+  "partMappings": [],
+  "drawingMappings": [],
+  "blockers": [],
+  "updatedRows": [],
+  "status": {
+    "activeRules": [
+      {
+        "id": "numbering-rule-v1",
+        "status": "retired",
+        "retired_at": "2026-07-07T05:24:03.010Z"
+      },
+      {
+        "id": "numbering-rule-v2",
+        "status": "active",
+        "retired_at": null
+      }
+    ],
+    "masterCounts": {
+      "v1Roots": 0,
+      "v1Parts": 0,
+      "v1Drawings": 0
+    },
+    "retained": []
+  },
+  "retainedHistoricalEvidencePolicy": "Release packages, audit logs, attachment file names, derivative paths and physical repository paths are intentionally retained as historical evidence. Current master identities and operational lookup fields are cut over to v2."
+}

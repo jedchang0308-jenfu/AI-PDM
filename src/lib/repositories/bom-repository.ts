@@ -1410,7 +1410,7 @@ export function getBomWorkbenchDraftById(draftId: string): BomWorkbenchDraftDeta
     )
     .all(draftId) as BomWorkbenchLine[];
 
-  return { ...draft, lines };
+  return { ...draft, lines, reconfirmation_flags: [] };
 }
 
 export function getBomImportJobById(importJobId: string): BomImportJob | null {

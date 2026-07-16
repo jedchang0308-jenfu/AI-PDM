@@ -1,0 +1,417 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - img [ref=f3e6]
+        - generic [ref=f3e16]: AI PDM
+        - button "收合左側導覽" [ref=f3e17] [cursor=pointer]:
+          - img [ref=f3e18]
+      - navigation "主導覽" [ref=f3e20]:
+        - generic [ref=f3e21]:
+          - generic [ref=f3e22]: 工作台
+          - generic [ref=f3e23]:
+            - link "工作台" [ref=f3e24] [cursor=pointer]:
+              - /url: /
+              - img [ref=f3e25]
+              - generic [ref=f3e29]: 工作台
+            - link "我的待辦" [ref=f3e30] [cursor=pointer]:
+              - /url: /numbering/tasks
+              - img [ref=f3e31]
+              - generic [ref=f3e34]: 我的待辦
+        - generic [ref=f3e35]:
+          - generic [ref=f3e36]: 專案 / 圖料
+          - generic [ref=f3e37]:
+            - link "圖料模組" [ref=f3e38] [cursor=pointer]:
+              - /url: /numbering/search
+              - img [ref=f3e39]
+              - generic [ref=f3e42]: 圖料模組
+            - link "圖號模組" [ref=f3e43] [cursor=pointer]:
+              - /url: /numbering/drawings
+              - img [ref=f3e44]
+              - generic [ref=f3e47]: 圖號模組
+            - link "料號模組" [ref=f3e48] [cursor=pointer]:
+              - /url: /parts
+              - img [ref=f3e49]
+              - generic [ref=f3e55]: 料號模組
+            - link "料號草稿" [ref=f3e56] [cursor=pointer]:
+              - /url: /numbering/part-drafts
+              - img [ref=f3e57]
+              - generic [ref=f3e60]: 料號草稿
+            - link "上傳送審" [ref=f3e61] [cursor=pointer]:
+              - /url: /upload
+              - img [ref=f3e62]
+              - generic [ref=f3e65]: 上傳送審
+            - link "領號申請" [ref=f3e66] [cursor=pointer]:
+              - /url: /numbering/request
+              - img [ref=f3e67]
+              - generic [ref=f3e70]: 領號申請
+            - link "圖號總表匯入" [ref=f3e71] [cursor=pointer]:
+              - /url: /numbering/imports
+              - img [ref=f3e72]
+              - generic [ref=f3e76]: 圖號總表匯入
+        - generic [ref=f3e77]:
+          - generic [ref=f3e78]: BOM
+          - generic [ref=f3e79]:
+            - link "BOM 工作台" [ref=f3e80] [cursor=pointer]:
+              - /url: /bom/workbench
+              - img [ref=f3e81]
+              - generic [ref=f3e84]: BOM 工作台
+            - link "BOM 審核" [ref=f3e85] [cursor=pointer]:
+              - /url: /bom/reviews
+              - img [ref=f3e86]
+              - generic [ref=f3e90]: BOM 審核
+        - generic [ref=f3e91]:
+          - generic [ref=f3e92]: 變更 / 審核
+          - generic [ref=f3e93]:
+            - link "圖面進版" [ref=f3e94] [cursor=pointer]:
+              - /url: /numbering/revisions
+              - img [ref=f3e95]
+              - generic [ref=f3e100]: 圖面進版
+            - link "DVT 晉升" [ref=f3e101] [cursor=pointer]:
+              - /url: /numbering/dvt
+              - img [ref=f3e102]
+              - generic [ref=f3e107]: DVT 晉升
+            - link "發行審核" [ref=f3e108] [cursor=pointer]:
+              - /url: /numbering/approvals
+              - img [ref=f3e109]
+              - generic [ref=f3e113]: 發行審核
+            - link "變更審核" [ref=f3e114] [cursor=pointer]:
+              - /url: /numbering/change-reviews
+              - img [ref=f3e115]
+              - generic [ref=f3e119]: 變更審核
+            - link "MA 影響分析" [ref=f3e120] [cursor=pointer]:
+              - /url: /numbering/impact
+              - img [ref=f3e121]
+              - generic [ref=f3e123]: MA 影響分析
+        - generic [ref=f3e124]:
+          - generic [ref=f3e125]: 發行 / 交接
+          - generic [ref=f3e126]:
+            - link "製造交接" [ref=f3e127] [cursor=pointer]:
+              - /url: /handoff
+              - img [ref=f3e128]
+              - generic [ref=f3e130]: 製造交接
+            - link "圖號報表" [ref=f3e131] [cursor=pointer]:
+              - /url: /numbering/reports
+              - img [ref=f3e132]
+              - generic [ref=f3e135]: 圖號報表
+        - generic [ref=f3e136]:
+          - generic [ref=f3e137]: 管理
+          - generic [ref=f3e138]:
+            - link "系統設定" [ref=f3e139] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=f3e140]
+              - generic [ref=f3e143]: 系統設定
+            - link "登入" [ref=f3e144] [cursor=pointer]:
+              - /url: /login
+              - img [ref=f3e145]
+              - generic [ref=f3e148]: 登入
+    - main [ref=f3e149]:
+      - generic [ref=f3e150]:
+        - heading "圖號模組" [level=1] [ref=f3e152]
+        - button "重新整理" [ref=f3e153] [cursor=pointer]:
+          - img [ref=f3e154]
+          - text: 重新整理
+      - generic [ref=f3e159]:
+        - generic [ref=f3e160]:
+          - generic [ref=f3e162]:
+            - heading "圖號主資料" [level=2] [ref=f3e163]
+            - generic "compact summary" [ref=f3e164]:
+              - generic [ref=f3e165]:
+                - strong [ref=f3e166]: "2"
+                - generic [ref=f3e167]: 總筆數
+              - generic [ref=f3e168]:
+                - strong [ref=f3e169]: "2"
+                - generic [ref=f3e170]: MA
+              - generic [ref=f3e171]:
+                - strong [ref=f3e172]: "0"
+                - generic [ref=f3e173]: OT
+              - generic [ref=f3e174]:
+                - strong [ref=f3e175]: "2"
+                - generic [ref=f3e176]: 已關聯
+              - generic [ref=f3e177]:
+                - strong [ref=f3e178]: "0"
+                - generic [ref=f3e179]: 提醒
+          - generic [ref=f3e180]:
+            - generic [ref=f3e181]:
+              - generic [ref=f3e182]: 關鍵字
+              - textbox "關鍵字" [ref=f3e183]:
+                - /placeholder: 圖號 / 料號 / 文件用途
+            - generic [ref=f3e184]:
+              - generic [ref=f3e185]: 用途
+              - combobox "用途" [ref=f3e186]:
+                - option "全部" [selected]
+                - option "MA"
+                - option "OT"
+            - generic [ref=f3e187]:
+              - generic [ref=f3e188]: 狀態
+              - combobox "狀態" [ref=f3e189]:
+                - option "全部" [selected]
+                - option "草稿"
+                - option "可作業"
+                - option "審核中"
+                - option "已發布"
+                - option "已作廢"
+                - option "主圖失效"
+            - generic [ref=f3e190]:
+              - generic [ref=f3e191]: 階段
+              - combobox "階段" [ref=f3e192]:
+                - option "全部" [selected]
+                - option "EVT 工程樣"
+                - option "DVT 設計驗證"
+                - option "PVT 試產"
+                - option "正式階段"
+                - option "ECR 設變"
+            - button "查詢" [ref=f3e193] [cursor=pointer]:
+              - img [ref=f3e194]
+              - text: 查詢
+        - generic [ref=f3e198]:
+          - heading "圖號清單" [level=2] [ref=f3e201]
+          - region "圖號清單" [ref=f3e202]:
+            - table [ref=f3e203]:
+              - rowgroup [ref=f3e209]:
+                - row "圖號 品名 料號 其他 查看狀態說明" [ref=f3e210]:
+                  - columnheader "圖號" [ref=f3e211]
+                  - columnheader "品名" [ref=f3e212]
+                  - columnheader "料號" [ref=f3e213]
+                  - columnheader "其他 查看狀態說明" [ref=f3e214]:
+                    - generic [ref=f3e215]:
+                      - generic [ref=f3e216]: 其他
+                      - button "查看狀態說明" [ref=f3e218] [cursor=pointer]: "?"
+              - rowgroup [ref=f3e219]:
+                - row "D-0007-MA1 MA 製造圖 馬達 P-0007-001 MA 製造圖 / 主圖 已發布 正式階段" [selected] [ref=f3e220] [cursor=pointer]:
+                  - cell "D-0007-MA1 MA 製造圖" [ref=f3e221]:
+                    - button "D-0007-MA1" [ref=f3e222]
+                    - generic [ref=f3e223]: MA 製造圖
+                  - cell "馬達" [ref=f3e224]:
+                    - generic [ref=f3e225]: 馬達
+                  - cell "P-0007-001" [ref=f3e226]:
+                    - generic [ref=f3e228]: P-0007-001
+                  - cell "MA 製造圖 / 主圖 已發布 正式階段" [ref=f3e229]:
+                    - generic [ref=f3e230]:
+                      - generic [ref=f3e231]: MA 製造圖 / 主圖
+                      - generic [ref=f3e232]: 已發布
+                      - generic [ref=f3e233]: 正式階段
+                - row "D-0014-MA1 MA 製造圖 馬達 P-0014-001 MA 製造圖 / 主圖 審核中 DVT 設計驗證" [ref=f3e234] [cursor=pointer]:
+                  - cell "D-0014-MA1 MA 製造圖" [ref=f3e235]:
+                    - button "D-0014-MA1" [ref=f3e236]
+                    - generic [ref=f3e237]: MA 製造圖
+                  - cell "馬達" [ref=f3e238]:
+                    - generic [ref=f3e239]: 馬達
+                  - cell "P-0014-001" [ref=f3e240]:
+                    - generic [ref=f3e242]: P-0014-001
+                  - cell "MA 製造圖 / 主圖 審核中 DVT 設計驗證" [ref=f3e243]:
+                    - generic [ref=f3e244]:
+                      - generic [ref=f3e245]: MA 製造圖 / 主圖
+                      - generic [ref=f3e246]: 審核中
+                      - generic [ref=f3e247]: DVT 設計驗證
+        - dialog "圖號治理明細" [ref=f3e249]:
+          - button "調整圖號明細寬度" [ref=f3e250]
+          - generic [ref=f3e251]:
+            - generic [ref=f3e252]:
+              - generic [ref=f3e253]:
+                - heading "D-0007-MA1" [level=2] [ref=f3e255]
+                - generic [ref=f3e256]:
+                  - generic [ref=f3e257]: MA 製造圖 / 主圖
+                  - button "關閉圖號明細" [ref=f3e258] [cursor=pointer]:
+                    - img [ref=f3e259]
+              - generic [ref=f3e262]:
+                - generic [ref=f3e263]:
+                  - img [ref=f3e265]
+                  - strong [ref=f3e269]: 狀態階段
+                  - paragraph [ref=f3e270]: 已發布 / 正式階段
+                - generic [ref=f3e271]:
+                  - img [ref=f3e273]
+                  - strong [ref=f3e276]: 文件用途
+                  - paragraph [ref=f3e277]: MA 製造圖 / 主圖
+                - generic [ref=f3e278]:
+                  - img [ref=f3e280]
+                  - strong [ref=f3e283]: 關聯料號
+                  - paragraph [ref=f3e284]: P-0007-001
+                - generic [ref=f3e285]:
+                  - img [ref=f3e287]
+                  - strong [ref=f3e291]: 規則版本
+                  - paragraph [ref=f3e292]: numbering-rule-v1
+            - generic [ref=f3e293]:
+              - heading "同主根號料號" [level=2] [ref=f3e296]
+              - article [ref=f3e298]:
+                - generic [ref=f3e299]:
+                  - generic [ref=f3e300]:
+                    - strong [ref=f3e301]: P-0007-001
+                    - paragraph [ref=f3e302]: 馬達_JF_2HP_A
+                  - button "編輯主資料" [ref=f3e303] [cursor=pointer]
+                - generic [ref=f3e304]:
+                  - generic [ref=f3e305]: 已發布
+                  - generic [ref=f3e306]: 標準成本未設定
+                - generic [ref=f3e307]:
+                  - generic [ref=f3e308]:
+                    - img [ref=f3e310]
+                    - strong [ref=f3e313]: 材質
+                    - paragraph [ref=f3e314]: SUS304
+                  - generic [ref=f3e315]:
+                    - img [ref=f3e317]
+                    - strong [ref=f3e320]: 顏色
+                    - paragraph [ref=f3e321]: 黑
+                  - generic [ref=f3e322]:
+                    - img [ref=f3e324]
+                    - strong [ref=f3e328]: 變體
+                    - paragraph [ref=f3e329]: 無
+                  - generic [ref=f3e330]:
+                    - img [ref=f3e332]
+                    - strong [ref=f3e335]: Primary MA
+                    - paragraph [ref=f3e336]: D-0007-MA1
+            - generic [ref=f3e337]:
+              - generic [ref=f3e338]:
+                - heading "圖號附件庫" [level=2] [ref=f3e340]
+                - button "重新整理" [ref=f3e341] [cursor=pointer]:
+                  - img [ref=f3e342]
+                  - text: 重新整理
+              - generic [ref=f3e347]:
+                - generic [ref=f3e348]:
+                  - text: 類別
+                  - combobox "類別" [ref=f3e349]:
+                    - option "3D CAD" [selected]
+                    - option "2D 圖面"
+                    - option "DWG/DXF"
+                    - option "PDF"
+                    - option "其他"
+                - generic [ref=f3e350]:
+                  - text: 版次
+                  - textbox "版次 系統預設大版次 1，可依圖紙修訂欄編輯；不要加 V。" [ref=f3e351]:
+                    - /placeholder: "1"
+                    - text: "1"
+                  - generic [ref=f3e352]: 系統預設大版次 1，可依圖紙修訂欄編輯；不要加 V。
+                - generic [ref=f3e353]:
+                  - text: 顯示名稱
+                  - textbox "顯示名稱" [ref=f3e354]:
+                    - /placeholder: 未填則使用檔名
+                - generic [ref=f3e355]:
+                  - text: 說明
+                  - textbox "說明" [ref=f3e356]:
+                    - /placeholder: 用途、來源或注意事項
+                - generic [ref=f3e358] [cursor=pointer]:
+                  - img [ref=f3e360]
+                  - generic [ref=f3e363]:
+                    - strong [ref=f3e364]: 拖曳或選擇附件
+                    - generic [ref=f3e365]: 一次上傳一個圖號/料號附件
+                  - button "拖曳或選擇附件 一次上傳一個圖號/料號附件"
+                - button "上傳附件" [disabled] [ref=f3e366]:
+                  - img [ref=f3e367]
+                  - text: 上傳附件
+              - generic "SolidWorks 3D preview fallback" [ref=f3e370]:
+                - generic [ref=f3e371]:
+                  - img [ref=f3e372]
+                  - generic [ref=f3e375]: 3D Preview
+                - generic [ref=f3e376]:
+                  - strong [ref=f3e377]: SolidWorks 3D 預覽
+                  - paragraph [ref=f3e378]: 預覽只採正式發布附件；送審中附件仍可下載比對，但不視為正式發布圖檔。
+                  - generic [ref=f3e380]: D-0007-MA1.SLDDRW
+              - generic [ref=f3e382]:
+                - generic [ref=f3e383]:
+                  - generic [ref=f3e384]:
+                    - heading "目前正式版 0.3" [level=3] [ref=f3e385]
+                    - paragraph [ref=f3e386]: 第一層只列現在可作為正式依據的附件。
+                  - strong [ref=f3e387]: 1 個
+                - article [ref=f3e389]:
+                  - img [ref=f3e391]
+                  - generic [ref=f3e394]:
+                    - generic [ref=f3e395]:
+                      - strong [ref=f3e396]: D-0007-MA1.SLDDRW
+                      - generic [ref=f3e397]: 正式附件
+                      - generic [ref=f3e398]: 本機保存
+                    - generic [ref=f3e399]:
+                      - generic [ref=f3e400]: 2D 圖面
+                      - generic [ref=f3e401]: 版次 0.3
+                      - generic [ref=f3e402]: SLDDRW
+                      - generic [ref=f3e403]: 89 KB
+                      - generic [ref=f3e404]: 2026/7/5 17:46:36
+                    - paragraph [ref=f3e405]: 從圖面進版工作台補上新版圖面附件。
+                    - paragraph [ref=f3e406]:
+                      - text: 已由送審 SUB-20260705-2894D3C2（版次 0.3）正式發布。
+                      - link "查看送審" [ref=f3e407] [cursor=pointer]:
+                        - /url: /submissions/SUB-20260705-2894D3C2
+                  - generic [ref=f3e408]:
+                    - link "下載附件" [ref=f3e409] [cursor=pointer]:
+                      - /url: /api/numbering/drawings/D-0007-MA1/attachments/7e858699-6bb2-4578-9b34-2ae36c9b50cd
+                      - img [ref=f3e410]
+                    - button "重新同步 Google Drive" [ref=f3e413] [cursor=pointer]:
+                      - img [ref=f3e414]
+                    - button "刪除附件" [ref=f3e419] [cursor=pointer]:
+                      - img [ref=f3e420]
+              - group [ref=f3e423]:
+                - generic "歷史版本 2 個" [active] [ref=f3e424] [cursor=pointer]:
+                  - generic [ref=f3e425]:
+                    - img [ref=f3e426]
+                    - text: 歷史版本
+                  - strong [ref=f3e430]: 2 個
+                - generic [ref=f3e448]:
+                  - paragraph [ref=f3e449]: 舊版附件只供追溯與比對，不應作為目前製造、採購或對外分享的正式圖檔。
+                  - generic [ref=f3e450]:
+                    - article [ref=f3e451]:
+                      - img [ref=f3e453]
+                      - generic [ref=f3e456]:
+                        - generic [ref=f3e457]:
+                          - strong [ref=f3e458]: D-0007-MA1.SLDPRT
+                          - generic [ref=f3e459]: 歷史附件
+                          - generic [ref=f3e460]: 本機保存
+                        - generic [ref=f3e461]:
+                          - generic [ref=f3e462]: 2D 圖面
+                          - generic [ref=f3e463]: 版次 0.2
+                          - generic [ref=f3e464]: SLDPRT
+                          - generic [ref=f3e465]: 142 KB
+                          - generic [ref=f3e466]: 2026/7/5 16:52:37
+                        - paragraph [ref=f3e467]: 從圖面進版工作台補上新版圖面附件。
+                        - paragraph [ref=f3e468]:
+                          - text: 送審 SUB-20260705-049583DD 已被新版取代，僅供追溯。
+                          - link "查看送審" [ref=f3e469] [cursor=pointer]:
+                            - /url: /submissions/SUB-20260705-049583DD
+                      - generic [ref=f3e470]:
+                        - link "下載附件" [ref=f3e471] [cursor=pointer]:
+                          - /url: /api/numbering/drawings/D-0007-MA1/attachments/d46fdfea-0d76-4f43-ae8d-72aa88eda051
+                          - img [ref=f3e472]
+                        - button "重新同步 Google Drive" [ref=f3e475] [cursor=pointer]:
+                          - img [ref=f3e476]
+                        - button "刪除附件" [ref=f3e481] [cursor=pointer]:
+                          - img [ref=f3e482]
+                    - article [ref=f3e485]:
+                      - img [ref=f3e487]
+                      - generic [ref=f3e490]:
+                        - generic [ref=f3e491]:
+                          - strong [ref=f3e492]: D-0007-MA1.SLDDRW
+                          - generic [ref=f3e493]: 歷史附件
+                          - generic [ref=f3e494]: 本機保存
+                        - generic [ref=f3e495]:
+                          - generic [ref=f3e496]: 3D CAD
+                          - generic [ref=f3e497]: 版次 0.1
+                          - generic [ref=f3e498]: SLDDRW
+                          - generic [ref=f3e499]: 89 KB
+                          - generic [ref=f3e500]: 2026/7/3 08:57:38
+                        - paragraph [ref=f3e501]:
+                          - text: 送審 SUB-20260703-52655307 已被新版取代，僅供追溯。
+                          - link "查看送審" [ref=f3e502] [cursor=pointer]:
+                            - /url: /submissions/SUB-20260703-52655307
+                      - generic [ref=f3e503]:
+                        - link "下載附件" [ref=f3e504] [cursor=pointer]:
+                          - /url: /api/numbering/drawings/D-0007-MA1/attachments/54b5da9c-d64c-4a26-877d-e5ba5db33d3a
+                          - img [ref=f3e505]
+                        - button "重新同步 Google Drive" [ref=f3e508] [cursor=pointer]:
+                          - img [ref=f3e509]
+                        - button "刪除附件" [ref=f3e514] [cursor=pointer]:
+                          - img [ref=f3e515]
+              - group [ref=f3e431]:
+                - generic "已刪除資料 未載入" [ref=f3e432] [cursor=pointer]:
+                  - generic [ref=f3e433]:
+                    - img [ref=f3e434]
+                    - text: 已刪除資料
+                  - strong [ref=f3e438]: 未載入
+            - generic [ref=f3e439]:
+              - heading "圖號治理" [level=2] [ref=f3e442]
+              - generic [ref=f3e443]:
+                - link "開啟圖料追溯" [ref=f3e444] [cursor=pointer]:
+                  - /url: /numbering/search?query=D-0007-MA1&entityType=drawing_number
+                - link "檢查 MA 影響文件" [ref=f3e445] [cursor=pointer]:
+                  - /url: /numbering/impact?drawingNumber=D-0007-MA1
+                - link "進版" [ref=f3e446] [cursor=pointer]:
+                  - /url: /numbering/revisions?drawingNumber=D-0007-MA1
+                - link "送審" [ref=f3e447] [cursor=pointer]:
+                  - /url: /drawings/D-0007-MA1/submission-workbench
+  - alert [ref=f3e248]

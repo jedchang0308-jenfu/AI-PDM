@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth, requireRole } from "@/lib/auth";
-import { canReadSubmission } from "@/lib/permissions";
-import { getSubmission, initializePhaseGateChecks, listPhaseGateChecks } from "@/lib/db";
+import { forbidden, requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { initializePhaseGateChecksAsync, listPhaseGateChecksAsync } from "@/lib/collaboration-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
+import type { PhaseGateCheck } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const checks = listPhaseGateChecks(id);
+  const checks = await listPhaseGateChecksAsync(id);
   return NextResponse.json({
     checks,
     summary: buildPhaseGateSummary(checks)
@@ -22,15 +24,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireRole(request, ["R&D Manager", "Admin"]);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
-  const result = initializePhaseGateChecks({ submissionId: id, createdBy: auth.user.id });
+  const result = await initializePhaseGateChecksAsync({ submissionId: id, createdBy: auth.user.id });
   return NextResponse.json(
     {
       checks: result.checks,
@@ -41,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   );
 }
 
-function buildPhaseGateSummary(checks: ReturnType<typeof listPhaseGateChecks>) {
+function buildPhaseGateSummary(checks: PhaseGateCheck[]) {
   const required = checks.filter((check) => check.required === 1);
   const openRequired = required.filter((check) => check.status === "open");
   return {

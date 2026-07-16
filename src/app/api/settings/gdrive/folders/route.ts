@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireRoleAsync } from "@/lib/auth-async";
 import { listDriveFolders } from "@/lib/gdrive";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireRole(request, ["Admin"]);
+  const auth = await requireRoleAsync(request, ["Admin"]);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);

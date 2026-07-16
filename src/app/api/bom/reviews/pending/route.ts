@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { listPendingBomWorkbenchReviews } from "@/lib/db";
+import { requireRoleAsync } from "@/lib/auth-async";
+import { listPendingBomWorkbenchReviewsAsync } from "@/lib/bom-workbench-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (auth.user.role !== "R&D Manager" && auth.user.role !== "Admin") return forbidden();
 
-  return NextResponse.json({ reviews: listPendingBomWorkbenchReviews() });
+  return NextResponse.json({ reviews: await listPendingBomWorkbenchReviewsAsync() });
 }

@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export const REQUIRED_DECISION_IDS = [
@@ -24,7 +24,7 @@ export function createBlankPolicyConfirmation(date = new Date()) {
   return {
     schemaVersion: "1.0",
     releaseTarget: "AI PDM MVP production readiness",
-    policyDocument: "docs/pdm-management-policy-draft.md",
+    policyDocument: ".ai-doc/reference/pdm-management-policy-draft.md",
     policyVersion: "draft-2026-05-25",
     status: "pending",
     updatedAt,
@@ -119,7 +119,7 @@ export function createBlankPolicyConfirmation(date = new Date()) {
 }
 
 export function readPolicyConfirmation(confirmationPath = getPolicyConfirmationPath()) {
-  return JSON.parse(fs.readFileSync(confirmationPath, "utf8"));
+  return JSON.parse(readFileSync(confirmationPath, "utf8"));
 }
 
 function isFilled(value) {
@@ -157,7 +157,7 @@ export function validatePolicyConfirmation(confirmation, root = process.cwd()) {
 
   if (isFilled(confirmation.policyDocument)) {
     const policyPath = path.join(root, confirmation.policyDocument);
-    if (!fs.existsSync(policyPath)) {
+    if (!existsSync(policyPath)) {
       issues.push({ type: "missing_policy_document", field: "policyDocument", path: confirmation.policyDocument });
     }
   }
@@ -264,7 +264,7 @@ export function validatePolicyConfirmation(confirmation, root = process.cwd()) {
 export function evaluatePolicyConfirmation(root = process.cwd()) {
   const confirmationPath = getPolicyConfirmationPath(root);
 
-  if (!fs.existsSync(confirmationPath)) {
+  if (!existsSync(confirmationPath)) {
     return {
       ready: false,
       confirmationPath,

@@ -2,11 +2,11 @@
 
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3000";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-search-ui" });
 const unique = Date.now().toString().slice(-8);
 const rootCode = `QCS${unique}`;
 const partNumberA = `P-${rootCode}-001`;
@@ -65,7 +65,7 @@ function seedSearchData() {
       `
       INSERT INTO part_roots (
         id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
+      ) VALUES (?, ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(`qc-search-root-${unique}`, rootCode, "QC 查詢支架", now, now);
     db.prepare(
@@ -73,7 +73,7 @@ function seedSearchData() {
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
         item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v1', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-part-a-${unique}`, `qc-search-root-${unique}`, partNumberA, 1, "001", "QC 查詢主件", "Active", now, now);
     db.prepare(
@@ -81,7 +81,7 @@ function seedSearchData() {
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
         item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v1', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-part-b-${unique}`, `qc-search-root-${unique}`, partNumberB, 2, "002", "QC 查詢同圖件", "MainDrawingInvalid", now, now);
     db.prepare(
@@ -89,7 +89,7 @@ function seedSearchData() {
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
         is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, 'MA', 'QC 製造用圖', 1, 1, 'DVT', 'Released', 'numbering-rule-v1', ?, ?)
+      ) VALUES (?, ?, ?, 'MA', 'QC 製造用圖', 1, 1, 'DVT', 'Released', 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-drawing-${unique}`, `qc-search-root-${unique}`, drawingNumber, now, now);
     for (const [id, partId] of [
@@ -111,7 +111,7 @@ function seedSearchData() {
     `
     ).run(`qc-search-warning-${unique}`, `qc-search-part-b-${unique}`, now);
     db.prepare(
-      "INSERT INTO audit_logs (id, actor_id, action, detail_json, created_at) VALUES (?, 'user-admin-demo', 'numbering.create', ?, ?)"
+      "INSERT INTO audit_logs (id, actor_id, action, detail_json, created_at) VALUES (?, 'user-engineer-demo', 'numbering.create', ?, ?)"
     ).run(`qc-search-audit-${unique}`, JSON.stringify({ rootCode, partNumber: partNumberA, drawingNumber }), now);
   } finally {
     db.close();
@@ -132,16 +132,16 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
   await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
   record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar", { hasText: "查詢條件" }).isVisible());
-  const headers = await page.locator(".pdm-identity-table thead th").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
-  record(`Identity headers render in required order at ${viewport.width}px`, JSON.stringify(headers.slice(0, 4)) === JSON.stringify(["主根號", "品名", "料號", "其他"]), JSON.stringify(headers));
+  record(`Relation view switch renders at ${viewport.width}px`, await page.getByRole("tab", { name: "關係樹" }).isVisible());
 
   await page.getByLabel("關鍵字").fill(rootCode);
-  await page.getByRole("button", { name: "查詢" }).click();
+  await page.getByRole("button", { name: "查詢", exact: true }).click();
   await page.getByText(partNumberA).first().waitFor({ timeout: 10_000 });
+  record(`Root renders once in relation view at ${viewport.width}px`, (await page.locator(".pdm-relation-root", { hasText: rootCode }).count()) === 1);
   record(`Part number result renders at ${viewport.width}px`, await page.getByText(partNumberA).first().isVisible());
   record(`Drawing number result renders at ${viewport.width}px`, await page.getByText(drawingNumber).first().isVisible());
 
-  await page.locator(".pdm-identity-table tbody tr", { hasText: partNumberA }).first().click();
+  await page.locator(".pdm-relation-root-header", { hasText: rootCode }).first().click();
   await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
   record(`Root detail opens at ${viewport.width}px`, await page.getByText("QC 查詢同圖件").first().isVisible());
   record(`Warning markers render at ${viewport.width}px`, (await page.locator(".search-warning-marker").count()) >= 1);
@@ -152,7 +152,7 @@ async function verifyViewport(browser, viewport) {
   await page.getByRole("button", { name: "影響範圍" }).click();
   const impactResponse = await impactResponsePromise;
   record(`Impact analysis API succeeds at ${viewport.width}px`, impactResponse.ok(), `HTTP ${impactResponse.status()}`);
-  await page.getByRole("heading", { name: "MA 圖作廢影響頁" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "製造圖作廢影響" }).waitFor({ timeout: 10_000 });
   record(`Impact panel shows affected part at ${viewport.width}px`, await page.getByText(partNumberB).first().isVisible());
 
   await page.keyboard.press("Escape");
@@ -160,9 +160,9 @@ async function verifyViewport(browser, viewport) {
   record(`Search detail drawer closes before changing filters at ${viewport.width}px`, await page.locator(".pdm-detail-drawer").count() === 0);
 
   await page.getByLabel("類型").selectOption("drawing_number");
-  await page.getByRole("button", { name: "查詢" }).click();
+  await page.getByRole("button", { name: "查詢", exact: true }).click();
   await page.getByText(drawingNumber).first().waitFor({ timeout: 10_000 });
-  record(`Drawing filter keeps drawing result at ${viewport.width}px`, await page.getByText(drawingNumber).first().isVisible());
+  record(`Drawing filter keeps drawing relation result at ${viewport.width}px`, await page.locator(".pdm-relation-root", { hasText: drawingNumber }).first().isVisible());
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`Search page avoids page-level horizontal overflow at ${viewport.width}px`, bodyOverflow <= 2, `${bodyOverflow}px`);

@@ -1,16 +1,14 @@
-import fs from "node:fs/promises";
 import path from "node:path";
+import {
+  createFileStorageServiceForPointer,
+  createReleasePackageStorageService,
+  getReleasePackageRoot,
+  storagePointerFromRecord,
+  storageKeyFromLocalPath
+} from "@/lib/file-storage";
 import type { ReleasePackage } from "@/lib/types";
 
-export function getReleasePackageRoot() {
-  const configured = process.env.PDM_DATA_DIR?.trim();
-  const dataDir = configured
-    ? path.isAbsolute(configured)
-      ? configured
-      : path.join(/*turbopackIgnore: true*/ process.cwd(), configured)
-    : path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
-  return path.join(/*turbopackIgnore: true*/ dataDir, "release-packages");
-}
+type ReleasePackagePointerInput = Pick<ReleasePackage, "local_path" | "storage_provider" | "storage_bucket" | "storage_key">;
 
 export function resolveReleasePackagePath(releasePackage: Pick<ReleasePackage, "local_path">) {
   const packageRoot = path.resolve(/*turbopackIgnore: true*/ getReleasePackageRoot());
@@ -21,8 +19,32 @@ export function resolveReleasePackagePath(releasePackage: Pick<ReleasePackage, "
   return packagePath;
 }
 
-export async function readReleasePackage(releasePackage: Pick<ReleasePackage, "local_path">) {
-  return fs.readFile(resolveReleasePackagePath(releasePackage));
+export async function readReleasePackage(releasePackage: ReleasePackagePointerInput) {
+  const pointer = getReleasePackageStoragePointer(releasePackage);
+  if (pointer.provider === "local_repository") return createReleasePackageStorageService().readObject(pointer.key);
+  return createFileStorageServiceForPointer(pointer).readObject(pointer.key);
+}
+
+export function getReleasePackageStoragePointer(releasePackage: ReleasePackagePointerInput) {
+  if (releasePackage.storage_key || releasePackage.storage_provider) {
+    return storagePointerFromRecord(releasePackage, getReleasePackageRoot());
+  }
+  return {
+    provider: "local_repository" as const,
+    bucket: null,
+    key: storageKeyFromLocalPath(resolveReleasePackagePath(releasePackage), getReleasePackageRoot()),
+    legacyLocalPath: releasePackage.local_path
+  };
+}
+
+export function getReleasePackageStorageKey(releasePackage: ReleasePackagePointerInput) {
+  return getReleasePackageStoragePointer(releasePackage).key;
+}
+
+export function createReleasePackageStorageServiceForRecord(releasePackage: ReleasePackagePointerInput) {
+  const pointer = getReleasePackageStoragePointer(releasePackage);
+  if (pointer.provider === "local_repository") return createReleasePackageStorageService();
+  return createFileStorageServiceForPointer(pointer);
 }
 
 export function contentDispositionFilename(filename: string) {

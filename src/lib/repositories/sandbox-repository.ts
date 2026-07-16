@@ -224,9 +224,9 @@ export function createSandboxBranch(input: {
     const insertFile = database.prepare(
       `
       INSERT INTO submission_files (
-        id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
+        id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
         sha256, file_size, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     );
     for (const file of source.files) {
@@ -238,6 +238,9 @@ export function createSandboxBranch(input: {
         file.file_role,
         file.original_filename,
         file.local_path,
+        file.storage_provider ?? "local_repository",
+        file.storage_bucket ?? null,
+        file.storage_key ?? null,
         null,
         file.sha256,
         file.file_size,

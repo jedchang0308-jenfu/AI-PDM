@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -23,11 +18,11 @@ function hasAll(source, texts) {
   return texts.every((text) => source.includes(text));
 }
 
-const sqlite = read("db/schema.sql");
-const postgres = read("db/postgres/001_initial_schema.sql");
-const contracts = read("src/lib/repositories/contracts.ts");
-const repository = read("src/lib/repositories/bom-repository.ts");
-const packageJson = JSON.parse(read("package.json"));
+const sqlite = readProjectFile(root, "db/schema.sql");
+const postgres = readProjectFile(root, "db/postgres/001_initial_schema.sql");
+const contracts = readProjectFile(root, "src/lib/repositories/contracts.ts");
+const repository = readProjectFile(root, "src/lib/repositories/bom-repository.ts");
+const packageJson = readProjectJson(root, "package.json");
 
 for (const table of ["bom_drafts", "bom_lines_tree", "bom_import_profiles", "bom_import_jobs", "file_assets"]) {
   record(`BOM-MIG-001 SQLite has ${table}`, tableBlock(sqlite, table).length > 0, `db/schema.sql:${table}`);
@@ -58,7 +53,11 @@ record(
     hasAll(postgresImportProfiles, ["profile_name", "version", "UNIQUE (profile_name, version)"]),
   "bom_import_profiles"
 );
-record("BOM-MIG-006 Postgres profile mapping uses JSONB", postgresImportProfiles.includes("mapping_json JSONB NOT NULL"), "mapping_json JSONB");
+record(
+  "BOM-MIG-006 profile mapping payload column is portable",
+  sqliteImportProfiles.includes("mapping_json TEXT NOT NULL") && postgresImportProfiles.includes("mapping_json TEXT NOT NULL"),
+  "mapping_json TEXT"
+);
 
 const sqliteImportJobs = tableBlock(sqlite, "bom_import_jobs");
 const postgresImportJobs = tableBlock(postgres, "bom_import_jobs");
@@ -68,7 +67,11 @@ record(
     hasAll(postgresImportJobs, ["source_asset_id", "original_filename", "created_by", "created_at"]),
   "bom_import_jobs"
 );
-record("BOM-MIG-008 Postgres import job metadata uses JSONB", postgresImportJobs.includes("error_json JSONB"), "error_json JSONB");
+record(
+  "BOM-MIG-008 import job metadata payload column is portable",
+  sqliteImportJobs.includes("error_json TEXT") && postgresImportJobs.includes("error_json TEXT"),
+  "error_json TEXT"
+);
 
 const sqliteAssets = tableBlock(sqlite, "file_assets");
 const postgresAssets = tableBlock(postgres, "file_assets");
@@ -91,7 +94,7 @@ record(
 );
 record(
   "BOM-MIG-012 first version remains SQLite provider only",
-  read("src/lib/db-provider.ts").includes("Only sqlite is available in this build.") && !packageJson.dependencies?.["@supabase/supabase-js"],
+  readProjectFile(root, "src/lib/db-provider.ts").includes("Only sqlite is available in this build.") && !packageJson.dependencies?.["@supabase/supabase-js"],
   "src/lib/db-provider.ts/package.json"
 );
 record(

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "dev-032-runtime-manifest-provenance/hotfix-1936e93d/v1",
+  "capturedAt": "2026-07-16T06:08:19.7401876Z",
+  "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm",
+  "tag": "prod-hotfix-1936e93d",
+  "indexDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "contentDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "runtimeDigestIsLinuxAmd64Child": true,
+  "manifests": []
+}

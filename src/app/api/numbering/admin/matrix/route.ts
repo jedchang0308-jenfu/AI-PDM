@@ -1,33 +1,35 @@
 import { NextResponse } from "next/server";
-import { forbidden } from "@/lib/auth";
+import { forbidden } from "@/lib/auth-async";
 import {
-  applyNumberingRuleTemplate,
-  listNumberingAdminMatrix,
-  revokeNumberingApprovalDelegation,
-  revokeNumberingUserRoleAssignment,
-  saveNumberingRolePriority,
-  upsertNumberingAdminRole,
-  upsertNumberingApprovalDelegation,
-  upsertNumberingApprovalRule,
-  upsertNumberingRolePermission,
-  upsertNumberingRoleScope,
-  upsertNumberingUserRoleAssignment,
+  applyNumberingRuleTemplateAsync,
+  listNumberingAdminMatrixAsync,
+  revokeNumberingApprovalDelegationAsync,
+  revokeNumberingUserRoleAssignmentAsync,
+  saveNumberingRolePriorityAsync,
+  upsertNumberingAdminRoleAsync,
+  upsertNumberingApprovalDelegationAsync,
+  upsertNumberingApprovalRuleAsync,
+  upsertNumberingRolePermissionAsync,
+  upsertNumberingRoleScopeAsync,
+  upsertNumberingUserRoleAssignmentAsync
+} from "@/lib/numbering-async";
+import {
   type NumberingRoleScopeKind
-} from "@/lib/db";
-import { requireNumberingAction, requireNumberingPage } from "@/lib/numbering-permission-guard";
+} from "@/lib/repositories/numbering-repository";
+import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = requireNumberingPage(request, "settings.admin_matrix");
+  const auth = await requireNumberingPageAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
   if (auth.user.role !== "Admin") return forbidden();
 
-  return NextResponse.json(listNumberingAdminMatrix());
+  return NextResponse.json(await listNumberingAdminMatrixAsync());
 }
 
 export async function PATCH(request: Request) {
-  const auth = requireNumberingAction(request, "settings.admin_matrix");
+  const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
   if (auth.user.role !== "Admin") return forbidden();
 
@@ -35,7 +37,7 @@ export async function PATCH(request: Request) {
   try {
     const operation = String(body.operation ?? body.type ?? "approval_rule");
     if (operation === "role") {
-      const role = upsertNumberingAdminRole({
+      const role = await upsertNumberingAdminRoleAsync({
         id: typeof body.id === "string" ? body.id : undefined,
         roleCode: String(body.roleCode ?? body.role_code ?? ""),
         title: String(body.title ?? ""),
@@ -48,7 +50,7 @@ export async function PATCH(request: Request) {
       if (permissionKind !== "page" && permissionKind !== "action") {
         return NextResponse.json({ error: "permissionKind must be page or action" }, { status: 400 });
       }
-      const permission = upsertNumberingRolePermission({
+      const permission = await upsertNumberingRolePermissionAsync({
         roleId: typeof body.roleId === "string" ? body.roleId : undefined,
         roleCode: typeof body.roleCode === "string" ? body.roleCode : undefined,
         permissionKind,
@@ -63,7 +65,7 @@ export async function PATCH(request: Request) {
       if (scopeKind !== "department" && scopeKind !== "project" && scopeKind !== "action") {
         return NextResponse.json({ error: "scopeKind must be department, project, or action" }, { status: 400 });
       }
-      const scope = upsertNumberingRoleScope({
+      const scope = await upsertNumberingRoleScopeAsync({
         roleId: typeof body.roleId === "string" ? body.roleId : undefined,
         roleCode: typeof body.roleCode === "string" ? body.roleCode : undefined,
         scopeKind: scopeKind as NumberingRoleScopeKind,
@@ -74,18 +76,24 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ scope });
     }
     if (operation === "role_assignment") {
-      const assignment = upsertNumberingUserRoleAssignment({
+      const assignment = await upsertNumberingUserRoleAssignmentAsync({
         id: typeof body.id === "string" ? body.id : undefined,
         userId: String(body.userId ?? body.user_id ?? ""),
         roleId: typeof body.roleId === "string" ? body.roleId : undefined,
         roleCode: typeof body.roleCode === "string" ? body.roleCode : undefined,
         reason: String(body.reason ?? ""),
+        scopeTemplate: typeof body.scopeTemplate === "string" ? body.scopeTemplate : typeof body.scope_template === "string" ? body.scope_template : undefined,
+        namedScope: typeof body.namedScope === "string" ? body.namedScope : typeof body.named_scope === "string" ? body.named_scope : undefined,
+        sponsorUserId: typeof body.sponsorUserId === "string" ? body.sponsorUserId : typeof body.sponsor_user_id === "string" ? body.sponsor_user_id : undefined,
+        startsAt: typeof body.startsAt === "string" ? body.startsAt : typeof body.starts_at === "string" ? body.starts_at : undefined,
+        reviewDueAt: typeof body.reviewDueAt === "string" ? body.reviewDueAt : typeof body.review_due_at === "string" ? body.review_due_at : undefined,
+        hardEndsAt: typeof body.hardEndsAt === "string" ? body.hardEndsAt : typeof body.hard_ends_at === "string" ? body.hard_ends_at : undefined,
         actorId: auth.user.id
       });
       return NextResponse.json({ assignment });
     }
     if (operation === "revoke_role_assignment") {
-      const assignment = revokeNumberingUserRoleAssignment({
+      const assignment = await revokeNumberingUserRoleAssignmentAsync({
         id: String(body.id ?? ""),
         actorId: auth.user.id,
         reason: typeof body.reason === "string" ? body.reason : undefined
@@ -94,7 +102,7 @@ export async function PATCH(request: Request) {
     }
     if (operation === "role_priority") {
       const priority = Array.isArray(body.priority) ? body.priority.map((item: unknown) => String(item)) : String(body.priority ?? "").split(",");
-      const version = saveNumberingRolePriority({
+      const version = await saveNumberingRolePriorityAsync({
         priority,
         reason: String(body.reason ?? ""),
         actorId: auth.user.id
@@ -102,7 +110,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ version });
     }
     if (operation === "delegation") {
-      const delegation = upsertNumberingApprovalDelegation({
+      const delegation = await upsertNumberingApprovalDelegationAsync({
         id: typeof body.id === "string" ? body.id : undefined,
         delegatedFrom: String(body.delegatedFrom ?? body.delegated_from ?? ""),
         delegatedTo: String(body.delegatedTo ?? body.delegated_to ?? ""),
@@ -116,7 +124,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ delegation });
     }
     if (operation === "revoke_delegation") {
-      const delegation = revokeNumberingApprovalDelegation({
+      const delegation = await revokeNumberingApprovalDelegationAsync({
         id: String(body.id ?? ""),
         actorId: auth.user.id,
         reason: typeof body.reason === "string" ? body.reason : undefined
@@ -124,10 +132,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ delegation });
     }
 
-    const rule = upsertNumberingApprovalRule({
+    const rule = await upsertNumberingApprovalRuleAsync({
       id: typeof body.id === "string" ? body.id : undefined,
       ruleVersionId: typeof body.ruleVersionId === "string" ? body.ruleVersionId : undefined,
-      ruleName: String(body.ruleName ?? ""),
       actionCode: String(body.actionCode ?? ""),
       phase: typeof body.phase === "string" ? body.phase : undefined,
       recordStatus: typeof body.recordStatus === "string" ? body.recordStatus : undefined,
@@ -135,8 +142,8 @@ export async function PATCH(request: Request) {
       riskFlag: typeof body.riskFlag === "string" ? body.riskFlag : undefined,
       requiresApproval: Boolean(body.requiresApproval),
       approverRole: typeof body.approverRole === "string" ? body.approverRole : undefined,
-      blocksUsage: Boolean(body.blocksUsage),
-      blocksRelease: Boolean(body.blocksRelease),
+      blocksUsage: false,
+      blocksRelease: true,
       showsWarning: body.showsWarning === undefined ? true : Boolean(body.showsWarning),
       exportMarker: body.exportMarker === undefined ? true : Boolean(body.exportMarker),
       actorId: auth.user.id
@@ -148,7 +155,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = requireNumberingAction(request, "settings.admin_matrix");
+  const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
   if (auth.user.role !== "Admin") return forbidden();
 
@@ -159,7 +166,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json(applyNumberingRuleTemplate({ templateCode, actorId: auth.user.id }));
+    return NextResponse.json(await applyNumberingRuleTemplateAsync({ templateCode, actorId: auth.user.id }));
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Approval rule template apply failed" }, { status: 400 });
   }

@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import { createAuditLog, ensureDemoUser, getAuthMode, getUserByEmailWithPassword } from "@/lib/db";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { getAuthMode } from "@/lib/auth-config";
 import { generateToken } from "@/lib/auth";
+import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
+import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "Firebase BFF token exchange required" }, { status: 404 });
+  }
   const body = await request.json().catch(() => ({}));
   const email = String(body.email ?? "").trim();
   const password = String(body.password ?? "");
@@ -16,7 +22,7 @@ export async function POST(request: Request) {
 
   // Ensure Demo Admin is created if attempting to login as admin
   if (email.toLowerCase() === "admin@example.com") {
-    ensureDemoUser({
+    await ensureDemoUserAsync({
       id: "user-admin-demo",
       displayName: "Demo Admin",
       email: "admin@example.com",
@@ -24,10 +30,17 @@ export async function POST(request: Request) {
     });
   }
 
-  const user = getUserByEmailWithPassword(email);
-  if (!user) {
+  const identity = await getLocalPasswordIdentityAsync(email);
+  if (
+    !identity ||
+    identity.status !== "active" ||
+    identity.user.account_status !== "active" ||
+    identity.user.system_role_enabled === 0 ||
+    identity.user.system_role_enabled === false
+  ) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
+  const user = identity.user;
 
   let passwordValid = false;
   if (user.password_hash) {
@@ -42,18 +55,14 @@ export async function POST(request: Request) {
   }
 
   // Create audit log for login event
-  createAuditLog({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, client: "SolidWorks Add-in" } });
+  await recordIdentityLoginAsync(identity.identityId, user.email);
+  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, provider: "local_password", client: "SolidWorks Add-in" } });
 
   // Generate bearer token
   const token = generateToken(user.id);
 
   return NextResponse.json({
     token,
-    user: {
-      id: user.id,
-      display_name: user.display_name,
-      email: user.email,
-      role: user.role
-    }
+    user: await serializeAuthUserAsync(user)
   });
 }

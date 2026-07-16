@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { listManufacturingHandoffEntries } from "@/lib/db";
-import { forbidden, requireAuth } from "@/lib/auth";
+import { requireRoleAsync } from "@/lib/auth-async";
+import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
 
 export const runtime = "nodejs";
-
-function canReadProcurementApi(role: string) {
-  return role === "R&D Manager" || role === "Admin";
-}
 
 function parseLimit(value: string | null) {
   const limit = Number(value ?? 100);
@@ -21,16 +17,15 @@ function parseSince(value: string | null) {
 }
 
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (!canReadProcurementApi(auth.user.role)) return forbidden();
 
   const url = new URL(request.url);
   const limit = parseLimit(url.searchParams.get("limit"));
   const since = parseSince(url.searchParams.get("since"));
   const partNumber = url.searchParams.get("partNumber")?.trim().toLowerCase() ?? "";
 
-  const entries = listManufacturingHandoffEntries({ limit: 200 })
+  const entries = (await listManufacturingHandoffEntriesAsync({ limit: 200 }))
     .filter((submission) => {
       if (partNumber && submission.part_number.toLowerCase() !== partNumber) return false;
       if (since && Date.parse(submission.released_at ?? submission.updated_at ?? submission.created_at) <= since) return false;

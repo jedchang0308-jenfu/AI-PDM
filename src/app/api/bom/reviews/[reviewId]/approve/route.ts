@@ -1,37 +1,43 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
-import { approveBomWorkbenchReview, BomReleaseGateError, getBomWorkbenchDraftById, getBomWorkbenchReviewById, getSubmission } from "@/lib/db";
-import { canReadSubmission } from "@/lib/permissions";
+import { decideApprovalPlatformLegacyBomAsync } from "@/lib/approval-platform";
+import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import {
+  BomReleaseGateError,
+  getBomWorkbenchDraftByIdAsync,
+  getBomWorkbenchReviewByIdAsync
+} from "@/lib/bom-workbench-async";
+import { canReadSubmissionAsync } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ reviewId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
-  if (auth.user.role !== "R&D Manager" && auth.user.role !== "Admin") return forbidden();
 
   const { reviewId } = await params;
-  const review = getBomWorkbenchReviewById(reviewId);
+  const review = await getBomWorkbenchReviewByIdAsync(reviewId);
   if (!review) {
     return NextResponse.json({ error: "BOM review not found" }, { status: 404 });
   }
-  const draft = getBomWorkbenchDraftById(review.bom_draft_id);
+  const draft = await getBomWorkbenchDraftByIdAsync(review.bom_draft_id);
   if (!draft) {
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
-  const submission = getSubmission(draft.parent_submission_id);
+  const submission = await getSubmissionAsync(draft.parent_submission_id);
   if (!submission) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   const body = (await request.json().catch(() => ({}))) as { decisionReason?: unknown };
   try {
     return NextResponse.json({
-      result: approveBomWorkbenchReview({
+      result: await decideApprovalPlatformLegacyBomAsync({
         reviewId,
-        actorId: auth.user.id,
-        decisionReason: typeof body.decisionReason === "string" ? body.decisionReason : undefined
+        decision: "approved",
+        actor: auth.user,
+        comment: typeof body.decisionReason === "string" ? body.decisionReason : undefined
       })
     });
   } catch (error) {

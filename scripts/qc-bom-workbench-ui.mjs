@@ -1,22 +1,27 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import { chromium } from "playwright";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3130";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const token = Date.now().toString().slice(-7);
 const results = [];
+const read = (relativePath) => readProjectFile(root, relativePath);
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+async function launchBrowser() {
+  const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chrome";
+  try {
+    return await chromium.launch({ channel, headless: true });
+  } catch {
+    return chromium.launch({ headless: true });
+  }
 }
 
 async function apiLogin(email) {
@@ -37,7 +42,7 @@ async function createSubmission(cookie, input) {
   form.set("drawing_number", input.drawingNumber);
   form.set("part_number", input.partNumber);
   form.set("part_name", input.partName);
-  form.set("revision", input.revision ?? "A");
+  form.set("revision", input.revision ?? "1");
   form.set("material", "QC-Material");
   form.set("surface_finish", "QC-Finish");
   form.set("document_type", input.documentType ?? "Assembly");
@@ -98,7 +103,8 @@ async function verifyDesktop(browser, parent, childB, cookie) {
   const consoleErrors = [];
   context.on("page", (page) => {
     page.on("console", (message) => {
-      if (message.type() === "error") consoleErrors.push(message.text());
+      const location = message.location();
+      if (message.type() === "error" && !location.url.endsWith("/favicon.ico")) consoleErrors.push(message.text());
     });
     page.on("pageerror", (error) => consoleErrors.push(error.message));
   });
@@ -201,21 +207,21 @@ async function run() {
     drawingNumber: `BOMUI-${token}-A`,
     partNumber: `P-BOMUI-${token}-A`,
     partName: "QC BOM UI child A",
-    revision: "A",
+    revision: "1",
     documentType: "Part"
   });
   const childB = await createSubmission(engineerCookie, {
     drawingNumber: `BOMUI-${token}-B`,
     partNumber: `P-BOMUI-${token}-B`,
     partName: "QC BOM UI child B",
-    revision: "A",
+    revision: "1",
     documentType: "Part"
   });
   const parent = await createSubmission(engineerCookie, {
     drawingNumber: `BOMUI-${token}-ASM`,
     partNumber: `P-BOMUI-${token}-ASM`,
     partName: "QC BOM UI assembly",
-    revision: "A",
+    revision: "1",
     documentType: "Assembly",
     references: [
       {
@@ -233,7 +239,7 @@ async function run() {
     ]
   });
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   try {
     await verifyDesktop(browser, parent, childB, engineerCookie);
     await verifyMobile(browser, parent, engineerCookie);

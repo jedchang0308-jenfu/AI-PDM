@@ -2,11 +2,11 @@
 
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
-import path from "node:path";
+import { assertNumberingQcRuntimeIsIsolated } from "./numbering-qc-runtime-guard.mjs";
 
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3100";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(process.cwd(), "data", "ai-pdm.sqlite");
+const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-numbering-impact-ui" });
 const unique = Date.now().toString().slice(-8);
 const rootCode = `QCI${unique}`;
 const partNumberA = `P-${rootCode}-001`;
@@ -128,10 +128,10 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/impact`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "MA 圖影響" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "製造圖影響", exact: true }).waitFor({ timeout: 10_000 });
   record(`Impact page renders at ${viewport.width}px`, await page.getByText("影響範圍查詢").isVisible());
 
-  await page.getByLabel("MA 圖號").fill(drawingNumber);
+  await page.getByLabel("製造圖圖號").fill(drawingNumber);
   await page.getByLabel("作廢原因").fill(`QC impact validation ${viewport.width}`);
   const analyzeResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/api/numbering/impact-analysis") && response.request().method() === "POST"

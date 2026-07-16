@@ -1,0 +1,119 @@
+{
+  "reportType": "file-storage-schema-target-readiness-package",
+  "packageVersion": "storage-schema-target-readiness-package/v1",
+  "readinessGateVersion": "storage-schema-target-readiness/v1",
+  "generatedAt": "2026-06-11T04:21:44.717Z",
+  "assumptions": {
+    "evidenceOnly": true,
+    "noSupabaseProjectCreated": true,
+    "noCostAccepted": true,
+    "noDatabaseConnection": true,
+    "noSqlApplied": true,
+    "noProviderIo": true,
+    "noOfficialMigrationFilesWritten": true,
+    "noMetadataPointersUpdated": true,
+    "noDatabaseUrlPrinted": true
+  },
+  "inputs": {
+    "projectsReportPath": "project-inventory.json",
+    "expectedTargetName": "AI_PDM_STAGING"
+  },
+  "sourceReadiness": {
+    "reportType": "file-storage-schema-target-readiness",
+    "gateVersion": "storage-schema-target-readiness/v1",
+    "generatedAt": "2026-06-11T04:21:44.716Z",
+    "assumptions": {
+      "evidenceOnly": true,
+      "noSupabaseProjectCreated": true,
+      "noCostAccepted": true,
+      "noDatabaseConnection": true,
+      "noSqlApplied": true,
+      "noProviderIo": true,
+      "noOfficialMigrationFilesWritten": true,
+      "noMetadataPointersUpdated": true,
+      "noDatabaseUrlPrinted": true
+    },
+    "inputs": {
+      "projectsReportPath": "project-inventory.json",
+      "expectedTargetName": "AI_PDM_STAGING"
+    },
+    "forbiddenTargets": [
+      {
+        "name": "ProJED",
+        "ref": "knodlkxqpcqyrtgwpdst"
+      },
+      {
+        "name": "ProJED_TEST",
+        "ref": "fhisnnufoeulxqrchldf"
+      }
+    ],
+    "expectedTargetSafety": {
+      "safe": true,
+      "status": "safe",
+      "reason": "target name is explicitly non-production and not a known forbidden project"
+    },
+    "projects": [
+      {
+        "name": "ProJED",
+        "ref": "knodlkxqpcqyrtgwpdst",
+        "region": "ap-southeast-1",
+        "status": "ACTIVE_HEALTHY",
+        "safetyStatus": "unsafe_known_target",
+        "safetyReason": "target matches forbidden Supabase project ProJED",
+        "aiPdmNamed": false,
+        "expectedMatches": false,
+        "readyForStorageSchemaGate": false
+      },
+      {
+        "name": "ProJED_TEST",
+        "ref": "fhisnnufoeulxqrchldf",
+        "region": "ap-northeast-1",
+        "status": "ACTIVE_HEALTHY",
+        "safetyStatus": "unsafe_known_target",
+        "safetyReason": "target matches forbidden Supabase project ProJED_TEST",
+        "aiPdmNamed": false,
+        "expectedMatches": false,
+        "readyForStorageSchemaGate": false
+      }
+    ],
+    "readiness": {
+      "readyForStorageSchemaApplyGate": false,
+      "reason": "inventory contains no approved AI_PDM disposable/staging/shadow/test target"
+    },
+    "summary": {
+      "status": "blocked_no_approved_target",
+      "projectCount": 2,
+      "readyCandidateCount": 0,
+      "forbiddenProjectCount": 2
+    }
+  },
+  "readiness": {
+    "readyForSchemaApplyGate": false,
+    "reason": "inventory contains no approved AI_PDM disposable/staging/shadow/test target"
+  },
+  "handoff": {
+    "requiredExternalInputs": [
+      "Dedicated AI_PDM_STAGING or disposable/shadow Supabase target inventory",
+      "User-approved Supabase project or branch cost when a new target must be created",
+      "Dedicated target database URL after the target exists"
+    ],
+    "blockedActions": [
+      "Do not use ProJED or ProJED_TEST for AI_PDM storage schema validation",
+      "Create or provide a dedicated AI_PDM_STAGING/disposable/shadow target",
+      "Re-export project inventory after the target exists"
+    ],
+    "nextCommands": [
+      "npm.cmd run storage:schema-target-readiness -- --projects-report <projects.json> --expected-target-name AI_PDM_STAGING --output <evidence-dir>",
+      "set PDM_STORAGE_SCHEMA_APPLY_ENABLED=1 && set PDM_STORAGE_SCHEMA_APPLY_DATABASE_URL=<dedicated-target-url> && npm.cmd run storage:schema-apply-gate -- --target-name AI_PDM_STAGING --confirm-disposable --output <evidence-dir>",
+      "set PDM_STORAGE_SCHEMA_VERIFY_ENABLED=1 && set PDM_STORAGE_SCHEMA_VERIFY_DATABASE_URL=<dedicated-target-url> && npm.cmd run storage:schema-verify-gate -- --target-name AI_PDM_STAGING --confirm-target --output <evidence-dir>",
+      "npm.cmd run storage:schema-advisor-evidence -- --security-report <security-advisor.json> --performance-report <performance-advisor.json> --target-name AI_PDM_STAGING --output <evidence-dir>",
+      "npm.cmd run storage:schema-promotion-gate -- --apply-report <storage-schema-apply-gate.json> --verify-report <storage-schema-verify-gate.json> --advisor-evidence <supabase-advisor-evidence.json> --output <evidence-dir>"
+    ]
+  },
+  "summary": {
+    "status": "blocked_target_readiness",
+    "sourceStatus": "blocked_no_approved_target",
+    "requiredExternalInputCount": 3,
+    "blockedActionCount": 3
+  }
+}

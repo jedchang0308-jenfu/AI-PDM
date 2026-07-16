@@ -1,19 +1,19 @@
-import { NextResponse } from "next/server";
-import { forbidden, requireAuth } from "@/lib/auth";
+﻿import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { buildAiRiskReport } from "@/lib/ai-risk-hints";
-import { getSubmission } from "@/lib/db";
-import { canReadSubmission, scopedSubmittedBy } from "@/lib/permissions";
+import { canReadSubmissionAsync, scopedSubmittedBy } from "@/lib/permissions";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuthAsync(request);
   if (auth.response) return auth.response;
 
   const { id } = await params;
-  const submission = getSubmission(id);
-  if (!submission) return NextResponse.json({ error: "找不到送審資料" }, { status: 404 });
-  if (!canReadSubmission(auth.user, submission)) return forbidden();
+  const submission = await getSubmissionAsync(id);
+  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
+  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   return NextResponse.json({
     report: buildAiRiskReport({
@@ -22,3 +22,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     })
   });
 }
+

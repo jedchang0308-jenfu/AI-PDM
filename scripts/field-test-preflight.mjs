@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
@@ -47,7 +47,7 @@ function parseArgs(argv) {
 
 function fileExists(filePath) {
   try {
-    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+    return existsSync(filePath) && statSync(filePath).isFile();
   } catch {
     return false;
   }
@@ -55,7 +55,7 @@ function fileExists(filePath) {
 
 function dirExists(dirPath) {
   try {
-    return fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory();
+    return existsSync(dirPath) && statSync(dirPath).isDirectory();
   } catch {
     return false;
   }
@@ -145,7 +145,7 @@ function latestRestoreHandoff() {
   const handoffRoot = getRestoreHandoffsDir(root);
   if (!dirExists(handoffRoot)) return "";
 
-  return fs.readdirSync(handoffRoot, { withFileTypes: true })
+  return readdirSync(handoffRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(handoffRoot, entry.name))
     .filter((dirPath) => fileExists(path.join(dirPath, "restore-on-test-machine.ps1")))

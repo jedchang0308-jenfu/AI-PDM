@@ -4,16 +4,15 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { getFieldTestHandoffsDir, getPostgresShadowHandoffsDir } from "./pdm-paths.mjs";
+import { readProjectFileIfExists, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
 const expectedBlockers = [
-  { id: "DEV-CAD-001", category: "external_document_manager" },
-  { id: "DEV-SW-001", category: "external_solidworks_machine" },
-  { id: "DEV-BACKUP-001", category: "external_restore_drill" },
-  { id: "DEV-FIELD-001", category: "external_field_test" },
-  { id: "DEV-IND-007", category: "external_supabase_shadow" }
+  { id: "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001", category: "release_readiness_gate" }
 ];
+const deferredScopeIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"];
+const completedGateIds = ["DEV-IND-007"];
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -21,15 +20,6 @@ function record(name, passed, detail = "") {
 
 function relative(filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function readText(relativePath) {
-  const filePath = path.join(root, ...relativePath.split("/"));
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-}
-
-function readJson(relativePath) {
-  return JSON.parse(readText(relativePath));
 }
 
 function latestDirectory(baseDir) {
@@ -68,11 +58,11 @@ function assertFileExists(label, filePath) {
   record(`${label} exists`, fs.existsSync(filePath) && fs.statSync(filePath).isFile(), relative(filePath));
 }
 
-const taskText = readText(".ai-doc/dev_task.md");
-const externalHandoff = readText("docs/industrialization/external-validation-handoff-2026-05-28.md");
-const evidenceChecklist = readText("docs/external-evidence-handoff-checklist-2026-05-27.md");
-const activeBlockerReport = readText("docs/qc-active-goal-remaining-blockers-report-2026-06-02.md");
-const packageJson = readJson("package.json");
+const taskText = readProjectFileIfExists(root, ".ai-doc/dev_task.md");
+const externalHandoff = readProjectFileIfExists(root, ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
+const evidenceChecklist = readProjectFileIfExists(root, ".ai-doc/reports/pm/external-evidence-handoff-checklist-2026-05-27.md");
+const activeBlockerReport = readProjectFileIfExists(root, ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
+const packageJson = readProjectJson(root, "package.json");
 const fieldHandoff = latestDirectory(getFieldTestHandoffsDir(root));
 const postgresHandoff = latestDirectory(getPostgresShadowHandoffsDir(root));
 const fieldHandoffRelative = fieldHandoff ? relative(fieldHandoff) : "";
@@ -81,15 +71,30 @@ const { run: readinessRun, report: readinessReport } = parseReadinessReport();
 
 record("EXT-CLOSE-001 production readiness report parses", readinessRun.status === 0 && Boolean(readinessReport), readinessRun.stderr || "parsed");
 record("EXT-CLOSE-002 production readiness is not ready while evidence is missing", readinessReport?.ready === false, String(readinessReport?.ready));
-record("EXT-CLOSE-003 production readiness reports exactly 5 blockers", readinessReport?.blockers?.length === 5, String(readinessReport?.blockers?.length ?? "missing"));
+record("EXT-CLOSE-003 production readiness reports exactly 1 first-version blocker", readinessReport?.blockers?.length === 1, String(readinessReport?.blockers?.length ?? "missing"));
 
 for (const blocker of expectedBlockers) {
   const readinessBlocker = readinessReport?.blockers?.find((item) => item.task.includes(blocker.id));
   record(`EXT-CLOSE readiness includes ${blocker.id}`, Boolean(readinessBlocker), blocker.id);
   record(`EXT-CLOSE readiness category for ${blocker.id}`, readinessBlocker?.category === blocker.category, readinessBlocker?.category ?? "missing");
   record(`EXT-CLOSE dev_task keeps ${blocker.id} blocked`, taskText.includes(`| [!] | ${blocker.id} |`), blocker.id);
-  assertIncludes("EXT-CLOSE external handoff", externalHandoff, blocker.id);
-  assertIncludes("EXT-CLOSE active blocker report", activeBlockerReport, blocker.id);
+}
+
+record(
+  "EXT-CLOSE DEV-FIELD-001 is closed as cancelled, not blocked",
+  taskText.includes("| [x] | DEV-FIELD-001 |") && /DEV-FIELD-001[^\n]+Cancelled by Human Decision/u.test(taskText),
+  "HD-9-1"
+);
+
+for (const id of deferredScopeIds) {
+  assertIncludes("EXT-CLOSE dev_task keeps deferred scope visible", taskText, id);
+  assertIncludes("EXT-CLOSE active blocker report keeps deferred scope rationale", activeBlockerReport, id);
+  record(`EXT-CLOSE ${id} is not a first-version readiness blocker`, !readinessReport?.blockers?.some((item) => item.task.includes(id)), id);
+}
+
+for (const id of completedGateIds) {
+  assertIncludes("EXT-CLOSE dev_task keeps completed gate visible", taskText, id);
+  record(`EXT-CLOSE ${id} is not a remaining readiness blocker`, !readinessReport?.blockers?.some((item) => item.task.includes(id)), id);
 }
 
 record("EXT-CLOSE field handoff package exists", Boolean(fieldHandoff), fieldHandoffRelative || "missing");
@@ -172,7 +177,7 @@ record("EXT-CLOSE field handoff QC script exposed", packageJson.scripts?.["qc:fi
 record("EXT-CLOSE field issue intake QC script exposed", packageJson.scripts?.["qc:field-test-issue-intake"] === "node scripts/qc-field-test-issue-intake.mjs", "package.json");
 record("EXT-CLOSE postgres handoff QC script exposed", packageJson.scripts?.["qc:postgres-shadow-handoff-package"] === "node scripts/qc-postgres-shadow-handoff-package.mjs", "package.json");
 record("EXT-CLOSE closure QC script exposed", packageJson.scripts?.["qc:external-blocker-closure"] === "node scripts/qc-external-blocker-closure-package.mjs", "package.json");
-record("EXT-CLOSE active blocker report states goal incomplete", /不可標示 complete|不能標示 complete|cannot mark/i.test(activeBlockerReport), "docs/qc-active-goal-remaining-blockers-report-2026-06-02.md");
+record("EXT-CLOSE active blocker report states goal incomplete", /不可標示 complete|不能標示 complete|cannot mark/i.test(activeBlockerReport), ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
 
 const staleFieldIds = [...externalHandoff.matchAll(/data[\\/]+field-test-handoffs[\\/]+(\d{8}-\d{6})/gu)]
   .map((match) => match[1])
@@ -190,6 +195,8 @@ console.log(JSON.stringify({
   failed: failed.length,
   summary: {
     expectedBlockers: expectedBlockers.map((blocker) => blocker.id),
+    deferredScope: deferredScopeIds,
+    completedGates: completedGateIds,
     fieldHandoff: fieldHandoffRelative,
     postgresHandoff: postgresHandoffRelative,
     productionReady: readinessReport?.ready ?? null

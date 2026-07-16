@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "capturedAt": "2026-07-16T06:12:01.445Z",
+  "readOnlyCapture": true,
+  "productionMutationPerformed": false,
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "artifact": {
+    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194",
+    "liveRuntimeImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "latestReadyRevision": "ai-pdm-prod-00010-quc"
+  },
+  "principal": {
+    "execution": "ai-pdm-prod-migration-runner-95bn8",
+    "pdmUserId": "prod-pdm-admin-001",
+    "firebaseUid": "U57t2eIOzLdhAmNDUbFyOz3fdMm2",
+    "roleCount": 9,
+    "permissionCount": 237,
+    "passed": true
+  },
+  "reconciliation": {
+    "preCanaryExecution": "ai-pdm-prod-migration-runner-2szd5",
+    "restoreExecution": "ai-pdm-prod-migration-runner-9ss25",
+    "migrationCount": 18,
+    "counts": {
+      "roots": 0,
+      "parts": 0,
+      "drawings": 0,
+      "legacyDrafts": 0,
+      "workspaces": 0
+    },
+    "sourceNumberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57",
+    "restoreNumberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57",
+    "preCanaryPassed": true,
+    "restorePassed": true
+  },
+  "recovery": {
+    "backupId": "1784162806569",
+    "backupStatus": "SUCCESSFUL",
+    "sourceInstance": "ai-pdm-prod-postgres",
+    "sourceState": "RUNNABLE",
+    "sourceBackupEnabled": true,
+    "sourcePitrEnabled": true,
+    "sourceDeletionProtection": true,
+    "restoreTarget": "ai-pdm-prod-restore-20260716a",
+    "restoreState": "RUNNABLE",
+    "separateTarget": true,
+    "privateOnly": true
+  },
+  "runtime": {
+    "service": "ai-pdm-prod",
+    "latestReadyRevision": "ai-pdm-prod-00010-quc",
+    "trafficPercent": 100,
+    "productionSliceMode": "official-numbering-draft",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "checks": {
+    "principalExecutionPassed": true,
+    "principalReadbackPassed": true,
+    "preCanaryExecutionPassed": true,
+    "preCanaryReadbackPassed": true,
+    "sourceCloudSqlReady": true,
+    "recoveryPointReady": true,
+    "restoreTargetSeparateAndReady": true,
+    "restoreExecutionPassed": true,
+    "restoreReadbackPassed": true,
+    "numberingSnapshotMatched": true,
+    "runtimeReady": true,
+    "runtimeArtifactMatched": true,
+    "productionSliceActive": true
+  },
+  "failed": [],
+  "allChecksPassed": true
+}

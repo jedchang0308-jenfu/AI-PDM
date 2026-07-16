@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
+import { closeSync, copyFileSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
@@ -55,13 +55,12 @@ function resolveSnapshotDir(snapshotArg) {
     return resolveUserPath(root, snapshotArg);
   }
 
-  if (!fs.existsSync(backupRoot)) {
+  if (!existsSync(backupRoot)) {
     console.error(`Backup root not found at ${backupRoot}`);
     process.exit(1);
   }
 
-  const snapshots = fs
-    .readdirSync(backupRoot, { withFileTypes: true })
+  const snapshots = readdirSync(backupRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(backupRoot, entry.name))
     .sort();
@@ -74,18 +73,18 @@ function resolveSnapshotDir(snapshotArg) {
   return snapshots[snapshots.length - 1];
 }
 
-function sha256File(filePath) {
+function sha256FileSync(filePath) {
   const hash = crypto.createHash("sha256");
-  const file = fs.openSync(filePath, "r");
+  const file = openSync(filePath, "r");
   const buffer = Buffer.alloc(1024 * 1024);
 
   try {
     let bytesRead = 0;
-    while ((bytesRead = fs.readSync(file, buffer, 0, buffer.length, null)) > 0) {
+    while ((bytesRead = readSync(file, buffer, 0, buffer.length, null)) > 0) {
       hash.update(buffer.subarray(0, bytesRead));
     }
   } finally {
-    fs.closeSync(file);
+    closeSync(file);
   }
 
   return hash.digest("hex");
@@ -96,13 +95,13 @@ function verifySnapshot(manifest) {
 
   for (const expected of manifest.files ?? []) {
     const filePath = path.join(snapshotDir, expected.path);
-    if (!fs.existsSync(filePath)) {
+    if (!existsSync(filePath)) {
       failures.push({ path: expected.path, reason: "missing" });
       continue;
     }
 
-    const stat = fs.statSync(filePath);
-    const actualHash = sha256File(filePath);
+    const stat = statSync(filePath);
+    const actualHash = sha256FileSync(filePath);
     if (stat.size !== expected.size || actualHash !== expected.sha256) {
       failures.push({ path: expected.path, reason: "checksum-mismatch" });
     }
@@ -132,11 +131,11 @@ function ensureSafeDelete(targetPath) {
 }
 
 function copyRequiredDirectory(source, target) {
-  if (!fs.existsSync(source)) {
+  if (!existsSync(source)) {
     console.error(`Required backup directory missing: ${source}`);
     process.exit(1);
   }
-  fs.cpSync(source, target, { recursive: true });
+  cpSync(source, target, { recursive: true });
 }
 
 function rewriteRestoredLocalPaths(dbPath, sourceRepositoryDir, targetRepositoryDir) {
@@ -185,7 +184,7 @@ function rewriteRestoredLocalPaths(dbPath, sourceRepositoryDir, targetRepository
   return rewritten;
 }
 
-if (!fs.existsSync(manifestPath)) {
+if (!existsSync(manifestPath)) {
   console.error(`Backup manifest not found at ${manifestPath}`);
   process.exit(1);
 }
@@ -200,7 +199,7 @@ if (args.inPlace && !args.force) {
   process.exit(1);
 }
 
-const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 verifySnapshot(manifest);
 
 const restoreRoot = args.inPlace ? root : resolveUserPath(root, args.target);
@@ -208,26 +207,26 @@ const targetDataDir = args.inPlace ? dataDir : path.join(restoreRoot, "data");
 const targetRepositoryDir = args.inPlace ? repositoryDir : path.join(targetDataDir, "repository");
 const targetDbPath = path.join(targetDataDir, "ai-pdm.sqlite");
 
-if (fs.existsSync(restoreRoot) && fs.readdirSync(restoreRoot).length > 0 && !args.force && !args.inPlace) {
+if (existsSync(restoreRoot) && readdirSync(restoreRoot).length > 0 && !args.force && !args.inPlace) {
   console.error(`Restore target is not empty. Re-run with --force to replace it: ${restoreRoot}`);
   process.exit(1);
 }
 
-if (!args.inPlace && fs.existsSync(restoreRoot)) {
+if (!args.inPlace && existsSync(restoreRoot)) {
   ensureSafeDelete(restoreRoot);
-  fs.rmSync(restoreRoot, { recursive: true, force: true });
+  rmSync(restoreRoot, { recursive: true, force: true });
 }
 
-fs.mkdirSync(targetDataDir, { recursive: true });
-fs.copyFileSync(path.join(snapshotDir, "database", "ai-pdm.sqlite"), targetDbPath);
+mkdirSync(targetDataDir, { recursive: true });
+copyFileSync(path.join(snapshotDir, "database", "ai-pdm.sqlite"), targetDbPath);
 copyRequiredDirectory(path.join(snapshotDir, "repository"), targetRepositoryDir);
 
-if (fs.existsSync(path.join(snapshotDir, "config"))) {
-  fs.cpSync(path.join(snapshotDir, "config"), path.join(restoreRoot, "config"), { recursive: true });
+if (existsSync(path.join(snapshotDir, "config"))) {
+  cpSync(path.join(snapshotDir, "config"), path.join(restoreRoot, "config"), { recursive: true });
 }
 
-if (fs.existsSync(path.join(snapshotDir, "logs"))) {
-  fs.cpSync(path.join(snapshotDir, "logs"), path.join(targetDataDir, "logs"), { recursive: true });
+if (existsSync(path.join(snapshotDir, "logs"))) {
+  cpSync(path.join(snapshotDir, "logs"), path.join(targetDataDir, "logs"), { recursive: true });
 }
 
 const rewrittenLocalPaths = rewriteRestoredLocalPaths(

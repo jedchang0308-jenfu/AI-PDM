@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAuditLog, ensureDemoUser, getAuthMode, getUserByEmailWithPassword } from "@/lib/db";
-import { createSessionCookie } from "@/lib/auth";
+import { createAuditLogAsync } from "@/lib/audit-async";
+import { getAuthMode } from "@/lib/auth-config";
+import { issueRegisteredLegacySessionCookieAsync } from "@/lib/account-session-registry";
+import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } from "@/lib/auth-async";
+import { serializeAuthUserAsync } from "@/lib/company-context";
 import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
@@ -35,24 +38,29 @@ export async function GET(request: Request) {
   const account = demoAccounts.find((item) => item.role.toLowerCase() === accountKey || item.email.toLowerCase() === accountKey);
   if (!account) return NextResponse.json({ error: "Unknown demo account" }, { status: 400 });
 
-  ensureDemoUser({
+  await ensureDemoUserAsync({
     id: account.id,
     displayName: account.displayName,
     email: account.email,
     role: account.dbRole
   });
-  createAuditLog({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
+  await createAuditLogAsync({ actorId: account.id, action: "Login", detail: { email: account.email, role: account.dbRole, source: "demo-shortcut" } });
+  const user = await getUserByIdAsync(account.id);
+  if (!user) return NextResponse.json({ error: "Demo account bootstrap failed" }, { status: 500 });
 
   const redirectUrl = new URL("/", url.origin);
   return NextResponse.redirect(redirectUrl, {
     status: 303,
     headers: {
-      "set-cookie": createSessionCookie(account.id)
+      "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user })
     }
   });
 }
 
 export async function POST(request: Request) {
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "Firebase BFF login required" }, { status: 404 });
+  }
   const body = await request.json().catch(() => ({}));
   const email = String(body.email ?? "").trim();
   const password = String(body.password ?? "");
@@ -62,7 +70,7 @@ export async function POST(request: Request) {
   }
 
   if (email.toLowerCase() === "admin@example.com") {
-    ensureDemoUser({
+    await ensureDemoUserAsync({
       id: "user-admin-demo",
       displayName: "Demo Admin",
       email: "admin@example.com",
@@ -70,10 +78,17 @@ export async function POST(request: Request) {
     });
   }
 
-  const user = getUserByEmailWithPassword(email);
-  if (!user) {
+  const identity = await getLocalPasswordIdentityAsync(email);
+  if (
+    !identity ||
+    identity.status !== "active" ||
+    identity.user.account_status !== "active" ||
+    identity.user.system_role_enabled === 0 ||
+    identity.user.system_role_enabled === false
+  ) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
+  const user = identity.user;
 
   let passwordValid = false;
   if (user.password_hash) {
@@ -87,12 +102,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "電子郵件或密碼不正確" }, { status: 401 });
   }
 
-  createAuditLog({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role } });
+  await recordIdentityLoginAsync(identity.identityId, user.email);
+  await createAuditLogAsync({ actorId: user.id, action: "Login", detail: { email: user.email, role: user.role, provider: "local_password" } });
   return NextResponse.json(
-    { user: { id: user.id, display_name: user.display_name, email: user.email, role: user.role } },
+    { user: await serializeAuthUserAsync(user) },
     {
       headers: {
-        "set-cookie": createSessionCookie(user.id)
+        "set-cookie": await issueRegisteredLegacySessionCookieAsync({ request, user })
       }
     }
   );

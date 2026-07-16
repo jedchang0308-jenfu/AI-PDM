@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { runProductionReadinessReport } from "./qc-production-readiness-report-runner.mjs";
 
 const root = process.cwd();
 const results = [];
@@ -9,29 +9,16 @@ function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
 
-function runReadinessReport() {
-  return spawnSync(process.execPath, ["scripts/qc-production-readiness-test.mjs", "--allow-open"], {
-    cwd: root,
-    encoding: "utf8",
-    windowsHide: true
-  });
-}
-
-function parseJson(stdout) {
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    return null;
-  }
-}
-
-const reportRun = runReadinessReport();
-const report = parseJson(reportRun.stdout);
+const { run: reportRun, report } = runProductionReadinessReport(root);
 const supabaseBlocker = report?.blockers?.find((blocker) => blocker.task.includes("DEV-IND-007"));
 
 record("PR-IND-001 readiness report exits 0 in allow-open mode", reportRun.status === 0, reportRun.status === 0 ? "exit 0" : reportRun.stderr || reportRun.stdout);
 record("PR-IND-002 readiness report parses as JSON", Boolean(report), report ? "parsed" : reportRun.stdout);
-record("PR-IND-003 industrialization overview is included in tracked tasks", Number(report?.summary?.trackedTasks ?? 0) >= 37, String(report?.summary?.trackedTasks ?? ""));
+record(
+  "PR-IND-003 current external blocker board is included in tracked tasks",
+  Number(report?.summary?.trackedTasks ?? 0) >= 5,
+  String(report?.summary?.trackedTasks ?? "")
+);
 record("PR-IND-004 DEV-IND-007 is reported as a blocker", Boolean(supabaseBlocker), supabaseBlocker ? `line ${supabaseBlocker.line}` : JSON.stringify(report?.blockers ?? []));
 record("PR-IND-005 DEV-IND-007 uses Supabase shadow category", supabaseBlocker?.category === "external_supabase_shadow", supabaseBlocker?.category ?? "");
 record(

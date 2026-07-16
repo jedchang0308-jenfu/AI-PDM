@@ -1,1130 +1,875 @@
-# AI PDM Dev Task Backlog
+# AI PDM dev_task PM Control Board
 
-更新日期：2026-06-05
-維護規則：主檔只保留未完成、進行中、阻塞與近期規格導向任務；完成任務以索引方式保留，詳細證據回到 RD/QA/QC 文件與 archive。
-狀態圖例：`[ ]` 待辦、`[/]` 進行中、`[x]` 已完成、`[!]` 阻塞或外部等待。
+更新日期：2026-07-16
+Owner：Dev PM
+用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
-## 整理原則
+歷史快照：
 
-- 未完成任務不得從主檔消失。
-- 未完成 spec 不得刪除；本次保留 `.ai-doc/specs/` 與既有 `docs/` 內規格文件。
-- 主檔不再混入大量已完成任務細節、舊報告全文或亂碼內容。
-- 每個 active task 必須有 RD 範圍、QA 驗證計畫、QC 驗收標準。
-- 新的大型功能必須連到 spec。
+- `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`
+- `.ai-doc/archived/dev_task_before_pm_governance_restructure_2026-06-30.md`
+- `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
+- `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
-## Active Task Overview
+## 總任務清單
 
-### P0 外部阻塞 / 正式驗證
+這是目前 AI/PM 協作的任務容器，不是冷啟動的全文讀取範圍。`DEV-001` 這類短碼是溝通用別名；
+原本的語意來源 ID 仍是規格、QC 腳本、證據路徑與歷史引用的權威 ID。
 
-| 狀態 | ID | 任務 | 目標 | 通過標準 |
+低 token 讀取邊界：先讀 `### 派工規則` 與 `### 目前派工任務清單`。已知 DEV ID 時，只搜尋並讀取
+該 DEV 的 `### 任務索引` 項目，讀到下一個同層狀態符號 DEV 項目前；不得順序載入所有任務明細。
+
+狀態符號：
+
+- `○` 待排
+- `☐` 可執行
+- `◐` 執行中
+- `◇` 驗證中
+- `✓` 本輪本地範圍已完成
+- `!` 阻塞 / 需高風險確認或外部證據
+- `↷` 延後
+- `×` 跳過
+
+### 派工規則
+
+- 本節的多行索引是權威任務清單；後方表格只保留給 release gate、外部阻塞與 QC 腳本相容。
+- 狀態符號直接決定可否派工：`☐` 才是一般可派工；`○` 需先選定切片或使用者提出實作型指令；`!` 與 `↷` 不可由 RD 直接執行。
+- 目前唯一推進第一版 production 的入口是 `DEV-032`。`DEV-030` Cloud SQL target/capacity 與 `DEV-031` clean seed/restore/reconciliation 已整併為其子關卡，不再獨立派工；`DEV-046` Phase 2B staging activation 已完成，Phase 3A production execution 由 `DEV-032` 管控。
+- `DEV-005` Phase 1 本地切片已完成；技轉包 Phase 3 已依使用者決策抽成 `○ DEV-041`。`DEV-041` Phase 3A-0 已於 2026-07-13 完成本機實作與 QA；Phase 3A-1 之後仍須明確提出實作需求並逐階段進入。
+- `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；原 Supabase Auth provider 目標已由 `DEV-046` 的 Firebase Auth / Identity Platform 決策取代，既有 provider-neutral evidence 仍有效，production cutover 仍未授權，ProJED 未修改。
+- `DEV-045` Phase 1、Phase 2 本機切片與 Phase 3A 工號登入別名 local slice 已完成本機 RD/QA/QC：包含「帳號與權限」單一管理入口、帳號生命週期、identity 狀態、session revoke、provider-managed recovery handoff、self-service session/device visibility、角色時間區間 UI 與 permission-path enforcement。Phase 3B provider rollout、production、Firebase Auth / Identity Platform live provider、MFA 與 release 仍未授權。
+- `DEV-046` Phase 1A-1E、Phase 2A staging IaC、Phase 2B local application slices 與 Phase 2B staging authentication activation 均已完成。`HD-10-1 / 1A` 採單區 staging、Regional-HA production，production IaC 保守估算 USD 210；staging 與 production 均依使用者決策採 Firebase Hosting 預設網址，DNS 延後，ProJED 未修改。2026-07-16 `DEV-032` Gate A/B/C 已完成：`jenfu-ai-pdm-prod` Paid Billing、Firebase/Identity Platform、Cloud SQL Regional HA、private VPC、Cloud Run、IAM、monitoring、regional logs、TWD 9,600 budget、Admin principal、18 migrations、pre-canary reconciliation 與 HD-8-4 separate-target restore reconciliation均通過；production entrypoint為`https://jenfu-ai-pdm-prod.web.app`，無GCS file authority，Terraform no-drift。Gate D只剩authenticated Level 4，Gate E仍待final 3-5位named-user canary。
+- 2026-07-15 Workspace pilot access staging deploy：使用者決定公司 Google Workspace 使用者不再由 AI_PDM 首次登入要求 Authenticator/TOTP enrollment，且暫不要求 Workspace 管理端先強制 2-Step Verification。staging 已以 dirty working tree explicit approval 部署 image `sha256:c677ab0822328944c304afc17877963f611f010c972400fed838ce5153d1818c` 至 Cloud Run revision `ai-pdm-stg-00007-cam`，100% traffic；runtime env 為 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=false`、`PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`、`PDM_GOOGLE_WORKSPACE_DOMAINS=jenfu.com.tw`。post-deploy smoke 通過 `/login`、`/api/auth/mode`、未登入 `/api/numbering/permissions` 401，且登入頁無 Authenticator/TOTP enrollment 可見文案；rollback target 為 `ai-pdm-stg-00005-4xp`。
+- 2026-07-15 privacy acknowledgement staging hotfix：修正 Firebase Hosting -> Cloud Run rewrite 後，Google 登入告知流程未穩定帶入工作階段而使 `/privacy/acknowledgement` 顯示「確認工作階段已失效」的問題。根因是 Firebase Hosting 只會把名為 `__session` 的 cookie 轉送至 Cloud Run，原本的 `pdm_session` 不會進入後端 request。變更包含 pending cookie `SameSite=Lax`、登入交換/告知 API fetch 明確 `credentials: "same-origin"`、登入交換遇到 `privacy_ack_required` 改為 HTTP 200 body-code handoff、以 `NextResponse.cookies.set()` 同時寫入 `__session` 與 `pdm_session`，後端讀 session 時優先讀 `__session` 並保留 `pdm_session` 供未來 ALB/custom domain 相容；未確認個資告知前，受保護 BFF API 仍由 privacy gate 回 428 fail-closed。staging 已部署 image `sha256:702abf5ecd72e6b5878a3727c769f26cc3a426af29857308dfd6366b3255e35a` 至 Cloud Run revision `ai-pdm-stg-00013-vev`，100% traffic；驗證通過 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、TypeScript、isolated build、本地容器與 staging smoke。後續真人 Google acknowledgement flow 重測已通過；rollback target 為 `ai-pdm-stg-00011-bot`，再上一版 rollback target 為 `ai-pdm-stg-00009-lab`。
+- 2026-07-15 dashboard PostgreSQL compatibility staging hotfix：人類已確認 `jedchang0308@jenfu.com.tw` 可經 Firebase Hosting 預設網址登入並進入 AI PDM 主控台；登入後發現 dashboard 啟動 API `/api/submissions`、`/api/lifecycle/controlled-history`、`/api/notifications`、`/api/approvals/inbox` 出現 500。Cloud Run stderr 定位為 Postgres nullable parameter type inference `42P08` 與 notification aggregate `GROUP BY` 相容性問題；已補 `submission-list` 與 `dashboard` nullable filter cast，並補 `notification` pending-review GROUP BY。驗證通過 TypeScript、isolated build、DEV-046 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、candidate `/login`、`/api/auth/mode`、未登入 privacy API 401 與正式 staging 相同 smoke。staging 已部署 image `sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b` 至 Cloud Run revision `ai-pdm-stg-00015-tim`，100% traffic；production 未觸碰，rollback target 為 `ai-pdm-stg-00013-vev`。
+- CAD 原檔解析、SolidWorks Add-in、完整 PDM 離線檔案還原演練與 live Supabase 資料工作都不是本輪自動可執行範圍。使用者於 2026-07-14 以 `HD-9-1` 取消 `DEV-FIELD-001` 固定五個工作日正式現場驗證；既有真人 UI 登入、領號、重登持久性與系列代號重測只保留為本機功能證據，不冒充 production canary evidence。此決策不豁免 `DEV-032`、production post-deploy smoke、allowlist、零 open P0/P1 與 `HD-8-4 / 1A` continuity gate。
+
+### 目前派工任務清單
+
+此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
+
+- 唯一 P0 launch-moving 任務：`DEV-032` ERP 平台 production release work package。
+  - 當前子關卡：`DEV-032 Gate D` authenticated Level 4 production smoke；Hosting/OAuth、principal bootstrap、pre-canary reconciliation 與 HD-8-4 separate-target restore reconciliation 均已完成。
+  - 後續順序：完成 Google 互動登入 -> authenticated privacy/permissions/領號/草稿/重登/file fail-closed smoke -> `Gate E` named-user canary。
+  - 整併來源：`DEV-030` 轉為 032B/032C database 子關卡；`DEV-031` 轉為 032C data-continuity QC 子關卡；兩者保留來源 ID，不再獨立派工。
+  - release scope：`DEV-040` 領號／草稿、`DEV-042/043/045` 身分與帳號治理、`DEV-048` 圖料號／草稿入口；GCS file workflow、CAD、BOM 與完整 PDM 不在第一版。
+
+- 下一個產品候選：`DEV-041` Phase 3A-1 Pack-and-Go Intake。
+  - 恢復條件：使用者明確提出產品實作指令；不得自動跨到 mapping/BOM/baseline 或 release。
+
+- 待選切片後再立項：`DEV-015` 圖面送審工作台 Phase 2+。
+  - 目前不派工；需先從主資料、附件、協作、dashboard/todo 去噪中選一個切片。
+
+- production 穩定後的技術治理：`DEV-047` bounded schema migration。
+  - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
+
+- 未來 GCS package：`DEV-033` + `DEV-046` Phase 3B + `DEV-037`。
+  - 同一 package 依序處理檔案 inventory/cost/retention、direct-GCS authority 與完整 file/offline continuity；不阻擋第一版 no-file production slice。
+
+- CAD 延後：`DEV-035` 保留 2D preview/native metadata；`DEV-036` SolidWorks Add-in 已移出目前產品路線並停止獨立追蹤。
+
+### 任務索引
+
+以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ✓ DEV-046 [開發點] [Phase 2B Staging Activation Complete / Future Phases Gated] [P0] Google Cloud SQL 五年 ERP 平台與本體論基礎
+  - 摘要：建立 AI_PDM 作為未來 ERP 模組的 Google control plane、Firebase 單一 IAM、Cloud SQL PostgreSQL、GCS binary authority、Shared Drive delivery boundary 與 ontology-ready object/link/action/event 契約；operational DB/files 位於 Google Taiwan，Firebase identity data 的 US location exception 已依 `HD-6-1 / 1A` 接受並保留 privacy implementation gate。
+  - 來源 ID：`DEV-PDM-ERP-GOOGLE-CLOUDSQL-001`
+  - 父任務：ERP platform program；承接 `DEV-044` provider-neutral foundation，修正 `DEV-002` 與 `DEV-045` 的未來 provider 目標。
+  - 任務清單：
+    - [x] Phase 0 architecture baseline：完成 superseding ADR、五年 SPEC、QA、account reprovision、Taiwan primary data placement、wave rollout、Architecture Memory Capsule、Failure/Recovery、RD Handoff Contracts、Deferred Scope Audit 與 All-Phase Coverage Matrix；使用者以 `1A/2A/3A` 關閉 `HD-6-1` identity US processing、`HD-6-2` Taiwan-only/no regional DR、`HD-6-3` canary day-one regional HA。
+    - [x] Human Decision Gate `HD-8-1..3`：`1A` 選定 `asia-east1` Cloud Run + Next.js 16 Active LTS container + external ALB/managed TLS/custom domain，CDN 只允許 reviewed immutable assets；`2A` 選定 internal primary+backup all-hours on-call、critical security/data-loss event 60 分鐘內 acknowledgement/containment，且不承諾 24x7 restoration；`3B` 選定 staging 同測 Google/non-Google、Wave 0 Google Workspace only、Wave 1 至少一位受控 non-Google。
+    - [x] Human Decision Gate `HD-8-4 / 1A`：完整 PDM/GCS/offline restore 延後；Cloud SQL automated backup/PITR 與一次 separate-target isolated restore + numbering-ledger/sequence/non-reuse-reservation reconciliation 必須在 canary 前完成，來源不得被覆寫，未通過則 no-go。
+    - [x] Phase 1A runtime foundation：Next.js 16/Node 24 LTS standalone container、Cloud Run/ALB/NEG/TLS/restricted-CDN/manual-promotion contract及本機 build/start/browser evidence已完成；focused QC 16/16。
+    - [x] Phase 1B IAM/BFF contract：Firebase provider interface/fakes、八小時 `pdm_session` v2、key rotation、AAL2/TOTP/replay、deny-first saga、invite compensation、reprovision/collision/legacy closure已完成；focused QC 15/15，live provider未接。
+    - [x] Phase 1C Cloud SQL database/migration contract：provider-neutral Cloud SQL adapter、private localhost proxy/IAM auth、runtime/migration role、capacity/timeouts、singleton checksum migration與 browser denial已完成；focused QC 17/17。Phase 2A 依官方要求補上 `roles/cloudsql.instanceUser`。
+    - [x] Phase 1D storage/continuity contract：direct-GCS interfaces/fakes/fail-close、generation/hash pointer、number reservation/signed-ledger/reconciliation fixtures已完成；focused QC 14/14，live GCS仍屬 3B。
+    - [x] Phase 1E portability/data/SLO/cost governance：clean seed/archive、location/retention、cost/SLO/observability、no-Firebase-authority/portable-BFF scanners已完成；focused QC 24/24。
+    - [x] Phase 2A staging preflight/IaC：建立 fail-closed Terraform review package，涵蓋 API/IAM、private VPC、Cloud SQL/PITR、Cloud Run proxy sidecar、ALB/TLS、immutable-only CDN、Identity Platform/TOTP、regional logs、monitoring與50/80/100 budget；`HD-10-1 / 1A`後staging Cloud SQL改為單區，production Regional HA契約不變。37/37 Google resource blocks皆受`local.create_resources` gate，Terraform `fmt`/`validate`與QC 20/20通過；尚未建立任何雲端資源。
+    - [x] Phase 2B local application/IaC readiness：Firebase Web/Admin SDK、Google/password/TOTP client flow、revoked-token BFF exchange、八小時rotatable session、UID-only principal mapping、managed email-link invitation與compensation、legacy route closure、Cloud Run secret/bootstrap contract、invitation schema/migration及standalone tracing已完成；focused QC 14/14、preflight 19/19與image `sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3` container smoke通過。
+    - [x] Phase 2B Cloud SQL migration與冪等驗證：本機產生Cloud SQL-specific no-file migration package，排除Supabase RLS baseline與Phase 3B GCS pointer，並移除transaction wrapper、forced RLS及Supabase role依賴；Cloud Run Job IaC保存plan只新增1個Job，0 update/0 delete/0 replace。2026-07-15經分段核准後，先建立on-demand backup `1784085929277`，再以Cloud SQL SQL import完成admin bootstrap；首個bootstrap因跨role default privilege被Cloud SQL managed postgres拒絕且transaction rollback，修正後成功。live migration首試connection timeout、次試因approval rule FK順序失敗並rollback；修正seed順序後，`ai-pdm-stg-migration-runner-k5pg9`成功套用18版，`nkrhj`立即重跑為`appliedVersions: []`。Job隨後回復reviewed `--dry-run` image且移除live approval env。完整證據見 `output/dev-046-live-migration/execution-summary.json`；migration與runtime smoke gate均已關閉。
+    - [x] Phase 2B employee login alias local slice：完成company-scoped additive schema與Supabase migration mirror、Admin新增／退役別名、登入intent API、Firebase session exchange、登入與`/settings/accounts` UI、production-slice allowlist及21項安全負向測試。intent最長5分鐘、只保存SHA-256 hash、single-use；未知別名回應不列舉帳號，provider UID必須命中同一active PDM user/company；AI_PDM不保存password/MFA/recovery secret。TypeScript、lint、Next production build及desktop/mobile browser QC通過。
+    - [x] Phase 2B employee privacy acknowledgement local slice：完成Pilot v1.0 canonical content/hash、SQLite/PostgreSQL migration、immutable published version與ack evidence、first-session pending cookie、exact-version acknowledgement API、protected BFF recheck、invitation activation同交易、`/privacy`、`/privacy/acknowledgement`、login/sidebar discovery及`/settings/accounts` Admin唯讀證據。focused QC 20/20、migration mirror QC 56/56、Phase 2A/2B regression、scoped lint、isolated production build及desktop/mobile browser QC通過；未建立live effective timestamp或employee acknowledgement。
+    - [x] Phase 2B Google popup recovery：2026-07-15 staging重現Google帳號選擇視窗未完成或關閉後，主登入頁仍永久維持`處理中`；登入頁已新增專用等待狀態、可操作的取消／重設控制及失敗狀態釋放，focused QC 5/5、Phase 2B regression 14/14、scoped lint與124頁isolated production build通過。後續 staging activation 與 hotfix revisions 已取代當時的未部署狀態；目前 staging 以頂部記錄的 revision 為準。
+    - [x] Phase 2B Firebase Hosting OAuth same-origin hotfix：live runtime原使用`firebaseapp.com` authDomain，但使用者入口為`web.app`，Google popup回呼跨來源且未建立Firebase user/session exchange。2026-07-15已保留既有firebaseapp授權並新增`https://jenfu-ai-pdm-stg-361825.web.app` JavaScript origin與`/__/auth/handler` redirect URI；targeted Terraform saved plan僅將Cloud Run `PDM_FIREBASE_AUTH_DOMAIN`切至web.app，0 add/1 update/0 destroy/0 replace，revision `ai-pdm-stg-00004-zcp`承接100%流量。`/login`、`/api/auth/mode`與web.app auth handler post-deploy configuration smoke通過；真人Google登入已建立並查得verified Firebase identity `qxEv2napjvMEmiqIUqwhTCf6gjg2`，`POST /api/auth/firebase/session`到達BFF後以`403 principal_not_active` fail closed，證明OAuth已修復但Cloud SQL principal尚未開通。
+    - [x] Phase 2B initial Admin TOTP enrollment與principal bootstrap local package：補上首次privileged Google user的Firebase TOTP enrollment UI；enroll後立即登出並要求再次Google+TOTP登入，不保存TOTP secret。focused QC 9/9、Phase 2B regression 14/14、popup regression 5/5、TypeScript、scoped lint與124頁isolated production build通過。另從canonical schema產生transactional/idempotent/collision-fail-closed staging bootstrap proposal，固定`company-jenfu`、新PDM ID `stg-pdm-admin-001`、NULL password、Google auth identity、default membership、provider-neutral organization/principal mapping、9 roles與237 permissions；static QC 12/12及disposable PostgreSQL 17 shadow 6/6通過，含立即重跑、UID碰撞整筆拒絕及access-only rollback。套件見`output/dev-046-staging-principal-bootstrap/`；後續 live deploy/bootstrap/readback 已記錄於 Phase 2B live isolated staging acceptance。
+    - [x] Phase 2B live isolated staging acceptance：dedicated staging project 與 future production project 分離；`HD-10-1 / 1A` 採單區 staging 與 USD 210 估算，production 維持 Regional HA。project、Paid Billing、remote state、Firebase Web App/Google provider、notification channels、session secrets、Artifact Registry、Cloud SQL `ai-pdm-stg-postgres`、Cloud Run `ai-pdm-stg`、external ALB、budget、admin bootstrap、18 版 migration 及冪等驗證均已完成。2026-07-15 使用者採 Firebase Hosting 預設網址作 staging-only 入口；後續 staging authentication activation 以 source snapshot `69a8c1da0c694079940988edbde8c74211f62d19` 通過 provenance gate，部署 application image `sha256:6d4142080c7e4820e11088d60b2ac15378ce87c170d5658c80c1bfe7aa91a6d6` 至 Cloud Run revision `ai-pdm-stg-00005-4xp`，100% traffic；Firebase Hosting 入口 `https://jenfu-ai-pdm-stg-361825.web.app` 可用。Cloud Run Job execution `ai-pdm-stg-migration-runner-ddrfk` 已用 staging private Cloud SQL path 執行 principal bootstrap，readback `allChecksPassed=true`、PDM user `stg-pdm-admin-001`、Firebase UID `qxEv2napjvMEmiqIUqwhTCf6gjg2`、9 roles、237 permissions、NULL application password、無 MFA secret/recovery material；Job 已回復 dry-run image/args 且 bootstrap approval env absent。2026-07-15 後續依使用者 explicit dirty-worktree staging approval，重新部署 image `sha256:c677ab0822328944c304afc17877963f611f010c972400fed838ce5153d1818c` 至 revision `ai-pdm-stg-00007-cam`，移除 AI_PDM TOTP enrollment，並以 AAL1 pilot env 放行公司 Google 帳號。live HTTP/browser smoke：`/login` 200、`/api/auth/mode` 200、未登入 `/api/numbering/permissions` 401、登入頁無 Authenticator/TOTP enrollment 可見文案；production、GCS file authority、ontology future phases 與 `HD-8-4 / 1A` canary 前 restore/reconciliation 仍須獨立 gate。
+    - Phase 3A.0 production release：由 `DEV-032 Gate A-E` 唯一派工，吸收原 `DEV-030` database target/capacity 與 `DEV-031` clean-seed/restore/reconciliation 子關卡；Phase 3A file writer/UI/API 全關閉。
+    - Phase 3A.1 fixed-duration field gate：使用者於 2026-07-14 以 `HD-9-1` 取消 `DEV-038` / `DEV-FIELD-001` 的固定觀察，不執行亦不得標示為 field-test pass；任何 allowlist 擴大仍由 `DEV-032 Gate E` 明確核准。
+    - Future capsule Phase 3B：與 `DEV-033`、`DEV-037` 合併為 GCS file authority/cost/continuity package；需先在 staging 驗證 direct-GCS adapter/IAM/finalize/quarantine/recovery，再另走 release gate。
+    - Future capsule Phase 4：Drawing -> Part -> BOM ontology MVP 與 governed event projection；需 named consumer、projection SLO、idempotent replay/DLQ owner，不得形成第二 command path。
+    - Future capsule Phase 5-6：第 12/18 個月以實測資料 review Cloud SQL right-size；第 3-5 年各 domain 另立 owner-governed DEV，ProJED 必須另立 repository-owned DEV。
+  - 執行範圍：Phase 1A-1E、Phase 2A、Phase 2B local slices、staging database-role admin bootstrap/migration、Firebase Hosting 預設網址、runtime smoke、TOTP UI deploy、live principal bootstrap、exact-source artifact provenance/readback 與 staging authentication activation 已完成。使用者決定短期不上公開 DNS；未執行 production、未修改 ProJED、未執行 GCS file authority。Phase 3-6 仍為 gated contract，pre-canary restore/reconciliation evidence 尚未執行。Phase 3B 與 DEV-047 不得阻擋 Phase 3A 領號／草稿交付。
+  - 驗收標準：Cloud Run/Next.js 16 runtime具 current support/LTS posture、upgrade runway且 production source auto-rollout 關閉；external ALB/managed TLS/custom domain 正確，CDN 不快取 private/auth responses；Firebase 僅作 Auth/identity metadata，所有正式 business/workflow/role/session/audit/outbox 只進 Cloud SQL，enabled正式 file 只進 direct GCS，所有 business command/query 只走 portable HTTP/BFF domain services，無 Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority；clean production 僅 seed initial Admin的新 production ID/最低 config/numbering integrity，local business/draft/demo/test/history/source actor 零搬移且 archive read-only，已用正式號不重發；continuous RPO <= 1 小時，RTO <= 4 Taiwan business support hours，critical event 由 primary+backup all-hours on-call 於 60 分鐘內 acknowledgement/containment；Wave 0 Google Workspace only，Wave 1 包含至少一位受控 non-Google；Cloud SQL restore evidence 符合 closed `HD-8-4`；其餘 IAM、HA、privacy、cost 與 ProJED 邊界依 ADR/SPEC/QA。
+  - 必讀文件：`.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`、`.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`、`.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`、DEV-044/045 與歷史 Supabase compatibility evidence。
+  - 停止條件：偏離任何 closed HD-6/HD-7/HD-8、canary 前缺少/未通過 `HD-8-4 / 1A` separate-target restore/numbering reconciliation、runtime migration造成未處置 regression、Route Handler/middleware/Server Action持有 domain rules、引入 Firestore/Firebase Storage/Functions/Callable/Firestore-trigger authority、production 搬入非 seed allowlist row/source actor mapping、修改/刪除 source archive、static DB password、runtime support 不明、production auto-rollout，或需要 Cloud Billing、live credential/domain/data、GCS file workflow、production、ProJED、merge/PR/deploy/release 時停止並進相應 gate。
+  - 證據：`.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase1-implementation-2026-07-13.md`、`.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase1-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2a-preflight-implementation-2026-07-13.md`、`.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2a-preflight-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-implementation-2026-07-13.md`、`.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-report-2026-07-13.md`、`.ai-doc/reports/pm/pm-dev-046-phase2b-change-ticket-cost-stop-2026-07-14.md`、`config/platform/staging-preflight.template.json`、`output/dev-046-phase2b-terraform-full-plan/phase2b-full-recovery-v5-plan.json`、`output/dev-046-live-migration/execution-summary.json`、`.ai-doc/reports/rd/rd-dev-046-employee-login-alias-local-slice-2026-07-13.md`、`.ai-doc/qc/qc-dev-046-employee-login-alias-local-slice-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-046-privacy-notice-acknowledgement-local-slice-2026-07-13.md`、`.ai-doc/qc/qc-dev-046-privacy-notice-acknowledgement-local-slice-2026-07-13.md`、`.ai-doc/qc/qc-dev-046-staging-authentication-activation-2026-07-15.md`、`output/dev-046-staging-principal-bootstrap/live-execution-readback.json`；後續各 phase 依 QA 計畫產出 production/GCS/ontology/release/wave evidence。
+  - 計入交付：否（平台開發點，不直接增加第一版領號/草稿使用者交付完成率）
+
+- ↷ DEV-047 [開發點] [P1] [Phase A0 Local Tooling Complete / Phase A Post-Production-Stability Deferred] Legacy public schema bounded migration
+  - 摘要：在 production slice 穩定後，將核准的 legacy PDM/platform tables 從鎖定的 `public` 分批移往 bounded schemas，清除 hybrid schema 技術債而不影響第一版上線。
+  - 來源 ID：`DEV-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001`
+  - 父任務：`DEV-046`；不計入 `DEV-040` 第一版領號／草稿完成率。
+  - 任務清單：
+    - [x] Phase A0 Local Inventory Tooling：完成 deterministic machine-readable local baseline、SQL artifact declarations、SQLite/PostgreSQL name mirror、repository/runtime/script/QC lexical dependencies、dynamic SQL review queue、source hashes、explicit external-consumer unknown、zero candidate batches及未執行的read-only PostgreSQL catalog query contract；focused QC 22/22。
+    - [ ] Phase A Authoritative Inventory：在穩定 pilot 後，以命名的代表性 PostgreSQL snapshot/runtime catalog與實際migration history校正本機baseline，完成external consumer與owner domain確認；涵蓋table/sequence/index/constraint/FK/view/materialized view/function/trigger/grant/RLS、migration history、SQLite/PostgreSQL mirror、repository raw SQL、script/QC與外部consumer，未知consumer只阻擋其候選batch。
+    - [ ] Phase B Contract：依 owner domain/dependency order 排定 migration batches、schema-qualified SQL、old/new app deployment boundary、compatibility behavior、lock/downtime、rollback point 與 evidence preservation；不得以永久 dual write、compatibility view 或 broad search path 收尾。
+    - [ ] Phase C Rehearsal：以代表性快照在 disposable PostgreSQL target 逐批 dry-run/apply/rollback，驗證 schema/RLS/grant/migration-history diff、old/new app compatibility、runtime regression 與 downtime。
+    - [ ] Phase D Release：只在獨立 release 指令、target identity、backup/restore evidence、downtime owner與每批 go/no-go 齊備後執行；遇未知 dependency、lock、grant/checksum drift 或 regression 立即停止。
+  - 執行範圍：Phase A0本機唯讀工具、focused QC與文件已完成，未讀credential、未連DB、未觀察runtime catalog/snapshot、未提出destination/batch、未做DDL。Phase A authoritative inventory只在production canary穩定、target/snapshot/read-only operator/evidence owner齊備後可開始；不要求固定觀察天數。Phase B-D依前階段evidence推進，production schema move仍需專屬release gate。
+  - 驗收標準：無斷裂 SQL/FK/view/function/script；stable ID/history 不變；browser grants 仍為零；owner/runtime grants 最小化；每批 rollback/rehearsal/evidence 完整。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-ERP-BOUNDED-SCHEMA-MIGRATION-001.md`、`.ai-doc/qa/qa-pdm-erp-bounded-schema-migration-validation-plan-2026-07-13.md`、DEV-046 ADR/SPEC/QA、provider-neutral PostgreSQL schema/migration authorities、歷史Supabase migration evidence與所有repository/QC dependency inventory。
+  - 停止條件：需要 live schema move、table lock/downtime、compatibility view、direct data repair、production、ProJED 或 release artifact 時進專屬 high-risk/release gate。
+  - 證據：`output/dev-047-bounded-schema-inventory/local-baseline.json`、`.ai-doc/reports/rd/rd-dev-047-phase-a0-local-inventory-tooling-2026-07-13.md`、`.ai-doc/qc/qc-dev-047-phase-a0-local-inventory-tooling-2026-07-13.md`；未來另需authoritative inventory、migration rehearsal、schema/RLS/grant diff、runtime regression與release evidence。
+  - 計入交付：否（production 穩定後的平台治理開發點）
+
+- ✓ DEV-048 [開發點] [本機整合完成] [P1] [Phase 1E P0 QC Passed / Local Only] 圖料號、草稿、狀態與技術移轉入口整合
+  - 摘要：把分散的料號草稿、領號、上傳送審與製造交接入口收斂成物件導向建立與案件式技轉流程，並以「正式發布」而非「號碼曾顯示或送審」作為永久占號邊界。
+  - 來源 ID：`DEV-PDM-NUMBER-STATE-FLOW-001`
+  - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-040`、`DEV-041`、`DEV-PDM-STATUS-UX-002`、`DEV-044`、`DEV-046`
+  - 任務清單：
+    - [x] Functional Spec：完成 UI 入口、候選號 / 審核鎖定 / 待發布 / 正式號、回收政策、狀態維度、技轉整批送審、錯誤復原與功能 AC。
+    - [x] Architecture / ADR alignment：以 DEV-046 Cloud Run/BFF/Cloud SQL/GCS/transactional outbox/signed-ledger 不變量，完成三層 identity、發布 boundary、typed schema、API、權限、併發、migration、compatibility、failure/recovery 與跨規格 amendment。
+    - [x] QA Plan：完成 FMEA、fixture、G0-G9 gates、domain/concurrency/API/approval/publication/transfer/migration/UI 1440/1024/768/390/320、visible-error/data-sanity 與 QC evidence contract。
+    - [x] Phase 1A RD：完成 draft workspace、typed items、candidate reservation/event、root-first gap allocator、immediate recycle、non-destructive migration classifier、command/audit/receipt/outbox 與 create/read/update/acquire/cancel APIs；RD isolated self-verification通過。
+    - [x] 後續開發文件：Phase 1B-1D均補齊可派工契約；文件完成不等於實作完成。
+      - 契約包含entry、task IDs、資料/API/權限/transaction、failure recovery、acceptance、evidence、stop與next conditions。
+    - [x] Human Decision Gate `HD-048-01..03`：使用者於2026-07-13以`1C / 2C / 3C`關閉。
+      - `HD-048-01 / 1C`：Phase 1B立即移除`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四個可見側欄項目；舊URL只保留redirect/guidance、query與`returnTo`相容，不保留第二套mutation。
+      - `HD-048-02 / 2C`：drawing與含drawing/required-file技轉必須有finalized controlled-file evidence；純root/無drawing obligation的part-only可由版本化server rule回`not_required`；production direct GCS verifier未就緒前，需檔案發布維持鎖定。
+      - `HD-048-03 / 3C`：不要求三位不同自然人；同一actor可submit/approve/publish，但每步仍需獨立明示permission、command/confirmation/receipt與audit，approval不得自動publish，Admin/角色不隱含其他權限。
+    - [x] Phase 1A QC：2026-07-13獨立本機QC通過；aggregate 47/47，Postgres shadow 26/26，Supabase migration mirror 46/46。
+      - 證據：disposable `PDM_DATA_DIR`/server、Company A/B、owner/manager/admin/denied、20-way distinct/same-key acquire、direct API bypass、reference blocker、正式主檔零污染與503 no-offline error matrix。
+      - 邊界：未使用live PostgreSQL/Cloud SQL/Supabase/Firebase/GCS；不授予G8/G9、staging、production或release credit。
+    - [x] Phase 1B RD `DEV-048-1B-01..08`：完成模組CTA、草稿tab、四種create flow、server projection/Now What、candidate確認與watermark、feature flag/舊route compatibility、RWD/a11y與focused UI/route tests。
+      - RD證據：14/14 Phase 1B contract、21/21 disposable HTTP、241/241 numbering core、46/46 contextual entrypoints、14/14 entity drawer、27/27 production slice、focused lint與isolated production build通過；browser完成關閉不寫入、建立、取得候選號、取消回收、舊route與1440/1024/768/390/320無整頁overflow驗證。
+    - [x] Phase 1B QC：2026-07-13獨立重驗通過；首輪窄螢幕list/drawer及stale access-control regression缺陷已修正並保留追溯。
+      - 證據：功能/route/flag/role/company/data-sanity、1440/1024/768/390/320 browser facts、完整390/320 card-list/drawer、253/253 access-control、93/93 governance、TypeScript/lint/build均通過。
+    - [x] Phase 1C RD `DEV-048-1C-01..08`：approval action/snapshot、review locks/apply、PublicationEvidencePort、explicit atomic publication、workspace actions及automation已完成。
+      - 範圍：permission parity、approval action/snapshot、submit/withdraw、decision apply locks、PublicationEvidencePort fake/fail-close、explicit atomic publish、workspace actions、fault/SoD/regression tests。
+    - [x] Phase 1C QC：初審阻擋五項缺口修正後，獨立重驗43/43通過；無P0/P1/P2 finding。
+      - 證據：approve-zero-master、snapshot immutability/stale、每個publish write-point rollback、collision/evidence/idempotency/outbox與role/company browser facts。
+    - [x] Phase 1D RD `DEV-048-1D-01..10`：完成transfer draft scope、readiness、aggregate review/frozen snapshot/invalidation、batch publish、published-only handoff、三tabs、redirect/guidance compatibility與focused regressions。
+      - 範圍：transfer draft scope schema/API、readiness、aggregate review/frozen snapshot/invalidation、batch publish、published-only handoff、三tabs、redirect/guidance compatibility與focused regressions。
+    - [x] Phase 1D QC：首輪3個P1、2個P2修正後，獨立重驗未留P0/P1/P2；focused aggregate 60/60。
+      - 證據：migration parity、scope command replay、ReleaseFailed resubmit/edit/cancel recovery、batch all-or-none、manufacturing/procurement published-only、old bookmarks、RWD/a11y與transfer/approval/numbering/lifecycle regressions。
+    - [x] Request-equivalence repair：2026-07-14補回048前領號申請規則在新草稿flow中的等價行為；包含主根號輸入轉server ID、append-policy預覽、正式主根追加原因、查重提示/阻擋、主根管理料號品名、共用原因、M/MA primary manufacturing防呆、關閉modal不寫入提示，以及對應SQLite/PostgreSQL/Supabase migration mirror。
+      - 證據：`.ai-doc/reports/rd/rd-dev-048-request-equivalence-repair-2026-07-14.md`、`output/playwright/number-state-request-equivalence/`、`qc:pdm-number-state-flow-request-equivalence` 6/6、`qc:supabase-runtime-migrations` 66/66、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、`qc:pdm-number-state-flow-ui` 7/7、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-core` 241/241、typecheck與lint通過；2026-07-14依使用者授權重啟3000後，`PDM_NUMBER_STATE_FLOW_V1=true` browser smoke通過。
+    - [x] Phase 1E P0 原始建立圖料號等價修復：2026-07-15依公司管理辦法與使用者決策，補回品名規則引導、圖號需求判斷與非阻擋查重；此為048造成的原始功能等價缺口，不另開DEV。
+      - 約束：不改v3編碼原則；不落地`000`萬用料號；不改M/R用途碼；品名不要求唯一且相似品名查重不得阻擋建立，只能提醒；唯一性由圖號/料號與正式發布authority承擔。
+      - P0完成：管理辦法品名建議器、`確定品名`、外購/自製/共用分流、半形底線串接、獨立系列代號 metadata、料件類型分流、查重提醒不阻擋、圖號需求引導、focused QC防回歸。
+      - P0證據：`.ai-doc/reports/rd/rd-dev-048-phase1e-name-builder-repair-2026-07-15.md`、`qc:pdm-number-state-flow-request-equivalence` 10/10、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-contextual-entrypoints` 46/46、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、TypeScript、lint、`dev:local:check`通過。
+      - 2026-07-15 UI雜訊修正：移除建立草稿表單可見的`須製程管制`，圖號需求只保留`包含圖號草稿`；共用件不再推導圖號需求，並移除共用件常識說明。Browser QC確認自製預設包含圖號、外購與共用預設不包含圖號，桌面/手機無overflow；截圖`qc-remove-process-control-noise-desktop.png`、`qc-remove-process-control-noise-mobile.png`位於`output/playwright/number-state-phase1e/`。
+      - 2026-07-15 管理辦法品名命名browser QC：本機Admin session於`/numbering/search?create=numbering`建立`腳架測試121150_JF_100L_白鐵_A`草稿，驗證`確定品名`、半形底線、品名/料號系列欄位拆分、建立草稿201、取得候選號200、取消回收200、桌面1440與手機390無visible error/console error/horizontal overflow，正式主檔計數前後不變；截圖`qc-name-builder-create-modal-desktop.png`、`qc-name-builder-candidate-desktop.png`、`qc-name-builder-candidate-mobile.png`、`qc-name-builder-cancelled-desktop.png`位於`output/playwright/number-state-phase1e/`。後續真人 staging UI 重測改以單一`系列代號（選填）`欄位作自製非共用件 metadata，不再要求自動併入`確定品名`。
+      - 2026-07-15 QC reopen與修復：實際瀏覽器曾發現既有`data/ai-pdm.sqlite`缺`numbering_draft_workspaces.append_reason`導致`POST /api/numbering/draft-workspaces` 500；RD補上啟動時additive SQLite repair（`append_reason`、`universal_reason`）與QC斷言後重啟3000，browser QC以本機Admin session完成建立草稿201、取得候選號200、取消回收200，桌面1440與手機390無visible error/console error/horizontal overflow，正式主檔數未增加、候選號全回收；截圖在`output/playwright/number-state-phase1e/`。本機session cookie只驗證UI/API工作流，不是登入流程evidence。
+      - P1後續：既有圖號新增料號變體 / 一圖多料號入口需另補draft relation contract，不得用舊正式寫入API繞過草稿發布邊界；此後續不阻擋Phase 1E P0與DEV-048本機整合完成判定。
+  - 執行範圍：Phase 1A-1E P0 local product integration與focused QC已完成；Phase 1E只修復建立圖料號UI/flow等價缺口與既有本機SQLite additive compatibility repair，不改編碼authority、不新增正式authority schema、不接live provider。live provider、正式資料、staging、deployment與release不在本輪。
+  - 範圍外：live Cloud SQL/Firebase/GCS、歷史資料實際repair、production seed/migration、Pack-and-Go parser/baseline、merge/PR/deploy/smoke/rollback/release。
+  - RD主管判定：DEV-048 Phase 1A-1E P0本機整合完成；建立圖料號已恢復品名引導、圖號需求引導與warning-only查重。approval不寫master、publish維持第二個明確command，provider snapshot immutable、跨公司non-disclosure、batch rollback、失敗後解鎖與published-only handoff均有獨立證據；正式上線仍須release gate。
+  - 停止條件：若要改永久發布邊界、重用正式號、自動/固定冷卻、跨公司號池、auto-demote legacy master、offline issuance、live data repair/provider/release，須人類 re-entry及對應high-risk/release gate。
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`、`.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`、`.ai-doc/qa/qa-pdm-number-state-flow-validation-plan-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1a-number-state-flow-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1a-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1b-number-state-flow-ui-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1b-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1c-number-state-flow-publication-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1c-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1d-number-state-flow-transfer-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1d-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-request-equivalence-repair-2026-07-14.md`、`output/playwright/dev048-phase1d-qc/`、`output/playwright/number-state-phase1e/`。
+  - 下一步：若要處理既有圖號新增料號變體 / 一圖多料號，先補Phase 1E P1 draft relation contract；provider/staging或production release須另行明確派工。
+  - 計入交付：否（開發點）；文件 ready 不計產品完成，待實作/QC後再由PM依交付點規則更新。
+
+- ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
+  - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
+  - 來源 ID：`DEV-PDM-ACCOUNT-LIFECYCLE-001`
+  - 父任務：`DEV-003`、`DEV-040`、`DEV-042`、`DEV-043`、`DEV-044`
+  - 任務清單：
+    - [x] 文件 Phase 0：Human Decision Brief、End-State、Architecture Memory Capsule、Deferred Scope Audit、All-Phase Coverage Matrix。
+    - [x] Phase 1：「帳號與權限」單一管理入口、`/settings/accounts` list/detail、account lifecycle、identity status、global session revoke、Admin one-time password reset、邀請新帳號入口整合、角色／代理有效時間區間恢復與全 permission-path enforcement、SQLite/PostgreSQL/Supabase migration parity、RLS/default-deny、API/security QC。
+    - [x] Phase 1A：在 `/settings/workflow` 角色指派恢復「開始生效／到期停用」控制；帳號管理區以分頁整合角色與權限，不建立第二個角色寫入入口。
+    - [x] Phase 1B：同步／非同步、numbering 與 production-slice guards 統一套用 `starts_at <= now < hard_ends_at`；複核日只提醒。
+    - [x] Phase 1C：offboard 關閉 system role、撤銷角色、停用 login identities；disabled local identity reset 後保持 disabled；self/last-admin/last-identity guard 由 server 檢查。
+    - [x] Phase 1D：recovery fragment token、same-origin JSON、no-store/no-referrer、integer lifecycle version、migration mirror 與 token/audit redaction QC。
+    - [x] Phase 1E 本機 Admin bootstrap：先 online backup SQLite，再將 `jedchang0308@jenfu.com.tw` 設為唯一 active Admin、offboard 其他 demo 帳號並撤銷其 session/identity/role；`1655` 因不符 10-128 字元政策未寫入，改建立 24 小時一次性 recovery link。DB integrity `ok`，raw token 不進文件/evidence；production Firebase reprovision 仍未執行。
+    - [x] Phase 2 本機切片：Cloud Identity／Firebase provider-managed recovery handoff contract、Firebase-managed `PASSWORD_RESET` action email adapter、`account_session_records` additive registry、`/account/security` self-service session/device visibility、個別撤銷其他 session、logout revoke registry、production-slice account-safety allowlist、SQLite/PostgreSQL/Supabase migration parity與no-credential-storage evidence已完成；不開發AI_PDM自有password/reset/MFA authority或第二套session authority。live provider/domain/quota/privacy/session-retention gate仍未執行。
+    - [x] Phase 3A 工號登入別名local slice：company-scoped schema/migration artifact、短效single-use intent、verified UID/company mapping、登入與帳號管理UI、安全負向QC已完成；AI_PDM不保存password/MFA/recovery secret，DEV-045僅保留account console與Admin lifecycle surface。
+    - [ ] Phase 3B provider rollout：不搬既有憑證，由`DEV-046`擁有Cloud Identity／Firebase Identity Platform reprovision、Cloud SQL migration、真實provider alias evidence、BFF八小時session、provider-managed Admin/Approver TOTP與invitation/recovery、deny-first central offboarding rollout；staging需同測Google與受控non-Google，production Wave 0限具名Google Workspace，Wave 1 non-Google需`DEV-032` allowlist/release；cloud break-glass不得取得PDM session，browser不直連Cloud SQL。
+  - 執行範圍：Phase 1、Phase 2本機切片與Phase 3A工號別名local slice本機RD/QA/QC已完成；Phase 3B provider/staging仍只達RD Contract Ready。DEV-045後續只做account console/lifecycle/self-service UX；正式部署、live migration、Firebase Auth/Identity Platform live provider、MFA、merge、PR、rollback與production smoke未執行。
+  - 驗收標準：帳號邀請、既有帳號管理、角色與權限、異動紀錄從同一「帳號與權限」入口可發現，且不混成一張大表；非 Admin/跨公司/body spoof fail closed；停權/離職/revoke/reset 後所有舊 cookie/bearer 立即失效且復權不復活；不能鎖死自己、最後 Admin 或最後 login identity；角色時間區間在所有 permission path 真正生效；offboard/return-to-work 不殘留或恢復舊權限；disabled identity reset 不自動啟用；recovery token/hash/secret/自由文字理由不外洩；mutation/audit/outbox atomic；stable PDM IDs/history 不改寫。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`、`.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`、DEV-042/043/044 與 access-control authorities。
+  - 停止條件：需要 hard delete/merge、live email/provider、Firebase Auth/Identity Platform/MFA、production migration/deploy、資料修復、ProJED 或 release artifacts 時停止並進對應 human/release gate。
+  - 證據：`.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`、`.ai-doc/qc/qc-dev-045-phase2-session-recovery-2026-07-14.md`、`.ai-doc/qc/qc-dev-046-employee-login-alias-local-slice-2026-07-13.md`、`npm run qc:pdm-account-lifecycle` 26/26、`npm run qc:dev-045-phase2` 14/14、`qc:dev-046-login-alias` 21/21、`qc:pdm-account-invitations` 25/25、`qc:pdm-google-identity` 19/19、`qc:pdm-production-slice-numbering-draft` 27/27、`npm run qc:supabase-runtime-migrations` 66/66、`npx tsc --noEmit`通過、`npm run lint` 0 errors、isolated `next build`通過。
+  - 計入交付：是（內部 pilot 前 P0 帳號治理）
+
+- ✓ DEV-044 [開發點] [本機完成] [P0] [Phase 1-3 QC Passed] ERP-ready AI_PDM 模組基礎
+  - 摘要：把 AI_PDM 固化為未來 ERP 的獨立 PDM 模組，先建立 server-authoritative actor/company/command 邊界，再分期加入 atomic audit/outbox、shared IAM adapter 與 ERP shell contract；不把現有 ProJED 架構升格成 ERP 母架構，也不在本任務修改 ProJED。
+  - 來源 ID：`DEV-PDM-ERP-MODULE-FOUNDATION-001`
+  - 父任務：未來 ERP platform program；現階段不計入 `DEV-040` 正式領號/草稿交付完成率。
+  - 任務清單：
+    - [x] Phase 0：建立 ADR、SPEC、QA、All-Phase Coverage Matrix、Deferred Scope Audit 與 PM 續接入口。
+    - [x] Phase 1：route ownership inventory、`PlatformActorContext`、versioned command/idempotency contract、selected P0 route boundary、client/server import guard、spoofing QC。
+    - [x] Phase 2：SQLite/PostgreSQL/Supabase parity transactional outbox、atomic mutation/audit/event、claim/ack/fail repository、RLS/default-deny、duplicate/rollback QC。
+    - [x] Phase 3：採用 `1A 2A 3A` 治理決策，完成 shared IAM/core mapping、雙 ID 證據鏈、collision dry-run/apply tooling 與 auth/suspension/audit regression；provider cutover 另走 release gate。
+    - [ ] Phase 4：待 ERP shell/consumer 決策後提供 versioned PDM integration contract；ProJED 需另外建立其 repository-owned DEV。
+    - [ ] Phase 5：任何 production migration/deploy/cutover 只續接 `DEV-032` release gate。
+  - 執行範圍：Phase 1-3 本機開發與驗證完成；Phase 4 ERP shell contract、Phase 5 production/release 未執行。
+  - 驗收標準：PDM controlled mutations 只能使用 server-derived actor/company context；browser 不得持有 privileged DB/provider secret；current PDM IDs/history 不被改寫；Phase 2 mutation/audit/outbox atomic；跨模組只能走 versioned command/read/event contract；ProJED 零修改。
+  - 必讀文件：`.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-001-integration-ready-boundary.md`、`.ai-doc/decisions/ADR-PDM-ERP-MODULE-FOUNDATION-002-shared-identity-governance.md`、`.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`、`.ai-doc/qa/qa-pdm-erp-module-foundation-validation-plan-2026-07-12.md`、Phase 1-3 RD/QC reports。
+  - 停止條件：需要改登入 provider、canonical org/person 產品語意、stable ID/history、ProJED、live migration、production、外部成本、merge/PR/deploy/release 時停止並進對應 human/release gate。
+  - 證據：`.ai-doc/reports/rd/rd-pdm-erp-module-foundation-phase1-3-report-2026-07-12.md`、`.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md`、`qc:pdm-erp-module-foundation` 26/26、production slice 27/27、invitation 25/25、Google identity 19/19、managed auth 21/21、Supabase migration 36/36、Postgres shadow 26/26、typecheck/lint/build pass。
+  - 計入交付：否（平台開發點，不直接增加第一版使用者交付完成率）
+
+- ✓ DEV-001 [交付點] [完成] [P0] [已歸檔] 全系統審核平台化
+  - 摘要：建立共用審核平台核心、審核工作台、legacy reviewer redirect、跨模組審核 adapter 與圖號待審投影，讓 launch 前審核不再分散且不漏看受影響圖號。
+  - 來源 ID：`DEV-PDM-APPROVAL-PLATFORM-001`
+  - 父任務：編號、送審、BOM、成本與補件等審核流程
+  - 證據：`.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`、`.ai-doc/qc/qc-pdm-approval-platform-report-2026-07-08.md`、`npm.cmd run qc:pdm-approval-platform` 125/125、`npm.cmd run qc:pdm-entity-detail-drawer` 14/14。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-001）
+  - 批次發版：見 `DEV-032`；歷史實體遷移、Supabase live migration、production release 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
+  - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
+  - 來源 ID：`DEV-PDM-FILE-STORAGE-001`
+  - 父任務：`DEV-SUPABASE-DB-001`、`DEV-STORAGE-COST-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-FILE-STORAGE-001-supabase-core-google-drive-backup.md`、`.ai-doc/qc/qc-pdm-file-storage-supabase-core-drive-backup-report-2026-07-08.md`、`qc:pdm-file-storage-supabase-core-drive-backup` 37/37。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-002）
+  - 批次發版：不得依本歷史目標直接切換；未來GCS scope依`DEV-046` Phase 3B/`DEV-033`，production release只依`DEV-032`。
+  - 計入交付：是
+
+- ✓ DEV-003 [交付點] [完成] [P0] [已歸檔] 使用者身分、組織範圍與權限架構
+  - 摘要：完成鉦富單公司權限切片、角色/審核矩陣管理語言中文化、外部專員權限邊界與規則摘要防呆；審核矩陣控制項收斂為「是否需要審核 / 標示方式」，使用與發行控制改由系統推導。
+  - 來源 ID：`DEV-PDM-ACCESS-CONTROL-001`
+  - 父任務：`DEV-PDM-SETTINGS-CENTER-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`、`npm.cmd run qc:pdm-access-control-governance` 93/93、rule matrix screenshots。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-003）
+  - 批次發版：見 `DEV-032`；無 Google 帳號邀請/首次密碼設定已由 `DEV-042` 完成，Google 身分/provider-neutral identity 已由 `DEV-043` 完成本地切片；完整帳號生命週期、完整路由權限盤點、live provider 與 Supabase migration 仍未進入 release 執行邊界。
+  - 計入交付：是
+
+- ✓ DEV-042 [交付點] [本地完成] [P0] 內部帳號邀請與首次密碼設定
+  - 摘要：在不引入 Google OAuth 或完整 IAM 的前提下，讓 Admin 建立一次性邀請連結，受邀者自行設定密碼並登入。
+  - 來源 ID：`DEV-PDM-ACCOUNT-INVITATION-001`
+  - 父任務：`DEV-003`、`DEV-040`
+  - 任務清單：
+    - [x] 新增 `account_invitations` SQLite/Postgres/Supabase mirror schema、pending email 唯一索引與 RLS/default-deny。
+    - [x] 只保存 token hash；建立 API 只回傳一次 invite URL，清單 API 不回傳 token/hash。
+    - [x] Admin 建立/查看/撤銷邀請；非 Admin fail closed。
+    - [x] 受邀者 lookup、首次設密碼、建立 JENFU membership、session 與 audit；重複/逾期/撤銷連結 fail closed。
+    - [x] 加入 `/settings/account-invitations`、`/invite/accept`、managed login demo credential suppression 與 production-slice allowlist。
+    - [x] 提供預填郵件與複製連結；明示目前不自動寄信。
+    - [x] 完成 focused API/security QC、typecheck、Postgres/Supabase migration QC 與 desktop/mobile browser evidence。
+  - 驗收標準：管理員能產生可寄送連結；受邀者能自行設定符合政策的密碼並登入；token 不落明文、不可重用；非 Admin、逾期與撤銷路徑被拒絕。
+  - 證據：`.ai-doc/qa/qa-pdm-account-invitation-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-account-invitation-report-2026-07-10.md`、`npm.cmd run qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:pdm-production-slice-numbering-draft` 27/27、`qc:postgres-shadow` 26/26、`qc:supabase-runtime-migrations` 33/33、typecheck、lint、isolated production build 與 Playwright screenshots。
+  - 停止條件：需要自動寄信 provider/secret、Google OAuth、帳號停用/復權、密碼重設、session 撤銷、live Supabase migration 或 production deploy 時停止並另立切片/release gate。
+  - 下一步：Phase 3A.0 canary 正式部署時設定 canonical `PDM_PUBLIC_BASE_URL`；部署後併入 `DEV-038` 的 3-5 人 field test，通過前不擴大使用者。
+  - 計入交付：是
+
+- ✓ DEV-043 [交付點] [本地完成] [P0] Google 身分與 provider-neutral identity
+  - 摘要：新增 `auth_identities` 與帳號狀態，讓受邀 Google 使用者透過 OIDC 綁定既有 PDM 身分；本機帳密與 Google 都解析到穩定 `users.id`，未知或停用身分 fail closed。
+  - 來源 ID：`DEV-PDM-GOOGLE-IDENTITY-001`
+  - 父任務：`DEV-003`、`DEV-042`、`DEV-040`
+  - 任務清單：
+    - [x] 新增 SQLite/PostgreSQL/Supabase `auth_identities` 與 `users.account_status`，backfill 本機密碼身分並強制 RLS/default-deny。
+    - [x] 實作 Google OIDC authorization-code flow、state、nonce、PKCE S256 與 server-side ID token 驗證。
+    - [x] Google 初次綁定只接受有效管理員邀請及相符 verified email；一般登入只依已綁定 Google `sub`，不做 email/domain 自動授權。
+    - [x] OAuth token/secret 不落 DB/audit；登入 audit 只記 provider、PDM user/identity 與非敏感 email。
+    - [x] 本機密碼登入改走 provider-neutral identity；非 active user 與 disabled identity 不得登入，既有 session 在解析時 fail closed。
+    - [x] `/login`、`/invite/accept` 加入 Google 控制；未設定 credential 時保留停用按鈕與「未開放」提示。
+    - [x] 完成 mocked OIDC、邀請/managed auth regression、migration、typecheck、lint、isolated build 與 desktop/mobile UI evidence。
+  - 驗收標準：有 Google 與無 Google 使用者共用穩定 PDM User ID；未知 Google 身分不可自助註冊；受邀 email mismatch、重複 subject、竄改 state、停用帳號與舊 session 都被拒絕；OAuth token/secret 不持久化。
+  - 證據：`.ai-doc/qa/qa-pdm-google-identity-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-google-identity-report-2026-07-10.md`、`qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:supabase-runtime-migrations` 33/33、`qc:postgres-shadow` 26/26、typecheck、lint 與 isolated production build。
+  - 停止條件：需要 live Google credential/consent screen、正式 redirect URI、live Supabase migration、provider rollout、production smoke/deploy、自助註冊、domain/group 授權或帳號生命週期管理 UI 時停止並進 release/new DEV gate。
+  - 下一步：由 `DEV-032` release gate 完成 provider credential、migration、HTTPS cookie 與 Phase 3A.0 named-user canary/post-deploy smoke；其後納入 `DEV-038` 3-5 人 field test，通過前不擴大開放。
+  - 計入交付：是
+
+- ✓ DEV-004 [交付點] [完成] [P0] [已歸檔] 情境式編號生命週期入口
+  - 摘要：在 root/drawing/part context 直接新增 M/R、P、obsolete request 與 aggregate approval package，並修正 APP 回饋的草稿與命名 UX。
+  - 來源 ID：`DEV-PDM-NUMBERING-004`
+  - 父任務：`DEV-PDM-NUMBERING-003`、`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-PDM-LIFECYCLE-ACTIONS-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`、`.ai-doc/qc/qc-pdm-numbering-004-contextual-entrypoints-report-2026-07-08.md`、focused QC 44/44。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-004）
+  - 批次發版：見 `DEV-032`；production/Supabase cutover、provider pointer、merge/PR/deploy 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-005 [交付點] [Phase 1 本地完成] [P1] [已完成 / 後續交付分流] 研發 / 技術移轉送審關卡
+  - 摘要：Phase 1 已把研發送審與技術移轉送審做成可見模式選擇、versioned local rule resolver、API fail-closed guard 與 transfer package context 入口；技術移轉不能被當成單一圖號直接正式送審。技轉包工作台、Pack-and-Go intake、整數 baseline、readiness 與 sign-off 已依使用者 `3A` 分流至 `DEV-041`，不計入本 DEV 的完成宣告。
+  - 來源 ID：`DEV-PDM-SUBMISSION-GATE-001`
+  - 父任務：圖面送審、工作台與發行生命週期權威
+  - 任務清單：
+    - [x] Phase 1：建立研發送審 / 技術移轉送審模式選擇與 readiness resolver。
+    - [x] Phase 1：技術移轉從圖號或料號來源進入 transfer package context，不可建立單一物件正式送審。
+    - [x] Phase 1：補 API fail-closed guard，direct technical-transfer single-item submit 必須回穩定錯誤碼且不產生 Pending submission。
+    - [x] Phase 1：readiness payload 要包含欄位、負責角色、blocker code 與 remediation route。
+    - [x] Phase 1：補 focused QC，至少覆蓋 mode selector、resolver 狀態、transfer redirect 與 direct API guard。
+    - [x] Phase 3A 文件治理：原 Phase 3A 規格依 `1A 2A 3A` 補齊並分流到 `DEV-041`。
+    - Phase 2 research exception 與 Parent Phase 4 rule admin 仍由本 DEV parent SPEC 管理；技轉包 builder/sign-off 不再列為本完成 DEV 的未勾待辦。
+  - 驗收標準：研發送審與技術移轉送審在 UI、API 與 QC 證據中可被清楚區分；技術移轉不能被誤當成單一圖號/料號直接送審。
+  - 證據：`.ai-doc/qc/qc-pdm-submission-gate-phase1-report-2026-07-10.md`、`npm.cmd run qc:pdm-submission-gate-phase1` 15/15、`npx.cmd tsc --noEmit --pretty false`、`npm.cmd run lint -- --quiet`、`npm.cmd run qc:pdm-drawing-submission-review-only` 14/14、`npm.cmd run build`、Playwright smoke 5/5（`output/playwright/pdm-submission-gate-mode-selector.png`、`output/playwright/pdm-submission-gate-transfer-package-placeholder.png`）。Phase 3A 文件：`.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`、`.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`。
+  - 停止條件：需要 live schema migration、production deploy、正式資料修復、改變既有 release workflow、或缺少 transfer package case context 時停止回報。
+  - 下一步：技轉包產品能力改從 `DEV-041` 續接；`DEV-005` 只在指定 research exception 或 Parent Phase 4 rule admin 時恢復。
+  - 計入交付：是
+
+- ○ DEV-041 [交付點] [待排] [P1] [Phase 3A-0 本機完成 / QA Passed；Phase 3A-1 to 3C RD Contract Ready] 技轉包工作台、Pack-and-Go Intake 與整數 Baseline
+  - 摘要：把技轉從 unsaved entry、明確建立的 persistent Draft、Pack-and-Go intake、人工分類/對應、完整 BOM、整數 package baseline、readiness、共用審核簽核一路管到 release-work-item handoff；不強迫所有零件同步進版。
+  - 來源 ID：`DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
+  - 父任務：`DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`
+  - 任務清單：
+    - [x] Phase 3A-0：實作明確建立後才持久化的 Draft、穩定 package ID、共用工作台、scope、adapter cards、blocker 匯總與 return context。
+    - [ ] Phase 3A-1：實作 streaming ZIP safety、原始封包保存、manifest/hash、分類建議與人類 override。
+    - [ ] Phase 3A-2：實作 deterministic impact resolver、formal no-change manager gate、canonical transfer follow-up/task projection、controlled mapping/BOM、delta package、完整候選配置與 atomic multi-root baseline。
+    - [ ] Phase 3B：實作 configuration readiness、follow-up pending/overdue/projection blocker、簡化 `已非最新版 / 待更新`、SolidWorks 證據與 stale detection。
+    - [ ] Phase 3C：整合 atomic multi-root 共用審核、terminal ApprovedForTransfer、applicable sign-offs 與 release-work-item handoff。
+  - 執行範圍：Phase 3A-0 本機產品、SQLite schema、provider-neutral PostgreSQL migration artifact、API、共用工作台與 QC 已完成；下一個可請求切片為 Phase 3A-1。
+  - 範圍外：未執行 live PostgreSQL/Supabase migration、正式資料操作、ZIP parser、分類、mapping/BOM/baseline、SolidWorks Add-in/Document Manager、production、merge/PR/deploy/release。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md`、`.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`、parent SPEC/ADR、BOM、approval、access-control 與 file-storage authority。
+  - 驗收：各 phase 必須依 SPEC 保持 deterministic/no-AI impact evidence、formal no-change manager approval、canonical follow-up/idempotent task projection、package baseline 與 item revision 分離、明確 Draft create、canonical owner 邊界、company/RLS 安全、不可變快照、同軌影響、formal defer Gate、簡化可見狀態及 ApprovedForTransfer 不自動 release。
+  - 停止條件：需要改變任何已確認 HCS 決策、impact resolver 需要 AI/LLM/network、formal no-change 可繞過 RD 主管、generic task 成為 follow-up authority、研發版影響正式版、系統自動替組合件進版、無條件 formal defer、允許 partial multi-root approval、重開已核准 package、繞過完整 BOM/controlled identity/實機開啟證據、複製 owner logic、缺 role/company 安全、要求 live migration/direct repair/deploy/release 時停止。
+  - 證據：`.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`；focused QC 18/18、submission-gate regression 15/15、account-lifecycle regression 26/26、typecheck/lint/isolated build 通過，並完成 1440/1024/390 browser/visible-error evidence。
+  - 下一步：Phase 3A-1 只在使用者提出明確實作指令後開始；不得自動跨到 mapping/BOM/baseline 或正式送審。
+  - 計入交付：是
+
+- ✓ DEV-006 [交付點] [完成] [P1] [已歸檔] 圖料模組關係視圖
+  - 摘要：將圖料模組從平面清單改為 root-grouped 關係樹與矩陣 review，並提供受控關係維護 API。
+  - 來源 ID：`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`
+  - 父任務：`DEV-PDM-DRAWING-PART-WORKBENCH-001`、`DEV-PDM-NUMBERING-002`
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`、`qc:pdm-drawing-part-relation-view` 56/56、relation-view screenshots。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-006）
+  - 批次發版：見 `DEV-032`；正式環境、schema migration 與批次關係寫入需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-007 [交付點] [完成] [P2] [已歸檔] 全系統可行動狀態提示與下一步 UX
+  - 摘要：讓錯誤、空狀態、生命週期、送審與附件狀態直接回答使用者現在要做什麼，減少只顯示 raw status。
+  - 來源 ID：`DEV-PDM-NEXT-STEP-UX-001`
+  - 父任務：`DEV-PDM-STATUS-UX-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`、status/search/DVT/report/master-attachment/drawing-submission QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-007）
+  - 批次發版：見 `DEV-032`；Phase 2 scanner/checklist 未進入本輪執行邊界，production release 需走 release gate。
+  - 計入交付：是
+
+- ✓ DEV-039 [交付點] [完成] [P1] [已歸檔] 圖號 / 料號 / 主根號統一物件詳情抽屜
+  - 摘要：統一 root/drawing/part detail drawer 契約，確保同一物件從不同入口打開時核心資訊與首屏密度一致。
+  - 來源 ID：`DEV-PDM-ENTITY-DETAIL-DRAWER-001`
+  - 父任務：`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-PDM-NUMBERING-004`、主資料工作台
+  - 證據：`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`、`qc:pdm-entity-detail-drawer` 12/12。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-039）
+  - 批次發版：見 `DEV-032`；完整 shared shell 抽取未進入本輪執行邊界，merge/PR/deploy/release 需走 release gate。
+  - 計入交付：是
+
+- ✓ DEV-008 [PM 證據] [完成] [P3] [已歸檔] 本地開發入口 CAPA 預防措施
+  - 摘要：用 managed local dev launcher、health check、restart 與 clean guard 防止 port 3000 / .next 被反覆破壞。
+  - 來源 ID：`PA-LOCAL-DEV-3000-001`
+  - 父任務：無
+  - 證據：`npm run qc:local-dev-entrypoint`、`npm run dev:local:check`、`scripts/start-localhost-3000.ps1`、`scripts/clean-next.mjs`。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-008）
+  - 批次發版：無；這是 PM/CAPA 證據，不進 release batch。
+  - 計入交付：否
+
+- ✓ DEV-009 [交付點] [完成] [P2] [已歸檔] 全系統狀態中文化與狀態欄說明
+  - 摘要：建立中央 UI status dictionary、中文 status badge/filter/error 與狀態說明 popover，降低 raw code 外露。
+  - 來源 ID：`DEV-PDM-STATUS-UX-001`
+  - 父任務：生命週期與發行狀態工作
+  - 證據：`.ai-doc/specs/SPEC-PDM-STATUS-UX-001-unified-chinese-status-display.md`、`npm run qc:pdm-status-ui-vocabulary` 44/44、browser status evidence。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-009）
+  - 批次發版：見 `DEV-032`；DB enum/schema 改名、historical repair 與 production migration 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-010 [開發點] [完成] [P2] [已歸檔] 狀態語意分層與狀態混用修正
+  - 摘要：修正狀態/階段/提醒混用，讓不同任務、匯入、設定、報告、DVT 與恢復情境使用正確狀態語意。
+  - 來源 ID：`DEV-PDM-STATUS-UX-002`
+  - 父任務：`DEV-PDM-STATUS-UX-001`、`DEV-PDM-NEXT-STEP-UX-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-STATUS-UX-002-status-context-disambiguation.md`、`.ai-doc/qa/qa-pdm-status-context-disambiguation-validation-plan-2026-07-07.md`、status context QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-010）
+  - 批次發版：無獨立 release；Phase 2 scanner hardening 未進入本輪執行邊界。
+  - 計入交付：否
+
+- ✓ DEV-011 [交付點] [完成] [P1] [已歸檔] 緊湊編號核心 V2
+  - 摘要：將編號核心改為 compact v2 root/part/drawing identity，完成本地 runtime cutover 並保留歷史 evidence string。
+  - 來源 ID：`DEV-PDM-NUMBERING-002`
+  - 父任務：編號核心 / 圖料工作台
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`、`.ai-doc/qc/qc-pdm-numbering-v2-formal-cutover-report-2026-07-07.md`、v2 cutover QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-011）
+  - 批次發版：見 `DEV-032`；production/Supabase live cutover、provider pointer 與直接資料修復需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-012 [交付點] [完成] [P1] [已歸檔] 英數主根號身分 V3
+  - 摘要：完成 A0001-Z9999 英數 root identity、v1/v2/v3 read compatibility、legacy numeric ordinal reservation 與本地 runtime v3 cutover。
+  - 來源 ID：`DEV-PDM-NUMBERING-003`
+  - 父任務：`DEV-PDM-NUMBERING-002`
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBERING-003-alphanumeric-root-identity.md`、`.ai-doc/qa/qa-pdm-numbering-003-alphanumeric-root-validation-plan-2026-07-07.md`、v3 formal cutover QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-012）
+  - 批次發版：見 `DEV-032`；production/Supabase migration 與直接資料修復需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-013 [開發點] [完成] [P1] [已歸檔] QC 隔離、流水號完整性與本機修復
+  - 摘要：阻止 QC 消耗正式 local runtime 流水號，補完整性偵測、transaction guard、duplicate submit guard 與本機測試資料修復。
+  - 來源 ID：`DEV-PDM-NUMBERING-SEQUENCE-CAPA-001`
+  - 父任務：編號流水號完整性
+  - 證據：`.ai-doc/specs/SPEC-PDM-NUMBERING-SEQUENCE-CAPA-001-qc-isolation-and-sequence-integrity.md`、`.ai-doc/qc/qc-pdm-numbering-sequence-capa-report-2026-07-07.md`、repair report。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-013）
+  - 批次發版：見 `DEV-032`；Phase 4 production/Supabase rollout 或任何新資料修復需走 release gate 或高風險確認。
+  - 計入交付：否
+
+- ✓ DEV-014 [交付點] [完成] [P1] [已歸檔] 圖面送審工作台與發行未完成恢復流程
+  - 摘要：完成 same-revision conflict 分類、release recovery、workbench API/page、retry/return-for-correction 與 disposable mutation QC。
+  - 來源 ID：`DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`
+  - 父任務：圖面送審權威
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-002-release-recovery.md`、`.ai-doc/qa/qa-pdm-drawing-submission-workbench-recovery-validation-plan-2026-07-02.md`、mutation/recovery QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-014）
+  - 批次發版：見 `DEV-032`；Phase 2+ 已另列 `DEV-015`，production/historical repair 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ↷ DEV-015 [開發點] [延後 / 待選切片] [P1] [RD Contract Ready] 圖面送審工作台第 2+ 階段交接包
+  - 摘要：保留圖面送審工作台 Phase 2+ 的 RD 交接契約，涵蓋主資料補完/寫回、附件上傳、協作、dashboard/todo 去噪與正式切換前置條件。
+  - 來源 ID：`DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P`
+  - 父任務：`DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002`
+  - 任務清單：
+    - [ ] 指定要先做的 Phase 2+ 切片：主資料補完/寫回、附件上傳、協作或 dashboard/todo 去噪。
+    - [ ] 讀取 `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002` SPEC / QA，確認切片不回頭破壞 Phase 1 recovery contract。
+    - [ ] 為選定切片補 RD scope、out of scope、API/data boundary、QA gate 與 QC evidence required。
+    - [ ] 實作選定切片並跑 focused QC；未選定切片前不進產品實作。
+  - 驗收標準：選定切片完成後，圖面送審工作台的主資料、附件、協作或待辦噪音有可觀察改善，且不破壞已完成的 release recovery。
+  - 停止條件：historical repair、direct DB mutation、production migration、資料刪除或 release/cutover 需求出現時停止並轉 release/high-risk gate。
+  - 下一步：先由使用者選定一個第 2+ 階段切片，再恢復為可執行 DEV；production/historical repair 另走 release gate 或高風險確認。
+  - 計入交付：否
+
+- ✓ DEV-016 [開發點] [完成] [P1] [已歸檔] 發行未完成 UI 自救流程
+  - 摘要：補上 release-incomplete 的人可讀診斷、附件修正入口、submission detail recovery link 與 UI operation QC。
+  - 來源 ID：`DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-003`
+  - 父任務：圖面送審工作台
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-WORKBENCH-003-ui-self-recovery.md`、drawing submission UI/recovery QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-016）
+  - 批次發版：見 `DEV-032`；正式環境修復、historical repair 與 data deletion 需走 release gate 或高風險確認。
+  - 計入交付：否
+
+- ✓ DEV-017 [交付點] [完成] [P1] [已歸檔] 圖面進版受控送審包第 1 階段
+  - 摘要：讓圖面進版必須先選/上傳新版圖面並建立受控 Pending submission package，保留 FFF linkage 與失敗補償。
+  - 來源 ID：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
+  - 父任務：圖面進版權威
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`、`.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`、change-control QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-017）
+  - 批次發版：見 `DEV-032`；production deploy、migration、direct repair 與 historical cleanup 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-018 [交付點] [完成] [P1] [已歸檔] 多檔版次包送審
+  - 摘要：將單一版次送審擴充為多檔版次檔案包，支援 extension role auto-classification、role correction 與 warning-only completeness。
+  - 來源 ID：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P2`
+  - 父任務：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md` Phase 2、revision submission QA、change-control QC 57/57。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-018）
+  - 批次發版：無本任務專屬下一步；共用 release gate 見 `DEV-032`。
+  - 計入交付：是
+
+- ✓ DEV-019 [交付點] [完成] [P1] [已歸檔] 非依序進版與最新 / 歷史行為
+  - 摘要：允許非依序但不重複的正式進版，重新計算 latest/history，讓低版次補登保留歷史、高版次升為最新。
+  - 來源 ID：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P3`
+  - 父任務：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md` Phase 3、`npm.cmd run qc:pdm-change-control` 61/61。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-019）
+  - 批次發版：無本任務專屬下一步；共用 release gate 見 `DEV-032`。
+  - 計入交付：是
+
+- ✓ DEV-020 [交付點] [完成] [P1] [已歸檔] 一級版次附件包模型
+  - 摘要：建立 stable packageId、package file membership、Released-core immutability 與補件 request/approval/補件標記。
+  - 來源 ID：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`
+  - 父任務：`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`、`.ai-doc/qa/qa-pdm-drawing-revision-package-model-validation-plan-2026-07-06.md`、package QC 59/59。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-020）
+  - 批次發版：見 `DEV-032`；若要補 browser 補件證據，應另開 QC/follow-up，不阻擋本 DEV 完成。
+  - 計入交付：是
+
+- ✓ DEV-021 [交付點] [完成] [P1] [已歸檔] 共用 3D 主檔與 MA 製造基準包
+  - 摘要：完成 part/root 共享 3D 模型版本、MA model-basis API、required-MA resolver、manufacturing baseline draft/release 與 part-detail UI slice。
+  - 來源 ID：`DEV-PDM-SHARED-3D-MA-BASELINE-001`
+  - 父任務：進版包、圖料工作台與發行同步
+  - 證據：`.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md`、`qc:pdm-shared-3d-ma-baseline` 20/20、browser screenshot。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-021）
+  - 批次發版：見 `DEV-032`；production deploy/migration、CAD/OCR extraction 與 forced part/BOM/FFF changes 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-022 [交付點] [完成] [P2] [已歸檔] 系統設定中心與 Secret 生命週期治理
+  - 摘要：建立 settings center、五個管理區、server-only secret lifecycle API、secret metadata tables、redacted UI 與 local test double。
+  - 來源 ID：`DEV-PDM-SETTINGS-CENTER-001`
+  - 父任務：CAD、Supabase 與設定權威
+  - 證據：`.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`、`.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`、settings secret QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-022）
+  - 批次發版：見 `DEV-032`；Supabase Vault live write/smoke、真實 CAD 證據與 production cutover 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-023 [交付點] [完成] [P1] [已歸檔] Windows SolidWorks 原檔預覽衍生檔
+  - 摘要：建立 preview job/derivative schema、fake PNG worker、Windows Shell worker、Document Manager SLDDRW worker path 與 derivative-aware preview cards。
+  - 來源 ID：`DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
+  - 父任務：設定中心、CAD 讀取器與附件預覽
+  - 證據：`.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`、native-preview QC 90/90、redaction QC、master-attachments QC、API worker smoke。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-023）
+  - 批次發版：見 `DEV-032`；真實 SLDDRW key、SLDASM evidence、Phase 2/3 與 production rollout 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-024 [交付點] [完成] [P1] [已歸檔] 送審發行後主檔生命週期同步
+  - 摘要：在 submission release 成功時同步 source drawing、part、root master lifecycle，寫入 audit，並提供歷史 mismatch 可見 guard。
+  - 來源 ID：`DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`
+  - 父任務：圖面送審工作台
+  - 證據：`.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`、`npm run qc:pdm-release-master-status-sync` 23/23、browser guard screenshot。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-024）
+  - 批次發版：見 `DEV-032`；historical D-0014 repair、production migration 與 direct DB mutation 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-025 [開發點] [完成] [P2] [已歸檔] 重複進行中送審衝突分類
+  - 摘要：將 duplicate active submission 改為 submission_conflict，於 readiness/submit/reviewer guard 阻擋並用中文 recovery 與 audit payload 留證。
+  - 來源 ID：`DEV-PDM-SUBMISSION-CONFLICT-001`
+  - 父任務：`DEV-PDM-DRAWING-PART-WORKBENCH-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-SUBMISSION-CONFLICT-001-duplicate-active-submission.md`、`.ai-doc/qa/qa-pdm-submission-conflict-duplicate-active-validation-plan-2026-07-02.md`、duplicate conflict QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-025）
+  - 批次發版：見 `DEV-032`；historical duplicate repair、production migration 與 direct cleanup 需走 release gate 或高風險確認。
+  - 計入交付：否
+
+- ✓ DEV-026 [交付點] [完成] [P1] [已歸檔] 圖料模組資料流與送審安全架構
+  - 摘要：確立圖號/圖料 controlled drawing submission workbench、owner API edit path、immutable snapshot/hash、idempotency audit 與 generic upload retirement。
+  - 來源 ID：`DEV-PDM-DRAWING-PART-WORKBENCH-001`
+  - 父任務：圖面送審權威
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`、`.ai-doc/decisions/ADR-PDM-DRAWING-PART-WORKBENCH-001-data-ownership-and-submission-snapshot.md`、workbench security QC。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-026）
+  - 批次發版：見 `DEV-032`；production deploy/migration、direct DB cleanup 與 existing-data repair 需走 release gate 或高風險確認。
+  - 計入交付：是
+
+- ✓ DEV-027 [交付點] [完成] [P2] [已歸檔] 圖面來源只送審流程
+  - 摘要：讓圖面來源送審只負責 review-only submission，主資料必須在圖面/圖料模組先完成，不在送審中收 PDM master fields。
+  - 來源 ID：`DEV-PDM-DRAWING-SUBMISSION-001`
+  - 父任務：圖面模組主資料流程
+  - 證據：`.ai-doc/specs/SPEC-PDM-DRAWING-SUBMISSION-001-review-only-from-drawing.md`、`.ai-doc/qa/qa-pdm-drawing-submission-review-only-validation-plan-2026-06-30.md`、review-only QC/screenshots。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-027）
+  - 批次發版：見 `DEV-032`；production deploy 需走 release gate。
+  - 計入交付：是
+
+- ✓ DEV-028 [開發點] [完成] [P3] [已歸檔] APP 人工驗證 UI 打磨包
+  - 摘要：完成 upload UI 簡化、多檔 SolidWorks-primary metadata、conflict warning、preview fallback 與 drawing governance CTA polish。
+  - 來源 ID：`DEV-PDM-UI-POLISH-001`
+  - 父任務：無
+  - 證據：APP validation screenshots、`src/app/upload/page.tsx`、`src/components/master-attachment-panel.tsx`、focused browser smoke。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-028）
+  - 批次發版：無；未來 UI 改善需拆成新的聚焦任務。
+  - 計入交付：否
+
+- ✓ DEV-029 [開發點] [完成] [P3] [已歸檔] 圖面進版工作台聚焦切片
+  - 摘要：完成 drawing revision workbench focused slice：official drawing resolver、server-side primary-part resolution、duplicate submit guard 與 replacement draft reuse。
+  - 來源 ID：`DEV-PDM-UI-POLISH-001A`
+  - 父任務：`DEV-PDM-UI-POLISH-001`
+  - 證據：`.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-002-drawing-revision-workbench-ux-contract.md`、`.ai-doc/qa/qa-pdm-drawing-revision-workbench-validation-plan-2026-06-30.md`、change-control QC/browser smoke。
+  - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-029）
+  - 批次發版：無；剩餘改善需拆成新的聚焦任務。
+  - 計入交付：否
+
+- × DEV-030 [關卡] [不獨立派工 / 已併入 DEV-032] [P0] Cloud SQL operational provider 與正式環境切換
+  - 摘要：原 Cloud SQL target、capacity、connector、IAM DB auth、HA/PITR、成本、migration 與 rollback scope 已拆入 `DEV-032 Gate B/C`，避免與 production release gate 重複管理。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001`（supersedes active execution of `DEV-SUPABASE-DB-001`）
+  - 父任務：`DEV-032`
+  - 下一步：不再獨立派工；target/capacity/resource apply 由 `DEV-032 Gate B` 驗收，migration/DB continuity 由 `Gate C` 驗收。
+  - 阻塞 / 恢復條件：沿用 `DEV-032` 的 explicit approval、cost stop、rollback owner、credential boundary 與 release gate。
+  - 證據：既有 Phase 1C/2A/2B Cloud SQL contract、staging migration/idempotence 與 production IaC review package。
+  - 計入交付：否
+
+- × DEV-031 [QA/QC] [不獨立派工 / 已併入 DEV-032 Gate C] [P0] Cloud SQL clean-production seed / archive 一致性執行
+  - 摘要：clean production seed、source archive、non-reuse reservation、separate-target restore 與 numbering reconciliation 保留為角色分離 QC，但由 `DEV-032 Gate C` 統一排程與判定 go/no-go。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001-DATA-PARITY`
+  - 父任務：`DEV-032`
+  - 下一步：在 `DEV-032 Gate C` 確認 source snapshot、seed manifest、archive owner、target credential boundary 後執行；不得被視為 business-row parity migration。
+  - 阻塞 / 恢復條件：任何 live data repair、刪除、覆寫、來源 archive 修改、未確認 target compare 或 secret exposure 立即停止。
+  - 證據：`config/platform/clean-production-seed.template.json`、production canary restore/reconciliation runbook 與後續 `DEV-032 Gate C` execution report。
+  - 計入交付：否
+
+- ◇ DEV-032 [關卡] [Authenticated Verification In Progress] [P0] [Release Gate Required] ERP 平台 production release work package
+  - 摘要：第一版 production 的唯一 active 入口，集中承接 `DEV-046` Phase 3A.0、`DEV-030` database target/capacity、`DEV-031` clean seed/continuity QC，以及 `DEV-040` 領號／草稿 release；GCS/CAD/BOM/完整 PDM 均不在此 package。
+  - 來源 ID：`DEV-CLOUDSQL-DB-001-PROD-GATE`；吸收來源 `DEV-CLOUDSQL-DB-001`、`DEV-CLOUDSQL-DB-001-DATA-PARITY`
+  - 父任務：`DEV-046` Phase 3A.0、`DEV-040`
+  - 任務清單：
+    - [x] `DEV-032-BASE`：release source boundary、exact commit、production target contract、fail-closed IaC static validate、clean seed/allowlist/restore templates與production project readback完成；production action為false。
+    - [x] `Gate A - Production Configuration & Plan Review`：production Firebase/Identity/Web App、env source、Secret Manager metadata、exact artifact及credentialled Terraform plan已完成；reviewed plan為53 create/5 update/0 delete/0 replace、USD 210，GCS file authority為0。Google provider已用Firebase Auth專用deploy啟用，Admin API讀回`enabled=true`且OAuth client/secret metadata存在；Email/Password保持啟用、Anonymous關閉。
+    - [x] `Gate B - Production Resource Apply`：partial apply後已完成state import、corrective saved plan與apply；Cloud SQL Regional HA、private VPC、Cloud Run service/job、IAM、Identity config、LB、TLS resource、monitoring、regional logs、TWD 9,600 budget與HSM signing key readback通過，Terraform 58 resources無drift，0 GCS file authority。
+    - [x] `Gate C - Clean Seed & Continuity`：mutation前on-demand backup `1784136240742`、privileged admin bootstrap、18筆schema migration與立即idempotence rerun已完成。production Identity Toolkit已讀回verified `google.com` UID `U57t2eIOzLdhAmNDUbFyOz3fdMm2`；principal `prod-pdm-admin-001` bootstrap通過，包含9 roles與237 permissions。pre-canary reconciliation執行`ai-pdm-prod-migration-runner-2szd5`通過；post-principal recovery point `1784162806569`已還原到獨立target `ai-pdm-prod-restore-20260716a`，restore reconciliation執行`ai-pdm-prod-migration-runner-9ss25`通過，來源與restore的numbering snapshot SHA-256均為`81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57`。runner已清除execution ack並恢復dry-run，Terraform no-drift；restore target暫留為evidence，未刪除。
+    - [ ] `Gate D - Immutable Deploy & Smoke`：exact application image index `sha256:b4fb8e9f...`已部署，Cloud Run執行的linux/amd64 child manifest `sha256:570dd9f0...`父子關係已驗證；production AAL1 pilot契約已對齊，Cloud Run v2 traffic-only rollback/restore與後續Terraform no-drift通過。rollback runner已固定`updateMask=traffic`、禁止會產生template drift的`gcloud run services update-traffic`路徑，並以current latest revision完成production `validateOnly` preflight。依使用者既有決策，短期production pilot採`https://jenfu-ai-pdm-prod.web.app`且不設定DNS；專用Hosting config與OAuth origin/redirect已發布。部署後發現runtime漏設production slice，已在mutation smoke前停止並以saved plan `25f6f28a...7221e`只做0 create/1 Cloud Run in-place update/0 delete/0 replace；revision `ai-pdm-prod-00006-lx5`承接100%流量且維持相同immutable image。direct Cloud Run與Hosting均讀回`configured=true`、`active=true`、`official-numbering-draft`與private/no-store；Level 3 production-like smoke 14/14通過，未登入protected API維持401，送審/file/CAD/BOM mutation均穩定403 `feature_not_open_in_production_slice`。rollback/Level 3/post-apply gates均為true，最終Terraform 0 drift。Google帳號選擇頁可到達且principal已開通；Gate D只剩完成互動登入後的authenticated privacy/permissions/領號/草稿/系列代號/重登/file fail-closed Level 4 smoke。
+    - [ ] `Gate E - Named-User Canary`：只開放核准的3-5位Google Workspace使用者，驗證allowlist/non-allowlist、登入、privacy、領號、草稿、重登持久性與零open P0/P1；固定五日field gate已取消，不得自動擴大allowlist。
+  - 下一步：人類只需在已開啟的production Google帳號選擇視窗點選`jedchang0308@jenfu.com.tw`並回報「已登入」。Codex隨後執行authenticated Level 4及production UI acceptance。其餘1-3位canary不得由AI自行臆測；不要求設定DNS。
+  - 阻塞 / 恢復條件：每個子關卡需獨立 explicit approval；artifact provenance、target identity、cost、privacy、clean seed/source archive/non-reuse、connection budget、rollback、restore/reconciliation、smoke tenant任一缺失即停止。
+  - 證據：`.ai-doc/reports/pm/pm-dev-032-production-gate-package-2026-07-15.md`、`.ai-doc/reports/pm/pm-dev-032-gate-a-b-execution-2026-07-16.md`、`.ai-doc/reports/pm/pm-dev-032-production-hosting-activation-2026-07-16.md`、`.ai-doc/reports/pm/pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md`、`.ai-doc/reports/pm/pm-dev-032-human-handoff-2026-07-16.md`、`output/dev-032-production-terraform-plan/corrective/post-apply-readback.json`、`output/dev-032-production-hosting-plan/summary.json`、`output/dev-032-production-slice-activation/plan-review.json`、`output/dev-032-production-slice-activation/level3-smoke.json`、`output/dev-032-live-migration/`、`output/dev-032-production-auth-activation/summary.json`、`output/dev-032-production-principal-bootstrap/`、`output/dev-032-production-reconciliation/`、`output/dev-032-aal1-pilot-plan/post-apply-readback.json`、`output/dev-032-rollback-drill/v2-api-closure.json`、`output/dev-032-rollback-drill/traffic-rollback-validate-1784143002444.json`；authenticated smoke待追加。
+  - 計入交付：否
+
+- ↷ DEV-033 [開發點] [延後 / 併入 DEV-046 Phase 3B] [P2] GCS 檔案權威、保留、成本與 continuity package
+  - 摘要：與 `DEV-046` Phase 3B、`DEV-037` 合併管理檔案 inventory、成本、保留政策、direct-GCS authority、backup與restore責任；目前不是 RD 可直接執行任務。
+  - 來源 ID：`DEV-STORAGE-COST-001`
+  - 父任務：`DEV-046` Phase 3B；continuity 子關卡為 `DEV-037`
+  - 任務清單：
+    - [ ] 盤點目前檔案量、附件類型、保留年限、預期增長與備份需求。
+    - [ ] 依 DEV-046 決定 GCS primary/backup-project、30-day soft delete、Shared Drive approved export 與離線/獨立備份的責任邊界；Supabase Storage 只作 legacy migration source。
+    - [ ] 建立成本估算、保留政策與清理政策；未確認前不做 production rollout。
+  - 驗收標準：上線前可說明儲存成本、保留策略、備份責任與不可自動清理的資料範圍。
+  - 停止條件：需要外部費用承諾、正式資料刪除、bucket/RLS production 變更或 live migration 時停止。
+  - 下一步：Phase 3A production slice穩定且使用者明確開啟file workflow後，先完成inventory/cost/retention決策，再進staging adapter與release gate。
+  - 計入交付：否
+
+- ✓ DEV-034 [關卡] [完成] [P0] [本機 disposable Postgres shadow gate 通過] SQLite 到 PostgreSQL 影子遷移
+  - 摘要：已在 disposable local PostgreSQL target 完成 shadow migration、RLS 與 schema/RLS compare 證據，作為 Cloud SQL migration compatibility evidence，避免直接碰正式資料或正式 schema。
+  - 來源 ID：`DEV-IND-007`
+  - 父任務：`DEV-CLOUDSQL-DB-001`；歷史來源為 `DEV-SUPABASE-DB-001`
+  - 任務清單：
+    - [x] 準備 disposable Postgres target，不使用 production target。
+    - [x] 跑 schema migration apply、RLS plan 與 shadow compare。
+    - [x] 取得 `qc:postgres-shadow` 與 target guard 證據。
+  - 證據：`data/quality/postgres-shadow/shadow-compare-1783676196559.json`；`npm.cmd run qc:postgres-shadow` 通過 26/26；`npm.cmd run qc:postgres-shadow-target-guard` 通過 11/11。
+  - 停止條件：若未來改成 staging/production Cloud SQL、正式資料遷移、direct repair 或 production schema 變更，必須回到 `DEV-032` release gate。
+  - 下一步：第一版不再因 `DEV-IND-007` 阻塞；正式 Cloud SQL target/connector/grants、provider pointer 與 production smoke 只由 `DEV-032` 管控。
+  - 計入交付：否
+
+- ↷ DEV-035 [關卡] [延後] [P2] [完整 CAD / PDM 階段] SolidWorks Document Manager 或等效讀取器
+  - 摘要：使用者實測 SolidWorks 檔案上傳 OK、3D 檔可預覽、2D 檔無法預覽；此缺口不阻塞第一版正式領號 / 草稿 production slice，保留為完整 CAD 預覽與 native metadata 階段。
+  - 來源 ID：`DEV-CAD-001`
+  - 父任務：原檔預覽 / CAD 中繼資料
+  - 任務清單：
+    - [ ] 確認 2D `.slddrw` / PDF / DWG preview 策略與可部署讀取元件。
+    - [ ] 用真實或代表性 SolidWorks 檔案取得 metadata / 2D preview extraction 證據。
+    - [ ] 將讀取器限制寫回 settings / preview 相關 DEV 的恢復條件。
+  - 恢復條件：使用者要開放 CAD 原檔解析、2D 預覽、native metadata 或完整 PDM/CAD workflow 時再恢復。
+  - 下一步：不列第一版 blocker；後續完整 CAD 階段再取得可部署讀取元件證據。
+  - 計入交付：否
+
+- × DEV-036 [關卡] [停止追蹤 / 未納入目前產品路線] [P3] SolidWorks Add-in 實機驗證
+  - 摘要：目前第一版與技轉包方向採 Web / Pack-and-Go / 等效上傳路線，沒有明確 SolidWorks Add-in 交付；保留歷史 ID，但不再作為 active 或 deferred backlog。
+  - 來源 ID：`DEV-SW-001`
+  - 父任務：SolidWorks 整合
+  - 歷史重新開啟條件：若未來重新採用Add-in路線，需另備Windows/SolidWorks版本、安裝帳號、測試檔案、操作腳本、版本截圖/log與錯誤復原證據；本清單不是目前待辦。
+  - 恢復條件：只有未來產品重新明確要求 SolidWorks Add-in 或 CAD workstation 內操作時，才以新產品決策恢復。
+  - 下一步：無；不可直接刪除歷史 ID，也不得把本項列為未完成交付。
+  - 計入交付：否
+
+- ↷ DEV-037 [關卡] [延後 / DEV-033 Continuity 子關卡] [P2] [完整 PDM / 檔案保存階段] 離線單向備份與還原演練
+  - 摘要：完整 PDM 檔案離線單向備份、GCS 檔案復原與隔離還原演練依本輪使用者決策延後，不列第一版正式領號 / 草稿 blocker；closed `DEV-046 HD-8-4 / 1A` 只要求 Cloud SQL automated backup/PITR 與 pre-canary separate-target restore/numbering-ledger reconciliation，兩者不得混算。
+  - 來源 ID：`DEV-BACKUP-001`
+  - 父任務：`DEV-033` / `DEV-046` Phase 3B
+  - 任務清單：
+    - [ ] 確認備份來源、離線目的地、保留週期、責任人與不可覆寫規則。
+    - [ ] 執行一次備份與隔離還原演練，不碰 production 原始資料。
+    - [ ] 留存 restore drill report、校驗值、耗時與失敗復原步驟。
+  - 恢復條件：上線範圍包含正式 CAD 檔案保存、Google Drive mirror、Supabase Storage、完整 PDM production ready 或正式資料保存政策時恢復。
+  - 下一步：第一版 Phase 3A 依 closed `HD-8-4 / 1A` 驗證最低 DB continuity evidence；本 DEV 的完整 file-storage/offline restore drill 延後到 Phase 3B 或完整 PDM file release。
+  - 計入交付：否
+
+- × DEV-038 [關卡] [人類決策取消] [不計為通過] 正式現場測試證據
+  - 摘要：原規劃在 Phase 3A.0 named-user production canary 上執行固定五個工作日端到端觀察；使用者於 2026-07-14 以 `HD-9-1` 明確取消，不執行且不再阻擋第一版 release。
+  - 來源 ID：`DEV-FIELD-001`
+  - 父任務：正式環境準備
+  - 取消邊界：不執行五日 observation、formal field report 或以此任務簽署 pilot accepted；既有 2026-07-14 真人 UI 登入、領號、重登持久性與系列代號重測保留為 local functional evidence。
+  - 保留 gate：初次 named 3-5-user allowlist、非 allowlist fail-closed、DB outage 禁止紙本/Excel/offline 補登、production post-deploy smoke、零 open P0/P1 與明確 allowlist 變更仍由 `DEV-032` 驗證。
+  - 下一步：`DEV-046` Phase 2B staging authentication activation 已完成；之後以 release 型指令進入 `DEV-032`，不得因本任務取消而宣稱 production/pilot 已通過。
+  - 計入交付：否
+
+- ✓ DEV-040 [交付點] [本輪本地範圍已完成] [P0] [Release Gate Required for production use] 正式領號 / 草稿 production slice
+  - 摘要：Web 正式領號與 `/numbering/part-drafts` 草稿 production slice 已完成 local product slice；未開放功能保留藍圖可見性，但 UI 與 API fail-closed。
+  - 來源 ID：`DEV-PDM-PRODUCTION-SLICE-001`
+  - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-PDM-NUMBERING-SEQUENCE-CAPA-001`、`DEV-PDM-ACCESS-CONTROL-001`、`DEV-CLOUDSQL-DB-001-PROD-GATE`
+  - 已完成任務清單：
+    - ✓ 建立 central production-slice capability model 與 method-level allowlist / default-deny gate。
+    - ✓ 新增 production-slice status API 與直接 URL blocked state。
+    - ✓ Sidebar roadmap 保留可見，但未開放路由顯示 `未開放` 並導向 blocked page。
+    - ✓ `/numbering/part-drafts` 在 production slice 下保留 create/edit/void/recycle，並將 `submit-review` / `reconfirm` / `restore` 做成 accessible inert action。
+    - ✓ 2026-07-15 修復 `POST /api/numbering/duplicate-check` production-slice allowlist 缺口；建立圖料號草稿的新主根查重不再被誤判為未開放功能。
+    - ✓ Direct API 對 `submit-review` / `reconfirm` / `restore` 回 stable `feature_not_open_in_production_slice`，且在 mutation 前停止。
+    - ✓ Draft delete/recycle 仍使用既有 controlled-boundary predicate；正式 root/drawing/part 號碼不可回收。
+    - ✓ `.env.example` 補上 `PDM_PRODUCTION_SLICE_MODE`。
+    - ✓ Focused QC 與既有 numbering/UI/access-control regression 已通過。
+  - 下一步：若要讓內部人員正式使用，改走 `DEV-032` release gate，確認 production target、named 3-5-user allowlist、smoke company / tenant、部署、rollback、post-deploy smoke、零 open P0/P1 與 `HD-8-4 / 1A` pre-canary restore/reconciliation。`DEV-038` 已取消；任何 allowlist 擴大仍須明確 release 決策。若要擴大到送審、發行、CAD、BOM 或完整 PDM，另開對應 DEV，不併入本 slice。
+  - 阻塞 / 恢復條件：production release/deploy、live Cloud SQL target、provider pointer、rollback、production smoke、資料恢復與直接資料修復仍由 `DEV-032` release gate / 高風險確認管控。
+  - 證據：`.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`、`.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`、`.ai-doc/qa/qa-pdm-production-slice-numbering-draft-validation-plan-2026-07-09.md`、`.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`
+  - 批次發版：見 `DEV-032`；merge、PR、deploy、rollback、production smoke 與 release report 延後到 release 型指令或高風險確認。
+  - 計入交付：是
+
+## 1. 未完成任務與 release gate 明細
+
+此 active board 只保留尚未完成、本輪可執行、需高風險確認、需外部證據、需產品上線決策，或本地已完成但仍需 release gate 的項目。已完成任務的完整歷史細節已歸檔到 2026-07 completed index 與 sweep 前快照；本節只作為派工與恢復條件的明細。
+
+| 狀態 | DEV | 來源 ID | 類型 | 下一步 / 恢復條件 |
 |---|---|---|---|---|
-| [!] | DEV-CAD-001 | SolidWorks Document Manager 或等效讀取元件 | Web / Windows 上傳可直接讀 `.sldprt`、`.sldasm`、`.slddrw` 自訂屬性與 CAD references | 不依賴 sidecar 或檔名推測即可帶入圖號、料號、版次與組合關係 |
-| [!] | DEV-SW-001 | SolidWorks Add-in 實機驗證 | 在真實 CAD 電腦完成 COM 註冊、SolidWorks UI、真實檔案端到端送審 | 實機報告含安裝、登入、屬性讀取、PDF/DWG 匯出、送審結果 |
-| [!] | DEV-BACKUP-001 | 離線單向備份與還原實測 | 在獨立測試機執行 restore drill 並回填報告 | 備份可還原、checksum 正確、交接包可被第三方復原 |
-| [!] | DEV-FIELD-001 | 正式現場測試閉環 | 執行現場測試 preflight、handoff 與問題回收 | 現場測試報告完成，未通過項目轉為新 task |
-| [!] | DEV-IND-007 | SQLite 到 Postgres / Supabase shadow migration | 以 disposable shadow target 驗證 migration / compare / RLS 路徑 | 不誤跑既有專案；shadow migration 證據完整 |
-
-### P1 產品能力
-
-| 狀態 | ID | 任務 | 目標 | 通過標準 |
-|---|---|---|---|---|
-| [x] | DEV-BOM-VISUAL-EDITOR-001 | BOM XMind 式圖像化編輯器 | 將 BOM 工作台主編輯區升級為 React Flow 混合畫布，支援父子件與同層排序拖拉，右側屬性改用圖號模組同款 drawer | 已完成；工程師可用圖像化樹狀畫布編輯 BOM 關係；資料仍以 parentLineId + sequenceNo 為準；UI/QC 驗證無 overflow、無 console error |
-| [x] | DEV-UX-PLATFORM-001 | 多角色 AI PDM 平台 UX 架構優化 | 將首頁、導覽與物件頁從 RD 功能清單升級為多角色、物件中心、任務路由的平台 UX | Phase 1A/1B 已完成首頁工作台、sidebar 分群、主要流程 CTA、空狀態/完成狀態與 UI 驗證；自適應任務引擎另列 DEV-UX-PLATFORM-002 |
-| [x] | DEV-BOM-WORKBENCH-001 | BOM 工作台獨立模組 | 建立獨立 BOM 工作台，支援 CAD 自動 Draft、SolidWorks BOM XLS、人工拖拉、多 Draft、Active Draft、主管審核與 Released Snapshot | 第一版完成；BOM 工作台 UI、主管 diff 審核、Released Snapshot、匯出、權限與 regression QC 通過 |
-| [x] | DEV-PDM-NUMBERING-001 | 圖號與料號自動化管理 | 將圖號、料號、主根號、同圖多料號、DVT/發行審核、override、audit 與月報轉為 PDM 模組 | RD 可先領號後補文件；DVT/發行管制可設定；總表可匯入/匯出；audit 與 QC 通過 |
-| [x] | DEV-PDM-DRAWING-001 | 圖號管理模組補齊 | 將圖號從圖料查詢中拆出為 PDM 主資料模組，支援圖號清單、MA/OT、狀態/階段、關聯料號、提醒與影響/追溯入口 | `/numbering/drawings`、`/api/numbering/drawings`、sidebar、權限矩陣與 QC static checks 已完成；圖料查詢保留跨物件追溯角色 |
-| [x] | DEV-PDM-MASTER-WORKBENCH-001 | 圖料三頁主資料工作台一致化 | 將圖料查詢、圖號管理、料號模組三頁改為同權重主資料入口，統一 topbar、filter、左側總表與右側固定明細 | 已完成；三頁共用 `pdm-master-*` layout，桌機左右工作台、手機上下排列、總表主視覺與 runtime QC 通過 |
-| [x] | DEV-PDM-IDENTITY-LIST-001 | 圖料三頁主識別清單 UI/UX 優化 | 將圖料查詢、圖號管理、料號模組清單主畫面調整為圖號 / 品名 / 料號優先，其他資訊降級為 compact meta | 已完成；三頁清單表頭統一、主識別三欄 81.9%、其他欄 18.0%、手機卡片堆疊無水平溢出，右側明細動作仍可用 |
-| [x] | DEV-PDM-DRAWING-SHORTCUTS-001 | 圖號模組清單安全快捷鍵 | 依 `ui-design-principles` 管理系統清單頁模板補齊圖號清單 Excel 類安全查閱快捷鍵 | 已完成；支援 Arrow/Home/Page/Enter/Escape/Ctrl+C，保留瀏覽器快捷鍵與輸入框原生行為，QC 169/169 通過 |
-| [x] | DEV-PDM-DETAIL-DRAWER-001 | 全系統右側明細 Drawer 一致化 | 將點選清單列後出現的右側明細欄統一為圖號模組同款 drawer，支援不暗幕、ESC/外部關閉、切換列、拖拉寬度記憶與安全快捷鍵 | 已完成；共用 drawer、寬度記憶與安全快捷鍵工具已落地，dashboard 與 numbering 明細頁完成一致化，BOM 工具面板與高風險固定 decision panel 保持排除 |
-| [x] | DEV-GDRIVE-001 | Google Drive 資料夾樹狀設定 | 將 `/settings` 的手動 Folder ID 輸入改為 Windows Explorer 式資料夾樹與驗證流程 | Admin 可用樹狀圖指定 pending/released folders；阻擋同資料夾與非資料夾；舊 Folder ID POST 相容 QC 通過 |
-| [x] | DEV-UX-FILE-DROPZONE-001 | 全系統拖曳上傳 UX | 將送審、BOM XLS、圖號附件庫與料號附件庫上傳入口統一為可拖曳/可點擊的 dropzone | 已完成；共用 FileDropzone 落地；單檔區多檔拖入會拒絕；QC、tsc、lint、build 與 browser smoke 通過 |
-| [x] | DEV-UX-005 | 全系統 UI 屬性視覺層級一致化 | 建立一致的識別、狀態、metadata、系統診斷資訊呈現規則 | 主要頁面 100% 縮放無重疊；dashboard/upload/handoff/share 視覺 QC 通過 |
-
-## Spec Index
-
-| 狀態 | Spec | 關聯任務 | 位置 | 備註 |
-|---|---|---|---|---|
-| [x] | SPEC-BOM-VISUAL-EDITOR-001 | DEV-BOM-VISUAL-EDITOR-001 | [.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md) | Implemented；BOM 工作台升級為 XMind 式混合畫布與圖號模組同款 drawer，QC 通過 |
-| [x] | SPEC-UX-PLATFORM-001 | DEV-UX-PLATFORM-001 | [.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md) | Phase 1A/1B Implemented；首頁工作台、平台導覽、流程定位、空狀態/完成狀態 CTA 已落地 |
-| [x] | SPEC-BOM-WORKBENCH-001 | DEV-BOM-WORKBENCH-001 | [.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md) | Implemented；BOM 工作台第一版 QC 通過 |
-| [x] | SPEC-PDM-NUMBERING-001 | DEV-PDM-NUMBERING-001 | [.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md) | Implemented；圖號料號自動化第一版 QC 通過 |
-| [x] | SPEC-PDM-PART-COST-001 | DEV-PDM-PART-COST-001 | [.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md) | Spec document created；第一版料號模組開發中；已落地料號變體、成本 profile/tier/standard/change request schema、`/parts` 工作台與 QC |
-| [x] | SPEC-PDM-MASTER-WORKBENCH-001 | DEV-PDM-MASTER-WORKBENCH-001 | [.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md) | Implemented；三頁一致化主資料工作台與 QC script 已落地 |
-| [x] | SPEC-PDM-IDENTITY-LIST-001 | DEV-PDM-IDENTITY-LIST-001 | [.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md) | Spec document created；延伸三頁主資料工作台，定義圖號 / 品名 / 料號主識別清單與欄寬驗收 |
-| [x] | SPEC-PDM-DETAIL-DRAWER-001 | DEV-PDM-DETAIL-DRAWER-001 | [.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md) | Implemented；全系統資料明細 drawer 模板、排除範圍與 QC 檢查已落地 |
-| [x] | SPEC-UX-FILE-DROPZONE-001 | DEV-UX-FILE-DROPZONE-001 | [.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md) | Implemented；全系統上傳入口統一拖曳 UX |
-| [x] | Google Drive Folder Tree Settings Spec | DEV-GDRIVE-001 | [docs/google-drive-folder-tree-settings-spec-2026-05-30.md](C:/VIBE%20CODING/AI_PDM/docs/google-drive-folder-tree-settings-spec-2026-05-30.md) | Implemented；保留於既有 docs 位置 |
-
-## DEV-BOM-VISUAL-EDITOR-001：BOM XMind 式圖像化編輯器
-
-狀態：[x]
-優先級：P1
-類型：UX / BOM 關係編輯器
-關聯 spec：[.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-VISUAL-EDITOR-001-xmind-style-bom-editor.md)
-
-## 任務目標
-
-將 `/bom/workbench` 從清單型樹狀編輯升級為混合式圖像畫布：中央使用 React Flow 呈現 parent assembly、group、item 與 BOM edge；左側保留料件搜尋/拖入；右側節點屬性改用圖號模組同款 `PdmDetailDrawer`。拖拉操作必須能改父子件與同層排序，但 BOM 真實資料仍只由 `parentLineId` 與 `sequenceNo` 決定。
-
-## RD 實作項目
-
-- [x] 引入 `@xyflow/react` 並在 BOM 工作台建立自訂 BOM node / edge 畫布。
-- [x] 將 `selectedDraft.lines` 轉換為 deterministic flow nodes/edges，不保存自由座標。
-- [x] 支援節點選取、節點拖拉改 parent、同層排序、搜尋結果拖入畫布與空白區回 root。
-- [x] 以 `PdmDetailDrawer` 取代常駐右側屬性 panel，保留節點編輯、XLS 貼上、送審與 draft compare。
-- [x] 保留既有 save / active / clone / submit review API contract。
-
-## QA 驗證計畫
-
-- [x] 桌面 1440px 驗證畫布節點、edge、toolbar、左側料件庫與 drawer 資訊層級。
-- [x] 手機 390px 驗證不水平溢出，drawer 可開關。
-- [x] 驗證拖入料件、拖成子件、同層排序、非法循環阻擋與 save 後 hierarchy 保留。
-- [x] 驗證 Undo/Redo 與 drawer 編輯流程；快捷鍵完整化保留後續 keyboard interaction slice。
-
-## QC 驗證項目
-
-- [x] `npm.cmd run lint`
-- [x] `npm.cmd run build`
-- [x] `npm.cmd run qc:bom-workbench-tree-rules`
-- [x] `npm.cmd run qc:bom-workbench-ui`
-- [x] `npm.cmd run qc:pdm-system-detail-drawer-ui`
-
-## PM evidence
-
-- SPEC：`SPEC-BOM-VISUAL-EDITOR-001`
-- DEV：`DEV-BOM-VISUAL-EDITOR-001`
-- RD 證據：BOM 工作台 React Flow 畫布與 drawer 實作 diff；[docs/rd-qc-bom-visual-editor-report-2026-06-07.md](C:/VIBE%20CODING/AI_PDM/docs/rd-qc-bom-visual-editor-report-2026-06-07.md)
-- QA/QC 證據：`lint`、`build`、`qc:bom-workbench-tree-rules` 22/22、`qc:bom-workbench-ui` 34/34、`qc:pdm-system-detail-drawer-ui` 53/53 通過
-
-## DEV-UX-PLATFORM-001：多角色 AI PDM 平台 UX 架構優化
-
-狀態：[x]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md)
-
-## 任務目標
-
-將 AI PDM 從 RD 導向的功能清單介面，升級為可支援 RD、QA、QC、PM、製造、採購/供應商、管理者與系統管理者的多角色平台 UX。第一階段優先收斂首頁工作台、sidebar 資訊架構、物件中心入口、任務路由與空狀態/完成後下一步，不調整資料庫 schema、不重寫核心 API、不建立完整自適應任務引擎。
-
-## RD 執行項目
-
-- [x] 將首頁定位從單純 dashboard 調整為「工作台」，首頁應優先呈現我的待辦、最近物件、關注物件、跨部門阻塞、系統建議下一步與快速搜尋。
-- [x] 將 sidebar 第一層從功能平鋪改為平台導覽：工作台、專案 / 圖料、BOM、變更 / 審核、驗證 / 品質、發行 / 交接、報表、設定。
-- [x] 保留現有頁面直連與權限過濾；權限過濾後不得顯示空群組，不得讓無權限 numbering 頁面重新出現。
-- [x] 建立第一版物件中心入口規則，讓圖號/料號、BOM、審核任務與交接包能從首頁或搜尋回到一致的物件脈絡。
-- [x] 在主要作業頁補上流程定位與下一步 CTA：上傳送審、領號申請、BOM 工作台、BOM 審核、圖號待辦、總表匯入、MA 影響分析、製造交接。
-- [x] 改寫關鍵空狀態與完成狀態文案，空狀態需提供可執行下一步，完成狀態需提供合理後續入口。
-- [x] 使用現有 CSS token、panel、button、badge、metadata 視覺語彙，不新增大型 landing page、不使用行銷式 hero。
-- [x] 手機版需保留可操作導覽，不得因分群造成第一畫面高度過高或橫向溢出不可用。
-
-## QA 驗證計畫
-
-- [x] 依角色建立驗證情境：RD、QA/QC、PM、製造、管理者各自能在首頁找到主要工作入口。
-- [x] 驗證 sidebar 第一層不超過 8 類，且二級入口能覆蓋既有主要功能。
-- [x] 驗證權限過濾後不出現空群組、斷裂連結或無權限入口。
-- [x] 驗證首頁不變成功能入口牆，而是呈現待辦、物件、阻塞與下一步。
-- [x] 驗證主要頁面流程定位與 CTA 不誤導使用者，不造成跨部門工作流斷點。
-- [x] 驗證桌機、平板、手機主要 viewport 下文字不重疊、按鈕不溢出、導覽可操作。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] `npm.cmd run qc:dashboard-quick-access` 通過或依新 UX 更新測試後通過。
-- [x] `npm.cmd run qc:dashboard-find-first` 通過或依新 UX 更新測試後通過。
-- [x] `npm.cmd run qc:pdm-numbering-task-center-ui` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-import-center-ui` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-impact-ui` 通過。
-- [x] `npm.cmd run qc:bom-workbench-ui` 通過。
-- [x] `npm.cmd run qc:bom-workbench-review-ui` 通過。
-- [x] Handoff Playwright smoke 通過。
-- [x] Playwright 或等效 UI 檢查覆蓋 `/`、`/upload`、`/bom/workbench`、`/bom/reviews`、`/numbering/tasks`、`/numbering/imports`、`/handoff`、`/settings`。
-- [x] QC 報告需截圖或記錄桌機與手機版 sidebar / 工作台 / 主要頁面 CTA 證據。
-
-## 阻塞 / 依賴
-
-- [x] 第一階段依賴現有 submission、numbering task、notification、BOM review、handoff readiness 資料，不新增任務引擎 schema。
-- [x] QA/QC 驗證 / 品質模組若尚未產品化，第一階段只能以證據、報告、阻塞摘要或未來模組入口呈現，不建立空頁。
-- [x] 若後續要做完整自適應任務排序，需另開 Phase 3 task 定義任務摘要模型、排序權重、角色視角與資料來源。
-
-## DEV-UX-PLATFORM-002：自適應任務路由與角色視角模型
-
-狀態：[x]
-優先級：P2
-關聯 spec：[.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-PLATFORM-001-multi-role-pdm-platform-ux.md)
-
-## 任務目標
-
-在 Phase 1 平台 UX 已穩定後，定義自適應任務摘要模型、角色視角、排序權重與資料來源，讓首頁工作台能依 RD、QA/QC、PM、製造、採購/供應商、管理者與系統管理者顯示不同優先任務與下一步。
-
-## RD 執行項目
-
-- [ ] 定義 task summary domain model，不直接綁死單一頁面或單一角色。
-- [ ] 定義角色視角與排序權重，至少涵蓋逾期、阻塞、風險、待審、即將交接與系統異常。
-- [ ] 定義資料來源 adapter，串接 numbering task、notification、BOM review、handoff readiness 與未來 QA/QC evidence。
-- [ ] 建立首頁自適應 task feed MVP，保留現有工作台卡片作 fallback。
-
-## QA 驗證計畫
-
-- [ ] 以 RD、QA/QC、PM、製造、採購/供應商、管理者、系統管理者驗證 task feed 排序是否符合主要工作流。
-- [ ] 驗證資料缺漏、權限不足、無待辦、跨部門阻塞時仍提供可行下一步。
-- [ ] 驗證排序不會掩蓋 critical / overdue / release-blocking 任務。
-
-## QC 驗收標準
-
-- [ ] `npm.cmd run lint` 通過。
-- [ ] `npm.cmd run build` 通過。
-- [ ] 新增或更新對應 QC script，覆蓋主要角色與桌機/手機 viewport。
-- [ ] QC 報告記錄角色輸入、排序結果、證據與殘留風險。
-
-## DEV-PDM-MASTER-WORKBENCH-001：圖料三頁主資料工作台一致化
-
-狀態：[x]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md)
-
-## 任務目標
-
-將 `/numbering/search`、`/numbering/drawings`、`/parts` 改成相同主資料工作台版型：topbar、filter row、左側總表、右側固定明細，手機版總表在上、明細在下。三頁同權重，總表為主畫面，compact summary 不搶主視覺。
-
-## 已定案決策
-
-- [x] 三頁同權重。
-- [x] 桌機採左右工作台。
-- [x] 左側為總表主畫面。
-- [x] 右側為固定明細檢視。
-- [x] 手機改為總表在上、明細在下。
-- [x] 本次不改 API、schema、權限矩陣或 sidebar 資訊架構。
-
-## RD 執行項目
-
-- [x] 建立共用 layout CSS class：`pdm-master-workbench`、`pdm-master-toolbar`、`pdm-master-grid`、`pdm-master-table-panel`、`pdm-master-detail-panel`。
-- [x] 調整 `/numbering/search` 為左側跨物件總表、右側主根明細。
-- [x] 調整 `/numbering/drawings` 為左側圖號總表、右側圖號治理明細，移除大型 stats cards 的主視覺優先權。
-- [x] 調整 `/parts` 為左側料號總表、右側料號屬性、圖號、成本明細，避免右側明細比總表更強。
-- [x] 統一未登入、錯誤、載入、空狀態位置與文案層級。
-- [x] 確保手機版無頁面層水平溢出。
-
-## QA 驗證計畫
-
-- [x] 驗證三頁桌機版皆呈現 `topbar -> filter -> left table / right detail`。
-- [x] 驗證三頁手機版皆呈現 `topbar -> filter -> table -> detail`。
-- [x] 驗證點選總表列後右側明細更新且選取列高亮一致。
-- [x] 驗證 compact summary 不會將總表推到第二視覺層。
-- [x] 驗證不需 API、schema、權限矩陣或 sidebar 變更即可完成。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
-- [x] `npm.cmd run qc:pdm-numbering-core` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-search-ui` 通過。
-- [x] `npm.cmd run qc:part-number-module` 通過。
-- [x] 新增 `npm.cmd run qc:pdm-master-workbench-layout`，覆蓋三頁共用 layout class、桌機左右工作台、手機上下排列、點選列更新明細、四個 URL 回 200。
-
-## 風險 / 注意事項
-
-- [x] 目前 dev server 建議使用 `next dev --webpack`，避免 Turbopack dev 對大型首頁卡死。
-- [x] 文件與 UI 若遇終端亂碼，需以實際 source UTF-8 與瀏覽器呈現為準。
-- [x] 不得在此任務中順手重構 API、權限矩陣或 sidebar。
-
-## DEV-PDM-IDENTITY-LIST-001：圖料三頁主識別清單 UI/UX 優化
-
-狀態：[x]
-優先級：P1
-類型：UX / PDM 主資料清單優化
-關聯 spec：[.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md)
-關聯任務：`DEV-PDM-MASTER-WORKBENCH-001`
-
-## 任務目標
-
-將 `/numbering/search`、`/numbering/drawings`、`/parts` 的左側清單從平均欄位配置調整為主識別優先配置。三頁清單第一視覺應服務 RD 掃描 `圖號 / 品名 / 料號`，狀態、階段、用途、成本、提醒、關聯數量與動作降級為 compact meta 或右側明細，避免資訊爆炸造成疲勞。
-
-## 已定案決策
-
-- [x] 三頁清單表頭統一為 `圖號 / 品名 / 料號 / 其他`。
-- [x] `品名` 是最大彈性欄。
-- [x] `圖號` 與 `料號` 以內容容納寬度為主。
-- [x] 次要資訊降級為 compact badge、icon hint 或右側明細。
-- [x] 圖號管理清單不保留大型動作欄，追溯與 MA 影響分析入口放右側固定明細。
-- [x] 手機版使用卡片式堆疊，避免頁面層水平溢出。
-- [x] 本輪只寫專案文件，不執行 UI 開發。
-
-## RD 執行項目
-
-- [x] 建立共用 identity list CSS class：`pdm-identity-table`、`pdm-identity-code`、`pdm-identity-name`、`pdm-identity-meta`、`pdm-meta-strip`。
-- [x] 調整 `/numbering/search` 清單為圖號、品名、料號、其他四欄，並允許 backward-compatible `coreName` 擴充供 drawing/root row 顯示品名。
-- [x] 調整 `/numbering/drawings` 清單為 `drawingNumber / coreName / linkedPartNumbers / compact meta`，移除清單大型動作欄。
-- [x] 調整 `/parts` 清單為 `primaryDrawingNumber / partName / partNumber / compact meta`，材質、顏色、成本摘要降級為其他欄或右側明細。
-- [x] 手機版將 identity row 改為卡片式堆疊：圖號、品名、料號、其他 chips。
-- [x] 保留現有 row click、selected-row 高亮、右側固定明細更新流程。
-
-## QA 驗證計畫
-
-- [x] 驗證三頁表頭順序皆為 `圖號 / 品名 / 料號 / 其他`。
-- [x] 驗證桌機版主識別三欄合計寬度 >= 清單可視寬度 70%。
-- [x] 驗證 `其他` 欄寬 <= 清單可視寬度 22%。
-- [x] 驗證狀態、階段、用途、成本、提醒與關聯數量不再形成大型獨立欄位。
-- [x] 驗證圖號管理清單移除動作欄後，右側明細仍提供追溯與 MA 影響分析入口。
-- [x] 驗證手機版無 page-level horizontal overflow，且 identity row 可讀。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
-- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過，125/125。
-- [x] `npm.cmd run qc:pdm-numbering-search-ui` 通過，26/26。
-- [x] `npm.cmd run qc:part-number-module` 通過，41/41。
-- [x] 新增或擴充 UI QC，覆蓋 identity table class、表頭順序、欄寬比例、手機無水平溢出與圖號管理右側動作入口。
-
-## 風險 / 注意事項
-
-- [x] 不得重開或覆蓋已完成的 `DEV-PDM-MASTER-WORKBENCH-001`。
-- [x] 不得順手修改圖號 / 料號 / 主根號命名規則。
-- [x] 不得修改審核矩陣、BOM 關聯或成本審核流程。
-- [x] 若圖料查詢需 `coreName`，僅允許 backward-compatible response 擴充，不做 DB schema migration。
-
-## DEV-PDM-DRAWING-SHORTCUTS-001：圖號模組清單安全快捷鍵
-
-狀態：[x]
-優先級：P1
-節點類型：開發點
-父交付點：`DEV-PDM-DRAWING-001`、`DEV-PDM-IDENTITY-LIST-001`
-是否計入產品交付完成：否
-關聯 skill：`ui-design-principles`
-
-## 任務目標
-
-依管理系統清單頁模板，讓 `/numbering/drawings` 圖號清單具備 Excel 類查閱肌肉記憶，同時不覆蓋瀏覽器原生快捷鍵、不啟用資料異動快捷鍵。
-
-## RD 執行項目
-
-- [x] 圖號清單區加入 focusable region 與 `aria-keyshortcuts`，不在主畫面顯示大量快捷鍵說明。
-- [x] 支援 `ArrowUp / ArrowDown` 上下移動選取列。
-- [x] 支援 `Enter` 開啟目前選取圖號明細。
-- [x] 支援 `Escape` 關閉右側 drawer。
-- [x] 支援 `PageUp / PageDown` 清單翻頁、`Home / End` 第一筆 / 最後一筆。
-- [x] 支援 `Ctrl+C` 在沒有文字反白時複製目前選取圖號。
-- [x] 焦點在 `input`、`textarea`、`select`、contenteditable、modal 或確認流程時不攔截清單快捷鍵。
-- [x] 未啟用 `Ctrl+F`、`Ctrl+R/F5`、`Ctrl+S`、`Ctrl+N`、`Ctrl+A`、`Delete`、`F2` 等瀏覽器或資料異動快捷鍵。
-
-## QA 驗證計畫
-
-- [x] 驗證清單 focus 時 `Home`、`End`、`ArrowDown`、`PageUp/PageDown` 會改變選取列。
-- [x] 驗證 `Enter` 會開啟目前選取列右側明細，`Escape` 可關閉。
-- [x] 驗證 `Ctrl+C` 會複製目前選取圖號。
-- [x] 驗證輸入框 focus 時不攔截清單快捷鍵。
-- [x] 驗證有文字反白時 `Ctrl+C` 保留瀏覽器原生複製。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過；仍有既有 Turbopack dynamic path / NFT trace warning，與本任務無關。
-- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過，169/169。
-
-## 風險 / 注意事項
-
-- [x] 本任務只補圖號模組查閱型快捷鍵，不擴大到料號模組或圖料查詢。
-- [x] 不啟用任何資料異動快捷鍵；若未來要在 inline edit 頁使用，需頁面級 opt-in、權限、確認、防誤觸設計與 QC。
-
-## DEV-PDM-DETAIL-DRAWER-001：全系統右側明細 Drawer 一致化
-
-狀態：[x]
-優先級：P1
-類型：UX / 管理系統清單頁明細互動一致化
-關聯 spec：[.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md)
-關聯 skill：`ui-design-principles`
-關聯任務：`DEV-PDM-DRAWING-SHORTCUTS-001`、`DEV-PDM-MASTER-WORKBENCH-001`
-
-## 任務目標
-
-以圖號模組右側 drawer 作為全系統清單頁明細模板，將「點選清單列後出現的資料明細欄」改為一致互動：右側浮出、不暗化底頁、可直接切換列、可用 `Escape` 或點擊外部關閉、可拖拉寬度並記憶，同步補齊安全查閱快捷鍵。
-
-## 已定案範圍
-
-- [x] 首頁 / 工作台圖面送審明細。
-- [x] `/numbering/approvals` 審核批次明細。
-- [x] `/numbering/imports` 匯入批次 / staging 檢查明細。
-- [x] `/numbering/reports` 月報明細。
-- [x] 保留 `/numbering/search`、`/numbering/drawings`、`/parts` 既有圖號模組同款 drawer 行為，必要時抽共用邏輯。
-
-## 不納入本次
-
-- [x] 不改全域左側 sidebar。
-- [x] 不改 BOM 工作台左側搜尋 / 樹狀面板。
-- [x] 不改 BOM 工作台節點屬性面板。
-- [x] 不改 BOM 審核頁固定 decision panel。
-- [x] 不改 API、DB schema、權限矩陣或 sidebar 資訊架構。
-
-## RD 執行項目
-
-- [x] 建立共用 drawer / width memory / outside close / Escape close 工具。
-- [x] 建立或抽出共用清單安全快捷鍵工具。
-- [x] 將首頁工作台明細改為右側 drawer，底頁保持可讀且可直接切換列。
-- [x] 將 `/numbering/approvals` 批次明細改為右側 drawer。
-- [x] 將 `/numbering/imports` staging 檢查明細改為右側 drawer。
-- [x] 將 `/numbering/reports` 月報明細改為右側 drawer。
-- [x] 確認 drawer 寬度可拖拉並用 localStorage 記憶。
-- [x] 確認清單快捷鍵不攔截輸入欄位、下拉欄位、contenteditable 與文字反白。
-
-## QA 驗證計畫
-
-- [x] 驗證每個納入頁面點選列會開啟右側 drawer。
-- [x] 驗證 drawer 開啟後可直接點其他列切換明細。
-- [x] 驗證 `Escape` 與點擊外部可關閉 drawer。
-- [x] 驗證 drawer 不使用深色遮罩，底頁清單仍可讀。
-- [x] 驗證拖拉 drawer 寬度後重新整理仍保留寬度。
-- [x] 驗證 `ArrowUp/Down`、`Enter`、`Escape`、`PageUp/PageDown`、`Home/End`、`Ctrl+C` 的安全查閱行為。
-- [x] 驗證 desktop / laptop / mobile 無水平 overflow、重疊、裁切或按鈕擠壓。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] `npm.cmd run qc:pdm-master-workbench-layout` 通過。
-- [x] `npm.cmd run qc:dashboard-detail-priority` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-approval-review-ui` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-import-center-ui` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-report-center-ui` 通過。
-- [x] `npm.cmd run qc:dashboard-quick-access` 通過。
-- [x] `npm.cmd run qc:dashboard-search-assist` 通過。
-- [x] 新增或更新 UI QC，覆蓋全系統資料明細 drawer 一致化。
-
-## 風險 / 注意事項
-
-- [x] 固定工具面板與資料明細 drawer 的用途不同，不應為追求一致而誤改。
-- [x] 若某頁沒有資料，QC 需驗證空狀態位置一致，但不可因此略過有資料時的 drawer 行為。
-- [x] drawer 不暗化底頁，但仍需用陰影、邊線與 z-index 做出足夠視覺區隔。
-
-## DEV-UX-FILE-DROPZONE-001：全系統拖曳上傳 UX
-
-狀態：[x]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-UX-FILE-DROPZONE-001-system-upload-drag-drop.md)
-
-## 任務目標
-
-將系統內既有上傳入口統一為可拖曳、可點擊、可鍵盤操作的 dropzone，降低從 Windows 檔案總管上傳送審檔、BOM XLS、圖號附件與料號附件的 UX 摩擦。
-
-## RD 執行項目
-
-- [x] 新增共用 `FileDropzone` client component，支援 multiple/single、accept、disabled、drag-over、reject callback 與 keyboard focus。
-- [x] `/upload` 改用共用 dropzone，保留多檔、metadata detection、sidecar 分類、移除檔案與送審流程。
-- [x] BOM 工作台 XLS 匯入改用 compact single-file dropzone，拖入多檔時拒絕。
-- [x] 圖號/料號附件庫改用 single-file dropzone，顯示已選檔案與清除動作。
-- [x] 新增全域樣式，確保 drawer 與 mobile viewport 不 overflow、不重疊。
-
-## QA 驗證計畫
-
-- [x] 多檔送審可拖曳、多檔清單與 metadata detection 不回退。
-- [x] BOM XLS 單檔拖曳可匯入，多檔拖入拒絕並提示。
-- [x] 圖號/料號附件單檔拖曳可選取，多檔拖入拒絕並提示。
-- [x] disabled/loading 狀態不接受 drop/click。
-- [x] desktop/mobile 與 drawer 內無文字重疊、按鈕跳動或水平 overflow。
-
-## QC 驗收標準
-
-- [x] `npm.cmd run qc:file-dropzone-ux` 通過。
-- [x] `npx.cmd tsc --noEmit` 通過。
-- [x] `npm.cmd run lint` 通過。
-- [x] `node node_modules/next/dist/bin/next build` 通過。
-- [x] Browser smoke 確認 `/upload`、BOM 工作台、圖號附件庫、料號附件庫皆顯示 dropzone。
-
-## DEV-PDM-PART-COST-001：主根號關聯圖號料號與料號成本模組
-
-狀態：[ ]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-PART-COST-001-root-linked-drawing-part-cost.md)
-
-## 任務目標
-
-在既有圖號與料號自動化管理基礎上，建立圖號模組與料號模組的清楚責任邊界：圖號管理技術文件與版次，料號管理材質、顏色、採購/製造語意與成本。系統需依相同主根號自動關聯圖號與料號，支援一張 MA 圖對多個料號變體，並讓不同料號保留各自成本 profile、數量級距、標準成本與採購變更 / 主管審核流程。
-
-## 使用者已定案決策
-
-- [x] 一圖多料號的主要原因是不同材質、不同顏色。
-- [x] 成本以標準成本為主，但同一料號需保留其他成本 profile，例如委外加工、自行製作、採購或試算。
-- [x] 成本會隨數量改變，需支援數量級距。
-- [x] 採購可提出成本變更，主管審核後才生效。
-- [x] 圖面改版不需要觸發成本重審。
-- [x] 系統需同時有圖號模組及料號模組，兩者透過相同主根號自動關聯。
-
-## RD 執行項目
-
-### 資料模型 / Migration
-- [x] 評估既有 `part_roots`、`drawing_numbers`、`part_numbers`、`drawing_part_links`、`same_drawing_variants` 是否足以承接主根號自動關聯與一圖多料號變體。
-- [x] 新增或延伸料號變體屬性，至少支援材質、顏色、表面處理與差異說明。
-- [x] 新增 `part_cost_profiles`，支援 `outsource`、`in_house`、`purchase`、`trial` 等成本情境與版本狀態。
-- [x] 新增 `part_cost_tiers`，支援數量級距、單價、設定費、交期與備註。
-- [x] 新增 `part_standard_costs`，以 approved cost profile 與基準數量指定 current standard cost。
-- [x] 新增 `part_cost_change_requests`，保存採購提出、主管審核、退回、核准與異動前後 snapshot。
-- [x] 成本主關聯必須掛在 `part_number_id`，不得以 `drawing_number_id` 作正式成本主關聯。
-
-### 後端服務 / API
-- [ ] 實作同主根號自動關聯規則：相同 `part_root_id` 才可自動關聯，MA 圖可作 primary manufacturing link，OT 圖只能作 reference link。
-- [ ] 實作一圖多料號的變體完整性檢查，DVT / Release 起材質、顏色或差異說明不得缺漏。
-- [x] 實作成本 profile CRUD，採購可建立 draft / pending review，但不可直接改變 approved standard cost。
-- [ ] 實作成本級距驗證，避免數量區間重疊，查詢時可明確回報無級距或級距衝突。
-- [ ] 實作標準成本解析演算法：輸入料號、數量與日期，解析有效標準成本 profile 與對應級距。
-- [ ] 實作指定成本情境解析演算法：可查委外、自製、採購等 approved profile 的有效成本。
-- [ ] 實作成本變更審核流程，主管核准後才讓 profile approved 或 set standard 生效。
-- [ ] 圖面 revision event 不得自動建立成本審核單；若材質、顏色或製程條件變更，需由料號 / 成本流程另行處理。
-- [ ] 成本異動、標準成本指定與審核結果需寫入 append-only audit log。
-
-### UI / UX
-- [ ] 圖號明細頁顯示同主根號料號清單、材質、顏色、料號狀態、標準成本狀態與 primary MA link。
-- [x] 料號明細頁顯示同主根號圖號、材質、顏色、差異說明、BOM 使用狀態、成本 profile、數量級距與標準成本。
-- [ ] 成本審核中心顯示採購送審、異動前後、影響料號、核准 / 退回與審核意見。
-- [x] 一圖多料號清單需讓使用者能比較同主根號下不同材質、顏色與成本差異。
-- [ ] 若圖面 title block 寫死材質或顏色，UI 需提醒同圖多料號可能不成立，需改用「依料號規格」或建立變體表。
-
-## QA 驗證計畫
-
-- [ ] 驗證圖號模組可從 MA 圖看到同主根號下多個料號。
-- [x] 驗證料號模組可從料號看到同主根號下可關聯 MA / OT 圖。
-- [ ] 驗證同一 MA 圖可對應不同材質 / 顏色料號，且 DVT / Release 起缺少差異欄位會被阻擋。
-- [x] 驗證成本只能掛料號，不會因同圖多料號而共用錯誤成本。
-- [ ] 驗證採購建立成本 profile 後，在主管核准前不會影響標準成本。
-- [ ] 驗證主管核准後，標準成本依指定基準數量與數量級距解析。
-- [x] 驗證同一料號可同時保留委外、自製、採購等成本情境。
-- [ ] 驗證圖面改版不會自動觸發成本重審或改變標準成本。
-- [ ] 驗證 audit log 可追溯成本異動前後、申請人、審核人與理由。
-
-## QC 驗收標準
-
-- [ ] `npm.cmd run lint` 通過。
-- [ ] `npm.cmd run build` 通過。
-- [x] 新增或更新資料模型 / repository 單元測試，覆蓋主根號自動關聯與一圖多料號變體。
-- [x] 新增或更新成本 profile / tier / standard cost API 測試。
-- [ ] 新增或更新採購送審與主管審核 E2E 測試。
-- [ ] 新增或更新 UI QC，覆蓋圖號明細、料號明細與成本審核中心。
-- [ ] QC 報告需記錄測試資料中的圖號、料號、材質、顏色、成本級距、審核結果與 audit evidence。
-
-## 阻塞 / 待確認
-
-- [ ] 決定料號流水號是否要把材質 / 顏色編碼進號碼，或只保存於屬性欄位。
-- [ ] 決定標準成本的預設基準數量，例如 1 pcs、100 pcs 或依料號類型設定。
-- [ ] 決定哪些角色可看到成本金額，避免製造、品保或供應商視角洩漏敏感資訊。
-- [ ] 決定材質 / 顏色第一版是否建立標準字典，或先以自由欄位收斂實際用語。
-
-## DEV-PDM-NUMBERING-001：圖號與料號自動化管理
-
-狀態：[x]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md)
-
-## 任務目標
-
-建立 PDM 圖料號自動化管理模組，讓 RD 可先建立料號/圖號並由系統集中分配主根號、避免撞號、支援同圖多料號、DVT/發行審核、override、MA 圖作廢影響分析、既有總表匯入/匯出、append-only audit log 與每月稽核報表。第一版不要求建圖號時檢查 CAD 檔，不搬移 J 槽檔案，只保存路徑、hash 與未來 Supabase Storage 轉移欄位。
-
-## 引導模式定案決策
-
-- 階段管制：DVT 起正式管制；EVT 保持彈性，但塑膠射出、模具、發包加工、高成本長交期或需製程管制件需在 EVT 提醒 RD 可提前納管。
-- 草稿原則：全系統草稿建立、修改、作廢預設不審核；若後續發現已發行引用、主要 MA 圖失效或發行阻擋等高風險，再以 `!`、待辦或送審處理。
-- 占號原則：表單一建立即正式占號；主根號、料號、圖號不可手動撞號；作廢、合併、退回、未核准與待審號碼都不可釋放重用。
-- CAD 實務限制：建圖號時不可檢查 CAD 檔是否存在，因 RD 需先領圖號才能填入 CAD；CAD 檔名、路徑、版次與引用檢查放在掛載文件、DVT 或發行階段。
-- DVT 晉升效率：EVT 進 DVT 不要求人工另外設定；系統自動掃描專案料號、圖號與文件，產生 DVT 納管清單，讓 RD 批次選擇送入 DVT、保留 EVT 草稿、EVT 停用或作廢。
-- BOM 關係：料號不強制進 BOM，也不與 BOM 建立強制使用關係；BOM 僅在影響分析與發行閘門中作提醒或引用來源。
-- 同圖多料號：允許一張 MA 圖對多個料號；DVT 起差異欄位必填，第一版內建常用選項並允許自由填寫，未來再整理成標準字典。
-- 外購與萬用料號：所有外購件需要料號；外購標準品不需要圖號；萬用料號 `000` 只需使用理由，不強制結構化尺寸參數，但需提醒實際規格需可追溯。
-- OT 用途：OT 圖建立時用途描述必填；系統內建爆炸圖、概念圖、組裝參考、包裝示意、檢驗參考、客戶/供應商溝通、測試配置與其他自行填寫。
-- 影響文件：品名、規格、材質、顏色、表面處理、圖號、料號、版次、製程管制需求、供應商或外購規格異動時，系統需偵測受影響文件並讓 RD 建立對應進版待辦；主管審核畫面也需看到影響範圍。
-- MA 圖作廢：作廢前必須跳出影響範圍提醒；套用後受影響料號轉 `MainDrawingInvalid` 並完全阻擋使用，需重新送審通過後才能恢復。
-- override 與提醒：所有 override 都必須留痕並在畫面、總表匯出與 audit 標示；所有高風險資訊統一以 `!` 做懸浮說明或跳出頁面說明。
-- 後台矩陣：審核權限不可寫死；後台需提供角色列 x 權限欄的矩陣設定台，管理員可設定頁面權限、動作權限、自訂角色、使用者角色指派、主管可視範圍與代理人。
-- 權限衝突：同一使用者多角色衝突時採最高權限角色優先；只有系統管理員可調整角色排序，所有調整需記錄前後排序、原因、版本與 audit。
-- 代理與代送審：代理人只能由管理員設定，需限制專案、動作與時間區間；管理員可代送審，但必須標示代送審且原因必填。
-- 批次審核：同專案可批次審核，不允許跨專案批次審核；退回後保留原批次，補完後只重新送退回項目。
-- 通知與待辦：第一版只做系統內通知，不做 email、LINE 或 Teams；資訊類通知可關閉，待處理與阻擋通知不可關閉、不可延後。
-- 稽核與儲存：audit log append-only 且保存 before/after/diff；第一版使用本機資料庫與 J 槽路徑/hash 索引，先預留 Postgres/Supabase 與 Supabase Storage 欄位，未來再移轉以控制初期成本。
-
-## RD 執行項目
-
-### 資料模型 / Migration
-- [x] 新增 `part_roots`、`part_numbers`、`drawing_numbers`、`drawing_part_links`、`same_drawing_variants`，支援主根號、料號、圖號、主要 MA 圖與同圖多料號。
-- [x] 新增唯一約束：主根號、料號、圖號不可重複；一個料號最多一張主要 MA 圖；作廢/合併號碼不可重用。
-- [x] 新增狀態欄位與流程資料，支援 Draft、NeedInfo、Active、PendingReview、Released、Obsolete、Merged、EVTDisabled、PendingAdminConfirm、MainDrawingInvalid。
-- [x] 新增 `rule_versions`、`rule_templates`、`approval_rules`、`approval_requests`、`approval_decisions`，支援審核矩陣、三模板與規則版本生效。
-- [x] 新增 `roles`、`role_permissions`、`role_priority_versions`、`user_role_assignments`、`approval_delegations`，支援內建角色、自訂角色、使用者角色指派、最高權限排序與代理人。
-- [x] 新增 `import_batches`、`import_staging_rows`，支援既有總表 staging 匯入、檢查報告、管理員確認與舊制保留。
-- [x] 新增 `audit_logs` append-only、`file_assets`、`monthly_audit_reports`，支援 before/after/diff、J 槽路徑與 hash、未來 Supabase Storage key、每月報表 metadata。
-
-### 後端服務 / API
-- [x] 實作交易式占號服務，建立表單時立即產生主根號、料號、必要時產生圖號，並確保併發不撞號。
-- [x] 實作編碼規則版本記錄，舊資料依建立當下規則解讀，新申請套用新規則。
-- [x] 實作圖號用途規則：MA 可作主要製造圖，OT 必填用途描述且不可作主要製造圖。
-- [x] 實作同圖多料號後端服務：一張 MA 圖可對多料號、一料號最多一張主要 MA 圖、DVT/多料號差異欄位必填。
-- [x] 實作發行後新增同圖多料號需審核且待審不可用，核准後才套用同圖連結與差異欄位。
-- [x] 實作 DVT/Release MA 圖 gate evaluator：自製/發包/客製件缺主要 MA 圖時阻擋並標示 override/action code。
-- [x] 實作缺 MA 圖 override 申請、審核與發行再次確認資料流，DVT/Release 使用不同 action code 留痕。
-- [x] 實作 MA 圖作廢影響分析與套用失效：回傳受影響料號/文件清單，套用後料號與主根號轉 MainDrawingInvalid。
-- [x] 實作 MainDrawingInvalid 重新送審通過後恢復可用流程。
-- [x] 實作查重提醒與高相似紀錄，高相似只提醒、不阻擋、不要求 RD 填原因。
-- [x] 實作審核 rule evaluator，輸入動作、階段、狀態、料件類型、風險旗標後回傳審核、阻擋、警示與角色。
-- [x] 實作送審批次、同專案批次審核、退回後保留原批次且只重送退回項目。
-- [x] 實作待辦中心 API 與系統內通知 API，通知需分已讀/未讀與已處理/未處理。
-- [x] 實作角色權限矩陣 API，支援內建角色、自訂角色、頁面權限與動作權限讀取/更新。
-- [x] 實作使用者角色指派 API，支援管理員將內建或自訂角色指派給使用者、撤銷、audit 與權限判斷套用。
-- [x] 實作最高權限角色排序 API，只有系統管理員可調整，並記錄調整前後排序、原因、版本與 audit。
-- [x] 實作主管可視範圍 API，支援部門、專案、審核動作與待辦可視範圍設定。
-- [x] 實作代理人 API，支援被代理人、代理人、專案、動作、時間區間、原因、撤銷與 audit。
-- [x] 將主管範圍與代理人規則套用到審核批次清單、待辦與通知可視範圍。
-- [x] 將角色矩陣頁面/動作權限套用到所有可操作 API 與 UI guard。
-- [x] 實作總表匯入 staging、檢查報告、管理員確認轉正式主檔。
-- [x] 實作總表匯出，支援不含稽核、最後異動摘要、完整異動摘要。
-- [x] 實作每月 1 日報表 metadata 產生與管理員手動重產。
-
-### UI / UX
-- [x] 新增圖料號申請精靈，支援外購、自製、發包、共用件、客製尺寸、先料號後圖號。
-- [x] 新增料件、料號、圖號查詢與明細頁，顯示 `!` 懸浮說明或跳出影響頁。
-- [x] 新增 EVT 到 DVT 晉升清單，支援送入 DVT、保留 EVT 草稿、EVT 停用、作廢與批次送審。
-- [x] 新增 DVT/發行審核頁，支援同專案批次審核、共用意見、異常項個別意見、代送審標示。
-- [x] 新增 MA 圖作廢影響範圍頁，主管審核畫面需看到受影響料號、狀態、文件引用與進版待辦。
-- [x] 新增後台審核矩陣設定台 MVP，包含矩陣總覽、規則編輯器、規則模擬器、不可關閉硬限制與 `!` 說明。
-- [x] 補齊審核矩陣三模板套用與規則版本紀錄 UI。
-- [x] 新增角色權限矩陣 UI，以角色列 x 權限欄呈現，支援頁面權限、動作權限、內建常用權限與自訂角色。
-- [x] 新增使用者角色指派 UI，管理員可把內建或自訂 PDM 角色指派給使用者並撤銷，指派會納入最高權限排序與 audit 標示。
-- [x] 新增最高權限排序 UI，只有系統管理員可調整，需顯示目前排序、調整原因、版本與異動紀錄。
-- [x] 新增主管範圍設定 UI，支援部門、專案、可視待辦範圍與可審核動作範圍。
-- [x] 新增代理人設定 UI，由管理員設定被代理人、代理人、專案、動作、時間區間、原因與撤銷。
-- [x] 在審核、待辦與通知畫面標示代理審核、代送審、override 與影響範圍提醒，主管審核畫面需看得到。
-- [x] 新增待辦中心與通知中心，預設依風險排序，允許使用者切換排序；資訊類通知可關閉，待處理/阻擋不可關閉。
-- [x] 新增既有總表匯入 UI，顯示 staging 檢查報告、衝突、待補、舊制保留與管理員確認。
-- [x] 新增稽核報表 UI，支援全公司總覽、部門分頁、下載與手動重產。
-
-## QA 驗證計畫
-- [x] 驗證併發建立料號/圖號不撞號，作廢、退回、未核准號碼不可重用。
-- [x] 驗證草稿階段建立、修改、作廢不需審核；草稿 30 天未補齊轉待管理員確認。
-- [x] 驗證圖料號申請精靈可建立外購/自製/發包/共用件/客製尺寸，支援先料號後圖號、客製規格保存、共用件理由強制填寫與查重 warning 不阻擋。
-- [x] 驗證 DVT 晉升清單可正確分類送入 DVT、保留、EVT 停用、作廢；完整資料先送審，不完整留待補。
-- [x] 驗證自製/發包/客製件 DVT/Release 缺 MA 圖 gate evaluator 會阻擋並產生 override/action code。
-- [x] 驗證 override 申請審核與發行再次確認資料流具備 request/decision/audit/action code。
-- [x] 驗證同圖多料號：一個料號最多一張主要 MA 圖、一張 MA 圖可對多料號、DVT/多料號差異欄位必填。
-- [x] 驗證發行後新增同圖多料號需審核且待審不可用，未核准不得直接連結。
-- [x] 驗證 MA 圖作廢前可產生影響範圍，作廢套用後受影響料號轉 MainDrawingInvalid。
-- [x] 驗證 MA 圖作廢影響範圍頁可顯示受影響料號、狀態、文件進版待辦，且套用失效前需確認。
-- [x] 驗證 MainDrawingInvalid 重新送審通過後才恢復可用。
-- [x] 驗證高相似查重只提醒不阻擋，並保存 warning event 供管理員畫面標示。
-- [x] 驗證料件、料號、圖號查詢與明細頁可依關鍵字、類型、狀態、階段查詢，並顯示同圖多料號、warning、audit 與 MA 圖作廢影響資訊。
-- [x] 驗證審核矩陣三模板、規則版本、規則模擬器、不可關閉硬限制。
-- [x] 驗證後台審核矩陣設定台 MVP 可讀取、編輯、新增規則、顯示不可關閉硬限制並執行規則模擬器。
-- [x] 驗證審核矩陣三模板套用與規則版本紀錄 UI。
-- [x] 驗證待辦中心與通知中心可依風險排序、切換待辦/通知篩選、標示已讀/已處理，且待處理/阻擋通知在 UI 與後端皆不可關閉。
-- [x] 驗證 DVT/發行審核頁可載入同專案批次、顯示代送審與異常/Override、套用共用意見與異常項個別意見並完成批次核准。
-- [x] 驗證角色權限矩陣 UI 可調整頁面權限、動作權限與自訂角色，且非管理員不可進入設定台。
-- [x] 驗證最高權限排序只有系統管理員可調整，且排序異動有版本與 audit。
-- [x] 驗證多角色衝突時實際操作權限採最高權限角色優先。
-- [x] 驗證主管可視範圍依部門、專案與動作限制待辦、通知與審核清單。
-- [x] 驗證代理人只能由管理員設定，且代理審核需依專案、動作與時間區間生效並可撤銷。
-- [x] 驗證代理人、代送審、批次退回重送、主管待辦可視範圍在審核頁、待辦中心與 audit 中一致標示；`qc:pdm-numbering-cross-role-audit-e2e` 已驗證主管 scope、代理人 marker、代送審 marker、影響範圍 marker、批次退回重送與 audit envelope。
-- [x] 驗證 audit log append-only，所有異動都有 before/after/diff，相關 RD、主管、管理員可依權限查看。
-- [x] 驗證總表 staging 匯入不直接污染主檔，舊制保留可查詢與追溯。
-- [x] 驗證總表匯出與每月稽核報表欄位、權限與重產行為。
-- [x] 驗證稽核報表 UI 可顯示全公司總覽、部門/角色分頁、專案分頁、近期報表、近期匯出，且可手動重產與下載 JSON。
-
-## QC 驗收標準
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] `npm.cmd run qc:pdm-numbering-core` 234/234 通過，覆蓋核心資料表、唯一約束、同圖多料號、DVT/Release MA gate、DVT 晉升清單 workflow、DVT promotion approval rule、DVT/發行審核頁 static check、approval review batch 清單、批次個別意見、MA 圖作廢影響、MainDrawingInvalid 恢復、待辦/通知 read/handled 狀態、不可關閉通知後端 guard、待辦中心 UI static check、側欄入口、圖料號申請精靈 API/UI static check、客製規格欄位、共用件後端正規化、圖料查詢/明細 API/UI static check、MA 圖作廢影響頁 static check、總表匯入 staging/confirm、總表匯入清單 API、總表匯入 UI static check、總表匯出、每月報表 metadata、報表清單 API、部門/專案報表 metadata、稽核報表 UI static check、審核矩陣設定台 API/UI static check、三模板套用與規則版本紀錄、角色權限矩陣、使用者角色指派、主管範圍、代理人 upsert/revoke、角色矩陣預設 page/action 權限 seed、實際操作 permission guard、最高權限優先判斷、代理人 scope 權限比對、permissions route、sidebar 權限 guard、審核/待辦/通知共用 attention marker、代理審核紀錄、override/影響範圍 marker、audit log append-only trigger、before/after/diff 正規化、audit marker normalization、API regression script、data consistency script、concurrency/reuse script、draft lifecycle workflow/script、cross-role audit E2E script、cross-role permission script、查重/高相似 warning event、approval rule evaluator、approval batch、approval request/decision 與 API route static check。
-- [x] `npm.cmd run qc:pdm-numbering-settings-ui` 22/22 通過，覆蓋 Admin 登入、桌面/手機寬度矩陣載入、三模板、規則版本紀錄、硬限制提示、規則模擬器、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-task-center-ui` 22/22 通過，覆蓋 Admin 登入、桌面/手機待辦中心、通知中心、代送審/Override/影響範圍 marker、資訊類通知可處理、不可關閉通知按鈕 disabled、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-report-center-ui` 20/20 通過，覆蓋 Admin 登入、桌面/手機報表中心、手動重產月報、部門/專案分頁、JSON 匯出下載、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-import-center-ui` 22/22 通過，覆蓋 Admin 登入、桌面/手機總表匯入、staging 建立、衝突/待補列顯示、檢查報告 JSON 下載、管理員確認、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-search-ui` 24/24 通過，覆蓋 Admin 登入、桌面/手機圖料查詢、料號/圖號查詢、主根明細、`!` 提醒、MA 圖作廢影響分析、圖號 filter、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-impact-ui` 24/24 通過，覆蓋 Admin 登入、桌面/手機 MA 圖影響頁、受影響料號、文件進版待辦、`!` 提醒、套用失效、DB 轉 MainDrawingInvalid、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-request-ui` 20/20 通過，覆蓋 Admin 登入、桌面/手機圖料號申請精靈、查重 warning、客製尺寸保存、先料號後圖號、自製件同步 MA 圖號、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-dvt-ui` 23/23 通過，覆蓋 Admin 登入、桌面/手機 DVT 晉升清單、完整/缺漏分類、批次送審、缺 MA 留 EVT、EVT 停用、保留 EVT、作廢、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-approval-review-ui` 25/25 通過，覆蓋代理 Engineer 登入、桌面/手機 DVT/發行審核頁、同專案批次、代理審核、代送審、異常/Override、影響範圍、共用意見、異常項個別意見、批次核准、DB decision comment、代理審核 role 紀錄、DVT Active、無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-api-regression` 26/26 通過，覆蓋編碼占號、同圖多料號、審核矩陣、MA 圖作廢、staging 匯入、audit log、報表 metadata。
-- [x] `npm.cmd run qc:pdm-numbering-role-delegation-ui` 24/24 通過，覆蓋角色矩陣、最高權限排序、主管範圍、代理人設定/撤銷、桌機/手機無 console error 與無頁面層水平溢出。
-- [x] `npm.cmd run qc:pdm-numbering-permission-guard-ui` 35/35 通過，覆蓋 RD page/action 權限開關、API 403、sidebar 權限隱藏/還原、桌機/手機無 console error 與無頁面層水平溢出。
-- [x] UI E2E 已覆蓋角色矩陣權限套用到主要操作 guard；角色/代理人設定、DVT/發行審核、DVT 晉升、申請精靈、圖料查詢/明細、MA 圖作廢影響頁、後台審核矩陣、待辦/通知、稽核報表、總表匯出與總表匯入已由專用 UI QC 覆蓋。
-- [x] `npm.cmd run qc:pdm-numbering-data-consistency` 16/16 通過，證明主根號、料號、圖號唯一；作廢號不可重用；override 與 MA 圖恢復轉向關係可追溯。
-- [x] `npm.cmd run qc:pdm-numbering-concurrency-reuse` 32/32 通過，證明 12 筆併發建立料號/MA 圖號不撞號，且 pending/未核准、rejected/退回、obsolete/作廢狀態下的主根號、料號與圖號皆不可重用，duplicate-check 也會回 blocker。
-- [x] `npm.cmd run qc:pdm-numbering-draft-lifecycle` 29/29 通過，證明工程師可在草稿階段建立、修改、作廢圖料號且不產生審核單；草稿逾 30 天後由管理員轉 `PendingAdminConfirm`，並建立 PDM 管理員待辦與不可關閉通知。
-- [x] `npm.cmd run qc:pdm-numbering-cross-role-audit-e2e` 39/39 通過，證明主管 scoped batch/task/notification 可視範圍、代理人 `delegated_review`、代送審 `proxy_submission`、影響範圍 `impact_scope`、批次退回重送與 decision/resubmit audit envelope 一致。
-- [x] `npm.cmd run qc:pdm-numbering-cross-role-permission` 45/45 通過，證明 RD 關閉後工程師被 API guard 阻擋，自訂角色指派且排到最高權限後工程師可建號，撤銷後再阻擋；同時驗證 RD、主管、PDM 管理員、系統管理員、自訂角色與設定頁 UI/audit envelope。
-- [x] 權限測試證明 RD、主管、PDM 管理員、系統管理員、自訂角色與代理人可視/可操作範圍符合矩陣；`qc:pdm-numbering-permission-guard-ui`、`qc:pdm-numbering-role-delegation-ui` 與 `qc:pdm-numbering-cross-role-permission` 已覆蓋 RD/Admin guard、最高權限排序、代理 scope 與自訂角色指派 E2E。
-
-## 風險 / 依賴
-- [!] 既有總表資料可能格式不一致，需透過 staging 與舊制保留降低一次性清理風險。
-- [!] Postgres / Supabase 正式遷移依賴 DEV-IND-007；第一版先不啟用正式 Supabase 專案與長期雲端成本，但 schema 與 repository 設計需避免 SQLite-only 假設。
-- [!] 第一版只保存 J 槽路徑與 hash，不搬移檔案；若使用者未掛載 J 槽或無權限，仍可能無法開啟檔案。
-- [!] 審核矩陣彈性高，需以不可關閉硬限制、規則模擬器與 audit log 降低設定錯誤風險。
-- [!] 代理人與主管範圍屬擴權功能，需強制專案/動作/時間範圍、撤銷機制、畫面標示與 audit，避免審核責任不清。
-
-## DEV-BOM-WORKBENCH-001：BOM 工作台獨立模組
-
-狀態：[x]
-優先級：P1
-關聯 spec：[.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md)
-
-## 任務目標
-
-建立獨立 `BOM 工作台`，讓研發、研發主管、製造、採購圍繞同一份正式產品結構協作。工程端可用 CAD 組合件、SolidWorks BOM XLS 與人工拖拉三種方式建立與校正 Draft；研發主管審核後才形成 Released BOM Snapshot；製造與採購只能讀取 Released BOM。
-
-## 引導模式定案決策
-
-- 模組定位：BOM 工作台是獨立產品結構治理模組，不只是送審明細的附屬 BOM；既有 Dashboard BOM、BOM diff、Where-used 需維持相容。
-- 建立來源：第一版同時支援 CAD references 自動 Draft、SolidWorks BOM XLS 匯入 Draft、人工拖拉校正；XLS 匯入永遠建立新 Draft，不覆蓋既有 Draft。
-- 來源優先權：人工校正為最高權限來源，衝突規則固定為 `manual > solidworks_xls > cad_reference`；儲存時需保留來源、來源優先權、操作者與 edit event。
-- Draft 原則：同一 parent item + revision 可有多個 Draft，但同時間只能有一個 Active Draft；送審預設使用 Active Draft。
-- Released 原則：主管核准後建立不可原地修改的 Released Snapshot；同 parent item + revision 的舊 Released Snapshot 自動轉 `Obsolete`。
-- Release Gate：Draft 階段可引用 Pending 或 Draft 候選子件以提高 RD 效率，但發布前必須阻擋缺件、Pending、Rejected、Obsolete 與非最新版 Released 子件。
-- Rejected 流程：Rejected Draft 可原地修改後重新送審，需保留退回紀錄、重新送審紀錄與 `review_attempt`。
-- 權限邊界：研發工程師與研發主管可看 Draft；製造與採購只能看 Released Snapshot，Draft API 也必須阻擋，不可只靠 UI 隱藏。
-- 審核體驗：主管審核第一畫面以「與上一版 Released BOM 差異」為主，顯示新增、移除、數量、階層與版次變更；完整覆寫紀錄放第二層追溯。
-- UI 心智：採 Windows 檔案總管式樹狀操作；左側搜尋料號 / 圖面，中間 BOM 樹，右側節點屬性，上方工具列提供匯入、群組、復原、重做、儲存、送審、比較與匯出。
-- 人工編輯邊界：第一版只允許調整階層、排序、數量與虛擬群組；不允許直接修改 item master 的料號、品名、版次、材質或表面處理。
-- 虛擬群組：可新增、改名、刪除與拖拉；不需要料號、版次、Released 狀態或數量；最大深度仍受 10 層限制。
-- 匯出規則：只有 Released Snapshot 可提供正式 Excel / CSV 匯出，檔名固定為 `BOM_{part_number}_Rev{revision}_{YYYYMMDD}`。
-- 資料庫策略：第一版維持本機 SQLite / repository 抽象執行，不啟用正式 Supabase 成本；schema 與欄位需保留 Postgres / Supabase 遷移可能性，後續由 `DEV-IND-007` 驗證 shadow migration。
-
-## RD 執行項目
-
-### 資料模型 / Migration
-- [x] 設計並新增支援多 Draft、樹狀 line、虛擬群組、Active Draft、審核與 Released Snapshot 的 BOM schema。
-- [x] 保留既有 `bom_headers` / `bom_lines` 讀取相容策略，避免既有 Dashboard BOM、BOM diff、Where-used 立即失效。
-- [x] 新增 `bom_import_profiles`，支援 SolidWorks BOM XLS 標準格式版本。
-- [x] 新增 edit event 或 audit log 寫入策略，保存儲存前後差異、操作者與來源。
-- [x] 實作 Released 後自動將同 parent item 舊版 Released BOM 標記為 `Obsolete`。
-
-### 建立來源
-- [x] 由既有 CAD references / 組合件匯入建立 BOM Draft。
-- [x] 新增 SolidWorks BOM XLS 匯入流程，每次匯入都建立新 Draft，不覆蓋既有 Draft。
-- [x] 保存 XLS 原始檔、import profile version、匯入者、匯入時間與轉換後 BOM lines。
-- [x] 人工拖拉來源優先權最高，衝突規則採 `manual > solidworks_xls > cad_reference`。
-
-### BOM 工作台 UI
-- [x] 新增獨立 BOM 工作台頁面與導航入口。
-- [x] 採 Windows 檔案總管式樹狀結構：左側料號 / 圖面搜尋，中間 BOM 樹，右側節點屬性。
-- [x] 支援既有 BOM 節點內拖拉調整階層與排序。
-- [x] 支援從料號庫 / 圖面清單拖入子件。
-- [x] 支援調整實體子件數量。
-- [x] 支援新增、改名、刪除虛擬群組；虛擬群組不需要料號、版次、Released 狀態或數量。
-- [x] 支援本次編輯 session 的 Undo / Redo 與未儲存離開提示。
-- [x] 支援多 Draft 清單、設為 Active Draft、複製 Draft、比較 Draft。
-
-### 規則 / Release Gate
-- [x] 同一父層同料號同版次預設自動合併數量。
-- [x] 阻擋超過 10 層的拖拉與匯入。
-- [x] 阻擋循環父子關係。
-- [x] Draft 可引用 Pending 子件，但發布前 Release Gate 必須阻擋未 Released、缺件、Rejected、Obsolete 或非最新版 Released 子件。
-- [x] 同一 parent item + revision 同時間只能有一個 `PendingReview` BOM。
-
-### 審核 / 匯出
-- [x] 送審 BOM 時必填整體變更原因。
-- [x] 研發主管審核頁以「與上一版 Released BOM 的差異」為主要畫面。
-- [x] Rejected Draft 允許原地修改後重新送審，保留退回紀錄與 review attempt。
-- [x] Released BOM Snapshot 支援 Excel `.xlsx` 與 CSV `.csv` 匯出。
-- [x] 匯出檔名固定為 `BOM_{part_number}_Rev{revision}_{YYYYMMDD}.xlsx` / `.csv`。
-
-## QA 驗證計畫
-- [x] 工程師由 CAD 組合件建立 BOM Draft，指定 Active Draft，拖拉調整後送審。
-- [x] 工程師匯入 SolidWorks BOM XLS，系統建立新 Draft，不覆蓋既有 Draft。
-- [x] 工程師可從料號庫 / 圖面清單拖入子件，也可在既有 BOM 樹中調整階層、排序與數量。
-- [x] 研發主管審核時先看到與上一版 Released BOM 的新增、移除、數量、階層與版次差異。
-- [x] 研發主管退回後，工程師可原地修改 Rejected Draft 並重新送審。
-- [x] 製造 / 採購只能看到 Released BOM，不能透過 UI 或 API 讀 Draft。
-- [x] Released BOM 可匯出 Excel 與 CSV，檔名符合規則。
-
-## QC 驗收標準
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] BOM API regression 覆蓋 CAD Draft、XLS import Draft、多 Draft、Active Draft、樹狀保存、虛擬群組、同層合併、10 層限制、循環阻擋。
-- [x] BOM review API regression 覆蓋送審、退回、重新送審、核准、Released Snapshot、舊版 Obsolete。
-- [x] 權限測試證明製造 / 採購無法讀取 Draft API。
-- [x] UI E2E 覆蓋 Windows 樹狀拖拉、Undo / Redo、未儲存提示、Active Draft、主管 diff 審核、Excel/CSV 匯出。
-- [x] Release Gate 測試覆蓋缺件、Pending、Rejected、Obsolete、非最新版 Released 子件。
-- [x] `npm.cmd run qc:bom-workbench-foundation` 27/27 通過，覆蓋 workbench schema、legacy BOM 相容、CAD references 建立多 Draft、同父層同料號同版次合併數量、Active Draft 切換、draft detail、edit event 與 audit log。
-- [x] `npm.cmd run qc:bom-workbench-tree-rules` 22/22 通過，覆蓋 draft tree save、虛擬群組、同層重複料號合併、manual source、item master 屬性不可由 BOM PATCH 修改、10 層限制、循環阻擋、Active Draft endpoint、edit event 與 audit log。
-- [x] `npm.cmd run qc:bom-workbench-review-release` 25/25 通過，覆蓋送審原因必填、工程師不可核准、主管核准發布、Released Snapshot、舊 snapshot obsolete、主管退回、缺件 release gate 與 audit log。
-- [x] `npm.cmd run qc:bom-workbench-release-gate-resubmit` 43/43 通過，覆蓋缺件、Pending、Rejected、Obsolete、非最新版 Released 子件、同 parent/revision 單一 PendingReview、Rejected 原地修改重送、review attempt 與退回紀錄保留。
-- [x] `npm.cmd run qc:bom-workbench-release-export` 21/21 通過，覆蓋 Released Snapshot CSV/XLSX 匯出、固定檔名、XLSX ZIP/worksheet 結構、固定欄位、子件數量、unsupported format 與 missing snapshot。
-- [x] `npm.cmd run qc:bom-workbench-released-only-permission` 31/31 通過，覆蓋 Manufacturing / Procurement 角色登入、Pending submission detail 阻擋、BOM Draft workbench/detail/patch/set-active/submit-review/from-assembly 全部 403，以及 Released Snapshot CSV 匯出 200、固定檔名與 released child 內容。
-- [x] `npm.cmd run qc:bom-workbench-solidworks-xls-import` 34/34 通過，覆蓋 TSV/Excel HTML SolidWorks BOM XLS 匯入、新 Draft、不覆蓋舊 Draft、Active Draft 切換、重複料號版次合併、原始檔 asset、import profile/job metadata、source priority、人工校正提升為 manual priority 30、edit event、audit log 與二進位 XLS 明確拒絕。
-- [x] `npm.cmd run qc:bom-workbench-review-ui` 32/32 通過，覆蓋主管待審清單、與上一版 Released BOM diff baseline、新增子件、數量與階層變更、主管核准、XLSX/CSV 匯出連結、桌面/手機無頁面層水平溢出與桌面無 console error。
-- [x] `npm.cmd run qc:bom-workbench-ui` 35/35 通過，覆蓋獨立 `/bom/workbench` 頁面、sidebar 導航、三欄式工作台、CAD Draft、料號/圖面搜尋拖入、數量編輯、虛擬群組、排序與縮排、Undo/Redo、未儲存提示、儲存 PATCH 回應階層/數量、複製 Draft、Active Draft、Draft 比較、送審、桌機/手機無水平溢出。
-
-## 依賴 / 限制
-- [x] 依賴既有 CAD reference / BOM / Where-used 基礎資料，不應破壞既有 `/api/submissions/[id]/bom`、BOM diff、Where-used。
-- [x] SolidWorks BOM XLS 標準格式需有第一版 import profile 範例檔。
-- [x] 第一版人工編輯只允許階層、排序、數量與虛擬群組，不允許改 item master 屬性。
-- [x] 製造 / 採購只能讀 Released Snapshot。
-- [x] 第一版不啟用正式 Supabase；BOM schema、repository 與檔案欄位需保留未來 Postgres / Supabase / Supabase Storage 遷移路徑。
-
-## DEV-GDRIVE-001：Google Drive 資料夾樹狀設定
-
-狀態：[x]
-優先級：P1
-關聯 spec：[docs/google-drive-folder-tree-settings-spec-2026-05-30.md](C:/VIBE%20CODING/AI_PDM/docs/google-drive-folder-tree-settings-spec-2026-05-30.md)
-
-## 任務目標
-
-讓 Admin 不需要手動理解或貼上 Google Drive Folder ID，而是能在符合 Windows 檔案總管心智模型的資料夾樹上直接指定 PDM 使用的待審核暫存區與正式發布區。系統仍以 Folder ID 作為正式設定值，畫面提供 folder name、path snapshot 與權限驗證降低誤設風險。
-
-## RD 執行項目
-
-### API / Google Drive
-- [x] 在 `src/lib/gdrive.ts` 增加列出子資料夾能力，只回傳資料夾、不遞迴掃描整個 Drive。
-- [x] 支援 Shared Drive 查詢參數，例如 `supportsAllDrives` 與 `includeItemsFromAllDrives`。
-- [x] 新增 `GET /api/settings/gdrive/folders?parentId=...`，僅 Admin 可呼叫。
-- [x] 新增 `POST /api/settings/gdrive/folders/verify`，驗證 folder 存在、mimeType 為資料夾、service account 可讀取與可加入子項目。
-- [x] 保留實際發布流程的錯誤處理，不把 verify 結果當作永久權限保證。
-
-### 設定保存
-- [x] 擴充 `/api/settings` 允許保存 folder metadata snapshot：name、path、verified_at。
-- [x] 儲存前阻擋 pending folder 與 released folder 指向同一 Folder ID。
-- [x] 儲存前阻擋未驗證、無權限或非資料夾的設定。
-- [x] `createAuditLog` 記錄設定變更者、folder ID 與 metadata snapshot，不記錄 access token 或 service account key path。
-
-### UI
-- [x] 將 `/settings` Google Drive 區塊改為雙欄式介面：左側資料夾樹、右側資料夾詳細資訊與設定動作。
-- [x] 樹狀圖採 lazy load，展開節點才呼叫 children API。
-- [x] 上方顯示左到右 breadcrumb，例如 `Google Drive > AI_PDM > 00_Pending`。
-- [x] 右側顯示 folder name、path、Folder ID、Drive 類型、權限狀態、最後驗證時間。
-- [x] 提供 `設為待審核暫存區`、`設為正式發布區`、`重新驗證權限`、`開啟 Google Drive`、`複製 Folder ID`。
-- [x] 保留手動貼 Folder ID 的進階 fallback，但預設收合。
-
-## QA 驗證計畫
-- [x] Admin 進入 `/settings` 後可看見 Google Drive service account 狀態、目前設定摘要與資料夾樹。
-- [x] Admin 可展開資料夾、選取資料夾、查看 breadcrumb 與 folder 詳細資訊。
-- [x] Admin 可將不同資料夾分別指定為待審核暫存區與正式發布區，儲存後重新載入仍顯示正確 name/path snapshot。
-- [x] Service account 未設定或無權限時，畫面顯示可處理的錯誤訊息。
-
-## QC 驗收標準
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] Settings API 測試覆蓋 Admin 權限、children API、verify API、同資料夾阻擋、無權限阻擋、非資料夾阻擋。
-- [x] Settings UI 測試覆蓋 lazy load、breadcrumb、指定 pending/released、儲存後重載、錯誤狀態。
-- [x] 初次載入不呼叫高成本或遞迴 Drive 掃描。
-- [x] UI 不顯示 access token、service account key path 或敏感錯誤內容。
-- [x] `npm.cmd run qc:gdrive-folder-tree-settings` 35/35 通過，覆蓋 Admin-only folder tree API、Shared Drive flags、verify folder、non-folder rejection、same-folder rejection、metadata snapshot、桌面/手機 settings UI、無水平溢出與無 console error。
-- [x] `npm.cmd run qc:release-folders` 10/10 通過，證明舊版只 POST Folder ID 的 release folder selection 流程仍相容。
-- [x] `npm.cmd run qc:pdm-numbering-settings-ui` 22/22 通過，證明審核矩陣設定台未被 GDrive settings 改動破壞。
-
-## 依賴 / 限制
-- [x] 需要 Google Drive service account 已設定，或測試環境提供 `GOOGLE_DRIVE_API_BASE_URL` mock。
-- [x] Windows 同步路徑只作為使用者心智參考，不作為正式設定值。
-- [x] 第一版只支援資料夾選擇，不支援建立、刪除、重新命名或拖曳搬移 Drive 資料夾。
-
-## DEV-UX-005：全系統 UI 屬性視覺層級一致化
-
-狀態：[x]
-優先級：P1
-
-## 任務目標
-
-建立並套用共用視覺語彙，讓主識別、格式/分類/狀態、數值/時間、系統診斷資訊各有一致呈現層級，避免欄位全部用同一種文字串接，造成掃描困難。
-
-## RD 執行項目
-- [x] 建立共用視覺語彙：主識別用主要文字，格式/分類/狀態用 badge，數值/時間用 metadata row，SHA256/local path/Drive ID/submission ID 用等寬或展開診斷值。
-- [x] 修正 Dashboard 搜尋建議、明細 header、工程上下文、CAD 引用、BOM、BOM diff、Where-used、AI 沿用候選、重複幾何、協作紀錄與系統診斷。
-- [x] 修正 Upload、Handoff、Public Share 中屬性被同字重串接的 UI。
-- [x] 不新增 API/schema，不增加首次開明細高成本 API。
-
-## QA 驗證計畫
-- [x] 盤點至少 12 處 UI 屬性呈現，確認格式與檔名、圖號與版次、料號與品名、狀態與說明、系統診斷與操作資訊可視覺區分。
-- [x] 檢查 dashboard、upload、handoff、share 的桌面與行動版主要路徑。
-
-## QC 驗收標準
-- [x] `npm.cmd run lint` 通過。
-- [x] `npm.cmd run build` 通過。
-- [x] Dashboard / upload / handoff / share 視覺 QC 通過。
-- [x] 100% 縮放下無文字重疊。
-
-## DEV-CAD-001：SolidWorks Document Manager 或等效讀取元件
-
-狀態：[!]
-優先級：P0
-
-## 任務目標
-
-讓 Web / Windows 上傳與後續 BOM 工作台能直接讀取 `.sldprt`、`.sldasm`、`.slddrw` 的自訂屬性與 native CAD references，不再依賴 sidecar 或檔名推測。
-
-## RD 執行項目
-- [ ] 確認 SolidWorks Document Manager 授權、部署方式、測試檔來源與執行環境。
-- [x] 完成可替換 native extractor adapter contract：`src/lib/pdm-metadata-adapter.ts` 與 `src/lib/cad-extraction.ts` 支援外部 command / args / `{file}` contract。
-- [x] 建立 metadata adapter contract，支援圖號、料號、品名、版次、材質、表面處理、文件類型；正式 Document Manager / 等效元件仍需外部 report 證明。
-- [x] 建立 references adapter contract，支援 assembly component、drawing model、derived references normalization；正式樣本仍需外部 report 證明。
-- [x] 輸出機器可讀 probe 結果，遮蔽 license/token/password/secret 類參數。
-
-## QA 驗證計畫
-- [ ] 使用真實或授權測試檔：part、assembly、drawing。
-- [ ] 檢查 native metadata 與 sidecar / mock 結果一致或可解釋差異。
-- [ ] 檢查至少一個 assembly reference 與 drawing model reference。
-
-## QC 驗收標準
-- [x] `npm.cmd run qc:document-manager-probe-redaction` 通過。
-- [x] `npm.cmd run qc:document-manager-extractor-probe` 通過；此為 mock equivalent extractor contract，正式實機 / 授權 probe 仍由 evidence report gate 管制。
-- [x] 上傳 API 不因 native extractor 缺失而崩潰；錯誤訊息可操作。
-
-## 阻塞 / 依賴
-- [!] 需要 SolidWorks Document Manager 授權或等效讀取器。
-- [!] 需要可用的真實 SolidWorks 測試檔。
-- [!] 2026-06-02 QC：local adapter contract / probe tooling 已通過；`qc:native-cad-extractor-contract` 14/14、`qc:document-manager-extractor-probe` 6/6、`qc:document-manager-probe-redaction` 9/9、`qc:document-manager-probe-path-gate` 4/4。正式 `qc:document-manager-report:report` 仍需外部授權、部署、真實樣本與簽核 evidence。
-- [!] 2026-06-01 QC：`qc:document-manager-report:report` 回報 `ready=false`，report `20260527-145712`，15 cases / 0 pass，缺 license owner、extractor command、probe path 與 sample files evidence。
-
-## DEV-SW-001：SolidWorks Add-in 實機驗證
-
-狀態：[!]
-優先級：P0
-
-## 任務目標
-
-在真實 SolidWorks 電腦完成 Add-in 端到端驗證，證明安裝、登入、屬性讀取、PDF/DWG 匯出、送審與後端串接可用。
-
-## RD 執行項目
-- [ ] 在真實 CAD 電腦完成 COM 註冊與 Add-in 載入。
-- [ ] 驗證 Add-in 登入與 API token 流程。
-- [ ] 驗證 part、assembly、drawing 的屬性讀取。
-- [ ] 驗證工程圖 PDF / DWG 匯出。
-- [ ] 完成端到端送審並保存實機證據。
-
-## QA 驗證計畫
-- [ ] 使用公司標準測試檔與至少一組 assembly。
-- [ ] 驗證成功路徑與屬性缺漏、網路錯誤、登入失敗等錯誤路徑。
-
-## QC 驗收標準
-- [ ] 實機報告完成，含安裝、登入、屬性讀取、匯出、送審結果。
-- [ ] 若有失敗，需記錄重現步驟、錯誤訊息、環境與 log。
-
-## 阻塞 / 依賴
-- [!] 需要真實 SolidWorks 電腦與管理員權限。
-- [!] 2026-06-01 QC：`field-test:preflight -- --profile all --require-evidence` 回報 `CAD-EVIDENCE-001` failed，real-machine report `ready=false issues=51`，且 COM registration 仍需 Administrator PowerShell。
-
-## DEV-BACKUP-001：離線單向備份與還原實測
-
-狀態：[!]
-優先級：P0
-
-## 任務目標
-
-在獨立測試機完成還原演練，證明正式備份不只是檔案存在，而是可被第三方復原並驗證 checksum。
-
-## RD 執行項目
-- [ ] 準備獨立測試機或隔離還原環境。
-- [ ] 使用既有備份 snapshot 執行 restore drill。
-- [ ] 驗證 DB、repository、settings、reports 可被還原。
-- [ ] 產出 restore drill 報告。
-
-## QA 驗證計畫
-- [ ] 檢查備份來源、目標、checksum、還原步驟與失敗復原證據。
-
-## QC 驗收標準
-- [ ] 還原報告完成。
-- [ ] checksum 正確。
-- [ ] 交接包可由非原開發者依 SOP 復原。
-
-## 阻塞 / 依賴
-- [!] 需要獨立測試機或隔離還原環境。
-- [!] 2026-06-01 QC：`field-test:preflight -- --profile all --require-evidence` 回報 `RESTORE-EVIDENCE-001` failed，restore drill report `ready=false issues=24`。
-
-## DEV-FIELD-001：正式現場測試閉環
-
-狀態：[!]
-優先級：P0
-
-## 任務目標
-
-完成正式現場測試，將未通過項目轉為可追蹤 task，讓 MVP 從內部驗證進入可交付狀態。
-
-## RD 執行項目
-- [x] 執行 `field-test:preflight -- --profile all`。
-- [x] 執行 `field-test:handoff`。
-- [x] 整理現場測試 handoff package。
-- [x] 建立 field issue intake template、defect register import 工具與 P0/P1 defect-zero gate。
-- [x] 建立外部 blocker closure QC gate，確認 5 個外部 gate 均有最新 handoff、可執行命令、report gate 與不誤完成證據。
-- [ ] 將現場問題轉為新 task 或 defect register。
-
-## QA 驗證計畫
-- [ ] 驗證現場測試流程涵蓋登入、送審、審核、發布、交接、備份與權限。
-
-## QC 驗收標準
-- [ ] 現場測試報告完成。
-- [ ] 未通過項目皆有重現步驟與後續 owner。
-
-## 阻塞 / 依賴
-- [!] 已產生 field-test handoff package `data/field-test-handoffs/20260602-090136`，但正式現場測試報告與 issue closure 仍需外部實測回填。
-- [!] 2026-06-02 QC：`qc:external-blocker-closure` 驗證 5 個外部 blocker 仍在 production readiness 中、field-test / postgres-shadow 最新 handoff package 存在、外部 handoff 文件涵蓋 Document Manager、SolidWorks Add-in、restore drill、field issue intake、Supabase shadow commands、安全規則與不誤完成狀態。正式 evidence 尚未回填，故不勾現場問題 closure / field report。
-- [!] 2026-06-02 QC：`field-test:preflight -- --profile all` 回報 `ready=true`，19 passed / 0 failed / 1 warning；`field-test:handoff` 產生 `20260602-090136`；`qc:field-test-handoff-package` 53/53 通過，並確認 external handoff docs 沒有舊 package id；`qc:field-test-issue-intake` 11/11 通過，證明現場 issue 可 dry-run / write 到 defect register，且 active P0/P1 會被 `qc:defects-zero` 擋住。正式 closure 仍需 `field-test:preflight -- --profile all --require-evidence` 與現場 issue closure 通過。
-- [!] 2026-06-01 QC：`field-test:preflight -- --profile all --require-evidence` 回報 `ready=false`，19 passed / 3 failed / 1 warning；失敗項目來自 CAD、restore、Document Manager evidence 未 ready。
-
-## DEV-IND-007：SQLite 到 Postgres / Supabase shadow migration
-
-狀態：[!]
-優先級：P0
-
-## 任務目標
-
-準備 SQLite 到 Postgres / Supabase 的 shadow migration 路徑，並確保 migration / compare 不會誤跑到既有正式專案或非 AI_PDM schema。
-
-## RD 執行項目
-- [ ] 取得 disposable Supabase / Postgres shadow target。
-- [ ] 在 disposable target 執行 schema migration。
-- [x] 完成本地 static SQLite/Postgres shadow compare，並輸出可追溯 migration 檔案 hash。
-- [x] 建立 disposable Supabase/Postgres shadow target handoff package，包含 SQL copy/hash、pre-migration guard、migration apply、live compare、advisor checklist 與 final QC checklist。
-- [ ] 在 disposable target 執行 SQLite/Postgres compare。
-- [ ] 驗證 live RLS plan、Supabase advisor 與 production readiness gate。
-
-## QA 驗證計畫
-- [x] 確認 target guard 會阻擋非空、非 disposable、非 AI_PDM schema 目標。
-- [x] 確認 compare 結果可追溯到 migration 版本。
-- [x] 確認 handoff package 不保存連線字串、禁止 `ProJED` / `ProJED_TEST`，並強制外部文件引用最新 package。
-- [ ] 確認 disposable target live compare 與 RLS/advisor 驗證可重複執行。
-
-## QC 驗收標準
-- [x] `npm.cmd run qc:postgres-shadow-target-guard` 通過。
-- [x] `npm.cmd run qc:postgres-shadow` 本地 static shadow / traceability 檢查通過。
-- [x] `npm.cmd run qc:postgres-shadow-handoff-package` 通過。
-- [ ] `npm.cmd run qc:postgres-shadow` 在 disposable target 通過。
-- [ ] production readiness 報告不再因 shadow target 缺失而標記 blocked。
-
-## 阻塞 / 依賴
-- [!] 需要可用 disposable Supabase / Postgres target。
-- [!] 2026-06-02 RD/QA/QC：已產生 Postgres shadow handoff package `data/postgres-shadow-handoffs/20260602-091309`；package 內含 `postgres-shadow-handoff.json`、SQL copy/hash、`01-pre-migration-guard.ps1`、`02-apply-migration.ps1`、`03-compare-shadow.ps1`、`supabase-advisor-checklist.md` 與 `qc-checklist.ps1`。`qc:postgres-shadow-handoff-package` 驗證 package 檔案、hash、禁用既有 `ProJED` / `ProJED_TEST`、不硬編 Postgres URL、外部文件引用最新 package，QC 通過。實際 disposable target 建立、migration apply、live compare、Supabase advisor 證據與 production readiness closure 仍維持外部阻塞。
-- [!] 2026-06-01 本地防呆與 traceability 已完成：`qc:postgres-shadow-target-guard` 10/10 通過，`qc:postgres-shadow` 21/21 通過；compare report 已包含 `db/schema.sql`、`db/postgres/001_initial_schema.sql`、`db/postgres/002_supabase_rls_plan.sql` 的 SHA-256，可追溯 migration 輸入。
-- [!] 2026-06-01 續查：Supabase connector 已可用，organization `JED` 下有 `ProJED` 與 `ProJED_TEST`；兩者 public schema 都有既有 `profiles/projects/wbs_items/...`，不是乾淨 disposable shadow target。`_get_cost` 顯示 new project `0/monthly`、branch `0.01344/hourly`，但建立新 project/branch 仍需使用者先確認成本與 organization/region。
-- [!] 本機 fallback 不可用：未找到 `psql` / `postgres`，Docker daemon 未啟動且 Docker config access denied。
-
-## Completed / Archived Index
-
-以下項目已完成，主檔只保留索引；詳細證據見 `docs/rd-*`、`docs/qa-*`、`docs/qc-*`、`docs/industrialization/*` 或 [.ai-doc/dev_task_archive_2026-05.md](C:/VIBE%20CODING/AI_PDM/.ai-doc/dev_task_archive_2026-05.md)。
-
-### Dashboard / UI Performance
-- [x] DEV-PERF-001：搜尋輸入 debounce 與短字元保護。
-- [x] DEV-PERF-002：通知請求拆離搜尋與狀態切換。
-- [x] DEV-PERF-003：明細載入取消與競態保護。
-- [x] DEV-PERF-004：明細載入分層。
-- [x] DEV-PERF-005：合併明細 state 更新。
-- [x] DEV-PERF-006：圖面清單分頁或 cursor 載入。
-- [x] DEV-PERF-007：表格列虛擬化。
-- [x] DEV-PERF-008：搜尋與清單查詢索引化。
-- [x] DEV-PERF-009：清單 API 只回傳摘要欄位。
-- [x] DEV-PERF-010：點選圖面立即回饋與 skeleton。
-- [x] DEV-PERF-011：搜尋/篩選導入 `useTransition`。
-- [x] DEV-PERF-012：拆分 Dashboard 巨型元件。
-- [x] DEV-PERF-013：表格列 memo 化。
-
-### Search / BOM / Assembly / AI
-- [x] DEV-FINDER-001：自訂搜尋選項。
-- [x] DEV-FINDER-002：儲存自訂搜尋與常用條件。
-- [x] DEV-AIOCR-001：AI/OCR 圖面資訊擷取。
-- [x] DEV-ASM-001：組合圖階層管理。
-- [x] DEV-ASM-002：組合圖搜尋與 Where-used 強化。
-- [x] DEV-BOM-001：BOM 產出產品化。
-- [x] DEV-BOM-002：BOM diff 產品化。
-- [x] DEV-AIRISK-001：AI BOM / 組合圖風險摘要。
-
-### Workflow UX / QC
-- [x] DEV-UX-001：圖面明細工作流分層重設計。
-- [x] DEV-UX-002：工作層欄位語意與 raw ID 清理。
-- [x] DEV-UX-003：交付與公開分享診斷資訊分層。
-- [x] DEV-UX-004：上傳成功訊息語意化。
-- [x] DEV-QC-001：UI QC 禁止以 raw submissionId 當載入成功依據。
-
-### Industrialization Round
-- [x] DEV-IND-001：Establish repo baseline and current-state inventory。
-- [x] DEV-IND-002：Create external large-asset manifest and relocation rules。
-- [x] DEV-IND-003：Clean generated/dependency output boundaries。
-- [x] DEV-IND-004：Split `data/` runtime, fixture, and evidence management policy。
-- [x] DEV-IND-005：Add AI/API cost gates and usage logging。
-- [x] DEV-IND-006：Extract DB provider and repository contracts。
-- [x] DEV-IND-008：Split `src/lib/db.ts` by feature repository。
-- [x] DEV-IND-009：Split Dashboard UI giant component。
-- [x] DEV-IND-010：Split global CSS and design tokens。
-- [x] DEV-IND-011：Reorganize RD/QA/QC documents and report paths。
-- [x] DEV-IND-012：Add industrialization acceptance gate。
-
-## Cross-Task Dependencies
-
-- DEV-BOM-WORKBENCH-001 depends on current CAD reference / BOM / Where-used base; native extraction quality improves after DEV-CAD-001.
-- DEV-SW-001 depends on real SolidWorks machine access and may provide evidence for DEV-CAD-001.
-- DEV-FIELD-001 depends on DEV-SW-001 and DEV-BACKUP-001 for complete production-readiness closure.
-- DEV-IND-007 needs a disposable database target and should not proceed against any production or existing non-empty project.
-- DEV-GDRIVE-001 should preserve current `gdrive_pending_folder_id` and `gdrive_released_folder_id` compatibility.
-- DEV-PDM-NUMBERING-001 depends on DEV-IND-007 for production Supabase/Postgres readiness, and should remain compatible with J drive path/hash indexing before any future Supabase Storage migration.
-- DEV-PDM-PART-COST-001 extends DEV-PDM-NUMBERING-001 and should reuse `part_roots` / `drawing_part_links`; it must not re-open completed numbering behavior unless schema compatibility requires a scoped extension.
-- DEV-PDM-IDENTITY-LIST-001 extends DEV-PDM-MASTER-WORKBENCH-001 and must preserve the existing left-table/right-detail layout while changing only list information hierarchy.
-- DEV-UX-PLATFORM-001 depends on current Dashboard / sidebar / numbering / BOM / handoff UI shape, and should not introduce schema changes until a later task defines the adaptive task routing model.
-
-## Update Log
-
-- 2026-06-07：`DEV-BOM-VISUAL-EDITOR-001` 完成 BOM XMind 式圖像化編輯器。`/bom/workbench` 中央主編輯區改為 React Flow 混合畫布，parent assembly、group、item 以節點與 edge 呈現；左側搜尋結果新增明確 drag handle 與標準 `DataTransfer` payload；節點可拖曳改 parent / root / 同層排序；右側屬性改用圖號模組同款 `PdmDetailDrawer`，保留 Qty、group、XLS 貼上、送審與 compare 操作。新增 `@xyflow/react` 與更新 `qc:bom-workbench-ui` 視覺化 QC；`lint`、`build`、`qc:bom-workbench-tree-rules` 22/22、`qc:bom-workbench-ui` 34/34、`qc:pdm-system-detail-drawer-ui` 53/53 通過；build 僅保留既有 Turbopack dynamic path / NFT trace warnings。
-- 2026-06-07：`DEV-UX-FILE-DROPZONE-001` 完成 RD 實作。新增共用 `FileDropzone`，將 `/upload` 多檔送審、`/bom/workbench` BOM XLS 匯入、圖號附件庫與料號附件庫統一為可拖曳/可點擊 dropzone；單檔入口支援多檔拒絕提示，附件庫顯示已選檔案與清除動作，後端 API 與 Google Drive 同步流程不變。驗證：`npm.cmd run qc:file-dropzone-ux` 23/23、`npx.cmd tsc --noEmit`、`npm.cmd run lint`、`node node_modules/next/dist/bin/next build` 通過；Browser smoke 確認 `/upload`、BOM 工作台、圖號附件 drawer、料號附件 drawer 皆顯示 dropzone，附件 API 回 200。`npm.cmd run build` 因既有 dev server 鎖定 `.next/dev-3000.err.log` 未採用，改以 direct Next build 驗證。
-- 2026-06-06：`DEV-PDM-DETAIL-DRAWER-001` 完成 RD 實作。新增共用 `PdmDetailDrawer`、`useRememberedDrawerWidth` 與 `useListKeyboardShortcuts`，將首頁工作台圖面送審明細、`/numbering/approvals`、`/numbering/imports`、`/numbering/reports` 的資料明細改為圖號模組同款右側 drawer；支援不暗幕、`Escape`/外部關閉、列切換、拖拉寬度記憶與安全查閱快捷鍵；保留 BOM 工具面板、固定 decision panel、API、DB schema 與權限矩陣不變。驗證：`tsc --noEmit`、`lint`、`build`、`qc:pdm-system-detail-drawer-ui` 53/53、`qc:dashboard-detail-priority` 32/32、`qc:dashboard-quick-access` 16/16、`qc:dashboard-search-assist` 10/10、`qc:pdm-numbering-approval-review-ui` 27/27、`qc:pdm-numbering-import-center-ui` 24/24、`qc:pdm-numbering-report-center-ui` 22/22、`qc:pdm-master-workbench-layout` 224/224 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
-- 2026-06-06：建立 `SPEC-PDM-DETAIL-DRAWER-001` 與 `DEV-PDM-DETAIL-DRAWER-001`，將圖號模組右側明細 drawer 抽象為全系統資料明細欄模板。決策：範圍限點選清單列後出現的資料明細 drawer；同步要求不暗幕、ESC/外部關閉、切換列、拖拉寬度記憶與安全查閱快捷鍵；不納入 sidebar、BOM 工具面板、高風險固定 decision panel、API、DB schema 或權限矩陣。本輪文件建立後接續 RD 實作。
-- 2026-06-05：`DEV-PDM-DRAWING-SHORTCUTS-001` 完成 RD 實作。依 `ui-design-principles` 管理系統清單頁模板，為 `/numbering/drawings` 補上查閱型安全快捷鍵：`ArrowUp/Down`、`Enter`、`Escape`、`PageUp/PageDown`、`Home/End`、`Ctrl+C`；焦點在輸入框、下拉欄位、contenteditable 或有文字反白時不攔截；未覆蓋 `Ctrl+F`、`Ctrl+R/F5`、`Ctrl+S`、`Ctrl+N`、`Ctrl+A`，也未啟用 `Delete` / `F2`。擴充 `qc:pdm-master-workbench-layout`，驗證快捷鍵導覽、開關 drawer、複製選取圖號、輸入框不攔截與文字反白原生複製。驗證：`lint`、`build`、`qc:pdm-master-workbench-layout` 169/169 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
-- 2026-06-04：`DEV-PDM-IDENTITY-LIST-001` 完成 RD 實作。新增共用 `pdm-identity-*` / `pdm-meta-strip` 清單樣式，將 `/numbering/search`、`/numbering/drawings`、`/parts` 清單統一為 `圖號 / 品名 / 料號 / 其他`；圖號管理清單移除大型動作欄，追溯與 MA 影響分析保留於右側明細；料號模組將材質、成本、狀態降級為 compact meta；圖料查詢以 backward-compatible `coreName` response 擴充補足 drawing/root row 品名。擴充 `qc:pdm-master-workbench-layout` 與 `qc:pdm-numbering-search-ui`，驗證三頁 identity class、表頭順序、桌機主識別欄 81.9%、其他欄 18.0%、手機卡片堆疊、無水平溢出與右側動作入口。驗證：`lint`、`build`、`qc:pdm-numbering-core` 238/238、`qc:pdm-master-workbench-layout` 125/125、`qc:pdm-numbering-search-ui` 26/26、`qc:part-number-module` 41/41 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
-- 2026-06-04：建立 `SPEC-PDM-IDENTITY-LIST-001` 與 `DEV-PDM-IDENTITY-LIST-001`，將圖料查詢、圖號管理、料號模組清單主畫面優化定義為 P1 UX / PDM 主識別清單任務。決策：三頁表頭統一為 `圖號 / 品名 / 料號 / 其他`，品名為最大彈性欄，圖號與料號以內容容納寬度為主，次要資訊降級為 compact meta 或右側明細；本輪僅寫入專案文件，未執行 UI 開發。
-- 2026-06-04：`DEV-PDM-MASTER-WORKBENCH-001` 完成 RD 實作。新增共用 `pdm-master-*` layout CSS，將 `/numbering/search`、`/numbering/drawings`、`/parts` 統一為 topbar、filter row、左側總表、右側固定明細；圖號頁移除大型 stats cards 主視覺，改 compact summary；料號頁新增類型篩選位置但不改 API / schema / 權限 / sidebar。新增 `qc:pdm-master-workbench-layout`，驗證三頁共用 layout class、桌機左右工作台、手機上下排列、四個 URL 回 200 與無水平溢出。驗證：`lint`、`build`、`qc:pdm-numbering-core` 238/238、`qc:pdm-numbering-search-ui` 24/24、`qc:part-number-module` 41/41、`qc:pdm-master-workbench-layout` 76/76 通過；build 仍有既有 Turbopack dynamic path / NFT trace warning，與本輪無關。
-- 2026-06-04：建立 `SPEC-PDM-MASTER-WORKBENCH-001` 與 `DEV-PDM-MASTER-WORKBENCH-001`，將圖料查詢、圖號管理、料號模組三頁一致化定義為 P1 UX / PDM 主資料工作台任務。決策：三頁同權重、桌機左右工作台、左側總表為主畫面、右側固定明細、手機上下排列；本輪僅寫入專案文件，未修改 UI 程式。
-- 2026-06-03：`DEV-PDM-DRAWING-001` 完成圖號管理模組補齊。新增 `listDrawingModuleRecords`、`/api/numbering/drawings`、`/numbering/drawings`、sidebar 入口、`numbering.drawings.view` 頁面權限與預設 seed；圖號頁支援關鍵字、MA/OT、狀態、階段篩選，顯示關聯料號、未處理提醒、追溯與 MA 影響入口；圖料查詢保留跨圖號/料號/主根號搜尋角色。驗證：`qc:pdm-numbering-core` 238/238、`lint`、`build` 通過；build 仍有既有 Turbopack dynamic path warning，與本輪無關。
-- 2026-06-03：`DEV-PDM-PART-COST-001` 完成第一版料號模組切片。新增 SQLite / Postgres `part_variant_attributes`、`part_cost_profiles`、`part_cost_tiers`、`part_standard_costs`、`part_cost_change_requests` 與 Supabase RLS baseline 清單；新增料號 repository、`/api/parts`、`/api/parts/[partNumber]`、變體更新、成本 profile 送審 API；新增 `/parts` 料號工作台與 sidebar 入口；新增 `qc:part-number-module`。任務狀態改為 `[/]`，保留完整成本級距衝突檢查、標準成本解析演算法、主管核准生效流程、圖號明細反向呈現與成本審核中心為後續項目。
-- 2026-06-03：新增 `SPEC-PDM-PART-COST-001` 與 `DEV-PDM-PART-COST-001`，將一圖多料號、材質 / 顏色變體、料號成本 profile、數量級距、標準成本、採購變更、主管審核與圖面改版不觸發成本重審寫成正式專案文件。Spec Index 標記為文件已建立，實作任務仍列為 backlog 詳細 task，未加入 Active Task Overview，避免與已完成任務盤點混淆。
-- 2026-06-02：`DEV-UX-PLATFORM-001` 完成 Phase 1B。新增共用 `NextStepState`，補齊首頁、待辦中心、匯入中心、領號結果、上傳完成、MA 影響分析、BOM 工作台、BOM 審核與製造交接的空狀態 / 完成狀態下一步入口；修正匯入中心、MA 影響分析與 BOM 審核頁的 heading/text 重複，避免 Playwright strict locator 不穩。`DEV-UX-PLATFORM-001` 改為 `[x]`，自適應任務路由另開 `DEV-UX-PLATFORM-002`。驗證：`lint`、`build`、`git diff --check`、`qc:dashboard-quick-access` 16/16、`qc:dashboard-find-first` 16/16、`qc:pdm-numbering-task-center-ui` 22/22、`qc:pdm-numbering-import-center-ui` 22/22、`qc:pdm-numbering-impact-ui` 24/24、`qc:bom-workbench-ui` 35/35、`qc:bom-workbench-review-ui` 32/32、handoff Playwright smoke 16/16。
-- 2026-06-02：`DEV-UX-PLATFORM-001` 完成 Phase 1A RD 實作。新增 sidebar 平台分群、首頁多角色工作台、共用 `WorkflowStrip`，並接入 `/upload`、`/numbering/request`、`/numbering/tasks`、`/numbering/imports`、`/numbering/impact`、`/bom/workbench`、`/bom/reviews`、`/handoff`；修正首頁搜尋 placeholder 與最近圖號同步。新增 RD/QC 文件：`docs/rd-ux-platform-report-2026-06-02.md`、`docs/qc-ux-platform-validation-report-2026-06-02.md`。驗證：`lint`、`build`、`qc:dashboard-quick-access` 16/16、`qc:dashboard-find-first` 16/16、`qc:pdm-numbering-task-center-ui` 22/22、`qc:pdm-numbering-import-center-ui` 22/22、`qc:pdm-numbering-impact-ui` 24/24、`qc:bom-workbench-ui` 35/35、Playwright smoke check 首頁 5 cards / 6 nav sections / overflow 0。任務維持 `[/]`，剩餘逐頁空狀態/完成狀態文案與完整自適應任務引擎另切。
-- 2026-06-02：建立 `SPEC-UX-PLATFORM-001` 與 `DEV-UX-PLATFORM-001`，將多角色 AI PDM 平台 UX 從 RD 功能清單重定位為物件中心、任務路由、角色視角與流程地圖組合；第一階段聚焦工作台、sidebar 平台導覽、主要頁面下一步 CTA 與空狀態，不新增 schema 或完整自適應任務引擎。
-- 2026-06-02：`DEV-IND-007` 完成本機 Postgres shadow handoff package 收斂。新增 `postgres-shadow:handoff` 與 `qc:postgres-shadow-handoff-package`；`postgres-shadow:handoff` 產生 `data/postgres-shadow-handoffs/20260602-091309`，封裝 `db/schema.sql`、`db/postgres/001_initial_schema.sql`、`db/postgres/002_supabase_rls_plan.sql` copy/hash、pre-migration target guard、migration/RLS apply、live compare、Supabase advisor evidence checklist 與 final QC checklist。`qc:postgres-shadow-handoff-package` 驗證 package 檔案、manifest、hash trace、指令內容、RLS deny-by-default copy、無 hardcoded Postgres URL、外部文件皆引用最新 package。實際 disposable Supabase/Postgres target、live migration/compare、advisor evidence 與 production readiness closure 仍維持外部阻塞。
-- 2026-06-02：新增 `qc:external-blocker-closure` 作為五個外部 blocker 的 closure 交接一致性 gate。此 QC 檢查 production readiness 仍回報 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001`、`DEV-IND-007`，確認 latest field-test handoff `data/field-test-handoffs/20260602-090136`、latest Postgres shadow handoff `data/postgres-shadow-handoffs/20260602-091309`、外部 handoff command coverage、Supabase target safety、field issue 轉 defect/task 規則、active blocker report 不誤標 complete 與無舊 package id。此項僅完成本機 closure gate，不代表外部 evidence 已完成。
-- 2026-06-02：完成 active goal blocked audit。`qc:dev-task-completion-audit` 8/8、`qa:dev-task:sync` dry-run 0 changes、`qc:dev-task-evidence-sync` 13/13、`qc:production-readiness:report` `ready=false` 且 5 個 P0 external blockers、`qc:external-blocker-closure` 83/83；三份 external report 仍 `ready=false`，strict field preflight 在 `--require-evidence` 下 19 passed / 3 failed / 1 warning。判定目前無本機可關閉的未分類 task，剩餘項需外部實機、正式 evidence 或 disposable Supabase/Postgres target。
-- 2026-06-02：blocked 後 resumed audit 第 1 輪。重跑 `qc:dev-task-completion-audit`、`qa:dev-task:sync`、`qc:production-readiness:report`、`qc:external-blocker-closure`、三份 external report allow-open gate 與 strict field preflight，結果仍為同一組 5 個外部 blocker。Supabase connector 目前只看到 `ProJED` / `ProJED_TEST`，兩者 public schema 均已有既有 tables/rows，仍不可作為 `DEV-IND-007` disposable shadow target；本輪未更動任何 task checkbox。
-- 2026-06-02：blocked 後 resumed audit 第 2 輪。重跑 `qc:dev-task-completion-audit` 8/8、`qa:dev-task:sync` 0 changes / `unsafeCompleted=[]`、`qc:production-readiness:report` `ready=false`、`qc:external-blocker-closure` 83/83、三份 external report allow-open gate 與 strict field preflight；結果仍為同一組 5 個外部 blocker。Supabase connector 仍只看到 `ProJED` / `ProJED_TEST`，`ProJED` 有 20 個 public tables 且 `ProJED_TEST` 有 19 個 public tables，均已有既有 rows，不是 disposable AI_PDM shadow target；本輪未更動任何 task checkbox。
-- 2026-06-02：blocked 後 resumed audit 第 3 輪。重跑 `qc:dev-task-completion-audit` 8/8、`qa:dev-task:sync` 0 changes / `unsafeCompleted=[]`、`qc:production-readiness:report` `ready=false` 且仍為 5 個 P0 external blockers、`qc:external-blocker-closure` 83/83、三份 external report allow-open gate 與 strict field preflight；結果與第 1、2 輪相同。Supabase connector 仍只有 `ProJED` / `ProJED_TEST`，兩者 public schema 都已有 rows，不是 disposable AI_PDM shadow target；本輪未更動任何 task checkbox。此為 blocked 後 resumed audit 第 3 次同條件重複，已達 strict blocked 門檻。
-- 2026-06-02：`DEV-FIELD-001` 完成本機 field-test handoff package 與 field issue intake 收斂。`field-test:preflight -- --profile all` 回報 `ready=true`、19 passed / 0 failed / 1 warning；`field-test:handoff` 產生 `data/field-test-handoffs/20260602-090136`；新增 `field-test:issues:import` 與 `qc:field-test-issue-intake`，可將現場 `field-issues.json` dry-run / write 到 `data/quality/defect-register.json`，active P0/P1 會被 `qc:defects-zero` 擋住；`qc:field-test-issue-intake` 11/11 通過。`qc:field-test-handoff-package` 驗證最新 package manifest、README、restore/SW/Document Manager 指令、field issue template/import command、三份 report copy、restore handoff 副本、final QC checklist 與外部文件無舊 package id，QC 53/53 通過。正式 field execution、signed evidence、issue closure 與 `--require-evidence` gate 仍維持外部阻塞。
-- 2026-06-02：`DEV-CAD-001` 完成本機 native extractor adapter contract / probe tooling 局部收斂。將 Document Manager mock probe / redaction / path gate fixture 改到 `.tmp/`，避免 Windows / sync client 對 `data/qc-fixtures` 既有檔案覆寫回 EPERM；`qc:native-cad-extractor-contract` 新增 no-extractor fallback branch，證明 Web metadata detect API 在未配置 native extractor 時仍回 200 並提供可操作 warning。QC：`qc:native-cad-extractor-contract` 14/14、`qc:document-manager-extractor-probe` 6/6、`qc:document-manager-probe-redaction` 9/9、`qc:document-manager-probe-path-gate` 4/4 通過；正式 Document Manager / 等效元件授權、真實 CAD 樣本與 `qc:document-manager-report:report` 仍維持外部阻塞。
-- 2026-06-02：補齊 `qa:dev-task:sync` 對 `DEV-IND-007` 的 Supabase/Postgres live shadow evidence gate。同步工具現在讀取最新 `data/quality/postgres-shadow/shadow-compare-*.json`，只有 `postgresShadowConfigured=true`、target guard safe、Postgres stats 存在、無 compare error / missing table / RLS missing / mismatch 時，才允許將 `DEV-IND-007` overview 與 live target/migration/compare/RLS/readiness checkbox 同步為 `[x]`；同時收窄 matcher，避免誤改其他任務的風險說明。QC：`qa:dev-task:sync` dry-run 顯示 `supabaseShadowReady=false` 並保留 `DEV-IND-007` blocked；`qc:dev-task-evidence-sync` 13/13 通過；`qc:dev-task-completion-audit` 8/8 通過。
-- 2026-06-02：修正 active goal 進度閘門的 task 路徑與同步相容性。`qc:dev-task-completion-audit`、`qc:production-readiness:report`、`qa:dev-task:sync` 現在優先讀取 `.ai-doc/dev_task.md`，保留 legacy `dev_task.md` / `PDM_dev_task.md` fallback；`qa:dev-task:sync` 支援新版 task 表格列 `[!]` -> `[x]` 同步，並忽略 heading/說明文字。新增 `.tmp/` gitignore 供 QC fixture 使用。QC：`qc:dev-task-evidence-sync` 12/12、`qc:dev-task-completion-audit` 8/8、`qc:doc-paths` 20/20、`qc:production-readiness:report` parse pass 並回報 5 個 P0 外部 blocker、`qa:dev-task:sync` dry-run 無 eligible changes、`field-test:preflight -- --profile all --require-evidence` 仍為 19 passed / 3 failed / 1 warning、`lint` 與 `git diff --check` 通過。
-- 2026-06-02：同步外部驗證交接文件到目前 `.ai-doc/dev_task.md` 權威路徑。更新 `docs/external-evidence-handoff-checklist-2026-05-27.md` 與 `docs/industrialization/external-validation-handoff-2026-05-28.md`，補上 2026-06-02 local gate 狀態、`DEV-IND-007` disposable Supabase/Postgres target 決策條件、現有 Supabase projects 不可作 shadow target 的限制，以及外部證據 ready 後應重跑的 completion/readiness/evidence sync 指令。
-- 2026-06-01：完成 active goal 剩餘阻塞盤點。`qc:document-manager-report:report` 回報 Document Manager report `ready=false`、15 cases / 0 pass；`field-test:preflight -- --profile all --require-evidence` 回報 19 passed / 3 failed / 1 warning，失敗集中於 CAD real-machine evidence、restore drill evidence、Document Manager evidence。將 `DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001`、`DEV-FIELD-001` 狀態補正為 `[!]` 外部阻塞；`DEV-IND-007` 仍需 disposable Supabase/Postgres target 或 connector re-auth。
-- 2026-06-01：續查 `DEV-IND-007` Supabase / Postgres shadow target。Supabase connector 已恢復並列出 `ProJED`、`ProJED_TEST`；兩者 public schema 皆含既有 `profiles/projects/wbs_items/...`，不符合 disposable AI_PDM shadow target。查詢成本：new project `0/monthly`、branch `0.01344/hourly`；本機無 `psql/postgres`，Docker daemon 未啟動。下一步需使用者確認是否在 `JED` organization 建立全新 disposable shadow project 與 region。
-- 2026-06-01：`DEV-IND-007` 完成本地 target guard 與 compare traceability 收斂。`compare-sqlite-postgres-shadow` report 新增 `migrationTrace`，記錄 `db/schema.sql`、`db/postgres/001_initial_schema.sql`、`db/postgres/002_supabase_rls_plan.sql` 的 SHA-256；`qc:postgres-shadow` 新增 PG-018 驗證 traceability。QC：`qc:postgres-shadow-target-guard` 10/10 通過，`qc:postgres-shadow` 21/21 通過；live disposable Supabase/Postgres target 仍待使用者確認後建立或提供。
-- 2026-06-01：`DEV-UX-005` 完成全系統 UI 屬性視覺層級一致化。Dashboard 表格與明細、Upload 檔案列與送審成功訊息、Handoff 發布卡片、Public Share 發布包/檔案/BOM 來源資訊套用主識別、metadata badge、metadata row、diagnostic value 四層視覺語彙；修正 `.detail-row` CSS 過度套用巢狀 metadata 的問題，SHA256/local path/Drive ID/submission ID 改為等寬診斷值。新增 QA/QC 文件與 `qc:ux-attribute-hierarchy`；`qc:ux-attribute-hierarchy` 31/31、`tsc`、`lint`、`build` 通過，僅有既有 Turbopack tracing warnings。
-- 2026-06-01：`DEV-GDRIVE-001` 完成 Google Drive 資料夾樹狀設定。新增 `/api/settings/gdrive/folders` 與 `/api/settings/gdrive/folders/verify`，Admin 可用 Windows Explorer 式樹狀 UI lazy load Google Drive / Shared Drive 資料夾、檢視 path / Folder ID / Drive type / 權限 / 最後驗證時間、指定 pending / released folders、保留手動 Folder ID fallback；設定儲存會阻擋同資料夾、要求已驗證 metadata，audit log 僅記錄 before / after 設定快照且不暴露 token 或 key path。新增 QA/QC 文件；`qc:gdrive-folder-tree-settings` 35/35、`qc:release-folders` 10/10、`qc:pdm-numbering-settings-ui` 22/22、`tsc`、`lint`、`build` 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成主管 diff 審核 UI 收尾並關閉第一版 task。新增 `/bom/reviews` 研發主管審核頁、`/api/bom/drafts/[draftId]/diff` 與 `/api/bom/reviews/pending`，以同 parent item 最新 Released Snapshot 作為 baseline，主管第一畫面顯示新增、移除、數量、階層、版次與排序差異；核准後同頁提供 Released Snapshot XLSX/CSV 匯出連結。新增 QA/QC 文件；`qc:bom-workbench-review-ui` 32/32、`qc:bom-workbench-review-release` 25/25、`lint`、`build`、`git diff --check` 通過，僅有既有 CRLF / Turbopack tracing warnings。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 BOM 工作台 UI 基礎切片。新增 `/bom/workbench` 獨立頁面與 sidebar 導航入口，採左側料號/圖面搜尋、中間 BOM 樹、右側節點屬性的三欄工作台；支援 CAD Draft、SolidWorks XLS 檔案/貼上匯入、搜尋結果拖入子件、數量編輯、虛擬群組、排序/縮排、Undo/Redo、未儲存離開提示、儲存、複製 Draft、設為 Active Draft、Draft 比較與送主管審核。新增 `qc:bom-workbench-ui` Playwright QC，驗證儲存後 PATCH 回應保留 quantity 3 與 child parent_line_id 指向群組；新增 QA/QC 文件；`qc:bom-workbench-ui` 35/35、`qc:bom-workbench-foundation` 27/27、`qc:pdm-numbering-core` 234/234、`tsc`、`lint`、`build` 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 Postgres / Supabase 遷移路徑保留檢查。`BomRepository` contract 補上 `createWorkbenchDraftFromSolidWorksXls` 與 `getImportJobById`，新增 `qc:bom-workbench-migration-path` 靜態 QC，確認 SQLite/Postgres schema 都包含 BOM workbench 與 `file_assets` 表、Postgres import metadata 使用 JSONB、`file_assets` 保留 `supabase_storage` / `storage_key` / `content_hash` / `sync_status`、repository 會寫入 import asset，且第一版仍 SQLite-only、未引入正式 Supabase dependency。新增 QA/QC 文件；`qc:bom-workbench-migration-path` 21/21、`tsc`、`lint`、`git diff --check` 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 SolidWorks BOM XLS 匯入與來源優先權 slice。新增 `/api/bom/drafts/import-xls`，支援 TSV、CSV、Excel HTML、SpreadsheetML 文字型 SolidWorks BOM 匯出，每次匯入建立新的 `solidworks_xls` Draft 並可成為 Active Draft；新增 `createBomWorkbenchDraftFromSolidWorksXls`、`BomXlsImportError`、`getBomImportJobById`，保存原始檔至 repository 並寫入 `file_assets`、`bom_import_jobs`、`bom_import_profiles`、`bom_lines_tree` source metadata、edit event 與 audit log；Postgres shadow schema 補上 `file_assets`。QC 證明 TSV 重複料號版次會合併數量、HTML XLS 可建立第二 Draft 且不覆蓋舊 Draft、人工校正 XLS Draft 後會提升為 `manual` source priority 30、二進位 OLE `.xls` 以 `BOM_XLS_BINARY_UNSUPPORTED` 明確拒絕；新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-solidworks-xls-import` 34/34、`qc:bom-workbench-foundation` 27/27 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成製造 / 採購 Released-only 權限邊界。新增 `Manufacturing`、`Procurement` 使用者角色與既有 SQLite `users` role constraint 自動遷移，BOM Draft routes 改用 `canReadBomDraft` 阻擋 released-only 角色，Released Snapshot export 改用 `canReadBomReleasedSnapshot` 允許正式 BOM 匯出；新增 `qc:bom-workbench-released-only-permission`。QC 證明製造 / 採購可登入，不能讀 pending submission detail，也不能讀取或修改 BOM Draft API，但可匯出 Released BOM CSV；新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-released-only-permission` 31/31、`qc:bom-workbench-review-release` 25/25、`qc:bom-workbench-release-export` 21/21 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 Released Snapshot 匯出。新增 `/api/bom/releases/[releaseId]/export?format=csv|xlsx`，由 `bom_release_snapshots` 輸出固定欄位 CSV 與真正 OOXML zip `.xlsx`，檔名固定為 `BOM_{part_number}_Rev{revision}_{YYYYMMDD}`；新增 `getBomReleaseSnapshotById` repository 查詢與 `qc:bom-workbench-release-export`。QC 證明 CSV/XLSX content type、固定檔名、欄位、子件數量、XLSX zip header/EOCD/workbook parts、unsupported format 400 與 missing snapshot 404；新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-release-export` 21/21 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 release gate / resubmit 補強。`submitBomWorkbenchDraftReview` 新增 `BOM_PENDING_REVIEW_EXISTS` 明確錯誤，release gate issue 補上 `child_status` 與 `latest_released_revision`，新增 `qc:bom-workbench-release-gate-resubmit`。QC 以 HTTP API 證明缺件、Pending、Rejected、Obsolete、非最新版 Released 子件皆在主管核准前被 409 阻擋；同 parent/revision 第二個 PendingReview 回 400；Rejected Draft 可原地修改、`review_attempt` 增為 2、保留退回紀錄並可重新核准發布。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-release-gate-resubmit` 43/43、既有 `qc:bom-workbench-review-release` 25/25 通過。
-- 2026-06-01：將 `DEV-BOM-WORKBENCH-001` 引導模式定案決策寫入 task，補齊 BOM 工作台定位、三種建立來源、`manual > solidworks_xls > cad_reference` 來源優先權、多 Draft / Active Draft、Release Gate、Rejected 原地重送、製造 / 採購 Released-only 權限、主管差異審核、Windows 樹狀 UI、虛擬群組、正式匯出與未來 Supabase 遷移保留策略。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 BOM 工作台 review/release slice。新增 `/api/bom/drafts/[draftId]/submit-review`、`/api/bom/reviews/[reviewId]/approve`、`/api/bom/reviews/[reviewId]/reject`，支援送審原因必填、主管核准/退回、Released Snapshot、同 parent/revision 舊 snapshot obsolete，以及缺件 release gate。新增 `qc:bom-workbench-review-release`；QC 證明工程師可送審但不可核准、主管核准後 draft 成為 `Released`、第二次 release 會將前一 snapshot 標記 obsolete、主管退回後 draft 成為 `Rejected`、缺件 approval 回 409。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-review-release` 25/25 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 BOM 工作台 tree-rules slice。新增 `PATCH /api/bom/drafts/[draftId]` 與 `/api/bom/drafts/[draftId]/active`，集中在 repository 驗證虛擬群組、manual tree save、同父層同料號同版次合併、10 層限制與循環阻擋，並記錄 `save_tree` / `set_active` edit event 與 audit。新增 `qc:bom-workbench-tree-rules`；QC 證明 group 無 quantity、重複子件數量合併為 5、BOM PATCH 夾帶 item master 欄位不會改 `items.part_name/current_revision`、超過 10 層與循環皆回 400、Active Draft 可切換且舊 Active 取消。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-tree-rules` 22/22 通過。
-- 2026-06-01：`DEV-BOM-WORKBENCH-001` 完成 BOM 工作台 foundation slice。新增 `bom_drafts`、`bom_lines_tree`、`bom_import_profiles`、`bom_import_jobs`、`bom_edit_events`、`bom_review_requests`、`bom_release_snapshots` 與 Postgres shadow schema 對應；新增 `/api/bom/workbench`、`/api/bom/drafts/from-assembly`、`/api/bom/drafts/[draftId]`，保留舊 `bom_headers` / `bom_lines` 相容。新增 `qc:bom-workbench-foundation`；QC 證明 legacy BOM route 未破壞、CAD references 可建立多 Draft、同父層同料號同版次會合併數量、最新 draft 成為 Active 並保留舊 draft、edit event 與 audit log 有紀錄。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:bom-workbench-foundation` 27/27 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成跨角色 audit E2E 收尾，新增 `qc:pdm-numbering-cross-role-audit-e2e`，以主管 scoped batch/task/notification、代理工程師、代送審 payload、影響範圍 marker、批次退回重送與 audit envelope 驗證審核頁、待辦中心、通知中心與 audit 標示一致。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 234/234、`qc:pdm-numbering-cross-role-audit-e2e` 39/39 通過，`DEV-PDM-NUMBERING-001` 第一版 task 全部完成。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成草稿生命週期 QC，新增草稿更新、草稿作廢與逾期草稿管理員確認 API，並新增 `qc:pdm-numbering-draft-lifecycle`。QC 證明 RD/工程師草稿建立、修改、作廢皆不產生審核單，RD 無法執行逾期管理員確認；逾 30 天草稿會轉 `PendingAdminConfirm` 並建立 PDM 管理員待辦與不可關閉通知。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 232/232、`qc:pdm-numbering-draft-lifecycle` 29/29 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成併發占號與不可重用 QC，新增 `qc:pdm-numbering-concurrency-reuse`，以 12 筆並發 HTTP 建號驗證主根號、料號、MA 圖號不撞號，並驗證 pending/未核准、rejected/退回、obsolete/作廢狀態下 root/part/drawing 皆無法直接重複插入且 duplicate-check 回 blocker。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 221/221、`qc:pdm-numbering-concurrency-reuse` 32/32 通過。
-- 2026-06-01：將引導模式定案的 `DEV-PDM-NUMBERING-001` 設計決策寫入 task，補齊階段管制、草稿免審、占號不可重用、CAD 先領號限制、DVT 晉升效率、BOM 非強制關聯、同圖多料號、影響文件、MA 圖作廢、override/`!`、後台權限矩陣、代理/代送審、批次審核、系統內通知與未來 Supabase 遷移保留策略。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成使用者角色指派與跨角色權限矩陣 E2E。新增 `user_role_assignments`、管理員 role assignment API/UI、權限判斷套用指派角色與代理角色，並新增 `qc:pdm-numbering-cross-role-permission`。QC 證明 RD 權限關閉後工程師被阻擋，自訂角色指派且排到最高權限後可建號，撤銷後再阻擋；同時驗證 Admin、主管、PDM/system admin 角色、設定頁 UI 與 audit before/after/diff/marker envelope。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 219/219、`qc:pdm-numbering-cross-role-permission` 45/45、`qc:pdm-numbering-permission-guard-ui` 35/35、`qc:pdm-numbering-role-delegation-ui` 24/24 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成資料一致性 QC，新增 `qc:pdm-numbering-data-consistency`，驗證作廢/失效後 root code、part number、drawing number 仍不可重用，MA 圖恢復會保留舊圖 reference 與新圖 primary link，missing-MA override 保留 request/decision/audit marker trace。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 213/213、`qc:pdm-numbering-data-consistency` 16/16 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 API regression QC，新增 `qc:pdm-numbering-api-regression`，以 HTTP API 覆蓋圖料號占號、查重、同圖多料號 variant、查詢/明細 audit trail、MA 圖作廢影響、總表 staging/confirm、審核矩陣與月報 metadata；測試資料清理保留 append-only audit log。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 212/212、`qc:pdm-numbering-api-regression` 26/26 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 audit log append-only 與 before/after/diff 正規化，新增 `audit_logs` update/delete trigger、numbering audit detail normalization、marker detail 輸出與 append-only QC；移除 UI QC 腳本對 audit log 的刪除清理以符合不可竄改要求。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 211/211、`qc:pdm-numbering-approval-review-ui` 25/25 通過。批次退回重送與主管可視範圍的跨角色 audit E2E 仍保留待辦。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成審核/待辦/通知 attention marker，一致標示代理審核、代送審、Override 與影響範圍；審核 DTO 新增 marker 與代理決策識別，待辦/通知 detail 保留 payload 並導向 `/numbering/approvals`。新增 QA/QC 文件；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 204/204、`qc:pdm-numbering-approval-review-ui` 25/25、`qc:pdm-numbering-task-center-ui` 22/22 通過；audit append-only before/after/diff 完整驗證仍保留待辦。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成角色矩陣權限 guard，將 page/action 權限套用到 numbering 可操作 API、permissions route 與 sidebar UI guard，並新增預設 operational permissions、最高權限優先判斷與代理人 scope 權限比對；新增 QA/QC 文件與 `qc:pdm-numbering-permission-guard-ui`。`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 201/201、`qc:pdm-numbering-permission-guard-ui` 35/35 通過；後續仍需補完整跨角色 E2E、資料一致性追溯測試，以及代理審核、代送審、override 與影響範圍在審核/待辦/audit 的一致標示驗證。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成角色權限矩陣後台設定台第二階段，新增角色/頁面/動作權限 API、最高權限排序版本、主管範圍、代理人設定/撤銷與 audit，並將主管範圍與代理人套用到審核批次、待辦與通知可視範圍；新增 QA/QC 文件與 `qc:pdm-numbering-role-delegation-ui`。`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 190/190、`qc:pdm-numbering-role-delegation-ui` 24/24 通過；後續仍需把角色矩陣操作權限套用到所有 API/UI guard，並補齊代理審核、代送審、override 與影響範圍在審核/待辦/audit 的一致標示驗證。
-- 2026-06-01：補充 `DEV-PDM-NUMBERING-001` 角色、權限矩陣、主管範圍與代理人設定的 RD/QA/QC 拆解；第一版維持本機資料庫與 J 槽索引，僅預留 Supabase/Postgres 與 Supabase Storage 轉移路徑以控制成本。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 DVT/發行審核頁與側欄入口，新增 approval batch 清單 API、審核 DTO、代送審標示、異常/Override 標示、共用意見、異常項個別意見與批次核准 UI；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 178/178、`qc:pdm-numbering-approval-review-ui` 21/21 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 EVT 到 DVT 晉升清單與側欄入口，新增 `/api/numbering/dvt-candidates` 與 `/numbering/dvt`，支援 DVT gate 分類、完整項目批次送審、`dvt_promotion` approval request/batch、缺 MA 留 EVT 待補、保留 EVT、EVT 停用與作廢；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 172/172、`qc:pdm-numbering-dvt-ui` 23/23 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成圖料號申請精靈與側欄入口，新增 `/api/numbering/records` 與 `/numbering/request`，支援外購/自製/發包/共用件/客製尺寸、查重預檢、客製規格保存、共用件理由強制填寫、先料號後圖號與同步建立 MA/OT 圖號；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 161/161、`qc:pdm-numbering-request-ui` 20/20 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 MA 圖作廢影響範圍頁與側欄入口，支援輸入 MA 圖號與作廢原因、先分析受影響料號/狀態/文件進版待辦、確認後套用失效；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 152/152、`qc:pdm-numbering-impact-ui` 24/24 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成圖料查詢與主根明細頁，新增 `/api/numbering/search`、`/api/numbering/roots/[rootCode]`、`/numbering/search` 與側欄入口，支援關鍵字/類型/狀態/階段篩選、同圖多料號與差異欄位、`!` 提醒、warning、audit trail 與 MA 圖作廢影響分析；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 148/148、`qc:pdm-numbering-search-ui` 24/24 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成總表匯入 UI 與側欄入口，新增 import batch GET 清單 API、CSV/TSV/JSON staging、逐列衝突/待補顯示、檢查報告 JSON 下載與管理員確認；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 141/141、`qc:pdm-numbering-import-center-ui` 22/22 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成圖號稽核報表 UI 與側欄入口，新增 export/monthly report GET 清單 API、月報部門/角色分頁與專案分頁 metadata、手動重產月報、近期報表/近期匯出與 JSON 下載；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 136/136、`qc:pdm-numbering-report-center-ui` 20/20 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成圖號待辦/通知中心 UI 與側欄入口，支援待辦狀態篩選、通知已讀/已處理篩選、風險標示、資訊類通知可處理、待處理/阻擋通知不可關閉，並補上不可關閉通知後端 guard；`qc:pdm-numbering-core` 129/129、`qc:pdm-numbering-task-center-ui` 16/16、`qc:pdm-numbering-settings-ui` 22/22 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成後台審核矩陣設定台，新增 Admin matrix API、規則 upsert/audit、三模板套用、規則版本紀錄、設定頁矩陣表、硬限制 `!` 說明與規則模擬器；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 125/125、`qc:pdm-numbering-settings-ui` 22/22 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成總表匯出三模式與每月報表 metadata/管理員手動重產 API；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 116/116 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成總表匯入 staging、row-level 檢查報告與管理員確認轉正式主檔 API；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 105/105 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 numbering 待辦中心 API、系統內通知 API、已讀/未讀與已處理/未處理狀態；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 96/96 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成送審批次、批次審核與退回項目重送資料流，新增 `/api/numbering/approval-batches` 與 `/api/numbering/approval-batches/[batchId]`；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 82/82 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成審核 rule evaluator、預設 approval rules、不可關閉硬限制與 `rule-simulator` actionCode 模擬；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 72/72 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 `MainDrawingInvalid` 重新送審恢復流程，核准後才恢復料號可用並可重新指定有效 MA 圖；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 68/68 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成 numbering approval request/decision、已發行同圖多料號審核 gate、缺 MA 圖 DVT/Release override action code 與 `/api/numbering/approval-requests`、`/api/numbering/approval-decisions`；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 62/62 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成查重與高相似提醒後端、`duplicate_check_events`、`warning_events` 與 `/api/numbering/duplicate-check`；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 50/50 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成同圖多料號後端服務、DVT/Release MA gate evaluator、MA 圖作廢影響分析與 `/api/numbering/variants`、`/api/numbering/rule-simulator`、`/api/numbering/impact-analysis`；`tsc`、`lint`、`build`、`qc:pdm-numbering-core` 通過。
-- 2026-06-01：`DEV-PDM-NUMBERING-001` 完成核心資料模型、交易式占號 repository、rule/template/role seed 與本輪 QA/QC 文件；`lint`、`build`、`qc:pdm-numbering-core` 通過。
-- 2026-05-31：建立圖號與料號自動化 spec 並新增 `DEV-PDM-NUMBERING-001`。
-- 2026-05-31：重構 `dev_task.md`，保留 active tasks 與未完成 specs，將已完成項目濃縮為 archived index。
-- 2026-05-30：建立 BOM 工作台 spec 與 `DEV-BOM-WORKBENCH-001`。
-- 2026-05-30：建立 Google Drive 資料夾樹狀設定 spec 與 `DEV-GDRIVE-001`。
+| ✓ 本輪本地範圍已完成 | `DEV-005` | `DEV-PDM-SUBMISSION-GATE-001` | 交付點 | Phase 1 local QC passed；Phase 2+ 需另指定，release/deploy 走 `DEV-032` |
+| ✓ Phase 2B complete | `DEV-046` | `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` | 開發點 | staging activation已完成；Phase 3A production由`DEV-032`執行，Phase 3B+只保留future capsules |
+| ↷ 待選切片 | `DEV-015` | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P` | 開發點 | 指定一個第2+階段切片後才恢復為可執行 |
+| × 併入 | `DEV-030` | `DEV-CLOUDSQL-DB-001` | 關卡 | target/capacity/apply併入`DEV-032 Gate B`，migration/continuity併入`Gate C` |
+| × 併入 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | clean seed/archive/restore/reconciliation保留角色分離QC，統一由`DEV-032 Gate C`派工 |
+| ! release gate | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | 唯一production入口；當前執行`Gate A` configuration與credentialled plan review，不得apply |
+| ↷ Phase 3B future | `DEV-033` | `DEV-STORAGE-COST-001` | 開發點 | 與DEV-046 Phase 3B、DEV-037合併為GCS authority/cost/continuity package |
+| ✓ 完成 | `DEV-034` | `DEV-IND-007` | 關卡 | disposable local PostgreSQL shadow gate 已通過；正式 Cloud SQL release只走`DEV-032` |
+| ↷ 延後 | `DEV-035` | `DEV-CAD-001` | 關卡 | 3D 預覽人類實測 OK；2D 預覽 / native metadata 延後到完整 CAD 階段 |
+| × 停止追蹤 | `DEV-036` | `DEV-SW-001` | 關卡 | 目前無 Add-in 產品路線；保留歷史 ID，未來需新產品決策才恢復 |
+| ↷ 延後 | `DEV-037` | `DEV-BACKUP-001` | 關卡 | 完整 PDM file/GCS/offline restore drill 延後；Phase 3A 另依 closed `DEV-046 HD-8-4 / 1A` 完成 pre-canary DB restore/reconciliation |
+| × 取消 | `DEV-038` | `DEV-FIELD-001` | 關卡 | `HD-9-1` 於 2026-07-14 取消固定五個工作日驗證；不執行、不算通過，且不再是第一版 blocker |
+| ✓ 本輪本地範圍已完成 | `DEV-040` | `DEV-PDM-PRODUCTION-SLICE-001` | 交付點 | Phase 1 local product slice 已完成並驗證；正式部署、production smoke、release report 另走 `DEV-032` |
+
+稽核限制：`qc:dev-task-completion-audit` 只稽核 external-evidence table 中尚未關閉的 blocker；`DEV-FIELD-001` 已依 `HD-9-1` 關閉為 cancelled，而非 evidence passed。production readiness 必須繼續顯示 `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` live platform/release blocker；任何稽核通過均不得單獨宣稱 live staging/production ready。
+
+## 2. 批次發版與正式環境關卡
+
+共用 release、production、Cloud SQL、migration、provider pointer、rollback 與 production smoke 不掛在每個已完成 DEV 底下，只由 `DEV-032` active gate 管控：
+
+- `DEV-032 Gate A`：production provider/env/secret metadata與credentialled plan review；不得apply。
+- `Gate B`：production resource apply；原`DEV-030` target/capacity/resource scope在此驗收。
+- `Gate C`：clean seed/migration/restore/reconciliation；原`DEV-031` data-continuity QC在此驗收。
+- `Gate D`：immutable deploy、rollback、Level 3/4 smoke。
+- `Gate E`：3-5位named-user canary與後續allowlist變更。
+- `DEV-034`：SQLite 到 PostgreSQL 影子遷移已完成本機 disposable gate；正式 Cloud SQL target只走`DEV-032`。
+- `DEV-040`：正式領號 / 草稿 production slice；Phase 1 local product slice 已完成並驗證，release/deploy 仍走 `DEV-032`。
+
+使用者已授權本輪依Gate A-E順序執行所有Codex可完成工作；任何delete/replace、USD 240以上估算、target/provenance不一致、migration/restore/rollback/reconciliation/Level 3或4失敗仍須立即停止。Google re-auth、provider/MFA、DNS、named canary與真人UI驗收集中在人類工作包。
+
+## 3. External Blockers / Parked Scope（外部阻塞與暫停範圍）
+
+這些項目沒有外部證據、高風險確認或 release-gate 指令時，不可交給 RD 直接執行。表格保留原始 task line，讓 `qc:dev-task-evidence-sync` 可以持續稽核已完成 gate 與延後範圍。
+
+| 狀態 | ID | 範圍 | 阻塞原因 / 恢復條件 |
+|---|---|---|---|
+| [x] | DEV-IND-007 | SQLite to Postgres / Supabase shadow migration | Disposable local Postgres shadow gate passed with schema/RLS compare evidence; formal production target/advisor work, if needed, remains in `DEV-032`. |
+| [/] | DEV-CAD-001 | SolidWorks Document Manager or equivalent reader | Human test: SW upload OK and 3D preview OK; 2D preview/native metadata remains deferred to full CAD phase and is not a first-version blocker. |
+| [ ] | DEV-SW-001 | SolidWorks Add-in real-machine validation | Cancelled as a product route, not evidence-passed. Historical ID retained; a new product decision is required to reopen it. |
+| [ ] | DEV-BACKUP-001 | Offline one-way backup and restore drill | Full PDM file/GCS/offline restore drill deferred to Phase 3B/full file readiness; Phase 3A separately requires closed DEV-046 `HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence. |
+| [x] | DEV-FIELD-001 | Formal field-test evidence | Cancelled by Human Decision `HD-9-1` on 2026-07-14; closed without execution or acceptance evidence and no longer a first-version blocker. |
+| [!] | DEV-PDM-ERP-GOOGLE-CLOUDSQL-001 | Live platform and release readiness | DEV-046 Phase 2B staging activation complete. DEV-032 pre-build gate opened on 2026-07-15; dirty source boundary is classified and hashable with zero unknown-risk paths, clean seed/allowlist/`HD-8-4` restore package、template-only production activation checklist 與 activation readiness aggregator 均已 QC-checked，production target contract template and fail-closed production IaC review package are QC-checked, Docker Terraform static validate passes against a copied backend-disabled workspace, read-only production target preflight writes `output/dev-032-production-target-preflight/report.json` with production action `false`, and release-source commit plan has been applied into the current release-candidate HEAD. Current release-candidate source also includes the read-only draft number preview/no-reservation route and matching number-state QC evidence. Production GCP project `jenfu-ai-pdm-prod` is now created/readable, but gate remains blocked by missing production Firebase/provider config, production env/secret metadata readback, credentialled production plan/resource readback, real production runtime/database/secret inventory, separate-target restore/reconciliation execution, rollback evidence, Level 3 production-like smoke and Level 4 post-deploy smoke. See `.ai-doc/reports/pm/pm-dev-032-production-release-gate-preflight-2026-07-15.md`, `.ai-doc/reports/pm/pm-dev-032-source-boundary-classification-2026-07-15.md`, `.ai-doc/reports/pm/pm-dev-032-release-source-manifest-2026-07-15.md`, `.ai-doc/reports/pm/pm-dev-032-production-iac-review-package-2026-07-15.md`, and `.ai-doc/reports/pm/pm-dev-032-production-gate-package-2026-07-15.md`. |
+| [!] | DEV-STORAGE-COST-001 | Future GCS authority/cost/continuity package | Parked with DEV-046 Phase 3B and DEV-037 until Phase 3A is stable and file-workflow scope, inventory, lifecycle policy, cost and recovery ownership are approved. |
+
+保留給 `qc:dev-task-evidence-sync` 的外部證據 checklist：
+
+- [x] 取得 disposable Supabase / Postgres shadow target。
+- [x] `npm.cmd run qc:postgres-shadow` 在 disposable target 通過。
+- [ ] `P0` 整合 SolidWorks Document Manager API 或等效讀取元件。
+- [ ] `P0` 確認 SolidWorks Document Manager 可部署方式與使用條件。
+- [ ] `P0` SolidWorks Document Manager API 或等效可部署讀取元件。
+
+## 4. 已完成任務與證據摘要
+
+完整已完成任務索引：`.ai-doc/archived/completed-dev-index-2026-06.md`；`.ai-doc/archived/completed-dev-index-2026-07.md`。
+
+| ID | 完成狀態 | 目前處理 | 證據摘要 |
+|---|---|---|---|
+| `DEV-PDM-LIFECYCLE-ACTIONS-001` | Phase 1-6 local/staging implementation and QC evidence are captured; local commit `21bcf16`. | Logical Archive / Protected Evidence. Production/Supabase production cutover remains outside release gate. | Phase 5 unified controlled-history UI/API slice is implemented/QC-checked. Phase 6 local/staging release readiness records production/Supabase production exclusion and user-requested scoped Git/index cleanup. User has authorized scoped Git/index cleanup. Unified controlled history covers released submissions, formal part numbers, formal drawing numbers, and released BOM. Evidence includes `npm.cmd run qc:pdm-lifecycle-controlled-history` 56/56, `npm.cmd run qc:pdm-lifecycle-controlled-history-ui` 30/30, `npm.cmd run qc:pdm-lifecycle-submission-obsolete` 20/20, `npm.cmd run qc:pdm-lifecycle-release-readiness` 47/47, and screenshots `output/playwright/pdm-lifecycle-controlled-history-desktop.png`, `output/playwright/pdm-lifecycle-controlled-history-mobile.png`. |
+| `DEV-PDM-CHANGE-CONTROL-001` | Phase 1-5 local implementation completed and QC-captured. | Logical Archive / Protected Evidence; optional follow-up only if PM expands scope. | ADR/SPEC/implementation contract/QA and `scripts/qc-pdm-change-control.mjs`; QC reports for Phase 1, 2, 3, and 4-5; `npm.cmd run qc:pdm-change-control` 50/50; `npx.cmd tsc --noEmit --pretty false`. |
+| `DEV-PDM-REVISION-001` | Numeric no-`V` revision policy implemented; manual QA plan prepared. | Closed local package. | Branch `codex/pdm-revision-policy`; commits `8f472d0`, `af08d81`; `qc:master-attachments`, `qc:revision-lifecycle`, `qc:policy-alignment`; QA plan `.ai-doc/qa/qa-pdm-revision-manual-validation-plan-2026-06-22.md`. |
+| `DEV-SW-LICENSE-PDM-001` | Company-scoped PDM boundary implemented and committed. | Logical Archive / Protected Evidence because QC scripts reference original package paths. | Supabase staged evidence commit `be333eb` (`DEV-SUPABASE-DB-001 record staging gate B evidence`), scoped SW/PDM commit `6f4dbab` (`DEV-SW-LICENSE-PDM-001 add company-scoped PDM boundary`), PM handoff `.ai-doc/reports/pm/pm-sw-license-pdm-company-git-boundary-handoff-2026-06-18.md`, and `qc:sw-license-pdm-git-boundary`. |
+| `DEV-SUPABASE-DB-001-GATE-B` | Staging gate passed for `AI_PDM_STAGING`; smoke write/readback/cleanup and rollback proof captured. | Protected Evidence; parent production/cutover remains deferred. | Approval package, runbook, smoke API matrix, target identity receipt, execution report, QA/QC staging validation, permission seed repair, rule seed repair, migration history policy, rollback readiness, data parity policy. |
+| `DEV-SUPABASE-DB-001-GATE-B-STAGING-QA-QC` | QA/QC staging validation passed for `AI_PDM_STAGING`. | Protected Evidence. | QA plan and QC read-only report; zero active smoke residue; production and cutover remain explicitly unapproved. |
+| `DEV-SUPABASE-DB-001-GATE-B-PERMISSION-SEED` | Permission repair passed. | Protected Evidence. | `roles=6`, `role_permissions=86`, active priority=1; admin matrix, rule simulator, duplicate check returned HTTP 200. |
+| `DEV-SUPABASE-DB-001-GATE-B-RULE-SEED` | Minimal `numbering-rule-v1` seed repair passed. | Protected Evidence. | `numbering_rule_versions=1`; `numbering-rule-v1` exists and is active; write path no longer fails FK. |
+| `DEV-SUPABASE-DB-001-MIGRATION-HISTORY` | Migration history policy accepted for staging exception; Supabase CLI is absent locally. | Protected Evidence. | Migration history policy; `qc:supabase-migration-history-policy`; `qc:supabase-runtime-migrations`; `supabase/migrations/manifest.json`. |
+| `DEV-SUPABASE-DB-001-ROLLBACK-PROOF` | Rollback readiness prepared and passed after stopping Postgres-mode local process. | Protected Evidence. | `.ai-doc/qa/qa-supabase-runtime-rollback-readiness-plan-2026-06-16.md`; `qc:supabase-runtime-rollback-readiness`; `PDM_DB_PROVIDER=<unset>` and `PDM_POSTGRES_URL=<missing>`. |
+
+## 5. Supabase 受保護證據契約
+
+本節刻意保留 exact evidence names，因為多個 QC scripts 會直接讀取 `dev_task.md`。
+
+Protected QC marker: Production gate; staging GATE-B passed; production/cutover remains unapproved and deferred.
+
+| Evidence / gate | 目前狀態 | QC token or path |
+|---|---|---|
+| `DEV-SUPABASE-DB-001-GATE-A` | Done for preparation; runtime execution evidence belongs to GATE-B. | `.ai-doc/qa/qa-supabase-runtime-provider-gate-validation-plan-2026-06-16.md`; `qc:supabase-runtime-gate-plan` |
+| `DEV-SUPABASE-DB-001-GATE-B` | Staging GATE-B passed for `AI_PDM_STAGING`; production/cutover remains unapproved and deferred. | `.ai-doc/reports/pm/pm-supabase-runtime-gate-b-approval-package-2026-06-16.md`; GATE-B approval package; `qc:supabase-runtime-approval-package` |
+| GATE-B execution runbook | GATE-B execution runbook prepared. | `.ai-doc/runbooks/runbook-supabase-runtime-gate-b-2026-06-16.md`; `qc:supabase-runtime-gate-b-runbook` |
+| Runtime smoke API matrix | Prepared. | `.ai-doc/qa/qa-supabase-runtime-smoke-api-matrix-2026-06-16.md`; `qc:supabase-runtime-smoke-api-matrix` |
+| Runtime smoke auth/session boundary | Prepared. | `.ai-doc/qa/qa-supabase-runtime-smoke-auth-session-boundary-2026-06-16.md`; `qc:supabase-runtime-smoke-auth-session-boundary` |
+| Runtime smoke report template | Prepared controlled evidence. | `.ai-doc/reports/qc/qc-supabase-runtime-smoke-report-template-2026-06-16.md`; `qc:supabase-runtime-smoke-report-template` |
+| Runtime smoke execution report | Passed; app API write/readback/cleanup and current state captured. | `.ai-doc/reports/qc/qc-supabase-runtime-smoke-report-2026-06-16.md`; `qc:supabase-runtime-smoke-report` |
+| GATE-B local pre-approval suite report | Prepared. | `qc:supabase-runtime-gate-b-local-suite-report` |
+| GATE-B staging QA/QC validation | QA/QC staging validation passed for `AI_PDM_STAGING`; No production access. No production cutover. | `.ai-doc/qa/qa-supabase-gate-b-staging-validation-plan-2026-06-18.md`; `.ai-doc/reports/qc/qc-supabase-gate-b-staging-validation-report-2026-06-18.md` |
+| Target identity receipt template and user-provided receipt | Recorded; target is `AI_PDM_STAGING`; no production/cutover approval. | `.ai-doc/reports/qc/qc-supabase-target-identity-receipt-template-2026-06-16.md`; `.ai-doc/reports/qc/qc-supabase-target-identity-receipt-2026-06-17.md`; `qc:supabase-target-identity-receipt` |
+| Runtime rollback readiness | Rollback readiness prepared and passed. | `.ai-doc/qa/qa-supabase-runtime-rollback-readiness-plan-2026-06-16.md`; `qc:supabase-runtime-rollback-readiness` |
+| Data parity policy | `DEV-SUPABASE-DB-001-DATA-PARITY` policy prepared; execution not approved. | `.ai-doc/qa/qa-supabase-data-parity-policy-2026-06-16.md`; `qc:supabase-data-parity-policy` |
+| Current Supabase change impact audit | Current Supabase change impact audit is prepared as local evidence. | `.ai-doc/qa/qa-supabase-current-change-impact-audit-2026-06-16.md`; `qc:supabase-current-change-impact` |
+
+QC 要求保留的 Supabase stop wording：
+
+- Production target setup or production cutover is not approved.
+- Cost-incurring actions are not approved.
+- No repository file contains runtime secrets.
+- Service role, secret keys, database passwords, and pooler URLs must never be exposed through `NEXT_PUBLIC_*`.
+
+## 6. 驗證契約
+
+此 control board 的靜態檢查：
+
+- `git diff --check -- .ai-doc/dev_task.md .ai-doc/documentation_map.md .ai-doc/archived`
+- Search all `DEV-` IDs and confirm unfinished IDs remain in this file.
+- Confirm moved or logically archived evidence has no broken active link.
+
+主要 QC 指令：
+
+- `npm.cmd run qc:dev-task-evidence-sync`
+- `npm.cmd run qc:dev-task-completion-audit`
+- `npm.cmd run qc:pdm-lifecycle-release-readiness`
+- `npm.cmd run qc:sw-license-pdm-git-boundary`
+- `npm.cmd run qc:supabase-runtime-local-readiness` only when Supabase runtime docs are touched or as regression evidence.
+
+已知限制：
+
+- `qc:pdm-lifecycle-actions-git-boundary` is a historical pre-commit boundary script. After the lifecycle package was closed in commit `21bcf16`, it can fail because it still expects lifecycle candidate files to be present in staged, unstaged, or untracked changes. Treat `qc:pdm-lifecycle-release-readiness` plus commit `21bcf16` as the current closed-package evidence unless the boundary script is explicitly updated.
+
+## 7. 停止條件
+
+- Do not mark documentation restructuring as product Done.
+- Do not delete unfinished tasks or move them only to archive.
+- Do not physically move protected evidence while QC scripts still reference hardcoded paths.
+- Do not execute blocked, deferred, parked, production, cutover, migration, data parity, or external-service scopes without a matching execution boundary, high-risk confirmation, or release gate.
+- Do not stage unrelated dirty files.
+
+## 8. 最新更新
+
+- 2026-07-15: 執行PM治理CAPA：根因是架構父任務、database gate、data QC與release gate同時被當成active blocker，加上phase完成狀態未同步cold-start，造成重複派工與狀態失真。CA將第一版production收斂為唯一`DEV-032 Gate A-E` work package，`DEV-030/031`保留來源ID但不再獨立派工，`DEV-046`改為Phase 2B完成/future phases gated，`DEV-033 + DEV-046 Phase 3B + DEV-037`合併為future GCS package，`DEV-047`改為production穩定後恢復，`DEV-036`停止追蹤。PA同步更新cold-start、documentation map與active SPEC；文件治理不計入產品交付完成。
+- 2026-07-14: 執行 `DEV-045` Phase 2 本機切片。完成 provider-managed recovery handoff、Firebase-managed `PASSWORD_RESET` adapter contract、`account_session_records` server-owned additive registry、`/account/security` self-service session/device visibility、個別撤銷其他 session、logout registry revoke、public recovery handoff generic response、production-slice account-safety allowlist、PostgreSQL/Supabase migration mirror與RLS deny-list更新。驗證通過 `npm run qc:dev-045-phase2` 14/14、`npm run qc:supabase-runtime-migrations` 66/66、`npx tsc --noEmit`；首輪QC暴露 production-slice gate 擋住 account-safety revoke API，已補最小 allowlist 後重跑通過。未執行 live Firebase/Cloud Identity寄信、authorized domain/quota/privacy審查、Cloud SQL live migration、staging/production、merge、PR、deploy、release或ProJED修改；AI_PDM仍不建立自有password/reset/MFA authority或第二套session authority。
+- 2026-07-14: Firebase Management REST API將staging project加入Firebase並建立Web App `1:1042387036944:web:dc5bf62bb50038c7ac9395`；公開Web API key限制於Identity Toolkit/Secure Token/Firebase Installations及核准referrers，未連Analytics且未建立Firestore/Storage/Hosting資料資源。Terraform secret bootstrap plan/apply為2 add/0 destroy，deletion-protection plan/apply為2原地update/0 destroy；current/previous各建立一個ENABLED version，使用記憶體stdin、未落檔／未輸出且值相異。Web/secret blockers關閉，external/live blocker由7降為5。
+- 2026-07-14: Phase 2B bootstrap依`CHG-DEV046-PHASE2B-20260714`建立ACTIVE project `jenfu-ai-pdm-stg-361825`並連結Paid Billing Account，建立`ASIA-EAST1` state bucket `jenfu-ai-pdm-stg-361825-tfstate`，啟用uniform bucket access、public access prevention、versioning與30日soft delete。以短效token注入隔離Docker Terraform 1.14.5，remote backend init與空state list通過；未掛載gcloud設定且未建立runtime/application資源。state與executor blockers關閉，external/live blocker由9降為7。
+- 2026-07-14: `HD-10-1 / 1A`採staging單區、production Regional HA。IaC將staging Cloud SQL `availability_type`改為`ZONAL`，保留PITR、14份備份、private IP、IAM DB auth與deletion protection；Taiwan list price估算Cloud SQL約USD 86.67，含備份以USD 90編列，Phase 2B/3A保守總估算USD 210。`COST_FORECAST_EXCEEDS_PLAN_REVIEW_STOP`關閉，external/live blocker由10降為9；當時credential、plan、apply與resource flags仍維持false。
+- 2026-07-14: 使用者核准`DEV-046 Phase 2B` isolated staging資源建立，限制為USD 300/月、plan預估超過USD 240或出現刪除／取代即停止；本地建立`CHG-DEV046-PHASE2B-20260714`。當時規劃在排除Phase 3B GCS後仍為USD 280，故新增`COST_FORECAST_EXCEEDS_PLAN_REVIEW_STOP`並維持`resourceCreationEnabled=false`、`terraformApplyAllowed=false`。使用者另提供`nokai520@hotmail.com`作受控non-Google登入測試帳號，關閉其missing gate；change ticket與resource authorization missing gate亦關閉，Phase 2B external/live blocker由12降為10。後續成本gate由`HD-10-1 / 1A`關閉。
+- 2026-07-14: 使用者回報Billing Account `018678-C2F032-7680E4`已啟用為Paid account且付款方式正常。machine-readable staging preflight將`paymentActivationApproved`改為true，並記錄`human-reported-cloud-console`、`billingStatusVerifiedAt=2026-07-14`；只關閉`PAYMENT_ACTIVATION_NOT_AUTHORIZED`，當時不視為`RESOURCE_CREATION_NOT_AUTHORIZED`、credential、Terraform plan/apply或任何付費資源建立授權。Phase 2B external/live blocker由13降為12；未讀credential、未執行cloud/billing mutation、未plan/apply/deploy、未修改ProJED。
+- 2026-07-13: DEV-048 Phase 1D完成RD與獨立QC，Phase 1A-1D local product integration正式收斂。Phase 1D實作transfer draft scope、aggregate readiness/review、explicit all-or-none batch publish、published-only handoff、`/technical-transfer`三頁籤及舊route compatibility。首輪獨立QC發現legacy API guard、scope command idempotency、ReleaseFailed lock recovery三個P1，以及UI publish permission、PostgreSQL event immutability兩個P2；修正後獨立重驗未留P0/P1/P2。最終Phase 1D focused aggregate 60/60，Phase 1A/1B/1C回歸48/48、14/14、43/43，Supabase mirror 59/59、Postgres static/target guard 26/26、access-control 253/253、TypeScript、lint 0 errors及120頁isolated build均通過。未設定live Postgres shadow、未連Cloud SQL/Firebase/GCS、未stage/commit/deploy/release；後續只能由明確指令進DEV-046 / DEV-032 release gate。
+- 2026-07-13: 依使用者指定`dev-pm`，先確認DEV-046可本機完成範圍已收斂，再評估並續做DEV-047。因DEV-047正式Phase A仍以DEV-046 Phase 3A pilot穩定為前置，本輪不偽造live inventory，改完成Phase A0本機唯讀工具：新增deterministic SQL artifact/SQLite-PostgreSQL mirror/source dependency inventory、dynamic SQL人工複核queue、source hash與explicit external-consumer unknown，產出`output/dev-047-bounded-schema-inventory/local-baseline.json`；另準備未執行的PostgreSQL catalog唯讀查詢契約。focused QC 22/22通過，本機baseline辨識123個PostgreSQL table artifact names、5,357筆保守code dependency candidates與20個dynamic SQL candidates，candidate batch維持0。未讀credential、未連DB、未使用snapshot/business row、未提出destination、未執行DDL/lock/staging/production/ProJED/release；正式Phase A仍等待pilot stability、代表性target/snapshot、read-only operator與evidence owner。
+- 2026-07-13: 依使用者指令完成DEV-046 employee privacy notice/acknowledgement local slice。新增Pilot v1.0 canonical SHA-256、immutable notice/ack schema與PostgreSQL/Supabase migration artifact、first-session pending cookie、exact-version API、protected BFF recheck、ack/invitation atomic activation、永久`/privacy`、re-ack page、login/sidebar入口及Admin唯讀證據。focused QC 20/20、migration QC 56/56、Phase 2A 20/20、Phase 2B 14/14、account lifecycle 26/26、source-only TypeScript、full lint、isolated production build及desktop/mobile browser QC通過；visual QC發現並修正390px acknowledgement panel的min-content窄欄缺陷，最終完整告知、checked/disabled gate與expired-session visible error均無裁切。preflight維持`blocked_external`且live blockers由14降為13。未建立或修改雲端／付費資源，未讀credential、未執行live migration/provider user/plan/apply/deploy，實際staging effective timestamp仍為空，ProJED未修改。
+- 2026-07-13: DEV-048 Phase 1B缺陷修正後由獨立QC判定PASS。1024/768的狀態、候選號、下一步與明細CTA無需水平捲動；390/320改為完整標籤卡片清單並驗證full-height scrollable drawer；access-control回歸253/253、governance 93/93、focused/API/regression、TypeScript、lint與isolated production build均通過，visible-error與console error為零。Phase 1C現已開放RD；live provider、staging、production與release gate仍未授權。
+- 2026-07-13: 依使用者指令完成DEV-046 employee-login-alias local slice。新增company-scoped alias、token-hash-only五分鐘single-use intent、資料庫共用rate-limit、同源登入API、Firebase UID/PDM user/company一致性兌換、登入UI、`/settings/accounts`新增／退役UI及production-slice allowlist；focused QC 21/21、TypeScript、lint零錯誤、isolated production build、desktop/mobile browser QC及既有Phase 2A/2B regression均通過。`EMPLOYEE_LOGIN_ALIAS_MAPPING_NOT_IMPLEMENTED`已關閉，live blockers由15回到14；Cloud SQL migration、真實Firebase provider與跨instance staging證據仍未執行。本輪未讀Google credential、未plan/apply/import/deploy、未建立付費資源，ProJED未修改。
+- 2026-07-13: 依使用者指令執行DEV-048 Phase 1B RD。已完成owner surfaces建立入口、`/parts?tab=drafts`草稿清單與detail drawer、四種create mode、先保存再明確領候選號、server projection/capabilities、候選號取消回收、Phase 1C disabled actions、`PDM_NUMBER_STATE_FLOW_V1`、四個舊側欄入口退出與保留query/`returnTo`的route compatibility；並修正browser same-origin誤拒、1024px hidden-header overflow、client-only legacy redirect及未授權badge請求噪音。RD self-verification通過Phase 1B contract 14/14、HTTP 21/21、numbering core 241/241、contextual entrypoints 46/46、entity drawer 14/14、production-slice 27/27、focused ESLint、isolated production build及1440/1024/768/390/320瀏覽器流程與overflow檢查。現為`RD Implemented / Independent QC Pending`；既有port 3000未停止或寫入，本輪未stage/commit、未做Phase 1C/1D、live provider、正式資料、deploy或release。
+- 2026-07-13: DEV-046 Phase 2B 第3項身分決策採「支援工號登入別名與帳號映射，但不開發AI_PDM自有密碼儲存、MFA與密碼重設系統」：Cloud Identity／Firebase Identity Platform擁有credential、MFA與recovery；alias只建立最長5分鐘、single-use、company-bound provider-routing intent，callback仍以verified provider UID映射stable PDM User ID。規格已補data/API/UI/security/QA契約；因尚未實作，machine preflight新增`EMPLOYEE_LOGIN_ALIAS_MAPPING_NOT_IMPLEMENTED`，live blocker由14增為15，既有Phase 2B local QC完成證據不回溯灌水。
+- 2026-07-13: DEV-046 Phase 2B 引導決策續輪採 `1A / 2A`：正式圖號與防重所需最小台帳永久保存，已關閉／取消草稿保存3年，操作稽核保存3年且永久主體識別使用stable PDM User ID而非email；公司核准員工個資告知Pilot v1.0，於staging開放給第一位員工時生效。machine-readable approval已關閉`EMPLOYEE_PRIVACY_NOTICE_APPROVAL_MISSING`，但新增`PRIVACY_NOTICE_UI_AND_ACKNOWLEDGEMENT_NOT_IMPLEMENTED`，需先實作版本hash、首次確認、永久查閱與Admin證據才可啟用員工帳號，因此Phase 2B blocker仍為14。第3題「無既有Google帳號的公司配發身分」仍待選擇Cloud Identity、Firebase email/password或自建帳密邊界。
+- 2026-07-13: DEV-046 Phase 2B 引導決策採 `1A / 2A / 3C`：AI_PDM staging核准共用既有Billing Account `018678-C2F032-7680E4`；離職立即停權、Firebase identity 30日後刪除、邀請／復原／session security 180日、application security logs 365日，另揭露Google `_Required` provider固定400日；privacy聯絡窗口為`jedchang0308@jenfu.com.tw`主責、`dani@jenfu.com.tw`備援。已更新machine-readable preflight/privacy/location manifests與SPEC；free-trial升級、付款與付費資源仍未授權，並新增獨立`PAYMENT_ACTIVATION_NOT_AUTHORIZED` gate；商業稽核保存期限及privacy v1.0最終核准仍開放。Phase 2B blockers由15降至14。
+- 2026-07-13: DEV-046 Phase 2B 引導決策採 `1A / 2A / 3A`，授權唯讀Cloud discovery、公司名義self-service Billing方向與員工個資告知草案。Cloud Console以`jedchang0308@jenfu.com.tw`查得organization `jenfu.com.tw / 361825816000`、既有projects `projed-cc78d`、`projed-test`、`projed-485502`、`valid-tuner-484106-m6`，以及既有Billing Account `018678-C2F032-7680E4` free-trial state，推翻「Cloud皆未建立」假設。未建立或修改任何cloud/billing/project/IAM/resource；AI_PDM共用或另建Billing於後續決策關閉。新增員工個資告知草案與首次啟用／永久查閱／Admin稽核UI契約，仍非法律／privacy核准。Phase 2B external blockers降至15。
+- 2026-07-13: DEV-046 Phase 2B 引導決策續輪採 `1A / Workspace-only / 3A`：staging Cloud SQL 改為 `db-custom-1-3840` Regional HA，核准 USD 300月預算、50/80/100 alerts與USD 240 credentialled-plan review stop；主要 cost/business owner為`jedchang0308@jenfu.com.tw`，continuity backup為`dani@jenfu.com.tw`。公司當時自述只有Google Workspace，Organization ID待唯讀discovery，Cloud project/Billing Account/state/Firebase均尚未建立；後續唯讀discovery已更正此假設。IaC、preflight、cost/continuity governance與文件已同步；Phase 1E QC 24/24、Phase 2A QC 20/20、Phase 2B local preflight 19/19且external blockers由25 -> 19 -> 16。未建立資源／billing／DNS、未plan/apply/deploy。
+- 2026-07-13: 依使用者指定`dev-pm`繼續DEV-048，單一派工邊界執行Phase 1A獨立QC。新增可重跑的disposable HTTP與provider-outage suites；aggregate通過contract 19/19、runtime 7/7、HTTP 20/20與503 fail-closed 1/1，另確認Postgres shadow 26/26、Supabase migration mirror 46/46。Company A/B、owner/manager/admin/denied、20-way distinct/same-key acquire、direct API bypass、review blocker、recycle gap reuse、正式master零污染與no-offline均有事實證據。首輪HTTP 19/20僅因QC斷言把wrong-company Admin 404誤限定為通用permission code，修正測試後完整clean-fixture rerun 20/20；產品程式無需修復。Phase 1A改為`QC Passed / Phase 1B Ready`；本輪未進Phase 1B，未使用live provider/正式資料，未stage/commit/deploy/release。
+- 2026-07-13: 使用者以`1C / 2C / 3C`關閉DEV-048 `HD-048-01..03`。Phase 1B開放時立即移除`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四個可見側欄項目，舊URL只保留redirect/guidance與context；drawing及含drawing/required-file技轉發布必須有finalized controlled GCS evidence，純root/part-only可由版本化server rule回`not_required`，production verifier未就緒前需檔案發布維持鎖定；同一自然人可submit、approve、publish，但三步仍需各自明示permission、command/confirmation/receipt/audit，approval不得自動publish。SPEC、ADR、QA、dev_task與documentation map同步改為Phase 1B-1D `RD Contract Ready / Sequential QC Gated`；下一步仍是`DEV-048 Phase 1A QC`。本輪只修改文件，未實作產品、provider、正式資料、merge、PR、deploy或release。
+- 2026-07-13（當時狀態，已由上一筆`1C / 2C / 3C`決策關閉更新取代）: 依使用者指定`hcs`以RD主管角色複核DEV-048後續文件。審查否定「Phase 1B-1D已無P0/P1缺口」的舊判定：新增`HD-048-01`舊側欄roadmap相容策略、`HD-048-02`publication file-evidence applicability、`HD-048-03`submitter/approver/publisher SoD三項Human Decision Gate。直接補正五項工程缺口：四種create mode責任矩陣、same-workspace internal relation不阻擋整包取消、pre/post-commit publication failure分流、transfer batch每workspace official event cardinality與獨立failure-record command、320/768 responsive boundary。當時Phase 1A可先做獨立QC，Phase 1B等待`HD-048-01`，Phase 1C-1D等待`HD-048-02..03`及前置QC；目前Human Decision Gate已關閉。本輪只修改文件，未實作產品、provider、正式資料、merge、PR、deploy或release。
+- 2026-07-13: 依使用者指定`dev-pm`補齊DEV-048後續開發文件。Phase 1B新增`DEV-048-1B-01..08`，涵蓋owner-surface CTA、草稿tab、create flow、server projection/Now What、candidate UX、feature flag/route compatibility、RWD/a11y與focused tests；Phase 1C新增`DEV-048-1C-01..08`，涵蓋approval action/snapshot、review locks、PublicationEvidencePort fake/fail-close、explicit atomic publish、SoD/fault/regression；Phase 1D新增`DEV-048-1D-01..10`，涵蓋transfer draft scope、readiness/frozen snapshot、aggregate review、batch publish、published-only handoff、三tabs與compatibility。每一phase均補entry、資料/API/權限/transaction、failure recovery、acceptance、evidence、stop與next condition，QA亦新增phase-specific handoff matrix與fail-fast rules。執行順序固定為`1A QC -> 1B RD/QC -> 1C RD/QC -> 1D RD/QC`；本輪只改文件，未實作Phase 1B-1D、未執行provider/正式資料/merge/PR/deploy/release，下一步仍是`執行 DEV-048 Phase 1A QC`。
+- 2026-07-13: 使用者明確要求執行 `DEV-046 Phase 2A staging preflight` 且不得建立付費資源。先校正 Phase 1A-1E已由 `ec68981` 完成且重新QC 86/86通過，再新增 `infra/google-cloud/staging` fail-closed Terraform package、target/owner/privacy/account preflight manifest與 machine-readable preflight/QC。IaC建模37個Google resource blocks，全部由預設false的multi-factor apply gate保護；Cloud SQL automatic IAM補齊官方要求的 `roles/cloudsql.instanceUser`。隔離 Docker Terraform 1.14.5執行 `init -backend=false`、provider lock 7.39.0、`fmt -check`與`validate`皆通過；Phase 2A QC 20/20。結果維持 `blocked_expected`：未讀Google credential，未plan/apply/import，未建立project/billing/resource/DNS，live Firebase adapter、`firebase_bff` auth mode與外部owner/privacy/target evidence仍阻擋Phase 2B；ProJED未修改。
+- 2026-07-13: 依使用者指定 `dev-pm` 繼續下一步開發，執行 DEV-048 Phase 1A Domain/Data Foundation。新增 stable draft workspace 與 typed item schema、候選號 reservation/event authority、root-first smallest-gap allocator、取消即回收、legacy dry-run classifier、create/read/update/acquire/cancel BFF，以及 PdmCommand/audit/receipt/outbox transaction boundary；同步新增 PostgreSQL migration 012 與 Supabase 010-012 runtime mirrors。RD self-verification 已通過 focused contract 19/19、runtime 7/7、Postgres shadow 26/26、Supabase migration 46/46、TypeScript、build 與既有 numbering/ERP/transfer/history regressions；ESLint 為 0 errors、3 個既有 warning。受保護資料庫拒絕的既有 API/data/concurrency/cross-role suites 需由下一輪獨立 QC 使用同一 disposable `PDM_DATA_DIR` server 執行，故狀態為 `RD Implemented / Independent QC Pending`，不得先進 Phase 1B。本輪未做 UI、Phase 1C-1D、live provider、正式資料 migration、deploy、release、stage 或 commit。
+- 2026-07-13: 依使用者指定 `dev-pm`，基於 DEV-046 最新 Google 架構完成 DEV-048 開發文件：將 candidate 從正式 master 拆出為 stable draft workspace + recyclable reservation，只有 explicit atomic publication 才建立 official root/part/drawing/link並輸出 signed-ledger event；approval/技轉核准只鎖定 immutable snapshot，不直接發布。新增 ADR 與 QA/FMEA/G0-G9 gates，補齊資料/API/權限/transaction/concurrency/migration/rollback/route compatibility/UI 1440/1024/390/visible-error/data-sanity/Phase 1A-1D RD Handoff，並對舊 change-control/production-slice 文件加 amendment。DEV-048 現為 RD Implementation Ready / Not Requested；本輪未改產品、測試、schema、資料、provider、merge、PR、deploy或release artifact，下一步為明確指令 `執行 DEV-048 Phase 1A`。
+- 2026-07-13: 使用者以 `1A` 關閉 DEV-046 `HD-8-4`：完整 PDM/GCS/offline backup-and-restore 功能與演練繼續由 `DEV-037` 延後；正式領號 canary 前則必須啟用 Cloud SQL automated backups/PITR，將一個 production-like recovery point 還原到 separate isolated target，且通過 schema/migration、account mapping、audit/outbox、numbering ledger/sequence/non-reuse reservations 核對，來源不得被覆寫。這是 release evidence，不是產品還原 UI，也不代表完整 PDM recovery ready。`HD-8-1..4` 至此全數關閉；Phase 1A-1E 維持 RD Implementation Ready / Not Requested，provider/staging/release evidence仍未執行。本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 使用者以 `1A / 2A / 3B` 關閉 DEV-046 `HD-8-1..3`：production hosting 採 `asia-east1` Cloud Run + Next.js 16 Active LTS container，經 external ALB/managed TLS/custom domain，CDN 僅允許 reviewed immutable assets；重大 security/data-loss 事件由內部 primary+backup all-hours on-call 在 60 分鐘內 acknowledgement 並啟動 containment，不宣稱 24x7 restoration；staging 同測 Google/non-Google，Wave 0 Google Workspace only，Wave 1 至少納入一位受控 non-Google。使用者另要求把完整備份還原功能延後，故 `DEV-037` 維持 deferred，並開啟 `HD-8-4` 單獨決定正式 canary 前最低 Cloud SQL backup/PITR/隔離 restore 與 numbering-ledger reconciliation evidence 的執行時點。Phase 1A-1E 改為 RD Implementation Ready / Not Requested；本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: RD 主管以 #批判 / #多層次分析完成 DEV-046 第三輪獨立文件稽核。官方支援複核確認 App Hosting 對 Next.js 15.2.x 的相容性不等於五年 security/LTS 維護保證，故開啟 `HD-8-1` runtime posture；「24x7 即時 escalation」不可驗收，開啟 `HD-8-2` acknowledgement/coverage；non-Google production admission 未指定 wave，開啟 `HD-8-3`。同步修正 clean production 必須建立新 production PDM IDs、source actor/history只留唯讀封存且不得同 email auto-link；Firebase-managed action email 初版不需 custom SMTP；Phase 1D只做GCS interface/fake/fail-close，live adapter移至Phase 3B；outbox補 dedicated worker/at-least-once/lease/checkpoint/retry/DLQ；Cloud SQL補 automatic IAM DB auth與禁止static password。DEV-046改為 `!` blocked；本輪只修改開發文件，未實作產品、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13（歷史紀錄，已由本節首筆 DEV-048 更新取代）: 依使用者指定 `dev-pm`，建立 `DEV-048` 純功能規格，收斂 `＋建立圖料號` 的模組頁首與物件脈絡入口、`發行 / 交接 > 技術移轉` 的技轉包整批送審，以及未領號草稿 / 候選號 / 審核鎖定 / 待發布 / 已發布 / 已作廢的分層規則。最新人類決策以正式發布作永久占號邊界，草稿候選號在零有效引用且未鎖定時可立即回收，第一版不強制 7 天冷卻；此語意刻意取代既有「送審即永久受控」與 formal create 即 official 的舊邊界。當時僅完成純功能規格；目前已依本節首筆更新補齊架構、ADR 與 QA/QC 契約，後續入口改為明確指令 `執行 DEV-048 Phase 1A`。
+- 2026-07-13: 使用者以 `1A / 2B / 3B` 關閉 `HD-7`：App Hosting 搭配實作時核准並 exact pin 的 Next.js 15.2.x；production 建 clean Cloud SQL，只 seed initial Admin/最低 config/numbering sequence/non-reuse reservations，local business/draft/demo/test/history 零搬移且 source read-only archive；continuous RPO <= 1 小時，RTO <= 4 Taiwan business hours（週一至週五 08:00-17:00、排除公司假日），security/data-loss 24x7 即時 escalation。另固定平台不變量：所有正式資料只在 Cloud SQL、正式檔案只在 direct GCS、business logic 只經 portable HTTP/BFF，禁止 Firestore/Firebase Storage/Firebase Functions/Callable/Firestore trigger authority。Phase 1A-1E 已達 RD Implementation Ready / Not Requested；本輪未改 package/code、未降版、未建立 provider/billing/credential、未搬資料、未部署或修改 ProJED。
+- 2026-07-13: RD 主管以 #批判 / #多層次分析完成 DEV-046 二次文件審查。發現 active Cloud SQL SPEC 缺少其任務索引已宣稱完成的 Architecture Memory Capsule、各 phase RD Handoff、Failure/Recovery、Deferred Scope Audit 與 All-Phase Coverage Matrix，並確認 repository `next@16.2.6` 超出目前 Firebase App Hosting 官方 Next.js 支援矩陣至 15.2。文件已補齊上述契約與 ontology event version/idempotency/DLQ/replay 邊界，production source auto-rollout 改為一律禁止；另重開 `HD-7-1` runtime compatibility、`HD-7-2` production data cutover/archive class、`HD-7-3` RTO support clock。DEV-046 從 Phase 1 RD Implementation Ready 修正為 provider-neutral RD Contract Ready / target-dependent decision-gated。本輪只修改開發文件，未執行產品程式、provider、billing、credential、資料 migration、production、ProJED、merge、PR、deploy 或 release artifact。
+- 2026-07-13: DEV-046 第四輪 RD 完整性審查中，使用者以「繼續」採用 HCS 建議預設 `1B / 2A / 3A`：Phase 3A 拆為 3A.0 named 3-5-user production canary 與 3A.1 `DEV-038` field acceptance，field evidence 阻擋擴大 allowlist/pilot accepted 而非首次受控部署；DB outage 完全停止正式領號，不允許紙本、Excel、offline 或事後補登；非 Google 邀請採 Firebase-managed email-link，完成 canonical invitation/email proof 後於 freshly authenticated setup state 連結密碼，password reset 僅供啟用後 recovery。RD 同時修正跨 Firebase/PostgreSQL 停權為 deny-first saga，將 DEV-047 拆為 inventory/design/rehearsal/release 契約，並將 Google project names 明定為 logical labels。本輪只修改開發文件，未實作產品/schema/migration、未建立 cloud resource、未部署或修改 ProJED。
+- 2026-07-13: 使用者以 `1A/2A/3A` 關閉 RD 主管審查的 `HD-6`：接受 Firebase US identity processing 並要求 privacy minimization/notice/retention-deletion inventory；所有 cloud recovery copies 留台灣，接受 full `asia-east1` outage 無承諾 RPO/RTO且不得宣稱 regional DR；Cloud SQL regional HA 自首批 3-5-user canary 起強制。文件已同步，實際 privacy evidence、billing owner/budget/alerts、provider resources、deployment/release 仍未執行。
+- 2026-07-13: 使用者完成第五輪決策：既有登入憑證不保留、approved users 於 Firebase 重新佈建並 mapping stable PDM IDs；canary 後採 Wave 1 約 5 人、Wave 2 剩餘 approved staff 的五工作天 gates；Cloud SQL/GCS/App Hosting operational data/files 位於 Google Taiwan，Firebase Auth identity data 是明示 US-location exception。新增 `ADR-PDM-ERP-PLATFORM-002`、Cloud SQL SPEC/QA，Supabase 僅保留歷史/disposable compatibility evidence。另完成本機 managed-auth bootstrap：online backup 後將 `jedchang0308@jenfu.com.tw` 設為唯一 active Admin，offboard demo accounts，建立 24 小時一次性 recovery link；未採用不符 10 字元政策的 `1655`，未把 raw token 寫入文件。未建立 Google/Firebase/Cloud SQL/GCS live resource、未部署、未修改 ProJED。
+- 2026-07-13: 使用者完成 DEV-046 第三輪 RD 完整性決策 `1A / 2C / 3A`：production 拆成 Phase 3A App Hosting/Firebase/BFF/Supabase 正式領號／草稿上線與 Phase 3B GCS file migration/pointer/file-workflow opening，3B 不得阻擋 3A；現有 PDM/既有 platform tables 暫留鎖定的 `public`，新 post-DEV-046 platform/ontology/integration tables 進 bounded schemas，另建立 `DEV-047` 管 production-stability legacy schema migration；第一個 ontology MVP 收斂為 AI_PDM-owned Drawing -> Part -> BOM，Project/Equipment 等 ProJED owner contract。RD 並補齊 `pdm_session` v2 AAL/replay/MFA enrollment、GCS 50 MiB 內 hash worker/TTL/retry/quarantine、business-hours observability/alert/log retention、DB outage 禁止離線領號、Phase 3B migration/rollback 與 QA negative/visible-error gates。本輪只修改開發文件，未實作產品/schema/migration、未建立 cloud resource、未部署或修改 ProJED。
+- 2026-07-13: 使用者完成 DEV-046 RD 完整性引導決策 `1A / 2B / 3A`：Firebase 止於 Next.js BFF，browser 不以 Firebase JWT 直連 Supabase；production 採 RPO <= 1 小時/RTO <= 4 小時、七天 PITR、每週獨立 logical backup、GCS 30 天 soft delete/跨專案 no-delete backup 與每季隔離 restore drill；Admin/Approver 採 TOTP、八小時 session，兩位 hardware-key break-glass 管理員，邀請/復原先用 Firebase-managed action email。同步補齊 GCS v2 intent/finalize 狀態機、storage schema/API/transaction contract、server-only PostgreSQL role/pool boundary、18 個月量化門檻、第一個 traceability ontology use case、FMEA、visible-error/data-sanity gate、Deferred Scope Audit 與完整 All-Phase matrix。本輪只修改開發文件，未實作產品/schema/migration、未建立 billing/project/credential、未部署或修改 ProJED。
+- 2026-07-13: 依使用者五年 ERP 平台引導決策 `1B / 2A / 3A` 建立 `DEV-046` Phase 0 初版文件：Supabase PostgreSQL 作初期 operational relational authority，18 個月後依量化 gate 決定是否遷移 Cloud SQL；Firebase Auth with Identity Platform 作唯一共用 IAM；GCS 作 PDM binary authority，Shared Drive 僅作核准交付/協作出口。初版曾假設 Supabase 信任 Firebase JWT，該假設已由後續 RD 完整性決策 `1A` 明確取代為 BFF-only。未建立 Cloud Billing/project/credential/domain，未切換登入或儲存 provider，未搬資料、未修改 ProJED、未執行 production/release artifact。
+- 2026-07-13: 執行 `DEV-041` Phase 3A-0 本機開發。新增技轉包 counter/package/item/event SQLite schema 與 provider-neutral PostgreSQL migration artifact、company-scoped repository/service、明確且 idempotent 的 Draft 建立、header/scope CRUD、readiness summary、terminal cancel API，以及 `/transfer-packages/new` 與 `/transfer-packages/[id]` 共用工作台；owner module adapter、return context、blocker/next action 與未開放能力均維持誠實邊界。另修復既有資料庫初始化時 account lifecycle compatibility column 晚於 index 建立的順序問題。驗證通過 focused QC 18/18、submission-gate regression 15/15、account-lifecycle regression 26/26、typecheck、full lint、isolated production build、runtime API contract，以及 1440/1024/390 Playwright UI/overflow/visible-error checks。完整證據見 `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`。未執行 ZIP parser、分類、mapping/BOM/baseline、SolidWorks integration、live PostgreSQL/Supabase migration、正式資料、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 依使用者確認「邀請帳號、角色權限管理、所有已啟用帳號生命週期」應收斂到同一頁面，完成 `DEV-045` Phase 1 本機 RD/QA/QC。實作包含 `/settings/accounts`「帳號與權限」分頁入口、帳號清單/明細、停權/復權/離職/復職、identity 停用/復用、全部 session 撤銷、Admin 一次性密碼重設、`/account-recovery`、account lifecycle schema/migration mirror、session invalidation、角色開始/到期 UI 與 permission-path enforcement。證據：`.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`、`qc:pdm-account-lifecycle` 26/26、`qc:pdm-account-invitations` 25/25、`qc:pdm-google-identity` 19/19、`qc:pdm-production-slice-numbering-draft` 27/27、`qc:supabase-runtime-migrations` 39/39、`tsc` 通過、lint 0 errors。`npm run build` 因本機 3000 dev server guard 阻止清 `.next` 而未完成；未停止 server、未使用 bypass。未執行 production deploy、production smoke、live Supabase migration、provider pointer、Supabase Auth/MFA、merge、PR、rollback 或 release artifact。
+- 2026-07-13: 使用者完成第三輪引導決策 `1A 2B 3A`：組合件 impact suggestion 採 deterministic/versioned pure resolver，記錄 input hash/rule IDs/reasons，禁止 AI/LLM/network authority；所有 formal `no_change` 必須在 exact candidate/SolidWorks evidence 後由 RD 主管核准，Admin 不得代替工程決策；formal defer 建立 canonical `transfer_follow_up`（owner/due_at/evidence），再以 outbox/idempotent projection 顯示於既有 package workbench 與 `/numbering/tasks`，不新增頁面、不改 generic task 無期限政策。正式取檔固定 exact configuration/revision/hash；canonical confirmed/approved evidence 不可變，Drive 備份依 file-storage 權威維持 released required/permanent、pre-release selective、既有 mirror 不自動覆寫/刪除。Phase 3A-1 到 3C 恢復 RD Contract Ready / Not Requested This Turn。文件治理通過 `qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、target whitespace checks，並確認 150 個唯一 `.ai-doc` Markdown 引用皆存在。未執行產品程式、schema/migration、正式資料、AI provider、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: RD 主管第三輪完整性審查發現 Q6-Q8 高影響缺口：組合件進版建議的 deterministic/AI 權威與成本邊界、formal `no_change` 的核准責任，以及 formal defer 必須有期限但既有 numbering task policy 明定一般待辦不設期限的跨 SPEC 衝突。Phase 3A-2 到 3C 暫回 `Need Human Decisions Q6-Q8`；Phase 3A-0/3A-1 邊界不變。已由既有規格確定、不再詢問：正式 CAD 下載必須依 exact configuration/revision，不得用模糊 latest；第一版正式/備份檔案不自動刪除；不新增獨立一般操作頁。未執行產品程式、schema/migration、正式資料、外部 AI、production、merge、PR、deploy 或 release artifact。
+- 2026-07-13: 使用者以 `1A 2A` 確認前輪 Q3/Q4：設變採新 delta package，繼承前一 current-effective 配置並產生完整候選配置；已核准 package 不重開；同包多總組件採 atomic approval，需分批則拆包。系統只能提出組合件是否進版建議，人類選 `不變更`、`晚點執行`、`變更`；研發小數版只評估研發配置，正式整數版只評估正式配置，研發上傳不得造成正式 stale/進版。Q5 選 `1C`：formal defer 僅限可互換/向下相容、非關鍵且證據充足，並須 RD 主管理由、owner、due date、follow-up 與 exact old revision；否則阻擋。UI 依註解收斂：驗證後 no-change 顯示 `不需進版`，defer/update 內部狀態一律只顯示 `已非最新版 / 待更新`，不得覆寫 master lifecycle。Phase 3A-1 到 3C 恢復 RD Contract Ready / Not Requested This Turn。文件治理通過 `qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、target whitespace checks，並確認 140 個 `.ai-doc` Markdown 引用皆存在。未執行產品程式、schema/migration、正式資料、SolidWorks integration、production、merge、PR、deploy 或 release artifact。
+- 2026-07-12: 依 RD 主管完整性審查與使用者「將時間區間設定功能加回去」指示，DEV-045 採用上一輪 HCS 建議預設 `1A / 2C / 3A`：停權保留權限狀態、離職原子關閉 system-role gate、撤銷角色／代理並停用 identities，復職重選 system role/identity 且不恢復舊額外權限；disabled local identity reset 後保持 disabled；pilot 離職採單 Admin 原因＋typed confirmation。角色指派恢復開始／到期 UI，`/settings/accounts` 顯示摘要並深連結 `/settings/workflow`，所有同步／非同步、numbering、approval 與 production-slice permission paths 必須套用時間條件。另補 recovery fragment/CSRF/rate-limit/security headers、integer version、stable cursor、outbox reasonCode、offboard atomicity 與 accessibility QA。只修改開發文件，未實作產品程式、schema/migration、資料、provider、deploy 或 release artifact。
+- 2026-07-13: 依使用者對「邀請帳號、角色權限管理、所有已啟用帳號生命週期」是否應整合的追問，DEV-045 UI IA 增補為「帳號與權限」單一管理入口，分成帳號管理、邀請新帳號、角色與權限、異動紀錄。原則是同入口、分任務，不做一張混雜帳號/邀請/角色制度的大表；`/settings/workflow` 仍是角色與審核規則唯一寫入權威，`/settings/accounts` 顯示角色摘要與深連結，既有 `/settings/account-invitations` 可作相容路由但 UI 上必須歸入同一管理區。本輪只修改開發文件，未實作產品程式、schema/migration、資料、provider、deploy 或 release artifact。
+- 2026-07-12: 依使用者要求建立 `DEV-045` / `DEV-PDM-ACCOUNT-LIFECYCLE-001` 開發文件。Phase 1 針對內部 pilot 補 `/settings/accounts`、停權/復權/離職/復職、identity enable/disable、全部 session 撤銷與 Admin 一次性密碼重設連結，採 hash-only token、`session_invalid_before`、防 self/last-admin/last-login-identity lockout、server-derived command、atomic audit/outbox 與 SQLite/PostgreSQL/Supabase parity，狀態達 `RD Implementation Ready / Not Requested This Turn`。Phase 2 self-service/session visibility/email adapter 與 Phase 3 Supabase Auth/MFA/central offboarding 已達 RD Contract Ready；email/provider/production/ProJED 維持 human/release gate。本輪只修改開發文件，未實作產品、schema/migration、資料、provider、deploy 或 release artifact。
+- 2026-07-10: 依使用者要求完成 `DEV-043` / `DEV-PDM-GOOGLE-IDENTITY-001` 本地切片：新增 `auth_identities`、`users.account_status`、本機身分 backfill、Google OIDC code flow/state/nonce/PKCE、邀請式 Google 綁定、stable `sub` lookup、停用帳號/session fail-closed、token/secret redaction、未設定 provider 時的停用 UI 與 SQLite/PostgreSQL/Supabase migration mirror。證據為 `qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、`qc:supabase-runtime-migrations` 33/33、`qc:postgres-shadow` 26/26、typecheck、lint 0 errors、isolated production build 與 desktop/mobile UI screenshots。Supabase CLI 未安裝；未執行 Google Cloud credential/consent screen、live migration、provider enable、production deploy/smoke、merge、PR、rollback 或 release report。
+- 2026-07-10: 依使用者最新決策處理第一版上線 blocker：`DEV-034` / `DEV-IND-007` 已在 disposable local Postgres target 完成 schema migration、RLS plan、target guard、schema/RLS-only live compare 與 `qc:postgres-shadow` 26/26，evidence 為 `data/quality/postgres-shadow/shadow-compare-1783676196559.json`；同時修正 Postgres migration generator 的 FK 建表順序並新增 `PG-010A` 回歸檢查。`DEV-035` / `DEV-CAD-001` 記錄人類實測 SW 上傳 OK、3D 預覽 OK、2D 預覽未支援，改列完整 CAD 階段延後；`DEV-036` / `DEV-SW-001` 因目前無明確 Add-in 產品路線而移出第一版 blocker、保留歷史 ID；`DEV-037` / `DEV-BACKUP-001` 完整 restore drill 延後到完整 PDM / 檔案保存階段，第一版 release gate 僅需最小 snapshot / rollback owner。`DEV-038` 正式 field-test 仍是第一版外部 blocker。未執行 production deploy、production smoke、live Supabase cutover、provider pointer、正式 schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
+- 2026-07-10: RD 主管第二輪完整性審查收到使用者決策 `1A 2B`：正式送審前必須對「完整候選有效配置」執行 SolidWorks 實機開啟與缺件/參照驗證，但不要求 Add-in；單一技轉包可包含多個明確治理的總組件。使用者同時指出設計變更範圍可能只含一個零件，因此 Phase 3A-2 到 3C 暫列 `Need Human Decisions`，等待確認 delta change package 如何繼承舊配置，以及多總組件採整包或逐根核准。Phase 3A-0/3A-1 邊界不變；未執行產品程式、schema/migration、正式資料、SolidWorks integration、production、merge、PR、deploy 或 release artifact。
+- 2026-07-10: 依 RD 主管完整性審查與使用者 `#引導模式` 決策 `1A 2A 3A` 重構技轉包文件邊界：整數大版次屬於 immutable transfer-package baseline，零件/正式次組件/總組件保留獨立版次；`/transfer-packages/new` 開啟不寫資料，只有完成案件欄位並按 `建立技轉包` 才建立 persistent Draft 與 stable package ID；原本藏在完成 `DEV-005` 下的 Phase 3A 產品交付抽成 `○ DEV-041`。Phase 3A-0 已達 RD Implementation Ready / Not Requested This Turn，Phase 3A-1 到 3C 已達 RD Contract Ready。同步補齊 schema/API/RLS/grants/transaction/ZIP safety/compensation/state/QA/QC/All-Phase contracts。文件驗證通過 `qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、target files whitespace check，並確認 128 個 `.ai-doc` Markdown 引用皆存在。未執行產品程式修改、schema/migration、正式資料、SolidWorks integration、production、merge、PR、deploy、rollback 或 release artifact。
+- 2026-07-10: 依使用者 `#引導模式` 決策 `1B 2B 3B` 更新 `DEV-005` Phase 3A 文件方向：技轉功能不採每個子功能新開分頁，改為升級現有 `/transfer-packages/new` 成單一技轉包工作台；技轉工作台用 adapter cards 復用既有 BOM、附件、圖料、審核模組，重度編輯回到 owner module；第一建議產品切片為 Phase 3A-0 工作台骨架、既有模組整合入口、狀態與 blocker 匯總，完整 Pack-and-Go ZIP parser 延後到 Phase 3A-1。未執行產品程式修改、schema migration、SolidWorks Add-in / Document Manager 整合、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 依使用者 `#引導模式` 決策 `1B 2A 3A` 補齊 `DEV-005` Phase 3A Pack-and-Go 技轉封包解析與組合分類開發文件：新增 `.ai-doc/specs/SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001-pack-and-go-assembly-classification.md` 與 `.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`。決策邊界為：技轉整包先進 `Transfer Intake`，人工確認分類/BOM/缺件後才凍結整數大版次；第一版不依賴 SolidWorks Add-in，僅接受 Pack and Go 或等效保留相對路徑 ZIP；系統自動分類但所有分類人類保有最後調整權。未執行產品程式修改、schema migration、SolidWorks Add-in / Document Manager 整合、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 重跑 active goal completion audit：`dev_task.md` 搜尋未發現任何 `☐ DEV` 可直接派工項；未勾選項目當時集中在 `DEV-015` 待指定切片、`DEV-030` 到 `DEV-032` release / high-risk gate、`DEV-033` 產品上線決策與 `DEV-034` 到 `DEV-038` 外部證據 blocker，後續本輪已補上 `DEV-IND-007` disposable local Postgres shadow evidence 並將 `DEV-CAD-001` / `DEV-SW-001` / `DEV-BACKUP-001` 收斂為 deferred scope。`npm.cmd run qc:dev-task-evidence-sync` 通過 13/13、`npm.cmd run qc:dev-task-completion-audit` 通過 8/8、`npm.cmd run qc:doc-paths` 通過 23/23、`npx.cmd tsc --noEmit --pretty false` 通過、`npm.cmd run lint -- --quiet` 通過、`npm.cmd run qc:pdm-production-slice-numbering-draft` 通過 27/27、`npm.cmd run qc:pdm-submission-gate-phase1` 通過 15/15。為避免停止健康 dev server PID 13340，正式 workspace 未直接執行 `npm.cmd run build`；改用 `.tmp/predeploy-build-worktree-*` 隔離副本執行 `npm.cmd run build` 並通過，僅有 Next workspace-root/NFT tracing 與 deprecated `middleware` convention warnings，臨時副本已刪除。未執行 production deploy、production smoke、live Supabase cutover、provider pointer、schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
+- 2026-07-10: 追加 dev_task 重構後的安全驗證紀錄：`npm.cmd run qc:pdm-numbering-contextual-entrypoints` 通過 46/46、`npm.cmd run qc:pdm-numbering-gap-reuse` 通過 8/8、`npm.cmd run qc:pdm-numbering-sequence-integrity` 通過 3/3 並產出 read-only runtime report。需寫入測試資料的 `qc:pdm-numbering-api-regression` 與 `qc:pdm-drawing-part-relation-view` 未在受保護 local runtime 上執行，runtime guard 正確阻擋；嘗試使用 disposable `PDM_DATA_DIR` 啟動第二個 Next dev server 時，Next 偵測同一專案已有健康 server PID 13340 而拒絕啟動，未停止程序、未繞過 guard。`qc:pdm-access-control-governance` 預設 3100 無 server 而未完成；未改用受保護 runtime 重跑。未執行 production deploy、production smoke、live Supabase cutover、provider pointer、schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
+- 2026-07-10: 續跑正式部署前本機產品驗證：`npx.cmd tsc --noEmit --pretty false` 通過、`npm.cmd run lint -- --quiet` 通過、`npm.cmd run qc:pdm-production-slice-numbering-draft` 通過 27/27、`npm.cmd run qc:pdm-submission-gate-phase1` 通過 15/15、`npm.cmd run qc:pdm-numbering-core` 通過 241/241、`npm.cmd run qc:pdm-numbering-duplicate-submit-guard` 通過 10/10、`npm.cmd run dev:local:check` 顯示既有 AI_PDM dev server healthy。`npm.cmd run build` 本次被 `clean-next` guard 擋在編譯前，因 port 3000 有健康專案 server PID 13340；未停止程序、未繞過 guard、未執行 production deploy、production smoke、live Supabase cutover、provider pointer、schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
+- 2026-07-10: 刷新 `DEV-034` Postgres shadow handoff package，因目前 `db/schema.sql`、`db/postgres/001_initial_schema.sql` 與 `db/postgres/002_supabase_rls_plan.sql` 已與舊 package hash 不一致。新 package：`data/postgres-shadow-handoffs/20260710-034552`；`npm.cmd run qc:postgres-shadow-handoff-package` 通過 67/67，`npm.cmd run qc:external-blocker-closure` 通過 83/83。未執行 disposable Supabase target 建立、migration、live compare、provider pointer、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 依 `dev-pm` 範本補強開頭 `## 總任務清單` 的 PM 派工入口：新增「目前派工任務清單」，把 `DEV-040` 已完成待上線、`DEV-005` 可延伸、`DEV-015` 可恢復候選、`DEV-033` 產品上線決策、`DEV-030`/`DEV-031`/`DEV-032` 正式環境關卡與 `DEV-034` 到 `DEV-038` 外部證據 blocker 分開列清楚。未執行產品程式修改、schema migration、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 產出並於後續更新 PM pre-deploy development completion audit：`.ai-doc/reports/pm/pm-predeploy-development-completion-audit-2026-07-10.md`。最新 `qc:dev-task-completion-audit` 顯示 open local/unclassified task 為 0，第一版外部 blocker 只剩 `DEV-FIELD-001`；`DEV-IND-007` 已以 disposable local Postgres shadow evidence 完成，`DEV-CAD-001`、`DEV-SW-001`、`DEV-BACKUP-001` 改列完整 PDM deferred scope。`qc:production-readiness -- --allow-open` 仍為 `ready=false`，原因是 field-test evidence 與 release gate 尚未完成。未執行 production deploy、production smoke、live Supabase cutover、provider pointer、schema migration、direct data repair/deletion、merge、PR、rollback 或 release report。
+- 2026-07-10: DEV-005 Phase 1 local product slice 已完成並驗證。實作範圍包含 `研發送審` / `技術移轉送審` 模式選擇、versioned local readiness resolver、active rule/readiness APIs、direct single-drawing technical-transfer fail-closed guard 與 `/transfer-packages/new` context placeholder。驗證證據見 `.ai-doc/qc/qc-pdm-submission-gate-phase1-report-2026-07-10.md`；research exception、完整 transfer package builder、sign-off matrix、rule admin、schema migration、production deploy、production smoke、merge、PR、rollback 與 release report 仍未執行，未列為本次正式領號 / 草稿 production slice 的 pre-deploy 必做範圍。
+- 2026-07-10: DEV-040 Phase 1 local product slice 已完成並驗證。實作範圍包含 production-slice capability model、method-level API allowlist/default-deny、direct URL blocked page、roadmap `未開放` sidebar state、`/numbering/part-drafts` slice-mode inert actions、`submit-review` / `reconfirm` / `restore` direct API fail-closed、`.env.example` slice mode 設定與 focused QC。驗證證據見 `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`；production deploy、production smoke、Supabase live target、provider pointer、merge、PR、rollback 與 release report 仍未執行，保留在 `DEV-032` release gate。
+- 2026-07-10: 依 `dev-pm` dev_task 範本重構入口任務清單：移除開頭 A/B/C 表格作為主清單的結構，改為多行權威任務索引；補齊 `DEV-005`、`DEV-015`、`DEV-030` 到 `DEV-038` 的任務清單、驗收或停止條件，並保留 `External Blockers / Parked Scope` 腳本相容標題與 Supabase protected evidence contract。未執行產品程式修改、schema migration、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 依 RD 主管審查後的 `#引導模式` 補齊 DEV-040 文件：既有 `/numbering/part-drafts` 的 `submit-review`、`reconfirm`、`restore` 在 production slice 必須 UI inert / API fail-closed；provisional draft delete/recycle 必須復用或忠實包裝既有 controlled-boundary predicate；documentation_map smoke stop wording 對齊 smoke company / tenant。未執行產品程式修改、schema migration、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-10: 用新版 Dev PM 規則重構 `DEV-040` 開發文件包，並納入 RD 主管引導決策 `1B 2C 3A`。`DEV-PDM-PRODUCTION-SLICE-001` 保留為可執行候選，但產品實作本輪未要求；SPEC 補上 method-level Route / API Boundary Matrix、Draft Operation Matrix、Direct Route / Roadmap UI Matrix、Smoke Isolation Decision 與窄版 Admin setup 邊界。第一版開 `/numbering/part-drafts`；暫用 part-number draft 可刪除/回收；正式 root/drawing/part 號碼不可回收；release-gate smoke 預設使用 smoke company / tenant。QA 補上 route/API、草稿、直接 URL、admin setup 測試與 `qc:pdm-numbering-contextual-entrypoints`、`qc:pdm-numbering-duplicate-submit-guard`、`qc:pdm-numbering-sequence-integrity` 等 gate。未執行產品程式修改、schema migration、production deploy、production smoke、merge、PR、rollback 或 release artifact。
+- 2026-07-09: 執行 archive sweep。已完成且只剩共用 release / production / Supabase / migration gate 的 DEV，詳細段落自 active board 移出；active `總任務清單` 保留中文任務摘要、證據、歸檔位置、是否計入交付與批次發版指向。完整 sweep 前內容保存在 `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`，本次完成任務索引保存在 `.ai-doc/archived/completed-dev-index-2026-07.md`。未執行產品實作、schema migration、production deploy、直接資料修復/刪除、merge、PR、rollback 或 release artifact。
+- 2026-07-09: 依新版 Dev PM「任務意圖 + 高風險邊界」重構 `dev_task.md` 主控板語言。一般 RD/QA/QC 不再用「授權」作為可執行判斷；未要求的後續工作標為 `Not Requested This Turn`，正式環境、release、live migration、provider pointer、資料修復與外部成本改由 `Release Gate Required` 或高風險確認管控。`DEV-040` 當時暫列 Phase 1 local/staging product slice 可執行；2026-07-10 後續已完成 Phase 1 local product slice，release/deploy 仍延後到 `DEV-032`。
+- 2026-07-09: Resolved the system drawer QC false blocker for the approval platform legacy redirect and aligned adjacent active QC contracts. Evidence: `npm.cmd run qc:pdm-system-detail-drawer-ui` 72/72, `npm.cmd run qc:pdm-approval-platform` 106/106, `npm.cmd run qc:pdm-numbering-approval-review-ui` 10/10, `npm.cmd run qc:pdm-lifecycle-actions` 272/272, `npm.cmd run qc:pdm-lifecycle-obsolete` 115/115 and `npm.cmd run qc:pdm-numbering-core` 241/241 passed. No product UI, schema, data repair, merge, PR, deployment, rollback or release artifact was changed.
+- 2026-07-09: Completed `DEV-PDM-APPROVAL-PLATFORM-001` Phase 1C-C drawing object pending-review projection and APP redline cleanup. A0007-M01 pending drawing revision impact reviews remain as compact read-only cues on `/numbering/drawings`, `/numbering/search` drawing targets and attachment revision/history rows; the drawing detail `待審焦點` focus panel, preview-card file extension header labels and collapsed upload `建議版次` text were removed per screenshot redlines. Evidence: `npx.cmd tsc --noEmit --pretty false`, source-scoped lint, `npm.cmd run qc:pdm-approval-platform` 125/125, `npm.cmd run qc:pdm-entity-detail-drawer` 14/14, `npm.cmd run dev:local:check`, `qc:dev-task-evidence-sync` 13/13, and Playwright screenshots under `output/playwright/pdm-approval-projection/`. `npm.cmd run build` was blocked by the intentional local-dev guard because the healthy project-owned dev server was listening on port 3000; no bypass was used. No schema migration, lifecycle mutation, data repair, merge, PR, deployment, rollback or release artifact was changed.
+- 2026-07-09: 依新的 Dev PM canonical format 重構開頭總任務清單，並依使用者要求強制中文化。總任務清單使用狀態符號放在 `DEV-001` 到 `DEV-039` 短碼前方，且每個短碼都映射回既有語意來源 ID。

@@ -5,8 +5,8 @@ import {
   parseExplicitToolRequest,
   type AiSource
 } from "@/lib/ai-tools";
-import { config } from "@/lib/config";
 import type { DbUser } from "@/lib/db";
+import { llmConfig } from "@/lib/llm-config";
 import { estimateTokensFromChars, hashText, logLlmUsage } from "@/lib/llm-usage";
 
 export type AiAnswer = {
@@ -70,7 +70,7 @@ export async function answerPdmQuestion(
     return recordUsage(local, { provider: "local", message: text, user, startedAt, toolHit: local.sources.length > 0 });
   }
 
-  if (config.openAiApiKey && config.llmProvider.toLowerCase() === "openai") {
+  if (llmConfig.openAiApiKey && llmConfig.provider.toLowerCase() === "openai") {
     return answerWithOpenAi(text, context, user, startedAt);
   }
 
@@ -137,7 +137,7 @@ async function answerWithOpenAi(
   const metrics = executeAiTool({ toolName: "get_dashboard_metrics", user });
   const currentSubmission = executeAiTool({ toolName: "get_submission_detail", user, currentSubmissionId: context?.currentSubmissionId });
   const sources = [...metrics.sources, ...currentSubmission.sources];
-  const model = config.openAiModel;
+  const model = llmConfig.openAiModel;
   const payload = limitOpenAiContext({
     question: message,
     allowedTools: AI_TOOL_WHITELIST,
@@ -187,14 +187,14 @@ async function answerWithOpenAi(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.openAiTimeoutMs);
+  const timeout = setTimeout(() => controller.abort(), llmConfig.openAiTimeoutMs);
 
   try {
-    const response = await fetch(`${config.openAiApiBaseUrl.replace(/\/$/, "")}/responses`, {
+    const response = await fetch(`${llmConfig.openAiApiBaseUrl.replace(/\/+$/, "")}/responses`, {
       method: "POST",
       signal: controller.signal,
       headers: {
-        authorization: `Bearer ${config.openAiApiKey}`,
+        authorization: `Bearer ${llmConfig.openAiApiKey}`,
         "content-type": "application/json"
       },
       body: JSON.stringify({
@@ -308,16 +308,16 @@ function recordUsage(
 }
 
 function rememberOpenAiCache(cacheKey: string, answer: AiAnswer) {
-  if (config.openAiCacheTtlMs <= 0) return;
-  openAiCache.set(cacheKey, { answer, expiresAt: Date.now() + config.openAiCacheTtlMs });
+  if (llmConfig.openAiCacheTtlMs <= 0) return;
+  openAiCache.set(cacheKey, { answer, expiresAt: Date.now() + llmConfig.openAiCacheTtlMs });
 }
 
 function consumeOpenAiRateLimit(userId: string) {
-  if (config.openAiRateLimitPerMinute <= 0) return true;
+  if (llmConfig.openAiRateLimitPerMinute <= 0) return true;
   const now = Date.now();
   const windowStart = now - 60_000;
   const events = (openAiRateLimit.get(userId) ?? []).filter((timestamp) => timestamp >= windowStart);
-  if (events.length >= config.openAiRateLimitPerMinute) {
+  if (events.length >= llmConfig.openAiRateLimitPerMinute) {
     openAiRateLimit.set(userId, events);
     return false;
   }
@@ -327,11 +327,11 @@ function consumeOpenAiRateLimit(userId: string) {
 }
 
 function limitOpenAiContext(payload: OpenAiContextPayload): OpenAiContextPayload {
-  if (config.openAiMaxContextChars <= 0 || JSON.stringify(payload).length <= config.openAiMaxContextChars) {
+  if (llmConfig.openAiMaxContextChars <= 0 || JSON.stringify(payload).length <= llmConfig.openAiMaxContextChars) {
     return payload;
   }
 
-  const textBudget = Math.max(1000, Math.floor(config.openAiMaxContextChars / 3));
+  const textBudget = Math.max(1000, Math.floor(llmConfig.openAiMaxContextChars / 3));
   return {
     ...payload,
     metrics: truncateText(payload.metrics, textBudget),

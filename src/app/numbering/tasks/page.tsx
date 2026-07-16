@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Eye, RotateCcw, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Eye, RotateCcw, ShieldAlert, UploadCloud } from "lucide-react";
+import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from "@/lib/status-display";
 
 type TaskStatus = "open" | "handled" | "cancelled" | "all";
 type NotificationRead = "all" | "read" | "unread";
@@ -51,6 +54,19 @@ type NumberingNotification = {
 };
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
+type NumberingDraftRecord = {
+  entityType: "part_root" | "part_number" | "drawing_number";
+  entityId: string;
+  rootCode: string;
+  coreName: string;
+  displayCode: string;
+  displayName: string;
+  developmentPhase: string;
+  recordStatus: string;
+  partNumber: string | null;
+  drawingNumber: string | null;
+  primaryDrawingNumber: string | null;
+};
 
 export default function NumberingTaskCenterPage() {
   const [state, setState] = useState<LoadState>("loading");
@@ -59,6 +75,7 @@ export default function NumberingTaskCenterPage() {
   const [notificationHandled, setNotificationHandled] = useState<NotificationHandled>("unhandled");
   const [tasks, setTasks] = useState<NumberingTask[]>([]);
   const [notifications, setNotifications] = useState<NumberingNotification[]>([]);
+  const [drafts, setDrafts] = useState<NumberingDraftRecord[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -82,22 +99,29 @@ export default function NumberingTaskCenterPage() {
   const loadData = useCallback(async () => {
     setState("loading");
     setError("");
-    const [taskResponse, notificationResponse] = await Promise.all([
+    const [taskResponse, notificationResponse, draftResponse] = await Promise.all([
       fetch(`/api/numbering/tasks?status=${taskStatus}`),
-      fetch(`/api/numbering/notifications?read=${notificationRead}&handled=${notificationHandled}`)
+      fetch(`/api/numbering/notifications?read=${notificationRead}&handled=${notificationHandled}`),
+      fetch("/api/numbering/search?recordStatus=Draft&limit=30")
     ]);
-    if (taskResponse.status === 401 || notificationResponse.status === 401) {
+    if (taskResponse.status === 401 || notificationResponse.status === 401 || draftResponse.status === 401) {
       setState("unauthorized");
       return;
     }
-    const [taskBody, notificationBody] = await Promise.all([taskResponse.json().catch(() => ({})), notificationResponse.json().catch(() => ({}))]);
-    if (!taskResponse.ok || !notificationResponse.ok) {
-      setError(taskBody.error ?? notificationBody.error ?? "待辦與通知讀取失敗");
+    const [taskBody, notificationBody, draftBody] = await Promise.all([
+      taskResponse.json().catch(() => ({})),
+      notificationResponse.json().catch(() => ({})),
+      draftResponse.json().catch(() => ({}))
+    ]);
+    const draftReadable = draftResponse.ok || draftResponse.status === 403;
+    if (!taskResponse.ok || !notificationResponse.ok || !draftReadable) {
+      setError(formatStatusErrorForUser(taskBody.error ?? notificationBody.error ?? draftBody.error ?? "待辦、通知與草稿讀取失敗", "task"));
       setState("error");
       return;
     }
     setTasks(taskBody.tasks ?? []);
     setNotifications(notificationBody.notifications ?? []);
+    setDrafts(draftResponse.ok ? draftBody.results ?? [] : []);
     setState("ready");
   }, [taskStatus, notificationRead, notificationHandled]);
 
@@ -156,7 +180,7 @@ export default function NumberingTaskCenterPage() {
         actions={[
           { href: "/numbering/approvals", label: "發行審核", variant: "primary" },
           { href: "/bom/reviews", label: "BOM 審核" },
-          { href: "/numbering/impact", label: "MA 影響" }
+          { href: "/numbering/impact", label: "製造圖影響" }
         ]}
       />
 
@@ -169,12 +193,14 @@ export default function NumberingTaskCenterPage() {
       ) : null}
       {state === "ready" ? (
         <div style={{ display: "grid", gap: "1rem" }}>
+          <DraftSubmissionList drafts={drafts} />
+
           <section className="panel">
             <div className="panel-header">
               <div>
                 <h2>待辦中心</h2>
                 <p style={mutedTextStyle}>
-                  {taskSummary.total} 件，critical {taskSummary.critical}，warning {taskSummary.warning}
+                  {taskSummary.total} 件，高風險 {taskSummary.critical}，注意 {taskSummary.warning}
                 </p>
               </div>
               <div className="status-tabs">
@@ -235,11 +261,11 @@ function TaskList({
       <NextStepState
         eyebrow="待辦"
         title="目前沒有待辦"
-        body="待辦清空後可回到圖料模組追蹤物件，或檢查 BOM 與 MA 影響範圍是否還有未收斂項目。"
+        body="待辦清空後可回到圖料模組追蹤物件，或檢查 BOM 與製造圖影響範圍是否還有未收斂項目。"
         actions={[
           { href: "/numbering/search", label: "圖料模組", variant: "primary" },
           { href: "/bom/reviews", label: "BOM 審核" },
-          { href: "/numbering/impact", label: "MA 影響" }
+          { href: "/numbering/impact", label: "製造圖影響" }
         ]}
       />
     );
@@ -254,7 +280,9 @@ function TaskList({
             <th>待辦</th>
             <th>角色 / 專案</th>
             <th>建立時間</th>
-            <th>狀態</th>
+            <th>
+              <StatusColumnHeader context="task" />
+            </th>
             <th>操作</th>
           </tr>
         </thead>
@@ -275,7 +303,9 @@ function TaskList({
                 <span style={mutedTextStyle}>{task.projectCode ?? task.entityType}</span>
               </td>
               <td>{formatDateTime(task.createdAt)}</td>
-              <td>{statusLabel(task.taskStatus)}</td>
+              <td>
+                <StatusBadge status={task.taskStatus} context="task" />
+              </td>
               <td>
                 <div style={actionGroupStyle}>
                   {task.actionUrl ? (
@@ -303,6 +333,95 @@ function TaskList({
       </table>
     </div>
   );
+}
+
+function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
+  const uniqueDrafts = dedupeDrafts(drafts);
+  if (uniqueDrafts.length === 0) return null;
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2>待送審草稿</h2>
+          <p style={mutedTextStyle}>{uniqueDrafts.length} 組圖料已領號但尚未建立送審單。</p>
+        </div>
+        <span className="metadata-badge">草稿</span>
+      </div>
+      <div className="table-wrap">
+        <table style={{ minWidth: "820px" }}>
+          <thead>
+            <tr>
+              <th>主根號</th>
+              <th>圖料</th>
+              <th>
+                <StatusColumnHeader label="狀態 / 階段" context="masterRecord" />
+              </th>
+              <th>現在卡點</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {uniqueDrafts.map((draft) => {
+              const drawingNumber = draft.drawingNumber ?? draft.primaryDrawingNumber;
+              const uploadHref = buildUploadPrefillHref({
+                rootCode: draft.rootCode,
+                drawingNumber,
+                partNumber: draft.partNumber,
+                partName: draft.displayName || draft.coreName,
+                developmentPhase: draft.developmentPhase
+              });
+              return (
+                <tr key={draft.rootCode}>
+                  <td>
+                    <strong>{draft.rootCode}</strong>
+                  </td>
+                  <td>
+                    <strong>{draft.displayName || draft.coreName || "-"}</strong>
+                    <p style={bodyTextStyle}>
+                      {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"}
+                    </p>
+                  </td>
+                  <td>
+                    <StatusBadge status={draft.recordStatus} context="masterRecord" />
+                    <br />
+                    <span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>
+                  </td>
+                  <td>已領號，尚未上傳設計資料送審。</td>
+                  <td>
+                    <div style={actionGroupStyle}>
+                      <Link className="primary-button" href={uploadHref}>
+                        <UploadCloud size={16} />
+                        送審
+                      </Link>
+                      <Link className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(draft.rootCode)}`}>
+                        <Eye size={16} />
+                        明細
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function dedupeDrafts(drafts: NumberingDraftRecord[]) {
+  const byRoot = new Map<string, NumberingDraftRecord>();
+  for (const draft of drafts) {
+    const current = byRoot.get(draft.rootCode);
+    if (!current) {
+      byRoot.set(draft.rootCode, draft);
+      continue;
+    }
+    const currentScore = (current.partNumber ? 1 : 0) + (current.drawingNumber ?? current.primaryDrawingNumber ? 1 : 0);
+    const nextScore = (draft.partNumber ? 1 : 0) + (draft.drawingNumber ?? draft.primaryDrawingNumber ? 1 : 0);
+    if (nextScore > currentScore) byRoot.set(draft.rootCode, draft);
+  }
+  return Array.from(byRoot.values());
 }
 
 function NotificationList({
@@ -337,7 +456,7 @@ function NotificationList({
             <th>通知</th>
             <th>角色</th>
             <th>建立時間</th>
-            <th>狀態</th>
+            <th>讀取 / 處理</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -440,9 +559,9 @@ function MarkerList({ markers }: { markers: AttentionMarker[] }) {
 }
 
 function riskLabel(value: "info" | "warning" | "critical") {
-  if (value === "critical") return "critical";
-  if (value === "warning") return "warning";
-  return "info";
+  if (value === "critical") return "高風險";
+  if (value === "warning") return "注意";
+  return "提醒";
 }
 
 function statusLabel(value: string) {

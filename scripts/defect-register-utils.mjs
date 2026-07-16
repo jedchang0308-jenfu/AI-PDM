@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getQualityDir } from "./pdm-paths.mjs";
 
@@ -12,7 +12,7 @@ export function getDefectRegisterPath(root = process.cwd()) {
 }
 
 export function readDefectRegister(registerPath = getDefectRegisterPath()) {
-  return JSON.parse(fs.readFileSync(registerPath, "utf8"));
+  return JSON.parse(readFileSync(registerPath, "utf8"));
 }
 
 function isFilled(value) {
@@ -134,7 +134,7 @@ export function validateDefectRegister(register) {
 export function evaluateDefectRegister(root = process.cwd()) {
   const registerPath = getDefectRegisterPath(root);
 
-  if (!fs.existsSync(registerPath)) {
+  if (!existsSync(registerPath)) {
     return {
       ready: false,
       registerPath,

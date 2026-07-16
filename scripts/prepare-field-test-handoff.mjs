@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { findLatestRestoreDrillReport, readRestoreDrillReport } from "./restore-drill-report-utils.mjs";
 import { findLatestReport as findLatestSwReport, readReport as readSwReport } from "./sw-addin-report-utils.mjs";
@@ -64,14 +64,14 @@ function toPortableSlash(value) {
 }
 
 function assertFile(filePath, message) {
-  if (!filePath || !fs.existsSync(filePath)) {
+  if (!filePath || !existsSync(filePath)) {
     console.error(message);
     process.exit(1);
   }
 }
 
 function assertDirectory(dirPath, message) {
-  if (!dirPath || !fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+  if (!dirPath || !existsSync(dirPath) || !statSync(dirPath).isDirectory()) {
     console.error(message);
     process.exit(1);
   }
@@ -79,26 +79,26 @@ function assertDirectory(dirPath, message) {
 
 function findLatestRestoreHandoff(appRoot) {
   const handoffRoot = getRestoreHandoffsDir(appRoot);
-  if (!fs.existsSync(handoffRoot)) return "";
+  if (!existsSync(handoffRoot)) return "";
 
-  return fs.readdirSync(handoffRoot, { withFileTypes: true })
+  return readdirSync(handoffRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(handoffRoot, entry.name))
-    .filter((dirPath) => fs.existsSync(path.join(dirPath, "restore-on-test-machine.ps1")))
+    .filter((dirPath) => existsSync(path.join(dirPath, "restore-on-test-machine.ps1")))
     .sort((left, right) => right.localeCompare(left))
     .at(0) ?? "";
 }
 
 function copyIfExists(sourcePath, targetPath) {
-  if (!fs.existsSync(sourcePath)) return null;
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.copyFileSync(sourcePath, targetPath);
+  if (!existsSync(sourcePath)) return null;
+  mkdirSync(path.dirname(targetPath), { recursive: true });
+  copyFileSync(sourcePath, targetPath);
   return targetPath;
 }
 
 function copyDirectory(sourcePath, targetPath) {
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.cpSync(sourcePath, targetPath, { recursive: true });
+  mkdirSync(path.dirname(targetPath), { recursive: true });
+  cpSync(sourcePath, targetPath, { recursive: true });
   return targetPath;
 }
 
@@ -422,7 +422,7 @@ const documentManagerReport = {
 };
 const commands = buildCommands(restoreReport, swReport, documentManagerReport);
 
-fs.mkdirSync(outputDir, { recursive: true });
+mkdirSync(outputDir, { recursive: true });
 const copiedRestoreJson = copyIfExists(restoreReportPath, path.join(outputDir, "reports", "restore-drill-report.json"));
 copyIfExists(restoreReportPath.replace(/\.json$/u, ".md"), path.join(outputDir, "reports", "restore-drill-report.md"));
 const copiedRestoreHandoffDir = copyDirectory(restoreHandoffPath, path.join(outputDir, "restore-handoff"));
@@ -431,19 +431,19 @@ copyIfExists(swReportPath.replace(/\.json$/u, ".md"), path.join(outputDir, "repo
 const copiedDocumentManagerJson = copyIfExists(documentManagerReportPath, path.join(outputDir, "reports", "document-manager-report.json"));
 copyIfExists(documentManagerReportPath.replace(/\.json$/u, ".md"), path.join(outputDir, "reports", "document-manager-report.md"));
 
-fs.mkdirSync(path.join(outputDir, "commands"), { recursive: true });
-fs.writeFileSync(path.join(outputDir, "commands", "restore-preflight.ps1"), commands.restorePreflight, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "restore-fill-template.ps1"), `${commands.restoreFillTemplate}\r\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "sw-addin-preflight.ps1"), commands.cadPreflight, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "sw-addin-build-and-register.ps1"), commands.swBuildAndRegister, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "sw-addin-fill-template.ps1"), `${commands.swFillTemplate}\r\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "sw-addin-unregister.ps1"), commands.swUnregister, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "document-manager-preflight.ps1"), commands.documentManagerPreflight, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "document-manager-probe.ps1"), commands.documentManagerProbe, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "document-manager-fill-template.ps1"), `${commands.documentManagerFillTemplate}\r\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "commands", "field-issues-import.ps1"), commands.fieldIssuesImport, "utf8");
-fs.writeFileSync(path.join(outputDir, "field-issues-template.json"), `${JSON.stringify(buildFieldIssuesTemplate(handoffId), null, 2)}\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "qc-checklist.ps1"), buildQcChecklist(rel(path.join(outputDir, "commands", "field-issues-import.ps1"))), "utf8");
+mkdirSync(path.join(outputDir, "commands"), { recursive: true });
+writeFileSync(path.join(outputDir, "commands", "restore-preflight.ps1"), commands.restorePreflight, "utf8");
+writeFileSync(path.join(outputDir, "commands", "restore-fill-template.ps1"), `${commands.restoreFillTemplate}\r\n`, "utf8");
+writeFileSync(path.join(outputDir, "commands", "sw-addin-preflight.ps1"), commands.cadPreflight, "utf8");
+writeFileSync(path.join(outputDir, "commands", "sw-addin-build-and-register.ps1"), commands.swBuildAndRegister, "utf8");
+writeFileSync(path.join(outputDir, "commands", "sw-addin-fill-template.ps1"), `${commands.swFillTemplate}\r\n`, "utf8");
+writeFileSync(path.join(outputDir, "commands", "sw-addin-unregister.ps1"), commands.swUnregister, "utf8");
+writeFileSync(path.join(outputDir, "commands", "document-manager-preflight.ps1"), commands.documentManagerPreflight, "utf8");
+writeFileSync(path.join(outputDir, "commands", "document-manager-probe.ps1"), commands.documentManagerProbe, "utf8");
+writeFileSync(path.join(outputDir, "commands", "document-manager-fill-template.ps1"), `${commands.documentManagerFillTemplate}\r\n`, "utf8");
+writeFileSync(path.join(outputDir, "commands", "field-issues-import.ps1"), commands.fieldIssuesImport, "utf8");
+writeFileSync(path.join(outputDir, "field-issues-template.json"), `${JSON.stringify(buildFieldIssuesTemplate(handoffId), null, 2)}\n`, "utf8");
+writeFileSync(path.join(outputDir, "qc-checklist.ps1"), buildQcChecklist(rel(path.join(outputDir, "commands", "field-issues-import.ps1"))), "utf8");
 
 const handoff = {
   handoffId,
@@ -502,8 +502,8 @@ const handoff = {
   }
 };
 
-fs.writeFileSync(path.join(outputDir, "field-test-handoff.json"), `${JSON.stringify(handoff, null, 2)}\n`, "utf8");
-fs.writeFileSync(path.join(outputDir, "README.md"), buildReadme(handoff), "utf8");
+writeFileSync(path.join(outputDir, "field-test-handoff.json"), `${JSON.stringify(handoff, null, 2)}\n`, "utf8");
+writeFileSync(path.join(outputDir, "README.md"), buildReadme(handoff), "utf8");
 
 console.log(JSON.stringify({
   handoffId,

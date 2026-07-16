@@ -1,25 +1,16 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, ...relativePath.split("/")));
-}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
 }
 
-const db = read("src/lib/db.ts");
-const packageJson = JSON.parse(read("package.json"));
+const db = readProjectFile(root, "src/lib/db.ts");
+const packageJson = readProjectJson(root, "package.json");
 const repositories = {
   dashboard: "src/lib/repositories/dashboard-repository.ts",
   ai: "src/lib/repositories/ai-repository.ts",
@@ -39,7 +30,7 @@ const repositories = {
 };
 
 for (const [name, relativePath] of Object.entries(repositories)) {
-  record(`REPO-001 ${name} repository file exists`, exists(relativePath), relativePath);
+  record(`REPO-001 ${name} repository file exists`, projectFileExists(root, relativePath), relativePath);
 }
 
 record("REPO-002 db.ts re-exports dashboard repository", db.includes("@/lib/repositories/dashboard-repository"), "src/lib/db.ts");
@@ -150,20 +141,20 @@ for (const symbol of [
   record(`REPO-016 db.ts no longer owns ${symbol}`, !new RegExp(`export function ${symbol}\\b`, "u").test(db), "src/lib/db.ts");
 }
 
-const aiRepository = read(repositories.ai);
-const dashboardRepository = read(repositories.dashboard);
-const systemRepository = read(repositories.system);
-const collaborationRepository = read(repositories.collaboration);
-const notificationRepository = read(repositories.notification);
-const itemLockRepository = read(repositories.itemLock);
-const releaseRepository = read(repositories.release);
-const sandboxRepository = read(repositories.sandbox);
-const approvalRepository = read(repositories.approval);
-const submissionFileRepository = read(repositories.submissionFile);
-const userRepository = read(repositories.user);
-const itemRepository = read(repositories.item);
-const bomRepository = read(repositories.bom);
-const submissionRepository = read(repositories.submission);
+const aiRepository = readProjectFile(root, repositories.ai);
+const dashboardRepository = readProjectFile(root, repositories.dashboard);
+const systemRepository = readProjectFile(root, repositories.system);
+const collaborationRepository = readProjectFile(root, repositories.collaboration);
+const notificationRepository = readProjectFile(root, repositories.notification);
+const itemLockRepository = readProjectFile(root, repositories.itemLock);
+const releaseRepository = readProjectFile(root, repositories.release);
+const sandboxRepository = readProjectFile(root, repositories.sandbox);
+const approvalRepository = readProjectFile(root, repositories.approval);
+const submissionFileRepository = readProjectFile(root, repositories.submissionFile);
+const userRepository = readProjectFile(root, repositories.user);
+const itemRepository = readProjectFile(root, repositories.item);
+const bomRepository = readProjectFile(root, repositories.bom);
+const submissionRepository = readProjectFile(root, repositories.submission);
 record("REPO-017 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
 record("REPO-018 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
 record("REPO-019 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);

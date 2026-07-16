@@ -1,9 +1,10 @@
-import fs from "node:fs";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
-const globals = fs.readFileSync("src/app/globals.css", "utf8");
-const tokens = fs.readFileSync("src/app/styles/tokens.css", "utf8");
-const responsive = fs.readFileSync("src/app/styles/responsive.css", "utf8");
-const layout = fs.readFileSync("src/app/layout.tsx", "utf8");
+const root = process.cwd();
+const globals = readProjectFile(root, "src/app/globals.css");
+const tokens = readProjectFile(root, "src/app/styles/tokens.css");
+const responsive = readProjectFile(root, "src/app/styles/responsive.css");
+const layout = readProjectFile(root, "src/app/layout.tsx");
 const results = [];
 
 function record(name, passed, detail = "") {

@@ -1,28 +1,28 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs";
+import { runProductionReadinessReport } from "./qc-production-readiness-report-runner.mjs";
 
 const root = process.cwd();
-const taskPath = resolveTaskFile();
-const expectedExternalOpenIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001", "DEV-FIELD-001", "DEV-IND-007"];
+const taskRelativePath = resolveTaskFile();
+const expectedExternalOpenIds = ["DEV-PDM-ERP-GOOGLE-CLOUDSQL-001"];
 const allowedOpenCategories = new Set([
   "external_document_manager",
   "external_solidworks_machine",
   "external_restore_drill",
   "external_field_test",
-  "external_supabase_shadow"
+  "external_supabase_shadow",
+  "external_platform_release"
 ]);
 const results = [];
 
 function resolveTaskFile() {
   const candidates = [
-    path.join(root, ".ai-doc", "dev_task.md"),
-    path.join(root, "dev_task.md"),
-    path.join(root, "PDM_dev_task.md")
+    ".ai-doc/dev_task.md",
+    "dev_task.md",
+    "PDM_dev_task.md"
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return candidates.find((candidate) => projectFileExists(root, candidate)) ?? candidates[0];
 }
 
 function record(name, passed, detail = "") {
@@ -36,12 +36,17 @@ function statusFromToken(token) {
   return "open";
 }
 
+function stripInlineCode(value) {
+  return value.replace(/^`|`$/g, "");
+}
+
 function categoryForTask(id, text) {
   if (id === "DEV-CAD-001") return "external_document_manager";
   if (id === "DEV-SW-001") return "external_solidworks_machine";
   if (id === "DEV-BACKUP-001") return "external_restore_drill";
   if (id === "DEV-FIELD-001") return "external_field_test";
   if (id === "DEV-IND-007") return "external_supabase_shadow";
+  if (id === "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001") return "external_platform_release";
   if (/Document Manager|native CAD metadata/i.test(text)) return "external_document_manager";
   if (/SolidWorks Add-in|real-machine/i.test(text)) return "external_solidworks_machine";
   if (/restore drill|backup/i.test(text)) return "external_restore_drill";
@@ -119,42 +124,71 @@ function parseIndustrializationOverview(lines) {
   return tasks;
 }
 
-function runReadinessReport() {
-  const run = spawnSync(process.execPath, ["scripts/qc-production-readiness-test.mjs", "--allow-open"], {
-    cwd: root,
-    encoding: "utf8",
-    windowsHide: true
+function parseParkedExternalBlockers(lines) {
+  const tasks = [];
+  let inParkedExternalBlockers = false;
+  const parkedExternalHeadingPattern = /^##\s+3\.\s+(?:Parked Scope And External Blockers|External Blockers\s*\/\s*Parked Scope)\b/i;
+
+  lines.forEach((line, index) => {
+    if (parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = true;
+      return;
+    }
+    if (inParkedExternalBlockers && /^##\s+/i.test(line) && !parkedExternalHeadingPattern.test(line)) {
+      inParkedExternalBlockers = false;
+    }
+    if (!inParkedExternalBlockers || !line.trim().startsWith("|")) return;
+
+    const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+    if (cells.length < 4) return;
+
+    const statusMatch = cells[0].match(/^\[(x| |\/|!)\]$/);
+    if (!statusMatch) return;
+
+    const id = stripInlineCode(cells[1] ?? "");
+    if (!expectedExternalOpenIds.includes(id)) return;
+
+    const text = [id, cells[2] ?? "", cells[3] ?? ""].filter(Boolean).join(" | ");
+    tasks.push({
+      line: index + 1,
+      section: "Parked Scope",
+      id,
+      status: statusFromToken(statusMatch[1]),
+      text,
+      category: categoryForTask(id, text)
+    });
   });
-  if (run.status !== 0) return { run, report: null };
-  try {
-    return { run, report: JSON.parse(run.stdout) };
-  } catch {
-    return { run, report: null };
-  }
+
+  return tasks;
 }
 
-if (!fs.existsSync(taskPath)) {
-  console.error(`Task file not found: ${path.relative(root, taskPath)}`);
+if (!projectFileExists(root, taskRelativePath)) {
+  console.error(`Task file not found: ${taskRelativePath}`);
   process.exit(1);
 }
 
-const lines = fs.readFileSync(taskPath, "utf8").split(/\r?\n/u);
-const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines)];
+const lines = readProjectFile(root, taskRelativePath).split(/\r?\n/u);
+const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines), ...parseParkedExternalBlockers(lines)];
 const openTasks = tasks.filter((task) => task.status !== "done");
 const unclassifiedOpenTasks = openTasks.filter((task) => !allowedOpenCategories.has(task.category));
 const missingExpectedOpen = expectedExternalOpenIds
   .filter((id) => !openTasks.some((task) => task.id === id));
-const handoff = fs.readFileSync(path.join(root, "docs", "industrialization", "external-validation-handoff-2026-05-28.md"), "utf8");
-const { run: readinessRun, report: readinessReport } = runReadinessReport();
-const readinessIds = new Set((readinessReport?.blockers ?? []).map((blocker) => blocker.task.match(/DEV-[A-Z]+-\d+/)?.[0]).filter(Boolean));
+const handoff = readProjectFile(root, ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
+const handoffTasks = openTasks.filter((task) => task.category !== "external_platform_release");
+const { run: readinessRun, report: readinessReport } = runProductionReadinessReport(root);
+const readinessIds = new Set(
+  expectedExternalOpenIds.filter((id) =>
+    (readinessReport?.blockers ?? []).some((blocker) => blocker.task.includes(id))
+  )
+);
 const openIds = new Set(openTasks.map((task) => task.id));
 const readinessMissingOpen = [...openIds].filter((id) => !readinessIds.has(id));
 
-record("COMPLETE-001 dev_task.md exists", fs.existsSync(taskPath), path.relative(root, taskPath));
+record("COMPLETE-001 dev_task.md exists", projectFileExists(root, taskRelativePath), taskRelativePath);
 record("COMPLETE-002 task audit covers active backlog overview", tasks.length >= expectedExternalOpenIds.length, String(tasks.length));
 record("COMPLETE-003 no local or unclassified open task remains", unclassifiedOpenTasks.length === 0, JSON.stringify(unclassifiedOpenTasks));
 record("COMPLETE-004 expected external blockers remain visible", missingExpectedOpen.length === 0, JSON.stringify(missingExpectedOpen));
-record("COMPLETE-005 external handoff mentions every open blocker", openTasks.every((task) => handoff.includes(task.id)), JSON.stringify(openTasks.map((task) => task.id)));
+record("COMPLETE-005 legacy external handoff mentions applicable open blockers", handoffTasks.every((task) => handoff.includes(task.id)), JSON.stringify(handoffTasks.map((task) => task.id)));
 record("COMPLETE-006 production readiness report is parseable", readinessRun.status === 0 && Boolean(readinessReport), readinessRun.stderr || "parsed");
 record("COMPLETE-007 production readiness reports every open blocker", readinessMissingOpen.length === 0, JSON.stringify(readinessMissingOpen));
 record("COMPLETE-008 production readiness remains not ready", readinessReport?.ready === false, String(readinessReport?.ready));

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "database": {
+    "productionAuthority": "cloud_sql_postgres",
+    "operationalRepositoryPattern": "src/lib/repositories/*-async-repository.ts",
+    "requiredPort": "AsyncDatabaseClient",
+    "legacySQLiteProductionAllowed": false,
+    "browserDatabaseAccessAllowed": false
+  },
+  "files": {
+    "productionAuthority": "google_cloud_storage",
+    "currentProductionSliceFileWorkflowsEnabled": false,
+    "liveAdapterPhase": "DEV-046-Phase-3B",
+    "firebaseStorageAllowed": false,
+    "sharedDriveAuthorityAllowed": false
+  },
+  "transport": {
+    "protocol": "standard-http-bff",
+    "routeDatabaseQueriesAllowed": false,
+    "routeProviderSdkCallsAllowed": false,
+    "firebaseCallableAllowed": false,
+    "firebaseTriggersAllowed": false
+  }
+}

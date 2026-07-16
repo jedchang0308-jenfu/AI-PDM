@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import crypto from "node:crypto";
-import fs from "node:fs";
-import { stat } from "node:fs/promises";
+import { createReadStream, existsSync } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const defaultManifestPath = path.join(root, "docs", "assets", "external-assets-manifest.json");
@@ -21,9 +22,37 @@ function parsePositiveInt(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function readJson(filePath) {
-  const text = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+function toProjectRelative(filePath) {
+  return path.relative(root, filePath).replaceAll(path.sep, "/");
+}
+
+async function readJson(filePath) {
+  const text = (
+    isInsideDirectory(root, filePath)
+      ? readProjectFile(root, toProjectRelative(filePath))
+      : await readFile(filePath, "utf8")
+  ).replace(/^\uFEFF/, "");
   return JSON.parse(text);
+}
+
+function createEmptySummary(reason, details = {}) {
+  return {
+    manifestPath,
+    checkedAt: new Date().toISOString(),
+    schemaVersion: details.schemaVersion ?? null,
+    externalRoot: details.externalRoot ?? null,
+    total: 0,
+    ok: 0,
+    missing: 0,
+    unreadable: 0,
+    sizeMismatch: 0,
+    hashMismatch: 0,
+    originalStillInWorkspace: 0,
+    invalidPath: 0,
+    issues: [],
+    status: "empty",
+    reason
+  };
 }
 
 function normalizeRelativePath(relativePath) {
@@ -47,7 +76,7 @@ function addIssue(issues, issue) {
 function hashFile(filePath) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash("sha256");
-    const stream = fs.createReadStream(filePath);
+    const stream = createReadStream(filePath);
     stream.on("data", (chunk) => hash.update(chunk));
     stream.on("error", reject);
     stream.on("end", () => resolve(hash.digest("hex")));
@@ -75,7 +104,7 @@ async function verifyEntry(entry, externalRoot) {
   if (!isInsideDirectory(externalRoot, targetPath)) {
     return { ...context, status: "invalid_target_path" };
   }
-  if (fs.existsSync(originalPath)) {
+  if (existsSync(originalPath)) {
     return { ...context, status: "original_still_in_workspace" };
   }
 
@@ -140,21 +169,40 @@ function summarize(results, manifest, externalRoot) {
 }
 
 try {
-  const manifest = readJson(manifestPath);
-  const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
-  if (manifest.schemaVersion !== 1 || entries.length === 0) {
-    throw new Error("Manifest must use schemaVersion 1 and contain at least one entry.");
-  }
+  if (!existsSync(manifestPath)) {
+    console.log(JSON.stringify(createEmptySummary("manifest_not_found"), null, 2));
+    process.exitCode = 0;
+  } else {
+    const manifest = await readJson(manifestPath);
+    if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.entries)) {
+      throw new Error("Manifest must use schemaVersion 1 and an entries array.");
+    }
 
-  const externalRoot = resolveExternalRoot(manifest);
-  const results = [];
-  for (const entry of entries) {
-    results.push(await verifyEntry(entry, externalRoot));
-  }
+    const entries = manifest.entries;
+    if (entries.length === 0) {
+      console.log(
+        JSON.stringify(
+          createEmptySummary("no_external_assets", {
+            schemaVersion: manifest.schemaVersion,
+            externalRoot: manifest.externalRoot ? resolveExternalRoot(manifest) : null
+          }),
+          null,
+          2
+        )
+      );
+      process.exitCode = 0;
+    } else {
+      const externalRoot = resolveExternalRoot(manifest);
+      const results = [];
+      for (const entry of entries) {
+        results.push(await verifyEntry(entry, externalRoot));
+      }
 
-  const summary = summarize(results, manifest, externalRoot);
-  console.log(JSON.stringify(summary, null, 2));
-  process.exitCode = summary.issues.length > 0 ? 1 : 0;
+      const summary = summarize(results, manifest, externalRoot);
+      console.log(JSON.stringify(summary, null, 2));
+      process.exitCode = summary.issues.length > 0 ? 1 : 0;
+    }
+  }
 } catch (error) {
   console.error(
     JSON.stringify(

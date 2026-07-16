@@ -1,38 +1,35 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import path from "node:path";
 import Database from "better-sqlite3";
+
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const checks = [];
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function exists(relativePath) {
-  return fs.existsSync(path.join(root, relativePath));
-}
+const readRequired = (relativePath) => readProjectFile(root, relativePath);
+const existsRequired = (relativePath) => projectFileExists(root, relativePath);
 
 function assert(condition, message, detail = "") {
   checks.push({ message, passed: Boolean(condition), detail });
   if (!condition) throw new Error(`${message}${detail ? `: ${detail}` : ""}`);
 }
 
-const sqliteSchema = read("db/schema.sql");
-const postgresSchema = read("db/postgres/001_initial_schema.sql");
-const rlsPlan = read("db/postgres/002_supabase_rls_plan.sql");
-const repository = read("src/lib/repositories/master-attachment-repository.ts");
-const dbExports = read("src/lib/db.ts");
-const permissions = read("src/lib/numbering-permission-codes.ts");
-const settingsRoute = read("src/app/api/settings/route.ts");
-const settingsVerifyRoute = read("src/app/api/settings/gdrive/folders/verify/route.ts");
-const settingsPage = read("src/app/settings/page.tsx");
-const panel = read("src/components/master-attachment-panel.tsx");
-const drawingsPage = read("src/app/numbering/drawings/page.tsx");
-const partsPage = read("src/app/parts/page.tsx");
-const packageJson = JSON.parse(read("package.json"));
+const sqliteSchema = readRequired("db/schema.sql");
+const postgresSchema = readRequired("db/postgres/001_initial_schema.sql");
+const rlsPlan = readRequired("db/postgres/002_supabase_rls_plan.sql");
+const repository = readRequired("src/lib/repositories/master-attachment-repository.ts");
+const asyncRepository = readRequired("src/lib/repositories/master-attachment-async-repository.ts");
+const revisionPolicy = readRequired("src/lib/revision-policy.ts");
+const dbExports = readRequired("src/lib/db.ts");
+const permissions = readRequired("src/lib/numbering-permission-codes.ts");
+const settingsRoute = readRequired("src/app/api/settings/route.ts");
+const settingsVerifyRoute = readRequired("src/app/api/settings/gdrive/folders/verify/route.ts");
+const settingsPage = readRequired("src/app/settings/page.tsx");
+const panel = readRequired("src/components/master-attachment-panel.tsx");
+const drawingsPage = readRequired("src/app/numbering/drawings/page.tsx");
+const partsPage = readRequired("src/app/parts/page.tsx");
+const packageJson = readProjectJson(root, "package.json");
 
 const expectedFileAssetColumns = [
   "mime_type",
@@ -90,6 +87,9 @@ assert(repository.includes("uploadFileToDrive"), "Repository uploads attachments
 assert(repository.includes("setFileAppProperties"), "Repository writes Drive appProperties");
 assert(repository.includes("AI_PDM_MASTER_ATTACHMENT"), "Repository marks Drive files as master attachments");
 assert(repository.includes("MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE"), "Repository blocks duplicate active files");
+assert(revisionPolicy.includes("REVISION_V_PREFIX_NOT_ALLOWED"), "Revision policy rejects V-prefixed revision codes");
+assert(repository.includes("normalizeAttachmentRevision") && repository.includes("MASTER_ATTACHMENT_REVISION_INVALID"), "Sync repository validates attachment revision format");
+assert(asyncRepository.includes("normalizeAttachmentRevision") && asyncRepository.includes("MASTER_ATTACHMENT_REVISION_INVALID"), "Async repository validates attachment revision format");
 
 const routeFiles = [
   "src/app/api/numbering/drawings/[drawingNumber]/attachments/route.ts",
@@ -98,8 +98,8 @@ const routeFiles = [
   "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts"
 ];
 for (const routeFile of routeFiles) {
-  assert(exists(routeFile), `Attachment API route exists: ${routeFile}`);
-  const source = read(routeFile);
+  assert(existsRequired(routeFile), `Attachment API route exists: ${routeFile}`);
+  const source = readRequired(routeFile);
   assert(source.includes("numbering.attachments.manage"), `Attachment route enforces manage permission: ${routeFile}`);
   assert(source.includes("listMasterAttachments") || source.includes("createMasterAttachment") || source.includes("getMasterAttachmentBytes"), `Attachment route calls master attachment repository: ${routeFile}`);
 }
@@ -113,7 +113,20 @@ assert(settingsPage.includes("folderSnapshotPayload(\"master_attachments\""), "S
 assert(panel.includes("圖號附件庫") && panel.includes("料號附件庫"), "Shared panel labels drawing and part attachment libraries");
 assert(panel.includes("retryDriveSync"), "Shared panel supports Drive retry");
 assert(panel.includes("https://drive.google.com/file/d/"), "Shared panel links synced Drive files");
+assert(panel.includes("suggestRevisionCode"), "Shared panel uses revision policy suggestion");
+assert(panel.includes("revisionLifecycleStageForAttachment"), "Shared panel derives attachment revision lifecycle stage");
+assert(panel.includes("buildDrawingPreviewSlots") && panel.includes("drawing-preview-board"), "Drawing attachment panel renders first-level 3D/2D preview board");
+assert(panel.includes("attachmentPreviewMode") && panel.includes("?preview=1"), "Drawing attachment panel can inline preview PDF/image attachments");
+assert(panel.includes("previewDerivatives") && panel.includes("previewJob"), "Drawing attachment panel receives native preview derivative/job metadata");
+assert(panel.includes("findReadyPreviewDerivative") && panel.includes("previewDerivative="), "Drawing attachment panel can inline generated native preview derivatives");
+assert(panel.includes("generatePreview") && panel.includes("/previews"), "Drawing attachment panel can enqueue native preview generation");
+assert(panel.includes("預覽產生失敗") && panel.includes("預覽需更新") && panel.includes("重新產生預覽"), "Drawing attachment panel shows actionable native preview states");
+assert(panel.includes("findPreviewAttachment") && panel.includes("isThreeDimensionalAttachment") && panel.includes("isTwoDimensionalAttachment"), "Drawing attachment panel selects 3D and 2D preview attachments separately");
+assert(panel.includes("groupHistoryAttachmentsByRevision") && panel.includes("master-attachment-history-revision"), "Drawing attachment history groups files by revision");
+assert(panel.includes("placeholder={revisionStage ? suggestedRevision") && !panel.includes("例如 A、B 或空白"), "Shared panel no longer suggests A/B revision placeholder");
+assert(panel.includes("版次 {attachment.revision}") && !panel.includes("Rev {attachment.revision}"), "Shared panel labels attachment revision without Rev prefix");
 assert(drawingsPage.includes("MasterAttachmentPanel") && drawingsPage.includes('entityType="drawing_number"'), "Drawing drawer mounts master attachment panel");
+assert(drawingsPage.includes("developmentPhase={drawing.developmentPhase}") && drawingsPage.includes("processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}"), "Drawing drawer passes phase and process control to attachment panel");
 assert(partsPage.includes("MasterAttachmentPanel") && partsPage.includes('entityType="part_number"'), "Part drawer mounts master attachment panel");
 assert(packageJson.scripts["qc:master-attachments"] === "node scripts/qc-master-attachments.mjs", "package script qc:master-attachments is registered");
 

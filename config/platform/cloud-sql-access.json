@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "runtimeServiceIdentityIamRoles": [
+    "roles/cloudsql.client",
+    "roles/cloudsql.instanceUser",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter"
+  ],
+  "databaseAuthentication": "cloud-sql-auth-proxy-automatic-iam",
+  "network": "private-ip-via-direct-vpc-egress",
+  "runtimeDatabaseRole": "pdm_runtime",
+  "migrationDatabaseRole": "pdm_migration",
+  "runtimeDdlAllowed": false,
+  "runtimeBypassRlsAllowed": false,
+  "serviceAccountKeysAllowed": false,
+  "staticDatabasePasswordsAllowed": false,
+  "browserDatabaseAccessAllowed": false
+}

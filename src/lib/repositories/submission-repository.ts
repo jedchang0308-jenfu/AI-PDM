@@ -4,6 +4,7 @@ import { getBomBySubmissionId, materializeBomDraftFromReferences } from "@/lib/r
 import { findOrCreateItem } from "@/lib/repositories/item-repository";
 import { getActiveItemLock } from "@/lib/repositories/item-lock-repository";
 import { getReleasePackageBySubmissionId } from "@/lib/repositories/release-repository";
+import { compareRevisionCodes } from "@/lib/revision-policy";
 import type {
   DesignReuseCandidate,
   DuplicateGeometryCandidate,
@@ -126,7 +127,8 @@ export function getSubmission(id: string): SubmissionDetail | null {
     active_lock: activeLock,
     release_package: releasePackage,
     approvals,
-    audit_logs: auditLogs
+    audit_logs: auditLogs,
+    lifecycle_requests: []
   };
 }
 
@@ -672,6 +674,7 @@ export function listManufacturingHandoffEntries(input: { submittedBy?: string; l
 }
 
 export function createSubmissionRecord(input: {
+  companyId?: string;
   drawingNumber: string;
   partNumber: string;
   partName: string;
@@ -691,6 +694,9 @@ export function createSubmissionRecord(input: {
     fileRole: string;
     originalFilename: string;
     localPath: string;
+    storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
+    storageBucket?: string | null;
+    storageKey?: string | null;
     gdriveFileId?: string | null;
     sha256: string;
     fileSize: number;
@@ -710,8 +716,10 @@ export function createSubmissionRecord(input: {
 }) {
   const database = getDb();
   const now = new Date().toISOString();
+  const companyId = input.companyId ?? "company-jenfu";
   const submissionId = `SUB-${now.slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const itemId = findOrCreateItem({
+    companyId,
     partNumber: input.partNumber,
     partName: input.partName,
     revision: input.revision
@@ -721,14 +729,15 @@ export function createSubmissionRecord(input: {
     .prepare(
       `
       INSERT INTO submissions (
-        id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
+        id, company_id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
         machine, material, surface_finish, document_type,
         change_description, status, submitted_by, approval_required, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
       submissionId,
+      companyId,
       itemId,
       input.drawingNumber,
       input.revision,
@@ -756,9 +765,9 @@ export function createSubmissionRecord(input: {
       .prepare(
         `
         INSERT INTO submission_files (
-          id, submission_id, file_role, original_filename, local_path, gdrive_file_id,
+          id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
           sha256, file_size, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       )
       .run(
@@ -767,6 +776,9 @@ export function createSubmissionRecord(input: {
         file.fileRole,
         file.originalFilename,
         file.localPath,
+        file.storageProvider ?? "local_repository",
+        file.storageBucket ?? null,
+        file.storageKey ?? null,
         file.gdriveFileId ?? null,
         file.sha256,
         file.fileSize,
@@ -863,9 +875,11 @@ export function markSubmissionReleasedAndObsoletePrevious(input: { id: string; a
     .get(input.id) as { id: string; item_id: string; revision: string } | undefined;
   if (!submission) throw new Error("找不到送審資料");
 
-  const obsoleteRows = database
-    .prepare("SELECT id FROM submissions WHERE item_id = ? AND id <> ? AND status = 'Released'")
-    .all(submission.item_id, submission.id) as Array<{ id: string }>;
+  const releasedRows = database
+    .prepare("SELECT id, revision, status FROM submissions WHERE item_id = ? AND id <> ? AND status IN ('Released', 'Obsolete')")
+    .all(submission.item_id, submission.id) as ReleaseRevisionSubmission[];
+  assertNoFormalDuplicateRevision(submission, releasedRows);
+  const releasePlan = buildRevisionCurrentPlan(submission, releasedRows);
 
   const tx = database.transaction(() => {
     database
@@ -883,9 +897,24 @@ export function markSubmissionReleasedAndObsoletePrevious(input: { id: string; a
 
     database
       .prepare("UPDATE items SET current_revision = ?, updated_at = ? WHERE id = ?")
-      .run(submission.revision, now, submission.item_id);
+      .run(releasePlan.latest.revision, now, submission.item_id);
 
-    if (obsoleteRows.length > 0) {
+    database
+      .prepare(
+        `
+        UPDATE submissions
+        SET status = 'Released',
+            superseded_by_submission_id = NULL,
+            obsolete_at = NULL,
+            obsolete_by = NULL,
+            updated_at = ?
+        WHERE id = ?
+          AND status IN ('Released', 'Obsolete')
+        `
+      )
+      .run(now, releasePlan.latest.id);
+
+    if (releasePlan.newlyObsolete.length > 0) {
       const obsoleteSubmission = database.prepare(
         `
         UPDATE submissions
@@ -902,14 +931,19 @@ export function markSubmissionReleasedAndObsoletePrevious(input: { id: string; a
         "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, ?, ?, ?, ?)"
       );
 
-      for (const row of obsoleteRows) {
-        obsoleteSubmission.run(submission.id, now, input.actorId, now, row.id);
+      for (const row of releasePlan.newlyObsolete) {
+        obsoleteSubmission.run(releasePlan.latest.id, now, input.actorId, now, row.id);
         insertAudit.run(
           crypto.randomUUID(),
           row.id,
           input.actorId,
           "ObsoleteByRevision",
-          JSON.stringify({ supersededBySubmissionId: submission.id, supersededByRevision: submission.revision }),
+          JSON.stringify({
+            supersededBySubmissionId: releasePlan.latest.id,
+            supersededByRevision: releasePlan.latest.revision,
+            acceptedSubmissionId: submission.id,
+            acceptedRevision: submission.revision
+          }),
           now
         );
       }
@@ -917,5 +951,47 @@ export function markSubmissionReleasedAndObsoletePrevious(input: { id: string; a
   });
 
   tx();
-  return { obsolete_count: obsoleteRows.length, obsolete_submission_ids: obsoleteRows.map((row) => row.id) };
+  return {
+    obsolete_count: releasePlan.newlyObsolete.length,
+    obsolete_submission_ids: releasePlan.newlyObsolete.map((row) => row.id),
+    latest_submission_id: releasePlan.latest.id,
+    latest_revision: releasePlan.latest.revision,
+    history_submission_ids: releasePlan.history.map((row) => row.id),
+    accepted_submission_id: submission.id,
+    accepted_revision: submission.revision,
+    accepted_as_history: releasePlan.acceptedAsHistory
+  };
+}
+
+type ReleaseRevisionSubmission = {
+  id: string;
+  revision: string;
+  status?: "Released" | "Obsolete";
+};
+
+function assertNoFormalDuplicateRevision(submission: ReleaseRevisionSubmission, releasedRows: ReleaseRevisionSubmission[]) {
+  const blockingRow = releasedRows.find((row) => compareReleaseRevisions(row.revision, submission.revision) === 0);
+  if (!blockingRow) return;
+
+  throw new Error(
+    `版次 ${submission.revision} 已有正式紀錄（${blockingRow.id}），不能重複核准同一版次。請開啟既有版次補件或改用新的版次。`
+  );
+}
+
+function compareReleaseRevisions(left: string, right: string) {
+  return compareRevisionCodes(left, right, { allowLegacy: true });
+}
+
+function buildRevisionCurrentPlan(submission: ReleaseRevisionSubmission, formalRows: ReleaseRevisionSubmission[]) {
+  const accepted: ReleaseRevisionSubmission = { id: submission.id, revision: submission.revision, status: "Released" };
+  const allRows = [...formalRows, accepted];
+  const latest = allRows.reduce((current, row) => (compareReleaseRevisions(row.revision, current.revision) > 0 ? row : current), accepted);
+  const history = allRows.filter((row) => row.id !== latest.id);
+  const newlyObsolete = history.filter((row) => row.status === "Released");
+  return {
+    latest,
+    history,
+    newlyObsolete,
+    acceptedAsHistory: latest.id !== submission.id
+  };
 }
