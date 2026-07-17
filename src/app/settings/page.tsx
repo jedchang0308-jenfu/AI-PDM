@@ -56,6 +56,9 @@ const settingsAreas: Array<{ id: SettingsArea; label: string; href: string; hash
   { id: "system", label: "系統", href: "/settings/system", hash: "settings-system" }
 ];
 
+const SETTINGS_SECRET_MANAGEMENT_AVAILABLE = false;
+const SETTINGS_SECRET_MANAGEMENT_UNOPENED_MESSAGE = "機密金鑰生命週期管理尚未納入目前開放範圍。";
+
 type AdminRole = {
   id: string;
   roleCode: string;
@@ -452,10 +455,13 @@ function SettingsPanel({
   }, [settings.serviceAccountConfigured]);
 
   useEffect(() => {
-    loadSecretStatuses();
+    if (SETTINGS_SECRET_MANAGEMENT_AVAILABLE) {
+      void loadSecretStatuses();
+    }
   }, []);
 
   async function loadSecretStatuses() {
+    if (!SETTINGS_SECRET_MANAGEMENT_AVAILABLE) return;
     setSecretLoading(true);
     try {
       const response = await fetch("/api/settings/secrets");
@@ -671,6 +677,7 @@ function SettingsPanel({
             solidWorksStatus={solidWorksStatus}
             googleDriveReady={googleDriveReady}
             vaultProvider={solidWorksStatus.liveGate.provider}
+            secretManagementAvailable={SETTINGS_SECRET_MANAGEMENT_AVAILABLE}
           />
         ) : null}
 
@@ -681,6 +688,7 @@ function SettingsPanel({
             loading={secretLoading}
             action={secretAction}
             message={secretMessage}
+            available={SETTINGS_SECRET_MANAGEMENT_AVAILABLE}
             onSecretValueChange={setSolidWorksSecret}
             onCreateDraft={createSolidWorksSecretDraft}
             onRefresh={loadSecretStatuses}
@@ -971,11 +979,13 @@ function SettingsAreaNav({ activeArea }: { activeArea: SettingsArea }) {
 function SettingsCenterOverview({
   solidWorksStatus,
   googleDriveReady,
-  vaultProvider
+  vaultProvider,
+  secretManagementAvailable
 }: {
   solidWorksStatus: SettingsSecretStatus;
   googleDriveReady: boolean;
   vaultProvider: "local_test_double" | "supabase_vault";
+  secretManagementAvailable: boolean;
 }) {
   return (
     <section className="panel" id="settings-overview">
@@ -989,10 +999,10 @@ function SettingsCenterOverview({
         <SettingsStatusTile
           icon={solidWorksStatus.configured ? <CheckCircle2 size={18} /> : <KeyRound size={18} />}
           title="SolidWorks CAD 讀取器"
-          status={settingWorkQueueLabel(solidWorksStatus.workQueueState)}
-          detail={solidWorksStatus.workQueueMessage}
+          status={secretManagementAvailable ? settingWorkQueueLabel(solidWorksStatus.workQueueState) : "未開放"}
+          detail={secretManagementAvailable ? solidWorksStatus.workQueueMessage : SETTINGS_SECRET_MANAGEMENT_UNOPENED_MESSAGE}
           href="/settings/security"
-          actionLabel="前往安全設定"
+          actionLabel={secretManagementAvailable ? "前往安全設定" : "查看未開放功能"}
         />
         <SettingsStatusTile
           icon={googleDriveReady ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
@@ -1005,10 +1015,10 @@ function SettingsCenterOverview({
         <SettingsStatusTile
           icon={vaultProvider === "supabase_vault" ? <LockKeyhole size={18} /> : <Ban size={18} />}
           title="機密資料保管庫"
-          status={solidWorksStatus.liveGate.status === "ready" ? "已連到保管庫" : "待正式驗證"}
-          detail={solidWorksStatus.liveGate.message}
+          status={secretManagementAvailable ? (solidWorksStatus.liveGate.status === "ready" ? "已連到保管庫" : "待正式驗證") : "未開放"}
+          detail={secretManagementAvailable ? solidWorksStatus.liveGate.message : SETTINGS_SECRET_MANAGEMENT_UNOPENED_MESSAGE}
           href="/settings/security"
-          actionLabel="查看安全狀態"
+          actionLabel={secretManagementAvailable ? "查看安全狀態" : "查看未開放功能"}
         />
       </div>
     </section>
@@ -1054,6 +1064,7 @@ function SolidWorksSecretPanel({
   loading,
   action,
   message,
+  available,
   onSecretValueChange,
   onCreateDraft,
   onRefresh,
@@ -1064,6 +1075,7 @@ function SolidWorksSecretPanel({
   loading: boolean;
   action: string | null;
   message: { type: "error" | "success"; text: string } | null;
+  available: boolean;
   onSecretValueChange: (value: string) => void;
   onCreateDraft: (event: React.FormEvent) => void;
   onRefresh: () => void;
@@ -1074,15 +1086,16 @@ function SolidWorksSecretPanel({
   const canTest = latest ? latest.lifecycleStatus === "draft" || latest.lifecycleStatus === "tested" : false;
   const canActivate = latest?.lifecycleStatus === "tested";
   const busy = Boolean(action) || loading;
+  const unavailableTitle = `未開放：${SETTINGS_SECRET_MANAGEMENT_UNOPENED_MESSAGE}`;
 
   return (
     <section className="panel" id="settings-security">
       <div className="panel-header">
         <div>
-          <h2>安全設定</h2>
+          <h2>安全設定 {!available ? <span className="nav-unopened-badge">未開放</span> : null}</h2>
           <p>金鑰流程：建立草稿、測試、啟用、撤銷。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={onRefresh} disabled={busy}>
+        <button className="secondary-button" type="button" onClick={onRefresh} disabled={!available || busy} title={!available ? unavailableTitle : "重新整理金鑰狀態"}>
           <RefreshCw size={16} />
           重新整理
         </button>
@@ -1104,19 +1117,22 @@ function SolidWorksSecretPanel({
               autoComplete="new-password"
               value={secretValue}
               onChange={(event) => onSecretValueChange(event.target.value)}
+              disabled={!available}
+              title={!available ? unavailableTitle : undefined}
               placeholder="貼上新的 SolidWorks 金鑰"
               style={fieldStyle}
             />
           </label>
           <div className="settings-secret-actions">
-            <button className="primary-button" type="submit" disabled={busy || !secretValue.trim()}>
+            <button className="primary-button" type="submit" disabled={!available || busy || !secretValue.trim()} title={!available ? unavailableTitle : undefined}>
               <KeyRound size={16} />
               {action === "draft" ? "建立中..." : "建立草稿"}
             </button>
             <button
               className="secondary-button"
               type="button"
-              disabled={busy || !latest || !canTest}
+              disabled={!available || busy || !latest || !canTest}
+              title={!available ? unavailableTitle : undefined}
               onClick={() => {
                 if (latest) onRunAction(latest.id, "test");
               }}
@@ -1127,7 +1143,8 @@ function SolidWorksSecretPanel({
             <button
               className="secondary-button"
               type="button"
-              disabled={busy || !latest || !canActivate}
+              disabled={!available || busy || !latest || !canActivate}
+              title={!available ? unavailableTitle : undefined}
               onClick={() => {
                 if (latest) onRunAction(latest.id, "activate");
               }}
@@ -1138,7 +1155,8 @@ function SolidWorksSecretPanel({
             <button
               className="secondary-button"
               type="button"
-              disabled={busy || !active}
+              disabled={!available || busy || !active}
+              title={!available ? unavailableTitle : undefined}
               onClick={() => {
                 if (active) onRunAction(active.id, "revoke");
               }}
@@ -1155,8 +1173,8 @@ function SolidWorksSecretPanel({
           <SecretVersionDetails title="最新版本" version={latest} emptyText="尚未建立草稿" />
           <div className="settings-secret-test-run">
             <span>最近測試</span>
-            <strong>{status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
-            <small>{status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
+            <strong>{!available ? "未開放" : status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
+            <small>{!available ? SETTINGS_SECRET_MANAGEMENT_UNOPENED_MESSAGE : status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
           </div>
         </div>
       </div>
