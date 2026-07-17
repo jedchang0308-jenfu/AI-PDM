@@ -5,8 +5,10 @@
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048`
 Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/compatibility、Phase 1C approval/publication及Phase 1D transfer integration均已完成RD與獨立QC。Live provider、正式資料、staging、deployment與release artifact仍未執行。
-RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
+RD readiness：`HD-048-02..03`維持使用者於2026-07-13以`2C / 3C`關閉的決策；`HD-048-01 / 1C`已由2026-07-17來源重分配決策明確取代。Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
+
+2026-07-17來源重分配修訂：帳號邀請、production CI/IaC、DB provider/schema及整體平台架構以production/main為權威；前端UI與圖料號申請垂直切片的入口、流程編排及業務邏輯以原地端分支為權威。此修訂只取代`HD-048-01 / 1C`：`料號草稿 / 領號申請 / 上傳送審 / 製造交接`保留可見且可操作的地端入口，但必須委派同一HTTP/BFF domain service、權限、交易、audit/outbox及Cloud SQL schema，不得建立第二套provider、資料表、正式號authority或繞過正式發布邊界。本文所有要求移除上述入口、只保留redirect/guidance或禁止入口mutation的條款，均以本修訂為準；`HD-048-02 / 2C`與`HD-048-03 / 3C`不變。
 
 關聯規格：
 
@@ -47,7 +49,7 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 5. ISO 9001 的最低必要管制邊界採「已發布」：草稿階段不視同正式發布號碼，不因號碼曾顯示給使用者就永久占用。
 6. 草稿候選號可以回收；審核中只做暫時排他鎖定；只有已發布與已作廢的正式號碼永久保留且不得重用。
 7. 第一版不強制 7 天回收冷卻期。候選號在明確取消、零有效引用且未處於審核鎖定時，可立即回收。
-8. Phase 1B 開放時，舊側欄`料號草稿 / 領號申請 / 上傳送審 / 製造交接`立即退出可見側欄；功能整併到 owner surfaces。舊網址暫留 redirect / guidance 以保護 bookmark，不保留第二套可變更流程。
+8. `料號草稿 / 領號申請 / 上傳送審 / 製造交接`保留為可見、可操作的任務入口，並與owner surfaces共用同一BFF/domain mutation；入口可以不同，但不得形成第二套資料或正式號authority。
 9. 建立或發布 drawing，以及含 drawing 或被規則標示為必要檔案的技轉包，必須有 finalized controlled-file evidence；純 root 或不含 drawing/file obligation 的 part-only publication 可由版本化 server rule 明確回傳`not_required`。正式環境在 direct GCS evidence verifier 就緒前，所有需檔案的發布維持鎖定。
 10. 第一版不強制 submitter、approver、publisher 為不同自然人；同一人可完成三步，但每一步仍須有獨立明示權限、獨立 command / confirmation 與獨立 audit fact。任何角色或 Admin 身分都不隱含其他權限，approval 不得自動觸發 publication。
 
@@ -55,10 +57,10 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 
 以下是為了消除入口與狀態矛盾所做的產品收斂，不是架構決策：
 
-- 原側欄「料號草稿」不再是獨立一級模組，併入「料號模組」的草稿頁籤。
-- 原側欄「領號申請」不再是主要入口；建立動作由圖料、圖號、料號模組與物件脈絡承接。
-- 原側欄「上傳送審」不再作為泛用流程入口；研發送審由所選圖號、料號或關係進入，技轉送審由技轉包進入。
-- 「技術移轉」使用 `準備中 / 審核中 / 已發布交接` 三個主要頁籤；目前「製造交接」內容收斂到 `已發布交接`，不再與技術移轉並列成兩個容易混淆的主入口。
+- 「料號草稿」可由側欄直接進入，也可由「料號模組」草稿頁籤進入；兩者共用同一workspace與mutation。
+- 「領號申請」保留直接任務入口；圖料、圖號、料號模組與物件脈絡仍可提供contextual CTA，結果必須等價。
+- 「上傳送審」保留直接入口，但必須先選定受控物件或技轉包，不得產生無歸屬的第二套送審資料。
+- 「製造交接」保留直接入口，並只讀取已發布交接authority；技術移轉仍維持`準備中 / 審核中 / 已發布交接`三頁籤。
 - 為避免「已核准」被誤認為「已發布」，新增使用者可見的 `待發布` 階段；若某流程核准與發布為同一動作，該階段可短暫略過，但語意仍須分開。
 - 未領號草稿先以系統草稿識別碼保存；需要 CAD 命名、跨人協作或準備送審時，使用者再明確取得候選號。
 
@@ -93,7 +95,7 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 
 ### 1.6 Re-entry triggers
 
-- 使用者要求保留「料號草稿」、「上傳送審」或「領號申請」為獨立一級側欄入口。
+- 使用者要求上述任務入口改用不同provider/schema、繞過共用BFF/domain service或形成第二套正式號authority。
 - 使用者要求「製造交接」與「技術移轉」繼續並列為兩個主入口。
 - 使用者要求審核通過即自動等同正式發布。
 - 使用者要求草稿候選號一律不可回收，或要求已發布 / 已作廢號碼可回收。
@@ -109,7 +111,7 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 
 | Gate | 已確認決策 | 工程後果 | 狀態 |
 |---|---|---|---|
-| `HD-048-01` / `1C` | Phase 1B 立即移除四個舊側欄項目，功能收斂到 owner surfaces | 可見側欄不得保留重複入口；舊URL暫留redirect/guidance並保留query/`returnTo`，不得保留第二套mutation | Closed |
+| `HD-048-01` / `2026-07-17 replacement` | 保留四個地端任務入口，並保留owner-surface contextual CTA | 所有入口共用production BFF/domain service、權限、交易、audit/outbox與Cloud SQL schema；不得有第二套authority | Closed / Superseded `1C` |
 | `HD-048-02` / `2C` | drawing與含drawing/required-file技轉必須有finalized evidence；純root/part-only可由server rule回`not_required` | evidence policy fail closed；live direct GCS verifier未就緒前，需檔案的production publish保持disabled與API denial | Closed |
 | `HD-048-03` / `3C` | 不要求不同自然人；同一人可submit、approve、publish | 三個動作仍需各自明示permission、command、confirmation與audit；不可自動串接、不可由Admin/角色身分推定權限 | Closed |
 
@@ -255,12 +257,12 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 
 `審核工作台` 維持既有單一審核者入口，不因本規格另建技轉審核 inbox。
 
-下列項目退出一級側欄：
+下列項目保留為一級任務入口，並與owner surfaces共用相同服務：
 
-- `料號草稿`：改為料號模組內的 `草稿` 頁籤。
-- `上傳送審`：改由物件或技轉包脈絡進入。
-- `領號申請`：改由各模組的建立 CTA 進入。
-- `製造交接`：功能收斂到技術移轉的 `已發布交接` 頁籤。
+- `料號草稿`：直接進入同一草稿workspace；料號模組仍保留`草稿`頁籤。
+- `上傳送審`：直接入口仍要求物件或技轉包脈絡。
+- `領號申請`：直接入口與各模組建立CTA使用相同申請流程。
+- `製造交接`：直接入口只呈現同一`已發布交接`authority。
 
 ### 6.2 圖料模組
 
@@ -604,9 +606,9 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 | NAV-001 | 圖料模組頁首右上角顯示 `＋建立圖料號`。 |
 | NAV-002 | 圖號模組頁首右上角顯示 `＋建立圖號`。 |
 | NAV-003 | 料號模組頁首右上角顯示 `＋建立料號`。 |
-| NAV-004 | 料號草稿併入料號模組 `草稿` 頁籤，不再是一級側欄入口。 |
-| NAV-005 | `領號申請` 退出一級側欄，建立任務由模組 CTA 承接。 |
-| NAV-006 | `上傳送審` 退出一級側欄；研發送審與技轉送審分別由物件與技轉包承接。 |
+| NAV-004 | `料號草稿`保留一級入口，並與料號模組`草稿`頁籤共用同一workspace。 |
+| NAV-005 | `領號申請`保留一級入口，並與模組CTA使用相同BFF/domain flow。 |
+| NAV-006 | `上傳送審`保留一級入口，但研發送審與技轉送審仍分別綁定物件與技轉包。 |
 | NAV-007 | `發行 / 交接` 下提供 `技術移轉`，含 `準備中 / 審核中 / 已發布交接`。 |
 | NAV-008 | 物件詳情抽屜的建立捷徑必須與模組 CTA 使用相同功能規則與結果。 |
 
@@ -692,7 +694,7 @@ Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/B
 
 - AC-NAV-001：Given 使用者在圖料模組，When 查看頁首，Then 能直接看到 `＋建立圖料號`，且可選四種建立模式。
 - AC-NAV-002：Given 使用者在圖號或料號模組，Then 主要 CTA 分別是 `＋建立圖號`、`＋建立料號`，不需要先去 `領號申請`。
-- AC-NAV-003：Given Phase 1B flag開啟，When 使用者查看側欄並尋找自己的料號草稿，Then `料號草稿 / 領號申請 / 上傳送審 / 製造交接`不再顯示為側欄項目，且可從料號模組`草稿`頁籤找到草稿；直接開啟舊網址時只提供保留context的redirect/guidance，不出現第二套mutation流程。
+- AC-NAV-003：Given 使用者查看側欄，Then `料號草稿 / 領號申請 / 上傳送審 / 製造交接`均可直接到達；從直接入口或owner-surface CTA完成相同動作時，必須命中相同BFF/domain command、權限、idempotency與資料authority，不得建立第二套mutation結果。
 - AC-NAV-004：Given 使用者要送研發審核，Then 必須先選定圖號、料號或關係；不存在沒有對象的泛用送審。
 - AC-NAV-005：Given 使用者要整批技轉送審，Then 能從 `發行 / 交接 > 技術移轉` 建立技轉包。
 - AC-NAV-006：Given 390px 寬畫面，Then 主要建立 CTA 仍在首屏可見且不藏入三點選單。

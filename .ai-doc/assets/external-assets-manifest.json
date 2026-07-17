@@ -2,10 +2,10 @@
     "schemaVersion":  1,
     "generatedAt":  "2026-05-28T09:44:13.0446750Z",
     "sourceRoot":  "C:\\VIBE CODING\\AI_PDM",
-    "externalRoot":  "C:\\VIBE CODING\\.external-assets\\AI_PDM",
+    "externalRoot":  "C:\\VIBE CODING\\AI_PDM_external_assets",
     "relocationPolicy":  {
                              "sourceBoundary":  "Keep application source, scripts, docs, config, and small fixtures in the repository. Keep legacy installer/runtime payloads outside the repository.",
-                             "externalTargetRoot":  "C:\\VIBE CODING\\.external-assets\\AI_PDM",
+                             "externalTargetRoot":  "C:\\VIBE CODING\\AI_PDM_external_assets",
                              "restoreRule":  "Restore only the required top-level asset path from externalRoot back to sourceRoot when rebuilding legacy installer media.",
                              "blockedFromSource":  [
                                                        "*.cab",

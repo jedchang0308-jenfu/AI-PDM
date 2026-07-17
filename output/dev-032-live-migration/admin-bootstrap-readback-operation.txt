@@ -1,3 +1,0 @@
-Importing data into Cloud SQL instance...
-....done.
-Imported data from [gs://jenfu-ai-pdm-prod-dev032-bootstrap-20260716012732-70c8d9/admin-bootstrap-readback.sql] into [https://sqladmin.googleapis.com/sql/v1beta4/projects/jenfu-ai-pdm-prod/instances/ai-pdm-prod-postgres].

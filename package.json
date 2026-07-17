@@ -129,7 +129,6 @@
     "qc:document-manager-probe-path-gate": "node scripts/qc-document-manager-probe-path-gate.mjs",
     "qc:dev-task-evidence-sync": "node scripts/qc-dev-task-evidence-sync.mjs",
     "qc:dev-task-completion-audit": "node scripts/qc-dev-task-completion-audit.mjs",
-    "qc:ai-doc:structure": "node scripts/qc-ai-doc-structure.mjs",
     "qc:external-blocker-closure": "node scripts/qc-external-blocker-closure-package.mjs",
     "qc:gdrive": "node scripts/qc-gdrive-integration-test.mjs",
     "qc:full": "node scripts/qc-full-test.mjs",

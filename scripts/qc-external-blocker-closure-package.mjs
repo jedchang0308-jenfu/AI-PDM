@@ -77,16 +77,12 @@ for (const blocker of expectedBlockers) {
   const readinessBlocker = readinessReport?.blockers?.find((item) => item.task.includes(blocker.id));
   record(`EXT-CLOSE readiness includes ${blocker.id}`, Boolean(readinessBlocker), blocker.id);
   record(`EXT-CLOSE readiness category for ${blocker.id}`, readinessBlocker?.category === blocker.category, readinessBlocker?.category ?? "missing");
-  record(
-    `EXT-CLOSE dev_task keeps ${blocker.id} future scope gated`,
-    taskText.includes(blocker.id) && /^- ✓ DEV-046\b[^\n]*Future Phases Gated/mu.test(taskText),
-    blocker.id
-  );
+  record(`EXT-CLOSE dev_task keeps ${blocker.id} blocked`, taskText.includes(`| [!] | ${blocker.id} |`), blocker.id);
 }
 
 record(
   "EXT-CLOSE DEV-FIELD-001 is closed as cancelled, not blocked",
-  taskText.includes("DEV-FIELD-001") && taskText.includes("HD-9-1") && /^- × DEV-038\b/mu.test(taskText),
+  taskText.includes("| [x] | DEV-FIELD-001 |") && /DEV-FIELD-001[^\n]+Cancelled by Human Decision/u.test(taskText),
   "HD-9-1"
 );
 

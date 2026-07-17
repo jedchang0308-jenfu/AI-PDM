@@ -178,77 +178,13 @@ try {
   });
   const listBefore = await requestJson(`${app.baseUrl}/api/admin/account-invitations`, { headers: { cookie: admin.cookie } });
   browser = await chromium.launch({ headless: true });
-  const browserContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  const browserContext = await browser.newContext();
   const [sessionCookieName, ...sessionCookieValueParts] = admin.cookie.split("=");
   await browserContext.addCookies([{
     name: sessionCookieName,
     value: sessionCookieValueParts.join("="),
     url: app.baseUrl
   }]);
-  const page = await browserContext.newPage();
-  const pageErrors = [];
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-  await page.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "networkidle" });
-  await page.getByLabel("姓名").fill("Clipboard QC User");
-  await page.getByLabel("公司電子郵件").fill("clipboard.qc.user@example.com");
-  await page.getByRole("button", { name: "建立邀請" }).click();
-  const inviteLinkInput = page.getByLabel("一次性邀請連結");
-  await inviteLinkInput.waitFor({ state: "visible" });
-  const uiInviteUrl = await inviteLinkInput.inputValue();
-  const copyButton = page.locator(".account-invitation-created-actions button");
-
-  await copyButton.click();
-  await page.getByText("邀請連結已複製。請貼到公司核准的通訊工具並寄給受邀者。").waitFor();
-  const primaryClipboardMatches = await page.evaluate(async (expected) => (await navigator.clipboard.readText()) === expected, uiInviteUrl);
-
-  await page.getByRole("button", { name: "複製連結" }).waitFor();
-  await page.evaluate(async () => navigator.clipboard.writeText("clipboard-fallback-sentinel"));
-  await page.evaluate(() => {
-    const readText = navigator.clipboard.readText.bind(navigator.clipboard);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        readText,
-        writeText: async () => { throw new DOMException("Clipboard permission denied", "NotAllowedError"); }
-      }
-    });
-  });
-  await copyButton.click();
-  await page.getByRole("button", { name: "已複製" }).waitFor();
-  await page.evaluate(() => { delete navigator.clipboard; });
-  await page.waitForFunction(async (expected) => (await navigator.clipboard.readText()) === expected, uiInviteUrl);
-  const fallbackClipboardMatches = await page.evaluate(async (expected) => (await navigator.clipboard.readText()) === expected, uiInviteUrl);
-  const unexpectedVisibleErrors = await page.locator('[role="alert"], .inline-error').evaluateAll((elements) => elements.filter((element) => {
-    const style = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-  }).map((element) => element.textContent?.trim() ?? "").filter(Boolean));
-
-  await page.getByRole("button", { name: "複製連結" }).waitFor();
-  await page.evaluate(() => {
-    const originalExecCommand = document.execCommand.bind(document);
-    Object.defineProperty(window, "__pdmOriginalExecCommand", { configurable: true, value: originalExecCommand });
-    document.execCommand = () => false;
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        readText: async () => { throw new DOMException("Clipboard read denied", "NotAllowedError"); },
-        writeText: async () => { throw new DOMException("Clipboard write denied", "NotAllowedError"); }
-      }
-    });
-  });
-  await copyButton.click();
-  await page.getByText("瀏覽器仍無法複製，連結已選取。請按 Ctrl+C，再貼到公司核准的通訊工具。").waitFor();
-  const manualFallbackSelected = await inviteLinkInput.evaluate((input) => {
-    const element = input;
-    return document.activeElement === element && element.selectionStart === 0 && element.selectionEnd === element.value.length;
-  });
-  await page.evaluate(() => {
-    delete navigator.clipboard;
-    document.execCommand = window.__pdmOriginalExecCommand;
-    delete window.__pdmOriginalExecCommand;
-  });
-
   const managedDeliveryPage = await browserContext.newPage();
   const managedPageErrors = [];
   const managedPostBodies = [];
@@ -469,11 +405,6 @@ try {
       asyncInvitationRepositorySource.includes("invitation.id = CAST(:invitationId AS text)"),
     true
   ));
-  results.push(expect("INVITE-037 copy button writes the exact one-time URL", primaryClipboardMatches, true));
-  results.push(expect("INVITE-038 copy falls back when the Clipboard API is denied", fallbackClipboardMatches, true));
-  results.push(expect("INVITE-039 successful copy workflow has no visible errors", unexpectedVisibleErrors.length, 0));
-  results.push(expect("INVITE-040 total copy failure selects the link for Ctrl+C recovery", manualFallbackSelected, true));
-  results.push(expect("INVITE-041 copy workflow has no unhandled runtime errors", pageErrors.length, 0));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

@@ -280,52 +280,8 @@ function parseParkedExternalBlockerTask(line, index) {
   };
 }
 
-function canonicalStatusFromSymbol(symbol) {
-  if (["✓", "×"].includes(symbol)) return "done";
-  if (symbol === "!") return "blocked";
-  if (["◐", "◇"].includes(symbol)) return "partial";
-  return "open";
-}
-
-function parseCanonicalReadinessTasks(markdown) {
-  const lines = markdown.split(/\r?\n/u);
-  const starts = [];
-  lines.forEach((line, index) => {
-    const match = line.match(/^-\s*([✓○☐◐◇!↷×])\s+(DEV-\d{3})\b/u);
-    if (match) starts.push({ index, symbol: match[1], devId: match[2], header: line });
-  });
-
-  const tasks = [];
-  starts.forEach((entry, entryIndex) => {
-    let end = starts[entryIndex + 1]?.index ?? lines.length;
-    for (let cursor = entry.index + 1; cursor < end; cursor += 1) {
-      if (/^##\s+/u.test(lines[cursor])) {
-        end = cursor;
-        break;
-      }
-    }
-    const block = lines.slice(entry.index, end).join("\n");
-    const sourceIds = [...block.matchAll(/\bDEV-[A-Z0-9-]+\b/gu)].map((match) => match[0]);
-    const sourceId = sourceIds.find((id) => externalBlockerPriority(id));
-    if (!sourceId) return;
-
-    let status = canonicalStatusFromSymbol(entry.symbol);
-    if (sourceId === "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001" && /Future Phases Gated|future phases gated/iu.test(block)) {
-      status = "partial";
-    }
-    tasks.push({
-      line: entry.index + 1,
-      priority: externalBlockerPriority(sourceId),
-      status,
-      task: `${sourceId} | ${entry.header}`,
-      category: classifyReadinessTask(sourceId)
-    });
-  });
-  return tasks;
-}
-
 function parseReadinessTasks(markdown) {
-  const tasks = parseCanonicalReadinessTasks(markdown);
+  const tasks = [];
   let currentPriority = null;
   let inIndustrializationBacklog = false;
   let inIndustrializationOverview = false;
@@ -376,12 +332,12 @@ function parseReadinessTasks(markdown) {
 
     const legacyTask = parseLegacyReadinessTask(line, index);
     if (legacyTask) {
-      if (!tasks.some((task) => task.task === legacyTask.task)) tasks.push(legacyTask);
+      tasks.push(legacyTask);
       return;
     }
 
     const tableTask = parseTableReadinessTask(line, index, currentPriority);
-    if (tableTask && !tasks.some((task) => task.task === tableTask.task)) tasks.push(tableTask);
+    if (tableTask) tasks.push(tableTask);
   });
 
   return tasks;

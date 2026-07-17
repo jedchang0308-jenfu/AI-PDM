@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Check, ClipboardCopy, Mail, RefreshCw, RotateCcw, Send, UserPlus, X } from "lucide-react";
-import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-import { copyTextToClipboard } from "@/lib/client-clipboard";
+import { Ban, ClipboardCopy, Mail, RefreshCw, RotateCcw, Send, UserPlus, X } from "lucide-react";
 
 type InvitationRole = "Engineer" | "R&D Manager" | "Admin" | "Manufacturing" | "Procurement";
 type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -42,8 +40,8 @@ function roleLabel(role: InvitationRole) {
 
 function statusLabel(status: InvitationStatus) {
   const labels: Record<InvitationStatus, string> = {
-    pending: "待接受",
-    accepted: "已接受",
+    pending: "等待設定密碼",
+    accepted: "已啟用",
     revoked: "已撤銷",
     expired: "已到期"
   };
@@ -66,10 +64,8 @@ export default function AccountInvitationsPage() {
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
   const [reissueInvitationId, setReissueInvitationId] = useState<string | null>(null);
-  const [copyState, setCopyState] = useState<"idle" | "copying" | "copied">("idle");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const inviteLinkInputRef = useRef<HTMLInputElement>(null);
   const isReissuing = reissueInvitationId !== null;
 
   const mailtoHref = useMemo(() => {
@@ -136,7 +132,6 @@ export default function AccountInvitationsPage() {
     const requestedReissueId = reissueInvitationId;
     setSaving(true);
     setCreated(null);
-    setCopyState("idle");
     setMessage(null);
     const response = await fetch("/api/admin/account-invitations", {
       method: "POST",
@@ -171,18 +166,12 @@ export default function AccountInvitationsPage() {
   }
 
   async function copyInviteLink() {
-    if (!created?.inviteUrl || copyState === "copying") return;
-    setCopyState("copying");
+    if (!created?.inviteUrl) return;
     try {
-      await copyTextToClipboard(created.inviteUrl);
-      setCopyState("copied");
+      await navigator.clipboard.writeText(created.inviteUrl);
       setMessage({ type: "success", text: "邀請連結已複製。請貼到公司核准的通訊工具並寄給受邀者。" });
-      window.setTimeout(() => setCopyState("idle"), 2000);
     } catch {
-      setCopyState("idle");
-      inviteLinkInputRef.current?.focus();
-      inviteLinkInputRef.current?.select();
-      setMessage({ type: "error", text: "瀏覽器仍無法複製，連結已選取。請按 Ctrl+C，再貼到公司核准的通訊工具。" });
+      setMessage({ type: "error", text: "瀏覽器無法自動複製。請選取下方連結後手動複製。" });
     }
   }
 
@@ -212,7 +201,7 @@ export default function AccountInvitationsPage() {
     <div className="account-invitations-page">
       <header className="page-header">
         <div>
-          <h1>帳號邀請 <StatusScopeHelp scope="invitationList" /></h1>
+          <h1>帳號邀請</h1>
           <p>建立帳號邀請，讓內部人員依收到的連結完成啟用。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void loadInvitations()} disabled={loading || saving}>
@@ -287,16 +276,16 @@ export default function AccountInvitationsPage() {
                 </div>
                 <label>
                   一次性邀請連結
-                  <input ref={inviteLinkInputRef} value={created.inviteUrl ?? ""} readOnly onFocus={(event) => event.currentTarget.select()} />
+                  <input value={created.inviteUrl ?? ""} readOnly onFocus={(event) => event.currentTarget.select()} />
                 </label>
                 <div className="account-invitation-created-actions">
                   <a className="primary-button" href={mailtoHref}>
                     <Mail size={16} aria-hidden="true" />
                     開啟郵件
                   </a>
-                  <button className="secondary-button" type="button" onClick={() => void copyInviteLink()} disabled={copyState === "copying"}>
-                    {copyState === "copied" ? <Check size={16} aria-hidden="true" /> : <ClipboardCopy size={16} aria-hidden="true" />}
-                    {copyState === "copying" ? "複製中..." : copyState === "copied" ? "已複製" : "複製連結"}
+                  <button className="secondary-button" type="button" onClick={() => void copyInviteLink()}>
+                    <ClipboardCopy size={16} aria-hidden="true" />
+                    複製連結
                   </button>
                 </div>
               </>
@@ -322,7 +311,7 @@ export default function AccountInvitationsPage() {
                   <tr>
                     <th>使用者</th>
                     <th>角色</th>
-                    <th><StatusColumnHeader label="邀請狀態" context="invitationStatus" /></th>
+                    <th>狀態</th>
                     <th>有效期限</th>
                     <th>邀請者</th>
                     <th>操作</th>
@@ -333,7 +322,7 @@ export default function AccountInvitationsPage() {
                     <tr key={invitation.id}>
                       <td><strong>{invitation.displayName}</strong><small>{invitation.email}</small></td>
                       <td>{roleLabel(invitation.role)}</td>
-                      <td><StatusBadge status={invitation.status} context="invitationStatus" /></td>
+                      <td><span className={`account-invitation-status is-${invitation.status}`}>{statusLabel(invitation.status)}</span></td>
                       <td>{formatDateTime(invitation.expiresAt)}</td>
                       <td>{invitation.invitedByName ?? "系統管理員"}</td>
                       <td>

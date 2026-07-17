@@ -36,8 +36,18 @@ const routes = [
   { path: "/numbering/part-drafts", scope: "numberingDraftList", fallbackScopes: ["numberStateWorkspace"] },
   { path: "/approvals", scope: "approvalInbox" },
   { path: "/settings", scope: "settingsCenter" },
-  { path: "/settings/accounts", scope: "accountList" },
-  { path: "/settings/account-invitations", scope: "invitationList" }
+  {
+    path: "/settings/accounts",
+    scope: "accountList",
+    authority: "production",
+    expectedText: ["帳號與權限", "帳號管理"]
+  },
+  {
+    path: "/settings/account-invitations",
+    scope: "invitationList",
+    authority: "production",
+    expectedText: ["帳號邀請", "邀請內部人員"]
+  }
 ];
 const viewports = [
   { width: 1440, height: 900, name: "1440x900" },
@@ -223,10 +233,14 @@ try {
   const page = await context.newPage();
   page.on("pageerror", (error) => browserErrors.push({ type: "pageerror", message: error.message }));
   page.on("console", (message) => {
-    if (message.type() === "error" && !/status of 40[13]/.test(message.text())) browserErrors.push({ type: "console", message: message.text() });
+    if (message.type() === "error" && !/status of 40[134]/.test(message.text())) browserErrors.push({ type: "console", message: message.text() });
   });
   page.on("response", (response) => {
-    if (response.status() >= 500) browserErrors.push({ type: "network", status: response.status(), url: response.url() });
+    const status = response.status();
+    const pathname = new URL(response.url()).pathname;
+    if (status >= 500 || (status === 404 && pathname.startsWith("/api/"))) {
+      browserErrors.push({ type: "network", status, url: response.url() });
+    }
   });
 
   for (const route of routes) {
@@ -237,6 +251,37 @@ try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForLoadState("networkidle", { timeout: 1500 }).catch(() => undefined);
         await waitForPrivacyGateToSettle(page);
+        if (route.authority === "production") {
+          const visibleErrors = await visibleErrorSweep(page);
+          const bodyText = await page.locator("body").innerText();
+          const metrics = await page.evaluate(() => ({
+            horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+          }));
+          const screenshotPath = path.join(outputDir, screenshotName(route.path, viewport.name));
+          await page.screenshot({ path: screenshotPath, fullPage: false });
+          const expectedTextPresent = route.expectedText.every((text) => bodyText.includes(text));
+          const errorsClean =
+            visibleErrors.inlineErrors.length === 0 &&
+            visibleErrors.alerts.length === 0 &&
+            visibleErrors.visibleHttpErrors.length === 0 &&
+            visibleErrors.apiRouteText.length === 0;
+          record(
+            `${route.scope}:${viewport.name}`,
+            expectedTextPresent && errorsClean && !metrics.horizontalOverflow,
+            {
+              route: route.path,
+              finalUrl: page.url(),
+              requestedScope: route.scope,
+              authority: route.authority,
+              viewport,
+              screenshotPath,
+              expectedTextPresent,
+              metrics,
+              visibleErrors
+            }
+          );
+          continue;
+        }
         const candidateScopes = [route.scope, ...(route.fallbackScopes ?? [])];
         let activeScope = route.scope;
         let trigger = null;

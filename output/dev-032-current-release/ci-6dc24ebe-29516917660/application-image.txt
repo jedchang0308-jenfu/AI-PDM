@@ -1,1 +1,0 @@
-asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079

@@ -1,1 +1,0 @@
-asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration:dev-046-migration-runner-20260715-095316

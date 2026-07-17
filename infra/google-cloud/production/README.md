@@ -9,17 +9,11 @@ target after the release gates close:
 
 - Project: `jenfu-ai-pdm-prod`
 - Region: `asia-east1`
-- Runtime: Cloud Run `ai-pdm-prod`
-- Approved current ingress: Firebase Hosting default site
-  `jenfu-ai-pdm-prod.web.app` rewrites to the existing Cloud Run service.
-  Firebase Hosting is only the entrypoint, SSL/default-domain and rewrite layer;
-  it is not a system of record and must not hold business data, file authority
-  or business logic.
-- Future migration path: Global External Application Load Balancer + Cloud CDN
-  + Cloud Armor + Cloud Run services. The external Application Load Balancer,
-  managed TLS resource and `pdm.jenfu.com.tw` remain modeled for a later gate,
-  but DNS is intentionally deferred and they are not the current browser
-  entrypoint.
+- Runtime: Cloud Run `ai-pdm-prod`, default `run.app` URL disabled
+- Pilot edge: Firebase Hosting default site `jenfu-ai-pdm-prod.web.app` rewrites
+  to the existing Cloud Run service. The external Application Load Balancer,
+  managed TLS resource and `pdm.jenfu.com.tw` remain provisioned but DNS is
+  intentionally deferred and they are not the current browser entrypoint.
 - Database: Cloud SQL for PostgreSQL `POSTGRES_17`, `REGIONAL`, private IP,
   IAM DB auth, backups, PITR and deletion protection
 - Identity: Firebase Authentication with Identity Platform only

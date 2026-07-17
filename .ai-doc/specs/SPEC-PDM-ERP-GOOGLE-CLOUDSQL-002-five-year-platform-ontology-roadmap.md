@@ -23,8 +23,8 @@ QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.m
 - Firebase Authentication is the accepted IAM direction. US identity-data processing is accepted under `HD-6-1`; field minimization, employee/privacy notice, retention/deletion owner and privacy-inventory evidence remain mandatory before live setup.
 - The first production slice opens only official numbering and drafts. Roadmap functions remain visible but disabled with an unavailable indicator and tooltip.
 - ProJED is untouched. Project/Equipment integration waits for a ProJED-owned contract.
-- `HD-8-1 / 1A` supersedes the historical App Hosting/Next.js 15.2.x instruction: production runs a Next.js 16 Active LTS container on Cloud Run `asia-east1`. The current approved production ingress is Firebase Hosting default-domain rewrite to Cloud Run; the future enterprise ingress path is Global External Application Load Balancer + Cloud CDN + Cloud Armor + Cloud Run services. Cloud CDN is restricted to reviewed public immutable assets.
-- Staging and production internal-pilot ingress amendments dated 2026-07-15 and 2026-07-16: the internal pilot may use Firebase Hosting `web.app` default domains as HTTPS rewrite gateways to the existing Cloud Run service. This requires public Cloud Run ingress/default URL and therefore carries a documented direct-`run.app` residual risk. Firebase Hosting is only the ingress/rewrite layer and does not change Cloud SQL/GCS authority or permit Firestore, Firebase Storage, Firebase Functions, Callable or provider-trigger business logic.
+- `HD-8-1 / 1A` supersedes the historical App Hosting/Next.js 15.2.x instruction: production runs a Next.js 16 Active LTS container on Cloud Run `asia-east1` behind an external Application Load Balancer/serverless NEG and managed TLS. Cloud CDN is restricted to reviewed public immutable assets.
+- Staging exception dated 2026-07-15: the internal pilot may use `https://jenfu-ai-pdm-stg-361825.web.app` as a Firebase Hosting rewrite gateway to the existing Cloud Run service. It requires public Cloud Run ingress/default URL and therefore carries a documented direct-`run.app` residual risk. This exception is forbidden in production and does not change Cloud SQL/GCS authority or permit Firestore, Firebase Storage or Firebase Functions.
 - `HD-7-2 / 2B`: production starts clean with only the initial Admin, minimum configuration, numbering seeds and non-reusable reservations; local business/draft/demo/test/history data remains in a read-only archive.
 - `HD-7-3 / 3B`: RPO <= 1 hour is continuous wall-clock; RTO <= 4 hours is measured Monday-Friday 08:00-17:00 `Asia/Taipei`, excluding company holidays. `HD-8-2 / 2A` adds an internal primary plus backup roster with all-hours acknowledgement within 60 minutes and immediate containment checklist start after acknowledgement.
 - All formal data is in Cloud SQL, all formal files are in direct GCS, and all business logic is exposed through portable HTTP/BFF contracts. Firestore, Firebase Storage, Firebase Functions, Callable Functions and Firestore triggers are not application authorities.
@@ -66,12 +66,8 @@ The platform must support a small internal ERP program for at least five years w
 ```text
 Browser
   -> Firebase Authentication / Identity Platform
-  -> Current approved ingress: Firebase Hosting web.app rewrite
-       -> Next.js 16 HTTP/BFF container on Cloud Run asia-east1
-  -> Future enterprise ingress path when triggered:
-       -> Global External Application Load Balancer / managed TLS / custom domain
+  -> External Application Load Balancer / managed TLS / custom domain
        -> Cloud CDN only for reviewed public immutable assets
-       -> Cloud Armor for centralized edge protection
        -> Next.js 16 HTTP/BFF container on Cloud Run asia-east1
        -> Cloud SQL Connector -> Cloud SQL PostgreSQL (asia-east1)
        -> signed upload/download -> GCS primary bucket (ASIA-EAST1)
@@ -123,7 +119,6 @@ These decisions close the architecture questions only. Phase 1 still requires an
 - One domain owns each authoritative row and action. Ontology registration does not transfer source ownership.
 - A future module integrates through approved commands, events or read models, never cross-module table mutation.
 - Production source rollout is manual and evidence-gated. Repository push or live-branch merge cannot automatically become a production release.
-- Current approved production ingress is Firebase Hosting `web.app` rewrite to Cloud Run. Firebase Hosting is not a system of record and cannot hold formal data, file authority, workflow state, audit authority or business logic. Future migration to Global External Application Load Balancer + Cloud CDN + Cloud Armor + Cloud Run services is a separate reviewed gate, not a prerequisite for the first production slice.
 - All formal rows, workflow state, role/scope, audit and outbox data reside in Cloud SQL; Firestore is absent from application runtime dependencies and configuration.
 - All formal files use direct GCS SDK/signed-URL contracts; Firebase Storage is absent from application runtime dependencies and provider pointers.
 - Domain logic is portable application code behind standard HTTP/BFF routes. App Hosting and Firebase configuration contain no business rules.

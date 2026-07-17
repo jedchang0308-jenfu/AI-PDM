@@ -1,8 +1,0 @@
-{
-  "bucket": "gs://jenfu-ai-pdm-prod_cloudbuild",
-  "member": "serviceAccount:451715062958-compute@developer.gserviceaccount.com",
-  "role": "roles/storage.objectViewer",
-  "readback": true,
-  "fileAuthority": false,
-  "scope": "Cloud Build source ingestion only"
-}

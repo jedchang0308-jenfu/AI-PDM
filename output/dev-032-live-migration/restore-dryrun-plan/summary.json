@@ -1,7 +1,0 @@
-{
-  "planSha256": "523668cc95331bc5447a9c998576ae7c4470db8cf6942adb727755c74fef3e6a",
-  "sourceCommit": "3474fffef48ff9ffc9aa1f1aac684935075ec901",
-  "expectedSingleJobUpdate": true,
-  "dryRunPosture": true,
-  "deleteOrReplace": 0
-}

@@ -54,9 +54,7 @@ const targets = [
   {
     key: "supabase_shadow",
     evidenceKey: "supabaseShadowReady",
-    matcher: (line) => line.includes("DEV-034") ||
-      line.includes("SQLite 到 PostgreSQL 影子遷移") ||
-      /^\|\s*\[(x| |\/|!)\]\s*\|\s*DEV-IND-007\s*\|/u.test(line) ||
+    matcher: (line) => /^\|\s*\[(x| |\/|!)\]\s*\|\s*DEV-IND-007\s*\|/u.test(line) ||
       line.includes("取得 disposable Supabase / Postgres shadow target") ||
       line.includes("在 disposable target 執行 schema migration") ||
       line.includes("在 disposable target 執行 SQLite/Postgres compare") ||
@@ -247,36 +245,10 @@ function parseActionableLine(line) {
   return null;
 }
 
-function parseCanonicalEntries(markdown) {
-  const lines = markdown.split(/\r?\n/u);
-  const starts = [];
-  lines.forEach((line, index) => {
-    const match = line.match(/^-\s*([✓○☐◐◇!↷×])\s+(DEV-\d{3})\b/u);
-    if (match) starts.push({ index, symbol: match[1], id: match[2] });
-  });
-
-  return starts.map((entry, index) => {
-    let end = starts[index + 1]?.index ?? lines.length;
-    for (let cursor = entry.index + 1; cursor < end; cursor += 1) {
-      if (/^##\s+/u.test(lines[cursor])) {
-        end = cursor;
-        break;
-      }
-    }
-    return {
-      ...entry,
-      line: entry.index + 1,
-      lines: lines.slice(entry.index, end)
-    };
-  });
-}
-
 function syncMarkdown(markdown, evidence) {
   const changes = [];
   const blocked = [];
   const unsafeCompleted = [];
-  const canonicalReady = [];
-  const canonicalSkipped = [];
   const seenKeys = new Set();
 
   const lines = markdown.split(/\r?\n/);
@@ -319,33 +291,6 @@ function syncMarkdown(markdown, evidence) {
     return nextLine;
   });
 
-  const canonicalEntries = parseCanonicalEntries(markdown);
-  for (const target of targets) {
-    if (seenKeys.has(target.key)) continue;
-    const entry = canonicalEntries.find((candidate) => candidate.lines.some((line) => target.matcher(line)));
-    if (!entry) continue;
-    seenKeys.add(target.key);
-
-    if (entry.symbol === "×") {
-      canonicalSkipped.push({ line: entry.line, key: target.key, devId: entry.id, reason: "Canonical DEV is skipped/cancelled." });
-      continue;
-    }
-
-    const ready = evidence[target.evidenceKey] === true;
-    if (entry.symbol === "✓" && !ready) {
-      unsafeCompleted.push({ line: entry.line, key: target.key, devId: entry.id, reason: target.blocker });
-    } else if (!ready) {
-      blocked.push({ line: entry.line, key: target.key, devId: entry.id, reason: target.blocker });
-    } else {
-      canonicalReady.push({
-        line: entry.line,
-        key: target.key,
-        devId: entry.id,
-        note: "Evidence is ready; canonical status changes require a PM update."
-      });
-    }
-  }
-
   for (const target of targets) {
     if (target.required !== false && !seenKeys.has(target.key)) {
       blocked.push({
@@ -360,9 +305,7 @@ function syncMarkdown(markdown, evidence) {
     markdown: updatedLines.join("\n"),
     changes,
     blocked,
-    unsafeCompleted,
-    canonicalReady,
-    canonicalSkipped
+    unsafeCompleted
   };
 }
 
@@ -391,9 +334,7 @@ function main() {
     evidence,
     changes: result.changes,
     blocked: result.blocked,
-    unsafeCompleted: result.unsafeCompleted,
-    canonicalReady: result.canonicalReady,
-    canonicalSkipped: result.canonicalSkipped
+    unsafeCompleted: result.unsafeCompleted
   };
 
   console.log(JSON.stringify(report, null, 2));

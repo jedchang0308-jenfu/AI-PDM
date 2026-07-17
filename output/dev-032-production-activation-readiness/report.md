@@ -1,18 +1,18 @@
 # DEV-032 Production Activation Readiness
 
-Generated: 2026-07-17T00:09:48.912Z
-Status: `release_ready`
+Generated: 2026-07-16T06:12:07.975Z
+Status: `pending_human_activation_readiness`
 Target: `jenfu-ai-pdm-prod` / `asia-east1`
-Source commit: `6dc24ebe1c1fcca9da9ff06c66996f6754652057`
-Release ready: `true`
+Source commit: `1936e93dfcd81be9ee308b1cf3d0249a282fb0be`
+Release ready: `false`
 
 ## Gate Summary
 
-- Passed: 10/10
+- Passed: 9/10
 - Blocked: 0
 - Missing evidence: 0
-- Pending human: 0
-- First incomplete gate: `none`
+- Pending human: 1
+- First incomplete gate: `A9-wave0-go-no-go`
 
 ## Gates
 
@@ -25,8 +25,8 @@ Release ready: `true`
 - `A6-hd84-restore-reconciliation`: passed
 - `A7-level3-production-like-smoke`: passed
 - `A8-production-deploy-and-level4-smoke`: passed
-- `A9-wave0-go-no-go`: passed
+- `A9-wave0-go-no-go`: pending_human
 
 ## Next Required Action
 
-Record final release closure and preserve the evidence package.
+Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.

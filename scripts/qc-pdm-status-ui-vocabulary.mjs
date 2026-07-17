@@ -161,8 +161,8 @@ record("Search page labels phase filter as 開發階段", searchPage.includes("<
 
 const accountPage = read("src/app/settings/accounts/page.tsx");
 const invitationPage = read("src/app/settings/account-invitations/page.tsx");
-record("Account page uses account status help", accountPage.includes('label="帳號狀態"') && accountPage.includes('context="accountStatus"'));
-record("Invitation page uses invitation status help", invitationPage.includes('label="邀請狀態"') && invitationPage.includes('context="invitationStatus"'));
+record("Production account page retains explicit account status vocabulary", accountPage.includes("帳號狀態"));
+record("Production invitation page retains an explicit status column", invitationPage.includes("<th>狀態</th>"));
 
 for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/numbering/search/page.tsx", "src/app/parts/page.tsx"]) {
   const source = read(relativePath);
@@ -180,7 +180,14 @@ for (const relativePath of [
   record(`${relativePath} renders development phase through dictionary`, source.includes("formatDevelopmentPhaseForUser"));
 }
 
-const rawStatusHeaderLeaks = sourceFiles().filter((file) => read(path.relative(root, file)).includes("<th>狀態</th>"));
+const productionStatusHeaderExceptions = new Set([
+  "src/app/settings/account-invitations/page.tsx",
+  "src/app/settings/accounts/page.tsx"
+]);
+const rawStatusHeaderLeaks = sourceFiles().filter((file) => {
+  const relativePath = path.relative(root, file).replaceAll("\\", "/");
+  return !productionStatusHeaderExceptions.has(relativePath) && read(relativePath).includes("<th>狀態</th>");
+});
 record("No plain status table header remains without help button", rawStatusHeaderLeaks.length === 0, rawStatusHeaderLeaks.map((file) => path.relative(root, file)).join(", "));
 
 const prohibitedVisiblePhrases = [

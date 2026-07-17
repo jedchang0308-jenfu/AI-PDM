@@ -9,10 +9,6 @@ const contractPath = path.join(root, "config", "platform", "production-activatio
 const outputDir = path.join(root, "output", "dev-032-production-live-readback");
 const outputPath = path.join(outputDir, "report.json");
 const contract = JSON.parse(readFileSync(contractPath, "utf8"));
-const expectedApplicationSourceRevision = contract.currentRelease?.sourceRevision
-  ?? contract.artifact.applicationSourceRevision;
-const expectedApplicationImageDigest = contract.currentRelease?.applicationImageDigest
-  ?? contract.artifact.applicationImageDigest;
 const windowsCloudSdkRoot = process.env.CLOUDSDK_ROOT_DIR
   ?? (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "Google", "Cloud SDK", "google-cloud-sdk") : null);
 if (process.platform === "win32" && !windowsCloudSdkRoot) {
@@ -89,10 +85,6 @@ function runtimeEnv(service, name) {
   return service?.spec?.template?.spec?.containers?.[0]?.env?.find((entry) => entry.name === name)?.value ?? null;
 }
 
-function activeTrafficEntries(service) {
-  return (service?.status?.traffic ?? []).filter((entry) => Number(entry.percent ?? 0) > 0);
-}
-
 const principalExecution = execution(contract.executions.principalBootstrap);
 const preCanaryExecution = execution(contract.executions.preCanaryReconciliation);
 const restoreExecution = execution(contract.executions.restoreReconciliation);
@@ -104,7 +96,6 @@ const restoreSql = runGcloud(["sql", "instances", "describe", contract.recovery.
 const backup = runGcloud(["sql", "backups", "describe", contract.recovery.backupId, `--instance=${contract.target.cloudSqlInstance}`, `--project=${contract.target.projectId}`, "--format=json"]);
 const runtime = runGcloud(["run", "services", "describe", contract.target.runtimeService, `--project=${contract.target.projectId}`, `--region=${contract.target.region}`, "--format=json"]);
 const runtimeImage = runtime?.spec?.template?.spec?.containers?.[0]?.image ?? "";
-const activeTraffic = activeTrafficEntries(runtime);
 const principalReadback = principalResult?.readback ?? {};
 const preCanaryReadback = preCanaryResult?.readback ?? {};
 const restoreReadback = restoreResult?.readback ?? {};
@@ -151,9 +142,9 @@ const checks = {
     && restoreReadback.numberingSnapshotSha256 === contract.recovery.numberingSnapshotSha256,
   runtimeReady: runtime?.metadata?.namespace === "451715062958"
     && runtime?.status?.conditions?.some((condition) => condition.type === "Ready" && condition.status === "True")
-    && activeTraffic.length === 1
-    && activeTraffic[0].percent === 100,
-  runtimeArtifactMatched: runtimeImage.endsWith(`@${expectedApplicationImageDigest}`),
+    && runtime?.status?.traffic?.length === 1
+    && runtime.status.traffic[0].percent === 100,
+  runtimeArtifactMatched: runtimeImage.endsWith(`@${contract.artifact.applicationImageDigest}`),
   productionSliceActive: runtimeEnv(runtime, "PDM_PRODUCTION_SLICE_MODE") === "official-numbering-draft"
     && runtimeEnv(runtime, "PDM_PUBLIC_BASE_URL") === contract.target.canonicalBaseUrl
 };
@@ -166,10 +157,8 @@ const report = {
   productionMutationPerformed: false,
   target: contract.target,
   artifact: {
-    applicationSourceRevision: expectedApplicationSourceRevision,
-    applicationImageDigest: expectedApplicationImageDigest,
-    activationBaselineSourceRevision: contract.artifact.applicationSourceRevision,
-    activationBaselineImageDigest: contract.artifact.applicationImageDigest,
+    applicationSourceRevision: contract.artifact.applicationSourceRevision,
+    applicationImageDigest: contract.artifact.applicationImageDigest,
     migrationSourceRevision: contract.artifact.migrationSourceRevision,
     migrationImageDigest: contract.artifact.migrationImageDigest,
     liveRuntimeImage: runtimeImage,
@@ -209,9 +198,7 @@ const report = {
   runtime: {
     service: runtime?.metadata?.name ?? null,
     latestReadyRevision: runtime?.status?.latestReadyRevisionName ?? null,
-    trafficPercent: activeTraffic[0]?.percent ?? null,
-    trafficRevision: activeTraffic[0]?.revisionName ?? null,
-    taggedRevisionCount: Math.max((runtime?.status?.traffic?.length ?? 0) - activeTraffic.length, 0),
+    trafficPercent: runtime?.status?.traffic?.[0]?.percent ?? null,
     productionSliceMode: runtimeEnv(runtime, "PDM_PRODUCTION_SLICE_MODE"),
     canonicalBaseUrl: runtimeEnv(runtime, "PDM_PUBLIC_BASE_URL")
   },

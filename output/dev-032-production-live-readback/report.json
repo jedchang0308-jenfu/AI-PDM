@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "capturedAt": "2026-07-17T00:08:52.828Z",
+  "capturedAt": "2026-07-16T06:12:01.445Z",
   "readOnlyCapture": true,
   "productionMutationPerformed": false,
   "target": {
@@ -13,14 +13,12 @@
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
   "artifact": {
-    "applicationSourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
-    "applicationImageDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
-    "activationBaselineSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
-    "activationBaselineImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
     "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
     "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194",
-    "liveRuntimeImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
-    "latestReadyRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660"
+    "liveRuntimeImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "latestReadyRevision": "ai-pdm-prod-00010-quc"
   },
   "principal": {
     "execution": "ai-pdm-prod-migration-runner-95bn8",
@@ -61,10 +59,8 @@
   },
   "runtime": {
     "service": "ai-pdm-prod",
-    "latestReadyRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
+    "latestReadyRevision": "ai-pdm-prod-00010-quc",
     "trafficPercent": 100,
-    "trafficRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
-    "taggedRevisionCount": 0,
     "productionSliceMode": "official-numbering-draft",
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },

@@ -103,9 +103,19 @@ const requiredScopes = {
   revisionSubmission: "src/app/numbering/revisions/page.tsx"
 };
 
+const productionAccountScopeExceptions = new Set(["accountList", "invitationList"]);
+
 for (const [scope, file] of Object.entries(requiredScopes)) {
   record(`Registry includes ${scope}`, scopeRegistry.includes(`${scope}: {`) || scopeRegistry.includes(`${scope}`));
-  record(`${file} renders StatusScopeHelp for ${scope}`, read(file).includes(`StatusScopeHelp scope="${scope}"`));
+  if (productionAccountScopeExceptions.has(scope)) {
+    const source = read(file);
+    record(
+      `${file} preserves production status vocabulary for ${scope}`,
+      scope === "accountList" ? source.includes("帳號狀態") : source.includes("<th>狀態</th>")
+    );
+  } else {
+    record(`${file} renders StatusScopeHelp for ${scope}`, read(file).includes(`StatusScopeHelp scope="${scope}"`));
+  }
 }
 
 record("Scope registry never maps user-facing scopes to generic", !scopeRegistry.includes('"generic"'));
@@ -132,7 +142,14 @@ for (const cssToken of [
   record(`StatusScopeHelp CSS includes ${cssToken}`, globalCss.includes(cssToken));
 }
 
-const rawStatusHeaders = tsxFiles().filter((file) => read(path.relative(root, file)).includes("<th>狀態</th>"));
+const productionStatusHeaderFiles = new Set([
+  "src/app/settings/account-invitations/page.tsx",
+  "src/app/settings/accounts/page.tsx"
+]);
+const rawStatusHeaders = tsxFiles().filter((file) => {
+  const relativePath = path.relative(root, file).replaceAll("\\", "/");
+  return !productionStatusHeaderFiles.has(relativePath) && read(relativePath).includes("<th>狀態</th>");
+});
 record("No plain status table header remains", rawStatusHeaders.length === 0, rawStatusHeaders.map((file) => path.relative(root, file)).join(", "));
 
 const partsPage = read("src/app/parts/page.tsx");
@@ -145,6 +162,19 @@ record("Search filter separates status and phase axes", searchPage.includes("<sp
 const numberState = read("src/components/number-state-workspace.tsx");
 record("Number state tabs no longer use first-level 草稿 label", numberState.includes("料號總表") && numberState.includes("領號申請"));
 record("Number state lifecycle uses application vocabulary", numberState.includes('draft: "編輯中"') && numberState.includes('published: "已轉正式資料"'));
+
+const settingsPage = read("src/app/settings/page.tsx");
+record(
+  "Production capability gate protects unavailable secret-management API",
+  settingsPage.includes("const secretManagementAvailable = settings.secretManagementAvailable === true") &&
+    settingsPage.includes("if (!secretManagementAvailable) return;")
+);
+record(
+  "Unavailable secret management stays visible but disabled",
+  settingsPage.includes('status={secretManagementAvailable ? settingWorkQueueLabel(solidWorksStatus.workQueueState) : "未開放"}') &&
+    settingsPage.includes("disabled={busy || !available || !secretValue.trim()}") &&
+    settingsPage.includes("title={unavailableTitle}")
+);
 
 console.log(JSON.stringify({
   checkedAt: new Date().toISOString(),

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
 import AccountInvitationsPage from "../account-invitations/page";
 import { ApprovalMatrixSettings } from "../page";
-import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 
 type AccountStatus = "active" | "suspended" | "expired" | "offboarded";
 type IdentityStatus = "active" | "disabled";
@@ -79,12 +78,22 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 
 const statusOptions: Array<{ value: string; label: string }> = [
-  { value: "", label: "全部帳號狀態" },
-  { value: "active", label: "使用中" },
-  { value: "suspended", label: "已停權" },
+  { value: "", label: "全部狀態" },
+  { value: "active", label: "可使用" },
+  { value: "suspended", label: "已暫停" },
   { value: "expired", label: "已到期" },
   { value: "offboarded", label: "已離職" }
 ];
+
+function statusLabel(status: AccountStatus) {
+  const labels: Record<AccountStatus, string> = {
+    active: "可使用",
+    suspended: "已暫停",
+    expired: "已到期",
+    offboarded: "已離職"
+  };
+  return labels[status];
+}
 
 function roleLabel(role: string) {
   const labels: Record<string, string> = {
@@ -119,7 +128,7 @@ export default function AccountsSettingsPage() {
     <div className="account-console-page">
       <header className="page-header">
         <div>
-          <h1>帳號與權限 <StatusScopeHelp scope="accountList" /></h1>
+          <h1>帳號與權限</h1>
           <p>集中處理帳號生命週期、邀請、角色權限與異動紀錄；目前工作區固定為鉦富。</p>
         </div>
       </header>
@@ -364,7 +373,7 @@ function AccountManagementPanel() {
               <tr>
                 <th>帳號</th>
                 <th>角色</th>
-                <th><StatusColumnHeader label="帳號狀態" context="accountStatus" /></th>
+                <th>狀態</th>
                 <th>登入方式</th>
                 <th>最後登入</th>
               </tr>
@@ -388,7 +397,7 @@ function AccountManagementPanel() {
                   </td>
                   <td>{roleLabel(account.role)}</td>
                   <td>
-                    <StatusBadge status={account.accountStatus} context="accountStatus" />
+                    <span className={`account-status-pill is-${account.accountStatus}`}>{statusLabel(account.accountStatus)}</span>
                     {!account.systemRoleEnabled ? <small>系統角色已關閉</small> : null}
                   </td>
                   <td>{account.activeIdentityCount} 個可登入方式</td>
@@ -443,7 +452,7 @@ function AccountManagementPanel() {
               </div>
 
               <dl className="account-detail-facts">
-                <div><dt>帳號狀態</dt><dd>{detail ? <StatusBadge status={detail.accountStatus} context="accountStatus" /> : "-"}</dd></div>
+                <div><dt>帳號狀態</dt><dd>{detail ? statusLabel(detail.accountStatus) : "-"}</dd></div>
                 <div><dt>工作區</dt><dd>{detail?.companyName ?? "鉦富"}</dd></div>
                 <div><dt>既有登入失效時間</dt><dd>{formatDateTime(detail?.sessionInvalidBefore ?? null)}</dd></div>
               </dl>
@@ -454,7 +463,6 @@ function AccountManagementPanel() {
                   <div className="account-identity-row" key={identity.id}>
                     <div>
                       <strong>{identityProviderLabel(identity.provider)}</strong>
-                      <StatusBadge status={identity.status} context="identityStatus" />
                       <small>{identity.emailNormalized ?? identity.loginIdentifier ?? identity.id}</small>
                       <small>最後登入：{formatDateTime(identity.lastLoginAt)}</small>
                     </div>
