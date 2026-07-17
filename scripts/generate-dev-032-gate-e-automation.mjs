@@ -108,6 +108,47 @@ function buildHumanWorkPackage({ evidence, report }) {
   const minimumNamedUsers = evidence.wave0?.minimumNamedUsers ?? 3;
   const maximumNamedUsers = evidence.wave0?.maximumNamedUsers ?? 5;
   const missingNamedUserCount = Math.max(0, minimumNamedUsers - namedUsers.length);
+  const requiredHumanInputs = [];
+  if (missingNamedUserCount > 0 || namedUsers.length > maximumNamedUsers) {
+    requiredHumanInputs.push({
+      id: "wave0_named_users",
+      required: true,
+      description: `Provide ${minimumNamedUsers}-${maximumNamedUsers} named Wave 0 users total. Current list has ${namedUsers.length}; add at least ${missingNamedUserCount}.`,
+      replyFormat: "Wave0 users: user1@jenfu.com.tw, user2@jenfu.com.tw, user3@jenfu.com.tw"
+    });
+  }
+  if (evidence.wave0?.humanAcceptanceStatus !== "passed") {
+    requiredHumanInputs.push({
+      id: "named_user_ui_acceptance",
+      required: true,
+      description: "For each Wave 0 user, confirm production login, privacy acknowledgement if shown, create draft or formal numbering by role, optional series code for self-made non-shared item, relog persistence, and unopened UI remains disabled.",
+      replyFormat: "UI acceptance: PASS for all named users / list exceptions"
+    });
+  }
+  if (evidence.wave0?.nonAllowlistNegativeAccessStatus !== "passed") {
+    requiredHumanInputs.push({
+      id: "non_allowlist_negative_access",
+      required: true,
+      description: "Use a Google account that is not allowlisted and confirm it cannot enter the production core app. If no safe test account exists, state that this remains pending.",
+      replyFormat: "Non-allowlist test: PASS with account <email> / PENDING no account"
+    });
+  }
+  if (evidence.wave0?.productOwnerDecision !== "go" && evidence.wave0?.productOwnerDecision !== "no-go") {
+    requiredHumanInputs.push({
+      id: "product_owner_go_no_go",
+      required: true,
+      description: "Product owner records final go/no-go for the official numbering / draft production slice only.",
+      replyFormat: "Product owner decision: GO / NO-GO"
+    });
+  }
+  if (evidence.wave0?.openP0P1Count !== 0) {
+    requiredHumanInputs.push({
+      id: "open_p0_p1",
+      required: true,
+      description: "Confirm there are no unresolved P0/P1 issues for the production slice.",
+      replyFormat: "P0/P1: none / list issue"
+    });
+  }
   return {
     schemaVersion: 1,
     dev: "DEV-032",
@@ -123,41 +164,10 @@ function buildHumanWorkPackage({ evidence, report }) {
       gateEAutomationPath: "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
       chromeUiReadbackPath: "output/dev-032-gate-e-automation/production-ui-readback.json",
       chromeUiScreenshotPath: "output/dev-032-gate-e-automation/production-ui-readback.jpg",
-      productionLevel4Path: evidence.hotfix?.level4EvidencePath ?? null,
-      postTrafficSmokePath: evidence.hotfix?.postTrafficSmokePath ?? null
+      productionLevel4Path: evidence.currentRelease?.closureEvidencePath ?? evidence.hotfix?.level4EvidencePath ?? null,
+      postTrafficSmokePath: evidence.currentRelease?.canonicalSmokePath ?? evidence.hotfix?.postTrafficSmokePath ?? null
     },
-    requiredHumanInputs: [
-      {
-        id: "wave0_named_users",
-        required: true,
-        description: `Provide ${minimumNamedUsers}-${maximumNamedUsers} named Wave 0 users total. Current list has ${namedUsers.length}; add at least ${missingNamedUserCount}.`,
-        replyFormat: "Wave0 users: user1@jenfu.com.tw, user2@jenfu.com.tw, user3@jenfu.com.tw"
-      },
-      {
-        id: "named_user_ui_acceptance",
-        required: true,
-        description: "For each Wave 0 user, confirm production login, privacy acknowledgement if shown, create draft or formal numbering by role, optional series code for self-made non-shared item, relog persistence, and unopened UI remains disabled.",
-        replyFormat: "UI acceptance: PASS for all named users / list exceptions"
-      },
-      {
-        id: "non_allowlist_negative_access",
-        required: true,
-        description: "Use a Google account that is not allowlisted and confirm it cannot enter the production core app. If no safe test account exists, state that this remains pending.",
-        replyFormat: "Non-allowlist test: PASS with account <email> / PENDING no account"
-      },
-      {
-        id: "product_owner_go_no_go",
-        required: true,
-        description: "Product owner records final go/no-go for the official numbering / draft production slice only.",
-        replyFormat: "Product owner decision: GO / NO-GO"
-      },
-      {
-        id: "open_p0_p1",
-        required: true,
-        description: "Confirm there are no unresolved P0/P1 issues for the production slice.",
-        replyFormat: "P0/P1: none / list issue"
-      }
-    ],
+    requiredHumanInputs,
     explicitNonActions: [
       "Do not configure custom DNS in this closure; Firebase Hosting default URL remains canonical.",
       "Do not reintroduce the cancelled fixed five-business-day observation gate.",
@@ -177,11 +187,7 @@ function writeHumanMarkdown(workPackage) {
     "## Reply Template",
     "",
     "```text",
-    "Wave0 users: jedchang0308@jenfu.com.tw, <user2@jenfu.com.tw>, <user3@jenfu.com.tw>",
-    "UI acceptance: PASS for all named users / list exceptions",
-    "Non-allowlist test: PASS with account <email> / PENDING no account",
-    "Product owner decision: GO / NO-GO",
-    "P0/P1: none / list issue",
+    ...workPackage.requiredHumanInputs.map((item) => item.replyFormat),
     "```",
     "",
     "## Required Inputs",
@@ -202,10 +208,14 @@ const postTrafficSource = readJson("output/dev-032-production-slice-activation/h
 const uiReadbackSource = readJson("output/dev-032-gate-e-automation/production-ui-readback.json");
 
 const evidence = evidenceSource.parsed ?? {};
+const currentReleaseCanonicalSource = readJson(evidence.currentRelease?.canonicalSmokePath ?? "output/dev-032-current-release/missing-canonical-smoke.json");
+const currentReleaseClosureSource = readJson(evidence.currentRelease?.closureEvidencePath ?? "output/dev-032-gate-e-closure/report.json");
 const live = liveSource.parsed ?? {};
 const level4 = level4Source.parsed ?? {};
 const postTraffic = postTrafficSource.parsed ?? {};
 const uiReadback = uiReadbackSource.parsed ?? {};
+const currentReleaseCanonical = currentReleaseCanonicalSource.parsed ?? {};
+const currentReleaseClosure = currentReleaseClosureSource.parsed ?? {};
 const canonicalBaseUrl = evidence.target?.canonicalBaseUrl ?? "https://jenfu-ai-pdm-prod.web.app";
 const directBaseUrl = postTraffic.directBaseUrl ?? null;
 
@@ -244,6 +254,18 @@ const checks = [
   check("live production readback passed", liveSource.exists && live.allChecksPassed === true && live.runtime?.productionSliceMode === "official-numbering-draft", { path: liveSource.path, revision: live.runtime?.latestReadyRevision }),
   check("post-traffic smoke passed", postTrafficSource.exists && postTraffic.failed === 0 && postTraffic.passed >= 14, { path: postTrafficSource.path, passed: postTraffic.passed, failed: postTraffic.failed }),
   check("authenticated Level 4 UI smoke passed", level4Source.exists && level4.failed === 0 && level4.uiAcceptanceResult?.seriesCode === "DEV032-HF", { path: level4Source.path, result: level4.uiAcceptanceResult }),
+  check("current release canonical smoke passed", currentReleaseCanonicalSource.exists
+    && currentReleaseCanonical.failed === 0
+    && currentReleaseCanonical.passed === 13
+    && currentReleaseCanonical.sourceRevision === evidence.currentRelease?.sourceRevision
+    && currentReleaseCanonical.imageDigest === evidence.currentRelease?.applicationImageDigest
+    && currentReleaseCanonical.revision === evidence.currentRelease?.activeRevision,
+  { path: currentReleaseCanonicalSource.path, passed: currentReleaseCanonical.passed, failed: currentReleaseCanonical.failed, revision: currentReleaseCanonical.revision }),
+  check("current release authenticated UI closure passed", currentReleaseClosureSource.exists
+    && currentReleaseClosure.authenticatedUi?.status === "passed"
+    && currentReleaseClosure.authenticatedUi?.unopenedFeaturesRemainDisabled === true
+    && currentReleaseClosure.release?.activeRevision === evidence.currentRelease?.activeRevision,
+  { path: currentReleaseClosureSource.path, ui: currentReleaseClosure.authenticatedUi, revision: currentReleaseClosure.release?.activeRevision }),
   check("Chrome UI readback shows production persisted item and disabled future controls", uiReadbackSource.exists
     && Object.values(uiChecks).every(Boolean)
     && Array.isArray(uiReadback.disabledButtons)
@@ -258,18 +280,35 @@ const checks = [
 ];
 
 const failed = checks.filter((item) => !item.passed);
+const namedUsers = Array.isArray(evidence.wave0?.namedUsers) ? evidence.wave0.namedUsers : [];
+const minimumNamedUsers = evidence.wave0?.minimumNamedUsers ?? 3;
+const maximumNamedUsers = evidence.wave0?.maximumNamedUsers ?? 5;
+const productOwnerDecision = evidence.wave0?.productOwnerDecision;
+const humanClosureRequired = namedUsers.length < minimumNamedUsers
+  || namedUsers.length > maximumNamedUsers
+  || evidence.wave0?.humanAcceptanceStatus !== "passed"
+  || evidence.wave0?.nonAllowlistNegativeAccessStatus !== "passed"
+  || (productOwnerDecision !== "go" && productOwnerDecision !== "no-go")
+  || evidence.wave0?.openP0P1Count !== 0;
+const reportStatus = failed.length > 0
+  ? "machine_gate_e_failed"
+  : humanClosureRequired
+    ? "machine_gate_e_passed_human_closure_pending"
+    : productOwnerDecision === "go"
+      ? "machine_gate_e_passed_release_closure_complete"
+      : "machine_gate_e_passed_product_owner_no_go";
 const report = {
   schemaVersion: 1,
   dev: "DEV-032",
   generatedAt: new Date().toISOString(),
   readOnlyOrFailClosedOnly: true,
   productionMutationPerformed: false,
-  status: failed.length === 0 ? "machine_gate_e_passed_human_closure_pending" : "machine_gate_e_failed",
+  status: reportStatus,
   target: evidence.target ?? {},
   release: {
-    sourceRevision: evidence.artifact?.applicationSourceRevision ?? null,
-    imageDigest: evidence.artifact?.applicationImageDigest ?? null,
-    runtimeRevision: live.runtime?.latestReadyRevision ?? null,
+    sourceRevision: evidence.currentRelease?.sourceRevision ?? evidence.artifact?.applicationSourceRevision ?? null,
+    imageDigest: evidence.currentRelease?.applicationImageDigest ?? evidence.artifact?.applicationImageDigest ?? null,
+    runtimeRevision: evidence.currentRelease?.activeRevision ?? live.runtime?.latestReadyRevision ?? null,
     directBaseUrl
   },
   checks,
@@ -278,13 +317,15 @@ const report = {
     passed: checks.length - failed.length,
     failed: failed.length,
     machineChecksPassed: failed.length === 0,
-    requiresHumanClosure: true
+    requiresHumanClosure: humanClosureRequired
   },
   evidencePaths: {
     evidenceContract: evidenceSource.path,
     liveReadback: liveSource.path,
     postTrafficSmoke: postTrafficSource.path,
     level4UiSmoke: level4Source.path,
+    currentReleaseCanonicalSmoke: currentReleaseCanonicalSource.path,
+    currentReleaseClosure: currentReleaseClosureSource.path,
     chromeUiReadback: uiReadbackSource.path,
     chromeUiScreenshot: "output/dev-032-gate-e-automation/production-ui-readback.jpg",
     humanWorkPackage: "output/dev-032-gate-e-automation/human-work-package.md"
@@ -293,8 +334,7 @@ const report = {
     "No new production users were created.",
     "No Wave 0 allowlist was expanded or guessed.",
     "No custom DNS was configured.",
-    "No GCS file authority, CAD, BOM or full PDM workflow was opened.",
-    "No named non-allowlist Google sign-in was performed because that requires a real human-controlled account."
+    "No GCS file authority, CAD, BOM or full PDM workflow was opened."
   ]
 };
 

@@ -9,6 +9,10 @@ const contractPath = path.join(root, "config", "platform", "production-activatio
 const outputDir = path.join(root, "output", "dev-032-production-live-readback");
 const outputPath = path.join(outputDir, "report.json");
 const contract = JSON.parse(readFileSync(contractPath, "utf8"));
+const expectedApplicationSourceRevision = contract.currentRelease?.sourceRevision
+  ?? contract.artifact.applicationSourceRevision;
+const expectedApplicationImageDigest = contract.currentRelease?.applicationImageDigest
+  ?? contract.artifact.applicationImageDigest;
 const windowsCloudSdkRoot = process.env.CLOUDSDK_ROOT_DIR
   ?? (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "Google", "Cloud SDK", "google-cloud-sdk") : null);
 if (process.platform === "win32" && !windowsCloudSdkRoot) {
@@ -149,7 +153,7 @@ const checks = {
     && runtime?.status?.conditions?.some((condition) => condition.type === "Ready" && condition.status === "True")
     && activeTraffic.length === 1
     && activeTraffic[0].percent === 100,
-  runtimeArtifactMatched: runtimeImage.endsWith(`@${contract.artifact.applicationImageDigest}`),
+  runtimeArtifactMatched: runtimeImage.endsWith(`@${expectedApplicationImageDigest}`),
   productionSliceActive: runtimeEnv(runtime, "PDM_PRODUCTION_SLICE_MODE") === "official-numbering-draft"
     && runtimeEnv(runtime, "PDM_PUBLIC_BASE_URL") === contract.target.canonicalBaseUrl
 };
@@ -162,8 +166,10 @@ const report = {
   productionMutationPerformed: false,
   target: contract.target,
   artifact: {
-    applicationSourceRevision: contract.artifact.applicationSourceRevision,
-    applicationImageDigest: contract.artifact.applicationImageDigest,
+    applicationSourceRevision: expectedApplicationSourceRevision,
+    applicationImageDigest: expectedApplicationImageDigest,
+    activationBaselineSourceRevision: contract.artifact.applicationSourceRevision,
+    activationBaselineImageDigest: contract.artifact.applicationImageDigest,
     migrationSourceRevision: contract.artifact.migrationSourceRevision,
     migrationImageDigest: contract.artifact.migrationImageDigest,
     liveRuntimeImage: runtimeImage,

@@ -73,24 +73,58 @@ const level3 = sources.level3Current.parsed ?? sources.level3.parsed ?? {};
 const level4 = sources.level4.parsed ?? {};
 const gateE = sources.gateE.parsed ?? {};
 const wave0 = evidence.wave0 ?? {};
+const currentRelease = evidence.currentRelease ?? {};
+const currentReleaseCandidateSource = readJson(currentRelease.candidateSmokePath ?? "output/dev-032-current-release/missing-candidate-smoke.json");
+const currentReleaseCanonicalSource = readJson(currentRelease.canonicalSmokePath ?? "output/dev-032-current-release/missing-canonical-smoke.json");
+const currentReleaseClosureSource = readJson(currentRelease.closureEvidencePath ?? "output/dev-032-gate-e-closure/report.json");
+const currentReleaseCandidate = currentReleaseCandidateSource.parsed ?? {};
+const currentReleaseCanonical = currentReleaseCanonicalSource.parsed ?? {};
+const currentReleaseClosure = currentReleaseClosureSource.parsed ?? {};
 const level3ManifestDigest = level3.manifestDigest ?? level3.imageDigest ?? null;
 const level3RuntimeDigest = level3.runtimeDigest ?? level3.imageDigest ?? null;
 const hotfix = evidence.hotfix ?? {};
 const baseActivationSourceReady = hotfix.baseActivationSourceRevision
   ? terraformReview.applicationSourceCommit === hotfix.baseActivationSourceRevision
   : terraformReview.applicationSourceCommit === evidence.artifact?.applicationSourceRevision;
+const liveActivationBaselineSourceRevision = live.artifact?.activationBaselineSourceRevision
+  ?? live.artifact?.applicationSourceRevision;
+const liveActivationBaselineImageDigest = live.artifact?.activationBaselineImageDigest
+  ?? live.artifact?.applicationImageDigest;
 
-const sourceReady = sources.evidence.exists
+const baseSourceReady = sources.evidence.exists
   && live.allChecksPassed === true
   && baseActivationSourceReady
-  && live.artifact?.applicationSourceRevision === evidence.artifact?.applicationSourceRevision
-  && live.artifact?.applicationImageDigest === evidence.artifact?.applicationImageDigest
+  && liveActivationBaselineSourceRevision === evidence.artifact?.applicationSourceRevision
+  && liveActivationBaselineImageDigest === evidence.artifact?.applicationImageDigest
   && live.artifact?.migrationSourceRevision === evidence.artifact?.migrationSourceRevision
   && migrationProvenance.sourceRevision === evidence.artifact?.migrationSourceRevision
   && migrationProvenance.registryDigestReadback === evidence.artifact?.migrationImageDigest
   && currentRuntimeProvenance.indexDigest === evidence.artifact?.applicationImageDigest
   && currentRuntimeProvenance.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
   && currentRuntimeProvenance.runtimeDigestIsLinuxAmd64Child === true;
+const currentReleaseReady = currentReleaseCandidateSource.exists
+  && currentReleaseCanonicalSource.exists
+  && currentReleaseClosureSource.exists
+  && currentReleaseCandidate.failed === 0
+  && currentReleaseCandidate.passed === 13
+  && currentReleaseCandidate.sourceRevision === currentRelease.sourceRevision
+  && currentReleaseCandidate.imageDigest === currentRelease.applicationImageDigest
+  && currentReleaseCandidate.revision === currentRelease.activeRevision
+  && currentReleaseCanonical.failed === 0
+  && currentReleaseCanonical.passed === 13
+  && currentReleaseCanonical.sourceRevision === currentRelease.sourceRevision
+  && currentReleaseCanonical.imageDigest === currentRelease.applicationImageDigest
+  && currentReleaseCanonical.revision === currentRelease.activeRevision
+  && currentReleaseClosure.release?.sourceRevision === currentRelease.sourceRevision
+  && currentReleaseClosure.release?.imageDigest === currentRelease.applicationImageDigest
+  && currentReleaseClosure.release?.activeRevision === currentRelease.activeRevision
+  && currentReleaseClosure.release?.trafficPercent === 100;
+const liveCurrentReleaseReady = live.artifact?.applicationSourceRevision === currentRelease.sourceRevision
+  && live.artifact?.applicationImageDigest === currentRelease.applicationImageDigest
+  && live.runtime?.latestReadyRevision === currentRelease.activeRevision
+  && live.runtime?.trafficRevision === currentRelease.activeRevision
+  && live.runtime?.trafficPercent === 100;
+const sourceReady = baseSourceReady && currentReleaseReady && liveCurrentReleaseReady;
 const targetReady = live.allChecksPassed === true
   && live.target?.projectId === evidence.target?.projectId
   && live.target?.region === evidence.target?.region
@@ -125,7 +159,7 @@ const applyReady = Array.isArray(terraformReadback.failed)
   && hosting.safeToApply === true
   && hosting.stopConditions?.hasDelete === false
   && hosting.stopConditions?.hasReplace === false
-  && live.runtime?.latestReadyRevision === level3.revision;
+  && liveCurrentReleaseReady;
 const seedReady = bootstrap.bootstrapSucceeded === true
   && bootstrap.readbackAssertionsSucceeded === true
   && bootstrap.staticCredentialUsed === false
@@ -145,39 +179,54 @@ const restoreReady = live.recovery?.backupStatus === "SUCCESSFUL"
   && live.checks?.numberingSnapshotMatched === true
   && rollback.allChecksPassed === true
   && rollback.rollbackApplied === true;
-const level3Ready = level3.passed >= 14
-  && level3.failed === 0
-  && level3.revision === live.runtime?.latestReadyRevision
-  && level3ManifestDigest === evidence.artifact?.applicationImageDigest
-  && level3RuntimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+const level3Ready = currentReleaseReady
+  && currentReleaseCandidate.kind === "candidate"
   && live.runtime?.productionSliceMode === "official-numbering-draft";
-const level4Ready = wave0.authenticatedLevel4Status === "passed"
+const historicalLevel4Ready = wave0.authenticatedLevel4Status === "passed"
   && level4.failed === 0
-  && level4.revision === live.runtime?.latestReadyRevision
+  && Boolean(level4.revision)
   && level4.imageDigest === evidence.artifact?.applicationImageDigest
   && level4.uiAcceptanceResult?.partNumber
   && level4.uiAcceptanceResult?.drawingNumber
   && level4.uiAcceptanceResult?.seriesCode;
+const level4Ready = historicalLevel4Ready
+  && currentReleaseReady
+  && liveCurrentReleaseReady
+  && currentReleaseCanonical.kind === "canonical"
+  && currentReleaseClosure.authenticatedUi?.status === "passed"
+  && currentReleaseClosure.authenticatedUi?.unopenedFeaturesRemainDisabled === true;
 const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
 const gateEReady = sources.gateE.exists
-  && gateE.status === "machine_gate_e_passed_human_closure_pending"
+  && [
+    "machine_gate_e_passed_human_closure_pending",
+    "machine_gate_e_passed_release_closure_complete",
+    "machine_gate_e_passed_product_owner_no_go"
+  ].includes(gateE.status)
   && gateE.summary?.machineChecksPassed === true
   && gateE.summary?.failed === 0
   && gateE.target?.projectId === evidence.target?.projectId
   && gateE.target?.canonicalBaseUrl === evidence.target?.canonicalBaseUrl;
-const wave0Ready = level4Ready
+const wave0PrerequisitesReady = level4Ready
   && gateEReady
   && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
   && namedUsers.length <= (wave0.maximumNamedUsers ?? 5)
   && wave0.failClosed === true
+  && wave0.humanAcceptanceStatus === "passed"
+  && wave0.nonAllowlistNegativeAccessStatus === "passed"
+  && wave0.openP0P1Count === 0;
+const wave0Ready = wave0PrerequisitesReady
   && wave0.productOwnerDecision === "go";
+const productOwnerNoGo = wave0.productOwnerDecision === "no-go";
 
 const gates = [
   gate("A0-release-source", sourceReady ? "passed" : "missing_evidence", {
     evidenceContractPath: sources.evidence.path,
-    applicationSourceRevision: evidence.artifact?.applicationSourceRevision ?? null,
-    applicationImageDigest: live.artifact?.applicationImageDigest ?? null,
-    runtimeDigest: currentRuntimeProvenance.runtimeDigest ?? null,
+    applicationSourceRevision: currentRelease.sourceRevision ?? null,
+    applicationImageDigest: currentRelease.applicationImageDigest ?? null,
+    runtimeRevision: currentRelease.activeRevision ?? null,
+    workflowRunId: currentRelease.workflowRunId ?? null,
+    workflowArtifactDigest: currentRelease.workflowArtifactDigest ?? null,
+    baseActivationEvidencePreserved: baseSourceReady,
     baseActivationSourceRevision: hotfix.baseActivationSourceRevision ?? null,
     hotfixId: hotfix.id ?? null,
     cloudBuildId: hotfix.cloudBuildId ?? null,
@@ -240,25 +289,27 @@ const gates = [
     rollbackClosurePath: sources.rollback.path
   }, passedOrBlocked(restoreReady, "HD84_RESTORE_RECONCILIATION_FAILED", "Separate-target restore, numbering reconciliation or rollback evidence failed.")),
   gate("A7-level3-production-like-smoke", level3Ready ? "passed" : "blocked", {
-    smokePath: sources.level3Current.exists ? sources.level3Current.path : sources.level3.path,
-    passed: level3.passed ?? null,
-    failed: level3.failed ?? null,
-    revision: level3.revision ?? null,
-    manifestDigest: level3ManifestDigest,
-    runtimeDigest: level3RuntimeDigest
+    smokePath: currentReleaseCandidateSource.path,
+    passed: currentReleaseCandidate.passed ?? null,
+    failed: currentReleaseCandidate.failed ?? null,
+    revision: currentReleaseCandidate.revision ?? null,
+    manifestDigest: currentReleaseCandidate.imageDigest ?? null,
+    runtimeDigest: currentReleaseCandidate.imageDigest ?? null,
+    sourceRevision: currentReleaseCandidate.sourceRevision ?? null
   }, passedOrBlocked(level3Ready, "LEVEL3_PRODUCTION_LIKE_SMOKE_FAILED", "Level 3 production-like smoke is missing, stale or failed.")),
   gate("A8-production-deploy-and-level4-smoke", level4Ready ? "passed" : "pending_human", {
     canonicalBaseUrl: evidence.target?.canonicalBaseUrl ?? null,
     productionDeploymentObserved: live.checks?.runtimeReady === true && level3.passed >= 14,
-    unauthenticatedProductionChecksPassed: level3.failed === 0,
+    unauthenticatedProductionChecksPassed: currentReleaseCanonical.failed === 0,
     authenticatedLevel4Status: wave0.authenticatedLevel4Status ?? "missing_evidence",
-    level4EvidencePath: sources.level4.path,
-    level4Passed: level4.passed ?? null,
-    level4Failed: level4.failed ?? null,
-    uiAcceptanceResult: level4.uiAcceptanceResult ?? null,
+    level4EvidencePath: currentReleaseClosureSource.path,
+    canonicalSmokePath: currentReleaseCanonicalSource.path,
+    level4Passed: currentReleaseCanonical.passed ?? null,
+    level4Failed: currentReleaseCanonical.failed ?? null,
+    uiAcceptanceResult: currentReleaseClosure.authenticatedUi?.persistedObject ?? null,
     requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-cad-bom-fail-closed"]
   }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_PENDING", "A human must complete the production Google account chooser before authenticated Level 4 can run.")]),
-  gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
+  gate("A9-wave0-go-no-go", wave0Ready ? "passed" : productOwnerNoGo ? "blocked" : "pending_human", {
     allowlistMode: wave0.allowlistMode ?? null,
     failClosed: wave0.failClosed ?? null,
     minimumNamedUsers: wave0.minimumNamedUsers ?? 3,
@@ -269,12 +320,20 @@ const gates = [
     gateEMachineChecksPassed: gateEReady,
     gateEAutomationEvidencePath: wave0.gateEAutomationEvidencePath ?? sources.gateE.path,
     humanWorkPackagePath: wave0.humanWorkPackagePath ?? sources.gateEHumanWorkPackage.path,
-    nonAllowlistNegativeAccessRequiresHuman: true,
+    humanAcceptanceStatus: wave0.humanAcceptanceStatus ?? "missing_evidence",
+    humanAcceptanceEvidencePath: wave0.humanAcceptanceEvidencePath ?? null,
+    nonAllowlistNegativeAccessStatus: wave0.nonAllowlistNegativeAccessStatus ?? "missing_evidence",
+    nonAllowlistNegativeAccessAccount: wave0.nonAllowlistNegativeAccessAccount ?? null,
+    openP0P1Count: wave0.openP0P1Count ?? null,
     productOwnerDecision: wave0.productOwnerDecision ?? "pending",
     fixedFiveBusinessDayObservationCancelled: evidence.decisions?.fixedFiveBusinessDayObservationCancelled === true
-  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", gateEReady
-    ? "Wave 0 still needs 3-5 explicitly named users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go."
-    : "Wave 0 still needs Gate E machine evidence, 3-5 explicitly named users, non-allowlist human negative access evidence and product-owner go/no-go.")])
+  }, wave0Ready
+    ? []
+    : wave0PrerequisitesReady
+      ? [blocker(productOwnerNoGo ? "PRODUCT_OWNER_NO_GO" : "PRODUCT_OWNER_GO_NO_GO_PENDING", productOwnerNoGo
+        ? "Product owner recorded NO-GO for the official numbering / draft production slice."
+        : "All Wave 0 evidence is closed; the product owner must record the final GO or NO-GO decision.")]
+      : [blocker("WAVE0_CLOSURE_EVIDENCE_INCOMPLETE", "Wave 0 named-user acceptance, non-allowlist denial, zero P0/P1 or Gate E machine evidence is incomplete.")])
 ];
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
@@ -294,8 +353,11 @@ const report = {
   releaseReady,
   status,
   target: evidence.target ?? checklist.target ?? {},
-  sourceCommit: evidence.artifact?.applicationSourceRevision ?? null,
-  artifact: evidence.artifact ?? {},
+  sourceCommit: currentRelease.sourceRevision ?? evidence.artifact?.applicationSourceRevision ?? null,
+  artifact: {
+    activationBaseline: evidence.artifact ?? {},
+    currentRelease
+  },
   gateSummary: {
     total: gates.length,
     passed: gates.filter((item) => item.passed).length,
@@ -313,7 +375,7 @@ const report = {
     : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
       ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
       : firstBlockedGate?.id === "A9-wave0-go-no-go"
-        ? "Complete the human work package at output/dev-032-gate-e-automation/human-work-package.md: provide 3-5 explicitly named Wave 0 users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
+        ? "Record the product-owner final GO or NO-GO decision for the official numbering / draft production slice; all other Wave 0 closure inputs are complete. Do not reintroduce the cancelled fixed five-business-day observation gate."
         : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };

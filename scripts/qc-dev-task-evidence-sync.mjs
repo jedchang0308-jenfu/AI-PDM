@@ -8,6 +8,7 @@ import { readProjectFile } from "./qc-project-file-utils.mjs";
 const root = process.cwd();
 const fixtureRoot = path.join(root, ".tmp", "qc-fixtures", `dev-task-evidence-sync-${process.pid}`);
 const fixtureTaskPath = path.join(fixtureRoot, "PDM_dev_task.fixture.md");
+const canonicalFixtureTaskPath = path.join(fixtureRoot, "dev_task.canonical.fixture.md");
 const outputTaskPath = path.join(fixtureRoot, "PDM_dev_task.synced.md");
 const evidenceBlockedPath = path.join(fixtureRoot, "evidence-blocked.json");
 const evidenceReadyPath = path.join(fixtureRoot, "evidence-ready.json");
@@ -26,6 +27,39 @@ const fixtureMarkdown = [
   "- [ ] `npm.cmd run qc:postgres-shadow` 在 disposable target 通過。",
   "- [ ] `P0` 整合 SolidWorks Document Manager API 或等效讀取元件。",
   "- [ ] `P0` 確認 SolidWorks Document Manager 授權與可部署方式。",
+  ""
+].join("\n");
+
+const canonicalFixtureMarkdown = [
+  "# Canonical Fixture",
+  "",
+  "## 總任務清單",
+  "",
+  "- ↷ DEV-035 [關卡] [延後] [P2] SolidWorks Document Manager 或等效讀取元件",
+  "  - 摘要：fixture",
+  "  - 來源 ID：`DEV-CAD-001`",
+  "  - 證據：fixture",
+  "  - 計入交付：否",
+  "- × DEV-036 [關卡] [停止追蹤] [P3] SolidWorks Add-in 實機驗證",
+  "  - 摘要：fixture",
+  "  - 來源 ID：`DEV-SW-001`",
+  "  - 證據：fixture",
+  "  - 計入交付：否",
+  "- ↷ DEV-037 [關卡] [延後] [P2] 離線單向備份與還原",
+  "  - 摘要：fixture",
+  "  - 來源 ID：`DEV-BACKUP-001`",
+  "  - 證據：fixture",
+  "  - 計入交付：否",
+  "- × DEV-038 [關卡] [人類決策取消] [P3] 正式現場測試",
+  "  - 摘要：fixture",
+  "  - 來源 ID：`DEV-FIELD-001`",
+  "  - 證據：fixture",
+  "  - 計入交付：否",
+  "- ↷ DEV-034 [關卡] [等待 evidence] [P0] SQLite 到 PostgreSQL 影子遷移",
+  "  - 摘要：fixture",
+  "  - 來源 ID：`DEV-IND-007`",
+  "  - 證據：fixture",
+  "  - 計入交付：否",
   ""
 ].join("\n");
 
@@ -62,6 +96,7 @@ process.once("exit", cleanupFixtureRoot);
 
 fs.mkdirSync(fixtureRoot, { recursive: true });
 fs.writeFileSync(fixtureTaskPath, fixtureMarkdown, "utf8");
+fs.writeFileSync(canonicalFixtureTaskPath, canonicalFixtureMarkdown, "utf8");
 fs.writeFileSync(evidenceBlockedPath, `${JSON.stringify({
   solidWorksReady: false,
   restoreReady: false,
@@ -108,6 +143,16 @@ const actualDryRun = runSync([]);
 record(results, "QASYNC-009 actual dev_task dry-run exits 0", actualDryRun.status === 0, actualDryRun.stderr);
 record(results, "QASYNC-010 actual dev_task reports no eligible changes while evidence is open", actualDryRun.parsed?.changes?.length === 0, JSON.stringify(actualDryRun.parsed?.changes ?? null));
 record(results, "QASYNC-011 actual dev_task keeps remaining external/deferred target tasks visible", actualDryRun.parsed?.blocked?.length >= 1, JSON.stringify(actualDryRun.parsed?.blocked ?? null));
+
+const canonicalBlocked = runSync(["--task-file", canonicalFixtureTaskPath, "--evidence-fixture", evidenceBlockedPath]);
+record(results, "QASYNC-012 canonical blocked fixture exits 0", canonicalBlocked.status === 0, canonicalBlocked.stderr);
+record(results, "QASYNC-013 canonical fixture needs no legacy checkbox/table", canonicalBlocked.parsed?.changes?.length === 0, JSON.stringify(canonicalBlocked.parsed?.changes ?? null));
+record(results, "QASYNC-014 canonical fixture reports three evidence blockers", canonicalBlocked.parsed?.blocked?.length === 3, JSON.stringify(canonicalBlocked.parsed?.blocked ?? null));
+record(results, "QASYNC-015 canonical skipped entries do not become blockers", canonicalBlocked.parsed?.canonicalSkipped?.length === 2, JSON.stringify(canonicalBlocked.parsed?.canonicalSkipped ?? null));
+
+const canonicalReady = runSync(["--task-file", canonicalFixtureTaskPath, "--evidence-fixture", evidenceReadyPath]);
+record(results, "QASYNC-016 canonical ready fixture exits 0", canonicalReady.status === 0, canonicalReady.stderr);
+record(results, "QASYNC-017 canonical ready evidence is reported without auto-changing PM status", canonicalReady.parsed?.canonicalReady?.length === 3 && canonicalReady.parsed?.changes?.length === 0, JSON.stringify(canonicalReady.parsed ?? null));
 
 const failed = results.filter((result) => !result.passed);
 const report = {
