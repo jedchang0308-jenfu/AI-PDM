@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T07:19:41.718Z",
+  "generatedAt": "2026-07-17T00:09:04.679Z",
   "readOnlyOrFailClosedOnly": true,
   "productionMutationPerformed": false,
-  "status": "machine_gate_e_passed_human_closure_pending",
+  "status": "machine_gate_e_passed_release_closure_complete",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -14,9 +14,9 @@
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
   "release": {
-    "sourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
-    "imageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
-    "runtimeRevision": "ai-pdm-prod-00012-kaf",
+    "sourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
+    "imageDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+    "runtimeRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
     "directBaseUrl": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app"
   },
   "checks": [
@@ -32,7 +32,7 @@
       "passed": true,
       "detail": {
         "path": "output/dev-032-production-live-readback/report.json",
-        "revision": "ai-pdm-prod-00012-kaf"
+        "revision": "ai-pdm-prod-gh-6dc24ebe-29516917660"
       }
     },
     {
@@ -55,6 +55,34 @@
           "drawingNumber": "A0001-M01",
           "seriesCode": "DEV032-HF"
         }
+      }
+    },
+    {
+      "name": "current release canonical smoke passed",
+      "passed": true,
+      "detail": {
+        "path": "output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json",
+        "passed": 13,
+        "failed": 0,
+        "revision": "ai-pdm-prod-gh-6dc24ebe-29516917660"
+      }
+    },
+    {
+      "name": "current release authenticated UI closure passed",
+      "passed": true,
+      "detail": {
+        "path": "output/dev-032-gate-e-closure/report.json",
+        "ui": {
+          "status": "passed",
+          "evidenceType": "current-release-browser-readback",
+          "persistedObject": {
+            "partNumber": "A0001-P01",
+            "drawingNumber": "A0001-M01",
+            "seriesCode": "DEV032-HF"
+          },
+          "unopenedFeaturesRemainDisabled": true
+        },
+        "revision": "ai-pdm-prod-gh-6dc24ebe-29516917660"
       }
     },
     {
@@ -225,17 +253,19 @@
     }
   ],
   "summary": {
-    "total": 15,
-    "passed": 15,
+    "total": 17,
+    "passed": 17,
     "failed": 0,
     "machineChecksPassed": true,
-    "requiresHumanClosure": true
+    "requiresHumanClosure": false
   },
   "evidencePaths": {
     "evidenceContract": "config/platform/production-activation-evidence.json",
     "liveReadback": "output/dev-032-production-live-readback/report.json",
     "postTrafficSmoke": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json",
     "level4UiSmoke": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json",
+    "currentReleaseCanonicalSmoke": "output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json",
+    "currentReleaseClosure": "output/dev-032-gate-e-closure/report.json",
     "chromeUiReadback": "output/dev-032-gate-e-automation/production-ui-readback.json",
     "chromeUiScreenshot": "output/dev-032-gate-e-automation/production-ui-readback.jpg",
     "humanWorkPackage": "output/dev-032-gate-e-automation/human-work-package.md"
@@ -244,7 +274,6 @@
     "No new production users were created.",
     "No Wave 0 allowlist was expanded or guessed.",
     "No custom DNS was configured.",
-    "No GCS file authority, CAD, BOM or full PDM workflow was opened.",
-    "No named non-allowlist Google sign-in was performed because that requires a real human-controlled account."
+    "No GCS file authority, CAD, BOM or full PDM workflow was opened."
   ]
 }

@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-07-16T01:49:17.8793456Z",
+  "planSha256": "25f6f28a74d27e988e13301793488cf736fe0fedcc8ec72779cfc90b9497221e",
+  "target": "jenfu-ai-pdm-prod/asia-east1/ai-pdm-prod",
+  "create": 0,
+  "update": 1,
+  "delete": 0,
+  "replace": 0,
+  "changedAddresses": [
+    {
+      "address": "google_cloud_run_v2_service.pdm[0]",
+      "actions": [
+        "update"
+      ]
+    }
+  ],
+  "beforeImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "afterImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "imageDigestUnchanged": true,
+  "sliceMode": "official-numbering-draft",
+  "exactSliceMode": true,
+  "estimatedMonthlyCostUsd": 210,
+  "planReviewStopUsd": 240,
+  "withinCostStop": true,
+  "safeToApply": true
+}

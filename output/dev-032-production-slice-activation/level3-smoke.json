@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-07-16T01:53:51.9315814Z",
+  "target": "jenfu-ai-pdm-prod",
+  "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+  "directBaseUrl": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "revision": "ai-pdm-prod-00006-lx5",
+  "manifestDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+  "passed": 14,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "hosting login entrypoint",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 with AI PDM shell"
+    },
+    {
+      "name": "hosting private no-store",
+      "passed": true,
+      "actual": "no-store, max-age=0, private",
+      "expected": "contains no-store"
+    },
+    {
+      "name": "firebase BFF auth mode",
+      "passed": true,
+      "actual": "200/firebase_bff",
+      "expected": "200/firebase_bff"
+    },
+    {
+      "name": "production slice active",
+      "passed": true,
+      "actual": "200/True/True/official-numbering-draft",
+      "expected": "200/true/true/official-numbering-draft"
+    },
+    {
+      "name": "protected GET /api/numbering/permissions",
+      "passed": true,
+      "actual": "401/no-store, max-age=0, private",
+      "expected": "401/no-store"
+    },
+    {
+      "name": "protected GET /api/numbering/draft-workspaces",
+      "passed": true,
+      "actual": "401/no-store, max-age=0, private",
+      "expected": "401/no-store"
+    },
+    {
+      "name": "unopened page /upload",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page"
+    },
+    {
+      "name": "unopened page /handoff",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page"
+    },
+    {
+      "name": "unopened page /approvals",
+      "passed": true,
+      "actual": 200,
+      "expected": "200 blocked-state page"
+    },
+    {
+      "name": "unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked"
+    },
+    {
+      "name": "unopened mutation /api/files/upload",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked"
+    },
+    {
+      "name": "unopened mutation /api/cad/preview",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked"
+    },
+    {
+      "name": "unopened mutation /api/bom/publish",
+      "passed": true,
+      "actual": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked",
+      "expected": "403/feature_not_open_in_production_slice/official-numbering-draft/blocked"
+    },
+    {
+      "name": "direct run.app session exchange denied",
+      "passed": true,
+      "actual": 403,
+      "expected": "403"
+    }
+  ]
+}

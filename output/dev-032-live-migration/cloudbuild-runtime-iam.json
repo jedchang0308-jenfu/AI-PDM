@@ -1,0 +1,9 @@
+{
+  "identity": "451715062958-compute@developer.gserviceaccount.com",
+  "sourceBucketObjectViewer": true,
+  "projectLogsWriter": true,
+  "repositoryArtifactWriter": true,
+  "repository": "ai-pdm",
+  "storageAdmin": false,
+  "projectEditor": false
+}

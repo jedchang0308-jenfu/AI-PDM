@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "dev-032-production-auth-activation/v1",
+  "capturedAt": "2026-07-15T18:38:38.6951950Z",
+  "project": "jenfu-ai-pdm-prod",
+  "deployTarget": "auth",
+  "firebaseToolsVersion": "15.23.0",
+  "dryRunPassed": true,
+  "deployPassed": true,
+  "configPath": "config/platform/firebase-auth.production.json",
+  "configSha256": "833ccfa6b553917c4eb1e1c213b5977837f2f870c73979b17cd450f12046b9e0",
+  "providerReadbackPath": "output/dev-032-production-auth-activation/provider-readback.json",
+  "providerReadbackSha256": "11d140aed983ce24e285d03c2a35cb7d6d1cb941d86d1fb664d8acdaed721969",
+  "auditReadbackPath": "output/dev-032-production-auth-activation/identity-platform-audit-readback.json",
+  "auditReadbackSha256": "23b837f9ffd3e8db882050850e3176df4ff68ea054c3575571aa40e29dfcd592",
+  "readback": {
+    "googleEnabled": true,
+    "googleClientIdPresent": true,
+    "googleClientSecretPresent": true,
+    "emailPasswordEnabled": true,
+    "anonymousEnabled": false,
+    "authorizedDomains": [
+      "jenfu-ai-pdm-prod.firebaseapp.com",
+      "pdm.jenfu.com.tw"
+    ]
+  }
+}

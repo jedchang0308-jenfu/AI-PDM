@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-07-15T18:33:02.9826832Z",
+  "project": "jenfu-ai-pdm-prod",
+  "google": {
+    "name": "projects/451715062958/defaultSupportedIdpConfigs/google.com",
+    "enabled": true,
+    "clientIdPresent": true,
+    "clientSecretPresent": true
+  },
+  "signIn": {
+    "emailPasswordEnabled": true,
+    "anonymousEnabled": false
+  },
+  "authorizedDomains": [
+    "jenfu-ai-pdm-prod.firebaseapp.com",
+    "pdm.jenfu.com.tw"
+  ]
+}

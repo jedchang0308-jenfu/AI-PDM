@@ -1,0 +1,2915 @@
+{
+  "version": 4,
+  "terraform_version": "1.14.5",
+  "serial": 13,
+  "lineage": "aa30f184-69b6-f745-9057-5dd7cc2ff501",
+  "outputs": {
+    "production_gate_summary": {
+      "value": {
+        "clean_seed_allowlist": false,
+        "cost_gate_ready": true,
+        "env_source": true,
+        "hd84_restore": false,
+        "level3_smoke_plan": false,
+        "post_apply_ready": false,
+        "rollback_readiness": false,
+        "secret_metadata": true,
+        "target_readback": true
+      },
+      "type": [
+        "object",
+        {
+          "clean_seed_allowlist": "bool",
+          "cost_gate_ready": "bool",
+          "env_source": "bool",
+          "hd84_restore": "bool",
+          "level3_smoke_plan": "bool",
+          "post_apply_ready": "bool",
+          "rollback_readiness": "bool",
+          "secret_metadata": "bool",
+          "target_readback": "bool"
+        }
+      ]
+    },
+    "production_review_target": {
+      "value": {
+        "cloud_run_service": "ai-pdm-prod",
+        "cloud_sql_instance": "ai-pdm-prod-postgres",
+        "create_resources": true,
+        "firebase_hosting_used": false,
+        "migration_live_mode": false,
+        "migration_runner_job": "ai-pdm-prod-migration-runner",
+        "phase3a_gcs_authority": false,
+        "production_action": false,
+        "project_id": "jenfu-ai-pdm-prod",
+        "public_base_url": "https://pdm.jenfu.com.tw",
+        "region": "asia-east1"
+      },
+      "type": [
+        "object",
+        {
+          "cloud_run_service": "string",
+          "cloud_sql_instance": "string",
+          "create_resources": "bool",
+          "firebase_hosting_used": "bool",
+          "migration_live_mode": "bool",
+          "migration_runner_job": "string",
+          "phase3a_gcs_authority": "bool",
+          "production_action": "bool",
+          "project_id": "string",
+          "public_base_url": "string",
+          "region": "string"
+        }
+      ]
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "google_artifact_registry_repository",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "cleanup_policies": [],
+            "cleanup_policy_dry_run": true,
+            "create_time": "2026-07-15T15:17:45.197079Z",
+            "deletion_policy": "DELETE",
+            "description": "Immutable AI PDM production images",
+            "docker_config": [],
+            "effective_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "format": "DOCKER",
+            "id": "projects/jenfu-ai-pdm-prod/locations/asia-east1/repositories/ai-pdm",
+            "kms_key_name": "",
+            "labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "location": "asia-east1",
+            "maven_config": [],
+            "mode": "STANDARD_REPOSITORY",
+            "name": "ai-pdm",
+            "project": "jenfu-ai-pdm-prod",
+            "registry_uri": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm",
+            "remote_repository_config": [],
+            "repository_id": "ai-pdm",
+            "terraform_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "timeouts": null,
+            "update_time": "2026-07-15T16:29:30.889714Z",
+            "virtual_repository_config": [],
+            "vulnerability_scanning_config": [
+              {
+                "enablement_config": "",
+                "enablement_state": "SCANNING_DISABLED",
+                "enablement_state_reason": "API containerscanning.googleapis.com is not enabled."
+              }
+            ]
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "location": "asia-east1",
+            "project": "jenfu-ai-pdm-prod",
+            "repository_id": "ai-pdm"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_cloud_run_v2_job",
+      "name": "migration_runner",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "annotations": null,
+            "binary_authorization": [],
+            "client": "",
+            "client_version": "",
+            "conditions": [],
+            "create_time": "2026-07-15T16:36:24.862828Z",
+            "creator": "jedchang0308@jenfu.com.tw",
+            "delete_time": "",
+            "deletion_policy": "DELETE",
+            "deletion_protection": true,
+            "effective_annotations": {},
+            "effective_labels": {
+              "application": "ai-pdm",
+              "component": "migration-runner",
+              "dev": "dev-032",
+              "environment": "production",
+              "goog-terraform-provisioned": "true",
+              "managed-by": "terraform"
+            },
+            "etag": "\"CIju3tIGEODrtpsD/cHJvamVjdHMvamVuZnUtYWktcGRtLXByb2QvbG9jYXRpb25zL2FzaWEtZWFzdDEvam9icy9haS1wZG0tcHJvZC1taWdyYXRpb24tcnVubmVy\"",
+            "execution_count": 0,
+            "expire_time": "",
+            "generation": "1",
+            "id": "projects/jenfu-ai-pdm-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner",
+            "labels": {
+              "application": "ai-pdm",
+              "component": "migration-runner",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "last_modifier": "jedchang0308@jenfu.com.tw",
+            "latest_created_execution": [],
+            "launch_stage": "GA",
+            "location": "asia-east1",
+            "name": "ai-pdm-prod-migration-runner",
+            "observed_generation": "1",
+            "project": "jenfu-ai-pdm-prod",
+            "reconciling": false,
+            "template": [
+              {
+                "annotations": null,
+                "labels": null,
+                "parallelism": 1,
+                "task_count": 1,
+                "template": [
+                  {
+                    "containers": [
+                      {
+                        "args": [
+                          "scripts/run-dev-046-cloudsql-migrations.mjs"
+                        ],
+                        "command": [
+                          "node"
+                        ],
+                        "depends_on": [
+                          "cloud-sql-proxy"
+                        ],
+                        "env": [
+                          {
+                            "name": "NODE_ENV",
+                            "value": "production",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS",
+                            "value": "60000",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_DATABASE",
+                            "value": "ai_pdm",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_HOST",
+                            "value": "127.0.0.1",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS",
+                            "value": "600000",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+                            "value": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_POOL_MAX",
+                            "value": "2",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_PORT",
+                            "value": "5432",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS",
+                            "value": "35000",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS",
+                            "value": "30000",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_CLOUD_SQL_USER",
+                            "value": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_DB_PROVIDER",
+                            "value": "cloud_sql_postgres",
+                            "value_source": []
+                          },
+                          {
+                            "name": "PDM_MIGRATION_PACKAGE_TARGET",
+                            "value": "production",
+                            "value_source": []
+                          }
+                        ],
+                        "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:e5909a392344a0908fadcb39fba4ebe5a17cf5b5d569fa22dbc58bcf1d129ed8",
+                        "name": "ai-pdm-migration-runner",
+                        "ports": [],
+                        "resources": [
+                          {
+                            "limits": {
+                              "cpu": "1",
+                              "memory": "1Gi"
+                            }
+                          }
+                        ],
+                        "startup_probe": [],
+                        "volume_mounts": [],
+                        "working_dir": ""
+                      },
+                      {
+                        "args": [
+                          "--address=0.0.0.0",
+                          "--port=5432",
+                          "--private-ip",
+                          "--auto-iam-authn",
+                          "--lazy-refresh",
+                          "--structured-logs",
+                          "--max-connections=2",
+                          "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+                        ],
+                        "command": null,
+                        "depends_on": null,
+                        "env": [],
+                        "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+                        "name": "cloud-sql-proxy",
+                        "ports": [],
+                        "resources": [
+                          {
+                            "limits": {
+                              "cpu": "1",
+                              "memory": "256Mi"
+                            }
+                          }
+                        ],
+                        "startup_probe": [
+                          {
+                            "failure_threshold": 20,
+                            "grpc": [],
+                            "http_get": [],
+                            "initial_delay_seconds": 1,
+                            "period_seconds": 3,
+                            "tcp_socket": [
+                              {
+                                "port": 5432
+                              }
+                            ],
+                            "timeout_seconds": 2
+                          }
+                        ],
+                        "volume_mounts": [],
+                        "working_dir": ""
+                      }
+                    ],
+                    "encryption_key": "",
+                    "execution_environment": "EXECUTION_ENVIRONMENT_GEN2",
+                    "gpu_zonal_redundancy_disabled": false,
+                    "max_retries": 0,
+                    "node_selector": [],
+                    "service_account": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+                    "timeout": "1800s",
+                    "volumes": [],
+                    "vpc_access": [
+                      {
+                        "connector": "",
+                        "egress": "ALL_TRAFFIC",
+                        "network_interfaces": [
+                          {
+                            "network": "ai-pdm-prod-vpc",
+                            "subnetwork": "ai-pdm-prod-runtime",
+                            "tags": [
+                              "ai-pdm-production-migration-runner"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "terminal_condition": [
+              {
+                "execution_reason": "",
+                "last_transition_time": "2026-07-15T16:36:30.161917Z",
+                "message": "",
+                "reason": "",
+                "revision_reason": "",
+                "severity": "",
+                "state": "CONDITION_SUCCEEDED",
+                "type": "Ready"
+              }
+            ],
+            "terraform_labels": {
+              "application": "ai-pdm",
+              "component": "migration-runner",
+              "dev": "dev-032",
+              "environment": "production",
+              "goog-terraform-provisioned": "true",
+              "managed-by": "terraform"
+            },
+            "timeouts": null,
+            "uid": "8dab3786-f272-4665-bc43-c264debdcf65",
+            "update_time": "2026-07-15T16:36:24.862828Z"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "location": "asia-east1",
+            "name": "ai-pdm-prod-migration-runner",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_compute_subnetwork.runtime",
+            "google_project_iam_member.migration",
+            "google_project_service.required",
+            "google_service_account.migration",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm",
+            "google_sql_user.migration_iam"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_cloud_run_v2_service",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "annotations": null,
+            "binary_authorization": [],
+            "build_config": [],
+            "client": "",
+            "client_version": "",
+            "conditions": [
+              {
+                "execution_reason": "",
+                "last_transition_time": "2026-07-15T16:36:45.168991Z",
+                "message": "",
+                "reason": "",
+                "revision_reason": "",
+                "severity": "",
+                "state": "CONDITION_SUCCEEDED",
+                "type": "RoutesReady"
+              },
+              {
+                "execution_reason": "",
+                "last_transition_time": "2026-07-15T16:36:31.184723Z",
+                "message": "",
+                "reason": "",
+                "revision_reason": "",
+                "severity": "",
+                "state": "CONDITION_SUCCEEDED",
+                "type": "ConfigurationsReady"
+              }
+            ],
+            "create_time": "2026-07-15T16:36:25.278178Z",
+            "creator": "jedchang0308@jenfu.com.tw",
+            "custom_audiences": null,
+            "default_uri_disabled": true,
+            "delete_time": "",
+            "deletion_policy": "DELETE",
+            "deletion_protection": true,
+            "description": "",
+            "effective_annotations": {},
+            "effective_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "goog-terraform-provisioned": "true",
+              "managed-by": "terraform"
+            },
+            "etag": "\"CInu3tIGENDR0oQB/cHJvamVjdHMvamVuZnUtYWktcGRtLXByb2QvbG9jYXRpb25zL2FzaWEtZWFzdDEvc2VydmljZXMvYWktcGRtLXByb2Q\"",
+            "expire_time": "",
+            "generation": "1",
+            "iap_enabled": false,
+            "id": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod",
+            "ingress": "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+            "invoker_iam_disabled": true,
+            "labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "last_modifier": "jedchang0308@jenfu.com.tw",
+            "latest_created_revision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00001-mt9",
+            "latest_ready_revision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00001-mt9",
+            "launch_stage": "GA",
+            "location": "asia-east1",
+            "multi_region_settings": [],
+            "name": "ai-pdm-prod",
+            "observed_generation": "1",
+            "project": "jenfu-ai-pdm-prod",
+            "reconciling": false,
+            "scaling": [
+              {
+                "manual_instance_count": 0,
+                "max_instance_count": 5,
+                "min_instance_count": 0,
+                "scaling_mode": ""
+              }
+            ],
+            "template": [
+              {
+                "annotations": null,
+                "containers": [
+                  {
+                    "args": null,
+                    "base_image_uri": "",
+                    "build_info": [],
+                    "command": null,
+                    "depends_on": [
+                      "cloud-sql-proxy"
+                    ],
+                    "env": [
+                      {
+                        "name": "NODE_ENV",
+                        "value": "production",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED",
+                        "value": "false",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_AUTH_MODE",
+                        "value": "firebase_bff",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_CLOUD_SQL_DATABASE",
+                        "value": "ai_pdm",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_CLOUD_SQL_HOST",
+                        "value": "127.0.0.1",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+                        "value": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_CLOUD_SQL_PORT",
+                        "value": "5432",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_CLOUD_SQL_USER",
+                        "value": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_COOKIE_SECURE",
+                        "value": "true",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_DB_PROVIDER",
+                        "value": "cloud_sql_postgres",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_FIREBASE_API_KEY",
+                        "value": "AIzaSyAfe6t3NluzmHveVGEVSwk8S4qQXNZADVI",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_FIREBASE_APP_ID",
+                        "value": "1:451715062958:web:dbb1e009f26537bda8213f",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_FIREBASE_AUTH_DOMAIN",
+                        "value": "jenfu-ai-pdm-prod.firebaseapp.com",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_FIREBASE_PROJECT_ID",
+                        "value": "jenfu-ai-pdm-prod",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_GOOGLE_WORKSPACE_DOMAINS",
+                        "value": "jenfu.com.tw",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_PUBLIC_BASE_URL",
+                        "value": "https://pdm.jenfu.com.tw",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_SESSION_AUDIENCE",
+                        "value": "ai-pdm-production",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_SESSION_CURRENT_KEY_ID",
+                        "value": "production-session-v1",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_SESSION_CURRENT_SECRET",
+                        "value": "",
+                        "value_source": [
+                          {
+                            "secret_key_ref": [
+                              {
+                                "secret": "pdm-session-signing-current",
+                                "version": "latest"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "PDM_SESSION_ISSUER",
+                        "value": "https://pdm.jenfu.com.tw",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_SESSION_PREVIOUS_KEY_ID",
+                        "value": "production-session-v0",
+                        "value_source": []
+                      },
+                      {
+                        "name": "PDM_SESSION_PREVIOUS_SECRET",
+                        "value": "",
+                        "value_source": [
+                          {
+                            "secret_key_ref": [
+                              {
+                                "secret": "pdm-session-signing-previous",
+                                "version": "latest"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "PDM_TRUST_GOOGLE_WORKSPACE_MFA",
+                        "value": "false",
+                        "value_source": []
+                      }
+                    ],
+                    "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+                    "liveness_probe": [],
+                    "name": "ai-pdm",
+                    "ports": [
+                      {
+                        "container_port": 8080,
+                        "name": "http1"
+                      }
+                    ],
+                    "readiness_probe": [],
+                    "resources": [
+                      {
+                        "cpu_idle": true,
+                        "limits": {
+                          "cpu": "1",
+                          "memory": "1Gi"
+                        },
+                        "startup_cpu_boost": true
+                      }
+                    ],
+                    "startup_probe": [
+                      {
+                        "failure_threshold": 24,
+                        "grpc": [],
+                        "http_get": [
+                          {
+                            "http_headers": [],
+                            "path": "/login",
+                            "port": 8080
+                          }
+                        ],
+                        "initial_delay_seconds": 0,
+                        "period_seconds": 5,
+                        "tcp_socket": [],
+                        "timeout_seconds": 2
+                      }
+                    ],
+                    "volume_mounts": [],
+                    "working_dir": ""
+                  },
+                  {
+                    "args": [
+                      "--address=0.0.0.0",
+                      "--port=5432",
+                      "--private-ip",
+                      "--auto-iam-authn",
+                      "--lazy-refresh",
+                      "--structured-logs",
+                      "--max-connections=5",
+                      "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+                    ],
+                    "base_image_uri": "",
+                    "build_info": [],
+                    "command": null,
+                    "depends_on": null,
+                    "env": [],
+                    "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+                    "liveness_probe": [],
+                    "name": "cloud-sql-proxy",
+                    "ports": [],
+                    "readiness_probe": [],
+                    "resources": [
+                      {
+                        "cpu_idle": true,
+                        "limits": {
+                          "cpu": "1",
+                          "memory": "256Mi"
+                        },
+                        "startup_cpu_boost": false
+                      }
+                    ],
+                    "startup_probe": [
+                      {
+                        "failure_threshold": 20,
+                        "grpc": [],
+                        "http_get": [],
+                        "initial_delay_seconds": 1,
+                        "period_seconds": 3,
+                        "tcp_socket": [
+                          {
+                            "port": 5432
+                          }
+                        ],
+                        "timeout_seconds": 2
+                      }
+                    ],
+                    "volume_mounts": [],
+                    "working_dir": ""
+                  }
+                ],
+                "encryption_key": "",
+                "execution_environment": "EXECUTION_ENVIRONMENT_GEN2",
+                "gpu_zonal_redundancy_disabled": false,
+                "health_check_disabled": false,
+                "labels": null,
+                "max_instance_request_concurrency": 20,
+                "node_selector": [],
+                "revision": "",
+                "scaling": [
+                  {
+                    "max_instance_count": 5,
+                    "min_instance_count": 0
+                  }
+                ],
+                "service_account": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+                "session_affinity": false,
+                "timeout": "60s",
+                "volumes": [],
+                "vpc_access": [
+                  {
+                    "connector": "",
+                    "egress": "ALL_TRAFFIC",
+                    "network_interfaces": [
+                      {
+                        "network": "ai-pdm-prod-vpc",
+                        "subnetwork": "ai-pdm-prod-runtime",
+                        "tags": [
+                          "ai-pdm-production-runtime"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "terminal_condition": [
+              {
+                "execution_reason": "",
+                "last_transition_time": "2026-07-15T16:36:45.196416Z",
+                "message": "",
+                "reason": "",
+                "revision_reason": "",
+                "severity": "",
+                "state": "CONDITION_SUCCEEDED",
+                "type": "Ready"
+              }
+            ],
+            "terraform_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "goog-terraform-provisioned": "true",
+              "managed-by": "terraform"
+            },
+            "timeouts": null,
+            "traffic": [
+              {
+                "percent": 100,
+                "revision": "",
+                "tag": "",
+                "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+              }
+            ],
+            "traffic_statuses": [
+              {
+                "percent": 100,
+                "revision": "",
+                "tag": "",
+                "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST",
+                "uri": ""
+              }
+            ],
+            "uid": "da9549e3-7951-45e3-9f46-1a267cf88608",
+            "update_time": "2026-07-15T16:36:25.278178Z",
+            "uri": "",
+            "urls": []
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "location": "asia-east1",
+            "name": "ai-pdm-prod",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_compute_subnetwork.runtime",
+            "google_project_iam_member.runtime",
+            "google_project_service.required",
+            "google_secret_manager_secret.session_signing",
+            "google_secret_manager_secret_iam_member.runtime_session_signing",
+            "google_service_account.runtime",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm",
+            "google_sql_user.runtime_iam"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_global_address",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "address": "136.69.102.146",
+            "address_type": "EXTERNAL",
+            "creation_timestamp": "2026-07-15T09:29:19.588-07:00",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "effective_labels": {
+              "goog-terraform-provisioned": "true"
+            },
+            "id": "projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-ipv4",
+            "ip_version": "",
+            "label_fingerprint": "vezUS-42LLM=",
+            "labels": null,
+            "name": "ai-pdm-prod-ipv4",
+            "network": "",
+            "prefix_length": 0,
+            "project": "jenfu-ai-pdm-prod",
+            "purpose": "",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-ipv4",
+            "terraform_labels": {
+              "goog-terraform-provisioned": "true"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-ipv4",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_global_address",
+      "name": "private_services",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "address": "10.42.0.0",
+            "address_type": "INTERNAL",
+            "creation_timestamp": "2026-07-15T09:29:53.907-07:00",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "effective_labels": {
+              "goog-terraform-provisioned": "true"
+            },
+            "id": "projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-private-services",
+            "ip_version": "",
+            "label_fingerprint": "vezUS-42LLM=",
+            "labels": null,
+            "name": "ai-pdm-prod-private-services",
+            "network": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+            "prefix_length": 16,
+            "project": "jenfu-ai-pdm-prod",
+            "purpose": "VPC_PEERING",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-private-services",
+            "terraform_labels": {
+              "goog-terraform-provisioned": "true"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-private-services",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_network.pdm",
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_global_forwarding_rule",
+      "name": "http",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "base_forwarding_rule": "",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "effective_labels": {},
+            "external_managed_backend_bucket_migration_state": "",
+            "external_managed_backend_bucket_migration_testing_percentage": 0,
+            "forwarding_rule_id": 8893472303350418328,
+            "id": "projects/jenfu-ai-pdm-prod/global/forwardingRules/ai-pdm-prod-http",
+            "ip_address": "136.69.102.146",
+            "ip_protocol": "TCP",
+            "ip_version": "",
+            "label_fingerprint": "42WmSpB8rSM=",
+            "labels": null,
+            "load_balancing_scheme": "EXTERNAL_MANAGED",
+            "metadata_filters": [],
+            "name": "ai-pdm-prod-http",
+            "network": "",
+            "network_tier": "PREMIUM",
+            "no_automate_dns_zone": null,
+            "port_range": "80-80",
+            "project": "jenfu-ai-pdm-prod",
+            "psc_connection_id": "",
+            "psc_connection_status": "",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/forwardingRules/ai-pdm-prod-http",
+            "service_directory_registrations": [],
+            "source_ip_ranges": null,
+            "subnetwork": "",
+            "target": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/targetHttpProxies/ai-pdm-prod-http-redirect",
+            "terraform_labels": {},
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-http",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.pdm",
+            "google_compute_target_http_proxy.redirect",
+            "google_compute_url_map.http_redirect"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_managed_ssl_certificate",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "certificate_id": 7438271335458540465,
+            "creation_timestamp": "2026-07-15T09:29:18.946-07:00",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "expire_time": "",
+            "id": "projects/jenfu-ai-pdm-prod/global/sslCertificates/ai-pdm-prod-managed-tls",
+            "managed": [
+              {
+                "domains": [
+                  "pdm.jenfu.com.tw"
+                ]
+              }
+            ],
+            "name": "ai-pdm-prod-managed-tls",
+            "project": "jenfu-ai-pdm-prod",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/sslCertificates/ai-pdm-prod-managed-tls",
+            "subject_alternative_names": [],
+            "timeouts": null,
+            "type": "MANAGED"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-managed-tls",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxODAwMDAwMDAwMDAwLCJkZWxldGUiOjE4MDAwMDAwMDAwMDB9fQ==",
+          "create_before_destroy": true
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_network",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "auto_create_subnetworks": false,
+            "bgp_always_compare_med": false,
+            "bgp_best_path_selection_mode": "LEGACY",
+            "bgp_inter_region_cost": "",
+            "delete_bgp_always_compare_med": false,
+            "delete_default_routes_on_create": false,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "enable_ula_internal_ipv6": false,
+            "gateway_ipv4": "",
+            "id": "projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+            "internal_ipv6_range": "",
+            "mtu": 0,
+            "name": "ai-pdm-prod-vpc",
+            "network_firewall_policy_enforcement_order": "AFTER_CLASSIC_FIREWALL",
+            "network_id": "3888098845153430404",
+            "network_profile": "",
+            "numeric_id": "3888098845153430404",
+            "params": [],
+            "project": "jenfu-ai-pdm-prod",
+            "routing_mode": "REGIONAL",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-vpc",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_region_network_endpoint_group",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "app_engine": [],
+            "cloud_function": [],
+            "cloud_run": [
+              {
+                "service": "ai-pdm-prod",
+                "tag": "",
+                "url_mask": ""
+              }
+            ],
+            "deletion_policy": "DELETE",
+            "description": "",
+            "id": "projects/jenfu-ai-pdm-prod/regions/asia-east1/networkEndpointGroups/ai-pdm-prod-neg",
+            "name": "ai-pdm-prod-neg",
+            "network": "",
+            "network_endpoint_type": "SERVERLESS",
+            "project": "jenfu-ai-pdm-prod",
+            "psc_data": [],
+            "psc_target_service": "",
+            "region": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/regions/asia-east1",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/regions/asia-east1/networkEndpointGroups/ai-pdm-prod-neg",
+            "subnetwork": "",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-neg",
+            "project": "jenfu-ai-pdm-prod",
+            "region": "asia-east1"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDB9fQ==",
+          "dependencies": [
+            "google_cloud_run_v2_service.pdm",
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_compute_subnetwork.runtime",
+            "google_project_iam_member.runtime",
+            "google_project_service.required",
+            "google_secret_manager_secret.session_signing",
+            "google_secret_manager_secret_iam_member.runtime_session_signing",
+            "google_service_account.runtime",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm",
+            "google_sql_user.runtime_iam"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_subnetwork",
+      "name": "runtime",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "allow_subnet_cidr_routes_overlap": false,
+            "creation_timestamp": "2026-07-15T09:29:57.106-07:00",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "external_ipv6_prefix": "",
+            "fingerprint": null,
+            "gateway_address": "10.46.0.1",
+            "id": "projects/jenfu-ai-pdm-prod/regions/asia-east1/subnetworks/ai-pdm-prod-runtime",
+            "internal_ipv6_prefix": "",
+            "ip_cidr_range": "10.46.0.0/24",
+            "ip_collection": "",
+            "ipv6_access_type": "",
+            "ipv6_cidr_range": "",
+            "ipv6_gce_endpoint": "",
+            "log_config": [],
+            "name": "ai-pdm-prod-runtime",
+            "network": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+            "params": [],
+            "private_ip_google_access": false,
+            "private_ipv6_google_access": "DISABLE_GOOGLE_ACCESS",
+            "project": "jenfu-ai-pdm-prod",
+            "purpose": "PRIVATE",
+            "region": "asia-east1",
+            "reserved_internal_range": "",
+            "resolve_subnet_mask": "",
+            "role": "",
+            "secondary_ip_range": [],
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/regions/asia-east1/subnetworks/ai-pdm-prod-runtime",
+            "send_secondary_ip_range_if_empty": null,
+            "stack_type": "IPV4_ONLY",
+            "state": "",
+            "subnetwork_id": 3845552576996707178,
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-runtime",
+            "project": "jenfu-ai-pdm-prod",
+            "region": "asia-east1"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_network.pdm",
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_target_http_proxy",
+      "name": "redirect",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "creation_timestamp": "2026-07-15T09:29:31.427-07:00",
+            "deletion_policy": "DELETE",
+            "description": "",
+            "fingerprint": "cF_9zaRUX7k=",
+            "http_keep_alive_timeout_sec": 0,
+            "id": "projects/jenfu-ai-pdm-prod/global/targetHttpProxies/ai-pdm-prod-http-redirect",
+            "name": "ai-pdm-prod-http-redirect",
+            "project": "jenfu-ai-pdm-prod",
+            "proxy_bind": false,
+            "proxy_id": 7942588143406549892,
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/targetHttpProxies/ai-pdm-prod-http-redirect",
+            "timeouts": null,
+            "url_map": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/urlMaps/ai-pdm-prod-http-redirect"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-http-redirect",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_url_map.http_redirect"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_compute_url_map",
+      "name": "http_redirect",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "creation_timestamp": "2026-07-15T09:29:18.915-07:00",
+            "default_custom_error_response_policy": [],
+            "default_route_action": [],
+            "default_service": "",
+            "default_url_redirect": [
+              {
+                "host_redirect": "",
+                "https_redirect": true,
+                "path_redirect": "",
+                "prefix_redirect": "",
+                "redirect_response_code": "",
+                "strip_query": false
+              }
+            ],
+            "deletion_policy": "DELETE",
+            "description": "",
+            "fingerprint": "KjVW22_z5vo=",
+            "header_action": [],
+            "host_rule": [],
+            "id": "projects/jenfu-ai-pdm-prod/global/urlMaps/ai-pdm-prod-http-redirect",
+            "map_id": 3863263463052282801,
+            "name": "ai-pdm-prod-http-redirect",
+            "path_matcher": [],
+            "project": "jenfu-ai-pdm-prod",
+            "self_link": "https://www.googleapis.com/compute/v1/projects/jenfu-ai-pdm-prod/global/urlMaps/ai-pdm-prod-http-redirect",
+            "test": [],
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "ai-pdm-prod-http-redirect",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_identity_platform_config",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "authorized_domains": [
+              "jenfu-ai-pdm-prod.firebaseapp.com",
+              "pdm.jenfu.com.tw"
+            ],
+            "autodelete_anonymous_users": true,
+            "blocking_functions": [],
+            "client": [
+              {
+                "api_key": "AIzaSyAfe6t3NluzmHveVGEVSwk8S4qQXNZADVI",
+                "firebase_subdomain": "jenfu-ai-pdm-prod",
+                "permissions": [
+                  {
+                    "disabled_user_deletion": false,
+                    "disabled_user_signup": false
+                  }
+                ]
+              }
+            ],
+            "id": "projects/jenfu-ai-pdm-prod/config",
+            "mfa": [
+              {
+                "enabled_providers": [],
+                "provider_configs": [
+                  {
+                    "state": "ENABLED",
+                    "totp_provider_config": [
+                      {
+                        "adjacent_intervals": 1
+                      }
+                    ]
+                  }
+                ],
+                "state": "ENABLED"
+              }
+            ],
+            "monitoring": [
+              {
+                "request_logging": [
+                  {
+                    "enabled": false
+                  }
+                ]
+              }
+            ],
+            "multi_tenant": [
+              {
+                "allow_tenants": false,
+                "default_tenant_location": ""
+              }
+            ],
+            "name": "projects/451715062958/config",
+            "project": "jenfu-ai-pdm-prod",
+            "quota": [],
+            "sign_in": [
+              {
+                "allow_duplicate_emails": false,
+                "anonymous": [],
+                "email": [
+                  {
+                    "enabled": true,
+                    "password_required": false
+                  }
+                ],
+                "hash_config": [
+                  {
+                    "algorithm": "SCRYPT",
+                    "memory_cost": 14,
+                    "rounds": 8,
+                    "salt_separator": "Bw==",
+                    "signer_key": "NYDxaGu/E0+BeseX/mcG/9IGy3/Lc5o5lEWGtlGtpjWDjQyq1M1bkZFqGEtR9kIKytzhZSu33u5v/JGqUlYijw=="
+                  }
+                ],
+                "phone_number": [
+                  {
+                    "enabled": false,
+                    "test_phone_numbers": {}
+                  }
+                ]
+              }
+            ],
+            "sms_region_config": [
+              {
+                "allow_by_default": [],
+                "allowlist_only": []
+              }
+            ],
+            "timeouts": null
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "client"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "api_key"
+              }
+            ]
+          ],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_kms_key_ring",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "id": "projects/jenfu-ai-pdm-prod/locations/asia-east1/keyRings/ai-pdm-prod-keys",
+            "location": "asia-east1",
+            "name": "ai-pdm-prod-keys",
+            "project": "jenfu-ai-pdm-prod",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "location": "asia-east1",
+            "name": "ai-pdm-prod-keys",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDB9fQ==",
+          "dependencies": [
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_logging_project_bucket_config",
+      "name": "application",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "bucket_id": "pdm-application",
+            "cmek_settings": [],
+            "deletion_policy": null,
+            "description": "Regionalized AI PDM production application logs.",
+            "enable_analytics": false,
+            "id": "projects/jenfu-ai-pdm-prod/locations/asia-east1/buckets/pdm-application",
+            "index_configs": [],
+            "lifecycle_state": "ACTIVE",
+            "location": "asia-east1",
+            "locked": false,
+            "name": "projects/jenfu-ai-pdm-prod/locations/asia-east1/buckets/pdm-application",
+            "project": "jenfu-ai-pdm-prod",
+            "retention_days": 30
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_logging_project_sink",
+      "name": "default",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "bigquery_options": [],
+            "custom_writer_identity": null,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "destination": "logging.googleapis.com/projects/jenfu-ai-pdm-prod/locations/asia-east1/buckets/pdm-application",
+            "disabled": false,
+            "exclusions": [],
+            "filter": "NOT LOG_ID(\"cloudaudit.googleapis.com/activity\") AND NOT LOG_ID(\"externalaudit.googleapis.com/activity\") AND NOT LOG_ID(\"cloudaudit.googleapis.com/system_event\") AND NOT LOG_ID(\"externalaudit.googleapis.com/system_event\") AND NOT LOG_ID(\"cloudaudit.googleapis.com/access_transparency\") AND NOT LOG_ID(\"externalaudit.googleapis.com/access_transparency\")",
+            "id": "projects/jenfu-ai-pdm-prod/sinks/_Default",
+            "name": "_Default",
+            "project": "jenfu-ai-pdm-prod",
+            "unique_writer_identity": true,
+            "writer_identity": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_logging_project_bucket_config.application",
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_monitoring_alert_policy",
+      "name": "cloud_run_errors",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "alert_strategy": [],
+            "combiner": "OR",
+            "conditions": [
+              {
+                "condition_absent": [],
+                "condition_matched_log": [],
+                "condition_monitoring_query_language": [],
+                "condition_prometheus_query_language": [],
+                "condition_sql": [],
+                "condition_threshold": [
+                  {
+                    "aggregations": [
+                      {
+                        "alignment_period": "60s",
+                        "cross_series_reducer": "",
+                        "group_by_fields": null,
+                        "per_series_aligner": "ALIGN_RATE"
+                      }
+                    ],
+                    "comparison": "COMPARISON_GT",
+                    "denominator_aggregations": [],
+                    "denominator_filter": "",
+                    "duration": "300s",
+                    "evaluation_missing_data": "",
+                    "filter": "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.labels.response_code_class=\"5xx\"",
+                    "forecast_options": [],
+                    "threshold_value": 0,
+                    "trigger": []
+                  }
+                ],
+                "display_name": "Cloud Run request count 5xx",
+                "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632112042/conditions/2031261166632110491"
+              }
+            ],
+            "creation_record": [
+              {
+                "mutate_time": "2026-07-15T16:29:22.211699819Z",
+                "mutated_by": "jedchang0308@jenfu.com.tw"
+              }
+            ],
+            "deletion_policy": "DELETE",
+            "display_name": "AI PDM production Cloud Run 5xx",
+            "documentation": [],
+            "enabled": true,
+            "id": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632112042",
+            "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632112042",
+            "notification_channels": [
+              "projects/jenfu-ai-pdm-prod/notificationChannels/2662679645065994001",
+              "projects/jenfu-ai-pdm-prod/notificationChannels/15103668863240167460"
+            ],
+            "project": "jenfu-ai-pdm-prod",
+            "severity": "ERROR",
+            "timeouts": null,
+            "user_labels": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632112042",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_monitoring_alert_policy",
+      "name": "cloud_sql_connections",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "alert_strategy": [],
+            "combiner": "OR",
+            "conditions": [
+              {
+                "condition_absent": [],
+                "condition_matched_log": [],
+                "condition_monitoring_query_language": [],
+                "condition_prometheus_query_language": [],
+                "condition_sql": [],
+                "condition_threshold": [
+                  {
+                    "aggregations": [
+                      {
+                        "alignment_period": "60s",
+                        "cross_series_reducer": "",
+                        "group_by_fields": null,
+                        "per_series_aligner": "ALIGN_MEAN"
+                      }
+                    ],
+                    "comparison": "COMPARISON_GT",
+                    "denominator_aggregations": [],
+                    "denominator_filter": "",
+                    "duration": "300s",
+                    "evaluation_missing_data": "",
+                    "filter": "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"jenfu-ai-pdm-prod:ai-pdm-prod-postgres\" AND metric.type=\"cloudsql.googleapis.com/database/network/connections\"",
+                    "forecast_options": [],
+                    "threshold_value": 70,
+                    "trigger": []
+                  }
+                ],
+                "display_name": "Cloud SQL connections exceed 70 percent",
+                "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632111645/conditions/2031261166632110094"
+              }
+            ],
+            "creation_record": [
+              {
+                "mutate_time": "2026-07-15T16:29:20.232542321Z",
+                "mutated_by": "jedchang0308@jenfu.com.tw"
+              }
+            ],
+            "deletion_policy": "DELETE",
+            "display_name": "AI PDM production Cloud SQL connection reserve",
+            "documentation": [],
+            "enabled": true,
+            "id": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632111645",
+            "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632111645",
+            "notification_channels": [
+              "projects/jenfu-ai-pdm-prod/notificationChannels/2662679645065994001",
+              "projects/jenfu-ai-pdm-prod/notificationChannels/15103668863240167460"
+            ],
+            "project": "jenfu-ai-pdm-prod",
+            "severity": "WARNING",
+            "timeouts": null,
+            "user_labels": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "name": "projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632111645",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "migration",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": "roles/cloudsql.client",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNReyqw=",
+            "id": "jenfu-ai-pdm-prod/roles/cloudsql.client/serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.client"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.client"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.migration"
+          ]
+        },
+        {
+          "index_key": "roles/cloudsql.instanceUser",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNReyqw=",
+            "id": "jenfu-ai-pdm-prod/roles/cloudsql.instanceUser/serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.instanceUser"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.instanceUser"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.migration"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": "roles/cloudsql.client",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNVF7tM=",
+            "id": "jenfu-ai-pdm-prod/roles/cloudsql.client/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.client"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.client"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.runtime"
+          ]
+        },
+        {
+          "index_key": "roles/cloudsql.instanceUser",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNVF7tM=",
+            "id": "jenfu-ai-pdm-prod/roles/cloudsql.instanceUser/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.instanceUser"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/cloudsql.instanceUser"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.runtime"
+          ]
+        },
+        {
+          "index_key": "roles/firebaseauth.admin",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNVF7tM=",
+            "id": "jenfu-ai-pdm-prod/roles/firebaseauth.admin/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/firebaseauth.admin"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/firebaseauth.admin"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.runtime"
+          ]
+        },
+        {
+          "index_key": "roles/logging.logWriter",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNVF7tM=",
+            "id": "jenfu-ai-pdm-prod/roles/logging.logWriter/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/logging.logWriter"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/logging.logWriter"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.runtime"
+          ]
+        },
+        {
+          "index_key": "roles/monitoring.metricWriter",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNVF7tM=",
+            "id": "jenfu-ai-pdm-prod/roles/monitoring.metricWriter/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/monitoring.metricWriter"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/monitoring.metricWriter"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_service_account.runtime"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": "artifactregistry.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/artifactregistry.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "artifactregistry.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "artifactregistry.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "billingbudgets.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/billingbudgets.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "billingbudgets.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "billingbudgets.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "cloudbuild.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/cloudbuild.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "cloudbuild.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "cloudbuild.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "cloudkms.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/cloudkms.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "cloudkms.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "cloudkms.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "compute.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/compute.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "compute.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "compute.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "firebase.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/firebase.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "firebase.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "firebase.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "iam.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/iam.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "iam.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "iam.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "iamcredentials.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/iamcredentials.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "iamcredentials.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "iamcredentials.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "identitytoolkit.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/identitytoolkit.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "identitytoolkit.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "identitytoolkit.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "logging.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/logging.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "logging.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "logging.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "monitoring.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/monitoring.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "monitoring.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "monitoring.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "run.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/run.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "run.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "run.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "secretmanager.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/secretmanager.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "secretmanager.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "secretmanager.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "servicenetworking.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/servicenetworking.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "servicenetworking.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "servicenetworking.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        },
+        {
+          "index_key": "sqladmin.googleapis.com",
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "disable_dependent_services": null,
+            "disable_on_destroy": false,
+            "id": "jenfu-ai-pdm-prod/sqladmin.googleapis.com",
+            "project": "jenfu-ai-pdm-prod",
+            "service": "sqladmin.googleapis.com",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "service": "sqladmin.googleapis.com"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInJlYWQiOjYwMDAwMDAwMDAwMCwidXBkYXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_secret_manager_secret",
+      "name": "session_signing",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": "pdm-session-signing-current",
+          "schema_version": 0,
+          "attributes": {
+            "annotations": {},
+            "create_time": "2026-07-15T15:11:20.537013Z",
+            "deletion_policy": "DELETE",
+            "deletion_protection": false,
+            "effective_annotations": {},
+            "effective_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "expire_time": "",
+            "id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current",
+            "labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "name": "projects/451715062958/secrets/pdm-session-signing-current",
+            "project": "jenfu-ai-pdm-prod",
+            "replication": [
+              {
+                "auto": [],
+                "user_managed": [
+                  {
+                    "replicas": [
+                      {
+                        "customer_managed_encryption": [],
+                        "location": "asia-east1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "rotation": [],
+            "secret_id": "pdm-session-signing-current",
+            "tags": null,
+            "terraform_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "timeouts": null,
+            "topics": [],
+            "ttl": null,
+            "version_aliases": {},
+            "version_destroy_ttl": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "secret_id": "pdm-session-signing-current"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        },
+        {
+          "index_key": "pdm-session-signing-previous",
+          "schema_version": 0,
+          "attributes": {
+            "annotations": {},
+            "create_time": "2026-07-15T15:11:28.457724Z",
+            "deletion_policy": "DELETE",
+            "deletion_protection": false,
+            "effective_annotations": {},
+            "effective_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "expire_time": "",
+            "id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous",
+            "labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "name": "projects/451715062958/secrets/pdm-session-signing-previous",
+            "project": "jenfu-ai-pdm-prod",
+            "replication": [
+              {
+                "auto": [],
+                "user_managed": [
+                  {
+                    "replicas": [
+                      {
+                        "customer_managed_encryption": [],
+                        "location": "asia-east1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "rotation": [],
+            "secret_id": "pdm-session-signing-previous",
+            "tags": null,
+            "terraform_labels": {
+              "application": "ai-pdm",
+              "dev": "dev-032",
+              "environment": "production",
+              "managed-by": "terraform"
+            },
+            "timeouts": null,
+            "topics": [],
+            "ttl": null,
+            "version_aliases": {},
+            "version_destroy_ttl": ""
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "project": "jenfu-ai-pdm-prod",
+            "secret_id": "pdm-session-signing-previous"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19"
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_secret_manager_secret_iam_member",
+      "name": "runtime_session_signing",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": "pdm-session-signing-current",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNUSJIc=",
+            "id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current/roles/secretmanager.secretAccessor/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/secretmanager.secretAccessor",
+            "secret_id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/secretmanager.secretAccessor",
+            "secret_id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_secret_manager_secret.session_signing",
+            "google_service_account.runtime"
+          ]
+        },
+        {
+          "index_key": "pdm-session-signing-previous",
+          "schema_version": 0,
+          "attributes": {
+            "condition": [],
+            "etag": "BwZWqNUQlMs=",
+            "id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous/roles/secretmanager.secretAccessor/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/secretmanager.secretAccessor",
+            "secret_id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "condition_title": null,
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "role": "roles/secretmanager.secretAccessor",
+            "secret_id": "projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous"
+          },
+          "private": "bnVsbA==",
+          "dependencies": [
+            "google_secret_manager_secret.session_signing",
+            "google_service_account.runtime"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_service_account",
+      "name": "migration",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "account_id": "ai-pdm-prod-migration",
+            "create_ignore_already_exists": null,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "disabled": false,
+            "display_name": "AI PDM production migration runner",
+            "email": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "id": "projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "timeouts": null,
+            "unique_id": "106688449169302124805"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "email": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDB9fQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_service_account",
+      "name": "runtime",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "account_id": "ai-pdm-prod-runtime",
+            "create_ignore_already_exists": null,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "disabled": false,
+            "display_name": "AI PDM production runtime",
+            "email": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "id": "projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod",
+            "timeouts": null,
+            "unique_id": "113227869311951216051"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "email": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDB9fQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_service_networking_connection",
+      "name": "private_services",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "deletion_policy": "DELETE",
+            "id": "projects%2Fjenfu-ai-pdm-prod%2Fglobal%2Fnetworks%2Fai-pdm-prod-vpc:servicenetworking.googleapis.com",
+            "network": "projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+            "peering": "servicenetworking-googleapis-com",
+            "reserved_peering_ranges": [
+              "ai-pdm-prod-private-services"
+            ],
+            "service": "servicenetworking.googleapis.com",
+            "timeouts": null,
+            "update_on_creation_fail": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_project_service.required"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_sql_database",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "charset": "UTF8",
+            "collation": "en_US.UTF8",
+            "deletion_policy": "DELETE",
+            "id": "projects/jenfu-ai-pdm-prod/instances/ai-pdm-prod-postgres/databases/ai_pdm",
+            "instance": "ai-pdm-prod-postgres",
+            "name": "ai_pdm",
+            "project": "jenfu-ai-pdm-prod",
+            "self_link": "https://sqladmin.googleapis.com/sql/v1beta4/projects/jenfu-ai-pdm-prod/instances/ai-pdm-prod-postgres/databases/ai_pdm",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "instance": "ai-pdm-prod-postgres",
+            "name": "ai_pdm",
+            "project": "jenfu-ai-pdm-prod"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_project_service.required",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_sql_database_instance",
+      "name": "pdm",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 0,
+          "attributes": {
+            "available_maintenance_versions": [],
+            "backupdr_backup": null,
+            "clone": [],
+            "connection_name": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+            "database_version": "POSTGRES_17",
+            "deletion_policy": "DELETE",
+            "deletion_protection": true,
+            "dns_name": "",
+            "dns_names": [],
+            "encryption_key_name": null,
+            "final_backup_description": null,
+            "first_ip_address": "10.42.0.2",
+            "id": "ai-pdm-prod-postgres",
+            "instance_type": "CLOUD_SQL_INSTANCE",
+            "ip_address": [
+              {
+                "ip_address": "10.42.0.2",
+                "time_to_retire": "",
+                "type": "PRIVATE"
+              }
+            ],
+            "maintenance_version": "POSTGRES_17_10.R20260319.07_22",
+            "master_instance_name": "",
+            "name": "ai-pdm-prod-postgres",
+            "node_count": 0,
+            "point_in_time_restore_context": [],
+            "private_ip_address": "10.42.0.2",
+            "project": "jenfu-ai-pdm-prod",
+            "psc_service_attachment_link": "",
+            "public_ip_address": "",
+            "region": "asia-east1",
+            "replica_configuration": [],
+            "replica_names": [],
+            "replication_cluster": [
+              {
+                "dr_replica": false,
+                "failover_dr_replica_name": "",
+                "psa_write_endpoint": ""
+              }
+            ],
+            "restore_backup_context": [],
+            "root_password": null,
+            "root_password_wo": null,
+            "root_password_wo_version": null,
+            "self_link": "https://sqladmin.googleapis.com/sql/v1beta4/projects/jenfu-ai-pdm-prod/instances/ai-pdm-prod-postgres",
+            "server_ca_cert": [
+              {
+                "cert": "-----BEGIN CERTIFICATE-----\nMIIDcTCCAlmgAwIBAgIBADANBgkqhkiG9w0BAQsFADBwMS0wKwYDVQQuEyQzZDNh\nMTVhZS00NDU5LTQ5MTQtOTQxNi04NWM4ZTgwZjcwZDYxHDAaBgNVBAMTE0Nsb3Vk\nIFNRTCBTZXJ2ZXIgQ0ExFDASBgNVBAoTC0dvb2dsZSwgSW5jMQswCQYDVQQGEwJV\nUzAeFw0yNjA3MTUxNjM0MDVaFw0zNjA3MTIxNjM1MDVaMHAxLTArBgNVBC4TJDNk\nM2ExNWFlLTQ0NTktNDkxNC05NDE2LTg1YzhlODBmNzBkNjEcMBoGA1UEAxMTQ2xv\ndWQgU1FMIFNlcnZlciBDQTEUMBIGA1UEChMLR29vZ2xlLCBJbmMxCzAJBgNVBAYT\nAlVTMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtpihc/Qp1EF0hTFo\nf1ZoYnIFbJi2PjacFPa5gtdjCP0S8hpni9tyqd7YuNy3Hth24IVCjSGJrx3jfkyG\naqm0dQeQbpuX49Eqjc5/CalIPpA3AZxk0jP2L7416ag3cqHhUXbycvH15F7ulgbV\noVPrzPEqjHXN01W1DrqCou8xkVGxKACghaAT22iOFTR+x/fbSU52bYciFXiQhf8r\niVBqiXkkLNCBUmvPHTCKa5nGrODq3gLQZ/DBomVQEh62l1DmzopgD/RMY+XIyIEG\nU8oVZD+rYVzmOzeRAZTthArTmeYMjbT8sYFj4yOZpAW5x2aAooSi2Nsgc8fQmSkL\nPgxzmwIDAQABoxYwFDASBgNVHRMBAf8ECDAGAQH/AgEAMA0GCSqGSIb3DQEBCwUA\nA4IBAQAy7SIJQ/LP2SrW3TryFbnZ0qD4U06L9+uoiNQHPjxOqq8EkKd37D6peAo6\ne66CGE8WBB7fOE73XrB4ANkmGAU4MiJyLatZD+tV6CbHT9uOWHEwyuRIUeNNy8wh\n5czx4/MEaXheJjSNciDDfV9L1gweq4z/38C1ovDj4Fz2J+uxeRujyVeA1uxrZOjc\nzADD3E7LV13LoV2Jb4CDDP3sXtpfHAGCvfhPjSpPpNEa7sklliT11dZ6/MuRnuQ2\ntTUiwzMdiYCWrnPyomkIWmchiSQY1prdh+haOx3cwnTYttJ/kOyiWQwlQ9RB0yCZ\nyyraPlQNpe0V7DG4SoaA45Vf3wnD\n-----END CERTIFICATE-----",
+                "common_name": "C=US,O=Google\\, Inc,CN=Cloud SQL Server CA,dnQualifier=3d3a15ae-4459-4914-9416-85c8e80f70d6",
+                "create_time": "2026-07-15T16:34:05.591Z",
+                "expiration_time": "2036-07-12T16:35:05.591Z",
+                "sha1_fingerprint": "820b3dbcf7885bb06d51adb4f3607e81057f7de3"
+              }
+            ],
+            "service_account_email_address": "p451715062958-3vx3az@gcp-sa-cloud-sql.iam.gserviceaccount.com",
+            "settings": [
+              {
+                "activation_policy": "ALWAYS",
+                "active_directory_config": [],
+                "advanced_machine_features": [],
+                "auto_upgrade_enabled": false,
+                "availability_type": "REGIONAL",
+                "backup_configuration": [
+                  {
+                    "backup_retention_settings": [
+                      {
+                        "retained_backups": 14,
+                        "retention_unit": "COUNT"
+                      }
+                    ],
+                    "backup_tier": "STANDARD",
+                    "binary_log_enabled": false,
+                    "enabled": true,
+                    "location": "asia-east1",
+                    "point_in_time_recovery_enabled": true,
+                    "start_time": "18:00",
+                    "transaction_log_retention_days": 7
+                  }
+                ],
+                "collation": "",
+                "connection_pool_config": [],
+                "connector_enforcement": "NOT_REQUIRED",
+                "data_api_access": "",
+                "data_cache_config": [
+                  {
+                    "data_cache_enabled": false
+                  }
+                ],
+                "data_disk_provisioned_iops": 0,
+                "data_disk_provisioned_throughput": 0,
+                "database_flags": [
+                  {
+                    "name": "cloudsql.iam_authentication",
+                    "value": "on"
+                  }
+                ],
+                "deletion_protection_enabled": true,
+                "deny_maintenance_period": [],
+                "disk_autoresize": true,
+                "disk_autoresize_limit": 0,
+                "disk_size": 20,
+                "disk_type": "PD_SSD",
+                "edition": "ENTERPRISE",
+                "effective_availability_type": "REGIONAL",
+                "enable_dataplex_integration": false,
+                "enable_google_ml_integration": false,
+                "entraid_config": [],
+                "final_backup_config": [],
+                "insights_config": [],
+                "ip_configuration": [
+                  {
+                    "allocated_ip_range": "",
+                    "authorized_networks": [],
+                    "custom_subject_alternative_names": null,
+                    "enable_private_path_for_google_cloud_services": true,
+                    "ipv4_enabled": false,
+                    "private_network": "projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc",
+                    "psc_config": [],
+                    "server_ca_mode": "GOOGLE_MANAGED_INTERNAL_CA",
+                    "server_ca_pool": "",
+                    "server_certificate_rotation_mode": "SERVER_CERTIFICATE_ROTATION_MODE_UNSPECIFIED",
+                    "ssl_mode": "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
+                  }
+                ],
+                "location_preference": [
+                  {
+                    "follow_gae_application": "",
+                    "secondary_zone": "",
+                    "zone": "asia-east1-c"
+                  }
+                ],
+                "maintenance_window": [
+                  {
+                    "day": 7,
+                    "hour": 18,
+                    "update_track": "stable"
+                  }
+                ],
+                "password_validation_policy": [],
+                "pricing_plan": "PER_USE",
+                "read_pool_auto_scale_config": [
+                  {
+                    "disable_scale_in": false,
+                    "enabled": false,
+                    "max_node_count": 0,
+                    "min_node_count": 0,
+                    "scale_in_cooldown_seconds": 0,
+                    "scale_out_cooldown_seconds": 0,
+                    "target_metrics": []
+                  }
+                ],
+                "retain_backups_on_delete": false,
+                "sql_server_audit_config": [],
+                "tier": "db-custom-1-3840",
+                "time_zone": "",
+                "user_labels": {
+                  "application": "ai-pdm",
+                  "dev": "dev-032",
+                  "environment": "production",
+                  "managed-by": "terraform"
+                },
+                "version": 4
+              }
+            ],
+            "timeouts": null
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "root_password"
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "server_ca_cert"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo1NDAwMDAwMDAwMDAwLCJkZWxldGUiOjU0MDAwMDAwMDAwMDAsInVwZGF0ZSI6NTQwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_project_service.required",
+            "google_service_networking_connection.private_services"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_sql_user",
+      "name": "migration_iam",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "database_roles": null,
+            "deletion_policy": "DELETE",
+            "host": "",
+            "iam_email": "",
+            "id": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam//ai-pdm-prod-postgres",
+            "instance": "ai-pdm-prod-postgres",
+            "name": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam",
+            "password": null,
+            "password_policy": [],
+            "password_wo": null,
+            "password_wo_version": null,
+            "project": "jenfu-ai-pdm-prod",
+            "sql_server_user_details": [],
+            "timeouts": null,
+            "type": "CLOUD_IAM_SERVICE_ACCOUNT"
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "password"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_project_service.required",
+            "google_service_account.migration",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "google_sql_user",
+      "name": "runtime_iam",
+      "provider": "provider[\"registry.terraform.io/hashicorp/google\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "schema_version": 1,
+          "attributes": {
+            "database_roles": null,
+            "deletion_policy": "DELETE",
+            "host": "",
+            "iam_email": "",
+            "id": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam//ai-pdm-prod-postgres",
+            "instance": "ai-pdm-prod-postgres",
+            "name": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam",
+            "password": null,
+            "password_policy": [],
+            "password_wo": null,
+            "password_wo_version": null,
+            "project": "jenfu-ai-pdm-prod",
+            "sql_server_user_details": [],
+            "timeouts": null,
+            "type": "CLOUD_IAM_SERVICE_ACCOUNT"
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "password"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "google_compute_global_address.private_services",
+            "google_compute_network.pdm",
+            "google_project_service.required",
+            "google_service_account.runtime",
+            "google_service_networking_connection.private_services",
+            "google_sql_database_instance.pdm"
+          ]
+        }
+      ]
+    }
+  ],
+  "check_results": [
+    {
+      "object_kind": "var",
+      "config_addr": "var.cloud_sql_proxy_image",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.cloud_sql_proxy_image",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_migration_runner_job_guard",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_migration_runner_job_guard",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_firebase_hosting_forbidden",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_firebase_hosting_forbidden",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_migration_live_execution_guard",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_migration_live_execution_guard",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.runtime_public_base_url",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.runtime_public_base_url",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_cost_review_stop",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_cost_review_stop",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_session_key_rotation_contract",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_session_key_rotation_contract",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.region",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.region",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.production_project_id",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.production_project_id",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.migration_runner_image",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.migration_runner_image",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_resource_creation_guard",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_resource_creation_guard",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.application_image",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.application_image",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "check",
+      "config_addr": "check.production_target_identity",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "check.production_target_identity",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.production_project_number",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.production_project_number",
+          "status": "pass"
+        }
+      ]
+    }
+  ]
+}

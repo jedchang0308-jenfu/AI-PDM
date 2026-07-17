@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "dev-032-cloud-run-v2-traffic-rollback-closure/v1",
+  "capturedAt": "2026-07-15T19:01:13.9805762Z",
+  "priorReportSha256": "a5d34633f5d08b56910c7e85b1a492e494480f8a2480df51255d8fa164c3972d",
+  "rollbackApplied": true,
+  "restoreSemantic": {
+    "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST",
+    "percent": 100,
+    "revisionField": null,
+    "latestCreatedRevision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00004-qw4",
+    "latestReadyRevision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00004-qw4",
+    "templateSha256": "05aa8be97c6ced5fe517d3d409dd2031d7764be968f2e27f8341b02e020d7de4",
+    "expectedLatestRevision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00004-qw4",
+    "passed": true
+  },
+  "allChecksPassed": true,
+  "note": "LATEST traffic targets intentionally omit revision; closure corrects the first script assertion without repeating the mutation."
+}

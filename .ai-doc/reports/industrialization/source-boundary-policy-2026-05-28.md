@@ -19,7 +19,7 @@ Keep the repository focused on reviewable source, configuration, deterministic s
 - SolidWorks Add-in build output: `sw-addin/bin/`, `sw-addin/obj/`
 
 ## External Assets
-Legacy installer and runtime payloads were relocated to `C:\VIBE CODING\AI_PDM_external_assets\`.
+Legacy installer and runtime payloads were relocated to `C:\VIBE CODING\.external-assets\AI_PDM\`.
 
 Traceability is maintained by:
 - `.ai-doc/assets/external-assets-manifest.json`

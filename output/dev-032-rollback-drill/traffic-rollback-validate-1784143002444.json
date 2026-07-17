@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "dev-032-production-traffic-rollback/v1",
+  "mode": "validate",
+  "startedAt": "2026-07-15T19:16:40.890Z",
+  "target": {
+    "project": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "service": "ai-pdm-prod"
+  },
+  "rollbackRevision": "ai-pdm-prod-00002-567",
+  "expectedLatestRevision": "ai-pdm-prod-00004-qw4",
+  "before": {
+    "generation": "7",
+    "latestCreatedRevision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00004-qw4",
+    "latestReadyRevision": "projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-00004-qw4",
+    "templateSha256": "f7720e08fe546d0c5136b4c4ca5c884a1b06310b9fef48594fa98497b9cd62e4",
+    "traffic": {
+      "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST",
+      "revision": null,
+      "percent": 100,
+      "tag": null
+    }
+  },
+  "validateOnlyAccepted": true,
+  "rollback": null,
+  "restore": null,
+  "allChecksPassed": true,
+  "completedAt": "2026-07-15T19:16:42.444Z"
+}

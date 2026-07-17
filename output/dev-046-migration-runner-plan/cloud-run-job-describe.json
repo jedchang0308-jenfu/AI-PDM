@@ -1,0 +1,159 @@
+{
+  "apiVersion": "run.googleapis.com/v1",
+  "kind": "Job",
+  "metadata": {
+    "annotations": {
+      "run.googleapis.com/creator": "jedchang0308@jenfu.com.tw",
+      "run.googleapis.com/lastModifier": "jedchang0308@jenfu.com.tw",
+      "run.googleapis.com/operation-id": "f55004c7-3f8d-441c-96df-74bde942f560"
+    },
+    "creationTimestamp": "2026-07-15T03:07:32.130699Z",
+    "generation": 1,
+    "labels": {
+      "application": "ai-pdm",
+      "cloud.googleapis.com/location": "asia-east1",
+      "component": "migration-runner",
+      "dev": "dev-046",
+      "environment": "staging",
+      "goog-terraform-provisioned": "true",
+      "managed-by": "terraform",
+      "run.googleapis.com/lastUpdatedTime": "2026-07-15T03:07:32.130699Z"
+    },
+    "name": "ai-pdm-stg-migration-runner",
+    "namespace": "1042387036944",
+    "resourceVersion": "AAZWnZ/giaQ",
+    "selfLink": "/apis/run.googleapis.com/v1/namespaces/1042387036944/jobs/ai-pdm-stg-migration-runner",
+    "uid": "a9ccf1a1-6205-424f-8f7b-83310328fec8"
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "run.googleapis.com/container-dependencies": "{\"ai-pdm-migration-runner\":[\"cloud-sql-proxy\"]}",
+          "run.googleapis.com/execution-environment": "gen2",
+          "run.googleapis.com/network-interfaces": "[{\"network\":\"ai-pdm-stg-vpc\",\"subnetwork\":\"ai-pdm-stg-runtime\",\"tags\":[\"ai-pdm-staging-migration-runner\"]}]",
+          "run.googleapis.com/vpc-access-egress": "all-traffic"
+        }
+      },
+      "spec": {
+        "parallelism": 1,
+        "taskCount": 1,
+        "template": {
+          "spec": {
+            "containers": [
+              {
+                "args": [
+                  "scripts/run-dev-046-cloudsql-migrations.mjs",
+                  "--dry-run"
+                ],
+                "command": [
+                  "node"
+                ],
+                "env": [
+                  {
+                    "name": "PDM_CLOUD_SQL_USER",
+                    "value": "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_PORT",
+                    "value": "5432"
+                  },
+                  {
+                    "name": "PDM_DB_PROVIDER",
+                    "value": "cloud_sql_postgres"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_POOL_MAX",
+                    "value": "2"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS",
+                    "value": "30000"
+                  },
+                  {
+                    "name": "NODE_ENV",
+                    "value": "production"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS",
+                    "value": "35000"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_DATABASE",
+                    "value": "ai_pdm"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS",
+                    "value": "10000"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_HOST",
+                    "value": "127.0.0.1"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+                    "value": "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres"
+                  },
+                  {
+                    "name": "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS",
+                    "value": "600000"
+                  }
+                ],
+                "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:8794eae1ff71807dd69166f8db2e81b42f99ecbc79911271b48e7a1ff7dc1a1c",
+                "name": "ai-pdm-migration-runner",
+                "resources": {
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "1Gi"
+                  }
+                }
+              },
+              {
+                "args": [
+                  "--address=0.0.0.0",
+                  "--port=5432",
+                  "--private-ip",
+                  "--auto-iam-authn",
+                  "--lazy-refresh",
+                  "--structured-logs",
+                  "--max-connections=2",
+                  "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres"
+                ],
+                "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+                "name": "cloud-sql-proxy",
+                "resources": {
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "256Mi"
+                  }
+                },
+                "startupProbe": {
+                  "failureThreshold": 20,
+                  "initialDelaySeconds": 1,
+                  "periodSeconds": 3,
+                  "tcpSocket": {
+                    "port": 5432
+                  },
+                  "timeoutSeconds": 2
+                }
+              }
+            ],
+            "maxRetries": 0,
+            "serviceAccountName": "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam.gserviceaccount.com",
+            "timeoutSeconds": "1800"
+          }
+        }
+      }
+    }
+  },
+  "status": {
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-07-15T03:07:32.410788Z",
+        "status": "True",
+        "type": "Ready"
+      }
+    ],
+    "observedGeneration": 1
+  }
+}

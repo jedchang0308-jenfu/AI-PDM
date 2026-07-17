@@ -1,0 +1,771 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-16T00:43:57.574Z",
+  "terraformVersion": "1.14.5",
+  "formatVersion": "1.2",
+  "planPath": "C:\\VIBE CODING\\AI_PDM\\output\\dev-032-production-reconciliation\\pre-canary-plan-v2\\pre-canary-v2.tfplan",
+  "actionCounts": {
+    "create": 0,
+    "update": 1,
+    "delete": 0,
+    "replace": 0,
+    "noOp": 58,
+    "read": 0,
+    "other": 0
+  },
+  "resourceChanges": [
+    {
+      "address": "google_artifact_registry_repository.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_artifact_registry_repository",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_billing_budget.production[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_billing_budget",
+      "name": "production",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_cloud_run_v2_job.migration_runner[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_cloud_run_v2_job",
+      "name": "migration_runner",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "update"
+      ]
+    },
+    {
+      "address": "google_cloud_run_v2_service.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_cloud_run_v2_service",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_backend_service.application[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_backend_service",
+      "name": "application",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_backend_service.immutable_static[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_backend_service",
+      "name": "immutable_static",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_global_address.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_global_address",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_global_address.private_services[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_global_address",
+      "name": "private_services",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_global_forwarding_rule.http[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_global_forwarding_rule",
+      "name": "http",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_global_forwarding_rule.https[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_global_forwarding_rule",
+      "name": "https",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_managed_ssl_certificate.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_managed_ssl_certificate",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_network.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_network",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_region_network_endpoint_group.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_region_network_endpoint_group",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_subnetwork.runtime[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_subnetwork",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_target_http_proxy.redirect[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_target_http_proxy",
+      "name": "redirect",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_target_https_proxy.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_target_https_proxy",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_url_map.http_redirect[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_url_map",
+      "name": "http_redirect",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_compute_url_map.https[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_compute_url_map",
+      "name": "https",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_identity_platform_config.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_identity_platform_config",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_kms_crypto_key.numbering_ledger[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_kms_crypto_key",
+      "name": "numbering_ledger",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_kms_key_ring.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_kms_key_ring",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_logging_project_bucket_config.application[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_logging_project_bucket_config",
+      "name": "application",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_logging_project_sink.default[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_logging_project_sink",
+      "name": "default",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_monitoring_alert_policy.cloud_run_errors[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_monitoring_alert_policy",
+      "name": "cloud_run_errors",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_monitoring_alert_policy.cloud_sql_connections[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_monitoring_alert_policy",
+      "name": "cloud_sql_connections",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.migration[\"roles/cloudsql.client\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "migration",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.migration[\"roles/cloudsql.instanceUser\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "migration",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.runtime[\"roles/cloudsql.client\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.runtime[\"roles/cloudsql.instanceUser\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.runtime[\"roles/firebaseauth.admin\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.runtime[\"roles/logging.logWriter\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_iam_member.runtime[\"roles/monitoring.metricWriter\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"artifactregistry.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"billingbudgets.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"cloudbuild.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"cloudkms.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"compute.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"firebase.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"firebasehosting.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"iam.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"iamcredentials.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"identitytoolkit.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"logging.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"monitoring.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"run.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"secretmanager.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"servicenetworking.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_project_service.required[\"sqladmin.googleapis.com\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_project_service",
+      "name": "required",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_secret_manager_secret.session_signing[\"pdm-session-signing-current\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_secret_manager_secret",
+      "name": "session_signing",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_secret_manager_secret.session_signing[\"pdm-session-signing-previous\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_secret_manager_secret",
+      "name": "session_signing",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_secret_manager_secret_iam_member.runtime_session_signing[\"pdm-session-signing-current\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_secret_manager_secret_iam_member",
+      "name": "runtime_session_signing",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_secret_manager_secret_iam_member.runtime_session_signing[\"pdm-session-signing-previous\"]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_secret_manager_secret_iam_member",
+      "name": "runtime_session_signing",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_service_account.migration[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_service_account",
+      "name": "migration",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_service_account.runtime[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_service_account",
+      "name": "runtime",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_service_networking_connection.private_services[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_service_networking_connection",
+      "name": "private_services",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_sql_database.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_sql_database",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_sql_database_instance.pdm[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_sql_database_instance",
+      "name": "pdm",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_sql_user.migration_iam[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_sql_user",
+      "name": "migration_iam",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    },
+    {
+      "address": "google_sql_user.runtime_iam[0]",
+      "moduleAddress": null,
+      "mode": "managed",
+      "type": "google_sql_user",
+      "name": "runtime_iam",
+      "providerName": "registry.terraform.io/hashicorp/google",
+      "actions": [
+        "no-op"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "address": "0",
+      "status": "pass"
+    },
+    {
+      "address": "1",
+      "status": "pass"
+    },
+    {
+      "address": "2",
+      "status": "pass"
+    },
+    {
+      "address": "3",
+      "status": "pass"
+    },
+    {
+      "address": "4",
+      "status": "pass"
+    },
+    {
+      "address": "5",
+      "status": "pass"
+    },
+    {
+      "address": "6",
+      "status": "pass"
+    },
+    {
+      "address": "7",
+      "status": "pass"
+    },
+    {
+      "address": "8",
+      "status": "pass"
+    },
+    {
+      "address": "9",
+      "status": "pass"
+    },
+    {
+      "address": "10",
+      "status": "pass"
+    },
+    {
+      "address": "11",
+      "status": "pass"
+    },
+    {
+      "address": "12",
+      "status": "pass"
+    },
+    {
+      "address": "13",
+      "status": "pass"
+    },
+    {
+      "address": "14",
+      "status": "pass"
+    },
+    {
+      "address": "15",
+      "status": "pass"
+    },
+    {
+      "address": "16",
+      "status": "pass"
+    },
+    {
+      "address": "17",
+      "status": "pass"
+    },
+    {
+      "address": "18",
+      "status": "pass"
+    },
+    {
+      "address": "19",
+      "status": "pass"
+    },
+    {
+      "address": "20",
+      "status": "pass"
+    },
+    {
+      "address": "21",
+      "status": "pass"
+    },
+    {
+      "address": "22",
+      "status": "pass"
+    },
+    {
+      "address": "23",
+      "status": "pass"
+    }
+  ],
+  "stopConditions": {
+    "hasDelete": false,
+    "hasReplace": false,
+    "hasFailedChecks": false
+  },
+  "safeToApply": true
+}

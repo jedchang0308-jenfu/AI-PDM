@@ -1,9 +1,9 @@
 # DEV-032 Gate E Automation Readback
 
-Generated: 2026-07-16T07:19:41.718Z
-Status: `machine_gate_e_passed_human_closure_pending`
+Generated: 2026-07-17T00:09:04.679Z
+Status: `machine_gate_e_passed_release_closure_complete`
 Machine checks passed: `true`
-Remaining human closure required: `true`
+Remaining human closure required: `false`
 
 ## Checks
 
@@ -11,6 +11,8 @@ Remaining human closure required: `true`
 - PASS live production readback passed
 - PASS post-traffic smoke passed
 - PASS authenticated Level 4 UI smoke passed
+- PASS current release canonical smoke passed
+- PASS current release authenticated UI closure passed
 - PASS Chrome UI readback shows production persisted item and disabled future controls
 - PASS production slice status active
 - PASS anonymous protected read /api/auth/me
@@ -29,7 +31,6 @@ Remaining human closure required: `true`
 - No Wave 0 allowlist was expanded or guessed.
 - No custom DNS was configured.
 - No GCS file authority, CAD, BOM or full PDM workflow was opened.
-- No named non-allowlist Google sign-in was performed because that requires a real human-controlled account.
 
 ## Evidence
 
@@ -37,6 +38,8 @@ Remaining human closure required: `true`
 - liveReadback: `output/dev-032-production-live-readback/report.json`
 - postTrafficSmoke: `output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json`
 - level4UiSmoke: `output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json`
+- currentReleaseCanonicalSmoke: `output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json`
+- currentReleaseClosure: `output/dev-032-gate-e-closure/report.json`
 - chromeUiReadback: `output/dev-032-gate-e-automation/production-ui-readback.json`
 - chromeUiScreenshot: `output/dev-032-gate-e-automation/production-ui-readback.jpg`
 - humanWorkPackage: `output/dev-032-gate-e-automation/human-work-package.md`

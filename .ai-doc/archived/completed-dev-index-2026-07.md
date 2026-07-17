@@ -1,25 +1,31 @@
 # Completed DEV Index - 2026-07
 
-Updated: 2026-07-09
+Updated: 2026-07-17
 Owner: Dev PM
 Purpose: completed DEV evidence index for the 2026-07 archive sweep. Active execution and blockers remain in `.ai-doc/dev_task.md`.
 
 Source snapshot:
 
 - `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`
+- `C:\VIBE CODING\.artifacts\AI_PDM\doc-refactor-20260716\` 保存重構前核心文件、
+  scoped diff、DEV 狀態基線與 DEV-046 原文。
 
 Archive policy:
 
-- Active `dev_task.md` retains compact Chinese summaries, evidence, archive location, delivery count and batch release pointer.
+- Active `dev_task.md` retains compact Chinese summaries, archive location and delivery count；
+  直接證據由 `documentation_map.md` 與本索引定位。
 - Detailed pre-sweep active-board content is preserved in the source snapshot.
-- Shared release / production / Supabase / migration tails are centralized in active gates `DEV-030` to `DEV-034`, not repeated per completed DEV.
+- Shared production/release tails are centralized in `DEV-032`, not repeated per completed DEV.
 - Protected evidence files are not physically moved because QC scripts and package docs may reference exact paths.
 
 ## Archive Sweep Summary
 
-- Completed DEV aliases archived in this pass: 28.
-- Active items retained in `.ai-doc/dev_task.md`: `DEV-005`, `DEV-015`, `DEV-030` to `DEV-038`.
-- Product/release action performed: none.
+- Completed DEV aliases indexed after the 2026-07-16 refactor: 38.
+- Non-completed items retained in `.ai-doc/dev_task.md`: `DEV-047`, `DEV-049`, `DEV-041`,
+  `DEV-015`, `DEV-030`, `DEV-031`, `DEV-033`, and `DEV-035` to `DEV-038`.
+- `DEV-046` remains a protected verbatim task block；本索引只提供外部指標，不改寫其內容。
+- Product/release action：`DEV-032` 正式領號／草稿 production slice 已完成 release closure；
+  GCS、CAD、BOM 與完整 PDM 仍未開放。
 
 ## Completed Task Summaries
 
@@ -331,9 +337,121 @@ Archive policy:
 - 批次發版：無；剩餘改善需拆成新的聚焦任務。
 - 詳細歷史：`.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`；相關 spec / QA / QC 文件維持原路徑。
 
+### DEV-005 / `DEV-PDM-SUBMISSION-GATE-001`
+
+- 標題：研發／技術移轉送審關卡
+- 類型：交付點
+- 狀態：Phase 1 本地完成；技轉包後續交由 `DEV-041`。
+- 摘要：完成送審模式選擇、rule resolver、API fail-closed guard 與 transfer package context 入口。
+- 證據：`.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`、
+  `.ai-doc/qc/qc-pdm-submission-gate-phase1-report-2026-07-10.md`。
+- 計入交付：是
+- Release 邊界：live migration、production 與 release 未由本 DEV 授權。
+
+### DEV-034 / `DEV-IND-007`
+
+- 標題：SQLite 到 PostgreSQL 影子遷移
+- 類型：關卡
+- 狀態：本機 disposable PostgreSQL shadow gate 通過。
+- 摘要：完成 shadow migration、RLS 與 schema compare，未碰 staging/production target。
+- 證據：`data/quality/postgres-shadow/shadow-compare-1783676196559.json`。
+- 計入交付：否
+- Release 邊界：正式 Cloud SQL target、migration 與 smoke 只由 `DEV-032` 管控。
+
+### DEV-032 / `DEV-CLOUDSQL-DB-001-PROD-GATE`
+
+- 標題：ERP 平台 production release work package
+- 類型：關卡
+- 狀態：完成；Product Owner 於 2026-07-17 決策 `GO`。
+- 摘要：完成 A0-A9、Gate E machine/human closure、current release 100% traffic 與正式領號／草稿 production slice release closure。
+- 證據：`output/dev-032-production-activation-readiness/report.json`、
+  `output/dev-032-gate-e-closure/report.json`、
+  `output/dev-032-gate-e-automation/gate-e-automation-readback.json`。
+- 計入交付：否
+- Release 邊界：Firebase Hosting 預設網址為 canonical；GCS、CAD、BOM、完整 PDM 與自訂 DNS 不在本次範圍。
+
+### DEV-040 / `DEV-PDM-PRODUCTION-SLICE-001`
+
+- 標題：正式領號／草稿 production slice
+- 類型：交付點
+- 狀態：本地產品範圍完成；production 使用需 release gate。
+- 摘要：完成正式領號與草稿 local slice、capability allowlist、blocked UI 與 API fail-closed guard。
+- 證據：`.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`、
+  `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`。
+- 計入交付：是
+- Release 邊界：production deployment、rollback 與 smoke 由 `DEV-032` 管控。
+
+### DEV-042 / `DEV-PDM-ACCOUNT-INVITATION-001`
+
+- 標題：內部帳號邀請與首次密碼設定
+- 類型：交付點
+- 狀態：本地完成。
+- 摘要：完成一次性邀請、首次設密碼、Admin 管理與安全負向路徑。
+- 證據：`.ai-doc/qa/qa-pdm-account-invitation-validation-plan-2026-07-10.md`、
+  `.ai-doc/qc/qc-pdm-account-invitation-report-2026-07-10.md`。
+- 計入交付：是
+- Release 邊界：live provider、migration 與 production 未由本 DEV 授權。
+
+### DEV-043 / `DEV-PDM-GOOGLE-IDENTITY-001`
+
+- 標題：Google 身分與 provider-neutral identity
+- 類型：交付點
+- 狀態：本地完成。
+- 摘要：完成 OIDC 綁定、穩定 PDM user identity、停用身分 fail closed 與 mocked provider QC。
+- 證據：`.ai-doc/qa/qa-pdm-google-identity-validation-plan-2026-07-10.md`、
+  `.ai-doc/qc/qc-pdm-google-identity-report-2026-07-10.md`。
+- 計入交付：是
+- Release 邊界：live credential、provider rollout 與 production 由 `DEV-032` 管控。
+
+### DEV-044 / `DEV-PDM-ERP-MODULE-FOUNDATION-001`
+
+- 標題：ERP-ready AI_PDM 模組基礎
+- 類型：開發點
+- 狀態：Phase 1-3 本機完成。
+- 摘要：完成 actor/company/command、audit/outbox 與 shared IAM adapter 的本地基礎。
+- 證據：`.ai-doc/specs/SPEC-PDM-ERP-MODULE-FOUNDATION-001-platform-contract.md`、
+  `.ai-doc/qc/qc-pdm-erp-module-foundation-report-2026-07-12.md`。
+- 計入交付：否
+- Release 邊界：ERP shell、live migration 與 production/release 尚未執行。
+
+### DEV-045 / `DEV-PDM-ACCOUNT-LIFECYCLE-001`
+
+- 標題：帳號生命週期與安全管理台
+- 類型：交付點
+- 狀態：Phase 1、2 與 3A local slices 完成；provider rollout gated。
+- 摘要：完成帳號管理、停權/復權、session revoke、reset recovery 與本地 provider handoff。
+- 證據：`.ai-doc/specs/SPEC-PDM-ACCOUNT-LIFECYCLE-001-admin-account-security-console.md`、
+  `.ai-doc/qc/qc-pdm-account-lifecycle-report-2026-07-13.md`。
+- 計入交付：是
+- Release 邊界：live provider、MFA、migration 與 production 需對應 release gate。
+
+### DEV-046 / `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001`
+
+- 標題：Google Cloud SQL 五年 ERP 平台與本體論基礎
+- 類型：開發點
+- 狀態：Phase 2B staging activation complete；future phases gated。
+- 摘要：本索引只指向既有完成範圍；active `dev_task.md` 的 DEV-046 原區塊保持逐字保護。
+- 證據：`.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`、
+  `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`。
+- 計入交付：否
+- Release 邊界：Phase 3A 由 `DEV-032` 承接；Phase 3B+ 必須明確 re-entry。
+
+### DEV-048 / `DEV-PDM-NUMBER-STATE-FLOW-001`
+
+- 標題：圖料號、草稿、狀態與技術移轉入口整合
+- 類型：開發點
+- 狀態：Phase 1A-1E P0 本地整合完成。
+- 摘要：完成草稿、候選號、發布邊界、技轉入口與原始建立圖料號等價修復。
+- 證據：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`、
+  `.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`。
+- 計入交付：否
+- Release 邊界：live provider、正式資料、staging 與 production 需另行 gate。
+
 ## Physical Archive Actions In This Pass
 
 - Created snapshot `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md` before compacting active `dev_task.md`.
 - Created `.ai-doc/archived/completed-dev-index-2026-07.md` for completed DEV lookup.
 - Rewrote active `.ai-doc/dev_task.md` so completed work appears only as compact summaries near the top.
 - No protected evidence file was physically moved.
+- 2026-07-16：重構前基線改存固定外部 artifact root，未再新增 repo 內巨型 snapshot。
+- 2026-07-16：補入 9 個較新的 completed/protected 索引；DEV-046 原區塊未改寫或搬移。

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-046",
+  "phase": "staging-authentication-activation",
+  "status": "passed",
+  "target": {
+    "projectId": "jenfu-ai-pdm-stg-361825",
+    "region": "asia-east1",
+    "cloudSqlInstance": "ai-pdm-stg-postgres",
+    "connectionName": "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres",
+    "databaseName": "ai_pdm",
+    "environment": "staging"
+  },
+  "source": {
+    "revision": "69a8c1da0c694079940988edbde8c74211f62d19",
+    "provenanceGate": "passed",
+    "acceptedRouteCount": 7,
+    "deployedRouteManifestCount": 266
+  },
+  "application": {
+    "hostingUrl": "https://jenfu-ai-pdm-stg-361825.web.app",
+    "cloudRunService": "ai-pdm-stg",
+    "cloudRunRevision": "ai-pdm-stg-00005-4xp",
+    "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:6d4142080c7e4820e11088d60b2ac15378ce87c170d5658c80c1bfe7aa91a6d6",
+    "trafficPercent": 100,
+    "httpSmoke": {
+      "login": 200,
+      "authMode": 200,
+      "unauthenticatedNumberingPermissions": 401,
+      "totpBundleMatches": 2
+    }
+  },
+  "bootstrap": {
+    "executionName": "ai-pdm-stg-migration-runner-ddrfk",
+    "createdAt": "2026-07-15T07:53:25.240664Z",
+    "completedAt": "2026-07-15T07:54:05.320262Z",
+    "status": "EXECUTION_SUCCEEDED",
+    "mode": "execute",
+    "runnerVersion": "dev-046-staging-principal-bootstrap-runner/v1",
+    "runnerImageIndex": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:dccadf3723586c38c4d598f9008de67a83933199e4c29acb1f320a0a7087f2bf",
+    "resolvedExecutionImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:da26d6c546933f04d8cddafa1e75726e3f5b3bae9257d77c877e79d85d9ca9f",
+    "connectionAttempted": true,
+    "principal": {
+      "pdmUserId": "stg-pdm-admin-001",
+      "firebaseUid": "qxEv2napjvMEmiqIUqwhTCf6gjg2",
+      "email": "jedchang0308@jenfu.com.tw"
+    },
+    "readback": {
+      "allChecksPassed": true,
+      "roleCount": 9,
+      "permissionCount": 237,
+      "noApplicationPassword": true,
+      "firebaseMappingOk": true,
+      "defaultMembershipOk": true,
+      "organizationMappingOk": true,
+      "canonicalRolesOk": true,
+      "canonicalPermissionsOk": true
+    }
+  },
+  "safePosture": {
+    "jobImageRestored": true,
+    "jobCommandRestored": "node",
+    "jobArgsRestored": [
+      "scripts/run-dev-046-cloudsql-migrations.mjs",
+      "--dry-run"
+    ],
+    "bootstrapApprovalEnvAbsent": true,
+    "productionTouched": false,
+    "cloudSqlResourceDeleted": false,
+    "businessDataDeleted": false
+  }
+}

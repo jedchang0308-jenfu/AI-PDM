@@ -1,0 +1,1550 @@
+[
+  {
+    "insertId": "6a57cb5c000e4b719ed6795b",
+    "jsonPayload": {
+      "message": "Authorizing with Application Default Credentials",
+      "timestamp": "2026-07-15T18:03:08Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:08.939581395Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:08.936817Z"
+  },
+  {
+    "insertId": "6a57cb5c000e5511a66d4e12",
+    "jsonPayload": {
+      "message": "[jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres] Listening on [::]:5432",
+      "timestamp": "2026-07-15T18:03:08Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:09.273478353Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:08.939281Z"
+  },
+  {
+    "insertId": "6a57cb5c000e55195b6ea6da",
+    "jsonPayload": {
+      "message": "The proxy has started successfully and is ready for new connections!",
+      "timestamp": "2026-07-15T18:03:08Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:09.273478353Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:08.939289Z"
+  },
+  {
+    "insertId": "6a57cb5d0005422174ae3849",
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-07-15T18:03:09.347111339Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Default STARTUP TCP probe succeeded after 1 attempt for container \"cloud-sql-proxy\" on port 5432.",
+    "timestamp": "2026-07-15T18:03:09.344609Z"
+  },
+  {
+    "insertId": "6a57cb5d0005442c3f15149a",
+    "jsonPayload": {
+      "message": "[jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres] Accepted connection from 169.254.169.126:54835",
+      "timestamp": "2026-07-15T18:03:09Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:09.606591001Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:09.345132Z"
+  },
+  {
+    "insertId": "6a57cb5d000c43573705ea89",
+    "jsonPayload": {
+      "message": "[jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres] Accepted connection from 127.0.0.1:53090",
+      "timestamp": "2026-07-15T18:03:09Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:09.938454113Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:09.803671Z"
+  },
+  {
+    "insertId": "6a57cb66000ac2aa5a415689",
+    "jsonPayload": {
+      "message": "[jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres] client closed the connection",
+      "timestamp": "2026-07-15T18:03:18Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:18.931861587Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:18.705194Z"
+  },
+  {
+    "insertId": "6a57cb670002d21ffd95b954",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "{",
+    "timestamp": "2026-07-15T18:03:19.184863Z"
+  },
+  {
+    "insertId": "6a57cb670002d232d2b4c2fd",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"runnerVersion\": \"dev-046-cloudsql-migration-runner/v1\",",
+    "timestamp": "2026-07-15T18:03:19.184882Z"
+  },
+  {
+    "insertId": "6a57cb670002d236f167382d",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"mode\": \"execute\",",
+    "timestamp": "2026-07-15T18:03:19.184886Z"
+  },
+  {
+    "insertId": "6a57cb670002d23bc4550c4e",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"manifestPath\": \"output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json\",",
+    "timestamp": "2026-07-15T18:03:19.184891Z"
+  },
+  {
+    "insertId": "6a57cb670002d23f156051e0",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"target\": {",
+    "timestamp": "2026-07-15T18:03:19.184895Z"
+  },
+  {
+    "insertId": "6a57cb670002d2439c18b204",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"projectId\": \"jenfu-ai-pdm-prod\",",
+    "timestamp": "2026-07-15T18:03:19.184899Z"
+  },
+  {
+    "insertId": "6a57cb670002d2464cb2f105",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"region\": \"asia-east1\",",
+    "timestamp": "2026-07-15T18:03:19.184902Z"
+  },
+  {
+    "insertId": "6a57cb670002d24a6a117964",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"cloudSqlInstance\": \"ai-pdm-prod-postgres\",",
+    "timestamp": "2026-07-15T18:03:19.184906Z"
+  },
+  {
+    "insertId": "6a57cb670002d24d6b73d5ff",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"connectionName\": \"jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres\",",
+    "timestamp": "2026-07-15T18:03:19.184909Z"
+  },
+  {
+    "insertId": "6a57cb670002d250a13b992d",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"databaseName\": \"ai_pdm\",",
+    "timestamp": "2026-07-15T18:03:19.184912Z"
+  },
+  {
+    "insertId": "6a57cb670002d2536b3c6d58",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"privateIpOnly\": true,",
+    "timestamp": "2026-07-15T18:03:19.184915Z"
+  },
+  {
+    "insertId": "6a57cb670002d256af01d978",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"privateIpObserved\": \"\",",
+    "timestamp": "2026-07-15T18:03:19.184918Z"
+  },
+  {
+    "insertId": "6a57cb670002d259088d6798",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"runtimeServiceAccount\": \"ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com\",",
+    "timestamp": "2026-07-15T18:03:19.184921Z"
+  },
+  {
+    "insertId": "6a57cb670002d25da60d86a7",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"runtimeIamDatabaseUser\": \"ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam\",",
+    "timestamp": "2026-07-15T18:03:19.184925Z"
+  },
+  {
+    "insertId": "6a57cb670002d261d986e630",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"migrationIamDatabaseUser\": \"ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam\"",
+    "timestamp": "2026-07-15T18:03:19.184929Z"
+  },
+  {
+    "insertId": "6a57cb670002d2645c9e80ce",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  },",
+    "timestamp": "2026-07-15T18:03:19.184932Z"
+  },
+  {
+    "insertId": "6a57cb670002d26aa9334c1d",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"schemaMigrationCount\": 18,",
+    "timestamp": "2026-07-15T18:03:19.184938Z"
+  },
+  {
+    "insertId": "6a57cb670002d26fdc65f10c",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"supportFileCount\": 2,",
+    "timestamp": "2026-07-15T18:03:19.184943Z"
+  },
+  {
+    "insertId": "6a57cb670002d272e4a9801e",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"firstSchemaMigration\": \"sql/001_initial_schema.cloudsql.sql\",",
+    "timestamp": "2026-07-15T18:03:19.184946Z"
+  },
+  {
+    "insertId": "6a57cb670002d276a7733de2",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"lastSchemaMigration\": \"sql/020_account_session_records.cloudsql.sql\",",
+    "timestamp": "2026-07-15T18:03:19.184950Z"
+  },
+  {
+    "insertId": "6a57cb670002d27944f409ba",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"adminBootstrapRequired\": true,",
+    "timestamp": "2026-07-15T18:03:19.184953Z"
+  },
+  {
+    "insertId": "6a57cb670002d27e65f9bf68",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"adminBootstrapExecutedByThisRunner\": false,",
+    "timestamp": "2026-07-15T18:03:19.184958Z"
+  },
+  {
+    "insertId": "6a57cb670002d281884572e6",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"runtimeGrantRefreshIncluded\": true,",
+    "timestamp": "2026-07-15T18:03:19.184961Z"
+  },
+  {
+    "insertId": "6a57cb670002d285b0ad147b",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"liveApplyAllowedByManifest\": false,",
+    "timestamp": "2026-07-15T18:03:19.184965Z"
+  },
+  {
+    "insertId": "6a57cb670002d288eb2ebfda",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"connectionAttempted\": true,",
+    "timestamp": "2026-07-15T18:03:19.184968Z"
+  },
+  {
+    "insertId": "6a57cb670002d28cdcc90a66",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"explicitApprovalRequired\": \"DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED\",",
+    "timestamp": "2026-07-15T18:03:19.184972Z"
+  },
+  {
+    "insertId": "6a57cb670002d28fd8d15d1d",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  \"appliedVersions\": [",
+    "timestamp": "2026-07-15T18:03:19.184975Z"
+  },
+  {
+    "insertId": "6a57cb670002d2934bd327dc",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"001\",",
+    "timestamp": "2026-07-15T18:03:19.184979Z"
+  },
+  {
+    "insertId": "6a57cb670002d296f82b70dd",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"003\",",
+    "timestamp": "2026-07-15T18:03:19.184982Z"
+  },
+  {
+    "insertId": "6a57cb670002d29a2d416293",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"004\",",
+    "timestamp": "2026-07-15T18:03:19.184986Z"
+  },
+  {
+    "insertId": "6a57cb670002d29ec3825888",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"005\",",
+    "timestamp": "2026-07-15T18:03:19.184990Z"
+  },
+  {
+    "insertId": "6a57cb670002d2a16f146939",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"006\",",
+    "timestamp": "2026-07-15T18:03:19.184993Z"
+  },
+  {
+    "insertId": "6a57cb670002d2a4c14a8ce8",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"007\",",
+    "timestamp": "2026-07-15T18:03:19.184996Z"
+  },
+  {
+    "insertId": "6a57cb670002d2a8945ae558",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"008\",",
+    "timestamp": "2026-07-15T18:03:19.185Z"
+  },
+  {
+    "insertId": "6a57cb670002d2ab744cd6e5",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"009\",",
+    "timestamp": "2026-07-15T18:03:19.185003Z"
+  },
+  {
+    "insertId": "6a57cb670002d2afc99ff46a",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"010\",",
+    "timestamp": "2026-07-15T18:03:19.185007Z"
+  },
+  {
+    "insertId": "6a57cb670002d2b28f49c48c",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"012\",",
+    "timestamp": "2026-07-15T18:03:19.185010Z"
+  },
+  {
+    "insertId": "6a57cb670002d2b64234d527",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"013\",",
+    "timestamp": "2026-07-15T18:03:19.185014Z"
+  },
+  {
+    "insertId": "6a57cb670002d2b93e71dee9",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"014\",",
+    "timestamp": "2026-07-15T18:03:19.185017Z"
+  },
+  {
+    "insertId": "6a57cb670002d2bc96529da9",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"015\",",
+    "timestamp": "2026-07-15T18:03:19.185020Z"
+  },
+  {
+    "insertId": "6a57cb670002d2bf6907ebdf",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"016\",",
+    "timestamp": "2026-07-15T18:03:19.185023Z"
+  },
+  {
+    "insertId": "6a57cb670002d2c184f41776",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"017\",",
+    "timestamp": "2026-07-15T18:03:19.185025Z"
+  },
+  {
+    "insertId": "6a57cb670002d2c5ad40285e",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"018\",",
+    "timestamp": "2026-07-15T18:03:19.185029Z"
+  },
+  {
+    "insertId": "6a57cb670002d2c894bffae1",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"019\",",
+    "timestamp": "2026-07-15T18:03:19.185032Z"
+  },
+  {
+    "insertId": "6a57cb670002d2cc770ba13a",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "    \"020\"",
+    "timestamp": "2026-07-15T18:03:19.185036Z"
+  },
+  {
+    "insertId": "6a57cb670002d2cfc382590f",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "  ]",
+    "timestamp": "2026-07-15T18:03:19.185039Z"
+  },
+  {
+    "insertId": "6a57cb670002d2d213c2c8f7",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "textPayload": "}",
+    "timestamp": "2026-07-15T18:03:19.185042Z"
+  },
+  {
+    "insertId": "6a57cb670002d35acf1964f0",
+    "jsonPayload": {
+      "message": "[jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres] client closed the connection",
+      "timestamp": "2026-07-15T18:03:19Z"
+    },
+    "labels": {
+      "container_name": "cloud-sql-proxy",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-07-15T18:03:19.265433938Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:19.185178Z"
+  },
+  {
+    "insertId": "6a57cb670003476c21ab6a3e",
+    "labels": {
+      "container_name": "ai-pdm-migration-runner",
+      "instanceId": "001548f72983683f23f0a14e39400a5fa47962358a5a24203358bf2f2590b35033150d8ecd12ade3cbc8f6c56b495d07b0176e533b56df4396e5b946a29941dacab3278176f9a8f76d62cc14112297841aa01fe15d01c32d57b6",
+      "managed-by": "terraform",
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs",
+      "run.googleapis.com/task_attempt": "0",
+      "run.googleapis.com/task_index": "0"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-07-15T18:03:19.339047489Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Container called exit(0).",
+    "timestamp": "2026-07-15T18:03:19.214777Z"
+  },
+  {
+    "insertId": "-1vzf3ydo2fa",
+    "labels": {
+      "run.googleapis.com/execution_name": "ai-pdm-prod-migration-runner-w58vs"
+    },
+    "logName": "projects/jenfu-ai-pdm-prod/logs/cloudaudit.googleapis.com%2Fsystem_event",
+    "protoPayload": {
+      "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+      "methodName": "/Jobs.RunJob",
+      "resourceName": "namespaces/jenfu-ai-pdm-prod/executions/ai-pdm-prod-migration-runner-w58vs",
+      "response": {
+        "@type": "type.googleapis.com/google.cloud.run.v1.Execution",
+        "apiVersion": "run.googleapis.com/v1",
+        "kind": "Execution",
+        "metadata": {
+          "annotations": {
+            "run.googleapis.com/container-dependencies": "{\"ai-pdm-migration-runner\":[\"cloud-sql-proxy\"]}",
+            "run.googleapis.com/creator": "jedchang0308@jenfu.com.tw",
+            "run.googleapis.com/execution-environment": "gen2",
+            "run.googleapis.com/lastModifier": "jedchang0308@jenfu.com.tw",
+            "run.googleapis.com/network-interfaces": "[{\"network\":\"ai-pdm-prod-vpc\",\"subnetwork\":\"ai-pdm-prod-runtime\",\"tags\":[\"ai-pdm-production-migration-runner\"]}]",
+            "run.googleapis.com/operation-id": "4f7e7699-f790-42f8-a50c-4d03ab1b3c8e",
+            "run.googleapis.com/vpc-access-egress": "all-traffic"
+          },
+          "creationTimestamp": "2026-07-15T18:02:56.433715Z",
+          "generation": 1,
+          "labels": {
+            "cloud.googleapis.com/location": "asia-east1",
+            "managed-by": "terraform",
+            "run.googleapis.com/job": "ai-pdm-prod-migration-runner",
+            "run.googleapis.com/jobGeneration": "2",
+            "run.googleapis.com/jobResourceVersion": "1784138072897147",
+            "run.googleapis.com/jobUid": "8dab3786-f272-4665-bc43-c264debdcf65"
+          },
+          "name": "ai-pdm-prod-migration-runner-w58vs",
+          "namespace": "451715062958",
+          "ownerReferences": [
+            {
+              "apiVersion": "serving.knative.dev/v1",
+              "blockOwnerDeletion": true,
+              "controller": true,
+              "kind": "Job",
+              "name": "ai-pdm-prod-migration-runner",
+              "uid": "8dab3786-f272-4665-bc43-c264debdcf65"
+            }
+          ],
+          "resourceVersion": "AAZWqiOxsgc",
+          "selfLink": "/apis/run.googleapis.com/v1/namespaces/451715062958/executions/ai-pdm-prod-migration-runner-w58vs",
+          "uid": "2a69cd86-93df-4c63-90a7-5809f92b4b0a"
+        },
+        "spec": {
+          "parallelism": 1,
+          "taskCount": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "scripts/run-dev-046-cloudsql-migrations.mjs",
+                    "--execute"
+                  ],
+                  "command": [
+                    "node"
+                  ],
+                  "env": [
+                    {
+                      "name": "PDM_CLOUD_SQL_PORT",
+                      "value": "5432"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+                      "value": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS",
+                      "value": "60000"
+                    },
+                    {
+                      "name": "DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED",
+                      "value": "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
+                    },
+                    {
+                      "name": "PDM_DB_PROVIDER",
+                      "value": "cloud_sql_postgres"
+                    },
+                    {
+                      "name": "DEV032_CLOUDSQL_MIGRATION_APPROVAL",
+                      "value": "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_POOL_MAX",
+                      "value": "2"
+                    },
+                    {
+                      "name": "PDM_MIGRATION_PACKAGE_TARGET",
+                      "value": "production"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS",
+                      "value": "30000"
+                    },
+                    {
+                      "name": "NODE_ENV",
+                      "value": "production"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS",
+                      "value": "35000"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_DATABASE",
+                      "value": "ai_pdm"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_HOST",
+                      "value": "127.0.0.1"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_USER",
+                      "value": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam"
+                    },
+                    {
+                      "name": "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS",
+                      "value": "600000"
+                    }
+                  ],
+                  "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194",
+                  "name": "ai-pdm-migration-runner",
+                  "resources": {
+                    "limits": {
+                      "cpu": "1",
+                      "memory": "1Gi"
+                    }
+                  }
+                },
+                {
+                  "args": [
+                    "--address=0.0.0.0",
+                    "--port=5432",
+                    "--private-ip",
+                    "--auto-iam-authn",
+                    "--lazy-refresh",
+                    "--structured-logs",
+                    "--max-connections=2",
+                    "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+                  ],
+                  "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy@sha256:b239a84edd20cfcf1fef20a8d297ac578a73e5cb0ba0eaaf5498782de4f9f861",
+                  "name": "cloud-sql-proxy",
+                  "resources": {
+                    "limits": {
+                      "cpu": "1",
+                      "memory": "256Mi"
+                    }
+                  },
+                  "startupProbe": {
+                    "failureThreshold": 20,
+                    "initialDelaySeconds": 1,
+                    "periodSeconds": 3,
+                    "tcpSocket": {
+                      "port": 5432
+                    },
+                    "timeoutSeconds": 2
+                  }
+                }
+              ],
+              "maxRetries": 0,
+              "serviceAccountName": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+              "timeoutSeconds": "1800"
+            }
+          }
+        },
+        "status": {
+          "completionTime": "2026-07-15T18:03:22.282367Z",
+          "conditions": [
+            {
+              "lastTransitionTime": "2026-07-15T18:03:22.282367Z",
+              "message": "Execution completed successfully in 20.92s.",
+              "status": "True",
+              "type": "Completed"
+            },
+            {
+              "lastTransitionTime": "2026-07-15T18:02:58.077041Z",
+              "message": "Provisioned imported containers.",
+              "status": "True",
+              "type": "ResourcesAvailable"
+            },
+            {
+              "lastTransitionTime": "2026-07-15T18:03:08.185194Z",
+              "message": "Started deployed execution in 10.1s.",
+              "status": "True",
+              "type": "Started"
+            },
+            {
+              "lastTransitionTime": "2026-07-15T18:02:57.499480Z",
+              "message": "Imported container image in 1.06s.",
+              "status": "True",
+              "type": "ContainerReady"
+            },
+            {
+              "lastTransitionTime": "2026-07-15T18:03:23.540999Z",
+              "message": "System will retry after 00:00 from lastTransitionTime for attempt 0.",
+              "reason": "ImmediateRetry",
+              "severity": "Info",
+              "status": "True",
+              "type": "Retry"
+            }
+          ],
+          "logUri": "https://console.cloud.google.com/logs/viewer?project=jenfu-ai-pdm-prod&advancedFilter=resource.type%3D%22cloud_run_job%22%0Aresource.labels.job_name%3D%22ai-pdm-prod-migration-runner%22%0Aresource.labels.location%3D%22asia-east1%22%0Alabels.%22run.googleapis.com/execution_name%22%3D%22ai-pdm-prod-migration-runner-w58vs%22",
+          "observedGeneration": 1,
+          "startTime": "2026-07-15T18:03:01.358568Z",
+          "succeededCount": 1
+        }
+      },
+      "serviceName": "run.googleapis.com",
+      "status": {
+        "message": "Execution ai-pdm-prod-migration-runner-w58vs has completed successfully."
+      }
+    },
+    "receiveTimestamp": "2026-07-15T18:03:24.547760542Z",
+    "resource": {
+      "labels": {
+        "job_name": "ai-pdm-prod-migration-runner",
+        "location": "asia-east1",
+        "project_id": "jenfu-ai-pdm-prod"
+      },
+      "type": "cloud_run_job"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-07-15T18:03:23.550681Z"
+  }
+]

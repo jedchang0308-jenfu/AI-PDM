@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-046",
+  "checkedAt": "2026-07-15T07:31:03.870Z",
+  "status": "passed",
+  "target": "disposable_local_postgres_17",
+  "postgresImage": "postgres:17-bookworm",
+  "cloudResourcesCreated": false,
+  "productionDataAccessed": false,
+  "total": 6,
+  "passed": 6,
+  "results": [
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-001 disposable PostgreSQL 17 target is ready",
+      "passed": true,
+      "detail": "postgres:17-bookworm"
+    },
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-002 reviewed Cloud SQL schema package applies to a fresh target",
+      "passed": true,
+      "detail": "18"
+    },
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-003 principal bootstrap applies and immediately reruns idempotently",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-004 readback confirms identity, no password, membership and canonical matrix",
+      "passed": true,
+      "detail": "t|t|t|t|t|t|t|9|9|237|237|t|t"
+    },
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-005 conflicting UID mapping fails closed without partial overwrite",
+      "passed": true,
+      "detail": "dev046-shadow-collision"
+    },
+    {
+      "name": "DEV046-PRINCIPAL-SHADOW-006 rollback revokes access and preserves the principal record",
+      "passed": true,
+      "detail": "retired|disabled|suspended|0|t"
+    }
+  ]
+}

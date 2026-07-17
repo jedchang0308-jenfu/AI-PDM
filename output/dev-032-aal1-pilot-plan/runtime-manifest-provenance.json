@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "dev-032-runtime-manifest-provenance/v1",
+  "capturedAt": "2026-07-15T18:56:12.1631795Z",
+  "indexDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "contentDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "mediaType": "application/vnd.oci.image.index.v1+json",
+  "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+  "runtimeDigestIsLinuxAmd64Child": true,
+  "manifests": [
+    {
+      "digest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "size": 2005,
+      "platform": {
+        "os": "linux",
+        "architecture": "amd64"
+      }
+    },
+    {
+      "digest": "sha256:a611ac08d563cf341ffdc697b18818b159da1fc3d7f1a5614fce47ed3a2003f4",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "size": 564,
+      "platform": {
+        "os": "unknown",
+        "architecture": "unknown"
+      }
+    }
+  ]
+}

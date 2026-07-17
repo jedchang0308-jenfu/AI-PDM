@@ -2,7 +2,7 @@
 
 ## Scope
 - Source root: `C:\VIBE CODING\AI_PDM`
-- External root: `C:\VIBE CODING\AI_PDM_external_assets`
+- External root: `C:\VIBE CODING\.external-assets\AI_PDM`
 - Manifest: `.ai-doc/assets/external-assets-manifest.json`
 
 ## Relocation Summary
@@ -34,9 +34,9 @@ Output:
 
 {
   "manifestPath": "C:\\VIBE CODING\\AI_PDM\\.ai-doc\\assets\\external-assets-manifest.json",
-  "checkedAt": "2026-05-28T09:47:02.059Z",
+  "checkedAt": "2026-07-16T05:06:44.801Z",
   "schemaVersion": 1,
-  "externalRoot": "C:\\VIBE CODING\\AI_PDM_external_assets",
+  "externalRoot": "C:\\VIBE CODING\\.external-assets\\AI_PDM",
   "total": 146,
   "ok": 146,
   "missing": 0,
@@ -51,3 +51,11 @@ Output:
 
 ## Result
 PASS
+
+## Path Normalization Check - 2026-07-16
+
+- External root moved from `C:\VIBE CODING\AI_PDM_external_assets` to
+  `C:\VIBE CODING\.external-assets\AI_PDM` to avoid confusing the asset library with a project
+  or Git worktree.
+- Verification command remains:
+  `npm.cmd run assets:verify -- --manifest .ai-doc/assets/external-assets-manifest.json`.

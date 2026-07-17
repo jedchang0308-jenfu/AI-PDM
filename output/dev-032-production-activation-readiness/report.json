@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T07:20:30.459Z",
+  "generatedAt": "2026-07-17T00:09:48.912Z",
   "generationReadOnly": true,
   "productionActionPerformed": true,
-  "releaseReady": false,
-  "status": "pending_human_activation_readiness",
+  "releaseReady": true,
+  "status": "release_ready",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -14,24 +14,39 @@
     "database": "ai_pdm",
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
-  "sourceCommit": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
+  "sourceCommit": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
   "artifact": {
-    "applicationSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
-    "applicationImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
-    "runtimeLinuxAmd64Digest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
-    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
-    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+    "activationBaseline": {
+      "applicationSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
+      "applicationImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+      "runtimeLinuxAmd64Digest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+      "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+      "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+    },
+    "currentRelease": {
+      "sourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
+      "workflowRunId": "29516917660",
+      "workflowArtifactId": "8383240947",
+      "workflowArtifactName": "production-release-6dc24ebe1c1fcca9da9ff06c66996f6754652057-29516917660",
+      "workflowArtifactDigest": "sha256:5d74a9958d3942f9d1d3becaf5de97b46760ca8bfe8248b130afa2c4df1223a7",
+      "applicationImageDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+      "activeRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
+      "rollbackRevision": "ai-pdm-prod-gh-4cc161e8-29514678283",
+      "trafficPercent": 100,
+      "candidateSmokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/candidate-smoke.json",
+      "canonicalSmokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json",
+      "revisionReadbackPath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/revision-candidate.json",
+      "closureEvidencePath": "output/dev-032-gate-e-closure/report.json"
+    }
   },
   "gateSummary": {
     "total": 10,
-    "passed": 9,
+    "passed": 10,
     "blocked": 0,
     "missingEvidence": 0,
-    "pendingHuman": 1,
-    "firstBlockedGate": "A9-wave0-go-no-go",
-    "blockerCodes": [
-      "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING"
-    ]
+    "pendingHuman": 0,
+    "firstBlockedGate": null,
+    "blockerCodes": []
   },
   "gates": [
     {
@@ -40,9 +55,12 @@
       "passed": true,
       "evidence": {
         "evidenceContractPath": "config/platform/production-activation-evidence.json",
-        "applicationSourceRevision": "3ab5cffaaeb7a6d0a1b3e56165a390bb9bf5e728",
-        "applicationImageDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
-        "runtimeDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
+        "applicationSourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
+        "applicationImageDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+        "runtimeRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
+        "workflowRunId": "29516917660",
+        "workflowArtifactDigest": "sha256:5d74a9958d3942f9d1d3becaf5de97b46760ca8bfe8248b130afa2c4df1223a7",
+        "baseActivationEvidencePreserved": true,
         "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
         "hotfixId": "hotfix-3ab5cffa",
         "cloudBuildId": "7abc8bd3-b2fe-47cb-81f1-6bfe05915412",
@@ -102,7 +120,7 @@
         "postApplyReadbackPath": "output/dev-032-production-terraform-plan/corrective/post-apply-readback.json",
         "stateResourceCount": 58,
         "terraformNoDrift": true,
-        "latestReadyRevision": "ai-pdm-prod-00012-kaf",
+        "latestReadyRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
         "fileAuthorityBucketAbsent": true
       },
       "blockers": []
@@ -148,12 +166,13 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "smokePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json",
-        "passed": 16,
+        "smokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/candidate-smoke.json",
+        "passed": 13,
         "failed": 0,
-        "revision": "ai-pdm-prod-00012-kaf",
-        "manifestDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d",
-        "runtimeDigest": "sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d"
+        "revision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
+        "manifestDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+        "runtimeDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+        "sourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057"
       },
       "blockers": []
     },
@@ -166,11 +185,11 @@
         "productionDeploymentObserved": true,
         "unauthenticatedProductionChecksPassed": true,
         "authenticatedLevel4Status": "passed",
-        "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json",
-        "level4Passed": 15,
+        "level4EvidencePath": "output/dev-032-gate-e-closure/report.json",
+        "canonicalSmokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json",
+        "level4Passed": 13,
         "level4Failed": 0,
         "uiAcceptanceResult": {
-          "rootCode": "A0001",
           "partNumber": "A0001-P01",
           "drawingNumber": "A0001-M01",
           "seriesCode": "DEV032-HF"
@@ -188,35 +207,35 @@
     },
     {
       "id": "A9-wave0-go-no-go",
-      "status": "pending_human",
-      "passed": false,
+      "status": "passed",
+      "passed": true,
       "evidence": {
         "allowlistMode": "named-google-workspace-users-only",
         "failClosed": true,
         "minimumNamedUsers": 3,
         "maximumNamedUsers": 5,
         "namedUsers": [
-          "jedchang0308@jenfu.com.tw"
+          "jedchang0308@jenfu.com.tw",
+          "dani@jenfu.com.tw",
+          "info@jenfu.com.tw"
         ],
-        "namedUserCount": 1,
-        "gateEAutomationStatus": "machine_gate_e_passed_human_closure_pending",
+        "namedUserCount": 3,
+        "gateEAutomationStatus": "machine_gate_e_passed_release_closure_complete",
         "gateEMachineChecksPassed": true,
         "gateEAutomationEvidencePath": "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
         "humanWorkPackagePath": "output/dev-032-gate-e-automation/human-work-package.md",
-        "nonAllowlistNegativeAccessRequiresHuman": true,
-        "productOwnerDecision": "pending",
+        "humanAcceptanceStatus": "passed",
+        "humanAcceptanceEvidencePath": "output/dev-032-gate-e-closure/report.json",
+        "nonAllowlistNegativeAccessStatus": "passed",
+        "nonAllowlistNegativeAccessAccount": "nokai520@gmail.com",
+        "openP0P1Count": 0,
+        "productOwnerDecision": "go",
         "fixedFiveBusinessDayObservationCancelled": true
       },
-      "blockers": [
-        {
-          "code": "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING",
-          "message": "Wave 0 still needs 3-5 explicitly named users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go.",
-          "evidence": {}
-        }
-      ]
+      "blockers": []
     }
   ],
-  "nextRequiredAction": "Complete the human work package at output/dev-032-gate-e-automation/human-work-package.md: provide 3-5 explicitly named Wave 0 users, named-user UI acceptance, non-allowlist human negative access evidence and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.",
+  "nextRequiredAction": "Record final release closure and preserve the evidence package.",
   "stopConditions": [
     "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
     "Any production plan includes delete or replace.",

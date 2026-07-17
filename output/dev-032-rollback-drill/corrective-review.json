@@ -1,0 +1,12 @@
+{
+  "planSha256": "a0947af176294e7449e4f99c61ea98e8c619d96e5edf57109cf5c757eb16e8cf",
+  "actions": [
+    "update"
+  ],
+  "sidecarStartupCpuBoostBefore": true,
+  "sidecarStartupCpuBoostAfter": null,
+  "appImageBefore": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "appImageAfter": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "deleteOrReplace": 0,
+  "estimatedMonthlyUsd": 210
+}

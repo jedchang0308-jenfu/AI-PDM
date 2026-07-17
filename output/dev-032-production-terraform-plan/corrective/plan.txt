@@ -1,0 +1,219 @@
+google_project_service.required["iamcredentials.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/iamcredentials.googleapis.com]
+google_service_account.migration[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_service.required["billingbudgets.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/billingbudgets.googleapis.com]
+google_project_service.required["iam.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/iam.googleapis.com]
+google_project_service.required["sqladmin.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/sqladmin.googleapis.com]
+google_service_account.runtime[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/serviceAccounts/ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_compute_managed_ssl_certificate.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/sslCertificates/ai-pdm-prod-managed-tls]
+google_monitoring_alert_policy.cloud_run_errors[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632112042]
+google_monitoring_alert_policy.cloud_sql_connections[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/alertPolicies/2031261166632111645]
+google_project_service.required["identitytoolkit.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/identitytoolkit.googleapis.com]
+google_project_service.required["servicenetworking.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/servicenetworking.googleapis.com]
+google_project_service.required["run.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/run.googleapis.com]
+google_project_service.required["cloudkms.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/cloudkms.googleapis.com]
+google_project_service.required["logging.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/logging.googleapis.com]
+google_project_service.required["firebase.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/firebase.googleapis.com]
+google_project_service.required["artifactregistry.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/artifactregistry.googleapis.com]
+google_project_service.required["monitoring.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/monitoring.googleapis.com]
+google_project_service.required["cloudbuild.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/cloudbuild.googleapis.com]
+google_project_service.required["secretmanager.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/secretmanager.googleapis.com]
+google_project_service.required["compute.googleapis.com"]: Refreshing state... [id=jenfu-ai-pdm-prod/compute.googleapis.com]
+google_project_iam_member.runtime["roles/cloudsql.client"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/cloudsql.client/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_compute_global_address.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-ipv4]
+google_secret_manager_secret.session_signing["pdm-session-signing-previous"]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous]
+google_secret_manager_secret.session_signing["pdm-session-signing-current"]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current]
+google_compute_url_map.http_redirect[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/urlMaps/ai-pdm-prod-http-redirect]
+google_project_iam_member.runtime["roles/monitoring.metricWriter"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/monitoring.metricWriter/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_iam_member.runtime["roles/cloudsql.instanceUser"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/cloudsql.instanceUser/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_iam_member.runtime["roles/firebaseauth.admin"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/firebaseauth.admin/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_iam_member.runtime["roles/logging.logWriter"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/logging.logWriter/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_iam_member.migration["roles/cloudsql.instanceUser"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/cloudsql.instanceUser/serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_project_iam_member.migration["roles/cloudsql.client"]: Refreshing state... [id=jenfu-ai-pdm-prod/roles/cloudsql.client/serviceAccount:ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_secret_manager_secret_iam_member.runtime_session_signing["pdm-session-signing-previous"]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-previous/roles/secretmanager.secretAccessor/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_secret_manager_secret_iam_member.runtime_session_signing["pdm-session-signing-current"]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/secrets/pdm-session-signing-current/roles/secretmanager.secretAccessor/serviceAccount:ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com]
+google_compute_target_http_proxy.redirect[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/targetHttpProxies/ai-pdm-prod-http-redirect]
+google_compute_global_forwarding_rule.http[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/forwardingRules/ai-pdm-prod-http]
+google_kms_key_ring.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/keyRings/ai-pdm-prod-keys]
+google_logging_project_bucket_config.application[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/buckets/pdm-application]
+google_compute_network.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/networks/ai-pdm-prod-vpc]
+google_artifact_registry_repository.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/repositories/ai-pdm]
+google_identity_platform_config.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/config]
+google_logging_project_sink.default[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/sinks/_Default]
+google_compute_global_address.private_services[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-private-services]
+google_compute_subnetwork.runtime[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/regions/asia-east1/subnetworks/ai-pdm-prod-runtime]
+google_service_networking_connection.private_services[0]: Refreshing state... [id=projects%2Fjenfu-ai-pdm-prod%2Fglobal%2Fnetworks%2Fai-pdm-prod-vpc:servicenetworking.googleapis.com]
+google_sql_database_instance.pdm[0]: Refreshing state... [id=ai-pdm-prod-postgres]
+google_sql_database.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/instances/ai-pdm-prod-postgres/databases/ai_pdm]
+google_sql_user.runtime_iam[0]: Refreshing state... [id=ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam//ai-pdm-prod-postgres]
+google_sql_user.migration_iam[0]: Refreshing state... [id=ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam//ai-pdm-prod-postgres]
+google_cloud_run_v2_job.migration_runner[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner]
+google_cloud_run_v2_service.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/services/ai-pdm-prod]
+google_compute_region_network_endpoint_group.pdm[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/regions/asia-east1/networkEndpointGroups/ai-pdm-prod-neg]
+google_compute_backend_service.application[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/backendServices/ai-pdm-prod-app]
+google_compute_backend_service.immutable_static[0]: Refreshing state... [id=projects/jenfu-ai-pdm-prod/global/backendServices/ai-pdm-prod-immutable-static]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # google_billing_budget.production[0] will be created
+  + resource "google_billing_budget" "production" {
+      + billing_account = "018678-C2F032-7680E4"
+      + deletion_policy = (known after apply)
+      + display_name    = "AI PDM production monthly budget"
+      + id              = (known after apply)
+      + name            = (known after apply)
+
+      + all_updates_rule {
+          + disable_default_iam_recipients   = true
+          + enable_project_level_recipients  = false
+          + monitoring_notification_channels = [
+              + "projects/jenfu-ai-pdm-prod/notificationChannels/2662679645065994001",
+              + "projects/jenfu-ai-pdm-prod/notificationChannels/15103668863240167460",
+            ]
+          + schema_version                   = "1.0"
+        }
+
+      + amount {
+          + specified_amount {
+              + currency_code = "TWD"
+              + units         = "9600"
+            }
+        }
+
+      + budget_filter {
+          + credit_types_treatment = "INCLUDE_ALL_CREDITS"
+          + labels                 = (known after apply)
+          + projects               = [
+              + "projects/451715062958",
+            ]
+          + services               = (known after apply)
+        }
+
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 0.5
+        }
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 0.8
+        }
+      + threshold_rules {
+          + spend_basis       = "CURRENT_SPEND"
+          + threshold_percent = 1
+        }
+    }
+
+  # google_compute_global_forwarding_rule.https[0] will be created
+  + resource "google_compute_global_forwarding_rule" "https" {
+      + base_forwarding_rule  = (known after apply)
+      + deletion_policy       = "DELETE"
+      + effective_labels      = (known after apply)
+      + forwarding_rule_id    = (known after apply)
+      + id                    = (known after apply)
+      + ip_address            = "projects/jenfu-ai-pdm-prod/global/addresses/ai-pdm-prod-ipv4"
+      + ip_protocol           = (known after apply)
+      + label_fingerprint     = (known after apply)
+      + load_balancing_scheme = "EXTERNAL_MANAGED"
+      + name                  = "ai-pdm-prod-https"
+      + network               = (known after apply)
+      + network_tier          = (known after apply)
+      + port_range            = "443"
+      + project               = "jenfu-ai-pdm-prod"
+      + psc_connection_id     = (known after apply)
+      + psc_connection_status = (known after apply)
+      + self_link             = (known after apply)
+      + subnetwork            = (known after apply)
+      + target                = (known after apply)
+      + terraform_labels      = (known after apply)
+
+      + service_directory_registrations (known after apply)
+    }
+
+  # google_compute_target_https_proxy.pdm[0] will be created
+  + resource "google_compute_target_https_proxy" "pdm" {
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + fingerprint        = (known after apply)
+      + id                 = (known after apply)
+      + name               = "ai-pdm-prod-https"
+      + project            = "jenfu-ai-pdm-prod"
+      + proxy_bind         = (known after apply)
+      + proxy_id           = (known after apply)
+      + quic_override      = "NONE"
+      + self_link          = (known after apply)
+      + ssl_certificates   = [
+          + "projects/jenfu-ai-pdm-prod/global/sslCertificates/ai-pdm-prod-managed-tls",
+        ]
+      + tls_early_data     = (known after apply)
+      + url_map            = (known after apply)
+    }
+
+  # google_compute_url_map.https[0] will be created
+  + resource "google_compute_url_map" "https" {
+      + creation_timestamp = (known after apply)
+      + default_service    = "projects/jenfu-ai-pdm-prod/global/backendServices/ai-pdm-prod-app"
+      + deletion_policy    = "DELETE"
+      + fingerprint        = (known after apply)
+      + id                 = (known after apply)
+      + map_id             = (known after apply)
+      + name               = "ai-pdm-prod-https"
+      + project            = "jenfu-ai-pdm-prod"
+      + self_link          = (known after apply)
+
+      + host_rule {
+          + hosts        = [
+              + "pdm.jenfu.com.tw",
+            ]
+          + path_matcher = "pdm"
+            # (1 unchanged attribute hidden)
+        }
+
+      + path_matcher {
+          + default_service = "projects/jenfu-ai-pdm-prod/global/backendServices/ai-pdm-prod-app"
+          + name            = "pdm"
+
+          + path_rule {
+              + paths   = [
+                  + "/_next/static/*",
+                ]
+              + service = "projects/jenfu-ai-pdm-prod/global/backendServices/ai-pdm-prod-immutable-static"
+            }
+        }
+    }
+
+  # google_kms_crypto_key.numbering_ledger[0] will be created
+  + resource "google_kms_crypto_key" "numbering_ledger" {
+      + crypto_key_backend         = (known after apply)
+      + deletion_policy            = "DELETE"
+      + destroy_scheduled_duration = (known after apply)
+      + effective_labels           = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + id                         = (known after apply)
+      + import_only                = (known after apply)
+      + key_ring                   = "projects/jenfu-ai-pdm-prod/locations/asia-east1/keyRings/ai-pdm-prod-keys"
+      + name                       = "numbering-ledger-signing"
+      + primary                    = (known after apply)
+      + purpose                    = "ASYMMETRIC_SIGN"
+      + terraform_labels           = {
+          + "goog-terraform-provisioned" = "true"
+        }
+
+      + version_template {
+          + algorithm        = "EC_SIGN_P256_SHA256"
+          + protection_level = "HSM"
+        }
+    }
+
+Plan: 5 to add, 0 to change, 0 to destroy.
+
+─────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: C:\VIBE
+CODING\AI_PDM\output\dev-032-production-terraform-plan\corrective\corrective.tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "C:\\VIBE CODING\\AI_PDM\\output\\dev-032-production-terraform-plan\\corrective\\corrective.tfplan"

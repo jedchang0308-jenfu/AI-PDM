@@ -1,0 +1,46 @@
+google_billing_budget.production[0]: Creating...
+google_kms_crypto_key.numbering_ledger[0]: Creating...
+google_compute_url_map.https[0]: Creating...
+google_kms_crypto_key.numbering_ledger[0]: Creation complete after 1s [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/keyRings/ai-pdm-prod-keys/cryptoKeys/numbering-ledger-signing]
+google_billing_budget.production[0]: Creation complete after 3s [id=billingAccounts/018678-C2F032-7680E4/budgets/e686a984-346c-4138-af58-5d9e1d9e5572]
+google_compute_url_map.https[0]: Still creating... [00m10s elapsed]
+google_compute_url_map.https[0]: Creation complete after 13s [id=projects/jenfu-ai-pdm-prod/global/urlMaps/ai-pdm-prod-https]
+google_compute_target_https_proxy.pdm[0]: Creating...
+google_compute_target_https_proxy.pdm[0]: Still creating... [00m10s elapsed]
+google_compute_target_https_proxy.pdm[0]: Creation complete after 12s [id=projects/jenfu-ai-pdm-prod/global/targetHttpsProxies/ai-pdm-prod-https]
+google_compute_global_forwarding_rule.https[0]: Creating...
+google_compute_global_forwarding_rule.https[0]: Still creating... [00m10s elapsed]
+google_compute_global_forwarding_rule.https[0]: Still creating... [00m20s elapsed]
+google_compute_global_forwarding_rule.https[0]: Creation complete after 22s [id=projects/jenfu-ai-pdm-prod/global/forwardingRules/ai-pdm-prod-https]
+
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+production_gate_summary = {
+  "clean_seed_allowlist" = false
+  "cost_gate_ready" = true
+  "env_source" = true
+  "hd84_restore" = false
+  "level3_smoke_plan" = false
+  "post_apply_ready" = false
+  "rollback_readiness" = false
+  "secret_metadata" = true
+  "target_readback" = true
+}
+production_review_target = {
+  "cloud_run_service" = "ai-pdm-prod"
+  "cloud_sql_instance" = "ai-pdm-prod-postgres"
+  "create_resources" = true
+  "firebase_hosting_used" = false
+  "migration_live_mode" = false
+  "migration_runner_job" = "ai-pdm-prod-migration-runner"
+  "phase3a_gcs_authority" = false
+  "principal_bootstrap_mode" = false
+  "production_action" = false
+  "project_id" = "jenfu-ai-pdm-prod"
+  "public_base_url" = "https://pdm.jenfu.com.tw"
+  "reconciliation_mode" = tostring(null)
+  "reconciliation_target" = tostring(null)
+  "region" = "asia-east1"
+}

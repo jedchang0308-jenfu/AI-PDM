@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-046",
+  "executedAt": "2026-07-15T05:27:07Z",
+  "candidate": {
+    "localTag": "ai-pdm:dev-046-working-candidate",
+    "imageId": "sha256:46d7ae279145d7a3ad97317f77d214c6bfa56de09ff5d47784f2d3f92981738a",
+    "sourceRevisionLabel": "dirty-ec6898186809-430dad85d0d0",
+    "sourceStateSha256": "430dad85d0d05af69e47ae239ef62b1756c2f5791ab76eff3964ccf751a44779",
+    "sourceStateLabelMatches": true,
+    "nonRootUser": "nextjs",
+    "pushed": false,
+    "deployed": false
+  },
+  "build": {
+    "status": "passed",
+    "node": "24.17.0",
+    "next": "16.2.6",
+    "standalone": true,
+    "typescript": "passed",
+    "staticPagesGenerated": 124,
+    "acceptedRoutesPassed": 7,
+    "acceptedRoutesTotal": 7
+  },
+  "containerSmoke": {
+    "startup": "passed",
+    "checksPassed": 8,
+    "checksTotal": 8,
+    "criteria": "Each route reached its handler; unauthenticated or invalid-origin requests were expected to fail closed rather than return a missing-route 404.",
+    "checks": [
+      { "route": "/login", "status": 200 },
+      { "route": "/api/auth/mode", "status": 200 },
+      { "route": "/api/auth/employee-login-intents", "status": 403 },
+      { "route": "/api/auth/firebase/session", "status": 403 },
+      { "route": "/api/privacy/notice", "status": 200 },
+      { "route": "/api/privacy/acknowledgements/current", "status": 403 },
+      { "route": "/api/account/sessions", "status": 401 },
+      { "route": "/api/admin/accounts/test-user/login-aliases", "status": 403 }
+    ]
+  },
+  "focusedQc": {
+    "passed": 107,
+    "failed": 0,
+    "suites": [
+      "DEV-046 Phase 2B Firebase BFF 14/14",
+      "DEV-046 employee login alias 21/21",
+      "DEV-046 privacy acknowledgement 20/20",
+      "production slice numbering/draft 29/29",
+      "part-number series code 10/10",
+      "artifact provenance 13/13"
+    ],
+    "lint": "passed"
+  },
+  "dependencyAudit": {
+    "productionModerate": 6,
+    "productionHigh": 0,
+    "productionCritical": 0,
+    "automaticFixApplied": false,
+    "notes": "npm proposes a semver-major firebase-admin downgrade to 10.3.0 for the transitive storage chain. No unsafe automatic downgrade was applied; this remains a reviewed staging residual item."
+  },
+  "result": "local_candidate_verified_not_releaseable",
+  "blockers": [
+    "STAGING_APPLICATION_SOURCE_WORKTREE_NOT_CLEAN",
+    "STAGING_APPLICATION_CANDIDATE_REVISION_NOT_EXACT_CLEAN_HEAD",
+    "STAGING_DEPLOYED_ROUTE_MANIFEST_INCOMPLETE",
+    "STAGING_DEPLOYED_IMAGE_SOURCE_REVISION_LABEL_MISSING"
+  ]
+}

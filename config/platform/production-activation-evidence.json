@@ -33,6 +33,21 @@
     "postTrafficSmokePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-post-traffic-smoke.json",
     "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-3ab5cffa-level4-ui.json"
   },
+  "currentRelease": {
+    "sourceRevision": "6dc24ebe1c1fcca9da9ff06c66996f6754652057",
+    "workflowRunId": "29516917660",
+    "workflowArtifactId": "8383240947",
+    "workflowArtifactName": "production-release-6dc24ebe1c1fcca9da9ff06c66996f6754652057-29516917660",
+    "workflowArtifactDigest": "sha256:5d74a9958d3942f9d1d3becaf5de97b46760ca8bfe8248b130afa2c4df1223a7",
+    "applicationImageDigest": "sha256:469df95bd6aa5b6a473f0a7fe4dcf986da44765eceac5afbd7ea1f83ecdd6079",
+    "activeRevision": "ai-pdm-prod-gh-6dc24ebe-29516917660",
+    "rollbackRevision": "ai-pdm-prod-gh-4cc161e8-29514678283",
+    "trafficPercent": 100,
+    "candidateSmokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/candidate-smoke.json",
+    "canonicalSmokePath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/canonical-smoke.json",
+    "revisionReadbackPath": "output/dev-032-current-release/ci-6dc24ebe-29516917660/revision-candidate.json",
+    "closureEvidencePath": "output/dev-032-gate-e-closure/report.json"
+  },
   "executions": {
     "principalBootstrap": "ai-pdm-prod-migration-runner-95bn8",
     "preCanaryReconciliation": "ai-pdm-prod-migration-runner-2szd5",
@@ -54,15 +69,22 @@
     "minimumNamedUsers": 3,
     "maximumNamedUsers": 5,
     "namedUsers": [
-      "jedchang0308@jenfu.com.tw"
+      "jedchang0308@jenfu.com.tw",
+      "dani@jenfu.com.tw",
+      "info@jenfu.com.tw"
     ],
     "allowlistMode": "named-google-workspace-users-only",
     "failClosed": true,
     "authenticatedLevel4Status": "passed",
-    "gateEAutomationStatus": "machine_gate_e_passed_human_closure_pending",
+    "gateEAutomationStatus": "machine_gate_e_passed_release_closure_complete",
     "gateEAutomationEvidencePath": "output/dev-032-gate-e-automation/gate-e-automation-readback.json",
     "humanWorkPackagePath": "output/dev-032-gate-e-automation/human-work-package.md",
-    "productOwnerDecision": "pending"
+    "humanAcceptanceStatus": "passed",
+    "humanAcceptanceEvidencePath": "output/dev-032-gate-e-closure/report.json",
+    "nonAllowlistNegativeAccessStatus": "passed",
+    "nonAllowlistNegativeAccessAccount": "nokai520@gmail.com",
+    "openP0P1Count": 0,
+    "productOwnerDecision": "go"
   },
   "decisions": {
     "customDnsDeferred": true,

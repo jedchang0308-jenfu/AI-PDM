@@ -1,0 +1,35 @@
+google_cloud_run_v2_job.migration_runner[0]: Modifying... [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner]
+google_cloud_run_v2_job.migration_runner[0]: Still modifying... [id=projects/jenfu-ai-pdm-prod/locations/as...ast1/jobs/ai-pdm-prod-migration-runner, 00m10s elapsed]
+google_cloud_run_v2_job.migration_runner[0]: Modifications complete after 12s [id=projects/jenfu-ai-pdm-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner]
+
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+
+Outputs:
+
+production_gate_summary = {
+  "clean_seed_allowlist" = false
+  "cost_gate_ready" = true
+  "env_source" = true
+  "hd84_restore" = false
+  "level3_smoke_plan" = false
+  "post_apply_ready" = false
+  "rollback_readiness" = false
+  "secret_metadata" = true
+  "target_readback" = true
+}
+production_review_target = {
+  "cloud_run_service" = "ai-pdm-prod"
+  "cloud_sql_instance" = "ai-pdm-prod-postgres"
+  "create_resources" = true
+  "firebase_hosting_used" = false
+  "migration_live_mode" = true
+  "migration_runner_job" = "ai-pdm-prod-migration-runner"
+  "phase3a_gcs_authority" = false
+  "principal_bootstrap_mode" = false
+  "production_action" = false
+  "project_id" = "jenfu-ai-pdm-prod"
+  "public_base_url" = "https://pdm.jenfu.com.tw"
+  "reconciliation_mode" = tostring(null)
+  "reconciliation_target" = tostring(null)
+  "region" = "asia-east1"
+}

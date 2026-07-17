@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-15T04:35:47.0772681Z",
+  "canonicalOrigin": "https://jenfu-ai-pdm-stg-361825.web.app",
+  "directRunOrigin": "https://ai-pdm-stg-prvrdcx6sq-de.a.run.app",
+  "cloudRunRevision": "ai-pdm-stg-00003-vz4",
+  "applicationImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3",
+  "checks": [
+    {
+      "name": "live_login",
+      "passed": true,
+      "detail": {
+        "status": 200,
+        "cacheControl": "no-store, max-age=0, private",
+        "contentType": "text/html; charset=utf-8",
+        "referrerPolicy": "same-origin",
+        "nosniff": "nosniff"
+      }
+    },
+    {
+      "name": "live_auth_mode",
+      "passed": true,
+      "detail": {
+        "status": 200,
+        "authMode": "firebase_bff",
+        "firebaseEnabled": true,
+        "googleEnabled": true,
+        "cacheControl": "no-store, max-age=0, private"
+      }
+    },
+    {
+      "name": "direct_run_shell_residual_risk_observed",
+      "passed": true,
+      "detail": {
+        "status": 200,
+        "cacheControl": "s-maxage=31536000",
+        "acceptedStagingRisk": true
+      }
+    },
+    {
+      "name": "direct_run_origin_session_exchange_denied",
+      "passed": true,
+      "detail": {
+        "status": 403,
+        "error": "Invalid request origin"
+      }
+    },
+    {
+      "name": "canonical_origin_reaches_token_validation",
+      "passed": true,
+      "detail": {
+        "status": 400,
+        "error": "Firebase ID token required"
+      }
+    },
+    {
+      "name": "runtime_cloud_sql_read",
+      "passed": true,
+      "detail": {
+        "status": 404,
+        "expectedResult": "not_found_after_database_lookup",
+        "databaseEffect": "read-only",
+        "businessDataCreated": false,
+        "cacheControl": "no-store, max-age=0, private"
+      }
+    }
+  ],
+  "excludedProbe": {
+    "route": "/api/auth/employee-login-intents",
+    "result": "not-counted",
+    "reason": "route absent from deployed immutable image; observed 404 before any database operation"
+  },
+  "passed": 6,
+  "total": 6,
+  "result": "passed"
+}

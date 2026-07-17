@@ -65,27 +65,30 @@ The user selected the Firebase Hosting default domain for the short-term interna
 - Cloud SQL remains the only formal relational authority. Firestore is not enabled or used. GCS remains the only approved future formal-file authority; Firebase Storage is not used. Firebase Functions, Callable and Firestore triggers remain prohibited.
 - Firebase Hosting's Cloud Run integration requires an unauthenticated Cloud Run endpoint. Therefore staging temporarily enables the Cloud Run default URL and all ingress. `PDM_PUBLIC_BASE_URL` and the session issuer are pinned to the `web.app` origin, secure host-only cookies remain required, and a request carrying the `run.app` browser origin is denied at session exchange.
 - This does not eliminate the direct `run.app` shell or denial-of-service surface. The direct response also bypasses Hosting's private/no-store header override. These are accepted staging residual risks only.
-- Production still requires the external Application Load Balancer, managed TLS, custom domain, load-balancer-only Cloud Run ingress and disabled default URL. Firebase Hosting is not an allowed production gateway under this ADR.
+- Superseded for production by the 2026-07-16 Production Ingress Amendment below: before that amendment, the production baseline required the external Application Load Balancer, managed TLS, custom domain, load-balancer-only Cloud Run ingress and disabled default URL.
 
 Execution evidence records a targeted Terraform plan/apply of 0 added, 1 in-place change, 0 destroyed and 0 replaced; Firebase Hosting live version `c61e4ebfa2556848`; Cloud Run revision `ai-pdm-stg-00003-vz4`; and 6/6 live smoke including a read-only Cloud SQL query through the runtime identity. This closes the internal HTTPS and runtime-smoke gates only. Staging acceptance remains blocked by real principal mapping and exact-source artifact provenance/drift evidence because the deployed image predates at least one locally accepted route.
 
-## 2026-07-16 Production Internal-Pilot Firebase Hosting Amendment
+## 2026-07-16 Production Ingress Amendment
 
-The user reconfirmed that public DNS must remain deferred for the first internal production pilot. This amendment supersedes the staging-only restriction above for the bounded Phase 3A official-numbering/draft slice; it does not replace the five-year custom-domain edge baseline.
+The user reconfirmed that public DNS must remain deferred for the first internal production pilot, and later confirmed that the Firebase Hosting -> Cloud Run pattern may remain the approved ingress long term if it continues to satisfy governance and operations. This amendment supersedes the staging-only restriction above for the bounded Phase 3A official-numbering/draft slice and records the future enterprise edge migration path without making it a prerequisite for the first production slice.
 
 - Canonical production pilot origin: `https://jenfu-ai-pdm-prod.web.app`.
-- Firebase Hosting performs HTTPS termination and an HTTP rewrite only. Cloud Run remains the portable Next.js/BFF runtime and Cloud SQL remains the only formal relational authority.
+- Current approved ingress: Firebase Hosting default site `jenfu-ai-pdm-prod.web.app` rewrites all application traffic to Cloud Run `ai-pdm-prod` in `asia-east1`.
+- Firebase Hosting performs HTTPS termination, default-domain hosting and HTTP rewrite only. It is not a system of record and cannot hold formal data, file authority, workflow state, audit authority or business logic.
+- Cloud Run remains the portable Next.js/BFF runtime and Cloud SQL remains the only formal relational authority.
 - Firestore, Firebase Storage, Firebase Functions, Callable and provider-trigger business logic remain prohibited. Phase 3A GCS/file workflows remain fail-closed.
 - Firebase Hosting integration requires the Cloud Run default URL and `INGRESS_TRAFFIC_ALL`. This exposes the direct `run.app` shell and denial-of-service surface outside the external load balancer. The organization accepts this bounded pilot residual risk.
 - `PDM_PUBLIC_BASE_URL`, `PDM_SESSION_ISSUER` and `PDM_FIREBASE_AUTH_DOMAIN` must all use the production `web.app` origin. Secure host-only cookies and same-origin mutation checks remain mandatory; requests carrying a direct `run.app` browser origin cannot exchange a PDM business session.
-- The existing external ALB, reserved IP and managed-certificate resources are retained without DNS. Moving to `pdm.jenfu.com.tw`, restoring LB-only ingress and disabling the default Cloud Run URL is a later reviewed cutover, not a prerequisite for the internal pilot.
+- Future migration path: Global External Application Load Balancer + Cloud CDN + Cloud Armor + Cloud Run services. It becomes a separate reviewed gate only when a formal company domain, centralized WAF/CDN/routing governance, multi-ERP-module ingress governance or higher traffic/security requirements justify the added complexity.
+- The existing external ALB, reserved IP and managed-certificate resources may remain modeled without DNS. Moving to `pdm.jenfu.com.tw`, restoring LB-only ingress and disabling the default Cloud Run URL is a later reviewed cutover, not a prerequisite for the internal pilot or for continued internal use of the production slice.
 - Hosting rollout must use the exact production site/service/region, private/no-store headers, `pinTag=false`, a credentialled Terraform saved plan with zero delete/replace and production post-deploy smoke.
 
 ## Decision
 
 ### 1. One Google platform, one PostgreSQL authority
 
-- The Next.js BFF runs as a Next.js 16 Active LTS container on Cloud Run `asia-east1` under `HD-8-1 / 1A`. An external Application Load Balancer/serverless NEG owns managed TLS and the custom domain; Cloud CDN is restricted to reviewed public immutable assets. Firebase App Hosting/Next.js 15.2.x remains historical context and is not the production runtime.
+- The Next.js BFF runs as a Next.js 16 Active LTS container on Cloud Run `asia-east1` under `HD-8-1 / 1A`. The current approved production ingress is Firebase Hosting default-domain rewrite to Cloud Run. The future enterprise ingress path is Global External Application Load Balancer + Cloud CDN + Cloud Armor + Cloud Run services; Cloud CDN may cache only reviewed public immutable assets. Firebase App Hosting/Next.js 15.2.x remains historical context and is not the production runtime.
 - Cloud SQL for PostgreSQL is the only staging and production relational authority, in `asia-east1`.
 - Google Cloud Storage is the authoritative binary store, with primary and recovery buckets in `ASIA-EAST1` unless a separately approved disaster-recovery ADR chooses another location.
 - Firebase Authentication with Identity Platform is the shared human IAM. Provider credential, UID and authentication metadata necessarily remain in Identity Platform as the accepted identity exception; all business profile, company, role/scope, lifecycle, session-control and audit records remain in Cloud SQL. Firebase authenticates the browser; operational authorization and database access terminate behind the Next.js BFF.

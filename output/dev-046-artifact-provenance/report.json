@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-046",
+  "generatedAt": "2026-07-15T06:03:08.130Z",
+  "status": "blocked_expected",
+  "git": {
+    "head": "ec6898186809f257ed97adc98a2a16b73d402ac0",
+    "clean": false,
+    "worktreeChangedFileCount": 352,
+    "dockerContextChangedFileCount": 249,
+    "excludedChangedFileCount": 103,
+    "sourceStateSha256": "b8d4ce842612d18a7a71c0025d09f50286dd8dd41c905d2db3ec6e510a4c87ba"
+  },
+  "acceptedRoutes": [
+    {
+      "route": "/api/auth/employee-login-intents",
+      "file": "src/app/api/auth/employee-login-intents/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/auth/firebase/session",
+      "file": "src/app/api/auth/firebase/session/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/privacy/notice",
+      "file": "src/app/api/privacy/notice/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/privacy/acknowledgements/current",
+      "file": "src/app/api/privacy/acknowledgements/current/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/account/sessions",
+      "file": "src/app/api/account/sessions/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/admin/accounts/[userId]/login-aliases",
+      "file": "src/app/api/admin/accounts/[userId]/login-aliases/route.ts",
+      "present": true
+    },
+    {
+      "route": "/api/admin/accounts/[userId]/login-aliases/[aliasId]",
+      "file": "src/app/api/admin/accounts/[userId]/login-aliases/[aliasId]/route.ts",
+      "present": true
+    }
+  ],
+  "candidate": null,
+  "deployed": {
+    "imageRef": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3",
+    "imageId": "sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3",
+    "created": "2026-07-13T11:13:31.992712034Z",
+    "labels": {},
+    "routeCount": 246,
+    "revisionLabel": "",
+    "exactCleanHeadRevision": false,
+    "coverage": [
+      {
+        "route": "/api/auth/employee-login-intents",
+        "present": false
+      },
+      {
+        "route": "/api/auth/firebase/session",
+        "present": true
+      },
+      {
+        "route": "/api/privacy/notice",
+        "present": false
+      },
+      {
+        "route": "/api/privacy/acknowledgements/current",
+        "present": false
+      },
+      {
+        "route": "/api/account/sessions",
+        "present": false
+      },
+      {
+        "route": "/api/admin/accounts/[userId]/login-aliases",
+        "present": false
+      },
+      {
+        "route": "/api/admin/accounts/[userId]/login-aliases/[aliasId]",
+        "present": false
+      }
+    ]
+  },
+  "safeToPushOrDeploy": false,
+  "blockers": [
+    "STAGING_APPLICATION_SOURCE_WORKTREE_NOT_CLEAN",
+    "STAGING_APPLICATION_CANDIDATE_IMAGE_NOT_BUILT",
+    "STAGING_DEPLOYED_ROUTE_MANIFEST_INCOMPLETE",
+    "STAGING_DEPLOYED_IMAGE_SOURCE_REVISION_LABEL_MISSING"
+  ],
+  "executionBoundary": {
+    "localGitReadOnly": true,
+    "localDockerInspectionOnly": true,
+    "cloudMutationPerformed": false,
+    "imagePushPerformed": false,
+    "deploymentPerformed": false
+  }
+}

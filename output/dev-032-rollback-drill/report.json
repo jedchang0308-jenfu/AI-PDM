@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "dev-032-cloud-run-rollback-drill/v1",
+  "startedAt": "2026-07-15T18:56:33.2279802Z",
+  "project": "jenfu-ai-pdm-prod",
+  "region": "asia-east1",
+  "service": "ai-pdm-prod",
+  "rollbackRevision": "ai-pdm-prod-00001-mt9",
+  "restoreRevision": "ai-pdm-prod-00002-567",
+  "indexDigest": "sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+  "runtimeDigest": "sha256:570dd9f0fb268110d61aea3dd05d70e9e914c131f072a1928269cc10ddd2a779",
+  "rollbackApplied": true,
+  "restoreApplied": false,
+  "rollbackTraffic": [
+    {
+      "revisionName": "ai-pdm-prod-00001-mt9",
+      "percent": 100,
+      "latestRevision": null
+    }
+  ],
+  "restoreTraffic": [
+    {
+      "revisionName": "ai-pdm-prod-00003-g6v",
+      "percent": 100,
+      "latestRevision": true
+    }
+  ],
+  "completedAt": "2026-07-15T18:57:02.5949864Z"
+}

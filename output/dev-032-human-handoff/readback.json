@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "dev-032-human-boundary-readback/v1",
+  "capturedAt": "2026-07-15T19:07:54.0010346Z",
+  "project": "jenfu-ai-pdm-prod",
+  "dns": {
+    "name": "pdm.jenfu.com.tw",
+    "aRecords": [],
+    "expected": "136.69.102.146",
+    "ready": false
+  },
+  "tls": {
+    "certificate": "ai-pdm-prod-managed-tls",
+    "status": "PROVISIONING",
+    "domainStatus": "FAILED_NOT_VISIBLE"
+  },
+  "firebase": {
+    "recordsCount": 0,
+    "targetUserPresent": false
+  },
+  "cloudRun": {
+    "ready": true,
+    "latestReadyRevision": "ai-pdm-prod-00004-qw4",
+    "traffic": [
+      {
+        "revisionName": "ai-pdm-prod-00004-qw4",
+        "percent": 100,
+        "latestRevision": true
+      }
+    ]
+  },
+  "humanBoundaryReached": true
+}

@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-07-15T17:18:46.9490922Z",
+  "terraformPlanExit": 0,
+  "planSha256": "6f16a522cd904d9d342c4727bc3587ecbd1f4a38c3775994775a99e4d0506ac9",
+  "planJsonSha256": "8bb1512d1573067e1765e41e4c07c61fb7eb0fbb477305cd1927c7739138346b",
+  "sourceCommit": "5700f4b8bb520373c39fea5dfd78789d9db05f8c",
+  "estimatedMonthlyCostUsd": 210,
+  "approvedStopUsd": 240,
+  "summary": {
+    "create": 5,
+    "update": 0,
+    "delete": 0,
+    "replace": 0,
+    "noop": 53,
+    "read": 0
+  },
+  "changes": [
+    {
+      "address": "google_billing_budget.production[0]",
+      "action": "create",
+      "actions": "create",
+      "reason": null
+    },
+    {
+      "address": "google_compute_global_forwarding_rule.https[0]",
+      "action": "create",
+      "actions": "create",
+      "reason": null
+    },
+    {
+      "address": "google_compute_target_https_proxy.pdm[0]",
+      "action": "create",
+      "actions": "create",
+      "reason": null
+    },
+    {
+      "address": "google_compute_url_map.https[0]",
+      "action": "create",
+      "actions": "create",
+      "reason": null
+    },
+    {
+      "address": "google_kms_crypto_key.numbering_ledger[0]",
+      "action": "create",
+      "actions": "create",
+      "reason": null
+    }
+  ]
+}

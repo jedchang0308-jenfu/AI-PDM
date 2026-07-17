@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+  "planSha256": "f7a8b6db83a89e2c9745e4d865ac57f9b19e796e8c57ddfc9283ba36e4397c4d",
+  "summary": {
+    "active": 1,
+    "deleteOrReplace": 0
+  },
+  "changes": [
+    {
+      "address": "google_cloud_run_v2_job.migration_runner[0]",
+      "actions": [
+        "update"
+      ]
+    }
+  ],
+  "expectedSingleJobUpdate": true,
+  "liveGuard": true
+}

@@ -1,0 +1,16 @@
+{
+  "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194",
+  "configDigest": "sha256:1644674c291c4e27d889c88a8715626dccdf826cfd74668d3864f1cfdddc66b5",
+  "sourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+  "sourceState": "clean",
+  "checks": {
+    "registryDigest": true,
+    "tagMapsToDigest": true,
+    "revisionLabel": true,
+    "sourceStateClean": true,
+    "productionMigrationPackage": true,
+    "nodeProduction": true
+  },
+  "failed": [],
+  "registryDigestReadback": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+}

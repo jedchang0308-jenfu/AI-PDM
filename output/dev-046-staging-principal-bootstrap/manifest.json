@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "packageVersion": "dev-046-staging-principal-bootstrap/v1",
+  "generatedAt": "2026-07-15T06:53:52.151Z",
+  "dev": "DEV-046",
+  "phase": "Phase-2B-staging-principal-bootstrap",
+  "status": "proposal_only_not_approved_for_live_apply",
+  "target": {
+    "projectId": "jenfu-ai-pdm-stg-361825",
+    "region": "asia-east1",
+    "cloudSqlInstance": "ai-pdm-stg-postgres",
+    "databaseName": "ai_pdm",
+    "environment": "staging"
+  },
+  "company": {
+    "id": "company-jenfu",
+    "code": "JENFU",
+    "displayName": "鉦富",
+    "platformOrganizationId": "iam:organization:jenfu",
+    "externalOrganizationKey": "jenfu"
+  },
+  "principal": {
+    "firebaseUid": "qxEv2napjvMEmiqIUqwhTCf6gjg2",
+    "email": "jedchang0308@jenfu.com.tw",
+    "displayName": "[鉦富]張仕杰 Jed",
+    "pdmUserId": "stg-pdm-admin-001",
+    "platformPrincipalId": "iam:principal:stg-pdm-admin-001",
+    "authIdentityId": "auth-google-stg-pdm-admin-001",
+    "role": "Admin",
+    "requiresTotp": true
+  },
+  "observedIdentityEvidence": {
+    "provider": "google.com",
+    "emailVerified": true,
+    "identityRecordObserved": true,
+    "totpEnrolled": false,
+    "liveBffResultBeforeBootstrap": "403 principal_not_active"
+  },
+  "canonicalMatrix": {
+    "source": "db/schema.sql",
+    "sourceSha256": "499c33e5f10272fad8c8c352cf5fa2edfaceddc9a3e424576cd5dd70c685cea0",
+    "roleCount": 9,
+    "permissionCount": 237,
+    "requiredAdminRoles": [
+      "system_admin",
+      "pdm_admin"
+    ],
+    "roles": [
+      {
+        "id": "role-rd",
+        "roleCode": "rd"
+      },
+      {
+        "id": "role-rd-manager",
+        "roleCode": "rd_manager"
+      },
+      {
+        "id": "role-pdm-admin",
+        "roleCode": "pdm_admin"
+      },
+      {
+        "id": "role-document-admin",
+        "roleCode": "document_admin"
+      },
+      {
+        "id": "role-qa",
+        "roleCode": "qa"
+      },
+      {
+        "id": "role-manufacturing",
+        "roleCode": "manufacturing"
+      },
+      {
+        "id": "role-procurement",
+        "roleCode": "procurement"
+      },
+      {
+        "id": "role-external-specialist",
+        "roleCode": "external_specialist"
+      },
+      {
+        "id": "role-system-admin",
+        "roleCode": "system_admin"
+      }
+    ]
+  },
+  "approvalBoundary": {
+    "principalMappingApproved": false,
+    "liveSqlApplyAllowed": false,
+    "applicationDeploymentApproved": false,
+    "productionApproved": false
+  },
+  "executionBoundary": {
+    "localPackageGenerationOnly": true,
+    "cloudSqlConnectionAttempted": false,
+    "sqlApplied": false,
+    "firebaseMutationPerformed": false,
+    "terraformActionPerformed": false,
+    "cloudRunDeploymentPerformed": false
+  },
+  "safety": {
+    "transactionWrapped": true,
+    "collisionFailClosed": true,
+    "idempotentUpserts": true,
+    "applicationPasswordStored": false,
+    "mfaSecretStored": false,
+    "rollbackDeletesBusinessData": false
+  },
+  "artifacts": [
+    {
+      "path": "bootstrap.sql",
+      "sha256": "68a3c23360433a25aaebd8a0ca22fb7f8c5594e5ad548111d7a161ff4eb20f24",
+      "kind": "credentialled_mutation_requires_approval"
+    },
+    {
+      "path": "readback.sql",
+      "sha256": "536c00fa45b9c2c05a4fd3f21026b6fbfc8d0b7524f82cd7ad7f844a4b55d508",
+      "kind": "read_only_verification"
+    },
+    {
+      "path": "rollback.sql",
+      "sha256": "15aafc21ce195fb900560bf86c236ab32ad603998c57562de7176be317149546",
+      "kind": "access_revocation_requires_approval"
+    }
+  ]
+}

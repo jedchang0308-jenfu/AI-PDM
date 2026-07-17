@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "dev-032-aal1-pilot-post-apply/v1",
+  "capturedAt": "2026-07-15T18:52:51.6288298Z",
+  "project": "jenfu-ai-pdm-prod",
+  "service": {
+    "ready": true,
+    "latestReadyRevisionName": "ai-pdm-prod-00002-567",
+    "traffic": [
+      {
+        "revisionName": "ai-pdm-prod-00002-567",
+        "percent": 100,
+        "latestRevision": true
+      }
+    ],
+    "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:b4fb8e9ffd45da987cab42241811194b45556e4316bc52cbed04c7d0f768aaa3",
+    "trustGoogleWorkspaceMfa": "false",
+    "allowGoogleWorkspaceAal1Privileged": "true",
+    "workspaceDomains": "jenfu.com.tw"
+  },
+  "identity": {
+    "emailEnabled": true,
+    "passwordRequired": false,
+    "anonymousEnabled": false,
+    "googleEnabled": true,
+    "googleClientIdPresent": true,
+    "googleClientSecretPresent": true,
+    "authorizedDomains": [
+      "jenfu-ai-pdm-prod.firebaseapp.com",
+      "pdm.jenfu.com.tw"
+    ]
+  }
+}

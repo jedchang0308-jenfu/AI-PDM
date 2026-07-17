@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "packageVersion": "dev-032-production-reconciliation/v1",
+  "generatedAt": "2026-07-16T00:14:30.413Z",
+  "dev": "DEV-032",
+  "phase": "Gate-C-production-and-restore-reconciliation",
+  "status": "read_only_candidate_not_executed",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "connectionName": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+    "databaseName": "ai_pdm",
+    "privateIpOnly": true,
+    "privateIpObserved": "",
+    "runtimeServiceAccount": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+    "runtimeIamDatabaseUser": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam",
+    "migrationIamDatabaseUser": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam"
+  },
+  "expectedMigrationCount": 18,
+  "expectedRoleCount": 9,
+  "expectedPermissionCount": 237,
+  "fileAuthorityExpected": false,
+  "mutationAllowed": false,
+  "readbackSqlSha256": "38951a38c9ce28572251936bd47ca664fba0619c12432b85ebced0bf0c51962e",
+  "requiredModes": [
+    "pre_canary",
+    "post_smoke",
+    "restore"
+  ]
+}

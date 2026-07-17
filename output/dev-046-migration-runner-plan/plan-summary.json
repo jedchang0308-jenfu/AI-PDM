@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-046",
+  "phase": "Phase-2B-migration-runner-plan-review",
+  "generatedAt": "2026-07-15T01:58:36.237Z",
+  "executionBoundary": {
+    "terraformPlanOnly": true,
+    "terraformApplyExecuted": false,
+    "adminBootstrapExecuted": false,
+    "liveMigrationExecuted": false,
+    "cloudRunJobExecuted": false
+  },
+  "artifact": {
+    "tag": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration:dev-046-migration-runner-20260715-095316",
+    "digest": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:8794eae1ff71807dd69166f8db2e81b42f99ecbc79911271b48e7a1ff7dc1a1c",
+    "digestPinned": true
+  },
+  "plan": {
+    "file": "output/dev-046-migration-runner-plan/phase2b-migration-runner.tfplan",
+    "jsonFile": "output/dev-046-migration-runner-plan/phase2b-migration-runner-plan.json",
+    "logFile": "output/dev-046-migration-runner-plan/terraform-plan.log",
+    "resourceChangeCountIncludingNoop": 58,
+    "actionableChangeCount": 1,
+    "creates": 1,
+    "updates": 0,
+    "deletes": 0,
+    "replaces": 0,
+    "actionableSummary": [
+      {
+        "address": "google_cloud_run_v2_job.migration_runner[0]",
+        "type": "google_cloud_run_v2_job",
+        "name": "migration_runner",
+        "actions": [
+          "create"
+        ]
+      }
+    ]
+  },
+  "job": {
+    "presentInPlan": true,
+    "address": "google_cloud_run_v2_job.migration_runner[0]",
+    "name": "ai-pdm-stg-migration-runner",
+    "project": "jenfu-ai-pdm-stg-361825",
+    "location": "asia-east1",
+    "deletionProtection": true,
+    "serviceAccount": "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam.gserviceaccount.com",
+    "timeout": "1800s",
+    "maxRetries": 0,
+    "vpcEgress": "ALL_TRAFFIC",
+    "mainImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:8794eae1ff71807dd69166f8db2e81b42f99ecbc79911271b48e7a1ff7dc1a1c",
+    "mainCommand": [
+      "node"
+    ],
+    "mainArgs": [
+      "scripts/run-dev-046-cloudsql-migrations.mjs",
+      "--dry-run"
+    ],
+    "mainEnvNames": [
+      "NODE_ENV",
+      "PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS",
+      "PDM_CLOUD_SQL_DATABASE",
+      "PDM_CLOUD_SQL_HOST",
+      "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS",
+      "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+      "PDM_CLOUD_SQL_POOL_MAX",
+      "PDM_CLOUD_SQL_PORT",
+      "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS",
+      "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS",
+      "PDM_CLOUD_SQL_USER",
+      "PDM_DB_PROVIDER"
+    ],
+    "mainContainsLiveApprovalEnv": false,
+    "proxyImage": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+    "proxyArgs": [
+      "--address=0.0.0.0",
+      "--port=5432",
+      "--private-ip",
+      "--auto-iam-authn",
+      "--lazy-refresh",
+      "--structured-logs",
+      "--max-connections=2",
+      "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres"
+    ]
+  },
+  "acceptance": {
+    "onlyMigrationRunnerJobCreate": true,
+    "noUpdateDeleteReplace": true,
+    "digestMatchesPushedArtifact": true,
+    "dryRunOnly": true,
+    "migrationServiceAccount": true,
+    "privateIamProxy": true,
+    "noLiveApprovalEnvInJob": true,
+    "applyStillRequiresSeparateApproval": true
+  },
+  "result": "plan_review_passed_apply_not_authorized"
+}

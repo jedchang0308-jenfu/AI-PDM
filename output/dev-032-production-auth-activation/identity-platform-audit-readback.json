@@ -1,0 +1,35 @@
+[
+  {
+    "protoPayload": {
+      "authenticationInfo": {
+        "principalEmail": "service-451715062958@gcp-sa-firebase.iam.gserviceaccount.com"
+      },
+      "methodName": "google.cloud.identitytoolkit.admin.v2.ProjectConfigService.CreateDefaultSupportedIdpConfig",
+      "resourceName": "projects/jenfu-ai-pdm-prod"
+    },
+    "severity": "NOTICE",
+    "timestamp": "2026-07-15T18:25:39.713441Z"
+  },
+  {
+    "protoPayload": {
+      "authenticationInfo": {
+        "principalEmail": "service-451715062958@gcp-sa-firebase.iam.gserviceaccount.com"
+      },
+      "methodName": "google.cloud.identitytoolkit.admin.v2.ProjectConfigService.UpdateConfig",
+      "resourceName": "projects/jenfu-ai-pdm-prod"
+    },
+    "severity": "NOTICE",
+    "timestamp": "2026-07-15T18:32:32.583439Z"
+  },
+  {
+    "protoPayload": {
+      "authenticationInfo": {
+        "principalEmail": "service-451715062958@gcp-sa-firebase.iam.gserviceaccount.com"
+      },
+      "methodName": "google.cloud.identitytoolkit.admin.v2.ProjectConfigService.UpdateDefaultSupportedIdpConfig",
+      "resourceName": "projects/jenfu-ai-pdm-prod"
+    },
+    "severity": "NOTICE",
+    "timestamp": "2026-07-15T18:32:37.028413Z"
+  }
+]
