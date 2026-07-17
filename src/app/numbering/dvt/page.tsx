@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardList, PauseCircle, RotateCcw, Send, ShieldAlert, XCircle } from "lucide-react";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusBadge as SharedStatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
@@ -156,7 +156,7 @@ export default function NumberingDvtPromotionPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>階段晉升：EVT → DVT</h1>
+          <h1>階段晉升：EVT → DVT <StatusScopeHelp scope="dvtWorkbench" /></h1>
           <p>EVT 料號分流、批次送審與停用作廢處理。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadCandidates}>

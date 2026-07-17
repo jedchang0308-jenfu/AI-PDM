@@ -44,7 +44,7 @@ import { FileDropzone } from "@/components/file-dropzone";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { formatStatusForUser } from "@/lib/status-display";
 
@@ -901,7 +901,7 @@ export default function BomWorkbenchPage() {
       <header className="bom-workbench-header">
         <div>
           <p className="eyebrow">工程 BOM 管理</p>
-          <h1>BOM 工作台</h1>
+          <h1>BOM 工作台 <StatusScopeHelp scope="bomWorkbench" /></h1>
           <p>以同一個工作台管理 CAD 草稿、SolidWorks XLS 匯入與人工校正，送審前可完整調整階層、排序與數量。</p>
         </div>
         <div className="bom-workbench-header-actions">
@@ -927,7 +927,7 @@ export default function BomWorkbenchPage() {
       <LifecycleStageGuidance
         activeStage="bom"
         metrics={[
-          { label: "狀態", value: selectedDraft ? draftStageLabel(selectedDraft.status) : "無草稿", tone: selectedDraft ? "neutral" : "warning" },
+          { label: "BOM 狀態", value: selectedDraft ? draftStageLabel(selectedDraft.status) : "無草稿", tone: selectedDraft ? "neutral" : "warning" },
           { label: "項目", value: selectedDraft?.lines.length ?? 0 },
           { label: "未儲存", value: dirty ? "是" : "否", tone: dirty ? "warning" : "success" },
           { label: "待確認", value: openReconfirmationFlags.length, tone: openReconfirmationFlags.length > 0 ? "warning" : "success" }

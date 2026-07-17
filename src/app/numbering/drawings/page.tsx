@@ -8,7 +8,7 @@ import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
@@ -437,7 +437,7 @@ export default function DrawingNumbersPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖號模組</h1>
+          <h1>圖號模組 <StatusScopeHelp scope="drawingList" /></h1>
           <p>管理圖面技術文件、版次用途、發行狀態與關聯料號；圖料模組維持跨物件追溯入口。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -481,8 +481,8 @@ export default function DrawingNumbersPage() {
               </label>
               <SelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
-              <SelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-              <SelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
+              <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+              <SelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadDrawings} disabled={busy}>
                 <Search size={16} />
                 查詢
@@ -535,7 +535,7 @@ export default function DrawingNumbersPage() {
                         <th>品名</th>
                         <th>料號</th>
                         <th>
-                          <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
+                          <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
                         </th>
                       </tr>
                     </thead>
@@ -581,7 +581,7 @@ export default function DrawingNumbersPage() {
                               <span style={mutedStyle}>尚未關聯</span>
                             )}
                           </td>
-                          <td data-label="狀態 / 階段 / 提醒">
+                          <td data-label="資料狀態 / 開發階段 / 提醒">
                             <div className="pdm-meta-strip">
                               <StatusBadge status={drawing.recordStatus} context="masterRecord" />
                               {drawing.pendingApproval ? <PendingApprovalBadge pending={drawing.pendingApproval} canReview={canReviewApprovals} /> : null}

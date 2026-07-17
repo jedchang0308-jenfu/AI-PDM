@@ -255,7 +255,7 @@ try {
   await ownerPage.getByRole("alertdialog").waitFor({ state: "visible" });
   await ownerPage.screenshot({ path: path.join(outputDir, "withdraw-confirmation-1024.png"), fullPage: true });
   await ownerPage.getByRole("button", { name: "確認撤回審核" }).click();
-  await ownerPage.getByRole("status").filter({ hasText: "待審申請已撤回，候選號已解鎖，可繼續編輯。" }).waitFor({ state: "visible" });
+  await ownerPage.getByRole("status").filter({ hasText: "待審申請已撤回，保留號碼已解鎖，可繼續編輯。" }).waitFor({ state: "visible" });
   await ownerPage.screenshot({ path: path.join(outputDir, "withdraw-complete-1024.png"), fullPage: true });
   record("UI-C-002 owner withdrawal confirmation and recovery state are visible", true);
 

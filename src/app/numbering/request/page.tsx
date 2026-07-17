@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Check, CheckCircle2, Copy, FileText, PackagePlus, RotateCcw, Search, Send } from "lucide-react";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 
 type LoadState = "ready" | "unauthorized" | "forbidden" | "error";
 type RequestMode = "new_root" | "append_existing_root";
@@ -445,13 +445,13 @@ export default function NumberingRequestPage() {
   const drawingKindLabel = drawingPurposeCode === "M" ? "製造圖" : "參考圖";
   const submitLabel = requestMode === "new_root"
     ? drawingRequested
-      ? `建立料號與${drawingKindLabel}草稿`
-      : "建立料號草稿"
+      ? `建立料號與${drawingKindLabel}申請`
+      : "建立料號申請"
     : appendKind === "drawing"
-      ? `新增${drawingKindLabel}草稿`
+      ? `新增${drawingKindLabel}申請`
       : appendKind === "part"
-        ? "新增料號草稿"
-        : `新增料號與${drawingKindLabel}草稿`;
+        ? "新增料號申請"
+        : `新增料號與${drawingKindLabel}申請`;
   const appendDrawingPreview = drawingPurposeCode === "M" ? appendPolicy?.nextNumbers.drawingM : appendPolicy?.nextNumbers.drawingR;
   const submitBlocked = busy === "submit" || hasCurrentCreated || duplicateCheckState === "checking" || Boolean(duplicateResult?.blocked) || appendPolicyState === "loading";
   const visibleValidation = showValidation ? validation : [];
@@ -462,10 +462,10 @@ export default function NumberingRequestPage() {
       <header className="numbering-request-heading">
         <div>
           <div className="numbering-request-title-row">
-            <h1>建立圖料號</h1>
-            <span>草稿建立</span>
+            <h1>建立圖料號 <StatusScopeHelp scope="numberingRequest" /></h1>
+            <span>領號申請</span>
           </div>
-          <p>先確認要建立的內容，再由系統配置草稿號碼。</p>
+          <p>先確認要建立的內容，再由系統配置申請中的保留號碼。</p>
         </div>
         {!hasCurrentCreated ? (
           <button className="secondary-button" type="button" onClick={() => resetRequest()}>
@@ -630,13 +630,13 @@ export default function NumberingRequestPage() {
           </main>
 
           <aside className="numbering-request-summary" aria-label="建立摘要">
-            <div className="numbering-request-summary-header"><div><span>確認內容</span><h2>本次將建立</h2></div><span className="numbering-request-draft-badge">草稿</span></div>
+            <div className="numbering-request-summary-header"><div><span>確認內容</span><h2>本次將建立</h2></div><span className="numbering-request-draft-badge">編輯中</span></div>
             <dl>
               <div><dt>建立方式</dt><dd>{requestMode === "new_root" ? "全新圖料" : "既有主根新增"}</dd></div>
               <div><dt>主根</dt><dd>{requestMode === "new_root" ? (coreName.trim() || "系統配置") : (appendPolicy?.root.rootCode ?? (appendRootCode.trim() || "待選擇"))}</dd></div>
               <div><dt>料號</dt><dd>{partFormVisible ? "1 個" : "不建立"}</dd></div>
               <div><dt>圖號</dt><dd>{drawingSectionActive ? `${drawingKindLabel} 1 個` : "不建立"}</dd></div>
-              <div><dt>初始狀態</dt><dd>{initialDevelopmentPhase} · 草稿</dd></div>
+              <div><dt>初始狀態</dt><dd>{initialDevelopmentPhase} · 編輯中</dd></div>
             </dl>
 
             {showValidation && validation.length > 0 ? (
@@ -651,7 +651,7 @@ export default function NumberingRequestPage() {
               {busy === "submit" ? <RotateCcw className="numbering-request-spinner" size={17} /> : <Send size={17} />}
               {busy === "submit" ? "建立中..." : duplicateCheckState === "checking" ? "正在查重..." : submitLabel}
             </button>
-            <p id="numbering-submit-hint">建立後仍是草稿，不代表已審核或正式發布。</p>
+            <p id="numbering-submit-hint">建立後是可編輯申請，尚未審核或正式發布。</p>
           </aside>
         </div>
       )}
@@ -699,7 +699,7 @@ function ResultPanel({ record, onReset }: { record: CreatedRecord | null; onRese
     <section className="numbering-request-success">
       <div className="numbering-request-success-heading">
         <span><CheckCircle2 size={26} /></span>
-        <div><h2>領號結果</h2><p>已建立草稿號碼，尚未審核或正式發布。</p></div>
+        <div><h2>領號結果</h2><p>已建立申請中的保留號碼，尚未審核或正式發布。</p></div>
       </div>
       <div className="numbering-request-result-grid">
         <ResultCard
@@ -726,7 +726,7 @@ function ResultPanel({ record, onReset }: { record: CreatedRecord | null; onRese
       </div>
       <div className="numbering-request-success-actions">
         <button className="primary-button" type="button" onClick={onReset}><RotateCcw size={16} />再建立一筆</button>
-        <Link className="secondary-button" href="/parts?tab=drafts">前往料號草稿<ArrowRight size={16} /></Link>
+        <Link className="secondary-button" href="/parts?tab=drafts">前往領號申請<ArrowRight size={16} /></Link>
       </div>
     </section>
   );
@@ -738,7 +738,7 @@ function AppendResultPanel({ record, onReset }: { record: AppendCreatedRecord | 
     <section className="numbering-request-success">
       <div className="numbering-request-success-heading">
         <span><CheckCircle2 size={26} /></span>
-        <div><h2>追加結果</h2><p>{record.reusedFromIdempotency ? "已回傳剛剛建立的結果，沒有重複配號。" : "已在既有主根下建立草稿號碼，尚未正式發布。"}</p></div>
+        <div><h2>追加結果</h2><p>{record.reusedFromIdempotency ? "已回傳剛剛建立的結果，沒有重複配號。" : "已在既有主根下建立申請中的保留號碼，尚未正式發布。"}</p></div>
       </div>
       <div className="numbering-request-result-grid">
         <ResultCard
@@ -765,7 +765,7 @@ function AppendResultPanel({ record, onReset }: { record: AppendCreatedRecord | 
       </div>
       <div className="numbering-request-success-actions">
         <button className="primary-button" type="button" onClick={onReset}><RotateCcw size={16} />繼續新增</button>
-        <Link className="secondary-button" href={record.partNumber ? "/parts?tab=drafts" : "/numbering/drawings"}>{record.partNumber ? "前往料號草稿" : "前往圖號模組"}<ArrowRight size={16} /></Link>
+        <Link className="secondary-button" href={record.partNumber ? "/parts?tab=drafts" : "/numbering/drawings"}>{record.partNumber ? "前往領號申請" : "前往圖號模組"}<ArrowRight size={16} /></Link>
       </div>
     </section>
   );

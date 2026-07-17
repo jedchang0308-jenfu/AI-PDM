@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import { AlertTriangle, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
 import {
   classifyRevisionPackageFiles,
@@ -536,7 +537,7 @@ function DrawingRevisionWorkbench() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖面進版</h1>
+          <h1>圖面進版 <StatusScopeHelp scope="revisionSubmission" /></h1>
           <p>輸入正式圖號後上傳新版圖面，建立審核中送審並關聯 Form / Fit / Function 判定。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => window.location.reload()}>

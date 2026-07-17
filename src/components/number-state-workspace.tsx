@@ -22,14 +22,17 @@ import {
   Search,
   X
 } from "lucide-react";
+import { StatusHelpPopover, StatusScopeHelp } from "@/components/status-help-popover";
+import { formatStatusForUser } from "@/lib/status-display";
 
 type DraftMode = "new_bundle" | "append_drawing" | "append_part" | "append_drawing_part";
 type ItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 type PurposeCode = "MA" | "OT" | "M" | "R";
 type LifecycleStatus = "active" | "cancelled" | "published";
 type NumberQualification = "unnumbered" | "candidate" | "official" | "legacy_official_reservation";
+type NumberEffectivenessFilter = "all" | "not_generated" | "reserved" | "official";
 type FeatureStatus = { enabled: boolean; flag: string; phase: string };
-type WorkspaceAction = "acquire" | "cancel" | "submit" | "withdraw" | "publish";
+type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
 
 type NumberStateProjection = {
   numberQualification: NumberQualification;
@@ -201,7 +204,6 @@ type CreateFormState = {
   includeDrawing: boolean;
   purposeCode: PurposeCode;
   purposeDescription: string;
-  primaryManufacturing: boolean;
 };
 
 const PAGE_SIZE = 20;
@@ -215,9 +217,7 @@ const itemKindOptions: Array<{ value: ItemKind; label: string }> = [
 const createItemKindOptions = itemKindOptions.filter((option) => option.value !== "shared");
 const purposeOptions: Array<{ value: PurposeCode; label: string }> = [
   { value: "M", label: "製造圖 M" },
-  { value: "R", label: "參考圖 R" },
-  { value: "MA", label: "組立製造圖 MA" },
-  { value: "OT", label: "其他圖 OT" }
+  { value: "R", label: "參考圖 R" }
 ];
 const modeOptions: Array<{ value: DraftMode; label: string; description: string }> = [
   { value: "new_bundle", label: "建立新圖料", description: "建立新的品名主題，可同時準備料號與圖號。" },
@@ -272,7 +272,7 @@ export function getNumberStateCreateCta({
   const defaultMode = surface === "root-detail" ? preferredMode : "new_bundle";
   return {
     label: "建立圖料號草稿",
-    title: "先建立圖料號草稿，不會立即占用正式號碼",
+    title: "建立後直接保留號碼，不會占用正式號碼",
     ariaLabel: "建立圖料號草稿",
     defaultMode
   };
@@ -300,8 +300,7 @@ function initialCreateForm(mode: DraftMode = "new_bundle", sourceRootCode = ""):
     processControlled: true,
     includeDrawing: true,
     purposeCode: "M",
-    purposeDescription: "",
-    primaryManufacturing: true
+    purposeDescription: ""
   };
 }
 
@@ -327,10 +326,9 @@ function suggestedCoreName(form: CreateFormState) {
   const series = form.sharedName ? "" : normalizeNameSegment(form.seriesCode);
   const feature = normalizeNameSegment(form.nameFeature);
   const serial = normalizeNameSegment(form.nameSerial);
-  const sharedScope = form.sharedName ? "共用" : "";
   const segments = form.rootItemKind === "purchased"
-    ? [core, brand, specification, sharedScope]
-    : [core, series, feature || specification, serial, sharedScope];
+    ? [core, brand, specification]
+    : [core, series, feature || specification, serial];
   return segments.filter(Boolean).join("_");
 }
 
@@ -367,13 +365,13 @@ function apiErrorMessage(response: Response, body: ApiErrorEnvelope, fallback: s
   if (response.status === 404) return "找不到這個草稿，或它不屬於目前公司。";
   if (code === "source_root_not_found") return "找不到這個主根號，請確認後重試。";
   if (code === "append_reason_required") return "此主根已有正式資料，請填寫新增原因。";
-  if (code === "numbering_invalid_relation") return "圖料關聯不符合規則；參考圖不能設為主要製造圖。";
+  if (code === "numbering_invalid_relation") return "圖料關聯不符合規則；參考圖不能設為製造基準。";
   if (response.status === 409 && code === "workspace_version_conflict") return "草稿已被更新，系統已重新載入最新內容，請確認後再操作。";
-  if (code === "candidate_required_before_review") return "請先為草稿內所有項目取得候選號，再送交審核。";
+  if (code === "candidate_required_before_review") return "此申請尚未保留完整號碼，請重新建立申請或請 PDM Admin 協助。";
   if (code === "candidate_review_already_pending") return "這份草稿已在審核中，請前往審核中心查看。";
   if (code === "candidate_review_not_pending") return "這份草稿目前沒有可撤回的待審申請。";
   if (code === "review_withdraw_owner_required") return "只有草稿負責人可以撤回待審申請。";
-  if (code === "candidate_approval_required") return "候選號尚未完成核准，不能正式發布。";
+  if (code === "candidate_approval_required") return "保留號碼尚未完成核准，不能正式發布。";
   if (code === "candidate_approval_lock_mismatch") return "核准鎖定資料已不一致，請由 PDM Admin 檢查。";
   if (code === "approval_snapshot_stale") return "已核准快照與目前草稿不一致，請重新送審。";
   if (code === "publication_evidence_not_ready") return "圖面受控檔案證據尚未完成，不能正式發布。";
@@ -479,10 +477,10 @@ export function NumberStatePartsTabs({ active }: { active: "official" | "drafts"
   return (
     <nav className="number-state-tabs" aria-label="料號資料分頁">
       <a className={active === "official" ? "is-active" : undefined} href="/parts" aria-current={active === "official" ? "page" : undefined}>
-        正式料號
+        料號總表
       </a>
       <a className={active === "drafts" ? "is-active" : undefined} href="/parts?tab=drafts" aria-current={active === "drafts" ? "page" : undefined}>
-        草稿
+        領號申請
       </a>
     </nav>
   );
@@ -547,7 +545,7 @@ export function NumberStateWorkspaceWorkbench() {
   const [selected, setSelected] = useState<NumberingDraftWorkspace | null>(null);
   const [ownerScope, setOwnerScope] = useState<"mine" | "all">("mine");
   const [lifecycle, setLifecycle] = useState<"all" | LifecycleStatus>("all");
-  const [qualification, setQualification] = useState<"all" | NumberQualification>("all");
+  const [numberEffectiveness, setNumberEffectiveness] = useState<NumberEffectivenessFilter>("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -619,7 +617,7 @@ export function NumberStateWorkspaceWorkbench() {
   }, [feature?.enabled, loadWorkspaces]);
 
   const filtered = useMemo(() => workspaces.filter((workspace) => {
-    if (qualification !== "all" && workspace.projection.numberQualification !== qualification) return false;
+    if (!matchesNumberEffectiveness(workspace.projection.numberQualification, numberEffectiveness)) return false;
     const normalized = query.trim().toLowerCase();
     if (!normalized) return true;
     const values = [
@@ -631,13 +629,13 @@ export function NumberStateWorkspaceWorkbench() {
       ...workspace.drawings.flatMap((drawing) => [drawing.purposeDescription, drawing.candidateCode])
     ];
     return values.some((value) => String(value ?? "").toLowerCase().includes(normalized));
-  }), [qualification, query, workspaces]);
+  }), [numberEffectiveness, query, workspaces]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     setPage(1);
-  }, [lifecycle, ownerScope, qualification, query]);
+  }, [lifecycle, numberEffectiveness, ownerScope, query]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -663,7 +661,6 @@ export function NumberStateWorkspaceWorkbench() {
     setError("");
     setNotice("");
     const endpoint = ({
-      acquire: "candidate-numbers",
       cancel: "cancel",
       submit: "submit-review",
       withdraw: "withdraw-review",
@@ -688,7 +685,7 @@ export function NumberStateWorkspaceWorkbench() {
     setActionBusy(false);
     setConfirmAction(null);
     if (!response.ok || !body.workspace) {
-      const fallback = ({ acquire: "候選號取得失敗。", cancel: "草稿取消失敗。", submit: "送審失敗。", withdraw: "撤回審核失敗。", publish: "正式發布失敗。" } as const)[action];
+      const fallback = ({ cancel: "草稿取消失敗。", submit: "送審失敗。", withdraw: "撤回審核失敗。", publish: "正式發布失敗。" } as const)[action];
       setError(apiErrorMessage(response, body, fallback));
       if (response.status !== 503) idempotencyKeys.current.delete(`${selected.id}:${action}`);
       if (response.status === 409) await refreshWorkspace(selected.id);
@@ -697,10 +694,9 @@ export function NumberStateWorkspaceWorkbench() {
     idempotencyKeys.current.delete(`${selected.id}:${action}`);
     setSelected(body.workspace);
     setNotice(({
-      acquire: "候選號已取得。這些號碼尚未正式發布，不得作為正式文件使用。",
-      cancel: "草稿已取消；可回收的候選號已回到候選池。",
-      submit: "候選草稿已送審並鎖定；核准不會自動正式發布。",
-      withdraw: "待審申請已撤回，候選號已解鎖，可繼續編輯。",
+      cancel: "申請已取消；原保留號碼已釋出。",
+      submit: "申請已送審，保留號碼已鎖定；核准不會自動正式發布。",
+      withdraw: "待審申請已撤回，保留號碼已解鎖，可繼續編輯。",
       publish: "圖料號已正式發布；正式主檔狀態為有效，後續圖面版本發行仍走既有流程。"
     } as const)[action]);
     await loadWorkspaces(body.workspace.id);
@@ -724,7 +720,7 @@ export function NumberStateWorkspaceWorkbench() {
     }
     setSelected(body.workspace);
     setEditOpen(false);
-    setNotice("草稿內容已更新。候選號與狀態仍以伺服器回傳為準。");
+    setNotice("申請內容已更新。保留號碼與狀態仍以伺服器回傳為準。");
     await loadWorkspaces(body.workspace.id);
   }
 
@@ -744,8 +740,8 @@ export function NumberStateWorkspaceWorkbench() {
     <>
       <div className="topbar number-state-topbar">
         <div>
-          <h1>料號模組</h1>
-          <p>先儲存草稿，再明確取得候選號；候選號在正式發布前不可正式使用。</p>
+          <h1>料號模組 <StatusScopeHelp scope="numberStateWorkspace" /></h1>
+          <p>建立申請時會直接保留號碼；正式發布前不可正式使用。</p>
         </div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={() => void loadWorkspaces()} disabled={loading}>
@@ -774,34 +770,35 @@ export function NumberStateWorkspaceWorkbench() {
         <div className="number-state-filter-grid">
           <label>
             <span>搜尋</span>
-            <div className="number-state-search-field"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="草稿名稱、候選號或 ID" /></div>
+            <div className="number-state-search-field"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="申請名稱、保留號碼或 ID" /></div>
           </label>
           <label><span>範圍</span><select value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "mine" | "all")}><option value="mine">我的草稿</option><option value="all">全公司草稿</option></select></label>
           <label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as "all" | LifecycleStatus)}><option value="all">全部</option><option value="active">進行中</option><option value="cancelled">已取消</option><option value="published">已發布</option></select></label>
-          <label><span>號碼資格</span><select value={qualification} onChange={(event) => setQualification(event.target.value as "all" | NumberQualification)}><option value="all">全部</option><option value="unnumbered">未領號</option><option value="candidate">候選號</option><option value="official">正式號</option><option value="legacy_official_reservation">舊制保留</option></select></label>
+          <label><span>號碼效力</span><select value={numberEffectiveness} onChange={(event) => setNumberEffectiveness(event.target.value as NumberEffectivenessFilter)}><option value="all">全部</option><option value="not_generated">尚未產生</option><option value="reserved">已保留</option><option value="official">正式</option></select></label>
         </div>
       </section>
 
       <section className="panel number-state-list-panel">
         <div className="panel-header number-state-list-header">
-          <div><h2>草稿清單</h2><p>{filtered.length} 筆；候選資料與正式料號分開保存。</p></div>
+          <div><div className="number-state-list-title"><h2>領號申請清單</h2><StatusScopeHelp scope="numberStateWorkspace" /><StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" /></div><p>{filtered.length} 筆；已保留號碼與正式資料分開保存。</p></div>
           <span className="number-state-page-count">第 {page} / {pageCount} 頁</span>
         </div>
-        {loading && workspaces.length === 0 ? <div className="empty">正在載入圖料號草稿...</div> : null}
+        {loading && workspaces.length === 0 ? <div className="empty">正在載入圖料號申請...</div> : null}
         {!loading && !error && filtered.length === 0 ? (
-          <div className="empty"><CircleDashed size={26} /><strong>目前沒有符合條件的草稿</strong><p>請建立新草稿；關閉建立視窗不會寫入資料或占用號碼。</p><button className="primary-button" type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate} title={createTitle} aria-label={createCta.ariaLabel}><Plus size={16} />{createCta.label}</button></div>
+          <div className="empty"><CircleDashed size={26} /><strong>目前沒有符合條件的領號申請</strong><p>請建立新申請；關閉建立視窗不會寫入資料或占用號碼。</p><button className="primary-button" type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate} title={createTitle} aria-label={createCta.ariaLabel}><Plus size={16} />{createCta.label}</button></div>
         ) : null}
         {filtered.length > 0 ? (
           <div className="number-state-table-wrap">
             <table className="data-table number-state-table">
-              <thead><tr><th>草稿</th><th>內容</th><th>狀態</th><th>候選號</th><th>下一步</th><th aria-label="操作" /></tr></thead>
+              <thead><tr><th>領號申請</th><th>內容</th><th>申請狀態</th><th>號碼效力</th><th>號碼</th><th>下一步</th><th aria-label="操作" /></tr></thead>
               <tbody>
                 {visible.map((workspace) => (
                   <tr key={workspace.id}>
-                    <td data-label="草稿"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)} · v{workspace.rowVersion}</span></button></td>
+                    <td data-label="領號申請"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)} · v{workspace.rowVersion}</span></button></td>
                     <td data-label="內容">{workspace.parts.length} 料號 · {workspace.drawings.length} 圖號</td>
-                    <td data-label="狀態"><ProjectionBadges projection={workspace.projection} /></td>
-                    <td data-label="候選號">{candidateCodes(workspace).length > 0 ? <span className="number-state-candidate-inline">{candidateCodes(workspace).join("、")}</span> : <span className="muted-text">尚未取得</span>}</td>
+                    <td data-label="申請狀態"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>
+                    <td data-label="號碼效力"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>
+                    <td data-label="號碼">{candidateCodes(workspace).length > 0 ? <span className="number-state-candidate-inline">{candidateCodes(workspace).join("、")}</span> : <span className="muted-text">尚未產生號碼</span>}</td>
                     <td data-label="下一步"><span className="number-state-next-label">{nowWhatLabel(workspace.projection.nowWhat.label)}</span></td>
                     <td data-label="操作"><button className="icon-button number-state-card-action" type="button" onClick={() => void loadDetail(workspace.id)} aria-label={`查看 ${workspaceTitle(workspace)} 明細`} title="查看明細"><span className="number-state-mobile-action-label">查看明細</span><ArrowRight size={17} /></button></td>
                   </tr>
@@ -826,7 +823,6 @@ export function NumberStateWorkspaceWorkbench() {
           onEdit={() => setEditOpen(true)}
           onCancelEdit={() => setEditOpen(false)}
           onUpdate={(payload) => void updateWorkspace(payload)}
-          onAcquire={() => setConfirmAction("acquire")}
           onSubmit={() => setConfirmAction("submit")}
           onWithdraw={() => setConfirmAction("withdraw")}
           onPublish={() => setConfirmAction("publish")}
@@ -842,7 +838,7 @@ export function NumberStateWorkspaceWorkbench() {
           onCreated={(workspace) => {
             setCreateOpen(false);
             setSelected(workspace);
-            setNotice("草稿已儲存，尚未占用候選號。請確認內容後再取得候選號。");
+            setNotice("申請已建立並保留號碼；正式發布前不可正式使用。");
             void loadWorkspaces(workspace.id);
           }}
         />
@@ -885,13 +881,21 @@ function DraftCreateDialog({
   const idempotencyKey = useRef(newIdempotencyKey("create"));
   const dialogRef = useRef<HTMLElement | null>(null);
   const includesPart = form.mode === "new_bundle" || form.mode === "append_part" || form.mode === "append_drawing_part";
-  const includesDrawing = form.mode === "append_drawing" || form.mode === "append_drawing_part" || (form.mode === "new_bundle" && form.includeDrawing);
+  const manufacturedPartMustIncludeDrawing = form.mode === "new_bundle" && form.partItemKind === "manufactured";
+  const effectiveIncludeDrawing = manufacturedPartMustIncludeDrawing || form.includeDrawing;
+  const includesDrawing = form.mode === "append_drawing" || form.mode === "append_drawing_part" || (form.mode === "new_bundle" && effectiveIncludeDrawing);
+  const showDrawingDraftSection = form.mode === "new_bundle" || includesDrawing;
+  const canToggleDrawingDraft = form.mode === "new_bundle" && !manufacturedPartMustIncludeDrawing;
   const effectiveCoreName = form.mode === "new_bundle" ? form.coreName.trim() : appendPolicy?.root.coreName ?? "";
   const lockedPartName = effectiveCoreName.trim();
   const manufacturingDrawing = isManufacturingPurposeCode(form.purposeCode);
-  const relationLinkType = includesPart && includesDrawing && manufacturingDrawing && form.primaryManufacturing ? "primary_manufacturing" : "reference";
+  const effectivePrimaryManufacturing = manufacturingDrawing;
+  const relationLinkType = includesPart && includesDrawing && effectivePrimaryManufacturing ? "primary_manufacturing" : "reference";
   const suggestedName = suggestedCoreName(form);
-  const drawingHint = drawingToggleHint(form.includeDrawing);
+  const duplicateCheckName = suggestedName || form.coreName.trim();
+  const drawingHint = drawingToggleHint(effectiveIncludeDrawing);
+  const showPartKindSelector = form.mode !== "new_bundle";
+  const showPartCustomSpecification = form.partItemKind === "custom";
   useOverlayLifecycle(dialogRef, onClose, busy);
 
   function switchMode(mode: DraftMode) {
@@ -981,7 +985,7 @@ function DraftCreateDialog({
   }, [form.mode, form.purposeCode]);
 
   useEffect(() => {
-    const coreName = form.coreName.trim();
+    const coreName = duplicateCheckName.trim();
     if (form.mode !== "new_bundle" || coreName.length < 2) {
       setDuplicateResult(null);
       setDuplicateCheckState("idle");
@@ -1027,7 +1031,7 @@ function DraftCreateDialog({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [duplicateCheckRetry, form.coreName, form.mode]);
+  }, [duplicateCheckName, duplicateCheckRetry, form.mode]);
 
   async function submit() {
     if (form.mode === "new_bundle" && !form.coreName.trim()) return setError("請輸入確定品名。");
@@ -1037,13 +1041,14 @@ function DraftCreateDialog({
     if (form.mode !== "new_bundle" && appendPolicyState !== "ready") return setError("找不到這個主根號，請確認後重試。");
     if (appendPolicy?.locked) return setError("此主根已關閉，不能再新增圖號或料號。");
     if (appendPolicy?.reasonRequired && !form.appendReason.trim()) return setError("此主根已有正式資料，請填寫新增原因。");
-    if (includesPart && !lockedPartName) return setError("料號品名必須由確定品名帶入，請先完成品名。");
+    if (includesPart && !lockedPartName) return setError("請先完成確定品名。");
     if (includesPart && form.partItemKind === "custom" && !form.customSpecification.trim()) return setError("客製料件請填寫客製尺寸或規格。");
-    if (includesDrawing && form.purposeCode === "R" && !form.purposeDescription.trim()) return setError("參考圖請填寫用途說明。");
+    if (includesDrawing && form.purposeCode === "R" && !form.purposeDescription.trim()) return setError("請填寫參考用途。");
 
     const partClientKey = "part-1";
     const drawingClientKey = "drawing-1";
     const body = {
+      autoAcquireCandidates: true,
       draftMode: form.mode,
       sourceRootId: form.mode === "new_bundle" ? undefined : appendPolicy?.root.id,
       appendReason: form.mode === "new_bundle" ? undefined : form.appendReason.trim() || null,
@@ -1057,7 +1062,7 @@ function DraftCreateDialog({
         customSpecification: form.customSpecification.trim() || null,
         seriesCode: form.partItemKind === "manufactured" ? form.seriesCode.trim() || null : null
       }] : [],
-      drawings: includesDrawing ? [{ clientKey: drawingClientKey, purposeCode: form.purposeCode, purposeDescription: form.purposeDescription.trim(), isPrimaryManufacturing: form.primaryManufacturing }] : [],
+      drawings: includesDrawing ? [{ clientKey: drawingClientKey, purposeCode: form.purposeCode, purposeDescription: form.purposeDescription.trim(), isPrimaryManufacturing: effectivePrimaryManufacturing }] : [],
       relations: includesPart && includesDrawing ? [{ drawingClientKey, partClientKey, linkType: relationLinkType, isPrimary: relationLinkType === "primary_manufacturing" }] : []
     };
     setBusy(true);
@@ -1070,7 +1075,7 @@ function DraftCreateDialog({
     const responseBody = await readApiBody<{ workspace?: NumberingDraftWorkspace }>(response);
     setBusy(false);
     if (!response.ok || !responseBody.workspace) {
-      setError(apiErrorMessage(response, responseBody, "草稿建立失敗。表單內容已保留。"));
+      setError(apiErrorMessage(response, responseBody, "申請建立或號碼保留失敗。表單內容已保留。"));
       if (response.status !== 503) idempotencyKey.current = newIdempotencyKey("create");
       return;
     }
@@ -1081,7 +1086,7 @@ function DraftCreateDialog({
     <div className="number-state-modal-backdrop" role="presentation">
       <section ref={dialogRef} className="number-state-modal number-state-create-modal" role="dialog" aria-modal="true" aria-labelledby="number-state-create-title">
         <div className="number-state-modal-header">
-          <div><h2 id="number-state-create-title" tabIndex={-1} data-autofocus>建立圖料號草稿</h2><p>先確認品名、查重與追加規則；儲存後再取得候選號，關閉視窗不會寫入資料。</p></div>
+          <div><h2 id="number-state-create-title" tabIndex={-1} data-autofocus>建立圖料號草稿</h2><p>先確認品名、查重與追加規則；建立後會直接保留號碼，關閉視窗不會寫入資料。</p></div>
           <button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="關閉建立草稿"><X size={20} /></button>
         </div>
         <div className="number-state-mode-selector" role="radiogroup" aria-label="建立模式">
@@ -1111,28 +1116,6 @@ function DraftCreateDialog({
                 }}
                 options={createItemKindOptions}
               />
-              <div className="number-state-draft-outcome" data-qc="draft-outcome-options" aria-label="草稿建立內容">
-                <div className="number-state-draft-outcome-item is-fixed">
-                  <PackagePlus size={17} />
-                  <div>
-                    <span>固定建立</span>
-                    <strong>1 個料號草稿</strong>
-                    <small data-qc="part-number-preview">預覽料號：{previewText(numberPreviewState, numberPreview?.part)}</small>
-                  </div>
-                </div>
-                <label className={`number-state-drawing-toggle${form.includeDrawing ? " is-on" : ""}`}>
-                  <input type="checkbox" checked={form.includeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} aria-label="包含圖號草稿" />
-                  <span className="number-state-switch" aria-hidden="true"><span /></span>
-                  <span className="number-state-drawing-toggle-copy">
-                    <span>{form.includeDrawing ? "同時建立" : "不建立"}</span>
-                    <strong>圖號草稿</strong>
-                    <small data-qc="drawing-number-preview">{form.includeDrawing ? `預覽圖號：${previewText(numberPreviewState, numberPreview?.drawing)}` : drawingHint}</small>
-                  </span>
-                </label>
-                <div className="number-state-preview-note" data-qc="number-preview-note">
-                  預覽不佔號，儲存草稿後再取得候選號。
-                </div>
-              </div>
               <div className="number-state-form-section" data-qc="numbering-name-guide">
                 <h3>品名建議</h3>
                 <div className="number-state-form-grid">
@@ -1142,53 +1125,178 @@ function DraftCreateDialog({
                   {form.partItemKind === "manufactured" ? <Field label="系列代號（選填）" hint="非共用件會納入建議品名；勾選跨專案共用時不納入品名。"><input data-qc="root-series-code" value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
                   {form.rootItemKind !== "purchased" ? <Field label="流水識別（選填）" hint="對應品名用的流水號，建議從 A 開始；不等於正式料號流水。"><input value={form.nameSerial} onChange={(event) => setForm({ ...form, nameSerial: event.target.value })} maxLength={40} placeholder="例如：A、B、01" /></Field> : null}
                   <label className="number-state-checkbox number-state-name-scope"><input type="checkbox" checked={form.sharedName} onChange={(event) => setForm({ ...form, sharedName: event.target.checked })} />跨專案共用</label>
-                  <div className={`number-state-check-panel${suggestedName ? " is-ready" : ""}`} data-qc="suggested-part-name">
-                    <Check size={16} />
-                    <div>
-                      <strong>{suggestedName || "先輸入核心名詞產生建議品名"}</strong>
-                      <span>依管理辦法由大到小、由主到次產生；確定品名仍可手動微調。</span>
-                      <button type="button" disabled={!suggestedName} onClick={() => setForm({ ...form, coreName: suggestedName })}>套用建議品名</button>
-                    </div>
-                  </div>
+                  <SuggestedNameReviewPanel
+                    suggestedName={suggestedName}
+                    duplicateResult={duplicateResult}
+                    duplicateCheckState={duplicateCheckState}
+                    duplicateCheckError={duplicateCheckError}
+                    onApply={() => setForm({ ...form, coreName: suggestedName })}
+                    onRetry={() => setDuplicateCheckRetry((value) => value + 1)}
+                  />
                 </div>
               </div>
-              <Field label="確定品名" required hint="此品名會作為圖料主題與料號預設品名；品名不需唯一，唯一性由圖號 / 料號負責。"><input value={form.coreName} onChange={(event) => setForm({ ...form, coreName: event.target.value })} maxLength={300} /></Field>
-              <DuplicatePanel result={duplicateResult} state={duplicateCheckState} errorMessage={duplicateCheckError} onRetry={() => setDuplicateCheckRetry((value) => value + 1)} />
+              <Field label="確定品名" required hint="此欄位是唯一名稱來源；送出後系統會同步到料號主檔。品名不需唯一，唯一性由圖號 / 料號負責。"><input value={form.coreName} onChange={(event) => setForm({ ...form, coreName: event.target.value })} maxLength={300} /></Field>
             </>
           ) : (
             <><Field label="既有正式主根號" required hint="輸入使用者看得到的主根號，例如 A0001；系統會自動讀取主根 ID。"><input value={form.sourceRootCode} onChange={(event) => setForm({ ...form, sourceRootCode: event.target.value.toUpperCase() })} maxLength={80} placeholder="例如：A0001" /></Field><AppendPolicyPanel policy={appendPolicy} state={appendPolicyState} rootCode={form.sourceRootCode} />{appendPolicy ? <Field label={`新增原因${appendPolicy.reasonRequired ? "" : "（選填）"}`} required={appendPolicy.reasonRequired} hint="正式主根追加需留下人類可讀的原因，方便日後稽核。"><input value={form.appendReason} onChange={(event) => setForm({ ...form, appendReason: event.target.value })} maxLength={1000} placeholder="例如：同主根新增第二款料件或補參考圖" /></Field> : null}</>
           )}
           {includesPart ? (
-            <div className="number-state-form-section"><h3>料號草稿</h3><div className="number-state-form-grid"><div className="number-state-locked-value"><span>料號品名</span><strong>{lockedPartName || "完成確定品名後自動帶入"}</strong><small>料號品名跟隨確定品名，避免同一圖料主題下名稱分歧。</small></div><SelectField label="料件類型" value={form.partItemKind} onChange={(value) => { const nextKind = value as ItemKind; const processControlled = form.mode === "new_bundle" ? defaultProcessControlled(nextKind) : form.processControlled; setForm({ ...form, partItemKind: nextKind, processControlled, includeDrawing: form.mode === "new_bundle" ? defaultIncludeDrawing(nextKind) : form.includeDrawing, seriesCode: nextKind === "manufactured" ? form.seriesCode : "" }); }} options={createItemKindOptions} /><Field label={form.partItemKind === "custom" ? "客製規格" : "客製規格（選填）"} required={form.partItemKind === "custom"}><textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} /></Field></div></div>
+            <div className="number-state-form-section">
+              <h3>料號草稿</h3>
+              <div className="number-state-form-grid">
+                <div className="number-state-draft-summary is-fixed">
+                  <PackagePlus size={17} />
+                  <div>
+                    <span>固定建立</span>
+                    <strong>1 個料號草稿</strong>
+                    <small data-qc="part-number-preview">預覽料號：{previewText(numberPreviewState, numberPreview?.part)}</small>
+                    <small data-qc="number-preview-note">預覽不占號；建立申請後才會保留號碼。</small>
+                  </div>
+                </div>
+                {showPartKindSelector ? (
+                  <SelectField
+                    label="料件類型"
+                    value={form.partItemKind}
+                    onChange={(value) => {
+                      const nextKind = value as ItemKind;
+                      setForm({
+                        ...form,
+                        partItemKind: nextKind,
+                        seriesCode: nextKind === "manufactured" ? form.seriesCode : ""
+                      });
+                    }}
+                    options={createItemKindOptions}
+                  />
+                ) : null}
+                {showPartCustomSpecification ? (
+                  <Field label="客製規格" required>
+                    <textarea value={form.customSpecification} onChange={(event) => setForm({ ...form, customSpecification: event.target.value })} maxLength={2000} rows={3} />
+                  </Field>
+                ) : null}
+              </div>
+            </div>
           ) : null}
-          {includesDrawing ? (
-            <div className="number-state-form-section"><h3>圖號草稿</h3><div className="number-state-form-grid"><SelectField label="圖面用途" value={form.purposeCode} onChange={(value) => { const purposeCode = value as PurposeCode; setForm({ ...form, purposeCode, primaryManufacturing: isManufacturingPurposeCode(purposeCode) ? true : false }); }} options={purposeOptions} /><Field label={form.purposeCode === "R" ? "用途說明" : "用途說明（選填）"} required={form.purposeCode === "R"}><input value={form.purposeDescription} onChange={(event) => setForm({ ...form, purposeDescription: event.target.value })} maxLength={1000} placeholder={form.purposeCode === "R" ? "例如：安裝參考或尺寸參考" : "可空白"} /></Field><label className={`number-state-checkbox${manufacturingDrawing ? "" : " is-disabled"}`} title={manufacturingDrawing ? "此圖號可作為主要製造圖" : "參考圖或其他圖不可設為主要製造圖"}><input type="checkbox" checked={manufacturingDrawing && form.primaryManufacturing} disabled={!manufacturingDrawing} onChange={(event) => setForm({ ...form, primaryManufacturing: event.target.checked })} />主要製造圖</label><div className="number-state-inline-note"><FileText size={16} /><span>{relationLinkType === "primary_manufacturing" ? "圖料關聯會建立為製造基準。" : "圖料關聯會建立為參考，不會誤設為製造基準。"}</span></div></div></div>
+          {showDrawingDraftSection ? (
+            <div className="number-state-form-section">
+              <div className="number-state-section-heading">
+                <h3>圖號草稿</h3>
+                {canToggleDrawingDraft ? (
+                  <label className={`number-state-section-toggle${effectiveIncludeDrawing ? " is-on" : ""}`}>
+                    <input type="checkbox" checked={effectiveIncludeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} aria-label="包含圖號草稿" />
+                    <span className="number-state-switch" aria-hidden="true"><span /></span>
+                    <strong>包含圖號草稿</strong>
+                  </label>
+                ) : null}
+              </div>
+              <div className="number-state-form-grid">
+                <div className={`number-state-draft-summary${includesDrawing ? " is-fixed" : " is-muted"}`} data-qc={manufacturedPartMustIncludeDrawing ? "manufactured-fixed-drawing-draft" : undefined}>
+                  <FileText size={17} />
+                  <div>
+                    <span>{includesDrawing ? (canToggleDrawingDraft ? "同時建立" : "固定建立") : "本次不建立"}</span>
+                    <strong>{includesDrawing ? "圖號草稿" : "未建立圖號草稿"}</strong>
+                    <small data-qc="drawing-number-preview">{includesDrawing ? `預覽圖號：${previewText(numberPreviewState, numberPreview?.drawing)}` : drawingHint}</small>
+                  </div>
+                </div>
+                {includesDrawing ? (
+                  <>
+                    <SelectField
+                      label="圖面用途"
+                      value={form.purposeCode}
+                      onChange={(value) => {
+                        const purposeCode = value as PurposeCode;
+                        setForm({ ...form, purposeCode, purposeDescription: isManufacturingPurposeCode(purposeCode) ? "" : form.purposeDescription });
+                      }}
+                      options={purposeOptions}
+                    />
+                    {form.purposeCode === "R" ? (
+                      <Field label="參考用途" required hint="請說明此圖作為參考的用途；R 圖不作製造基準。">
+                        <input value={form.purposeDescription} onChange={(event) => setForm({ ...form, purposeDescription: event.target.value })} maxLength={1000} placeholder="例如：安裝參考或尺寸參考" />
+                      </Field>
+                    ) : null}
+                    <div className="number-state-inline-note">
+                      <FileText size={16} />
+                      <span>{relationLinkType === "primary_manufacturing" ? "圖料關聯會建立為製造基準。" : "圖料關聯會建立為參考，不會誤設為製造基準。"}</span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </div>
           ) : null}
         </div>
         {error ? <div className="number-state-form-error" role="alert"><AlertTriangle size={17} />{error}</div> : null}
-        <div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>取消</button><button className="primary-button" type="button" onClick={() => void submit()} disabled={busy || duplicateCheckState === "checking" || appendPolicyState === "loading" || Boolean(appendPolicy?.locked)}><Save size={16} />{busy ? "儲存中..." : duplicateCheckState === "checking" ? "正在查重..." : appendPolicyState === "loading" ? "正在讀取主根..." : "儲存草稿"}</button></div>
+        <div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>取消</button><button className="primary-button" type="button" onClick={() => void submit()} disabled={busy || duplicateCheckState === "checking" || appendPolicyState === "loading" || Boolean(appendPolicy?.locked)}><Save size={16} />{busy ? "建立中..." : duplicateCheckState === "checking" ? "正在查重..." : appendPolicyState === "loading" ? "正在讀取主根..." : "建立並保留號碼"}</button></div>
       </section>
     </div>
   );
 }
 
-function DuplicatePanel({ result, state, errorMessage, onRetry }: { result: DuplicateResult | null; state: DuplicateCheckState; errorMessage: string; onRetry: () => void }) {
-  if (state === "idle") return <div className="number-state-check-panel"><Search size={16} /><span>輸入至少兩個字後自動查重。</span></div>;
-  if (state === "checking") return <div className="number-state-check-panel" aria-live="polite"><RefreshCcw size={16} /><span>正在檢查相似品名...</span></div>;
-  if (state === "error" || !result) return <div className="number-state-check-panel is-error" role="alert"><AlertTriangle size={16} /><span>{errorMessage || "查重暫時失敗。請稍後重試。"}</span><button type="button" onClick={onRetry}>重新查重</button></div>;
-  const hasSimilarityWarning = result.blocked || result.warningsOnly;
-  return (
-    <div className={`number-state-check-panel${hasSimilarityWarning ? " is-warning" : " is-ready"}`} data-qc={hasSimilarityWarning ? "duplicate-warning-only" : undefined}>
-      {hasSimilarityWarning ? <AlertTriangle size={16} /> : <Check size={16} />}
-      <div>
-        <strong>{result.matches.length === 0 ? "未找到相同或高相似資料" : `找到 ${result.matches.length} 筆相似資料`}</strong>
-        <span>{hasSimilarityWarning ? "已有相似資料；建議先確認是否沿用既有主根。若確認是新設計主題，仍可繼續儲存草稿。" : "可以繼續建立新主根。"}</span>
+function SuggestedNameReviewPanel({
+  suggestedName,
+  duplicateResult,
+  duplicateCheckState,
+  duplicateCheckError,
+  onApply,
+  onRetry
+}: {
+  suggestedName: string;
+  duplicateResult: DuplicateResult | null;
+  duplicateCheckState: DuplicateCheckState;
+  duplicateCheckError: string;
+  onApply: () => void;
+  onRetry: () => void;
+}) {
+  const result = duplicateResult;
+  const state = duplicateCheckState;
+  const hasSuggestion = Boolean(suggestedName);
+  const hasSimilarityWarning = Boolean(result && (result.blocked || result.warningsOnly));
+  const panelClass = [
+    "number-state-check-panel",
+    "number-state-suggestion-review",
+    hasSimilarityWarning ? "is-warning" : state === "error" ? "is-error" : result ? "is-ready" : ""
+  ].filter(Boolean).join(" ");
+
+  const statusIcon = state === "checking"
+    ? <RefreshCcw size={14} />
+    : state === "error"
+      ? <AlertTriangle size={14} />
+      : hasSimilarityWarning
+        ? <AlertTriangle size={14} />
+        : result
+          ? <Check size={14} />
+          : <Search size={14} />;
+
+  const statusContent = (() => {
+    if (!hasSuggestion) return <span>輸入至少兩個字後自動查重。</span>;
+    if (state === "checking") return <span>正在檢查相似品名...</span>;
+    if (state === "error" || !result) {
+      return <><span>{duplicateCheckError || "查重暫時失敗。請稍後重試。"}</span><button type="button" onClick={onRetry}>重新查重</button></>;
+    }
+    return (
+      <>
+        <span data-qc={hasSimilarityWarning ? "duplicate-warning-only" : undefined}>
+          {result.matches.length === 0 ? "未找到相同或高相似資料，可以繼續建立新主根。" : `找到 ${result.matches.length} 筆相似資料，建議先確認是否沿用既有主根；確認是新主題仍可繼續建立草稿。`}
+        </span>
         {result.matches.length > 0 ? (
           <details>
             <summary>查看相似資料</summary>
             <ul>{result.matches.slice(0, 5).map((match) => <li key={`${match.entityType}:${match.entityId}`}>{match.severity === "blocker" ? "高度相似" : "注意"} · {match.displayCode} · {match.displayName} · {match.score}</li>)}</ul>
           </details>
         ) : null}
+      </>
+    );
+  })();
+
+  return (
+    <div className={panelClass} data-qc="suggested-part-name" role={state === "error" ? "alert" : undefined}>
+      {statusIcon}
+      <div>
+        <div className="number-state-suggestion-review-header">
+          <strong>{suggestedName || "先輸入核心名詞產生建議品名"}</strong>
+          <button type="button" disabled={!suggestedName} onClick={onApply}>套用建議品名</button>
+        </div>
+        <div className="number-state-suggestion-review-status" data-qc="suggested-duplicate-check" aria-live="polite">
+          {statusContent}
+        </div>
       </div>
     </div>
   );
@@ -1217,7 +1325,6 @@ function WorkspaceDrawer({
   onEdit,
   onCancelEdit,
   onUpdate,
-  onAcquire,
   onSubmit,
   onWithdraw,
   onPublish,
@@ -1230,7 +1337,6 @@ function WorkspaceDrawer({
   onEdit: () => void;
   onCancelEdit: () => void;
   onUpdate: (payload: Record<string, unknown>) => void;
-  onAcquire: () => void;
   onSubmit: () => void;
   onWithdraw: () => void;
   onPublish: () => void;
@@ -1245,8 +1351,8 @@ function WorkspaceDrawer({
         <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>v{workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉草稿明細"><X size={20} /></button></div>
         <div className="number-state-drawer-body">
           <ProjectionSummary projection={workspace.projection} />
-          {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>候選號，不得正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
-          <NowWhatPanel workspace={workspace} busy={busy} onAcquire={onAcquire} onSubmit={onSubmit} onPublish={onPublish} />
+          {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
+          <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} />
           {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
           <section className="number-state-drawer-section">
             <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯草稿</button> : null}</div>
@@ -1261,7 +1367,7 @@ function WorkspaceDrawer({
             </div>
           </section>
         </div>
-        <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消草稿並回收可回收候選號"} onClick={onCancel}><Ban size={16} />取消草稿</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
+        <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消草稿</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
       </aside>
     </div>
   );
@@ -1271,16 +1377,15 @@ function ProjectionSummary({ projection }: { projection: NumberStateProjection }
   return <section className="number-state-drawer-section"><div className="number-state-section-heading"><h3>目前狀態</h3><ProjectionBadges projection={projection} /></div><dl className="number-state-state-grid"><div><dt>審核</dt><dd>{reviewLabel(projection.review)}</dd></div><div><dt>發布</dt><dd>{publicationLabel(projection.publication)}</dd></div><div><dt>完整度</dt><dd>{readinessLabel(projection.readiness)}</dd></div><div><dt>正式用途</dt><dd>{usageLabel(projection.usage)}</dd></div></dl></section>;
 }
 
-function NowWhatPanel({ workspace, busy, onAcquire, onSubmit, onPublish }: { workspace: NumberingDraftWorkspace; busy: boolean; onAcquire: () => void; onSubmit: () => void; onPublish: () => void }) {
-  const canAcquire = workspace.capabilities.canAcquireCandidates;
+function NowWhatPanel({ workspace, busy, onSubmit, onPublish }: { workspace: NumberingDraftWorkspace; busy: boolean; onSubmit: () => void; onPublish: () => void }) {
   return (
-    <section className="number-state-now-what"><div><span>現在要做什麼</span><strong>{nowWhatLabel(workspace.projection.nowWhat.label)}</strong><small>責任角色：{ownerRoleLabel(workspace.projection.nowWhat.ownerRole)}</small></div>{canAcquire ? <button className="primary-button" type="button" onClick={onAcquire} disabled={busy}><PackagePlus size={16} />取得候選號</button> : workspace.capabilities.canSubmitReview ? <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交審核</button> : workspace.capabilities.canPublish ? <button className="primary-button" type="button" onClick={onPublish} disabled={busy}><Check size={15} />正式發布</button> : workspace.latestApproval?.requestId ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}</section>
+    <section className="number-state-now-what"><div><span>現在要做什麼</span><strong>{nowWhatLabel(workspace.projection.nowWhat.label)}</strong><small>責任角色：{ownerRoleLabel(workspace.projection.nowWhat.ownerRole)}</small></div>{workspace.capabilities.canSubmitReview ? <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交審核</button> : workspace.capabilities.canPublish ? <button className="primary-button" type="button" onClick={onPublish} disabled={busy}><Check size={15} />正式發布</button> : workspace.latestApproval?.requestId ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}</section>
   );
 }
 
 function WorkspaceFacts({ workspace }: { workspace: NumberingDraftWorkspace }) {
   return (
-    <section className="number-state-drawer-section"><h3>草稿內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeDescription} · ${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
+    <section className="number-state-drawer-section"><h3>草稿內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeCode === "R" && drawing.purposeDescription ? `${drawing.purposeDescription} · ` : ""}${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
   );
 }
 
@@ -1292,15 +1397,19 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
     <section className="number-state-drawer-section">
       <h3>編輯草稿</h3>
       <div className="number-state-edit-list">
-        {root ? <Field label="確定品名"><input value={root.coreName} onChange={(event) => setRoot({ ...root, coreName: event.target.value })} /></Field> : null}
-        {parts.map((part, index) => (
-          <div className="number-state-edit-list" key={part.id}>
-            <Field label={`料號品名 ${index + 1}`} hint="品名由確定品名帶入，不能在料號層單獨改名。"><input value={root?.coreName ?? part.partName} readOnly /></Field>
-            {part.itemKind === "manufactured" && !part.isUniversal ? <Field label={`系列代號 ${index + 1}（選填）`} hint="非共用件會納入建議品名；跨專案共用時不納入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
-            {part.isUniversal || part.itemKind === "shared" ? <Field label={`共用原因 ${index + 1}`} required><input value={part.universalReason ?? ""} maxLength={1000} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, universalReason: event.target.value } : item))} /></Field> : null}
-          </div>
-        ))}
-        {drawings.map((drawing, index) => <Field label={`圖面用途說明 ${index + 1}`} key={drawing.id}><input value={drawing.purposeDescription} onChange={(event) => setDrawings((items) => items.map((item) => item.id === drawing.id ? { ...item, purposeDescription: event.target.value } : item))} /></Field>)}
+        {root ? <Field label="確定品名" hint="此欄位是唯一名稱來源；儲存時會同步到料號主檔。"><input value={root.coreName} onChange={(event) => setRoot({ ...root, coreName: event.target.value })} /></Field> : null}
+        {parts.map((part, index) => {
+          const showSeriesCode = part.itemKind === "manufactured" && !part.isUniversal;
+          const showUniversalReason = part.isUniversal || part.itemKind === "shared";
+          if (!showSeriesCode && !showUniversalReason) return null;
+          return (
+            <div className="number-state-edit-list" key={part.id}>
+              {showSeriesCode ? <Field label={`系列代號 ${index + 1}（選填）`} hint="非共用件會納入建議品名；跨專案共用時不納入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
+              {showUniversalReason ? <Field label={`共用原因 ${index + 1}`} required><input value={part.universalReason ?? ""} maxLength={1000} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, universalReason: event.target.value } : item))} /></Field> : null}
+            </div>
+          );
+        })}
+        {drawings.map((drawing, index) => drawing.purposeCode === "R" ? <Field label={`參考用途 ${index + 1}`} required hint="請說明此圖作為參考的用途；R 圖不作製造基準。" key={drawing.id}><input value={drawing.purposeDescription} onChange={(event) => setDrawings((items) => items.map((item) => item.id === drawing.id ? { ...item, purposeDescription: event.target.value } : item))} /></Field> : null)}
       </div>
       <div className="number-state-inline-actions">
         <button className="secondary-button" type="button" onClick={onCancel} disabled={busy}>取消編輯</button>
@@ -1315,7 +1424,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
             customSpecification: part.customSpecification,
             seriesCode: part.itemKind === "manufactured" && !part.isUniversal ? part.seriesCode : null
           })),
-          drawings: drawings.map((drawing) => ({ id: drawing.id, purposeCode: drawing.purposeCode, purposeDescription: drawing.purposeDescription, isPrimaryManufacturing: drawing.isPrimaryManufacturing }))
+          drawings: drawings.map((drawing) => ({ id: drawing.id, purposeCode: drawing.purposeCode, purposeDescription: drawing.purposeCode === "R" ? drawing.purposeDescription : "", isPrimaryManufacturing: drawing.isPrimaryManufacturing }))
         })}><Save size={15} />儲存變更</button>
       </div>
     </section>
@@ -1324,34 +1433,26 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
 
 function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action: WorkspaceAction; workspace: NumberingDraftWorkspace; busy: boolean; onClose: () => void; onConfirm: () => void }) {
   const content = ({
-    acquire: {
-      title: "取得候選號",
-      strong: "確認後才會占用候選號",
-      detail: `將為主根、${workspace.parts.length} 個料號與 ${workspace.drawings.length} 個圖號原子配置候選號。`,
-      confirm: "確認取得候選號",
-      icon: <PackagePlus size={22} />,
-      danger: false
-    },
     cancel: {
-      title: "取消草稿並回收候選號",
+      title: "取消申請並釋出號碼",
       strong: "取消後草稿不能再編輯",
-      detail: candidateCodes(workspace).length > 0 ? `將回收 ${candidateCodes(workspace).join("、")}；有審核或外部引用時系統會阻擋。` : "此草稿尚未領號，取消後不會執行候選號回收。",
+      detail: candidateCodes(workspace).length > 0 ? `將釋出 ${candidateCodes(workspace).join("、")}；有審核或外部引用時系統會阻擋。` : "此申請尚未產生號碼，取消後不會釋出號碼。",
       confirm: "確認取消草稿",
       icon: <AlertTriangle size={22} />,
       danger: true
     },
     submit: {
-      title: "送交候選號發布審核",
-      strong: "送審後草稿與候選號將鎖定",
+      title: "送交正式發布審核",
+      strong: "送審後申請與保留號碼將鎖定",
       detail: "核准只代表允許發布，不會建立正式主檔；核准後仍需由具發布權限的人員執行正式發布。",
       confirm: "確認送交審核",
       icon: <LockKeyhole size={22} />,
       danger: false
     },
     withdraw: {
-      title: "撤回候選號發布審核",
+      title: "撤回正式發布審核",
       strong: "撤回後核准流程將中止",
-      detail: "候選號會解除審核鎖定並回到草稿狀態，可修改後再次送審。",
+      detail: "保留號碼會解除審核鎖定，申請可修改後再次送審。",
       confirm: "確認撤回審核",
       icon: <RotateCcw size={22} />,
       danger: false
@@ -1359,7 +1460,7 @@ function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action
     publish: {
       title: "正式發布圖料號",
       strong: "此動作會建立正式主檔，無法由此畫面復原",
-      detail: `將以已核准候選號建立正式主根、${workspace.parts.length} 個料號與 ${workspace.drawings.length} 個圖號。核准本身尚未執行這個動作。`,
+      detail: `將以已核准的保留號碼建立正式主根、${workspace.parts.length} 個料號與 ${workspace.drawings.length} 個圖號。核准本身尚未執行這個動作。`,
       confirm: "確認正式發布",
       icon: <AlertTriangle size={22} />,
       danger: true
@@ -1385,7 +1486,16 @@ function DraftItem({ icon, title, subtitle }: { icon: ReactNode; title: string; 
 }
 
 function ProjectionBadges({ projection }: { projection: NumberStateProjection }) {
-  return <div className="number-state-badges"><span className={`number-state-badge qualification-${projection.numberQualification}`}>{qualificationLabel(projection.numberQualification)}</span><span className={`number-state-badge lifecycle-${projection.lifecycle}`}>{lifecycleLabel(projection.lifecycle)}</span></div>;
+  return <div className="number-state-badges"><NumberEffectivenessBadge qualification={projection.numberQualification} /><LifecycleBadge lifecycle={projection.lifecycle} /></div>;
+}
+
+function NumberEffectivenessBadge({ qualification }: { qualification: NumberQualification }) {
+  if (qualification === "unnumbered") return <span className="muted-text">尚未產生號碼</span>;
+  return <span className={`number-state-badge qualification-${qualification}`}>{formatStatusForUser(qualification, "numberEffectiveness")}</span>;
+}
+
+function LifecycleBadge({ lifecycle }: { lifecycle: NumberStateProjection["lifecycle"] }) {
+  return <span className={`number-state-badge lifecycle-${lifecycle}`}>{lifecycleLabel(lifecycle)}</span>;
 }
 
 function candidateCodes(workspace: NumberingDraftWorkspace) {
@@ -1393,8 +1503,8 @@ function candidateCodes(workspace: NumberingDraftWorkspace) {
 }
 
 function draftNumberLabel(workspace: NumberingDraftWorkspace, candidateCode: string | null) {
-  if (!candidateCode) return "未領號";
-  return workspace.lifecycleStatus === "cancelled" ? `歷史候選號 ${candidateCode}（已回收）` : candidateCode;
+  if (!candidateCode) return "尚未產生號碼";
+  return workspace.lifecycleStatus === "cancelled" ? `歷史保留號碼 ${candidateCode}（已釋出）` : candidateCode;
 }
 
 function workspaceTitle(workspace: NumberingDraftWorkspace) {
@@ -1422,22 +1532,27 @@ function draftModeLabel(value: DraftMode) { return ({ new_bundle: "新圖料", a
 function itemKindLabel(value: ItemKind) { return itemKindOptions.find((option) => option.value === value)?.label ?? value; }
 function purposeLabel(value: PurposeCode) { return purposeOptions.find((option) => option.value === value)?.label ?? value; }
 function isManufacturingPurposeCode(value: PurposeCode) { return value === "M" || value === "MA"; }
-function qualificationLabel(value: NumberQualification) { return ({ unnumbered: "未領號", candidate: "候選號", official: "正式號", legacy_official_reservation: "舊制保留" } as const)[value]; }
-function lifecycleLabel(value: NumberStateProjection["lifecycle"]) { return ({ draft: "草稿", cancelled: "已取消", published: "已發布", obsolete: "已作廢" } as const)[value]; }
+function matchesNumberEffectiveness(value: NumberQualification, filter: NumberEffectivenessFilter) {
+  if (filter === "all") return true;
+  if (filter === "not_generated") return value === "unnumbered";
+  if (filter === "reserved") return value === "candidate";
+  return value === "official" || value === "legacy_official_reservation";
+}
+function lifecycleLabel(value: NumberStateProjection["lifecycle"]) { return ({ draft: "編輯中", cancelled: "已取消", published: "已轉正式資料", obsolete: "已失效" } as const)[value]; }
 function reviewLabel(value: NumberStateProjection["review"]) { return ({ not_submitted: "未送審", in_review: "審核中", needs_info: "待補資料", rejected: "已退回", approved: "已核准" } as const)[value]; }
 function publicationLabel(value: NumberStateProjection["publication"]) { return ({ not_ready: "尚未開放", ready: "可發布", publishing: "發布中", failed: "發布失敗", published: "已發布" } as const)[value]; }
 function readinessLabel(value: NumberStateProjection["readiness"]) { return ({ incomplete: "未完成", ready: "完成", stale: "需重整", not_applicable: "不適用" } as const)[value]; }
 function usageLabel(value: NumberStateProjection["usage"]) { return ({ not_for_formal_use: "不可正式使用", formal_use_allowed: "可正式使用", historical_only: "僅供歷史查閱" } as const)[value]; }
 function ownerRoleLabel(value: string) { return ({ "Draft owner": "草稿負責人", Approver: "審核者", Publisher: "發布者", PDM: "PDM 管理者", "PDM Admin": "PDM Admin" } as Record<string, string>)[value] ?? value; }
-function nowWhatLabel(value: string) { return ({ "Acquire candidate numbers": "確認內容後取得候選號", "Complete draft and submit review": "完成草稿並送審", "View cancelled draft": "查看已取消草稿", "View official record": "查看正式資料", "Check state inconsistency": "請 PDM Admin 檢查狀態", "View review": "查看審核", "Retry approval apply": "重試核准套用", "Update requested information": "補齊審核要求的資料", "Revise draft before resubmission": "修訂草稿後重新送審", "Publish official number": "正式發布" } as Record<string, string>)[value] ?? value; }
-function blockedReasonLabel(value: string | null) { return ({ candidate_review_locked: "候選號正在審核，請先查看或撤回審核。", approval_apply_failed: "核准結果尚未成功套用，請至審核中心重試。", state_inconsistent: "狀態不一致，請 PDM Admin 協助。" } as Record<string, string>)[value ?? ""] ?? "目前狀態不可取消。"; }
+function nowWhatLabel(value: string) { return ({ "Acquire candidate numbers": "尚未產生號碼", "Complete draft and submit review": "完成草稿並送審", "View cancelled draft": "查看已取消草稿", "View official record": "查看正式資料", "Check state inconsistency": "請 PDM Admin 檢查狀態", "View review": "查看審核", "Retry approval apply": "重試核准套用", "Update requested information": "補齊審核要求的資料", "Revise draft before resubmission": "修訂草稿後重新送審", "Publish official number": "正式發布" } as Record<string, string>)[value] ?? value; }
+function blockedReasonLabel(value: string | null) { return ({ candidate_review_locked: "保留號碼正在審核，請先查看或撤回審核。", approval_apply_failed: "核准結果尚未成功套用，請至審核中心重試。", state_inconsistent: "狀態不一致，請 PDM Admin 協助。" } as Record<string, string>)[value ?? ""] ?? "目前狀態不可取消。"; }
 function publicationBlockerLabel(value: string | null) {
   if (value?.startsWith("drawing_evidence_not_finalized:")) return "至少一份圖面受控檔案證據尚未定稿。";
   return ({
     direct_gcs_verifier_unavailable: "正式 GCS 檔案證據驗證器尚未啟用，圖面草稿不可發布。",
     publication_evidence_not_ready: "正式發布所需證據尚未完成。",
     numbering_publish_permission_required: "目前帳號沒有正式發布權限。",
-    candidate_approval_required: "候選號尚未完成核准。",
+    candidate_approval_required: "保留號碼尚未完成核准。",
     candidate_approval_lock_mismatch: "核准鎖定資料不一致，請由 PDM Admin 處理。",
     approval_snapshot_stale: "核准快照已過期，請重新送審。"
   } as Record<string, string>)[value ?? ""] ?? "目前狀態不可正式發布。";

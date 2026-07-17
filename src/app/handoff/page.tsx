@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Archive, Download, FileCheck2, FileDown, Printer, RefreshCcw, ShieldAlert } from "lucide-react";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
@@ -88,7 +89,7 @@ export default function ManufacturingHandoffPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>製造交接</h1>
+          <h1>製造交接 <StatusScopeHelp scope="handoffWorkbench" /></h1>
           <p>每個料號只顯示最新已發布版本，集中發布包、檔案雜湊、核准者與發布時間。</p>
         </div>
         <div className="actions">

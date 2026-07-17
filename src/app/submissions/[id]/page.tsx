@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Download, FileText, RefreshCcw, ShieldAlert } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusBadge } from "@/components/status-help-popover";
+import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
 import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type { SubmissionDetail } from "@/lib/types";
@@ -111,7 +111,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
     <>
       <div className="topbar">
         <div>
-          <h1>送審明細</h1>
+          <h1>送審明細 <StatusScopeHelp scope="submissionDetail" /></h1>
           <p>{submissionId}</p>
         </div>
         <div className="actions">

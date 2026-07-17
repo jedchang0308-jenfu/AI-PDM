@@ -26,7 +26,7 @@ import {
   UserCog
 } from "lucide-react";
 import { InfoHint } from "@/components/compact-hints";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import {
   approvalActionLabel,
   approvalItemKindLabel,
@@ -377,7 +377,7 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
     <>
       <div className="topbar">
         <div>
-          <h1>系統設定</h1>
+          <h1>系統設定 <StatusScopeHelp scope="settingsCenter" /></h1>
           <p>目前位於「{activeAreaLabel}」；請從分頁切換要管理的設定區域。</p>
         </div>
       </div>
@@ -2137,7 +2137,7 @@ function ExternalSpecialistsPanel({ matrix }: { matrix: MatrixResponse }) {
               <th>內部負責人</th>
               <th>指定範圍</th>
               <th>下次複核</th>
-              <th>狀態</th>
+              <th><StatusColumnHeader label="複核狀態" context="settingsLifecycle" /></th>
               <th>規則</th>
             </tr>
           </thead>

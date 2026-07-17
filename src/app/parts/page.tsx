@@ -8,7 +8,7 @@ import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateOwnerCreateAction, NumberStatePartsTabs, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -542,7 +542,7 @@ export default function PartsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>料號模組</h1>
+          <h1>料號模組 <StatusScopeHelp scope="partsList" /></h1>
           <p>以主根號自動串聯圖號與料號，材質、顏色與成本都以料號為主體管理。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -592,8 +592,8 @@ export default function PartsPage() {
               </label>
               <FilterSelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
-              <FilterSelectField label="狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-              <FilterSelectField label="階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
+              <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+              <FilterSelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadParts}>
                 <PackageSearch size={16} />
                 查詢
@@ -681,7 +681,7 @@ function PartList({
               <th>品名</th>
               <th>圖號</th>
               <th>
-                <StatusColumnHeader label="狀態 / 階段 / 提醒" context="masterRecord" />
+                <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
               </th>
             </tr>
           </thead>
@@ -707,7 +707,7 @@ function PartList({
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
                   <div className="pdm-identity-meta">{part.drawingCount > 0 ? `${part.drawingCount} 個圖號` : "尚無圖號關聯"}</div>
                 </td>
-                <td data-label="狀態 / 階段 / 提醒">
+                <td data-label="資料狀態 / 開發階段 / 提醒">
                   <div className="pdm-meta-strip">
                     <StatusBadge status={part.recordStatus} context="masterRecord" />
                     <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>

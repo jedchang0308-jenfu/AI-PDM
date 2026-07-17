@@ -36,14 +36,33 @@ function sourceFiles() {
 const statusDisplay = read("src/lib/status-display.ts");
 const statusHelp = read("src/components/status-help-popover.tsx");
 
-for (const label of ["草稿", "待補資料", "審核中", "已發布", "發行未完成", "主圖失效", "未分類狀態", "正式階段"]) {
+for (const label of ["未發布", "編輯中", "申請中", "待補資料", "審核中", "已發布", "發行未完成", "主圖失效", "未分類狀態", "正式階段"]) {
   record(`Central status dictionary includes ${label}`, statusDisplay.includes(`label: "${label}"`));
 }
 record("Central status dictionary does not require legacy 待審核 label", !statusDisplay.includes('label: "待審核"'));
+record("Master record Draft is displayed as 未發布", statusDisplay.includes('keys: ["Draft", "draft"], label: "未發布"'));
+record("Number request Draft is displayed as 編輯中", statusDisplay.includes('applicationStatusStatuses') && statusDisplay.includes('keys: ["Draft", "draft", "editing", "editable"], label: "編輯中"'));
 
 record("Central status dictionary exports development phase formatter", statusDisplay.includes("formatDevelopmentPhaseForUser"));
 
-for (const context of ["task", "importRow", "importBatch", "settingsLifecycle", "jobStatus", "restorePolicy", "dvtReadiness"]) {
+for (const context of [
+  "applicationStatus",
+  "approvalStatus",
+  "publicationStatus",
+  "readinessStatus",
+  "fileStatus",
+  "accountStatus",
+  "identityStatus",
+  "invitationStatus",
+  "reminderStatus",
+  "task",
+  "importRow",
+  "importBatch",
+  "settingsLifecycle",
+  "jobStatus",
+  "restorePolicy",
+  "dvtReadiness"
+]) {
   record(`Central status dictionary includes ${context} context`, statusDisplay.includes(`${context}: ${context === "jobStatus" ? "jobStatuses" : `${context}Statuses`}`));
 }
 
@@ -128,9 +147,22 @@ record(
 
 for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx"]) {
   const source = read(relativePath);
-  record(`${relativePath} mixed status column is explicitly labeled`, source.includes('label="狀態 / 階段 / 提醒"'));
+  record(`${relativePath} mixed status column is explicitly labeled`, source.includes('label="資料狀態 / 開發階段 / 提醒"'));
   record(`${relativePath} no longer labels mixed status column as 其他`, !source.includes('label="其他"'));
 }
+
+for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx"]) {
+  record(`${relativePath} filters use axis-specific labels`, read(relativePath).includes('label="資料狀態"') && read(relativePath).includes('label="開發階段"'));
+}
+
+const searchPage = read("src/app/numbering/search/page.tsx");
+record("Search page labels status filter as 資料狀態", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("全部資料狀態"));
+record("Search page labels phase filter as 開發階段", searchPage.includes("<span>開發階段</span>") && searchPage.includes("全部開發階段"));
+
+const accountPage = read("src/app/settings/accounts/page.tsx");
+const invitationPage = read("src/app/settings/account-invitations/page.tsx");
+record("Account page uses account status help", accountPage.includes('label="帳號狀態"') && accountPage.includes('context="accountStatus"'));
+record("Invitation page uses invitation status help", invitationPage.includes('label="邀請狀態"') && invitationPage.includes('context="invitationStatus"'));
 
 for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/numbering/search/page.tsx", "src/app/parts/page.tsx"]) {
   const source = read(relativePath);

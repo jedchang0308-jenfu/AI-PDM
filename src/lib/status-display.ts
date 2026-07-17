@@ -3,7 +3,17 @@ export type StatusDisplayContext =
   | "submission"
   | "bomDraft"
   | "workflow"
+  | "applicationStatus"
+  | "approvalStatus"
+  | "publicationStatus"
+  | "readinessStatus"
+  | "fileStatus"
+  | "accountStatus"
+  | "identityStatus"
+  | "invitationStatus"
+  | "reminderStatus"
   | "developmentPhase"
+  | "numberEffectiveness"
   | "task"
   | "importRow"
   | "importBatch"
@@ -33,7 +43,7 @@ type StatusDefinition = Omit<StatusDisplay, "raw"> & {
 };
 
 const masterRecordStatuses: StatusDefinition[] = [
-  { keys: ["Draft", "draft"], label: "草稿", description: "資料尚未送審，可以繼續整理。", tone: "warning", actionable: true },
+  { keys: ["Draft", "draft"], label: "未發布", description: "主資料尚未發布為正式資料；請先補齊內容並依流程送審。", tone: "warning", actionable: true },
   {
     keys: ["NeedInfo", "needs_info", "need_info", "needs_reconfirmation"],
     label: "待補資料",
@@ -154,6 +164,83 @@ const workflowHelpStatuses: StatusDefinition[] = [
   { keys: ["rejected"], label: "已退回", description: "審核未通過，需要修正後重新送審。", tone: "critical", actionable: true }
 ];
 
+const applicationStatusStatuses: StatusDefinition[] = [
+  { keys: ["Draft", "draft", "editing", "editable"], label: "編輯中", description: "領號申請仍可調整，完成內容後再送出申請。", tone: "warning", actionable: true },
+  { keys: ["Pending", "pending", "pending_review", "submitted", "active"], label: "申請中", description: "申請已送出，請等待審核或查看目前處理進度。", tone: "warning", actionable: true },
+  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆領號申請已取消，不會再繼續處理。", tone: "neutral", terminal: true },
+  { keys: ["Published", "published", "promoted", "official"], label: "已轉正式資料", description: "申請結果已轉為正式資料，後續請從主資料清單查看。", tone: "success", terminal: true },
+  { keys: ["Obsolete", "obsolete", "retired", "voided"], label: "已失效", description: "這筆申請已失效，不能再作為目前申請來源。", tone: "neutral", terminal: true }
+];
+
+const approvalStatusStatuses: StatusDefinition[] = [
+  { keys: ["None", "none", "NotSubmitted", "not_submitted"], label: "未送審", description: "目前尚未送出審核，不代表資料已核准或可發布。", tone: "neutral", actionable: true },
+  { keys: ["Pending", "pending", "PendingReview", "pending_review"], label: "審核中", description: "已送出，等待指定審核者判定。", tone: "warning", actionable: true },
+  { keys: ["NeedInfo", "need_info", "needs_info", "needs_reconfirmation"], label: "需補資料", description: "審核者要求補充資料；補齊後再重新送審。", tone: "warning", actionable: true },
+  { keys: ["Approved", "approved"], label: "已核准", description: "審核已通過；若尚未發布，仍需依發布流程處理。", tone: "success", terminal: true },
+  { keys: ["Rejected", "rejected"], label: "已退回", description: "審核未通過，需要修正後重新送審。", tone: "critical", actionable: true },
+  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆審核流程已取消，不會繼續判定。", tone: "neutral", terminal: true },
+  { keys: ["Resubmitted", "resubmitted"], label: "已重送", description: "資料已修正並再次送出，請查看最新審核紀錄。", tone: "warning", actionable: true }
+];
+
+const publicationStatusStatuses: StatusDefinition[] = [
+  { keys: ["NotReady", "not_ready", "not_published", "unreleased", "blocked"], label: "尚未可發布", description: "目前仍有必要條件未完成，不能正式發布。", tone: "warning", actionable: true },
+  { keys: ["Ready", "ready", "can_publish", "approved"], label: "可發布", description: "必要條件已具備，可以由具權限角色進行正式發布。", tone: "success", actionable: true },
+  { keys: ["Releasing", "releasing", "running", "publishing"], label: "發布中", description: "系統正在建立正式資料，請等待結果後再操作。", tone: "warning" },
+  { keys: ["Released", "released", "published", "official"], label: "已發布", description: "資料已成為正式紀錄，可以依權限使用。", tone: "success", terminal: true },
+  { keys: ["ReleaseFailed", "release_failed", "failed"], label: "發布失敗", description: "正式發布未完成，請查看錯誤明細並重試或請管理員協助。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["Applied", "applied", "confirmed"], label: "已套用", description: "核准結果已套用到目標資料。", tone: "success", terminal: true },
+  { keys: ["ApplyFailed", "apply_failed"], label: "套用失敗", description: "核准結果尚未套用，請重試或請管理員檢查。", tone: "critical", abnormal: true, actionable: true }
+];
+
+const readinessStatusStatuses: StatusDefinition[] = [
+  { keys: ["Incomplete", "incomplete", "need_info", "needs_info"], label: "未完成", description: "必要資料或檢查尚未齊備，請先補齊後再繼續。", tone: "warning", actionable: true },
+  { keys: ["Ready", "ready", "valid"], label: "已就緒", description: "目前條件已具備，可以進入下一步。", tone: "success", actionable: true },
+  { keys: ["Blocked", "blocked"], label: "阻擋", description: "目前有條件阻擋流程，請先處理阻擋項目。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["NeedsUpdate", "needs_update", "stale"], label: "需更新", description: "資料或檢查結果已過期，請重新整理後再判定。", tone: "warning", actionable: true },
+  { keys: ["NotApplicable", "not_applicable", "na"], label: "不適用", description: "此資料範圍不需要這項檢查，不必處理。", tone: "neutral", terminal: true }
+];
+
+const fileStatusStatuses: StatusDefinition[] = [
+  { keys: ["None", "none", "no_file"], label: "無檔案", description: "目前沒有可供此流程使用的檔案。", tone: "neutral", actionable: true },
+  { keys: ["Queued", "queued", "uploading", "waiting"], label: "等待處理", description: "檔案已進入處理佇列，請等待結果。", tone: "warning" },
+  { keys: ["Processing", "processing", "started", "running"], label: "處理中", description: "系統正在檢查或同步檔案，請等待完成。", tone: "warning" },
+  { keys: ["Valid", "valid", "available", "uploaded"], label: "可用", description: "檔案已通過必要檢查，可以進入下一步。", tone: "success" },
+  { keys: ["NeedInfo", "need_info", "needs_update"], label: "需更新", description: "檔案資訊不足或已過期，請補齊或重新上傳。", tone: "warning", actionable: true },
+  { keys: ["Failed", "failed", "error"], label: "處理失敗", description: "檔案處理未完成，請重試或請管理員檢查。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["Missing", "missing", "file_missing"], label: "檔案遺失", description: "系統找不到這個檔案，請重新選擇或補上檔案。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["Conflict", "conflict", "hash_mismatch"], label: "檔案不一致", description: "檔案與既有紀錄不一致，請確認版本後再處理。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["Moved", "moved", "migrated"], label: "已搬移", description: "檔案已完成受控搬移，可以查看目前位置。", tone: "success", terminal: true },
+  { keys: ["LocalOnly", "local_only"], label: "僅本機", description: "檔案目前只存在本機，尚未成為共享或正式來源。", tone: "neutral" },
+  { keys: ["Disabled", "disabled", "retired"], label: "已停用", description: "此檔案來源已停用，不應再作為目前流程來源。", tone: "neutral", terminal: true }
+];
+
+const accountStatusStatuses: StatusDefinition[] = [
+  { keys: ["active", "enabled"], label: "使用中", description: "帳號目前可以登入並依權限使用系統。", tone: "success", actionable: true },
+  { keys: ["suspended", "disabled", "blocked"], label: "已停權", description: "帳號目前不能登入或執行受限操作，請由管理員處理。", tone: "critical", abnormal: true },
+  { keys: ["expired"], label: "已到期", description: "帳號使用期限已到，請由管理員確認是否恢復。", tone: "warning", actionable: true },
+  { keys: ["offboarded", "retired"], label: "已離職", description: "帳號已完成離職停用，不應再作為日常使用帳號。", tone: "neutral", terminal: true }
+];
+
+const identityStatusStatuses: StatusDefinition[] = [
+  { keys: ["active", "verified", "enabled"], label: "使用中", description: "此登入身分已啟用，可用於建立登入 session。", tone: "success" },
+  { keys: ["disabled", "blocked"], label: "已停用", description: "此登入身分已停用，不能用來登入系統。", tone: "critical", abnormal: true },
+  { keys: ["revoked", "retired"], label: "已撤銷", description: "此登入身分已撤銷，僅保留追溯紀錄。", tone: "neutral", terminal: true },
+  { keys: ["expired"], label: "已到期", description: "此登入身分已到期，不能繼續使用。", tone: "warning", terminal: true }
+];
+
+const invitationStatusStatuses: StatusDefinition[] = [
+  { keys: ["pending", "open", "created"], label: "待接受", description: "邀請連結仍可由受邀者完成設定。", tone: "warning", actionable: true },
+  { keys: ["accepted", "completed", "used"], label: "已接受", description: "受邀者已完成設定，這個邀請不需要再處理。", tone: "success", terminal: true },
+  { keys: ["revoked", "cancelled"], label: "已撤銷", description: "邀請已撤銷，原連結不能再使用。", tone: "neutral", terminal: true },
+  { keys: ["expired"], label: "已過期", description: "邀請已超過有效期限，請建立新的邀請。", tone: "warning", actionable: true }
+];
+
+const reminderStatusStatuses: StatusDefinition[] = [
+  { keys: ["none", "clear", "0"], label: "無提醒", description: "目前沒有需要額外注意的提醒。", tone: "neutral", terminal: true },
+  { keys: ["info", "notice", "warning"], label: "有提醒", description: "有提示資訊，請查看明細判斷是否需要處理。", tone: "info", actionable: true },
+  { keys: ["blocker", "blocked", "critical"], label: "阻擋提醒", description: "此提醒會影響下一步，請先處理阻擋條件。", tone: "critical", abnormal: true, actionable: true }
+];
+
 const taskStatuses: StatusDefinition[] = [
   { keys: ["open"], label: "待處理", description: "此待辦還需要負責角色查看並完成下一步。", tone: "warning", actionable: true },
   { keys: ["handled", "resolved", "closed", "satisfied", "acknowledged"], label: "已處理", description: "此待辦已確認或關閉；若狀況再發生，可重新開啟或回來源頁處理。", tone: "success", terminal: true },
@@ -212,6 +299,36 @@ const developmentPhaseStatuses: StatusDefinition[] = [
   { keys: ["ECR"], label: "ECR 設變", description: "工程變更階段，需依設變流程處理。", tone: "warning", actionable: true }
 ];
 
+const numberEffectivenessStatuses: StatusDefinition[] = [
+  {
+    keys: ["preview"],
+    label: "預覽",
+    description: "號碼尚未占用；調整申請內容後可能改變。",
+    tone: "info"
+  },
+  {
+    keys: ["candidate", "active", "review_locked", "approved_locked"],
+    label: "已保留",
+    description: "號碼已由這筆申請保留，但正式發布前不可正式使用。",
+    tone: "warning",
+    actionable: true
+  },
+  {
+    keys: ["official", "promoted", "legacy_official_reservation"],
+    label: "正式",
+    description: "號碼已正式生效，可以依資料狀態與權限使用。",
+    tone: "success",
+    terminal: true
+  },
+  {
+    keys: ["recycled", "released"],
+    label: "已釋出",
+    description: "原保留已取消，這個號碼不再屬於該申請。",
+    tone: "neutral",
+    terminal: true
+  }
+];
+
 const fileSyncStatuses: StatusDefinition[] = [
   { keys: ["none", "local_only"], label: "本機資料", description: "檔案或資料目前只在本機或系統內部。", tone: "neutral" },
   { keys: ["valid"], label: "已通過", description: "檢核已通過，可以進入下一步。", tone: "success" },
@@ -247,7 +364,17 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   submission: submissionStatuses,
   bomDraft: bomDraftStatuses,
   workflow: workflowStatuses,
+  applicationStatus: applicationStatusStatuses,
+  approvalStatus: approvalStatusStatuses,
+  publicationStatus: publicationStatusStatuses,
+  readinessStatus: readinessStatusStatuses,
+  fileStatus: fileStatusStatuses,
+  accountStatus: accountStatusStatuses,
+  identityStatus: identityStatusStatuses,
+  invitationStatus: invitationStatusStatuses,
+  reminderStatus: reminderStatusStatuses,
   developmentPhase: developmentPhaseStatuses,
+  numberEffectiveness: numberEffectivenessStatuses,
   task: taskStatuses,
   importRow: importRowStatuses,
   importBatch: importBatchStatuses,
@@ -262,6 +389,15 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
     ...masterRecordStatuses,
     ...submissionStatuses,
     ...workflowStatuses,
+    ...applicationStatusStatuses,
+    ...approvalStatusStatuses,
+    ...publicationStatusStatuses,
+    ...readinessStatusStatuses,
+    ...fileStatusStatuses,
+    ...accountStatusStatuses,
+    ...identityStatusStatuses,
+    ...invitationStatusStatuses,
+    ...reminderStatusStatuses,
     ...taskStatuses,
     ...importRowStatuses,
     ...importBatchStatuses,

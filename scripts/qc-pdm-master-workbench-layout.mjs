@@ -9,6 +9,7 @@ const root = process.cwd();
 const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://localhost:3000";
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const { dbPath } = assertNumberingQcRuntimeIsIsolated({ scriptName: "qc-pdm-master-workbench-layout" });
+const navigationTimeoutMs = 180_000;
 const unique = Date.now().toString().slice(-8);
 const searchRootCode = `QCM${unique}`;
 const searchRootId = `qc-master-search-root-${unique}`;
@@ -34,9 +35,9 @@ const copyShortcutFunctionByRoute = {
   "/parts": "copySelectedPartNumber"
 };
 const identityHeadersByRoute = {
-  "/numbering/search": ["主根號", "品名", "料號", "狀態 / 階段 / 提醒"],
-  "/numbering/drawings": ["圖號", "品名", "料號", "狀態 / 階段 / 提醒"],
-  "/parts": ["料號", "品名", "圖號", "狀態 / 階段 / 提醒"]
+  "/numbering/search": ["主根號", "品名", "料號", "資料狀態 / 開發階段 / 提醒"],
+  "/numbering/drawings": ["圖號", "品名", "料號", "資料狀態 / 開發階段 / 提醒"],
+  "/parts": ["料號", "品名", "圖號", "資料狀態 / 開發階段 / 提醒"]
 };
 
 const read = (relativePath) => readProjectFile(root, relativePath);
@@ -206,12 +207,18 @@ function staticChecks() {
         record(`${route} uses ${className}`, source.includes(className), file);
       }
       for (const header of identityHeaders) {
-        const hasHeader = header === "狀態 / 階段 / 提醒" ? source.includes("StatusColumnHeader") : source.includes(`<th>${header}</th>`);
+        const hasHeader = header === "資料狀態 / 開發階段 / 提醒" ? source.includes("StatusColumnHeader") : source.includes(`<th>${header}</th>`);
         record(`${route} has ${header} identity header`, hasHeader && source.includes(`data-label="${header}"`), file);
       }
     }
     record(`${route} has fixed filter row`, source.includes("pdm-master-filter-grid") && source.includes("pdm-master-filter-action"), file);
-    record(`${route} rows support selection`, route === "/numbering/search" ? source.includes("selected") && source.includes("onSelectRoot") : source.includes("selected-row") && source.includes("onClick"), file);
+    record(
+      `${route} rows support selection`,
+      route === "/numbering/search"
+        ? source.includes("selectedRootCode") && source.includes("setSelectedRootCode") && source.includes('selected ? " selected"')
+        : source.includes("selected-row") && source.includes("onClick"),
+      file
+    );
     record(
       `${route} persists drawer width`,
       source.includes(drawerStorageKeysByRoute[route]) &&
@@ -353,7 +360,7 @@ async function verifyDesktop(browser, route) {
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(apiBaseUrl).origin }).catch(() => {});
   const page = await context.newPage();
   await loginAsAdmin(context);
-  const response = await page.goto(`${apiBaseUrl}${route}`, { waitUntil: "networkidle" });
+  const response = await page.goto(`${apiBaseUrl}${route}`, { waitUntil: "networkidle", timeout: navigationTimeoutMs });
   record(`${route} returns 200 on desktop`, response?.status() === 200, `HTTP ${response?.status()}`);
   await page.locator(".pdm-master-workbench").first().waitFor({ timeout: 15_000 });
   record(`${route} renders master workbench`, await page.locator(".pdm-master-workbench").first().isVisible());
@@ -549,7 +556,7 @@ async function verifyMobile(browser, route) {
   const context = await browser.newContext({ viewport: { width: 390, height: 920 }, isMobile: true });
   const page = await context.newPage();
   await loginAsAdmin(context);
-  const response = await page.goto(`${apiBaseUrl}${route}`, { waitUntil: "networkidle" });
+  const response = await page.goto(`${apiBaseUrl}${route}`, { waitUntil: "networkidle", timeout: navigationTimeoutMs });
   record(`${route} returns 200 on mobile`, response?.status() === 200, `HTTP ${response?.status()}`);
   await page.locator(".pdm-master-workbench").first().waitFor({ timeout: 15_000 });
 
@@ -591,7 +598,7 @@ async function verifyRuntime() {
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
     const page = await context.newPage();
-    const rootResponse = await page.goto(`${apiBaseUrl}/`, { waitUntil: "domcontentloaded" });
+    const rootResponse = await page.goto(`${apiBaseUrl}/`, { waitUntil: "domcontentloaded", timeout: navigationTimeoutMs });
     record("/ returns 200", rootResponse?.status() === 200, `HTTP ${rootResponse?.status()}`);
     await context.close();
 

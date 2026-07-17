@@ -33,7 +33,7 @@ import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPa
 import { LifecycleMap, ObjectLifecycleStatusPanel, buildUploadPrefillHref, type LifecycleMetric, type LifecycleStageId } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { buildAdaptiveTaskFeed, type TaskSummary, type TaskSummarySeverity, type TaskSummarySource } from "@/lib/adaptive-task-feed";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
@@ -2300,7 +2300,7 @@ export function Dashboard() {
     <>
       <div className="topbar">
         <div>
-          <h1>PDM 圖面資料庫</h1>
+          <h1>PDM 圖面資料庫 <StatusScopeHelp scope="dashboardSummary" /></h1>
           <p>快速查找圖號、料號、版次、正式檔案與製造交接資料。</p>
           <p>
             目前登入：{currentUser.display_name}（{roleLabels[currentUser.role]}）

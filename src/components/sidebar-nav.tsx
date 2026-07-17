@@ -130,8 +130,13 @@ export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFl
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (publicAuthPage) {
@@ -246,7 +251,7 @@ export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFl
               <div className="nav-section-items">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
-                  const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const active = hydrated && (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
                   const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
                   const hasBadge = typeof badgeCount === "number" && badgeCount > 0;
                   const unopened = !isOpenInProductionSlice(item, productionSlice);

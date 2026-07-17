@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Download, Eye, FileText, RefreshCw, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 
@@ -215,7 +215,7 @@ export default function NumberingReportsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖號稽核報表</h1>
+          <h1>圖號稽核報表 <StatusScopeHelp scope="reportCenter" /></h1>
           <p>圖料號總覽、部門分頁、總表匯出與月報重產。</p>
         </div>
         <div style={actionGroupStyle}>

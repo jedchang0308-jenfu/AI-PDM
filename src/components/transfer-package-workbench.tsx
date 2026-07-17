@@ -27,6 +27,7 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import type { TransferPackageWorkbench } from "@/lib/transfer-packages";
 import type { ResolvedTransferPackageEntity, TransferPackageEntityType } from "@/lib/repositories/transfer-package-async-repository";
 
@@ -440,7 +441,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
       <NowWhat workbench={workbench} readiness={readiness} />
 
       <section className="transfer-summary-band" aria-label="技轉包摘要">
-        <SummaryValue label="狀態" value={packageStatusLabel(workbench.status)} tone={terminal ? "neutral" : "active"} />
+        <SummaryValue label="案件狀態" value={packageStatusLabel(workbench.status)} tone={terminal ? "neutral" : "active"} />
         <SummaryValue label="範圍" value={`${workbench.items.length + workbench.draftItems.length} 項`} />
         <SummaryValue label="必要阻擋" value={`${readiness?.blockers.length ?? workbench.blockers.filter((item) => item.severity === "required").length} 項`} />
         <SummaryValue label="資料版本" value={`v${workbench.rowVersion}`} />
@@ -658,7 +659,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
 }
 
 function WorkbenchTopbar({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
-  return <div className="topbar transfer-topbar"><div><h1>{title}</h1><p>{subtitle}</p></div><div className="transfer-topbar-actions">{actions}<Link className="secondary-button" href="/numbering/tasks"><ClipboardList size={16} />回待辦中心</Link></div></div>;
+  return <div className="topbar transfer-topbar"><div><h1>{title} <StatusScopeHelp scope="transferPackageWorkbench" /></h1><p>{subtitle}</p></div><div className="transfer-topbar-actions">{actions}<Link className="secondary-button" href="/numbering/tasks"><ClipboardList size={16} />回待辦中心</Link></div></div>;
 }
 
 function HeaderFields(props: {
@@ -686,8 +687,8 @@ function SourceSummary({ item, fallbackLabel }: { item: ResolvedTransferPackageE
 function NowWhat({ workbench, readiness }: { workbench: TransferPackageWorkbench; readiness: Phase1DReadiness | null }) {
   if (workbench.status === "Cancelled") return <div className="transfer-now-what neutral"><Ban size={20} /><div><strong>此技轉包已取消，不會再進入送審。</strong><p>資料與異動紀錄已保留；需要繼續時請建立新技轉包。</p></div><Link className="secondary-button" href="/transfer-packages/new">建立新技轉包</Link></div>;
   if (workbench.status === "Published") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已正式發布，可供製造與採購交接使用。</strong><p>交接資料只包含正式號碼與受控發布內容。</p></div><Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link></div>;
-  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與候選號已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
-  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行正式發布。</strong><p>發布前會重新驗證快照、檔案證據與所有候選號。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
+  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與保留號碼已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
+  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行正式發布。</strong><p>發布前會重新驗證快照、檔案證據與所有保留號碼。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
   if (!workbench.items.length && !workbench.draftItems.length) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>下一步：加入正式圖料或草稿工作區。</strong><p>沒有案件範圍時，後續資料無法歸屬。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=scope`}>加入案件範圍</Link></div>;
   if (readiness?.firstBlocker) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>{readiness.firstBlocker.message}</strong><p>{readiness.firstBlocker.ownerRole} · {readiness.firstBlocker.ownerModule}</p></div><Link className="primary-button" href={readiness.firstBlocker.actionHref}>{readiness.firstBlocker.actionLabel}</Link></div>;
   return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已準備完成，可送交整包審核。</strong><p>核准後仍需另行正式發布。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>前往送審</Link></div>;

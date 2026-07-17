@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, RotateCcw, Search, ShieldAlert } from "luc
 import { RiskHint } from "@/components/compact-hints";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
@@ -99,7 +99,7 @@ export default function NumberingImpactPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>製造圖影響</h1>
+          <h1>製造圖影響 <StatusScopeHelp scope="impactWorkbench" /></h1>
           <p>作廢主要製造圖前，先檢查受影響料號、狀態與進版待辦。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => analyze(false)} disabled={!drawingNumber.trim() || busy === "analyze"}>
@@ -127,16 +127,16 @@ export default function NumberingImpactPage() {
         activeStage="ecr"
         metrics={[
           {
-            label: "Impacted parts",
+            label: "受影響料號",
             value: impact?.impactedPartNumbers.length ?? 0,
             tone: impact && impact.impactedPartNumbers.length > 0 ? "warning" : "neutral"
           },
           {
-            label: "Required docs",
+            label: "必要文件",
             value: impact?.requiredDocuments.length ?? 0,
             tone: impact && impact.requiredDocuments.length > 0 ? "warning" : "neutral"
           },
-          { label: "Applied", value: impact?.applied ? "Yes" : "No", tone: impact?.applied ? "success" : "neutral" }
+          { label: "已套用", value: impact?.applied ? "是" : "否", tone: impact?.applied ? "success" : "neutral" }
         ]}
       />
 
@@ -218,7 +218,7 @@ function ImpactResult({
           <Metric label="受影響料號" value={impact.impactedPartNumbers.length} />
           <Metric label="進版文件" value={impact.requiredDocuments.length} />
           <Metric label="圖別" value={`${impact.drawingNumber.purposeCode} ${displayDrawingPurposeLabel(impact.drawingNumber.purposeCode)}`} />
-          <Metric label="狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
+          <Metric label="資料狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
         </div>
 
         <section style={sectionStyle}>

@@ -9,6 +9,7 @@ export default function PartDraftCompatibilityLayout({ children }: { children: R
       message="料號草稿已移到料號模組的草稿分頁。"
       destination="/parts?tab=drafts"
       destinationLabel="前往草稿分頁"
+      statusScope="numberingDraftList"
     />
   );
 }

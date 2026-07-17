@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardCheck, RefreshCw, ShieldAlert, XCircle } from "lucide-react";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
@@ -273,7 +274,7 @@ export default function ApprovalPlatformPage() {
       return;
     }
     setDetail(body.request);
-    setMessage("審核決策已重新套用。候選號仍需由具發布權限者另行正式發布。");
+    setMessage("審核決策已重新套用。保留號碼仍需由具發布權限者另行正式發布。");
     window.dispatchEvent(new Event("approval-inbox-changed"));
     await loadInbox();
   }
@@ -282,7 +283,7 @@ export default function ApprovalPlatformPage() {
     <div className="approval-platform-page">
       <header className="topbar">
         <div>
-          <h1>審核工作台</h1>
+          <h1>審核工作台 <StatusScopeHelp scope="approvalInbox" /></h1>
           <p>所有待審資料集中處理，並可依領域與審核類型快速切換。</p>
         </div>
         <div className="status-tabs" role="tablist" aria-label="審核狀態">

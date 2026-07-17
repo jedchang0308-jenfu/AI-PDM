@@ -19,7 +19,7 @@ function isPublicPath(pathname: string) {
 
 export function PrivacyAccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const [state, setState] = useState<"checking" | "ready" | "error">(isPublicPath(pathname) ? "ready" : "checking");
+  const [state, setState] = useState<"checking" | "ready" | "error">("ready");
 
   const check = useCallback(() => {
     if (isPublicPath(pathname)) {

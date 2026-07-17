@@ -6,9 +6,10 @@ export default function NumberingRequestCompatibilityLayout({ children }: { chil
   return (
     <NumberStateLegacyRoute
       title="領號入口已整合"
-      message="請從圖料模組建立草稿，再明確取得候選號。"
+      message="請從圖料模組建立申請；建立完成後系統會直接保留號碼。"
       destination="/numbering/search?create=numbering"
       destinationLabel="前往建立圖料號"
+      statusScope="numberingRequest"
     />
   );
 }

@@ -20,6 +20,7 @@ const drawingsPage = readProjectFile(root, "src/app/numbering/drawings/page.tsx"
 const searchPage = readProjectFile(root, "src/app/numbering/search/page.tsx");
 const domain = readProjectFile(root, "src/lib/number-state-flow.ts");
 const repository = readProjectFile(root, "src/lib/repositories/number-state-flow-async-repository.ts");
+const draftWorkspacesApi = readProjectFile(root, "src/app/api/numbering/draft-workspaces/route.ts");
 const previewApi = readProjectFile(root, "src/app/api/numbering/draft-workspaces/preview/route.ts");
 const sqliteSchema = readProjectFile(root, "db/schema.sql");
 const postgresInitial = readProjectFile(root, "db/postgres/001_initial_schema.sql");
@@ -54,7 +55,7 @@ record(
       "sourceRootCode",
       "/append-policy",
       "/api/numbering/duplicate-check",
-      "DuplicatePanel",
+      "SuggestedNameReviewPanel",
       "AppendPolicyPanel",
       "lockedPartName",
       "關閉視窗不會寫入資料"
@@ -119,7 +120,7 @@ record(
   includesAll(workspace, [
     "getNumberStateCreateCta",
     "建立圖料號草稿",
-    "先建立圖料號草稿，不會立即占用正式號碼"
+    "建立後直接保留號碼，不會占用正式號碼"
   ]) &&
     partsPage.includes('surface="parts"') &&
     drawingsPage.includes('surface="drawings"') &&
@@ -134,8 +135,12 @@ record(
   includesAll(workspace, [
     "defaultIncludeDrawing",
     "suggestedCoreName",
+    "duplicateCheckName",
     "data-qc=\"numbering-name-guide\"",
     "data-qc=\"suggested-part-name\"",
+    "data-qc=\"suggested-duplicate-check\"",
+    "number-state-suggestion-review",
+    "number-state-suggestion-review-status",
     "套用建議品名",
     "確定品名",
     "半形底線 _ 串接",
@@ -144,13 +149,39 @@ record(
     "data-qc=\"root-series-code\"",
     "非共用件會納入建議品名",
     "勾選跨專案共用時不納入品名",
+    "manufacturedPartMustIncludeDrawing",
+    "effectiveIncludeDrawing",
+    "showDrawingDraftSection",
+    "canToggleDrawingDraft",
+    "effectivePrimaryManufacturing",
+    "isPrimaryManufacturing: effectivePrimaryManufacturing",
+    "number-state-draft-summary",
+    "number-state-section-toggle",
+    "manufactured-fixed-drawing-draft",
     "包含圖號草稿",
+    "本次不建立",
+    "未建立圖號草稿",
+    "製造圖 M",
+    "參考圖 R",
+    "參考用途",
+    "請填寫參考用途。",
+    "請說明此圖作為參考的用途；R 圖不作製造基準。",
+    "purposeDescription: isManufacturingPurposeCode(purposeCode) ? \"\" : form.purposeDescription",
+    "purposeDescription: drawing.purposeCode === \"R\" ? drawing.purposeDescription : \"\"",
     "data-qc=\"part-number-preview\"",
     "data-qc=\"drawing-number-preview\"",
     "data-qc=\"number-preview-note\"",
-    "預覽不佔號，儲存草稿後再取得候選號。",
+    "預覽不占號；建立申請後才會保留號碼。",
+    "autoAcquireCandidates: true",
+    "建立並保留號碼",
+    "申請已建立並保留號碼",
+    "建立申請時會直接保留號碼",
+    "showPartKindSelector",
+    "showPartCustomSpecification",
+    "form.mode !== \"new_bundle\"",
+    "客製規格",
     "duplicate-warning-only",
-    "仍可繼續儲存草稿"
+    "仍可繼續建立草稿"
   ]) &&
     !workspace.includes("須製程管制") &&
     !workspace.includes("共用件已標示須製程管制") &&
@@ -158,16 +189,39 @@ record(
     !workspace.includes("共用料件會自動標示為跨專案共用") &&
     !workspace.includes("說明為什麼此料件可跨專案共用") &&
     !workspace.includes("共用件請填寫跨專案共用原因。") &&
+    !workspace.includes("data-qc=\"draft-outcome-options\"") &&
     !workspace.includes("品名系列代號（選填）") &&
     !workspace.includes("料號系列代號（選填）") &&
     !workspace.includes("品名系列請以上方品名建議為準。") &&
+    !workspace.includes("客製規格（選填）") &&
+    !workspace.includes("組立製造圖 MA") &&
+    !workspace.includes("其他圖 OT") &&
+    !workspace.includes("用途說明（選填）") &&
+    !workspace.includes("圖面用途說明") &&
+    !workspace.includes("參考圖請填寫用途說明") &&
+    !workspace.includes("主要製造圖") &&
+    !workspace.includes("form.primaryManufacturing") &&
+    !workspace.includes("依管理辦法由大到小、由主到次產生；確定品名仍可手動微調。") &&
     !workspace.includes('label="主根名稱"') &&
     !workspace.includes("請輸入主根名稱。") &&
     !workspace.includes("料號品名必須由主根名稱帶入") &&
+    !workspace.includes("const coreName = form.coreName.trim();") &&
     !workspace.includes("Boolean(duplicateResult?.blocked)") &&
     !workspace.includes("請改用既有主根或修正名稱。") &&
-    !workspace.includes("已有高度相似資料，請改用既有主根追加"),
-  "Phase 1E must restore managed naming/drawing guidance while keeping similar-name duplicate checks as warnings only"
+    !workspace.includes("已有高度相似資料，請改用既有主根追加") &&
+    !workspace.includes("確認取得候選號") &&
+    !workspace.includes("儲存後再取得候選號") &&
+    !workspace.includes("先儲存草稿，再明確取得候選號") &&
+    !workspace.includes("草稿已儲存，尚未占用候選號") &&
+    !workspace.includes("onAcquire") &&
+    includesAll(draftWorkspacesApi, [
+      "autoAcquireCandidates",
+      "acquireNumberingDraftCandidates",
+      "numbering.candidate.acquire",
+      "derivedIdempotencyKey",
+      "autoAcquiredCandidates"
+    ]),
+  "Phase 1E must restore managed naming/drawing guidance, keep similar-name duplicate checks as warnings only, force drawing drafts for manufactured parts, avoid duplicate part-kind decisions, and reserve candidate numbers immediately when creating the draft"
 );
 
 record(
@@ -176,13 +230,14 @@ record(
     "normalizeNameSegment",
     "replace(/[\\s_]+/gu, \"_\")",
     "const series = form.sharedName ? \"\" : normalizeNameSegment(form.seriesCode)",
-    "sharedScope",
-    "[core, brand, specification, sharedScope]",
-    "[core, series, feature || specification, serial, sharedScope]",
+    "[core, brand, specification]",
+    "[core, series, feature || specification, serial]",
     "外購件建議：[核心名詞]_[品牌]_[規格/型號]",
-    "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]",
-    "依管理辦法由大到小、由主到次產生"
-  ]),
+    "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]"
+  ]) &&
+    !workspace.includes('form.sharedName ? "共用"') &&
+    !workspace.includes("sharedScope") &&
+    !workspace.includes("依管理辦法由大到小、由主到次產生"),
   "suggested confirmed names must mirror the management method without changing v3 numbering authority"
 );
 

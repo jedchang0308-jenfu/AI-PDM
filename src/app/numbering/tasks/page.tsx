@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Eye, RotateCcw, ShieldAlert, UploadCloud } from "lucide-react";
 import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from "@/lib/status-display";
 
@@ -163,7 +163,7 @@ export default function NumberingTaskCenterPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖號待辦</h1>
+          <h1>圖號待辦 <StatusScopeHelp scope="taskCenter" /></h1>
           <p>依風險排序的圖料號待辦與系統內通知。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadData}>
@@ -342,10 +342,10 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
     <section className="panel">
       <div className="panel-header">
         <div>
-          <h2>待送審草稿</h2>
+          <h2>待送審主資料</h2>
           <p style={mutedTextStyle}>{uniqueDrafts.length} 組圖料已領號但尚未建立送審單。</p>
         </div>
-        <span className="metadata-badge">草稿</span>
+        <span className="metadata-badge">未發布</span>
       </div>
       <div className="table-wrap">
         <table style={{ minWidth: "820px" }}>
@@ -354,7 +354,7 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
               <th>主根號</th>
               <th>圖料</th>
               <th>
-                <StatusColumnHeader label="狀態 / 階段" context="masterRecord" />
+                <StatusColumnHeader label="資料狀態 / 開發階段" context="masterRecord" />
               </th>
               <th>現在卡點</th>
               <th>操作</th>
@@ -438,7 +438,7 @@ function NotificationList({
       <NextStepState
         eyebrow="通知"
         title="目前沒有通知"
-        body="通知清空代表目前沒有系統阻塞；可切到全部狀態回顧歷史，或回首頁工作台看其他入口。"
+        body="通知清空代表目前沒有系統阻塞；可切到全部通知狀態回顧歷史，或回首頁工作台看其他入口。"
         actions={[
           { href: "/", label: "回工作台", variant: "primary" },
           { href: "/numbering/reports", label: "查看報表" }

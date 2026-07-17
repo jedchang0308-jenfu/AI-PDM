@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, History, Plus, RotateCcw, Send, Trash2 } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -230,8 +230,8 @@ export default function PartNumberDraftsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>料號草稿</h1>
-          <p>預留新料號、替代料號與圖面進版產生的料號草稿。</p>
+          <h1>領號申請 <StatusScopeHelp scope="numberingDraftList" /></h1>
+          <p>管理新料號、替代料號與圖面進版產生的可編輯申請。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadData}>
           <RotateCcw size={16} />
@@ -246,7 +246,7 @@ export default function PartNumberDraftsPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>建立草稿</h2>
+            <h2>建立申請</h2>
             <p style={mutedTextStyle}>
               {productionSliceEnforced
                 ? "本次開放只允許建立、維護、刪除與回收暫用料號草稿；送審、重新確認與還原為未開放功能。"
@@ -260,7 +260,7 @@ export default function PartNumberDraftsPage() {
         </div>
         <div style={formGridStyle}>
           <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>草稿類型</span>
+            <span style={fieldLabelStyle}>申請類型</span>
             <select className="dropdown-select" value={draftType} onChange={(event) => setDraftType(event.target.value as DraftType)}>
               {draftTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -297,7 +297,7 @@ export default function PartNumberDraftsPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>草稿清單</h2>
+            <h2>領號申請清單</h2>
             <p style={mutedTextStyle}>
               {summary.total} 筆，需重新確認 {summary.needsReconfirmation}，同來源警示 {summary.sameSource}
               {summary.deleted === null ? "" : `，已刪除 ${summary.deleted}`}
@@ -311,13 +311,13 @@ export default function PartNumberDraftsPage() {
             ))}
           </div>
         </div>
-        {state === "loading" ? <div className="empty">正在載入料號草稿...</div> : null}
+        {state === "loading" ? <div className="empty">正在載入領號申請...</div> : null}
         {state === "ready" && drafts.length === 0 ? (
           <NextStepState
             compact
             eyebrow="不用處理"
-            title="目前沒有料號草稿"
-            body="目前沒有等待整理或送審的料號草稿。若要建立新料號，請先從編號申請建立來源資料。"
+            title="目前沒有領號申請"
+            body="目前沒有等待整理或送審的領號申請。若要建立新料號，請先從編號申請建立來源資料。"
             actions={[
               { href: "/numbering/request", label: "建立編號申請", variant: "primary" },
               { href: "/numbering/search", label: "回圖料模組" }
@@ -387,7 +387,7 @@ function DraftTable({
             <th>預留料號</th>
             <th>類型</th>
             <th>
-              <StatusColumnHeader context="masterRecord" />
+              <StatusColumnHeader label="申請狀態" context="applicationStatus" />
             </th>
             <th>來源</th>
             <th>警示</th>
@@ -407,7 +407,7 @@ function DraftTable({
                 <Tag>{itemTypeLabel(draft.itemType)}</Tag>
               </td>
               <td>
-                <StatusTag status={draft.status} />
+                <StatusBadge status={draft.status} context="applicationStatus" />
               </td>
               <td>
                 <div>{draft.sourcePartNumber ?? draft.sourcePartNumberId ?? "未指定來源料號"}</div>
@@ -420,7 +420,7 @@ function DraftTable({
                 {draft.controlled ? (
                   <Tag tone="danger">{draft.controlBoundaryReasons.join(", ")}</Tag>
                 ) : draft.recycledAt ? (
-                  <Tag tone="muted">已回收</Tag>
+                  <Tag tone="muted">已釋出</Tag>
                 ) : (
                   <Tag tone="success">可管制</Tag>
                 )}
@@ -488,7 +488,7 @@ function DeletedDraftTable({
             <th>預留料號</th>
             <th>類型</th>
             <th>
-              <StatusColumnHeader context="masterRecord" />
+              <StatusColumnHeader label="申請狀態" context="applicationStatus" />
             </th>
             <th>來源</th>
             <th>
@@ -607,11 +607,6 @@ function Tag({ children, tone = "neutral" }: { children: ReactNode; tone?: "neut
   return <span style={{ ...tagStyle, color, borderColor: `${color}44`, background: `${color}10` }}>{children}</span>;
 }
 
-function StatusTag({ status }: { status: DraftStatus }) {
-  const tone = status === "needs_reconfirmation" ? "warning" : status === "voided" ? "muted" : status === "pending_review" ? "danger" : "success";
-  return <Tag tone={tone}>{statusLabel(status)}</Tag>;
-}
-
 function AccessPanel({ title = "需要登入", message = "請先登入後再查看料號草稿。" }: { title?: string; message?: string }) {
   return (
     <section className="panel">
@@ -644,20 +639,9 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
 function statusFilterLabel(value: (typeof statusFilters)[number]) {
   const labels: Record<(typeof statusFilters)[number], string> = {
     all: "全部",
-    draft: "草稿",
-    pending_review: "審核中",
+    draft: "編輯中",
+    pending_review: "申請中",
     needs_reconfirmation: "需重新確認",
-  };
-  return labels[value];
-}
-
-function statusLabel(value: DraftStatus) {
-  const labels: Record<DraftStatus, string> = {
-    draft: "草稿",
-    pending_review: "審核中",
-    released: "已發行",
-    needs_reconfirmation: "需重新確認",
-    voided: "已刪除"
   };
   return labels[value];
 }

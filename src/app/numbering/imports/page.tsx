@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, Eye, FileUp, History, RotateCcw, ShieldAlert, Trash2, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { WorkflowStrip } from "@/components/workflow-strip";
 
@@ -252,7 +252,7 @@ export default function NumberingImportsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>總表匯入</h1>
+          <h1>總表匯入 <StatusScopeHelp scope="importCenter" /></h1>
           <p>既有圖料號總表 staging、檢查報告與管理員確認。</p>
         </div>
         <button className="secondary-button" type="button" onClick={loadData}>

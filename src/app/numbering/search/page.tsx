@@ -9,7 +9,7 @@ import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
-import { StatusBadge } from "@/components/status-help-popover";
+import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
@@ -725,7 +725,7 @@ export default function NumberingSearchPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖料模組</h1>
+          <h1>圖料模組 <StatusScopeHelp scope="numberingSearch" /></h1>
           <p>料件、料號與圖號集中查詢，明細標示風險與影響資訊。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -787,9 +787,9 @@ export default function NumberingSearchPage() {
                 </select>
               </label>
               <label className="pdm-master-field">
-                <span>狀態</span>
+                <span>資料狀態</span>
                 <select value={recordStatus} onChange={(event) => setRecordStatus(event.target.value)}>
-                  <option value="">全部狀態</option>
+                  <option value="">全部資料狀態</option>
                   {statusOptions.map((status) => (
                     <option value={status} key={status}>
                       {formatStatusForUser(status, "masterRecord")}
@@ -798,9 +798,9 @@ export default function NumberingSearchPage() {
                 </select>
               </label>
               <label className="pdm-master-field">
-                <span>階段</span>
+                <span>開發階段</span>
                 <select value={developmentPhase} onChange={(event) => setDevelopmentPhase(event.target.value)}>
-                  <option value="">全部階段</option>
+                  <option value="">全部開發階段</option>
                   {phaseOptions.map((phase) => (
                     <option value={phase} key={phase}>
                       {formatDevelopmentPhaseForUser(phase)}
@@ -1585,7 +1585,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
           { label: "製造圖", value: manufacturingLinks.map((link) => link.drawingNumber).join("、") || "-" }
         ]}
         blockers={[
-          needsManufacturingDrawing ? "此料號尚未指定製造圖，DVT / Release gate 可能會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
+          needsManufacturingDrawing ? "此料號尚未指定製造圖，DVT 與正式發布關卡可能會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
           warnings.length > 0 ? `此料號有 ${warnings.length} 則提醒未收斂。` : "目前沒有未確認提醒。",
           partNumber.recordStatus === "MainDrawingInvalid" ? "主圖失效，需重新送審並指定有效製造圖。" : "狀態可用時可接續送審或補關聯。"
         ]}

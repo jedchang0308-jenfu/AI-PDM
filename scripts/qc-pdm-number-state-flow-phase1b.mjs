@@ -176,19 +176,19 @@ record(
     workspace.includes("正式料號") &&
     workspace.includes("草稿") &&
     workspace.includes("PAGE_SIZE = 20") &&
-    workspace.includes("qualification") &&
+    workspace.includes("numberEffectiveness") &&
     workspace.includes("ownerScope"),
-  "drafts require a distinct tab with owner/lifecycle/qualification/search filters and stable pagination"
+  "drafts require a distinct tab with owner/lifecycle/number-effectiveness/search filters and stable pagination"
 );
 record(
   "ui",
-  "NSF-UI-003-two-stage-four-modes",
+  "NSF-UI-003-auto-reserve-four-modes",
   ["new_bundle", "append_drawing", "append_part", "append_drawing_part"].every((mode) => workspace.includes(`value: \"${mode}\"`)) &&
-    workspace.includes("儲存草稿") &&
-    workspace.includes("取得候選號") &&
+    workspace.includes("autoAcquireCandidates: true") &&
+    workspace.includes("建立並保留號碼") &&
     workspace.includes("關閉視窗不會寫入資料") &&
     workspace.includes("Idempotency-Key"),
-  "all four create modes must save first and acquire candidates only through a separately confirmed action"
+  "all four create modes must create the application and reserve numbers in one idempotent action"
 );
 record(
   "ui",
@@ -198,20 +198,19 @@ record(
     workspace.includes("NowWhatPanel") &&
     workspace.includes("useNumberStateActionPermissions") &&
     workspace.includes('actionPermissions?.["numbering.workspace.create"] === true') &&
-    workspace.includes("workspace.capabilities.canAcquireCandidates") &&
+    workspace.includes("canAcquireCandidates: boolean") &&
     workspace.includes("workspace.capabilities.canCancel"),
   "the client must render server projection/capabilities and one Now What panel"
 );
 record(
   "ui",
   "NSF-UI-005-candidate-safety",
-  workspace.includes("候選號，不得正式使用") &&
+  workspace.includes("已保留，尚不可正式使用") &&
     workspace.includes('workspace.projection.numberQualification === "candidate"') &&
-    workspace.includes("確認取得候選號") &&
     workspace.includes("確認取消草稿") &&
     workspace.includes("確認正式發布") &&
     workspace.includes("正式發布"),
-  "candidate watermark must be state-scoped and number-changing actions require explicit confirmation"
+  "reserved-number watermark must be state-scoped and destructive or publishing actions require explicit confirmation"
 );
 record(
   "ui",
@@ -232,7 +231,8 @@ record(
     css.includes("content: attr(data-label)") &&
     css.includes(".number-state-mobile-action-label") &&
     css.includes("grid-template-columns: minmax(72px, 0.34fr) minmax(0, 1fr)") &&
-    workspace.includes('data-label="候選號"') &&
+    workspace.includes('data-label="號碼效力"') &&
+    workspace.includes('data-label="號碼"') &&
     workspace.includes('data-label="下一步"') &&
     workspace.includes('data-label="操作"') &&
     workspace.includes("useOverlayLifecycle") &&

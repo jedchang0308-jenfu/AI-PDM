@@ -10,6 +10,7 @@ export default function UploadCompatibilityLayout({ children }: { children: Reac
       destination="/numbering/search?legacyIntent=upload"
       destinationLabel="選擇圖料號"
       strategy="upload"
+      statusScope="uploadSubmission"
     />
   );
 }

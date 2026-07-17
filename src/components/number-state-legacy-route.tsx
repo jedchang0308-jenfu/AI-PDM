@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, LockKeyhole, Search } from "lucide-react";
+import { StatusScopeHelp } from "@/components/status-help-popover";
+import type { StatusScopeId } from "@/lib/status-scope-display";
 
 type LegacyRouteStrategy = "redirect" | "upload" | "guidance";
 
@@ -12,6 +14,7 @@ type NumberStateLegacyRouteProps = {
   destination: string;
   destinationLabel: string;
   strategy?: LegacyRouteStrategy;
+  statusScope?: StatusScopeId;
 };
 
 function destinationWithSource(destination: string) {
@@ -38,7 +41,8 @@ export function NumberStateLegacyRoute({
   message,
   destination,
   destinationLabel,
-  strategy = "redirect"
+  strategy = "redirect",
+  statusScope
 }: NumberStateLegacyRouteProps) {
   const [target, setTarget] = useState(destination);
   const [shouldRedirect, setShouldRedirect] = useState(strategy === "redirect");
@@ -56,7 +60,7 @@ export function NumberStateLegacyRoute({
     <>
       <div className="topbar">
         <div>
-          <h1>{title}</h1>
+          <h1>{title} {statusScope ? <StatusScopeHelp scope={statusScope} /> : null}</h1>
           <p>{message}</p>
         </div>
       </div>

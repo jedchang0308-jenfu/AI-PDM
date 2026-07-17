@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileSearch, Send, X } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
 import { LifecycleStageGuidance, ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
@@ -1108,7 +1109,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
     <>
       <div className="topbar">
         <div>
-          <h1>圖面送審</h1>
+          <h1>圖面送審 <StatusScopeHelp scope="uploadSubmission" /></h1>
           <p>從圖號模組建立審核包；主資料只讀，缺漏請回圖號/料號模組完成。</p>
         </div>
         <Link className="secondary-button" href="/numbering/drawings">
