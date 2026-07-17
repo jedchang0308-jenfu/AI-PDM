@@ -158,7 +158,7 @@ record("Drawings mixed column names all axes", drawingsPage.includes('label="資
 record("Search filter separates status and phase axes", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("<span>開發階段</span>"));
 
 const numberState = read("src/components/number-state-workspace.tsx");
-record("Number state tabs no longer use first-level 草稿 label", numberState.includes("料號總表") && numberState.includes("領號申請"));
+record("Number state tabs use 保留號 instead of first-level 草稿 label", numberState.includes("料號總表") && numberState.includes("保留號"));
 record("Number state lifecycle uses application vocabulary", numberState.includes('draft: "編輯中"') && numberState.includes('published: "已轉正式資料"'));
 
 const settingsPage = read("src/app/settings/page.tsx");

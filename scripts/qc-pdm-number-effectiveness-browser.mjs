@@ -198,7 +198,7 @@ try {
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push({ type: "console", message: message.text() }); });
   page.on("response", (response) => { if (response.status() >= 500) browserErrors.push({ type: "network", status: response.status(), url: response.url() }); });
   await page.goto(`${baseUrl}/parts?tab=drafts`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "領號申請清單" }).waitFor({ state: "visible" });
+  await page.getByRole("heading", { name: "保留號清單" }).waitFor({ state: "visible" });
   await page.getByText("尚未產生號碼", { exact: true }).first().waitFor({ state: "visible" });
   await page.locator(".number-state-badge.qualification-candidate").waitFor({ state: "visible" });
 

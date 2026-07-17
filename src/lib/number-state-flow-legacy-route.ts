@@ -15,7 +15,8 @@ export function resolveNumberStateLegacyRedirect(
     nextSearchParams.set("tab", "drafts");
   } else if (pathname === "/numbering/request") {
     destinationPathname = "/numbering/search";
-    nextSearchParams.set("create", "numbering");
+    nextSearchParams.set("tab", "reserved");
+    nextSearchParams.set("create", "new_bundle");
   } else if (pathname === "/upload") {
     const drawingNumber = nextSearchParams.get("drawingNumber") ?? nextSearchParams.get("drawing_number");
     if (!drawingNumber) return null;

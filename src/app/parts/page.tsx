@@ -7,7 +7,7 @@ import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
-import { NumberStateOwnerCreateAction, NumberStatePartsTabs, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
@@ -136,7 +136,7 @@ const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
 const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
 const DETAIL_DRAWER_MIN_WIDTH = 380;
 const DETAIL_DRAWER_MAX_WIDTH_RATIO = 0.72;
-const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 草稿 production slice。";
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
 
 const mutedStyle = { color: "var(--muted)" };
 
@@ -175,7 +175,7 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function PartsPage() {
-  const [activeTab, setActiveTab] = useState<"official" | "drafts" | null>(null);
+  const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
   const [productSeries, setProductSeries] = useState("");
@@ -201,7 +201,8 @@ export default function PartsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setActiveTab(params.get("tab") === "drafts" ? "drafts" : "official");
+    const tab = params.get("tab");
+    setActiveTab(tab === "drafts" || tab === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const detailPartNumber = params.get("detail")?.trim();
     const focusSection = params.get("focus")?.trim();
@@ -536,7 +537,7 @@ export default function PartsPage() {
   ]);
 
   if (activeTab === null) return <section className="panel"><div className="empty">正在開啟料號模組...</div></section>;
-  if (activeTab === "drafts") return <NumberStateWorkspaceWorkbench />;
+  if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="parts" />;
 
   return (
     <>
@@ -553,7 +554,7 @@ export default function PartsPage() {
           <NumberStateOwnerCreateAction surface="parts" />
         </div>
       </div>
-      <NumberStatePartsTabs active="official" />
+      <NumberStateModuleTabs module="parts" active="official" />
 
       {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號模組檢視權限。</div></section> : null}
       {state === "error" ? (
@@ -643,10 +644,10 @@ function PartList({
         <NextStepState
           eyebrow="查無結果"
           title="目前沒有符合條件的料號"
-          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到編號申請建立來源資料。"
+          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到保留號建立來源資料。"
           actions={[
             { href: "/parts", label: "重新查詢", variant: "primary" },
-            { href: "/numbering/request", label: "建立編號申請" }
+            { href: "/parts?tab=drafts", label: "建立保留號" }
           ]}
         />
       </section>

@@ -268,7 +268,7 @@ export default function NumberingImportsPage() {
         currentStep="Staging"
         actions={[
           { href: "/numbering/search", label: "查匯入結果", variant: "primary" },
-          { href: "/numbering/request", label: "補新料號" }
+          { href: "/numbering/search?tab=reserved", label: "補新料號" }
         ]}
       />
 
@@ -405,7 +405,7 @@ function BatchSummary({ batch }: { batch: NumberingImportBatch | null }) {
         title="尚未產生匯入批次"
         body="先貼上 JSON、CSV 或 TSV 建立 staging，再檢查衝突與待補資訊。"
         actions={[
-          { href: "/numbering/request", label: "補新料號", variant: "primary" },
+          { href: "/numbering/search?tab=reserved", label: "補新料號", variant: "primary" },
           { href: "/numbering/search", label: "查既有圖料" }
         ]}
       />

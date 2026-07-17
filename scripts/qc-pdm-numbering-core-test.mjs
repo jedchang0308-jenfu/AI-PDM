@@ -855,7 +855,7 @@ record(
 );
 record(
   "NUM-UI DEV-048 owner workspace renders create flow",
-  numberStateWorkspaceSource.includes("建立圖料號草稿") &&
+  numberStateWorkspaceSource.includes("建立保留號") &&
     numberStateWorkspaceSource.includes("/api/numbering/draft-workspaces") &&
     numberStateWorkspaceSource.includes("duplicateCheckState") &&
     numberStateWorkspaceSource.includes("建立並保留號碼"),

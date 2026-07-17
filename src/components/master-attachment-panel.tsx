@@ -129,7 +129,7 @@ type ProductionSliceClientStatus = {
   unopenedMessage?: string;
 };
 
-const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 草稿 production slice。";
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
 
 const drawingCategories = [
   { value: "cad_3d", label: "3D CAD" },

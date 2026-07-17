@@ -35,7 +35,7 @@ type FeatureStatus = { enabled: boolean; flag: string; phase: string };
 type ProductionSliceStatus = { configured: boolean; unopenedMessage?: string };
 type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
 
-const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 草稿 production slice。";
+const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 保留號 production slice。";
 
 type NumberStateProjection = {
   numberQualification: NumberQualification;
@@ -224,12 +224,49 @@ const purposeOptions: Array<{ value: PurposeCode; label: string }> = [
 ];
 const modeOptions: Array<{ value: DraftMode; label: string; description: string }> = [
   { value: "new_bundle", label: "建立新圖料", description: "建立新的品名主題，可同時準備料號與圖號。" },
-  { value: "append_drawing", label: "既有主根加圖號", description: "在既有正式主根下新增圖號草稿。" },
-  { value: "append_part", label: "既有主根加料號", description: "在既有正式主根下新增料號草稿。" },
-  { value: "append_drawing_part", label: "既有主根加圖號與料號", description: "同一草稿內建立相互關聯的圖號與料號。" }
+  { value: "append_drawing", label: "既有主根加圖號", description: "在既有正式主根下新增圖號保留號。" },
+  { value: "append_part", label: "既有主根加料號", description: "在既有正式主根下新增料號保留號。" },
+  { value: "append_drawing_part", label: "既有主根加圖號與料號", description: "同一申請內建立相互關聯的圖號與料號保留號。" }
 ];
 
 export type NumberStateCreateSurface = "parts" | "drawings" | "search" | "drafts" | "root-detail" | "global";
+export type NumberStateModule = "search" | "drawings" | "parts";
+
+type NumberStateModuleConfig = {
+  title: string;
+  officialLabel: string;
+  officialHref: string;
+  reservedHref: string;
+  ariaLabel: string;
+  createSurface: NumberStateCreateSurface;
+};
+
+const numberStateModuleConfigs: Record<NumberStateModule, NumberStateModuleConfig> = {
+  search: {
+    title: "圖料模組",
+    officialLabel: "圖料總表",
+    officialHref: "/numbering/search",
+    reservedHref: "/numbering/search?tab=reserved",
+    ariaLabel: "圖料模組分頁",
+    createSurface: "search"
+  },
+  drawings: {
+    title: "圖號模組",
+    officialLabel: "圖號總表",
+    officialHref: "/numbering/drawings",
+    reservedHref: "/numbering/drawings?tab=reserved",
+    ariaLabel: "圖號模組分頁",
+    createSurface: "drawings"
+  },
+  parts: {
+    title: "料號模組",
+    officialLabel: "料號總表",
+    officialHref: "/parts",
+    reservedHref: "/parts?tab=drafts",
+    ariaLabel: "料號模組分頁",
+    createSurface: "parts"
+  }
+};
 
 type NumberStateCreateCta = {
   label: string;
@@ -249,34 +286,34 @@ export function getNumberStateCreateCta({
 } = {}): NumberStateCreateCta {
   if (hasRootContext && preferredMode === "append_drawing") {
     return {
-      label: "新增圖號草稿",
-      title: "在目前主根新增圖號草稿",
-      ariaLabel: "在目前主根新增圖號草稿",
+      label: "保留新圖號",
+      title: "在目前主根保留新圖號",
+      ariaLabel: "在目前主根保留新圖號",
       defaultMode: "append_drawing"
     };
   }
   if (hasRootContext && preferredMode === "append_part") {
     return {
-      label: "新增料號草稿",
-      title: "在目前主根新增料號草稿",
-      ariaLabel: "在目前主根新增料號草稿",
+      label: "保留新料號",
+      title: "在目前主根保留新料號",
+      ariaLabel: "在目前主根保留新料號",
       defaultMode: "append_part"
     };
   }
   if (hasRootContext && preferredMode === "append_drawing_part") {
     return {
-      label: "新增圖料號草稿",
-      title: "在目前主根新增相互關聯的圖號與料號草稿",
-      ariaLabel: "在目前主根新增圖料號草稿",
+      label: "保留新圖料號",
+      title: "在目前主根保留相互關聯的圖號與料號",
+      ariaLabel: "在目前主根保留新圖料號",
       defaultMode: "append_drawing_part"
     };
   }
 
   const defaultMode = surface === "root-detail" ? preferredMode : "new_bundle";
   return {
-    label: "建立圖料號草稿",
+    label: "建立保留號",
     title: "建立後直接保留號碼，不會占用正式號碼",
-    ariaLabel: "建立圖料號草稿",
+    ariaLabel: "建立保留號",
     defaultMode
   };
 }
@@ -362,24 +399,24 @@ async function readApiBody<T>(response: Response): Promise<T & ApiErrorEnvelope>
 function apiErrorMessage(response: Response, body: ApiErrorEnvelope, fallback: string) {
   const code = typeof body.error === "string" ? body.error : body.error?.code ?? "";
   const message = typeof body.error === "string" ? body.message : body.error?.message;
-  if (code === "feature_not_open_in_production_slice") return "此功能被正式領號 / 草稿 production slice 邊界封鎖，請通知管理員檢查 API allowlist。";
-  if (response.status === 401) return "登入已失效，請重新登入後回到這個草稿。";
+  if (code === "feature_not_open_in_production_slice") return "此功能被正式領號 / 保留號 production slice 邊界封鎖，請通知管理員檢查 API allowlist。";
+  if (response.status === 401) return "登入已失效，請重新登入後回到這筆保留號。";
   if (response.status === 403) return "目前帳號或公司沒有執行此動作的權限。";
-  if (response.status === 404) return "找不到這個草稿，或它不屬於目前公司。";
+  if (response.status === 404) return "找不到這筆保留號，或它不屬於目前公司。";
   if (code === "source_root_not_found") return "找不到這個主根號，請確認後重試。";
   if (code === "append_reason_required") return "此主根已有正式資料，請填寫新增原因。";
   if (code === "numbering_invalid_relation") return "圖料關聯不符合規則；參考圖不能設為製造基準。";
-  if (response.status === 409 && code === "workspace_version_conflict") return "草稿已被更新，系統已重新載入最新內容，請確認後再操作。";
+  if (response.status === 409 && code === "workspace_version_conflict") return "保留號內容已被更新，系統已重新載入最新內容，請確認後再操作。";
   if (code === "candidate_required_before_review") return "此申請尚未保留完整號碼，請重新建立申請或請 PDM Admin 協助。";
-  if (code === "candidate_review_already_pending") return "這份草稿已在審核中，請前往審核中心查看。";
-  if (code === "candidate_review_not_pending") return "這份草稿目前沒有可撤回的待審申請。";
-  if (code === "review_withdraw_owner_required") return "只有草稿負責人可以撤回待審申請。";
+  if (code === "candidate_review_already_pending") return "這筆保留號已在審核中，請前往審核中心查看。";
+  if (code === "candidate_review_not_pending") return "這筆保留號目前沒有可撤回的待審申請。";
+  if (code === "review_withdraw_owner_required") return "只有申請負責人可以撤回待審申請。";
   if (code === "candidate_approval_required") return "保留號碼尚未完成核准，不能正式發布。";
   if (code === "candidate_approval_lock_mismatch") return "核准鎖定資料已不一致，請由 PDM Admin 檢查。";
-  if (code === "approval_snapshot_stale") return "已核准快照與目前草稿不一致，請重新送審。";
+  if (code === "approval_snapshot_stale") return "已核准快照與目前保留號內容不一致，請重新送審。";
   if (code === "publication_evidence_not_ready") return "圖面受控檔案證據尚未完成，不能正式發布。";
   if (code === "official_number_collision") return "正式號碼已存在；系統沒有自動改號，請由 PDM Admin 處理衝突。";
-  if (code === "workspace_already_published") return "這份草稿已經正式發布，系統不會重複建立正式資料。";
+  if (code === "workspace_already_published") return "這筆保留號已經正式發布，系統不會重複建立正式資料。";
   if (response.status === 503 || code === "numbering_authority_unavailable") return "領號服務目前不可用。表單已保留，請稍後重試；不可改用離線或自行編號。";
   return message || fallback;
 }
@@ -493,19 +530,34 @@ function useNumberStateActionPermissions() {
   return actions;
 }
 
-export function NumberStatePartsTabs({ active }: { active: "official" | "drafts" }) {
+function appendQueryParam(href: string, key: string, value: string) {
+  return `${href}${href.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+}
+
+function moduleFromCreateSurface(surface: NumberStateCreateSurface): NumberStateModule {
+  if (surface === "search") return "search";
+  if (surface === "drawings") return "drawings";
+  return "parts";
+}
+
+export function NumberStateModuleTabs({ module, active }: { module: NumberStateModule; active: "official" | "reserved" }) {
   const feature = useFeatureStatus();
+  const config = numberStateModuleConfigs[module];
   if (!feature?.enabled) return null;
   return (
-    <nav className="number-state-tabs" aria-label="料號資料分頁">
-      <a className={active === "official" ? "is-active" : undefined} href="/parts" aria-current={active === "official" ? "page" : undefined}>
-        料號總表
+    <nav className="number-state-tabs" aria-label={config.ariaLabel}>
+      <a className={active === "official" ? "is-active" : undefined} href={config.officialHref} aria-current={active === "official" ? "page" : undefined}>
+        {config.officialLabel}
       </a>
-      <a className={active === "drafts" ? "is-active" : undefined} href="/parts?tab=drafts" aria-current={active === "drafts" ? "page" : undefined}>
-        領號申請
+      <a className={active === "reserved" ? "is-active" : undefined} href={config.reservedHref} aria-current={active === "reserved" ? "page" : undefined}>
+        保留號
       </a>
     </nav>
   );
+}
+
+export function NumberStatePartsTabs({ active }: { active: "official" | "drafts" | "reserved" }) {
+  return <NumberStateModuleTabs module="parts" active={active === "official" ? "official" : "reserved"} />;
 }
 
 export function NumberStateOwnerCreateAction({
@@ -531,7 +583,7 @@ export function NumberStateOwnerCreateAction({
   });
   const buttonLabel = label ?? createCta.label;
   const canCreate = actionPermissions?.["numbering.workspace.create"] === true;
-  const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立圖料號草稿的權限";
+  const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立保留號的權限";
 
   useEffect(() => {
     if (!feature?.enabled || !canCreate) return;
@@ -552,7 +604,8 @@ export function NumberStateOwnerCreateAction({
           initialSourceRootId={sourceRootId}
           onClose={() => setOpen(false)}
           onCreated={(workspace) => {
-            window.location.assign(`/parts?tab=drafts&detail=${encodeURIComponent(workspace.id)}`);
+            const targetModule = moduleFromCreateSurface(surface);
+            window.location.assign(appendQueryParam(numberStateModuleConfigs[targetModule].reservedHref, "detail", workspace.id));
           }}
         />
       ) : null}
@@ -560,7 +613,8 @@ export function NumberStateOwnerCreateAction({
   );
 }
 
-export function NumberStateWorkspaceWorkbench() {
+export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: NumberStateModule } = {}) {
+  const moduleConfig = numberStateModuleConfigs[module];
   const feature = useFeatureStatus();
   const productionSlice = useProductionSliceStatus();
   const actionPermissions = useNumberStateActionPermissions();
@@ -580,9 +634,9 @@ export function NumberStateWorkspaceWorkbench() {
   const [editOpen, setEditOpen] = useState(false);
   const idempotencyKeys = useRef(new Map<string, string>());
   const initialQueryHandled = useRef(false);
-  const createCta = getNumberStateCreateCta({ surface: "drafts" });
+  const createCta = getNumberStateCreateCta({ surface: moduleConfig.createSurface });
   const canCreate = actionPermissions?.["numbering.workspace.create"] === true;
-  const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立圖料號草稿的權限";
+  const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立保留號的權限";
   const formalActionsUnopened = productionSlice?.configured === true;
   const formalActionsUnopenedMessage = productionSlice?.unopenedMessage ?? DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE;
 
@@ -600,7 +654,7 @@ export function NumberStateWorkspaceWorkbench() {
         window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
         return;
       }
-      setError(apiErrorMessage(response, body, "草稿清單暫時無法讀取。"));
+      setError(apiErrorMessage(response, body, "保留號清單暫時無法讀取。"));
       return;
     }
     const next = body.workspaces ?? [];
@@ -619,7 +673,7 @@ export function NumberStateWorkspaceWorkbench() {
     const response = await fetch(`/api/numbering/draft-workspaces/${encodeURIComponent(workspaceId)}`, { cache: "no-store" });
     const body = await readApiBody<{ workspace?: NumberingDraftWorkspace }>(response);
     if (!response.ok || !body.workspace) {
-      setError(apiErrorMessage(response, body, "草稿明細暫時無法讀取。"));
+      setError(apiErrorMessage(response, body, "保留號明細暫時無法讀取。"));
       return null;
     }
     setSelected(body.workspace);
@@ -715,7 +769,7 @@ export function NumberStateWorkspaceWorkbench() {
     setActionBusy(false);
     setConfirmAction(null);
     if (!response.ok || !body.workspace) {
-      const fallback = ({ cancel: "草稿取消失敗。", submit: "送審失敗。", withdraw: "撤回審核失敗。", publish: "正式發布失敗。" } as const)[action];
+      const fallback = ({ cancel: "保留號取消失敗。", submit: "送審失敗。", withdraw: "撤回審核失敗。", publish: "正式發布失敗。" } as const)[action];
       setError(apiErrorMessage(response, body, fallback));
       if (response.status !== 503) idempotencyKeys.current.delete(`${selected.id}:${action}`);
       if (response.status === 409) await refreshWorkspace(selected.id);
@@ -744,7 +798,7 @@ export function NumberStateWorkspaceWorkbench() {
     const body = await readApiBody<{ workspace?: NumberingDraftWorkspace }>(response);
     setActionBusy(false);
     if (!response.ok || !body.workspace) {
-      setError(apiErrorMessage(response, body, "草稿更新失敗。"));
+      setError(apiErrorMessage(response, body, "保留號更新失敗。"));
       if (response.status === 409) await refreshWorkspace(selected.id);
       return;
     }
@@ -755,13 +809,13 @@ export function NumberStateWorkspaceWorkbench() {
   }
 
   if (feature === null) {
-    return <section className="panel"><div className="empty">正在確認草稿功能狀態...</div></section>;
+    return <section className="panel"><div className="empty">正在確認保留號功能狀態...</div></section>;
   }
   if (!feature.enabled) {
     return (
       <>
-        <div className="topbar"><div><h1>料號模組</h1><p>草稿整合功能尚未開放。</p></div></div>
-        <section className="panel"><div className="empty"><LockKeyhole size={26} /><strong>草稿分頁尚未開放</strong><p>請回正式料號清單；系統不會從此頁建立草稿或占用號碼。</p><Link className="primary-button" href="/parts">回正式料號</Link></div></section>
+        <div className="topbar"><div><h1>{moduleConfig.title}</h1><p>保留號功能尚未開放。</p></div></div>
+        <section className="panel"><div className="empty"><LockKeyhole size={26} /><strong>保留號分頁尚未開放</strong><p>請回{moduleConfig.officialLabel}；系統不會從此頁建立申請或占用號碼。</p><Link className="primary-button" href={moduleConfig.officialHref}>回{moduleConfig.officialLabel}</Link></div></section>
       </>
     );
   }
@@ -770,7 +824,7 @@ export function NumberStateWorkspaceWorkbench() {
     <>
       <div className="topbar number-state-topbar">
         <div>
-          <h1>料號模組 <StatusScopeHelp scope="numberStateWorkspace" /></h1>
+          <h1>{moduleConfig.title} <StatusScopeHelp scope="numberStateWorkspace" /></h1>
           <p>建立申請時會直接保留號碼；正式發布前不可正式使用。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -784,7 +838,7 @@ export function NumberStateWorkspaceWorkbench() {
           </button>
         </div>
       </div>
-      <NumberStatePartsTabs active="drafts" />
+      <NumberStateModuleTabs module={module} active="reserved" />
 
       <div className="sr-only" aria-live="polite">{notice || error}</div>
       {notice ? <div className="number-state-message is-success" role="status">{notice}</div> : null}
@@ -802,7 +856,7 @@ export function NumberStateWorkspaceWorkbench() {
             <span>搜尋</span>
             <div className="number-state-search-field"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="申請名稱、保留號碼或 ID" /></div>
           </label>
-          <label><span>範圍</span><select value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "mine" | "all")}><option value="mine">我的草稿</option><option value="all">全公司草稿</option></select></label>
+          <label><span>範圍</span><select value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "mine" | "all")}><option value="mine">我的保留號</option><option value="all">全公司保留號</option></select></label>
           <label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as "all" | LifecycleStatus)}><option value="all">全部</option><option value="active">進行中</option><option value="cancelled">已取消</option><option value="published">已發布</option></select></label>
           <label><span>號碼效力</span><select value={numberEffectiveness} onChange={(event) => setNumberEffectiveness(event.target.value as NumberEffectivenessFilter)}><option value="all">全部</option><option value="not_generated">尚未產生</option><option value="reserved">已保留</option><option value="official">正式</option></select></label>
         </div>
@@ -810,21 +864,21 @@ export function NumberStateWorkspaceWorkbench() {
 
       <section className="panel number-state-list-panel">
         <div className="panel-header number-state-list-header">
-          <div><div className="number-state-list-title"><h2>領號申請清單</h2><StatusScopeHelp scope="numberStateWorkspace" /><StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" /></div><p>{filtered.length} 筆；已保留號碼與正式資料分開保存。</p></div>
+          <div><div className="number-state-list-title"><h2>保留號清單</h2><StatusScopeHelp scope="numberStateWorkspace" /><StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" /></div><p>{filtered.length} 筆；已保留號碼與正式資料分開保存。</p></div>
           <span className="number-state-page-count">第 {page} / {pageCount} 頁</span>
         </div>
         {loading && workspaces.length === 0 ? <div className="empty">正在載入圖料號申請...</div> : null}
         {!loading && !error && filtered.length === 0 ? (
-          <div className="empty"><CircleDashed size={26} /><strong>目前沒有符合條件的領號申請</strong><p>請建立新申請；關閉建立視窗不會寫入資料或占用號碼。</p><button className="primary-button" type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate} title={createTitle} aria-label={createCta.ariaLabel}><Plus size={16} />{createCta.label}</button></div>
+          <div className="empty"><CircleDashed size={26} /><strong>目前沒有符合條件的保留號</strong><p>請建立新申請；關閉建立視窗不會寫入資料或占用號碼。</p><button className="primary-button" type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate} title={createTitle} aria-label={createCta.ariaLabel}><Plus size={16} />{createCta.label}</button></div>
         ) : null}
         {filtered.length > 0 ? (
           <div className="number-state-table-wrap">
             <table className="data-table number-state-table">
-              <thead><tr><th>領號申請</th><th>內容</th><th>申請狀態</th><th>號碼效力</th><th>號碼</th><th>下一步</th><th aria-label="操作" /></tr></thead>
+              <thead><tr><th>保留號</th><th>內容</th><th>申請狀態</th><th>號碼效力</th><th>號碼</th><th>下一步</th><th aria-label="操作" /></tr></thead>
               <tbody>
                 {visible.map((workspace) => (
                   <tr key={workspace.id}>
-                    <td data-label="領號申請"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)} · v{workspace.rowVersion}</span></button></td>
+                    <td data-label="保留號"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)} · v{workspace.rowVersion}</span></button></td>
                     <td data-label="內容">{workspace.parts.length} 料號 · {workspace.drawings.length} 圖號</td>
                     <td data-label="申請狀態"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>
                     <td data-label="號碼效力"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>
@@ -1041,7 +1095,7 @@ function DraftCreateDialog({
           const code = typeof body.error === "string" ? body.error : body.error?.code ?? "";
           if (!response.ok) {
             throw new Error(code === "feature_not_open_in_production_slice"
-              ? "查重功能被正式領號 / 草稿 production slice 邊界封鎖，請通知管理員檢查 API allowlist。"
+              ? "查重功能被正式領號 / 保留號 production slice 邊界封鎖，請通知管理員檢查 API allowlist。"
               : apiErrorMessage(response, body, "查重暫時失敗。請稍後重試。"));
           }
           return body;
@@ -1118,8 +1172,8 @@ function DraftCreateDialog({
     <div className="number-state-modal-backdrop" role="presentation">
       <section ref={dialogRef} className="number-state-modal number-state-create-modal" role="dialog" aria-modal="true" aria-labelledby="number-state-create-title">
         <div className="number-state-modal-header">
-          <div><h2 id="number-state-create-title" tabIndex={-1} data-autofocus>建立圖料號草稿</h2><p>先確認品名、查重與追加規則；建立後會直接保留號碼，關閉視窗不會寫入資料。</p></div>
-          <button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="關閉建立草稿"><X size={20} /></button>
+          <div><h2 id="number-state-create-title" tabIndex={-1} data-autofocus>建立保留號</h2><p>先確認品名、查重與追加規則；建立後會直接保留號碼，關閉視窗不會寫入資料。</p></div>
+          <button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="關閉建立保留號"><X size={20} /></button>
         </div>
         <div className="number-state-mode-selector" role="radiogroup" aria-label="建立模式">
           {modeOptions.map((option) => (
@@ -1174,13 +1228,13 @@ function DraftCreateDialog({
           )}
           {includesPart ? (
             <div className="number-state-form-section">
-              <h3>料號草稿</h3>
+              <h3>料號保留號</h3>
               <div className="number-state-form-grid">
                 <div className="number-state-draft-summary is-fixed">
                   <PackagePlus size={17} />
                   <div>
                     <span>固定建立</span>
-                    <strong>1 個料號草稿</strong>
+                    <strong>1 個料號保留號</strong>
                     <small data-qc="part-number-preview">預覽料號：{previewText(numberPreviewState, numberPreview?.part)}</small>
                     <small data-qc="number-preview-note">預覽不占號；建立申請後才會保留號碼。</small>
                   </div>
@@ -1211,12 +1265,12 @@ function DraftCreateDialog({
           {showDrawingDraftSection ? (
             <div className="number-state-form-section">
               <div className="number-state-section-heading">
-                <h3>圖號草稿</h3>
+                <h3>圖號保留號</h3>
                 {canToggleDrawingDraft ? (
                   <label className={`number-state-section-toggle${effectiveIncludeDrawing ? " is-on" : ""}`}>
-                    <input type="checkbox" checked={effectiveIncludeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} aria-label="包含圖號草稿" />
+                    <input type="checkbox" checked={effectiveIncludeDrawing} onChange={(event) => setForm({ ...form, includeDrawing: event.target.checked })} aria-label="包含圖號保留號" />
                     <span className="number-state-switch" aria-hidden="true"><span /></span>
-                    <strong>包含圖號草稿</strong>
+                    <strong>包含圖號保留號</strong>
                   </label>
                 ) : null}
               </div>
@@ -1225,7 +1279,7 @@ function DraftCreateDialog({
                   <FileText size={17} />
                   <div>
                     <span>{includesDrawing ? (canToggleDrawingDraft ? "同時建立" : "固定建立") : "本次不建立"}</span>
-                    <strong>{includesDrawing ? "圖號草稿" : "未建立圖號草稿"}</strong>
+                    <strong>{includesDrawing ? "圖號保留號" : "未建立圖號保留號"}</strong>
                     <small data-qc="drawing-number-preview">{includesDrawing ? `預覽圖號：${previewText(numberPreviewState, numberPreview?.drawing)}` : drawingHint}</small>
                   </div>
                 </div>
@@ -1384,14 +1438,14 @@ function WorkspaceDrawer({
   return (
     <div className="number-state-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside ref={drawerRef} className="number-state-drawer" role="dialog" aria-modal="true" aria-labelledby="number-state-drawer-title">
-        <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>v{workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉草稿明細"><X size={20} /></button></div>
+        <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>v{workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉保留號明細"><X size={20} /></button></div>
         <div className="number-state-drawer-body">
           <ProjectionSummary projection={workspace.projection} />
           {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
           <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
           {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
           <section className="number-state-drawer-section">
-            <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯草稿</button> : null}</div>
+            <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯保留號</button> : null}</div>
             <div className="number-state-future-actions">
               {workspace.capabilities.canSubmitReview ? formalActionsUnopened ? <UnopenedAction label="送交發布審核" reason={unopenedMessage}><LockKeyhole size={15} /></UnopenedAction> : <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交發布審核</button> : null}
               {workspace.latestApproval?.status === "pending" ? formalActionsUnopened ? <UnopenedAction label="查看審核" reason={unopenedMessage}><FileText size={15} /></UnopenedAction> : <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}
@@ -1403,7 +1457,7 @@ function WorkspaceDrawer({
             </div>
           </section>
         </div>
-        <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消草稿</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
+        <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消保留號</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
       </aside>
     </div>
   );
@@ -1438,7 +1492,7 @@ function UnopenedAction({ label, reason, children }: { label: string; reason: st
 
 function WorkspaceFacts({ workspace }: { workspace: NumberingDraftWorkspace }) {
   return (
-    <section className="number-state-drawer-section"><h3>草稿內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeCode === "R" && drawing.purposeDescription ? `${drawing.purposeDescription} · ` : ""}${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
+    <section className="number-state-drawer-section"><h3>保留號內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeCode === "R" && drawing.purposeDescription ? `${drawing.purposeDescription} · ` : ""}${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
   );
 }
 
@@ -1448,7 +1502,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
   const [drawings, setDrawings] = useState(workspace.drawings.map((drawing) => ({ ...drawing })));
   return (
     <section className="number-state-drawer-section">
-      <h3>編輯草稿</h3>
+      <h3>編輯保留號</h3>
       <div className="number-state-edit-list">
         {root ? <Field label="確定品名" hint="此欄位是唯一名稱來源；儲存時會同步到料號主檔。"><input value={root.coreName} onChange={(event) => setRoot({ ...root, coreName: event.target.value })} /></Field> : null}
         {parts.map((part, index) => {
@@ -1488,9 +1542,9 @@ function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action
   const content = ({
     cancel: {
       title: "取消申請並釋出號碼",
-      strong: "取消後草稿不能再編輯",
+      strong: "取消後保留號不能再編輯",
       detail: candidateCodes(workspace).length > 0 ? `將釋出 ${candidateCodes(workspace).join("、")}；有審核或外部引用時系統會阻擋。` : "此申請尚未產生號碼，取消後不會釋出號碼。",
-      confirm: "確認取消草稿",
+      confirm: "確認取消保留號",
       icon: <AlertTriangle size={22} />,
       danger: true
     },
@@ -1561,7 +1615,7 @@ function draftNumberLabel(workspace: NumberingDraftWorkspace, candidateCode: str
 }
 
 function workspaceTitle(workspace: NumberingDraftWorkspace) {
-  return workspace.root?.coreName ?? workspace.parts[0]?.partName ?? workspace.drawings[0]?.purposeDescription ?? `草稿 ${workspace.id.slice(-8)}`;
+  return workspace.root?.coreName ?? workspace.parts[0]?.partName ?? workspace.drawings[0]?.purposeDescription ?? `保留號 ${workspace.id.slice(-8)}`;
 }
 
 function createModeFromLocation(): DraftMode {
@@ -1596,8 +1650,8 @@ function reviewLabel(value: NumberStateProjection["review"]) { return ({ not_sub
 function publicationLabel(value: NumberStateProjection["publication"]) { return ({ not_ready: "尚未開放", ready: "可發布", publishing: "發布中", failed: "發布失敗", published: "已發布" } as const)[value]; }
 function readinessLabel(value: NumberStateProjection["readiness"]) { return ({ incomplete: "未完成", ready: "完成", stale: "需重整", not_applicable: "不適用" } as const)[value]; }
 function usageLabel(value: NumberStateProjection["usage"]) { return ({ not_for_formal_use: "不可正式使用", formal_use_allowed: "可正式使用", historical_only: "僅供歷史查閱" } as const)[value]; }
-function ownerRoleLabel(value: string) { return ({ "Draft owner": "草稿負責人", Approver: "審核者", Publisher: "發布者", PDM: "PDM 管理者", "PDM Admin": "PDM Admin" } as Record<string, string>)[value] ?? value; }
-function nowWhatLabel(value: string) { return ({ "Acquire candidate numbers": "尚未產生號碼", "Complete draft and submit review": "完成草稿並送審", "View cancelled draft": "查看已取消草稿", "View official record": "查看正式資料", "Check state inconsistency": "請 PDM Admin 檢查狀態", "View review": "查看審核", "Retry approval apply": "重試核准套用", "Update requested information": "補齊審核要求的資料", "Revise draft before resubmission": "修訂草稿後重新送審", "Publish official number": "正式發布" } as Record<string, string>)[value] ?? value; }
+function ownerRoleLabel(value: string) { return ({ "Draft owner": "保留號負責人", Approver: "審核者", Publisher: "發布者", PDM: "PDM 管理者", "PDM Admin": "PDM Admin" } as Record<string, string>)[value] ?? value; }
+function nowWhatLabel(value: string) { return ({ "Acquire candidate numbers": "尚未產生號碼", "Complete draft and submit review": "完成保留號並送審", "View cancelled draft": "查看已取消保留號", "View official record": "查看正式資料", "Check state inconsistency": "請 PDM Admin 檢查狀態", "View review": "查看審核", "Retry approval apply": "重試核准套用", "Update requested information": "補齊審核要求的資料", "Revise draft before resubmission": "修訂保留號後重新送審", "Publish official number": "正式發布" } as Record<string, string>)[value] ?? value; }
 function blockedReasonLabel(value: string | null) { return ({ candidate_review_locked: "保留號碼正在審核，請先查看或撤回審核。", approval_apply_failed: "核准結果尚未成功套用，請至審核中心重試。", state_inconsistent: "狀態不一致，請 PDM Admin 協助。" } as Record<string, string>)[value ?? ""] ?? "目前狀態不可取消。"; }
 function publicationBlockerLabel(value: string | null) {
   if (value?.startsWith("drawing_evidence_not_finalized:")) return "至少一份圖面受控檔案證據尚未定稿。";

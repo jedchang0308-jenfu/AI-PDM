@@ -91,7 +91,7 @@ export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition>
   applicationStatus: {
     id: "applicationStatus",
     label: "申請狀態",
-    question: "領號申請本身走到哪裡？",
+    question: "保留號申請本身走到哪裡？",
     description: "編輯中的申請與已送出的申請分開顯示，不把兩者都稱為草稿。"
   },
   approvalStatus: {
@@ -205,9 +205,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   },
   numberingRequest: {
     id: "numberingRequest",
-    route: "/numbering/request",
-    section: "領號申請",
-    title: "領號申請資料範圍",
+    route: "/numbering/search?tab=reserved",
+    section: "保留號",
+    title: "保留號資料範圍",
     description: "申請內容、號碼效力與後續審核/發布狀態分層說明。",
     axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "readinessStatus"],
     contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "readinessStatus"],
@@ -216,9 +216,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   numberingDraftList: {
     id: "numberingDraftList",
     route: "/numbering/part-drafts",
-    section: "領號申請清單",
-    title: "領號申請資料範圍",
-    description: "這裡顯示可編輯的領號申請，不把它與主資料未發布混為一談。",
+    section: "保留號清單",
+    title: "保留號資料範圍",
+    description: "這裡顯示可編輯的保留號申請，不把它與主資料未發布混為一談。",
     axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "restoreStatus"],
     contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "restorePolicy"],
     ownerEvidence: INVENTORY_EVIDENCE
@@ -226,8 +226,8 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   numberStateWorkspace: {
     id: "numberStateWorkspace",
     route: "/parts?tab=drafts",
-    section: "領號申請工作區",
-    title: "領號申請工作區",
+    section: "保留號工作區",
+    title: "保留號工作區",
     description: "工作區中的資料是可編輯申請；號碼效力另行顯示。",
     axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],
     contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],

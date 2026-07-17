@@ -116,10 +116,10 @@ record(
 );
 
 record(
-  "NSF-REQ-EQ-007 create CTA uses centralized draft wording",
+  "NSF-REQ-EQ-007 create CTA uses centralized reservation wording",
   includesAll(workspace, [
     "getNumberStateCreateCta",
-    "建立圖料號草稿",
+    "建立保留號",
     "建立後直接保留號碼，不會占用正式號碼"
   ]) &&
     partsPage.includes('surface="parts"') &&
@@ -127,7 +127,7 @@ record(
     searchPage.includes('surface="search"') &&
     !drawingsPage.includes('label="新增圖號草稿"') &&
     !workspace.includes('label = "建立圖料號"'),
-  "top-level create buttons must use centralized draft wording and never omit 草稿"
+  "top-level create buttons must use centralized reservation wording"
 );
 
 record(
@@ -158,9 +158,9 @@ record(
     "number-state-draft-summary",
     "number-state-section-toggle",
     "manufactured-fixed-drawing-draft",
-    "包含圖號草稿",
+    "包含圖號保留號",
     "本次不建立",
-    "未建立圖號草稿",
+    "未建立圖號保留號",
     "製造圖 M",
     "參考圖 R",
     "參考用途",

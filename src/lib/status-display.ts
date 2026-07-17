@@ -165,9 +165,9 @@ const workflowHelpStatuses: StatusDefinition[] = [
 ];
 
 const applicationStatusStatuses: StatusDefinition[] = [
-  { keys: ["Draft", "draft", "editing", "editable"], label: "編輯中", description: "領號申請仍可調整，完成內容後再送出申請。", tone: "warning", actionable: true },
+  { keys: ["Draft", "draft", "editing", "editable"], label: "編輯中", description: "保留號申請仍可調整，完成內容後再送出申請。", tone: "warning", actionable: true },
   { keys: ["Pending", "pending", "pending_review", "submitted", "active"], label: "申請中", description: "申請已送出，請等待審核或查看目前處理進度。", tone: "warning", actionable: true },
-  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆領號申請已取消，不會再繼續處理。", tone: "neutral", terminal: true },
+  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆保留號申請已取消，不會再繼續處理。", tone: "neutral", terminal: true },
   { keys: ["Published", "published", "promoted", "official"], label: "已轉正式資料", description: "申請結果已轉為正式資料，後續請從主資料清單查看。", tone: "success", terminal: true },
   { keys: ["Obsolete", "obsolete", "retired", "voided"], label: "已失效", description: "這筆申請已失效，不能再作為目前申請來源。", tone: "neutral", terminal: true }
 ];

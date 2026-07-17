@@ -66,15 +66,15 @@ type ObjectLifecycleAction = {
 const lifecycleStages: LifecycleStage[] = [
   {
     id: "numbering",
-    title: "需求與領號",
+    title: "需求與保留號",
     phase: "EVT",
     owner: "RD",
     state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
     risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
     doneSignal: "料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。",
-    href: "/numbering/request",
-    cta: "建立料號",
+    href: "/numbering/search?tab=reserved",
+    cta: "建立保留號",
     icon: PackagePlus
   },
   {

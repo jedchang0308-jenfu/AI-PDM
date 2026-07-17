@@ -46,7 +46,7 @@ const allowedSection = helper.split("const sliceAllowedApiMutationMatchers")[1]?
 
 record("SLICE-001 helper defines official numbering/draft mode", helper.includes('OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft"'));
 record("SLICE-002 helper uses stable unopened machine code", helper.includes("feature_not_open_in_production_slice"));
-record("SLICE-003 helper documents Chinese unopened message", helper.includes("此功能未納入本次正式領號 / 草稿 production slice。"));
+record("SLICE-003 helper documents Chinese unopened message", helper.includes("此功能未納入本次正式領號 / 保留號 production slice。"));
 record("SLICE-004 allowed mutation list opens official create", /method:\s*"POST"[\s\S]*\/records/.test(allowedSection));
 record("SLICE-004A allowed mutation list opens duplicate-check guard", /method:\s*"POST"[\s\S]*duplicate-check/.test(allowedSection));
 record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\[\^\/\]\+\\\/drawings/.test(allowedSection) && /roots\\\/\[\^\/\]\+\\\/parts/.test(allowedSection) && /drawing-part/.test(allowedSection));
@@ -59,7 +59,7 @@ record(
 record("SLICE-008 middleware blocks unopened API mutations", middleware.includes("NextResponse.json") && middleware.includes("isProductionSliceAllowedApiMutation"));
 record("SLICE-009 middleware rewrites unopened direct page routes", middleware.includes("NextResponse.rewrite") && middleware.includes("shouldBlockProductionSlicePagePath"));
 record("SLICE-010 status API exposes non-secret slice state", statusRoute.includes("productionSliceClientStatus") && !statusRoute.includes("PDM_SUPABASE") && !statusRoute.includes("POSTGRES_URL"));
-record("SLICE-011 blocked page routes users to DEV-048 owner surfaces", blockedPage.includes("未開放") && blockedPage.includes("/numbering/search?create=numbering") && blockedPage.includes("/parts?tab=drafts") && !blockedPage.includes("/numbering/part-drafts"));
+record("SLICE-011 blocked page routes users to DEV-048 owner surfaces", blockedPage.includes("未開放") && blockedPage.includes("/numbering/search?tab=reserved") && blockedPage.includes("/parts?tab=drafts") && !blockedPage.includes("/numbering/part-drafts"));
 record("SLICE-012 sidebar keeps roadmap visible and marks unopened routes", sidebar.includes("/api/production-slice/status") && sidebar.includes("nav-unopened") && sidebar.includes("nav-unopened-badge"));
 record("SLICE-013 sidebar sends unopened route clicks to blocked state", sidebar.includes("/production-slice-blocked?from="));
 record("SLICE-014 owner draft workspace reads production-slice status", numberStateWorkspace.includes("/api/production-slice/status") && numberStateWorkspace.includes("formalActionsUnopened"));
@@ -80,7 +80,7 @@ record("SLICE-024 void/recycle domain uses existing controlled-boundary predicat
 record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(allowedSection) && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
 record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
-record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 草稿 production slice 邊界封鎖"));
+record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 保留號 production slice 邊界封鎖"));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

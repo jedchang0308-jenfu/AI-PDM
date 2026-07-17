@@ -8,7 +8,7 @@ import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
-import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
+import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
@@ -335,6 +335,7 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function NumberingSearchPage() {
+  const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
   const [productSeries, setProductSeries] = useState("");
@@ -366,6 +367,7 @@ export default function NumberingSearchPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const initialEntityType = params.get("entityType") as EntityType | null;
     const detailRootCode = params.get("detail")?.trim();
@@ -409,6 +411,7 @@ export default function NumberingSearchPage() {
   );
 
   const loadResults = useCallback(async () => {
+    if (activeTab !== "official") return;
     setBusy("search");
     setError("");
     const params = new URLSearchParams({ limit: "60" });
@@ -459,7 +462,7 @@ export default function NumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [developmentPhase, entityType, productSeries, query, recordStatus]);
+  }, [activeTab, developmentPhase, entityType, productSeries, query, recordStatus]);
 
   useEffect(() => {
     void loadResults();
@@ -721,6 +724,9 @@ export default function NumberingSearchPage() {
     if (rootCode) await loadDetail(rootCode);
   }
 
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖料模組...</div></section>;
+  if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="search" />;
+
   return (
     <>
       <div className="topbar">
@@ -736,6 +742,7 @@ export default function NumberingSearchPage() {
           <NumberStateOwnerCreateAction surface="search" />
         </div>
       </div>
+      <NumberStateModuleTabs module="search" active="official" />
 
       {state === "unauthorized" ? <AccessPanel /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={loadResults} /> : null}
@@ -885,10 +892,10 @@ function RelationResultsPanel({
         <NextStepState
           eyebrow="查無結果"
           title="目前沒有符合條件的圖料關係"
-          body="查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。若這是新圖號或新料號，請改到編號申請建立來源資料。"
+          body="查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。若這是新圖號或新料號，請改到保留號建立來源資料。"
           actions={[
             { href: "/numbering/search", label: "重新查詢", variant: "primary" },
-            { href: "/numbering/request", label: "建立編號申請" }
+            { href: "/numbering/search?tab=reserved", label: "建立保留號" }
           ]}
         />
       </section>

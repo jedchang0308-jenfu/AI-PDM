@@ -2,7 +2,7 @@ import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 
 export const OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft";
 export const PRODUCTION_SLICE_UNOPENED_CODE = "feature_not_open_in_production_slice";
-export const PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 草稿 production slice。";
+export const PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 保留號 production slice。";
 
 type EnvLike = Record<string, string | undefined>;
 

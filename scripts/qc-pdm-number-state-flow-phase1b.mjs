@@ -156,7 +156,8 @@ record(
   requestRedirect?.pathname === "/numbering/search" &&
     requestRedirect.searchParams.get("returnTo") === "/parts?tab=drafts" &&
     requestRedirect.searchParams.get("foo") === "bar" &&
-    requestRedirect.searchParams.get("create") === "numbering" &&
+    requestRedirect.searchParams.get("tab") === "reserved" &&
+    requestRedirect.searchParams.get("create") === "new_bundle" &&
     requestRedirect.searchParams.get("legacyFrom") === "/numbering/request" &&
     uploadRedirect?.pathname === "/drawings/A0001-M01/submission-workbench" &&
     uploadRedirect.searchParams.get("returnTo") === "/parts" &&
@@ -177,20 +178,23 @@ record(
   partsPage.includes("NumberStateOwnerCreateAction") &&
     drawingsPage.includes("NumberStateOwnerCreateAction") &&
     searchPage.includes("NumberStateOwnerCreateAction") &&
-    workspace.includes("建立圖料號"),
+    workspace.includes("建立保留號"),
   "parts, drawings, and search owner surfaces must expose the shared create action"
 );
 record(
   "ui",
-  "NSF-UI-002-draft-list-separation",
+  "NSF-UI-002-reserved-number-list-separation",
   partsPage.includes("NumberStateWorkspaceWorkbench") &&
+    drawingsPage.includes('<NumberStateWorkspaceWorkbench module="drawings"') &&
+    searchPage.includes('<NumberStateWorkspaceWorkbench module="search"') &&
     workspace.includes("/parts?tab=drafts") &&
-    workspace.includes("正式料號") &&
-    workspace.includes("草稿") &&
+    workspace.includes("/numbering/search?tab=reserved") &&
+    workspace.includes("/numbering/drawings?tab=reserved") &&
+    workspace.includes("保留號") &&
     workspace.includes("PAGE_SIZE = 20") &&
     workspace.includes("numberEffectiveness") &&
     workspace.includes("ownerScope"),
-  "drafts require a distinct tab with owner/lifecycle/number-effectiveness/search filters and stable pagination"
+  "reserved numbers require distinct module tabs with owner/lifecycle/number-effectiveness/search filters and stable pagination"
 );
 record(
   "ui",
@@ -219,7 +223,7 @@ record(
   "NSF-UI-005-candidate-safety",
   workspace.includes("已保留，尚不可正式使用") &&
     workspace.includes('workspace.projection.numberQualification === "candidate"') &&
-    workspace.includes("確認取消草稿") &&
+    workspace.includes("確認取消保留號") &&
     workspace.includes("確認正式發布") &&
     workspace.includes("正式發布"),
   "reserved-number watermark must be state-scoped and destructive or publishing actions require explicit confirmation"

@@ -139,7 +139,7 @@ record(
   "Retired standalone numbering pages stay absent and redirect through middleware mapping",
   !exists("src/app/numbering/request/page.tsx") &&
     !exists("src/app/numbering/part-drafts/page.tsx") &&
-    includesAll(legacyRouteMapping, ["/numbering/request", "/numbering/part-drafts", "create", "numbering", "tab", "drafts"]),
+    includesAll(legacyRouteMapping, ["/numbering/request", "/numbering/part-drafts", "create", "new_bundle", "reserved", "tab", "drafts"]),
   "DEV-048 compatibility boundary"
 );
 

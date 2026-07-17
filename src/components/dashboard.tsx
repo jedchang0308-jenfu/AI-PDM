@@ -252,7 +252,7 @@ function getPlatformWorkbenchSections({
     currentUser.role === "Engineer"
       ? [
           { href: "/upload", label: "上傳送審", detail: "建立新的圖料送審", icon: UploadCloud },
-          { href: "/numbering/request", label: "領號申請", detail: "先取得料號 / 圖號", icon: ClipboardList },
+          { href: "/numbering/search?tab=reserved", label: "保留號", detail: "先保留料號 / 圖號", icon: ClipboardList },
           { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM 草稿", icon: ListTree }
         ]
       : [
@@ -285,7 +285,7 @@ function getPlatformWorkbenchSections({
       icon: UploadCloud,
       links: [
         { href: "/upload", label: "上傳送審", detail: "圖面 / 文件 / CAD 檔", icon: UploadCloud },
-        { href: "/numbering/request", label: "領號申請", detail: "料號、圖號、用途", icon: ClipboardList },
+        { href: "/numbering/search?tab=reserved", label: "保留號", detail: "料號、圖號、用途", icon: ClipboardList },
         { href: "/numbering/imports", label: "圖號總表匯入", detail: "既有主檔暫存", icon: FileText }
       ]
     },

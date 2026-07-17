@@ -7,7 +7,7 @@ import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, 
 import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
-import { NumberStateOwnerCreateAction } from "@/components/number-state-workspace";
+import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
@@ -136,6 +136,7 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function DrawingNumbersPage() {
+  const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
   const [productSeries, setProductSeries] = useState("");
@@ -158,6 +159,7 @@ export default function DrawingNumbersPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const detailDrawingNumber = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
@@ -177,6 +179,7 @@ export default function DrawingNumbersPage() {
   );
 
   const loadDrawings = useCallback(async () => {
+    if (activeTab !== "official") return;
     setBusy(true);
     setError("");
     const params = new URLSearchParams({ limit: "80" });
@@ -207,7 +210,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [developmentPhase, productSeries, purposeCode, query, recordStatus]);
+  }, [activeTab, developmentPhase, productSeries, purposeCode, query, recordStatus]);
 
   useEffect(() => {
     void loadDrawings();
@@ -433,6 +436,9 @@ export default function DrawingNumbersPage() {
     openDrawingDetail(detailDrawingNumber);
   }, [drawings, openDrawingDetail, state]);
 
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖號模組...</div></section>;
+  if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="drawings" />;
+
   return (
     <>
       <div className="topbar">
@@ -448,6 +454,7 @@ export default function DrawingNumbersPage() {
           <NumberStateOwnerCreateAction surface="drawings" />
         </div>
       </div>
+      <NumberStateModuleTabs module="drawings" active="official" />
 
       {state === "unauthorized" ? <AccessPanel /> : null}
       {state === "error" ? <ErrorPanel message={error} onRetry={loadDrawings} /> : null}
@@ -495,10 +502,10 @@ export default function DrawingNumbersPage() {
               <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
                 <div className="empty">
                   <h2>尚無符合條件的圖號</h2>
-                  <p>可先到領號申請建立圖號，或用圖料模組確認是否已存在相近主根號。</p>
+                  <p>可先到保留號建立圖號，或用圖料模組確認是否已存在相近主根號。</p>
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.5rem" }}>
-                    <Link className="primary-button" href="/numbering/request">
-                      領號申請
+                    <Link className="primary-button" href="/numbering/drawings?tab=reserved">
+                      保留號
                     </Link>
                     <Link className="secondary-button" href="/numbering/search">
                       圖料模組

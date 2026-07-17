@@ -452,10 +452,10 @@ function GenericUploadPage() {
       <WorkflowStrip
         title="送審流程"
         description="先確認圖料號，再補檔案與 PDM 屬性，送出後進入待辦與審核。"
-        steps={["領號", "上傳送審", "審核", "發行", "交接"]}
+        steps={["保留號", "上傳送審", "審核", "發行", "交接"]}
         currentStep="上傳送審"
         actions={[
-          { href: "/numbering/request", label: "先領號" },
+          { href: "/numbering/search?tab=reserved", label: "先建立保留號" },
           { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
         ]}
       />
