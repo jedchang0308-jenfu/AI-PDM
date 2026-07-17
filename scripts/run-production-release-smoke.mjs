@@ -78,9 +78,22 @@ async function run(argv = process.argv.slice(2)) {
     });
   }
 
-  for (const pagePath of ["/upload", "/handoff", "/approvals"]) {
+  for (const pagePath of ["/upload", "/approvals"]) {
     await check(`${args.kind} unopened page ${pagePath}`, 200, async () => (await request(`${args.baseUrl}${pagePath}`)).status);
   }
+  await check(`${args.kind} legacy redirect /handoff`, (value) => {
+    if (value.status !== 307 && value.status !== 308) return false;
+    if (!value.location) return false;
+    const location = new URL(value.location, args.baseUrl);
+    return (
+      location.pathname === "/technical-transfer" &&
+      location.searchParams.get("tab") === "published" &&
+      location.searchParams.get("legacyFrom") === "/handoff"
+    );
+  }, async () => {
+    const response = await request(`${args.baseUrl}/handoff`);
+    return { status: response.status, location: response.headers.get("location") };
+  });
 
   for (const apiPath of [
     "/api/numbering/part-number-drafts/smoke-only/submit-review",

@@ -125,6 +125,9 @@ record("PROD-PIPE-010 Firebase Hosting origin is smoked after promotion", () => 
   assert.match(workflow, /--kind canonical/u);
   assert.match(smoke, /\/api\/auth\/mode/u);
   assert.match(smoke, /\/api\/production-slice\/status/u);
+  assert.match(smoke, /legacy redirect \/handoff/u);
+  assert.match(smoke, /\/technical-transfer/u);
+  assert.match(smoke, /legacyFrom/u);
   assert.match(smoke, /direct run\.app session exchange denied/u);
 });
 
