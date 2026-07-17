@@ -833,14 +833,22 @@ export class AsyncNumberStateFlowRepository {
 
   async listWorkspaces(input: { companyId: string; ownerId?: string | null; lifecycleStatus?: NumberingDraftLifecycle | null; limit?: number }) {
     const limit = Math.min(Math.max(input.limit ?? 100, 1), 200);
+    const where = ["company_id = :companyId"];
+    const params: { companyId: string; ownerId?: string; lifecycleStatus?: NumberingDraftLifecycle } = { companyId: input.companyId };
+    if (input.ownerId) {
+      where.push("owner_id = :ownerId");
+      params.ownerId = input.ownerId;
+    }
+    if (input.lifecycleStatus) {
+      where.push("lifecycle_status = :lifecycleStatus");
+      params.lifecycleStatus = input.lifecycleStatus;
+    }
     const rows = await this.client.query<WorkspaceRow>(
       `SELECT * FROM numbering_draft_workspaces
-       WHERE company_id = :companyId
-         AND (:ownerId IS NULL OR owner_id = :ownerId)
-         AND (:lifecycleStatus IS NULL OR lifecycle_status = :lifecycleStatus)
+       WHERE ${where.join(" AND ")}
        ORDER BY updated_at DESC
        LIMIT ${limit}`,
-      { companyId: input.companyId, ownerId: input.ownerId ?? null, lifecycleStatus: input.lifecycleStatus ?? null }
+      params
     );
     return Promise.all(rows.map((row) => this.getWorkspace(row.id, input.companyId)));
   }

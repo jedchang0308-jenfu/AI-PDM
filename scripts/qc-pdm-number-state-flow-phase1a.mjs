@@ -242,6 +242,16 @@ record(
     !repositorySource.includes("UPDATE part_number_drafts SET"),
   "legacy classifier must be deterministic and non-destructive"
 );
+record(
+  "api",
+  "NSF-PG-list-null-filter-safe",
+  repositorySource.includes("const where = [\"company_id = :companyId\"]") &&
+    repositorySource.includes("where.push(\"owner_id = :ownerId\")") &&
+    repositorySource.includes("where.push(\"lifecycle_status = :lifecycleStatus\")") &&
+    !repositorySource.includes(":ownerId IS NULL OR owner_id = :ownerId") &&
+    !repositorySource.includes(":lifecycleStatus IS NULL OR lifecycle_status = :lifecycleStatus"),
+  "workspace list filters must omit nullable PostgreSQL parameters instead of using IS NULL guards"
+);
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ suite: requestedSuite, passed: results.length - failed.length, failed: failed.length, results }, null, 2));
