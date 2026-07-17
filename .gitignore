@@ -16,6 +16,7 @@ artifacts/
 secrets/
 tsconfig.tsbuildinfo
 .playwright-cli/
+.firebase/
 output/qc-runtime/
 output/playwright/
 output/**/*.sqlite
