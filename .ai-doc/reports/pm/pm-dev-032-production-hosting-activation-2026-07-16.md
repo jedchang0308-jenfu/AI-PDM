@@ -71,13 +71,31 @@ Risk lane: Lane 3 production infrastructure and authentication configuration
   Level 3 and `post_apply_ready` as true. Final credentialled Terraform plan
   reported no drift.
 
+## Hotfix Closure
+
+- Cloud SQL PostgreSQL JSONB compatibility hotfix `1936e93d` was built from a
+  clean release worktree, deployed as revision `ai-pdm-prod-00010-quc` and
+  validated with tagged smoke, post-traffic smoke and authenticated Level 4 UI
+  numbering evidence.
+- A later authenticated UI smoke found part-detail future workflows still
+  visible and enabled. Hotfix `3ab5cffa` disabled unopened part-detail,
+  attachment, 3D/MA and cost actions while keeping the roadmap visible.
+- Hotfix `3ab5cffa` was built as image digest
+  `sha256:742fbcab536c0cbccb3794907fec3795f345181124e54164cbd69966e0e5c42d`,
+  deployed to no-traffic revision `ai-pdm-prod-00012-kaf`, validated by tagged
+  smoke 12/12, then shifted to 100% traffic and validated by canonical
+  post-traffic smoke 16/16.
+- Chrome authenticated Level 4 UI smoke passed 15/15 on the production
+  Firebase Hosting URL. Existing production record `A0001-P01` still displayed
+  drawing `A0001-M01` and series `DEV032-HF`; unopened actions were visible but
+  disabled, and unopened mutation APIs remained fail-closed.
+
 ## Remaining Gate
 
-The first interactive login created a verified production Firebase identity. Principal bootstrap and independent restore/reconciliation have since passed; see `pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md`.
-
-`jedchang0308@jenfu.com.tw` must now complete the open Google account chooser
-after provisioning so authenticated Level 4 and named-user canary checks can
-run. Gate D remains incomplete until that authenticated production evidence
-passes.
+Gate D is complete for the bounded official numbering / draft production
+slice. DEV-032 remains open only at Gate E / A9: provide 3-5 explicitly named
+Wave 0 users, confirm non-allowlist fail-closed behavior and record product
+owner go/no-go. The cancelled fixed five-business-day field gate must not be
+reintroduced.
 
 DNS remains intentionally deferred.
