@@ -20,8 +20,8 @@ Archive policy:
 
 ## Archive Sweep Summary
 
-- Completed DEV aliases indexed after the 2026-07-16 refactor: 38.
-- Non-completed items retained in `.ai-doc/dev_task.md`: `DEV-047`, `DEV-049`, `DEV-041`,
+- Completed DEV aliases indexed after the 2026-07-16 refactor: 39.
+- Non-completed items retained in `.ai-doc/dev_task.md`: `DEV-047`, `DEV-041`,
   `DEV-015`, `DEV-030`, `DEV-031`, `DEV-033`, and `DEV-035` to `DEV-038`.
 - `DEV-046` remains a protected verbatim task block；本索引只提供外部指標，不改寫其內容。
 - Product/release action：`DEV-032` 正式領號／草稿 production slice 已完成 release closure；
@@ -447,6 +447,16 @@ Archive policy:
 - 計入交付：否
 - Release 邊界：live provider、正式資料、staging 與 production 需另行 gate。
 
+### DEV-049 / `DEV-PDM-STATUS-UX-003`
+
+- 標題：全系統狀態軸命名與資料頂部說明
+- 類型：交付點
+- 狀態：本地完成。
+- 摘要：完成中央 status scope registry、跨頁資料頂部「狀態說明」、狀態軸命名與號碼效力 3+1 詞彙；未改 state machine、DB/API raw value、正式資料或權限。
+- 證據：`.ai-doc/specs/SPEC-PDM-STATUS-UX-003-state-axis-vocabulary-and-header-help.md`、`output/playwright/dev-049-status-scope/status-scope-browser-metrics.json`、`qc:pdm-status-scope-coverage` 86/86、browser 40/40、`qc:pdm-master-workbench-layout` 207/207。
+- 計入交付：是
+- Release 邊界：merge、PR、deploy、staging 與 production 另走 release/deployment gate。
+
 ## Physical Archive Actions In This Pass
 
 - Created snapshot `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md` before compacting active `dev_task.md`.
@@ -455,3 +465,4 @@ Archive policy:
 - No protected evidence file was physically moved.
 - 2026-07-16：重構前基線改存固定外部 artifact root，未再新增 repo 內巨型 snapshot。
 - 2026-07-16：補入 9 個較新的 completed/protected 索引；DEV-046 原區塊未改寫或搬移。
+- 2026-07-17：`DEV-049` local QC 與 browser evidence 收斂後納入完成索引。

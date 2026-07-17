@@ -48,11 +48,8 @@ Canonical repo：`C:\VIBE CODING\AI_PDM`。狀態、優先級、下一步與阻�
 - ✓ DEV-048 [開發點/P1/本地完成] 圖料號、草稿、狀態與技術移轉入口整合
   - 摘要：本地整合完成；live provider 與 production 另走 gate；歸檔：[完成索引]/DEV-048；計入交付：否
 - ✓ DEV-049 [交付點/P1/本地完成] 全系統狀態軸命名與資料頂部說明
-  - 摘要：完成中央 status scope registry、跨頁資料頂部「狀態說明」與狀態軸命名；未改 state machine、DB/API raw value、正式資料或權限。
-  - 來源 ID：`DEV-PDM-STATUS-UX-003`；父任務：DEV-009/010/007/048
-  - 下一步：若要 merge、PR、deploy、staging 或 production，另走 release/deployment gate；新增狀態頁需同步補 registry 與 QC。
-  - 阻塞：無本地開發阻塞；正式資料、production、DB/API raw value、state machine 或權限變更仍需新 DEV 或 gate。
-  - 證據：[文件地圖]（DEV-049）、SPEC、inventory 22 routes/198 sections、browser 40/40、coverage 86/86；計入交付：是
+  - 摘要：中央 status scope registry、跨頁「狀態說明」與狀態軸命名已完成；未改 state machine、DB/API raw value、正式資料或權限。
+  - 歸檔：[完成索引]/DEV-049；計入交付：是
 - ✓ DEV-045 [交付點/P0/本地完成] 帳號生命週期與安全管理台
   - 摘要：本地功能與 provider handoff 完成；live rollout 另走 gate；歸檔：[完成索引]/DEV-045；計入交付：是
 - ✓ DEV-044 [開發點/P0/本地完成] ERP-ready AI_PDM 模組基礎

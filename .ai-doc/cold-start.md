@@ -30,7 +30,7 @@
 ## Current Routing IDs
 
 - Production release 唯一入口：`DEV-032`。
-- 目前 UX workstream：`DEV-049`；下一個需明確產品指令的候選：`DEV-041`。
+- `DEV-049` UX workstream 已本地完成；下一個需明確產品指令的候選：`DEV-041`。
 - Post-production 技術治理：`DEV-047`；future/re-entry：`DEV-015`、`DEV-033`、`DEV-035`、`DEV-037`。
 - `DEV-030`、`DEV-031` 只由 `DEV-032` 承接；`DEV-036`、`DEV-038` 不可自動恢復。
 - `DEV-046` 是保護項目；只讀原區塊與直接文件，不改寫其內容或 phase 語意。

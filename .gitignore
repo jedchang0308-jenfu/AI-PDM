@@ -6,6 +6,9 @@ data/*
 !data/quality/
 data/quality/*
 !data/quality/defect-register.json
+!data/quality/postgres-shadow/
+data/quality/postgres-shadow/*
+!data/quality/postgres-shadow/shadow-compare-1783676196559.json
 .tmp/
 tmp/
 artifacts/

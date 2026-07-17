@@ -1,0 +1,828 @@
+{
+  "checkedAt": "2026-07-10T09:36:36.557Z",
+  "comparePolicy": "schema_rls_only",
+  "dataCompareSkipped": true,
+  "dataCompareSkipReason": "Schema/RLS-only compare intentionally skips row counts and key hashes so an empty staging database is not treated as a data migration failure.",
+  "sqlitePath": "C:\\VIBE CODING\\AI_PDM\\.tmp\\postgres-shadow-empty-20260710-173550.sqlite",
+  "migrationTrace": {
+    "sqliteSchema": {
+      "path": "db/schema.sql",
+      "sha256": "b71ff3fb8e0e75c5f155fae3be757ec85547db00fa4c3bedf82e4cf7244b4c1a"
+    },
+    "postgresSchema": {
+      "path": "db/postgres/001_initial_schema.sql",
+      "sha256": "c51795e750c9dd63cbb146b1c0ab5d03d439f8cbb4c6f268c2902dc97c7b2587"
+    },
+    "postgresRlsPlan": {
+      "path": "db/postgres/002_supabase_rls_plan.sql",
+      "sha256": "1b768834e97898169b326d5c3ae0d33a8ef2c5e87edaac09836d678bfe20ffb1"
+    }
+  },
+  "postgresShadowConfigured": true,
+  "sqliteTables": 97,
+  "postgresTables": 97,
+  "missingInPostgres": [],
+  "rlsMissingTables": [],
+  "sqliteStats": [
+    {
+      "table": "users",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "companies",
+      "exists": true,
+      "count": 2,
+      "keyColumn": "id",
+      "keyHash": "afb9e16caf40c458b2b33bbb2ff732500f564f175dbcf20a453fb3d5da1b7bea"
+    },
+    {
+      "table": "user_company_memberships",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "user_id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "system_settings",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "key",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "secret_references",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "setting_test_runs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "setting_activation_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "items",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "submissions",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "submission_files",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "submission_snapshots",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "submission_attempts",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "file_references",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_headers",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_lines",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_drafts",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_lines_tree",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_import_profiles",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_import_jobs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_edit_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_review_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_release_snapshots",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "item_locks",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "release_packages",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "readonly_shares",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "supplier_portal_responses",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "procurement_sync_runs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "sandbox_branches",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "discussion_comments",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "review_issues",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "change_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "phase_gate_checks",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "pdf_markups",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_steps",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_matrix_requirements",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "submission_lifecycle_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "audit_logs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "numbering_sequences",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "sequence_key",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "numbering_rule_versions",
+      "exists": true,
+      "count": 3,
+      "keyColumn": "id",
+      "keyHash": "2ca35be173ae9017ac0a2e327dabad809eac17a1ea67574a5772222115fb2326"
+    },
+    {
+      "table": "part_roots",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_numbers",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_numbers",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_number_drafts",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_number_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_replacement_links",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_fff_assessments",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "review_confirmation_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "bom_reconfirmation_flags",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_part_links",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "same_drawing_variants",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_variant_attributes",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_cost_profiles",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_cost_tiers",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_standard_costs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "part_cost_change_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "duplicate_check_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "warning_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "numbering_task_items",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "numbering_notifications",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "rule_templates",
+      "exists": true,
+      "count": 3,
+      "keyColumn": "id",
+      "keyHash": "9e01b6636da8b0bb77f94307e79ed8506f660be1e620ea1b2ef82041bea574be"
+    },
+    {
+      "table": "approval_rules",
+      "exists": true,
+      "count": 63,
+      "keyColumn": "id",
+      "keyHash": "fc57e6883b172d001f84d1266986e066037a95d24bc00a8daacc2e1123afdbd3"
+    },
+    {
+      "table": "approval_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_decisions",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_batches",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_batch_items",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_actions",
+      "exists": true,
+      "count": 15,
+      "keyColumn": "action_code",
+      "keyHash": "c5aa89a5c4dd56ad8143eb78ed109c4b60e1f085ca7fe36857abfd4c1315c82c"
+    },
+    {
+      "table": "approval_platform_packages",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_requests",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_targets",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_impact_snapshots",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_decisions",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_events",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_legacy_links",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_platform_package_items",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "roles",
+      "exists": true,
+      "count": 9,
+      "keyColumn": "id",
+      "keyHash": "5e9d513a7019ad35eea49ce461ad44b88393627d8fbd8838d8a6230eb4def396"
+    },
+    {
+      "table": "role_permissions",
+      "exists": true,
+      "count": 168,
+      "keyColumn": "id",
+      "keyHash": "e3342156ffda00f4638a86f9bf74e9a2903ea9998016ad9953b891a948664910"
+    },
+    {
+      "table": "role_priority_versions",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "role_scope_rules",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "user_role_assignments",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "approval_delegations",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "import_batches",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "import_staging_rows",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "file_assets",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "preview_jobs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "file_derivatives",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_packages",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_package_files",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_package_supplements",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_package_supplement_files",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "shared_cad_model_versions",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "drawing_revision_package_model_links",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "manufacturing_baselines",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "manufacturing_baseline_items",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "numbering_export_jobs",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "monthly_audit_reports",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "llm_conversations",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "table": "llm_messages",
+      "exists": true,
+      "count": 0,
+      "keyColumn": "id",
+      "keyHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "postgresTargetIdentity": {
+    "safe": true,
+    "configuredTargetName": "AI_PDM_DISPOSABLE_LOCAL_POSTGRES_20260710-173550",
+    "forbiddenProjectRefs": [
+      "knodlkxqpcqyrtgwpdst",
+      "fhisnnufoeulxqrchldf"
+    ],
+    "issues": []
+  },
+  "postgresTargetGuard": {
+    "safe": true,
+    "phase": "compare",
+    "mode": "ai_pdm_shadow_schema",
+    "expectedTableCount": 97,
+    "publicTableCount": 97,
+    "presentExpectedTables": [
+      "users",
+      "companies",
+      "user_company_memberships",
+      "system_settings",
+      "secret_references",
+      "setting_test_runs",
+      "setting_activation_events",
+      "items",
+      "submissions",
+      "submission_files",
+      "submission_snapshots",
+      "submission_attempts",
+      "file_references",
+      "bom_headers",
+      "bom_lines",
+      "bom_drafts",
+      "bom_lines_tree",
+      "bom_import_profiles",
+      "bom_import_jobs",
+      "bom_edit_events",
+      "bom_review_requests",
+      "bom_release_snapshots",
+      "item_locks",
+      "release_packages",
+      "readonly_shares",
+      "supplier_portal_responses",
+      "procurement_sync_runs",
+      "sandbox_branches",
+      "discussion_comments",
+      "review_issues",
+      "change_requests",
+      "phase_gate_checks",
+      "pdf_markups",
+      "approval_steps",
+      "approval_matrix_requirements",
+      "submission_lifecycle_requests",
+      "audit_logs",
+      "numbering_sequences",
+      "numbering_rule_versions",
+      "part_roots",
+      "part_numbers",
+      "drawing_numbers",
+      "part_number_drafts",
+      "part_number_events",
+      "part_replacement_links",
+      "drawing_revision_fff_assessments",
+      "review_confirmation_events",
+      "bom_reconfirmation_flags",
+      "drawing_part_links",
+      "same_drawing_variants",
+      "part_variant_attributes",
+      "part_cost_profiles",
+      "part_cost_tiers",
+      "part_standard_costs",
+      "part_cost_change_requests",
+      "duplicate_check_events",
+      "warning_events",
+      "numbering_task_items",
+      "numbering_notifications",
+      "rule_templates",
+      "approval_rules",
+      "approval_requests",
+      "approval_decisions",
+      "approval_batches",
+      "approval_batch_items",
+      "approval_platform_actions",
+      "approval_platform_packages",
+      "approval_platform_requests",
+      "approval_platform_targets",
+      "approval_platform_impact_snapshots",
+      "approval_platform_decisions",
+      "approval_platform_events",
+      "approval_platform_legacy_links",
+      "approval_platform_package_items",
+      "roles",
+      "role_permissions",
+      "role_priority_versions",
+      "role_scope_rules",
+      "user_role_assignments",
+      "approval_delegations",
+      "import_batches",
+      "import_staging_rows",
+      "file_assets",
+      "preview_jobs",
+      "file_derivatives",
+      "drawing_revision_packages",
+      "drawing_revision_package_files",
+      "drawing_revision_package_supplements",
+      "drawing_revision_package_supplement_files",
+      "shared_cad_model_versions",
+      "drawing_revision_package_model_links",
+      "manufacturing_baselines",
+      "manufacturing_baseline_items",
+      "numbering_export_jobs",
+      "monthly_audit_reports",
+      "llm_conversations",
+      "llm_messages"
+    ],
+    "missingExpectedTables": [],
+    "unknownTables": [],
+    "issues": []
+  },
+  "postgresStats": null,
+  "postgresCompareError": null,
+  "mismatches": []
+}
