@@ -107,7 +107,7 @@ async function assertEngineerRecordCreate(cookie, expectedStatus) {
   record(`Engineer record create returns ${expectedStatus}`, response.status === expectedStatus, `HTTP ${response.status}`);
 }
 
-async function verifySidebar(browser, cookie, shouldShowRequestLink, viewportName, viewport) {
+async function verifySidebar(browser, cookie, viewportName, viewport) {
   const context = await browser.newContext({ viewport });
   const consoleErrors = [];
   const page = await context.newPage();
@@ -117,17 +117,16 @@ async function verifySidebar(browser, cookie, shouldShowRequestLink, viewportNam
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await addCookie(context, cookie);
   await page.goto(`${apiBaseUrl}/`, { waitUntil: "networkidle" });
-  await page.waitForFunction(
-    (expected) => Boolean(document.querySelector('.sidebar a[href="/numbering/request"]')) === expected,
-    shouldShowRequestLink,
-    { timeout: 10_000 }
-  );
+  await page.locator(".sidebar").waitFor({ timeout: 10_000 });
   const requestLinkCount = await page.locator('.sidebar a[href="/numbering/request"]').count();
   record(
-    `${viewportName} sidebar request link ${shouldShowRequestLink ? "visible" : "hidden"}`,
-    shouldShowRequestLink ? requestLinkCount > 0 : requestLinkCount === 0,
+    `${viewportName} sidebar keeps retired request link absent`,
+    requestLinkCount === 0,
     String(requestLinkCount)
   );
+  const draftLinkCount = await page.locator('.sidebar a[href="/numbering/part-drafts"]').count();
+  record(`${viewportName} sidebar keeps retired draft link absent`, draftLinkCount === 0, String(draftLinkCount));
+  record(`${viewportName} sidebar keeps owner modules reachable`, (await page.locator('.sidebar a[href="/numbering/search"]').count()) > 0 && (await page.locator('.sidebar a[href="/parts"]').count()) > 0);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`${viewportName} sidebar has no page-level horizontal overflow`, overflow <= 2, `${overflow}px`);
   record(`${viewportName} sidebar has no console errors`, consoleErrors.length === 0, consoleErrors.join("\n"));
@@ -152,7 +151,7 @@ try {
   let permissions = await fetchPermissions(engineerCookie);
   record("Engineer request page permission can be enabled", permissions.pages["numbering.request"] === true, JSON.stringify(permissions.pages));
   record("Engineer create action permission can be enabled", permissions.actions["numbering.create"] === true, JSON.stringify(permissions.actions));
-  await verifySidebar(browser, engineerCookie, true, "desktop enabled", { width: 1440, height: 1100 });
+  await verifySidebar(browser, engineerCookie, "desktop enabled", { width: 1440, height: 1100 });
 
   await setRolePermission(adminCookie, rdRole, "page", "numbering.request", false);
   await setRolePermission(adminCookie, rdRole, "action", "numbering.create", false);
@@ -162,8 +161,8 @@ try {
   record("Engineer request page permission can be disabled", permissions.pages["numbering.request"] === false, JSON.stringify(permissions.pages));
   record("Engineer create action permission can be disabled", permissions.actions["numbering.create"] === false, JSON.stringify(permissions.actions));
   await assertEngineerRecordCreate(engineerCookie, 403);
-  await verifySidebar(browser, engineerCookie, false, "desktop disabled", { width: 1440, height: 1100 });
-  await verifySidebar(browser, engineerCookie, false, "mobile disabled", { width: 390, height: 920 });
+  await verifySidebar(browser, engineerCookie, "desktop disabled", { width: 1440, height: 1100 });
+  await verifySidebar(browser, engineerCookie, "mobile disabled", { width: 390, height: 920 });
 } finally {
   await setRolePermission(adminCookie, rdRole, "page", "numbering.request", originalPageAllowed);
   await setRolePermission(adminCookie, rdRole, "action", "numbering.create", originalActionAllowed);

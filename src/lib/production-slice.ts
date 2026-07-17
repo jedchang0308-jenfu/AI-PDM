@@ -20,6 +20,8 @@ const openPagePaths = [
   "/numbering/search",
   "/numbering/drawings",
   "/numbering/part-drafts",
+  "/upload",
+  "/handoff",
   "/settings/accounts",
   "/settings/account-invitations",
   "/account/security",
@@ -29,8 +31,6 @@ const openPagePaths = [
   "/privacy/acknowledgement",
   "/production-slice-blocked"
 ];
-
-const numberStateLegacyPagePaths = ["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"];
 
 const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
   { method: "POST", pattern: /^\/api\/auth\/login$/ },
@@ -114,7 +114,6 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
 export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = process.env) {
   const normalizedPath = normalizePathname(pathname);
   return openPagePaths.includes(normalizedPath) ||
-    (isNumberStateFlowV1Enabled(env) && numberStateLegacyPagePaths.includes(normalizedPath)) ||
     normalizedPath.startsWith("/login/") ||
     normalizedPath.startsWith("/invite/");
 }

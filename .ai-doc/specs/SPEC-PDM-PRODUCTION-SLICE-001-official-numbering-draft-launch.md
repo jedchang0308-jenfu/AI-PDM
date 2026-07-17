@@ -1,6 +1,8 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
 > 2026-07-13 Amendment：本文件的已完成 local slice與DEV-046 production/release gates仍有效；其「formal create即official permanent number」的未來行為已由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。新草稿可先無號，candidate可在未鎖定且零引用時立即回收，只有explicit publication成功後才寫正式master與non-reuse ledger input。
+>
+> 2026-07-17 DEV-048 convergence amendment：本文件所有把`/numbering/part-drafts`描述為可操作工作台、把`/numbering/request`描述為獨立建立頁，或以`part_number_drafts`頁面作主要UI的舊條款，均由DEV-048取代。Canonical UI是`/parts?tab=drafts`與owner-surface建立CTA；舊URL只redirect/guidance。Production-slice的API default-deny、正式流程未開放、候選號安全、正式號不可重用及帳號/平台release gates不變，並改由`numbering_draft_workspaces` owner UI承接。
 
 Status: Product Phase 1 Local Implementation Complete; DEV-046 `HD-8-1..4` closed and Phase 1 RD Implementation Ready / Not Requested; production waits for platform implementation/staging and Release Gate
 Date: 2026-07-10
@@ -27,7 +29,7 @@ Confirmed decisions from 2026-07-09 guided mode:
 
 Confirmed RD supervisor follow-up from 2026-07-10:
 
-- `Draft 1B`: `/numbering/part-drafts` is included in the first production slice as the draft workbench.
+- `Draft 1B` historical intent remains: draft management is included in the first production slice. DEV-048 moved the workbench to `/parts?tab=drafts` and retired the standalone page.
 - `Draft delete 2C`: Draft-only part-number reservations may be removed from the active draft set and the reserved draft number may be recycled, but only before the draft crosses a controlled boundary. This does not permit recycling official root, drawing, or part numbers created through the formal numbering record flow.
 - `Smoke 3A`: Release-gate smoke isolation defaults to a smoke company / tenant. If any normal Jenfu list, search, report, export, counter, or dashboard can see smoke-company data without an explicit admin/test filter, the production write smoke path is blocked.
 - `Guided completion`: RD supervisor review found no new product decision requiring another A/B/C question. The document is completed under the existing decisions by explicitly closing existing `submit-review`, `reconfirm`, and `restore` part-draft actions in the production slice, requiring reuse of the existing part-number draft controlled-boundary domain predicates, and aligning smoke wording to `smoke company / tenant`.
@@ -85,7 +87,7 @@ AI assumptions:
 - `AI_PDM_PROD` is a logical production database label. The physical target is Cloud SQL PostgreSQL in `asia-east1`; live target execution remains outside this document and requires release gate confirmation.
 - Application database access remains through server-side APIs and server-only credentials.
 - Existing local evidence for numbering, access control, sequence integrity, and detail drawers can be reused as development baseline, but must be reverified for the production slice.
-- `/numbering/part-drafts` is backed by provisional `part_number_drafts` reservations with controlled-boundary checks and recycle metadata. If implementation discovers that a draft reservation is already represented as a formal `part_roots` / `part_numbers` / `drawing_numbers` record, RD must stop and split the provisional draft model before enabling recycle.
+- `/parts?tab=drafts` is backed by DEV-048 `numbering_draft_workspaces` and candidate-number lifecycle. Candidate cancellation/recycle must respect the DEV-048 controlled publication boundary; formal `part_roots` / `part_numbers` / `drawing_numbers` remain non-recyclable.
 - Existing `part_number_drafts` domain predicates such as `getPartNumberControlBoundary` and `assertPartNumberDraftIsRecyclable` are the preferred controlled-boundary authority. RD must not create a separate weaker recycle/delete predicate for this production slice.
 - Smoke-company isolation requires proven company/tenant filtering in every normal user list, report, search, export, counter and dashboard before production write smoke can run.
 - `AI_PDM_PROD` names the production Cloud SQL database only; it is not the whole production platform. DEV-046 and DEV-032 jointly govern Cloud Run/Next.js 16, external Application Load Balancer/cache policy, Identity Platform/portable BFF, direct GCS Phase 3B cutover, clean seed/archive, continuity and IAM cutover.
@@ -153,11 +155,11 @@ Roadmap visibility is allowed, but every unopened action must still pass the Now
 
 Candidate in-scope UI surfaces:
 
-- `/numbering/request`
+- `/numbering/search?create=numbering` owner create surface
 - `/numbering/search`
 - `/numbering/drawings`
 - `/parts`
-- `/numbering/part-drafts`
+- `/parts?tab=drafts`
 - object detail drawers for root, drawing, and part
 - method-level server APIs listed in the Phase 1 Route / API Boundary Matrix only
 
@@ -179,8 +181,8 @@ Phase 1 must not treat `/api/numbering/**` as open. The slice opens only the met
 
 | Surface / API method | Production-slice decision | Mutation | Expected blocked response | Evidence |
 |---|---|---:|---|---|
-| `GET /numbering/request`, `/numbering/search`, `/numbering/drawings`, `/parts` | Open UI routes | No | N/A | Browser route smoke and permission state evidence |
-| `GET /numbering/part-drafts` | Open draft workbench route | No | N/A | Browser route smoke |
+| `GET /numbering/search`, `/numbering/drawings`, `/parts`, `/parts?tab=drafts` | Open UI routes | No | N/A | Browser route smoke and permission state evidence |
+| `GET /numbering/request`, `/numbering/part-drafts` | Middleware compatibility redirect only; no page implementation | No | N/A | Redirect preserves query/`returnTo` and lands on owner surface |
 | `GET /api/numbering/search` | Allowed read for created records | No | N/A | API read smoke excludes smoke namespace |
 | `GET /api/numbering/drawings` | Allowed read for drawing list confirmation | No | N/A | API read smoke excludes smoke namespace |
 | `GET /api/numbering/drawings/resolve` | Allowed read for selected drawing lookup | No | N/A | API read smoke |
@@ -280,7 +282,7 @@ Scope:
 
 - Add a central production-slice capability model.
 - Mark allowed Web routes and API actions for official numbering and draft creation.
-- Open `/numbering/part-drafts` as the first-slice draft workbench.
+- Open `/parts?tab=drafts` as the first-slice draft workbench; remove the standalone request/draft page implementations.
 - Keep roadmap actions visible but unopened.
 - Add server-side denial for every unopened write action reachable from UI or direct API.
 - Add accessible UI states for disabled/unopened buttons.
@@ -294,7 +296,7 @@ Local implementation status as of 2026-07-10:
 - Complete: method-level API allowlist/default-deny gate.
 - Complete: production-slice status API and direct URL blocked page.
 - Complete: sidebar roadmap visibility with `未開放` route state.
-- Complete: `/numbering/part-drafts` slice-mode inert `submit-review`, `reconfirm` and `restore` controls.
+- Complete after DEV-048 convergence: owner-workspace `submit`, `withdraw` and `publish` controls are accessible, inert and marked `未開放`; retired pages are absent.
 - Complete: direct API fail-closed guards for part-draft `submit-review`, `reconfirm` and `restore`.
 - Complete: `.env.example` configuration surface for `PDM_PRODUCTION_SLICE_MODE`.
 - Complete: focused and regression QC; see `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`.
@@ -321,8 +323,8 @@ Implementation contract:
 - Admin setup may activate only pre-approved users and assign existing slice roles. It must not create new role semantics, enable self-registration, broaden company scope, or change identity-provider behavior.
 - Draft workbench deletion/recycle applies only to provisional `part_number_drafts`. Official root/drawing/part records created through formal numbering flows remain controlled and cannot be hard-deleted or recycled.
 - Draft delete/recycle must reuse or faithfully wrap the existing controlled-boundary domain predicate, including formal-part, BOM reference, replacement-link, PDM drawing upload, submitted, and released boundary reasons. A production-slice-specific shortcut predicate is not allowed.
-- Existing `/numbering/part-drafts` actions that move a draft into or toward a formal workflow are closed in this slice. `submit-review`, `reconfirm`, and `restore` must not appear as active actions in the production-slice UI; if shown for roadmap visibility, they must be marked `未開放`, accessible, inert, and must not call their write APIs.
-- Existing part-number draft route handlers for `submit-review`, `reconfirm`, and `restore` must be gated before domain-service mutation in production-slice mode and return the stable unopened response unless a later DEV opens them.
+- DEV-048 owner-workspace actions that move a draft into or toward a formal workflow are closed in this slice. `submit`, `withdraw`, and `publish` must be marked `未開放`, accessible, inert, and must not call write APIs.
+- Owner-workspace formal-action route handlers must be gated before domain-service mutation in production-slice mode and return the stable unopened response unless a later DEV opens them. Historical part-number-draft handlers remain deny-only compatibility APIs, not a UI authority.
 
 Allowed production-slice actions:
 
@@ -364,8 +366,8 @@ Denied production-slice actions:
 
 | Route group | Direct URL behavior | UI controls | API behavior |
 |---|---|---|---|
-| Open slice routes: `/numbering/request`, `/numbering/search`, `/numbering/drawings`, `/parts` | Render normal task route for permitted users | Allowed controls only | Allowed methods from the Route / API Boundary Matrix |
-| Draft route: `/numbering/part-drafts` | Render approved draft workbench for permitted users | Draft create/edit/delete/recycle controls only for provisional drafts | Draft APIs allowed only if listed and QC-covered |
+| Open slice routes: `/numbering/search`, `/numbering/drawings`, `/parts`, `/parts?tab=drafts` | Render normal owner surface for permitted users | Allowed controls only | Allowed methods from the Route / API Boundary Matrix |
+| Compatibility URLs: `/numbering/request`, `/numbering/part-drafts` | Middleware redirect; no page implementation | No controls | No legacy mutation surface |
 | Roadmap routes such as approvals, reviews, revisions, impact, imports, BOM, release or storage workflows | Render app shell plus `未開放` blocked state | No write-capable form, no submit CTA | Mutation routes return `feature_not_open_in_production_slice` |
 | Existing read-only detail surfaces | May render read-only facts if permission allows | No formal workflow buttons except inert roadmap controls | Read APIs only; mutation denied |
 | Unknown or unlisted production-slice route | Blocked state or existing 404/permission denial | No write-capable form | Mutation denied by default |
@@ -543,8 +545,8 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 | Product slice feature gate | Same Spec Phase 1 / Complete locally | Required to make visible roadmap UI safe |
 | Disabled unopened roadmap UI | Same Spec Phase 1 / Complete locally | User selected visible roadmap; UI must be accessible and backed by API denial |
 | Official numbering and draft flows | Same Spec Phase 1 / Complete locally | Core user value of the slice |
-| `/numbering/part-drafts` workbench | Same Spec Phase 1 / Complete locally | User selected `1B`; first slice includes draft workbench |
-| Provisional draft delete/recycle | Same Spec Phase 1 / Complete locally | User selected `2C`; limited to `part_number_drafts` before controlled boundary |
+| `/parts?tab=drafts` owner workbench | Same Spec Phase 1 / Complete locally | User selected `1B`; DEV-048 supplies the canonical draft workbench |
+| Candidate cancellation/recycle | Same Spec Phase 1 / Complete locally | User selected `2C`; limited to DEV-048 candidate reservations before controlled publication boundary |
 | Route / API allowlist and denylist | Same Spec Phase 1 / Complete locally | Replaces broad `/api/numbering/**` with method-level contract |
 | Direct URL blocked states | Same Spec Phase 1 / Complete locally | Needed so visible roadmap pages cannot be bypassed by URL |
 | Narrow admin setup | Same Spec Phase 1 / Complete locally | User setup is needed, but role/auth model expansion is not opened |
@@ -566,7 +568,7 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 | Phase / DEV | Execution boundary | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
 | Phase 0 / `DEV-PDM-PRODUCTION-SLICE-001` | Complete this turn | Complete | ADR, SPEC, QA plan, dev_task and documentation_map | Product implementation and release artifacts | User requested development document / dev-task refactor | Decisions and contracts captured | This document set |
-| Phase 1 / product slice gate | Complete locally | Local implementation complete | UI unopened states, API feature gate, numbering/draft allowlist, `/numbering/part-drafts`, provisional draft delete/recycle guards, route blocked states, narrow admin setup, non-production smoke-company isolation proof | Production deploy, live migration, production smoke, official-number recycle | Completed by local implementation work | Allowed flows work; unopened APIs deny; provisional drafts recycle only before controlled boundary; smoke data isolated | `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md` |
+| Phase 1 / product slice gate | Complete locally | Local implementation complete | UI unopened states, API feature gate, numbering/draft allowlist, `/parts?tab=drafts`, candidate cancellation guards, retired-page redirects, route blocked states, narrow admin setup, non-production smoke-company isolation proof | Production deploy, live migration, production smoke, official-number recycle | Completed by local implementation work | Allowed flows work; unopened APIs deny; candidates recycle only before controlled boundary; smoke data isolated | `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md` |
 | Phase 2 / production target readiness | Release Gate Required | `RD Contract Ready / Provider Evidence Not Requested` | Verify Cloud Run/Next.js 16/ALB/cache/manual promotion, portable HTTP/BFF, Cloud SQL Taiwan, file-path fail-close, both auth paths, clean seed/read-only archive/non-reuse manifest, business-hours RTO/60-minute response, full location inventory, VPC/private-IP/IAM DB auth, 70% connection budget, singleton migration, HA/PITR/pre-canary restore contract and cost alerts | unsupported runtime, private CDN caching, source auto-rollout, provider-specific authority, migrated business/source-actor rows, mutable archive, database-only/all-Taiwan/regional-DR claim, app-start DDL or direct migration | Closed HD-8-1..4, platform Phase 1/2 evidence, release command, approved targets, privacy/cost ownership and high-risk confirmation | Release gate can evaluate the no-file production slice | Future release-gate evidence |
 | Phase 3A.0 / controlled canary | Release Gate Required | `RD Contract Ready / Release Not Requested` | newly mapped named 3-5 Google Workspace users use official numbering/drafts | non-Google until Wave 1, wider users, source actor mapping, unspecified legacy auth, file/full PDM use | Phase 1 implemented, Phase 2 technical/security/continuity release gate passed, `HD-8-4 / 1A` restore/reconciliation passed, account manifest and field package ready | allowlist/legacy closure enforced; allowed records work; out-of-scope stays closed; rollback evidence exists | Future canary release evidence |
 | Phase 3A.1 / `DEV-FIELD-001` | Cancelled by Human Decision | Closed without execution | Preserve the cancellation decision and do not misreport it as a pass | formal field acceptance claim, automatic wider rollout or full PDM claim | `HD-9-1` | no fixed-duration evidence required; technical/release gates remain authoritative | decision record plus retained local functional evidence |

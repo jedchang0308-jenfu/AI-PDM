@@ -6,6 +6,8 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-dr
 Related QC: `.ai-doc/qc/qc-pdm-production-slice-numbering-draft-report-2026-07-10.md`
 Status: Local Phase 1 executed and passed; production release validation not executed
 
+2026-07-17 DEV-048 convergence：route/UI cases must validate `/parts?tab=drafts` and owner-surface create CTAs. `/numbering/part-drafts` and `/numbering/request` must redirect while preserving context and must never render their retired mutation pages. Production-slice submit/withdraw/publish controls remain focusable, marked `未開放`, inert, and backed by direct API denial.
+
 ## Validation Objective
 
 Verify that AI_PDM can safely open only the official numbering and draft production slice to 3-5 internal users while keeping future roadmap functions visible but unopened, and while preventing direct API execution of unopened production workflows.
@@ -21,7 +23,7 @@ In scope:
 - Production-slice feature gate.
 - Web UI roadmap visibility with disabled/unopened states.
 - Official numbering creation and draft creation flows.
-- `/numbering/part-drafts` draft workbench.
+- `/parts?tab=drafts` DEV-048 owner workspace; retired `/numbering/part-drafts` and `/numbering/request` URLs redirect only.
 - Provisional part-number draft delete/void and number recycle before controlled boundary.
 - Search/list/detail confirmation for created records.
 - API denial for unopened write actions.
@@ -93,14 +95,14 @@ Use disposable local or controlled staging fixtures before release gate confirma
 | SLICE-DRAFT-002 | P1 | Draft-only action is cancelled | Cancel does not allocate numbers or mutate records |
 | SLICE-DRAFT-003 | P0 | Draft metadata edit is submitted for `Draft` / `NeedInfo` | Edit succeeds with audit/version guard and remains outside formal workflow |
 | SLICE-DRAFT-004 | P0 | Draft metadata edit is submitted for non-draft record | API returns conflict and does not mutate |
-| SLICE-DRAFT-005 | P0 | `/numbering/part-drafts` creates a provisional reservation | Draft appears in draft workbench and is not an official root/drawing/part record |
+| SLICE-DRAFT-005 | P0 | Owner-surface create flow reserves candidate numbers | Draft appears in `/parts?tab=drafts` and is not an official root/drawing/part record |
 | SLICE-DRAFT-006 | P0 | Provisional part-number draft delete/void is confirmed | Draft leaves active draft workbench and delete event remains auditable |
 | SLICE-DRAFT-007 | P0 | Deleted/voided provisional draft is recycled | Reserved draft number becomes reusable only if not controlled or already reused |
 | SLICE-DRAFT-008 | P0 | Delete/recycle is attempted for official, referenced, submitted, released or controlled draft | API returns conflict and no official number is recycled |
 | SLICE-DRAFT-009 | P0 | Official numbering record delete/recycle is attempted through draft route | Route is denied; official root/drawing/part number remains controlled |
 | SLICE-DRAFT-010 | P0 | Restore/reconfirm/submit-review route is called from draft workbench | Route is denied as outside this slice |
 | SLICE-DRAFT-011 | P0 | Draft submit-review / release conversion route is called | Route is denied as unopened production workflow |
-| SLICE-DRAFT-012 | P0 | Existing `/numbering/part-drafts` UI would normally expose submit-review, reconfirm, or restore actions | Production-slice UI does not expose them as active actions; if visible, they are `未開放`, accessible and inert |
+| SLICE-DRAFT-012 | P0 | `/parts?tab=drafts` owner workspace exposes future submit/withdraw/publish actions | Production-slice UI marks them `未開放`, accessible and inert; retired standalone pages do not exist |
 | SLICE-DRAFT-013 | P0 | Delete/recycle checks a provisional part-number draft boundary | Check uses or faithfully wraps the existing controlled-boundary predicate and records the boundary reason evidence |
 
 ### Roadmap UI / Now What States
@@ -194,11 +196,11 @@ npm.cmd run qc:pdm-production-slice-numbering-draft
 Focused QC must verify:
 
 - allowed numbering/draft flows are enabled only for permitted users;
-- `/numbering/part-drafts` is open as first-slice draft workbench;
-- provisional part-number drafts can be deleted/voided and recycled before controlled boundary;
-- provisional draft delete/recycle uses or faithfully wraps the existing controlled-boundary predicate, including formal-part, BOM reference, replacement-link, PDM drawing upload, submitted and released boundary reasons;
+- `/parts?tab=drafts` is the first-slice draft workbench; retired URLs redirect and cannot render old pages;
+- DEV-048 candidate reservations can be cancelled and released before controlled publication boundary;
+- candidate cancellation/recycle uses the DEV-048 capability and controlled-boundary rules;
 - official root/drawing/part numbers cannot be deleted or recycled through draft controls;
-- existing part-number draft `submit-review`, `reconfirm` and `restore` actions are not active in the production-slice UI and their APIs fail closed;
+- owner-workspace `submit`, `withdraw` and `publish` actions are visible as `未開放`, inert, and their APIs fail closed;
 - only method-level allowed APIs from the spec matrix can mutate;
 - draft operations stay within draft state and cannot enter review/release;
 - direct URL entry into unopened routes renders blocked states without write controls;

@@ -89,7 +89,6 @@ for (const behavior of [
 const requiredHeaderFiles = [
   "src/components/dashboard/layout-parts.tsx",
   "src/components/dashboard.tsx",
-  "src/app/numbering/request/page.tsx",
   "src/app/numbering/drawings/page.tsx",
   "src/app/parts/page.tsx",
   "src/app/numbering/tasks/page.tsx",
@@ -97,7 +96,6 @@ const requiredHeaderFiles = [
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
   "src/app/numbering/imports/page.tsx",
-  "src/app/numbering/part-drafts/page.tsx",
   "src/app/bom/workbench/page.tsx",
   "src/app/settings/page.tsx"
 ];
@@ -129,7 +127,7 @@ const dvtPage = read("src/app/numbering/dvt/page.tsx");
 record("DVT readiness uses dvtReadiness context", dvtPage.includes('context="dvtReadiness"'));
 record("DVT readiness column is labeled as DVT check", dvtPage.includes('label="DVT 檢查"'));
 
-for (const relativePath of ["src/app/bom/workbench/page.tsx", "src/app/numbering/part-drafts/page.tsx"]) {
+for (const relativePath of ["src/app/bom/workbench/page.tsx"]) {
   const source = read(relativePath);
   record(`${relativePath} uses restorePolicy for restore status`, source.includes('context="restorePolicy"'));
 }

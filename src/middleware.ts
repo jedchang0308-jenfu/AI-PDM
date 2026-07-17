@@ -6,15 +6,13 @@ import {
   productionSliceDeniedPayload,
   shouldBlockProductionSlicePagePath
 } from "@/lib/production-slice";
-import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 import { resolveNumberStateLegacyRedirect } from "@/lib/number-state-flow-legacy-route";
 
 function numberStateLegacyRedirect(request: NextRequest) {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const resolved = resolveNumberStateLegacyRedirect(
     request.nextUrl.pathname,
-    request.nextUrl.searchParams,
-    isNumberStateFlowV1Enabled()
+    request.nextUrl.searchParams
   );
   if (!resolved) return null;
   const url = request.nextUrl.clone();

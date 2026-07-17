@@ -3,7 +3,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
+import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const schema = readProjectFile(root, "db/schema.sql");
@@ -32,7 +32,7 @@ const bomSubmitReviewRouteSource = readProjectFile(root, "src/app/api/bom/drafts
 const bomReconfirmReplacementRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts");
 const bomWorkbenchPageSource = readProjectFile(root, "src/app/bom/workbench/page.tsx");
 const drawingSubmissionWorkbenchSource = readProjectFile(root, "src/lib/drawing-submission-workbench.ts");
-const partDraftPageSource = readProjectFile(root, "src/app/numbering/part-drafts/page.tsx");
+const numberStateWorkspaceSource = readProjectFile(root, "src/components/number-state-workspace.tsx");
 const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
 const masterAttachmentPanelSource = readProjectFile(root, "src/components/master-attachment-panel.tsx");
 const revisionPackageSource = readProjectFile(root, "src/lib/revision-package.ts");
@@ -472,17 +472,13 @@ record(
   "src/app/api/numbering/part-number-drafts"
 );
 record(
-  "CHG-SRC-010 part draft page and nav entry exist",
-  partDraftPageSource.includes("料號草稿") &&
-    partDraftPageSource.includes("/api/numbering/part-number-drafts") &&
-    partDraftPageSource.includes("已刪除資料") &&
-    partDraftPageSource.includes("surface=deleted_data") &&
-    partDraftPageSource.includes("/restore") &&
-    partDraftPageSource.includes("刪除") &&
-    partDraftPageSource.includes("還原") &&
-    sidebarSource.includes("/numbering/part-drafts") &&
+  "CHG-SRC-010 retired draft page is absent and owner workspace owns cancellation",
+  !projectFileExists(root, "src/app/numbering/part-drafts/page.tsx") &&
+    !sidebarSource.includes('href: "/numbering/part-drafts"') &&
+    numberStateWorkspaceSource.includes("取消申請並釋出保留號碼") &&
+    numberStateWorkspaceSource.includes('action === "cancel"') &&
     navPermissionSource.includes('"/numbering/part-drafts": "numbering.tasks"'),
-  "src/app/numbering/part-drafts/page.tsx"
+  "DEV-048 owner workspace and compatibility permission mapping"
 );
 record("CHG-SRC-011 reconfirm event type is allowed by schema", schema.includes("'draft_reconfirmed'"), "db/schema.sql");
 record(
@@ -559,14 +555,15 @@ record(
 );
 record(
   "CHG-SRC-014 review action APIs and page exist",
-  reviewActionHandlerSource.includes("applyDrawingRevisionReviewAction") &&
+  reviewActionHandlerSource.includes("decideApprovalPlatformLegacyDrawingRevisionReviewActionAsync") &&
     reviewPendingRouteSource.includes("listPendingDrawingRevisionReviews") &&
-    reviewConfirmBomRouteSource.includes("confirm_bom_no_revision") &&
+  reviewConfirmBomRouteSource.includes("confirm_bom_no_revision") &&
     reviewApproveReleaseRouteSource.includes("approve_replacement_part_and_drawing_release") &&
-    changeReviewPageSource.includes("/api/numbering/reviews/") &&
-    sidebarSource.includes("/numbering/change-reviews") &&
+    changeReviewPageSource.includes("buildLegacyApprovalWorkbenchRedirect") &&
+    changeReviewPageSource.includes("numbering_change_reviews") &&
+    sidebarSource.includes('href: "/approvals"') &&
     navPermissionSource.includes('"/numbering/change-reviews": "numbering.approvals"'),
-  "src/app/api/numbering/reviews"
+  "review APIs and unified approval workbench redirect"
 );
 record(
   "CHG-SRC-015 review release domain supports atomic replacement and BOM flags",

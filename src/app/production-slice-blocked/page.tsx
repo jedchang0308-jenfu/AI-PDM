@@ -23,14 +23,14 @@ export default async function ProductionSliceBlockedPage({ searchParams }: Block
         <div className="empty">
           <LockKeyhole size={26} aria-hidden="true" />
           <strong>此功能尚未納入本次開放</strong>
-          <p>{PRODUCTION_SLICE_UNOPENED_MESSAGE} 請先使用領號申請、圖料查詢、圖號模組、料號模組或料號草稿。</p>
+          <p>{PRODUCTION_SLICE_UNOPENED_MESSAGE} 請改從圖料模組建立申請，或到料號模組查看領號申請。</p>
           {from ? <p className="muted-text">來源路徑：{from}</p> : null}
           <div className="next-step-actions">
-            <Link className="primary-button" href="/numbering/request">
-              前往領號申請
+            <Link className="primary-button" href="/numbering/search?create=numbering">
+              建立圖料號
             </Link>
-            <Link className="secondary-button" href="/numbering/part-drafts">
-              前往料號草稿
+            <Link className="secondary-button" href="/parts?tab=drafts">
+              查看領號申請
             </Link>
             <Link className="secondary-button" href="/numbering/search">
               查圖料

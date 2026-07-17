@@ -5,10 +5,8 @@ export type NumberStateLegacyRedirect = {
 
 export function resolveNumberStateLegacyRedirect(
   pathname: string,
-  searchParams: URLSearchParams,
-  enabled: boolean
+  searchParams: URLSearchParams
 ): NumberStateLegacyRedirect | null {
-  if (!enabled) return null;
   const nextSearchParams = new URLSearchParams(searchParams);
   let destinationPathname = "";
 

@@ -9,8 +9,6 @@ Related SPEC：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-d
 Related ADR：`.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`
 Platform authority：`DEV-046` ADR/SPEC/QA
 
-2026-07-17 QA amendment：四個地端任務入口重新列入可見與操作驗收；必須驗證直接入口與owner-surface CTA命中相同BFF/domain command、permission、idempotency、transaction及Cloud SQL authority。帳號邀請、CI/IaC、DB provider/schema與平台架構仍以production/main為baseline。
-
 ## 1. QA Boundary
 
 本文件定義驗證權威。Phase 1A、Phase 1B、Phase 1C及Phase 1D獨立本機QC均已通過；涵蓋candidate authority、owner UI、approval/explicit publish、逐寫入點rollback、aggregate transfer、published-only handoff、role/company、五種viewport與disposable data sanity。Live provider、staging與release evidence仍未執行。
@@ -271,7 +269,7 @@ G8-G9不因local G0-G7通過而自動開始。
 |---|---|---|
 | UI-001 | Open create then close | no network mutation / DB count change。 |
 | UI-002 | Header CTAs | exact owner-module CTA visible and only one primary CTA。 |
-| UI-003 | Sidebar entrypoint equivalence | `料號草稿 / 領號申請 / 上傳送審 / 製造交接`四項可見且可到達；直接入口與owner-surface CTA必須共用同一server command、permission、idempotency與資料authority，結果不得分岔。 |
+| UI-003 | Sidebar roadmap / compatibility | DEV-048 owner surfaces開啟時`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四項不可見；新owner-surface入口可到達，舊URL只redirect/guidance並保留query/`returnTo`，無第二套mutation。 |
 | UI-004 | Draft tab discoverability | user can reach own drafts from料號模組without knowingold route。 |
 | UI-005 | Candidate qualification | text + icon/badge, not color-only；never says official。 |
 | UI-006 | Approved projection | simultaneously shows已核准、待發布、候選、不可正式使用。 |
@@ -395,7 +393,7 @@ QC report每個failed case要包含：case ID、role、company、URL/API、viewp
 
 ## 10. Completion Boundary
 
-本QA plan已達`QA Plan Ready`，Phase 1A RD implementation與self-verification已完成；`HD-048-01 / 1C`已由2026-07-17入口等價決策取代，`HD-048-02..03`維持關閉。只有入口等價、role/company/API/DB/browser/concurrency或fault evidence通過後，才可更新對應phase為QC passed。
+本QA plan已達`QA Plan Ready`，Phase 1A-1D本機RD與獨立QC已完成；`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉。只有對應role/company/API/DB/browser/concurrency或fault evidence通過後，才可更新後續provider或release gate。
 
 ## 11. Phase 1A RD Handoff Evidence
 

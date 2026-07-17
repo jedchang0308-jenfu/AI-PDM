@@ -42,7 +42,7 @@ const permissionRouteSource = read("src/app/api/numbering/permissions/route.ts")
 const permissionGuardSource = read("src/lib/numbering-permission-guard.ts");
 const permissionCodesSource = read("src/lib/numbering-permission-codes.ts");
 const settingsPageSource = read("src/app/settings/page.tsx");
-const numberingRequestPageSource = read("src/app/numbering/request/page.tsx");
+const numberStateWorkspaceSource = read("src/components/number-state-workspace.tsx");
 const numberingDvtPageSource = read("src/app/numbering/dvt/page.tsx");
 const numberingApprovalPageSource = read("src/app/numbering/approvals/page.tsx");
 const approvalWorkbenchPageSource = read("src/app/approvals/page.tsx");
@@ -854,26 +854,25 @@ record(
   "numbering/tasks/page.tsx"
 );
 record(
-  "NUM-UI numbering request wizard renders create flow",
-  numberingRequestPageSource.includes("建立圖料號") &&
-    numberingRequestPageSource.includes("/api/numbering/records") &&
-    numberingRequestPageSource.includes("正在檢查相似主根") &&
-    numberingRequestPageSource.includes("本次將建立"),
-  "numbering/request/page.tsx"
+  "NUM-UI DEV-048 owner workspace renders create flow",
+  numberStateWorkspaceSource.includes("建立圖料號草稿") &&
+    numberStateWorkspaceSource.includes("/api/numbering/draft-workspaces") &&
+    numberStateWorkspaceSource.includes("duplicateCheckState") &&
+    numberStateWorkspaceSource.includes("建立並保留號碼"),
+  "components/number-state-workspace.tsx"
 );
 record(
-  "NUM-UI numbering request wizard supports item kinds and part-before-drawing",
-  numberingRequestPageSource.includes("客製尺寸／規格") &&
-    numberingRequestPageSource.includes("跨專案共用") &&
-    numberingRequestPageSource.includes("只建立料號"),
-  "numbering/request/page.tsx"
+  "NUM-UI owner workspace supports item kinds and drawing requirement policy",
+  numberStateWorkspaceSource.includes('type ItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom"') &&
+    numberStateWorkspaceSource.includes("跨專案共用") &&
+    numberStateWorkspaceSource.includes("manufacturedPartMustIncludeDrawing"),
+  "components/number-state-workspace.tsx"
 );
 record(
-  "NUM-UI numbering request wizard locks initial phase instead of offering phase selection",
-  numberingRequestPageSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
-    numberingRequestPageSource.includes('data-testid="initial-development-phase"') &&
-    !numberingRequestPageSource.includes("setDevelopmentPhase"),
-  "numbering/request/page.tsx"
+  "NUM-UI owner workspace does not offer a client-controlled development phase",
+  !numberStateWorkspaceSource.includes("setDevelopmentPhase") &&
+    !numberStateWorkspaceSource.includes('name="developmentPhase"'),
+  "components/number-state-workspace.tsx"
 );
 record(
   "NUM-UI DVT promotion page renders candidate workflow",
@@ -897,7 +896,7 @@ record(
 );
 record(
   "NUM-UI approval workbench exposes numbering review filters",
-  approvalWorkbenchPageSource.includes("<h1>審核工作台</h1>") &&
+  approvalWorkbenchPageSource.includes("<h1>審核工作台") &&
     approvalWorkbenchPageSource.includes("numbering.release") &&
     approvalWorkbenchPageSource.includes("numbering.dvt_promotion") &&
     approvalWorkbenchPageSource.includes("numbering.obsolete_part_number") &&
@@ -983,7 +982,14 @@ record(
   sidebarNavSource.includes("/numbering/tasks") && (sidebarNavSource.includes("圖號待辦") || sidebarNavSource.includes("我的待辦")),
   "sidebar-nav.tsx"
 );
-record("NUM-UI sidebar links numbering request page", sidebarNavSource.includes("/numbering/request") && sidebarNavSource.includes("領號申請"), "sidebar-nav.tsx");
+record(
+  "NUM-UI sidebar retires standalone numbering request and keeps owner modules",
+  !sidebarNavSource.includes('href: "/numbering/request"') &&
+    !sidebarNavSource.includes('href: "/numbering/part-drafts"') &&
+    sidebarNavSource.includes('href: "/numbering/search"') &&
+    sidebarNavSource.includes('href: "/parts"'),
+  "sidebar-nav.tsx"
+);
 record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("階段晉升"), "sidebar-nav.tsx");
 record(
   "NUM-UI sidebar links unified approval workbench",

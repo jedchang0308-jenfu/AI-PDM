@@ -15,7 +15,7 @@ function record(name, passed, detail = "") {
 }
 
 const repositorySource = read("src/lib/repositories/numbering-async-repository.ts");
-const requestPageSource = read("src/app/numbering/request/page.tsx");
+const workspaceSource = read("src/components/number-state-workspace.tsx");
 const packageJson = JSON.parse(read("package.json"));
 
 const createStart = repositorySource.indexOf("async createNumberingRecord(input: CreateNumberingRecordInput)");
@@ -43,30 +43,24 @@ record(
     repositorySource.includes("drawingRow ? mapDrawingNumber(drawingRow) : null"),
   "findRecentDuplicateCreateInClient"
 );
-record("request page has in-flight submit ref", requestPageSource.includes("submitInFlightRef"), "numbering/request/page.tsx");
+record("owner workspace keeps one create idempotency key", workspaceSource.includes('useRef(newIdempotencyKey("create"))'), "number-state-workspace.tsx");
 record(
-  "request page blocks submit while in flight or after created record",
-  requestPageSource.includes('const currentCreated = requestMode === "new_root" ? createdRecord : appendCreatedRecord;') &&
-    requestPageSource.includes("if (submitInFlightRef.current || currentCreated) return;") &&
-    requestPageSource.includes('const hasCurrentCreated = requestMode === "new_root" ? Boolean(createdRecord) : Boolean(appendCreatedRecord);') &&
-    requestPageSource.includes('const submitBlocked = busy === "submit" || hasCurrentCreated') &&
-    requestPageSource.includes("disabled={submitBlocked}"),
-  "submitRequest"
+  "owner workspace disables duplicate submit while request is busy",
+  workspaceSource.includes("disabled={busy || duplicateCheckState === \"checking\" || appendPolicyState === \"loading\"") &&
+    workspaceSource.includes('headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey.current }'),
+  "CreateWorkspaceDialog submit"
 );
 record(
-  "request page resets submit lock and form through clear action",
-  requestPageSource.includes('function resetRequest(nextMode: RequestMode = "new_root")') &&
-    requestPageSource.includes("submitInFlightRef.current = false") &&
-    requestPageSource.includes("setCreatedRecord(null)") &&
-    requestPageSource.includes('setCoreName("")') &&
-    requestPageSource.includes('setDrawingPurposeDescription("")'),
-  "resetRequest"
+  "owner workspace rotates the key after non-retryable failure",
+  workspaceSource.includes('if (response.status !== 503) idempotencyKey.current = newIdempotencyKey("create")') &&
+    workspaceSource.includes("表單內容已保留"),
+  "CreateWorkspaceDialog failure recovery"
 );
 record(
-  "request page uses explicit outcome-based submit copy",
-  requestPageSource.includes('"建立料號草稿"') &&
-    requestPageSource.includes('`建立料號與${drawingKindLabel}草稿`') &&
-    requestPageSource.includes("{busy === \"submit\" ? \"建立中...\""),
+  "owner workspace uses explicit outcome-based submit copy",
+  workspaceSource.includes("建立並保留號碼") &&
+    workspaceSource.includes('{busy ? "建立中..."') &&
+    workspaceSource.includes("正式發布前不可正式使用"),
   "submit button"
 );
 record(

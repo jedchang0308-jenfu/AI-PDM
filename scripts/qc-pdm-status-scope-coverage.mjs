@@ -83,8 +83,6 @@ const requiredScopes = {
   partsList: "src/app/parts/page.tsx",
   drawingList: "src/app/numbering/drawings/page.tsx",
   numberingSearch: "src/app/numbering/search/page.tsx",
-  numberingRequest: "src/app/numbering/request/page.tsx",
-  numberingDraftList: "src/app/numbering/part-drafts/page.tsx",
   numberStateWorkspace: "src/components/number-state-workspace.tsx",
   approvalInbox: "src/app/approvals/page.tsx",
   uploadSubmission: "src/app/upload/page.tsx",

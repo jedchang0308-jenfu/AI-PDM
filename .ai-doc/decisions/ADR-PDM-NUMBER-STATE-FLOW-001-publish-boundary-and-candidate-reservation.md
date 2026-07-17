@@ -1,14 +1,12 @@
 # ADR-PDM-NUMBER-STATE-FLOW-001：正式發布邊界與候選號保留模型
 
 日期：2026-07-13
-狀態：Accepted / 2026-07-17 Entrypoint Source Amendment / Release Gate Required
+狀態：Accepted / Phase 1A-1D Local QC Passed / Release Gate Required
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048`
 Related SPEC：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`
 Related QA：`.ai-doc/qa/qa-pdm-number-state-flow-validation-plan-2026-07-13.md`
 Platform authority：`.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
-
-2026-07-17 amendment：production/main繼續擁有帳號邀請、CI/IaC、DB provider/schema及平台架構；原地端分支擁有前端UI與圖料號申請垂直切片。此決策只取代`HD-048-01 / 1C`的入口移除要求：四個地端任務入口可保留mutation，但必須委派同一BFF/domain transaction與Cloud SQL authority。候選號、正式發布、不可重用、audit/outbox、權限及檔案發布gate均不變。
 
 ## Context
 
@@ -233,4 +231,4 @@ Rejected。
 
 ## Decision Outcome
 
-本ADR的publication boundary、candidate lifecycle與official non-reuse決策維持Accepted。2026-07-17使用者明確取代`HD-048-01 / 1C`：四個地端任務入口保留可見與可操作，但共用同一BFF/domain service與production資料authority，不得成為第二套mutation authority。`HD-048-02 / 2C`的finalized evidence規則及`HD-048-03 / 3C`的獨立權限、command與audit規則維持不變。
+本ADR的publication boundary、candidate lifecycle與official non-reuse決策維持Accepted。2026-07-13使用者以`1C / 2C / 3C`關閉SPEC登錄的`HD-048-01..03`：四個可見舊側欄項目退出，舊URL只保留redirect/guidance；drawing/required-file publication必須有finalized evidence，純root/part-only可由server rule回`not_required`；同一自然人可完成submit/approve/publish，但不得合併權限、command或audit。Phase 1A-1D本機RD與獨立QC均已通過；live provider與release仍走DEV-046 / DEV-032 gate。

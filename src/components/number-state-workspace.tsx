@@ -32,7 +32,10 @@ type LifecycleStatus = "active" | "cancelled" | "published";
 type NumberQualification = "unnumbered" | "candidate" | "official" | "legacy_official_reservation";
 type NumberEffectivenessFilter = "all" | "not_generated" | "reserved" | "official";
 type FeatureStatus = { enabled: boolean; flag: string; phase: string };
+type ProductionSliceStatus = { configured: boolean; unopenedMessage?: string };
 type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
+
+const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 草稿 production slice。";
 
 type NumberStateProjection = {
   numberQualification: NumberQualification;
@@ -452,6 +455,25 @@ function useFeatureStatus() {
   return status;
 }
 
+function useProductionSliceStatus() {
+  const [status, setStatus] = useState<ProductionSliceStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/production-slice/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body: ProductionSliceStatus | null) => {
+        if (!cancelled) setStatus(body);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return status;
+}
+
 function useNumberStateActionPermissions() {
   const [actions, setActions] = useState<Record<string, boolean> | null>(null);
   useEffect(() => {
@@ -540,6 +562,7 @@ export function NumberStateOwnerCreateAction({
 
 export function NumberStateWorkspaceWorkbench() {
   const feature = useFeatureStatus();
+  const productionSlice = useProductionSliceStatus();
   const actionPermissions = useNumberStateActionPermissions();
   const [workspaces, setWorkspaces] = useState<NumberingDraftWorkspace[]>([]);
   const [selected, setSelected] = useState<NumberingDraftWorkspace | null>(null);
@@ -560,6 +583,8 @@ export function NumberStateWorkspaceWorkbench() {
   const createCta = getNumberStateCreateCta({ surface: "drafts" });
   const canCreate = actionPermissions?.["numbering.workspace.create"] === true;
   const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立圖料號草稿的權限";
+  const formalActionsUnopened = productionSlice?.configured === true;
+  const formalActionsUnopenedMessage = productionSlice?.unopenedMessage ?? DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE;
 
   const loadWorkspaces = useCallback(async (preferredId?: string) => {
     if (!feature?.enabled) return;
@@ -657,6 +682,11 @@ export function NumberStateWorkspaceWorkbench() {
 
   async function runWorkspaceAction(action: WorkspaceAction) {
     if (!selected) return;
+    if (formalActionsUnopened && action !== "cancel") {
+      setError(formalActionsUnopenedMessage);
+      setConfirmAction(null);
+      return;
+    }
     setActionBusy(true);
     setError("");
     setNotice("");
@@ -827,6 +857,8 @@ export function NumberStateWorkspaceWorkbench() {
           onWithdraw={() => setConfirmAction("withdraw")}
           onPublish={() => setConfirmAction("publish")}
           onCancel={() => setConfirmAction("cancel")}
+          formalActionsUnopened={formalActionsUnopened}
+          unopenedMessage={formalActionsUnopenedMessage}
           onClose={() => { setSelected(null); setEditOpen(false); }}
         />
       ) : null}
@@ -1329,6 +1361,8 @@ function WorkspaceDrawer({
   onWithdraw,
   onPublish,
   onCancel,
+  formalActionsUnopened,
+  unopenedMessage,
   onClose
 }: {
   workspace: NumberingDraftWorkspace;
@@ -1341,6 +1375,8 @@ function WorkspaceDrawer({
   onWithdraw: () => void;
   onPublish: () => void;
   onCancel: () => void;
+  formalActionsUnopened: boolean;
+  unopenedMessage: string;
   onClose: () => void;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -1352,17 +1388,17 @@ function WorkspaceDrawer({
         <div className="number-state-drawer-body">
           <ProjectionSummary projection={workspace.projection} />
           {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
-          <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} />
+          <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
           {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
           <section className="number-state-drawer-section">
             <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯草稿</button> : null}</div>
             <div className="number-state-future-actions">
-              {workspace.capabilities.canSubmitReview ? <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交發布審核</button> : null}
-              {workspace.latestApproval?.status === "pending" ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}
-              {workspace.capabilities.canWithdrawReview ? <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}
+              {workspace.capabilities.canSubmitReview ? formalActionsUnopened ? <UnopenedAction label="送交發布審核" reason={unopenedMessage}><LockKeyhole size={15} /></UnopenedAction> : <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交發布審核</button> : null}
+              {workspace.latestApproval?.status === "pending" ? formalActionsUnopened ? <UnopenedAction label="查看審核" reason={unopenedMessage}><FileText size={15} /></UnopenedAction> : <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}
+              {workspace.capabilities.canWithdrawReview ? formalActionsUnopened ? <UnopenedAction label="撤回審核" reason={unopenedMessage}><RotateCcw size={15} /></UnopenedAction> : <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}
               {workspace.latestApproval?.status === "apply_failed" ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><RefreshCcw size={15} />重試審核套用</Link> : null}
               {workspace.projection.review === "approved" && workspace.lifecycleStatus === "active" ? (
-                <button className="primary-button" type="button" onClick={onPublish} disabled={!workspace.capabilities.canPublish || busy} title={!workspace.capabilities.canPublish ? publicationBlockerLabel(workspace.capabilities.publishBlockedReason) : "正式建立主根、料號、圖號與關係"}><Check size={15} />正式發布</button>
+                formalActionsUnopened ? <UnopenedAction label="正式發布" reason={unopenedMessage}><Check size={15} /></UnopenedAction> : <button className="primary-button" type="button" onClick={onPublish} disabled={!workspace.capabilities.canPublish || busy} title={!workspace.capabilities.canPublish ? publicationBlockerLabel(workspace.capabilities.publishBlockedReason) : "正式建立主根、料號、圖號與關係"}><Check size={15} />正式發布</button>
               ) : null}
             </div>
           </section>
@@ -1377,10 +1413,27 @@ function ProjectionSummary({ projection }: { projection: NumberStateProjection }
   return <section className="number-state-drawer-section"><div className="number-state-section-heading"><h3>目前狀態</h3><ProjectionBadges projection={projection} /></div><dl className="number-state-state-grid"><div><dt>審核</dt><dd>{reviewLabel(projection.review)}</dd></div><div><dt>發布</dt><dd>{publicationLabel(projection.publication)}</dd></div><div><dt>完整度</dt><dd>{readinessLabel(projection.readiness)}</dd></div><div><dt>正式用途</dt><dd>{usageLabel(projection.usage)}</dd></div></dl></section>;
 }
 
-function NowWhatPanel({ workspace, busy, onSubmit, onPublish }: { workspace: NumberingDraftWorkspace; busy: boolean; onSubmit: () => void; onPublish: () => void }) {
+function NowWhatPanel({ workspace, busy, onSubmit, onPublish, formalActionsUnopened, unopenedMessage }: { workspace: NumberingDraftWorkspace; busy: boolean; onSubmit: () => void; onPublish: () => void; formalActionsUnopened: boolean; unopenedMessage: string }) {
+  const action = workspace.capabilities.canSubmitReview
+    ? formalActionsUnopened
+      ? <UnopenedAction label="送交審核" reason={unopenedMessage}><LockKeyhole size={15} /></UnopenedAction>
+      : <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交審核</button>
+    : workspace.capabilities.canPublish
+      ? formalActionsUnopened
+        ? <UnopenedAction label="正式發布" reason={unopenedMessage}><Check size={15} /></UnopenedAction>
+        : <button className="primary-button" type="button" onClick={onPublish} disabled={busy}><Check size={15} />正式發布</button>
+      : workspace.latestApproval?.requestId
+        ? formalActionsUnopened
+          ? <UnopenedAction label="查看審核" reason={unopenedMessage}><FileText size={15} /></UnopenedAction>
+          : <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link>
+        : null;
   return (
-    <section className="number-state-now-what"><div><span>現在要做什麼</span><strong>{nowWhatLabel(workspace.projection.nowWhat.label)}</strong><small>責任角色：{ownerRoleLabel(workspace.projection.nowWhat.ownerRole)}</small></div>{workspace.capabilities.canSubmitReview ? <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交審核</button> : workspace.capabilities.canPublish ? <button className="primary-button" type="button" onClick={onPublish} disabled={busy}><Check size={15} />正式發布</button> : workspace.latestApproval?.requestId ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><FileText size={15} />查看審核</Link> : null}</section>
+    <section className="number-state-now-what"><div><span>現在要做什麼</span><strong>{formalActionsUnopened && (workspace.capabilities.canSubmitReview || workspace.capabilities.canPublish) ? "此階段尚未開放" : nowWhatLabel(workspace.projection.nowWhat.label)}</strong><small>{formalActionsUnopened && (workspace.capabilities.canSubmitReview || workspace.capabilities.canPublish) ? unopenedMessage : `責任角色：${ownerRoleLabel(workspace.projection.nowWhat.ownerRole)}`}</small></div>{action}</section>
   );
+}
+
+function UnopenedAction({ label, reason, children }: { label: string; reason: string; children: ReactNode }) {
+  return <button className="secondary-button production-slice-unopened" type="button" aria-disabled="true" data-production-slice-unopened="true" title={`未開放：${reason}`} onClick={(event) => event.preventDefault()}>{children}{label}<span className="nav-unopened-badge">未開放</span></button>;
 }
 
 function WorkspaceFacts({ workspace }: { workspace: NumberingDraftWorkspace }) {

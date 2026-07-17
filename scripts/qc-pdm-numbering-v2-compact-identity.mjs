@@ -54,9 +54,9 @@ try {
     fileIncludes("src/lib/numbering-identity.ts", ['!value.endsWith("P00")', "!/[MR]00$/.test(value)"])
   );
   record(
-    "Repositories default normal creation to compact v2",
-    fileIncludes("src/lib/repositories/numbering-repository.ts", ["DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID"]) &&
-      fileIncludes("src/lib/repositories/numbering-async-repository.ts", ["DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V2_ID"])
+    "Repositories preserve compact v2 support while v3 owns the current default",
+    fileIncludes("src/lib/repositories/numbering-repository.ts", ["NUMBERING_RULE_V2_ID", "DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V3_ID"]) &&
+      fileIncludes("src/lib/repositories/numbering-async-repository.ts", ["NUMBERING_RULE_V2_ID", "DEFAULT_RULE_VERSION_ID = NUMBERING_RULE_V3_ID"])
   );
   record(
     "Records API accepts only compact M/R purpose codes for normal creation",
@@ -64,9 +64,9 @@ try {
       sourceDoesNotMatch("src/app/api/numbering/records/route.ts", /const purposeCodes = new Set\(\["MA", "OT"\]\)/)
   );
   record(
-    "Request UI creates M/R drawings and not normal MA/OT options",
-    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', "M · 製造圖", "R · 參考圖"]) &&
-      sourceDoesNotMatch("src/app/numbering/request/page.tsx", /<option value="MA"|<option value="OT"|OT 其他圖/)
+    "Owner UI creates M/R drawings and not normal MA/OT options",
+    fileIncludes("src/components/number-state-workspace.tsx", ['value: "M"', 'value: "R"', "製造圖 M", "參考圖 R"]) &&
+      sourceDoesNotMatch("src/components/number-state-workspace.tsx", /value: "MA"|value: "OT"|OT 其他圖/)
   );
   record(
     "Downstream UI uses semantic manufacturing helper",

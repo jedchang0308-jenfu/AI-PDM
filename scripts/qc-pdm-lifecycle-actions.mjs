@@ -25,7 +25,7 @@ const drawingRestoreRoute = readRequired("src/app/api/numbering/drawings/[drawin
 const panel = readRequired("src/components/master-attachment-panel.tsx");
 const partDraftListRoute = readRequired("src/app/api/numbering/part-number-drafts/route.ts");
 const partDraftRestoreRoute = readRequired("src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts");
-const partDraftPage = readRequired("src/app/numbering/part-drafts/page.tsx");
+const numberStateWorkspace = readRequired("src/components/number-state-workspace.tsx");
 const changeControlDomain = readRequired("src/lib/pdm-change-control-domain.ts");
 const changeControlFacade = readRequired("src/lib/pdm-change-control.ts");
 const numberingAsyncRepository = readRequired("src/lib/repositories/numbering-async-repository.ts");
@@ -275,7 +275,7 @@ assert(
   approvalLegacyRedirect.includes("numbering_approvals") && approvalLegacyRedirect.includes('domain: "numbering"'),
   "Legacy numbering approvals redirect preserves numbering domain filter"
 );
-assert(approvalWorkbenchPage.includes("<h1>審核工作台</h1>"), "Approval workbench uses broad formal review vocabulary");
+assert(approvalWorkbenchPage.includes("<h1>審核工作台"), "Approval workbench uses broad formal review vocabulary");
 assert(
   approvalWorkbenchPage.includes("numbering.obsolete_part_number") &&
     approvalWorkbenchPage.includes("料號作廢審核") &&
@@ -299,18 +299,12 @@ assert(panel.includes("還原附件"), "Attachment panel exposes restore label")
 assert(panel.includes("restoreState?.message"), "Attachment panel shows disabled restore reason");
 assert(panel.includes("policy.detailTags.map"), "Attachment panel renders lifecycle detail tags");
 assert(!panel.includes("soft delete") && !panel.includes("hard delete") && !panel.includes("purge"), "Attachment panel does not expose forbidden backend delete terms");
-assert(partDraftPage.includes("DeletedPartNumberDraft"), "Part-number draft page models deleted rows separately");
-assert(partDraftPage.includes("loadDeletedDrafts"), "Part-number draft page can load deleted-data surface");
-assert(partDraftPage.includes("surface=deleted_data"), "Part-number draft page loads deleted-data API surface");
-assert(partDraftPage.includes("restoreDraft"), "Part-number draft page exposes restore action handler");
-assert(partDraftPage.includes("/restore"), "Part-number draft page calls restore subresource route");
-assert(partDraftPage.includes("已刪除資料"), "Part-number draft page labels deleted-data surface in user vocabulary");
-assert(partDraftPage.includes("刪除"), "Part-number draft page uses delete label for working drafts");
-assert(partDraftPage.includes("還原"), "Part-number draft page uses restore label for deleted drafts");
-assert(partDraftPage.includes('const statusFilters = ["all", "draft", "pending_review", "needs_reconfirmation"]'), "Part-number draft filters hide deleted status from work-list filters");
-assert(!partDraftPage.includes('value="voided"'), "Part-number draft page does not expose voided as a work-list filter");
-assert(!partDraftPage.includes("回收草稿"), "Part-number draft page does not expose recycle wording as a primary UI action");
-assert(!partDraftPage.includes("作廢草稿"), "Part-number draft page does not expose obsolete wording for draft delete");
+assert(!existsRequired("src/app/numbering/part-drafts/page.tsx"), "Retired part-number draft page stays physically absent");
+assert(numberStateWorkspace.includes("取消申請並釋出保留號碼"), "Owner workspace exposes candidate cancellation in user vocabulary");
+assert(numberStateWorkspace.includes('action === "cancel"'), "Owner workspace routes cancellation through the workspace action contract");
+assert(numberStateWorkspace.includes("歷史保留號碼 ${candidateCode}（已釋出）"), "Owner workspace displays released candidate history");
+assert(!numberStateWorkspace.includes("surface=deleted_data"), "Owner workspace does not revive the legacy deleted-data workbench");
+assert(!numberStateWorkspace.includes("作廢草稿"), "Owner workspace does not use formal obsolete wording for candidate cancellation");
 assert(importBatchPage.includes("DeletedImportBatch"), "Import page models deleted batches separately");
 assert(importBatchPage.includes("loadDeletedBatches"), "Import page can load deleted-data surface");
 assert(importBatchPage.includes("surface=deleted_data"), "Import page loads deleted-data API surface");

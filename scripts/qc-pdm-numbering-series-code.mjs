@@ -136,9 +136,9 @@ try {
   record("SERIES-008 draft API rejects overlong series code without truncation", draftTooLongError.includes("80 characters or fewer"), draftTooLongError);
 
   const repositorySource = fs.readFileSync(path.join(root, "src/lib/repositories/number-state-flow-async-repository.ts"), "utf8");
-  const requestUiSource = fs.readFileSync(path.join(root, "src/app/numbering/request/page.tsx"), "utf8");
+  const requestUiSource = fs.readFileSync(path.join(root, "src/components/number-state-workspace.tsx"), "utf8");
   record("SERIES-009 publication copies series code to official part", repositorySource.includes("custom_specification, series_code, development_phase") && repositorySource.includes("seriesCode: part.seriesCode"), "publication SQL and parameter mapping");
-  record("SERIES-010 request UI limits field to eligible part", requestUiSource.includes('itemKind === "manufactured" && !isUniversal') && requestUiSource.includes("系列／機型") && requestUiSource.includes("maxLength={80}"), "request UI eligibility and limit");
+  record("SERIES-010 owner UI limits field to manufactured part", requestUiSource.includes('form.partItemKind === "manufactured"') && requestUiSource.includes("系列代號（選填）") && requestUiSource.includes("maxLength={80}"), "owner workspace eligibility and limit");
 } catch (error) {
   record("SERIES-fixture", false, error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error));
 } finally {

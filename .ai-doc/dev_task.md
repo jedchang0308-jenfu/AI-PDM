@@ -134,8 +134,8 @@ Owner：Dev PM
     - [x] Phase 1A RD：完成 draft workspace、typed items、candidate reservation/event、root-first gap allocator、immediate recycle、non-destructive migration classifier、command/audit/receipt/outbox 與 create/read/update/acquire/cancel APIs；RD isolated self-verification通過。
     - [x] 後續開發文件：Phase 1B-1D均補齊可派工契約；文件完成不等於實作完成。
       - 契約包含entry、task IDs、資料/API/權限/transaction、failure recovery、acceptance、evidence、stop與next conditions。
-    - [x] Human Decision Gate `HD-048-01..03`：`HD-048-02..03`維持2026-07-13的`2C / 3C`；`HD-048-01 / 1C`由2026-07-17來源重分配決策取代。
-      - `HD-048-01 / 2026-07-17 replacement`：保留`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四個地端可見入口與owner-surface CTA；所有入口共用production BFF/domain service、權限、交易、audit/outbox及Cloud SQL schema，不得形成第二套provider、資料或正式號authority。
+    - [x] Human Decision Gate `HD-048-01..03`：使用者於2026-07-13以`1C / 2C / 3C`關閉。
+      - `HD-048-01 / 1C`：`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四個舊側欄入口退出；草稿改由`/parts?tab=drafts`承接，舊URL只保留redirect/guidance與context，不得保留第二套mutation。
       - `HD-048-02 / 2C`：drawing與含drawing/required-file技轉必須有finalized controlled-file evidence；純root/無drawing obligation的part-only可由版本化server rule回`not_required`；production direct GCS verifier未就緒前，需檔案發布維持鎖定。
       - `HD-048-03 / 3C`：不要求三位不同自然人；同一actor可submit/approve/publish，但每步仍需獨立明示permission、command/confirmation/receipt與audit，approval不得自動publish，Admin/角色不隱含其他權限。
     - [x] Phase 1A QC：2026-07-13獨立本機QC通過；aggregate 47/47，Postgres shadow 26/26，Supabase migration mirror 46/46。
@@ -155,7 +155,8 @@ Owner：Dev PM
       - 證據：migration parity、scope command replay、ReleaseFailed resubmit/edit/cancel recovery、batch all-or-none、manufacturing/procurement published-only、old bookmarks、RWD/a11y與transfer/approval/numbering/lifecycle regressions。
     - [x] Request-equivalence repair：2026-07-14補回048前領號申請規則在新草稿flow中的等價行為；包含主根號輸入轉server ID、append-policy預覽、正式主根追加原因、查重提示/阻擋、主根管理料號品名、共用原因、M/MA primary manufacturing防呆、關閉modal不寫入提示，以及對應SQLite/PostgreSQL/Supabase migration mirror。
       - 證據：`.ai-doc/reports/rd/rd-dev-048-request-equivalence-repair-2026-07-14.md`、`output/playwright/number-state-request-equivalence/`、`qc:pdm-number-state-flow-request-equivalence` 6/6、`qc:supabase-runtime-migrations` 66/66、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、`qc:pdm-number-state-flow-ui` 7/7、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-core` 241/241、typecheck與lint通過；2026-07-14依使用者授權重啟3000後，`PDM_NUMBER_STATE_FLOW_V1=true` browser smoke通過。
-    - [x] 2026-07-17來源重分配：帳號邀請、production CI/IaC、DB及平台架構採production/main；前端UI與圖料號申請入口、流程編排及業務邏輯採原地端分支。此調整不變更Cloud SQL schema/provider、BFF boundary、正式發布或不可重用規則。
+    - [x] 2026-07-17整合來源校正：帳號邀請、production CI/IaC、DB及平台架構採production/main；前端UI與圖料號申請採已通過QC的DEV-048 owner-surface契約。`/parts?tab=drafts`承接領號申請；`/numbering/part-drafts`與`/numbering/request`的舊`page.tsx`/`layout.tsx`已實體移除，舊URL只由middleware保留redirect與query/`returnTo` context，不存在第二套mutation UI；Cloud SQL schema/provider、BFF boundary、正式發布與不可重用規則不變。
+      - 整合證據：Phase 1B contract 15/15、production slice 33/33、request equivalence 11/11、contextual entrypoints 47/47、numbering core 241/241、change control 62/62、lifecycle 266/266、series code 10/10、v2 compatibility 13/13、v3 14/14、number effectiveness 5/5、status scope 84/84、status vocabulary 94/94、legacy request owner browser 34/34、legacy draft owner browser 11/11、TypeScript與isolated production build 122頁通過；build route manifest不含兩個已退役頁面。Lint 0 error／3個既有warning。
     - [x] Phase 1E P0 原始建立圖料號等價修復：2026-07-15依公司管理辦法與使用者決策，補回品名規則引導、圖號需求判斷與非阻擋查重；此為048造成的原始功能等價缺口，不另開DEV。
       - 約束：不改v3編碼原則；不落地`000`萬用料號；不改M/R用途碼；品名不要求唯一且相似品名查重不得阻擋建立，只能提醒；唯一性由圖號/料號與正式發布authority承擔。
       - P0完成：管理辦法品名建議器、`確定品名`、外購/自製/共用分流、半形底線串接、獨立系列代號 metadata、料件類型分流、查重提醒不阻擋、圖號需求引導、focused QC防回歸。
@@ -654,14 +655,14 @@ Owner：Dev PM
   - 計入交付：否
 
 - ✓ DEV-040 [交付點] [本輪本地範圍已完成] [P0] [Release Gate Required for production use] 正式領號 / 草稿 production slice
-  - 摘要：Web 正式領號與 `/numbering/part-drafts` 草稿 production slice 已完成 local product slice；未開放功能保留藍圖可見性，但 UI 與 API fail-closed。
+  - 摘要：Web 正式領號與 `/parts?tab=drafts` owner workspace production slice 已完成 local product slice；DEV-048已實體移除獨立草稿／領號頁，舊URL只轉址；未開放功能保留藍圖可見性，但 UI 與 API fail-closed。
   - 來源 ID：`DEV-PDM-PRODUCTION-SLICE-001`
   - 父任務：`DEV-PDM-NUMBERING-004`、`DEV-PDM-NUMBERING-SEQUENCE-CAPA-001`、`DEV-PDM-ACCESS-CONTROL-001`、`DEV-CLOUDSQL-DB-001-PROD-GATE`
   - 已完成任務清單：
     - ✓ 建立 central production-slice capability model 與 method-level allowlist / default-deny gate。
     - ✓ 新增 production-slice status API 與直接 URL blocked state。
     - ✓ Sidebar roadmap 保留可見，但未開放路由顯示 `未開放` 並導向 blocked page。
-    - ✓ `/numbering/part-drafts` 在 production slice 下保留 create/edit/void/recycle，並將 `submit-review` / `reconfirm` / `restore` 做成 accessible inert action。
+    - ✓ `/parts?tab=drafts` owner workspace承接建立、編輯與候選號生命週期；`submit` / `withdraw` / `publish`為accessible inert `未開放` action，direct API fail-closed。
     - ✓ 2026-07-15 修復 `POST /api/numbering/duplicate-check` production-slice allowlist 缺口；建立圖料號草稿的新主根查重不再被誤判為未開放功能。
     - ✓ Direct API 對 `submit-review` / `reconfirm` / `restore` 回 stable `feature_not_open_in_production_slice`，且在 mutation 前停止。
     - ✓ Draft delete/recycle 仍使用既有 controlled-boundary predicate；正式 root/drawing/part 號碼不可回收。

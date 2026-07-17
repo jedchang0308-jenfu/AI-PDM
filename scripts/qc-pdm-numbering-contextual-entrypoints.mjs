@@ -29,7 +29,8 @@ const component = read("src/components/numbering-contextual-entrypoints.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const partsPage = read("src/app/parts/page.tsx");
-const requestPage = read("src/app/numbering/request/page.tsx");
+const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
+const legacyRouteMapping = read("src/lib/number-state-flow-legacy-route.ts");
 const asyncRepository = read("src/lib/repositories/numbering-async-repository.ts");
 const repositoryTypes = read("src/lib/repositories/numbering-repository.ts");
 const numberingAsync = read("src/lib/numbering-async.ts");
@@ -118,22 +119,28 @@ record(
 );
 
 record(
-  "Numbering request page has new root and existing-root append modes",
-  includesAll(requestPage, ["RequestMode", "new_root", "append_existing_root", "建立全新圖料", "在既有主根下新增", "新增料號＋圖號"]),
-  "src/app/numbering/request/page.tsx"
+  "DEV-048 owner workspace has new root and existing-root append modes",
+  includesAll(numberStateWorkspace, ["new_bundle", "append_drawing", "append_part", "append_drawing_part", "建立新圖料", "既有主根加圖號", "既有主根加料號"]),
+  "src/components/number-state-workspace.tsx"
 );
 record(
-  "Numbering request append mode calls dedicated append APIs",
-  includesAll(requestPage, ["/append-policy", "/drawings", "/parts", "/drawing-part", "AppendResultPanel"]),
-  "src/app/numbering/request/page.tsx"
+  "DEV-048 owner workspace uses one draft mutation authority",
+  includesAll(numberStateWorkspace, ["/append-policy", "/api/numbering/draft-workspaces", "sourceRootId", "autoAcquireCandidates: true"]),
+  "src/components/number-state-workspace.tsx"
 );
 record(
-  "Numbering request locks part name to root name instead of editable part-level naming",
-  includesAll(requestPage, ["產品／零件名稱", "料號品名", "const lockedPartName = effectiveCoreName.trim()", "partName: name"]) &&
-    !requestPage.includes("品名（系統建議，可微調）") &&
-    !requestPage.includes("套用建議") &&
-    !requestPage.includes("系統建議流水號"),
-  "src/app/numbering/request/page.tsx"
+  "DEV-048 owner workspace locks part name to the confirmed root name",
+  includesAll(numberStateWorkspace, ["const lockedPartName = effectiveCoreName.trim()", "partName: lockedPartName", "此欄位是唯一名稱來源"]) &&
+    !numberStateWorkspace.includes("品名（系統建議，可微調）") &&
+    !numberStateWorkspace.includes("系統建議流水號"),
+  "src/components/number-state-workspace.tsx"
+);
+record(
+  "Retired standalone numbering pages stay absent and redirect through middleware mapping",
+  !exists("src/app/numbering/request/page.tsx") &&
+    !exists("src/app/numbering/part-drafts/page.tsx") &&
+    includesAll(legacyRouteMapping, ["/numbering/request", "/numbering/part-drafts", "create", "numbering", "tab", "drafts"]),
+  "DEV-048 compatibility boundary"
 );
 
 record("Append policy route exists", exists("src/app/api/numbering/roots/[rootCode]/append-policy/route.ts"));

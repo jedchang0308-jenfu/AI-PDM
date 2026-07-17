@@ -3,6 +3,8 @@
 > 2026-07-13 Amendment：本文件既有 narrow production-slice、server-side feature gate、smoke-company isolation 與 QC evidence 保留；新 create flow 不再於 form create 時直接產生永久 official master。`ADR-PDM-NUMBER-STATE-FLOW-001` 改以獨立 candidate reservation + explicit publication transaction 作正式化邊界。Production clean seed 只含 published/obsolete official numbers 與 recovery non-reuse reservations，不 seed candidates/local drafts。
 >
 > 2026-07-14 Amendment (`HD-9-1`)：使用者取消 `DEV-FIELD-001` 固定五個工作日現場驗證。任務以 `Cancelled by Human Decision` 關閉，不視為通過；DEV-046 Phase 2B live staging、DEV-032、named 3-5-user canary、零 open P0/P1、continuity/rollback 與 production post-deploy smoke 仍為必要 gate。任何 allowlist 擴大必須明確 release 決策，不因時間或 local evidence 自動發生。
+>
+> 2026-07-17 DEV-048 convergence amendment：本文件的 narrow production-slice、API fail-closed、未開放標示與正式號不可重用邊界維持有效；獨立 `/numbering/part-drafts` 功能頁已由較新的 DEV-048 取代。草稿與領號申請的唯一可操作 UI 為 `/parts?tab=drafts` owner workspace，建立入口位於圖料／圖號／料號 owner surfaces；`/numbering/part-drafts`與`/numbering/request`只保留轉址相容，不得重新掛載舊 mutation page。Production slice 的送審、撤回與正式發布仍須在 owner workspace 顯示`未開放`並由API拒絕。
 
 Date: 2026-07-10
 Status: Accepted / Development document prepared; product implementation not requested this turn; production release gate required
@@ -27,7 +29,7 @@ The user confirmed the launch direction through guided decisions:
 
 The user later confirmed RD supervisor follow-up decisions on 2026-07-10:
 
-- Include `/numbering/part-drafts` in the first production slice.
+- Include draft management in the first production slice through `/parts?tab=drafts`; keep `/numbering/part-drafts` as redirect-only compatibility.
 - Allow delete/recycle for provisional part-number drafts before controlled boundary.
 - Use smoke company / tenant as the default production smoke isolation strategy.
 
@@ -46,12 +48,12 @@ The 2026-07-13 fourth completeness review continued without explicit option over
 9. If company/tenant isolation for smoke data cannot be proven, the smoke-company approach is blocked; production execution must use non-mutating production checks plus staging write smoke until a safe smoke namespace exists.
 10. Direct browser access to Supabase Data API remains rejected. Application access stays through server-side AI_PDM APIs.
 11. Production release, deployment, provider pointer switch, live migration, rollback, and production smoke artifacts remain blocked until a release-type command and high-risk confirmation.
-12. `/numbering/part-drafts` is part of the first slice as a provisional draft workbench.
+12. `/parts?tab=drafts` is the canonical first-slice draft workbench; `/numbering/part-drafts` is redirect-only compatibility.
 13. Provisional `part_number_drafts` may be deleted/voided and recycled before they cross a controlled boundary.
 14. Official root, drawing, or part numbers remain controlled records and cannot be hard-deleted or recycled through the draft workbench.
 15. Smoke company / tenant is the default release-gate smoke isolation model; any leakage into normal Jenfu surfaces blocks production write smoke.
-16. Existing part-number draft actions that start or resume broader lifecycle behavior, including `submit-review`, `reconfirm`, and `restore`, are closed in the production slice unless a later DEV explicitly opens them.
-17. The production slice must reuse or faithfully wrap the existing part-number draft controlled-boundary predicate for delete/recycle decisions; it must not introduce a weaker parallel predicate.
+16. Owner-workspace actions that start broader lifecycle behavior, including submit, withdraw and publish, are closed in the production slice unless a later DEV explicitly opens them.
+17. Candidate cancel/recycle decisions must use DEV-048 number-state-flow domain predicates and transaction authority; the retired part-draft page must not introduce a parallel predicate.
 
 ## Alternatives Considered
 

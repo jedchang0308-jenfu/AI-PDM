@@ -31,23 +31,26 @@ function record(suite, id, passed, detail) {
 }
 
 const enabledEnv = { PDM_NUMBER_STATE_FLOW_V1: "true" };
-const disabledEnv = {};
+const defaultEnv = {};
+const disabledEnv = { PDM_NUMBER_STATE_FLOW_V1: "false" };
 const productionEnabledEnv = {
   PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft",
   PDM_NUMBER_STATE_FLOW_V1: "true"
 };
 const productionDisabledEnv = {
-  PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft"
+  PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft",
+  PDM_NUMBER_STATE_FLOW_V1: "false"
 };
 
 record(
   "routes",
-  "NSF-UI-FLAG-default-off",
-  !isNumberStateFlowV1Enabled(disabledEnv) &&
+  "NSF-UI-FLAG-default-on",
+  isNumberStateFlowV1Enabled(defaultEnv) &&
+    !isNumberStateFlowV1Enabled(disabledEnv) &&
     ["1", "true", "on", "enabled"].every((value) => isNumberStateFlowV1Enabled({ PDM_NUMBER_STATE_FLOW_V1: value })) &&
     !isNumberStateFlowV1Enabled({ PDM_NUMBER_STATE_FLOW_V1: "yes" }) &&
-    numberStateFlowV1ClientStatus(disabledEnv).flag === NUMBER_STATE_FLOW_V1_FLAG,
-  "PDM_NUMBER_STATE_FLOW_V1 must be server-visible and default off"
+    numberStateFlowV1ClientStatus(defaultEnv).flag === NUMBER_STATE_FLOW_V1_FLAG,
+  "DEV-048 owner surfaces are canonical by default; the server-only flag remains an explicit rollback kill switch"
 );
 
 const draftMutationPaths = [
@@ -67,8 +70,9 @@ record(
   "routes",
   "NSF-UI-SLICE-page-gate",
   ["/upload", "/handoff"].every((pathname) => isProductionSliceOpenPagePath(pathname, productionEnabledEnv)) &&
-    ["/upload", "/handoff"].every((pathname) => shouldBlockProductionSlicePagePath(pathname, productionDisabledEnv)),
-  "upload/handoff compatibility layouts must only be reachable in the slice when the Phase 1B flag is on"
+    ["/upload", "/handoff"].every((pathname) => isProductionSliceOpenPagePath(pathname, productionDisabledEnv)) &&
+    ["/upload", "/handoff"].every((pathname) => !shouldBlockProductionSlicePagePath(pathname, productionDisabledEnv)),
+  "retired compatibility routes must remain guidance/redirect surfaces even when the rollback kill switch is off"
 );
 
 const statusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
@@ -79,15 +83,26 @@ record(
   "NSF-UI-FLAG-server-projection",
   statusRoute.includes("numberStateFlowV1ClientStatus") &&
     statusRoute.includes("private, no-store") &&
-    rootLayout.includes("numberStateFlowV1Enabled={isNumberStateFlowV1Enabled()}") &&
-    sidebar.includes("NUMBER_STATE_LEGACY_NAV_PATHS") &&
-    ["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"].every((pathname) => sidebar.includes(`\"${pathname}\"`)),
-  "server-rendered layout and no-store endpoint must project the same flag without sidebar flash"
+    rootLayout.includes("<SidebarNav />") &&
+    ["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"].every((pathname) => !sidebar.includes(`\"${pathname}\"`)) &&
+    sidebar.includes("/technical-transfer"),
+  "retired navigation entries must not return when the rollback kill switch is off"
+);
+
+const retiredPages = [
+  "src/app/numbering/part-drafts/page.tsx",
+  "src/app/numbering/part-drafts/layout.tsx",
+  "src/app/numbering/request/page.tsx",
+  "src/app/numbering/request/layout.tsx"
+];
+record(
+  "routes",
+  "NSF-UI-ROUTE-retired-pages-absent",
+  retiredPages.every((relativePath) => !fs.existsSync(path.join(root, relativePath))),
+  "DEV-048 retired numbering request and part-draft pages must be physically absent; middleware owns compatibility redirects"
 );
 
 const compatibilityLayouts = [
-  ["src/app/numbering/part-drafts/layout.tsx", "/parts?tab=drafts", "redirect"],
-  ["src/app/numbering/request/layout.tsx", "/numbering/search?create=numbering", "redirect"],
   ["src/app/upload/layout.tsx", "/numbering/search?legacyIntent=upload", "upload"],
   ["src/app/handoff/layout.tsx", "/technical-transfer?tab=published", "redirect"]
 ];
@@ -96,11 +111,11 @@ record(
   "NSF-UI-ROUTE-legacy-layouts",
   compatibilityLayouts.every(([relativePath, destination, strategy]) => {
     const source = read(relativePath);
-    return source.includes("if (!isNumberStateFlowV1Enabled()) return children") &&
+    return !source.includes("return children") &&
       source.includes(`destination=\"${destination}\"`) &&
       (strategy === "redirect" || source.includes(`strategy=\"${strategy}\"`));
   }),
-  "legacy pages must not mount their old child mutation flows after the flag is enabled"
+  "remaining upload and handoff compatibility pages must not mount their old child mutation flows"
 );
 const legacyRoute = read("src/components/number-state-legacy-route.tsx");
 const middleware = read("src/middleware.ts");
@@ -125,18 +140,15 @@ record(
 
 const requestRedirect = resolveNumberStateLegacyRedirect(
   "/numbering/request",
-  new URLSearchParams("returnTo=%2Fparts%3Ftab%3Ddrafts&foo=bar"),
-  true
+  new URLSearchParams("returnTo=%2Fparts%3Ftab%3Ddrafts&foo=bar")
 );
 const uploadRedirect = resolveNumberStateLegacyRedirect(
   "/upload",
-  new URLSearchParams("drawingNumber=A0001-M01&returnTo=%2Fparts"),
-  true
+  new URLSearchParams("drawingNumber=A0001-M01&returnTo=%2Fparts")
 );
 const uploadGuidance = resolveNumberStateLegacyRedirect(
   "/upload",
-  new URLSearchParams("returnTo=%2Fparts"),
-  true
+  new URLSearchParams("returnTo=%2Fparts")
 );
 record(
   "routes",
@@ -149,8 +161,8 @@ record(
     uploadRedirect?.pathname === "/drawings/A0001-M01/submission-workbench" &&
     uploadRedirect.searchParams.get("returnTo") === "/parts" &&
     uploadGuidance === null &&
-    resolveNumberStateLegacyRedirect("/numbering/request", new URLSearchParams(), false) === null,
-  "middleware mapping must preserve request intent, redirect contextual upload, leave context-free upload on guidance, and default off"
+    resolveNumberStateLegacyRedirect("/numbering/request", new URLSearchParams())?.pathname === "/numbering/search",
+  "middleware mapping must preserve request intent, redirect contextual upload, leave context-free upload on guidance, and never revive retired mutation pages"
 );
 
 const workspace = read("src/components/number-state-workspace.tsx");

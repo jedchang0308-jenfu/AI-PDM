@@ -7,20 +7,12 @@ import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./q
 
 const root = process.cwd();
 const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const screenshotPath = path.join(root, "output", "playwright", "pdm-lifecycle-part-drafts-deleted-fixture.png");
+const screenshotPath = path.join(root, "output", "playwright", "pdm-lifecycle-owner-drafts-compatibility.png");
 const checks = [];
 
 function record(name, passed, detail = "") {
   checks.push({ name, passed: Boolean(passed), detail });
   if (!passed) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function jsonResponse(route, body, status = 200) {
-  return route.fulfill({
-    status,
-    contentType: "application/json; charset=utf-8",
-    body: JSON.stringify(body)
-  });
 }
 
 async function isAppReady(baseUrl) {
@@ -45,137 +37,43 @@ async function login(baseUrl) {
   record("admin login succeeds", response.ok, `HTTP ${response.status}`);
   const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
   const [name, ...valueParts] = cookie.split("=");
-  record("admin login returns session cookie", Boolean(name && valueParts.length), cookie ? "cookie present" : "missing cookie");
+  record("admin login returns session cookie", Boolean(name && valueParts.length));
   return { name, value: valueParts.join("=") };
 }
 
-async function launchBrowser() {
-  const channel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ?? "chrome";
-  try {
-    return await chromium.launch({ channel, headless: true });
-  } catch {
-    return chromium.launch({ headless: true });
-  }
-}
-
-function draftFixture(id, reservedPartNumber, status = "draft") {
-  return {
-    id,
-    reservedPartNumber,
-    draftType: "new_part",
-    itemType: "purchased",
-    status,
-    sourcePartNumberId: null,
-    sourceDrawingNumberId: null,
-    sourcePartNumber: null,
-    sourceDrawingNumber: null,
-    sourceRevision: null,
-    creatorName: "QC Admin",
-    version: status === "voided" ? 2 : 1,
-    recycledAt: null,
-    recycleAvailableAt: status === "voided" ? "2026-07-06T00:00:00.000Z" : null,
-    sameSourceUnfinishedDraftCount: 0,
-    controlled: false,
-    controlBoundaryReasons: [],
-    warnings: [],
-    updatedAt: "2026-06-29T00:00:00.000Z"
-  };
-}
-
-function deletedDraftEntry(draft, canRestore) {
-  return {
-    draft,
-    policy: {
-      stageLabel: "歷史",
-      uiSurface: "deleted_data",
-      traceabilityClass: "uncontrolled_deleted",
-      detailTags: [canRestore ? "可還原" : "不可還原"],
-      actions: {
-        restore: canRestore
-          ? { allowed: true }
-          : {
-              allowed: false,
-              reasonCode: "LIFE_DRAFT_NUMBER_REUSED",
-              message: "此草稿號已被重新使用，不能還原。"
-            }
-      }
-    }
-  };
-}
-
-async function runFixture(baseUrl, cookie) {
-  const browser = await launchBrowser();
-  const activeDraft = draftFixture("draft-active", "P-QC-DRAFT-001", "draft");
-  const deletedDraft = draftFixture("draft-deleted", "P-QC-DELETED-001", "voided");
-  const blockedDeletedDraft = draftFixture("draft-blocked", "P-QC-DELETED-BLOCKED", "voided");
-  const restoredDraft = { ...deletedDraft, status: "draft", version: 3, recycleAvailableAt: null };
-  let restored = false;
-  let restorePostCount = 0;
-  const failedRequests = [];
-  const failedResponses = [];
-
+async function runCompatibilityCheck(baseUrl, cookie) {
+  const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     await context.addCookies([{ name: cookie.name, value: cookie.value, url: baseUrl, httpOnly: true, sameSite: "Lax" }]);
     const page = await context.newPage();
-    page.on("requestfailed", (request) => failedRequests.push(`${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`));
+    const legacyApiRequests = [];
+    const failedResponses = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/numbering/part-number-drafts")) legacyApiRequests.push(`${request.method()} ${request.url()}`);
+    });
     page.on("response", (response) => {
       if (response.url().includes("/api/") && response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
     });
 
-    await page.route("**/api/numbering/part-number-drafts**", async (route) => {
-      const request = route.request();
-      const url = new URL(request.url());
-      const pathName = decodeURIComponent(url.pathname);
-      if (pathName === "/api/numbering/part-number-drafts" && request.method() === "GET") {
-        if (url.searchParams.get("surface") === "deleted_data") {
-          return jsonResponse(route, {
-            surface: "deleted_data",
-            drafts: restored ? [deletedDraftEntry(blockedDeletedDraft, false)] : [deletedDraftEntry(deletedDraft, true), deletedDraftEntry(blockedDeletedDraft, false)]
-          });
-        }
-        return jsonResponse(route, {
-          summary: { total: restored ? 2 : 1, needsReconfirmation: 0, sameSourceWarnings: 0, recyclableVoided: 0 },
-          drafts: restored ? [activeDraft, restoredDraft] : [activeDraft]
-        });
-      }
-      if (pathName === "/api/numbering/part-number-drafts/draft-deleted/restore" && request.method() === "POST") {
-        restored = true;
-        restorePostCount += 1;
-        return jsonResponse(route, { draft: restoredDraft, policy: { stageLabel: "草稿", uiSurface: "work_list", detailTags: [], actions: {} } });
-      }
-      return route.continue();
-    });
+    await page.goto(`${baseUrl}/numbering/part-drafts?foo=bar&returnTo=${encodeURIComponent("/numbering/search")}`, { waitUntil: "networkidle" });
+    await page.getByRole("heading", { name: /料號模組/ }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "領號申請清單" }).waitFor({ timeout: 15_000 });
 
-    await page.goto(`${baseUrl}/numbering/part-drafts`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "料號草稿" }).waitFor({ timeout: 15000 });
-    await page.getByText("P-QC-DRAFT-001").waitFor({ timeout: 15000 });
-    record("work list renders active draft", await page.getByText("P-QC-DRAFT-001").isVisible());
-    record("work list does not render deleted draft before deleted-data surface opens", (await page.getByText("P-QC-DELETED-001").count()) === 0);
-    record("draft primary action uses delete vocabulary", await page.getByRole("button", { name: "刪除" }).isVisible());
-
-    await page.locator("summary", { hasText: "已刪除資料" }).click();
-    await page.getByText("P-QC-DELETED-001").waitFor({ timeout: 15000 });
-    await page.getByText("P-QC-DELETED-BLOCKED").waitFor({ timeout: 15000 });
-    record("deleted-data surface renders restorable deleted draft", await page.getByText("P-QC-DELETED-001").isVisible());
-    record("deleted-data surface renders blocked deleted draft", await page.getByText("P-QC-DELETED-BLOCKED").isVisible());
-    record("restorable tag is visible", await page.getByText("可還原", { exact: true }).isVisible());
-    record("blocked restore reason is visible", await page.getByText("此草稿號已被重新使用，不能還原。").isVisible());
-
-    await page.getByRole("button", { name: "還原", exact: true }).click();
-    await page.getByText("P-QC-DELETED-001").waitFor({ timeout: 15000 });
-    record("restore subresource was called once", restorePostCount === 1, `count=${restorePostCount}`);
-    record("restored draft appears in work list", await page.getByText("P-QC-DELETED-001").isVisible());
-    record("restored draft leaves deleted-data rows", (await page.locator("details.master-attachment-deleted tbody tr").filter({ hasText: "P-QC-DELETED-001" }).count()) === 0);
-
-    const noHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
-    record("desktop viewport has no horizontal overflow", noHorizontalOverflow);
+    const current = new URL(page.url());
+    record("retired draft URL redirects to parts owner surface", current.pathname === "/parts", current.pathname);
+    record("redirect selects drafts tab", current.searchParams.get("tab") === "drafts", current.search);
+    record("redirect preserves query and returnTo", current.searchParams.get("foo") === "bar" && current.searchParams.get("returnTo") === "/numbering/search", current.search);
+    record("redirect records legacy source", current.searchParams.get("legacyFrom") === "/numbering/part-drafts", current.search);
+    record("legacy deleted-data workbench is absent", (await page.getByText("已刪除資料", { exact: true }).count()) === 0);
+    record("legacy part-number-draft API is not called", legacyApiRequests.length === 0, legacyApiRequests.join("\n"));
     record("no API responses failed", failedResponses.length === 0, failedResponses.join("\n"));
-    record("no browser requests failed", failedRequests.length === 0, failedRequests.join("\n"));
+    const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
+    record("desktop viewport has no horizontal overflow", noOverflow);
 
     await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
     await page.screenshot({ path: screenshotPath, fullPage: true });
-    record("part-number draft deleted-data fixture screenshot captured", true, screenshotPath);
+    record("owner draft compatibility screenshot captured", true, screenshotPath);
     await context.close();
   } finally {
     await browser.close();
@@ -202,7 +100,7 @@ async function main() {
       await waitForNextAppReady(baseUrl, app.getOutput);
     }
     const cookie = await login(baseUrl);
-    await runFixture(baseUrl, cookie);
+    await runCompatibilityCheck(baseUrl, cookie);
   } finally {
     if (app) await stopNextApp(app.child);
   }

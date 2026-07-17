@@ -10,7 +10,6 @@ import {
   ChevronRight,
   CircleCheckBig,
   ClipboardCheck,
-  ClipboardList,
   Factory,
   FileText,
   FileUp,
@@ -24,7 +23,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserCog,
-  UploadCloud
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NUMBERING_NAV_PERMISSION_BY_PATH } from "@/lib/numbering-permission-codes";
@@ -63,9 +61,6 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "圖料模組", icon: Search },
       { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
       { href: "/parts", label: "料號模組", icon: PackageSearch },
-      { href: "/numbering/part-drafts", label: "料號草稿", icon: ClipboardList },
-      { href: "/upload", label: "上傳送審", icon: UploadCloud },
-      { href: "/numbering/request", label: "領號申請", icon: ClipboardList },
       { href: "/numbering/imports", label: "圖號總表匯入", icon: FileUp }
     ]
   },
@@ -88,7 +83,6 @@ const navSections: NavSection[] = [
     label: "發行 / 交接",
     items: [
       { href: "/technical-transfer", label: "技術移轉", icon: Factory },
-      { href: "/handoff", label: "製造交接", icon: Factory },
       { href: "/numbering/reports", label: "圖號報表", icon: FileText }
     ]
   },
@@ -105,16 +99,11 @@ const navSections: NavSection[] = [
   }
 ];
 
-const NUMBER_STATE_LEGACY_NAV_PATHS = new Set(["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"]);
-
 function isVisibleItem(
   item: NavItem,
   pagePermissions: Record<string, boolean> | null,
-  productionSlice: ProductionSliceClientStatus | null,
-  numberStateFlowV1Enabled: boolean
+  productionSlice: ProductionSliceClientStatus | null
 ) {
-  if (item.href === "/technical-transfer" && !numberStateFlowV1Enabled) return false;
-  if (numberStateFlowV1Enabled && NUMBER_STATE_LEGACY_NAV_PATHS.has(item.href)) return false;
   if (productionSlice?.configured) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
   return !requiredPermission || !pagePermissions || pagePermissions[requiredPermission];
@@ -125,7 +114,7 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
   return productionSlice.openPagePaths.includes(item.href);
 }
 
-export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFlowV1Enabled?: boolean }) {
+export function SidebarNav() {
   const pathname = usePathname() || "/";
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
@@ -242,7 +231,7 @@ export function SidebarNav({ numberStateFlowV1Enabled = false }: { numberStateFl
       </div>
       <nav className="nav" aria-label="主導覽">
         {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice, numberStateFlowV1Enabled));
+          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice));
           if (visibleItems.length === 0) return null;
 
           return (

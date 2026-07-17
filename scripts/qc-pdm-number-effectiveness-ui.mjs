@@ -16,12 +16,10 @@ function includesAll(source, values) {
 const statusDisplay = read("src/lib/status-display.ts");
 const workspace = read("src/components/number-state-workspace.tsx");
 const repository = read("src/lib/repositories/number-state-flow-async-repository.ts");
-const requestLayout = read("src/app/numbering/request/layout.tsx");
 const approvals = read("src/app/approvals/page.tsx");
 const handoff = read("src/app/handoff/layout.tsx");
 const transferWorkbench = read("src/components/transfer-package-workbench.tsx");
-const partDrafts = read("src/app/numbering/part-drafts/page.tsx");
-const visibleSources = [workspace, requestLayout, approvals, handoff, transferWorkbench, partDrafts].join("\n");
+const visibleSources = [workspace, approvals, handoff, transferWorkbench].join("\n");
 
 record(
   "NE-001 centralized number-effectiveness vocabulary",
@@ -72,11 +70,10 @@ record(
 
 record(
   "NE-005 related workflow copy uses reserved/released wording",
-  includesAll(requestLayout, ["保留號碼"]) &&
+  includesAll(workspace, ["保留號碼", "已釋出"]) &&
     includesAll(approvals, ["保留號碼"]) &&
     includesAll(handoff, ["已保留但尚未正式生效的號碼"]) &&
-    includesAll(transferWorkbench, ["保留號碼"]) &&
-    includesAll(partDrafts, ["已釋出"]),
+    includesAll(transferWorkbench, ["保留號碼"]),
   "adjacent surfaces must use the same user vocabulary"
 );
 

@@ -1,8 +1,7 @@
 import { NumberStateLegacyRoute } from "@/components/number-state-legacy-route";
-import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 
 export default function UploadCompatibilityLayout({ children }: { children: React.ReactNode }) {
-  if (!isNumberStateFlowV1Enabled()) return children;
+  void children;
   return (
     <NumberStateLegacyRoute
       title="上傳送審已改由物件進入"

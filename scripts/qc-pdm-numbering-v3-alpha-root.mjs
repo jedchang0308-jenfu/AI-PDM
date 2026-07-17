@@ -99,7 +99,7 @@ try {
     "Root letter governance copy stays neutral in v3 UI surfaces",
     sourcesDoNotMatch(
       [
-        "src/app/numbering/request/page.tsx",
+        "src/components/number-state-workspace.tsx",
         "src/app/numbering/imports/page.tsx",
         "src/app/numbering/search/page.tsx",
         "src/app/settings/page.tsx"
@@ -108,9 +108,9 @@ try {
     )
   );
   record(
-    "Normal request UI shows v3 examples and keeps M/R choices",
-    fileIncludes("src/app/numbering/request/page.tsx", ['value="M"', 'value="R"', 'placeholder="例如：A0001"']) &&
-      sourceDoesNotMatch("src/app/numbering/request/page.tsx", /00001-M01 \/ 00001-R01/)
+    "Normal owner UI shows v3 examples and keeps M/R choices",
+    fileIncludes("src/components/number-state-workspace.tsx", ['value: "M"', 'value: "R"', 'placeholder="例如：A0001"']) &&
+      sourceDoesNotMatch("src/components/number-state-workspace.tsx", /00001-M01 \/ 00001-R01/)
   );
   record(
     "Import, impact and revision UI examples use v3 identities",
