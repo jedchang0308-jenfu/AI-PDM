@@ -180,6 +180,20 @@ type DrawingSubmissionContext = {
   suggestedRevision: {
     revision: string;
     source: "revision_policy" | "latest_attachment" | "manual_master";
+    policySuggestedRevision?: string;
+    workflowIntent?: string;
+    policyVersion?: string;
+    basisHash?: string;
+    reasonCodes?: string[];
+    generatedAt?: string;
+  };
+  revisionPolicySuggestion?: {
+    suggestedRevision: string;
+    workflowIntent: string;
+    policyVersion: string;
+    basisHash: string;
+    reasonCodes: string[];
+    generatedAt: string;
   };
   blockers: DrawingSubmissionBlocker[];
   sameRevisionRecords: SameRevisionSubmissionRecord[];
@@ -957,6 +971,9 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
         selectedAttachmentIds,
         submissionMode,
         expectedRevision: context.suggestedRevision.revision,
+        workflowIntent: context.revisionPolicySuggestion?.workflowIntent ?? context.suggestedRevision.workflowIntent ?? "rd_workspace",
+        revisionPolicySuggestion: context.revisionPolicySuggestion,
+        revisionOverrideReason: note.trim() || null,
         note,
         idempotencyKey
       })

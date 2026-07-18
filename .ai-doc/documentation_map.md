@@ -25,6 +25,8 @@ Cold start / progressive-read rule:
 | Need | Read |
 |---|---|
 | Current task, blockers, next executable work | `.ai-doc/dev_task.md` |
+| Revision release gate, minor/major lifecycle policy and server-created suggested revision snapshot | `.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`; `.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`; `.ai-doc/dev_task.md` (`DEV-050`) |
+| Reservation-to-first-drawing revision timing UX, rowVersion display, publication-gated first drawing CTA, implementation and QA/QC evidence | `.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md`; `.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md`; `output/playwright/dev051-reservation-revision-timing-ux/`; `.ai-doc/dev_task.md` (`DEV-051`) |
 | Five-year Google Cloud ERP platform, IAM, Cloud SQL Taiwan, storage and ontology authority | `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`; `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`; `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md` |
 | RD supervisor multi-level review and closed `HD-6` / `HD-7` / `HD-8-1..4` decisions | `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-document-review-2026-07-13.md` |
 | DEV-046 Phase 2B local Firebase BFF implementation and QC evidence | `.ai-doc/reports/rd/rd-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-implementation-2026-07-13.md`; `.ai-doc/qc/qc-pdm-erp-google-cloudsql-phase2b-local-firebase-bff-report-2026-07-13.md` |
@@ -74,6 +76,8 @@ Current dispatch rule:
 - The package entries below are current implementation context, protected evidence, or read-order guidance. They must not override `dev_task.md` status symbols, stop conditions, release gate wording, or external-evidence blockers.
 - Documentation-only governance work remains allowed when scoped to `.ai-doc/dev_task.md`, `.ai-doc/documentation_map.md`, `.ai-doc/archived/`, or the current PM audit report.
 - `DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` is `Phase 1E P0 QC Passed / Local Product Integration Complete / Local Only`. Phase 1A-1D local QC passed, and Phase 1E P0 repaired the post-048 create-numbering managed naming, drawing-need guidance and warning-only duplicate-check gap inside DEV-048, not a new DEV. Do not change v3 numbering, `000` universal number behavior, or M/R purpose-code design in this phase. G8/G9 live provider/staging/release remain unexecuted. `HD-048-01..03` are closed by human decisions `1C / 2C / 3C`. Read the package before changing numbering, draft, approval/publication, status, sidebar, transfer or handoff behavior.
+- `DEV-PDM-REVISION-POLICY-002` / `DEV-050` is Phase 1A/1B implemented locally with focused QC passed. It intentionally amends lifecycle semantics so minor revisions can remain controlled RD/design-change/history records but cannot become production-effective `Released`; Phase 1A creates server-derived suggestion responses and stores them in submission snapshots, Phase 1B blocks minor `Released` in final approval, retry-release and release workflow paths, and Phase 1C emergency-use lanes are deferred. Read this package before changing revision suggestion, approval, retry-release, release workflow, current/latest computation, conditional-use/trial use or production handoff behavior.
+- `DEV-PDM-REVISION-TIMING-UX-001` / `DEV-051` is locally implemented with QA/QC passed. It removes raw reserve-row `v{rowVersion}`, labels audit metadata as `系統紀錄版本`, adds a server-derived first-drawing suggestion preview, and keeps the `建立首版圖面` CTA disabled until publication promotes the candidate drawing to formal master data. The preview uses the route's read-only GET interface so it remains available inside the official-numbering production slice without widening mutation allowlists; formal `/numbering/revisions` handoff remains disabled while that slice is enforced. Outside the slice, after promotion the CTA opens `/numbering/revisions` with `rd_workspace` context; the workbench recomputes the central `DEV-050` suggestion and preserves manual edits. No reservation revision field, schema migration or emergency-use lane was added. Read this package and its browser evidence before changing reserve-number row labels, revision-preparation copy, CTA authority gating, or revision workbench prefill/handoff.
 
 Implemented / protected context:
 
@@ -1640,10 +1644,18 @@ Commit boundary: Supabase staging evidence `be333eb`; SW/PDM company boundary `6
 
 `DEV-PDM-REVISION-001` is closed on branch `codex/pdm-revision-policy` with commits `8f472d0` and `af08d81`.
 
+`DEV-PDM-REVISION-POLICY-002` / `DEV-050` is the active locally implemented package for lifecycle-aware revision release gating and server-created suggested revision snapshots. It does not repeal out-of-order controlled revision history, but it blocks minor revisions from becoming production-effective `Released`. Phase 1 does not add an independent policy decision table and does not open `ConditionalUse` / `TrialApproved`.
+
+`DEV-PDM-REVISION-TIMING-UX-001` / `DEV-051` is locally complete with QA/QC passed. It moves revision awareness earlier without moving formal revision authority into reservations: raw `v{rowVersion}` is removed from primary rows, the drawer shows a server-derived preview, candidate-only CTA is fail-closed until publication/promotion, and first drawing revision editing remains in `/numbering/revisions`. Resolve and submission context use the same `DEV-050` suggestion lane, manual edits are protected from async overwrite, focused QC passed 13/13, and browser/RWD evidence is stored under `output/playwright/dev051-reservation-revision-timing-ux/`. Merge, deploy and release remain separate gates.
+
 Read:
 
-1. `.ai-doc/qa/qa-pdm-revision-manual-validation-plan-2026-06-22.md`
-2. `.ai-doc/dev_task.md`
+1. `.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`
+2. `.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`
+3. `.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md`
+4. `.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md`
+5. `.ai-doc/qa/qa-pdm-revision-manual-validation-plan-2026-06-22.md`
+6. `.ai-doc/dev_task.md`
 
 ### Storage Cost-Control Package
 

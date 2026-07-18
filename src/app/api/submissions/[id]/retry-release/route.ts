@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { forbidden, requireRoleAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
+import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 
@@ -30,6 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
+  const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId: id, actorId: auth.user.id });
+  if (!policyGate.ok) return NextResponse.json(policyGate.responseBody, { status: policyGate.status });
+
   await createAuditLogAsync({
     submissionId: id,
     actorId: auth.user.id,
@@ -43,6 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   if (!releaseResult.ok) {
+    if (releaseResult.status === "Blocked") {
+      return NextResponse.json(releaseResult.policy, { status: 409 });
+    }
     return NextResponse.json(
       {
         error: "release_retry_failed",

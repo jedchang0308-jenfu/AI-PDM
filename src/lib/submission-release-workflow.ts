@@ -2,6 +2,7 @@ import { createAuditLogAsync } from "@/lib/audit-async";
 import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
 import { releaseSubmissionViaCloudFunctionAsync } from "@/lib/release-async";
 import { createReleasePackageAsync } from "@/lib/release-package-async";
+import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { assertDrawingPackageModelBasisForReleaseAsync } from "@/lib/shared-3d-baseline";
 import {
   markSubmissionReleaseFailedAsync,
@@ -23,6 +24,14 @@ export type SubmissionReleaseWorkflowResult =
       submissionId: string;
       status: "ReleaseFailed";
       error: string;
+    }
+  | {
+      ok: false;
+      submissionId: string;
+      status: "Blocked";
+      code: string;
+      error: string;
+      policy: Record<string, unknown>;
     };
 
 export async function executeSubmissionReleaseWorkflowAsync(input: {
@@ -31,6 +40,17 @@ export async function executeSubmissionReleaseWorkflowAsync(input: {
   auditAction?: string;
 }): Promise<SubmissionReleaseWorkflowResult> {
   let releaseStarted = false;
+  const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId: input.submissionId, actorId: input.actorId });
+  if (!policyGate.ok) {
+    return {
+      ok: false,
+      submissionId: input.submissionId,
+      status: "Blocked",
+      code: policyGate.code,
+      error: policyGate.message,
+      policy: policyGate.responseBody
+    };
+  }
   try {
     await markSubmissionReleasingAsync(input.submissionId);
     releaseStarted = true;

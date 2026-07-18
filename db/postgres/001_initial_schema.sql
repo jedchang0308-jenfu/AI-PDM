@@ -2480,6 +2480,9 @@ CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_drawing_revision ON drawing_revision_packages(company_id, drawing_number_id, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_released_unique
+ON drawing_revision_packages(company_id, drawing_number_id, revision)
+WHERE status = 'Released';
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_submission ON drawing_revision_packages(source_submission_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_package ON drawing_revision_package_files(package_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_source_asset ON drawing_revision_package_files(source_file_asset_id);

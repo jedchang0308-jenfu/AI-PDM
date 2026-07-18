@@ -13,7 +13,13 @@ import {
   type RevisionPackageFileRole,
   type RevisionPackageWarning
 } from "@/lib/revision-package";
-import { suggestRevisionCode } from "@/lib/revision-policy";
+import {
+  buildRevisionPolicySnapshot,
+  createRevisionSuggestion,
+  normalizeRevisionWorkflowIntent,
+  type RevisionPolicySuggestionResponse,
+  type RevisionWorkflowIntent
+} from "@/lib/revision-policy-engine";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { createSubmissionRecordAsync, getSubmissionAsync, listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
 import { normalizeFileRole, validateSubmissionInput } from "@/lib/validation";
@@ -35,6 +41,7 @@ export type DrawingSubmissionBlockerCode =
   | "missing_attachment"
   | "duplicate_active_submission"
   | "same_revision_in_progress"
+  | "revision_policy_basis_stale"
   | "release_incomplete_conflict"
   | "released_revision_exists"
   | "obsolete_revision_locked"
@@ -120,7 +127,14 @@ export type DrawingSubmissionContext = {
   suggestedRevision: {
     revision: string;
     source: "revision_policy" | "latest_attachment" | "manual_master";
+    policySuggestedRevision: string;
+    workflowIntent: RevisionWorkflowIntent;
+    policyVersion: RevisionPolicySuggestionResponse["policyVersion"];
+    basisHash: string;
+    reasonCodes: string[];
+    generatedAt: string;
   };
+  revisionPolicySuggestion: RevisionPolicySuggestionResponse;
   blockers: DrawingSubmissionBlocker[];
   sameRevisionRecords: SameRevisionSubmissionRecord[];
   nonBlockingHistory: Array<{ message: string; submissionId: string; href: string }>;
@@ -282,10 +296,12 @@ export async function resolveDrawingSubmissionContext(input: {
   company: PdmCompany;
   drawingNumber: string;
   targetRevision?: string | null;
+  workflowIntent?: RevisionWorkflowIntent | string | null;
 }): Promise<DrawingSubmissionContext> {
   const client = getAsyncDatabaseClient();
   const drawingNumber = normalizeText(input.drawingNumber);
   const targetRevision = normalizeText(input.targetRevision);
+  const workflowIntent = normalizeRevisionWorkflowIntent(String(input.workflowIntent ?? "rd_workspace"), "rd_workspace");
   if (!drawingNumber) throw new DrawingSubmissionWorkbenchError("DRAWING_NUMBER_REQUIRED", "圖號為必填。", 400);
 
   const drawing = await findDrawing(client, input.company.companyId, drawingNumber);
@@ -302,7 +318,13 @@ export async function resolveDrawingSubmissionContext(input: {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number
   });
-  const suggestedRevision = targetRevision || suggestRevisionCode(revisions, "rd_workspace");
+  const revisionPolicySuggestion = createRevisionSuggestion({
+    companyId: input.company.companyId,
+    drawingNumber: drawing.drawing_number,
+    workflowIntent,
+    revisions
+  });
+  const suggestedRevision = targetRevision || revisionPolicySuggestion.suggestedRevision;
   const suggestedRevisionSource = targetRevision ? "manual_master" : "revision_policy";
   const sameRevisionRecords = await listSameRevisionSubmissions(client, {
     companyId: input.company.companyId,
@@ -348,8 +370,15 @@ export async function resolveDrawingSubmissionContext(input: {
     attachments,
     suggestedRevision: {
       revision: suggestedRevision,
-      source: suggestedRevisionSource
+      source: suggestedRevisionSource,
+      policySuggestedRevision: revisionPolicySuggestion.suggestedRevision,
+      workflowIntent: revisionPolicySuggestion.workflowIntent,
+      policyVersion: revisionPolicySuggestion.policyVersion,
+      basisHash: revisionPolicySuggestion.basisHash,
+      reasonCodes: revisionPolicySuggestion.reasonCodes,
+      generatedAt: revisionPolicySuggestion.generatedAt
     },
+    revisionPolicySuggestion,
     blockers,
     sameRevisionRecords,
     nonBlockingHistory: sameRevisionRecords
@@ -417,6 +446,9 @@ export async function createDrawingSourceSubmission(input: {
   company: PdmCompany;
   drawingNumber: string;
   expectedRevision?: string | null;
+  workflowIntent?: RevisionWorkflowIntent | string | null;
+  revisionPolicySuggestion?: RevisionPolicySuggestionResponse | null;
+  revisionOverrideReason?: string | null;
   selectedAttachmentIds: string[];
   packageFileRoles?: Array<{ attachmentId: string; role: RevisionPackageFileRole }>;
   note: string;
@@ -428,10 +460,15 @@ export async function createDrawingSourceSubmission(input: {
     throw new DrawingSubmissionWorkbenchError("SUBMISSION_IDEMPOTENCY_KEY_REQUIRED", "送審缺少防重複識別碼，請重新整理後再送出。", 400);
   }
   const expectedRevision = normalizeText(input.expectedRevision);
+  const workflowIntent = normalizeRevisionWorkflowIntent(
+    String(input.workflowIntent ?? input.revisionPolicySuggestion?.workflowIntent ?? "rd_workspace"),
+    "rd_workspace"
+  );
   const context = await resolveDrawingSubmissionContext({
     company: input.company,
     drawingNumber: input.drawingNumber,
-    targetRevision: expectedRevision
+    targetRevision: expectedRevision,
+    workflowIntent
   });
   const client = getAsyncDatabaseClient();
   const existingAttempt = await getSubmissionAttempt(client, {
@@ -679,6 +716,46 @@ export async function createDrawingSourceSubmission(input: {
     );
   }
   const revision = expectedRevision || selectedRevision || context.suggestedRevision.revision;
+  const currentPolicySuggestion = createRevisionSuggestion({
+    companyId: input.company.companyId,
+    drawingNumber: context.drawing.drawingNumber,
+    workflowIntent,
+    revisions: await listSubmissionRevisionsByDrawingAsync({
+      companyId: input.company.companyId,
+      drawingNumber: context.drawing.drawingNumber
+    })
+  });
+  if (input.revisionPolicySuggestion?.basisHash && input.revisionPolicySuggestion.basisHash !== currentPolicySuggestion.basisHash) {
+    throw new DrawingSubmissionWorkbenchError(
+      "revision_policy_basis_stale",
+      "版次建議已更新，請重新整理工作台取得最新建議版次後再送審。",
+      409,
+      ["版次建議依據已變更。"],
+      {
+        group: "submission_conflict",
+        blockers: [
+          makeSubmissionBlocker({
+            code: "revision_policy_basis_stale",
+            group: "submission_conflict",
+            message: "版次建議已更新，請重新整理工作台取得最新建議版次後再送審。",
+            recoveryHref: `/drawings/${encodeURIComponent(context.drawing.drawingNumber)}/submission-workbench`,
+            recoveryLabel: "重新整理建議"
+          })
+        ]
+      }
+    );
+  }
+  const policySuggestion = input.revisionPolicySuggestion ?? currentPolicySuggestion;
+  const revisionOverrideReason = normalizeText(input.revisionOverrideReason) || normalizeText(input.note);
+  const overridesSuggestion = revision !== policySuggestion.suggestedRevision;
+  if (overridesSuggestion && !revisionOverrideReason) {
+    throw new DrawingSubmissionWorkbenchError(
+      "revision_policy_override_reason_required",
+      `本次版次 ${revision} 與系統建議 ${policySuggestion.suggestedRevision} 不同，請填寫覆寫原因後再送審。`,
+      400,
+      ["請在送審備註或 override reason 說明為什麼不採用系統建議版次。"]
+    );
+  }
   const packageRoleByAttachmentId = new Map(
     (input.packageFileRoles ?? [])
       .map((entry) => {
@@ -819,7 +896,22 @@ export async function createDrawingSourceSubmission(input: {
         rulesVersion: snapshotRulesVersion,
         capturedBy: input.submittedBy,
         capturedAt,
-        snapshotJson: buildSnapshotBase({ context, revision, selectedView, packageFiles, packageWarnings, note, submittedBy: input.submittedBy, capturedAt })
+        snapshotJson: buildSnapshotBase({
+          context,
+          revision,
+          selectedView,
+          packageFiles,
+          packageWarnings,
+          note,
+          submittedBy: input.submittedBy,
+          capturedAt,
+          revisionPolicySnapshot: buildRevisionPolicySnapshot({
+            suggestion: policySuggestion,
+            selectedRevision: revision,
+            overrideReason: overridesSuggestion ? revisionOverrideReason : null,
+            acceptedOrOverriddenAt: capturedAt
+          })
+        })
       }
     });
     createdSubmissionId = submissionId;
@@ -2031,6 +2123,7 @@ function buildSnapshotBase(input: {
   note: string;
   submittedBy: string;
   capturedAt: string;
+  revisionPolicySnapshot: ReturnType<typeof buildRevisionPolicySnapshot>;
 }): Record<string, unknown> {
   const packageFileById = new Map((input.packageFiles ?? []).map((file) => [file.id, file]));
   return {
@@ -2053,6 +2146,7 @@ function buildSnapshotBase(input: {
       status: "Pending",
       approvalRequired: 1
     },
+    revision_policy_snapshot: input.revisionPolicySnapshot,
     readiness: {
       blockerCount: input.context.blockers.length,
       blockers: input.context.blockers

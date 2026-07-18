@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-07-16
+更新日期：2026-07-18
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -59,6 +59,16 @@ Owner：Dev PM
 
 - 待選切片後再立項：`DEV-015` 圖面送審工作台 Phase 2+。
   - 目前不派工；需先從主資料、附件、協作、dashboard/todo 去噪中選一個切片。
+
+- 版次治理：`DEV-050` 版次發布閘門與建議版次決策引擎已完成 Phase 1A/1B 本機實作與 focused QC；Phase 1C 緊急使用情境仍 deferred。
+  - 狀態：Phase 1A/1B 本機實作完成且 focused QC 通過；Phase 1C 不開放。
+  - 已決策：先做系統自動建立建議版次並於送審 snapshot 固化，再做 P0 release gate；小數版不可成為正式 `Released`；Phase 1 不開放緊急使用情境。
+  - 恢復條件：若要部署、合併、正式 release、live data repair 或開放 `ConditionalUse` / `TrialApproved`，需另起人類決策與 release/data-repair gate。
+
+- 版次前置 UX：`DEV-051` 保留號首版圖面版次預告與建立入口已完成本機 Phase 1A-1D，QA/QC Passed。
+  - 狀態：raw `v{rowVersion}` 誤讀已移除，detail suggestion panel、publication-gated CTA、`/numbering/revisions` handoff、server suggestion alignment、manual edit guard 與 focused/browser QC 均完成。
+  - 已決策：採「提示提前，正式承諾延後」；候選圖號可先顯示 server-derived 建議研發版次，但 CTA 在正式發布與 drawing reservation `promoted` 前保持停用，保留號本身不成為版次 authority。
+  - 恢復條件：若要 merge、PR、deploy、正式 release、production smoke、live data repair 或開放 `ConditionalUse` / `TrialApproved`，另走 release/data-repair 與人類決策 gate。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -172,6 +182,47 @@ Owner：Dev PM
   - 證據：`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`、`.ai-doc/decisions/ADR-PDM-NUMBER-STATE-FLOW-001-publish-boundary-and-candidate-reservation.md`、`.ai-doc/qa/qa-pdm-number-state-flow-validation-plan-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1a-number-state-flow-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1a-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1b-number-state-flow-ui-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1b-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1c-number-state-flow-publication-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1c-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-phase1d-number-state-flow-transfer-report-2026-07-13.md`、`.ai-doc/qc/qc-pdm-number-state-flow-phase1d-report-2026-07-13.md`、`.ai-doc/reports/rd/rd-dev-048-request-equivalence-repair-2026-07-14.md`、`output/playwright/dev048-phase1d-qc/`、`output/playwright/number-state-phase1e/`。
   - 下一步：若要處理既有圖號新增料號變體 / 一圖多料號，先補Phase 1E P1 draft relation contract；provider/staging或production release須另行明確派工。
   - 計入交付：否（開發點）；文件 ready 不計產品完成，待實作/QC後再由PM依交付點規則更新。
+
+- ✓ DEV-050 [交付點] [本輪本地範圍已完成 / Focused QC Passed] [P0] [Phase 1A+1B Local] 版次發布閘門與建議版次決策引擎
+  - 摘要：依管理辦法版次原則補齊 lifecycle enforcement，阻止小數版進入正式 `Released`，並把建議版次改成 server-created / submission-snapshot policy evidence。
+  - 來源 ID：`DEV-PDM-REVISION-POLICY-002`
+  - 父任務：`DEV-PDM-REVISION-001`、`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`、`DEV-PDM-DRAWING-REVISION-PACKAGE-002`、`DEV-PDM-RELEASE-MASTER-STATUS-SYNC-001`
+  - 人類決策：`HD-050-01 / 1C` 採 RD Implementation Ready 且逐步確認；`HD-050-02 / 2A` 先做 P0 release gate 加自動建議版次；`HD-050-03 / 3A` 小數版緊急使用不得借用 `Released`；`HD-050-04 / 1C` 實作順序先建議版次再 release gate；`HD-050-05 / 2B` 建議版次只在 API response 產生並於送審 snapshot 固化；`HD-050-06 / 3C` Phase 1 不開放緊急使用情境。
+  - 任務清單：
+    - [x] PM critique：確認現行系統僅驗證格式與重複，未在 release workflow 強制小數版不得 `Released`。
+    - [x] SPEC：建立效用理論取捨、演算法契約、suggestion snapshot、release gate、資料/API/權限/停止條件。
+    - [x] QA Plan：建立 Phase 1A/1B 負向矩陣，含 approval route、retry-release、direct workflow、major regression、suggestion stale/override。
+    - [x] Phase 1A RD：讓建議版次由 API response server-side 產生，送審時把 suggested / selected / override / policy metadata 固化到 submission snapshot，不新增獨立 policy table。
+    - [x] Phase 1B RD：實作 `assertRevisionPolicyCanTransition`，在 final approval、release workflow、retry-release 前阻擋 minor -> `Released`。
+    - [x] Phase 1C：延後且不開放；未新增 `ConditionalUse` / `TrialApproved` 或任何緊急使用替代路徑。
+  - 執行範圍：本輪完成 Phase 1A suggestion snapshot、Phase 1B release gate、focused QC 與文件同步；未操作正式資料、live provider、deployment、release、merge、PR 或歷史資料修復。
+  - 驗收標準：系統依 workflow intent 自動建立建議版次，送審 snapshot 固化 suggested/selected/override/policy metadata；小數版 `0.2` / `1.1` 從所有 release path 都不得寫成 `Released`；整數版 `1` / `2` 既有 release gate 不因本規格被破壞；override 需理由且不得繞過 release gate；Phase 1 不顯示或接受緊急使用路徑。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`、`.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`、`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`、`.ai-doc/specs/SPEC-PDM-RELEASE-MASTER-STATUS-SYNC-001-submission-release-master-lifecycle.md`。
+  - 停止條件：需要讓小數版變成 `Released`、改嚴格 chronological approval、為建議版次新增獨立 policy table、production migration、歷史資料修復/刪除、live data mutation、deploy/release、或開放 conditional-use / trial emergency lane 時停止。
+  - 證據：`.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`、`.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`、`npm.cmd run qc:pdm-revision-policy-suggestion` 14/14、`npm.cmd run qc:pdm-revision-policy-release-gate` 11/11、`npm.cmd run qc:pdm-change-control` 62/62、`npm.cmd run qc:pdm-drawing-submission-workbench-recovery` 27/27、`npm.cmd run qc:pdm-drawing-submission-review-only` 14/14、`npm.cmd run qc:pdm-drawing-revision-package-model` 59/59、`npm.cmd run qc:pdm-release-master-status-sync` 31/31、`npm.cmd run lint`、`npx.cmd tsc --noEmit --pretty false`。
+  - 下一步：若要合併、部署或正式 release，走既有 release gate；若要開放 emergency-use / conditional-use / trial-approved，需另起人類決策、ADR 與狀態機設計。
+  - 計入交付：是（正式版次生命週期 P0 安全交付點；Phase 1A/1B 已完成本機產品實作與 focused QC）
+
+- ✓ DEV-051 [交付點] [本機完成 / QA-QC Passed] [P1] [Local Only / Release Gate Required] 保留號首版圖面版次預告與建立入口
+  - 摘要：把保留號成立後的版次提示提前到 reserve-number detail，移除或重標 raw `rowVersion` 的 `v2` 誤讀，並提供 `建立首版圖面` CTA 進入 `/numbering/revisions` 由 server suggestion 決定可編輯版次。
+  - 來源 ID：`DEV-PDM-REVISION-TIMING-UX-001`
+  - 父任務：`DEV-048`、`DEV-050`、`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
+  - 人類決策：2026-07-18 使用者指出新保留號顯示 `新圖料 · v2` 造成版次誤解，並要求評估版次調整時間點是否應提前；PM 結論採「提示提前，正式承諾延後」。
+  - 任務清單：
+    - [x] SPEC：建立保留號到首版圖面版次預告、rowVersion 顯示、CTA handoff、資料/API/權限/停止條件。
+    - [x] QA Plan：建立 rowVersion 誤讀、建議版次提示、CTA handoff、版次編輯點、visible-error、RWD 與 `DEV-050` regression 驗證矩陣。
+    - [x] RD Implementation Contract：補齊 `src/components/number-state-workspace.tsx`、`/numbering/revisions`、resolve route、revision workbench context、focused QC script 與 `package.json` 的檔案級變更契約。
+    - [x] Phase 1A RD：reserve-number list 不再顯示 raw `v{rowVersion}`；內部版本明確標為 `系統紀錄版本` 並降層到 detail/audit。
+    - [x] Phase 1B RD：reserve-number detail 新增 `圖面版次準備` 區塊，顯示 server-derived `建議研發版次`、`尚未建立版次`、retry/no-drawing 狀態與候選態停用原因。
+    - [x] Phase 1C RD：新增 publication/promotion 與 `numbering.draft.update` permission-gated `建立首版圖面` handoff 到 `/numbering/revisions`；receiving workbench 重新呼叫 server suggestion、傳遞 workflow intent 並保留人工版次修改。
+    - [x] Phase 1D QC：static/API/browser/RWD/visible-error/data-sanity 與 `DEV-050` / `DEV-048` regression 驗證通過。
+  - 執行範圍：完成本機 UI/API handoff、central suggestion alignment 與 focused QC；未新增 revision authority table、未改 release gate、未操作正式資料或 live provider。
+  - 驗收標準：新保留號清單不再出現可誤解的 `v2`；detail 清楚顯示建議研發版次與尚未建立版次；版次只在首版圖面/進版工作台可編輯；送審 snapshot 與 minor `Released` gate 仍由 `DEV-050` 控制。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md`、`.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md`、`.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`、`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`。
+  - 停止條件：需要把版次持久化到保留號、信任 query-string revision、允許小數版成為 `Released`、開放 emergency-use / `ConditionalUse` / `TrialApproved`、production migration、live data repair、deploy/release 時停止。
+  - 證據：`.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md` Section 5-16、`.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md` Section 3-14、`scripts/qc-pdm-reservation-revision-timing-ux.mjs` 13/13、`qc:pdm-revision-policy-suggestion` 14/14、`qc:pdm-revision-policy-release-gate` 11/11、`qc:pdm-number-state-flow-phase1b` 15/15、`qc:pdm-number-state-flow-ui` 7/7、`qc:pdm-drawing-submission-workbench-recovery` 27/27、`qc:pdm-drawing-submission-review-only` 14/14、TypeScript、lint、`git diff --check`、`qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、`output/playwright/dev051-reservation-revision-timing-ux/` 六張桌機/平板/手機截圖與 0 console errors / 0 warnings。
+  - 下一步：產品本機範圍已完成；只有明確 merge/PR/deploy/release 指令才進 release gate。Phase 1C emergency-use 仍不開放。
+  - 計入交付：是（產品 UX 交付點；Phase 1A-1D 已本機完成並通過 QA/QC）
 
 - ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
   - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
@@ -683,6 +734,8 @@ Owner：Dev PM
 | ✓ 本輪本地範圍已完成 | `DEV-005` | `DEV-PDM-SUBMISSION-GATE-001` | 交付點 | Phase 1 local QC passed；Phase 2+ 需另指定，release/deploy 走 `DEV-032` |
 | ✓ Phase 2B complete | `DEV-046` | `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` | 開發點 | staging activation已完成；Phase 3A production由`DEV-032`執行，Phase 3B+只保留future capsules |
 | ↷ 待選切片 | `DEV-015` | `DEV-PDM-DRAWING-SUBMISSION-WORKBENCH-002-P2P` | 開發點 | 指定一個第2+階段切片後才恢復為可執行 |
+| ✓ 本輪本地範圍已完成 | `DEV-050` | `DEV-PDM-REVISION-POLICY-002` | 交付點 | Phase 1A suggestion snapshot、Phase 1B release gate focused QC passed；Phase 1C emergency-use deferred；release/deploy 另走 gate |
+| ✓ 本輪本地範圍已完成 | `DEV-051` | `DEV-PDM-REVISION-TIMING-UX-001` | 交付點 | Phase 1A-1D 本機實作與 QA/QC passed；candidate suggestion 提前、CTA 於 publication/promotion 前 fail-closed；release/deploy 另走 gate |
 | × 併入 | `DEV-030` | `DEV-CLOUDSQL-DB-001` | 關卡 | target/capacity/apply併入`DEV-032 Gate B`，migration/continuity併入`Gate C` |
 | × 併入 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | clean seed/archive/restore/reconciliation保留角色分離QC，統一由`DEV-032 Gate C`派工 |
 | ! release gate | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | 唯一production入口；當前執行`Gate A` configuration與credentialled plan review，不得apply |
@@ -808,6 +861,11 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-07-18: 修正 `DEV-051` 在 `official-numbering-draft` production slice 中無法取得建議版次。根因是 reservation drawer 使用 `POST /api/submissions/revision-suggestion`，middleware 將所有 POST 視為 mutation 並依 allowlist 回 403；該端點實際只有讀取歷史與計算建議，且已提供 GET。修正為帶 `drawingNumber` / `workflowIntent=rd_workspace` 的唯讀 GET，未擴張 mutation allowlist；同時讓正式 `/numbering/revisions` CTA 在 production slice 內維持停用，避免發布後導向未開放頁面。使用者回報的 `A0005-M01` 畫面實測恢復為 `ready / 0.1`，無 slice 錯誤、無水平溢出、console 0 errors/warnings。middleware smoke 證明 GET 穿過 slice gate 後由 auth 回 401，舊 POST 仍被 403 擋下。驗證通過 focused QC 13/13、production-slice 33/33、number-state Phase 1B 15/15、UI 7/7、TypeScript 與 lint；未改 schema、正式資料、live provider、deploy 或 release。
+- 2026-07-18: 依使用者「繼續」完成 `DEV-051` / `DEV-PDM-REVISION-TIMING-UX-001` Phase 1A-1D 本機產品實作。保留號清單移除 raw `v{rowVersion}`，drawer 改標 `系統紀錄版本` 並新增 `圖面版次準備`；候選圖號先呼叫 `DEV-050` server suggestion 顯示 `0.1` 與 `尚未建立版次`，但因 formal revision workbench 只解析正式 `drawing_numbers`，CTA 在 workspace 尚未發布或 drawing reservation 尚未 `promoted` 時保持停用並說明原因，發布後才可 handoff。`/numbering/revisions` 支援 workflow intent aliases、resolve/submission context 一致走 central suggestion engine，人工把新版次改為 `0.2` 後不會被 async `0.1` 建議覆蓋。focused QC 13/13、DEV-050 14/14+11/11、DEV-048 Phase 1B 15/15+UI 7/7、drawing submission recovery 27/27+review-only 14/14、TypeScript、lint 均通過；Playwright 於 1440x900、1024x768、390x844、320x740 驗證無可見錯誤/重疊/水平溢出，console 0 errors/0 warnings，六張截圖保存在 `output/playwright/dev051-reservation-revision-timing-ux/`。隔離資料確認僅看建議與人工修改不建立 submission/revision package，測試 DB、auth cookie 與 30273 服務已清除，使用者既有 3000 服務保留。未新增 schema、未操作正式資料/live provider、未 merge/PR/deploy/release。
+- 2026-07-18: 依使用者指定 `dev-pm` 建立並補強 `DEV-051` / `DEV-PDM-REVISION-TIMING-UX-001` 開發文件與 QA 驗證計畫，回應新保留號顯示 `新圖料 · v2` 的版次誤讀與版次調整時間點前移問題。文件現為 `RD Implementation Ready / Awaiting RD Execution`：補齊 `number-state-workspace.tsx`、`/numbering/revisions`、resolve route、revision workbench context、focused QC script 與 `package.json` 的檔案級 contract；QA plan 補上 RD traceability matrix、focused QC assertions、browser/RWD/visible-error 與 `DEV-050` regression gate。文件驗證通過 `git diff --check`、`qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8。決策維持「提示提前，正式承諾延後」：保留號 detail 可提前顯示 server-derived 建議研發版次與 `建立首版圖面` CTA，但保留號本身不得持久化 drawing revision；真正可編輯版次仍在 `/numbering/revisions` 或等效受控圖面工作台，送審後由 `DEV-050` snapshot 與 minor `Released` gate 控制。本輪未實作產品程式、schema/migration、正式資料、provider、deploy、release、merge 或 PR。
+- 2026-07-17: 依使用者「繼續」指令完成 `DEV-050` / `DEV-PDM-REVISION-POLICY-002` Phase 1A/1B 本機實作。新增 `revision-policy-engine` 與 `revision-policy-release-gate`，讓 `/api/submissions/revision-suggestion` 回傳 server-derived 建議版次、policy version、basis hash 與 compatibility fields；送審建立時 snapshot suggested/selected/override/policy metadata，stale basis 409，override 無理由即拒絕。release gate 已接入 final approval、release workflow 與 retry-release，minor `0.2` / `1.1` 不能成為正式 `Released`，blocked release 寫入 `revision_policy.release_blocked` 且 audit 失敗 fail-closed；Phase 1C emergency-use 仍不開放，未新增或顯示 `ConditionalUse` / `TrialApproved`。同時修正 release-master QC 舊期待，改驗證非重複較低整數正式版可補發為歷史且 latest/current 維持較高版；移除 `tsconfig.json` 中已失效的歷史 `.tmp/next-qc-numbering-request-ux-20260714` type include。驗證通過 `qc:pdm-revision-policy-suggestion` 14/14、`qc:pdm-revision-policy-release-gate` 11/11、`qc:pdm-change-control` 62/62、`qc:pdm-drawing-submission-workbench-recovery` 27/27、`qc:pdm-drawing-submission-review-only` 14/14、`qc:pdm-drawing-revision-package-model` 59/59、`qc:pdm-release-master-status-sync` 31/31、`npm.cmd run lint`、`npx.cmd tsc --noEmit --pretty false`。未操作正式資料、live provider、schema migration、deploy、release、merge 或 PR。
+- 2026-07-17: 依使用者指定 `dev-pm` 與 `#引導模式`，針對管理辦法版次原則與現行系統落差建立 `DEV-050` / `DEV-PDM-REVISION-POLICY-002` 開發文件。第一輪決策為 `1C / 2A / 3A`：文件達 RD Implementation Ready 但逐步確認，先阻擋小數版 `Released` 並加入系統自動建立建議版次，小數版緊急使用不得借用 `Released`。第二輪決策為 `1C / 2B / 3C`：實作順序先做 suggestion snapshot 再做 release gate；建議版次只在 API response 產生並於送審 snapshot 固化，不新增獨立 policy table；Phase 1 不開放緊急使用情境。新增並更新 SPEC 與 QA plan，Phase 1A/1B 可拆小任務實作，Phase 1C deferred。文件驗證通過 `git diff --check`、`qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13 與 `qc:dev-task-completion-audit` 8/8。本輪未實作產品程式、schema/migration、正式資料、provider、deploy、release、merge 或 PR。
 - 2026-07-15: 執行PM治理CAPA：根因是架構父任務、database gate、data QC與release gate同時被當成active blocker，加上phase完成狀態未同步cold-start，造成重複派工與狀態失真。CA將第一版production收斂為唯一`DEV-032 Gate A-E` work package，`DEV-030/031`保留來源ID但不再獨立派工，`DEV-046`改為Phase 2B完成/future phases gated，`DEV-033 + DEV-046 Phase 3B + DEV-037`合併為future GCS package，`DEV-047`改為production穩定後恢復，`DEV-036`停止追蹤。PA同步更新cold-start、documentation map與active SPEC；文件治理不計入產品交付完成。
 - 2026-07-14: 執行 `DEV-045` Phase 2 本機切片。完成 provider-managed recovery handoff、Firebase-managed `PASSWORD_RESET` adapter contract、`account_session_records` server-owned additive registry、`/account/security` self-service session/device visibility、個別撤銷其他 session、logout registry revoke、public recovery handoff generic response、production-slice account-safety allowlist、PostgreSQL/Supabase migration mirror與RLS deny-list更新。驗證通過 `npm run qc:dev-045-phase2` 14/14、`npm run qc:supabase-runtime-migrations` 66/66、`npx tsc --noEmit`；首輪QC暴露 production-slice gate 擋住 account-safety revoke API，已補最小 allowlist 後重跑通過。未執行 live Firebase/Cloud Identity寄信、authorized domain/quota/privacy審查、Cloud SQL live migration、staging/production、merge、PR、deploy、release或ProJED修改；AI_PDM仍不建立自有password/reset/MFA authority或第二套session authority。
 - 2026-07-14: Firebase Management REST API將staging project加入Firebase並建立Web App `1:1042387036944:web:dc5bf62bb50038c7ac9395`；公開Web API key限制於Identity Toolkit/Secure Token/Firebase Installations及核准referrers，未連Analytics且未建立Firestore/Storage/Hosting資料資源。Terraform secret bootstrap plan/apply為2 add/0 destroy，deletion-protection plan/apply為2原地update/0 destroy；current/previous各建立一個ENABLED version，使用記憶體stdin、未落檔／未輸出且值相異。Web/secret blockers關閉，external/live blocker由7降為5。

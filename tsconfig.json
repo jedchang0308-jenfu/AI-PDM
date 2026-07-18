@@ -47,8 +47,6 @@
     ".tmp/next-qc-dev048-bd57e25a-e73e-4f16-ad67-0276fa3651b2/dev/types/**/*.ts",
     ".tmp/next-qc-dev048-17aaaa20-7928-4378-8b01-998fdc9d1f50/types/**/*.ts",
     ".tmp/next-qc-dev048-17aaaa20-7928-4378-8b01-998fdc9d1f50/dev/types/**/*.ts",
-    ".tmp/next-qc-numbering-request-ux-20260714/types/**/*.ts",
-    ".tmp/next-qc-numbering-request-ux-20260714/dev/types/**/*.ts",
     ".tmp/next-qc-dev048-5e8f8f54-95c6-416d-b893-5e7bde74b8e8/types/**/*.ts",
     ".tmp/next-qc-dev048-5e8f8f54-95c6-416d-b893-5e7bde74b8e8/dev/types/**/*.ts",
     ".tmp/next-qc-dev-045-phase2/types/**/*.ts",
@@ -56,7 +54,9 @@
     ".tmp/next-qc-dev048-b22d0248-c1fa-4c6e-b913-b98114cea774/types/**/*.ts",
     ".tmp/next-qc-dev048-b22d0248-c1fa-4c6e-b913-b98114cea774/dev/types/**/*.ts",
     ".tmp/next-qc-dev048-13884cac-66e8-4161-a038-79c9fe643f0a/types/**/*.ts",
-    ".tmp/next-qc-dev048-13884cac-66e8-4161-a038-79c9fe643f0a/dev/types/**/*.ts"
+    ".tmp/next-qc-dev048-13884cac-66e8-4161-a038-79c9fe643f0a/dev/types/**/*.ts",
+    ".tmp/next-qc-dev048-phase1c-ui-092a21d5-ccf0-4b14-b38a-c75127bbb1de/types/**/*.ts",
+    ".tmp/next-qc-dev048-phase1c-ui-092a21d5-ccf0-4b14-b38a-c75127bbb1de/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

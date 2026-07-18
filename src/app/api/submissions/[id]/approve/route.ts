@@ -10,6 +10,7 @@ import { forbidden, requireRoleAsync } from "@/lib/auth-async";
 import { listOpenRequiredPhaseGateChecksAsync } from "@/lib/collaboration-async";
 import { getDuplicateActiveSubmissionConflictForReviewAsync } from "@/lib/drawing-submission-workbench";
 import { canReadSubmissionAsync } from "@/lib/permissions";
+import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
 import { getActiveSandboxBranchForSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -74,6 +75,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "reviewer_already_decided", message: "你已經判定過這筆送審。" }, { status: 409 });
   }
 
+  const currentSummary = await getApprovalSummaryAsync(id);
+  const finalApprovalWouldRelease = currentSummary.approved + 1 >= submission.approval_required;
+  const openApprovalMatrixRequirementsBeforeApproval = finalApprovalWouldRelease
+    ? await listOpenApprovalMatrixRequirementsAsync(id)
+    : [];
+  if (finalApprovalWouldRelease && openApprovalMatrixRequirementsBeforeApproval.length === 0) {
+    const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId: id, actorId: reviewerId });
+    if (!policyGate.ok) return NextResponse.json(policyGate.responseBody, { status: policyGate.status });
+  }
+
   await addApprovalAsync({ submissionId: id, reviewerId, decision: "Approved", comment });
   await createAuditLogAsync({ submissionId: id, actorId: reviewerId, action: "ApproveRequested", detail: { comment } });
 
@@ -91,7 +102,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       approval: { approved: summary.approved, required: submission.approval_required }
     });
   }
-  const openApprovalMatrixRequirements = await listOpenApprovalMatrixRequirementsAsync(id);
+  const openApprovalMatrixRequirements = finalApprovalWouldRelease
+    ? openApprovalMatrixRequirementsBeforeApproval
+    : await listOpenApprovalMatrixRequirementsAsync(id);
   if (openApprovalMatrixRequirements.length > 0) {
     await createAuditLogAsync({
       submissionId: id,
@@ -109,6 +122,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const releaseResult = await executeSubmissionReleaseWorkflowAsync({ submissionId: id, actorId: reviewerId });
   if (!releaseResult.ok) {
+    if (releaseResult.status === "Blocked") {
+      return NextResponse.json(releaseResult.policy, { status: 409 });
+    }
     return NextResponse.json(
       { error: "release_failed", message: releaseResult.error, status: "ReleaseFailed" },
       { status: 500 }

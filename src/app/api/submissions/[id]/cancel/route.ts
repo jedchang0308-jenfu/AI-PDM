@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (submission.status !== "Pending") {
     return NextResponse.json(
-      { error: "submission_not_pending", message: "只有審核中的送審可以取消。" },
+      { error: "submission_not_pending", message: "只有待審核中的送審可以取消。" },
       { status: 409 }
     );
   }

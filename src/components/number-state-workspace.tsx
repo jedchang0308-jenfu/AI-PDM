@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDashed,
+  FilePlus2,
   FileText,
   LockKeyhole,
   PackagePlus,
@@ -878,7 +879,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
               <tbody>
                 {visible.map((workspace) => (
                   <tr key={workspace.id}>
-                    <td data-label="保留號"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)} · v{workspace.rowVersion}</span></button></td>
+                    <td data-label="保留號"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)}</span></button></td>
                     <td data-label="內容">{workspace.parts.length} 料號 · {workspace.drawings.length} 圖號</td>
                     <td data-label="申請狀態"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>
                     <td data-label="號碼效力"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>
@@ -913,6 +914,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
           onCancel={() => setConfirmAction("cancel")}
           formalActionsUnopened={formalActionsUnopened}
           unopenedMessage={formalActionsUnopenedMessage}
+          canCreateDrawingRevision={actionPermissions?.["numbering.draft.update"] === true}
           onClose={() => { setSelected(null); setEditOpen(false); }}
         />
       ) : null}
@@ -1417,6 +1419,7 @@ function WorkspaceDrawer({
   onCancel,
   formalActionsUnopened,
   unopenedMessage,
+  canCreateDrawingRevision,
   onClose
 }: {
   workspace: NumberingDraftWorkspace;
@@ -1431,6 +1434,7 @@ function WorkspaceDrawer({
   onCancel: () => void;
   formalActionsUnopened: boolean;
   unopenedMessage: string;
+  canCreateDrawingRevision: boolean;
   onClose: () => void;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -1438,12 +1442,17 @@ function WorkspaceDrawer({
   return (
     <div className="number-state-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside ref={drawerRef} className="number-state-drawer" role="dialog" aria-modal="true" aria-labelledby="number-state-drawer-title">
-        <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>v{workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉保留號明細"><X size={20} /></button></div>
+        <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>系統紀錄版本 {workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉保留號明細"><X size={20} /></button></div>
         <div className="number-state-drawer-body">
           <ProjectionSummary projection={workspace.projection} />
           {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
           <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
           {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
+          <RevisionPreparationPanel
+            workspace={workspace}
+            canCreateDrawingRevision={canCreateDrawingRevision}
+            formalActionsUnopened={formalActionsUnopened}
+          />
           <section className="number-state-drawer-section">
             <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯保留號</button> : null}</div>
             <div className="number-state-future-actions">
@@ -1493,6 +1502,120 @@ function UnopenedAction({ label, reason, children }: { label: string; reason: st
 function WorkspaceFacts({ workspace }: { workspace: NumberingDraftWorkspace }) {
   return (
     <section className="number-state-drawer-section"><h3>保留號內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeCode === "R" && drawing.purposeDescription ? `${drawing.purposeDescription} · ` : ""}${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
+  );
+}
+
+function RevisionPreparationPanel({
+  workspace,
+  canCreateDrawingRevision,
+  formalActionsUnopened
+}: {
+  workspace: NumberingDraftWorkspace;
+  canCreateDrawingRevision: boolean;
+  formalActionsUnopened: boolean;
+}) {
+  const drawingNumber = getPrimaryReservedDrawingCode(workspace);
+  const [retryKey, setRetryKey] = useState(0);
+  const [suggestion, setSuggestion] = useState<{
+    status: "idle" | "loading" | "ready" | "error";
+    revision: string | null;
+    message: string;
+  }>({ status: "idle", revision: null, message: "" });
+
+  useEffect(() => {
+    if (!drawingNumber || workspace.lifecycleStatus === "cancelled") {
+      setSuggestion({ status: "idle", revision: null, message: "" });
+      return;
+    }
+
+    const controller = new AbortController();
+    setSuggestion({ status: "loading", revision: null, message: "" });
+    void (async () => {
+      try {
+        const params = new URLSearchParams({ drawingNumber, workflowIntent: "rd_workspace" });
+        const response = await fetch(`/api/submissions/revision-suggestion?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        const body = await readApiBody<{
+          suggestedRevision?: string;
+          revisionPolicySuggestion?: { suggestedRevision?: string };
+        }>(response);
+        if (!response.ok) throw new Error(apiErrorMessage(response, body, "無法取得建議版次，請稍後重試。"));
+        const revision = String(body.revisionPolicySuggestion?.suggestedRevision ?? body.suggestedRevision ?? "").trim();
+        if (!revision) throw new Error("系統沒有回傳建議版次，請稍後重試。");
+        setSuggestion({ status: "ready", revision, message: "" });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSuggestion({
+          status: "error",
+          revision: null,
+          message: error instanceof Error ? error.message : "無法取得建議版次，請稍後重試。"
+        });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [drawingNumber, retryKey, workspace.lifecycleStatus]);
+
+  const officialDrawingAvailable = Boolean(
+    drawingNumber &&
+      workspace.lifecycleStatus === "published" &&
+      workspace.reservations.some(
+        (reservation) => reservation.itemType === "drawing" && reservation.state === "promoted" && reservation.candidateCode === drawingNumber
+      )
+  );
+  const canOpenRevisionWorkbench = officialDrawingAvailable && canCreateDrawingRevision && !formalActionsUnopened;
+
+  return (
+    <section className="number-state-drawer-section number-state-revision-preparation" data-revision-preparation-state={suggestion.status}>
+      <div className="number-state-section-heading">
+        <h3>圖面版次準備</h3>
+        {drawingNumber ? <span className="number-state-revision-drawing">{drawingNumber}</span> : null}
+      </div>
+      {!drawingNumber ? (
+        <p className="number-state-revision-message">尚未有圖號，先取得候選圖號。</p>
+      ) : workspace.lifecycleStatus === "cancelled" ? (
+        <p className="number-state-revision-message">此保留號已取消，不建立圖面版次。</p>
+      ) : (
+        <>
+          <div className="number-state-revision-summary">
+            <span>建議研發版次</span>
+            <strong>{suggestion.status === "ready" ? suggestion.revision : suggestion.status === "error" ? "暫時無法取得" : "計算中"}</strong>
+          </div>
+          {suggestion.status === "error" ? (
+            <div className="number-state-revision-recovery" role="status">
+              <span>{suggestion.message}</span>
+              <button className="secondary-button" type="button" onClick={() => setRetryKey((value) => value + 1)}>
+                <RefreshCcw size={15} />重新取得
+              </button>
+            </div>
+          ) : (
+            <p className="number-state-revision-message">尚未建立版次；建立首版圖面時可確認或調整。</p>
+          )}
+          <div className="number-state-revision-actions">
+            {canOpenRevisionWorkbench ? (
+              <Link className="primary-button" href={buildFirstDrawingRevisionHref(workspace, drawingNumber)}>
+                <FilePlus2 size={16} />建立首版圖面
+              </Link>
+            ) : (
+              <button className="secondary-button" type="button" disabled aria-describedby={`revision-preparation-reason-${workspace.id}`}>
+                <FilePlus2 size={16} />建立首版圖面
+              </button>
+            )}
+            {!officialDrawingAvailable ? (
+              <small id={`revision-preparation-reason-${workspace.id}`}>先完成保留號審核與正式發布，再進入圖面進版工作台。</small>
+            ) : formalActionsUnopened ? (
+              <small id={`revision-preparation-reason-${workspace.id}`}>圖面進版尚未納入本次正式領號 / 保留號開放範圍。</small>
+            ) : !canCreateDrawingRevision ? (
+              <small id={`revision-preparation-reason-${workspace.id}`}>目前帳號沒有建立圖面進版送審的權限。</small>
+            ) : (
+              <small>圖號已正式建立；工作台會重新計算建議版次。</small>
+            )}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -1607,6 +1730,30 @@ function LifecycleBadge({ lifecycle }: { lifecycle: NumberStateProjection["lifec
 
 function candidateCodes(workspace: NumberingDraftWorkspace) {
   return workspace.reservations.filter((reservation) => reservation.state !== "recycled").map((reservation) => reservation.candidateCode);
+}
+
+function getReservedDrawingCandidates(workspace: NumberingDraftWorkspace): DraftDrawing[] {
+  const activeDrawingIds = new Set(
+    workspace.reservations
+      .filter((reservation) => reservation.itemType === "drawing" && reservation.state !== "recycled")
+      .map((reservation) => reservation.itemId)
+  );
+  return workspace.drawings.filter((drawing) => Boolean(drawing.candidateCode) && activeDrawingIds.has(drawing.id));
+}
+
+function getPrimaryReservedDrawingCode(workspace: NumberingDraftWorkspace): string | null {
+  const drawings = getReservedDrawingCandidates(workspace);
+  return drawings.find((drawing) => drawing.isPrimaryManufacturing)?.candidateCode ?? drawings[0]?.candidateCode ?? null;
+}
+
+function buildFirstDrawingRevisionHref(workspace: NumberingDraftWorkspace, drawingNumber: string): string {
+  const params = new URLSearchParams({
+    drawingNumber,
+    workflowIntent: "rd_workspace",
+    source: "number_state_workspace",
+    workspaceId: workspace.id
+  });
+  return `/numbering/revisions?${params.toString()}`;
 }
 
 function draftNumberLabel(workspace: NumberingDraftWorkspace, candidateCode: string | null) {

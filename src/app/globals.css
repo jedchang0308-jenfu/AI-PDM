@@ -8749,6 +8749,69 @@ select.dropdown-select {
   font-size: 11px;
 }
 
+.number-state-revision-preparation {
+  gap: 9px;
+}
+
+.number-state-revision-drawing {
+  max-width: 60%;
+  color: #7c2d12;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.number-state-revision-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-left: 3px solid #0f766e;
+  padding: 8px 10px;
+  background: #f0fdfa;
+}
+
+.number-state-revision-summary span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.number-state-revision-summary strong {
+  color: #115e59;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.number-state-revision-message {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.number-state-revision-recovery,
+.number-state-revision-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.number-state-revision-recovery {
+  color: #9a3412;
+  font-size: 12px;
+}
+
+.number-state-revision-actions small {
+  flex: 1;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .number-state-future-actions button {
   position: relative;
 }
@@ -9233,7 +9296,9 @@ select.dropdown-select {
 
   .number-state-owner-actions,
   .number-state-now-what,
-  .number-state-section-heading {
+  .number-state-section-heading,
+  .number-state-revision-actions,
+  .number-state-revision-recovery {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
@@ -9241,8 +9306,16 @@ select.dropdown-select {
   .number-state-owner-actions .primary-button,
   .number-state-owner-actions .secondary-button,
   .number-state-now-what .primary-button,
-  .number-state-now-what .secondary-button {
+  .number-state-now-what .secondary-button,
+  .number-state-revision-actions .primary-button,
+  .number-state-revision-actions .secondary-button,
+  .number-state-revision-recovery .secondary-button {
     width: 100%;
+  }
+
+  .number-state-revision-drawing {
+    max-width: 100%;
+    text-align: left;
   }
 
   .number-state-state-grid {

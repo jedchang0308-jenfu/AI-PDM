@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
 import { StatusScopeHelp } from "@/components/status-help-popover";
@@ -22,6 +22,7 @@ type FffState = "no_impact" | "suspected_impact" | "confirmed_impact";
 type ItemType = "self_made" | "purchased" | "standard";
 type ResolveStatus = "no_input" | "not_found" | "ambiguous_query" | "resolved" | "resolved_with_missing_part" | "multiple_primary_parts";
 type LookupKind = "query" | "drawingNumber" | "drawingNumberId" | "partNumber";
+type RevisionWorkflowIntent = "rd_workspace" | "design_change_workspace" | "release_area";
 
 type ResolvedDrawing = {
   id: string;
@@ -103,6 +104,20 @@ type DrawingSubmissionContext = {
   suggestedRevision: {
     revision: string;
     source: "revision_policy" | "latest_attachment" | "manual_master";
+    policySuggestedRevision?: string;
+    workflowIntent?: string;
+    policyVersion?: string;
+    basisHash?: string;
+    reasonCodes?: string[];
+    generatedAt?: string;
+  };
+  revisionPolicySuggestion?: {
+    suggestedRevision: string;
+    workflowIntent: string;
+    policyVersion: string;
+    basisHash: string;
+    reasonCodes: string[];
+    generatedAt: string;
   };
   blockers: DrawingSubmissionBlocker[];
 };
@@ -147,6 +162,8 @@ export default function DrawingRevisionPage() {
 function DrawingRevisionWorkbench() {
   const searchParams = useSearchParams();
   const initialLookup = getInitialLookup(searchParams);
+  const workflowIntent = getInitialWorkflowIntent(searchParams);
+  const fromNumberStateWorkspace = searchParams.get("source") === "number_state_workspace";
   const [query, setQuery] = useState(initialLookup.value);
   const [lookupKind, setLookupKind] = useState<LookupKind>(initialLookup.kind);
   const [resolved, setResolved] = useState<ResolveResult | null>(null);
@@ -171,6 +188,7 @@ function DrawingRevisionWorkbench() {
   const [pendingUploadFiles, setPendingUploadFiles] = useState<PendingRevisionUploadFile[]>([]);
   const [packageRoleByAttachmentId, setPackageRoleByAttachmentId] = useState<Record<string, RevisionPackageFileRole>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const revisionManuallyEditedRef = useRef(false);
 
   const outcome = useMemo(() => {
     if ([formState, fitState, functionState].includes("confirmed_impact")) return "confirmed_impact";
@@ -286,17 +304,19 @@ function DrawingRevisionWorkbench() {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [resolved?.drawing?.drawingNumber, revision]);
+  }, [resolved?.drawing?.drawingNumber, revision, workflowIntent]);
 
   async function resolveDrawing(nextQuery = query, nextLookupKind = lookupKind) {
     const text = nextQuery.trim();
     if (!text) return;
+    revisionManuallyEditedRef.current = false;
     setBusy("resolving");
     setError("");
     setErrorGuidance(null);
     setMessage("");
     const params = new URLSearchParams({ limit: "8" });
     params.set(nextLookupKind, text);
+    params.set("workflowIntent", workflowIntent);
     const response = await fetch(`/api/numbering/drawings/resolve?${params.toString()}`);
     const body = (await response.json().catch(() => ({}))) as Partial<ResolveResult> & { error?: string };
     setBusy("idle");
@@ -311,7 +331,7 @@ function DrawingRevisionWorkbench() {
     }
     const nextResolved = body as ResolveResult;
     setResolved(nextResolved);
-    if (nextResolved.suggestedRevision) setRevision(nextResolved.suggestedRevision);
+    if (nextResolved.suggestedRevision && !revisionManuallyEditedRef.current) setRevision(nextResolved.suggestedRevision);
     if (!nextResolved.drawing) {
       setSubmissionContext(null);
       setSelectedAttachmentIds([]);
@@ -333,7 +353,7 @@ function DrawingRevisionWorkbench() {
     options: { signal?: AbortSignal; preserveSelection?: boolean; selectAttachmentId?: string; selectAttachmentIds?: string[] } = {}
   ) {
     setSubmissionLoading(true);
-    const params = new URLSearchParams({ revision: targetRevision });
+    const params = new URLSearchParams({ revision: targetRevision, workflowIntent });
     try {
       const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/submission-workbench?${params.toString()}`, {
         signal: options.signal
@@ -344,6 +364,11 @@ function DrawingRevisionWorkbench() {
       }
       const nextContext = body as DrawingSubmissionContext;
       setSubmissionContext(nextContext);
+      const serverSuggestedRevision =
+        nextContext.revisionPolicySuggestion?.suggestedRevision ?? nextContext.suggestedRevision.policySuggestedRevision;
+      if (!revisionManuallyEditedRef.current && serverSuggestedRevision && serverSuggestedRevision !== targetRevision) {
+        setRevision(serverSuggestedRevision);
+      }
       setPackageRoleByAttachmentId((current) => {
         const validIds = new Set(nextContext.attachments.map((attachment) => attachment.id));
         return Object.fromEntries(Object.entries(current).filter(([attachmentId]) => validIds.has(attachmentId)));
@@ -495,6 +520,9 @@ function DrawingRevisionWorkbench() {
       body: JSON.stringify({
         drawingNumber: resolved.drawing.drawingNumber,
         revision,
+        workflowIntent: submissionContext.revisionPolicySuggestion?.workflowIntent ?? submissionContext.suggestedRevision.workflowIntent ?? workflowIntent,
+        revisionPolicySuggestion: submissionContext.revisionPolicySuggestion,
+        revisionOverrideReason: note.trim() || null,
         selectedAttachmentIds,
         packageFileRoles: selectedAttachments.map((attachment) => ({
           attachmentId: attachment.id,
@@ -538,7 +566,7 @@ function DrawingRevisionWorkbench() {
       <div className="topbar">
         <div>
           <h1>圖面進版 <StatusScopeHelp scope="revisionSubmission" /></h1>
-          <p>輸入正式圖號後上傳新版圖面，建立審核中送審並關聯 Form / Fit / Function 判定。</p>
+          <p>{fromNumberStateWorkspace ? "已從保留號帶入正式圖號；請在此確認版次並建立首版圖面送審。" : "輸入正式圖號後上傳新版圖面，建立審核中送審並關聯 Form / Fit / Function 判定。"}</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => window.location.reload()}>
           <RotateCcw size={16} />
@@ -599,7 +627,14 @@ function DrawingRevisionWorkbench() {
           </label>
           <label style={fieldStyle}>
             <span style={fieldLabelStyle}>新版次</span>
-            <input className="text-input" value={revision} onChange={(event) => setRevision(event.target.value)} />
+            <input
+              className="text-input"
+              value={revision}
+              onChange={(event) => {
+                revisionManuallyEditedRef.current = true;
+                setRevision(event.target.value);
+              }}
+            />
           </label>
           <label style={fieldStyle}>
             <span style={fieldLabelStyle}>變更原因</span>
@@ -1312,6 +1347,14 @@ function getInitialLookup(searchParams: ReturnType<typeof useSearchParams>): { v
   const drawingNumberId = searchParams.get("drawingNumberId") ?? searchParams.get("drawing_number_id");
   if (drawingNumberId) return { value: drawingNumberId, kind: "drawingNumberId" };
   return { value: "", kind: "query" };
+}
+
+function getInitialWorkflowIntent(searchParams: ReturnType<typeof useSearchParams>): RevisionWorkflowIntent {
+  const value =
+    searchParams.get("workflowIntent") ??
+    searchParams.get("workflow_intent") ??
+    searchParams.get("lifecycleStage");
+  return value === "design_change_workspace" || value === "release_area" ? value : "rd_workspace";
 }
 
 const mutedTextStyle: CSSProperties = { color: "#64748b", fontSize: "0.85rem" };

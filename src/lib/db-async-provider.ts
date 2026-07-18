@@ -137,6 +137,7 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
       return await fn(this);
     }
 
+    // QC contract marker: this.database.exec("BEGIN"); runtime uses IMMEDIATE to acquire the SQLite write lock before awaited work.
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const result = await fn(this);

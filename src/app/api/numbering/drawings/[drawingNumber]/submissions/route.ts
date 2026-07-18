@@ -3,6 +3,7 @@ import { requireRoleAsync } from "@/lib/auth-async";
 import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
 import { uploadFileToDrive } from "@/lib/gdrive";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
 import { buildTransferPackageHref, normalizeSubmissionMode, resolveSubmissionReadiness } from "@/lib/submission-gate";
 import { getFilesNeedingUploadAsync, updateFileGDriveStatusAsync } from "@/lib/submission-files-async";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
@@ -52,11 +53,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   }
 
   const expectedRevision = String(body.expectedRevision ?? "").trim() || null;
+  const revisionPolicySuggestion = revisionPolicySuggestionFromBody({
+    revisionPolicySuggestion: body["revisionPolicySuggestion"],
+    revision_policy_suggestion: body["revision_policy_suggestion"]
+  });
+  const workflowIntent = String(body.workflowIntent ?? body.workflow_intent ?? revisionPolicySuggestion?.workflowIntent ?? "rd_workspace");
+  const revisionOverrideReason = String(body["revisionOverrideReason"] ?? body["revision_override_reason"] ?? "").trim() || null;
   try {
     const result = await createDrawingSourceSubmission({
       company: companyResult.company,
       drawingNumber: decodedDrawingNumber,
       expectedRevision,
+      workflowIntent,
+      revisionPolicySuggestion,
+      revisionOverrideReason,
       selectedAttachmentIds: Array.isArray(body.selectedAttachmentIds)
         ? body.selectedAttachmentIds.map((value) => String(value))
         : [],

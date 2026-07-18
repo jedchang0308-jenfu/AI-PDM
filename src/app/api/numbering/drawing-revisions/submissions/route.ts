@@ -14,6 +14,7 @@ import {
   type PartNumberDraftItemType
 } from "@/lib/pdm-change-control";
 import { normalizeRevisionPackageFileRole } from "@/lib/revision-package";
+import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
 
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
   const selectedAttachmentIds = Array.isArray(body.selectedAttachmentIds)
     ? body.selectedAttachmentIds.map((value) => String(value).trim()).filter(Boolean)
     : [];
+  const revisionPolicySuggestion = revisionPolicySuggestionFromBody(body);
+  const workflowIntent = nullableText(body.workflowIntent ?? body.workflow_intent) ?? revisionPolicySuggestion?.workflowIntent ?? "rd_workspace";
+  const revisionOverrideReason = nullableText(body.revisionOverrideReason ?? body.revision_override_reason);
   const packageFileRoles = Array.isArray(body.packageFileRoles)
     ? body.packageFileRoles
         .map((value) => {
@@ -74,6 +78,9 @@ export async function POST(request: Request) {
       company: companyResult.company,
       drawingNumber,
       expectedRevision: revision,
+      workflowIntent,
+      revisionPolicySuggestion,
+      revisionOverrideReason,
       selectedAttachmentIds,
       packageFileRoles,
       note: String(body.note ?? ""),

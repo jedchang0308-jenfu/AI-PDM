@@ -36,6 +36,11 @@ type RestrictedSubmissionSummary = {
   file_roles: string[];
 };
 
+const submissionDetailStatusLabels: Record<string, string> = {
+  ReleaseFailed: "發行未完成",
+  Cancelled: "已取消"
+};
+
 export default function SubmissionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -307,6 +312,7 @@ function SubmissionDetailView({
           <Info label="主料號" value={submission.part_number} />
           <Info label="品名" value={submission.part_name} />
           <Info label="版次" value={submission.revision} />
+          <Info label="狀態" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")} />
           <Info label="材質" value={submission.material || "未填"} />
           <Info label="表面處理" value={submission.surface_finish || "未填"} />
           <Info label="建立者" value={submission.submitted_by_name || submission.submitted_by} />

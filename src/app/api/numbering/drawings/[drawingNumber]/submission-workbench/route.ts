@@ -13,12 +13,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
   if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
-  const targetRevision = new URL(request.url).searchParams.get("revision");
+  const url = new URL(request.url);
+  const targetRevision = url.searchParams.get("revision");
+  const workflowIntent =
+    url.searchParams.get("workflowIntent") ??
+    url.searchParams.get("workflow_intent") ??
+    url.searchParams.get("lifecycleStage");
   try {
     const context = await resolveDrawingSubmissionContext({
       company: companyResult.company,
       drawingNumber: decodeURIComponent(drawingNumber),
-      targetRevision
+      targetRevision,
+      workflowIntent
     });
     return NextResponse.json(context);
   } catch (error) {

@@ -148,6 +148,14 @@ function createFixtureDatabase() {
       detail_json TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE drawing_revision_packages (
+      id TEXT PRIMARY KEY,
+      source_submission_id TEXT,
+      status TEXT NOT NULL,
+      released_at TEXT,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -312,7 +320,7 @@ async function runSingleLinkFallbackScenario() {
   record("single linked part is still synced", part.record_status === "Released" && part.development_phase === "Release");
 }
 
-async function runLowerRevisionBlockedScenario() {
+async function runLowerRevisionAcceptedAsHistoryScenario() {
   const db = createFixtureDatabase();
   seedReleasedPathFixture(db);
   db.prepare("UPDATE items SET current_revision = '0.3' WHERE id = ?").run("item-qc-release-sync");
@@ -335,31 +343,31 @@ async function runLowerRevisionBlockedScenario() {
     "2026-07-02T08:30:00.000Z",
     "2026-07-02T08:30:00.000Z"
   );
+  let auditSeq = 0;
   const repo = new AsyncSubmissionStatusRepository(
     new MemoryAsyncClient(db),
     () => "2026-07-02T09:00:00.000Z",
-    () => "audit-qc-lower"
+    () => `audit-qc-backfill-${++auditSeq}`
   );
 
-  let message = "";
-  try {
-    await repo.markSubmissionReleasedAndObsoletePrevious({ id: "sub-qc-current", actorId: "qc-user" });
-  } catch (error) {
-    message = error instanceof Error ? error.message : String(error);
-  }
+  const result = await repo.markSubmissionReleasedAndObsoletePrevious({ id: "sub-qc-current", actorId: "qc-user" });
 
-  const current = db.prepare("SELECT status, released_at FROM submissions WHERE id = ?").get("sub-qc-current");
+  const current = db.prepare("SELECT status, released_at, superseded_by_submission_id FROM submissions WHERE id = ?").get("sub-qc-current");
   const newer = db.prepare("SELECT status, superseded_by_submission_id FROM submissions WHERE id = ?").get("sub-qc-newer-released");
   const older = db.prepare("SELECT status, superseded_by_submission_id FROM submissions WHERE id = ?").get("sub-qc-previous-released");
   const item = db.prepare("SELECT current_revision FROM items WHERE id = ?").get("item-qc-release-sync");
-  const auditCount = db.prepare("SELECT COUNT(*) AS count FROM audit_logs").get().count;
+  const recomputedAudit = db.prepare("SELECT detail_json FROM audit_logs WHERE action = ?").get("RevisionCurrentRecomputed");
 
-  record("lower revision release is blocked when newer release exists", message.includes("已有版次 0.3 的正式紀錄"), message);
-  record("blocked lower revision remains unreleased", current.status === "Releasing" && current.released_at === null, JSON.stringify(current));
-  record("newer released revision is not obsoleted", newer.status === "Released" && newer.superseded_by_submission_id === null, JSON.stringify(newer));
-  record("older released revision is not partially obsoleted after blocked transaction", older.status === "Released" && older.superseded_by_submission_id === null, JSON.stringify(older));
+  record("lower revision backfill is accepted as history", result.accepted_as_history === true && result.latest_revision === "0.3", JSON.stringify(result));
+  record(
+    "backfilled lower revision is obsoleted by newer current",
+    current.status === "Obsolete" && current.released_at === "2026-07-02T09:00:00.000Z" && current.superseded_by_submission_id === "sub-qc-newer-released",
+    JSON.stringify(current)
+  );
+  record("newer released revision remains current", newer.status === "Released" && newer.superseded_by_submission_id === null, JSON.stringify(newer));
+  record("older released revision is recomputed as history", older.status === "Obsolete" && older.superseded_by_submission_id === "sub-qc-newer-released", JSON.stringify(older));
   record("item current revision stays on newer release", item.current_revision === "0.3", JSON.stringify(item));
-  record("blocked lower revision writes no partial audit", auditCount === 0, String(auditCount));
+  record("history acceptance writes recompute audit", recomputedAudit?.detail_json?.includes('"acceptedAsHistory":true'), JSON.stringify(recomputedAudit));
 }
 
 function runStaticContractChecks() {
@@ -370,11 +378,12 @@ function runStaticContractChecks() {
 
   record(
     "package exposes qc script",
-    packageJson.scripts?.["qc:pdm-release-master-status-sync"] === "node scripts/qc-pdm-release-master-status-sync.mjs"
+    packageJson.scripts?.["qc:pdm-release-master-status-sync"]?.includes("scripts/qc-pdm-release-master-status-sync.mjs")
   );
   record("repository writes master sync audit", repository.includes("ReleaseMasterStatusSynced"));
   record("repository blocks missing source with Chinese message", repository.includes("找不到這筆送審的來源圖號"));
-  record("repository blocks lower revision release", repository.includes("assertNoNewerReleasedRevision") && repository.includes("已有版次"));
+  record("repository blocks duplicate formal revisions", repository.includes("assertNoFormalDuplicateRevision") && repository.includes("不能重複核准同一版次"));
+  record("repository supports lower revision history acceptance", repository.includes("acceptedAsHistory") && repository.includes("history_submission_ids"));
   record("drawing list exposes human mismatch text", drawingPage.includes("已發布送審待同步"));
   record("async drawing list detects released-master mismatch", asyncNumberingRepository.includes("SELECT_ASYNC_DRAWING_MODULE_RELEASE_STATUS_MISMATCHES_SQL"));
 }
@@ -382,7 +391,7 @@ function runStaticContractChecks() {
 await runSuccessfulReleaseSyncScenario();
 await runMissingSourceStopsReleaseScenario();
 await runSingleLinkFallbackScenario();
-await runLowerRevisionBlockedScenario();
+await runLowerRevisionAcceptedAsHistoryScenario();
 runStaticContractChecks();
 
 const summary = {

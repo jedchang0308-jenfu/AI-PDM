@@ -95,35 +95,24 @@ export function suggestRevisionCode(revisions: RevisionHistorySource[], lifecycl
     })
     .filter((revision): revision is ParsedRevision & { status: string | null } => Boolean(revision));
 
-  if (lifecycleStage === "rd_workspace") {
-    const nextMinor =
-      Math.max(
-        0,
-        ...parsed.filter((revision) => revision.kind === "minor" && revision.major === 0).map((revision) => revision.minor ?? 0)
-      ) + 1;
-    return `0.${nextMinor}`;
+  const releasedMajorValues = parsed
+    .filter((revision) => revision.kind === "major" && revision.status === "Released")
+    .map((revision) => revision.major);
+  const currentReleasedMajor = releasedMajorValues.length > 0 ? Math.max(...releasedMajorValues) : null;
+
+  if (lifecycleStage === "release_area") {
+    return currentReleasedMajor === null ? "1" : String(currentReleasedMajor + 1);
   }
 
-  if (lifecycleStage === "design_change_workspace") {
-    const releasedMajor = Math.max(
+  const minorBase = currentReleasedMajor ?? 0;
+  const nextMinor =
+    Math.max(
       0,
       ...parsed
-        .filter((revision) => revision.kind === "major" && revision.status === "Released")
-        .map((revision) => revision.major)
-    );
-    const activeMajor = releasedMajor || Math.max(1, ...parsed.map((revision) => revision.major));
-    const nextMinor =
-      Math.max(
-        0,
-        ...parsed
-          .filter((revision) => revision.kind === "minor" && revision.major === activeMajor)
-          .map((revision) => revision.minor ?? 0)
-      ) + 1;
-    return `${activeMajor}.${nextMinor}`;
-  }
-
-  const maxMajor = Math.max(0, ...parsed.map((revision) => revision.major));
-  return String(Math.max(1, maxMajor + 1));
+        .filter((revision) => revision.kind === "minor" && revision.major === minorBase)
+        .map((revision) => revision.minor ?? 0)
+    ) + 1;
+  return `${minorBase}.${nextMinor}`;
 }
 
 export function revisionValidationMessage(code: string) {

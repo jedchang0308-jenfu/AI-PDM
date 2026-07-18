@@ -1,6 +1,11 @@
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { PdmChangeControlError } from "@/lib/pdm-change-control-domain";
-import { compareRevisionCodes, suggestRevisionCode } from "@/lib/revision-policy";
+import { compareRevisionCodes } from "@/lib/revision-policy";
+import {
+  createRevisionSuggestion,
+  normalizeRevisionWorkflowIntent,
+  type RevisionWorkflowIntent
+} from "@/lib/revision-policy-engine";
 import { listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
 
 export type DrawingRevisionResolveStatus =
@@ -69,6 +74,7 @@ type ResolveInput = {
   drawingNumberId?: string | null;
   drawingNumber?: string | null;
   partNumber?: string | null;
+  workflowIntent?: RevisionWorkflowIntent | string | null;
   query?: string | null;
   limit?: number;
 };
@@ -79,34 +85,35 @@ export async function resolveDrawingRevisionContext(input: ResolveInput): Promis
   const drawingNumber = normalizeText(input.drawingNumber);
   const partNumber = normalizeText(input.partNumber);
   const query = normalizeText(input.query);
+  const workflowIntent = normalizeRevisionWorkflowIntent(String(input.workflowIntent ?? "rd_workspace"), "rd_workspace");
   const limit = clampLimit(input.limit);
 
   let candidates: ResolvedDrawing[] = [];
   if (drawingNumberId) {
     const row = await findDrawingById(client, input.companyId, drawingNumberId);
-    if (!row) return unresolved("not_found");
+    if (!row) return unresolved("not_found", workflowIntent);
     candidates = [mapDrawing(row)];
   } else if (drawingNumber) {
     const row = await findDrawingByNumber(client, input.companyId, drawingNumber);
-    if (!row) return unresolved("not_found");
+    if (!row) return unresolved("not_found", workflowIntent);
     candidates = [mapDrawing(row)];
   } else if (partNumber) {
     candidates = (await findDrawingsByPartNumber(client, input.companyId, partNumber, limit)).map(mapDrawing);
   } else if (query) {
     candidates = (await searchDrawings(client, input.companyId, query, limit)).map(mapDrawing);
   } else {
-    return unresolved("no_input");
+    return unresolved("no_input", workflowIntent);
   }
 
-  if (candidates.length === 0) return unresolved("not_found");
+  if (candidates.length === 0) return unresolved("not_found", workflowIntent);
   if (candidates.length > 1) {
     return {
-      ...unresolved("ambiguous_query"),
+      ...unresolved("ambiguous_query", workflowIntent),
       candidates
     };
   }
 
-  return buildResolvedContext(client, input.companyId, candidates[0]);
+  return buildResolvedContext(client, input.companyId, candidates[0], workflowIntent);
 }
 
 export async function requireResolvedDrawingRevisionContext(input: ResolveInput): Promise<DrawingRevisionResolvedContext> {
@@ -119,16 +126,27 @@ export async function requireResolvedDrawingRevisionContext(input: ResolveInput)
   return context;
 }
 
-async function buildResolvedContext(client: AsyncDatabaseClient, companyId: string, drawing: ResolvedDrawing) {
+async function buildResolvedContext(
+  client: AsyncDatabaseClient,
+  companyId: string,
+  drawing: ResolvedDrawing,
+  workflowIntent: RevisionWorkflowIntent
+) {
   const primaryParts = (await findPrimaryParts(client, companyId, drawing.id)).map(mapPart);
   const revisions = await listSubmissionRevisionsByDrawingAsync({ companyId, drawingNumber: drawing.drawingNumber });
   const latestRevision = latestRevisionByVersion(revisions.map((revision) => revision.revision));
+  const revisionPolicySuggestion = createRevisionSuggestion({
+    companyId,
+    drawingNumber: drawing.drawingNumber,
+    workflowIntent,
+    revisions
+  });
   return {
     status: primaryParts.length === 0 ? "resolved_with_missing_part" : primaryParts.length > 1 ? "multiple_primary_parts" : "resolved",
     drawing,
     primaryParts,
     selectedPrimaryPart: primaryParts.length === 1 ? primaryParts[0] : null,
-    suggestedRevision: suggestRevisionCode(revisions, "rd_workspace"),
+    suggestedRevision: revisionPolicySuggestion.suggestedRevision,
     latestRevision,
     revisionCount: revisions.length,
     candidates: [drawing]
@@ -143,13 +161,20 @@ function latestRevisionByVersion(revisions: string[]) {
   }, null);
 }
 
-function unresolved(status: DrawingRevisionResolveStatus): DrawingRevisionResolvedContext {
+function unresolved(status: DrawingRevisionResolveStatus, workflowIntent: RevisionWorkflowIntent = "rd_workspace"): DrawingRevisionResolvedContext {
+  const revisionPolicySuggestion = createRevisionSuggestion({
+    companyId: "unresolved",
+    drawingNumber: "unresolved",
+    workflowIntent,
+    revisions: [],
+    generatedAt: "1970-01-01T00:00:00.000Z"
+  });
   return {
     status,
     drawing: null,
     primaryParts: [],
     selectedPrimaryPart: null,
-    suggestedRevision: "0.1",
+    suggestedRevision: revisionPolicySuggestion.suggestedRevision,
     latestRevision: null,
     revisionCount: 0,
     candidates: []
