@@ -226,9 +226,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   numberStateWorkspace: {
     id: "numberStateWorkspace",
     route: "/parts?tab=drafts",
-    section: "保留號工作區",
-    title: "保留號工作區",
-    description: "工作區中的資料是可編輯申請；號碼效力另行顯示。",
+    section: "保留號",
+    title: "保留號分頁說明",
+    description: "保留號僅代表號碼已被預留，不等同正式資料；保留號碼與正式資料分開保存。",
     axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],
     contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],
     ownerEvidence: INVENTORY_EVIDENCE

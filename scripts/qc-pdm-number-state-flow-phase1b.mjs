@@ -193,7 +193,11 @@ record(
     workspace.includes("保留號") &&
     workspace.includes("PAGE_SIZE = 20") &&
     workspace.includes("numberEffectiveness") &&
-    workspace.includes("ownerScope"),
+    workspace.includes("ownerScope") &&
+    workspace.includes("workspaceMatchesModule(workspace, module)") &&
+    workspace.includes("candidateCodesForModule(workspace, module)") &&
+    workspace.includes('reservedCodeLabel: "圖號"') &&
+    workspace.includes('reservedCodeLabel: "料號"'),
   "reserved numbers require distinct module tabs with owner/lifecycle/number-effectiveness/search filters and stable pagination"
 );
 record(
@@ -243,19 +247,38 @@ record(
   "NSF-UI-007-responsive-accessible",
   ["@media (max-width: 1024px)", "@media (max-width: 768px)", "@media (max-width: 520px)"].every((query) => css.includes(query)) &&
     css.includes(".number-state-drawer") &&
-    css.includes(".number-state-table td::before") &&
+    css.includes(".pdm-identity-table td::before") &&
     css.includes("content: attr(data-label)") &&
-    css.includes(".number-state-mobile-action-label") &&
-    css.includes("grid-template-columns: minmax(72px, 0.34fr) minmax(0, 1fr)") &&
-    workspace.includes('data-label="號碼效力"') &&
-    workspace.includes('data-label="號碼"') &&
-    workspace.includes('data-label="下一步"') &&
-    workspace.includes('data-label="操作"') &&
+    css.includes("grid-template-columns: minmax(90px, 0.38fr) minmax(0, 1fr)") &&
+    workspace.includes('className="pdm-identity-table number-state-table"') &&
+    workspace.includes('data-label={moduleConfig.reservedCodeLabel}') &&
+    workspace.includes('data-label="申請名稱"') &&
+    workspace.includes('data-label="內容"') &&
+    workspace.includes('data-label="申請狀態 / 號碼效力"') &&
+    workspace.includes("<th>申請狀態 / 號碼效力</th>") &&
+    !workspace.includes("number-state-next-label") &&
+    !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
+    !workspace.includes('data-label="操作"') &&
     workspace.includes("useOverlayLifecycle") &&
     workspace.includes("aria-modal=\"true\"") &&
     workspace.includes("event.key !== \"Tab\"") &&
     workspace.includes("event.key === \"Escape\""),
   "responsive layouts, bounded overflow, focus trap, focus restore, and Escape handling are required"
+);
+record(
+  "ui",
+  "NSF-UI-008-resizable-detail-drawer",
+  workspace.includes("useRememberedDrawerWidth") &&
+    workspace.includes('NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width"') &&
+    workspace.includes("defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH") &&
+    workspace.includes('className="pdm-detail-drawer-resize-handle"') &&
+    workspace.includes('aria-label="調整保留號明細寬度"') &&
+    workspace.includes("onStartResize(event.clientX)") &&
+    workspace.includes('"--pdm-detail-drawer-width"') &&
+    css.includes("width: min(var(--pdm-detail-drawer-width, 620px), 94vw);") &&
+    css.includes(".pdm-detail-drawer-resize-handle") &&
+    css.includes("body.pdm-drawer-resizing"),
+  "the shared reserved-number detail drawer must support drag resizing, viewport clamping, and remembered width across owner surfaces"
 );
 
 const failed = results.filter((result) => !result.passed);

@@ -124,40 +124,73 @@ async function api(context, baseUrl, input) {
   return body;
 }
 
-function workspaceBody(label, autoAcquireCandidates) {
+function workspaceBody(label, autoAcquireCandidates, scope = "both") {
+  const includePart = scope === "both" || scope === "part";
+  const includeDrawing = scope === "both" || scope === "drawing";
   return {
     draftMode: "new_bundle",
     autoAcquireCandidates,
     root: { coreName: `${label} Root`, itemKind: "manufactured" },
-    parts: [{ clientKey: "part-1", partName: `${label} Part`, itemKind: "manufactured" }],
-    drawings: [{ clientKey: "drawing-1", purposeCode: "M", purposeDescription: "", isPrimaryManufacturing: true }],
-    relations: [{ drawingClientKey: "drawing-1", partClientKey: "part-1", linkType: "primary_manufacturing", isPrimary: true }]
+    parts: includePart ? [{ clientKey: "part-1", partName: `${label} Part`, itemKind: "manufactured" }] : [],
+    drawings: includeDrawing ? [{ clientKey: "drawing-1", purposeCode: "M", purposeDescription: "", isPrimaryManufacturing: true }] : [],
+    relations: includePart && includeDrawing ? [{ drawingClientKey: "drawing-1", partClientKey: "part-1", linkType: "primary_manufacturing", isPrimary: true }] : []
   };
 }
 
-async function createWorkspace(context, baseUrl, label, autoAcquireCandidates) {
+async function createWorkspace(context, baseUrl, label, autoAcquireCandidates, scope = "both") {
   return api(context, baseUrl, {
     method: "POST",
     path: "/api/numbering/draft-workspaces",
-    key: nextKey(`create-${label}`),
-    body: workspaceBody(label, autoAcquireCandidates)
+    key: nextKey(`create-${label.replace(/[^a-z0-9]+/gi, "-")}`),
+    body: workspaceBody(label, autoAcquireCandidates, scope)
   });
 }
 
 async function pageMetrics(page) {
   return page.evaluate(() => {
-    const popover = document.querySelector("[data-status-help-popover='true']");
+    const popover = document.querySelector("[data-status-scope-help='true'][data-status-scope='numberStateWorkspace']");
     const rect = popover?.getBoundingClientRect();
     const items = popover ? [...popover.querySelectorAll(".status-help-item")] : [];
     const itemRects = items.map((item) => item.getBoundingClientRect());
+    const visibleHelpButtons = [...document.querySelectorAll("button.status-scope-help-button, button.status-help-button")]
+      .filter((button) => {
+        const buttonRect = button.getBoundingClientRect();
+        const style = window.getComputedStyle(button);
+        return buttonRect.width > 0 && buttonRect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      });
     return {
       width: window.innerWidth,
+      height: window.innerHeight,
+      popoverRect: rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } : null,
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       popoverVisible: Boolean(rect && rect.width > 0 && rect.height > 0),
       popoverInsideViewport: Boolean(rect && rect.left >= 0 && rect.right <= window.innerWidth && rect.top >= 0 && rect.bottom <= window.innerHeight),
       popoverContentOverflow: Boolean(popover && popover.scrollWidth > popover.clientWidth + 1),
       popoverItemOverlap: itemRects.some((item, index) => index > 0 && itemRects[index - 1].bottom > item.top + 1),
-      helpButtonVisible: Boolean(document.querySelector('[data-status-help-context="numberEffectiveness"] button'))
+      helpButtonVisible: Boolean(document.querySelector('[data-status-scope-help-trigger="numberStateWorkspace"] button')),
+      visibleHelpButtonCount: visibleHelpButtons.length
+    };
+  });
+}
+
+async function reservedLayoutMetrics(page) {
+  return page.locator(".number-state-list-panel").evaluate((panel) => {
+    const table = panel.querySelector("table");
+    const headers = [...panel.querySelectorAll("thead th")].map((header) => header.textContent?.trim() ?? "");
+    const rowCellCounts = [...panel.querySelectorAll("tbody tr")].map((row) => row.querySelectorAll("td").length);
+    const codeValues = [...panel.querySelectorAll(".number-state-row-link")].map((code) => code.textContent?.trim() ?? "");
+    const applicationNames = [...panel.querySelectorAll(".pdm-identity-name")].map((name) => name.textContent?.trim() ?? "");
+    const contentValues = [...panel.querySelectorAll('td[data-label="內容"]')].map((cell) => cell.textContent?.trim() ?? "");
+    return {
+      headers,
+      rowCellCounts,
+      codeValues,
+      applicationNames,
+      contentValues,
+      usesMasterTable: Boolean(table?.classList.contains("pdm-identity-table")),
+      hasLegacyPanelHeader: Boolean(panel.querySelector(".panel-header")),
+      hasNextStepText: Boolean(panel.querySelector(".number-state-next-label")),
+      hasOperationColumn: headers.includes("操作") || Boolean(panel.querySelector('[data-label="操作"]'))
     };
   });
 }
@@ -183,12 +216,17 @@ try {
       body: { expectedRowVersion: reserved.workspace.rowVersion }
     });
   }
+  const partOnly = await createWorkspace(context, baseUrl, "Part Only", true, "part");
+  const drawingOnly = await createWorkspace(context, baseUrl, "Drawing Only", true, "drawing");
   record(
     "NE-BROWSER-000 isolated fixtures project unnumbered and reserved states",
-    unnumbered.workspace?.projection?.numberQualification === "unnumbered" && reserved.workspace?.projection?.numberQualification === "candidate",
+    unnumbered.workspace?.projection?.numberQualification === "unnumbered" &&
+      [reserved, partOnly, drawingOnly].every((result) => result.workspace?.projection?.numberQualification === "candidate"),
     {
       unnumbered: unnumbered.workspace?.projection?.numberQualification,
       reserved: reserved.workspace?.projection?.numberQualification,
+      partOnly: partOnly.workspace?.projection?.numberQualification,
+      drawingOnly: drawingOnly.workspace?.projection?.numberQualification,
       reservedCodes: reserved.workspace?.reservations?.map((item) => item.candidateCode) ?? []
     }
   );
@@ -198,26 +236,98 @@ try {
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push({ type: "console", message: message.text() }); });
   page.on("response", (response) => { if (response.status() >= 500) browserErrors.push({ type: "network", status: response.status(), url: response.url() }); });
   await page.goto(`${baseUrl}/parts?tab=drafts`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "保留號清單" }).waitFor({ state: "visible" });
+  await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
   await page.getByText("尚未產生號碼", { exact: true }).first().waitFor({ state: "visible" });
-  await page.locator(".number-state-badge.qualification-candidate").waitFor({ state: "visible" });
+  await page.locator(".number-state-badge.qualification-candidate").first().waitFor({ state: "visible" });
 
   const retiredTerms = ["候選號", "未領號", "號碼資格", "舊制保留", "已回收"];
   const bodyText = await page.locator("body").innerText();
+  const closedDesktopMetrics = await pageMetrics(page);
   record(
     "NE-BROWSER-001 desktop list uses simplified effectiveness terms",
-    retiredTerms.every((term) => !bodyText.includes(term)) && bodyText.includes("號碼效力") && bodyText.includes("尚未產生號碼") && bodyText.includes("已保留"),
-    { retiredTermsFound: retiredTerms.filter((term) => bodyText.includes(term)) }
+    retiredTerms.every((term) => !bodyText.includes(term)) &&
+      bodyText.includes("號碼效力") &&
+      bodyText.includes("尚未產生號碼") &&
+      bodyText.includes("已保留") &&
+      !bodyText.includes("保留號碼與正式資料分開保存") &&
+      closedDesktopMetrics.visibleHelpButtonCount === 1 &&
+      !closedDesktopMetrics.popoverVisible,
+    {
+      retiredTermsFound: retiredTerms.filter((term) => bodyText.includes(term)),
+      hiddenHelpCopyVisible: bodyText.includes("保留號碼與正式資料分開保存"),
+      closedDesktopMetrics
+    }
   );
+  await page.screenshot({ path: path.join(outputDir, "number-effectiveness-desktop-clean-1440.png") });
 
-  await page.getByRole("button", { name: "查看號碼效力說明" }).click();
-  const help = page.getByRole("dialog", { name: "狀態說明" });
+  const expectedByRoute = {
+    "/parts?tab=drafts": {
+      headers: ["料號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      reservedCode: "A0001-P01",
+      emptyCode: "尚未產生料號",
+      forbiddenCode: "A0001-M01",
+      includedApplications: ["Reserved Root", "Unnumbered Root", "Part Only Root"],
+      excludedApplications: ["Drawing Only Root"],
+      contents: ["1 料號"]
+    },
+    "/numbering/drawings?tab=reserved": {
+      headers: ["圖號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      reservedCode: "A0001-M01",
+      emptyCode: "尚未產生圖號",
+      forbiddenCode: "A0001-P01",
+      includedApplications: ["Reserved Root", "Unnumbered Root", "Drawing Only Root"],
+      excludedApplications: ["Part Only Root"],
+      contents: ["1 圖號"]
+    },
+    "/numbering/search?tab=reserved": {
+      headers: ["圖號 / 料號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      reservedCode: "A0001-P01、A0001-M01",
+      emptyCode: "尚未產生圖料號",
+      forbiddenCode: "A0001、",
+      includedApplications: ["Reserved Root", "Unnumbered Root", "Part Only Root", "Drawing Only Root"],
+      excludedApplications: [],
+      contents: ["1 圖號 · 1 料號", "0 圖號 · 1 料號", "1 圖號 · 0 料號"]
+    }
+  };
+  const moduleLayouts = [];
+  for (const moduleRoute of Object.keys(expectedByRoute)) {
+    if (new URL(page.url()).pathname + new URL(page.url()).search !== moduleRoute) {
+      await page.goto(`${baseUrl}${moduleRoute}`, { waitUntil: "networkidle" });
+      await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
+    }
+    moduleLayouts.push({ moduleRoute, ...(await reservedLayoutMetrics(page)) });
+  }
+  record(
+    "NE-BROWSER-001A reserved lists keep module-specific number boundaries",
+    moduleLayouts.every((layout) => {
+      const expected = expectedByRoute[layout.moduleRoute];
+      return JSON.stringify(layout.headers) === JSON.stringify(expected.headers) &&
+        layout.rowCellCounts.length > 0 &&
+        layout.rowCellCounts.every((count) => count === 4) &&
+        layout.codeValues.includes(expected.reservedCode) &&
+        layout.codeValues.includes(expected.emptyCode) &&
+        layout.codeValues.every((code) => !code.includes(expected.forbiddenCode)) &&
+        expected.includedApplications.every((name) => layout.applicationNames.includes(name)) &&
+        expected.excludedApplications.every((name) => !layout.applicationNames.includes(name)) &&
+        layout.contentValues.every((content) => expected.contents.includes(content)) &&
+        layout.usesMasterTable &&
+        !layout.hasLegacyPanelHeader &&
+        !layout.hasNextStepText &&
+        !layout.hasOperationColumn;
+    }),
+    { expectedByRoute, moduleLayouts }
+  );
+  await page.goto(`${baseUrl}/parts?tab=drafts`, { waitUntil: "networkidle" });
+  await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
+
+  await page.getByRole("button", { name: "查看保留號分頁說明" }).click();
+  const help = page.getByRole("dialog", { name: "保留號分頁說明" });
   await help.waitFor({ state: "visible" });
   const helpText = await help.innerText();
   const desktopMetrics = await pageMetrics(page);
   record(
     "NE-BROWSER-002 help explains the 3+1 vocabulary",
-    ["預覽", "已保留", "正式", "已釋出"].every((term) => helpText.includes(term)) && desktopMetrics.popoverInsideViewport &&
+    ["預覽", "已保留", "正式", "已釋出"].every((term) => helpText.includes(term)) && desktopMetrics.visibleHelpButtonCount === 1 && desktopMetrics.popoverInsideViewport &&
       !desktopMetrics.popoverContentOverflow && !desktopMetrics.popoverItemOverlap,
     { helpText, desktopMetrics }
   );
@@ -225,12 +335,13 @@ try {
 
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "查看號碼效力說明" }).click();
+  await page.screenshot({ path: path.join(outputDir, "number-effectiveness-mobile-clean-390.png") });
+  await page.getByRole("button", { name: "查看保留號分頁說明" }).click();
   await help.waitFor({ state: "visible" });
   const mobileMetrics = await pageMetrics(page);
   record(
     "NE-BROWSER-003 mobile keeps help reachable without horizontal overflow",
-    mobileMetrics.helpButtonVisible && mobileMetrics.popoverInsideViewport && !mobileMetrics.horizontalOverflow &&
+    mobileMetrics.helpButtonVisible && mobileMetrics.visibleHelpButtonCount === 1 && mobileMetrics.popoverInsideViewport && !mobileMetrics.horizontalOverflow &&
       !mobileMetrics.popoverContentOverflow && !mobileMetrics.popoverItemOverlap,
     { mobileMetrics }
   );

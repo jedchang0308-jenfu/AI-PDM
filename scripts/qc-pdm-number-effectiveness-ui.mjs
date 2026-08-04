@@ -45,13 +45,18 @@ record(
     'type NumberEffectivenessFilter = "all" | "not_generated" | "reserved" | "official"',
     "matchesNumberEffectiveness",
     'value === "official" || value === "legacy_official_reservation"',
-    '<StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" />',
+    'const helpScope: StatusScopeId = active === "reserved" ? "numberStateWorkspace" : config.officialHelpScope;',
+    'buttonLabel={`查看${activeLabel}分頁說明`}',
+    'className="number-state-tab-help"',
     'formatStatusForUser(qualification, "numberEffectiveness")',
     "尚未產生號碼",
     "歷史保留號碼 ${candidateCode}（已釋出）",
     "已保留，尚不可正式使用"
-  ]) && !workspace.includes("function qualificationLabel"),
-  "normal UI must show effectiveness categories instead of raw qualification labels"
+  ]) &&
+    !workspace.includes("function qualificationLabel") &&
+    !workspace.includes('<StatusHelpPopover context="numberEffectiveness"') &&
+    !workspace.includes('已保留號碼與正式資料分開保存。</p>'),
+  "normal UI must show effectiveness categories and consolidate help into the active-tab trigger"
 );
 
 const forbiddenVisibleTerms = ["候選號", "未領號", "號碼資格", "舊制保留", "已回收"];

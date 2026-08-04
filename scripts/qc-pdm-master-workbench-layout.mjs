@@ -247,6 +247,12 @@ function staticChecks() {
   }
 
   const drawingsSource = read(pageFiles["/numbering/drawings"]);
+  const partsSource = read(pageFiles["/parts"]);
+  record(
+    "Parts master list omits variant attribute chip from status column",
+    !partsSource.includes('<span className="pdm-meta-chip">{variantLabel(part.variant)}</span>'),
+    pageFiles["/parts"]
+  );
   record("Drawing page avoids large stats grid", !drawingsSource.includes("stats-grid") && !drawingsSource.includes("MetricCard"), pageFiles["/numbering/drawings"]);
   record("Drawing table removes list action column", !drawingsSource.includes("<th>動作</th>") && !drawingsSource.includes("compact-button"), pageFiles["/numbering/drawings"]);
   record("Drawing detail preserves traceability action", /追溯/u.test(drawingsSource) && drawingsSource.includes("/numbering/search?query="), pageFiles["/numbering/drawings"]);

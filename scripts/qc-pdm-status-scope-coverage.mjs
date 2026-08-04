@@ -102,6 +102,8 @@ const requiredScopes = {
 };
 
 const productionAccountScopeExceptions = new Set(["accountList", "invitationList"]);
+const centralizedModuleTabScopes = new Set(["partsList", "drawingList", "numberingSearch", "numberStateWorkspace"]);
+const numberStateModuleTabs = read("src/components/number-state-workspace.tsx");
 
 for (const [scope, file] of Object.entries(requiredScopes)) {
   record(`Registry includes ${scope}`, scopeRegistry.includes(`${scope}: {`) || scopeRegistry.includes(`${scope}`));
@@ -112,9 +114,22 @@ for (const [scope, file] of Object.entries(requiredScopes)) {
       scope === "accountList" ? source.includes("帳號狀態") : source.includes("<th>狀態</th>")
     );
   } else {
-    record(`${file} renders StatusScopeHelp for ${scope}`, read(file).includes(`StatusScopeHelp scope="${scope}"`));
+    const rendersDirectly = read(file).includes(`StatusScopeHelp scope="${scope}"`);
+    const rendersInModuleTabs = centralizedModuleTabScopes.has(scope) && (
+      scope === "numberStateWorkspace"
+        ? numberStateModuleTabs.includes('active === "reserved" ? "numberStateWorkspace" : config.officialHelpScope')
+        : numberStateModuleTabs.includes(`officialHelpScope: "${scope}"`)
+    );
+    record(`${file} renders StatusScopeHelp for ${scope}`, rendersDirectly || rendersInModuleTabs);
   }
 }
+
+record(
+  "Number-state module tabs expose exactly one context-aware help trigger",
+  numberStateModuleTabs.includes('className="number-state-tab-help"') &&
+    numberStateModuleTabs.includes('buttonLabel={`查看${activeLabel}分頁說明`}') &&
+    !numberStateModuleTabs.includes('<StatusHelpPopover context="numberEffectiveness"')
+);
 
 record("Scope registry never maps user-facing scopes to generic", !scopeRegistry.includes('"generic"'));
 record("Scope registry preserves inventory evidence owner", scopeRegistry.includes(inventoryPath));

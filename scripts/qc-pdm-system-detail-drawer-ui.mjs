@@ -77,7 +77,7 @@ includesAll("src/lib/approval-workbench-legacy-redirect.ts", [
 ]);
 
 includesAll("src/app/approvals/page.tsx", [
-  "<h1>審核工作台</h1>",
+  "<h1>審核工作台",
   "legacyRedirectMessages",
   "numbering_approvals",
   "approval-platform-layout",
@@ -104,6 +104,14 @@ includesAll("src/app/numbering/reports/page.tsx", [
   "pdm-report-detail-drawer-width",
   "data-monthly-report-row",
   "pdm-detail-drawer"
+]);
+
+includesAll("src/components/number-state-workspace.tsx", [
+  "useRememberedDrawerWidth",
+  "pdm-number-state-detail-drawer-width",
+  "pdm-detail-drawer-resize-handle",
+  "--pdm-detail-drawer-width",
+  "onStartResize(event.clientX)"
 ]);
 
 includesAll("scripts/qc-dashboard-detail-priority-test.mjs", [

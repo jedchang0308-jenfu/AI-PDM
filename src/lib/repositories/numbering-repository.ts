@@ -136,6 +136,7 @@ export type DrawingModuleListInput = {
   companyId?: string;
   query?: string;
   productSeries?: string;
+  seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
   purposeCode?: DrawingPurposeCode;
@@ -148,6 +149,7 @@ export type NumberingSearchInput = {
   companyId?: string;
   query?: string;
   productSeries?: string;
+  seriesCode?: string;
   entityType?: NumberingSearchEntityType;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
@@ -335,6 +337,7 @@ export type PartModuleListInput = {
   companyId?: string;
   query?: string;
   productSeries?: string;
+  seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
   developmentPhase?: NumberingPhase;
   limit?: number;
@@ -6869,6 +6872,20 @@ function addProductSeriesFilter(filters: string[], params: unknown[], productSer
   params.push(normalized, `${escapeLikeLiteral(normalized)}\\_%`);
 }
 
+function addRootSeriesCodeFilter(filters: string[], params: unknown[], seriesCode: string | undefined) {
+  const normalized = seriesCode?.trim();
+  if (!normalized) return;
+  filters.push("EXISTS (SELECT 1 FROM part_numbers sp WHERE sp.part_root_id = r.id AND sp.company_id = r.company_id AND sp.series_code = ?)");
+  params.push(normalized);
+}
+
+function addPartSeriesCodeFilter(filters: string[], params: unknown[], seriesCode: string | undefined) {
+  const normalized = seriesCode?.trim();
+  if (!normalized) return;
+  filters.push("p.series_code = ?");
+  params.push(normalized);
+}
+
 function searchRootRecords(database: SqliteDatabase, input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput) {
   const filters: string[] = [];
   const params: unknown[] = [];
@@ -6878,6 +6895,7 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
     params.push(like, like);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addRootSeriesCodeFilter(filters, params, input.seriesCode);
   if (input.recordStatus) {
     filters.push("r.record_status = ?");
     params.push(input.recordStatus);
@@ -6936,6 +6954,7 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
     params.push(like, like, like, like);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addPartSeriesCodeFilter(filters, params, input.seriesCode);
   if (input.recordStatus) {
     filters.push("p.record_status = ?");
     params.push(input.recordStatus);
@@ -7000,6 +7019,7 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
     params.push(like, like, like, like);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addRootSeriesCodeFilter(filters, params, input.seriesCode);
   if (input.recordStatus) {
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
@@ -7073,6 +7093,22 @@ export function listProductSeriesOptions(companyId: string = "company-jenfu") {
   return productSeriesOptionsFromCoreNames(rows.map((row) => row.core_name));
 }
 
+export function listSeriesCodeOptions(companyId: string = "company-jenfu") {
+  const rows = getDb()
+    .prepare(`
+      SELECT DISTINCT TRIM(series_code) AS series_code
+      FROM (
+        SELECT series_code FROM part_numbers WHERE company_id = ?
+        UNION
+        SELECT series_code FROM numbering_draft_parts WHERE company_id = ?
+      ) series_codes
+      WHERE series_code IS NOT NULL AND TRIM(series_code) <> ''
+      ORDER BY series_code ASC
+    `)
+    .all(companyId, companyId) as Array<{ series_code: string }>;
+  return rows.map((row) => row.series_code.trim());
+}
+
 export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
   const database = getDb();
   const query = input.query?.trim() ?? "";
@@ -7097,6 +7133,7 @@ export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
     params.push(like, like, like, like, like, like);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addRootSeriesCodeFilter(filters, params, input.seriesCode);
   if (input.recordStatus) {
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
@@ -7432,6 +7469,7 @@ function buildPartModuleWhere(input: PartModuleListInput) {
     params.push(token, token, token, token, token, token);
   }
   addProductSeriesFilter(where, params, input.productSeries);
+  addPartSeriesCodeFilter(where, params, input.seriesCode);
   if (input.recordStatus) {
     where.push("p.record_status = ?");
     params.push(input.recordStatus);

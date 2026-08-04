@@ -50,7 +50,8 @@ const requiredMigrationFiles = [
   "supabase/migrations/20260713090000_number_state_flow_phase1d.sql",
   "supabase/migrations/20260714010000_part_number_series_code.sql",
   "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql",
-  "supabase/migrations/20260714030000_account_session_records.sql"
+  "supabase/migrations/20260714030000_account_session_records.sql",
+  "supabase/migrations/20260804010000_number_lifecycle_simplification.sql"
 ];
 const requiredFiles = [
   "supabase/README.md",
@@ -80,6 +81,7 @@ const employeePrivacyNotice = readProjectFile(root, "db/postgres/015_employee_pr
 const numberStateFlowPhase1d = readProjectFile(root, "db/postgres/017_number_state_flow_phase1d.sql");
 const numberStateFlowRequestEquivalence = readProjectFile(root, "db/postgres/019_number_state_flow_request_equivalence.sql");
 const accountSessionRecords = readProjectFile(root, "db/postgres/020_account_session_records.sql");
+const numberLifecycleSimplification = readProjectFile(root, "db/postgres/021_number_lifecycle_simplification.sql");
 const migrationSchema = readProjectFile(root, "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql");
 const migrationRls = readProjectFile(root, "supabase/migrations/20260608000200_force_rls_deny_direct_access.sql");
 const migrationSearchPathHardening = readProjectFile(root, "supabase/migrations/20260615040619_harden_set_updated_at_search_path.sql");
@@ -98,6 +100,7 @@ const migrationEmployeePrivacyNotice = readProjectFile(root, "supabase/migration
 const migrationNumberStateFlowPhase1d = readProjectFile(root, "supabase/migrations/20260713090000_number_state_flow_phase1d.sql");
 const migrationNumberStateFlowRequestEquivalence = readProjectFile(root, "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql");
 const migrationAccountSessionRecords = readProjectFile(root, "supabase/migrations/20260714030000_account_session_records.sql");
+const migrationNumberLifecycleSimplification = readProjectFile(root, "supabase/migrations/20260804010000_number_lifecycle_simplification.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -250,6 +253,27 @@ record(
     migrationAccountSessionRecords.includes("FORCE ROW LEVEL SECURITY") &&
     /REVOKE ALL ON TABLE public\.account_session_records FROM PUBLIC, anon, authenticated/u.test(migrationAccountSessionRecords),
   "account session records security boundary"
+);
+record(
+  "SUPA-MIG-007ZD number lifecycle simplification migration embeds source hash",
+  migrationNumberLifecycleSimplification.includes(`Source SHA-256: ${sha256(numberLifecycleSimplification)}`),
+  "DEV-052 source hash"
+);
+record(
+  "SUPA-MIG-007ZE DEV-052 candidate authority is immutable and server-only",
+  [
+    "numbering_candidate_revision_drafts",
+    "numbering_candidate_revision_files",
+    "drawing_revision_package_review_approvals"
+  ].every(
+    (tableName) =>
+      migrationNumberLifecycleSimplification.includes(`ALTER TABLE public.${tableName} FORCE ROW LEVEL SECURITY`) &&
+      migrationNumberLifecycleSimplification.includes("FROM PUBLIC, anon, authenticated")
+  ) &&
+    migrationNumberLifecycleSimplification.includes("DRAWING_REVISION_PACKAGE_REVIEW_APPROVAL_IMMUTABLE") &&
+    migrationNumberLifecycleSimplification.includes("ON CONFLICT (action_code) DO NOTHING") &&
+    !/ALTER\s+TABLE\s+public\.drawing_revision_packages/iu.test(migrationNumberLifecycleSimplification),
+  "DEV-052 RLS, immutability, additive action and physical-status boundary"
 );
 const manifestTargets = Array.isArray(manifest.migrations)
   ? manifest.migrations.map((migration) => migration.target)

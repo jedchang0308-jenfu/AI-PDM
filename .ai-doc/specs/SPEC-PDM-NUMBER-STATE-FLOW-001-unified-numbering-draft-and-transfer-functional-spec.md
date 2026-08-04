@@ -8,6 +8,8 @@ Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/
 RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
 
+2026-08-03 contract amendment：使用者已在 `DEV-052` 決定以整包圖料審核取代新流程的 number-only review + manual publication。所有非終結既有保留號將以 read-time compatibility projection 進入新流程，不做 bulk backfill；新 action `numbering.candidate_bundle_review` 核准後可在同一原子／冪等交易自動正式化。已存在的 `numbering.candidate_publication_review` request 仍維持本規格原 snapshot/apply 語意，不得用舊核准直接發布未審圖面。DEV-052 尚未實作或 release 前，本規格仍是 production runtime authority。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
+
 關聯規格：
 
 - `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`

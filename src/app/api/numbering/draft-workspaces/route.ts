@@ -1,4 +1,5 @@
 import { acquireNumberingDraftCandidates, createNumberingDraftWorkspace, listNumberingDraftWorkspaces } from "@/lib/number-state-flow";
+import { listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import {
   numberStateFlowErrorResponse,
   numberStateFlowJson,
@@ -23,13 +24,17 @@ export async function GET(request: Request) {
   if (access.response) return access.response;
   try {
     const url = new URL(request.url);
-    const workspaces = await listNumberingDraftWorkspaces({
-      actor: access.actor,
-      owner: url.searchParams.get("owner") === "all" ? "all" : "mine",
-      lifecycleStatus: url.searchParams.get("lifecycleStatus") ?? url.searchParams.get("lifecycle_status"),
-      limit: url.searchParams.get("limit")
-    });
-    return numberStateFlowJson({ workspaces, pdmCompany: access.company });
+    const [workspaces, seriesCodeOptions] = await Promise.all([
+      listNumberingDraftWorkspaces({
+        actor: access.actor,
+        owner: url.searchParams.get("owner") === "all" ? "all" : "mine",
+        lifecycleStatus: url.searchParams.get("lifecycleStatus") ?? url.searchParams.get("lifecycle_status"),
+        seriesCode: url.searchParams.get("seriesCode") ?? url.searchParams.get("series_code"),
+        limit: url.searchParams.get("limit")
+      }),
+      listSeriesCodeOptionsAsync(access.actor.companyId)
+    ]);
+    return numberStateFlowJson({ workspaces, seriesCodeOptions, pdmCompany: access.company });
   } catch (error) {
     return numberStateFlowErrorResponse(error, "Draft workspace list failed.");
   }

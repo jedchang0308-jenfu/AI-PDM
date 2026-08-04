@@ -3,12 +3,11 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, X, XCircle } from "lucide-react";
-import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
-import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -178,8 +177,8 @@ export default function PartsPage() {
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
-  const [productSeries, setProductSeries] = useState("");
-  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
+  const [seriesCode, setSeriesCode] = useState("");
+  const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
@@ -232,7 +231,7 @@ export default function PartsPage() {
     setError("");
     const params = new URLSearchParams();
     if (query.trim()) params.set("query", query.trim());
-    if (productSeries) params.set("productSeries", productSeries);
+    if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
     const response = await fetch(`/api/parts?${params.toString()}`);
@@ -247,7 +246,7 @@ export default function PartsPage() {
       return;
     }
     const nextParts = (body.parts ?? []) as PartListRecord[];
-    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
+    setSeriesCodeOptions((body.seriesCodeOptions ?? []) as string[]);
     const currentSelection = selectedPartNumberRef.current;
     const nextSelection = currentSelection && nextParts.some((part) => part.partNumber === currentSelection) ? currentSelection : null;
     setParts(nextParts);
@@ -258,7 +257,7 @@ export default function PartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [activeTab, developmentPhase, productSeries, query, recordStatus]);
+  }, [activeTab, developmentPhase, query, recordStatus, seriesCode]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -293,15 +292,6 @@ export default function PartsPage() {
       return;
     }
   }, [selectedPartIsVisible, selectedPartNumber, state, visibleParts]);
-
-  const summary = useMemo(
-    () => ({
-      total: visibleParts.length,
-      linked: visibleParts.filter((part) => part.drawingCount > 0).length,
-      pendingCost: visibleParts.reduce((count, part) => count + part.pendingCostRequestCount, 0)
-    }),
-    [visibleParts]
-  );
 
   const focusPartList = useCallback(() => {
     requestAnimationFrame(() => partListRef.current?.focus({ preventScroll: true }));
@@ -543,7 +533,7 @@ export default function PartsPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>料號模組 <StatusScopeHelp scope="partsList" /></h1>
+          <h1>料號模組</h1>
           <p>以主根號自動串聯圖號與料號，材質、顏色與成本都以料號為主體管理。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -551,7 +541,7 @@ export default function PartsPage() {
             <RotateCcw size={16} />
             重新整理
           </button>
-          <NumberStateOwnerCreateAction surface="parts" />
+          <NumberStateOwnerCreateAction surface="parts" seriesCodeOptions={seriesCodeOptions} />
         </div>
       </div>
       <NumberStateModuleTabs module="parts" active="official" />
@@ -574,24 +564,12 @@ export default function PartsPage() {
       {state === "ready" ? (
         <div className="pdm-master-workbench">
           <section className="panel pdm-master-toolbar pdm-drawing-toolbar">
-            <div className="panel-header">
-              <div>
-                <h2>料號查找</h2>
-                <CompactSummary
-                  items={[
-                    { label: "料號", value: summary.total },
-                    { label: "已關聯圖號", value: summary.linked },
-                    { label: "成本審核中", value: summary.pendingCost, tone: summary.pendingCost > 0 ? "warning" : undefined }
-                  ]}
-                />
-              </div>
-            </div>
             <div className="pdm-master-filter-grid">
               <label className="pdm-master-field">
                 <span>關鍵字</span>
                 <input value={query} placeholder="料號、主根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
-              <FilterSelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
+              <FilterSelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
               <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <FilterSelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
@@ -655,12 +633,6 @@ function PartList({
   }
   return (
     <section className="panel pdm-master-table-panel">
-      <div className="panel-header">
-        <div>
-          <h2>料號總表</h2>
-          <p style={mutedStyle}>點選料號可檢視屬性、關聯圖號與成本資訊。</p>
-        </div>
-      </div>
       <div
         ref={listRef}
         className="table-wrap pdm-identity-scroll"
@@ -697,7 +669,6 @@ function PartList({
               >
                 <td data-label="料號">
                   <div className="pdm-identity-code">{part.partNumber}</div>
-                  <div className="pdm-identity-meta">{partKindLabel(part.itemKind)}</div>
                 </td>
                 <td data-label="品名">
                   <div className="pdm-identity-name" title={part.partName}>
@@ -706,13 +677,11 @@ function PartList({
                 </td>
                 <td data-label="圖號">
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
-                  <div className="pdm-identity-meta">{part.drawingCount > 0 ? `${part.drawingCount} 個圖號` : "尚無圖號關聯"}</div>
                 </td>
                 <td data-label="資料狀態 / 開發階段 / 提醒">
                   <div className="pdm-meta-strip">
                     <StatusBadge status={part.recordStatus} context="masterRecord" />
                     <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
-                    <span className="pdm-meta-chip">{variantLabel(part.variant)}</span>
                     {part.standardCost ? <span className="pdm-meta-chip">{standardCostChipLabel(part.standardCost)}</span> : null}
                     {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本審核中</span> : null}
                   </div>

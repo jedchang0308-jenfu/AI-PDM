@@ -64,6 +64,7 @@ function startApp(port) {
       PDM_RELEASE_MODE: "local_stub",
       PDM_PUBLICATION_EVIDENCE_MODE: "local_fake",
       PDM_NUMBER_STATE_FLOW_V1: "true",
+      PDM_PRODUCTION_SLICE_MODE: "",
       PDM_NEXT_DIST_DIR: distDirRelative
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -209,6 +210,28 @@ async function viewportMetrics(page) {
   });
 }
 
+async function drawerResizeMetrics(page) {
+  const drawer = page.locator(".number-state-drawer");
+  const handle = page.getByRole("button", { name: "調整保留號明細寬度" });
+  await handle.waitFor({ state: "visible" });
+  const handleBox = await handle.boundingBox();
+  if (!handleBox) throw new Error("DRAWER_RESIZE_HANDLE_BOX_UNAVAILABLE");
+  const beforeWidth = await drawer.evaluate((element) => element.getBoundingClientRect().width);
+  const pointerY = handleBox.y + Math.min(80, Math.max(8, handleBox.height / 2));
+  await page.mouse.move(handleBox.x + handleBox.width / 2, pointerY);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + handleBox.width / 2 - 160, pointerY, { steps: 8 });
+  await page.mouse.up();
+  await delay(100);
+  const afterWidth = await drawer.evaluate((element) => element.getBoundingClientRect().width);
+  const storedWidth = await page.evaluate(() => Number.parseInt(window.localStorage.getItem("pdm-number-state-detail-drawer-width") ?? "", 10));
+  const resizingClassCleared = await page.evaluate(() => !document.body.classList.contains("pdm-drawer-resizing"));
+  await page.reload({ waitUntil: "networkidle" });
+  await drawer.waitFor({ state: "visible" });
+  const restoredWidth = await drawer.evaluate((element) => element.getBoundingClientRect().width);
+  return { beforeWidth, afterWidth, storedWidth, restoredWidth, resizingClassCleared };
+}
+
 try {
   fs.mkdirSync(outputDir, { recursive: true });
   const port = await getFreePort();
@@ -234,6 +257,18 @@ try {
 
   const ownerPage = await owner.newPage();
   monitorPage(ownerPage);
+  await ownerPage.setViewportSize({ width: 1440, height: 1000 });
+  await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "可正式使用");
+  const resizeMetrics = await drawerResizeMetrics(ownerPage);
+  await ownerPage.screenshot({ path: path.join(outputDir, "drawer-resized-1440.png"), fullPage: true });
+  record(
+    "UI-C-000 reserved-number drawer resizes by drag and restores the remembered width after reload",
+    resizeMetrics.afterWidth >= resizeMetrics.beforeWidth + 140 &&
+      Math.abs(resizeMetrics.storedWidth - resizeMetrics.afterWidth) <= 2 &&
+      Math.abs(resizeMetrics.restoredWidth - resizeMetrics.afterWidth) <= 2 &&
+      resizeMetrics.resizingClassCleared,
+    { resizeMetrics }
+  );
   const responsiveMetrics = [];
   for (const width of [1440, 1024, 768, 390, 320]) {
     await ownerPage.setViewportSize({ width, height: width <= 390 ? 844 : 900 });

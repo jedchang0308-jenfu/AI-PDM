@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync } from "@/lib/numbering-async";
+import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { canViewPartCostAmounts, redactPartListCosts } from "@/lib/part-cost-visibility";
 import type { NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
@@ -33,22 +33,26 @@ export async function GET(request: Request) {
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
+  const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
 
-  const [parts, productSeriesOptions] = await Promise.all([
+  const [parts, productSeriesOptions, seriesCodeOptions] = await Promise.all([
     listPartModuleRecordsAsync({
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
       productSeries,
+      seriesCode,
       recordStatus,
       developmentPhase,
       limit: Number(url.searchParams.get("limit") ?? 50)
     }),
-    listProductSeriesOptionsAsync(companyResult.company.companyId)
+    listProductSeriesOptionsAsync(companyResult.company.companyId),
+    listSeriesCodeOptionsAsync(companyResult.company.companyId)
   ]);
 
   return NextResponse.json({
     parts: redactPartListCosts(parts, canViewPartCostAmounts(auth)),
     productSeriesOptions,
+    seriesCodeOptions,
     pdmCompany: companyResult.company
   });
 }

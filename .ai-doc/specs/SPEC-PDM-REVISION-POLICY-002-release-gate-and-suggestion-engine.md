@@ -6,6 +6,8 @@ Owner: Dev PM
 Related DEV: `DEV-050` / `DEV-PDM-REVISION-POLICY-002`
 Related QA: `.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`
 
+2026-08-04 implementation-readiness clarification：`DEV-052` 的整包核准可建立 formal drawing master；小數首版以 physical `drawing_revision_packages.status='Pending'` + immutable review-approval companion 投影 effective `ReviewApproved`，不擴張既有 physical status enum。不得把小數版標為 `Released`、更新 manufacturing current pointer 或進入正式交接。本規格的 minor release gate 完整保留。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
+
 Related authority:
 
 - `.ai-doc/reference/pdm-management-policy-draft.md`
@@ -76,7 +78,7 @@ Allowed states by revision kind:
 | Revision kind | Allowed controlled outcomes | Forbidden outcome |
 |---|---|---|
 | Major | `Released`, historical Released, Obsolete after superseded, rejected/cancelled workflow states | None specific to kind |
-| Minor | `Draft`, `Pending`, `ReviewApproved`, controlled history, rejected/cancelled workflow states | `Released`; Phase 1 also forbids emergency-use substitutes |
+| Minor | `Draft`, `Pending`, effective `ReviewApproved`（DEV-052 companion projection）, controlled history, rejected/cancelled workflow states | physical `Released`; Phase 1 also forbids emergency-use substitutes |
 
 Vocabulary rule:
 

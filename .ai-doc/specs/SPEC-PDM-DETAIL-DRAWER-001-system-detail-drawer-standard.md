@@ -20,6 +20,7 @@
 - `/numbering/imports` 的匯入批次 / staging 檢查明細。
 - `/numbering/reports` 的月報明細。
 - 已採用圖號模組 drawer 行為的 `/numbering/search`、`/numbering/drawings`、`/parts` 作為模板與驗證基準。
+- `/parts?tab=drafts`、`/numbering/drawings?tab=reserved`、`/numbering/search?tab=reserved` 共用的保留號明細。
 
 不納入本次：
 
@@ -116,6 +117,8 @@
 - `npm.cmd run qc:pdm-approval-platform`
 - `npm.cmd run qc:pdm-numbering-import-center-ui`
 - `npm.cmd run qc:pdm-numbering-report-center-ui`
+- `npm.cmd run qc:pdm-number-state-flow-ui`
+- `npm.cmd run qc:pdm-number-state-flow-phase1c-ui`
 - 新增或更新 UI QC，驗證：
   - 指定頁面存在共用 drawer 行為。
   - `/numbering/approvals` legacy route redirect 到 `/approvals`，且 `/approvals` 提供審核工作台明細 panel、相容訊息與篩選 deep link。

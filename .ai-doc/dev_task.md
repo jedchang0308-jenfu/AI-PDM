@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-07-18
+更新日期：2026-08-04
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -69,6 +69,24 @@ Owner：Dev PM
   - 狀態：raw `v{rowVersion}` 誤讀已移除，detail suggestion panel、publication-gated CTA、`/numbering/revisions` handoff、server suggestion alignment、manual edit guard 與 focused/browser QC 均完成。
   - 已決策：採「提示提前，正式承諾延後」；候選圖號可先顯示 server-derived 建議研發版次，但 CTA 在正式發布與 drawing reservation `promoted` 前保持停用，保留號本身不成為版次 authority。
   - 恢復條件：若要 merge、PR、deploy、正式 release、production smoke、live data repair 或開放 `ConditionalUse` / `TrialApproved`，另走 release/data-repair 與人類決策 gate。
+
+- 新生命週期候選：`DEV-052` 圖料生命週期效率優先簡化已達 `Phase 1A-1D Independent Local QC Passed / Production Release Gated`。
+  - 目標流程：`建立料件 → 完成首版圖面並一次送審 → 核准`；候選號、首版圖面與核准後正式化由系統承接，不再要求人工發布。
+  - 已決策：既有保留號透過 read-time compatibility projection 直接進入新流程並往前推進；候選階段可建立受控草稿；整包核准後由同一冪等交易自動正式化。
+  - UI：保留既有 `保留號` 頁籤與 `/numbering/drawings?tab=reserved`；工作區改稱 `保留號／首版準備`，正常狀態單一CTA，正式化後轉入正式圖號且歷史仍可查。
+  - 安全邊界：不批次回填、不改號、不重播舊審核；開啟／讀取零寫入。舊 number-only 核准不得冒充圖面核准，須接續圖面差異審核。正式 migration、deploy、release 與 production data 仍未授權。
+  - readiness 結果：採 physical `Pending` package + immutable review-approval companion 投影 effective `ReviewApproved`，避開既有 package status 擴張、SQLite table rebuild與舊版 reader 風險。
+  - 驗證結果：獨立QC在RD凍結後重跑`npm run qc:dev-052`（181項可計數檢查）、全專案lint與隔離production build均通過；AI真實操作RO-00～RO-20為41/41，正式連線／寫入皆false且測試資料已清除。
+  - 下一步：維持production release gate；若要staging／production migration、啟用flag、deploy或release，另走target、backup、rollback與smoke gate，不直接碰既有正式保留號。
+
+- 單一圖號工作台：`DEV-053` 已達 `RD Implementation Ready / Human Confirmed`，下一步可執行Phase 1A本機切片。
+  - 產品決策：取消「圖號總表／保留號」雙分頁，改成單一「圖號工作台」；保留號改為生命週期狀態，不再是獨立頁面。
+  - 使用者流程：同一張清單直接顯示圖號、品名、目前階段與唯一下一步；建立、首版、送審、核准、正式化、發行與進版依狀態接續。
+  - 安全邊界：只合併使用者介面與查詢投影，不合併保留工作區、圖號主資料、版次、審核或稽核資料；只對workspace additive新增三個nullable source-context欄位，既有production資料不搬移、不回填、不改號。
+  - 相容：既有 `/numbering/drawings?tab=reserved` 必須可安全導向單一工作台的工作中範圍，不得因開啟舊網址產生任何寫入。
+  - 契約：統一清單由server-side唯讀BFF產生；進行中一個workspace/bundle一列，正式化後切換成每張正式drawing master一列，完成workspace只留在drawer/audit追溯。
+  - readiness決策：採server-side一致性投影、opaque keyset cursor與workspace source drawing/part/link context；ADR已Accepted，flag `PDM_UNIFIED_DRAWING_WORKBENCH_V1`預設off。
+  - 下一步：派RD執行`DEV-053 Phase 1A：read foundation`，僅限本機schema/read model/API/focused tests；production migration、flag activation、deploy與release仍需獨立gate。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -223,6 +241,130 @@ Owner：Dev PM
   - 證據：`.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md` Section 5-16、`.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md` Section 3-14、`scripts/qc-pdm-reservation-revision-timing-ux.mjs` 13/13、`qc:pdm-revision-policy-suggestion` 14/14、`qc:pdm-revision-policy-release-gate` 11/11、`qc:pdm-number-state-flow-phase1b` 15/15、`qc:pdm-number-state-flow-ui` 7/7、`qc:pdm-drawing-submission-workbench-recovery` 27/27、`qc:pdm-drawing-submission-review-only` 14/14、TypeScript、lint、`git diff --check`、`qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8、`output/playwright/dev051-reservation-revision-timing-ux/` 六張桌機/平板/手機截圖與 0 console errors / 0 warnings。
   - 下一步：產品本機範圍已完成；只有明確 merge/PR/deploy/release 指令才進 release gate。Phase 1C emergency-use 仍不開放。
   - 計入交付：是（產品 UX 交付點；Phase 1A-1D 已本機完成並通過 QA/QC）
+
+- ✓ DEV-052 [交付點] [本機完成] [P0] [Phase 1A-1D Local QC Passed / Production Release Gated] 圖料生命週期效率優先簡化
+  - 摘要：將「保留號 → 號碼送審 → 核准 → 人工發布 → 建立首版圖面」簡化為「建立料件 → 完成首版圖面並一次送審 → 核准」，由系統原子完成正式化；既有保留號以零回填 compatibility projection 進入同一流程並往前推進。
+  - 來源 ID：`DEV-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001`
+  - 父任務：`DEV-048`、`DEV-050`、`DEV-051`、`DEV-PDM-APPROVAL-PLATFORM-001`
+  - Human Decision Gate：
+    - [x] `HD-052-01`：既有保留號直接進入新流程並從現況往前推進；採 read-time projection，不永久保留第二套 legacy UI，也不對舊 rows 做 bulk conversion/backfill。
+    - [x] `HD-052-02`：候選圖號可建立、編輯不可正式使用的首版圖面草稿；整包送審 snapshot 才固化版次、檔案與圖料關係。
+    - [x] `HD-052-03`：整包核准後由同一冪等 outer transaction + savepoint 自動正式化；任一驗證／正式化寫入失敗時 domain rows全數 rollback，但保留 immutable decision與 `apply_failed` 診斷，進 `recovery_required` 後只重試原 approved snapshot。
+    - [x] `HD-052-04`：保留既有 `/numbering/drawings?tab=reserved` 與 `保留號` 頁籤，不建第二套V2/legacy頁；V2工作區標題為 `保留號／首版準備`，正式化後移入正式圖號並保留歷史查閱。
+  - 目標流程：`建立料件（自動保留候選號） → 完成首版圖面並一次送審 → 核准 → 系統自動正式化`。小數研發版以 physical `Pending` package + immutable companion 投影 effective `ReviewApproved`，仍不可成為 production-effective `Released`。
+  - UI 決策：保留 `/numbering/drawings?tab=reserved` 與 `保留號` 頁籤，不建立第二套新版頁；V2工作區標題為 `保留號／首版準備`。正常狀態只顯示一個primary CTA，`Now What`只用於empty/legacy/blocked/recovery/terminal分流；正式化成功後離開預設進行中清單，轉入正式圖號且歷史仍可查。
+  - 既有資料相容：
+    - `active` 直接映射為 `drawing_preparation`；開啟 list/detail/drawer 零寫入，只有使用者明確建立 candidate revision 才新增 additive rows。
+    - 舊 `review_locked` number-only request 繼續原審核；核准後進 `drawing_addendum_required`，撤回／退回則進完整 bundle preparation，不得盲目 auto-publish。
+    - 舊 `approved_locked` 將原核准當號碼基線，補齊圖面後只做差異 addendum review；核准後才 auto-finalize。
+    - `published/promoted`、`cancelled/recycled` 維持終結事實；矛盾狀態進 `recovery_required`，不得推測或自動修復。
+  - 任務清單：
+    - [x] Phase 0A Brief／guided decisions：完成效率、既有資料、安全、自動正式化與保留號頁面延續四項人類決策。
+    - [x] Phase 0B RD Contract：完成 authoritative SPEC、ADR、QA plan、Spec Impact Preflight與既有規格 amendment。
+    - [x] Implementation readiness：完成 exact files/migrations/repositories、outer transaction + savepoint、API/error/idempotency、physical/effective status相容方案、phase evidence與 production-slice/file-authority blockers，已可逐檔派工。
+    - [x] Phase 1A：完成 compatibility projection、additive candidate schema、zero-write read path、default-off feature flag與 SQLite/PostgreSQL/Supabase migration parity；local only。
+    - [x] Phase 1B：完成 candidate first-revision workbench、finalized evidence binding、保留號頁整合與單一 next-step UI；local only。
+    - [x] Phase 1C：完成 versioned bundle review、atomic auto-finalization、payload-aware idempotency、apply-failed recovery、permission/audit/outbox；local only。
+    - [x] Phase 1D：完成 legacy pending/approved addendum continuation、sanitised fixture rehearsal、DEV-048 runtime／DEV-050 release gate／migration／browser／build focused regression。
+    - [ ] Release gate：staging GCS authority、backward-read/rollback、target/backup/recovery owner與 production activation；需獨立指令。
+  - Spec Impact Preflight：`Intentional replacement`。DEV-052 啟用後，對 `numbering.candidate_bundle_review` 取代 DEV-048「approval 不自動 publication」，並取代 DEV-051「publication/promotion 前不得建立首版圖面」；舊 `numbering.candidate_publication_review` snapshot/apply 不被靜默修改。DEV-050 minor `Released` 禁令完整保留。
+  - 驗收標準：保留 `/numbering/drawings?tab=reserved`、`保留號` tab與 `保留號／首版準備` 工作區標題；新案件只有一次送審與一次核准；既有 `active` 保留號直接顯示 `完成首版圖面`；正常狀態只有一個primary CTA且不顯示重複Now What；正式化後移出預設進行中清單但正式頁／歷史可查；open/read/bootstrap零寫入；舊 number-only核准不得發布未審圖面；auto-finalization全有或全無且重送不重複配號、建master、建版或發event；小數版只到effective `ReviewApproved`；跨公司、無權限、stale snapshot、未finalized file evidence全部fail closed。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`、`.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-additive-adoption-and-auto-finalization.md`、`.ai-doc/qa/qa-pdm-number-lifecycle-simplification-validation-plan-2026-08-03.md`，以及 DEV-048／050／051 authority。
+  - RD 派工邊界：Phase 1A exact files為 `db/schema.sql`、`db/postgres/021_number_lifecycle_simplification.sql`、Supabase mirror/manifest、V2 feature status、pure projection/read repository、focused schema/data-protection scripts與 `package.json`；Phase 1A 不新增 mutation route/UI CTA、不修改 production-slice allowlist。
+  - 執行範圍：Phase 1A-1D 本機產品程式、additive schema/mirror、API、UI 與 QA/QC 已完成；feature flag 預設 off、production mutation allowlist 未開放，未連 production、未 backfill、未 deploy/release。
+  - 停止條件：需要更新／刪除／回填既有 reservation/workspace/approval/master rows、舊 app 無法讀新 schema/state、approval apply 無法原子冪等、production file authority 未就緒、放寬 minor release gate、live credential/data repair、merge/PR/deploy/release 時停止並進獨立 data/release gate。
+  - 下一步：本機產品範圍已完成；只有明確 staging／migration／deploy／release 指令才進獨立 release gate，並先完成真實 GCS authority、target identity、backup/rollback與 production smoke 授權。
+  - 證據：`.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`、`output/playwright/dev052-real-operation/DEV052-20260804-045957-local-isolated/`、`npm run qc:dev-052`、DEV-052 schema 12/12、data protection 4/4、HTTP/idempotency 10/10、UI 15/15、flow/atomic recovery 8/8、AI真實操作41/41、revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、全專案lint、TypeScript與隔離production build。
+  - 計入交付：是（本機產品 UX 與交易流程交付點；production activation 仍未計入）
+
+- ☐ DEV-053 [交付點] [RD Implementation Ready / Human Confirmed] [P1] [Phase 1A Local Only / Awaiting RD] 單一圖號工作台與生命週期導向操作
+  - 摘要：將「圖號總表／保留號」雙分頁改成單一「圖號工作台」，讓使用者從同一列判斷目前階段與唯一下一步；UI合併但保留工作區、正式主資料、版次與審核authority仍維持分離。
+  - 來源 ID：`DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
+  - 父任務：`DEV-052`、`DEV-050`、`DEV-051`
+  - Human Decision Brief：
+    - [x] 取消「圖號總表／保留號」兩個頁面與頁籤；canonical UI為單一「圖號工作台」。
+    - [x] 「保留號」由頁面名稱改為資料生命週期狀態；使用者不需先判斷資料位於保留工作區或圖號主資料。
+    - [x] 主清單預設聚焦「我的待處理」，仍可用搜尋與狀態篩選查閱全部、正式及歷史資料。
+    - [x] canonical row unit依生命週期切換：進行中一個workspace/bundle一列；正式化後每張drawing master一列，完成workspace不再佔top-level列，只由drawer/audit追溯。多圖bundle不得被誤壓成單一正式圖號，也不得顯示candidate＋formal重複列。
+    - [x] UI單頁化不得合併底層資料表、放寬權限、改寫既有資料、重播審核或降低DEV-050/052交易與release gate。
+  - 問題：目前雙分頁反映系統資料型態，不符合使用者「找一個圖號、看目前階段、做下一步」的心智模型；相同建立、附件、送審與狀態說明存在平行入口，增加選錯流程的風險。
+  - 使用者價值：減少頁面選擇與狀態翻譯；研發人員在單一清單即可完成從建立候選內容到正式圖號後續進版的連續工作。
+  - UX Intent：
+    - 使用者：研發工程師、研發主管、PDM Admin及需要查閱圖號狀態的人員。
+    - 主要任務：搜尋或建立一筆圖號工作，理解目前階段、使用風險與唯一下一步。
+    - 成功狀態：首次看到列資料5秒內能回答「這是什麼、目前在哪一步、能否正式使用、下一步按哪裡」。
+    - 頁面：H1為`圖號工作台`；主畫面只有搜尋、範圍、狀態篩選、`建立圖號`與資料表。
+    - 主清單欄位：`圖號`、`品名`、`目前階段`、`下一步`；料號關聯、檔案、審核、發行、追溯與audit進drawer。
+    - 安全預設：預設顯示使用者待處理工作；已取消、作廢與歷史資料不搶占主清單，但可由狀態篩選查回。
+    - 不可發生：同一來源同時顯示candidate列與其formal列、同時顯示多個primary CTA、把多圖bundle遺失成一列、從主資料drawer直接繞過保留／首版／整包審核建立正式圖料號。
+  - 主要流程與唯一下一步：
+
+    | Visible stage | 主畫面必要資訊 | 唯一 primary CTA | Secondary / history |
+    |---|---|---|---|
+    | 建立中／尚未產生圖號 | 申請名稱、缺少內容、尚未占用號碼 | `繼續建立` | `取消` |
+    | 已保留／首版未完成 | 候選圖料號、`尚不可正式使用`、首版缺項 | `完成首版` | `編輯`、`取消保留` |
+    | 首版已完成 | 將被鎖定的圖料號、關係、版次與檔案摘要 | `送交審核` | `編輯` |
+    | 審核中 | 審核責任與鎖定範圍 | `查看審核` | 符合規則時`撤回` |
+    | 系統正式化中 | 核准完成、系統處理中、禁止重複操作 | 無人工CTA | `查看處理狀態` |
+    | 研發版已核准／主資料已建立 | 尚未成為量產Released的風險、正式圖號入口 | `查看圖面` | `追溯` |
+    | 已發布 | 現行版次、使用效力與開發階段 | `建立新版` | `追溯`、`影響`、`申請作廢` |
+    | 已取消／已作廢／歷史 | 終結原因與不用再處理的結論 | `查看紀錄` | 無復活或發布捷徑 |
+
+  - 初步開發範圍：
+    - [ ] 移除`圖號總表／保留號`頁籤，將`/numbering/drawings`改成單一生命週期清單與統一drawer。
+    - [ ] 建立候選workspace與drawing master的server-side read-only統一投影；以namespaced stable row key定義canonical row unit、去重、排序、搜尋、cursor分頁與狀態filter，browser不得自行拼接兩支清單。
+    - [ ] 將`建立保留號`改成使用者意圖語言`建立圖號`，但仍走DEV-052候選保留、首版與整包審核流程。
+    - [ ] 將`新增同根圖號／新增同圖料號`改為帶入既有主根脈絡後建立候選workspace，不得直接POST新增master。
+    - [ ] 將受控CAD／2D／DWG／PDF檔案寫入集中到候選首版或正式版次工作台；圖號主資料drawer只保留唯讀摘要，非受控檔案若仍存在須明確標為`參考附件`。
+    - [ ] 依生命週期只顯示一個primary CTA；`進版`、`送審`、`查看審核`不得在同一正常狀態並列競爭。
+    - [ ] 合併狀態說明入口；說明內容改用新版生命週期與下一步語言，不再顯示舊number-only review／人工發布教學。
+    - [ ] 舊`?tab=reserved`、既有detail/query deep link與書籤採零寫入相容導向，找不到目標時提供安全返回與篩選復原。
+  - Scope外：不合併或刪除既有workspace/master/revision/approval資料表；不批次回填、搬移、改號或刪除production資料；不改DEV-052整包核准自動正式化、DEV-050小數版Released禁令、既有審核決策與稽核證據；本機只允許三個nullable source-context欄位及migration artifact，production migration、deploy與release仍不執行。
+  - RD Implementation Contract：
+    - SPEC：`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`。
+    - QA：`.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`；執行時由AI以真實登入、點擊、輸入、檔案上傳、送審、審核與重新載入操作，不以API/DB mutation代替UI流程。
+    - ADR：`.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`；Accepted，鎖定server一致性投影與三個nullable source-context欄位。
+    - Read model：`GET /api/numbering/drawings/workbench`與row-key detail為唯讀BFF；同一company/permission/read-consistency邊界產生清單，任一來源失敗整體fail，不回partial list；所有open/search/filter/deep link zero-write。
+    - Row identity：`candidate:{workspaceId}`與`drawing:{drawingNumberId}`為概念性namespaced identity。1個多圖candidate bundle正式化後切成N個formal drawing rows，completed workspace只保留來源追溯。
+    - Action routing：primary action由server lifecycle/capability resolver決定；統一API不代理mutation，建立、候選首版、bundle review、formal revision與作廢各回原authoritative command handler。
+    - Parallel-path closure：DEV-053 UI中的`新增同根圖號／新增同圖料號`必須建立帶source context的candidate workspace，不得直接POST建立master；`append_part`允許只含新part與指定existing drawing關係，不複製existing revision；`append_drawing`可保存指定existing part。
+    - File authority：candidate revision或formal revision package為受控檔案唯一寫入點；drawing master drawer唯讀。若保留一般附件，必須改稱`參考附件`且排除publication evidence。
+    - Permission：統一讀取取drawing view與workspace visibility交集；`mine`只收server可證明由目前actor負責的owner/reviewer/recovery工作；Admin名稱不隱含command permission。
+    - Rollout：`PDM_UNIFIED_DRAWING_WORKBENCH_V1`預設off，只可在DEV-052 lifecycle V2相依能力可用時開啟；錯誤組態fail closed或完整回退舊UI，不得形成半套UI／雙mutation path。
+  - Schema/migration boundary：
+    - `numbering_draft_workspaces`只additive新增`source_drawing_number_id`、`source_part_number_id`、`source_link_type`三個nullable欄位；既有rows維持NULL，零backfill、零改號。
+    - exact artifacts：`db/schema.sql`、`db/postgres/022_unified_drawing_workbench.sql`、`supabase/migrations/20260804020000_unified_drawing_workbench.sql`、migration manifest與`src/lib/db.ts` SQLite `ensureColumn`。
+    - source IDs必須同company/root、drawing與part互斥、link type成對存在；facts hash、approved snapshot與atomic formalization均包含source context。
+  - Exact implementation files：
+    - Server：`src/lib/drawing-workbench.ts`、`src/lib/repositories/drawing-workbench-async-repository.ts`、必要的`numbering-async-repository.ts`／`numbering-repository.ts` batch read、兩支`/api/numbering/drawings/workbench` GET routes。
+    - Lifecycle：`src/lib/number-state-flow.ts`、`src/lib/repositories/number-state-flow-async-repository.ts`、`src/lib/number-lifecycle-simplification.ts`、`src/lib/repositories/number-lifecycle-simplification-async-repository.ts`、draft workspace create route。
+    - UI：`src/app/numbering/drawings/page.tsx`、新增`src/components/drawing-workbench.tsx`、`number-state-workspace.tsx`、`master-attachment-panel.tsx`、`numbering-contextual-entrypoints.tsx`、status help/display與`globals.css`。
+    - Flag：`src/lib/number-state-flow-feature.ts`與`src/app/api/numbering/state-flow/status/route.ts`；status response key為`drawingWorkbench`。
+  - Sequential implementation slices：
+    - `Phase 1A`（下一步）：schema/source context、snapshot/formalization、consistent read repository/service、list/detail API、default-off flag；exit為schema/read-model/HTTP/zero-write與DEV-052 regression。
+    - `Phase 1B`：單頁list/drawer、舊URL、master attachment read-only、status help、四種viewport；須等1A evidence。
+    - `Phase 1C`：contextual append改道、relationship-only bundle、cross-boundary relation、action routing；須等1B evidence。
+    - `Phase 1D`：AI真實操作、完整回歸、build與獨立QC；QC不得改產品後自判通過。
+  - Focused commands：新增`qc:dev-053:schema`、`read-model`、`http`、`ui`、`flow`、`real-operation`及aggregate；並重跑`qc:dev-052`、contextual entrypoints、master attachments、revision release gate、numbering core、production slice、typecheck、lint與isolated build。
+  - Rollback：關閉DEV-053 flag完整回舊雙頁；additive nullable欄位保留供追溯，不做down migration刪欄／清資料。任何production rollout另走backup、migration rehearsal、flag與smoke gate。
+  - 驗收方向：
+    - [ ] `/numbering/drawings`只呈現一個工作台且無雙分頁；舊reserved URL可安全到達等效工作中範圍。
+    - [ ] 候選、審核、正式化、主資料、已發布及歷史狀態皆能在同一搜尋入口查得；進行中bundle一列，正式化後每張formal drawing一列且completed workspace不重複顯示。
+    - [ ] 多圖bundle正式化前後正確由1列切換為N張正式圖號列；候選號、正式號與來源workspace ID都能定位canonical row與來源追溯。
+    - [ ] 每個正常狀態只有一個primary CTA，且CTA與狀態矩陣一致；disabled／blocked狀態同時提供原因與替代下一步。
+    - [ ] 既有保留號與正式圖號在純瀏覽、搜尋、篩選、開drawer及舊網址相容導向時零寫入、零回填、零改號。
+    - [ ] 所有新增與追加同根圖料號均進入候選workspace；不得由統一工作台繞過首版與整包審核直接建立master。
+    - [ ] 新增同圖料號保存指定existing drawing且允許relationship-only review；新增同根圖號可保存指定existing part，核准時跨邊界關係與master在同transaction完成。
+    - [ ] 受控檔案只有一個寫入authority；主資料摘要、候選首版與正式版次不可形成無法判斷的平行附件來源。
+    - [ ] 1440×900、1280×720、1024×768與390×844可完成搜尋、開drawer與主要下一步，無水平overflow、CTA裁切或重疊。
+    - [ ] 真實瀏覽器5秒理解、可見錯誤掃描、可見文字紅筆刪除、keyboard/focus、console與資料一致性驗證通過。
+  - Spec Impact Preflight：`Intentional replacement + additive source-context extension`。UI／導覽／read projection取代DEV-052 `HD-052-04`雙頁契約；DEV-052 aggregate、legacy、single bundle review、atomic auto-finalization、permission、idempotency與release gate保持authoritative。
+  - ADR判定：已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`。它關閉「append workspace只有root，無法保存指定existing drawing/part」的P1缺口；超出三個nullable欄位、多source aggregate、backfill或authority變更必須重進ADR。
+  - 風險等級：Medium-High。主要風險為跨來源快照不一致、source關係連錯、錯誤action routing、舊deep link失效與受控檔案雙authority；以一致性transaction、stable IDs、default-off flag及sequential QC控制。
+  - 文件成熟度與執行邊界：`RD Implementation Ready / Human Confirmed`；exact files、schema/migration、adapter/API、flag、分期、focused commands、rollback、release feasibility與AI真實操作QA均已定義，P0/P1 open question為0。本輪只推進文件，未改產品或資料。
+  - RD停止條件：若需以名稱／號碼猜測、client-side拼接、partial list、放寬權限、direct master create、雙file authority、超出三欄schema、新table/backfill/table rebuild、production或release，立即停止並回Dev PM。
+  - 下一步：執行`DEV-053 Phase 1A：read foundation`（local only）；完成schema/read-model/HTTP/zero-write與DEV-052 regression evidence後才回Dev PM開Phase 1B。狀態為`☐ 可執行`。
+  - 計入交付：是（完成標準為單一工作台產品實作與QA/QC通過；文件Brief本身不計完成）
 
 - ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
   - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
@@ -861,6 +1003,13 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-04: 依使用者「下一成熟度為RD Implementation Ready，請推進」，完成`DEV-053` Implementation Readiness Review並改為`☐ 可執行 / Awaiting Phase 1A Local Execution`。repo盤點發現現有append workspace只有source root，無法保存使用者指定的existing drawing/part；已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`，採server-side一致性投影及workspace三個nullable source-context欄位，既有rows保持NULL且不backfill。SPEC/QA/dev board已補exact files、PostgreSQL 022與Supabase mirror、relationship-only append、atomic cross-boundary relation、opaque keyset cursor、正式版次local-draft狀態限制、`PDM_UNIFIED_DRAWING_WORKBENCH_V1` default-off、Phase 1A-1D、focused commands、rollback與production release feasibility；P0/P1 open question為0。下一步只執行Phase 1A本機read foundation，本輪未修改產品、schema實體、資料、production、deploy或release。
+- 2026-08-04: 依使用者「下一成熟度為RD Contract Ready，請執行」，將`DEV-053`由Brief Ready升級為`RD Contract Ready / Human Confirmed / Awaiting RD Implementation Readiness Review`。新增單一圖號工作台SPEC與「由AI執行的真實操作驗證計畫」，完成server-side unified read BFF、candidate bundle→formal drawing canonical row切換、多圖去重、state-to-primary-action、舊reserved URL zero-write相容、contextual append改走candidate workspace、controlled-file單一authority、permission交集、source failure fail-whole、feature flag與stop conditions。Spec preflight維持對DEV-052 `HD-052-04`的`Intentional replacement`；本輪只改文件，未修改product/schema/migration/production/deploy/release。
+- 2026-08-04: 使用者確認不再以「圖號總表／保留號」兩頁呈現圖號生命週期；建立`DEV-053`單一圖號工作台`Brief Ready / Human Confirmed`。新方向把保留號改為生命週期狀態，以單一清單、統一drawer與每狀態唯一CTA承接建立、首版、審核、正式化、發行與進版；UI合併但底層workspace/master/revision/approval authority仍分離。Spec preflight判定為對DEV-052 `HD-052-04`的`Intentional replacement`，現有產品與DEV-052證據不回寫成新契約；本輪未修改product/schema/migration/production/deploy/release。
+- 2026-08-04: DEV-052完成RD修正並交回獨立QC。QC在產品程式凍結後重跑`npm run qc:dev-052`，181項可計數檢查全數通過；AI真實操作RO-00～RO-20為41/41，涵蓋四角色登入、真實檔案上傳、送審／撤回／補件／核准、故障回滾、Admin UI重試、exactly-once正式化、legacy續接、跨公司拒絕與1440/1024/390視覺判讀。全專案lint 0 errors、隔離production build 123 pages通過，P0/P1/P2皆為0；run manifest確認productionConnected=false、productionWrites=false、cleanup=removed。狀態更新為`Phase 1A-1D Independent Local QC Passed / Production Release Gated`，未連線、遷移、部署或修改production。
+- 2026-08-04: 使用者確認將現行／DEV-052 UI差異寫入開發文件。`保留號`頁籤與 `/numbering/drawings?tab=reserved` 固定保留，不建立第二套V2/legacy頁；V2工作區標題固定為 `保留號／首版準備`，角色由號碼送審／人工發布改為候選首版準備。SPEC新增現新UI比較、state-to-primary-action、資訊分層與post-formalization導向；QA新增route/tab/H1、single CTA、Now What exception-only、zero-write navigation、1440/1280/1024/390 viewport與六張狀態證據契約。DEV-052仍為RD Implementation Ready／Phase 1A未執行；本輪未修改product/schema/production。
+- 2026-08-04: 依使用者指令將 `DEV-052` 補至 `RD Implementation Ready / Awaiting Phase 1A Execution`。完成實際 schema、approval savepoint、publication evidence、production slice、UI與測試入口盤點；因既有 `drawing_revision_packages.status` check 與舊版 reader 相容限制，正式決定不新增 physical `ReviewApproved` enum，改用 physical `Pending` package + immutable review-approval companion 投影 effective `ReviewApproved`。SPEC/ADR/QA已補 exact additive tables、021 PostgreSQL/Supabase mirror、default-off V2 flag、API payload/error、permission、outer transaction + savepoint、idempotency/recovery、逐檔 Phase 1A-1D與 evidence commands。下一步僅可派 `DEV-052 Phase 1A` local；本輪未修改 product code/schema、未連 production、未 backfill、未 deploy/release。
+- 2026-08-03: 使用者關閉 `DEV-052 HD-052-01..03`：正式既有保留號以 zero-write read-time projection進新流程並往前推進；候選階段可建立不可正式使用的首版草稿；整包核准後由系統原子冪等正式化。文件建立效率優先 SPEC、ADR、QA plan與 DEV-048/050/051 amendments；舊 number-only approval不得擴大為圖面核准，須走 drawing addendum。當時狀態為 RD Contract Ready，未修改 product/schema/production。
 - 2026-07-18: 修正 `DEV-051` 在 `official-numbering-draft` production slice 中無法取得建議版次。根因是 reservation drawer 使用 `POST /api/submissions/revision-suggestion`，middleware 將所有 POST 視為 mutation 並依 allowlist 回 403；該端點實際只有讀取歷史與計算建議，且已提供 GET。修正為帶 `drawingNumber` / `workflowIntent=rd_workspace` 的唯讀 GET，未擴張 mutation allowlist；同時讓正式 `/numbering/revisions` CTA 在 production slice 內維持停用，避免發布後導向未開放頁面。使用者回報的 `A0005-M01` 畫面實測恢復為 `ready / 0.1`，無 slice 錯誤、無水平溢出、console 0 errors/warnings。middleware smoke 證明 GET 穿過 slice gate 後由 auth 回 401，舊 POST 仍被 403 擋下。驗證通過 focused QC 13/13、production-slice 33/33、number-state Phase 1B 15/15、UI 7/7、TypeScript 與 lint；未改 schema、正式資料、live provider、deploy 或 release。
 - 2026-07-18: 依使用者「繼續」完成 `DEV-051` / `DEV-PDM-REVISION-TIMING-UX-001` Phase 1A-1D 本機產品實作。保留號清單移除 raw `v{rowVersion}`，drawer 改標 `系統紀錄版本` 並新增 `圖面版次準備`；候選圖號先呼叫 `DEV-050` server suggestion 顯示 `0.1` 與 `尚未建立版次`，但因 formal revision workbench 只解析正式 `drawing_numbers`，CTA 在 workspace 尚未發布或 drawing reservation 尚未 `promoted` 時保持停用並說明原因，發布後才可 handoff。`/numbering/revisions` 支援 workflow intent aliases、resolve/submission context 一致走 central suggestion engine，人工把新版次改為 `0.2` 後不會被 async `0.1` 建議覆蓋。focused QC 13/13、DEV-050 14/14+11/11、DEV-048 Phase 1B 15/15+UI 7/7、drawing submission recovery 27/27+review-only 14/14、TypeScript、lint 均通過；Playwright 於 1440x900、1024x768、390x844、320x740 驗證無可見錯誤/重疊/水平溢出，console 0 errors/0 warnings，六張截圖保存在 `output/playwright/dev051-reservation-revision-timing-ux/`。隔離資料確認僅看建議與人工修改不建立 submission/revision package，測試 DB、auth cookie 與 30273 服務已清除，使用者既有 3000 服務保留。未新增 schema、未操作正式資料/live provider、未 merge/PR/deploy/release。
 - 2026-07-18: 依使用者指定 `dev-pm` 建立並補強 `DEV-051` / `DEV-PDM-REVISION-TIMING-UX-001` 開發文件與 QA 驗證計畫，回應新保留號顯示 `新圖料 · v2` 的版次誤讀與版次調整時間點前移問題。文件現為 `RD Implementation Ready / Awaiting RD Execution`：補齊 `number-state-workspace.tsx`、`/numbering/revisions`、resolve route、revision workbench context、focused QC script 與 `package.json` 的檔案級 contract；QA plan 補上 RD traceability matrix、focused QC assertions、browser/RWD/visible-error 與 `DEV-050` regression gate。文件驗證通過 `git diff --check`、`qc:doc-paths` 23/23、`qc:dev-task-evidence-sync` 13/13、`qc:dev-task-completion-audit` 8/8。決策維持「提示提前，正式承諾延後」：保留號 detail 可提前顯示 server-derived 建議研發版次與 `建立首版圖面` CTA，但保留號本身不得持久化 drawing revision；真正可編輯版次仍在 `/numbering/revisions` 或等效受控圖面工作台，送審後由 `DEV-050` snapshot 與 minor `Released` gate 控制。本輪未實作產品程式、schema/migration、正式資料、provider、deploy、release、merge 或 PR。

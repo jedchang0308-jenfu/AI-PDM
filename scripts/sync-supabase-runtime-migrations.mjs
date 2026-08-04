@@ -107,6 +107,11 @@ const sourceFiles = [
     source: "db/postgres/020_account_session_records.sql",
     target: "supabase/migrations/20260714030000_account_session_records.sql",
     description: "Add server-owned account session records for managed auth session visibility"
+  },
+  {
+    source: "db/postgres/021_number_lifecycle_simplification.sql",
+    target: "supabase/migrations/20260804010000_number_lifecycle_simplification.sql",
+    description: "Add DEV-052 candidate first-revision authority and immutable review-approval evidence"
   }
 ];
 

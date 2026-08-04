@@ -1,14 +1,13 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
-import { CompactSummary } from "@/components/compact-hints";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
-import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
+import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
 
@@ -139,8 +138,8 @@ export default function DrawingNumbersPage() {
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
-  const [productSeries, setProductSeries] = useState("");
-  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
+  const [seriesCode, setSeriesCode] = useState("");
+  const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
   const [purposeCode, setPurposeCode] = useState("");
@@ -166,25 +165,13 @@ export default function DrawingNumbersPage() {
     if (detailDrawingNumber) initialDetailDrawingNumberRef.current = detailDrawingNumber;
   }, []);
 
-  const summary = useMemo(
-    () => ({
-      total: drawings.length,
-      manufacturing: drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).length,
-      reference: drawings.filter((drawing) => !isManufacturingDrawingPurpose(drawing.purposeCode)).length,
-      linked: drawings.filter((drawing) => drawing.linkedPartCount > 0).length,
-      pendingApprovals: drawings.reduce((sum, drawing) => sum + (drawing.pendingApproval?.count ?? 0), 0),
-      warnings: drawings.reduce((sum, drawing) => sum + drawing.warningCount, 0)
-    }),
-    [drawings]
-  );
-
   const loadDrawings = useCallback(async () => {
     if (activeTab !== "official") return;
     setBusy(true);
     setError("");
     const params = new URLSearchParams({ limit: "80" });
     if (query.trim()) params.set("query", query.trim());
-    if (productSeries) params.set("productSeries", productSeries);
+    if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
     if (purposeCode) params.set("purposeCode", purposeCode);
@@ -201,7 +188,7 @@ export default function DrawingNumbersPage() {
       return;
     }
     const nextDrawings = (body.drawings ?? []) as DrawingListRecord[];
-    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
+    setSeriesCodeOptions((body.seriesCodeOptions ?? []) as string[]);
     setCanReviewApprovals(Boolean(body.approvalProjection?.canReview));
     const currentSelection = selectedDrawingNumberRef.current;
     const nextSelection = currentSelection && nextDrawings.some((drawing) => drawing.drawingNumber === currentSelection) ? currentSelection : null;
@@ -210,7 +197,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [activeTab, developmentPhase, productSeries, purposeCode, query, recordStatus]);
+  }, [activeTab, developmentPhase, purposeCode, query, recordStatus, seriesCode]);
 
   useEffect(() => {
     void loadDrawings();
@@ -443,7 +430,7 @@ export default function DrawingNumbersPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖號模組 <StatusScopeHelp scope="drawingList" /></h1>
+          <h1>圖號模組</h1>
           <p>管理圖面技術文件、版次用途、發行狀態與關聯料號；圖料模組維持跨物件追溯入口。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -451,7 +438,7 @@ export default function DrawingNumbersPage() {
             <RotateCcw size={16} />
             重新整理
           </button>
-          <NumberStateOwnerCreateAction surface="drawings" />
+          <NumberStateOwnerCreateAction surface="drawings" seriesCodeOptions={seriesCodeOptions} />
         </div>
       </div>
       <NumberStateModuleTabs module="drawings" active="official" />
@@ -466,27 +453,12 @@ export default function DrawingNumbersPage() {
       {state === "ready" ? (
         <div className="pdm-master-workbench">
           <section className="panel pdm-master-toolbar pdm-drawing-toolbar">
-            <div className="panel-header">
-              <div>
-                <h2>圖號主資料</h2>
-                <CompactSummary
-                  items={[
-                    { label: "總筆數", value: summary.total },
-                    { label: "製造圖", value: summary.manufacturing },
-                    { label: "參考圖", value: summary.reference },
-                    { label: "已關聯", value: summary.linked },
-                    { label: "待審", value: summary.pendingApprovals, tone: summary.pendingApprovals > 0 ? "warning" : undefined },
-                    { label: "提醒", value: summary.warnings, tone: summary.warnings > 0 ? "warning" : undefined }
-                  ]}
-                />
-              </div>
-            </div>
             <div className="pdm-master-filter-grid">
               <label className="pdm-master-field">
                 <span>關鍵字</span>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖號 / 料號 / 文件用途" />
               </label>
-              <SelectField label="產品系列" value={productSeries} onChange={setProductSeries} options={["", ...productSeriesOptions]} allLabel="全部系列" />
+              <SelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
               <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <SelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
@@ -515,12 +487,6 @@ export default function DrawingNumbersPage() {
               </section>
             ) : (
               <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>圖號清單</h2>
-                    <p style={mutedStyle}>點選圖號可檢視治理資訊與下一步動作。</p>
-                  </div>
-                </div>
                 <div
                   ref={drawingListRef}
                   className="table-wrap pdm-identity-scroll"
@@ -567,7 +533,6 @@ export default function DrawingNumbersPage() {
                             >
                               {drawing.drawingNumber}
                             </button>
-                            <div className="pdm-identity-meta">{drawingPurposeLabel(drawing)}</div>
                           </td>
                           <td data-label="品名">
                             <div className="pdm-identity-name" title={drawing.coreName}>
@@ -647,11 +612,6 @@ function SelectField({
       </select>
     </label>
   );
-}
-
-function drawingPurposeLabel(drawing: DrawingListRecord) {
-  const base = `${drawing.purposeCode} ${displayDrawingPurposeLabel(drawing.purposeCode)}`;
-  return drawing.isPrimaryManufacturing ? `${base} / 主圖` : base;
 }
 
 function formatDrawingPurposeFilterOption(option: string) {

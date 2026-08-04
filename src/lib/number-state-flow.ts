@@ -381,6 +381,7 @@ export async function listNumberingDraftWorkspaces(input: {
   actor: NumberStateActor;
   owner?: "mine" | "all";
   lifecycleStatus?: unknown;
+  seriesCode?: unknown;
   limit?: unknown;
 }) {
   try {
@@ -388,10 +389,12 @@ export async function listNumberingDraftWorkspaces(input: {
     const lifecycleStatus = lifecycle ? (lifecycleStatuses.has(lifecycle) ? lifecycle : null) : null;
     if (lifecycle && !lifecycleStatus) throw new NumberStateFlowError("numbering_invalid_lifecycle", "Invalid lifecycle status.", 400);
     const ownerId = input.owner === "all" && hasPrivilegedScope(input.actor) ? null : input.actor.userId;
+    const seriesCode = text(input.seriesCode, 80) || null;
     const workspaces = await new AsyncNumberStateFlowRepository(getAsyncDatabaseClient()).listWorkspaces({
       companyId: input.actor.companyId,
       ownerId,
       lifecycleStatus,
+      seriesCode,
       limit: Number(input.limit) || 100
     });
     const permissions = await resolveNumberStateActionPermissions(input.actor);

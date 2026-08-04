@@ -21,8 +21,8 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e",
-      "targetSha256": "3f38686dbe472126ecc196a821323e2ae5ffda8a0b4b64e8ffec54a17e36d241"
+      "sourceSha256": "5e1bff1bc48e938adaee61fad9993b85ffe23b5b65c5b964515017b337e1faea",
+      "targetSha256": "4c44e4de1e355943647b4152d024c09d7c4884795d3b96cf663f7d606c3a2748"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
@@ -42,8 +42,8 @@
       "source": "db/postgres/004_numbering_v2_compact_identity.sql",
       "target": "supabase/migrations/20260707000000_numbering_v2_compact_identity.sql",
       "description": "Add compact PDM numbering v2 seed and allow M/R drawing purpose codes",
-      "sourceSha256": "ae8a46c3aceb1524e1318470eb57217e47177a85087f7558dd16e0ca9b2446e0",
-      "targetSha256": "6f7b962a36127bf7c62bfb7db51410aa7b5b27ba0dbd578f6bc0f294d59cb159"
+      "sourceSha256": "ee45a2c20cd72a2e1aedf34a92fa50959046ea274ebcb9b7658bc4dc17dbc624",
+      "targetSha256": "40e20e933ecc5894bc41779e31e9743d8a74d91ab66396595a93d7bf84a9ab74"
     },
     {
       "source": "db/postgres/005_access_control_launch_governance.sql",
@@ -156,6 +156,13 @@
       "description": "Add server-owned account session records for managed auth session visibility",
       "sourceSha256": "db916f91dbccdbb09d7cbfd1dee0fde9d748b28d80e5610b2437a1966567eb78",
       "targetSha256": "8d5d4db1b4bfb09874ac245c8c897a80959ce248e07e83cbda2c46d93c26c1b2"
+    },
+    {
+      "source": "db/postgres/021_number_lifecycle_simplification.sql",
+      "target": "supabase/migrations/20260804010000_number_lifecycle_simplification.sql",
+      "description": "Add DEV-052 candidate first-revision authority and immutable review-approval evidence",
+      "sourceSha256": "04190e5e5fba290c9fad37e93f6c12cb619b31389f01912f8f0301a9d16f6f48",
+      "targetSha256": "1ad80ea5411329df1b5aad52328e1ac5fc6b87bee3e32e9233286bce352b6fed"
     }
   ]
 }

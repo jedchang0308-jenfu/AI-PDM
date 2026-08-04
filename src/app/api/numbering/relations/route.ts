@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { getNumberingRootDetailAsync, listProductSeriesOptionsAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
+import { getNumberingRootDetailAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import type {
@@ -61,19 +61,22 @@ export async function GET(request: Request) {
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
+  const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
   const limit = Number(url.searchParams.get("limit") ?? 60);
 
-  const [matches, productSeriesOptions] = await Promise.all([
+  const [matches, productSeriesOptions, seriesCodeOptions] = await Promise.all([
     searchNumberingRecordsAsync({
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
       productSeries,
+      seriesCode,
       entityType,
       recordStatus,
       developmentPhase,
       limit: Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 60, 1), 100)
     }),
-    listProductSeriesOptionsAsync(companyResult.company.companyId)
+    listProductSeriesOptionsAsync(companyResult.company.companyId),
+    listSeriesCodeOptionsAsync(companyResult.company.companyId)
   ]);
   const rootCodes = Array.from(new Set(matches.map((match) => match.rootCode))).slice(0, 60);
   const details = (
@@ -88,7 +91,7 @@ export async function GET(request: Request) {
     blockerCount: roots.reduce((sum, root) => sum + root.blockers.length, 0)
   };
 
-  return NextResponse.json({ roots, summary, productSeriesOptions, pdmCompany: companyResult.company });
+  return NextResponse.json({ roots, summary, productSeriesOptions, seriesCodeOptions, pdmCompany: companyResult.company });
 }
 
 export async function POST(request: Request) {

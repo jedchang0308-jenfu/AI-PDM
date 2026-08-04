@@ -14,6 +14,14 @@ import {
   DatabasePublicationEvidencePort,
   type PublicationEvidenceResult
 } from "@/lib/publication-evidence";
+import { isNumberLifecycleV2Enabled } from "@/lib/number-state-flow-feature";
+import {
+  projectNumberLifecycleV2,
+  type CandidateRevisionLifecycleStatus,
+  type NumberLifecycleProjectionV2,
+  type NumberingCandidateRevisionFileRecord,
+  type NumberingCandidateRevisionRecord
+} from "@/lib/number-lifecycle-simplification";
 
 export const MAX_CANDIDATE_ALLOCATION_ATTEMPTS = 3;
 
@@ -130,6 +138,55 @@ type CandidateApprovalRow = {
   payload_json: string | Record<string, unknown>;
 };
 
+type CandidateRevisionRow = {
+  id: string;
+  company_id: string;
+  workspace_id: string;
+  drawing_draft_id: string;
+  candidate_reservation_id: string;
+  revision: string;
+  workflow_intent: "rd_workspace";
+  policy_snapshot_json: string | Record<string, unknown>;
+  override_reason: string | null;
+  lifecycle_status: CandidateRevisionLifecycleStatus;
+  row_version: number | string;
+  approval_request_id: string | null;
+  review_snapshot_hash: string | null;
+  legacy_baseline_request_id: string | null;
+  legacy_baseline_snapshot_hash: string | null;
+  formal_drawing_number_id: string | null;
+  formal_revision_package_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_by: string;
+  updated_at: string;
+  promoted_at: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+};
+
+type CandidateRevisionFileRow = {
+  id: string;
+  candidate_revision_id: string;
+  source_file_asset_id: string;
+  publication_evidence_id: string | null;
+  role: NumberingCandidateRevisionFileRecord["role"];
+  role_source: NumberingCandidateRevisionFileRecord["roleSource"];
+  display_name: string;
+  description: string;
+  sort_order: number | string;
+  is_primary: number | string | boolean;
+  removed_at: string | null;
+  removed_by: string | null;
+};
+
+type ReviewApprovalCompanionRow = {
+  package_id: string;
+  candidate_revision_id: string;
+  snapshot_hash: string;
+  package_status: string;
+};
+
 export type NumberingCandidateApprovalRecord = {
   requestId: string;
   status: CandidateApprovalRow["request_status"];
@@ -244,6 +301,8 @@ export type NumberingDraftWorkspaceRecord = {
   reservations: NumberCandidateReservationRecord[];
   latestApproval: NumberingCandidateApprovalRecord | null;
   projection: NumberStateProjection;
+  lifecycleV2: NumberLifecycleProjectionV2 | null;
+  candidateRevisions: NumberingCandidateRevisionRecord[];
   capabilities: {
     canUpdate: boolean;
     canAcquireCandidates: boolean;
@@ -422,6 +481,59 @@ function mapCandidateApproval(row: CandidateApprovalRow | null): NumberingCandid
     applyAttempts: Number(row.apply_attempts),
     applyError: row.apply_error,
     snapshotHash: typeof payload.snapshotHash === "string" ? payload.snapshotHash : null
+  };
+}
+
+function mapCandidateRevision(
+  row: CandidateRevisionRow,
+  files: CandidateRevisionFileRow[],
+  companion: ReviewApprovalCompanionRow | undefined
+): NumberingCandidateRevisionRecord {
+  const mappedFiles = files.map<NumberingCandidateRevisionFileRecord>((file) => ({
+    id: file.id,
+    sourceFileAssetId: file.source_file_asset_id,
+    publicationEvidenceId: file.publication_evidence_id,
+    role: file.role,
+    roleSource: file.role_source,
+    displayName: file.display_name,
+    description: file.description,
+    sortOrder: Number(file.sort_order),
+    isPrimary: Number(file.is_primary) === 1,
+    removedAt: file.removed_at,
+    removedBy: file.removed_by
+  }));
+  const reviewApproved =
+    row.formal_revision_package_id !== null &&
+    companion?.package_id === row.formal_revision_package_id &&
+    companion.package_status === "Pending" &&
+    companion.snapshot_hash === row.review_snapshot_hash;
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    workspaceId: row.workspace_id,
+    drawingDraftId: row.drawing_draft_id,
+    candidateReservationId: row.candidate_reservation_id,
+    revision: row.revision,
+    workflowIntent: row.workflow_intent,
+    policySnapshot: parseJsonObject(row.policy_snapshot_json),
+    overrideReason: row.override_reason,
+    lifecycleStatus: row.lifecycle_status,
+    rowVersion: Number(row.row_version),
+    approvalRequestId: row.approval_request_id,
+    reviewSnapshotHash: row.review_snapshot_hash,
+    legacyBaselineRequestId: row.legacy_baseline_request_id,
+    legacyBaselineSnapshotHash: row.legacy_baseline_snapshot_hash,
+    formalDrawingNumberId: row.formal_drawing_number_id,
+    formalRevisionPackageId: row.formal_revision_package_id,
+    createdBy: row.created_by,
+    createdAt: String(row.created_at),
+    updatedBy: row.updated_by,
+    updatedAt: String(row.updated_at),
+    promotedAt: row.promoted_at === null ? null : String(row.promoted_at),
+    cancelledAt: row.cancelled_at === null ? null : String(row.cancelled_at),
+    cancelledBy: row.cancelled_by,
+    files: mappedFiles,
+    effectiveStatus: reviewApproved ? "ReviewApproved" : row.formal_revision_package_id ? "Pending" : null
   };
 }
 
@@ -831,10 +943,10 @@ export class AsyncNumberStateFlowRepository {
     return this.getWorkspace(input.id, input.companyId);
   }
 
-  async listWorkspaces(input: { companyId: string; ownerId?: string | null; lifecycleStatus?: NumberingDraftLifecycle | null; limit?: number }) {
+  async listWorkspaces(input: { companyId: string; ownerId?: string | null; lifecycleStatus?: NumberingDraftLifecycle | null; seriesCode?: string | null; limit?: number }) {
     const limit = Math.min(Math.max(input.limit ?? 100, 1), 200);
     const where = ["company_id = :companyId"];
-    const params: { companyId: string; ownerId?: string; lifecycleStatus?: NumberingDraftLifecycle } = { companyId: input.companyId };
+    const params: { companyId: string; ownerId?: string; lifecycleStatus?: NumberingDraftLifecycle; seriesCode?: string } = { companyId: input.companyId };
     if (input.ownerId) {
       where.push("owner_id = :ownerId");
       params.ownerId = input.ownerId;
@@ -842,6 +954,16 @@ export class AsyncNumberStateFlowRepository {
     if (input.lifecycleStatus) {
       where.push("lifecycle_status = :lifecycleStatus");
       params.lifecycleStatus = input.lifecycleStatus;
+    }
+    if (input.seriesCode) {
+      where.push(`EXISTS (
+        SELECT 1
+        FROM numbering_draft_parts series_part
+        WHERE series_part.workspace_id = numbering_draft_workspaces.id
+          AND series_part.company_id = numbering_draft_workspaces.company_id
+          AND series_part.series_code = :seriesCode
+      )`);
+      params.seriesCode = input.seriesCode;
     }
     const rows = await this.client.query<WorkspaceRow>(
       `SELECT * FROM numbering_draft_workspaces
@@ -905,6 +1027,79 @@ export class AsyncNumberStateFlowRepository {
       )
     ]);
     const latestApproval = mapCandidateApproval(latestApprovalRow);
+    let candidateRevisions: NumberingCandidateRevisionRecord[] = [];
+    let lifecycleV2: NumberLifecycleProjectionV2 | null = null;
+    let latestBundleApproval: NumberingCandidateApprovalRecord | null = null;
+    if (isNumberLifecycleV2Enabled()) {
+      const [candidateRows, candidateFileRows, companionRows, latestBundleApprovalRow] = await Promise.all([
+        this.client.query<CandidateRevisionRow>(
+          `SELECT * FROM numbering_candidate_revision_drafts
+           WHERE workspace_id = :workspaceId AND company_id = :companyId
+           ORDER BY created_at, id`,
+          { workspaceId, companyId }
+        ),
+        this.client.query<CandidateRevisionFileRow>(
+          `SELECT candidate_file.*
+           FROM numbering_candidate_revision_files candidate_file
+           JOIN numbering_candidate_revision_drafts candidate
+             ON candidate.id = candidate_file.candidate_revision_id
+            AND candidate.company_id = candidate_file.company_id
+           WHERE candidate.workspace_id = :workspaceId AND candidate.company_id = :companyId
+           ORDER BY candidate_file.sort_order, candidate_file.id`,
+          { workspaceId, companyId }
+        ),
+        this.client.query<ReviewApprovalCompanionRow>(
+          `SELECT approval.package_id, approval.candidate_revision_id, approval.snapshot_hash,
+                  package.status AS package_status
+           FROM drawing_revision_package_review_approvals approval
+           JOIN numbering_candidate_revision_drafts candidate
+             ON candidate.id = approval.candidate_revision_id
+            AND candidate.company_id = approval.company_id
+           JOIN drawing_revision_packages package
+             ON package.id = approval.package_id
+            AND package.company_id = approval.company_id
+           WHERE candidate.workspace_id = :workspaceId AND candidate.company_id = :companyId`,
+          { workspaceId, companyId }
+        ),
+        this.client.queryOne<CandidateApprovalRow>(
+          `SELECT request.*
+           FROM approval_platform_requests request
+           JOIN approval_platform_targets target ON target.request_id = request.id
+           WHERE request.company_id = :companyId
+             AND request.action_code = 'numbering.candidate_bundle_review'
+             AND target.target_type = 'numbering_draft_workspace'
+             AND target.target_id = :workspaceId
+           ORDER BY request.requested_at DESC, request.id DESC
+           LIMIT 1`,
+          { workspaceId, companyId }
+        )
+      ]);
+      const filesByCandidate = new Map<string, CandidateRevisionFileRow[]>();
+      for (const file of candidateFileRows) {
+        const files = filesByCandidate.get(file.candidate_revision_id) ?? [];
+        files.push(file);
+        filesByCandidate.set(file.candidate_revision_id, files);
+      }
+      const companionByCandidate = new Map(companionRows.map((companion) => [companion.candidate_revision_id, companion]));
+      candidateRevisions = candidateRows.map((candidate) => mapCandidateRevision(
+        candidate,
+        filesByCandidate.get(candidate.id) ?? [],
+        companionByCandidate.get(candidate.id)
+      ));
+      latestBundleApproval = mapCandidateApproval(latestBundleApprovalRow);
+      lifecycleV2 = projectNumberLifecycleV2({
+        workspaceLifecycle: workspace.lifecycle_status,
+        drawingDraftIds: drawings.map((drawing) => drawing.id),
+        relationCount: relations.length,
+        reservations: reservations.map((reservation) => ({
+          itemType: reservation.draft_item_type,
+          state: reservation.reservation_state
+        })),
+        legacyApproval: latestApproval,
+        bundleApproval: latestBundleApproval,
+        candidateRevisions
+      });
+    }
     const locked = reservations.some((reservation) => ["review_locked", "approved_locked", "promoted"].includes(reservation.reservation_state));
     const activeReservations = reservations.filter((reservation) => reservation.reservation_state !== "recycled");
     const allActive = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "active");
@@ -968,12 +1163,15 @@ export class AsyncNumberStateFlowRepository {
       reservations: reservations.map(mapReservation),
       latestApproval,
       projection: buildProjection(workspace, reservations, latestApproval),
+      lifecycleV2,
+      candidateRevisions,
       capabilities: {
         canUpdate: workspace.lifecycle_status === "active" && !locked,
         canAcquireCandidates: workspace.lifecycle_status === "active" && !locked && activeReservations.length === 0,
         canCancel: workspace.lifecycle_status === "active" && !locked,
         canSubmitReview: workspace.lifecycle_status === "active" && allActive && latestApproval?.status !== "pending",
-        canWithdrawReview: workspace.lifecycle_status === "active" && allReviewLocked && latestApproval?.status === "pending",
+        canWithdrawReview: workspace.lifecycle_status === "active" && allReviewLocked &&
+          (latestBundleApproval?.status === "pending" || latestApproval?.status === "pending"),
         canPublish: workspace.lifecycle_status === "active" && allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied",
         publishBlockedReason: allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied" ? null : "approval_required"
       },

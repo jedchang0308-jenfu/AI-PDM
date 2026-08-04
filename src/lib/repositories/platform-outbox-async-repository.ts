@@ -48,6 +48,36 @@ function parseJson<T>(value: string | T): T {
   return typeof value === "string" ? (JSON.parse(value) as T) : value;
 }
 
+type CommandReceiptEnvelope<TResult = unknown> = {
+  __platformCommandReceiptVersion: 2;
+  payloadHash?: string;
+  result?: TResult;
+};
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalValue(nested)])
+    );
+  }
+  return value;
+}
+
+function idempotencyPayloadHash(payload: unknown) {
+  return crypto.createHash("sha256").update(JSON.stringify(canonicalValue(payload))).digest("hex");
+}
+
+function receiptEnvelope<TResult>(value: unknown): CommandReceiptEnvelope<TResult> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Partial<CommandReceiptEnvelope<TResult>>;
+  return record.__platformCommandReceiptVersion === 2
+    ? record as CommandReceiptEnvelope<TResult>
+    : null;
+}
+
 function mapOutbox(row: OutboxRow): PlatformOutboxEvent {
   return {
     id: row.id,
@@ -75,7 +105,7 @@ export class PlatformOutboxAsyncRepository {
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
 
-  async findCompletedCommand<TResult>(command: PdmCommand<unknown>): Promise<TResult | null> {
+  async findCompletedCommand<TResult>(command: PdmCommand<unknown>, idempotencyPayload?: unknown): Promise<TResult | null> {
     const row = await this.client.queryOne<CommandReceiptRow>(
       `
       SELECT id, command_status, response_json
@@ -90,11 +120,21 @@ export class PlatformOutboxAsyncRepository {
         idempotencyKey: command.idempotencyKey
       }
     );
-    if (!row || row.command_status !== "completed") return null;
-    return parseJson<TResult>(row.response_json as string | TResult);
+    if (!row) return null;
+    const parsed = parseJson<unknown>(row.response_json as string | unknown);
+    const envelope = receiptEnvelope<TResult>(parsed);
+    if (
+      idempotencyPayload !== undefined &&
+      envelope?.payloadHash &&
+      envelope.payloadHash !== idempotencyPayloadHash(idempotencyPayload)
+    ) {
+      throw new Error("PLATFORM_COMMAND_IDEMPOTENCY_PAYLOAD_MISMATCH");
+    }
+    if (row.command_status !== "completed") return null;
+    return envelope ? envelope.result as TResult : parsed as TResult;
   }
 
-  async claimCommand(command: PdmCommand<unknown>): Promise<boolean> {
+  async claimCommand(command: PdmCommand<unknown>, idempotencyPayload?: unknown): Promise<boolean> {
     const row = await this.client.queryOne<{ id: string }>(
       `
       INSERT INTO platform_command_receipts (
@@ -104,7 +144,7 @@ export class PlatformOutboxAsyncRepository {
       ) VALUES (
         :id, :companyId, :commandName, :schemaVersion, :idempotencyKey,
         :actorId, :platformPrincipalId, :platformOrganizationId,
-        :correlationId, 'processing', '{}', :createdAt
+        :correlationId, 'processing', :responseJson, :createdAt
       )
       ON CONFLICT(company_id, command_name, idempotency_key) DO NOTHING
       RETURNING id
@@ -119,13 +159,17 @@ export class PlatformOutboxAsyncRepository {
         platformPrincipalId: command.actor.pdmUserId === "system" ? null : command.actor.principalId,
         platformOrganizationId: command.actor.platformOrganizationId,
         correlationId: command.actor.correlationId,
+        responseJson: JSON.stringify({
+          __platformCommandReceiptVersion: 2,
+          ...(idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) })
+        } satisfies CommandReceiptEnvelope),
         createdAt: this.clock()
       }
     );
     return Boolean(row);
   }
 
-  async completeCommand<TResult>(command: PdmCommand<unknown>, result: TResult): Promise<void> {
+  async completeCommand<TResult>(command: PdmCommand<unknown>, result: TResult, idempotencyPayload?: unknown): Promise<void> {
     await this.client.execute(
       `
       UPDATE platform_command_receipts
@@ -139,7 +183,11 @@ export class PlatformOutboxAsyncRepository {
         companyId: command.actor.organizationId,
         commandName: command.commandName,
         idempotencyKey: command.idempotencyKey,
-        responseJson: JSON.stringify(result),
+        responseJson: JSON.stringify({
+          __platformCommandReceiptVersion: 2,
+          ...(idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) }),
+          result
+        } satisfies CommandReceiptEnvelope<TResult>),
         completedAt: this.clock()
       }
     );

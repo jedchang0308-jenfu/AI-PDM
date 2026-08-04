@@ -3,13 +3,13 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, GitBranch, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
-import { CompactSummary, RiskHint } from "@/components/compact-hints";
+import { RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
-import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
+import { StatusBadge } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
@@ -231,14 +231,6 @@ type ImpactAnalysis = {
   warnings: string[];
 };
 
-type RelationSummary = {
-  rootCount: number;
-  manufacturingDrawingCount: number;
-  referenceDrawingCount: number;
-  partCount: number;
-  blockerCount: number;
-};
-
 type RelationSeverity = "ok" | "info" | "warning" | "blocked";
 
 type DrawingPartRelationRoot = {
@@ -338,20 +330,13 @@ export default function NumberingSearchPage() {
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
-  const [productSeries, setProductSeries] = useState("");
-  const [productSeriesOptions, setProductSeriesOptions] = useState<string[]>([]);
+  const [seriesCode, setSeriesCode] = useState("");
+  const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [entityType, setEntityType] = useState<EntityType>("all");
   const [recordStatus, setRecordStatus] = useState("");
   const [developmentPhase, setDevelopmentPhase] = useState("");
   const [viewMode, setViewMode] = useState<RelationViewMode>("tree");
   const [relationRoots, setRelationRoots] = useState<DrawingPartRelationRoot[]>([]);
-  const [relationSummary, setRelationSummary] = useState<RelationSummary>({
-    rootCount: 0,
-    manufacturingDrawingCount: 0,
-    referenceDrawingCount: 0,
-    partCount: 0,
-    blockerCount: 0
-  });
   const [expandedRootCodes, setExpandedRootCodes] = useState<Set<string>>(new Set());
   const [selectedRootCode, setSelectedRootCode] = useState<string | null>(null);
   const selectedRootCodeRef = useRef<string | null>(null);
@@ -375,8 +360,6 @@ export default function NumberingSearchPage() {
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
     if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
-
-  const summary = relationSummary;
 
   const loadDetail = useCallback(async (rootCode: string, target?: DetailTarget) => {
     const nextTarget = target ?? { entityType: "part_root", rootCode };
@@ -416,7 +399,7 @@ export default function NumberingSearchPage() {
     setError("");
     const params = new URLSearchParams({ limit: "60" });
     if (query.trim()) params.set("query", query.trim());
-    if (productSeries) params.set("productSeries", productSeries);
+    if (seriesCode) params.set("seriesCode", seriesCode);
     if (entityType !== "all") params.set("entityType", entityType);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (developmentPhase) params.set("developmentPhase", developmentPhase);
@@ -433,12 +416,11 @@ export default function NumberingSearchPage() {
       return;
     }
     const nextRoots = (body.roots ?? []) as DrawingPartRelationRoot[];
-    setProductSeriesOptions((body.productSeriesOptions ?? []) as string[]);
+    setSeriesCodeOptions((body.seriesCodeOptions ?? []) as string[]);
     const currentSelection = selectedRootCodeRef.current;
     const selectedStillVisible = currentSelection && nextRoots.some((root) => root.rootCode === currentSelection);
     const nextSelectedRootCode = selectedStillVisible ? currentSelection : nextRoots[0]?.rootCode ?? null;
     setRelationRoots(nextRoots);
-    setRelationSummary((body.summary ?? summarizeRelationRoots(nextRoots)) as RelationSummary);
     setExpandedRootCodes((currentExpanded) => {
       const nextExpanded = new Set(Array.from(currentExpanded).filter((rootCode) => nextRoots.some((root) => root.rootCode === rootCode)));
       if (nextSelectedRootCode) nextExpanded.add(nextSelectedRootCode);
@@ -462,7 +444,7 @@ export default function NumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [activeTab, developmentPhase, entityType, productSeries, query, recordStatus]);
+  }, [activeTab, developmentPhase, entityType, query, recordStatus, seriesCode]);
 
   useEffect(() => {
     void loadResults();
@@ -731,7 +713,7 @@ export default function NumberingSearchPage() {
     <>
       <div className="topbar">
         <div>
-          <h1>圖料模組 <StatusScopeHelp scope="numberingSearch" /></h1>
+          <h1>圖料模組</h1>
           <p>料件、料號與圖號集中查詢，明細標示風險與影響資訊。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -739,7 +721,7 @@ export default function NumberingSearchPage() {
             <RotateCcw size={16} />
             重新整理
           </button>
-          <NumberStateOwnerCreateAction surface="search" />
+          <NumberStateOwnerCreateAction surface="search" seriesCodeOptions={seriesCodeOptions} />
         </div>
       </div>
       <NumberStateModuleTabs module="search" active="official" />
@@ -754,30 +736,16 @@ export default function NumberingSearchPage() {
       {state === "ready" ? (
         <div className="pdm-master-workbench">
           <section className="panel pdm-master-toolbar pdm-drawing-toolbar">
-            <div className="panel-header">
-              <div>
-                <h2>查詢條件</h2>
-                <CompactSummary
-                  items={[
-                    { label: "主根", value: summary.rootCount },
-                    { label: "製造圖", value: summary.manufacturingDrawingCount },
-                    { label: "參考圖", value: summary.referenceDrawingCount },
-                    { label: "料號", value: summary.partCount },
-                    { label: "阻擋", value: summary.blockerCount }
-                  ]}
-                />
-              </div>
-            </div>
             <div className="pdm-master-filter-grid">
               <label className="pdm-master-field">
                 <span>關鍵字</span>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="主根號 / 料號 / 圖號 / 名稱" />
               </label>
               <label className="pdm-master-field">
-                <span>產品系列</span>
-                <select value={productSeries} onChange={(event) => setProductSeries(event.target.value)}>
-                  <option value="">全部系列</option>
-                  {productSeriesOptions.map((option) => (
+                <span>系列代號</span>
+                <select value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)}>
+                  <option value="">全部系列代號</option>
+                  {seriesCodeOptions.map((option) => (
                     <option value={option} key={option}>
                       {option}
                     </option>
@@ -1223,16 +1191,6 @@ function relationCellLabel(relationType: DrawingPartRelationCell["relationType"]
 function relationLinkTypeLabel(linkType: NumberingLink["linkType"]) {
   if (linkType === "primary_manufacturing") return "製造依據";
   return "參考";
-}
-
-function summarizeRelationRoots(roots: DrawingPartRelationRoot[]): RelationSummary {
-  return {
-    rootCount: roots.length,
-    manufacturingDrawingCount: roots.reduce((sum, root) => sum + root.drawings.filter((drawing) => drawing.isManufacturing).length, 0),
-    referenceDrawingCount: roots.reduce((sum, root) => sum + root.drawings.filter((drawing) => drawing.isReferenceOnly).length, 0),
-    partCount: roots.reduce((sum, root) => sum + root.parts.length, 0),
-    blockerCount: roots.reduce((sum, root) => sum + root.blockers.length, 0)
-  };
 }
 
 function RootDetailDrawer({

@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode, RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
   Ban,
   Check,
   ChevronLeft,
@@ -23,8 +22,14 @@ import {
   Search,
   X
 } from "lucide-react";
-import { StatusHelpPopover, StatusScopeHelp } from "@/components/status-help-popover";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import {
+  NumberingCandidateRevisionEditor,
+  type CandidateRevisionWorkspace
+} from "@/components/numbering-candidate-revision-editor";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import { formatStatusForUser } from "@/lib/status-display";
+import type { StatusScopeId } from "@/lib/status-scope-display";
 
 type DraftMode = "new_bundle" | "append_drawing" | "append_part" | "append_drawing_part";
 type ItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
@@ -32,11 +37,19 @@ type PurposeCode = "MA" | "OT" | "M" | "R";
 type LifecycleStatus = "active" | "cancelled" | "published";
 type NumberQualification = "unnumbered" | "candidate" | "official" | "legacy_official_reservation";
 type NumberEffectivenessFilter = "all" | "not_generated" | "reserved" | "official";
-type FeatureStatus = { enabled: boolean; flag: string; phase: string };
+type FeatureStatus = {
+  enabled: boolean;
+  flag: string;
+  phase: string;
+  lifecycleV2?: { enabled: boolean; flag: string; phase: string };
+};
 type ProductionSliceStatus = { configured: boolean; unopenedMessage?: string };
 type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
 
 const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 保留號 production slice。";
+const NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width";
+const NUMBER_STATE_DRAWER_DEFAULT_WIDTH = 620;
+const NUMBER_STATE_DRAWER_MIN_WIDTH = 420;
 
 type NumberStateProjection = {
   numberQualification: NumberQualification;
@@ -119,6 +132,35 @@ type NumberingDraftWorkspace = {
     snapshotHash: string | null;
   };
   projection: NumberStateProjection;
+  lifecycleV2: null | {
+    stage: "drawing_preparation" | "bundle_ready" | "in_review" | "auto_finalizing" | "official_controlled" | "drawing_addendum_required" | "recovery_required" | "history_only";
+    reasonCode: string;
+    primaryAction: "complete_first_drawing" | "submit_bundle_review" | "view_review" | "retry_formalization" | "continue_formal_revision" | "view_history" | "none";
+    exceptionKind: "none" | "legacy" | "blocked" | "recovery";
+  };
+  candidateRevisions: Array<{
+    id: string;
+    drawingDraftId: string;
+    revision: string;
+    policySnapshot: Record<string, unknown>;
+    overrideReason: string | null;
+    lifecycleStatus: "draft" | "review_locked" | "promoted" | "cancelled";
+    rowVersion: number;
+    approvalRequestId: string | null;
+    formalDrawingNumberId: string | null;
+    formalRevisionPackageId: string | null;
+    files: Array<{
+      id: string;
+      sourceFileAssetId: string;
+      publicationEvidenceId: string | null;
+      role: "cad_3d" | "drawing_2d" | "intermediate" | "pdf" | "dwg_dxf" | "other";
+      displayName: string;
+      description: string;
+      isPrimary: boolean;
+      removedAt: string | null;
+    }>;
+    effectiveStatus: "ReviewApproved" | "Pending" | null;
+  }>;
   capabilities: {
     canUpdate: boolean;
     canAcquireCandidates: boolean;
@@ -237,7 +279,10 @@ type NumberStateModuleConfig = {
   title: string;
   officialLabel: string;
   officialHref: string;
+  officialHelpScope: StatusScopeId;
   reservedHref: string;
+  reservedCodeLabel: string;
+  emptyCodeLabel: string;
   ariaLabel: string;
   createSurface: NumberStateCreateSurface;
 };
@@ -247,7 +292,10 @@ const numberStateModuleConfigs: Record<NumberStateModule, NumberStateModuleConfi
     title: "圖料模組",
     officialLabel: "圖料總表",
     officialHref: "/numbering/search",
+    officialHelpScope: "numberingSearch",
     reservedHref: "/numbering/search?tab=reserved",
+    reservedCodeLabel: "圖號 / 料號",
+    emptyCodeLabel: "尚未產生圖料號",
     ariaLabel: "圖料模組分頁",
     createSurface: "search"
   },
@@ -255,7 +303,10 @@ const numberStateModuleConfigs: Record<NumberStateModule, NumberStateModuleConfi
     title: "圖號模組",
     officialLabel: "圖號總表",
     officialHref: "/numbering/drawings",
+    officialHelpScope: "drawingList",
     reservedHref: "/numbering/drawings?tab=reserved",
+    reservedCodeLabel: "圖號",
+    emptyCodeLabel: "尚未產生圖號",
     ariaLabel: "圖號模組分頁",
     createSurface: "drawings"
   },
@@ -263,7 +314,10 @@ const numberStateModuleConfigs: Record<NumberStateModule, NumberStateModuleConfi
     title: "料號模組",
     officialLabel: "料號總表",
     officialHref: "/parts",
+    officialHelpScope: "partsList",
     reservedHref: "/parts?tab=drafts",
+    reservedCodeLabel: "料號",
+    emptyCodeLabel: "尚未產生料號",
     ariaLabel: "料號模組分頁",
     createSurface: "parts"
   }
@@ -544,6 +598,8 @@ function moduleFromCreateSurface(surface: NumberStateCreateSurface): NumberState
 export function NumberStateModuleTabs({ module, active }: { module: NumberStateModule; active: "official" | "reserved" }) {
   const feature = useFeatureStatus();
   const config = numberStateModuleConfigs[module];
+  const helpScope: StatusScopeId = active === "reserved" ? "numberStateWorkspace" : config.officialHelpScope;
+  const activeLabel = active === "reserved" ? "保留號" : config.officialLabel;
   if (!feature?.enabled) return null;
   return (
     <nav className="number-state-tabs" aria-label={config.ariaLabel}>
@@ -553,6 +609,11 @@ export function NumberStateModuleTabs({ module, active }: { module: NumberStateM
       <a className={active === "reserved" ? "is-active" : undefined} href={config.reservedHref} aria-current={active === "reserved" ? "page" : undefined}>
         保留號
       </a>
+      <StatusScopeHelp
+        scope={helpScope}
+        buttonLabel={`查看${activeLabel}分頁說明`}
+        className="number-state-tab-help"
+      />
     </nav>
   );
 }
@@ -566,13 +627,15 @@ export function NumberStateOwnerCreateAction({
   defaultMode = "new_bundle",
   sourceRootId = "",
   surface = "global",
-  hasRootContext = false
+  hasRootContext = false,
+  seriesCodeOptions = []
 }: {
   label?: string;
   defaultMode?: DraftMode;
   sourceRootId?: string;
   surface?: NumberStateCreateSurface;
   hasRootContext?: boolean;
+  seriesCodeOptions?: string[];
 }) {
   const feature = useFeatureStatus();
   const actionPermissions = useNumberStateActionPermissions();
@@ -603,6 +666,7 @@ export function NumberStateOwnerCreateAction({
         <DraftCreateDialog
           initialMode={createCta.defaultMode}
           initialSourceRootId={sourceRootId}
+          seriesCodeOptions={seriesCodeOptions}
           onClose={() => setOpen(false)}
           onCreated={(workspace) => {
             const targetModule = moduleFromCreateSurface(surface);
@@ -624,6 +688,8 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
   const [ownerScope, setOwnerScope] = useState<"mine" | "all">("mine");
   const [lifecycle, setLifecycle] = useState<"all" | LifecycleStatus>("all");
   const [numberEffectiveness, setNumberEffectiveness] = useState<NumberEffectivenessFilter>("all");
+  const [seriesCode, setSeriesCode] = useState("");
+  const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -633,6 +699,11 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
   const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
+    storageKey: NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY,
+    defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH,
+    minWidth: NUMBER_STATE_DRAWER_MIN_WIDTH
+  });
   const idempotencyKeys = useRef(new Map<string, string>());
   const initialQueryHandled = useRef(false);
   const createCta = getNumberStateCreateCta({ surface: moduleConfig.createSurface });
@@ -640,6 +711,11 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
   const createTitle = actionPermissions === null ? "正在確認建立權限" : canCreate ? createCta.title : "未開放：目前帳號沒有建立保留號的權限";
   const formalActionsUnopened = productionSlice?.configured === true;
   const formalActionsUnopenedMessage = productionSlice?.unopenedMessage ?? DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE;
+  const lifecycleV2Enabled = feature?.lifecycleV2?.enabled === true;
+
+  useEffect(() => {
+    if (lifecycleV2Enabled && module === "drawings") setLifecycle("active");
+  }, [lifecycleV2Enabled, module]);
 
   const loadWorkspaces = useCallback(async (preferredId?: string) => {
     if (!feature?.enabled) return;
@@ -647,8 +723,9 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
     setError("");
     const params = new URLSearchParams({ owner: ownerScope, limit: "100" });
     if (lifecycle !== "all") params.set("lifecycleStatus", lifecycle);
+    if (seriesCode) params.set("seriesCode", seriesCode);
     const response = await fetch(`/api/numbering/draft-workspaces?${params.toString()}`, { cache: "no-store" });
-    const body = await readApiBody<{ workspaces?: NumberingDraftWorkspace[] }>(response);
+    const body = await readApiBody<{ workspaces?: NumberingDraftWorkspace[]; seriesCodeOptions?: string[] }>(response);
     setLoading(false);
     if (!response.ok) {
       if (response.status === 401) {
@@ -659,6 +736,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
       return;
     }
     const next = body.workspaces ?? [];
+    setSeriesCodeOptions(body.seriesCodeOptions ?? []);
     setWorkspaces(next);
     setSelected((current) => {
       const targetId = preferredId ?? current?.id;
@@ -667,7 +745,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
       if (!nextSelected) setEditOpen(false);
       return nextSelected;
     });
-  }, [feature?.enabled, lifecycle, ownerScope]);
+  }, [feature?.enabled, lifecycle, ownerScope, seriesCode]);
 
   const loadDetail = useCallback(async (workspaceId: string) => {
     setError("");
@@ -697,25 +775,25 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
   }, [feature?.enabled, loadWorkspaces]);
 
   const filtered = useMemo(() => workspaces.filter((workspace) => {
+    if (!workspaceMatchesModule(workspace, module)) return false;
     if (!matchesNumberEffectiveness(workspace.projection.numberQualification, numberEffectiveness)) return false;
+    if (seriesCode && !workspace.parts.some((part) => part.seriesCode === seriesCode)) return false;
     const normalized = query.trim().toLowerCase();
     if (!normalized) return true;
     const values = [
       workspace.id,
       workspace.sourceRootId,
       workspace.root?.coreName,
-      workspace.root?.candidateCode,
-      ...workspace.parts.flatMap((part) => [part.partName, part.candidateCode]),
-      ...workspace.drawings.flatMap((drawing) => [drawing.purposeDescription, drawing.candidateCode])
+      ...moduleSearchValues(workspace, module)
     ];
     return values.some((value) => String(value ?? "").toLowerCase().includes(normalized));
-  }), [numberEffectiveness, query, workspaces]);
+  }), [module, numberEffectiveness, query, seriesCode, workspaces]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     setPage(1);
-  }, [lifecycle, numberEffectiveness, ownerScope, query]);
+  }, [lifecycle, numberEffectiveness, ownerScope, query, seriesCode]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -747,8 +825,8 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
     setNotice("");
     const endpoint = ({
       cancel: "cancel",
-      submit: "submit-review",
-      withdraw: "withdraw-review",
+      submit: lifecycleV2Enabled ? "submit-bundle-review" : "submit-review",
+      withdraw: lifecycleV2Enabled ? "withdraw-bundle-review" : "withdraw-review",
       publish: "publish"
     } as const)[action];
     const response = await fetch(
@@ -760,9 +838,12 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
           "Idempotency-Key": idempotencyKey(selected.id, action)
         },
         body: JSON.stringify({
-          expectedRowVersion: selected.rowVersion,
+          ...(lifecycleV2Enabled && (action === "submit" || action === "withdraw")
+            ? { expectedWorkspaceRowVersion: selected.rowVersion }
+            : { expectedRowVersion: selected.rowVersion }),
           ...(action === "cancel" ? { reason: "user_cancelled_draft" } : {}),
-          ...(action === "submit" ? { reason: "draft_owner_confirmed_candidate_publication_review" } : {})
+          ...(action === "submit" ? { reason: lifecycleV2Enabled ? "draft_owner_confirmed_candidate_bundle_review" : "draft_owner_confirmed_candidate_publication_review" } : {}),
+          ...(action === "withdraw" && lifecycleV2Enabled ? { reason: "draft_owner_withdrew_candidate_bundle_review" } : {})
         })
       }
     );
@@ -780,7 +861,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
     setSelected(body.workspace);
     setNotice(({
       cancel: "申請已取消；原保留號碼已釋出。",
-      submit: "申請已送審，保留號碼已鎖定；核准不會自動正式發布。",
+      submit: lifecycleV2Enabled ? "圖料號、關係、首版與檔案證據已整包送審；核准後由系統自動正式化。" : "申請已送審，保留號碼已鎖定；核准不會自動正式發布。",
       withdraw: "待審申請已撤回，保留號碼已解鎖，可繼續編輯。",
       publish: "圖料號已正式發布；正式主檔狀態為有效，後續圖面版本發行仍走既有流程。"
     } as const)[action]);
@@ -825,8 +906,8 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
     <>
       <div className="topbar number-state-topbar">
         <div>
-          <h1>{moduleConfig.title} <StatusScopeHelp scope="numberStateWorkspace" /></h1>
-          <p>建立申請時會直接保留號碼；正式發布前不可正式使用。</p>
+          <h1>{lifecycleV2Enabled && module === "drawings" ? "保留號／首版準備" : moduleConfig.title}</h1>
+          <p>{lifecycleV2Enabled && module === "drawings" ? "完成候選首版並送審，核准後由系統正式化。" : "建立申請時會直接保留號碼；正式發布前不可正式使用。"}</p>
         </div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={() => void loadWorkspaces()} disabled={loading}>
@@ -857,37 +938,64 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
             <span>搜尋</span>
             <div className="number-state-search-field"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="申請名稱、保留號碼或 ID" /></div>
           </label>
+          <label><span>系列代號</span><select value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)}><option value="">全部系列代號</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>範圍</span><select value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "mine" | "all")}><option value="mine">我的保留號</option><option value="all">全公司保留號</option></select></label>
           <label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as "all" | LifecycleStatus)}><option value="all">全部</option><option value="active">進行中</option><option value="cancelled">已取消</option><option value="published">已發布</option></select></label>
           <label><span>號碼效力</span><select value={numberEffectiveness} onChange={(event) => setNumberEffectiveness(event.target.value as NumberEffectivenessFilter)}><option value="all">全部</option><option value="not_generated">尚未產生</option><option value="reserved">已保留</option><option value="official">正式</option></select></label>
         </div>
       </section>
 
-      <section className="panel number-state-list-panel">
-        <div className="panel-header number-state-list-header">
-          <div><div className="number-state-list-title"><h2>保留號清單</h2><StatusScopeHelp scope="numberStateWorkspace" /><StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" /></div><p>{filtered.length} 筆；已保留號碼與正式資料分開保存。</p></div>
-          <span className="number-state-page-count">第 {page} / {pageCount} 頁</span>
-        </div>
+      <section className="panel pdm-master-table-panel number-state-list-panel">
         {loading && workspaces.length === 0 ? <div className="empty">正在載入圖料號申請...</div> : null}
         {!loading && !error && filtered.length === 0 ? (
           <div className="empty"><CircleDashed size={26} /><strong>目前沒有符合條件的保留號</strong><p>請建立新申請；關閉建立視窗不會寫入資料或占用號碼。</p><button className="primary-button" type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate} title={createTitle} aria-label={createCta.ariaLabel}><Plus size={16} />{createCta.label}</button></div>
         ) : null}
         {filtered.length > 0 ? (
-          <div className="number-state-table-wrap">
-            <table className="data-table number-state-table">
-              <thead><tr><th>保留號</th><th>內容</th><th>申請狀態</th><th>號碼效力</th><th>號碼</th><th>下一步</th><th aria-label="操作" /></tr></thead>
+          <div className="table-wrap pdm-identity-scroll number-state-table-wrap" role="region" aria-label="保留號清單">
+            <table className="pdm-identity-table number-state-table">
+              <colgroup>
+                <col className="pdm-identity-col-code" />
+                <col className="pdm-identity-col-name" />
+                <col className="pdm-identity-col-part" />
+                <col className="pdm-identity-col-meta" />
+              </colgroup>
+              <thead><tr><th>{moduleConfig.reservedCodeLabel}</th><th>申請名稱</th><th>內容</th><th>{lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態 / 號碼效力"}</th></tr></thead>
               <tbody>
-                {visible.map((workspace) => (
-                  <tr key={workspace.id}>
-                    <td data-label="保留號"><button className="number-state-row-link" type="button" onClick={() => void loadDetail(workspace.id)}><strong>{workspaceTitle(workspace)}</strong><span>{draftModeLabel(workspace.draftMode)}</span></button></td>
-                    <td data-label="內容">{workspace.parts.length} 料號 · {workspace.drawings.length} 圖號</td>
-                    <td data-label="申請狀態"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>
-                    <td data-label="號碼效力"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>
-                    <td data-label="號碼">{candidateCodes(workspace).length > 0 ? <span className="number-state-candidate-inline">{candidateCodes(workspace).join("、")}</span> : <span className="muted-text">尚未產生號碼</span>}</td>
-                    <td data-label="下一步"><span className="number-state-next-label">{nowWhatLabel(workspace.projection.nowWhat.label)}</span></td>
-                    <td data-label="操作"><button className="icon-button number-state-card-action" type="button" onClick={() => void loadDetail(workspace.id)} aria-label={`查看 ${workspaceTitle(workspace)} 明細`} title="查看明細"><span className="number-state-mobile-action-label">查看明細</span><ArrowRight size={17} /></button></td>
-                  </tr>
-                ))}
+                {visible.map((workspace) => {
+                  const codes = candidateCodesForModule(workspace, module);
+                  const selectedRow = selected?.id === workspace.id;
+                  return (
+                    <tr
+                      key={workspace.id}
+                      aria-selected={selectedRow}
+                      className={selectedRow ? "selected-row" : undefined}
+                      onClick={() => void loadDetail(workspace.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td data-label={moduleConfig.reservedCodeLabel}>
+                        <button
+                          className="link-button pdm-identity-code number-state-row-link"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void loadDetail(workspace.id);
+                          }}
+                          aria-label={`查看 ${workspaceTitle(workspace)} 明細`}
+                          title={codes.length > 0 ? codes.join("、") : moduleConfig.emptyCodeLabel}
+                        >
+                          {codes.length > 0 ? codes.join("、") : moduleConfig.emptyCodeLabel}
+                        </button>
+                      </td>
+                      <td data-label="申請名稱">
+                        <div className="pdm-identity-name">{workspaceTitle(workspace)}</div>
+                      </td>
+                      <td data-label="內容">{moduleContentSummary(workspace, module)}</td>
+                      <td data-label={lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態 / 號碼效力"}>
+                        {lifecycleV2Enabled && workspace.lifecycleV2 ? <LifecycleV2Badge workspace={workspace} /> : <div className="pdm-meta-strip"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></div>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -895,6 +1003,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
         {filtered.length > PAGE_SIZE ? (
           <div className="number-state-pagination">
             <button className="secondary-button" type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} />上一頁</button>
+            <span className="number-state-pagination-summary">第 {page} / {pageCount} 頁 · 共 {filtered.length} 筆</span>
             <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>下一頁<ChevronRight size={16} /></button>
           </div>
         ) : null}
@@ -915,6 +1024,17 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
           formalActionsUnopened={formalActionsUnopened}
           unopenedMessage={formalActionsUnopenedMessage}
           canCreateDrawingRevision={actionPermissions?.["numbering.draft.update"] === true}
+          lifecycleV2Enabled={lifecycleV2Enabled}
+          onV2WorkspaceChange={(workspace) => {
+            const next = workspace as NumberingDraftWorkspace;
+            setSelected(next);
+            void loadWorkspaces(next.id);
+          }}
+          onV2Error={setError}
+          onV2Notice={setNotice}
+          seriesCodeOptions={seriesCodeOptions}
+          width={drawerWidth}
+          onStartResize={startDrawerResize}
           onClose={() => { setSelected(null); setEditOpen(false); }}
         />
       ) : null}
@@ -922,6 +1042,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
         <DraftCreateDialog
           initialMode={createModeFromLocation()}
           initialSourceRootId={sourceRootFromLocation()}
+          seriesCodeOptions={seriesCodeOptions}
           onClose={() => setCreateOpen(false)}
           onCreated={(workspace) => {
             setCreateOpen(false);
@@ -937,6 +1058,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
           workspace={selected}
           busy={actionBusy}
           onClose={() => setConfirmAction(null)}
+          lifecycleV2Enabled={lifecycleV2Enabled}
           onConfirm={() => void runWorkspaceAction(confirmAction)}
         />
       ) : null}
@@ -947,11 +1069,13 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
 function DraftCreateDialog({
   initialMode,
   initialSourceRootId,
+  seriesCodeOptions,
   onClose,
   onCreated
 }: {
   initialMode: DraftMode;
   initialSourceRootId: string;
+  seriesCodeOptions: string[];
   onClose: () => void;
   onCreated: (workspace: NumberingDraftWorkspace) => void;
 }) {
@@ -1210,7 +1334,7 @@ function DraftCreateDialog({
                   <Field label="核心名詞" hint={`${nameGuideFormula(form.rootItemKind)}；每段會以半形底線 _ 串接。`}><input value={form.nameCore} onChange={(event) => setForm({ ...form, nameCore: event.target.value })} maxLength={80} placeholder="例如：馬達、外殼、腳架" /></Field>
                   {form.rootItemKind === "purchased" ? <Field label="品牌（選填）" hint="品牌會影響採購、替代或品質時再填。"><input value={form.nameBrand} onChange={(event) => setForm({ ...form, nameBrand: event.target.value })} maxLength={80} placeholder="例如：東元" /></Field> : null}
                   <Field label={form.rootItemKind === "purchased" ? "規格 / 型號（選填）" : "特性（選填）"} hint={form.rootItemKind === "purchased" ? "盡量填可區分3D檔名的關鍵規格。" : "可填規格、型號、材質或用途，可用空白或底線分段。"}><input value={form.rootItemKind === "purchased" ? form.nameSpecification : form.nameFeature} onChange={(event) => form.rootItemKind === "purchased" ? setForm({ ...form, nameSpecification: event.target.value }) : setForm({ ...form, nameFeature: event.target.value })} maxLength={120} placeholder={form.rootItemKind === "purchased" ? "例如：1HP_4P_220VAC" : "例如：白鐵 100L"} /></Field>
-                  {form.partItemKind === "manufactured" ? <Field label="系列代號（選填）" hint="非共用件會納入建議品名；勾選跨專案共用時不納入品名。"><input data-qc="root-series-code" value={form.seriesCode} onChange={(event) => setForm({ ...form, seriesCode: event.target.value })} maxLength={80} placeholder="例如：JF、100L、S1" /></Field> : null}
+                  {form.partItemKind === "manufactured" ? <SeriesCodeField label="系列代號（選填）" value={form.seriesCode} options={seriesCodeOptions} dataQc="root-series-code" onChange={(value) => setForm({ ...form, seriesCode: value })} /> : null}
                   {form.rootItemKind !== "purchased" ? <Field label="流水識別（選填）" hint="對應品名用的流水號，建議從 A 開始；不等於正式料號流水。"><input value={form.nameSerial} onChange={(event) => setForm({ ...form, nameSerial: event.target.value })} maxLength={40} placeholder="例如：A、B、01" /></Field> : null}
                   <label className="number-state-checkbox number-state-name-scope"><input type="checkbox" checked={form.sharedName} onChange={(event) => setForm({ ...form, sharedName: event.target.checked })} />跨專案共用</label>
                   <SuggestedNameReviewPanel
@@ -1420,6 +1544,13 @@ function WorkspaceDrawer({
   formalActionsUnopened,
   unopenedMessage,
   canCreateDrawingRevision,
+  lifecycleV2Enabled,
+  onV2WorkspaceChange,
+  onV2Error,
+  onV2Notice,
+  seriesCodeOptions,
+  width,
+  onStartResize,
   onClose
 }: {
   workspace: NumberingDraftWorkspace;
@@ -1435,25 +1566,68 @@ function WorkspaceDrawer({
   formalActionsUnopened: boolean;
   unopenedMessage: string;
   canCreateDrawingRevision: boolean;
+  lifecycleV2Enabled: boolean;
+  onV2WorkspaceChange: (workspace: CandidateRevisionWorkspace) => void;
+  onV2Error: (message: string) => void;
+  onV2Notice: (message: string) => void;
+  seriesCodeOptions: string[];
+  width: number;
+  onStartResize: (clientX: number) => void;
   onClose: () => void;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   useOverlayLifecycle(drawerRef, onClose, busy);
+  const drawerStyle = { "--pdm-detail-drawer-width": `${width}px` } as CSSProperties;
   return (
     <div className="number-state-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <aside ref={drawerRef} className="number-state-drawer" role="dialog" aria-modal="true" aria-labelledby="number-state-drawer-title">
+      <aside ref={drawerRef} className="number-state-drawer" role="dialog" aria-modal="true" aria-labelledby="number-state-drawer-title" style={drawerStyle}>
+        <button
+          className="pdm-detail-drawer-resize-handle"
+          type="button"
+          aria-label="調整保留號明細寬度"
+          title="拖曳調整保留號明細寬度"
+          onPointerDown={(event: ReactPointerEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            onStartResize(event.clientX);
+          }}
+        />
         <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>系統紀錄版本 {workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉保留號明細"><X size={20} /></button></div>
         <div className="number-state-drawer-body">
-          <ProjectionSummary projection={workspace.projection} />
+          {lifecycleV2Enabled && workspace.lifecycleV2 ? <LifecycleV2Summary workspace={workspace} /> : <ProjectionSummary projection={workspace.projection} />}
           {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
-          <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
-          {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
-          <RevisionPreparationPanel
-            workspace={workspace}
-            canCreateDrawingRevision={canCreateDrawingRevision}
-            formalActionsUnopened={formalActionsUnopened}
-          />
-          <section className="number-state-drawer-section">
+          {lifecycleV2Enabled && workspace.lifecycleV2 ? (
+            workspace.lifecycleV2.exceptionKind !== "none" || ["recovery_required", "history_only", "auto_finalizing"].includes(workspace.lifecycleV2.stage)
+              ? <LifecycleV2ExceptionPanel workspace={workspace} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
+              : null
+          ) : <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />}
+          {editing ? <WorkspaceEditForm workspace={workspace} busy={busy} seriesCodeOptions={seriesCodeOptions} onCancel={onCancelEdit} onSave={onUpdate} /> : <WorkspaceFacts workspace={workspace} />}
+          {lifecycleV2Enabled && workspace.lifecycleV2 ? (
+            <>
+              {!["official_controlled", "history_only"].includes(workspace.lifecycleV2.stage) ? (
+                <NumberingCandidateRevisionEditor
+                  workspace={workspace}
+                  disabled={busy || formalActionsUnopened || workspace.lifecycleV2.stage === "in_review" || workspace.lifecycleV2.stage === "auto_finalizing" || workspace.lifecycleV2.stage === "recovery_required"}
+                  onWorkspaceChange={onV2WorkspaceChange}
+                  onError={onV2Error}
+                  onNotice={onV2Notice}
+                />
+              ) : null}
+              <LifecycleV2PrimaryAction
+                workspace={workspace}
+                busy={busy}
+                onSubmit={onSubmit}
+                onWithdraw={onWithdraw}
+                formalActionsUnopened={formalActionsUnopened}
+                unopenedMessage={unopenedMessage}
+              />
+            </>
+          ) : <>
+            <RevisionPreparationPanel
+              workspace={workspace}
+              canCreateDrawingRevision={canCreateDrawingRevision}
+              formalActionsUnopened={formalActionsUnopened}
+            />
+            <section className="number-state-drawer-section">
             <div className="number-state-section-heading"><h3>後續動作</h3>{workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯保留號</button> : null}</div>
             <div className="number-state-future-actions">
               {workspace.capabilities.canSubmitReview ? formalActionsUnopened ? <UnopenedAction label="送交發布審核" reason={unopenedMessage}><LockKeyhole size={15} /></UnopenedAction> : <button className="primary-button" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交發布審核</button> : null}
@@ -1464,7 +1638,8 @@ function WorkspaceDrawer({
                 formalActionsUnopened ? <UnopenedAction label="正式發布" reason={unopenedMessage}><Check size={15} /></UnopenedAction> : <button className="primary-button" type="button" onClick={onPublish} disabled={!workspace.capabilities.canPublish || busy} title={!workspace.capabilities.canPublish ? publicationBlockerLabel(workspace.capabilities.publishBlockedReason) : "正式建立主根、料號、圖號與關係"}><Check size={15} />正式發布</button>
               ) : null}
             </div>
-          </section>
+            </section>
+          </>}
         </div>
         <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消保留號</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
       </aside>
@@ -1503,6 +1678,76 @@ function WorkspaceFacts({ workspace }: { workspace: NumberingDraftWorkspace }) {
   return (
     <section className="number-state-drawer-section"><h3>保留號內容</h3><div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title={workspace.root.coreName} subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.partName} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""} · ${draftNumberLabel(workspace, part.candidateCode)}`} />)}{workspace.drawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={purposeLabel(drawing.purposeCode)} subtitle={`${drawing.purposeCode === "R" && drawing.purposeDescription ? `${drawing.purposeDescription} · ` : ""}${draftNumberLabel(workspace, drawing.candidateCode)}`} />)}</div></section>
   );
+}
+
+function lifecycleV2Label(stage: NonNullable<NumberingDraftWorkspace["lifecycleV2"]>["stage"]) {
+  return ({
+    drawing_preparation: "準備候選首版",
+    bundle_ready: "整包可送審",
+    in_review: "整包審核中",
+    auto_finalizing: "系統正式化中",
+    official_controlled: "圖料號已正式建立",
+    drawing_addendum_required: "需補齊首版圖面",
+    recovery_required: "需要管理者處理",
+    history_only: "歷史紀錄"
+  } as const)[stage];
+}
+
+function LifecycleV2Badge({ workspace }: { workspace: NumberingDraftWorkspace }) {
+  if (!workspace.lifecycleV2) return null;
+  const readyCandidates = workspace.candidateRevisions.filter((candidate) => candidate.files.some((file) => !file.removedAt && file.isPrimary && file.publicationEvidenceId)).length;
+  return <div className="pdm-meta-strip"><span className={`number-state-badge lifecycle-v2-${workspace.lifecycleV2.stage}`}>{lifecycleV2Label(workspace.lifecycleV2.stage)}</span><span className="muted-text">首版 {readyCandidates}/{workspace.drawings.length}</span></div>;
+}
+
+function LifecycleV2Summary({ workspace }: { workspace: NumberingDraftWorkspace }) {
+  const lifecycle = workspace.lifecycleV2!;
+  const activeFiles = workspace.candidateRevisions.flatMap((candidate) => candidate.files.filter((file) => !file.removedAt));
+  return (
+    <section className="number-state-drawer-section" data-lifecycle-v2-stage={lifecycle.stage}>
+      <div className="number-state-section-heading"><h3>目前進度</h3><LifecycleV2Badge workspace={workspace} /></div>
+      <dl className="number-state-state-grid">
+        <div><dt>整包狀態</dt><dd>{lifecycleV2Label(lifecycle.stage)}</dd></div>
+        <div><dt>候選首版</dt><dd>{workspace.candidateRevisions.length}/{workspace.drawings.length}</dd></div>
+        <div><dt>主要檔案</dt><dd>{activeFiles.filter((file) => file.isPrimary).length}</dd></div>
+        <div><dt>使用效力</dt><dd>{lifecycle.stage === "official_controlled" ? "圖料號正式；研發版核准" : "尚不可正式使用"}</dd></div>
+      </dl>
+    </section>
+  );
+}
+
+function bundleRequestId(workspace: NumberingDraftWorkspace) {
+  return workspace.candidateRevisions.find((candidate) => candidate.approvalRequestId)?.approvalRequestId ?? workspace.latestApproval?.requestId ?? null;
+}
+
+function LifecycleV2ExceptionPanel({ workspace, formalActionsUnopened, unopenedMessage }: { workspace: NumberingDraftWorkspace; formalActionsUnopened: boolean; unopenedMessage: string }) {
+  const lifecycle = workspace.lifecycleV2!;
+  const content = lifecycle.stage === "recovery_required"
+    ? { title: "正式化未完成", detail: "系統未留下部分正式資料。請由 PDM Admin 檢視原核准 snapshot 並冪等重試。" }
+    : lifecycle.stage === "auto_finalizing"
+      ? { title: "核准完成，系統正在建立正式資料", detail: "此階段不需要人工按正式發布；請等待交易完成。" }
+      : lifecycle.stage === "history_only"
+        ? { title: "此案只保留歷史紀錄", detail: "已取消或回收的候選號不提供復活與發布捷徑。" }
+        : { title: "既有保留號已接入新流程", detail: "原號碼審核證據仍保留；只補齊首版差異，不會冒充為圖面核准。" };
+  return <section className="number-state-now-what" data-now-what-exception={lifecycle.exceptionKind}><div><span>需要注意</span><strong>{content.title}</strong><small>{formalActionsUnopened ? unopenedMessage : content.detail}</small></div></section>;
+}
+
+function LifecycleV2PrimaryAction({ workspace, busy, onSubmit, onWithdraw, formalActionsUnopened, unopenedMessage }: { workspace: NumberingDraftWorkspace; busy: boolean; onSubmit: () => void; onWithdraw: () => void; formalActionsUnopened: boolean; unopenedMessage: string }) {
+  const lifecycle = workspace.lifecycleV2!;
+  const requestId = bundleRequestId(workspace);
+  if (lifecycle.stage === "bundle_ready") {
+    return <section className="number-state-drawer-section lifecycle-v2-primary-action"><div><strong>圖料號、關係、版次與 finalized 檔案證據已齊。</strong><span>送審後整包內容會鎖定；核准後由系統原子正式化。</span></div>{formalActionsUnopened ? <UnopenedAction label="送交審核" reason={unopenedMessage}><LockKeyhole size={15} /></UnopenedAction> : <button className="primary-button" data-primary-action="submit-bundle-review" type="button" onClick={onSubmit} disabled={busy}><LockKeyhole size={15} />送交審核</button>}</section>;
+  }
+  if (lifecycle.stage === "in_review" && requestId) {
+    return <section className="number-state-drawer-section lifecycle-v2-primary-action"><div><strong>整包內容已鎖定並等待審核。</strong><span>核准後不需要再按人工正式發布；送審者仍可撤回補正。</span></div><div className="number-state-inline-actions">{workspace.capabilities.canWithdrawReview ? formalActionsUnopened ? <UnopenedAction label="撤回審核" reason={unopenedMessage}><RotateCcw size={15} /></UnopenedAction> : <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}{formalActionsUnopened ? <UnopenedAction label="查看審核" reason={unopenedMessage}><FileText size={15} /></UnopenedAction> : <Link className="primary-button" data-primary-action="view-review" href={`/approvals?requestId=${encodeURIComponent(requestId)}`}><FileText size={15} />查看審核</Link>}</div></section>;
+  }
+  if (lifecycle.stage === "official_controlled") {
+    const formalDrawingId = workspace.candidateRevisions.find((candidate) => candidate.formalDrawingNumberId)?.formalDrawingNumberId;
+    return <section className="number-state-drawer-section lifecycle-v2-primary-action"><div><strong>圖料號已正式建立；研發版已核准。</strong><span>小數研發版仍未正式發行，不會成為量產現行版次。</span></div><Link className="primary-button" data-primary-action="view-formal-drawing" href={formalDrawingId ? `/numbering/drawings?detail=${encodeURIComponent(formalDrawingId)}` : "/numbering/drawings"}><FileText size={15} />查看正式圖面</Link></section>;
+  }
+  if (lifecycle.stage === "recovery_required" && requestId) {
+    return <section className="number-state-drawer-section lifecycle-v2-primary-action"><div><strong>正式化未完成，沒有留下部分正式資料。</strong><span>PDM Admin 可由原核准 snapshot 重試。</span></div><Link className="primary-button" data-primary-action="retry-formalization" href={`/approvals?requestId=${encodeURIComponent(requestId)}`}><RefreshCcw size={15} />查看處理狀態</Link></section>;
+  }
+  return null;
 }
 
 function RevisionPreparationPanel({
@@ -1619,7 +1864,7 @@ function RevisionPreparationPanel({
   );
 }
 
-function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: NumberingDraftWorkspace; busy: boolean; onCancel: () => void; onSave: (payload: Record<string, unknown>) => void }) {
+function WorkspaceEditForm({ workspace, busy, seriesCodeOptions, onCancel, onSave }: { workspace: NumberingDraftWorkspace; busy: boolean; seriesCodeOptions: string[]; onCancel: () => void; onSave: (payload: Record<string, unknown>) => void }) {
   const [root, setRoot] = useState(workspace.root ? { ...workspace.root } : null);
   const [parts, setParts] = useState(workspace.parts.map((part) => ({ ...part })));
   const [drawings, setDrawings] = useState(workspace.drawings.map((drawing) => ({ ...drawing })));
@@ -1634,7 +1879,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
           if (!showSeriesCode && !showUniversalReason) return null;
           return (
             <div className="number-state-edit-list" key={part.id}>
-              {showSeriesCode ? <Field label={`系列代號 ${index + 1}（選填）`} hint="非共用件會納入建議品名；跨專案共用時不納入品名。"><input value={part.seriesCode ?? ""} maxLength={80} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: event.target.value } : item))} /></Field> : null}
+              {showSeriesCode ? <SeriesCodeField label={`系列代號 ${index + 1}（選填）`} value={part.seriesCode ?? ""} options={seriesCodeOptions} onChange={(value) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, seriesCode: value } : item))} /> : null}
               {showUniversalReason ? <Field label={`共用原因 ${index + 1}`} required><input value={part.universalReason ?? ""} maxLength={1000} onChange={(event) => setParts((items) => items.map((item) => item.id === part.id ? { ...item, universalReason: event.target.value } : item))} /></Field> : null}
             </div>
           );
@@ -1661,7 +1906,7 @@ function WorkspaceEditForm({ workspace, busy, onCancel, onSave }: { workspace: N
   );
 }
 
-function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action: WorkspaceAction; workspace: NumberingDraftWorkspace; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+function ConfirmDialog({ action, workspace, busy, lifecycleV2Enabled = false, onClose, onConfirm }: { action: WorkspaceAction; workspace: NumberingDraftWorkspace; busy: boolean; lifecycleV2Enabled?: boolean; onClose: () => void; onConfirm: () => void }) {
   const content = ({
     cancel: {
       title: "取消申請並釋出號碼",
@@ -1672,15 +1917,15 @@ function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action
       danger: true
     },
     submit: {
-      title: "送交正式發布審核",
-      strong: "送審後申請與保留號碼將鎖定",
-      detail: "核准只代表允許發布，不會建立正式主檔；核准後仍需由具發布權限的人員執行正式發布。",
-      confirm: "確認送交審核",
+      title: lifecycleV2Enabled ? "送交圖料與首版整包審核" : "送交正式發布審核",
+      strong: lifecycleV2Enabled ? "送審後圖料號、關係、版次與檔案證據將一起鎖定" : "送審後申請與保留號碼將鎖定",
+      detail: lifecycleV2Enabled ? "核准後由系統原子建立正式圖料號與受控研發首版，不需要再按人工正式發布。" : "核准只代表允許發布，不會建立正式主檔；核准後仍需由具發布權限的人員執行正式發布。",
+      confirm: lifecycleV2Enabled ? "確認整包送審" : "確認送交審核",
       icon: <LockKeyhole size={22} />,
       danger: false
     },
     withdraw: {
-      title: "撤回正式發布審核",
+      title: lifecycleV2Enabled ? "撤回整包審核" : "撤回正式發布審核",
       strong: "撤回後核准流程將中止",
       detail: "保留號碼會解除審核鎖定，申請可修改後再次送審。",
       confirm: "確認撤回審核",
@@ -1700,6 +1945,38 @@ function ConfirmDialog({ action, workspace, busy, onClose, onConfirm }: { action
   useOverlayLifecycle(dialogRef, onClose, busy);
   return (
     <div className="number-state-modal-backdrop" role="presentation"><section ref={dialogRef} className="number-state-modal number-state-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="number-state-confirm-title"><div className="number-state-modal-header"><div><h2 id="number-state-confirm-title">{content.title}</h2><p>{workspaceTitle(workspace)}</p></div><button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="關閉確認"><X size={20} /></button></div><div className={`number-state-confirm-summary${content.danger ? " is-danger" : ""}`}>{content.icon}<div><strong>{content.strong}</strong><p>{content.detail}</p></div></div><div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy} data-autofocus>返回檢查</button><button className={content.danger ? "danger-button" : "primary-button"} type="button" onClick={onConfirm} disabled={busy}>{action === "cancel" ? <Ban size={16} /> : action === "withdraw" ? <RotateCcw size={16} /> : <Check size={16} />}{busy ? "處理中..." : content.confirm}</button></div></section></div>
+  );
+}
+
+function SeriesCodeField({
+  label,
+  value,
+  options,
+  onChange,
+  dataQc
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  dataQc?: string;
+}) {
+  const listId = useId();
+  return (
+    <Field label={label} hint="可選既有系列代號或輸入新代號；儲存後會自動加入共用選項。">
+      <input
+        data-qc={dataQc}
+        list={listId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={80}
+        placeholder="例如：JF、100L、S1"
+        autoComplete="off"
+      />
+      <datalist id={listId}>
+        {options.map((option) => <option value={option} key={option} />)}
+      </datalist>
+    </Field>
   );
 }
 
@@ -1730,6 +2007,37 @@ function LifecycleBadge({ lifecycle }: { lifecycle: NumberStateProjection["lifec
 
 function candidateCodes(workspace: NumberingDraftWorkspace) {
   return workspace.reservations.filter((reservation) => reservation.state !== "recycled").map((reservation) => reservation.candidateCode);
+}
+
+function workspaceMatchesModule(workspace: NumberingDraftWorkspace, module: NumberStateModule) {
+  if (module === "drawings") return workspace.drawings.length > 0;
+  if (module === "parts") return workspace.parts.length > 0;
+  return workspace.parts.length > 0 || workspace.drawings.length > 0;
+}
+
+function candidateCodesForModule(workspace: NumberingDraftWorkspace, module: NumberStateModule) {
+  return workspace.reservations
+    .filter((reservation) => {
+      if (reservation.state === "recycled" || reservation.itemType === "root") return false;
+      if (module === "drawings") return reservation.itemType === "drawing";
+      if (module === "parts") return reservation.itemType === "part";
+      return reservation.itemType === "part" || reservation.itemType === "drawing";
+    })
+    .map((reservation) => reservation.candidateCode);
+}
+
+function moduleSearchValues(workspace: NumberingDraftWorkspace, module: NumberStateModule) {
+  const partValues = workspace.parts.flatMap((part) => [part.partName, part.candidateCode]);
+  const drawingValues = workspace.drawings.flatMap((drawing) => [drawing.purposeDescription, drawing.candidateCode]);
+  if (module === "drawings") return drawingValues;
+  if (module === "parts") return partValues;
+  return [...partValues, ...drawingValues];
+}
+
+function moduleContentSummary(workspace: NumberingDraftWorkspace, module: NumberStateModule) {
+  if (module === "drawings") return `${workspace.drawings.length} 圖號`;
+  if (module === "parts") return `${workspace.parts.length} 料號`;
+  return `${workspace.drawings.length} 圖號 · ${workspace.parts.length} 料號`;
 }
 
 function getReservedDrawingCandidates(workspace: NumberingDraftWorkspace): DraftDrawing[] {

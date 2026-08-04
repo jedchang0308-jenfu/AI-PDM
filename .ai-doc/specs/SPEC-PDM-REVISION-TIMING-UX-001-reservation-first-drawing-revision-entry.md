@@ -6,6 +6,8 @@ Owner: Dev PM
 Related DEV: `DEV-051` / `DEV-PDM-REVISION-TIMING-UX-001`
 Related QA: `.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md`
 
+2026-08-03 contract amendment：`DEV-052` 已決定 candidate 階段可透過獨立 candidate revision aggregate 建立／編輯首版圖面，因此 DEV-052 啟用後，本規格的 publication-gated CTA 會改為候選首版入口；這不會在 reservation row 保存 revision，也不會在核准前建立 formal revision authority。既有 runtime 在 DEV-052 完成實作、QA/QC 與 release gate 前仍維持本規格行為。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
+
 Related authority:
 
 - `.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`

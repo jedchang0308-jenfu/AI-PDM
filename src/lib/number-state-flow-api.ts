@@ -129,3 +129,26 @@ export function validateNumberStateMutationRequest(input: {
   }
   return null;
 }
+
+export function validateNumberStateMultipartMutationRequest(input: {
+  request: Request;
+  idempotencyKey?: string | null;
+  requireIdempotency?: boolean;
+}) {
+  const contentType = input.request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("multipart/form-data")) {
+    return numberStateFlowJson(errorEnvelope("multipart_request_required", "Content-Type multipart/form-data is required.", false), { status: 415 });
+  }
+  const fetchSite = input.request.headers.get("sec-fetch-site")?.toLowerCase();
+  if (fetchSite === "cross-site") {
+    return numberStateFlowJson(errorEnvelope("same_origin_required", "Cross-site mutation requests are not allowed.", false), { status: 403 });
+  }
+  const origin = input.request.headers.get("origin");
+  if (origin && !requestAllowedOrigins(input.request).has(origin)) {
+    return numberStateFlowJson(errorEnvelope("same_origin_required", "Cross-origin mutation requests are not allowed.", false), { status: 403 });
+  }
+  if (input.requireIdempotency && !/^[A-Za-z0-9._:/-]{1,200}$/u.test(input.idempotencyKey?.trim() ?? "")) {
+    return numberStateFlowJson(errorEnvelope("idempotency_key_required", "A valid Idempotency-Key is required.", false), { status: 400 });
+  }
+  return null;
+}

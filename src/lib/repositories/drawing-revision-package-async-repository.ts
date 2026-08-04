@@ -50,6 +50,7 @@ type DrawingRevisionPackageRow = {
   submitted_at: string | null;
   released_at: string | null;
   snapshot_json: string | null;
+  effective_status?: DrawingRevisionPackageStatus | "ReviewApproved";
 };
 
 type FileAssetRow = {
@@ -93,9 +94,20 @@ export class AsyncDrawingRevisionPackageRepository {
   async getPackageBySubmissionId(submissionId: string) {
     return this.client.queryOne<DrawingRevisionPackageRow>(
       `
-      SELECT *
-      FROM drawing_revision_packages
-      WHERE source_submission_id = :submissionId
+      SELECT package.*,
+             CASE
+               WHEN package.status = 'Pending'
+                AND companion.package_id = package.id
+                AND companion.snapshot_hash = candidate.review_snapshot_hash
+               THEN 'ReviewApproved'
+               ELSE package.status
+             END AS effective_status
+      FROM drawing_revision_packages package
+      LEFT JOIN drawing_revision_package_review_approvals companion ON companion.package_id = package.id
+      LEFT JOIN numbering_candidate_revision_drafts candidate
+        ON candidate.id = companion.candidate_revision_id
+       AND candidate.formal_revision_package_id = package.id
+      WHERE package.source_submission_id = :submissionId
       LIMIT 1
     `,
       { submissionId }
@@ -558,9 +570,20 @@ export class AsyncDrawingRevisionPackageRepository {
   private async getPackageById(packageId: string) {
     return this.client.queryOne<DrawingRevisionPackageRow>(
       `
-      SELECT *
-      FROM drawing_revision_packages
-      WHERE id = :packageId
+      SELECT package.*,
+             CASE
+               WHEN package.status = 'Pending'
+                AND companion.package_id = package.id
+                AND companion.snapshot_hash = candidate.review_snapshot_hash
+               THEN 'ReviewApproved'
+               ELSE package.status
+             END AS effective_status
+      FROM drawing_revision_packages package
+      LEFT JOIN drawing_revision_package_review_approvals companion ON companion.package_id = package.id
+      LEFT JOIN numbering_candidate_revision_drafts candidate
+        ON candidate.id = companion.candidate_revision_id
+       AND candidate.formal_revision_package_id = package.id
+      WHERE package.id = :packageId
       LIMIT 1
     `,
       { packageId }

@@ -68,11 +68,13 @@ export function StatusHelpPopover({ context = "generic", buttonLabel = "查看�
 
     function closeAndRestoreFocus() {
       setOpen(false);
+      setOverlayStyle(null);
       window.requestAnimationFrame(() => buttonRef.current?.focus());
     }
 
     function closeWithoutFocusRestore() {
       setOpen(false);
+      setOverlayStyle(null);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -140,6 +142,7 @@ export function StatusHelpPopover({ context = "generic", buttonLabel = "查看�
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
+          setOverlayStyle(null);
           setOpen((current) => !current);
         }}
       >
@@ -193,11 +196,13 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
 
     function closeAndRestoreFocus() {
       setOpen(false);
+      setOverlayStyle(null);
       window.requestAnimationFrame(() => buttonRef.current?.focus());
     }
 
     function closeWithoutFocusRestore() {
       setOpen(false);
+      setOverlayStyle(null);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -233,7 +238,7 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
           className="status-scope-help-popover"
           role="dialog"
           id={dialogId}
-          aria-label="資料範圍狀態說明"
+          aria-label={definition.title}
           data-status-scope-help="true"
           data-status-scope={scope}
           style={overlayStyle}
@@ -241,7 +246,7 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
         >
           <div className="status-scope-help-heading">
             <div>
-              <strong>狀態說明</strong>
+              <strong>{definition.title}</strong>
               <p>{definition.description}</p>
             </div>
             <button
@@ -249,9 +254,10 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
               type="button"
               onClick={() => {
                 setOpen(false);
+                setOverlayStyle(null);
                 window.requestAnimationFrame(() => buttonRef.current?.focus());
               }}
-              aria-label="關閉狀態說明"
+              aria-label={`關閉${definition.title}`}
             >
               ×
             </button>
@@ -297,6 +303,7 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
+          setOverlayStyle(null);
           setOpen((current) => !current);
         }}
       >

@@ -1098,15 +1098,18 @@ VALUES (
 
 UPDATE numbering_rule_versions
 SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), updated_at = datetime('now')
-WHERE id = 'numbering-rule-v1';
+WHERE id = 'numbering-rule-v1'
+  AND (status <> 'retired' OR retired_at IS NULL);
 
 UPDATE numbering_rule_versions
 SET status = 'retired', retired_at = COALESCE(retired_at, datetime('now')), updated_at = datetime('now')
-WHERE id = 'numbering-rule-v2';
+WHERE id = 'numbering-rule-v2'
+  AND (status <> 'retired' OR retired_at IS NULL);
 
 UPDATE numbering_rule_versions
 SET status = 'active', retired_at = NULL, updated_at = datetime('now')
-WHERE id = 'numbering-rule-v3-alpha-root';
+WHERE id = 'numbering-rule-v3-alpha-root'
+  AND (status <> 'active' OR retired_at IS NOT NULL);
 
 CREATE TABLE IF NOT EXISTS part_roots (
   id TEXT PRIMARY KEY,
@@ -1954,6 +1957,7 @@ INSERT OR IGNORE INTO approval_platform_actions (
 VALUES
   ('platform.test.fake', 'platform', '平台測試審核', 'RD/QC only fake handler used to verify platform submit, decide and idempotent apply behavior.', 'platform.fake', 'low', 0, 1, '{"qcOnly":true}'),
   ('numbering.candidate_publication_review', 'numbering', '候選號碼發布審核', 'Review a locked numbering candidate snapshot without publishing master records.', 'numbering.candidate-publication', 'high', 1, 1, '{}'),
+  ('numbering.candidate_bundle_review', 'numbering', '候選圖料整包審核', 'Review candidate numbers, drawing relationships, first revisions, and finalized file evidence as one immutable bundle.', 'numbering.candidate-bundle', 'high', 0, 1, '{}'),
   ('transfer.package_review', 'transfer', '技術移轉包審核', 'Review an immutable aggregate transfer snapshot without publishing master records.', 'transfer.package-review', 'high', 1, 1, '{}'),
   ('numbering.dvt_promotion', 'numbering', 'DVT 升階審核', 'Numbering DVT promotion compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
   ('numbering.release', 'numbering', '發行審核', 'Numbering release compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
@@ -2686,6 +2690,136 @@ CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
   FOREIGN KEY (created_by) REFERENCES users(id),
   UNIQUE (package_id, source_file_asset_id)
 );
+
+CREATE TABLE IF NOT EXISTS numbering_candidate_revision_drafts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  drawing_draft_id TEXT NOT NULL UNIQUE,
+  candidate_reservation_id TEXT NOT NULL UNIQUE,
+  revision TEXT NOT NULL CHECK (length(trim(revision)) > 0),
+  workflow_intent TEXT NOT NULL DEFAULT 'rd_workspace' CHECK (workflow_intent = 'rd_workspace'),
+  policy_snapshot_json TEXT NOT NULL DEFAULT '{}',
+  override_reason TEXT,
+  lifecycle_status TEXT NOT NULL DEFAULT 'draft'
+    CHECK (lifecycle_status IN ('draft', 'review_locked', 'promoted', 'cancelled')),
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  approval_request_id TEXT,
+  review_snapshot_hash TEXT,
+  legacy_baseline_request_id TEXT,
+  legacy_baseline_snapshot_hash TEXT,
+  formal_drawing_number_id TEXT,
+  formal_revision_package_id TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  promoted_at TEXT,
+  cancelled_at TEXT,
+  cancelled_by TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_draft_id) REFERENCES numbering_draft_drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_request_id) REFERENCES approval_platform_requests(id) ON DELETE RESTRICT,
+  FOREIGN KEY (legacy_baseline_request_id) REFERENCES approval_platform_requests(id) ON DELETE RESTRICT,
+  FOREIGN KEY (formal_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (formal_revision_package_id) REFERENCES drawing_revision_packages(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE RESTRICT,
+  CHECK (
+    (lifecycle_status = 'draft'
+      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL
+      AND promoted_at IS NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)
+    OR (lifecycle_status = 'review_locked'
+      AND approval_request_id IS NOT NULL AND review_snapshot_hash IS NOT NULL
+      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL
+      AND promoted_at IS NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)
+    OR (lifecycle_status = 'promoted'
+      AND approval_request_id IS NOT NULL AND review_snapshot_hash IS NOT NULL
+      AND formal_drawing_number_id IS NOT NULL AND formal_revision_package_id IS NOT NULL
+      AND promoted_at IS NOT NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)
+    OR (lifecycle_status = 'cancelled'
+      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL
+      AND promoted_at IS NULL AND cancelled_at IS NOT NULL AND cancelled_by IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_numbering_candidate_revision_drafts_workspace
+ON numbering_candidate_revision_drafts(company_id, workspace_id, lifecycle_status, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_numbering_candidate_revision_drafts_approval
+ON numbering_candidate_revision_drafts(company_id, approval_request_id)
+WHERE approval_request_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS numbering_candidate_revision_files (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  candidate_revision_id TEXT NOT NULL,
+  source_file_asset_id TEXT NOT NULL,
+  publication_evidence_id TEXT,
+  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
+  role_source TEXT NOT NULL CHECK (role_source IN ('extension', 'user', 'migration', 'system')),
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+  removed_at TEXT,
+  removed_by TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_revision_id) REFERENCES numbering_candidate_revision_drafts(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (publication_evidence_id) REFERENCES numbering_publication_evidence(id) ON DELETE RESTRICT,
+  FOREIGN KEY (removed_by) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (candidate_revision_id, source_file_asset_id),
+  CHECK (
+    (removed_at IS NULL AND removed_by IS NULL)
+    OR (removed_at IS NOT NULL AND removed_by IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_numbering_candidate_revision_files_candidate
+ON numbering_candidate_revision_files(company_id, candidate_revision_id, removed_at, sort_order, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_numbering_candidate_revision_files_active_primary_role
+ON numbering_candidate_revision_files(candidate_revision_id, role)
+WHERE is_primary = 1 AND removed_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_review_approvals (
+  package_id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  candidate_revision_id TEXT NOT NULL UNIQUE,
+  approval_request_id TEXT NOT NULL UNIQUE,
+  snapshot_hash TEXT NOT NULL CHECK (length(trim(snapshot_hash)) > 0),
+  approved_by TEXT NOT NULL,
+  approved_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE RESTRICT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_revision_id) REFERENCES numbering_candidate_revision_drafts(id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_request_id) REFERENCES approval_platform_requests(id) ON DELETE RESTRICT,
+  FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_review_approvals_scope
+ON drawing_revision_package_review_approvals(company_id, approved_at DESC);
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_package_review_approvals_no_update
+BEFORE UPDATE ON drawing_revision_package_review_approvals
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_PACKAGE_REVIEW_APPROVAL_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_package_review_approvals_no_delete
+BEFORE DELETE ON drawing_revision_package_review_approvals
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_PACKAGE_REVIEW_APPROVAL_IMMUTABLE');
+END;
 
 CREATE TABLE IF NOT EXISTS drawing_revision_package_supplements (
   id TEXT PRIMARY KEY,

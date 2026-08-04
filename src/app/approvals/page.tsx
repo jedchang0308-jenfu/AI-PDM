@@ -97,6 +97,7 @@ const actionFilters = [
   { value: "numbering.drawing_revision_impact_review", label: "圖面進版影響審核" },
   { value: "numbering.dvt_missing_ma_override", label: "DVT 缺製造圖例外" },
   { value: "numbering.main_drawing_restore", label: "主圖恢復審核" },
+  { value: "numbering.candidate_bundle_review", label: "候選圖料與首版整包審核" },
   { value: "numbering.obsolete_part_number", label: "料號作廢審核" },
   { value: "numbering.obsolete_ma_drawing", label: "圖號作廢審核" },
   { value: "numbering.obsolete_part_root", label: "主根作廢審核" },
@@ -169,10 +170,10 @@ export default function ApprovalPlatformPage() {
     [items]
   );
 
-  const loadInbox = useCallback(async () => {
+  const loadInbox = useCallback(async (options?: { preserveFeedback?: boolean; preserveSelection?: boolean }) => {
     setBusy("reload");
     setError("");
-    setMessage("");
+    if (!options?.preserveFeedback) setMessage("");
     const response = await fetch(buildInboxUrl(statusFilter, domainFilter, actionFilter));
     setBusy(null);
     if (response.status === 401) {
@@ -195,6 +196,7 @@ export default function ApprovalPlatformPage() {
     setSelectedId((current) => {
       if (deepLinkedItem) return deepLinkedItem.id;
       if (current && nextItems.some((item) => item.id === current)) return current;
+      if (options?.preserveSelection && current) return current;
       return nextItems[0]?.id ?? null;
     });
     if (deepLinkedItem) setDeepLinkedRequestId(null);
@@ -251,7 +253,7 @@ export default function ApprovalPlatformPage() {
     setDetail(body.request);
     setMessage(`已${decision === "approved" ? "核准" : decision === "rejected" ? "駁回" : "要求補資料"}`);
     window.dispatchEvent(new Event("approval-inbox-changed"));
-    await loadInbox();
+    await loadInbox({ preserveFeedback: true, preserveSelection: true });
   }
 
   async function retryApply() {
@@ -274,9 +276,13 @@ export default function ApprovalPlatformPage() {
       return;
     }
     setDetail(body.request);
-    setMessage("審核決策已重新套用。保留號碼仍需由具發布權限者另行正式發布。");
+    setMessage(
+      detail.actionCode === "numbering.candidate_bundle_review"
+        ? "原核准內容已完成正式化；不需要重新送審或人工正式發布。"
+        : "審核決策已重新套用。保留號碼仍需由具發布權限者另行正式發布。"
+    );
     window.dispatchEvent(new Event("approval-inbox-changed"));
-    await loadInbox();
+    await loadInbox({ preserveFeedback: true, preserveSelection: true });
   }
 
   return (
@@ -398,7 +404,7 @@ export default function ApprovalPlatformPage() {
                 <DetailField label="申請者" value={detail.requestedByName ?? detail.requestedBy ?? "未知"} />
                 <DetailField label="申請時間" value={formatDate(detail.requestedAt)} />
                 <DetailField label="批次" value={detail.packageCode ?? "-"} />
-                <DetailField label="來源" value={detail.legacy ? detail.legacy.table : "approval_platform_requests"} />
+                <DetailField label="流程來源" value={approvalSourceLabel(detail)} />
               </div>
 
               <section className="approval-detail-section">
@@ -406,9 +412,9 @@ export default function ApprovalPlatformPage() {
                 <div className="approval-target-list">
                   {detail.targets.map((target) => (
                     <div className="approval-target-row" key={target.id}>
-                      <span>{target.role}</span>
-                      <strong>{target.code ?? target.label}</strong>
-                      <small>{target.status ?? target.type}</small>
+                      <span>{approvalTargetRoleLabel(target.role)}</span>
+                      <strong>{approvalTargetLabel(detail, target)}</strong>
+                      <small>{approvalTargetStatusLabel(target.status, target.type)}</small>
                     </div>
                   ))}
                 </div>
@@ -416,12 +422,17 @@ export default function ApprovalPlatformPage() {
 
               <section className="approval-detail-section">
                 <h3>原因</h3>
-                <p className="approval-reason">{detail.reason}</p>
+                <p className="approval-reason">{approvalReasonLabel(detail.reason)}</p>
               </section>
 
               <section className="approval-detail-section">
                 <h3>影響快照</h3>
-                <pre className="approval-json">{JSON.stringify(detail.impactSnapshots[0]?.snapshot ?? {}, null, 2)}</pre>
+                <ApprovalImpactSummary detail={detail} />
+                <details className="approval-audit-details" data-approval-audit-details>
+                  <summary>查看稽核明細</summary>
+                  <p>此區只供追溯鎖定內容與系統處理依據，日常核准不需閱讀。</p>
+                  <pre className="approval-json">{JSON.stringify(detail.impactSnapshots[0]?.snapshot ?? {}, null, 2)}</pre>
+                </details>
               </section>
 
               <section className="approval-detail-section">
@@ -432,7 +443,7 @@ export default function ApprovalPlatformPage() {
                   <div className="approval-decision-history">
                     {detail.decisions.map((decision) => (
                       <div className="approval-target-row" key={decision.id}>
-                        <span>{decision.decision}</span>
+                        <span>{approvalDecisionLabel(decision.decision)}</span>
                         <strong>{decision.approverName ?? decision.approverId}</strong>
                         <small>{decision.comment || formatDate(decision.decidedAt)}</small>
                       </div>
@@ -467,13 +478,24 @@ export default function ApprovalPlatformPage() {
                 </section>
               ) : null}
 
-              {detail.status === "apply_failed" && detail.actionCode === "numbering.candidate_publication_review" ? (
+              {detail.status === "apply_failed" && (
+                detail.actionCode === "numbering.candidate_publication_review" ||
+                detail.actionCode === "numbering.candidate_bundle_review"
+              ) ? (
                 <section className="approval-decision-box" aria-label="審核套用重試">
-                  <p className="approval-reason">決策已保存，但候選鎖定套用失敗；重試不會新增第二筆決策，也不會正式發布。</p>
+                  <p className="approval-reason">
+                    {detail.actionCode === "numbering.candidate_bundle_review"
+                      ? "核准決策已保存，但正式資料尚未完成。系統沒有留下部分正式資料；可安全重試原核准內容，不會重新送審或換號。"
+                      : "決策已保存，但候選鎖定套用失敗；重試不會新增第二筆決策，也不會正式發布。"}
+                  </p>
                   <div className="approval-decision-actions">
                     <button className="primary-button" type="button" onClick={() => void retryApply()} disabled={Boolean(busy)}>
                       <RefreshCw size={16} aria-hidden="true" />
-                      {busy === "retry-apply" ? "重試中..." : "重試套用"}
+                      {busy === "retry-apply"
+                        ? "重試中..."
+                        : detail.actionCode === "numbering.candidate_bundle_review"
+                          ? "重試正式化"
+                          : "重試套用"}
                     </button>
                   </div>
                 </section>
@@ -505,6 +527,117 @@ function DetailField({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function ApprovalImpactSummary({ detail }: { detail: ApprovalDetail }) {
+  const snapshot = asRecord(detail.impactSnapshots[0]?.snapshot);
+  if (detail.actionCode !== "numbering.candidate_bundle_review") {
+    return <p className="approval-reason">{detail.impactSummary || "審核影響已鎖定；請確認目標與決策內容。"}</p>;
+  }
+
+  const reservations = asRecordArray(snapshot.lockedReservations);
+  const candidates = asRecordArray(snapshot.candidateRevisions);
+  const numberFacts = asRecord(snapshot.numberFacts);
+  const relations = asRecordArray(numberFacts.relations);
+  const codes = reservations.map((item) => stringValue(item.candidateCode)).filter(Boolean);
+  const fileCount = candidates.reduce((total, item) => total + asRecordArray(item.files).length, 0);
+  const primaryFileCount = candidates.reduce(
+    (total, item) => total + asRecordArray(item.files).filter((file) => file.isPrimary === true).length,
+    0
+  );
+
+  return (
+    <div className="approval-impact-summary" data-approval-bundle-summary>
+      <div className="approval-detail-summary">
+        <DetailField label="候選圖料號" value={codes.join("、") || detail.targetSummary} />
+        <DetailField label="候選首版" value={`${candidates.length} 版`} />
+        <DetailField label="主要檔案" value={`${primaryFileCount}/${fileCount}`} />
+        <DetailField label="圖料關係" value={`${relations.length} 筆`} />
+        <DetailField label="核准後" value="系統自動正式化" />
+        <DetailField label="使用效力" value="研發版核准；尚未正式發行" />
+      </div>
+      <div className="approval-target-list">
+        {candidates.map((candidate, index) => {
+          const files = asRecordArray(candidate.files);
+          return (
+            <div className="approval-target-row" key={stringValue(candidate.id) || `candidate-${index}`}>
+              <span>候選首版</span>
+              <strong>{stringValue(candidate.revision) ? `版次 ${stringValue(candidate.revision)}` : `首版 ${index + 1}`}</strong>
+              <small>{files.length} 個檔案證據</small>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function approvalSourceLabel(detail: ApprovalDetail) {
+  if (detail.legacy) return "既有審核紀錄";
+  return detail.actionCode === "numbering.candidate_bundle_review" ? "候選圖料整包送審" : "系統審核流程";
+}
+
+function approvalTargetRoleLabel(role: ApprovalDetail["targets"][number]["role"]) {
+  return ({ primary: "主要案件", child: "審核內容", impact: "影響項目" } as const)[role];
+}
+
+function approvalTargetLabel(detail: ApprovalDetail, target: ApprovalDetail["targets"][number]) {
+  if (target.code) return target.code;
+  if (detail.actionCode === "numbering.candidate_bundle_review" && target.role === "child") {
+    const revision = target.label.split("/")[0]?.trim();
+    return revision ? `首版 ${revision}` : "候選首版";
+  }
+  return target.label;
+}
+
+function approvalTargetStatusLabel(status: string | null, type: string) {
+  const statusLabels: Record<string, string> = {
+    active: "準備中",
+    review_locked: "送審後已鎖定",
+    approved_locked: "號碼已核准，待補圖面",
+    promoted: "已正式建立",
+    pending: "等待審核",
+    approved: "已核准",
+    rejected: "已駁回",
+    cancelled: "已取消"
+  };
+  if (status && statusLabels[status]) return statusLabels[status];
+  const typeLabels: Record<string, string> = {
+    numbering_draft_workspace: "保留號案件",
+    numbering_candidate_revision: "候選首版",
+    drawing_number: "圖號",
+    part_number: "料號",
+    part_root: "主根"
+  };
+  return typeLabels[type] ?? "審核項目";
+}
+
+function approvalReasonLabel(reason: string) {
+  const reasonLabels: Record<string, string> = {
+    draft_owner_confirmed_candidate_bundle_review: "申請者已確認圖料號、關係、版次與檔案證據完整，送交整包審核。",
+    draft_owner_withdrew_candidate_bundle_review: "申請者已撤回整包審核，內容可繼續修正。",
+    draft_owner_confirmed_candidate_publication_review: "申請者已確認保留號內容，送交發布審核。"
+  };
+  if (reasonLabels[reason]) return reasonLabels[reason];
+  return /^[a-z0-9_.-]+$/u.test(reason)
+    ? "已依流程提出審核，請確認目標與影響後決策。"
+    : reason;
+}
+
+function approvalDecisionLabel(decision: ApprovalDecision) {
+  return ({ approved: "核准", rejected: "駁回", needs_info: "要求補資料" } as const)[decision];
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function asRecordArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.map(asRecord) : [];
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function allowedDecisionsForDetail(detail: ApprovalDetail): ApprovalDecision[] {

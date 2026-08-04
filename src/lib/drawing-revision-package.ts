@@ -1,6 +1,23 @@
 import type { RevisionPackageFileRole } from "@/lib/revision-package";
 
 export type DrawingRevisionPackageStatus = "Draft" | "Pending" | "Released" | "Rejected" | "Cancelled";
+export type DrawingRevisionPackageEffectiveStatus = DrawingRevisionPackageStatus | "ReviewApproved";
+
+export function projectDrawingRevisionPackageEffectiveStatus(input: {
+  physicalStatus: DrawingRevisionPackageStatus;
+  packageId: string;
+  companionPackageId?: string | null;
+  companionSnapshotHash?: string | null;
+  candidateReviewSnapshotHash?: string | null;
+}): DrawingRevisionPackageEffectiveStatus {
+  if (
+    input.physicalStatus === "Pending" &&
+    input.companionPackageId === input.packageId &&
+    Boolean(input.companionSnapshotHash) &&
+    input.companionSnapshotHash === input.candidateReviewSnapshotHash
+  ) return "ReviewApproved";
+  return input.physicalStatus;
+}
 export type DrawingRevisionPackageSupplementStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
 export type DrawingRevisionPackageSupplementReasonCode =
   | "format_file"

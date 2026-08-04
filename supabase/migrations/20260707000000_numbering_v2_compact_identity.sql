@@ -1,9 +1,19 @@
 -- Add compact PDM numbering v2 seed and allow M/R drawing purpose codes
 -- Source: db/postgres/004_numbering_v2_compact_identity.sql
--- Source SHA-256: ae8a46c3aceb1524e1318470eb57217e47177a85087f7558dd16e0ca9b2446e0
+-- Source SHA-256: ee45a2c20cd72a2e1aedf34a92fa50959046ea274ebcb9b7658bc4dc17dbc624
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 BEGIN;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v1',
+  'PDM-NUMBERING-V1',
+  'PDM numbering rule v1',
+  'active',
+  '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+)
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
 VALUES (
@@ -20,13 +30,33 @@ ON CONFLICT (id) DO UPDATE SET
   rule_json = EXCLUDED.rule_json,
   updated_at = now();
 
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v3-alpha-root',
+  'PDM-NUMBERING-V3',
+  'PDM alphanumeric root numbering rule v3',
+  'active',
+  '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+)
+ON CONFLICT (id) DO UPDATE SET
+  rule_code = EXCLUDED.rule_code,
+  title = EXCLUDED.title,
+  status = EXCLUDED.status,
+  retired_at = NULL,
+  rule_json = EXCLUDED.rule_json,
+  updated_at = now();
+
 UPDATE numbering_rule_versions
 SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
 WHERE id = 'numbering-rule-v1';
 
 UPDATE numbering_rule_versions
-SET status = 'active', retired_at = NULL, updated_at = now()
+SET status = 'retired', retired_at = COALESCE(retired_at, now()), updated_at = now()
 WHERE id = 'numbering-rule-v2';
+
+UPDATE numbering_rule_versions
+SET status = 'active', retired_at = NULL, updated_at = now()
+WHERE id = 'numbering-rule-v3-alpha-root';
 
 WITH default_rules (
   id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
@@ -70,6 +100,17 @@ INSERT INTO approval_rules (
 )
 SELECT
   'v2-' || id, 'numbering-rule-v2', rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, now(), now()
+FROM approval_rules
+WHERE rule_version_id = 'numbering-rule-v1'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO approval_rules (
+  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
+)
+SELECT
+  'v3-' || id, 'numbering-rule-v3-alpha-root', rule_name, action_code, phase, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, now(), now()
 FROM approval_rules
 WHERE rule_version_id = 'numbering-rule-v1'

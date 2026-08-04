@@ -18,9 +18,10 @@ process.env.PDM_DB_PROVIDER = "sqlite";
 
 let db;
 try {
-  const [{ getDb }, numbering, platform, numberStateFlow] = await Promise.all([
+  const [{ getDb }, numbering, numberingAsync, platform, numberStateFlow] = await Promise.all([
     import("@/lib/db"),
     import("@/lib/repositories/numbering-repository"),
+    import("@/lib/numbering-async"),
     import("@/lib/platform-command"),
     import("@/lib/number-state-flow")
   ]);
@@ -38,6 +39,7 @@ try {
   });
   const manufacturedRow = db.prepare("SELECT series_code FROM part_numbers WHERE id = ?").get(manufactured.partNumber.id);
   record("SERIES-002 manufactured non-universal part persists normalized series code", manufactured.partNumber.seriesCode === "JF-200" && manufacturedRow?.series_code === "JF-200", JSON.stringify({ record: manufactured.partNumber.seriesCode, row: manufacturedRow?.series_code }));
+  numbering.addDrawingNumberToRoot({ rootCode: manufactured.root.rootCode, purposeCode: "M" });
 
   const universal = numbering.createNumberingRecord({
     coreName: "Series Code Universal",
@@ -87,6 +89,12 @@ try {
     roles: ["Engineer", "rd"],
     scopes: ["numbering.workspace.create", "numbering.workspace.update"]
   });
+  const numberStateActor = {
+    userId: actor.pdmUserId,
+    companyId: actor.organizationId,
+    role: actor.roles[0] ?? "Engineer",
+    roles: actor.roles
+  };
   const created = await numberStateFlow.createNumberingDraftWorkspace({
     metadata: { actor, idempotencyKey: "series-code:create" },
     body: {
@@ -118,6 +126,39 @@ try {
   });
   record("SERIES-007 draft update persists normalized series code", updated.parts[0]?.seriesCode === "S2", JSON.stringify({ seriesCode: updated.parts[0]?.seriesCode }));
 
+  const seriesCodeOptions = await numberingAsync.listSeriesCodeOptionsAsync("company-jenfu");
+  record(
+    "SERIES-008 shared options are generated from official and reserved data",
+    seriesCodeOptions.includes("JF-200") && seriesCodeOptions.includes("S2") && !seriesCodeOptions.includes("MUST-NOT-PERSIST"),
+    JSON.stringify(seriesCodeOptions)
+  );
+
+  const [filteredParts, filteredDrawings, filteredSearch, filteredDrafts] = await Promise.all([
+    numberingAsync.listPartModuleRecordsAsync({ companyId: "company-jenfu", seriesCode: "JF-200", limit: 100 }),
+    numberingAsync.listDrawingModuleRecordsAsync({ companyId: "company-jenfu", seriesCode: "JF-200", limit: 100 }),
+    numberingAsync.searchNumberingRecordsAsync({ companyId: "company-jenfu", seriesCode: "JF-200", limit: 100 }),
+    numberStateFlow.listNumberingDraftWorkspaces({ actor: numberStateActor, owner: "mine", seriesCode: "S2", limit: 100 })
+  ]);
+  record(
+    "SERIES-009 module filters use actual series-code ownership",
+    filteredParts.length === 1 &&
+      filteredParts[0]?.partNumber === manufactured.partNumber.partNumber &&
+      filteredDrawings.length === 1 &&
+      filteredDrawings[0]?.rootCode === manufactured.root.rootCode &&
+      filteredSearch.length === 3 &&
+      filteredSearch.every((item) => item.rootCode === manufactured.root.rootCode),
+    JSON.stringify({
+      parts: filteredParts.map((item) => item.partNumber),
+      drawings: filteredDrawings.map((item) => item.drawingNumber),
+      search: filteredSearch.map((item) => `${item.entityType}:${item.displayCode}`)
+    })
+  );
+  record(
+    "SERIES-010 reserved workspace filter matches draft part series code",
+    filteredDrafts.length === 1 && filteredDrafts[0]?.id === created.workspace.id,
+    JSON.stringify(filteredDrafts.map((item) => item.id))
+  );
+
   let draftTooLongError = "";
   try {
     await numberStateFlow.createNumberingDraftWorkspace({
@@ -133,12 +174,56 @@ try {
   } catch (error) {
     draftTooLongError = error instanceof Error ? error.message : String(error);
   }
-  record("SERIES-008 draft API rejects overlong series code without truncation", draftTooLongError.includes("80 characters or fewer"), draftTooLongError);
+  record("SERIES-011 draft API rejects overlong series code without truncation", draftTooLongError.includes("80 characters or fewer"), draftTooLongError);
 
   const repositorySource = fs.readFileSync(path.join(root, "src/lib/repositories/number-state-flow-async-repository.ts"), "utf8");
   const requestUiSource = fs.readFileSync(path.join(root, "src/components/number-state-workspace.tsx"), "utf8");
-  record("SERIES-009 publication copies series code to official part", repositorySource.includes("custom_specification, series_code, development_phase") && repositorySource.includes("seriesCode: part.seriesCode"), "publication SQL and parameter mapping");
-  record("SERIES-010 owner UI limits field to manufactured part", requestUiSource.includes('form.partItemKind === "manufactured"') && requestUiSource.includes("系列代號（選填）") && requestUiSource.includes("maxLength={80}"), "owner workspace eligibility and limit");
+  const asyncRepositorySource = fs.readFileSync(path.join(root, "src/lib/repositories/numbering-async-repository.ts"), "utf8");
+  const modulePageSources = [
+    "src/app/numbering/drawings/page.tsx",
+    "src/app/parts/page.tsx",
+    "src/app/numbering/search/page.tsx"
+  ].map((file) => fs.readFileSync(path.join(root, file), "utf8"));
+  const apiSources = [
+    "src/app/api/numbering/drawings/route.ts",
+    "src/app/api/parts/route.ts",
+    "src/app/api/numbering/relations/route.ts",
+    "src/app/api/numbering/draft-workspaces/route.ts"
+  ].map((file) => fs.readFileSync(path.join(root, file), "utf8"));
+  record("SERIES-012 publication copies series code to official part", repositorySource.includes("custom_specification, series_code, development_phase") && repositorySource.includes("seriesCode: part.seriesCode"), "publication SQL and parameter mapping");
+  record(
+    "SERIES-013 all module pages expose the shared series-code filter",
+    modulePageSources.every((source) => source.includes('seriesCodeOptions') && source.includes('params.set("seriesCode", seriesCode)') && source.includes('系列代號')) &&
+      requestUiSource.includes('<span>系列代號</span>') &&
+      requestUiSource.includes('params.set("seriesCode", seriesCode)'),
+    "drawings, parts, search, and reserved workspace"
+  );
+  record(
+    "SERIES-014 module pages remove the deprecated product-series filter",
+    modulePageSources.every((source) => !source.includes("productSeries") && !source.includes("產品系列") && !source.includes('allLabel="全部系列"') && !source.includes('option value="">全部系列</option>')),
+    "drawings, parts, and search no longer render product-series controls"
+  );
+  record(
+    "SERIES-015 create and edit fields reuse generated options without blocking new codes",
+    requestUiSource.includes("function SeriesCodeField") &&
+      requestUiSource.includes("<datalist") &&
+      requestUiSource.includes("可選既有系列代號或輸入新代號") &&
+      requestUiSource.includes('form.partItemKind === "manufactured"') &&
+      requestUiSource.includes("maxLength={80}"),
+    "owner workspace eligibility, shared datalist, and limit"
+  );
+  record(
+    "SERIES-016 APIs and async repository expose one generated option source",
+    apiSources.every((source) => source.includes("listSeriesCodeOptionsAsync") && source.includes("seriesCodeOptions")) &&
+      asyncRepositorySource.includes("async listSeriesCodeOptions") &&
+      asyncRepositorySource.includes("SELECT series_code FROM numbering_draft_parts"),
+    "official and reserved APIs share the same options"
+  );
+  record(
+    "SERIES-017 module pages remove redundant top summary metrics",
+    modulePageSources.every((source) => !source.includes("CompactSummary") && !source.includes("relationSummary") && !source.includes("summarizeRelationRoots")),
+    "drawings, parts, and search keep titles and filters without summary chips"
+  );
 } catch (error) {
   record("SERIES-fixture", false, error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error));
 } finally {

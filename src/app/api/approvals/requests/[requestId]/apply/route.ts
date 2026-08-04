@@ -13,6 +13,8 @@ import {
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
+import { retryNumberingCandidateBundleApply } from "@/lib/number-lifecycle-simplification";
+import { numberStateFlowErrorResponse } from "@/lib/number-state-flow-api";
 
 export const runtime = "nodejs";
 
@@ -28,6 +30,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   if (company.response || !company.company) return company.response;
   const detail = await getApprovalPlatformRequestDetailForCompanyAsync(decodedRequestId, company.company.companyId);
   if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+
+  if (detail.actionCode === "numbering.candidate_bundle_review") {
+    const invalid = validateNumberStateMutationRequest({
+      request,
+      idempotencyKey: request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+      requireIdempotency: true
+    });
+    if (invalid) return invalid;
+    const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.candidate.review.decide", body: {} });
+    if (access.response || !access.metadata || !access.actor) return access.response;
+    if (detail.companyId !== access.actor.organizationId) {
+      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+    }
+    try {
+      const result = await retryNumberingCandidateBundleApply({ metadata: access.metadata, requestId: decodedRequestId });
+      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
+      return NextResponse.json({ request: updated, ...result });
+    } catch (error) {
+      return numberStateFlowErrorResponse(error, "Candidate bundle formalization retry failed.");
+    }
+  }
 
   if (detail.actionCode === "numbering.candidate_publication_review") {
     const invalid = validateNumberStateMutationRequest({

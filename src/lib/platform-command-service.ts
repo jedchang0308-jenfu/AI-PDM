@@ -20,6 +20,7 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     payload: Record<string, unknown>;
     idempotencyKeySuffix?: string;
   }>;
+  idempotencyPayload?: unknown;
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 }): Promise<{ result: TResult; reusedFromCommandReceipt: boolean }> {
   return input.client.transaction(async (client) => {
@@ -42,12 +43,12 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     };
 
     const outbox = new PlatformOutboxAsyncRepository(client);
-    const existing = await outbox.findCompletedCommand<TResult>(command);
+    const existing = await outbox.findCompletedCommand<TResult>(command, input.idempotencyPayload);
     if (existing !== null) return { result: existing, reusedFromCommandReceipt: true };
 
-    const claimed = await outbox.claimCommand(command);
+    const claimed = await outbox.claimCommand(command, input.idempotencyPayload);
     if (!claimed) {
-      const completed = await outbox.findCompletedCommand<TResult>(command);
+      const completed = await outbox.findCompletedCommand<TResult>(command, input.idempotencyPayload);
       if (completed !== null) return { result: completed, reusedFromCommandReceipt: true };
       throw new Error("PLATFORM_COMMAND_IN_PROGRESS");
     }
@@ -59,7 +60,7 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
       await outbox.enqueue({ command, ...event });
     }
     input.faultInjector?.("before_command_complete");
-    await outbox.completeCommand(command, result);
+    await outbox.completeCommand(command, result, input.idempotencyPayload);
     input.faultInjector?.("after_command_complete");
     return { result, reusedFromCommandReceipt: false };
   });

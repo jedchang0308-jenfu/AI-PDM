@@ -3483,11 +3483,28 @@ function addProductSeriesFilter(filters: string[], params: Record<string, unknow
   params.productSeriesPrefix = `${escapeLikeLiteral(normalized)}\\_%`;
 }
 
+function addSeriesCodeFilter(
+  filters: string[],
+  params: Record<string, unknown>,
+  seriesCode: string | undefined,
+  target: "root" | "part"
+) {
+  const normalized = seriesCode?.trim();
+  if (!normalized) return;
+  filters.push(
+    target === "part"
+      ? "p.series_code = :seriesCode"
+      : "EXISTS (SELECT 1 FROM part_numbers sp WHERE sp.part_root_id = r.id AND sp.company_id = r.company_id AND sp.series_code = :seriesCode)"
+  );
+  params.seriesCode = normalized;
+}
+
 function buildNumberingSearchWhere(
   input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput,
   queryFilter: string,
   recordStatusColumn: string,
-  developmentPhaseColumn: string
+  developmentPhaseColumn: string,
+  seriesCodeTarget: "root" | "part"
 ) {
   const filters: string[] = ["r.company_id = :companyId"];
   const params: Record<string, unknown> = { companyId: input.companyId ?? DEFAULT_COMPANY_ID };
@@ -3496,6 +3513,7 @@ function buildNumberingSearchWhere(
     params.queryLike = escapeLikeQuery(input.query);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addSeriesCodeFilter(filters, params, input.seriesCode, seriesCodeTarget);
   if (input.recordStatus) {
     filters.push(`${recordStatusColumn} = :recordStatus`);
     params.recordStatus = input.recordStatus;
@@ -3531,6 +3549,7 @@ function buildDrawingModuleWhere(input: Required<Pick<DrawingModuleListInput, "q
     params.queryLike = escapeLikeQuery(input.query);
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addSeriesCodeFilter(filters, params, input.seriesCode, "root");
   if (input.recordStatus) {
     filters.push("d.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
@@ -3560,6 +3579,7 @@ function buildPartModuleWhere(input: Required<Pick<PartModuleListInput, "query" 
     params.queryLike = `%${input.query}%`;
   }
   addProductSeriesFilter(filters, params, input.productSeries);
+  addSeriesCodeFilter(filters, params, input.seriesCode, "part");
   if (input.recordStatus) {
     filters.push("p.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
@@ -6905,6 +6925,23 @@ export class AsyncNumberingRepository {
     return productSeriesOptionsFromCoreNames(rows.map((row) => row.core_name));
   }
 
+  async listSeriesCodeOptions(companyId: string = DEFAULT_COMPANY_ID): Promise<string[]> {
+    const rows = await this.client.query<{ series_code: string }>(
+      `
+        SELECT DISTINCT TRIM(series_code) AS series_code
+        FROM (
+          SELECT series_code FROM part_numbers WHERE company_id = :companyId
+          UNION
+          SELECT series_code FROM numbering_draft_parts WHERE company_id = :companyId
+        ) series_codes
+        WHERE series_code IS NOT NULL AND TRIM(series_code) <> ''
+        ORDER BY series_code ASC
+      `,
+      { companyId }
+    );
+    return rows.map((row) => row.series_code.trim());
+  }
+
   async listDrawingModuleRecords(input: DrawingModuleListInput = {}): Promise<DrawingModuleListRecord[]> {
     const normalizedInput = {
       ...input,
@@ -7304,7 +7341,8 @@ export class AsyncNumberingRepository {
       input,
       "(r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "r.record_status",
-      "r.development_phase"
+      "r.development_phase",
+      "root"
     );
     return this.client.query<NumberingSearchRow>(
       `
@@ -7322,7 +7360,8 @@ export class AsyncNumberingRepository {
       input,
       "(p.part_number LIKE :queryLike ESCAPE '\\' OR p.part_name LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "p.record_status",
-      "p.development_phase"
+      "p.development_phase",
+      "part"
     );
     return this.client.query<NumberingSearchRow>(
       `
@@ -7340,7 +7379,8 @@ export class AsyncNumberingRepository {
       input,
       "(d.drawing_number LIKE :queryLike ESCAPE '\\' OR d.purpose_description LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "d.record_status",
-      "d.development_phase"
+      "d.development_phase",
+      "root"
     );
     return this.client.query<NumberingSearchRow>(
       `
