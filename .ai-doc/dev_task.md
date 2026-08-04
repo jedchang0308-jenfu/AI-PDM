@@ -277,7 +277,7 @@ Owner：Dev PM
   - 證據：`.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`、`output/playwright/dev052-real-operation/DEV052-20260804-045957-local-isolated/`、`npm run qc:dev-052`、DEV-052 schema 12/12、data protection 4/4、HTTP/idempotency 10/10、UI 15/15、flow/atomic recovery 8/8、AI真實操作41/41、revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、全專案lint、TypeScript與隔離production build。
   - 計入交付：是（本機產品 UX 與交易流程交付點；production activation 仍未計入）
 
-- ☐ DEV-053 [交付點] [RD Implementation Ready / Human Confirmed] [P1] [Phase 1A Local Only / Awaiting RD] 單一圖號工作台與生命週期導向操作
+- ◐ DEV-053 [交付點] [RD In Progress] [P1] [Phase 1A Local Only] 單一圖號工作台與生命週期導向操作
   - 摘要：將「圖號總表／保留號」雙分頁改成單一「圖號工作台」，讓使用者從同一列判斷目前階段與唯一下一步；UI合併但保留工作區、正式主資料、版次與審核authority仍維持分離。
   - 來源 ID：`DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
   - 父任務：`DEV-052`、`DEV-050`、`DEV-051`
@@ -363,7 +363,7 @@ Owner：Dev PM
   - 風險等級：Medium-High。主要風險為跨來源快照不一致、source關係連錯、錯誤action routing、舊deep link失效與受控檔案雙authority；以一致性transaction、stable IDs、default-off flag及sequential QC控制。
   - 文件成熟度與執行邊界：`RD Implementation Ready / Human Confirmed`；exact files、schema/migration、adapter/API、flag、分期、focused commands、rollback、release feasibility與AI真實操作QA均已定義，P0/P1 open question為0。本輪只推進文件，未改產品或資料。
   - RD停止條件：若需以名稱／號碼猜測、client-side拼接、partial list、放寬權限、direct master create、雙file authority、超出三欄schema、新table/backfill/table rebuild、production或release，立即停止並回Dev PM。
-  - 下一步：執行`DEV-053 Phase 1A：read foundation`（local only）；完成schema/read-model/HTTP/zero-write與DEV-052 regression evidence後才回Dev PM開Phase 1B。狀態為`☐ 可執行`。
+  - 下一步：正在執行`DEV-053 Phase 1A：read foundation`（local only）；完成schema/read-model/HTTP/zero-write與DEV-052 regression evidence後才進Phase 1B。
   - 計入交付：是（完成標準為單一工作台產品實作與QA/QC通過；文件Brief本身不計完成）
 
 - ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
