@@ -1368,6 +1368,9 @@ CREATE TABLE IF NOT EXISTS numbering_draft_workspaces (
   owner_id TEXT NOT NULL,
   created_by TEXT NOT NULL,
   source_root_id TEXT,
+  source_drawing_number_id TEXT,
+  source_part_number_id TEXT,
+  source_link_type TEXT CHECK (source_link_type IS NULL OR source_link_type IN ('primary_manufacturing', 'reference')),
   append_reason TEXT,
   row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
   published_at TEXT,
@@ -1381,11 +1384,28 @@ CREATE TABLE IF NOT EXISTS numbering_draft_workspaces (
   FOREIGN KEY (owner_id) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (source_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_part_number_id) REFERENCES part_numbers(id) ON DELETE RESTRICT,
   FOREIGN KEY (published_by) REFERENCES users(id),
   FOREIGN KEY (cancelled_by) REFERENCES users(id),
   CHECK (
     (draft_mode = 'new_bundle' AND source_root_id IS NULL)
     OR (draft_mode <> 'new_bundle' AND source_root_id IS NOT NULL)
+  ),
+  CHECK (
+    (source_drawing_number_id IS NULL AND source_part_number_id IS NULL AND source_link_type IS NULL)
+    OR (
+      draft_mode = 'append_part'
+      AND source_drawing_number_id IS NOT NULL
+      AND source_part_number_id IS NULL
+      AND source_link_type IS NOT NULL
+    )
+    OR (
+      draft_mode = 'append_drawing'
+      AND source_drawing_number_id IS NULL
+      AND source_part_number_id IS NOT NULL
+      AND source_link_type IS NOT NULL
+    )
   ),
   CHECK (
     (lifecycle_status = 'active'
@@ -1399,6 +1419,14 @@ CREATE TABLE IF NOT EXISTS numbering_draft_workspaces (
       AND cancelled_at IS NULL AND cancelled_by IS NULL AND cancel_reason IS NULL)
   )
 );
+
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_source_drawing
+ON numbering_draft_workspaces(company_id, source_drawing_number_id)
+WHERE source_drawing_number_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_source_part
+ON numbering_draft_workspaces(company_id, source_part_number_id)
+WHERE source_part_number_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS number_candidate_reservations (
   id TEXT PRIMARY KEY,

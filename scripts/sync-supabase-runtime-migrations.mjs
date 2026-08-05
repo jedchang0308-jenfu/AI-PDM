@@ -112,6 +112,11 @@ const sourceFiles = [
     source: "db/postgres/021_number_lifecycle_simplification.sql",
     target: "supabase/migrations/20260804010000_number_lifecycle_simplification.sql",
     description: "Add DEV-052 candidate first-revision authority and immutable review-approval evidence"
+  },
+  {
+    source: "db/postgres/022_unified_drawing_workbench.sql",
+    target: "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
+    description: "Add DEV-053 source drawing and part context for candidate workspaces"
   }
 ];
 

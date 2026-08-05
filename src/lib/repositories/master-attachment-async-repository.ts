@@ -53,6 +53,7 @@ type MasterAttachmentRow = {
   source_submission_released_at?: string | null;
   revision_package_id?: string | null;
   revision_package_status?: string | null;
+  revision_package_effective_status?: string | null;
   revision_package_revision?: string | null;
   revision_package_source_submission_id?: string | null;
   revision_package_file_kind?: string | null;
@@ -100,6 +101,15 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
       pf.source_file_asset_id AS attachment_id,
       p.id AS package_id,
       p.status AS package_status,
+      CASE WHEN EXISTS (
+        SELECT 1
+        FROM drawing_revision_package_review_approvals companion
+        JOIN numbering_candidate_revision_drafts candidate ON candidate.id = companion.candidate_revision_id
+        WHERE companion.package_id = p.id
+          AND candidate.formal_revision_package_id = p.id
+          AND candidate.lifecycle_status = 'promoted'
+          AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
       p.released_at AS package_released_at,
@@ -116,6 +126,15 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
       psf.source_file_asset_id AS attachment_id,
       p.id AS package_id,
       p.status AS package_status,
+      CASE WHEN EXISTS (
+        SELECT 1
+        FROM drawing_revision_package_review_approvals companion
+        JOIN numbering_candidate_revision_drafts candidate ON candidate.id = companion.candidate_revision_id
+        WHERE companion.package_id = p.id
+          AND candidate.formal_revision_package_id = p.id
+          AND candidate.lifecycle_status = 'promoted'
+          AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
       p.released_at AS package_released_at,
@@ -136,7 +155,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
         PARTITION BY attachment_id
         ORDER BY
           CASE
-            WHEN file_kind = 'core' AND package_status = 'Released' THEN 0
+            WHEN file_kind = 'core' AND package_effective_status IN ('Released', 'ReviewApproved') THEN 0
             WHEN file_kind = 'supplement' AND supplement_status = 'Approved' THEN 1
             WHEN package_status = 'Released' THEN 2
             ELSE 9
@@ -151,6 +170,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
     u.display_name AS uploaded_by_name,
     pl.package_id AS revision_package_id,
     pl.package_status AS revision_package_status,
+    pl.package_effective_status AS revision_package_effective_status,
     pl.package_revision AS revision_package_revision,
     pl.package_source_submission_id AS revision_package_source_submission_id,
     pl.file_kind AS revision_package_file_kind,
@@ -226,6 +246,15 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
       pf.source_file_asset_id AS attachment_id,
       p.id AS package_id,
       p.status AS package_status,
+      CASE WHEN EXISTS (
+        SELECT 1
+        FROM drawing_revision_package_review_approvals companion
+        JOIN numbering_candidate_revision_drafts candidate ON candidate.id = companion.candidate_revision_id
+        WHERE companion.package_id = p.id
+          AND candidate.formal_revision_package_id = p.id
+          AND candidate.lifecycle_status = 'promoted'
+          AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
       p.released_at AS package_released_at,
@@ -242,6 +271,15 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
       psf.source_file_asset_id AS attachment_id,
       p.id AS package_id,
       p.status AS package_status,
+      CASE WHEN EXISTS (
+        SELECT 1
+        FROM drawing_revision_package_review_approvals companion
+        JOIN numbering_candidate_revision_drafts candidate ON candidate.id = companion.candidate_revision_id
+        WHERE companion.package_id = p.id
+          AND candidate.formal_revision_package_id = p.id
+          AND candidate.lifecycle_status = 'promoted'
+          AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
       p.released_at AS package_released_at,
@@ -262,7 +300,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
         PARTITION BY attachment_id
         ORDER BY
           CASE
-            WHEN file_kind = 'core' AND package_status = 'Released' THEN 0
+            WHEN file_kind = 'core' AND package_effective_status IN ('Released', 'ReviewApproved') THEN 0
             WHEN file_kind = 'supplement' AND supplement_status = 'Approved' THEN 1
             WHEN package_status = 'Released' THEN 2
             ELSE 9
@@ -277,6 +315,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
     u.display_name AS uploaded_by_name,
     pl.package_id AS revision_package_id,
     pl.package_status AS revision_package_status,
+    pl.package_effective_status AS revision_package_effective_status,
     pl.package_revision AS revision_package_revision,
     pl.package_source_submission_id AS revision_package_source_submission_id,
     pl.file_kind AS revision_package_file_kind,
@@ -887,6 +926,7 @@ function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): Mast
     sourceSubmissionReleasedAt: row.source_submission_released_at ?? null,
     revisionPackageId: row.revision_package_id ?? null,
     revisionPackageStatus: row.revision_package_status ?? null,
+    revisionPackageEffectiveStatus: row.revision_package_effective_status ?? row.revision_package_status ?? null,
     revisionPackageRevision: row.revision_package_revision ?? null,
     revisionPackageSourceSubmissionId: row.revision_package_source_submission_id ?? null,
     revisionPackageFileKind: row.revision_package_file_kind ?? null,

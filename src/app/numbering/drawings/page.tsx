@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { DrawingWorkbench } from "@/components/drawing-workbench";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
@@ -135,6 +136,7 @@ async function copyTextToClipboard(text: string) {
 }
 
 export default function DrawingNumbersPage() {
+  const [workbenchEnabled, setWorkbenchEnabled] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
@@ -165,8 +167,16 @@ export default function DrawingNumbersPage() {
     if (detailDrawingNumber) initialDetailDrawingNumberRef.current = detailDrawingNumber;
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      const response = await fetch("/api/numbering/state-flow/status", { cache: "no-store" });
+      const body = await response.json().catch(() => ({}));
+      setWorkbenchEnabled(response.ok && body.drawingWorkbench?.enabled === true);
+    })();
+  }, []);
+
   const loadDrawings = useCallback(async () => {
-    if (activeTab !== "official") return;
+    if (workbenchEnabled !== false || activeTab !== "official") return;
     setBusy(true);
     setError("");
     const params = new URLSearchParams({ limit: "80" });
@@ -197,7 +207,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [activeTab, developmentPhase, purposeCode, query, recordStatus, seriesCode]);
+  }, [activeTab, developmentPhase, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);
 
   useEffect(() => {
     void loadDrawings();
@@ -423,6 +433,8 @@ export default function DrawingNumbersPage() {
     openDrawingDetail(detailDrawingNumber);
   }, [drawings, openDrawingDetail, state]);
 
+  if (workbenchEnabled === null) return <section className="panel"><div className="empty">正在開啟圖號模組...</div></section>;
+  if (workbenchEnabled) return <DrawingWorkbench />;
   if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖號模組...</div></section>;
   if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="drawings" />;
 
@@ -787,10 +799,12 @@ function DrawingDetailDrawer({
 
           <NumberingContextualEntrypoints
             mode="drawing"
+            rootId={drawing.partRootId}
             rootCode={drawing.rootCode}
             coreName={drawing.coreName}
             rootRecordStatus={drawing.recordStatus}
             drawing={{
+              id: drawing.id,
               drawingNumber: drawing.drawingNumber,
               purposeCode: drawing.purposeCode,
               recordStatus: drawing.recordStatus,

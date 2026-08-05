@@ -42,9 +42,10 @@ type FeatureStatus = {
   flag: string;
   phase: string;
   lifecycleV2?: { enabled: boolean; flag: string; phase: string };
+  drawingWorkbench?: { enabled: boolean; requested: boolean; flag: string; dependency: string; phase: string };
 };
 type ProductionSliceStatus = { configured: boolean; unopenedMessage?: string };
-type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
+export type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
 
 const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 保留號 production slice。";
 const NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width";
@@ -100,13 +101,16 @@ type DraftDrawing = {
   candidateCode: string | null;
 };
 
-type NumberingDraftWorkspace = {
+export type NumberingDraftWorkspace = {
   id: string;
   companyId: string;
   draftMode: DraftMode;
   lifecycleStatus: LifecycleStatus;
   ownerId: string;
   sourceRootId: string | null;
+  sourceDrawingNumberId: string | null;
+  sourcePartNumberId: string | null;
+  sourceLinkType: "primary_manufacturing" | "reference" | null;
   appendReason: string | null;
   rowVersion: number;
   cancelReason: string | null;
@@ -669,6 +673,10 @@ export function NumberStateOwnerCreateAction({
           seriesCodeOptions={seriesCodeOptions}
           onClose={() => setOpen(false)}
           onCreated={(workspace) => {
+            if (feature?.drawingWorkbench?.enabled) {
+              window.location.assign(`/numbering/drawings?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
+              return;
+            }
             const targetModule = moduleFromCreateSurface(surface);
             window.location.assign(appendQueryParam(numberStateModuleConfigs[targetModule].reservedHref, "detail", workspace.id));
           }}
@@ -1530,7 +1538,7 @@ function AppendPolicyPanel({ policy, state, rootCode }: { policy: AppendPolicy |
   );
 }
 
-function WorkspaceDrawer({
+export function WorkspaceDrawer({
   workspace,
   busy,
   editing,
@@ -1906,7 +1914,7 @@ function WorkspaceEditForm({ workspace, busy, seriesCodeOptions, onCancel, onSav
   );
 }
 
-function ConfirmDialog({ action, workspace, busy, lifecycleV2Enabled = false, onClose, onConfirm }: { action: WorkspaceAction; workspace: NumberingDraftWorkspace; busy: boolean; lifecycleV2Enabled?: boolean; onClose: () => void; onConfirm: () => void }) {
+export function ConfirmDialog({ action, workspace, busy, lifecycleV2Enabled = false, onClose, onConfirm }: { action: WorkspaceAction; workspace: NumberingDraftWorkspace; busy: boolean; lifecycleV2Enabled?: boolean; onClose: () => void; onConfirm: () => void }) {
   const content = ({
     cancel: {
       title: "取消申請並釋出號碼",

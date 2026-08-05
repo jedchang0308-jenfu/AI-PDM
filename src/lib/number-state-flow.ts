@@ -122,6 +122,13 @@ function normalizeRepositoryError(error: unknown): never {
   const mapping: Record<string, [string, string, number, boolean?]> = {
     WORKSPACE_NOT_FOUND: ["workspace_not_found", "Draft workspace was not found.", 404],
     SOURCE_ROOT_NOT_FOUND: ["source_root_not_found", "The source root was not found in this company.", 404],
+    SOURCE_DRAWING_NOT_FOUND: ["source_drawing_not_found", "The source drawing was not found in this company.", 404],
+    SOURCE_PART_NOT_FOUND: ["source_part_not_found", "The source part was not found in this company.", 404],
+    SOURCE_CONTEXT_ROOT_MISMATCH: ["source_context_root_mismatch", "The selected source does not belong to this root.", 409],
+    SOURCE_CONTEXT_STATE_BLOCKED: ["source_context_state_blocked", "The selected source can no longer be extended.", 409],
+    SOURCE_CONTEXT_MODE_MISMATCH: ["source_context_mode_mismatch", "The selected source does not match this append mode.", 400],
+    SOURCE_PRIMARY_LINK_INVALID: ["source_primary_link_invalid", "A primary manufacturing link requires one manufacturing drawing.", 400],
+    SOURCE_PRIMARY_LINK_CONFLICT: ["source_primary_link_conflict", "This part already has a primary manufacturing drawing.", 409],
     APPEND_REASON_REQUIRED: ["append_reason_required", "Appending to this root requires a reason.", 400],
     NUMBERING_RULE_REQUIRED: ["numbering_rule_required", "The numbering rule for this workspace could not be resolved.", 409],
     WORKSPACE_NOT_ACTIVE: ["workspace_not_active", "Only active draft workspaces can be changed.", 409],
@@ -183,12 +190,32 @@ function normalizedCreateData(body: Record<string, unknown>, actor: PlatformActo
   const draftMode = text(body.draftMode ?? body.draft_mode, 40) as NumberingDraftMode;
   if (!draftModes.has(draftMode)) throw new NumberStateFlowError("numbering_invalid_draft_mode", "Invalid draft mode.", 400);
   const sourceRootId = text(body.sourceRootId ?? body.source_root_id, 200) || null;
+  const sourceDrawingNumberId = text(body.sourceDrawingNumberId ?? body.source_drawing_number_id, 200) || null;
+  const sourcePartNumberId = text(body.sourcePartNumberId ?? body.source_part_number_id, 200) || null;
+  const sourceLinkTypeValue = text(body.sourceLinkType ?? body.source_link_type, 40) || null;
+  if (sourceLinkTypeValue !== null && sourceLinkTypeValue !== "primary_manufacturing" && sourceLinkTypeValue !== "reference") {
+    throw new NumberStateFlowError("source_link_type_invalid", "Invalid source relationship type.", 400);
+  }
+  const sourceLinkType: "primary_manufacturing" | "reference" | null = sourceLinkTypeValue;
+  const sourceCount = Number(Boolean(sourceDrawingNumberId)) + Number(Boolean(sourcePartNumberId));
+  if (sourceCount > 1 || (sourceCount === 0) !== (sourceLinkType === null)) {
+    throw new NumberStateFlowError("source_context_invalid", "Select one source drawing or part together with its relationship type.", 400);
+  }
   const rootInput = body.root && typeof body.root === "object" ? body.root as Record<string, unknown> : null;
   if (draftMode === "new_bundle" && (!rootInput || sourceRootId)) {
     throw new NumberStateFlowError("numbering_invalid_draft_scope", "A new bundle requires one draft root and no source root.", 400);
   }
   if (draftMode !== "new_bundle" && (rootInput || !sourceRootId)) {
     throw new NumberStateFlowError("numbering_invalid_draft_scope", "Append modes require one source root and no draft root.", 400);
+  }
+  if (draftMode === "new_bundle" && sourceCount > 0) {
+    throw new NumberStateFlowError("source_context_invalid", "A new bundle cannot use an existing drawing or part source.", 400);
+  }
+  if (sourceDrawingNumberId && draftMode !== "append_part") {
+    throw new NumberStateFlowError("source_context_mode_mismatch", "A source drawing is only valid when adding parts.", 400);
+  }
+  if (sourcePartNumberId && draftMode !== "append_drawing") {
+    throw new NumberStateFlowError("source_context_mode_mismatch", "A source part is only valid when adding drawings.", 400);
   }
   const appendReason = draftMode === "new_bundle" ? null : text(body.appendReason ?? body.append_reason, 1000) || null;
   const rawParts = Array.isArray(body.parts) ? body.parts : [];
@@ -280,6 +307,9 @@ function normalizedCreateData(body: Record<string, unknown>, actor: PlatformActo
     ownerId: actor.pdmUserId,
     createdBy: actor.pdmUserId,
     sourceRootId,
+    sourceDrawingNumberId,
+    sourcePartNumberId,
+    sourceLinkType,
     appendReason,
     root: rootInput ? {
       id: `draft-root-${crypto.randomUUID()}`,

@@ -277,94 +277,58 @@ Owner：Dev PM
   - 證據：`.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`、`output/playwright/dev052-real-operation/DEV052-20260804-045957-local-isolated/`、`npm run qc:dev-052`、DEV-052 schema 12/12、data protection 4/4、HTTP/idempotency 10/10、UI 15/15、flow/atomic recovery 8/8、AI真實操作41/41、revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、全專案lint、TypeScript與隔離production build。
   - 計入交付：是（本機產品 UX 與交易流程交付點；production activation 仍未計入）
 
-- ◐ DEV-053 [交付點] [RD In Progress] [P1] [Phase 1A Local Only] 單一圖號工作台與生命週期導向操作
-  - 摘要：將「圖號總表／保留號」雙分頁改成單一「圖號工作台」，讓使用者從同一列判斷目前階段與唯一下一步；UI合併但保留工作區、正式主資料、版次與審核authority仍維持分離。
+- ◐ DEV-053 [交付點] [RD and AI QA Evidence Frozen／Independent QC Pending] [P0] [Phase 1E Local Only] 單一圖號工作台與既有管理能力整合
+  - 摘要：維持單一生命週期工作台，但把被簡版UI遮蔽的圖號、料號、版次、附件、送審、圖料關係、影響分析與治理能力完整整合回同一頁，禁止以流程簡化為由降低既有工作能力。
   - 來源 ID：`DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
   - 父任務：`DEV-052`、`DEV-050`、`DEV-051`
-  - Human Decision Brief：
-    - [x] 取消「圖號總表／保留號」兩個頁面與頁籤；canonical UI為單一「圖號工作台」。
-    - [x] 「保留號」由頁面名稱改為資料生命週期狀態；使用者不需先判斷資料位於保留工作區或圖號主資料。
-    - [x] 主清單預設聚焦「我的待處理」，仍可用搜尋與狀態篩選查閱全部、正式及歷史資料。
-    - [x] canonical row unit依生命週期切換：進行中一個workspace/bundle一列；正式化後每張drawing master一列，完成workspace不再佔top-level列，只由drawer/audit追溯。多圖bundle不得被誤壓成單一正式圖號，也不得顯示candidate＋formal重複列。
-    - [x] UI單頁化不得合併底層資料表、放寬權限、改寫既有資料、重播審核或降低DEV-050/052交易與release gate。
-  - 問題：目前雙分頁反映系統資料型態，不符合使用者「找一個圖號、看目前階段、做下一步」的心智模型；相同建立、附件、送審與狀態說明存在平行入口，增加選錯流程的風險。
-  - 使用者價值：減少頁面選擇與狀態翻譯；研發人員在單一清單即可完成從建立候選內容到正式圖號後續進版的連續工作。
-  - UX Intent：
-    - 使用者：研發工程師、研發主管、PDM Admin及需要查閱圖號狀態的人員。
-    - 主要任務：搜尋或建立一筆圖號工作，理解目前階段、使用風險與唯一下一步。
-    - 成功狀態：首次看到列資料5秒內能回答「這是什麼、目前在哪一步、能否正式使用、下一步按哪裡」。
-    - 頁面：H1為`圖號工作台`；主畫面只有搜尋、範圍、狀態篩選、`建立圖號`與資料表。
-    - 主清單欄位：`圖號`、`品名`、`目前階段`、`下一步`；料號關聯、檔案、審核、發行、追溯與audit進drawer。
-    - 安全預設：預設顯示使用者待處理工作；已取消、作廢與歷史資料不搶占主清單，但可由狀態篩選查回。
-    - 不可發生：同一來源同時顯示candidate列與其formal列、同時顯示多個primary CTA、把多圖bundle遺失成一列、從主資料drawer直接繞過保留／首版／整包審核建立正式圖料號。
-  - 主要流程與唯一下一步：
-
-    | Visible stage | 主畫面必要資訊 | 唯一 primary CTA | Secondary / history |
-    |---|---|---|---|
-    | 建立中／尚未產生圖號 | 申請名稱、缺少內容、尚未占用號碼 | `繼續建立` | `取消` |
-    | 已保留／首版未完成 | 候選圖料號、`尚不可正式使用`、首版缺項 | `完成首版` | `編輯`、`取消保留` |
-    | 首版已完成 | 將被鎖定的圖料號、關係、版次與檔案摘要 | `送交審核` | `編輯` |
-    | 審核中 | 審核責任與鎖定範圍 | `查看審核` | 符合規則時`撤回` |
-    | 系統正式化中 | 核准完成、系統處理中、禁止重複操作 | 無人工CTA | `查看處理狀態` |
-    | 研發版已核准／主資料已建立 | 尚未成為量產Released的風險、正式圖號入口 | `查看圖面` | `追溯` |
-    | 已發布 | 現行版次、使用效力與開發階段 | `建立新版` | `追溯`、`影響`、`申請作廢` |
-    | 已取消／已作廢／歷史 | 終結原因與不用再處理的結論 | `查看紀錄` | 無復活或發布捷徑 |
-
-  - 初步開發範圍：
-    - [ ] 移除`圖號總表／保留號`頁籤，將`/numbering/drawings`改成單一生命週期清單與統一drawer。
-    - [ ] 建立候選workspace與drawing master的server-side read-only統一投影；以namespaced stable row key定義canonical row unit、去重、排序、搜尋、cursor分頁與狀態filter，browser不得自行拼接兩支清單。
-    - [ ] 將`建立保留號`改成使用者意圖語言`建立圖號`，但仍走DEV-052候選保留、首版與整包審核流程。
-    - [ ] 將`新增同根圖號／新增同圖料號`改為帶入既有主根脈絡後建立候選workspace，不得直接POST新增master。
-    - [ ] 將受控CAD／2D／DWG／PDF檔案寫入集中到候選首版或正式版次工作台；圖號主資料drawer只保留唯讀摘要，非受控檔案若仍存在須明確標為`參考附件`。
-    - [ ] 依生命週期只顯示一個primary CTA；`進版`、`送審`、`查看審核`不得在同一正常狀態並列競爭。
-    - [ ] 合併狀態說明入口；說明內容改用新版生命週期與下一步語言，不再顯示舊number-only review／人工發布教學。
-    - [ ] 舊`?tab=reserved`、既有detail/query deep link與書籤採零寫入相容導向，找不到目標時提供安全返回與篩選復原。
-  - Scope外：不合併或刪除既有workspace/master/revision/approval資料表；不批次回填、搬移、改號或刪除production資料；不改DEV-052整包核准自動正式化、DEV-050小數版Released禁令、既有審核決策與稽核證據；本機只允許三個nullable source-context欄位及migration artifact，production migration、deploy與release仍不執行。
-  - RD Implementation Contract：
-    - SPEC：`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`。
-    - QA：`.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`；執行時由AI以真實登入、點擊、輸入、檔案上傳、送審、審核與重新載入操作，不以API/DB mutation代替UI流程。
-    - ADR：`.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`；Accepted，鎖定server一致性投影與三個nullable source-context欄位。
-    - Read model：`GET /api/numbering/drawings/workbench`與row-key detail為唯讀BFF；同一company/permission/read-consistency邊界產生清單，任一來源失敗整體fail，不回partial list；所有open/search/filter/deep link zero-write。
-    - Row identity：`candidate:{workspaceId}`與`drawing:{drawingNumberId}`為概念性namespaced identity。1個多圖candidate bundle正式化後切成N個formal drawing rows，completed workspace只保留來源追溯。
-    - Action routing：primary action由server lifecycle/capability resolver決定；統一API不代理mutation，建立、候選首版、bundle review、formal revision與作廢各回原authoritative command handler。
-    - Parallel-path closure：DEV-053 UI中的`新增同根圖號／新增同圖料號`必須建立帶source context的candidate workspace，不得直接POST建立master；`append_part`允許只含新part與指定existing drawing關係，不複製existing revision；`append_drawing`可保存指定existing part。
-    - File authority：candidate revision或formal revision package為受控檔案唯一寫入點；drawing master drawer唯讀。若保留一般附件，必須改稱`參考附件`且排除publication evidence。
-    - Permission：統一讀取取drawing view與workspace visibility交集；`mine`只收server可證明由目前actor負責的owner/reviewer/recovery工作；Admin名稱不隱含command permission。
-    - Rollout：`PDM_UNIFIED_DRAWING_WORKBENCH_V1`預設off，只可在DEV-052 lifecycle V2相依能力可用時開啟；錯誤組態fail closed或完整回退舊UI，不得形成半套UI／雙mutation path。
-  - Schema/migration boundary：
-    - `numbering_draft_workspaces`只additive新增`source_drawing_number_id`、`source_part_number_id`、`source_link_type`三個nullable欄位；既有rows維持NULL，零backfill、零改號。
-    - exact artifacts：`db/schema.sql`、`db/postgres/022_unified_drawing_workbench.sql`、`supabase/migrations/20260804020000_unified_drawing_workbench.sql`、migration manifest與`src/lib/db.ts` SQLite `ensureColumn`。
-    - source IDs必須同company/root、drawing與part互斥、link type成對存在；facts hash、approved snapshot與atomic formalization均包含source context。
-  - Exact implementation files：
-    - Server：`src/lib/drawing-workbench.ts`、`src/lib/repositories/drawing-workbench-async-repository.ts`、必要的`numbering-async-repository.ts`／`numbering-repository.ts` batch read、兩支`/api/numbering/drawings/workbench` GET routes。
-    - Lifecycle：`src/lib/number-state-flow.ts`、`src/lib/repositories/number-state-flow-async-repository.ts`、`src/lib/number-lifecycle-simplification.ts`、`src/lib/repositories/number-lifecycle-simplification-async-repository.ts`、draft workspace create route。
-    - UI：`src/app/numbering/drawings/page.tsx`、新增`src/components/drawing-workbench.tsx`、`number-state-workspace.tsx`、`master-attachment-panel.tsx`、`numbering-contextual-entrypoints.tsx`、status help/display與`globals.css`。
-    - Flag：`src/lib/number-state-flow-feature.ts`與`src/app/api/numbering/state-flow/status/route.ts`；status response key為`drawingWorkbench`。
-  - Sequential implementation slices：
-    - `Phase 1A`（下一步）：schema/source context、snapshot/formalization、consistent read repository/service、list/detail API、default-off flag；exit為schema/read-model/HTTP/zero-write與DEV-052 regression。
-    - `Phase 1B`：單頁list/drawer、舊URL、master attachment read-only、status help、四種viewport；須等1A evidence。
-    - `Phase 1C`：contextual append改道、relationship-only bundle、cross-boundary relation、action routing；須等1B evidence。
-    - `Phase 1D`：AI真實操作、完整回歸、build與獨立QC；QC不得改產品後自判通過。
-  - Focused commands：新增`qc:dev-053:schema`、`read-model`、`http`、`ui`、`flow`、`real-operation`及aggregate；並重跑`qc:dev-052`、contextual entrypoints、master attachments、revision release gate、numbering core、production slice、typecheck、lint與isolated build。
-  - Rollback：關閉DEV-053 flag完整回舊雙頁；additive nullable欄位保留供追溯，不做down migration刪欄／清資料。任何production rollout另走backup、migration rehearsal、flag與smoke gate。
-  - 驗收方向：
-    - [ ] `/numbering/drawings`只呈現一個工作台且無雙分頁；舊reserved URL可安全到達等效工作中範圍。
-    - [ ] 候選、審核、正式化、主資料、已發布及歷史狀態皆能在同一搜尋入口查得；進行中bundle一列，正式化後每張formal drawing一列且completed workspace不重複顯示。
-    - [ ] 多圖bundle正式化前後正確由1列切換為N張正式圖號列；候選號、正式號與來源workspace ID都能定位canonical row與來源追溯。
-    - [ ] 每個正常狀態只有一個primary CTA，且CTA與狀態矩陣一致；disabled／blocked狀態同時提供原因與替代下一步。
-    - [ ] 既有保留號與正式圖號在純瀏覽、搜尋、篩選、開drawer及舊網址相容導向時零寫入、零回填、零改號。
-    - [ ] 所有新增與追加同根圖料號均進入候選workspace；不得由統一工作台繞過首版與整包審核直接建立master。
-    - [ ] 新增同圖料號保存指定existing drawing且允許relationship-only review；新增同根圖號可保存指定existing part，核准時跨邊界關係與master在同transaction完成。
-    - [ ] 受控檔案只有一個寫入authority；主資料摘要、候選首版與正式版次不可形成無法判斷的平行附件來源。
-    - [ ] 1440×900、1280×720、1024×768與390×844可完成搜尋、開drawer與主要下一步，無水平overflow、CTA裁切或重疊。
-    - [ ] 真實瀏覽器5秒理解、可見錯誤掃描、可見文字紅筆刪除、keyboard/focus、console與資料一致性驗證通過。
-  - Spec Impact Preflight：`Intentional replacement + additive source-context extension`。UI／導覽／read projection取代DEV-052 `HD-052-04`雙頁契約；DEV-052 aggregate、legacy、single bundle review、atomic auto-finalization、permission、idempotency與release gate保持authoritative。
-  - ADR判定：已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`。它關閉「append workspace只有root，無法保存指定existing drawing/part」的P1缺口；超出三個nullable欄位、多source aggregate、backfill或authority變更必須重進ADR。
-  - 風險等級：Medium-High。主要風險為跨來源快照不一致、source關係連錯、錯誤action routing、舊deep link失效與受控檔案雙authority；以一致性transaction、stable IDs、default-off flag及sequential QC控制。
-  - 文件成熟度與執行邊界：`RD Implementation Ready / Human Confirmed`；exact files、schema/migration、adapter/API、flag、分期、focused commands、rollback、release feasibility與AI真實操作QA均已定義，P0/P1 open question為0。本輪只推進文件，未改產品或資料。
-  - RD停止條件：若需以名稱／號碼猜測、client-side拼接、partial list、放寬權限、direct master create、雙file authority、超出三欄schema、新table/backfill/table rebuild、production或release，立即停止並回Dev PM。
-  - 下一步：正在執行`DEV-053 Phase 1A：read foundation`（local only）；完成schema/read-model/HTTP/zero-write與DEV-052 regression evidence後才進Phase 1B。
-  - 計入交付：是（完成標準為單一工作台產品實作與QA/QC通過；文件Brief本身不計完成）
+  - 下一步：產品與AI QA證據凍結後，以範圍化Git SHA交獨立QC重新判定；只有QC PASS才可更新為本機完成，production仍走獨立release gate。
+  - 證據：DEV-053 schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript 0 error、DEV-053 lint 0 error；乾淨staged product snapshot真實操作27/27，run與截圖位於`output/playwright/dev053-real-operation/DEV053-20260805-033336-local-isolated/`。
+  - 計入交付：是
+  - Human Confirmed：
+    - [x] 保持單一`圖號工作台`，不恢復`圖號總表／保留號`雙分頁；`保留號`是生命週期狀態。
+    - [x] 單頁化不得刪除、遮蔽或弱化既有圖、料、版次與治理功能；正式圖面仍須在同頁完成原本可完成的工作。
+    - [x] `DEV-054`為必要並行任務，屬受保護範圍；DEV-053不得恢復開發階段/DVT或修改其程式、migration與文件。
+  - 問題與根因：`src/app/numbering/drawings/page.tsx`在flag開啟後直接回傳`DrawingWorkbench`，造成舊正式圖面drawer與管理區完全不渲染；QA只驗證新生命週期主線，沒有以既有能力清冊做negative-regression gate。
+  - 使用者價值：使用者只需進入一個頁面，但仍能搜尋、判斷生命週期並完成正式圖面、料號主資料、版次、送審、附件與關係治理，不必在「簡單流程」與「完整功能」之間二選一。
+  - 目前有效成果：
+    - [x] `Phase 1A` server-side一致性投影、stable row key、detail BFF、default-off flag及additive source context。
+    - [x] `Phase 1C` contextual append改走candidate workspace、relationship-only bundle、原子正式化與權限/idempotency邊界。
+    - [x] `Phase 1B` 最小formal drawer驗收維持撤銷，已由Phase 1E完整能力組合取代。
+    - [x] `Phase 1D` 舊QA證據只保留歷史；目前產品改由Phase 1E新focused與真實操作證據重新驗證。
+  - Current Phase 1E RD Implementation Contract：
+    - 單頁資訊架構：保留`我的待處理／工作中／全部`與唯一primary CTA；候選列使用生命週期drawer，正式drawing列使用完整正式圖面drawer，兩者共享同一頁與deep link，不共用一個過度簡化內容模板。
+    - 清單可見性：保留核心`圖號／品名／工作狀態／下一步`，並以欄位或列內次資訊恢復關聯料號、主資料狀態、待審、發布不一致與警告；恢復用途與資料狀態篩選。不得加入`development_phase`篩選或顯示。
+    - 正式圖面操作：生命週期primary CTA置頂；另保留不競爭primary的固定secondary入口：`圖面進版`、`上傳與送審`、`完整圖料關係`、製造圖`影響分析`與`申請作廢`。production slice封鎖時顯示既有`未開放`原因，不可把功能靜默隱藏。
+    - 正式圖面治理：恢復發布狀態不一致、Title block變體風險、送審完整性/成本/待審檢查、同主根料號、主要製造圖與標準成本資訊。
+    - 料號主資料：恢復同主根料號清單與既有權限下的材質、顏色、表面處理、變體備註編輯；Released/locked資料仍走原authoritative guard，不因同頁化放寬權限。
+    - 附件：candidate首版與formal revision仍是受控檔案唯一寫入authority；正式master drawer顯示受控摘要與前往權威工作台的入口。若保留既有一般附件CRUD，必須標為`參考附件`、沿用原權限/production-slice guard，且不得成為送審或publication evidence。
+    - API/data：優先擴充既有workbench detail projection以提供正式drawer所需欄位；不得由browser額外拼接形成不一致資料。Phase 1E不新增schema/migration、不回填、不改號、不修改approval/release authority。
+  - Phase 1E exact implementation boundary：
+    - 主要檔案：`src/components/drawing-workbench.tsx`、`src/app/numbering/drawings/page.tsx`、`src/lib/drawing-workbench.ts`、`src/lib/repositories/drawing-workbench-async-repository.ts`、`src/app/api/numbering/drawings/workbench/**`、DEV-053 focused scripts與必要CSS。
+    - 可最小修改的共用檔：`src/components/master-attachment-panel.tsx`、`src/components/numbering-contextual-entrypoints.tsx`、`src/app/globals.css`；只允許DEV-053能力恢復hunk，不得覆寫其他任務變更。
+    - 受保護/禁止修改：`db/postgres/023_remove_project_status_authority.sql`、`supabase/migrations/20260804030000_remove_project_status_authority.sql`、DEV-054 SPEC/ADR/QA/QC、已刪除的DVT頁面/API/測試、`development_phase`移除與DEV-054權限/規則調整。
+    - Git邊界：不得整檔stage混合變更；共用檔必須逐hunk檢查。若DEV-053無法與DEV-054安全分離，停止commit並回Dev PM，不以還原另一AI成果解決。
+  - Phase 1E slices：
+    - [x] `1E-1 Formal row parity`：已恢復篩選、列內關聯/治理摘要與固定secondary入口。
+    - [x] `1E-2 Full formal drawer`：已恢復治理面板、同根料號、主資料編輯、成本/主要圖與附件authority導流。
+    - [x] `1E-3 Regression automation`：已新增舊功能清冊assertions、route/action可達性、read-only authority、production-slice visible-disabled與bounded keyset檢查。
+    - [ ] `1E-4 AI QA + Independent QC`：AI QA隔離真實操作27/27已完成；等待產品凍結SHA的獨立QC判定。
+  - 驗收標準：
+    - [x] 單一工作台、候選/正式row去重、唯一primary CTA與舊reserved deep link仍成立。
+    - [x] 正式drawing可依用途、資料狀態、系列與關鍵字查詢；關聯料號與治理警示不需猜測或切回舊頁。
+    - [x] 每張正式drawing都能發現版次、上傳送審、完整圖料關係、影響分析（適用時）與作廢入口；被production slice或權限封鎖時可見原因。
+    - [x] 發布不一致、Title block風險、送審檢查、同根料號、標準成本與主要製造圖均可見且資料與authoritative API一致。
+    - [x] 有權使用者可維護既有料號主資料；無權、Released/locked、跨公司與stale write均fail closed。
+    - [x] 受控檔案只在candidate/revision authority寫入；正式master drawer為唯讀摘要並導回candidate/revision authority。
+    - [x] DEV-053範圍未修改、還原或提交`DEV-054`的DVT刪檔、023/024 migration、SPEC/ADR/QA/QC或專案狀態移除hunk。
+    - [x] 1440×900、1280×720、1024×768及390×844可完成主流程，無水平overflow、CTA裁切或drawer重要功能不可達。
+    - [x] open/search/filter/drawer/deep link零寫入；隔離寫入流程cleanup完成，productionConnected=false、productionWrites=false。
+  - QA/QC evidence required：`qc:dev-053` aggregate、DEV-052/050/附件/關係/版次/production-slice focused regressions、typecheck、lint、isolated build、AI真實操作證據，以及產品凍結後的獨立QC判定。舊QA/QC不得直接沿用為PASS。
+  - Spec Impact Preflight：`Intentional replacement`。保留單頁與server projection，撤銷「四欄簡版＋最小drawer即完成」的錯誤UI契約；DEV-052/050 authority與DEV-054專案狀態移除均保持authoritative。
+  - ADR判定：既有source-context/read-projection ADR仍有效；Phase 1E不新增schema、authority或跨模組決策，無需新ADR。
+  - 風險等級：Medium-High。主要風險為再次漏功能、雙檔案authority、錯誤action routing、production-slice靜默隱藏與覆寫並行DEV-054。
+  - RD停止條件：需要新增schema/migration、回填/改號、放寬權限、direct master create、雙file authority、修改DEV-054、操作3000正式資料、production/deploy/release或無法安全分離共用hunk時停止。
+  - 文件成熟度與執行邊界：`RD Implementation Ready / Human Confirmed / Phase 1E Local Only`；P0/P1產品決策缺口為0，可由RD直接開始本機修復，不代表release ready。
 
 - ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
   - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
@@ -1003,9 +967,11 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-05: 完成`DEV-053 Phase 1E Regression Recovery`本機實作與AI QA證據凍結。單一`圖號工作台`恢復CAP-01～14：用途/資料狀態/系列/關鍵字篩選、關聯料號與治理摘要、圖面進版、上傳送審、完整圖料關係、製造影響、受控檔案摘要、發布不一致、Title block風險、送審完整性、同根料號、料號主資料編輯、標準成本與主要製造圖；生命週期primary CTA維持唯一，production-slice/權限限制維持可見且fail closed。focused contracts為schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript與DEV-053 lint為0 error。乾淨 staged product snapshot隔離真實Chromium run `DEV053-20260805-033336-local-isolated`為27/27，含真實PDF上傳、送審/撤回/再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。共用檔採hunk級邊界，未修改、還原或提交DEV-054的DVT刪檔、023/024 migration、專案狀態移除程式與文件。狀態為`RD and AI QA Evidence Frozen / Independent QC Pending / Local Only`；下一步以範圍化Git SHA交獨立QC，production activation/deploy/release仍未授權。
 - 2026-08-04: 依使用者「下一成熟度為RD Implementation Ready，請推進」，完成`DEV-053` Implementation Readiness Review並改為`☐ 可執行 / Awaiting Phase 1A Local Execution`。repo盤點發現現有append workspace只有source root，無法保存使用者指定的existing drawing/part；已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`，採server-side一致性投影及workspace三個nullable source-context欄位，既有rows保持NULL且不backfill。SPEC/QA/dev board已補exact files、PostgreSQL 022與Supabase mirror、relationship-only append、atomic cross-boundary relation、opaque keyset cursor、正式版次local-draft狀態限制、`PDM_UNIFIED_DRAWING_WORKBENCH_V1` default-off、Phase 1A-1D、focused commands、rollback與production release feasibility；P0/P1 open question為0。下一步只執行Phase 1A本機read foundation，本輪未修改產品、schema實體、資料、production、deploy或release。
 - 2026-08-04: 依使用者「下一成熟度為RD Contract Ready，請執行」，將`DEV-053`由Brief Ready升級為`RD Contract Ready / Human Confirmed / Awaiting RD Implementation Readiness Review`。新增單一圖號工作台SPEC與「由AI執行的真實操作驗證計畫」，完成server-side unified read BFF、candidate bundle→formal drawing canonical row切換、多圖去重、state-to-primary-action、舊reserved URL zero-write相容、contextual append改走candidate workspace、controlled-file單一authority、permission交集、source failure fail-whole、feature flag與stop conditions。Spec preflight維持對DEV-052 `HD-052-04`的`Intentional replacement`；本輪只改文件，未修改product/schema/migration/production/deploy/release。
 - 2026-08-04: 使用者確認不再以「圖號總表／保留號」兩頁呈現圖號生命週期；建立`DEV-053`單一圖號工作台`Brief Ready / Human Confirmed`。新方向把保留號改為生命週期狀態，以單一清單、統一drawer與每狀態唯一CTA承接建立、首版、審核、正式化、發行與進版；UI合併但底層workspace/master/revision/approval authority仍分離。Spec preflight判定為對DEV-052 `HD-052-04`的`Intentional replacement`，現有產品與DEV-052證據不回寫成新契約；本輪未修改product/schema/migration/production/deploy/release。
+- 2026-08-05: 依使用者回報重新盤點並整理`DEV-053`。確認flag-on直接替換整頁，造成14組正式圖面管理能力退化；撤銷Phase 1B最小formal drawer與Phase 1D既有QA PASS，保留Phase 1A read foundation及Phase 1C candidate routing，新增`Phase 1E Regression Recovery`並補到`RD Implementation Ready / P0 / Local Only`。Human decision維持單一工作台，但單頁化不得降低圖、料、版次、附件、送審、關係、影響與治理能力。`DEV-054`明定為受保護並行任務，不恢復DVT/開發階段、不修改023 migration或其SPEC/ADR/QA/QC、不還原刪檔，也不得混入DEV-053 commit；本輪只改DEV-053文件，未修改產品、schema、migration、3000資料、production、deploy或release。
 - 2026-08-04: DEV-052完成RD修正並交回獨立QC。QC在產品程式凍結後重跑`npm run qc:dev-052`，181項可計數檢查全數通過；AI真實操作RO-00～RO-20為41/41，涵蓋四角色登入、真實檔案上傳、送審／撤回／補件／核准、故障回滾、Admin UI重試、exactly-once正式化、legacy續接、跨公司拒絕與1440/1024/390視覺判讀。全專案lint 0 errors、隔離production build 123 pages通過，P0/P1/P2皆為0；run manifest確認productionConnected=false、productionWrites=false、cleanup=removed。狀態更新為`Phase 1A-1D Independent Local QC Passed / Production Release Gated`，未連線、遷移、部署或修改production。
 - 2026-08-04: 使用者確認將現行／DEV-052 UI差異寫入開發文件。`保留號`頁籤與 `/numbering/drawings?tab=reserved` 固定保留，不建立第二套V2/legacy頁；V2工作區標題固定為 `保留號／首版準備`，角色由號碼送審／人工發布改為候選首版準備。SPEC新增現新UI比較、state-to-primary-action、資訊分層與post-formalization導向；QA新增route/tab/H1、single CTA、Now What exception-only、zero-write navigation、1440/1280/1024/390 viewport與六張狀態證據契約。DEV-052仍為RD Implementation Ready／Phase 1A未執行；本輪未修改product/schema/production。
 - 2026-08-04: 依使用者指令將 `DEV-052` 補至 `RD Implementation Ready / Awaiting Phase 1A Execution`。完成實際 schema、approval savepoint、publication evidence、production slice、UI與測試入口盤點；因既有 `drawing_revision_packages.status` check 與舊版 reader 相容限制，正式決定不新增 physical `ReviewApproved` enum，改用 physical `Pending` package + immutable review-approval companion 投影 effective `ReviewApproved`。SPEC/ADR/QA已補 exact additive tables、021 PostgreSQL/Supabase mirror、default-off V2 flag、API payload/error、permission、outer transaction + savepoint、idempotency/recovery、逐檔 Phase 1A-1D與 evidence commands。下一步僅可派 `DEV-052 Phase 1A` local；本輪未修改 product code/schema、未連 production、未 backfill、未 deploy/release。

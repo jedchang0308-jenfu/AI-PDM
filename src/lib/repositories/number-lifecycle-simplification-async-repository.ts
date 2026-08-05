@@ -727,7 +727,12 @@ export class AsyncNumberLifecycleSimplificationRepository {
     const fullBundle = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.state === "active");
     const legacyAddendum = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.state === "approved_locked");
     if (!fullBundle && !legacyAddendum) throw new Error("BUNDLE_NOT_READY");
-    if (workspace.drawings.length === 0 || (workspace.relations.length === 0 && workspace.parts.length > 0)) throw new Error("BUNDLE_NOT_READY");
+    const relationshipOnlyReady = workspace.draftMode === "append_part"
+      && Boolean(workspace.sourceDrawingNumberId)
+      && workspace.parts.length > 0;
+    if (!relationshipOnlyReady && (workspace.drawings.length === 0 || (workspace.relations.length === 0 && workspace.parts.length > 0))) {
+      throw new Error("BUNDLE_NOT_READY");
+    }
     const candidates = await this.client.query<CandidateRow>(
       `SELECT * FROM numbering_candidate_revision_drafts
        WHERE workspace_id = :workspaceId AND company_id = :companyId AND lifecycle_status = 'draft'
@@ -1096,6 +1101,29 @@ export class AsyncNumberLifecycleSimplificationRepository {
       );
       const files = await this.candidateFiles(candidate.id);
       for (const file of files.filter((entry) => !entry.removed_at)) {
+        const candidateAsset = await this.client.queryOne<{ id: string }>(
+          `SELECT id FROM file_assets
+           WHERE id = :sourceFileAssetId
+             AND linked_entity_type = 'numbering_candidate_revision'
+             AND linked_entity_id = :candidateRevisionId
+             AND deleted_at IS NULL`,
+          { sourceFileAssetId: file.source_file_asset_id, candidateRevisionId: candidate.id }
+        );
+        if (!candidateAsset) throw new Error("APPROVAL_SNAPSHOT_STALE");
+        await this.client.execute(
+          `UPDATE file_assets
+           SET linked_entity_type = 'drawing_number', linked_entity_id = :drawingNumberId,
+               updated_at = :updatedAt
+           WHERE id = :sourceFileAssetId
+             AND linked_entity_type = 'numbering_candidate_revision'
+             AND linked_entity_id = :candidateRevisionId`,
+          {
+            sourceFileAssetId: file.source_file_asset_id,
+            candidateRevisionId: candidate.id,
+            drawingNumberId,
+            updatedAt: now
+          }
+        );
         await this.client.execute(
           `INSERT INTO drawing_revision_package_files (
              id, package_id, source_file_asset_id, source_submission_file_id, role, role_source,

@@ -1,5 +1,6 @@
 export const NUMBER_STATE_FLOW_V1_FLAG = "PDM_NUMBER_STATE_FLOW_V1";
 export const NUMBER_LIFECYCLE_V2_FLAG = "PDM_NUMBER_LIFECYCLE_V2";
+export const UNIFIED_DRAWING_WORKBENCH_V1_FLAG = "PDM_UNIFIED_DRAWING_WORKBENCH_V1";
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -28,5 +29,25 @@ export function numberLifecycleV2ClientStatus(env: EnvLike = process.env) {
     enabled: isNumberLifecycleV2Enabled(env),
     flag: NUMBER_LIFECYCLE_V2_FLAG,
     phase: "1D"
+  };
+}
+
+export function isUnifiedDrawingWorkbenchV1Enabled(env: EnvLike = process.env) {
+  const requested = ["1", "true", "on", "enabled"].includes(
+    String(env[UNIFIED_DRAWING_WORKBENCH_V1_FLAG] ?? "").trim().toLowerCase()
+  );
+  return requested && isNumberLifecycleV2Enabled(env);
+}
+
+export function unifiedDrawingWorkbenchV1ClientStatus(env: EnvLike = process.env) {
+  const requested = ["1", "true", "on", "enabled"].includes(
+    String(env[UNIFIED_DRAWING_WORKBENCH_V1_FLAG] ?? "").trim().toLowerCase()
+  );
+  return {
+    enabled: requested && isNumberLifecycleV2Enabled(env),
+    requested,
+    flag: UNIFIED_DRAWING_WORKBENCH_V1_FLAG,
+    dependency: NUMBER_LIFECYCLE_V2_FLAG,
+    phase: "DEV-053"
   };
 }

@@ -31,6 +31,11 @@ export type NumberingDraftItemKind = "purchased" | "manufactured" | "outsourced"
 export type NumberCandidateItemType = "root" | "part" | "drawing";
 export type NumberCandidateState = "active" | "review_locked" | "approved_locked" | "promoted" | "recycled";
 export type NumberingDraftPurposeCode = "MA" | "OT" | "M" | "R";
+export type NumberingSourceLinkType = "primary_manufacturing" | "reference";
+
+function isManufacturingPurpose(value: NumberingDraftPurposeCode) {
+  return value === "M" || value === "MA";
+}
 
 type WorkspaceRow = {
   id: string;
@@ -40,6 +45,9 @@ type WorkspaceRow = {
   owner_id: string;
   created_by: string;
   source_root_id: string | null;
+  source_drawing_number_id: string | null;
+  source_part_number_id: string | null;
+  source_link_type: NumberingSourceLinkType | null;
   append_reason: string | null;
   row_version: number;
   published_at: string | null;
@@ -217,6 +225,21 @@ type SourceRootRow = {
   rule_version_id: string;
 };
 
+type SourceDrawingRow = {
+  id: string;
+  company_id: string;
+  part_root_id: string;
+  purpose_code: NumberingDraftPurposeCode;
+  record_status: string;
+};
+
+type SourcePartRow = {
+  id: string;
+  company_id: string;
+  part_root_id: string;
+  record_status: string;
+};
+
 export type NumberStateProjection = {
   numberQualification: "unnumbered" | "candidate" | "official" | "legacy_official_reservation";
   lifecycle: "draft" | "cancelled" | "published" | "obsolete";
@@ -251,6 +274,9 @@ export type NumberingDraftWorkspaceRecord = {
   ownerId: string;
   createdBy: string;
   sourceRootId: string | null;
+  sourceDrawingNumberId: string | null;
+  sourcePartNumberId: string | null;
+  sourceLinkType: NumberingSourceLinkType | null;
   appendReason: string | null;
   rowVersion: number;
   publishedAt: string | null;
@@ -322,6 +348,9 @@ export type CreateNumberingDraftWorkspaceData = {
   ownerId: string;
   createdBy: string;
   sourceRootId: string | null;
+  sourceDrawingNumberId: string | null;
+  sourcePartNumberId: string | null;
+  sourceLinkType: NumberingSourceLinkType | null;
   appendReason: string | null;
   root: null | {
     id: string;
@@ -655,6 +684,9 @@ export function numberingCandidateSnapshotFacts(workspace: NumberingDraftWorkspa
       lifecycleStatus: workspace.lifecycleStatus,
       ownerId: workspace.ownerId,
       sourceRootId: workspace.sourceRootId,
+      sourceDrawingNumberId: workspace.sourceDrawingNumberId,
+      sourcePartNumberId: workspace.sourcePartNumberId,
+      sourceLinkType: workspace.sourceLinkType,
       appendReason: workspace.appendReason
     },
     root: workspace.root ? {
@@ -747,6 +779,66 @@ export class AsyncNumberStateFlowRepository {
     );
   }
 
+  private async sourceDrawing(sourceDrawingNumberId: string, companyId: string) {
+    return this.client.queryOne<SourceDrawingRow>(
+      `SELECT id, company_id, part_root_id, purpose_code, record_status
+       FROM drawing_numbers
+       WHERE id = :sourceDrawingNumberId AND company_id = :companyId`,
+      { sourceDrawingNumberId, companyId }
+    );
+  }
+
+  private async sourcePart(sourcePartNumberId: string, companyId: string) {
+    return this.client.queryOne<SourcePartRow>(
+      `SELECT id, company_id, part_root_id, record_status
+       FROM part_numbers
+       WHERE id = :sourcePartNumberId AND company_id = :companyId`,
+      { sourcePartNumberId, companyId }
+    );
+  }
+
+  private async validateSourceContext(input: {
+    companyId: string;
+    draftMode: NumberingDraftMode;
+    sourceRootId: string | null;
+    sourceDrawingNumberId: string | null;
+    sourcePartNumberId: string | null;
+    sourceLinkType: NumberingSourceLinkType | null;
+    drawings: Array<{ purposeCode: NumberingDraftPurposeCode }>;
+  }) {
+    const [sourceDrawing, sourcePart] = await Promise.all([
+      input.sourceDrawingNumberId ? this.sourceDrawing(input.sourceDrawingNumberId, input.companyId) : null,
+      input.sourcePartNumberId ? this.sourcePart(input.sourcePartNumberId, input.companyId) : null
+    ]);
+    if (input.sourceDrawingNumberId && !sourceDrawing) throw new Error("SOURCE_DRAWING_NOT_FOUND");
+    if (input.sourcePartNumberId && !sourcePart) throw new Error("SOURCE_PART_NOT_FOUND");
+    const source = sourceDrawing ?? sourcePart;
+    if (source && source.part_root_id !== input.sourceRootId) throw new Error("SOURCE_CONTEXT_ROOT_MISMATCH");
+    if (source && !["Active", "Released", "MainDrawingInvalid"].includes(source.record_status)) {
+      throw new Error("SOURCE_CONTEXT_STATE_BLOCKED");
+    }
+    if (sourceDrawing && input.draftMode !== "append_part") throw new Error("SOURCE_CONTEXT_MODE_MISMATCH");
+    if (sourcePart && input.draftMode !== "append_drawing") throw new Error("SOURCE_CONTEXT_MODE_MISMATCH");
+    if (input.sourceLinkType === "primary_manufacturing") {
+      if (sourceDrawing && !isManufacturingPurpose(sourceDrawing.purpose_code)) {
+        throw new Error("SOURCE_PRIMARY_LINK_INVALID");
+      }
+      if (sourcePart) {
+        if (input.drawings.length !== 1 || !isManufacturingPurpose(input.drawings[0].purposeCode)) {
+          throw new Error("SOURCE_PRIMARY_LINK_INVALID");
+        }
+        const existingPrimary = await this.client.queryOne<{ id: string }>(
+          `SELECT id FROM drawing_part_links
+           WHERE part_number_id = :sourcePartNumberId AND link_type = 'primary_manufacturing'
+           LIMIT 1`,
+          { sourcePartNumberId: sourcePart.id }
+        );
+        if (existingPrimary) throw new Error("SOURCE_PRIMARY_LINK_CONFLICT");
+      }
+    }
+    return { sourceDrawing, sourcePart };
+  }
+
   private async insertAudit(input: { actorId: string; action: string; detail: Record<string, unknown> }) {
     await this.client.execute(
       `INSERT INTO audit_logs (id, actor_id, action, detail_json, created_at)
@@ -796,6 +888,136 @@ export class AsyncNumberStateFlowRepository {
     );
   }
 
+  private buildWorkspaceRecord(input: {
+    workspace: WorkspaceRow;
+    root: RootRow | null;
+    parts: PartRow[];
+    drawings: DrawingRow[];
+    relations: RelationRow[];
+    reservations: ReservationRow[];
+    latestApprovalRow: CandidateApprovalRow | null;
+    candidateRows?: CandidateRevisionRow[];
+    candidateFileRows?: CandidateRevisionFileRow[];
+    companionRows?: ReviewApprovalCompanionRow[];
+    latestBundleApprovalRow?: CandidateApprovalRow | null;
+  }): NumberingDraftWorkspaceRecord {
+    const { workspace, root, parts, drawings, relations, reservations, latestApprovalRow } = input;
+    const latestApproval = mapCandidateApproval(latestApprovalRow);
+    let candidateRevisions: NumberingCandidateRevisionRecord[] = [];
+    let lifecycleV2: NumberLifecycleProjectionV2 | null = null;
+    let latestBundleApproval: NumberingCandidateApprovalRecord | null = null;
+    if (isNumberLifecycleV2Enabled()) {
+      const filesByCandidate = new Map<string, CandidateRevisionFileRow[]>();
+      for (const file of input.candidateFileRows ?? []) {
+        const files = filesByCandidate.get(file.candidate_revision_id) ?? [];
+        files.push(file);
+        filesByCandidate.set(file.candidate_revision_id, files);
+      }
+      const companionByCandidate = new Map((input.companionRows ?? []).map((companion) => [companion.candidate_revision_id, companion]));
+      candidateRevisions = (input.candidateRows ?? []).map((candidate) => mapCandidateRevision(
+        candidate,
+        filesByCandidate.get(candidate.id) ?? [],
+        companionByCandidate.get(candidate.id)
+      ));
+      latestBundleApproval = mapCandidateApproval(input.latestBundleApprovalRow ?? null);
+      lifecycleV2 = projectNumberLifecycleV2({
+        workspaceLifecycle: workspace.lifecycle_status,
+        drawingDraftIds: drawings.map((drawing) => drawing.id),
+        relationCount: relations.length,
+        relationshipOnlyReady: workspace.draft_mode === "append_part"
+          && Boolean(workspace.source_drawing_number_id)
+          && parts.length > 0,
+        reservations: reservations.map((reservation) => ({
+          itemType: reservation.draft_item_type,
+          state: reservation.reservation_state
+        })),
+        legacyApproval: latestApproval,
+        bundleApproval: latestBundleApproval,
+        candidateRevisions
+      });
+    }
+    const locked = reservations.some((reservation) => ["review_locked", "approved_locked", "promoted"].includes(reservation.reservation_state));
+    const activeReservations = reservations.filter((reservation) => reservation.reservation_state !== "recycled");
+    const allActive = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "active");
+    const allReviewLocked = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "review_locked");
+    const allApproved = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "approved_locked");
+    return {
+      id: workspace.id,
+      companyId: workspace.company_id,
+      draftMode: workspace.draft_mode,
+      lifecycleStatus: workspace.lifecycle_status,
+      ownerId: workspace.owner_id,
+      createdBy: workspace.created_by,
+      sourceRootId: workspace.source_root_id,
+      sourceDrawingNumberId: workspace.source_drawing_number_id ?? null,
+      sourcePartNumberId: workspace.source_part_number_id ?? null,
+      sourceLinkType: workspace.source_link_type ?? null,
+      appendReason: workspace.append_reason ?? null,
+      rowVersion: Number(workspace.row_version),
+      publishedAt: workspace.published_at,
+      publishedBy: workspace.published_by,
+      cancelledAt: workspace.cancelled_at,
+      cancelledBy: workspace.cancelled_by,
+      cancelReason: workspace.cancel_reason,
+      createdAt: workspace.created_at,
+      updatedAt: workspace.updated_at,
+      root: root ? {
+        id: root.id,
+        coreName: root.core_name,
+        itemKind: root.item_kind,
+        ruleVersionId: root.rule_version_id,
+        candidateReservationId: root.candidate_reservation_id,
+        candidateCode: root.candidate_code ?? null
+      } : null,
+      parts: parts.map((part) => ({
+        id: part.id,
+        rootDraftId: part.root_draft_id,
+        sourceRootId: part.source_root_id,
+        partName: part.part_name,
+        itemKind: part.item_kind,
+        isUniversal: toBoolean(part.is_universal),
+        universalReason: part.universal_reason ?? null,
+        customSpecification: part.custom_specification,
+        seriesCode: part.series_code,
+        candidateReservationId: part.candidate_reservation_id,
+        candidateCode: part.candidate_code ?? null
+      })),
+      drawings: drawings.map((drawing) => ({
+        id: drawing.id,
+        rootDraftId: drawing.root_draft_id,
+        sourceRootId: drawing.source_root_id,
+        purposeCode: drawing.purpose_code,
+        purposeDescription: drawing.purpose_description,
+        isPrimaryManufacturing: toBoolean(drawing.is_primary_manufacturing),
+        candidateReservationId: drawing.candidate_reservation_id,
+        candidateCode: drawing.candidate_code ?? null
+      })),
+      relations: relations.map((relation) => ({
+        id: relation.id,
+        drawingDraftId: relation.drawing_draft_id,
+        partDraftId: relation.part_draft_id,
+        linkType: relation.link_type,
+        isPrimary: toBoolean(relation.is_primary)
+      })),
+      reservations: reservations.map(mapReservation),
+      latestApproval,
+      projection: buildProjection(workspace, reservations, latestApproval),
+      lifecycleV2,
+      candidateRevisions,
+      capabilities: {
+        canUpdate: workspace.lifecycle_status === "active" && !locked,
+        canAcquireCandidates: workspace.lifecycle_status === "active" && !locked && activeReservations.length === 0,
+        canCancel: workspace.lifecycle_status === "active" && !locked,
+        canSubmitReview: workspace.lifecycle_status === "active" && allActive && latestApproval?.status !== "pending",
+        canWithdrawReview: workspace.lifecycle_status === "active" && allReviewLocked &&
+          (latestBundleApproval?.status === "pending" || latestApproval?.status === "pending"),
+        canPublish: workspace.lifecycle_status === "active" && allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied",
+        publishBlockedReason: allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied" ? null : "approval_required"
+      },
+      references: []
+    };
+  }
+
   private async insertApprovalEvent(input: {
     requestId: string;
     eventType: string;
@@ -829,15 +1051,18 @@ export class AsyncNumberStateFlowRepository {
     if (appendReasonRequired && !input.appendReason?.trim()) {
       throw new Error("APPEND_REASON_REQUIRED");
     }
+    await this.validateSourceContext(input);
     const ruleVersionId = input.root?.ruleVersionId ?? sourceRoot?.rule_version_id;
     if (!ruleVersionId) throw new Error("NUMBERING_RULE_REQUIRED");
     for (const drawing of input.drawings) assertPurposeAllowedForRule(drawing.purposeCode, ruleVersionId);
     await this.client.execute(
       `INSERT INTO numbering_draft_workspaces (
          id, company_id, draft_mode, lifecycle_status, owner_id, created_by, source_root_id,
+         source_drawing_number_id, source_part_number_id, source_link_type,
          append_reason, row_version, created_at, updated_at
        ) VALUES (
          :id, :companyId, :draftMode, 'active', :ownerId, :createdBy, :sourceRootId,
+         :sourceDrawingNumberId, :sourcePartNumberId, :sourceLinkType,
          :appendReason, 1, :createdAt, :updatedAt
        )`,
       { ...input, createdAt: now, updatedAt: now }
@@ -925,6 +1150,9 @@ export class AsyncNumberStateFlowRepository {
         partCount: input.parts.length,
         drawingCount: input.drawings.length,
         sourceRootCode: sourceRoot?.root_code ?? null,
+        sourceDrawingNumberId: input.sourceDrawingNumberId,
+        sourcePartNumberId: input.sourcePartNumberId,
+        sourceLinkType: input.sourceLinkType,
         appendReason: input.appendReason ?? null
       }
     });
@@ -972,7 +1200,126 @@ export class AsyncNumberStateFlowRepository {
        LIMIT ${limit}`,
       params
     );
-    return Promise.all(rows.map((row) => this.getWorkspace(row.id, input.companyId)));
+    return this.getWorkspacesByIds(rows.map((row) => row.id), input.companyId);
+  }
+
+  async getWorkspacesByIds(workspaceIds: string[], companyId: string): Promise<NumberingDraftWorkspaceRecord[]> {
+    const orderedIds = [...new Set(workspaceIds.filter(Boolean))];
+    if (orderedIds.length === 0) return [];
+    const chunks = Array.from({ length: Math.ceil(orderedIds.length / 400) }, (_, index) => orderedIds.slice(index * 400, (index + 1) * 400));
+    const queryChunks = async <T>(sql: (placeholders: string) => string) => {
+      const batches = await Promise.all(chunks.map((chunk, chunkIndex) => {
+        const bindings: Record<string, string> = { companyId };
+        const placeholders = chunk.map((workspaceId, itemIndex) => {
+          const key = `workspaceId${chunkIndex}_${itemIndex}`;
+          bindings[key] = workspaceId;
+          return `:${key}`;
+        }).join(", ");
+        return this.client.query<T>(sql(placeholders), bindings);
+      }));
+      return batches.flat();
+    };
+    type TargetedApprovalRow = CandidateApprovalRow & { target_workspace_id: string };
+    type WorkspaceCompanionRow = ReviewApprovalCompanionRow & { workspace_id: string };
+    const [workspaces, roots, parts, drawings, relations, reservations, legacyApprovalRows] = await Promise.all([
+      queryChunks<WorkspaceRow>((ids) => `SELECT * FROM numbering_draft_workspaces WHERE company_id = :companyId AND id IN (${ids})`),
+      queryChunks<RootRow>((ids) => `SELECT root.*, candidate.candidate_code
+        FROM numbering_draft_roots root
+        LEFT JOIN number_candidate_reservations candidate ON candidate.id = root.candidate_reservation_id
+        WHERE root.company_id = :companyId AND root.workspace_id IN (${ids})`),
+      queryChunks<PartRow>((ids) => `SELECT part.*, candidate.candidate_code
+        FROM numbering_draft_parts part
+        LEFT JOIN number_candidate_reservations candidate ON candidate.id = part.candidate_reservation_id
+        WHERE part.company_id = :companyId AND part.workspace_id IN (${ids})
+        ORDER BY part.created_at, part.id`),
+      queryChunks<DrawingRow>((ids) => `SELECT drawing.*, candidate.candidate_code
+        FROM numbering_draft_drawings drawing
+        LEFT JOIN number_candidate_reservations candidate ON candidate.id = drawing.candidate_reservation_id
+        WHERE drawing.company_id = :companyId AND drawing.workspace_id IN (${ids})
+        ORDER BY drawing.created_at, drawing.id`),
+      queryChunks<RelationRow>((ids) => `SELECT * FROM numbering_draft_relations
+        WHERE company_id = :companyId AND workspace_id IN (${ids}) ORDER BY created_at, id`),
+      queryChunks<ReservationRow>((ids) => `SELECT * FROM number_candidate_reservations
+        WHERE company_id = :companyId AND workspace_id IN (${ids})
+        ORDER BY CASE draft_item_type WHEN 'root' THEN 0 WHEN 'part' THEN 1 WHEN 'drawing' THEN 2 ELSE 3 END, created_at, id`),
+      queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id
+        FROM approval_platform_requests request
+        JOIN approval_platform_targets target ON target.request_id = request.id
+        WHERE request.company_id = :companyId
+          AND request.action_code = 'numbering.candidate_publication_review'
+          AND target.target_type = 'numbering_draft_workspace'
+          AND target.target_id IN (${ids})
+        ORDER BY target.target_id, request.requested_at DESC, request.id DESC`)
+    ]);
+    let candidateRows: CandidateRevisionRow[] = [];
+    let candidateFileRows: CandidateRevisionFileRow[] = [];
+    let companionRows: WorkspaceCompanionRow[] = [];
+    let bundleApprovalRows: TargetedApprovalRow[] = [];
+    if (isNumberLifecycleV2Enabled()) {
+      [candidateRows, candidateFileRows, companionRows, bundleApprovalRows] = await Promise.all([
+        queryChunks<CandidateRevisionRow>((ids) => `SELECT * FROM numbering_candidate_revision_drafts
+          WHERE company_id = :companyId AND workspace_id IN (${ids}) ORDER BY created_at, id`),
+        queryChunks<CandidateRevisionFileRow>((ids) => `SELECT candidate_file.*
+          FROM numbering_candidate_revision_files candidate_file
+          JOIN numbering_candidate_revision_drafts candidate
+            ON candidate.id = candidate_file.candidate_revision_id AND candidate.company_id = candidate_file.company_id
+          WHERE candidate.company_id = :companyId AND candidate.workspace_id IN (${ids})
+          ORDER BY candidate_file.sort_order, candidate_file.id`),
+        queryChunks<WorkspaceCompanionRow>((ids) => `SELECT approval.package_id, approval.candidate_revision_id, approval.snapshot_hash,
+            package.status AS package_status, candidate.workspace_id
+          FROM drawing_revision_package_review_approvals approval
+          JOIN numbering_candidate_revision_drafts candidate
+            ON candidate.id = approval.candidate_revision_id AND candidate.company_id = approval.company_id
+          JOIN drawing_revision_packages package
+            ON package.id = approval.package_id AND package.company_id = approval.company_id
+          WHERE candidate.company_id = :companyId AND candidate.workspace_id IN (${ids})`),
+        queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id
+          FROM approval_platform_requests request
+          JOIN approval_platform_targets target ON target.request_id = request.id
+          WHERE request.company_id = :companyId
+            AND request.action_code = 'numbering.candidate_bundle_review'
+            AND target.target_type = 'numbering_draft_workspace'
+            AND target.target_id IN (${ids})
+          ORDER BY target.target_id, request.requested_at DESC, request.id DESC`)
+      ]);
+    }
+    const group = <T extends { workspace_id: string }>(rows: T[]) => {
+      const grouped = new Map<string, T[]>();
+      for (const row of rows) grouped.set(row.workspace_id, [...(grouped.get(row.workspace_id) ?? []), row]);
+      return grouped;
+    };
+    const workspacesById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
+    const rootsByWorkspace = new Map(roots.map((root) => [root.workspace_id, root]));
+    const partsByWorkspace = group(parts);
+    const drawingsByWorkspace = group(drawings);
+    const relationsByWorkspace = group(relations);
+    const reservationsByWorkspace = group(reservations);
+    const candidatesByWorkspace = group(candidateRows);
+    const filesByCandidate = new Map<string, CandidateRevisionFileRow[]>();
+    for (const file of candidateFileRows) filesByCandidate.set(file.candidate_revision_id, [...(filesByCandidate.get(file.candidate_revision_id) ?? []), file]);
+    const companionsByWorkspace = group(companionRows);
+    const latestLegacyByWorkspace = new Map<string, CandidateApprovalRow>();
+    for (const row of legacyApprovalRows) if (!latestLegacyByWorkspace.has(row.target_workspace_id)) latestLegacyByWorkspace.set(row.target_workspace_id, row);
+    const latestBundleByWorkspace = new Map<string, CandidateApprovalRow>();
+    for (const row of bundleApprovalRows) if (!latestBundleByWorkspace.has(row.target_workspace_id)) latestBundleByWorkspace.set(row.target_workspace_id, row);
+    return orderedIds.flatMap((workspaceId) => {
+      const workspace = workspacesById.get(workspaceId);
+      if (!workspace) return [];
+      const workspaceCandidates = candidatesByWorkspace.get(workspaceId) ?? [];
+      return [this.buildWorkspaceRecord({
+        workspace,
+        root: rootsByWorkspace.get(workspaceId) ?? null,
+        parts: partsByWorkspace.get(workspaceId) ?? [],
+        drawings: drawingsByWorkspace.get(workspaceId) ?? [],
+        relations: relationsByWorkspace.get(workspaceId) ?? [],
+        reservations: reservationsByWorkspace.get(workspaceId) ?? [],
+        latestApprovalRow: latestLegacyByWorkspace.get(workspaceId) ?? null,
+        candidateRows: workspaceCandidates,
+        candidateFileRows: workspaceCandidates.flatMap((candidate) => filesByCandidate.get(candidate.id) ?? []),
+        companionRows: companionsByWorkspace.get(workspaceId) ?? [],
+        latestBundleApprovalRow: latestBundleByWorkspace.get(workspaceId) ?? null
+      })];
+    });
   }
 
   async getWorkspace(workspaceId: string, companyId: string): Promise<NumberingDraftWorkspaceRecord> {
@@ -1026,12 +1373,12 @@ export class AsyncNumberStateFlowRepository {
         { workspaceId, companyId }
       )
     ]);
-    const latestApproval = mapCandidateApproval(latestApprovalRow);
-    let candidateRevisions: NumberingCandidateRevisionRecord[] = [];
-    let lifecycleV2: NumberLifecycleProjectionV2 | null = null;
-    let latestBundleApproval: NumberingCandidateApprovalRecord | null = null;
+    let candidateRows: CandidateRevisionRow[] = [];
+    let candidateFileRows: CandidateRevisionFileRow[] = [];
+    let companionRows: ReviewApprovalCompanionRow[] = [];
+    let latestBundleApprovalRow: CandidateApprovalRow | null = null;
     if (isNumberLifecycleV2Enabled()) {
-      const [candidateRows, candidateFileRows, companionRows, latestBundleApprovalRow] = await Promise.all([
+      [candidateRows, candidateFileRows, companionRows, latestBundleApprovalRow] = await Promise.all([
         this.client.query<CandidateRevisionRow>(
           `SELECT * FROM numbering_candidate_revision_drafts
            WHERE workspace_id = :workspaceId AND company_id = :companyId
@@ -1074,109 +1421,11 @@ export class AsyncNumberStateFlowRepository {
           { workspaceId, companyId }
         )
       ]);
-      const filesByCandidate = new Map<string, CandidateRevisionFileRow[]>();
-      for (const file of candidateFileRows) {
-        const files = filesByCandidate.get(file.candidate_revision_id) ?? [];
-        files.push(file);
-        filesByCandidate.set(file.candidate_revision_id, files);
-      }
-      const companionByCandidate = new Map(companionRows.map((companion) => [companion.candidate_revision_id, companion]));
-      candidateRevisions = candidateRows.map((candidate) => mapCandidateRevision(
-        candidate,
-        filesByCandidate.get(candidate.id) ?? [],
-        companionByCandidate.get(candidate.id)
-      ));
-      latestBundleApproval = mapCandidateApproval(latestBundleApprovalRow);
-      lifecycleV2 = projectNumberLifecycleV2({
-        workspaceLifecycle: workspace.lifecycle_status,
-        drawingDraftIds: drawings.map((drawing) => drawing.id),
-        relationCount: relations.length,
-        reservations: reservations.map((reservation) => ({
-          itemType: reservation.draft_item_type,
-          state: reservation.reservation_state
-        })),
-        legacyApproval: latestApproval,
-        bundleApproval: latestBundleApproval,
-        candidateRevisions
-      });
     }
-    const locked = reservations.some((reservation) => ["review_locked", "approved_locked", "promoted"].includes(reservation.reservation_state));
-    const activeReservations = reservations.filter((reservation) => reservation.reservation_state !== "recycled");
-    const allActive = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "active");
-    const allReviewLocked = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "review_locked");
-    const allApproved = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.reservation_state === "approved_locked");
-    return {
-      id: workspace.id,
-      companyId: workspace.company_id,
-      draftMode: workspace.draft_mode,
-      lifecycleStatus: workspace.lifecycle_status,
-      ownerId: workspace.owner_id,
-      createdBy: workspace.created_by,
-      sourceRootId: workspace.source_root_id,
-      appendReason: workspace.append_reason ?? null,
-      rowVersion: Number(workspace.row_version),
-      publishedAt: workspace.published_at,
-      publishedBy: workspace.published_by,
-      cancelledAt: workspace.cancelled_at,
-      cancelledBy: workspace.cancelled_by,
-      cancelReason: workspace.cancel_reason,
-      createdAt: workspace.created_at,
-      updatedAt: workspace.updated_at,
-      root: root ? {
-        id: root.id,
-        coreName: root.core_name,
-        itemKind: root.item_kind,
-        ruleVersionId: root.rule_version_id,
-        candidateReservationId: root.candidate_reservation_id,
-        candidateCode: root.candidate_code ?? null
-      } : null,
-      parts: parts.map((part) => ({
-        id: part.id,
-        rootDraftId: part.root_draft_id,
-        sourceRootId: part.source_root_id,
-        partName: part.part_name,
-        itemKind: part.item_kind,
-        isUniversal: toBoolean(part.is_universal),
-        universalReason: part.universal_reason ?? null,
-        customSpecification: part.custom_specification,
-        seriesCode: part.series_code,
-        candidateReservationId: part.candidate_reservation_id,
-        candidateCode: part.candidate_code ?? null
-      })),
-      drawings: drawings.map((drawing) => ({
-        id: drawing.id,
-        rootDraftId: drawing.root_draft_id,
-        sourceRootId: drawing.source_root_id,
-        purposeCode: drawing.purpose_code,
-        purposeDescription: drawing.purpose_description,
-        isPrimaryManufacturing: toBoolean(drawing.is_primary_manufacturing),
-        candidateReservationId: drawing.candidate_reservation_id,
-        candidateCode: drawing.candidate_code ?? null
-      })),
-      relations: relations.map((relation) => ({
-        id: relation.id,
-        drawingDraftId: relation.drawing_draft_id,
-        partDraftId: relation.part_draft_id,
-        linkType: relation.link_type,
-        isPrimary: toBoolean(relation.is_primary)
-      })),
-      reservations: reservations.map(mapReservation),
-      latestApproval,
-      projection: buildProjection(workspace, reservations, latestApproval),
-      lifecycleV2,
-      candidateRevisions,
-      capabilities: {
-        canUpdate: workspace.lifecycle_status === "active" && !locked,
-        canAcquireCandidates: workspace.lifecycle_status === "active" && !locked && activeReservations.length === 0,
-        canCancel: workspace.lifecycle_status === "active" && !locked,
-        canSubmitReview: workspace.lifecycle_status === "active" && allActive && latestApproval?.status !== "pending",
-        canWithdrawReview: workspace.lifecycle_status === "active" && allReviewLocked &&
-          (latestBundleApproval?.status === "pending" || latestApproval?.status === "pending"),
-        canPublish: workspace.lifecycle_status === "active" && allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied",
-        publishBlockedReason: allApproved && latestApproval?.status === "approved" && latestApproval.applyStatus === "applied" ? null : "approval_required"
-      },
-      references: []
-    };
+    return this.buildWorkspaceRecord({
+      workspace, root, parts, drawings, relations, reservations, latestApprovalRow,
+      candidateRows, candidateFileRows, companionRows, latestBundleApprovalRow
+    });
   }
 
   async updateWorkspace(input: UpdateNumberingDraftWorkspaceData) {
@@ -2083,6 +2332,15 @@ export class AsyncNumberStateFlowRepository {
     const now = this.clock();
     const reservationByItem = new Map(reservations.map((reservation) => [`${reservation.draft_item_type}:${reservation.draft_item_id}`, reservation]));
     const sourceRoot = workspace.sourceRootId ? await this.sourceRoot(workspace.sourceRootId, input.companyId) : null;
+    const sourceContext = await this.validateSourceContext({
+      companyId: input.companyId,
+      draftMode: workspace.draftMode,
+      sourceRootId: workspace.sourceRootId,
+      sourceDrawingNumberId: workspace.sourceDrawingNumberId,
+      sourcePartNumberId: workspace.sourcePartNumberId,
+      sourceLinkType: workspace.sourceLinkType,
+      drawings: workspace.drawings
+    });
     const rootReservation = workspace.root ? reservationByItem.get(`root:${workspace.root.id}`) : null;
     const rootId = workspace.root ? `part-root-${rootReservation?.id ?? "missing"}` : sourceRoot?.id;
     if (!rootId || (workspace.root && !rootReservation)) throw new Error("CANDIDATE_ROOT_REQUIRED");
@@ -2209,6 +2467,54 @@ export class AsyncNumberStateFlowRepository {
       );
       relationIds.push(relationId);
     }
+    if (sourceContext.sourceDrawing && workspace.sourceLinkType) {
+      for (const part of workspace.parts) {
+        const partNumberId = partMasterByDraft.get(part.id);
+        if (!partNumberId) throw new Error("DRAFT_RELATION_TARGET_MISSING");
+        const relationId = `drawing-part-link-source-${workspace.id}-${part.id}`;
+        this.approvalFaultInjector?.("before_relation_insert");
+        await this.client.execute(
+          `INSERT INTO drawing_part_links (
+             id, drawing_number_id, part_number_id, link_type, created_by, created_at
+           ) VALUES (
+             :id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt
+           )`,
+          {
+            id: relationId,
+            drawingNumberId: sourceContext.sourceDrawing.id,
+            partNumberId,
+            linkType: workspace.sourceLinkType,
+            createdBy: input.actorId,
+            createdAt: now
+          }
+        );
+        relationIds.push(relationId);
+      }
+    }
+    if (sourceContext.sourcePart && workspace.sourceLinkType) {
+      for (const drawing of workspace.drawings) {
+        const drawingNumberId = drawingMasterByDraft.get(drawing.id);
+        if (!drawingNumberId) throw new Error("DRAFT_RELATION_TARGET_MISSING");
+        const relationId = `drawing-part-link-source-${workspace.id}-${drawing.id}`;
+        this.approvalFaultInjector?.("before_relation_insert");
+        await this.client.execute(
+          `INSERT INTO drawing_part_links (
+             id, drawing_number_id, part_number_id, link_type, created_by, created_at
+           ) VALUES (
+             :id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt
+           )`,
+          {
+            id: relationId,
+            drawingNumberId,
+            partNumberId: sourceContext.sourcePart.id,
+            linkType: workspace.sourceLinkType,
+            createdBy: input.actorId,
+            createdAt: now
+          }
+        );
+        relationIds.push(relationId);
+      }
+    }
     for (const reservation of reservations) {
       const promotedMasterType = reservation.draft_item_type === "root"
         ? "part_root"
@@ -2319,7 +2625,15 @@ export class AsyncNumberStateFlowRepository {
         rootId: root?.promoted_master_id ?? workspace.sourceRootId ?? "",
         partIds: reservations.filter((reservation) => reservation.promoted_master_type === "part_number").map((reservation) => reservation.promoted_master_id!).filter(Boolean),
         drawingIds: reservations.filter((reservation) => reservation.promoted_master_type === "drawing_number").map((reservation) => reservation.promoted_master_id!).filter(Boolean),
-        relationIds: workspace.relations.map((relation) => `drawing-part-link-${relation.id}`)
+        relationIds: [
+          ...workspace.relations.map((relation) => `drawing-part-link-${relation.id}`),
+          ...(workspace.sourceDrawingNumberId
+            ? workspace.parts.map((part) => `drawing-part-link-source-${workspace.id}-${part.id}`)
+            : []),
+          ...(workspace.sourcePartNumberId
+            ? workspace.drawings.map((drawing) => `drawing-part-link-source-${workspace.id}-${drawing.id}`)
+            : [])
+        ]
       }
     };
   }

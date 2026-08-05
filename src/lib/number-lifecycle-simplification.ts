@@ -94,6 +94,7 @@ export type NumberLifecycleProjectionInput = {
   workspaceLifecycle: "active" | "cancelled" | "published";
   drawingDraftIds: string[];
   relationCount: number;
+  relationshipOnlyReady?: boolean;
   reservations: ReservationFact[];
   legacyApproval: ApprovalFact;
   bundleApproval: ApprovalFact;
@@ -188,11 +189,11 @@ export function projectNumberLifecycleV2(input: NumberLifecycleProjectionInput):
 
   const activeCandidates = input.candidateRevisions.filter((candidate) => candidate.lifecycleStatus === "draft");
   const candidateByDrawing = new Map(activeCandidates.map((candidate) => [candidate.drawingDraftId, candidate]));
-  const everyDrawingReady = input.drawingDraftIds.length > 0 && input.drawingDraftIds.every((drawingDraftId) => {
+  const everyDrawingReady = Boolean(input.relationshipOnlyReady) || (input.drawingDraftIds.length > 0 && input.drawingDraftIds.every((drawingDraftId) => {
     const candidate = candidateByDrawing.get(drawingDraftId);
     return candidate ? evaluateCandidateRevisionReadiness(candidate).ready : false;
-  });
-  const relationsReady = input.relationCount > 0 || input.drawingDraftIds.length === 0;
+  }));
+  const relationsReady = Boolean(input.relationshipOnlyReady) || input.relationCount > 0 || input.drawingDraftIds.length === 0;
 
   if (allReservationsAre("active") && everyDrawingReady && relationsReady) {
     return projection("bundle_ready", "bundle_complete", "submit_bundle_review");

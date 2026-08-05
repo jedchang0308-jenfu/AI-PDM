@@ -42,6 +42,7 @@ type RootObsoleteImpact = {
 
 export function NumberingContextualEntrypoints({
   mode,
+  rootId,
   rootCode,
   coreName,
   rootRecordStatus,
@@ -53,14 +54,15 @@ export function NumberingContextualEntrypoints({
   onChanged
 }: {
   mode: ContextMode;
+  rootId?: string;
   rootCode: string;
   coreName?: string | null;
   rootRecordStatus?: RecordStatus;
   rootFormalChildCount?: number;
   rootPartCount?: number;
   rootDrawingCount?: number;
-  drawing?: { drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };
-  part?: { partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };
+  drawing?: { id?: string; drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };
+  part?: { id?: string; partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };
   onChanged?: () => Promise<void> | void;
 }) {
   const [dialog, setDialog] = useState<DialogMode>(null);
@@ -69,7 +71,18 @@ export function NumberingContextualEntrypoints({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [drawingWorkbenchEnabled, setDrawingWorkbenchEnabled] = useState<boolean | null>(null);
   const instanceId = useMemo(() => createIdempotencyKey(), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const response = await fetch("/api/numbering/state-flow/status", { cache: "no-store" });
+      const body = await response.json().catch(() => ({}));
+      if (!cancelled) setDrawingWorkbenchEnabled(response.ok ? body.drawingWorkbench?.enabled === true : null);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     function closeWhenPeerOpens(event: Event) {
@@ -119,7 +132,8 @@ export function NumberingContextualEntrypoints({
     };
   }, [dialog, rootCode]);
 
-  const disabledReason = policy?.locked ? "此主根已關閉，不能再追加圖號或料號。" : "";
+  const disabledReason = policy?.locked ? "此主根已關閉，不能再追加圖號或料號。" : drawingWorkbenchEnabled === null ? "正在確認新增流程。" : "";
+  const appendDisabled = Boolean(policy?.locked || busy || drawingWorkbenchEnabled === null);
   const canObsoleteRoot = Boolean(rootRecordStatus && isRootObsoleteCandidate(rootRecordStatus, rootFormalChildCount));
   const canDeleteDraftRoot = Boolean(rootRecordStatus && isDraftDeleteCandidate(rootRecordStatus) && rootFormalChildCount === 0);
 
@@ -141,14 +155,14 @@ export function NumberingContextualEntrypoints({
       <div className="pdm-contextual-action-row" data-numbering-contextual-entrypoints={mode}>
         {mode === "root" ? (
           <>
-            <button className="primary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_drawing")}>
+            <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
               <FilePlus2 size={16} />
               新增圖號
             </button>
-            <button className="secondary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_part")}>
+            {!drawingWorkbenchEnabled ? <button className="secondary-button" type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
               <Plus size={16} />
               新增料號
-            </button>
+            </button> : null}
             {canDeleteDraftRoot ? (
               <button className="secondary-button danger-button" type="button" disabled={busy} onClick={() => open("delete_draft_root")}>
                 <Trash2 size={16} />
@@ -164,11 +178,11 @@ export function NumberingContextualEntrypoints({
         ) : null}
         {mode === "drawing" && drawing ? (
           <>
-            <button className="secondary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_drawing")}>
+            <button className="secondary-button" type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
               <FilePlus2 size={16} />
               新增同根圖號
             </button>
-            <button className="primary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_part")}>
+            <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
               <Plus size={16} />
               新增同圖料號
             </button>
@@ -182,11 +196,11 @@ export function NumberingContextualEntrypoints({
         ) : null}
         {mode === "part" && part ? (
           <>
-            <button className="primary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_part")}>
+            {!drawingWorkbenchEnabled ? <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
               <Plus size={16} />
               以此料號新增同根料號
-            </button>
-            <button className="secondary-button" type="button" disabled={policy?.locked || busy} onClick={() => open("add_drawing")}>
+            </button> : null}
+            <button className={drawingWorkbenchEnabled ? "primary-button" : "secondary-button"} type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
               <FilePlus2 size={16} />
               新增同根圖號
             </button>
@@ -205,10 +219,10 @@ export function NumberingContextualEntrypoints({
       {message ? <p className="pdm-contextual-message">{message}</p> : null}
       {error ? <p className="pdm-contextual-error">{error}</p> : null}
       {dialog === "add_drawing" ? (
-        <AddDrawingDialog rootCode={rootCode} coreName={coreName} policy={policy} part={part} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} mode={mode} />
+        <AddDrawingDialog rootId={rootId} rootCode={rootCode} coreName={coreName} policy={policy} part={part} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} mode={mode} drawingWorkbenchEnabled={drawingWorkbenchEnabled === true} />
       ) : null}
       {dialog === "add_part" ? (
-        <AddPartDialog rootCode={rootCode} coreName={coreName} policy={policy} drawing={drawing} part={part} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} mode={mode} />
+        <AddPartDialog rootId={rootId} rootCode={rootCode} coreName={coreName} policy={policy} drawing={drawing} part={part} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} mode={mode} drawingWorkbenchEnabled={drawingWorkbenchEnabled === true} />
       ) : null}
       {dialog === "delete_draft_root" ? (
         <DeleteDraftRootDialog rootCode={rootCode} coreName={coreName} rootPartCount={rootPartCount} rootDrawingCount={rootDrawingCount} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} />
@@ -227,6 +241,7 @@ export function NumberingContextualEntrypoints({
 }
 
 function AddDrawingDialog({
+  rootId,
   rootCode,
   coreName,
   policy,
@@ -237,12 +252,14 @@ function AddDrawingDialog({
   setError,
   onChanged,
   onClose,
-  mode
+  mode,
+  drawingWorkbenchEnabled
 }: {
+  rootId?: string;
   rootCode: string;
   coreName?: string | null;
   policy: AppendPolicy | null;
-  part?: { partNumber: string; partName?: string | null };
+  part?: { id?: string; partNumber: string; partName?: string | null };
   busy: boolean;
   setBusy: (value: boolean) => void;
   setMessage: (value: string) => void;
@@ -250,8 +267,9 @@ function AddDrawingDialog({
   onChanged?: () => Promise<void> | void;
   onClose: () => void;
   mode: ContextMode;
+  drawingWorkbenchEnabled: boolean;
 }) {
-  const [purposeCode, setPurposeCode] = useState<"M" | "R">("M");
+  const [purposeCode, setPurposeCode] = useState<"M" | "R">(drawingWorkbenchEnabled && !part ? "R" : "M");
   const [purposeDescription, setPurposeDescription] = useState("");
   const [reason, setReason] = useState("");
   const [linkPart, setLinkPart] = useState(Boolean(part));
@@ -269,6 +287,44 @@ function AddDrawingDialog({
   async function submit() {
     setBusy(true);
     setError("");
+    if (drawingWorkbenchEnabled) {
+      if (!rootId) {
+        setBusy(false);
+        setError("目前找不到主根識別，請重新整理後再試；系統不會直接建立正式圖號。");
+        return;
+      }
+      if (purposeCode === "M" && (!linkPart || !part?.id)) {
+        setBusy(false);
+        setError("製造圖必須先選定來源料號；請從料號明細新增，或改建參考圖。");
+        return;
+      }
+      const sourceLinkType = linkPart && part?.id
+        ? purposeCode === "R" || effectiveLinkRelationType === "reference" ? "reference" : "primary_manufacturing"
+        : null;
+      const response = await fetch("/api/numbering/draft-workspaces", {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          draftMode: "append_drawing",
+          sourceRootId: rootId,
+          sourcePartNumberId: linkPart ? part?.id ?? null : null,
+          sourceLinkType,
+          appendReason: reason,
+          parts: [],
+          drawings: [{ clientKey: "drawing-1", purposeCode, purposeDescription, isPrimaryManufacturing: purposeCode === "M" }],
+          relations: [],
+          autoAcquireCandidates: true
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      setBusy(false);
+      if (!response.ok || !body.workspace?.id) {
+        setError(humanizeError(body.message ?? body.error ?? "圖號工作建立失敗"));
+        return;
+      }
+      window.location.assign(`/numbering/drawings?view=work&detail=${encodeURIComponent(`candidate:${body.workspace.id}`)}`);
+      return;
+    }
     const response = await fetch(`/api/numbering/roots/${encodeURIComponent(rootCode)}/drawings`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -313,6 +369,7 @@ function AddDrawingDialog({
       {part && linkPart && purposeCode === "R" ? (
         <p className="pdm-contextual-hint">參考圖不可作為製造依據，系統會建立參考關係。</p>
       ) : null}
+      {drawingWorkbenchEnabled && !part && purposeCode === "M" ? <p className="pdm-contextual-error">製造圖需要來源料號；請從料號明細新增。</p> : null}
       {part && linkPart && purposeCode === "M" ? (
         <label className="pdm-contextual-field">
           <span>關係</span>
@@ -327,8 +384,8 @@ function AddDrawingDialog({
         <button className="secondary-button" type="button" disabled={busy} onClick={cancel}>
           取消
         </button>
-        <button className="primary-button" type="button" disabled={busy || policy?.locked || (purposeCode === "R" && !purposeDescription.trim()) || (policy?.reasonRequired && !reason.trim())} onClick={submit}>
-          建立圖號
+        <button className="primary-button" type="button" disabled={busy || policy?.locked || (drawingWorkbenchEnabled && purposeCode === "M" && (!part?.id || !linkPart)) || (purposeCode === "R" && !purposeDescription.trim()) || (policy?.reasonRequired && !reason.trim())} onClick={submit}>
+          {drawingWorkbenchEnabled ? "建立圖號工作" : "建立圖號"}
         </button>
       </div>
     </div>
@@ -336,6 +393,7 @@ function AddDrawingDialog({
 }
 
 function AddPartDialog({
+  rootId,
   rootCode,
   coreName,
   policy,
@@ -347,13 +405,15 @@ function AddPartDialog({
   setError,
   onChanged,
   onClose,
-  mode
+  mode,
+  drawingWorkbenchEnabled
 }: {
+  rootId?: string;
   rootCode: string;
   coreName?: string | null;
   policy: AppendPolicy | null;
-  drawing?: { drawingNumber: string; purposeCode: string };
-  part?: { partNumber: string; partName?: string | null };
+  drawing?: { id?: string; drawingNumber: string; purposeCode: string };
+  part?: { id?: string; partNumber: string; partName?: string | null };
   busy: boolean;
   setBusy: (value: boolean) => void;
   setMessage: (value: string) => void;
@@ -361,6 +421,7 @@ function AddPartDialog({
   onChanged?: () => Promise<void> | void;
   onClose: () => void;
   mode: ContextMode;
+  drawingWorkbenchEnabled: boolean;
 }) {
   const [itemKind, setItemKind] = useState("manufactured");
   const [customSpecification, setCustomSpecification] = useState("");
@@ -392,6 +453,45 @@ function AddPartDialog({
   async function submit() {
     setBusy(true);
     setError("");
+    if (drawingWorkbenchEnabled) {
+      if (!rootId || !drawing?.id) {
+        setBusy(false);
+        setError("目前找不到來源圖號識別，請重新整理後再試；系統不會直接建立正式料號。");
+        return;
+      }
+      const sourceLinkType = !isManufacturingDrawingPurpose(drawing.purposeCode) || linkRelationType === "reference"
+        ? "reference"
+        : "primary_manufacturing";
+      const response = await fetch("/api/numbering/draft-workspaces", {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          draftMode: "append_part",
+          sourceRootId: rootId,
+          sourceDrawingNumberId: drawing.id,
+          sourceLinkType,
+          appendReason: reason,
+          parts: [{
+            clientKey: "part-1",
+            partName: coreName?.trim() || drawing.drawingNumber,
+            itemKind,
+            customSpecification,
+            seriesCode: itemKind === "manufactured" ? seriesCode : ""
+          }],
+          drawings: [],
+          relations: [],
+          autoAcquireCandidates: true
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      setBusy(false);
+      if (!response.ok || !body.workspace?.id) {
+        setError(humanizeError(body.message ?? body.error ?? "料號工作建立失敗"));
+        return;
+      }
+      window.location.assign(`/numbering/drawings?view=work&detail=${encodeURIComponent(`candidate:${body.workspace.id}`)}`);
+      return;
+    }
     const response = await fetch(`/api/numbering/roots/${encodeURIComponent(rootCode)}/parts`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -437,7 +537,7 @@ function AddPartDialog({
       {itemKind === "custom" ? <TextInput label="客製規格" value={customSpecification} onChange={setCustomSpecification} /> : null}
       {drawing ? (
         <label className="pdm-contextual-check">
-          <input type="checkbox" checked={linkDrawing} onChange={(event) => setLinkDrawing(event.target.checked)} />
+          <input type="checkbox" checked={linkDrawing} disabled={drawingWorkbenchEnabled} onChange={(event) => setLinkDrawing(event.target.checked)} />
           <span>
             建立與 {drawing.drawingNumber} 的圖料關係（{isManufacturingDrawingPurpose(drawing.purposeCode) ? "製造依據" : "參考"}）
           </span>
@@ -460,8 +560,8 @@ function AddPartDialog({
         <button className="secondary-button" type="button" disabled={busy} onClick={cancel}>
           取消
         </button>
-        <button className="primary-button" type="button" disabled={busy || policy?.locked || !coreName?.trim() || (itemKind === "custom" && !customSpecification.trim()) || (policy?.reasonRequired && !reason.trim())} onClick={submit}>
-          建立料號
+        <button className="primary-button" type="button" disabled={busy || policy?.locked || (drawingWorkbenchEnabled && (!rootId || !drawing?.id)) || !coreName?.trim() || (itemKind === "custom" && !customSpecification.trim()) || (policy?.reasonRequired && !reason.trim())} onClick={submit}>
+          {drawingWorkbenchEnabled ? "建立料號工作" : "建立料號"}
         </button>
       </div>
     </div>

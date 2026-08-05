@@ -350,6 +350,9 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
   ensureColumn(database, "part_numbers", "series_code", "TEXT");
   ensureColumn(database, "numbering_draft_workspaces", "append_reason", "TEXT");
+  ensureColumn(database, "numbering_draft_workspaces", "source_drawing_number_id", "TEXT");
+  ensureColumn(database, "numbering_draft_workspaces", "source_part_number_id", "TEXT");
+  ensureColumn(database, "numbering_draft_workspaces", "source_link_type", "TEXT");
   ensureColumn(database, "numbering_draft_parts", "universal_reason", "TEXT");
   ensureColumn(database, "numbering_draft_parts", "series_code", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
@@ -523,6 +526,17 @@ function ensurePreSchemaCompatibility(database: SqliteDatabase) {
     "system_role_enabled",
     "INTEGER NOT NULL DEFAULT 1 CHECK (system_role_enabled IN (0, 1))"
   );
+
+  const draftWorkspaceTable = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'numbering_draft_workspaces'")
+    .get() as { name?: string } | undefined;
+  if (draftWorkspaceTable) {
+    // DEV-053 indexes in schema.sql reference these nullable columns. Existing
+    // local databases must receive them before the schema/index pass runs.
+    ensureColumn(database, "numbering_draft_workspaces", "source_drawing_number_id", "TEXT");
+    ensureColumn(database, "numbering_draft_workspaces", "source_part_number_id", "TEXT");
+    ensureColumn(database, "numbering_draft_workspaces", "source_link_type", "TEXT");
+  }
 }
 
 function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {

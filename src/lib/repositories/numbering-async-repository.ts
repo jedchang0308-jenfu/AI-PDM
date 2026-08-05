@@ -6977,6 +6977,41 @@ export class AsyncNumberingRepository {
     );
   }
 
+  async listDrawingModuleRecordsByIds(
+    drawingIds: string[],
+    companyId: string = DEFAULT_COMPANY_ID
+  ): Promise<DrawingModuleListRecord[]> {
+    const ids = uniqueStrings(drawingIds);
+    if (ids.length === 0) return [];
+    const drawingList = createNamedList("drawingModuleId", ids);
+    const rows = await this.client.query<DrawingModuleListRow>(
+      `
+        ${SELECT_ASYNC_DRAWING_MODULE_RECORDS_BASE_SQL}
+        WHERE d.company_id = :companyId
+          AND d.id IN (${drawingList.sql})
+        ORDER BY d.updated_at DESC, d.drawing_number ASC
+      `,
+      { companyId, ...drawingList.params }
+    );
+    const foundDrawingIds = rows.map((row) => row.id);
+    const rootIds = uniqueStrings(rows.map((row) => row.part_root_id));
+    const [linkedPartNumbersByDrawing, sameRootPartsByRoot, releaseStatusMismatchByDrawing, pendingApprovalByDrawing] = await Promise.all([
+      this.listDrawingModuleLinkedPartNumbers(foundDrawingIds),
+      this.listDrawingModuleLinkedPartsByRoot(rootIds),
+      this.listDrawingModuleReleaseStatusMismatches(foundDrawingIds),
+      this.listDrawingModulePendingApprovalSummaries(foundDrawingIds)
+    ]);
+    return rows.map((row) =>
+      mapDrawingModuleListRow(
+        row,
+        linkedPartNumbersByDrawing.get(row.id) ?? [],
+        sameRootPartsByRoot.get(row.part_root_id) ?? [],
+        releaseStatusMismatchByDrawing.get(row.id) ?? null,
+        pendingApprovalByDrawing.get(row.id) ?? null
+      )
+    );
+  }
+
   async listPartModuleRecords(input: PartModuleListInput = {}): Promise<PartModuleListRecord[]> {
     const normalizedInput = {
       ...input,

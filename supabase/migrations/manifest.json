@@ -163,6 +163,13 @@
       "description": "Add DEV-052 candidate first-revision authority and immutable review-approval evidence",
       "sourceSha256": "04190e5e5fba290c9fad37e93f6c12cb619b31389f01912f8f0301a9d16f6f48",
       "targetSha256": "1ad80ea5411329df1b5aad52328e1ac5fc6b87bee3e32e9233286bce352b6fed"
+    },
+    {
+      "source": "db/postgres/022_unified_drawing_workbench.sql",
+      "target": "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
+      "description": "Add DEV-053 source drawing and part context for candidate workspaces",
+      "sourceSha256": "e3d6e10549bde9b5f4cfb3a82531b91bf4da50927371671fe9d8fe0642bf8f90",
+      "targetSha256": "525ae1fb38a2119f47b9f48e6164241363e99af6b63d3ca7b47d99e5f6c7786e"
     }
   ]
 }

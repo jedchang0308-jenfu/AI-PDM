@@ -81,6 +81,7 @@ type MasterAttachment = {
   sourceSubmissionReleasedAt: string | null;
   revisionPackageId: string | null;
   revisionPackageStatus: string | null;
+  revisionPackageEffectiveStatus: string | null;
   revisionPackageRevision: string | null;
   revisionPackageSourceSubmissionId: string | null;
   revisionPackageFileKind: string | null;
@@ -169,6 +170,7 @@ export function MasterAttachmentPanel({
   entityCode,
   developmentPhase,
   processControlled = true,
+  readOnly = false,
   pendingRevisionReviews = null,
   productionSliceEnforced: productionSliceEnforcedOverride,
   productionSliceUnopenedMessage: productionSliceUnopenedMessageOverride
@@ -177,6 +179,7 @@ export function MasterAttachmentPanel({
   entityCode: string;
   developmentPhase?: NumberingPhase | null;
   processControlled?: boolean;
+  readOnly?: boolean;
   pendingRevisionReviews?: PendingRevisionReviews | null;
   productionSliceEnforced?: boolean;
   productionSliceUnopenedMessage?: string;
@@ -587,7 +590,7 @@ export function MasterAttachmentPanel({
               <ExternalLink size={16} />
             </a>
           ) : null}
-          {attachment.gdriveStatus === "failed" || attachment.gdriveStatus === "none" ? (
+          {!readOnly && (attachment.gdriveStatus === "failed" || attachment.gdriveStatus === "none") ? (
             <button
               className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
               type="button"
@@ -600,7 +603,7 @@ export function MasterAttachmentPanel({
               <RefreshCw size={16} />
             </button>
           ) : null}
-          {attachment.revisionPackageFileKind === "supplement" && attachment.revisionPackageSupplementStatus === "Pending" ? (
+          {!readOnly && attachment.revisionPackageFileKind === "supplement" && attachment.revisionPackageSupplementStatus === "Pending" ? (
             <>
               <button
                 className={`icon-button success${productionSliceEnforced ? " production-slice-unopened" : ""}`}
@@ -626,17 +629,19 @@ export function MasterAttachmentPanel({
               </button>
             </>
           ) : null}
-          <button
-            className={`icon-button danger${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-            type="button"
-            onClick={() => void deleteAttachment(attachment)}
-            disabled={loading || productionSliceEnforced}
-            title={productionSliceEnforced ? productionSliceTitle : "刪除附件"}
-            aria-label={productionSliceEnforced ? `刪除附件：${productionSliceTitle}` : "刪除附件"}
-            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-          >
-            <Trash2 size={16} />
-          </button>
+          {!readOnly ? (
+            <button
+              className={`icon-button danger${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+              type="button"
+              onClick={() => void deleteAttachment(attachment)}
+              disabled={loading || productionSliceEnforced}
+              title={productionSliceEnforced ? productionSliceTitle : "刪除附件"}
+              aria-label={productionSliceEnforced ? `刪除附件：${productionSliceTitle}` : "刪除附件"}
+              data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : null}
         </div>
       </article>
     );
@@ -666,7 +671,7 @@ export function MasterAttachmentPanel({
               {slot.kind === "three-d" ? <Box size={36} /> : <FileText size={34} />}
               <strong>{previewPlaceholder.title}</strong>
               <span>{previewPlaceholder.text}</span>
-              {attachment && previewPlaceholder.action ? (
+              {!readOnly && attachment && previewPlaceholder.action ? (
                 <button
                   className={`secondary-button preview-generate-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
@@ -694,7 +699,7 @@ export function MasterAttachmentPanel({
                   <ExternalLink size={16} />
                 </a>
               ) : null}
-              {isNativeSolidWorksAttachment(attachment) ? (
+              {!readOnly && isNativeSolidWorksAttachment(attachment) ? (
                 <button
                   className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
@@ -794,8 +799,8 @@ export function MasterAttachmentPanel({
     <section className="panel master-attachment-panel">
       <div className="panel-header">
         <div>
-          <h2>{entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
-          <p>本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。</p>
+          <h2>{readOnly && entityType === "drawing_number" ? "受控檔案摘要" : entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
+          <p>{readOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void loadAttachments()} disabled={loading}>
           <RefreshCw size={16} />
@@ -805,10 +810,10 @@ export function MasterAttachmentPanel({
 
       {entityType === "drawing_number" ? drawingPreviewBoard : null}
 
-      {productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
+      {!readOnly && productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
 
-      {entityType === "drawing_number" ? (
+      {!readOnly && entityType === "drawing_number" ? (
         <details className="master-attachment-upload-panel">
           <summary>
             <span>
@@ -818,9 +823,9 @@ export function MasterAttachmentPanel({
           </summary>
           {uploadForm}
         </details>
-      ) : (
+      ) : !readOnly ? (
         uploadForm
-      )}
+      ) : null}
 
       <div className="master-attachment-sections" aria-live="polite">
         {attachmentSections.current.length > 0 && entityType === "drawing_number" ? (
@@ -859,7 +864,7 @@ export function MasterAttachmentPanel({
               </div>
               <strong>{attachmentSections.work.length} 個</strong>
             </div>
-            {entityType === "drawing_number" && currentRevisionPackageId ? (
+            {!readOnly && entityType === "drawing_number" && currentRevisionPackageId ? (
               <form className="master-attachment-supplement-form" onSubmit={requestSupplement}>
                 <div className="master-attachment-supplement-grid">
                   <label>
@@ -920,7 +925,7 @@ export function MasterAttachmentPanel({
           </section>
         ) : null}
 
-        {attachments.length === 0 ? <div className="empty">尚未建立附件。現在請在上方選擇檔案並上傳；若只是查看資料，這裡不用處理。</div> : null}
+        {attachments.length === 0 ? <div className="empty">{readOnly ? "目前沒有可顯示的受控檔案；需要新增或變更時，請建立新版。" : "尚未建立附件。現在請在上方選擇檔案並上傳；若只是查看資料，這裡不用處理。"}</div> : null}
       </div>
 
       {attachmentSections.history.length > 0 ? (
@@ -963,7 +968,7 @@ export function MasterAttachmentPanel({
         </details>
       ) : null}
 
-      <details
+      {!readOnly ? <details
         className="master-attachment-deleted"
         onToggle={(event) => {
           if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedAttachments();
@@ -1034,7 +1039,7 @@ export function MasterAttachmentPanel({
             {deletedLoaded && deletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
           </div>
         </div>
-      </details>
+      </details> : null}
     </section>
   );
 }
@@ -1243,6 +1248,7 @@ function latestAttachmentRevision(attachments: MasterAttachment[]) {
 }
 
 function isWorkAttachment(attachment: MasterAttachment) {
+  if (isFormalPackageAttachment(attachment)) return false;
   if (attachment.revisionPackageFileKind === "supplement") {
     return attachment.revisionPackageSupplementStatus !== "Approved";
   }
@@ -1322,6 +1328,14 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
     };
   }
 
+  if (attachment.revisionPackageFileKind === "core" && attachment.revisionPackageEffectiveStatus === "ReviewApproved") {
+    return {
+      label: "研發受控",
+      tone: "released",
+      note: "此附件已完成整包審核並納入研發受控版次；小數研發版不代表量產 Released。"
+    };
+  }
+
   if (attachment.revisionPackageStatus === "Released" && !attachment.sourceSubmissionStatus) {
     return {
       label: "正式附件",
@@ -1392,7 +1406,7 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
 
 function isFormalPackageAttachment(attachment: MasterAttachment) {
   if (attachment.sourceSubmissionStatus === "Released") return true;
-  if (attachment.revisionPackageStatus !== "Released") return false;
+  if (!new Set(["Released", "ReviewApproved"]).has(attachment.revisionPackageEffectiveStatus ?? attachment.revisionPackageStatus ?? "")) return false;
   if (attachment.revisionPackageFileKind === "core") return true;
   return isApprovedSupplementAttachment(attachment);
 }

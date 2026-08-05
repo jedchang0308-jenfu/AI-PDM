@@ -8048,6 +8048,501 @@ select.dropdown-select {
   border-bottom-color: var(--primary);
 }
 
+/* DEV-053 single drawing lifecycle workbench */
+.drawing-workbench-topbar p {
+  max-width: 46rem;
+}
+
+.drawing-workbench-toolbar {
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.drawing-workbench-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.55fr) repeat(5, minmax(120px, 0.7fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.drawing-workbench-filter-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.drawing-workbench-filter-grid input,
+.drawing-workbench-filter-grid select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--text);
+}
+
+.drawing-workbench-search > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding-inline: 10px;
+  background: #fff;
+}
+
+.drawing-workbench-search > div:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.drawing-workbench-search input {
+  border: 0;
+  padding-inline: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.drawing-workbench-list-panel {
+  min-width: 0;
+}
+
+.drawing-workbench-table {
+  table-layout: fixed;
+  min-width: 780px;
+}
+
+.drawing-workbench-col-code { width: 24%; }
+.drawing-workbench-col-name { width: 25%; }
+.drawing-workbench-col-stage { width: 29%; }
+.drawing-workbench-col-action { width: 22%; }
+
+.drawing-workbench-table tbody tr {
+  cursor: pointer;
+}
+
+.drawing-workbench-stage {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.drawing-workbench-stage small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.drawing-workbench-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #eef4f4;
+  color: #28535a;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.drawing-workbench-stage-badge.is-bundle_ready,
+.drawing-workbench-stage-badge.is-released {
+  background: #e8f6ed;
+  color: #246b3c;
+}
+
+.drawing-workbench-stage-badge.is-in_review,
+.drawing-workbench-stage-badge.is-revision_in_review,
+.drawing-workbench-stage-badge.is-auto_finalizing {
+  background: #fff6dc;
+  color: #8a5b00;
+}
+
+.drawing-workbench-stage-badge.is-recovery_required {
+  background: #fff0f0;
+  color: #a42626;
+}
+
+.drawing-workbench-warning {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--danger);
+  font-size: 0.74rem;
+}
+
+.drawing-workbench-row-signals {
+  gap: 4px;
+}
+
+.drawing-workbench-row-signals .pdm-meta-chip,
+.drawing-workbench-row-signals .badge {
+  min-height: 20px;
+  padding-inline: 6px;
+  font-size: 0.7rem;
+}
+
+.drawing-workbench-mismatch-chip {
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.drawing-workbench-alert-chip,
+.pdm-meta-chip.is-danger {
+  border: 1px solid rgba(220, 38, 38, 0.32);
+  background: #fff7f7;
+  color: var(--danger);
+}
+
+.pdm-meta-chip.is-success {
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  background: #f0fdf4;
+  color: var(--success);
+}
+
+.drawing-workbench-row-action {
+  width: 100%;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.drawing-workbench-processing {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.drawing-workbench-detail-loading {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 80;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.drawing-workbench-master-drawer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.drawing-workbench-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 16px 18px;
+}
+
+.drawing-workbench-drawer-header h2,
+.drawing-workbench-drawer-header p {
+  margin: 0;
+}
+
+.drawing-workbench-drawer-header span,
+.drawing-workbench-drawer-header p {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.drawing-workbench-drawer-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+}
+
+.drawing-workbench-drawer-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #cfe1e2;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f2f8f8;
+}
+
+.drawing-workbench-drawer-primary > div {
+  display: grid;
+  gap: 4px;
+}
+
+.drawing-workbench-drawer-primary span {
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+
+.drawing-workbench-drawer-primary .drawing-workbench-row-action {
+  width: auto;
+  min-width: 150px;
+  flex: 0 0 auto;
+}
+
+.drawing-workbench-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.drawing-workbench-facts > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.drawing-workbench-facts dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.drawing-workbench-facts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.drawing-workbench-management-actions,
+.drawing-workbench-risk-panel,
+.drawing-prerequisite-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.drawing-workbench-management-actions .panel-header,
+.drawing-workbench-risk-panel .panel-header,
+.drawing-prerequisite-panel .panel-header {
+  margin: 0;
+}
+
+.drawing-workbench-management-actions h2,
+.drawing-workbench-management-actions p,
+.drawing-workbench-risk-panel h2,
+.drawing-workbench-risk-panel p,
+.drawing-prerequisite-panel h2 {
+  margin: 0;
+}
+
+.drawing-workbench-management-actions p,
+.drawing-workbench-risk-panel p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.drawing-workbench-unopened-action {
+  gap: 6px;
+  opacity: 1;
+  border-style: dashed;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.drawing-workbench-unopened-action span,
+.drawing-workbench-inline-unopened {
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: #eceff1;
+  color: #606b73;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.drawing-workbench-risk-panel.is-warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.drawing-workbench-risk-panel.is-danger {
+  border-color: rgba(220, 38, 38, 0.42);
+  background: #fff7f7;
+}
+
+.drawing-workbench-risk-panel.is-warning .panel-header > svg {
+  color: #92400e;
+}
+
+.drawing-workbench-risk-panel.is-danger .panel-header > svg {
+  color: var(--danger);
+}
+
+.drawing-workbench-readiness-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drawing-workbench-readiness-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 7px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px;
+  background: #fff;
+  font-size: 0.78rem;
+}
+
+.drawing-workbench-readiness-chip > span:first-child {
+  grid-row: 1 / span 2;
+  color: var(--accent-3);
+}
+
+.drawing-workbench-readiness-chip strong {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.drawing-workbench-readiness-chip.is-success strong,
+.drawing-workbench-readiness-chip.is-success > span:first-child { color: var(--success); }
+.drawing-workbench-readiness-chip.is-danger strong,
+.drawing-workbench-readiness-chip.is-danger > span:first-child { color: var(--danger); }
+.drawing-workbench-readiness-chip.is-warning strong,
+.drawing-workbench-readiness-chip.is-warning > span:first-child { color: #92400e; }
+
+.drawing-workbench-part-list {
+  display: grid;
+  gap: 9px;
+}
+
+.drawing-workbench-part-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 11px;
+  background: #fff;
+}
+
+.drawing-workbench-part-card-header,
+.drawing-workbench-part-card-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drawing-workbench-part-card-header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.drawing-workbench-part-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.drawing-workbench-part-card-actions .secondary-button {
+  min-height: 32px;
+  padding-inline: 8px;
+}
+
+.drawing-workbench-part-edit-grid,
+.drawing-workbench-part-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drawing-workbench-part-edit-actions,
+.drawing-workbench-part-error {
+  grid-column: 1 / -1;
+}
+
+.drawing-workbench-part-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+
+.drawing-workbench-part-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawing-workbench-part-info-grid .info-block {
+  min-height: 84px;
+}
+
+@media (max-width: 1024px) {
+  .drawing-workbench-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .drawing-workbench-topbar {
+    align-items: stretch;
+  }
+
+  .drawing-workbench-topbar .number-state-owner-actions {
+    width: 100%;
+  }
+
+  .drawing-workbench-topbar .number-state-owner-actions > * {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .drawing-workbench-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .drawing-workbench-table {
+    min-width: 0;
+  }
+
+  .drawing-workbench-table td {
+    grid-template-columns: minmax(78px, 0.38fr) minmax(0, 1fr);
+  }
+
+  .drawing-workbench-row-action {
+    width: auto;
+  }
+
+  .drawing-workbench-drawer-primary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .drawing-workbench-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .drawing-workbench-readiness-list,
+  .drawing-workbench-part-edit-grid,
+  .drawing-workbench-part-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .drawing-workbench-part-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .drawing-workbench-part-card-actions {
+    justify-content: flex-start;
+  }
+}
+
 .number-state-tabs .number-state-tab-help {
   flex: 0 0 auto;
   margin-left: auto;

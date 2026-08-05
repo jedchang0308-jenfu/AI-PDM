@@ -78,6 +78,7 @@ export type MasterAttachmentRecord = {
   sourceSubmissionReleasedAt: string | null;
   revisionPackageId: string | null;
   revisionPackageStatus: string | null;
+  revisionPackageEffectiveStatus: string | null;
   revisionPackageRevision: string | null;
   revisionPackageSourceSubmissionId: string | null;
   revisionPackageFileKind: string | null;
@@ -125,6 +126,7 @@ type MasterAttachmentRow = {
   source_submission_released_at?: string | null;
   revision_package_id?: string | null;
   revision_package_status?: string | null;
+  revision_package_effective_status?: string | null;
   revision_package_revision?: string | null;
   revision_package_source_submission_id?: string | null;
   revision_package_file_kind?: string | null;
@@ -599,6 +601,7 @@ function mapMasterAttachment(row: MasterAttachmentRow, entityCode: string): Mast
     sourceSubmissionReleasedAt: row.source_submission_released_at ?? null,
     revisionPackageId: row.revision_package_id ?? null,
     revisionPackageStatus: row.revision_package_status ?? null,
+    revisionPackageEffectiveStatus: row.revision_package_effective_status ?? row.revision_package_status ?? null,
     revisionPackageRevision: row.revision_package_revision ?? null,
     revisionPackageSourceSubmissionId: row.revision_package_source_submission_id ?? null,
     revisionPackageFileKind: row.revision_package_file_kind ?? null,

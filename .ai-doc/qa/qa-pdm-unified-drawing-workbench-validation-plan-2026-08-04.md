@@ -1,7 +1,7 @@
 # QA Plan：DEV-053 單一圖號工作台（由 AI 執行的真實操作驗證計畫）
 
-Status: `RD Implementation Ready / Planned / Not Yet Executed`
-Date: 2026-08-04
+Status: `Reopened / Phase 1E Re-execution Required / Prior PASS Invalidated / Production Release Gated`
+Date: 2026-08-05
 Owner: QA
 Executor: AI QA/QC agent after local implementation freeze
 Related DEV: `DEV-053`
@@ -10,18 +10,21 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 
 ## 1. Objective and Boundary
 
-驗證單一圖號工作台確實讓使用者不分頁即可判斷生命週期與下一步，同時證明UI合併沒有造成重複列、錯誤CTA、權限放寬、受控檔案雙authority或既有資料寫入。
+驗證單一圖號工作台確實讓使用者不分頁即可判斷生命週期與下一步，同時證明UI合併沒有造成既有圖號、料號、版次、附件、送審、關係、影響與治理能力退化，也沒有重複列、錯誤CTA、權限放寬、受控檔案雙authority或既有資料寫入。
 
 本計畫由AI在隔離本機環境使用真實瀏覽器、真實登入session、真實點擊／輸入／上傳／送審／審核操作執行。UI流程不得以API或DB mutation代替；API、DB與log只用來建立經授權fixture、取得前後baseline、注入受控故障、驗證負向結果與cleanup。禁止連線或寫入production。
 
+2026-08-05 regression reopening：先前run只驗證新生命週期主線，未以舊正式圖面能力清冊逐項驗證，因此錯把最小formal drawer判為PASS。該run保留為歷史證據，但不得作為Phase 1E產品驗收或獨立QC通過依據。
+
 ## 2. Entry Criteria
 
-- DEV-053已完成Implementation Readiness Review與本機產品實作；產品程式凍結後才交QC；
+- DEV-053已達Phase 1E `RD Implementation Ready`，且RD已完成Phase 1E本機產品修復並凍結產品程式後，AI QA才可開始正式判定；
 - DEV-052 lifecycle V2與DEV-053 rollout flag只在isolated local target開啟；production flag維持off；
 - 測試target、DB、file storage與登入帳號均可證明不屬於production；
 - 可建立至少四種角色：研發owner、研發主管/reviewer、PDM Admin、唯讀使用者；另有第二公司fixture；
 - 可保存DB baseline、request log、console、screenshots、uploaded test files與cleanup manifest；
 - 若無法使用真實browser session或真實file chooser，判定blocked，不以終端API成功冒充UI驗證。
+- DEV-054受保護基線已保存；測試前後必須證明DVT/開發階段移除、023 migration、DEV-054文件與其刪檔語意未被DEV-053修改或還原。
 
 ## 3. Test Fixtures
 
@@ -161,6 +164,18 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 4. 保存cleanup manifest、remaining IDs、production false證據與所有artifact paths；
 5. cleanup不完整則QC不得判定Passed。
 
+### RO-14 Formal-drawing capability preservation
+
+對至少一筆有關聯料號、正式版次、待審/發布治理資訊與附件的formal drawing，以真實UI逐項驗證SPEC `CAP-01`～`CAP-14`：
+
+1. 使用關鍵字、系列、用途與資料狀態查詢；確認關聯料號、主資料狀態、待審、發布不一致與警告可發現，且沒有開發階段/DVT filter或顯示；
+2. 開啟formal drawer，確認生命週期primary CTA只有一個，並可發現`圖面進版`、`上傳與送審`、`完整圖料關係`、適用時的`影響分析`與`申請作廢`secondary operations；
+3. 逐區確認發布不一致、Title block變體風險、送審完整性/成本/待審檢查、同根料號、標準成本與主要製造圖；
+4. 以有權與無權角色驗證材質、顏色、表面處理與變體備註編輯，並驗證Released/locked、stale與cross-company fail closed；
+5. 確認受控檔案只能從candidate/revision authority寫入；參考附件若可CRUD，必須有`參考附件`標示且不進送審/publication evidence；
+6. 在production slice開啟時，受封鎖入口須可見`未開放`原因，不得直接消失；不得因此操作3000資料；
+7. 比對DEV-054 protected diff，確認沒有恢復DVT/開發階段、修改023 migration/DEV-054文件或還原其刪檔。
+
 ## 5. Contract/API Test Matrix
 
 | ID | Test | Expected |
@@ -186,8 +201,9 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 
 - H1固定`圖號工作台`，不存在可見`圖號總表／保留號`頁籤；
 - `保留號`只作狀態或歷史語言，不再是頁面名稱；
-- 主表固定`圖號／品名／目前階段／下一步`，多圖bundle以`主要圖號 + N`摘要；
+- 主表核心為`圖號／品名／工作狀態／下一步`，多圖bundle以`主要圖號 + N`摘要；formal row另可發現關聯料號、主資料狀態、待審、發布不一致與警告；工作狀態不得被解讀為專案階段；
 - 正常列與drawer最多一個primary CTA，文字與SPEC第6節一致；
+- formal drawer可同時呈現不競爭primary的版次、送審、關係、影響、作廢與治理secondary operations；
 - `auto_finalizing`明確說明不需人工操作；
 - blocked/disabled首句說明原因與下一步，不只顯示`未開放`；
 - raw enum、rowVersion、snapshot hash、API path、DEV ID、storage path不進主畫面；
@@ -199,7 +215,9 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 - DEV-050 suggestion snapshot、minor revision Released rejection與major release flow；
 - DEV-051正式圖號進版handoff與不把rowVersion當圖面版次；
 - drawing master search/filter/detail、relations、trace/impact與obsolete request；
+- drawing master attachment authority、同根料號、主資料編輯、標準成本、主要製造圖、發布不一致、Title block與送審檢查；
 - production slice default-off與route compatibility；
+- DEV-054 protected diff：不得恢復development phase/DVT、修改023 migration或其文件/刪檔；
 - lint、TypeScript、isolated production build。
 
 ## 8. Execution and Phase Traceability
@@ -207,9 +225,10 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 | Phase | AI verification entry | Required command/evidence |
 |---|---|---|
 | 1A read foundation | schema、source validation、read-model、HTTP、zero-write、DEV-052 regression | `npm run qc:dev-053:schema`、`npm run qc:dev-053:read-model`、`npm run qc:dev-053:http`、`npm run qc:dev-052` |
-| 1B single-page UI | RO-01、02、07、08、12；UI/API network contract | `npm run qc:dev-053:ui` + four-viewport browser evidence |
+| 1B single-page UI | Rejected；舊run只保留歷史證據 | 不得沿用PASS |
 | 1C contextual append | RO-03～06、09～11；atomic/idempotency/permission | `npm run qc:dev-053:flow` + focused contextual/attachment/release regressions |
-| 1D final QA/QC | RO-00～13、cleanup、full regression、type/build | `npm run qc:dev-053:real-operation`、`npm run qc:dev-053`、`npm run typecheck`、`npm run lint`、`npm run build:isolated` |
+| 1D prior QA/QC | Reopened；capability inventory缺漏 | 歷史run不得作為產品完成證據 |
+| 1E capability restoration | RO-00～14、formal capability inventory、cleanup、full regression、type/build、DEV-054 protected diff | `npm run qc:dev-053:real-operation`、`npm run qc:dev-053`、focused master/attachment/revision/relation/production-slice tests、`npm run typecheck`、`npm run lint`、`npm run build:isolated` |
 
 Expected script files：
 
@@ -230,21 +249,43 @@ Expected script files：
 - `baseline-before.json`、`baseline-after.json`、`cleanup.json`；
 - `api-contract-results.json`、`permission-results.json`、`zero-write-results.json`；
 - `browser-events.json`、`network-summary.json`、`console-summary.json`、`visible-error-summary.json`；
-- RO-01至RO-13關鍵screenshots，含四種viewport；
+- RO-01至RO-14關鍵screenshots，含四種viewport、formal drawer完整分區與production-slice visible-disabled狀態；
 - 測試檔案名稱/hash與authority readback，不保存secret或signed URL；
 - command/test output與independent QC summary。
 
 QA只制定與執行計畫，不預填通過。沒有事實證據的case標記`Not Run`或`Blocked`。
+
+## 9A. AI QA Execution Record
+
+判定：`AI QA Passed / Independent QC Pending`。本紀錄是Phase 1E完成後的新run，取代下方歷史run作為目前產品的AI真實操作證據；最終產品驗收仍須由凍結SHA的獨立QC判定。
+
+- Run：`DEV053-20260805-033336-local-isolated`
+- Frozen product snapshot：temporary clean-index commit `167199c6b13615d3b134009abb3ae4b87c73418d`；source hash `35868f50b3ca1451ed36757cdd80bac8357d280f6fb131582b9790863c668f8e`
+- Target：isolated local SQLite + isolated Next.js + real Chromium UI
+- Result：27/27 passed；browser errors 0；failed/5xx responses 0；visible errors 0；cleanup `removed`
+- Safety：`productionConnected=false`、`productionWrites=false`
+- Evidence：`output/playwright/dev053-real-operation/DEV053-20260805-033336-local-isolated/`
+- 真實 UI 操作：舊reserved URL正規化、既有reservation在原流程往前、candidate/formal drawer、CAP-01～14、唯一primary CTA、建立同根圖號／同圖料號candidate、真實PDF file chooser上傳、送審confirmation、撤回、再送審、reviewer核准、自動正式化、正式受控附件readback、deep link與重複reload。
+- DB/API 證據：讀取、搜尋、filter、drawer、responsive與reload前後business hashes不變；candidate mutation與正式化逐步readback；核准後正式root/part/drawing/link/package/file/review evidence原子存在；reload不重複建立business facts。
+- Responsive：1440×900、1280×720、1024×768、390×844 均無document/main水平overflow；desktop維持table語意，mobile切為card layout。
+- Capability preservation：formal row可見關聯料號、用途、資料狀態與治理摘要；formal drawer可發現圖面進版、上傳送審、完整圖料關係、製造影響、作廢、受控檔案摘要、送審檢查、同根料號、主資料、成本及主要製造圖；`圖面進版`只有一個主控制。
+- Focused contract：schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7，共50/50；全`src` TypeScript 0 error；DEV-053 lint 0 error（`master-attachment-panel.tsx`保留3個既有warning）。
+- Clean-index verification：以只含DEV-053暫存內容的乾淨worktree重跑TypeScript與focused contracts，均通過；真實Chromium 27/27亦在同一product snapshot完成。
+- Build note：乾淨worktree的Webpack production compile已完成，後續Next generated page contract因既有`src/app/settings/page.tsx`命名匯出`SettingsScreen`而失敗；該檔在DEV-053前的HEAD即有相同匯出，且不在DEV-053暫存或提交範圍。這是基線build exception，非DEV-054缺檔或DEV-053產品錯誤；獨立QC仍須在凍結commit重跑並明確分類，未判定前不得把完整build記為PASS。
+- 未以 API/DB mutation 代替上述 UI 主流程；API/DB只用於隔離 fixture、前後狀態與 readback 證據。
+
+歷史run `DEV053-20260804-090838-local-isolated`（19/19）因未覆蓋CAP-01～14，僅保留歷史，不得用於目前產品驗收。
 
 ## 10. Pass/Fail Rules
 
 Passed需同時滿足：
 
 1. 所有P0/P1 case通過，P2無影響資料安全、權限、主流程或可及性的未解問題；
-2. RO-00～RO-13由AI真實操作完成且cleanup完整；
+2. RO-00～RO-14由AI真實操作完成且cleanup完整；
 3. 多圖bundle row transition、zero-write、server-side composition、parallel-path closure、file authority與cross-company全部通過；
 4. DEV-052/050/051 regression、lint、TypeScript與isolated build通過；
 5. independent QC在RD freeze後重跑，不以RD self-check代替。
+6. formal drawing 14組能力清冊全部可達，且DEV-054 protected diff為零語意變更。
 
 以下任一項直接Fail／Stop：
 
@@ -257,6 +298,8 @@ Passed需同時滿足：
 - minor revision成為Released，或核准後要求人工正式發布；
 - production target/credential/data被連線或修改；
 - AI未能完成真實UI操作卻以API/DB結果宣稱通過。
+- 任一正式圖面既有能力被靜默隱藏、只能靠猜網址/API完成，或production-slice封鎖時無可見原因；
+- DEV-053修改、還原、stage或commit任何DEV-054 protected scope。
 
 ## 11. Release Boundary
 
