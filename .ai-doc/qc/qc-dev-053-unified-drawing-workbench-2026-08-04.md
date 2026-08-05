@@ -1,13 +1,13 @@
 # QC Report：DEV-053 單一圖號工作台
 
-Status: `Independent QC Pending / RD and AI QA Evidence Frozen / Production Release Gated`
+Status: `Independent Local QC Passed / P0=0 P1=0 P2=0 / Production Release Gated`
 Date: 2026-08-05
 Branch: `持續優化1`
 Scope: DEV-053 Phase 1A、1C與1E local implementation；未連線、遷移、部署或修改 production。
 
-## 1. Pending Verdict
+## 1. Final Verdict
 
-RD 實作與 AI QA 證據已凍結，等待獨立 QC 依規格、程式差異、focused regression 與真實瀏覽器 evidence 重新判定。QC 不得修改產品程式後自行判定通過。
+獨立QC對凍結commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`判定`PASS`；P0=0、P1=0、P2=0。QC在乾淨detached worktree驗證，未修改產品、文件或正式資料。
 
 ## 2. Frozen RD/QA Evidence
 
@@ -21,7 +21,7 @@ RD 實作與 AI QA 證據已凍結，等待獨立 QC 依規格、程式差異、
 | AI real operation | 27/27 | 真實Chromium、CAP-01～14、四viewport、file chooser、送審/撤回/再送審、reviewer核准、自動正式化、正式附件readback、reload冪等 |
 | TypeScript | PASS | 全`src` 0 error；排除混合工作區既有`.next-*`產物 |
 | scoped lint | PASS | 0 error；`master-attachment-panel.tsx`保留3個既有warning |
-| isolated production build | Baseline exception / Independent QC must classify | 乾淨DEV-053 staged worktree完成Webpack product compile，後續Next page contract被既有`src/app/settings/page.tsx`命名匯出`SettingsScreen`阻擋；該檔在基線HEAD已有同一問題，且未納入DEV-053 |
+| isolated production build | PASS | 獨立QC以短路徑、`npm ci`、乾淨detached worktree執行`npm run build:isolated`，compile、TypeScript與static pages完整exit 0 |
 
 ## 3. AI Real-operation Evidence
 
@@ -54,19 +54,33 @@ Phase 1E另關閉兩項視覺缺口：formal drawer主CTA寬度在窄drawer被�
 - `PDM_UNIFIED_DRAWING_WORKBENCH_V1`預設 off，且依賴DEV-052 lifecycle V2；production mutation allowlist未開放。
 - 本報告與本次commit不授權production migration、feature activation、deploy、release或production smoke。
 
-## 6. Independent QC Checklist
+## 6. Independent QC Checklist and Result
 
-- [ ] 重新檢查SPEC/ADR/QA與DEV-053 diff一致性。
-- [ ] 重跑focused contract、TypeScript、lint與必要build證據。
-- [ ] 檢查server-side projection無client list拼接、bulk hydration無N+1、read path zero-write。
-- [ ] 檢查舊reserved URL、existing reservation、contextual append與direct-master closure。
-- [ ] 檢查formalization transaction的source relation與asset ownership轉移全有或全無。
-- [ ] 逐項檢查CAP-01～14、formal drawer正式附件可見且沒有受控檔案mutation controls。
-- [ ] 確認default-off、production allowlist closed、zero backfill及production false evidence。
-- [ ] 在凍結SHA的乾淨worktree重跑isolated build，確認並分類既有`SettingsScreen` page export基線exception；不得沿用混合工作區產物。
-- [ ] 確認DEV-053 commit不含DEV-054的DVT刪檔、023/024 migration、專案狀態移除hunk或其文件。
-- [ ] 輸出獨立PASS/FAIL、P0/P1/P2與剩餘release gate。
+- [x] 重新檢查SPEC/ADR/QA與DEV-053 diff一致性。
+- [x] focused contracts 50/50、TypeScript、scoped lint與isolated build全部通過。
+- [x] server-side projection、bounded hydration、read path zero-write通過。
+- [x] 舊reserved URL、existing reservation、contextual append與direct-master closure通過。
+- [x] formalization transaction的source relation與asset ownership轉移全有或全無。
+- [x] CAP-01～14、formal drawer正式附件唯讀與無mutation controls通過。
+- [x] default-off、production allowlist closed、zero backfill及production false evidence通過。
+- [x] 凍結commit的`npm run build:isolated`完整exit 0；RD junction環境異常不可重現，非產品缺陷。
+- [x] DEV-053 commit不含DEV-054的DVT刪檔、023/024 migration、專案狀態移除hunk或其文件。
+- [x] 最終判定PASS；P0=0、P1=0、P2=0。
 
-## 7. Known External Workspace Exception
+## 7. Independent Real-operation Evidence
 
-工作區另有DEV-054的並行變更。既有`qc:pdm-numbering-core` checker仍嘗試讀取DEV-054已退役的 `src/app/api/numbering/dvt-candidates/route.ts`，因此在未提交混合工作區會出現ENOENT；這是DEV-054 checker同步邊界，不是DEV-053產品路徑失敗。RD已另外建立只含DEV-053 staged tree的乾淨worktree，TypeScript、focused 50/50與真實Chromium 27/27通過；獨立QC仍須以最終DEV-053 commit判定，且不得把DEV-054檔案納入DEV-053 commit。
+- Frozen commit：`6ddd5759e22178b7004e5d5a9927b0dfbe11b706`
+- Run：`DEV053-20260805-035048-local-isolated`
+- Root：`output/playwright/dev053-real-operation/DEV053-20260805-035048-local-isolated/`
+- Result：27/27 passed、failed 0、14 screenshots；1440×900、1280×720、1024×768、390×844。
+- Coverage：舊`?tab=reserved`、既有保留號原地推進、建立與關聯、真實file chooser上傳、送審／撤回／再送審、reviewer核准、原子正式化、正式受控檔唯讀與reload冪等。
+- Safety：`productionConnected=false`、`productionWrites=false`、cleanupStatus=`removed`；browserErrors=0、failedResponses=0、visibleErrors=0。
+- Environment：前兩次runner失敗來自Windows長路徑與Turbopack拒絕跨根`node_modules` junction；使用真正短路徑clean detached worktree + `npm ci`後完整通過，未修改產品。
+
+## 8. Protected Parallel-work Boundary
+
+工作區另有DEV-054的並行變更。DEV-053 commit已由RD與獨立QC確認未包含DEV-054、DVT/phase-gate刪檔、023/024 migrations、project-status-removal程式或文件。DEV-054仍保留在主工作區的未暫存範圍，未被DEV-053修改、還原或提交。
+
+## 9. Remaining Release Gate
+
+DEV-053 implementation/QC gate已通過，但本報告不授權production migration、feature activation、deploy、release或production smoke；若要進正式環境，仍須取得明確指令並執行deployment release gate、backup/rollback與post-deploy smoke。

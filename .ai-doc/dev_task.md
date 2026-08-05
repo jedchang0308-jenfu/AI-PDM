@@ -79,14 +79,13 @@ Owner：Dev PM
   - 驗證結果：獨立QC在RD凍結後重跑`npm run qc:dev-052`（181項可計數檢查）、全專案lint與隔離production build均通過；AI真實操作RO-00～RO-20為41/41，正式連線／寫入皆false且測試資料已清除。
   - 下一步：維持production release gate；若要staging／production migration、啟用flag、deploy或release，另走target、backup、rollback與smoke gate，不直接碰既有正式保留號。
 
-- 單一圖號工作台：`DEV-053` 已達 `RD Implementation Ready / Human Confirmed`，下一步可執行Phase 1A本機切片。
-  - 產品決策：取消「圖號總表／保留號」雙分頁，改成單一「圖號工作台」；保留號改為生命週期狀態，不再是獨立頁面。
-  - 使用者流程：同一張清單直接顯示圖號、品名、目前階段與唯一下一步；建立、首版、送審、核准、正式化、發行與進版依狀態接續。
-  - 安全邊界：只合併使用者介面與查詢投影，不合併保留工作區、圖號主資料、版次、審核或稽核資料；只對workspace additive新增三個nullable source-context欄位，既有production資料不搬移、不回填、不改號。
-  - 相容：既有 `/numbering/drawings?tab=reserved` 必須可安全導向單一工作台的工作中範圍，不得因開啟舊網址產生任何寫入。
-  - 契約：統一清單由server-side唯讀BFF產生；進行中一個workspace/bundle一列，正式化後切換成每張正式drawing master一列，完成workspace只留在drawer/audit追溯。
-  - readiness決策：採server-side一致性投影、opaque keyset cursor與workspace source drawing/part/link context；ADR已Accepted，flag `PDM_UNIFIED_DRAWING_WORKBENCH_V1`預設off。
-  - 下一步：派RD執行`DEV-053 Phase 1A：read foundation`，僅限本機schema/read model/API/focused tests；production migration、flag activation、deploy與release仍需獨立gate。
+- 單一圖號工作台：`DEV-053` 已完成 `Phase 1E Regression Recovery`，目前為 `Independent Local QC Passed / Production Release Gated`。
+  - 保留決策：取消「圖號總表／保留號」雙分頁，維持單一「圖號工作台」與生命週期唯一 primary CTA。
+  - 修正原則：單頁化只能減少導覽選擇，不能刪除或遮蔽既有圖號、料號、版次、附件、送審、關係、影響與主資料治理能力。
+  - 現況判定：Phase 1A read foundation、Phase 1C candidate routing與Phase 1E正式圖面能力恢復均已完成；14組能力清冊已納入focused與真實瀏覽器驗證。
+  - 受保護邊界：`DEV-054`為另一AI的必要並行任務；不得恢復開發階段/DVT、修改其migration/spec/QA/QC、還原其刪檔，或把其變更混入DEV-053 commit。
+  - 證據：frozen commit `6ddd5759`通過focused 50/50、TypeScript、scoped lint與isolated build；獨立真實Chromium run `DEV053-20260805-035048-local-isolated`為27/27，含真實PDF上傳、送審／撤回／再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。
+  - 下一步：本機開發與QC已完成；若要migration、啟用flag、deploy或release，另走production deployment release gate。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -277,12 +276,12 @@ Owner：Dev PM
   - 證據：`.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`、`output/playwright/dev052-real-operation/DEV052-20260804-045957-local-isolated/`、`npm run qc:dev-052`、DEV-052 schema 12/12、data protection 4/4、HTTP/idempotency 10/10、UI 15/15、flow/atomic recovery 8/8、AI真實操作41/41、revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、全專案lint、TypeScript與隔離production build。
   - 計入交付：是（本機產品 UX 與交易流程交付點；production activation 仍未計入）
 
-- ◐ DEV-053 [交付點] [RD and AI QA Evidence Frozen／Independent QC Pending] [P0] [Phase 1E Local Only] 單一圖號工作台與既有管理能力整合
+- ✓ DEV-053 [交付點] [Independent Local QC Passed／Production Release Gated] [P0] [Phase 1E Local Complete] 單一圖號工作台與既有管理能力整合
   - 摘要：維持單一生命週期工作台，但把被簡版UI遮蔽的圖號、料號、版次、附件、送審、圖料關係、影響分析與治理能力完整整合回同一頁，禁止以流程簡化為由降低既有工作能力。
   - 來源 ID：`DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
   - 父任務：`DEV-052`、`DEV-050`、`DEV-051`
-  - 下一步：產品與AI QA證據凍結後，以範圍化Git SHA交獨立QC重新判定；只有QC PASS才可更新為本機完成，production仍走獨立release gate。
-  - 證據：DEV-053 schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript 0 error、DEV-053 lint 0 error；乾淨staged product snapshot真實操作27/27，run與截圖位於`output/playwright/dev053-real-operation/DEV053-20260805-033336-local-isolated/`。
+  - 下一步：本機產品與獨立QC已完成；production migration、flag activation、deploy與release仍走獨立release gate。
+  - 證據：frozen commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`；DEV-053 schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7，共50/50；TypeScript、scoped lint與isolated build通過；獨立真實Chromium 27/27，run位於`output/playwright/dev053-real-operation/DEV053-20260805-035048-local-isolated/`；P0=0、P1=0、P2=0。
   - 計入交付：是
   - Human Confirmed：
     - [x] 保持單一`圖號工作台`，不恢復`圖號總表／保留號`雙分頁；`保留號`是生命週期狀態。
@@ -312,7 +311,7 @@ Owner：Dev PM
     - [x] `1E-1 Formal row parity`：已恢復篩選、列內關聯/治理摘要與固定secondary入口。
     - [x] `1E-2 Full formal drawer`：已恢復治理面板、同根料號、主資料編輯、成本/主要圖與附件authority導流。
     - [x] `1E-3 Regression automation`：已新增舊功能清冊assertions、route/action可達性、read-only authority、production-slice visible-disabled與bounded keyset檢查。
-    - [ ] `1E-4 AI QA + Independent QC`：AI QA隔離真實操作27/27已完成；等待產品凍結SHA的獨立QC判定。
+    - [x] `1E-4 AI QA + Independent QC`：AI QA與凍結commit獨立QC真實操作皆為27/27；focused 50/50、TypeScript、scoped lint、isolated build通過，P0/P1/P2皆為0。
   - 驗收標準：
     - [x] 單一工作台、候選/正式row去重、唯一primary CTA與舊reserved deep link仍成立。
     - [x] 正式drawing可依用途、資料狀態、系列與關鍵字查詢；關聯料號與治理警示不需猜測或切回舊頁。
@@ -323,7 +322,7 @@ Owner：Dev PM
     - [x] DEV-053範圍未修改、還原或提交`DEV-054`的DVT刪檔、023/024 migration、SPEC/ADR/QA/QC或專案狀態移除hunk。
     - [x] 1440×900、1280×720、1024×768及390×844可完成主流程，無水平overflow、CTA裁切或drawer重要功能不可達。
     - [x] open/search/filter/drawer/deep link零寫入；隔離寫入流程cleanup完成，productionConnected=false、productionWrites=false。
-  - QA/QC evidence required：`qc:dev-053` aggregate、DEV-052/050/附件/關係/版次/production-slice focused regressions、typecheck、lint、isolated build、AI真實操作證據，以及產品凍結後的獨立QC判定。舊QA/QC不得直接沿用為PASS。
+  - QA/QC evidence：`qc:dev-053` aggregate、typecheck、scoped lint、isolated build、AI真實操作與產品凍結後獨立QC均已完成並通過；舊QA/QC只保留歷史，不作本次PASS依據。
   - Spec Impact Preflight：`Intentional replacement`。保留單頁與server projection，撤銷「四欄簡版＋最小drawer即完成」的錯誤UI契約；DEV-052/050 authority與DEV-054專案狀態移除均保持authoritative。
   - ADR判定：既有source-context/read-projection ADR仍有效；Phase 1E不新增schema、authority或跨模組決策，無需新ADR。
   - 風險等級：Medium-High。主要風險為再次漏功能、雙檔案authority、錯誤action routing、production-slice靜默隱藏與覆寫並行DEV-054。
@@ -967,6 +966,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-05: `DEV-053`凍結commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`完成獨立QC並判定PASS，P0/P1/P2皆為0。QC在短路徑、`npm ci`、乾淨detached worktree重跑focused 50/50、TypeScript、scoped lint與`npm run build:isolated`，全部通過；獨立真實Chromium run `DEV053-20260805-035048-local-isolated`為27/27、14張截圖，涵蓋舊reserved URL、既有保留號原地推進、真實上傳、送審/撤回/再送審、核准原子正式化、正式受控檔唯讀、四種viewport與reload冪等。`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。commit未含DEV-054、DVT/phase-gate刪檔、023/024 migration或project-status removal；DEV-054仍保留在未暫存工作區。DEV-053狀態更新為`Independent Local QC Passed / Production Release Gated`，未部署或修改production。
 - 2026-08-05: 完成`DEV-053 Phase 1E Regression Recovery`本機實作與AI QA證據凍結。單一`圖號工作台`恢復CAP-01～14：用途/資料狀態/系列/關鍵字篩選、關聯料號與治理摘要、圖面進版、上傳送審、完整圖料關係、製造影響、受控檔案摘要、發布不一致、Title block風險、送審完整性、同根料號、料號主資料編輯、標準成本與主要製造圖；生命週期primary CTA維持唯一，production-slice/權限限制維持可見且fail closed。focused contracts為schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript與DEV-053 lint為0 error。乾淨 staged product snapshot隔離真實Chromium run `DEV053-20260805-033336-local-isolated`為27/27，含真實PDF上傳、送審/撤回/再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。共用檔採hunk級邊界，未修改、還原或提交DEV-054的DVT刪檔、023/024 migration、專案狀態移除程式與文件。狀態為`RD and AI QA Evidence Frozen / Independent QC Pending / Local Only`；下一步以範圍化Git SHA交獨立QC，production activation/deploy/release仍未授權。
 - 2026-08-04: 依使用者「下一成熟度為RD Implementation Ready，請推進」，完成`DEV-053` Implementation Readiness Review並改為`☐ 可執行 / Awaiting Phase 1A Local Execution`。repo盤點發現現有append workspace只有source root，無法保存使用者指定的existing drawing/part；已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`，採server-side一致性投影及workspace三個nullable source-context欄位，既有rows保持NULL且不backfill。SPEC/QA/dev board已補exact files、PostgreSQL 022與Supabase mirror、relationship-only append、atomic cross-boundary relation、opaque keyset cursor、正式版次local-draft狀態限制、`PDM_UNIFIED_DRAWING_WORKBENCH_V1` default-off、Phase 1A-1D、focused commands、rollback與production release feasibility；P0/P1 open question為0。下一步只執行Phase 1A本機read foundation，本輪未修改產品、schema實體、資料、production、deploy或release。
 - 2026-08-04: 依使用者「下一成熟度為RD Contract Ready，請執行」，將`DEV-053`由Brief Ready升級為`RD Contract Ready / Human Confirmed / Awaiting RD Implementation Readiness Review`。新增單一圖號工作台SPEC與「由AI執行的真實操作驗證計畫」，完成server-side unified read BFF、candidate bundle→formal drawing canonical row切換、多圖去重、state-to-primary-action、舊reserved URL zero-write相容、contextual append改走candidate workspace、controlled-file單一authority、permission交集、source failure fail-whole、feature flag與stop conditions。Spec preflight維持對DEV-052 `HD-052-04`的`Intentional replacement`；本輪只改文件，未修改product/schema/migration/production/deploy/release。

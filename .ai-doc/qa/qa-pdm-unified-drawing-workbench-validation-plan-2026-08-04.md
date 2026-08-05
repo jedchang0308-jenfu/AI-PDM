@@ -1,6 +1,6 @@
 # QA Plan：DEV-053 單一圖號工作台（由 AI 執行的真實操作驗證計畫）
 
-Status: `Reopened / Phase 1E Re-execution Required / Prior PASS Invalidated / Production Release Gated`
+Status: `AI QA and Independent QC Passed / Local Implementation Complete / Production Release Gated`
 Date: 2026-08-05
 Owner: QA
 Executor: AI QA/QC agent after local implementation freeze
@@ -257,7 +257,7 @@ QA只制定與執行計畫，不預填通過。沒有事實證據的case標記`N
 
 ## 9A. AI QA Execution Record
 
-判定：`AI QA Passed / Independent QC Pending`。本紀錄是Phase 1E完成後的新run，取代下方歷史run作為目前產品的AI真實操作證據；最終產品驗收仍須由凍結SHA的獨立QC判定。
+判定：`AI QA Passed`。本紀錄是Phase 1E完成後的新run，取代下方歷史run作為目前產品的AI QA真實操作證據；凍結commit另由獨立QC重跑並判定PASS。
 
 - Run：`DEV053-20260805-033336-local-isolated`
 - Frozen product snapshot：temporary clean-index commit `167199c6b13615d3b134009abb3ae4b87c73418d`；source hash `35868f50b3ca1451ed36757cdd80bac8357d280f6fb131582b9790863c668f8e`
@@ -271,8 +271,21 @@ QA只制定與執行計畫，不預填通過。沒有事實證據的case標記`N
 - Capability preservation：formal row可見關聯料號、用途、資料狀態與治理摘要；formal drawer可發現圖面進版、上傳送審、完整圖料關係、製造影響、作廢、受控檔案摘要、送審檢查、同根料號、主資料、成本及主要製造圖；`圖面進版`只有一個主控制。
 - Focused contract：schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7，共50/50；全`src` TypeScript 0 error；DEV-053 lint 0 error（`master-attachment-panel.tsx`保留3個既有warning）。
 - Clean-index verification：以只含DEV-053暫存內容的乾淨worktree重跑TypeScript與focused contracts，均通過；真實Chromium 27/27亦在同一product snapshot完成。
-- Build note：乾淨worktree的Webpack production compile已完成，後續Next generated page contract因既有`src/app/settings/page.tsx`命名匯出`SettingsScreen`而失敗；該檔在DEV-053前的HEAD即有相同匯出，且不在DEV-053暫存或提交範圍。這是基線build exception，非DEV-054缺檔或DEV-053產品錯誤；獨立QC仍須在凍結commit重跑並明確分類，未判定前不得把完整build記為PASS。
+- Build note：RD暫存驗證曾在跨根`node_modules` junction環境遇到Next page contract異常；獨立QC改以短路徑、`npm ci`、乾淨detached worktree重跑凍結commit後，`npm run build:isolated`完整exit 0。前述現象不可重現，歸類為隔離環境產物而非產品缺陷。
 - 未以 API/DB mutation 代替上述 UI 主流程；API/DB只用於隔離 fixture、前後狀態與 readback 證據。
+
+## 9B. Independent QC Execution Record
+
+判定：`PASS`；P0=0、P1=0、P2=0。
+
+- Frozen commit：`6ddd5759e22178b7004e5d5a9927b0dfbe11b706`
+- Run：`DEV053-20260805-035048-local-isolated`
+- Result：27/27 passed；14 screenshots；browser errors 0；failed/5xx responses 0；visible errors 0
+- Safety：`productionConnected=false`、`productionWrites=false`、cleanup `removed`
+- Evidence：`output/playwright/dev053-real-operation/DEV053-20260805-035048-local-isolated/`
+- Recheck：focused 50/50、TypeScript、scoped lint與`npm run build:isolated`全部通過；3個lint warnings均為凍結commit前既有行。
+- Boundary：commit scope未含DEV-054、023/024 migrations、DVT/phase-gate/project-status removal；022 migration只做additive nullable extension，既有列保持NULL。
+- Release：DEV-053 implementation/QC gate通過；未部署，production migration、flag activation與release仍須另走deployment release gate。
 
 歷史run `DEV053-20260804-090838-local-isolated`（19/19）因未覆蓋CAP-01～14，僅保留歷史，不得用於目前產品驗收。
 
