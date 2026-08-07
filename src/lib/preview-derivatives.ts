@@ -44,6 +44,8 @@ type PreviewJobRow = {
   source_extension: string;
   status: string;
   attempt_count: number | string | null;
+  locked_by: string | null;
+  locked_at: string | null;
   generator_profile: string;
   error_code: string | null;
   error_summary: string | null;
@@ -128,6 +130,8 @@ const nativeSolidWorksExtensions = new Set(["sldprt", "sldasm", "slddrw"]);
 const fakePreviewGeneratorProfile = "fake_preview_worker";
 const fakePreviewGeneratorVersion = "fake-local-pipeline";
 const realPreviewGeneratorProfile = "windows_solidworks_preview_worker";
+export const previewHeartbeatStaleAfterMs = 30_000;
+export const previewMaxAttempts = 3;
 
 export function isNativeSolidWorksPreviewSource(extension: string) {
   return nativeSolidWorksExtensions.has(extension.trim().toLowerCase());
@@ -295,20 +299,82 @@ export async function claimPreviewJobAsync(
   };
 }
 
+export async function heartbeatPreviewJobAsync(
+  client: AsyncDatabaseClient,
+  input: { jobId: string; workerId: string }
+) {
+  const now = new Date().toISOString();
+  await client.execute(
+    `
+      UPDATE preview_jobs
+      SET updated_at = :now
+      WHERE id = :jobId
+        AND status = 'running'
+        AND locked_by = :workerId
+    `,
+    { jobId: input.jobId, workerId: input.workerId, now }
+  );
+}
+
+export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient) {
+  const rows = await client.query<Pick<PreviewJobRow, "id" | "attempt_count" | "updated_at">>(
+    `
+      SELECT id, attempt_count, updated_at
+      FROM preview_jobs
+      WHERE status = 'running'
+    `
+  );
+  const now = Date.now();
+  let recovered = 0;
+  for (const row of rows) {
+    const updatedAt = Date.parse(row.updated_at);
+    if (!Number.isFinite(updatedAt) || now - updatedAt < previewHeartbeatStaleAfterMs) continue;
+    const attemptCount = Number(row.attempt_count ?? 0);
+    const shouldRetry = attemptCount < previewMaxAttempts;
+    await client.execute(
+      `
+        UPDATE preview_jobs
+        SET status = :status,
+            error_code = :errorCode,
+            error_summary = :errorSummary,
+            locked_by = NULL,
+            locked_at = NULL,
+            updated_at = :now,
+            completed_at = :completedAt
+        WHERE id = :jobId
+          AND status = 'running'
+          AND updated_at = :previousUpdatedAt
+      `,
+      {
+        jobId: row.id,
+        status: shouldRetry ? "queued" : "failed",
+        errorCode: "preview_worker_heartbeat_timeout",
+        errorSummary: shouldRetry ? "系統已自動重新排程。" : "預覽服務未回應，請稍後再試。",
+        now: new Date().toISOString(),
+        completedAt: shouldRetry ? null : new Date().toISOString(),
+        previousUpdatedAt: row.updated_at
+      }
+    );
+    recovered += 1;
+  }
+  return { recovered };
+}
+
 export async function completePreviewJobAsync(client: AsyncDatabaseClient, input: PreviewWorkerCompletionInput) {
   if (input.status !== "succeeded") {
-    await failPreviewJob(client, {
+    const accepted = await failPreviewJob(client, {
       jobId: input.jobId,
       status: input.status,
       errorCode: input.errorCode,
       errorSummary: input.errorSummary,
       workerId: input.workerId
     });
-    return { accepted: true, derivativeIds: [] };
+    return { accepted, derivativeIds: [] };
   }
 
   const job = await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id = :jobId", { jobId: input.jobId });
   if (!job) throw new Error("PREVIEW_JOB_NOT_FOUND");
+  if (job.status !== "running" || job.locked_by !== input.workerId) return { accepted: false, derivativeIds: [] };
   if (job.source_content_hash !== input.sourceContentHash) {
     await failPreviewJob(client, {
       jobId: input.jobId,
@@ -375,6 +441,8 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
             updated_at = :now,
             completed_at = :now
         WHERE id = :jobId
+          AND status = 'running'
+          AND locked_by = :workerId
       `,
       { jobId: input.jobId, workerId: input.workerId, now: new Date().toISOString() }
     );
@@ -846,6 +914,7 @@ async function upsertPreviewJob(
         :status, 100, 0, :idempotencyKey, :generatorProfile, :errorCode, :errorSummary,
         :actorUserId, :now, :now, :completedAt, '{}'
       )
+      ON CONFLICT (idempotency_key) DO NOTHING
     `,
     {
       ...input,
@@ -854,7 +923,7 @@ async function upsertPreviewJob(
     }
   );
 
-  return {
+  return (await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE idempotency_key = :idempotencyKey", { idempotencyKey })) ?? {
     id: input.id,
     source_file_asset_id: input.sourceFileAssetId,
     source_content_hash: input.sourceContentHash,
@@ -862,6 +931,8 @@ async function upsertPreviewJob(
     source_extension: input.sourceExtension,
     status: input.status,
     attempt_count: 0,
+    locked_by: null,
+    locked_at: null,
     generator_profile: input.generatorProfile,
     error_code: input.errorCode,
     error_summary: input.errorSummary,
@@ -882,6 +953,11 @@ async function failPreviewJob(
   }
 ) {
   const now = new Date().toISOString();
+  const current = await client.queryOne<Pick<PreviewJobRow, "status" | "locked_by">>(
+    "SELECT status, locked_by FROM preview_jobs WHERE id = :jobId",
+    { jobId: input.jobId }
+  );
+  if (!current || current.status !== "running" || current.locked_by !== input.workerId) return false;
   await client.execute(
     `
       UPDATE preview_jobs
@@ -902,6 +978,7 @@ async function failPreviewJob(
       now
     }
   );
+  return true;
 }
 
 async function storePreviewDerivativeBytes(input: {
@@ -1020,6 +1097,8 @@ function mapPreviewJob(row: PreviewJobRow): MasterAttachmentPreviewJob {
     errorCode: row.error_code,
     errorSummary: row.error_summary,
     createdAt: row.created_at,
+    startedAt: row.locked_at,
+    lastHeartbeatAt: row.updated_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at
   };

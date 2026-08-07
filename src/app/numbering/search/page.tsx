@@ -2,20 +2,21 @@
 
 import type { ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
 import { RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
-import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { DrawingDetailContent, type DrawingDetail, type DrawingWorkbenchCapabilities } from "@/components/drawing-workbench";
 import { PartDetailPanel, type PartDetail } from "@/app/parts/page";
 import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { StatusBadge } from "@/components/status-help-popover";
-import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { HUMAN_STATUS_FILTER_OPTIONS, isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
@@ -35,15 +36,6 @@ type NumberingRecordStatus =
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
 type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
-const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
-  { value: "all", label: "全部狀態" },
-  { value: "needs_action", label: "待我處理" },
-  { value: "waiting", label: "等他人處理" },
-  { value: "system", label: "系統處理中" },
-  { value: "usable", label: "可使用" },
-  { value: "history", label: "歷史" }
-];
-
 type SearchResult = {
   entityType: Exclude<EntityType, "all">;
   entityId: string;
@@ -313,15 +305,6 @@ type DetailTarget =
 
 const statusOptions = masterRecordStatusFilterValues;
 const SEARCH_DRAWER_WIDTH_STORAGE_KEY = "pdm-search-detail-drawer-width";
-const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
-const DETAIL_DRAWER_MIN_WIDTH = 380;
-const DETAIL_DRAWER_MAX_WIDTH_RATIO = 0.72;
-
-function clampDetailDrawerWidth(width: number, viewportWidth: number) {
-  const maxWidth = Math.max(DETAIL_DRAWER_MIN_WIDTH, Math.floor(viewportWidth * DETAIL_DRAWER_MAX_WIDTH_RATIO));
-  return Math.min(Math.max(width, DETAIL_DRAWER_MIN_WIDTH), maxWidth);
-}
-
 function isEditableShortcutTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest("input, textarea, select")) return true;
@@ -371,7 +354,9 @@ export default function NumberingSearchPage() {
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null);
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
+  const { drawerWidth, startDrawerResize: startDetailDrawerResize } = useRememberedDrawerWidth({
+    storageKey: SEARCH_DRAWER_WIDTH_STORAGE_KEY
+  });
   const [busy, setBusy] = useState<"search" | "detail" | "impact" | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -383,7 +368,7 @@ export default function NumberingSearchPage() {
     const detailRootCode = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
-    if (initialHumanStatus && humanStatusFilters.some((option) => option.value === initialHumanStatus)) setHumanStatus(initialHumanStatus);
+    if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
     if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
 
@@ -488,60 +473,6 @@ export default function NumberingSearchPage() {
     void loadDetail(detailRootCode);
   }, [loadDetail, relationRoots, state]);
 
-  useEffect(() => {
-    const storedWidth = window.localStorage.getItem(SEARCH_DRAWER_WIDTH_STORAGE_KEY);
-    const parsedWidth = storedWidth ? Number.parseInt(storedWidth, 10) : Number.NaN;
-    if (!Number.isFinite(parsedWidth)) return;
-    const nextWidth = clampDetailDrawerWidth(parsedWidth, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(SEARCH_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  const resizeDetailDrawer = useCallback((clientX: number) => {
-    const nextWidth = clampDetailDrawerWidth(window.innerWidth - clientX, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(SEARCH_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  useEffect(() => {
-    function handleWindowResize() {
-      setDrawerWidth((currentWidth) => {
-        const nextWidth = clampDetailDrawerWidth(currentWidth, window.innerWidth);
-        window.localStorage.setItem(SEARCH_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-        return nextWidth;
-      });
-    }
-    window.addEventListener("resize", handleWindowResize);
-    return () => window.removeEventListener("resize", handleWindowResize);
-  }, []);
-
-  const startDetailDrawerResize = useCallback(
-    (clientX: number) => {
-      function handlePointerMove(event: PointerEvent) {
-        resizeDetailDrawer(event.clientX);
-      }
-      function stopResizing() {
-        document.body.classList.remove("pdm-drawer-resizing");
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", stopResizing);
-        window.removeEventListener("pointercancel", stopResizing);
-      }
-
-      resizeDetailDrawer(clientX);
-      document.body.classList.add("pdm-drawer-resizing");
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", stopResizing, { once: true });
-      window.addEventListener("pointercancel", stopResizing, { once: true });
-    },
-    [resizeDetailDrawer]
-  );
-
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove("pdm-drawer-resizing");
-    };
-  }, []);
-
   const focusSearchList = useCallback(() => {
     requestAnimationFrame(() => searchListRef.current?.focus({ preventScroll: true }));
   }, []);
@@ -605,21 +536,6 @@ export default function NumberingSearchPage() {
     if (!rootCode) return;
     await copyTextToClipboard(rootCode);
   }, []);
-
-  useEffect(() => {
-    if (!isDetailOpen) return;
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest(".pdm-detail-drawer")) return;
-      if (target.closest("[data-search-row='true']")) return;
-      setIsDetailOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isDetailOpen]);
 
   useEffect(() => {
     if (state !== "ready" || relationRoots.length === 0) return;
@@ -808,7 +724,7 @@ export default function NumberingSearchPage() {
               <label className="pdm-master-field">
                 <span>工作狀態</span>
                 <select value={humanStatus} onChange={(event) => setHumanStatus(event.target.value as HumanStatusFilter)}>
-                  {humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+                  {HUMAN_STATUS_FILTER_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadResults} disabled={busy === "search"}>
@@ -1230,39 +1146,33 @@ function RootDetailDrawer({
   onClose: () => void;
 }) {
   if (!open) return null;
-  const header = detail ? detailTargetHeader(detail, resolveDetailTarget(detail, detailTarget)) : { code: "圖料明細", subtitle: "" };
-  const headerStatus = detail ? detailTargetHumanStatus(detail, resolveDetailTarget(detail, detailTarget)) : null;
-  const headerViewerStatus = detail ? detailTargetViewerStatus(detail, resolveDetailTarget(detail, detailTarget)) : null;
-  const headerAvailabilityScope = detail ? detailTargetAvailabilityScope(detail, resolveDetailTarget(detail, detailTarget)) : null;
+  const target = detail ? resolveDetailTarget(detail, detailTarget) : detailTarget;
+  const header = detail && target ? detailTargetHeader(detail, target) : { code: "圖料明細", subtitle: "" };
+  const headerStatus = detail && target ? detailTargetHumanStatus(detail, target) : null;
+  const headerViewerStatus = detail && target ? detailTargetViewerStatus(detail, target) : null;
+  const headerAvailabilityScope = detail && target ? detailTargetAvailabilityScope(detail, target) : null;
   return (
-    <PdmDetailDrawer
+    <PdmEntityDetailDrawer
       open
       width={width}
       ariaLabel="圖料明細"
+      title={header.code}
+      subtitle={header.subtitle}
+      status={detail ? <HumanStatusBadge status={headerStatus ?? detail.humanStatus} viewerStatus={headerViewerStatus ?? detail.viewerStatus} availabilityScope={headerAvailabilityScope ?? detail.availabilityScope} /> : undefined}
+      entityType={target?.entityType}
+      entityCode={header.code}
+      sourceContext="numbering_search"
       resizeLabel="調整圖料明細寬度"
       resizeTitle="拖拉調整寬度"
+      closeLabel="關閉圖料明細"
       onClose={onClose}
       onStartResize={onStartResize}
-      className="drawing-workbench-master-drawer"
+      keepOpenSelector="[data-search-row='true']"
     >
-      <div className="drawing-workbench-drawer-header">
-        <div className="drawing-workbench-drawer-identity">
-          {detail ? <HumanStatusBadge status={headerStatus ?? detail.humanStatus} viewerStatus={headerViewerStatus ?? detail.viewerStatus} availabilityScope={headerAvailabilityScope ?? detail.availabilityScope} /> : null}
-          <div>
-            <h2>{header.code}</h2>
-            {header.subtitle ? <p>{header.subtitle}</p> : null}
-          </div>
-        </div>
-        <div className="drawing-workbench-drawer-header-actions">
-          <button className="icon-button" type="button" aria-label="關閉圖料明細" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-      </div>
-      <div className="drawing-workbench-drawer-body">
+      <div className="pdm-entity-drawer-body">
         <RootDetailPanel detail={detail} detailTarget={detailTarget} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} />
       </div>
-    </PdmDetailDrawer>
+    </PdmEntityDetailDrawer>
   );
 }
 

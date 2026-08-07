@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
 
   const result = await listMasterAttachmentsAsync({
     entityType: "drawing_number",
-    entityCode: decodeURIComponent(drawingNumber)
+    entityCode: decodeURIComponent(drawingNumber),
+    actorUserId: auth.user.id
   });
   if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
   return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });

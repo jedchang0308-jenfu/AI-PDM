@@ -1,7 +1,7 @@
 # QA-PDM-SW-NATIVE-PREVIEW-WORKER - Windows SolidWorks Native Preview Worker Validation Plan
 
-Status: Phase 1 Local QA Executed / Windows Shell + Document Manager Worker Partial Evidence
-Date: 2026-07-06
+Status: Phase 1 Auto Preview Orchestration QA Passed / Native Worker Partial Evidence
+Date: 2026-08-07
 Owner: Dev PM / QA
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
@@ -55,6 +55,9 @@ Out of scope:
 | No embedded preview in SW file | User still sees placeholder | P1 | QA-WORKER-004 |
 | Shell provider returns blank thumbnail | User sees a misleading preview | P1 | QA-WORKER-005 |
 | Document Manager worker has no readable key | SLDDRW remains queued or fails obscurely | P1 | QA-WORKER-006 |
+| Preview job has no heartbeat | User cannot tell whether to wait | P1 | QA-AUTO-001 |
+| Browser needs manual refresh to see completion | User sees stale placeholder | P1 | QA-AUTO-002 |
+| Stale worker completes after automatic recovery | Wrong job can overwrite current state | P0 | QA-AUTO-003 |
 
 ## 4. Acceptance Criteria
 
@@ -81,6 +84,9 @@ Out of scope:
 | QA-EVID-002 | Real native preview readiness requires real Windows worker/sample-file evidence | QC gate |
 | QA-WORKER-005 | Blank or low-information PNG output is rejected and shown as a failed job, not as a ready preview | worker/browser test |
 | QA-WORKER-006 | Document Manager SLDDRW worker reports missing worker-readable key without exposing secret material | worker/browser test |
+| QA-AUTO-001 | Running jobs send heartbeats; 30-second stale jobs requeue up to three attempts, then fail with redacted copy | service/static test |
+| QA-AUTO-002 | Native attachment list/create auto-enqueues and foreground UI polling updates the card without manual refresh | service/browser/static test |
+| QA-AUTO-003 | Completion/failure requires the current running worker owner; recovered jobs reject stale worker writes | service test |
 
 ## 5. Required Evidence After Phase 1 Implementation
 
@@ -97,6 +103,7 @@ New focused evidence expected from implementation:
 ```powershell
 npm.cmd run qc:pdm-sw-native-preview-worker
 npm.cmd run qc:pdm-sw-native-preview-redaction
+npm.cmd run qc:master-attachments
 ```
 
 Regression evidence:
@@ -112,7 +119,8 @@ Required browser/UI evidence:
 
 - Drawing attachment drawer with `.SLDPRT` source and ready PNG derivative.
 - Drawing attachment drawer with `.SLDDRW` source either showing a real ready derivative or a clean failed/skipped state when the worker cannot produce a meaningful thumbnail.
-- Failed preview state with `重新產生預覽` and no raw command/stack trace.
+- Pending preview state uses icon/tone/motion plus short copy such as `產生中` or `處理較久`; no manual refresh is required.
+- Failed preview state uses `無法預覽` with a redacted short reason and `重試` only when retry is appropriate; unsupported sources show `請下載原檔`.
 - Missing SolidWorks secret/settings blocker state routing Admin to `/settings/security`.
 - Existing PDF source still previews inline.
 - Existing image source still previews inline.
@@ -135,6 +143,18 @@ Phase 1 local evidence captured on 2026-07-06:
 - API worker smoke: `D-0007-MA1.SLDDRW` job `f921e930-2cec-441c-a8dd-4a06a6f71c6d` failed cleanly when this workstation's Shell provider returned blank/low-information output, then failed cleanly through the Document Manager worker with missing worker-readable key recovery copy.
 - Worker compile smoke: `node scripts/run-solidworks-document-manager-preview-worker.mjs --compile-only` compiled the C# exporter successfully.
 - Browser smoke: screenshot `output/playwright/master-attachment-preview/d0007-3d-ready-2d-key-missing-compact.png` shows real 3D preview, compact 2D failed/retry state, and no fake preview display.
+
+Phase 1 auto-orchestration follow-up evidence captured on 2026-08-07:
+
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- `npm.cmd run lint -- --quiet`: passed.
+- `npm.cmd run qc:pdm-sw-native-preview-worker`: passed 101/101, including auto-enqueue, foreground polling, heartbeat, stale recovery and worker-owner guards.
+- `npm.cmd run qc:pdm-sw-native-preview-redaction`: passed 68/68.
+- `npm.cmd run qc:master-attachments`: passed 103/103.
+- `npm.cmd run dev:local:check`: passed; fixed local server remained healthy on `http://127.0.0.1:3000/`.
+- Windows Shell worker smoke on isolated local runtime: `.SLDPRT` claim/completion accepted and a current-hash PNG derivative was rendered.
+- Playwright visual QC on isolated port 3001: native cards automatically moved from `建立中` to ready 3D PNG after worker completion; unavailable 2D worker remained visibly `處理較久` with `系統會自動接續`; screenshot `output/playwright/preview-auto-qc-runtime/auto-preview-updated.png`.
+- Browser console errors: 0. Observed preview/status API responses: HTTP 200. No manual refresh was used to observe the 3D completion.
 - Limitation: this evidence proves the PDM queue/metadata/storage/UI pipeline, one real Windows Shell `.SLDPRT` path, and the Document Manager SLDDRW worker compile/claim/fail-safe path. It does not prove successful SOLIDWORKS Document Manager/eDrawings/equivalent extraction for `.SLDASM` or `.SLDDRW` because the local settings secret provider is `local_test_double` metadata and no worker-readable key is available.
 
 Required viewports:

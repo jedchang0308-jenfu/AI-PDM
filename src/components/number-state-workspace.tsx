@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -23,6 +23,7 @@ import {
   X
 } from "lucide-react";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import {
   NumberingCandidateRevisionEditor,
   type CandidateRevisionWorkspace
@@ -975,6 +976,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
                   return (
                     <tr
                       key={workspace.id}
+                      data-number-state-row="true"
                       aria-selected={selectedRow}
                       className={selectedRow ? "selected-row" : undefined}
                       onClick={() => void loadDetail(workspace.id)}
@@ -1043,6 +1045,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
           seriesCodeOptions={seriesCodeOptions}
           width={drawerWidth}
           onStartResize={startDrawerResize}
+          keepOpenSelector="[data-number-state-row='true']"
           onClose={() => { setSelected(null); setEditOpen(false); }}
         />
       ) : null}
@@ -1559,6 +1562,7 @@ export function WorkspaceDrawer({
   seriesCodeOptions,
   width,
   onStartResize,
+  keepOpenSelector,
   onClose
 }: {
   workspace: NumberingDraftWorkspace;
@@ -1581,25 +1585,28 @@ export function WorkspaceDrawer({
   seriesCodeOptions: string[];
   width: number;
   onStartResize: (clientX: number) => void;
+  keepOpenSelector?: string;
   onClose: () => void;
 }) {
-  const drawerRef = useRef<HTMLElement | null>(null);
-  useOverlayLifecycle(drawerRef, onClose, busy);
-  const drawerStyle = { "--pdm-detail-drawer-width": `${width}px` } as CSSProperties;
   return (
-    <div className="number-state-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <aside ref={drawerRef} className="number-state-drawer" role="dialog" aria-modal="true" aria-labelledby="number-state-drawer-title" style={drawerStyle}>
-        <button
-          className="pdm-detail-drawer-resize-handle"
-          type="button"
-          aria-label="調整保留號明細寬度"
-          title="拖曳調整保留號明細寬度"
-          onPointerDown={(event: ReactPointerEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            onStartResize(event.clientX);
-          }}
-        />
-        <div className="number-state-drawer-header"><div><span className="eyebrow">{draftModeLabel(workspace.draftMode)}</span><h2 id="number-state-drawer-title" tabIndex={-1} data-autofocus>{workspaceTitle(workspace)}</h2><p>系統紀錄版本 {workspace.rowVersion} · 更新於 {formatDateTime(workspace.updatedAt)}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉保留號明細"><X size={20} /></button></div>
+    <PdmEntityDetailDrawer
+      open
+      width={width}
+      ariaLabel="保留號明細"
+      eyebrow={draftModeLabel(workspace.draftMode)}
+      title={workspaceTitle(workspace)}
+      entityType="candidate_bundle"
+      entityCode={workspace.id}
+      sourceContext="number_state_workspace"
+      className="number-state-workspace-drawer"
+      resizeLabel="調整保留號明細寬度"
+      resizeTitle="拖曳調整保留號明細寬度"
+      closeLabel="關閉保留號明細"
+      onClose={onClose}
+      onStartResize={onStartResize}
+      keepOpenSelector={keepOpenSelector}
+      footer={<button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消保留號</button>}
+    >
         <div className="number-state-drawer-body">
           {lifecycleV2Enabled && workspace.lifecycleV2 ? <LifecycleV2Summary workspace={workspace} /> : <ProjectionSummary projection={workspace.projection} />}
           {workspace.projection.numberQualification === "candidate" && candidateCodes(workspace).length > 0 ? <div className="number-state-candidate-watermark"><AlertTriangle size={18} /><div><strong>已保留，尚不可正式使用</strong><span>{candidateCodes(workspace).join(" · ")}</span></div></div> : null}
@@ -1649,9 +1656,7 @@ export function WorkspaceDrawer({
             </section>
           </>}
         </div>
-        <div className="number-state-drawer-footer"><button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出保留號碼"} onClick={onCancel}><Ban size={16} />取消保留號</button><button className="secondary-button" type="button" onClick={onClose}>關閉</button></div>
-      </aside>
-    </div>
+    </PdmEntityDetailDrawer>
   );
 }
 

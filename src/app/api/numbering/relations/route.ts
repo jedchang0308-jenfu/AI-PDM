@@ -5,7 +5,7 @@ import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceD
 import { projectRelationHumanStatus } from "@/lib/drawing-part-relation-status";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
-import { projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusRoleCapabilities } from "@/lib/human-status-projection";
+import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusRoleCapabilities } from "@/lib/human-status-projection";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "@/lib/availability-scope";
@@ -367,13 +367,6 @@ function groupLinksBy(links: NumberingLinkRecord[], key: "drawingNumberId" | "pa
 function normalizeEnum(value: string | null, allowed: Set<string>) {
   const text = value?.trim();
   return text && allowed.has(text) ? text : undefined;
-}
-
-function normalizeHumanStatusFilter(value: string | null) {
-  const text = value?.trim() || "all";
-  return (["all", "needs_action", "waiting", "system", "ready", "usable", "history"] as const).includes(text as never)
-    ? text as "all" | "needs_action" | "waiting" | "system" | "ready" | "usable" | "history"
-    : "all" as const;
 }
 
 function normalizeLimit(value: number, fallback: number) {

@@ -1,7 +1,7 @@
 # ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows Worker Derivative Boundary
 
-Status: Accepted / Phase 1 Local Implemented / Windows Shell + Document Manager Worker Partial Evidence
-Date: 2026-07-06
+Status: Accepted / Phase 1 Local Implemented + Auto-Orchestration QC Passed / Windows Shell + Document Manager Worker Partial Evidence
+Date: 2026-08-07
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
@@ -26,6 +26,8 @@ Adopt a Windows preview worker plus generated derivative architecture:
 6. Next.js request handlers do not run SolidWorks, eDrawings, shell handlers or COM automation directly.
 7. The browser never receives SolidWorks API/license key material.
 8. Real SolidWorks preview readiness requires file-type-specific Windows worker evidence; current Shell `.SLDPRT` evidence and Document Manager SLDDRW worker compile/claim evidence are partial until `.SLDASM` and successful `.SLDDRW` outputs are proven by Document Manager/eDrawings/equivalent renderer or explicitly skipped.
+9. Native preview jobs are auto-enqueued on attachment list/create, the browser foreground-polls pending state, and workers heartbeat every five seconds; stale jobs are automatically recovered without manual refresh.
+10. Job completion/failure is accepted only from the worker that currently owns the running job, preventing an old worker from overwriting recovered work.
 
 ## Options Considered
 
@@ -60,6 +62,7 @@ Positive:
 - Users can see SW native file previews without downloading files.
 - PDM keeps source files and generated display artifacts separate.
 - Failures become visible and retryable instead of blank placeholders.
+- Users do not need to refresh the page to see a completed preview; visual state distinguishes active work from delayed work.
 - Real native preview evidence can be separated from local fake-worker pipeline tests.
 - Secret redaction and worker evidence can be audited.
 
@@ -77,6 +80,7 @@ Costs / tradeoffs:
 - Existing source attachments remain unchanged.
 - Existing PDF/image/Drive previews remain compatible.
 - Existing `預覽待產生` placeholders remain the safe fallback until derivatives exist.
+- Native pending states are automatically queued and refreshed in the foreground; terminal failures remain explicit and do not retry forever.
 - Phase 1 local PDM pipeline is implemented with fake-worker evidence, Windows Shell `.SLDPRT` proof, and Document Manager SLDDRW worker compile/claim/fail-safe evidence; production rollout and historical backfill remain not authorized by this ADR.
 - Real Document Manager/eDrawings/equivalent success evidence still belongs to the external CAD evidence gate for `.SLDASM`, `.SLDDRW` and drawing PDF, and must not be silently marked complete.
 
@@ -101,6 +105,7 @@ RD must not mark the DEV complete until:
 - Derivatives are validated against source hash.
 - UI shows ready, queued, running, failed, stale and skipped preview states.
 - Worker job payloads and evidence are redacted.
+- Worker heartbeats, 30-second stale recovery and current-owner completion guards are verified.
 - Browser/API responses do not expose SolidWorks API/license key material.
 - Next.js request handlers do not run native CAD tooling synchronously.
 - Real native readiness is backed by Windows worker evidence or explicitly marked as still gated.

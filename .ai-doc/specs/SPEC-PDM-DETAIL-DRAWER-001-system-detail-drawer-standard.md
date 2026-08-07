@@ -37,6 +37,8 @@
 - 點選列後以右側 drawer / side panel 顯示明細。
 - drawer 不使用深色遮罩；底頁保持可讀，降低快速翻閱時的視覺疲勞。
 - drawer 開啟後仍可直接點選其他列切換明細。
+- drawer 是非 modal 的 `complementary` surface，不使用 `aria-modal`、focus trap 或 body lock；確認／刪除等 dialog 仍維持 modal。
+- drawer 標頭只保留一個 inline `X` 關閉控制，不另設浮動關閉、上一筆或下一筆按鈕。
 - `Escape` 可關閉 drawer。
 - 點擊非 drawer 且非清單列的位置可關閉 drawer。
 - drawer 寬度可拖拉調整並記憶上次寬度。
@@ -51,7 +53,7 @@
 - 右側浮出，背景不加深色遮罩。
 - drawer 與底頁要有明確邊界，例如陰影、邊線、較高 z-index、固定寬度。
 - drawer 內部可捲動，底頁清單仍可閱讀。
-- 關閉控制固定在 drawer 標頭或可預期位置。
+- 關閉控制固定在共用 drawer 標頭，且同一 drawer 只出現一個 `X`。
 
 ### 寬度拖拉
 

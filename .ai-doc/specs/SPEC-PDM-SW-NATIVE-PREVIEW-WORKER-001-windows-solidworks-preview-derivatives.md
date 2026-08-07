@@ -1,6 +1,6 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
-Status: Phase 1 Local Implemented / Windows Shell + Document Manager Worker Partial Evidence
+Status: Phase 1 Local Implemented + Auto-Orchestration QC Passed / Windows Shell + Document Manager Worker Partial Evidence
 Date: 2026-07-06
 Owner: Dev PM
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
@@ -446,7 +446,17 @@ Required UI copy behavior:
 
 - The preview card must answer what happened and what to do next.
 - Do not show raw worker stack traces, command lines, API routes or secret hints.
-- `預覽待產生` is acceptable only when paired with queued/generate action or clear setup blocker.
+- Native files are automatically queued when the attachment is created or listed; normal use must not require manual refresh or manual enqueue.
+- The UI uses icon + tone + motion as the primary state signal, with only short supporting text; color alone is not the state contract.
+- `產生中` / animated loader means the user can wait; `處理較久` / clock means the system has not received a heartbeat recently and will recover automatically; `無法預覽` / alert or download means the user can use the source file or retry when offered.
+
+Phase 1 auto-orchestration contract:
+
+- Attachment list/create paths call stale-job recovery and idempotent native preview enqueue without blocking source-file readback.
+- The browser polls only while a native preview is pending, in the foreground, with an in-flight guard; successful derivatives appear automatically.
+- Workers send a heartbeat every five seconds while processing. A job with no heartbeat for 30 seconds is requeued up to three attempts, then becomes a redacted terminal failure.
+- Completion and failure are accepted only from the worker currently owning the running job, so a stale worker cannot overwrite an automatically recovered job.
+- Terminal failure is not silently retried forever. Retry remains an explicit recovery action; skipped/unsupported sources fall back to downloading the original file.
 
 ## 11. Permission Contract
 
@@ -557,11 +567,12 @@ Phase 1 entry conditions:
 
 Phase 1 acceptance:
 
-- Uploading or viewing a native SolidWorks source attachment creates or can create a preview job.
+- Uploading or viewing a native SolidWorks source attachment automatically creates an idempotent preview job without a user refresh.
 - A fake worker can generate deterministic PNG derivatives for automated local QC.
 - A real Windows worker can generate PNG previews for supported sample files and must fail/skip blank or unsupported outputs without displaying misleading images.
-- Preview card displays generated PNG instead of `預覽待產生`.
-- Failed/skipped generation shows reason and retry or settings recovery path.
+- Preview card displays generated PNG automatically when the derivative is ready.
+- Pending state is visually distinguishable as waiting versus delayed; failed/skipped generation shows a short redacted reason and only an appropriate retry/download action.
+- Stale running jobs recover automatically after heartbeat timeout and cannot be completed by the old worker owner.
 - Source file hash mismatch prevents stale derivative display.
 - No secret material appears in jobs, logs, API responses, screenshots or report JSON.
 
@@ -590,6 +601,13 @@ Phase 1 local evidence captured on 2026-07-06:
 - API worker smoke: `D-0007-MA1.SLDDRW` job `f921e930-2cec-441c-a8dd-4a06a6f71c6d` failed cleanly when this workstation's Shell provider returned blank/low-information output, then failed cleanly through the Document Manager worker with `solidworks_document_manager_preview_failed` because no worker-readable key is available from the local test-double secret.
 - Worker compile smoke: `node scripts/run-solidworks-document-manager-preview-worker.mjs --compile-only` compiled the C# exporter into `.tmp/solidworks-document-manager-preview/SolidWorksDocumentManagerPreviewExporter.exe`.
 - Browser smoke: screenshot `output/playwright/master-attachment-preview/d0007-3d-ready-2d-key-missing-compact.png` shows real 3D preview, compact 2D failed/retry state, and no fake preview display.
+
+Phase 1 auto-orchestration follow-up evidence captured on 2026-08-07:
+
+- Native attachment list/create paths now enqueue idempotent jobs automatically and the foreground preview board polls pending state without manual refresh.
+- Worker heartbeat and stale recovery contract is implemented and covered by native-preview QC 101/101; redaction QC remains 68/68 and master-attachments QC 103/103.
+- Isolated browser QC proved a Windows Shell `.SLDPRT` derivative appearing automatically after worker completion; the `.SLDDRW` card visibly distinguishes delayed service state with clock/tone/copy and does not display a blank image. Screenshot: `output/playwright/preview-auto-qc-runtime/auto-preview-updated.png`.
+- TypeScript, full lint, local health and browser console/API error sweep passed. The isolated runtime was stopped after verification; production/real Document Manager success remains externally gated.
 
 Stop conditions:
 

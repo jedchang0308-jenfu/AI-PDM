@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { DrawingWorkbenchAsyncRepository } from "@/lib/repositories/drawing-workbench-async-repository";
-import { projectViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { isHumanStatusFilter, projectViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import { projectDrawingAvailability, type AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { projectDrawingHumanStatus } from "@/lib/drawing-workbench-status";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
@@ -231,8 +231,7 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
     throw new DrawingWorkbenchError("workbench_invalid_history", "請重新選擇有效的歷史資料範圍。", 400);
   }
   const requestedHumanStatus = normalizedText(url.searchParams.get("humanStatus"), 30) || "all";
-  const humanStatusFilters: HumanStatusFilter[] = ["all", "needs_action", "waiting", "system", "ready", "usable", "history"];
-  if (!humanStatusFilters.includes(requestedHumanStatus as HumanStatusFilter)) {
+  if (!isHumanStatusFilter(requestedHumanStatus)) {
     throw new DrawingWorkbenchError("workbench_invalid_human_status", "請重新選擇有效的人類狀態篩選。", 400);
   }
   return {
@@ -245,7 +244,7 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
     includeHistory: requestedHistory === "include",
     cursor: normalizedText(url.searchParams.get("cursor"), 2_000),
     limit,
-    humanStatus: requestedHumanStatus as HumanStatusFilter
+    humanStatus: requestedHumanStatus
   };
 }
 

@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-08-06
+更新日期：2026-08-07
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -100,6 +100,22 @@ Owner：Dev PM
   - 已決策：維持覆蓋式 drawer、共用圖號／料號 owner detail、完成詞必須有 evidence，移除「草稿確認」與多 badge 競爭。
   - Phase 1 邊界：1A projector contract、1B server projection/filter、1C lists/shared drawers、1D browser QA/QC；不改 DB/schema、狀態轉換、權限、正式資料或 production。
   - 下一步：本機 1A～1D 已完成；若要正式使用，另走 disposable DB 關聯操作回歸與 production release gate。
+
+- 預覽自動化補強：`DEV-056` 第一階段圖面預覽自動排程與狀態回饋。
+  - 狀態：`✓ 本機 RD/QA/QC 通過 / Production Release Gated`。
+  - 目標：使用者上傳或開啟圖面後，系統自動排程、背景自動更新；以圖示／色彩／動態區分產生中、處理較久、無法預覽，不要求手動重新整理。
+  - 範圍：既有 preview job/derivative pipeline 的 Phase 1 follow-up；新增自動 enqueue、前景 polling、5 秒 worker heartbeat、30 秒 stale recovery（最多 3 次）、worker owner completion guard，以及 2D/3D placeholder UX。
+  - 驗收：native attachment list/create 自動排程；預覽完成自動出現；逾時自動接續或明確失敗；舊 worker 不得覆寫；來源檔仍是 authority；PDF/image/Drive fallback 不退化；UI 不暴露 raw error/secret。
+  - 不在本任務：Phase 2 `.SLDDRW -> PDF`、互動式 3D、production deploy/migration、歷史回填、真實 Document Manager key 配置。
+  - 證據：focused native QC 101/101、redaction QC 68/68、master-attachments QC 103/103、TypeScript、lint、local health、Windows Shell `.SLDPRT` worker smoke 與隔離 1440px browser visual QC 均通過；console errors 0、API requests 200。
+  - 下一步：本機切片完成；production rollout、真實 Document Manager key、Phase 2/3 仍走 release／外部 CAD evidence gate。
+
+- 精簡圖號明細工作卡：`○ DEV-057` `Brief Ready / Human Confirmed / RD Not Requested`。
+  - 目標：把圖號明細 Drawer 從「功能集合」收斂成「狀態導向工作卡」；首屏只保留目前狀態、唯一主要下一步、受控檔案與未完成例外，其餘能力移入可發現的「更多」分組。
+  - 父任務：`DEV-053`、`DEV-055`、`DEV-056`、`DEV-PDM-NEXT-STEP-UX-001`、`DEV-PDM-ENTITY-DETAIL-DRAWER-001`。
+  - 下一步：補至 `RD Contract Ready`，確認資訊分層、狀態 CTA matrix、回程上下文與 targeted UI/QC 邊界後，再進入本機 RD。
+  - 阻塞 / 恢復條件：目前無產品方向阻塞；若實作需要改 lifecycle/status authority、schema、權限、既有路由語意或刪除既有能力，停止並回 PM 做 Spec Impact Preflight 與範圍決策。
+  - 計入交付：是（首屏 UX 與狀態導向入口交付；production release 另走既有 release gate）。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -511,6 +527,47 @@ Owner：Dev PM
   - 證據：`.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`、`.ai-doc/decisions/ADR-PDM-STATUS-UX-004-task-driven-human-status-projection.md`、`.ai-doc/qa/qa-pdm-human-status-projection-validation-plan-2026-08-06.md`、`.ai-doc/qc/qc-dev-055-human-status-projection-2026-08-06.md`。
   - 計入交付：是（文件 ready 不計完成；產品實作及 QC 通過後才計入）
 
+- ✓ DEV-056 [交付點] [本機 RD/QA/QC 通過] [P1] [Phase 1 Preview Auto-Orchestration] 圖面預覽自動排程與狀態回饋
+  - 摘要：補齊既有 SolidWorks preview pipeline 的使用者閉環：自動排程、背景自動更新、heartbeat/stale recovery、current-worker guard，以及精簡的非語言狀態 UI。
+  - 來源 ID：`DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001-AUTOPILOT-001`
+  - 父任務：`DEV-023` / `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
+  - 執行範圍：`src/lib/master-attachments-async.ts`、`src/lib/preview-derivatives.ts`、preview worker routes/scripts、`src/components/master-attachment-panel.tsx`、preview UI CSS、SPEC/ADR/QA 文件。
+  - 驗收標準：native attachment list/create 自動建立 idempotent job；前景 pending UI 自動更新；worker 每 5 秒 heartbeat；30 秒無 heartbeat 自動重排最多 3 次；舊 worker completion/failure 被拒；UI 以 icon/tone/motion 呈現 `產生中`、`處理較久`、`無法預覽`、`請下載原檔`；source hash、權限、PDF/image/Drive fallback 不退化。
+  - 證據：`npx.cmd tsc --noEmit --pretty false` PASS、`npm.cmd run lint -- --quiet` PASS、`npm.cmd run qc:pdm-sw-native-preview-worker` 101/101、`npm.cmd run qc:pdm-sw-native-preview-redaction` 68/68、`npm.cmd run qc:master-attachments` 103/103、`npm.cmd run dev:local:check` PASS；Windows Shell `.SLDPRT` worker smoke accepted completion/derivative；隔離 Playwright screenshot `output/playwright/preview-auto-qc-runtime/auto-preview-updated.png` 顯示 3D 預覽自動出現、2D `處理較久` 狀態，console errors 0、HTTP errors 0。
+  - 停止條件：需要 production/外部 worker credential、live migration/data repair、Phase 2 PDF/Phase 3 interactive 3D，或無法取得真實 browser evidence；改列 gated，不以靜態檢查冒充 UI PASS。
+  - 計入交付：是（本機範圍）；production release 另走 `DEV-032` gate。
+
+- ○ DEV-057 [交付點] [Brief Ready / Human Confirmed / RD Not Requested] [P1] [下一階段] 精簡圖號明細工作卡與狀態導向入口
+  - 摘要：保留圖號、版次、受控檔案、預覽下載、送審與主資料能力，但將 Drawer 首屏收斂為「目前狀態、誰負責、唯一主要下一步、必要例外」；關係、影響、參考附件、歷史與高風險維護移入「更多」分組，降低使用者的判斷與誤操作成本。
+  - 成熟度：`Brief Ready / Human Confirmed / RD Not Requested`。
+  - 來源 ID：`DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001`。
+  - 父任務：`DEV-053`、`DEV-055`、`DEV-056`。
+  - 是否計入產品交付：是。
+  - 原始需求邊界：使用者要求「保留最重要的東西，整體優化重新設計」，目前只建立可派工開發任務，不執行產品程式修改。
+  - 任務目標：讓 RD、主管與審核者開啟圖號明細後，在 5 秒內辨識圖號身份、目前工作狀態、自己是否需要操作，以及下一個可執行動作。
+  - 使用者成功條件：正常狀態首屏最多一個主要 CTA；等待他人處理時不再顯示會誘導重複送審的上傳入口；未完成項目可直接跳到修正位置；所有跨頁操作可返回原圖號上下文。
+  - 風險等級：Medium。原因是會改變主要 UI flow、CTA 命名、資訊層級與跨頁返回行為，但本任務預設不改 schema、lifecycle authority、permission model 或正式資料。
+  - 根因判定：目前 Drawer 同時暴露流程操作、查詢、附件管理、主資料維護、關係維護與高風險作廢功能；標題 primary action 已依狀態分流，但內容 action row 仍以功能存在與權限為主，造成「等他人處理」與「上傳與送審」並存。
+  - 設計原則：
+    - `唯一主要 CTA = 狀態 × viewer responsibility × permission × terminal` 的投影結果。
+    - 首屏只回答「我在哪裡、現在狀態、下一步、風險」。
+    - 受控檔案的正式預覽與下載保留；參考附件、Google Drive、刪除紀錄與 audit 降至明細層。
+    - 只顯示未完成或有風險的必要條件；正常完成項目不常駐佔版面。
+    - 作廢、移除、同步、核准等高風險操作不與主要進版 CTA 並列，必須進「更多」並帶影響摘要與確認。
+  - 首屏保留：圖號身份與用途、單一人類工作狀態、唯一主要 CTA、必要撤回入口、受控版次檔案預覽／下載、未完成主資料例外、送審版次與料號數量摘要。
+  - 「更多」分組：`關聯與影響`（圖料關係、製造圖影響分析）、`附件管理`（參考附件、補件、歷史附件、Google Drive 同步）、`資料維護`（補資料、補成本、新增同根圖號、新增同圖料號）、`歷程與高風險`（歷史版本、作廢申請、必要送審追溯與權限設定）。
+  - 狀態 CTA 初步契約：`等他人處理／送審中`顯示`查看審核進度`並只在申請人尚未決策時保留`撤回送審`；`指定審核人`顯示`前往審核`；`退回修改`顯示`繼續修正並重送`；`已發布／研發受控`顯示`建立新版次`；`系統處理中`顯示`查看處理進度`；`已作廢／已合併／歷史`顯示`查看歷史紀錄`。不在等待、處理中或歷史狀態顯示上傳、送審或編輯入口。
+  - 行為與返回契約方向：進版、圖料關係、製造影響與附件補登等跨頁入口必須保留安全 `returnTo`；完成、取消、阻擋與錯誤狀態都要回到原圖號上下文或提供明確替代入口，不得只回模組首頁。
+  - Out of Scope：不刪除底層關係、影響、附件、歷史、成本、主資料、作廢或送審能力；不改 domain lifecycle、schema/migration、正式資料、權限模型、審核 authority、production deploy、release、mobile 專用版或新 provider 整合。
+  - Spec Impact Preflight：暫判 `Compatible exception`；本任務調整 DEV-053/055 已確認的可見資訊層級與入口位置，保留 `2-1-1-0`、single lifecycle、single primary action 與既有 owner authority。進入 `RD Contract Ready` 前，須對照 `SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001`、`SPEC-PDM-NEXT-STEP-UX-001`、`SPEC-PDM-STATUS-UX-004` 與 entity drawer contract，若移動入口會改變既有驗收或權限語意，改列 `Intentional replacement` 並同步權威文件。
+  - 初步驗收方向：A0005-M01的`等他人處理`首屏只顯示`查看審核進度`；六種主要狀態各有唯一且不誤導的CTA；受控檔案預覽／下載不退化；未完成主資料、成本或審核項目可直接進入修正或追蹤位置；「更多」仍能發現關係、影響、附件、歷史與高風險操作；1440、1024、390 viewport無CTA競爭、水平溢位、裁切、不可操作或visible raw error；既有送審、撤回、補登、附件下載與主資料維護流程仍可由新入口完成。
+  - RD Contract 下一步：補齊 component/route 影響清單、狀態與角色矩陣、More menu IA、returnTo contract、錯誤恢復、dangerous-action confirmation 與受影響既有 QA/QC mapping；完成前不得直接進入全頁重構。
+  - 停止條件：需要新增或修改狀態、審核 authority、schema、migration、權限、資料清理、既有 API 相容契約或刪除既有使用者能力時，停止本任務並回 PM 重新定義 scope。
+  - 相關文件：`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`、`.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`、`.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`、`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`、`.ai-doc/qa/qa-pdm-human-status-projection-validation-plan-2026-08-06.md`。
+  - 候選受影響介面：`src/components/drawing-workbench.tsx`、`src/lib/drawing-workbench.ts`、`src/components/master-attachment-panel.tsx`、`src/components/numbering-contextual-entrypoints.tsx`、`src/app/numbering/revisions/page.tsx`、`src/app/numbering/search/page.tsx`、`src/app/numbering/impact/page.tsx`；實作前由 RD Contract 再確認，不預先視為全部必改。
+  - 證據要求：RD 完成後需有狀態矩陣 contract、affected-route UI/QC、至少 1440／1024／390 三 viewport 截圖或等效 browser evidence、visible-error sweep、returnTo 互動證據與既有流程回歸結果；本任務目前尚無實作證據。
+  - 下一步：等待 PM/RD 將 Brief 升級為 `RD Contract Ready`；本輪只建立任務文件，不修改產品、schema、資料、production、commit、deploy 或 release。
+
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
   - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
   - 來源 ID：`DEV-PDM-FILE-STORAGE-001`
@@ -633,9 +690,9 @@ Owner：Dev PM
   - 摘要：統一 root/drawing/part detail drawer 契約，確保同一物件從不同入口打開時核心資訊與首屏密度一致。
   - 來源 ID：`DEV-PDM-ENTITY-DETAIL-DRAWER-001`
   - 父任務：`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-PDM-NUMBERING-004`、主資料工作台
-  - 證據：`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`、`qc:pdm-entity-detail-drawer` 12/12。
+  - 證據：`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`、Phase 1B 共用 `PdmEntityDetailDrawer`、`qc:pdm-entity-detail-drawer` 19/19、authenticated browser smoke。
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-039）
-  - 批次發版：見 `DEV-032`；完整 shared shell 抽取未進入本輪執行邊界，merge/PR/deploy/release 需走 release gate。
+  - 批次發版：見 `DEV-032`；shared shell 已於 2026-08-07 本機完成，merge/PR/deploy/release 仍需走 release gate。
   - 計入交付：是
 
 - ✓ DEV-008 [PM 證據] [完成] [P3] [已歸檔] 本地開發入口 CAPA 預防措施
@@ -1099,6 +1156,8 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-07: 完成`DEV-056 Phase 1 Preview Auto-Orchestration`。native attachment list/create自動enqueue、前景pending polling、5秒worker heartbeat、30秒stale recovery（最多3次）、current-worker completion/failure guard與icon/tone/motion狀態UI已落地；3D `.SLDPRT` worker完成後瀏覽器自動由`建立中`轉為PNG，無需手動重新整理，2D無可用worker時顯示`處理較久／系統會自動接續`。native QC 101/101、redaction 68/68、master-attachments 103/103、TypeScript、lint、local health與隔離browser visual QC通過；production、Document Manager key、Phase 2/3仍 gated。
+- 2026-08-07: 使用者授權`DEV-039 Phase 1B`本機執行。先建立checkpoint commit `4c98cd15`，再抽取非modal共用`PdmEntityDetailDrawer`，供drawing、part、relation-search及candidate/reservation details共用header、單一inline X、透明非阻塞overlay、resize/width persistence、outside/Escape close、row-to-row switching、scroll reset與entity metadata；domain body及modal confirm維持分離。同步集中human-status filters與drawer width來源。focused QC 19/19、23/23、12/12、8/8、13/13、TypeScript、scoped lint及authenticated browser smoke通過；未改schema/migration/正式資料，未deploy或release。
 - 2026-08-07: 依使用者決策刪除圖號工作台總表「下一步」欄與列內重複CTA，表格收斂為`圖號／品名／工作狀態`三欄；server primary action與權限說明仍保留於明細抽屜，不改API、domain lifecycle或寫入流程。同步更新DEV-053/055 contract、browser操作路徑與STATUS-UX-004 QA gate；`DEV053 UI 23/23`、`DEV055 contract 13/13`、TypeScript、scoped lint及隔離browser三viewport PASS。
 - 2026-08-07: 依使用者要求執行`DEV-055 viewer-aware responsibility projection`。保留客觀`humanStatus`，新增actor-specific`viewerStatus`：`待你處理／等他人處理／系統處理中／可使用／已結束`；drawing workbench以owner/reviewer為優先證據，part/relation因尚無個人assignment model而以role capability表示共享工作佇列。viewer filter改在response limit前依actor分類，相關API加`private, no-store`；共用badge懸浮層改用人類語言說明責任、是否自動完成及下一步。新增role matrix、filter與cache contract驗證；不修改domain lifecycle、schema/migration、正式資料、production、deploy或release。
 - 2026-08-07: 依使用者要求執行`availabilityScope`擴充。保留`humanStatus`與`viewerStatus`，新增客觀可用範圍投影：研發受控顯示`研發可用`，正式發布且製造依賴完整顯示`生產可用`；發布衝突、主要製造圖未發布或關聯缺口時 fail closed，不宣稱生產可用。新增主要製造圖 record status 的 read-only查詢欄位，未修改schema/migration、domain lifecycle、正式資料或寫入流程；同步補 availability matrix、API DTO、badge說明與browser QC。`qc:dev-055:projection` 44/44、contract 13/13、隔離 Chromium 三 viewport、TypeScript、affected-file ESLint 通過。
@@ -1197,3 +1256,4 @@ QC 要求保留的 Supabase stop wording：
 - 2026-07-09: Resolved the system drawer QC false blocker for the approval platform legacy redirect and aligned adjacent active QC contracts. Evidence: `npm.cmd run qc:pdm-system-detail-drawer-ui` 72/72, `npm.cmd run qc:pdm-approval-platform` 106/106, `npm.cmd run qc:pdm-numbering-approval-review-ui` 10/10, `npm.cmd run qc:pdm-lifecycle-actions` 272/272, `npm.cmd run qc:pdm-lifecycle-obsolete` 115/115 and `npm.cmd run qc:pdm-numbering-core` 241/241 passed. No product UI, schema, data repair, merge, PR, deployment, rollback or release artifact was changed.
 - 2026-07-09: Completed `DEV-PDM-APPROVAL-PLATFORM-001` Phase 1C-C drawing object pending-review projection and APP redline cleanup. A0007-M01 pending drawing revision impact reviews remain as compact read-only cues on `/numbering/drawings`, `/numbering/search` drawing targets and attachment revision/history rows; the drawing detail `待審焦點` focus panel, preview-card file extension header labels and collapsed upload `建議版次` text were removed per screenshot redlines. Evidence: `npx.cmd tsc --noEmit --pretty false`, source-scoped lint, `npm.cmd run qc:pdm-approval-platform` 125/125, `npm.cmd run qc:pdm-entity-detail-drawer` 14/14, `npm.cmd run dev:local:check`, `qc:dev-task-evidence-sync` 13/13, and Playwright screenshots under `output/playwright/pdm-approval-projection/`. `npm.cmd run build` was blocked by the intentional local-dev guard because the healthy project-owned dev server was listening on port 3000; no bypass was used. No schema migration, lifecycle mutation, data repair, merge, PR, deployment, rollback or release artifact was changed.
 - 2026-07-09: 依新的 Dev PM canonical format 重構開頭總任務清單，並依使用者要求強制中文化。總任務清單使用狀態符號放在 `DEV-001` 到 `DEV-039` 短碼前方，且每個短碼都映射回既有語意來源 ID。
+- 2026-08-07: 依使用者要求建立 `DEV-057`「精簡圖號明細工作卡與狀態導向入口」。本任務採 `Brief Ready / Human Confirmed / RD Not Requested`，保留圖號、版次、受控檔案、預覽下載、送審與主資料能力，首屏收斂為狀態、唯一主要 CTA、受控檔案與必要例外；關係、影響、參考附件、歷史與高風險維護移入「更多」。本輪只修改 `.ai-doc/dev_task.md` 與 `.ai-doc/documentation_map.md`，未修改產品、schema、資料、production、commit、deploy 或 release。

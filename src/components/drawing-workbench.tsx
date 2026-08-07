@@ -15,7 +15,8 @@ import {
   type WorkspaceAction
 } from "@/components/number-state-workspace";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
-import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusForUser } from "@/lib/status-display";
@@ -27,35 +28,12 @@ import type {
   DrawingWorkbenchStage,
   DrawingWorkbenchView
 } from "@/lib/drawing-workbench";
-import type { HumanStatusFilter } from "@/lib/human-status-projection";
-
-const stageOptions: Array<{ value: "" | DrawingWorkbenchStage; label: string }> = [
-  { value: "", label: "全部工作狀態" },
-  { value: "building", label: "建立中" },
-  { value: "drawing_preparation", label: "首版準備" },
-  { value: "bundle_ready", label: "可送審" },
-  { value: "in_review", label: "審核中" },
-  { value: "auto_finalizing", label: "系統正式化中" },
-  { value: "recovery_required", label: "需要處理" },
-  { value: "official_controlled", label: "研發受控" },
-  { value: "correction_required", label: "需要修正" },
-  { value: "revision_in_review", label: "新版審核中" },
-  { value: "released", label: "已發布" },
-  { value: "history_only", label: "歷史紀錄" }
-];
+import { HUMAN_STATUS_FILTER_OPTIONS, type HumanStatusFilter } from "@/lib/human-status-projection";
 
 export type DrawingDetail = NonNullable<DrawingWorkbenchDetailResponse["drawing"]>;
 export type DrawingWorkbenchCapabilities = DrawingWorkbenchDetailResponse["capabilities"];
 type DrawingPurposeFilter = NonNullable<DrawingWorkbenchRow["purposeCode"]>;
 type DrawingRecordStatusFilter = NonNullable<DrawingWorkbenchRow["recordStatus"]>;
-const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
-  { value: "all", label: "全部狀態" },
-  { value: "needs_action", label: "待我處理" },
-  { value: "waiting", label: "等他人處理" },
-  { value: "system", label: "系統處理中" },
-  { value: "usable", label: "可使用" },
-  { value: "history", label: "歷史" }
-];
 export type ProductionSliceClientStatus = {
   configured: boolean;
   openPagePaths: string[];
@@ -460,11 +438,10 @@ export function DrawingWorkbench() {
             <div><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => { resetPagination(); setQuery(event.target.value); }} placeholder="圖號、品名、料號" /></div>
           </label>
           <label><span>範圍</span><select value={view} onChange={(event) => { resetPagination(); setView(event.target.value as DrawingWorkbenchView); }}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
-          <label><span>工作狀態</span><select value={stage} onChange={(event) => { resetPagination(); setStage(event.target.value as "" | DrawingWorkbenchStage); }}>{stageOptions.map((option) => <option value={option.value} key={option.value || "all"}>{option.label}</option>)}</select></label>
+          <label><span>工作狀態</span><select value={humanStatus} onChange={(event) => { resetPagination(); setHumanStatus(event.target.value as HumanStatusFilter); }}>{HUMAN_STATUS_FILTER_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
           <label><span>系列代號</span><select value={seriesCode} onChange={(event) => { resetPagination(); setSeriesCode(event.target.value); }}><option value="">全部系列</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>圖面用途</span><select value={purposeCode} onChange={(event) => { resetPagination(); setPurposeCode(event.target.value as "" | DrawingPurposeFilter); }}><option value="">全部用途</option>{purposeCodeOptions.map((option) => <option value={option} key={option}>{option} {displayDrawingPurposeLabel(option)}</option>)}</select></label>
           <label><span>資料狀態</span><select value={recordStatus} onChange={(event) => { resetPagination(); setRecordStatus(event.target.value as "" | DrawingRecordStatusFilter); }}><option value="">全部狀態</option>{recordStatusOptions.map((option) => <option value={option} key={option}>{formatStatusForUser(option, "masterRecord")}</option>)}</select></label>
-          <label><span>工作狀態</span><select value={humanStatus} onChange={(event) => { resetPagination(); setHumanStatus(event.target.value as HumanStatusFilter); }}>{humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
         </div>
         <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={includeHistory} onChange={(event) => { resetPagination(); setIncludeHistory(event.target.checked); }} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
       </section>
@@ -480,6 +457,7 @@ export function DrawingWorkbench() {
               <tbody>{rows.map((row, index) => (
                 <tr
                   key={row.rowKey}
+                  data-drawing-workbench-row="true"
                   ref={(node) => { if (node) rowRefs.current.set(row.rowKey, node); else rowRefs.current.delete(row.rowKey); }}
                   className={selectedKey === row.rowKey ? "selected-row" : undefined}
                   aria-selected={selectedKey === row.rowKey}
@@ -522,6 +500,7 @@ export function DrawingWorkbench() {
           seriesCodeOptions={seriesCodeOptions}
           width={drawerWidth}
           onStartResize={startDrawerResize}
+          keepOpenSelector="[data-drawing-workbench-row='true']"
           onClose={closeDetail}
         />
       ) : null}
@@ -613,7 +592,7 @@ export function DrawingDetailContent({
     : `缺少「${capabilities.permissionRequirements.createRevision.label}」權限（${capabilities.permissionRequirements.createRevision.permissionCode}），請聯絡${capabilities.permissionRequirements.createRevision.contactRole}。`;
   const formalMutationBlockedBadge = productionSlice?.configured ? "未開放" : !capabilities.canCreateRevision ? "權限不足" : null;
   return (
-    <div className={embedded ? "drawing-detail-content" : "drawing-workbench-drawer-body"}>
+    <div className={embedded ? "drawing-detail-content" : "pdm-entity-drawer-body"}>
       {row.terminal ? <section className="drawing-workbench-terminal-panel" aria-label="歷史狀態說明"><strong>{row.terminal.reasonLabel}</strong><p>{row.terminal.nextStepLabel}</p></section> : null}
       {row.warning ? <div className="drawing-workbench-header-warning"><AlertTriangle size={15} /><span>{row.warning.message}</span></div> : null}
       <dl className="drawing-workbench-facts">
@@ -651,13 +630,25 @@ export function DrawingDetailContent({
 
 function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, width, onStartResize, onDataChanged, onOpenDetail, onClose }: { drawing: DrawingDetail; row: DrawingWorkbenchRow; capabilities: DrawingWorkbenchCapabilities; productionSlice: ProductionSliceClientStatus | null; width: number; onStartResize: (clientX: number) => void; onDataChanged: () => Promise<void>; onOpenDetail: (rowKey: string) => Promise<void>; onClose: () => void }) {
   return (
-    <PdmDetailDrawer open width={width} ariaLabel="圖號明細" resizeLabel="調整圖號明細寬度" onClose={onClose} onStartResize={onStartResize} className="drawing-workbench-master-drawer">
-      <div className="drawing-workbench-drawer-header">
-        <div className="drawing-workbench-drawer-identity"><HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /><div><h2>{drawing.drawingNumber}</h2><p>{drawing.coreName}</p></div></div>
-        <div className="drawing-workbench-drawer-header-actions"><div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>{row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}<button className="icon-button" type="button" onClick={onClose} aria-label="關閉圖號明細"><X size={20} /></button></div>
-      </div>
+    <PdmEntityDetailDrawer
+      open
+      width={width}
+      ariaLabel="圖號明細"
+      title={drawing.drawingNumber}
+      subtitle={drawing.coreName}
+      status={<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />}
+      actions={<><div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>{row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}</>}
+      entityType="drawing_number"
+      entityCode={drawing.drawingNumber}
+      sourceContext="numbering_drawings"
+      resizeLabel="調整圖號明細寬度"
+      closeLabel="關閉圖號明細"
+      onClose={onClose}
+      onStartResize={onStartResize}
+      keepOpenSelector="[data-drawing-workbench-row='true']"
+    >
       <DrawingDetailContent drawing={drawing} row={row} capabilities={capabilities} productionSlice={productionSlice} onDataChanged={onDataChanged} />
-    </PdmDetailDrawer>
+    </PdmEntityDetailDrawer>
   );
 }
 

@@ -182,7 +182,7 @@ function monitorPage(page) {
 
 async function openWorkspace(page, baseUrl, workspaceId, expectedText, expectedLifecycleStage) {
   await page.goto(`${baseUrl}/parts?tab=drafts&detail=${encodeURIComponent(workspaceId)}`, { waitUntil: "networkidle" });
-  await page.locator(".number-state-drawer").waitFor({ state: "visible" });
+  await page.locator('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"]').waitFor({ state: "visible" });
   if (expectedLifecycleStage) {
     await page.locator(`[data-lifecycle-v2-stage="${expectedLifecycleStage}"]`).waitFor({ state: "visible" });
   }
@@ -196,14 +196,14 @@ async function viewportMetrics(page) {
       const rect = element.getBoundingClientRect();
       return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
     };
-    const overflowingControls = [...document.querySelectorAll(".number-state-drawer button, .number-state-drawer a, .number-state-drawer input, .number-state-drawer select, .number-state-drawer textarea")]
+    const overflowingControls = [...document.querySelectorAll('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] button, .pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] a, .pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] input, .pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] select, .pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] textarea')]
       .filter((element) => visible(element))
       .filter((element) => {
         const rect = element.getBoundingClientRect();
         return rect.left < -1 || rect.right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 2;
       })
       .map((element) => (element.textContent || element.getAttribute("aria-label") || element.tagName).trim().slice(0, 80));
-    const visibleScrollOwners = [...document.querySelectorAll(".number-state-drawer, .number-state-drawer *")]
+    const visibleScrollOwners = [...document.querySelectorAll('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"], .pdm-entity-detail-drawer[data-entity-type="candidate_bundle"] *')]
       .filter((element) => visible(element))
       .filter((element) => {
         const style = getComputedStyle(element);
@@ -230,13 +230,13 @@ async function viewportMetrics(page) {
         horizontalOverflow: drawerBody.scrollWidth > drawerBody.clientWidth + 1
       } : null,
       candidateWatermarkCount: document.querySelectorAll(".number-state-candidate-watermark").length,
-      dialogVisible: Boolean(document.querySelector(".number-state-drawer"))
+      dialogVisible: Boolean(document.querySelector('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"]'))
     };
   });
 }
 
 async function drawerResizeMetrics(page) {
-  const drawer = page.locator(".number-state-drawer");
+  const drawer = page.locator('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"]');
   const handle = page.getByRole("button", { name: "調整保留號明細寬度" });
   await handle.waitFor({ state: "visible" });
   const handleBox = await handle.boundingBox();
@@ -286,7 +286,7 @@ try {
   await ownerPage.setViewportSize({ width: 1440, height: 1000 });
   await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "圖料號正式；研發版核准", "official_controlled");
   await ownerPage.getByText("圖料號已正式建立；研發版已核准。", { exact: true }).waitFor({ state: "visible" });
-  const officialDrawerText = await ownerPage.locator(".number-state-drawer").innerText();
+  const officialDrawerText = await ownerPage.locator('.pdm-entity-detail-drawer[data-entity-type="candidate_bundle"]').innerText();
   record(
     "UI-C-00A V2 uses the official_controlled projection and controlled wording instead of legacy release wording",
     officialResult.workspace?.lifecycleV2?.stage === "official_controlled" &&

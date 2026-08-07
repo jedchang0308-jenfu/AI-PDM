@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 const DEFAULT_DRAWER_WIDTH = 500;
@@ -18,12 +18,20 @@ type PdmDetailDrawerProps = {
   open: boolean;
   width: number;
   ariaLabel: string;
+  ariaLabelledBy?: string;
+  role?: "dialog" | "complementary";
   resizeLabel?: string;
   resizeTitle?: string;
   onClose: () => void;
   onStartResize: (clientX: number) => void;
   children: ReactNode;
   className?: string;
+  dataEntityType?: string;
+  dataEntityCode?: string;
+  dataSourceContext?: string;
+  dataDetailTarget?: string;
+  dataDetailCode?: string;
+  drawerRef?: Ref<HTMLElement>;
 };
 
 function clampDrawerWidth(width: number, viewportWidth: number, minWidth: number, maxWidthRatio: number) {
@@ -105,18 +113,27 @@ export function PdmDetailDrawer({
   open,
   width,
   ariaLabel,
+  ariaLabelledBy,
+  role = "dialog",
   resizeLabel = "調整明細欄寬度",
   resizeTitle = "拖拉調整明細欄寬度",
   onClose,
   onStartResize,
   children,
-  className
+  className,
+  dataEntityType,
+  dataEntityCode,
+  dataSourceContext,
+  dataDetailTarget,
+  dataDetailCode,
+  drawerRef
 }: PdmDetailDrawerProps) {
   useEffect(() => {
     if (!open) return;
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
       event.preventDefault();
       onClose();
     }
@@ -131,7 +148,19 @@ export function PdmDetailDrawer({
 
   return (
     <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside className={className ? `pdm-detail-drawer ${className}` : "pdm-detail-drawer"} aria-label={ariaLabel} role="dialog" style={drawerStyle}>
+      <aside
+        ref={drawerRef}
+        className={className ? `pdm-detail-drawer ${className}` : "pdm-detail-drawer"}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        role={role}
+        style={drawerStyle}
+        data-entity-type={dataEntityType}
+        data-entity-code={dataEntityCode}
+        data-source-context={dataSourceContext}
+        data-detail-target={dataDetailTarget}
+        data-detail-code={dataDetailCode}
+      >
         <button
           className="pdm-detail-drawer-resize-handle"
           type="button"

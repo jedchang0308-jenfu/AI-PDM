@@ -2,20 +2,48 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   decorateMasterAttachmentsWithPreviewState,
   enqueuePreviewJobForAttachmentAsync,
-  getPreviewDerivativeBytesForAttachmentAsync
+  getPreviewDerivativeBytesForAttachmentAsync,
+  isNativeSolidWorksPreviewSource,
+  recoverStalePreviewJobsAsync
 } from "@/lib/preview-derivatives";
 import { AsyncMasterAttachmentRepository } from "@/lib/repositories/master-attachment-async-repository";
 import type { MasterAttachmentEntityType, MasterAttachmentRecord } from "@/lib/repositories/master-attachment-repository";
 
-export async function listMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
+export async function listMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string; actorUserId?: string }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncMasterAttachmentRepository(client);
   const result = await repository.listMasterAttachments(input);
   if (!result) return result;
-  return {
-    ...result,
-    attachments: await decorateMasterAttachmentsWithPreviewState(client, result.attachments)
-  };
+  await recoverStalePreviewJobsAsync(client);
+  let attachments = await decorateMasterAttachmentsWithPreviewState(client, result.attachments);
+  if (input.actorUserId) {
+    for (const attachment of attachments) {
+      if (!isNativeSolidWorksPreviewSource(attachment.fileExt)) continue;
+      const hasCurrentDerivative = attachment.previewDerivatives.some(
+        (derivative) => derivative.status === "ready" && derivative.sourceContentHash === attachment.contentHash
+      );
+      const hasActiveJob =
+        attachment.previewJob?.sourceContentHash === attachment.contentHash
+        && (attachment.previewJob.status === "queued" || attachment.previewJob.status === "running");
+      if (hasCurrentDerivative || hasActiveJob) continue;
+      if (attachment.previewJob?.sourceContentHash === attachment.contentHash && attachment.previewJob.status !== "cancelled") continue;
+      try {
+        await enqueuePreviewJobForAttachmentAsync(client, {
+          entityType: input.entityType,
+          entityCode: input.entityCode,
+          attachmentId: attachment.id,
+          actorUserId: input.actorUserId,
+          requestedKind: "native_thumbnail_png",
+          generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : "windows_solidworks_preview_worker",
+          runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+        });
+      } catch {
+        // Preview generation is non-blocking; the source attachment remains readable.
+      }
+    }
+    attachments = await decorateMasterAttachmentsWithPreviewState(client, result.attachments);
+  }
+  return { ...result, attachments };
 }
 
 export function listDeletedMasterAttachmentsAsync(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
@@ -38,6 +66,21 @@ export async function createMasterAttachmentAsync(input: {
   const repository = new AsyncMasterAttachmentRepository(client);
   const attachment = await repository.createMasterAttachment(input);
   if (!attachment) throw new Error("MASTER_ATTACHMENT_CREATE_FAILED");
+  if (isNativeSolidWorksPreviewSource(attachment.fileExt)) {
+    try {
+      await enqueuePreviewJobForAttachmentAsync(client, {
+        entityType: input.entityType,
+        entityCode: input.entityCode,
+        attachmentId: attachment.id,
+        actorUserId: input.uploadedBy,
+        requestedKind: "native_thumbnail_png",
+        generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : "windows_solidworks_preview_worker",
+        runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+      });
+    } catch {
+      // Preview generation is non-blocking; the source attachment remains readable.
+    }
+  }
   return decorateSingleAttachmentWithPreviewState(client, attachment);
 }
 

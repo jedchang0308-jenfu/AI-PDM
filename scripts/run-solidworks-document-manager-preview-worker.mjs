@@ -56,57 +56,85 @@ if (!token.trim()) {
 
 const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
 const workerId = args.workerId || defaultWorkerId;
-const claim = await claimJob({ baseUrl, token, workerId });
-if (!claim) {
-  console.log(JSON.stringify({ workerId, claimed: false, message: "No queued SLDDRW preview job." }, null, 2));
-  process.exit(0);
+const watchMode = args.watch === true;
+const pollMs = readPositiveInt(args.pollMs, 2000);
+let idleReported = false;
+
+if (watchMode) {
+  console.log(JSON.stringify({ workerId, watching: true, pollMs }, null, 2));
 }
 
-try {
-  const sourcePath = resolveClaimSourcePath(claim);
-  const outputPath = path.join(os.tmpdir(), `ai-pdm-dm-preview-${claim.jobId}.png`);
-  const extracted = await extractDocumentManagerPreview(sourcePath, outputPath);
-  const bytes = fs.readFileSync(outputPath);
-  assertPng(bytes, outputPath);
-  const dimensions = readPngDimensions(bytes);
-  const quality = await analyzePngContent(bytes);
-  assertMeaningfulDrawingPreviewQuality(quality, outputPath);
-  const completion = await completeJob({
-    baseUrl,
-    token,
-    workerId,
-    job: claim,
-    derivative: {
-      kind: "thumbnail_png",
-      fileName: `${path.basename(sourcePath)}.preview.png`,
-      mimeType: "image/png",
-      contentBase64: bytes.toString("base64"),
-      width: dimensions.width,
-      height: dimensions.height,
-      generatorProfile: claim.generatorProfile,
-      generatorVersion: "solidworks-document-manager-preview-png-v1"
+while (true) {
+  let claim;
+  try {
+    claim = await claimJob({ baseUrl, token, workerId });
+  } catch (error) {
+    if (!watchMode || isWorkerConfigurationError(error)) throw error;
+    console.error(JSON.stringify({ workerId, watching: true, status: "claim_retry", error: "Preview API is temporarily unavailable; the worker will retry." }, null, 2));
+    await delay(pollMs);
+    continue;
+  }
+
+  if (!claim) {
+    if (!watchMode) {
+      console.log(JSON.stringify({ workerId, claimed: false, message: "No queued SLDDRW preview job." }, null, 2));
+      break;
     }
-  });
-  console.log(JSON.stringify({ workerId, claimed: true, jobId: claim.jobId, sourcePath, extracted, dimensions, quality, completion }, null, 2));
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  const errorSummary = userFacingPreviewErrorSummary(message);
-  await failJob({ baseUrl, token, workerId, jobId: claim.jobId, errorSummary });
-  console.error(
-    JSON.stringify(
-      {
-        workerId,
-        claimed: true,
-        jobId: claim.jobId,
-        status: "failed",
-        errorCode: "solidworks_document_manager_preview_failed",
-        errorSummary
-      },
-      null,
-      2
-    )
-  );
-  process.exitCode = 1;
+    if (!idleReported) {
+      console.log(JSON.stringify({ workerId, watching: true, claimed: false, message: "Waiting for SLDDRW preview jobs." }, null, 2));
+      idleReported = true;
+    }
+    await delay(pollMs);
+    continue;
+  }
+
+  idleReported = false;
+  const succeeded = await processClaim({ baseUrl, token, workerId, claim });
+  if (!watchMode) {
+    if (!succeeded) process.exitCode = 1;
+    break;
+  }
+}
+
+async function processClaim(input) {
+  const { baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, claim } = input;
+  const heartbeat = startJobHeartbeat({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId });
+  try {
+    const sourcePath = resolveClaimSourcePath(claim);
+    const outputPath = path.join(os.tmpdir(), `ai-pdm-dm-preview-${claim.jobId}.png`);
+    const extracted = await extractDocumentManagerPreview(sourcePath, outputPath);
+    const bytes = fs.readFileSync(outputPath);
+    assertPng(bytes, outputPath);
+    const dimensions = readPngDimensions(bytes);
+    const quality = await analyzePngContent(bytes);
+    assertMeaningfulDrawingPreviewQuality(quality, outputPath);
+    const completion = await completeJob({
+      baseUrl: claimBaseUrl,
+      token: claimToken,
+      workerId: claimWorkerId,
+      job: claim,
+      derivative: {
+        kind: "thumbnail_png",
+        fileName: `${path.basename(sourcePath)}.preview.png`,
+        mimeType: "image/png",
+        contentBase64: bytes.toString("base64"),
+        width: dimensions.width,
+        height: dimensions.height,
+        generatorProfile: claim.generatorProfile,
+        generatorVersion: "solidworks-document-manager-preview-png-v1"
+      }
+    });
+    console.log(JSON.stringify({ workerId: claimWorkerId, claimed: true, jobId: claim.jobId, sourcePath, extracted, dimensions, quality, completion }, null, 2));
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const errorSummary = userFacingPreviewErrorSummary(message);
+    await failJob({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId, errorSummary });
+    console.error(JSON.stringify({ workerId: claimWorkerId, claimed: true, jobId: claim.jobId, status: "failed", errorCode: "solidworks_document_manager_preview_failed", errorSummary }, null, 2));
+    return false;
+  } finally {
+    heartbeat.stop();
+  }
 }
 
 async function ensureExporterBuilt() {
@@ -163,9 +191,21 @@ async function claimJob(input) {
       supportedExtensions: ["slddrw"]
     })
   });
-  if (!response.ok) throw new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
+  if (!response.ok) {
+    const error = new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
+    if (response.status === 401 || response.status === 403 || response.status === 503) error.code = "PREVIEW_WORKER_CONFIGURATION_ERROR";
+    throw error;
+  }
   const body = await response.json();
   return body.job ?? null;
+}
+
+function isWorkerConfigurationError(error) {
+  return error?.code === "PREVIEW_WORKER_CONFIGURATION_ERROR";
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function completeJob(input) {
@@ -184,6 +224,22 @@ async function completeJob(input) {
   });
   if (!response.ok) throw new Error(`Preview worker complete failed with HTTP ${response.status}: ${await response.text()}`);
   return await response.json();
+}
+
+function startJobHeartbeat(input) {
+  const send = async () => {
+    await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/heartbeat`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-pdm-preview-worker-token": input.token
+      },
+      body: JSON.stringify({ workerId: input.workerId })
+    }).catch(() => undefined);
+  };
+  void send();
+  const timer = setInterval(() => void send(), 5000);
+  return { stop: () => clearInterval(timer) };
 }
 
 async function failJob(input) {
@@ -358,6 +414,8 @@ function parseArgs(values) {
     else if (value === "--base-url") parsed.baseUrl = values[++index];
     else if (value === "--token") parsed.token = values[++index];
     else if (value === "--worker-id") parsed.workerId = values[++index];
+    else if (value === "--watch") parsed.watch = true;
+    else if (value === "--poll-ms") parsed.pollMs = values[++index];
     else if (value === "--compile-only") parsed.compileOnly = true;
   }
   return parsed;
@@ -366,7 +424,7 @@ function parseArgs(values) {
 function printHelp() {
   console.log(`Usage:
   node scripts/run-solidworks-document-manager-preview-worker.mjs --source <drawing.slddrw> --out <png>
-  PDM_PREVIEW_WORKER_TOKEN=<token> PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY=<key> node scripts/run-solidworks-document-manager-preview-worker.mjs
+  PDM_PREVIEW_WORKER_TOKEN=<token> PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY=<key> node scripts/run-solidworks-document-manager-preview-worker.mjs --watch
 
 Environment:
   PDM_PREVIEW_WORKER_BASE_URL             Defaults to http://127.0.0.1:3000
@@ -379,5 +437,12 @@ Environment:
 
 Notes:
   This worker only claims SLDDRW native_thumbnail_png jobs. It intentionally keeps
-  the Document Manager key out of browser responses, DB metadata and command-line args.`);
+  the Document Manager key out of browser responses, DB metadata and command-line args.
+  --watch keeps the worker alive and polls for new drawing jobs.
+  --poll-ms controls the watch interval and defaults to 2000.`);
+}
+
+function readPositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

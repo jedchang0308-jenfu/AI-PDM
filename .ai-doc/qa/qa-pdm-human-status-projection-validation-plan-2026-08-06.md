@@ -140,7 +140,7 @@ Phase 1 必測：
 
 ### UF-03 狀態篩選
 
-步驟：依序切換 `待我處理／等他人處理／系統處理中／可使用／歷史`；drawing workbench 另抽查既有下一頁 cursor。
+步驟：依序切換 `待你處理／等他人處理／系統處理中／可使用／歷史`；drawing workbench 另抽查既有下一頁 cursor。
 
 通過：每筆 viewer category 都屬於該 filter；同一資料以負責人／非負責人登入時可落入不同 filter；response limit 前的結果與 API summary 一致；drawing workbench 下一頁仍能沿用 cursor；清除篩選後恢復全部結果。
 

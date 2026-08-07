@@ -19,6 +19,11 @@ const searchPage = read("src/app/numbering/search/page.tsx");
 const drawingPage = read("src/app/numbering/drawings/page.tsx");
 const drawingWorkbench = read("src/components/drawing-workbench.tsx");
 const partPage = read("src/app/parts/page.tsx");
+const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
+const entityDrawer = read("src/components/pdm-entity-detail-drawer.tsx");
+const detailDrawer = read("src/components/pdm-detail-drawer.tsx");
+const humanStatusProjection = read("src/lib/human-status-projection.ts");
+const globalCss = read("src/app/globals.css");
 const attachmentPanel = read("src/components/master-attachment-panel.tsx");
 const packageJson = JSON.parse(read("package.json"));
 
@@ -29,13 +34,45 @@ record(
 );
 
 record(
-  "Search drawer reuses drawing module shell and inline close action",
-  searchPage.includes('import { PdmDetailDrawer }') &&
-    searchPage.includes('className="drawing-workbench-master-drawer"') &&
-    searchPage.includes('className="drawing-workbench-drawer-header"') &&
-    searchPage.includes('className="drawing-workbench-drawer-header-actions"') &&
-    !searchPage.includes("pdm-detail-drawer-floating-close"),
-  "src/app/numbering/search/page.tsx"
+  "Owner modules reuse one entity detail drawer shell",
+  searchPage.includes('import { PdmEntityDetailDrawer }') &&
+    drawingWorkbench.includes('import { PdmEntityDetailDrawer }') &&
+    partPage.includes('import { PdmEntityDetailDrawer }') &&
+    numberStateWorkspace.includes('import { PdmEntityDetailDrawer }') &&
+    [searchPage, drawingWorkbench, partPage, numberStateWorkspace].every((source) => source.includes("<PdmEntityDetailDrawer")),
+  "shared entity drawer consumers"
+);
+
+record(
+  "Entity detail drawer is non-modal and keeps the underlying list interactive",
+  entityDrawer.includes('role="complementary"') &&
+    !entityDrawer.includes('aria-modal="true"') &&
+    globalCss.includes(".pdm-detail-drawer-backdrop") &&
+    globalCss.includes("pointer-events: none") &&
+    detailDrawer.includes("document.querySelector('[aria-modal=\"true\"]')"),
+  "src/components/pdm-entity-detail-drawer.tsx"
+);
+
+record(
+  "Shared shell owns outside close, row switching, and detail scroll reset",
+  entityDrawer.includes("keepOpenSelector") &&
+    entityDrawer.includes("target.closest(keepOpenSelector)") &&
+    entityDrawer.includes('querySelector<HTMLElement>(".pdm-entity-drawer-body, .number-state-drawer-body")') &&
+    entityDrawer.includes("scrollTo({ top: 0 })") &&
+    drawingWorkbench.includes('data-drawing-workbench-row="true"') &&
+    drawingWorkbench.includes('keepOpenSelector="[data-drawing-workbench-row=\'true\']"') &&
+    partPage.includes('keepOpenSelector="[data-part-row=\'true\']"') &&
+    searchPage.includes('keepOpenSelector="[data-search-row=\'true\']"') &&
+    numberStateWorkspace.includes('keepOpenSelector="[data-number-state-row=\'true\']"'),
+  "shared browse interaction contract"
+);
+
+record(
+  "Candidate workspace no longer uses a blocking drawer backdrop",
+  numberStateWorkspace.includes('entityType="candidate_bundle"') &&
+    !numberStateWorkspace.slice(numberStateWorkspace.indexOf("export function WorkspaceDrawer"), numberStateWorkspace.indexOf("function ProjectionSummary")).includes("number-state-drawer-backdrop") &&
+    !numberStateWorkspace.slice(numberStateWorkspace.indexOf("export function WorkspaceDrawer"), numberStateWorkspace.indexOf("function ProjectionSummary")).includes('aria-modal="true"'),
+  "src/components/number-state-workspace.tsx"
 );
 
 record(
@@ -150,22 +187,31 @@ record(
 
 record(
   "Drawing module drawer publishes drawing entity metadata",
-  drawingPage.includes('data-detail-target="drawing_number"') &&
-    drawingPage.includes("data-detail-code={drawing.drawingNumber}") &&
-    drawingPage.includes('data-entity-type="drawing_number"') &&
-    drawingPage.includes("data-entity-code={drawing.drawingNumber}") &&
-    drawingPage.includes('data-source-context="numbering_drawings"'),
-  "src/app/numbering/drawings/page.tsx"
+  drawingWorkbench.includes('entityType="drawing_number"') &&
+    drawingWorkbench.includes("entityCode={drawing.drawingNumber}") &&
+    drawingWorkbench.includes('sourceContext="numbering_drawings"'),
+  "src/components/drawing-workbench.tsx"
 );
 
 record(
   "Part module drawer publishes part entity metadata",
-  partPage.includes('data-detail-target="part_number"') &&
-    partPage.includes('data-entity-type="part_number"') &&
-    partPage.includes('data-source-context="parts"') &&
-    partPage.includes('data-detail-code={detail?.partNumber ?? ""}') &&
-    partPage.includes('data-entity-code={detail?.partNumber ?? ""}'),
+  partPage.includes('entityType="part_number"') &&
+    partPage.includes('entityCode={detail?.partNumber ?? ""}') &&
+    partPage.includes('sourceContext="parts"'),
   "src/app/parts/page.tsx"
+);
+
+record(
+  "Drawer width and human-status filters have one shared source",
+  searchPage.includes("useRememberedDrawerWidth") &&
+    partPage.includes("useRememberedDrawerWidth") &&
+    !searchPage.includes("clampDetailDrawerWidth") &&
+    !partPage.includes("clampDetailDrawerWidth") &&
+    searchPage.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
+    drawingWorkbench.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
+    partPage.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
+    humanStatusProjection.includes("export const HUMAN_STATUS_FILTER_OPTIONS"),
+  "shared width and status contracts"
 );
 
 record(

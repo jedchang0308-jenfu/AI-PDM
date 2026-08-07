@@ -45,6 +45,8 @@ export type MasterAttachmentPreviewJob = {
   errorCode: string | null;
   errorSummary: string | null;
   createdAt: string;
+  startedAt: string | null;
+  lastHeartbeatAt: string;
   updatedAt: string;
   completedAt: string | null;
 };

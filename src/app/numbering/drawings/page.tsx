@@ -3,9 +3,11 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { DrawingWorkbench } from "@/components/drawing-workbench";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
@@ -81,9 +83,6 @@ type DrawingListRecord = {
 const statuses = ["", ...drawingRecordStatusFilterValues] as const;
 const purposeCodes = ["", "M", "R", "MA", "OT"] as const;
 const DRAWING_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
-const DRAWING_DRAWER_DEFAULT_WIDTH = 500;
-const DRAWING_DRAWER_MIN_WIDTH = 380;
-const DRAWING_DRAWER_MAX_WIDTH_RATIO = 0.72;
 
 const mutedStyle = { color: "var(--muted)" };
 const badgeStyle: CSSProperties = {
@@ -96,11 +95,6 @@ const badgeStyle: CSSProperties = {
   fontSize: "0.75rem",
   color: "var(--muted)"
 };
-
-function clampDrawerWidth(width: number, viewportWidth: number) {
-  const maxWidth = Math.max(DRAWING_DRAWER_MIN_WIDTH, Math.floor(viewportWidth * DRAWING_DRAWER_MAX_WIDTH_RATIO));
-  return Math.min(Math.max(width, DRAWING_DRAWER_MIN_WIDTH), maxWidth);
-}
 
 function isEditableShortcutTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
@@ -147,12 +141,13 @@ export default function DrawingNumbersPage() {
   const initialDetailDrawingNumberRef = useRef<string | null>(null);
   const drawingListRef = useRef<HTMLDivElement | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [drawerWidth, setDrawerWidth] = useState(DRAWING_DRAWER_DEFAULT_WIDTH);
+  const { drawerWidth, startDrawerResize: startDrawingDrawerResize } = useRememberedDrawerWidth({
+    storageKey: DRAWING_DRAWER_WIDTH_STORAGE_KEY
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const selectedDrawing = drawings.find((drawing) => drawing.drawingNumber === selectedDrawingNumber) ?? null;
-  const selectedDrawingIndex = drawings.findIndex((drawing) => drawing.drawingNumber === selectedDrawingNumber);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -207,60 +202,6 @@ export default function DrawingNumbersPage() {
   useEffect(() => {
     void loadDrawings();
   }, [loadDrawings]);
-
-  useEffect(() => {
-    const storedWidth = window.localStorage.getItem(DRAWING_DRAWER_WIDTH_STORAGE_KEY);
-    const parsedWidth = storedWidth ? Number.parseInt(storedWidth, 10) : Number.NaN;
-    if (!Number.isFinite(parsedWidth)) return;
-    const nextWidth = clampDrawerWidth(parsedWidth, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(DRAWING_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  const resizeDrawingDrawer = useCallback((clientX: number) => {
-    const nextWidth = clampDrawerWidth(window.innerWidth - clientX, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(DRAWING_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  useEffect(() => {
-    function handleWindowResize() {
-      setDrawerWidth((currentWidth) => {
-        const nextWidth = clampDrawerWidth(currentWidth, window.innerWidth);
-        window.localStorage.setItem(DRAWING_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-        return nextWidth;
-      });
-    }
-    window.addEventListener("resize", handleWindowResize);
-    return () => window.removeEventListener("resize", handleWindowResize);
-  }, []);
-
-  const startDrawingDrawerResize = useCallback(
-    (clientX: number) => {
-      function handlePointerMove(event: PointerEvent) {
-        resizeDrawingDrawer(event.clientX);
-      }
-      function stopResizing() {
-        document.body.classList.remove("pdm-drawer-resizing");
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", stopResizing);
-        window.removeEventListener("pointercancel", stopResizing);
-      }
-
-      resizeDrawingDrawer(clientX);
-      document.body.classList.add("pdm-drawer-resizing");
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", stopResizing, { once: true });
-      window.addEventListener("pointercancel", stopResizing, { once: true });
-    },
-    [resizeDrawingDrawer]
-  );
-
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove("pdm-drawer-resizing");
-    };
-  }, []);
 
   const focusDrawingList = useCallback(() => {
     requestAnimationFrame(() => drawingListRef.current?.focus({ preventScroll: true }));
@@ -319,21 +260,6 @@ export default function DrawingNumbersPage() {
     await copyTextToClipboard(drawingNumber);
   }, []);
 
-
-  useEffect(() => {
-    if (!isDetailOpen) return;
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest(".pdm-detail-drawer")) return;
-      if (target.closest("[data-drawing-row='true']")) return;
-      setIsDetailOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isDetailOpen]);
 
   useEffect(() => {
     if (state !== "ready" || drawings.length === 0) return;
@@ -580,9 +506,6 @@ export default function DrawingNumbersPage() {
             drawing={selectedDrawing}
             open={isDetailOpen}
             width={drawerWidth}
-            canNavigatePrevious={selectedDrawingIndex > 0}
-            canNavigateNext={selectedDrawingIndex >= 0 && selectedDrawingIndex < drawings.length - 1}
-            onNavigate={moveDrawingSelection}
             onStartResize={startDrawingDrawerResize}
             onDataChanged={loadDrawings}
             canReviewApprovals={canReviewApprovals}
@@ -705,9 +628,6 @@ function DrawingDetailDrawer({
   drawing,
   open,
   width,
-  canNavigatePrevious,
-  canNavigateNext,
-  onNavigate,
   onStartResize,
   onDataChanged,
   canReviewApprovals,
@@ -716,9 +636,6 @@ function DrawingDetailDrawer({
   drawing: DrawingListRecord | null;
   open: boolean;
   width: number;
-  canNavigatePrevious: boolean;
-  canNavigateNext: boolean;
-  onNavigate: (delta: number) => void;
   onStartResize: (clientX: number) => void;
   onDataChanged: () => Promise<void>;
   canReviewApprovals: boolean;
@@ -726,50 +643,25 @@ function DrawingDetailDrawer({
 }) {
   if (!open || !drawing) return null;
   return (
-    <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside
-        className="pdm-detail-drawer"
-        aria-label="圖號治理明細"
-        role="dialog"
-        data-detail-target="drawing_number"
-        data-detail-code={drawing.drawingNumber}
-        data-entity-type="drawing_number"
-        data-entity-code={drawing.drawingNumber}
-        data-source-context="numbering_drawings"
-        style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}
-      >
-        <button
-          className="pdm-detail-drawer-resize-handle"
-          type="button"
-          aria-label="調整圖號明細寬度"
-          title="拖拉調整寬度"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onStartResize(event.clientX);
-          }}
-        />
-        <div className="pdm-master-detail-panel pdm-master-detail-stack">
+    <PdmEntityDetailDrawer
+      open
+      width={width}
+      ariaLabel="圖號治理明細"
+      title={drawing.drawingNumber}
+      subtitle={drawing.coreName}
+      status={<StatusBadge status={drawing.recordStatus} context="masterRecord" />}
+      entityType="drawing_number"
+      entityCode={drawing.drawingNumber}
+      sourceContext="numbering_drawings"
+      resizeLabel="調整圖號明細寬度"
+      resizeTitle="拖拉調整寬度"
+      closeLabel="關閉圖號明細"
+      onClose={onClose}
+      onStartResize={onStartResize}
+      keepOpenSelector="[data-drawing-row='true']"
+    >
+        <div className="pdm-entity-drawer-body pdm-master-detail-panel pdm-master-detail-stack">
           <section className="panel drawing-detail-hero">
-            <div className="drawing-detail-hero-header">
-              <div>
-                <h2>{drawing.drawingNumber}</h2>
-              </div>
-              <div className="pdm-drawer-quick-nav" aria-label="快速查閱">
-                <button className="icon-button" type="button" aria-label="上一筆圖號" title="上一筆（↑）" disabled={!canNavigatePrevious} onClick={() => onNavigate(-1)}>
-                  <ChevronUp size={16} />
-                </button>
-                <button className="icon-button" type="button" aria-label="下一筆圖號" title="下一筆（↓）" disabled={!canNavigateNext} onClick={() => onNavigate(1)}>
-                  <ChevronDown size={16} />
-                </button>
-                <button className="icon-button" type="button" aria-label="關閉圖號明細" onClick={onClose}>
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="drawing-detail-hero-meta">
-              <StatusBadge status={drawing.recordStatus} context="masterRecord" />
-            </div>
             <div className="drawing-detail-action-row">
               <Link className="primary-button" href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
                 <GitBranch size={16} />
@@ -823,8 +715,7 @@ function DrawingDetailDrawer({
           />
 
         </div>
-      </aside>
-    </div>
+    </PdmEntityDetailDrawer>
   );
 }
 

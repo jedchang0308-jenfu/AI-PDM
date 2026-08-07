@@ -3,7 +3,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { canViewPartCostAmounts, redactPartListCosts } from "@/lib/part-cost-visibility";
-import { projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter } from "@/lib/human-status-projection";
+import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter } from "@/lib/human-status-projection";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectPartAvailability } from "@/lib/availability-scope";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
@@ -71,13 +71,6 @@ export async function GET(request: Request) {
     seriesCodeOptions,
     pdmCompany: companyResult.company
   }, { headers: { "cache-control": "private, no-store" } });
-}
-
-function normalizeHumanStatusFilter(value: string | null): HumanStatusFilter {
-  const text = value?.trim() || "all";
-  return (["all", "needs_action", "waiting", "system", "ready", "usable", "history"] as string[]).includes(text)
-    ? text as HumanStatusFilter
-    : "all";
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

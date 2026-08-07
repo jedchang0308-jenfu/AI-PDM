@@ -193,6 +193,8 @@ const partsPage = read("src/app/parts/page.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
+const detailDrawer = read("src/components/pdm-detail-drawer.tsx");
+const entityDetailDrawer = read("src/components/pdm-entity-detail-drawer.tsx");
 
 record(
   "ui",
@@ -268,7 +270,7 @@ record(
   "ui",
   "NSF-UI-007-responsive-accessible",
   ["@media (max-width: 1024px)", "@media (max-width: 768px)", "@media (max-width: 520px)"].every((query) => css.includes(query)) &&
-    css.includes(".number-state-drawer") &&
+    css.includes(".number-state-workspace-drawer") &&
     css.includes(".pdm-identity-table td::before") &&
     css.includes("content: attr(data-label)") &&
     css.includes("grid-template-columns: minmax(90px, 0.38fr) minmax(0, 1fr)") &&
@@ -281,6 +283,9 @@ record(
     !workspace.includes("number-state-next-label") &&
     !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
     !workspace.includes('data-label="操作"') &&
+    workspace.includes("PdmEntityDetailDrawer") &&
+    workspace.includes('className="number-state-workspace-drawer"') &&
+    !workspace.slice(workspace.indexOf("export function WorkspaceDrawer"), workspace.indexOf("function ProjectionSummary")).includes("aria-modal=\"true\"") &&
     workspace.includes("useOverlayLifecycle") &&
     workspace.includes("aria-modal=\"true\"") &&
     workspace.includes("event.key !== \"Tab\"") &&
@@ -293,10 +298,11 @@ record(
   workspace.includes("useRememberedDrawerWidth") &&
     workspace.includes('NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width"') &&
     workspace.includes("defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH") &&
-    workspace.includes('className="pdm-detail-drawer-resize-handle"') &&
-    workspace.includes('aria-label="調整保留號明細寬度"') &&
-    workspace.includes("onStartResize(event.clientX)") &&
-    workspace.includes('"--pdm-detail-drawer-width"') &&
+    workspace.includes('resizeLabel="調整保留號明細寬度"') &&
+    entityDetailDrawer.includes("resizeLabel={resizeLabel}") &&
+    detailDrawer.includes('className="pdm-detail-drawer-resize-handle"') &&
+    detailDrawer.includes("onStartResize(event.clientX)") &&
+    detailDrawer.includes('"--pdm-detail-drawer-width"') &&
     css.includes("width: min(var(--pdm-detail-drawer-width, 620px), 94vw);") &&
     css.includes(".pdm-detail-drawer-resize-handle") &&
     css.includes("body.pdm-drawer-resizing"),

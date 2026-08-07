@@ -76,7 +76,8 @@ record("DEV053-H-UI-008 withdrawal remains a compact drawer-header secondary act
     "drawing.lifecycle.decisionCount === 0"
   ]) && has(workbench, [
     "DrawingLifecycleSecondaryAction",
-    "drawing-workbench-drawer-header-actions",
+    "PdmEntityDetailDrawer",
+    "actions=",
     "Idempotency-Key"
   ]));
 

@@ -1,6 +1,6 @@
 # SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 主根號統一物件詳情抽屜
 
-Status: Phase 1A Implemented Locally / Release Not Authorized
+Status: Phase 1A-1B Implemented Locally / Release Not Authorized
 Date: 2026-07-09
 Owner: Dev PM
 Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`
@@ -25,6 +25,9 @@ Confirmed decisions from APP feedback and follow-up discussion:
   - click root number -> root detail.
 - Apply the same rule to part numbers, not only drawing numbers.
 - Entry context may change the default expanded section or scroll focus, but must not create a second version of the same object's core detail.
+- Detail drawers remain overlay-style but non-modal: no dark backdrop, no focus trap or body lock, and the underlying list remains directly clickable for rapid inspection.
+- The shared header owns one inline close `X`; entity pages must not add floating, previous/next or duplicate close controls.
+- Modal confirmation dialogs remain separate and modal; opening one must prevent its `Escape` event from also closing the underlying detail drawer.
 
 Rejected options:
 
@@ -136,6 +139,7 @@ Source context must be visible only as a small context hint or default expanded 
 - right-side drawer layout, close button, width clamp and persisted width;
 - resize handle;
 - outside click and `Escape` close behavior;
+- direct row-to-row switching without close/reopen flicker, with detail scroll reset to the top for the newly selected entity;
 - loading, not found, restricted and error states;
 - source context hint;
 - keyboard-safe focus behavior;
@@ -211,7 +215,7 @@ The part detail panel must be the same whether opened from `/parts` or `/numberi
 
 ## Data Contract
 
-### Phase 1A Implementation Note
+### Phase 1A-1B Implementation Note
 
 The 2026-07-09 local implementation intentionally lands the user-visible parity first:
 
@@ -219,7 +223,9 @@ The 2026-07-09 local implementation intentionally lands the user-visible parity 
 - Drawing targets reuse the existing drawing attachment component and expose drawing readiness / same-root part sections.
 - Part targets load the existing part owner detail API for attributes, linked drawings and cost status.
 - `/numbering/drawings` and `/parts` keep their owner workbench UI, but publish the same `data-detail-*`, `data-entity-*` and `data-source-context` metadata as the relation drawer.
-- Full `EntityDetailDrawerShell` component extraction remains Phase 1B, not part of this local slice, because current owner drawer behavior already satisfies the APP feedback without a large cross-module refactor.
+- Phase 1B extracts `PdmEntityDetailDrawer` over the existing low-level `PdmDetailDrawer`. Drawing, part, relation-search and candidate/reservation details reuse the same non-modal shell, header, close control, width persistence, outside-click rule and entity metadata.
+- Object-specific drawing/part/root/candidate bodies remain domain components; the implementation intentionally avoids one giant conditional component.
+- Human-status filters and drawer-width behavior now have shared sources instead of page-local copies.
 
 ### Phase 1 Data Strategy
 
@@ -368,7 +374,7 @@ No drawer may show raw SQL, stack trace, `Internal Server Error`, route text, un
 |---|---|---|---|
 | Phase 0 - Development documents | Complete | Capture UX decision, architecture, RD contract, QA and PM control entry | Authorized by user request to write development documents |
 | Phase 1A - Target-aware parity implementation | Implemented locally / Release Not Authorized | Unify visible root/drawing/part detail behavior across `/numbering/search`, `/numbering/drawings` and `/parts` using existing APIs and drawer metadata | Authorized by user `完成DEV-039開發 /goal`; release not authorized |
-| Phase 1B - Shared shell extraction | Deferred / Not Authorized | Extract a shared shell and canonical panel components if APP feedback or maintenance risk justifies it | Requires explicit RD authorization |
+| Phase 1B - Shared shell extraction | Implemented locally / Release Not Authorized | Reuse one non-modal shell and shared interaction/metadata contracts while preserving domain-specific panels | Authorized by user instruction on 2026-08-07; release not authorized |
 | Phase 2 - Read-only detail facade if needed | RD Contract Ready / Not Authorized | Add optional normalized read API only if Phase 1 duplication becomes unsafe | Requires Phase 1 evidence and explicit authorization |
 | Phase 3 - Release / production | Release Authorization Required | Merge/deploy/production smoke/rollback | Requires explicit release authorization and deployment-release-gate |
 
@@ -493,7 +499,7 @@ Stop and return to PM/user if:
 
 | Deferred scope | Classification | Handling |
 |---|---|---|
-| Product implementation | Same Spec Phase 1 / Not Authorized | This document makes Phase 1 RD Implementation Ready, but user has not authorized RD execution. |
+| Product implementation | Same Spec Phase 1 / Implemented Locally | Phase 1A parity and Phase 1B shared shell are implemented and locally verified; production release remains gated. |
 | Optional read-only detail facade | Same Spec Phase 2 / Not Authorized | Implement only if Phase 1 leaves unsafe duplication. |
 | Merging the three modules/pages | No Tracking | Rejected because entry pages serve different user tasks. |
 | Schema/RLS migration | Blocked Human Re-entry | Not expected; requires explicit authorization if discovered. |
@@ -507,7 +513,7 @@ Stop and return to PM/user if:
 | Phase / DEV | Authorization | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
 | Phase 0 / docs | Authorized | Complete | SPEC, QA, dev_task, documentation_map | product implementation | user asked `寫成開發文件` | files created and indexed | git diff / file review |
-| Phase 1 / shared drawer | Not authorized | RD Implementation Ready | shared shell, canonical root/drawing/part panels, source context, QC | schema/RLS, page merge, release | explicit RD authorization | same object from multiple entry points shows same core sections | tsc, lint, build, focused QC, screenshots |
+| Phase 1 / shared drawer | Authorized locally | Implemented Locally / Release Not Authorized | shared shell, canonical root/drawing/part/candidate panels, source context, QC | schema/RLS, page merge, release | user instruction on 2026-08-07 | same object from multiple entry points shows same core sections and one non-modal interaction contract | tsc, lint, focused QC, authenticated browser evidence |
 | Phase 2 / optional detail facade | Not authorized | RD Contract Ready / Not Authorized | read-only normalized facade and parity QC if needed | writes, ownership changes | Phase 1 duplication risk evidence + authorization | facade matches source APIs and redaction | API parity/no-write QC |
 | Phase 3 / release | Not authorized | Release Authorization Required | merge/deploy/production smoke/rollback | unapproved production work | explicit release authorization | deployment-release-gate pass | release gate evidence |
 
@@ -526,7 +532,7 @@ Phase 1 P0/P1 readiness:
 - QA/QC: focused plan and commands defined.
 - Release: not authorized; release artifacts deferred.
 
-Result: Phase 1 is `RD Implementation Ready / Not Authorized`.
+Result: Phase 1A-1B is `Implemented Locally / Release Not Authorized`; post-change convergence is `In sync`.
 
 ## Spec Governance
 

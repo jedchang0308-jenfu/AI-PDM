@@ -2,16 +2,17 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, X, XCircle } from "lucide-react";
+import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, XCircle } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { NextStepState } from "@/components/next-step-state";
-import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
-import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { HUMAN_STATUS_FILTER_OPTIONS, isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -135,26 +136,10 @@ type ProductionSliceClientStatus = {
 
 const statuses = ["", ...partRecordStatusFilterValues] as const;
 const itemKinds = ["", "purchased", "manufactured", "outsourced", "shared", "custom"] as const;
-const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
-  { value: "all", label: "全部狀態" },
-  { value: "needs_action", label: "待我處理" },
-  { value: "waiting", label: "等他人處理" },
-  { value: "system", label: "系統處理中" },
-  { value: "usable", label: "可使用" },
-  { value: "history", label: "歷史" }
-];
 const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
-const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
-const DETAIL_DRAWER_MIN_WIDTH = 380;
-const DETAIL_DRAWER_MAX_WIDTH_RATIO = 0.72;
 const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
 
 const mutedStyle = { color: "var(--muted)" };
-
-function clampDetailDrawerWidth(width: number, viewportWidth: number) {
-  const maxWidth = Math.max(DETAIL_DRAWER_MIN_WIDTH, Math.floor(viewportWidth * DETAIL_DRAWER_MAX_WIDTH_RATIO));
-  return Math.min(Math.max(width, DETAIL_DRAWER_MIN_WIDTH), maxWidth);
-}
 
 function isEditableShortcutTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
@@ -203,7 +188,9 @@ export default function PartsPage() {
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailFocus, setDetailFocus] = useState<PartDetailFocusSection>(null);
-  const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
+  const { drawerWidth, startDrawerResize: startDetailDrawerResize } = useRememberedDrawerWidth({
+    storageKey: PART_DRAWER_WIDTH_STORAGE_KEY
+  });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
@@ -219,7 +206,7 @@ export default function PartsPage() {
     const detailPartNumber = params.get("detail")?.trim();
     const focusSection = params.get("focus")?.trim();
     if (initialQuery) setQuery(initialQuery);
-    if (initialHumanStatus && humanStatusFilters.some((option) => option.value === initialHumanStatus)) setHumanStatus(initialHumanStatus);
+    if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
     if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
     if (focusSection === "cost") initialDetailFocusRef.current = "cost";
   }, []);
@@ -397,75 +384,6 @@ export default function PartsPage() {
   }, []);
 
   useEffect(() => {
-    const storedWidth = window.localStorage.getItem(PART_DRAWER_WIDTH_STORAGE_KEY);
-    const parsedWidth = storedWidth ? Number.parseInt(storedWidth, 10) : Number.NaN;
-    if (!Number.isFinite(parsedWidth)) return;
-    const nextWidth = clampDetailDrawerWidth(parsedWidth, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(PART_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  const resizeDetailDrawer = useCallback((clientX: number) => {
-    const nextWidth = clampDetailDrawerWidth(window.innerWidth - clientX, window.innerWidth);
-    setDrawerWidth(nextWidth);
-    window.localStorage.setItem(PART_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-  }, []);
-
-  useEffect(() => {
-    function handleWindowResize() {
-      setDrawerWidth((currentWidth) => {
-        const nextWidth = clampDetailDrawerWidth(currentWidth, window.innerWidth);
-        window.localStorage.setItem(PART_DRAWER_WIDTH_STORAGE_KEY, String(nextWidth));
-        return nextWidth;
-      });
-    }
-    window.addEventListener("resize", handleWindowResize);
-    return () => window.removeEventListener("resize", handleWindowResize);
-  }, []);
-
-  const startDetailDrawerResize = useCallback(
-    (clientX: number) => {
-      function handlePointerMove(event: PointerEvent) {
-        resizeDetailDrawer(event.clientX);
-      }
-      function stopResizing() {
-        document.body.classList.remove("pdm-drawer-resizing");
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", stopResizing);
-        window.removeEventListener("pointercancel", stopResizing);
-      }
-
-      resizeDetailDrawer(clientX);
-      document.body.classList.add("pdm-drawer-resizing");
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", stopResizing, { once: true });
-      window.addEventListener("pointercancel", stopResizing, { once: true });
-    },
-    [resizeDetailDrawer]
-  );
-
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove("pdm-drawer-resizing");
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isDetailOpen) return;
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest(".pdm-detail-drawer")) return;
-      if (target.closest("[data-part-row='true']")) return;
-      setIsDetailOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isDetailOpen]);
-
-  useEffect(() => {
     if (state !== "ready" || visibleParts.length === 0) return;
 
     function handleShortcut(event: KeyboardEvent) {
@@ -591,7 +509,7 @@ export default function PartsPage() {
               <label className="pdm-master-field">
                 <span>工作狀態</span>
                 <select value={humanStatus} onChange={(event) => setHumanStatus(event.target.value as HumanStatusFilter)}>
-                  {humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+                  {HUMAN_STATUS_FILTER_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadParts}>
@@ -744,24 +662,23 @@ function PartDetailDrawer({
 }) {
   if (!open) return null;
   return (
-    <PdmDetailDrawer
+    <PdmEntityDetailDrawer
       open
       width={width}
       ariaLabel="料號明細"
+      title={detail?.partNumber ?? "料號明細"}
+      subtitle={detail?.partName}
+      status={<HumanStatusBadge status={detail?.humanStatus} viewerStatus={detail?.viewerStatus} availabilityScope={detail?.availabilityScope} />}
+      entityType="part_number"
+      entityCode={detail?.partNumber ?? ""}
+      sourceContext="parts"
       resizeLabel="調整料號明細寬度"
+      closeLabel="關閉料號明細"
       onClose={onClose}
       onStartResize={onStartResize}
+      keepOpenSelector="[data-part-row='true']"
     >
-      <div className="drawing-workbench-drawer-header">
-        <div className="drawing-workbench-drawer-identity">
-          <HumanStatusBadge status={detail?.humanStatus} viewerStatus={detail?.viewerStatus} availabilityScope={detail?.availabilityScope} />
-          <div><h2>{detail?.partNumber ?? "料號明細"}</h2><p>{detail?.partName ?? ""}</p></div>
-        </div>
-        <div className="drawing-workbench-drawer-header-actions">
-          <button className="icon-button" type="button" aria-label="關閉料號明細" onClick={onClose}><X size={20} /></button>
-        </div>
-      </div>
-      <div className="drawing-workbench-drawer-body" data-detail-target="part_number" data-detail-code={detail?.partNumber ?? ""} data-entity-type="part_number" data-entity-code={detail?.partNumber ?? ""} data-source-context="parts">
+      <div className="pdm-entity-drawer-body">
         {detail ? (
           <PartDetailPanel
             detail={detail}
@@ -778,7 +695,7 @@ function PartDetailDrawer({
           </section>
         )}
       </div>
-    </PdmDetailDrawer>
+    </PdmEntityDetailDrawer>
   );
 }
 

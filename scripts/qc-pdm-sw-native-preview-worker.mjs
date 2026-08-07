@@ -27,6 +27,7 @@ const drawingDownloadRoute = readRequired("src/app/api/numbering/drawings/[drawi
 const partDownloadRoute = readRequired("src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts");
 const claimRoute = readRequired("src/app/api/preview-jobs/claim/route.ts");
 const completeRoute = readRequired("src/app/api/preview-jobs/[jobId]/complete/route.ts");
+const heartbeatRoute = readRequired("src/app/api/preview-jobs/[jobId]/heartbeat/route.ts");
 const windowsShellWorker = readRequired("scripts/run-windows-shell-preview-worker.mjs");
 const windowsShellExtractor = readRequired("scripts/windows-shell-thumbnail-extractor.ps1");
 const documentManagerWorker = readRequired("scripts/run-solidworks-document-manager-preview-worker.mjs");
@@ -97,6 +98,7 @@ for (const routeFile of [
   "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
   "src/app/api/preview-jobs/claim/route.ts",
   "src/app/api/preview-jobs/[jobId]/complete/route.ts",
+  "src/app/api/preview-jobs/[jobId]/heartbeat/route.ts",
   "scripts/run-windows-shell-preview-worker.mjs",
   "scripts/windows-shell-thumbnail-extractor.ps1",
   "scripts/run-solidworks-document-manager-preview-worker.mjs",
@@ -108,6 +110,7 @@ for (const routeFile of [
 assert(drawingRoute.includes("numbering.attachments.manage") && partRoute.includes("numbering.attachments.manage"), "Preview enqueue routes require attachment manage permission");
 assert(drawingRoute.includes("numbering.drawings.view") && partRoute.includes("numbering.search"), "Preview GET routes inherit source read surface permission");
 assert(claimRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && completeRoute.includes("PDM_PREVIEW_WORKER_TOKEN"), "Worker routes require service token");
+assert(heartbeatRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && heartbeatRoute.includes("heartbeatPreviewJobAsync"), "Worker heartbeat route requires service token and updates job heartbeat");
 assert(drawingDownloadRoute.includes("previewDerivative") && partDownloadRoute.includes("previewDerivative"), "Attachment download routes can stream preview derivatives inline");
 assert(windowsShellWorker.includes("/api/preview-jobs/claim") && windowsShellWorker.includes("/api/preview-jobs/") && windowsShellWorker.includes("/complete"), "Windows Shell worker uses claim/complete API contract");
 assert(windowsShellWorker.includes("windows-shell-ishellitemimagefactory-v1") && windowsShellWorker.includes("powershell.exe"), "Windows Shell worker records generator evidence and runs Windows PowerShell");
@@ -136,9 +139,16 @@ assert(panel.includes("findReadyPreviewDerivative") && panel.includes("sourceCon
 assert(panel.includes("isDisplayablePreviewDerivative") && panel.includes('derivative.generatorProfile !== "fake_preview_worker"'), "Attachment panel does not display fake local worker derivatives as real previews");
 assert(panel.includes("generatePreview") && panel.includes("/previews"), "Attachment panel can enqueue preview generation");
 assert(panel.includes("forceRegenerate: true"), "Attachment panel sends explicit preview regeneration requests");
-assert(panel.includes("等待 Windows worker 產生實際檔案縮圖"), "Attachment panel tells users preview generation is waiting for the real worker");
-assert(panel.includes("預覽產生失敗") && panel.includes("預覽需更新") && panel.includes("重新產生預覽"), "Attachment panel renders failed/stale/retry states");
+assert(panel.includes("previewPollingNeeded") && panel.includes("setInterval") && panel.includes("background: true"), "Attachment panel polls preview state automatically without manual refresh");
+assert(!panel.includes("master-attachment-refresh") && !panel.includes("重新整理附件"), "Attachment panel removes manual refresh dependency");
+assert(panel.includes("LoaderCircle") && panel.includes("Clock3") && panel.includes("CircleAlert") && panel.includes("WifiOff"), "Attachment panel uses non-verbal preview state icons");
+assert(panel.includes("完成後自動更新") && panel.includes("處理較久") && panel.includes("系統仍在運作"), "Attachment panel communicates wait versus delayed states concisely");
+assert(panel.includes("tone: \"failed\"") && panel.includes("title: \"無法預覽\"") && panel.includes("text: \"請下載原檔\""), "Attachment panel renders failure and unavailable fallback states");
 assert(panel.includes("previewDerivative="), "Attachment panel opens derivative stream URLs");
+assert(previewService.includes("previewHeartbeatStaleAfterMs") && previewService.includes("recoverStalePreviewJobsAsync"), "Preview service has heartbeat timeout recovery");
+assert(previewService.includes("locked_by = :workerId") && previewService.includes("locked_at = :now"), "Preview service binds heartbeat and completion to worker ownership");
+assert(masterAsync.includes("actorUserId") && masterAsync.includes("recoverStalePreviewJobsAsync"), "Attachment list path auto-enqueues and recovers preview jobs");
+assert(windowsShellWorker.includes("startJobHeartbeat") && documentManagerWorker.includes("startJobHeartbeat"), "Native preview workers send heartbeats while processing");
 
 assert(packageJson.scripts["qc:pdm-sw-native-preview-worker"] === "node scripts/qc-pdm-sw-native-preview-worker.mjs", "package script qc:pdm-sw-native-preview-worker is registered");
 assert(packageJson.scripts["preview:worker:windows-shell"] === "node scripts/run-windows-shell-preview-worker.mjs", "package script preview:worker:windows-shell is registered");

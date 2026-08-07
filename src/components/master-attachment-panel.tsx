@@ -1,8 +1,8 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Check, Download, ExternalLink, FileText, History, RefreshCw, RotateCcw, Trash2, UploadCloud, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Box, Check, CircleAlert, Clock3, Download, ExternalLink, FileText, History, LoaderCircle, RefreshCw, RotateCcw, Trash2, UploadCloud, WifiOff, X } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
 import { compareRevisionCodes, suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
 import { formatStatusErrorForUser } from "@/lib/status-display";
@@ -103,6 +103,8 @@ type DrawingPreviewSlot = {
 };
 
 type PreviewPlaceholderState = {
+  tone: "pending" | "delayed" | "failed" | "unavailable" | "missing";
+  icon: "loading" | "delayed" | "failed" | "offline" | "download" | "missing";
   title: string;
   text: string;
   action: { label: string; disabled?: boolean } | null;
@@ -167,7 +169,7 @@ const supplementReasons: Array<{ code: SupplementReasonCode; label: string; word
 
 function formatAttachmentActionError(value: unknown, fallbackAction: string) {
   const text = String(value ?? "").trim();
-  if (!text) return `${fallbackAction}。請重新整理後再試；若仍失敗，請 PDM Admin 協助確認附件狀態。`;
+  if (!text) return `${fallbackAction}。請稍後再試；若仍失敗，請 PDM Admin 協助確認附件狀態。`;
   return formatStatusErrorForUser(text, "fileSync");
 }
 
@@ -215,6 +217,7 @@ export function MasterAttachmentPanel({
   const [deletedLoaded, setDeletedLoaded] = useState(false);
   const [deletedAttachments, setDeletedAttachments] = useState<DeletedMasterAttachment[]>([]);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const previewPollingInFlightRef = useRef(false);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
   const productionSliceEnforced = productionSliceEnforcedOverride ?? productionSlice?.configured === true;
   const productionSliceUnopenedMessage = productionSliceUnopenedMessageOverride ?? productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
@@ -310,8 +313,8 @@ export function MasterAttachmentPanel({
     return pendingReviewRevisions.some((pendingRevision) => compareAttachmentRevision(pendingRevision, value) === 0);
   }
 
-  const loadAttachments = useCallback(async (options?: { clearMessage?: boolean }) => {
-    setLoading(true);
+  const loadAttachments = useCallback(async (options?: { clearMessage?: boolean; background?: boolean }) => {
+    if (!options?.background) setLoading(true);
     if (options?.clearMessage !== false) setMessage(null);
     try {
       const response = await fetch(baseUrl, { cache: "no-store" });
@@ -319,11 +322,36 @@ export function MasterAttachmentPanel({
       if (!response.ok) throw new Error(formatAttachmentActionError(body.message ?? body.error, "附件清單載入未完成"));
       setAttachments(body.attachments ?? []);
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : formatAttachmentActionError(error, "附件清單載入未完成") });
+      if (!options?.background) {
+        setMessage({ type: "error", text: error instanceof Error ? error.message : formatAttachmentActionError(error, "附件清單載入未完成") });
+      }
     } finally {
-      setLoading(false);
+      if (!options?.background) setLoading(false);
     }
   }, [baseUrl]);
+
+  const previewPollingNeeded = useMemo(
+    () => authorityAttachments.some((attachment) => {
+      if (!isNativeSolidWorksAttachment(attachment)) return false;
+      const hasCurrentDerivative = attachment.previewDerivatives?.some(
+        (derivative) => derivative.status === "ready" && derivative.sourceContentHash === attachment.contentHash
+      );
+      return !hasCurrentDerivative && (!attachment.previewJob || attachment.previewJob.status === "queued" || attachment.previewJob.status === "running");
+    }),
+    [authorityAttachments]
+  );
+
+  useEffect(() => {
+    if (!previewPollingNeeded) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || previewPollingInFlightRef.current) return;
+      previewPollingInFlightRef.current = true;
+      void loadAttachments({ clearMessage: false, background: true }).finally(() => {
+        previewPollingInFlightRef.current = false;
+      });
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [loadAttachments, previewPollingNeeded]);
 
   const loadDeletedAttachments = useCallback(async (options?: { clearMessage?: boolean }) => {
     setDeletedLoading(true);
@@ -540,7 +568,7 @@ export function MasterAttachmentPanel({
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(formatAttachmentActionError(body.message ?? body.error, "預覽產生未完成"));
-      setMessage({ type: "success", text: "預覽產生任務已排程，等待 Windows worker 產生實際檔案縮圖。" });
+      setMessage({ type: "success", text: "已加入預覽處理，完成後自動更新。" });
       await loadAttachments({ clearMessage: false });
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : formatAttachmentActionError(error, "預覽產生未完成") });
@@ -710,7 +738,9 @@ export function MasterAttachmentPanel({
     const derivative = attachment ? findReadyPreviewDerivative(attachment, slot.kind) : null;
     const previewMode = derivative ? derivativePreviewMode(derivative) : attachment ? attachmentPreviewMode(attachment) : "none";
     const previewUrl = attachment ? previewUrlForAttachment(attachment, downloadUrl, previewMode, derivative) : "";
-    const previewPlaceholder: PreviewPlaceholderState = attachment ? attachmentPreviewPlaceholder(attachment, slot) : { title: slot.emptyTitle, text: slot.emptyText, action: null };
+    const previewPlaceholder: PreviewPlaceholderState = attachment
+      ? attachmentPreviewPlaceholder(attachment, slot)
+      : { tone: "missing", icon: "missing", title: slot.emptyTitle, text: slot.emptyText, action: null };
 
     return (
       <article className={`drawing-preview-card ${slot.kind}`} key={slot.kind}>
@@ -724,8 +754,8 @@ export function MasterAttachmentPanel({
           {previewMode === "image" ? <img src={previewUrl} alt={`${slot.title} 預覽`} /> : null}
           {previewMode === "drive" ? <iframe title={`${slot.title} Google Drive 預覽`} src={previewUrl} /> : null}
           {previewMode === "none" ? (
-            <div className="drawing-preview-placeholder">
-              {slot.kind === "three-d" ? <Box size={36} /> : <FileText size={34} />}
+            <div className={`drawing-preview-placeholder ${previewPlaceholder.tone}`} data-preview-state={previewPlaceholder.tone}>
+              {renderPreviewStatusIcon(previewPlaceholder.icon, slot.kind)}
               <strong>{previewPlaceholder.title}</strong>
               <span>{previewPlaceholder.text}</span>
               {!effectiveReadOnly && attachment && previewPlaceholder.action ? (
@@ -869,10 +899,6 @@ export function MasterAttachmentPanel({
           {compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? <span className="master-attachment-header-meta">版次 {attachmentSections.currentRevision ?? "-"} · {attachmentSections.current.length} 個</span> : null}
           {!compact ? <p>{authorityMode === "controlled_summary" ? "此區只顯示候選首版或正式版次流程建立的受控檔案；變更內容請建立新版次。" : authorityMode === "reference_manager" ? "此區僅管理作業參考附件，不會取代受控版次檔案，也不會直接改變正式版次。" : effectiveReadOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p> : null}
         </div>
-        <button className="secondary-button master-attachment-refresh" type="button" onClick={() => void loadAttachments()} disabled={loading} title="重新整理附件" aria-label="重新整理附件">
-          <RefreshCw size={16} />
-          {compact ? <span className="sr-only">重新整理</span> : "重新整理"}
-        </button>
       </div>
 
       {compactControlledSummary}
@@ -1251,36 +1277,80 @@ function previewUrlForAttachment(attachment: MasterAttachment, downloadUrl: stri
   return "";
 }
 
+const previewHeartbeatStaleAfterMs = 30_000;
+
+function renderPreviewStatusIcon(icon: PreviewPlaceholderState["icon"], slotKind: DrawingPreviewSlot["kind"]) {
+  if (icon === "loading") return <LoaderCircle className="drawing-preview-status-icon loading" size={36} aria-hidden="true" />;
+  if (icon === "delayed") return <Clock3 className="drawing-preview-status-icon delayed" size={36} aria-hidden="true" />;
+  if (icon === "failed") return <CircleAlert className="drawing-preview-status-icon failed" size={36} aria-hidden="true" />;
+  if (icon === "offline") return <WifiOff className="drawing-preview-status-icon unavailable" size={36} aria-hidden="true" />;
+  if (icon === "download") return <Download className="drawing-preview-status-icon unavailable" size={34} aria-hidden="true" />;
+  return slotKind === "three-d" ? <Box className="drawing-preview-status-icon missing" size={36} aria-hidden="true" /> : <FileText className="drawing-preview-status-icon missing" size={34} aria-hidden="true" />;
+}
+
+function previewJobIsStale(job: PreviewJob, now = Date.now()) {
+  return now - new Date(job.updatedAt).getTime() > previewHeartbeatStaleAfterMs;
+}
+
+function formatPreviewElapsed(job: PreviewJob) {
+  const elapsedMs = Math.max(0, Date.now() - new Date(job.updatedAt).getTime());
+  if (elapsedMs < 60_000) return `${Math.max(1, Math.round(elapsedMs / 1000))} 秒`;
+  return `${Math.max(1, Math.round(elapsedMs / 60_000))} 分鐘`;
+}
+
 function attachmentPreviewPlaceholder(attachment: MasterAttachment, slot: DrawingPreviewSlot): PreviewPlaceholderState {
   const job = attachment.previewJob;
   const jobMatchesSource = job?.sourceContentHash === attachment.contentHash;
   if (jobMatchesSource && job.status === "queued") {
-    return { title: "預覽排隊中", text: "預覽任務已建立，等待 worker 處理。", action: { label: "重新排程", disabled: true } };
+    const delayed = previewJobIsStale(job);
+    return {
+      tone: delayed ? "delayed" : "pending",
+      icon: delayed ? "delayed" : "loading",
+      title: delayed ? "處理較久" : "產生中",
+      text: delayed ? `已等 ${formatPreviewElapsed(job)}，系統會自動接續` : "完成後自動更新",
+      action: null
+    };
   }
   if (jobMatchesSource && job.status === "running") {
-    return { title: "預覽產生中", text: "Windows preview worker 正在產生瀏覽器可讀的縮圖。", action: { label: "產生中", disabled: true } };
+    const delayed = previewJobIsStale(job);
+    return {
+      tone: delayed ? "delayed" : "pending",
+      icon: delayed ? "delayed" : "loading",
+      title: delayed ? "處理較久" : "產生中",
+      text: delayed ? `已等 ${formatPreviewElapsed(job)}，系統仍在運作` : "完成後自動更新",
+      action: null
+    };
   }
   if (jobMatchesSource && job.status === "failed") {
     return {
-      title: "預覽產生失敗",
+      tone: "failed",
+      icon: "failed",
+      title: "無法預覽",
       text: compactPreviewFailureText(job.errorSummary),
-      action: { label: "重新產生預覽" }
+      action: { label: "重試" }
     };
   }
   if (jobMatchesSource && job.status === "skipped") {
     return {
-      title: "無法自動產生預覽",
-      text: job.errorSummary || "此檔案沒有可抽取的預覽或目前不支援自動轉檔。",
-      action: isNativeSolidWorksAttachment(attachment) ? { label: "重新產生預覽" } : null
+      tone: "unavailable",
+      icon: "download",
+      title: "無法預覽",
+      text: "請下載原檔",
+      action: null
     };
   }
   if (hasStalePreviewDerivative(attachment, slot.kind)) {
-    return { title: "預覽需更新", text: "來源檔案已更新，舊預覽已不再作為目前附件顯示。", action: { label: "重新產生預覽" } };
+    return { tone: "pending", icon: "loading", title: "更新中", text: "完成後自動更新", action: null };
+  }
+  if (isNativeSolidWorksAttachment(attachment)) {
+    return { tone: "pending", icon: "loading", title: "建立中", text: "完成後自動更新", action: null };
   }
   return {
-    title: isNativeSolidWorksAttachment(attachment) ? "預覽待產生" : "沒有可用預覽",
-    text: isNativeSolidWorksAttachment(attachment) ? slot.fallbackText : "此檔案格式目前無法直接在瀏覽器預覽，請下載附件查看。",
-    action: isNativeSolidWorksAttachment(attachment) ? { label: "產生預覽" } : null
+    tone: "unavailable",
+    icon: "download",
+    title: "無法預覽",
+    text: "請下載原檔",
+    action: null
   };
 }
 

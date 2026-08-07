@@ -11,6 +11,35 @@ export type HumanStatusTone = "danger" | "warning" | "info" | "success" | "neutr
 export type HumanStatusIcon = "alert" | "clock" | "play" | "check" | "archive";
 export type HumanStatusFilter = "all" | "needs_action" | "waiting" | "system" | "ready" | "usable" | "history";
 
+export const HUMAN_STATUS_FILTER_VALUES: readonly HumanStatusFilter[] = [
+  "all",
+  "needs_action",
+  "waiting",
+  "system",
+  "ready",
+  "usable",
+  "history"
+];
+
+/** Visible filter vocabulary. `ready` remains URL-compatible but is not a separate user-facing state. */
+export const HUMAN_STATUS_FILTER_OPTIONS: ReadonlyArray<{ value: HumanStatusFilter; label: string }> = [
+  { value: "all", label: "全部工作狀態" },
+  { value: "needs_action", label: "待你處理" },
+  { value: "waiting", label: "等他人處理" },
+  { value: "system", label: "系統處理中" },
+  { value: "usable", label: "可使用" },
+  { value: "history", label: "歷史" }
+];
+
+export function isHumanStatusFilter(value: string | null | undefined): value is HumanStatusFilter {
+  return Boolean(value && HUMAN_STATUS_FILTER_VALUES.includes(value as HumanStatusFilter));
+}
+
+export function normalizeHumanStatusFilter(value: string | null | undefined): HumanStatusFilter {
+  const normalized = value?.trim() || "all";
+  return isHumanStatusFilter(normalized) ? normalized : "all";
+}
+
 export type HumanStatusKey =
   | "cancelled"
   | "obsolete"

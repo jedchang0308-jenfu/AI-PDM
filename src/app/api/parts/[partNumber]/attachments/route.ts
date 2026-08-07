@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
 
   const result = await listMasterAttachmentsAsync({
     entityType: "part_number",
-    entityCode: decodeURIComponent(partNumber)
+    entityCode: decodeURIComponent(partNumber),
+    actorUserId: auth.user.id
   });
   if (!result) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
   return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });

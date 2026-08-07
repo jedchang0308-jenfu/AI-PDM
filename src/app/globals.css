@@ -1369,6 +1369,51 @@
   text-align: center;
 }
 
+.drawing-preview-status-icon {
+  color: #64748b;
+}
+
+.drawing-preview-status-icon.loading {
+  color: #2563eb;
+  animation: drawing-preview-spin 1.2s linear infinite;
+}
+
+.drawing-preview-status-icon.delayed {
+  color: #b45309;
+}
+
+.drawing-preview-status-icon.failed {
+  color: #b91c1c;
+}
+
+.drawing-preview-status-icon.unavailable,
+.drawing-preview-status-icon.missing {
+  color: #64748b;
+}
+
+.drawing-preview-placeholder.pending {
+  background: #eff6ff;
+}
+
+.drawing-preview-placeholder.delayed {
+  background: #fffbeb;
+}
+
+.drawing-preview-placeholder.failed {
+  background: #fef2f2;
+}
+
+.drawing-preview-placeholder.unavailable,
+.drawing-preview-placeholder.missing {
+  background: #f8fafc;
+}
+
+@keyframes drawing-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .drawing-preview-placeholder strong {
   color: var(--text);
   font-size: 0.92rem;
@@ -8360,16 +8405,19 @@ select.dropdown-select {
   box-shadow: var(--shadow);
 }
 
+.pdm-entity-detail-drawer,
 .drawing-workbench-master-drawer {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
 }
 
+.pdm-detail-drawer.pdm-entity-detail-drawer,
 .pdm-detail-drawer.drawing-workbench-master-drawer {
   overflow: hidden;
 }
 
+.pdm-entity-drawer-header,
 .drawing-workbench-drawer-header {
   display: flex;
   align-items: center;
@@ -8380,16 +8428,27 @@ select.dropdown-select {
   background: #fff;
 }
 
+.pdm-entity-drawer-header h2,
+.pdm-entity-drawer-header p,
 .drawing-workbench-drawer-header h2,
 .drawing-workbench-drawer-header p {
   margin: 0;
 }
 
+.pdm-entity-drawer-header h2 {
+  overflow-wrap: anywhere;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.pdm-entity-drawer-header p,
 .drawing-workbench-drawer-header p {
   color: var(--muted);
   font-size: 0.8rem;
 }
 
+.pdm-entity-drawer-identity,
+.pdm-entity-drawer-actions,
 .drawing-workbench-drawer-identity,
 .drawing-workbench-drawer-header-actions {
   display: flex;
@@ -8398,36 +8457,71 @@ select.dropdown-select {
   min-width: 0;
 }
 
+.pdm-entity-drawer-copy,
 .drawing-workbench-drawer-identity > div {
   min-width: 0;
 }
 
+.pdm-entity-drawer-status,
 .drawing-workbench-drawer-identity .drawing-workbench-stage-badge {
   flex: 0 0 auto;
 }
 
+.pdm-entity-drawer-actions,
 .drawing-workbench-drawer-header-actions {
   flex: 0 0 auto;
 }
 
+.pdm-entity-drawer-actions .drawing-workbench-primary-action,
+.pdm-entity-drawer-actions .drawing-workbench-row-action,
 .drawing-workbench-drawer-header-actions .drawing-workbench-primary-action,
 .drawing-workbench-drawer-header-actions .drawing-workbench-row-action {
   width: auto;
 }
 
+.pdm-entity-drawer-actions .drawing-workbench-row-action,
 .drawing-workbench-drawer-header-actions .drawing-workbench-row-action {
   min-width: 124px;
 }
 
+.pdm-entity-drawer-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.pdm-entity-drawer-body,
 .drawing-workbench-drawer-body {
   display: grid;
   grid-auto-rows: max-content;
   align-content: start;
   gap: 9px;
+  min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 11px;
+}
+
+.pdm-entity-detail-drawer .pdm-master-detail-stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pdm-entity-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding: 10px 16px;
+  background: #fff;
+}
+
+.number-state-workspace-drawer {
+  --number-state-drawer-gutter: 16px;
 }
 
 .drawing-workbench-header-warning {
@@ -8613,7 +8707,7 @@ select.dropdown-select {
 
 .drawing-workbench-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   gap: 1px;
   margin: 0;
@@ -8894,26 +8988,26 @@ select.dropdown-select {
   min-height: 84px;
 }
 
-.drawing-workbench-master-drawer .master-attachment-panel.is-compact {
+.pdm-entity-detail-drawer .master-attachment-panel.is-compact {
   gap: 0;
   overflow: hidden;
 }
 
-.drawing-workbench-master-drawer .master-attachment-panel.is-compact > .panel-header {
+.pdm-entity-detail-drawer .master-attachment-panel.is-compact > .panel-header {
   min-height: 43px;
   margin: 0;
   border-bottom: 1px solid var(--line);
   padding: 8px 10px 8px 12px;
 }
 
-.drawing-workbench-master-drawer .master-attachment-panel.is-compact > .panel-header > div {
+.pdm-entity-detail-drawer .master-attachment-panel.is-compact > .panel-header > div {
   display: flex;
   align-items: baseline;
   gap: 8px;
   min-width: 0;
 }
 
-.drawing-workbench-master-drawer .master-attachment-panel.is-compact > .panel-header h2 {
+.pdm-entity-detail-drawer .master-attachment-panel.is-compact > .panel-header h2 {
   margin: 0;
   font-size: 0.92rem;
 }
@@ -9076,11 +9170,13 @@ select.dropdown-select {
     width: auto;
   }
 
+  .pdm-entity-drawer-header,
   .drawing-workbench-drawer-header {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
+  .pdm-entity-drawer-actions,
   .drawing-workbench-drawer-header-actions {
     margin-left: auto;
   }
@@ -9092,6 +9188,10 @@ select.dropdown-select {
 
   .drawing-workbench-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drawing-workbench-facts > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .drawing-prerequisite-panel {
@@ -10646,7 +10746,7 @@ select.dropdown-select {
 }
 
 @media (max-width: 520px) {
-  .number-state-drawer {
+  .number-state-workspace-drawer {
     --number-state-drawer-gutter: 12px;
   }
 
@@ -10672,8 +10772,11 @@ select.dropdown-select {
     border-radius: 8px 8px 0 0;
   }
 
+  .pdm-entity-drawer-header,
+  .pdm-entity-drawer-footer,
   .number-state-drawer-header,
   .number-state-drawer-body,
+  .pdm-entity-drawer-footer,
   .number-state-drawer-footer,
   .number-state-modal-header,
   .number-state-modal-actions,
@@ -10702,6 +10805,7 @@ select.dropdown-select {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .pdm-entity-drawer-footer button,
   .number-state-drawer-footer button,
   .number-state-modal-actions button,
   .number-state-pagination button {

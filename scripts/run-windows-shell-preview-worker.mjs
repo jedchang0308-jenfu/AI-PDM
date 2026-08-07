@@ -81,7 +81,13 @@ while (true) {
   }
 
   idleReported = false;
-  const succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512) });
+  const heartbeat = startJobHeartbeat({ baseUrl, token, workerId, jobId: claim.jobId });
+  let succeeded;
+  try {
+    succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512) });
+  } finally {
+    heartbeat.stop();
+  }
   if (!watchMode) {
     if (!succeeded) process.exitCode = 1;
     break;
@@ -182,6 +188,22 @@ async function completeJob(input) {
   });
   if (!response.ok) throw new Error(`Preview worker complete failed with HTTP ${response.status}: ${await response.text()}`);
   return await response.json();
+}
+
+function startJobHeartbeat(input) {
+  const send = async () => {
+    await fetch(`${input.baseUrl}/api/preview-jobs/${encodeURIComponent(input.jobId)}/heartbeat`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-pdm-preview-worker-token": input.token
+      },
+      body: JSON.stringify({ workerId: input.workerId })
+    }).catch(() => undefined);
+  };
+  void send();
+  const timer = setInterval(() => void send(), 5000);
+  return { stop: () => clearInterval(timer) };
 }
 
 async function failJob(input) {

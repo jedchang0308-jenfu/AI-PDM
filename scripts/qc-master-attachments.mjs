@@ -120,7 +120,9 @@ assert(panel.includes("attachmentPreviewMode") && panel.includes("?preview=1"), 
 assert(panel.includes("previewDerivatives") && panel.includes("previewJob"), "Drawing attachment panel receives native preview derivative/job metadata");
 assert(panel.includes("findReadyPreviewDerivative") && panel.includes("previewDerivative="), "Drawing attachment panel can inline generated native preview derivatives");
 assert(panel.includes("generatePreview") && panel.includes("/previews"), "Drawing attachment panel can enqueue native preview generation");
-assert(panel.includes("預覽產生失敗") && panel.includes("預覽需更新") && panel.includes("重新產生預覽"), "Drawing attachment panel shows actionable native preview states");
+assert(panel.includes("previewPollingNeeded") && panel.includes("setInterval"), "Drawing attachment panel updates native preview state automatically");
+assert(panel.includes("tone: \"failed\"") && panel.includes("title: \"無法預覽\"") && panel.includes("text: \"請下載原檔\""), "Drawing attachment panel shows concise native preview states");
+assert(!panel.includes("master-attachment-refresh") && !panel.includes("重新整理附件"), "Attachment panel does not require a manual refresh control");
 assert(panel.includes("findPreviewAttachment") && panel.includes("isThreeDimensionalAttachment") && panel.includes("isTwoDimensionalAttachment"), "Drawing attachment panel selects 3D and 2D preview attachments separately");
 assert(panel.includes("groupHistoryAttachmentsByRevision") && panel.includes("master-attachment-history-revision"), "Drawing attachment history groups files by revision");
 assert(panel.includes("placeholder={revisionStage ? suggestedRevision") && !panel.includes("例如 A、B 或空白"), "Shared panel no longer suggests A/B revision placeholder");

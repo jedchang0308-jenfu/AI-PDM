@@ -33,7 +33,7 @@ record("DEV053-UI-003 legacy reserved deep link normalizes without mutation",
   !normalizer.includes("fetch(") && !normalizer.includes('method: "POST"'));
 record("DEV053-UI-004 server-derived next action is kept in the drawer, not repeated in list rows",
   (component.match(/<PrimaryAction action=\{row\.primaryAction\}/gu) ?? []).length === 1 &&
-  has(component, ["drawing-workbench-drawer-header-actions", "row.primaryAction", "disabledReason", "href"]) &&
+  has(component, ["PdmEntityDetailDrawer", "actions=", "row.primaryAction", "disabledReason", "href"]) &&
   !component.includes('data-label="下一步"') &&
   !component.includes("row.actions.map"));
 record("DEV053-UI-005 controlled revision files and reference attachments use separate authority views",
@@ -60,7 +60,7 @@ record("DEV053-UI-010 client pagination resets before filter state changes",
   has(component, [
     "resetPagination(); setQuery",
     "resetPagination(); setView",
-    "resetPagination(); setStage",
+    "resetPagination(); setHumanStatus",
     "resetPagination(); setSeriesCode",
     "resetPagination(); setPurposeCode",
     "resetPagination(); setRecordStatus"
@@ -70,7 +70,8 @@ record("DEV053-UI-011 formal filters and linked-part identity remain visible on 
     "圖面用途",
     "資料狀態",
     "料號：{row.relatedPartSummary}",
-    "<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} />"
+    "HUMAN_STATUS_FILTER_OPTIONS.map",
+    "<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />"
   ]) && has(statusEngine, [
     "releaseStatusMismatch",
     "projectDrawingHumanStatus",

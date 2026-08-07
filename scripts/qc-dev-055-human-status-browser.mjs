@@ -148,7 +148,7 @@ try {
       const body = await page.locator("body").innerText();
       assert.equal(body.includes("草稿確認"), false, `${route} must not show ambiguous 草稿確認`);
       const statusFilterOptions = await page.locator("select option").evaluateAll((options) => options.map((option) => option.textContent?.trim()).filter(Boolean));
-      assert.ok(statusFilterOptions.includes("待我處理"), `${route} must expose viewer-aware status filter; body=${body.slice(-500)}`);
+      assert.ok(statusFilterOptions.includes("待你處理"), `${route} must expose viewer-aware status filter; body=${body.slice(-500)}`);
       if (route === "/numbering/drawings") {
         const headers = await page.locator(".drawing-workbench-table thead th").allTextContents();
         assert.deepEqual(headers.map((value) => value.trim()), ["圖號", "品名", "工作狀態"], "drawing list must expose only three scan columns");
@@ -185,6 +185,22 @@ try {
     await page.keyboard.press("Escape");
     assert.equal(await statusAnchor.getAttribute("aria-expanded"), "false", "status detail must close on Escape");
   }
+
+  await page.goto(`${appBaseUrl}/numbering/drawings`, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(5000);
+  const drawingStatusFilter = page.locator(".drawing-workbench-toolbar label").filter({ hasText: "工作狀態" }).locator("select");
+  assert.equal(await drawingStatusFilter.count(), 1, "drawing workbench must expose one work-status filter");
+  assert.deepEqual(
+    (await drawingStatusFilter.locator("option").allTextContents()).map((value) => value.trim()),
+    ["全部工作狀態", "待你處理", "等他人處理", "系統處理中", "可使用", "歷史"],
+    "drawing work-status filter must use the table's first-level viewer vocabulary"
+  );
+  await drawingStatusFilter.selectOption("waiting");
+  await page.waitForTimeout(1200);
+  assert.match(page.url(), /humanStatus=waiting/u, "drawing status filter must update the URL state");
+  const waitingStatusCategories = await page.locator(".drawing-workbench-table .human-status-badge").evaluateAll((badges) => badges.map((badge) => badge.getAttribute("data-viewer-status-category")));
+  assert.ok(waitingStatusCategories.length > 0, "waiting status filter must leave matching drawing rows");
+  assert.ok(waitingStatusCategories.every((category) => category === "other_user" || category === "unknown"), "waiting status filter must exclude current-user and usable rows");
 
   await page.goto(`${appBaseUrl}/numbering/search`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
