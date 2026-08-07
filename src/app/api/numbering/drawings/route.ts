@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import type { DrawingPurposeCode, NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
@@ -15,11 +15,9 @@ const recordStatuses = new Set([
   "Rejected",
   "Obsolete",
   "Merged",
-  "EVTDisabled",
   "PendingAdminConfirm",
   "MainDrawingInvalid"
 ]);
-const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 const purposeCodes = new Set(["MA", "OT", "M", "R"]);
 
 export async function GET(request: Request) {
@@ -31,7 +29,6 @@ export async function GET(request: Request) {
   if (companyResult.response) return companyResult.response;
 
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const purposeCode = normalizeEnum(url.searchParams.get("purposeCode"), purposeCodes) as DrawingPurposeCode | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
@@ -43,7 +40,6 @@ export async function GET(request: Request) {
       productSeries,
       seriesCode,
       recordStatus,
-      developmentPhase,
       purposeCode,
       limit: Number(url.searchParams.get("limit") ?? 50)
     }),

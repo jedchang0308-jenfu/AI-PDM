@@ -1,3 +1,7 @@
+.sidebar-toggle-mobile {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .master-attachment-form {
     grid-template-columns: 1fr;
@@ -92,6 +96,21 @@
   }
 }
 
+@media (min-width: 761px) and (max-width: 1180px) {
+  .finder-summary-row {
+    grid-template-columns: minmax(0, 1fr) minmax(174px, auto);
+  }
+
+  .finder-summary-row .primary-search {
+    grid-column: 1 / -1;
+  }
+
+  .finder-summary-row .metrics,
+  .finder-summary-row .notification-center {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
@@ -104,7 +123,9 @@
   .sidebar {
     position: relative;
     height: auto;
-    max-height: 220px;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 14px 16px;
@@ -135,30 +156,79 @@
     display: inline;
   }
 
-  body.sidebar-collapsed .sidebar-toggle {
+  body.sidebar-collapsed .sidebar-toggle-desktop {
+    margin-left: auto;
+  }
+
+  .sidebar-toggle-desktop {
+    display: none;
+  }
+
+  .sidebar-toggle-mobile {
+    display: inline-grid;
     margin-left: auto;
   }
 
   .nav {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    display: none;
+    width: 100%;
+    min-width: 0;
+    gap: 12px;
+    overflow: visible;
+    padding: 2px 0 4px;
+  }
+
+  .nav.mobile-open,
+  body.sidebar-collapsed .nav.mobile-open {
+    display: grid;
   }
 
   .nav-section {
-    flex: 0 0 180px;
+    display: grid;
+    width: 100%;
     min-width: 0;
   }
 
   .nav-section-label {
+    display: block;
     padding-left: 4px;
   }
 
+  body.sidebar-collapsed .nav-section-label {
+    display: block;
+  }
+
+  .nav-section-items {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .nav a,
   body.sidebar-collapsed .nav a {
     justify-content: flex-start;
     gap: 10px;
-    padding: 10px 12px 10px 14px;
+    min-width: 0;
+    padding: 9px 10px 9px 12px;
+  }
+
+  .nav a .nav-link-label,
+  body.sidebar-collapsed .nav a .nav-link-label {
+    display: block;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  body.sidebar-collapsed .nav-account-status {
+    position: static;
+    width: auto;
+    height: auto;
+    border: 0;
+    padding: 2px 6px;
+    font-size: 10px;
   }
 
   .main {
@@ -324,7 +394,8 @@
   .sidebar {
     position: static;
     height: auto;
-    overflow-x: visible;
+    max-height: none;
+    overflow-x: hidden;
     overflow-y: visible;
     overscroll-behavior: auto;
     scrollbar-gutter: auto;
@@ -357,45 +428,61 @@
     display: none;
   }
 
-  body.sidebar-collapsed .sidebar-toggle {
+  body.sidebar-collapsed .sidebar-toggle-desktop {
     margin-left: auto;
   }
 
   .nav {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 2px;
+    display: none;
+    width: 100%;
+    gap: 12px;
+    overflow: visible;
+    padding: 2px 0 4px;
     min-width: 0;
   }
 
-  .nav-section {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: stretch;
-    gap: 6px;
-    min-width: max-content;
+  .nav.mobile-open,
+  body.sidebar-collapsed .nav.mobile-open {
+    display: grid;
   }
 
-  .nav-section-label {
-    display: none;
+  .nav-section {
+    display: grid;
+    width: 100%;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .nav-section-label,
+  body.sidebar-collapsed .nav-section-label {
+    display: block;
   }
 
   .nav-section-items {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
+    min-width: 0;
   }
 
   .nav a {
     min-height: 38px;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
   }
 
   body.sidebar-collapsed .nav a {
     justify-content: flex-start;
     gap: 10px;
     padding: 10px 12px 10px 14px;
+  }
+
+  .nav a .nav-link-label,
+  body.sidebar-collapsed .nav a .nav-link-label {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .login-page {

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { createNumberingRecordAsync } from "@/lib/numbering-async";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
-import type { DrawingPurposeCode, NumberingItemKind, NumberingPhase } from "@/lib/repositories/numbering-repository";
+import type { DrawingPurposeCode, NumberingItemKind } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
 const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
 const purposeCodes = new Set(["M", "R"]);
-const initialDevelopmentPhase: NumberingPhase = "EVT";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -16,7 +15,6 @@ export async function POST(request: Request) {
 
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
   const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
-  const developmentPhase = initialDevelopmentPhase;
   const drawingRequested = Boolean(body.drawingRequested ?? body.drawing_requested);
   const drawingPurposeCode = normalizeEnum(body.drawingPurposeCode ?? body.drawing_purpose_code, purposeCodes) as DrawingPurposeCode | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
@@ -44,7 +42,6 @@ export async function POST(request: Request) {
       companyId: access.company.companyId,
       coreName,
       itemKind,
-      developmentPhase,
       isUniversal,
       universalReason,
       customSpecification,

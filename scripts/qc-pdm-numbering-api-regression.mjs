@@ -122,8 +122,8 @@ function seedSecondPart(root, firstPartNumber, adminUserId) {
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'EVT', 'Draft', ?, ?, ?, ?)
+        item_kind, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'Draft', ?, ?, ?, ?)
     `
     ).run(partId, root.id, partNumber, sequenceNo, sequenceCode, `QC API ${unique} variant part`, ruleVersionId, adminUserId, now, now);
     return { id: partId, partNumber };
@@ -159,7 +159,7 @@ async function request(method, urlPath, cookie, body, expectedStatus = 200) {
     data = JSON.parse(text);
   }
   const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
-  record(`${method} ${urlPath} returns ${expected.join("/")}`, expected.includes(response.status), `HTTP ${response.status}`);
+  record(`${method} ${urlPath} returns ${expected.join("/")}`, expected.includes(response.status), `HTTP ${response.status}: ${text.slice(0, 400)}`);
   return data;
 }
 
@@ -176,7 +176,6 @@ try {
       coreName: `QC API regression ${unique}`,
       partName: `QC API part ${unique}-001`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -188,12 +187,14 @@ try {
   created.rootCodes.push(rootCode);
   record("Numbering allocation returns root, part, and MA drawing", Boolean(rootCode && firstPartNumber && drawingNumber), JSON.stringify({ rootCode, firstPartNumber, drawingNumber }));
   record(
-    "Numbering create API forces new records to EVT initial phase",
-    numbering.root?.developmentPhase === "EVT" && numbering.partNumber?.developmentPhase === "EVT" && numbering.drawingNumber?.developmentPhase === "EVT",
+    "Numbering create API returns record-status context",
+    [numbering.root, numbering.partNumber, numbering.drawingNumber].every(
+      (recordValue) => recordValue && typeof recordValue.recordStatus === "string"
+    ),
     JSON.stringify({
-      root: numbering.root?.developmentPhase,
-      part: numbering.partNumber?.developmentPhase,
-      drawing: numbering.drawingNumber?.developmentPhase
+      rootStatus: numbering.root?.recordStatus,
+      partStatus: numbering.partNumber?.recordStatus,
+      drawingStatus: numbering.drawingNumber?.recordStatus
     })
   );
 
@@ -283,7 +284,7 @@ try {
   record(
     "Admin matrix API returns roles, rules, templates, and hard rules",
     matrix.roles?.some((role) => role.roleCode === "rd_manager") &&
-      matrix.approvalRules?.some((rule) => rule.actionCode === "dvt_promotion") &&
+      matrix.approvalRules?.some((rule) => rule.actionCode === "release") &&
       matrix.ruleTemplates?.length >= 3 &&
       matrix.hardRules?.length > 0,
     JSON.stringify({ roles: matrix.roles?.length, rules: matrix.approvalRules?.length, templates: matrix.ruleTemplates?.length, hardRules: matrix.hardRules?.length })

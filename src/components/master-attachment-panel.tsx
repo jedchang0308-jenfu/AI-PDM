@@ -9,7 +9,6 @@ import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type AttachmentEntityType = "drawing_number" | "part_number";
 type DriveStatus = "none" | "uploading" | "uploaded" | "failed";
-type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type SupplementReasonCode = "format_file" | "auxiliary_material" | "metadata_correction" | "content_changed_new_revision" | "other";
 
 type LifecycleActionState = {
@@ -114,6 +113,11 @@ type AttachmentRevisionGroup = {
   attachments: MasterAttachment[];
 };
 
+export type HistoricalRevisionBackfillRequest = {
+  revision: string;
+  attachmentIds: string[];
+};
+
 type DeletedMasterAttachment = {
   attachment: MasterAttachment;
   policy: LifecycleActionPolicy;
@@ -125,6 +129,8 @@ type PendingRevisionReviews = {
   workbenchHref: string;
   canReview: boolean;
 };
+export type MasterAttachmentAuthorityMode = "combined_legacy" | "controlled_summary" | "reference_manager";
+
 type ProductionSliceClientStatus = {
   configured: boolean;
   unopenedMessage?: string;
@@ -168,18 +174,22 @@ function formatAttachmentActionError(value: unknown, fallbackAction: string) {
 export function MasterAttachmentPanel({
   entityType,
   entityCode,
-  developmentPhase,
   processControlled = true,
   readOnly = false,
+  authorityMode = "combined_legacy",
+  compact = false,
+  onBackfillHistoricalRevision,
   pendingRevisionReviews = null,
   productionSliceEnforced: productionSliceEnforcedOverride,
   productionSliceUnopenedMessage: productionSliceUnopenedMessageOverride
 }: {
   entityType: AttachmentEntityType;
   entityCode: string;
-  developmentPhase?: NumberingPhase | null;
   processControlled?: boolean;
   readOnly?: boolean;
+  authorityMode?: MasterAttachmentAuthorityMode;
+  compact?: boolean;
+  onBackfillHistoricalRevision?: (request: HistoricalRevisionBackfillRequest) => void;
   pendingRevisionReviews?: PendingRevisionReviews | null;
   productionSliceEnforced?: boolean;
   productionSliceUnopenedMessage?: string;
@@ -209,6 +219,7 @@ export function MasterAttachmentPanel({
   const productionSliceEnforced = productionSliceEnforcedOverride ?? productionSlice?.configured === true;
   const productionSliceUnopenedMessage = productionSliceUnopenedMessageOverride ?? productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
   const productionSliceTitle = `未開放。${productionSliceUnopenedMessage}`;
+  const effectiveReadOnly = readOnly || authorityMode === "controlled_summary";
 
   useEffect(() => {
     if (typeof productionSliceEnforcedOverride === "boolean") return;
@@ -226,22 +237,68 @@ export function MasterAttachmentPanel({
     };
   }, [productionSliceEnforcedOverride]);
   const revisionStage = useMemo(
-    () => revisionLifecycleStageForAttachment(entityType, developmentPhase, processControlled),
-    [developmentPhase, entityType, processControlled]
+    () => revisionLifecycleStageForAttachment(entityType, processControlled),
+    [entityType, processControlled]
   );
   const suggestedRevision = useMemo(
     () => (revisionStage ? suggestRevisionCode(attachments.map((attachment) => ({ revision: attachment.revision ?? "" })), revisionStage) : ""),
     [attachments, revisionStage]
   );
-  const attachmentSections = useMemo(() => groupMasterAttachments(attachments, entityType), [attachments, entityType]);
+  const authorityAttachments = useMemo(
+    () => attachments.filter((attachment) => authorityMode === "combined_legacy" || (authorityMode === "controlled_summary") === isControlledRevisionAttachment(attachment)),
+    [attachments, authorityMode]
+  );
+  const authorityDeletedAttachments = useMemo(
+    () => deletedAttachments.filter(({ attachment }) => authorityMode === "combined_legacy" || (authorityMode === "controlled_summary") === isControlledRevisionAttachment(attachment)),
+    [deletedAttachments, authorityMode]
+  );
+  const attachmentSections = useMemo(() => groupMasterAttachments(authorityAttachments, entityType), [authorityAttachments, entityType]);
+  const currentControlledRevision = useMemo(
+    () => latestAttachmentRevision(attachments.filter(isFormalPackageAttachment)),
+    [attachments]
+  );
+  const workRevisionGroups = useMemo(
+    () => groupHistoryAttachmentsByRevision(attachmentSections.work),
+    [attachmentSections.work]
+  );
+  const historicalBackfillGroups = useMemo(
+    () => currentControlledRevision
+      ? workRevisionGroups.filter((group) => parseAttachmentRevision(group.revision) && compareAttachmentRevision(group.revision, currentControlledRevision) < 0)
+      : [],
+    [currentControlledRevision, workRevisionGroups]
+  );
+  const historicalBackfillAttachmentIds = useMemo(
+    () => new Set(historicalBackfillGroups.flatMap((group) => group.attachments.map((attachment) => attachment.id))),
+    [historicalBackfillGroups]
+  );
+  const remainingWorkAttachments = useMemo(
+    () => attachmentSections.work.filter((attachment) => !historicalBackfillAttachmentIds.has(attachment.id)),
+    [attachmentSections.work, historicalBackfillAttachmentIds]
+  );
   const drawingPreviewSlots = useMemo(
     () => (entityType === "drawing_number" ? buildDrawingPreviewSlots(attachmentSections.current) : []),
     [attachmentSections.current, entityType]
   );
   const historyRevisionGroups = useMemo(() => groupHistoryAttachmentsByRevision(attachmentSections.history), [attachmentSections.history]);
-  const currentRevisionPackageId = useMemo(
-    () => attachmentSections.current.find((attachment) => attachment.revisionPackageId)?.revisionPackageId ?? null,
-    [attachmentSections.current]
+  const currentReleasedRevisionPackageId = useMemo(
+    () => currentControlledRevision
+      ? attachments.find((attachment) =>
+          attachment.revisionPackageId
+          && attachment.revisionPackageStatus === "Released"
+          && attachment.revisionPackageFileKind === "core"
+          && sameAttachmentRevision(attachment, currentControlledRevision)
+        )?.revisionPackageId ?? null
+      : null,
+    [attachments, currentControlledRevision]
+  );
+  const supplementCandidateAttachments = useMemo(
+    () => currentControlledRevision
+      ? remainingWorkAttachments.filter((attachment) =>
+          !attachment.revisionPackageSupplementId
+          && sameAttachmentRevision(attachment, currentControlledRevision)
+        )
+      : [],
+    [currentControlledRevision, remainingWorkAttachments]
   );
   const supplementReasonDefinition = supplementReasons.find((reason) => reason.code === supplementReason) ?? supplementReasons[0];
   const pendingReviewRevisions = useMemo(() => pendingRevisionReviews?.revisions ?? [], [pendingRevisionReviews?.revisions]);
@@ -350,7 +407,7 @@ export function MasterAttachmentPanel({
       setMessage({ type: "error", text: productionSliceUnopenedMessage });
       return;
     }
-    if (!currentRevisionPackageId) {
+    if (!currentReleasedRevisionPackageId) {
       setMessage({ type: "error", text: "目前正式版尚未建立版次附件包，不能申請補件。" });
       return;
     }
@@ -365,8 +422,8 @@ export function MasterAttachmentPanel({
     setSupplementLoading(true);
     setMessage(null);
     try {
-      const selectedAttachments = attachmentSections.work.filter((attachment) => selectedSupplementAttachmentIds.includes(attachment.id));
-      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(currentRevisionPackageId)}/supplements`, {
+      const selectedAttachments = supplementCandidateAttachments.filter((attachment) => selectedSupplementAttachmentIds.includes(attachment.id));
+      const response = await fetch(`/api/numbering/drawing-revision-packages/${encodeURIComponent(currentReleasedRevisionPackageId)}/supplements`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -590,7 +647,7 @@ export function MasterAttachmentPanel({
               <ExternalLink size={16} />
             </a>
           ) : null}
-          {!readOnly && (attachment.gdriveStatus === "failed" || attachment.gdriveStatus === "none") ? (
+          {!effectiveReadOnly && (attachment.gdriveStatus === "failed" || attachment.gdriveStatus === "none") ? (
             <button
               className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
               type="button"
@@ -603,7 +660,7 @@ export function MasterAttachmentPanel({
               <RefreshCw size={16} />
             </button>
           ) : null}
-          {!readOnly && attachment.revisionPackageFileKind === "supplement" && attachment.revisionPackageSupplementStatus === "Pending" ? (
+          {!effectiveReadOnly && attachment.revisionPackageFileKind === "supplement" && attachment.revisionPackageSupplementStatus === "Pending" ? (
             <>
               <button
                 className={`icon-button success${productionSliceEnforced ? " production-slice-unopened" : ""}`}
@@ -629,7 +686,7 @@ export function MasterAttachmentPanel({
               </button>
             </>
           ) : null}
-          {!readOnly ? (
+          {!effectiveReadOnly ? (
             <button
               className={`icon-button danger${productionSliceEnforced ? " production-slice-unopened" : ""}`}
               type="button"
@@ -671,7 +728,7 @@ export function MasterAttachmentPanel({
               {slot.kind === "three-d" ? <Box size={36} /> : <FileText size={34} />}
               <strong>{previewPlaceholder.title}</strong>
               <span>{previewPlaceholder.text}</span>
-              {!readOnly && attachment && previewPlaceholder.action ? (
+              {!effectiveReadOnly && attachment && previewPlaceholder.action ? (
                 <button
                   className={`secondary-button preview-generate-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
@@ -699,7 +756,7 @@ export function MasterAttachmentPanel({
                   <ExternalLink size={16} />
                 </a>
               ) : null}
-              {!readOnly && isNativeSolidWorksAttachment(attachment) ? (
+              {!effectiveReadOnly && isNativeSolidWorksAttachment(attachment) ? (
                 <button
                   className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
                   type="button"
@@ -794,26 +851,37 @@ export function MasterAttachmentPanel({
         <div className="drawing-preview-grid">{drawingPreviewSlots.map((slot) => renderPreviewCard(slot))}</div>
       </section>
     ) : null;
+  const compactControlledSummary = compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? (
+    <div className="master-attachment-compact-controlled">
+      <div className="master-attachment-list">{attachmentSections.current.map((attachment) => renderAttachmentRow(attachment, { minimal: true }))}</div>
+        {drawingPreviewSlots.length > 0 ? <details className="master-attachment-preview-details" open>
+        <summary><span><Box size={16} />圖面預覽</span><strong>{drawingPreviewSlots.length} 類</strong></summary>
+        <div className="drawing-preview-grid">{drawingPreviewSlots.map((slot) => renderPreviewCard(slot))}</div>
+      </details> : null}
+    </div>
+  ) : null;
 
   return (
-    <section className="panel master-attachment-panel">
+    <section className={`panel master-attachment-panel${compact ? " is-compact" : ""}`}>
       <div className="panel-header">
         <div>
-          <h2>{readOnly && entityType === "drawing_number" ? "受控檔案摘要" : entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
-          <p>{readOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p>
+          <h2>{authorityMode === "controlled_summary" ? "受控版次檔案" : authorityMode === "reference_manager" ? "參考附件" : effectiveReadOnly && entityType === "drawing_number" ? "受控檔案摘要" : entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
+          {compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? <span className="master-attachment-header-meta">版次 {attachmentSections.currentRevision ?? "-"} · {attachmentSections.current.length} 個</span> : null}
+          {!compact ? <p>{authorityMode === "controlled_summary" ? "此區只顯示候選首版或正式版次流程建立的受控檔案；變更內容請建立新版次。" : authorityMode === "reference_manager" ? "此區僅管理作業參考附件，不會取代受控版次檔案，也不會直接改變正式版次。" : effectiveReadOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p> : null}
         </div>
-        <button className="secondary-button" type="button" onClick={() => void loadAttachments()} disabled={loading}>
+        <button className="secondary-button master-attachment-refresh" type="button" onClick={() => void loadAttachments()} disabled={loading} title="重新整理附件" aria-label="重新整理附件">
           <RefreshCw size={16} />
-          重新整理
+          {compact ? <span className="sr-only">重新整理</span> : "重新整理"}
         </button>
       </div>
 
-      {entityType === "drawing_number" ? drawingPreviewBoard : null}
+      {compactControlledSummary}
+      {entityType === "drawing_number" && !compactControlledSummary ? drawingPreviewBoard : null}
 
-      {!readOnly && productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
+      {!effectiveReadOnly && productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
 
-      {!readOnly && entityType === "drawing_number" ? (
+      {!effectiveReadOnly && entityType === "drawing_number" ? (
         <details className="master-attachment-upload-panel">
           <summary>
             <span>
@@ -823,12 +891,12 @@ export function MasterAttachmentPanel({
           </summary>
           {uploadForm}
         </details>
-      ) : !readOnly ? (
+      ) : !effectiveReadOnly ? (
         uploadForm
       ) : null}
 
       <div className="master-attachment-sections" aria-live="polite">
-        {attachmentSections.current.length > 0 && entityType === "drawing_number" ? (
+        {attachmentSections.current.length > 0 && entityType === "drawing_number" && !compactControlledSummary ? (
           <details className="master-attachment-current-details">
             <summary>
               <span>
@@ -864,7 +932,32 @@ export function MasterAttachmentPanel({
               </div>
               <strong>{attachmentSections.work.length} 個</strong>
             </div>
-            {!readOnly && entityType === "drawing_number" && currentRevisionPackageId ? (
+            {historicalBackfillGroups.map((group) => (
+              <div className="master-attachment-historical-backfill" key={`historical-backfill-${group.revision}`}>
+                <div className="master-attachment-historical-backfill-heading">
+                  <div>
+                    <strong>{group.revision} 未送審舊版</strong>
+                    {currentControlledRevision ? <span>目前最新版 {currentControlledRevision}；核准後只進歷史。</span> : null}
+                  </div>
+                  {onBackfillHistoricalRevision ? (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => onBackfillHistoricalRevision({
+                        revision: group.revision,
+                        attachmentIds: group.attachments.map((attachment) => attachment.id)
+                      })}
+                    >
+                      補登 {group.revision} 歷史版
+                    </button>
+                  ) : null}
+                </div>
+                <div className="master-attachment-list">
+                  {group.attachments.map((attachment) => renderAttachmentRow(attachment, { minimal: compact }))}
+                </div>
+              </div>
+            ))}
+            {!effectiveReadOnly && entityType === "drawing_number" && currentReleasedRevisionPackageId && supplementCandidateAttachments.length > 0 ? (
               <form className="master-attachment-supplement-form" onSubmit={requestSupplement}>
                 <div className="master-attachment-supplement-grid">
                   <label>
@@ -891,7 +984,7 @@ export function MasterAttachmentPanel({
                   <p>{supplementReasonDefinition.wording}</p>
                 )}
                 <div className="master-attachment-supplement-files">
-                  {attachmentSections.work.map((attachment) => (
+                  {supplementCandidateAttachments.map((attachment) => (
                     <label key={`supplement-${attachment.id}`}>
                       <input
                         type="checkbox"
@@ -921,11 +1014,13 @@ export function MasterAttachmentPanel({
                 </button>
               </form>
             ) : null}
-            <div className="master-attachment-list">{attachmentSections.work.map((attachment) => renderAttachmentRow(attachment))}</div>
+            {remainingWorkAttachments.length > 0 ? (
+              <div className="master-attachment-list">{remainingWorkAttachments.map((attachment) => renderAttachmentRow(attachment))}</div>
+            ) : null}
           </section>
         ) : null}
 
-        {attachments.length === 0 ? <div className="empty">{readOnly ? "目前沒有可顯示的受控檔案；需要新增或變更時，請建立新版。" : "尚未建立附件。現在請在上方選擇檔案並上傳；若只是查看資料，這裡不用處理。"}</div> : null}
+        {authorityAttachments.length === 0 && !(compact && authorityMode === "reference_manager") ? <div className="empty">{compact ? "尚無受控版次檔案" : authorityMode === "reference_manager" ? "尚未建立參考附件；如需補充作業資料，可在上方新增。" : effectiveReadOnly ? "目前沒有可顯示的受控版次檔案；需要新增或變更時，請建立新版。" : "尚未建立附件。現在請在上方選擇檔案並上傳；若只是查看資料，這裡不用處理。"}</div> : null}
       </div>
 
       {attachmentSections.history.length > 0 ? (
@@ -968,7 +1063,7 @@ export function MasterAttachmentPanel({
         </details>
       ) : null}
 
-      {!readOnly ? <details
+      {!effectiveReadOnly ? <details
         className="master-attachment-deleted"
         onToggle={(event) => {
           if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedAttachments();
@@ -979,7 +1074,7 @@ export function MasterAttachmentPanel({
             <History size={16} />
             已刪除資料
           </span>
-          <strong>{deletedLoaded ? deletedAttachments.length : "未載入"}</strong>
+          <strong>{deletedLoaded ? authorityDeletedAttachments.length : "未載入"}</strong>
         </summary>
         <div className="master-attachment-deleted-body">
           <div className="master-attachment-deleted-toolbar">
@@ -990,7 +1085,7 @@ export function MasterAttachmentPanel({
             </button>
           </div>
           <div className="master-attachment-list" aria-live="polite">
-            {deletedAttachments.map((deleted) => {
+            {authorityDeletedAttachments.map((deleted) => {
               const { attachment, policy } = deleted;
               const restoreState = policy.actions.restore;
               const canRestore = restoreState?.allowed === true;
@@ -1036,7 +1131,7 @@ export function MasterAttachmentPanel({
               );
             })}
             {deletedLoading ? <div className="empty">正在載入已刪除資料...</div> : null}
-            {deletedLoaded && deletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
+            {deletedLoaded && authorityDeletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
           </div>
         </div>
       </details> : null}
@@ -1200,6 +1295,15 @@ function compactPreviewFailureText(summary: string | null | undefined) {
   }
   if (text.length > 96) return `${text.slice(0, 92)}...`;
   return text;
+}
+
+function isControlledRevisionAttachment(attachment: MasterAttachment) {
+  return Boolean(
+    attachment.sourceSubmissionId
+    || attachment.revisionPackageId
+    || attachment.revisionPackageSourceSubmissionId
+    || attachment.revisionPackageSupplementId
+  );
 }
 
 function groupMasterAttachments(attachments: MasterAttachment[], entityType: AttachmentEntityType) {
@@ -1417,13 +1521,10 @@ function isApprovedSupplementAttachment(attachment: MasterAttachment) {
 
 function revisionLifecycleStageForAttachment(
   entityType: AttachmentEntityType,
-  developmentPhase: NumberingPhase | null | undefined,
   processControlled: boolean
 ): RevisionLifecycleStage | null {
   if (entityType !== "drawing_number") return null;
-  if (developmentPhase === "Release") return "release_area";
   if (!processControlled) return null;
-  if (developmentPhase === "ECR") return "design_change_workspace";
   return "rd_workspace";
 }
 

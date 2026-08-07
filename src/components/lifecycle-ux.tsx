@@ -14,14 +14,12 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { PageHelpDrawerButton, type SecondaryHelpContent } from "@/components/secondary-help";
-import { formatDevelopmentPhaseForUser } from "@/lib/status-display";
 
 export type LifecycleStageId = "numbering" | "submission" | "review" | "bom" | "gate" | "handoff" | "ecr";
 
-type LifecycleStage = {
+type LifecycleStageBase = {
   id: LifecycleStageId;
   title: string;
-  phase: string;
   owner: string;
   state: string;
   intent: string;
@@ -31,6 +29,11 @@ type LifecycleStage = {
   cta: string;
   icon: LucideIcon;
 };
+
+type LifecycleStage = LifecycleStageBase & (
+  | { qualityStage: "研發階段" | "技術移轉"; controlDimension?: never }
+  | { qualityStage?: never; controlDimension: "變更管制" }
+);
 
 export type LifecycleMetric = {
   label: string;
@@ -47,7 +50,6 @@ export type ObjectLifecycleStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid"
   | string;
@@ -67,12 +69,12 @@ const lifecycleStages: LifecycleStage[] = [
   {
     id: "numbering",
     title: "需求與保留號",
-    phase: "EVT",
+    qualityStage: "研發階段",
     owner: "RD",
     state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
     risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
-    doneSignal: "料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。",
+    doneSignal: "料號、圖號與基本屬性已建立，下一步可送設計資料。",
     href: "/numbering/search?tab=reserved",
     cta: "建立保留號",
     icon: PackagePlus
@@ -80,7 +82,7 @@ const lifecycleStages: LifecycleStage[] = [
   {
     id: "submission",
     title: "設計送審",
-    phase: "EVT / DVT",
+    qualityStage: "研發階段",
     owner: "RD",
     state: "審核中",
     intent: "從受控圖料主資料確認圖面、3D、PDF、DWG 與變更原因後送進 PDM。",
@@ -93,7 +95,7 @@ const lifecycleStages: LifecycleStage[] = [
   {
     id: "review",
     title: "審核與放行",
-    phase: "DVT / Release",
+    qualityStage: "研發階段",
     owner: "R&D Manager",
     state: "發行中 / 已發布",
     intent: "判斷此版是否能成為正式工程資料，而不是只看檔案是否存在。",
@@ -106,7 +108,7 @@ const lifecycleStages: LifecycleStage[] = [
   {
     id: "bom",
     title: "BOM 建立與審核",
-    phase: "DVT / PVT",
+    qualityStage: "研發階段",
     owner: "RD / Manager",
     state: "草稿 / 審核中 / 已發布",
     intent: "從 CAD reference、SolidWorks XLS 或手動資料建立可追溯的階層 BOM。",
@@ -118,21 +120,21 @@ const lifecycleStages: LifecycleStage[] = [
   },
   {
     id: "gate",
-    title: "DVT / Release Gate",
-    phase: "DVT / Release",
+    title: "技術移轉關卡",
+    qualityStage: "技術移轉",
     owner: "RD / Manager / Admin",
     state: "可處理 / 例外核准 / 阻擋",
-    intent: "主動整理候選料件，讓 gate 決策集中處理而不是靠人工翻表。",
-    risk: "缺製造圖、缺審核、資料不完整或 override 未核准時不可直接晉升。",
-    doneSignal: "gate 決策更新料號、圖號與 BOM 使用限制，必要時產生審核批次。",
-    href: "/numbering/dvt",
-    cta: "檢查 Gate",
+    intent: "集中確認候選圖料、BOM 與必要證據是否足以移交下游使用。",
+    risk: "缺製造圖、缺審核、資料不完整或例外未核准時不可完成移轉。",
+    doneSignal: "移轉判定更新圖料與 BOM 使用限制，必要時產生審核批次。",
+    href: "/technical-transfer",
+    cta: "檢查移轉條件",
     icon: GitPullRequestArrow
   },
   {
     id: "handoff",
     title: "製造與採購交接",
-    phase: "Release",
+    qualityStage: "技術移轉",
     owner: "Manufacturing / Procurement",
     state: "只取已發布資料",
     intent: "只取已發布圖料、審核紀錄、交接包與完整性資訊。",
@@ -145,7 +147,7 @@ const lifecycleStages: LifecycleStage[] = [
   {
     id: "ecr",
     title: "ECR / 改版 / 廢止",
-    phase: "ECR",
+    controlDimension: "變更管制",
     owner: "RD / Manager / Admin",
     state: "影響分析 / 已作廢",
     intent: "從既有料件啟動變更前，先看上層 BOM、圖面、供應商與交接影響。",
@@ -159,6 +161,10 @@ const lifecycleStages: LifecycleStage[] = [
 
 export function getLifecycleStepTitles() {
   return lifecycleStages.map((stage) => stage.title);
+}
+
+function getLifecycleContextLabel(stage: LifecycleStage) {
+  return stage.controlDimension ?? stage.qualityStage;
 }
 
 function stageIndex(stageId: LifecycleStageId) {
@@ -211,7 +217,7 @@ export function LifecycleMap({
                 </span>
                 <span className="lifecycle-stage-body">
                   <strong>{stage.title}</strong>
-                  <small>{stage.phase}</small>
+                  <small>{getLifecycleContextLabel(stage)}</small>
                   <span>{stage.owner}</span>
                 </span>
               </Link>
@@ -268,7 +274,7 @@ export function LifecycleStageGuidance({
           <Icon size={18} aria-hidden="true" />
         </span>
         <div>
-          <span className="section-label">{stage.phase}</span>
+          <span className="section-label">{getLifecycleContextLabel(stage)}</span>
           <h2>{stage.title}</h2>
           {variant === "expanded" ? <p>{stage.intent}</p> : null}
         </div>
@@ -312,14 +318,12 @@ export function buildUploadPrefillHref({
   rootCode,
   drawingNumber,
   partNumber,
-  partName,
-  developmentPhase
+  partName
 }: {
   rootCode?: string | null;
   drawingNumber?: string | null;
   partNumber?: string | null;
   partName?: string | null;
-  developmentPhase?: string | null;
 }) {
   const params = new URLSearchParams();
   params.set("submission", "1");
@@ -329,7 +333,6 @@ export function buildUploadPrefillHref({
   if (drawingNumber) params.set("drawingNumber", drawingNumber);
   if (partNumber) params.set("partNumber", partNumber);
   if (partName) params.set("partName", partName);
-  if (developmentPhase) params.set("developmentPhase", developmentPhase);
   return `/numbering/search?${params.toString()}`;
 }
 
@@ -337,7 +340,6 @@ export function ObjectLifecycleStatusPanel({
   title = "Object lifecycle",
   objectName,
   status,
-  phase,
   owner,
   identities,
   blockers = [],
@@ -349,7 +351,6 @@ export function ObjectLifecycleStatusPanel({
   title?: string;
   objectName: string;
   status: ObjectLifecycleStatus;
-  phase?: string | null;
   owner: string;
   identities: ObjectLifecycleIdentity[];
   blockers?: string[];
@@ -359,7 +360,6 @@ export function ObjectLifecycleStatusPanel({
   helpContent?: SecondaryHelpContent;
 }) {
   const statusCopy = describeObjectLifecycleStatus(status);
-  const phaseLabel = phase ? formatDevelopmentPhaseForUser(phase) : "";
   const visibleIdentities = identities.filter((identity) => identity.value !== null && identity.value !== undefined && String(identity.value).trim());
   const visibleBlockers = blockers.length > 0 ? blockers : statusCopy.defaultBlockers;
   const showBlockersInline = visibleBlockers.length > 0 && (statusCopy.tone === "warning" || statusCopy.tone === "critical");
@@ -371,7 +371,7 @@ export function ObjectLifecycleStatusPanel({
     sections: [
       {
         title: "Object",
-        items: [objectName, phaseLabel ? `${phaseLabel} / ${owner}` : owner, statusCopy.label]
+        items: [objectName, owner, statusCopy.label]
       },
       {
         title: "Blockers and notes",
@@ -406,7 +406,7 @@ export function ObjectLifecycleStatusPanel({
         <div className="object-lifecycle-state">
           <span className="object-lifecycle-dot" aria-hidden="true" />
           <div>
-            <span className="metadata-badge">{phaseLabel ? `${phaseLabel} / ${owner}` : owner}</span>
+            <span className="metadata-badge">{owner}</span>
             <strong>{statusCopy.label}</strong>
           </div>
         </div>
@@ -488,8 +488,8 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     },
     Active: {
       label: "可接續開發",
-      description: "物件已啟用，但仍需依階段完成送審、BOM 或 gate。",
-      nextStep: "依目前階段建立送審、BOM 草稿或進入 DVT/PVT 關卡檢查。",
+      description: "物件已啟用，但仍需依品質流程完成送審、BOM 或技術移轉檢查。",
+      nextStep: "建立送審、BOM 草稿，或檢查技術移轉所需證據。",
       tone: "neutral",
       defaultBlockers: ["需確認是否已有最新 submission 與 BOM 狀態"]
     },
@@ -537,7 +537,7 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     },
     MainDrawingInvalid: {
       label: "主要製造圖失效",
-      description: "主要製造圖已失效，相關料號不可直接進 gate 或交接。",
+      description: "主要製造圖已失效，相關料號不可直接進入技術移轉或交接。",
       nextStep: "重新送審有效製造圖，並確認受影響料號。",
       tone: "critical",
       defaultBlockers: ["缺有效主要製造圖"]

@@ -40,10 +40,6 @@
         "label": "formatStatusForUser"
       },
       {
-        "id": "format-development-phase",
-        "label": "formatDevelopmentPhaseForUser"
-      },
-      {
         "id": "status-filter",
         "label": "status filter / options"
       },
@@ -70,10 +66,6 @@
         "label": "使用單一「狀態」欄名"
       },
       {
-        "kind": "mixed-axis-status-label",
-        "label": "使用混合狀態軸欄名"
-      },
-      {
         "kind": "raw-english-status-label",
         "label": "可能存在可見 raw status 文案"
       }
@@ -85,39 +77,37 @@
     ]
   },
   "summary": {
-    "sourceFileCount": 294,
-    "statusBearingFileCount": 220,
-    "routeCount": 22,
-    "sectionCount": 198,
+    "sourceFileCount": 298,
+    "statusBearingFileCount": 221,
+    "routeCount": 19,
+    "sectionCount": 202,
     "signalCounts": {
-      "status-column-header": 47,
-      "status-help-popover": 4,
-      "status-scope-help": 48,
-      "status-badge": 67,
-      "format-status-for-user": 26,
-      "format-development-phase": 28,
-      "status-filter": 205,
-      "status-data-label": 4,
-      "status-axis-label": 45,
-      "status-property": 1077
+      "status-column-header": 35,
+      "status-help-popover": 2,
+      "status-scope-help": 31,
+      "status-badge": 55,
+      "format-status-for-user": 28,
+      "status-filter": 191,
+      "status-data-label": 2,
+      "status-axis-label": 33,
+      "status-property": 975
     },
     "axisCounts": {
-      "資料狀態": 25,
-      "開發階段": 18,
+      "資料狀態": 23,
       "號碼效力": 1,
-      "申請狀態": 106,
+      "申請狀態": 108,
       "審核狀態": 85,
       "發布狀態": 67,
-      "準備狀態": 26,
+      "準備狀態": 11,
       "檔案狀態": 41,
-      "任務狀態": 21,
+      "任務狀態": 20,
       "帳號狀態": 29,
       "邀請狀態": 8,
-      "還原狀態": 17,
+      "還原狀態": 15,
       "成本狀態": 10,
-      "提醒": 32
+      "提醒": 30
     },
-    "exceptionCount": 4
+    "exceptionCount": 9
   },
   "routes": [
     {
@@ -205,7 +195,7 @@
               "excerpt": "import { StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 286,
+              "line": 290,
               "excerpt": "<h1>審核工作台 <StatusScopeHelp scope=\"approvalInbox\" /></h1>"
             }
           ]
@@ -220,15 +210,15 @@
               "excerpt": "const statusFilters = ["
             },
             {
-              "line": 110,
+              "line": 109,
               "excerpt": "type StatusFilter = (typeof statusFilters)[number][\"value\"];"
             },
             {
-              "line": 141,
+              "line": 140,
               "excerpt": "const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => readInitialFilter(\"status\", statusFilters, \"active\"));"
             },
             {
-              "line": 176,
+              "line": 175,
               "excerpt": "const response = await fetch(buildInboxUrl(statusFilter, domainFilter, actionFilter));"
             },
             {
@@ -244,19 +234,19 @@
               "excerpt": "}, [actionFilter, domainFilter, loadInbox, statusFilter]);"
             },
             {
-              "line": 290,
+              "line": 294,
               "excerpt": "{statusFilters.map((filter) => ("
             },
             {
-              "line": 293,
+              "line": 297,
               "excerpt": "className={statusFilter === filter.value ? \"active\" : undefined}"
             },
             {
-              "line": 522,
+              "line": 653,
               "excerpt": "function buildInboxUrl(status: StatusFilter, domain: DomainFilter, action: ActionFilter) {"
             },
             {
-              "line": 546,
+              "line": 677,
               "excerpt": "function syncFilterQuery(status: StatusFilter, domain: DomainFilter, action: ActionFilter) {"
             }
           ]
@@ -267,7 +257,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 289,
+              "line": 293,
               "excerpt": "<div className=\"status-tabs\" role=\"tablist\" aria-label=\"審核狀態\">"
             }
           ]
@@ -286,19 +276,19 @@
               "excerpt": "status: string | null;"
             },
             {
-              "line": 411,
-              "excerpt": "<small>{target.status ?? target.type}</small>"
+              "line": 591,
+              "excerpt": "function approvalTargetStatusLabel(status: string | null, type: string) {"
             },
             {
-              "line": 522,
+              "line": 653,
               "excerpt": "function buildInboxUrl(status: StatusFilter, domain: DomainFilter, action: ActionFilter) {"
             },
             {
-              "line": 546,
+              "line": 677,
               "excerpt": "function syncFilterQuery(status: StatusFilter, domain: DomainFilter, action: ActionFilter) {"
             },
             {
-              "line": 567,
+              "line": 698,
               "excerpt": "function statusClass(status: ApprovalStatus) {"
             }
           ]
@@ -309,7 +299,6 @@
         "申請狀態",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "還原狀態",
         "成本狀態",
         "提醒"
@@ -549,26 +538,11 @@
           "evidence": [
             {
               "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "excerpt": "import { StatusBadge, StatusColumnHeader } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 538,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段 / 提醒\" context=\"masterRecord\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 440,
-              "excerpt": "<h1>圖號模組 <StatusScopeHelp scope=\"drawingList\" /></h1>"
+              "line": 516,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 提醒\" context=\"masterRecord\" />"
             }
           ]
         },
@@ -579,18 +553,18 @@
           "evidence": [
             {
               "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "excerpt": "import { StatusBadge, StatusColumnHeader } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 586,
+              "line": 563,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 781,
+              "line": 752,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1001,
+              "line": 972,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -602,42 +576,15 @@
           "evidence": [
             {
               "line": 13,
-              "excerpt": "import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from \"@/lib/status-display\";"
+              "excerpt": "import { drawingRecordStatusFilterValues, formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 484,
+              "line": 469,
               "excerpt": "<SelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 686,
-              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(drawing.developmentPhase)}。"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 5,
-          "evidence": [
-            {
-              "line": 13,
-              "excerpt": "import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 485,
-              "excerpt": "<SelectField label=\"開發階段\" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />"
-            },
-            {
-              "line": 589,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>"
-            },
-            {
-              "line": 686,
-              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(drawing.developmentPhase)}。"
-            },
-            {
-              "line": 782,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>"
+              "line": 657,
+              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")}。"
             }
           ]
         },
@@ -647,51 +594,51 @@
           "count": 15,
           "evidence": [
             {
-              "line": 35,
+              "line": 33,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 68,
+              "line": 65,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 143,
+              "line": 141,
               "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             },
             {
-              "line": 185,
+              "line": 180,
               "excerpt": "if (recordStatus) params.set(\"recordStatus\", recordStatus);"
             },
             {
-              "line": 210,
-              "excerpt": "}, [developmentPhase, productSeries, purposeCode, query, recordStatus]);"
+              "line": 204,
+              "excerpt": "}, [activeTab, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);"
             },
             {
-              "line": 484,
+              "line": 469,
               "excerpt": "<SelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 586,
+              "line": 563,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 686,
-              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(drawing.developmentPhase)}。"
+              "line": 657,
+              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")}。"
             },
             {
-              "line": 781,
+              "line": 752,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 825,
+              "line": 795,
               "excerpt": "rootRecordStatus={drawing.recordStatus}"
             },
             {
-              "line": 829,
+              "line": 800,
               "excerpt": "recordStatus: drawing.recordStatus,"
             },
             {
-              "line": 1001,
+              "line": 972,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -702,34 +649,30 @@
           "count": 1,
           "evidence": [
             {
-              "line": 584,
-              "excerpt": "<td data-label=\"資料狀態 / 開發階段 / 提醒\">"
+              "line": 561,
+              "excerpt": "<td data-label=\"資料狀態 / 提醒\">"
             }
           ]
         },
         {
           "id": "status-axis-label",
           "label": "status-axis label",
-          "count": 5,
+          "count": 4,
           "evidence": [
             {
-              "line": 484,
+              "line": 469,
               "excerpt": "<SelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 485,
-              "excerpt": "<SelectField label=\"開發階段\" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />"
+              "line": 516,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 提醒\" context=\"masterRecord\" />"
             },
             {
-              "line": 538,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段 / 提醒\" context=\"masterRecord\" />"
+              "line": 561,
+              "excerpt": "<td data-label=\"資料狀態 / 提醒\">"
             },
             {
-              "line": 584,
-              "excerpt": "<td data-label=\"資料狀態 / 開發階段 / 提醒\">"
-            },
-            {
-              "line": 682,
+              "line": 653,
               "excerpt": "<div className=\"panel-header\">"
             }
           ]
@@ -737,55 +680,55 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 27,
+          "count": 15,
           "evidence": [
             {
-              "line": 35,
+              "line": 33,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 67,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 68,
+              "line": 65,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 143,
+              "line": 141,
               "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             },
             {
-              "line": 144,
-              "excerpt": "const [developmentPhase, setDevelopmentPhase] = useState(\"\");"
-            },
-            {
-              "line": 185,
+              "line": 180,
               "excerpt": "if (recordStatus) params.set(\"recordStatus\", recordStatus);"
             },
             {
-              "line": 186,
-              "excerpt": "if (developmentPhase) params.set(\"developmentPhase\", developmentPhase);"
+              "line": 204,
+              "excerpt": "}, [activeTab, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);"
             },
             {
-              "line": 210,
-              "excerpt": "}, [developmentPhase, productSeries, purposeCode, query, recordStatus]);"
-            },
-            {
-              "line": 484,
+              "line": 469,
               "excerpt": "<SelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 485,
-              "excerpt": "<SelectField label=\"開發階段\" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />"
-            },
-            {
-              "line": 586,
+              "line": 563,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 589,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>"
+              "line": 657,
+              "excerpt": "系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, \"masterRecord\")}。"
+            },
+            {
+              "line": 752,
+              "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
+            },
+            {
+              "line": 795,
+              "excerpt": "rootRecordStatus={drawing.recordStatus}"
+            },
+            {
+              "line": 800,
+              "excerpt": "recordStatus: drawing.recordStatus,"
+            },
+            {
+              "line": 972,
+              "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             }
           ]
         }
@@ -796,7 +739,6 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -808,154 +750,8 @@
       "help": {
         "columnHeaderCount": 2,
         "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
-      },
-      "exceptions": []
-    },
-    {
-      "file": "src/app/numbering/dvt/page.tsx",
-      "kind": "route",
-      "route": "/numbering/dvt",
-      "signals": [
-        {
-          "id": "status-column-header",
-          "label": "StatusColumnHeader",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 251,
-              "excerpt": "<StatusColumnHeader label=\"DVT 檢查\" context=\"dvtReadiness\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 159,
-              "excerpt": "<h1>階段晉升：EVT → DVT <StatusScopeHelp scope=\"dvtWorkbench\" /></h1>"
-            }
-          ]
-        },
-        {
-          "id": "status-badge",
-          "label": "StatusBadge",
-          "count": 1,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            }
-          ]
-        },
-        {
-          "id": "status-filter",
-          "label": "status filter / options",
-          "count": 8,
-          "evidence": [
-            {
-              "line": 15,
-              "excerpt": "type RecordStatus = \"Draft\" | \"NeedInfo\" | \"Active\" | \"PendingReview\" | \"Released\" | \"Rejected\" | \"Obsolete\" | \"Merged\" | \"EVTDisabled\" | \"PendingAdminConfirm\" | \"MainDrawingInvalid\";"
-            },
-            {
-              "line": 23,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 31,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 37,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 289,
-              "excerpt": "<SharedStatusBadge status={candidate.partNumber.recordStatus} context=\"masterRecord\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-axis-label",
-          "label": "status-axis label",
-          "count": 1,
-          "evidence": [
-            {
-              "line": 234,
-              "excerpt": "body=\"DVT 清單沒有待分流項目。若要讓料號進 DVT，請先回圖料模組補齊 EVT 主資料、主要製造圖與審核狀態。\""
-            }
-          ]
-        },
-        {
-          "id": "status-property",
-          "label": "status-bearing property",
-          "count": 8,
-          "evidence": [
-            {
-              "line": 22,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 23,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 30,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 31,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 37,
-              "excerpt": "recordStatus: RecordStatus;"
-            },
-            {
-              "line": 39,
-              "excerpt": "status: CandidateStatus;"
-            },
-            {
-              "line": 63,
-              "excerpt": "status: string;"
-            },
-            {
-              "line": 289,
-              "excerpt": "<SharedStatusBadge status={candidate.partNumber.recordStatus} context=\"masterRecord\" />"
-            }
-          ]
-        }
-      ],
-      "contexts": [
-        "dvtReadiness",
-        "masterRecord",
-        "workflow"
-      ],
-      "candidateAxes": [
-        "資料狀態",
-        "開發階段",
-        "審核狀態",
-        "發布狀態",
-        "準備狀態",
-        "任務狀態",
-        "提醒"
-      ],
-      "help": {
-        "columnHeaderCount": 2,
-        "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
       },
       "exceptions": []
     },
@@ -974,7 +770,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 244,
+              "line": 240,
               "excerpt": "<StatusColumnHeader context=\"masterRecord\" />"
             }
           ]
@@ -989,7 +785,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 102,
+              "line": 99,
               "excerpt": "<h1>製造圖影響 <StatusScopeHelp scope=\"impactWorkbench\" /></h1>"
             }
           ]
@@ -1004,7 +800,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 257,
+              "line": 252,
               "excerpt": "<StatusBadge status={partNumber.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -1016,26 +812,11 @@
           "evidence": [
             {
               "line": 11,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusForUser } from \"@/lib/status-display\";"
+              "excerpt": "import { formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 221,
+              "line": 218,
               "excerpt": "<Metric label=\"資料狀態\" value={formatStatusForUser(impact.drawingNumber.recordStatus, \"masterRecord\")} />"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 11,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusForUser } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 255,
-              "excerpt": "<td>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</td>"
             }
           ]
         },
@@ -1045,19 +826,19 @@
           "count": 5,
           "evidence": [
             {
-              "line": 21,
+              "line": 20,
               "excerpt": "recordStatus:"
             },
             {
-              "line": 41,
+              "line": 38,
               "excerpt": "recordStatus: PartNumber[\"recordStatus\"];"
             },
             {
-              "line": 221,
+              "line": 218,
               "excerpt": "<Metric label=\"資料狀態\" value={formatStatusForUser(impact.drawingNumber.recordStatus, \"masterRecord\")} />"
             },
             {
-              "line": 257,
+              "line": 252,
               "excerpt": "<StatusBadge status={partNumber.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -1068,7 +849,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 221,
+              "line": 218,
               "excerpt": "<Metric label=\"資料狀態\" value={formatStatusForUser(impact.drawingNumber.recordStatus, \"masterRecord\")} />"
             }
           ]
@@ -1076,34 +857,22 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 8,
+          "count": 5,
           "evidence": [
             {
               "line": 20,
-              "excerpt": "developmentPhase: \"EVT\" | \"DVT\" | \"PVT\" | \"Release\" | \"ECR\";"
-            },
-            {
-              "line": 21,
               "excerpt": "recordStatus:"
             },
             {
-              "line": 40,
-              "excerpt": "developmentPhase: \"EVT\" | \"DVT\" | \"PVT\" | \"Release\" | \"ECR\";"
-            },
-            {
-              "line": 41,
+              "line": 38,
               "excerpt": "recordStatus: PartNumber[\"recordStatus\"];"
             },
             {
-              "line": 221,
+              "line": 218,
               "excerpt": "<Metric label=\"資料狀態\" value={formatStatusForUser(impact.drawingNumber.recordStatus, \"masterRecord\")} />"
             },
             {
-              "line": 255,
-              "excerpt": "<td>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</td>"
-            },
-            {
-              "line": 257,
+              "line": 252,
               "excerpt": "<StatusBadge status={partNumber.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -1114,10 +883,8 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "任務狀態",
         "提醒"
       ],
@@ -1224,148 +991,6 @@
         "restorePolicy"
       ],
       "candidateAxes": [
-        "申請狀態",
-        "發布狀態",
-        "檔案狀態",
-        "還原狀態",
-        "提醒"
-      ],
-      "help": {
-        "columnHeaderCount": 4,
-        "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
-      },
-      "exceptions": []
-    },
-    {
-      "file": "src/app/numbering/part-drafts/page.tsx",
-      "kind": "route",
-      "route": "/numbering/part-drafts",
-      "signals": [
-        {
-          "id": "status-column-header",
-          "label": "StatusColumnHeader",
-          "count": 4,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 390,
-              "excerpt": "<StatusColumnHeader label=\"申請狀態\" context=\"applicationStatus\" />"
-            },
-            {
-              "line": 491,
-              "excerpt": "<StatusColumnHeader label=\"申請狀態\" context=\"applicationStatus\" />"
-            },
-            {
-              "line": 495,
-              "excerpt": "<StatusColumnHeader label=\"還原狀態\" context=\"restorePolicy\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 233,
-              "excerpt": "<h1>領號申請 <StatusScopeHelp scope=\"numberingDraftList\" /></h1>"
-            }
-          ]
-        },
-        {
-          "id": "status-badge",
-          "label": "StatusBadge",
-          "count": 3,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 410,
-              "excerpt": "<StatusBadge status={draft.status} context=\"applicationStatus\" />"
-            },
-            {
-              "line": 528,
-              "excerpt": "<StatusBadge status={canRestore ? \"restore_allowed\" : \"restore_blocked\"} context=\"restorePolicy\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-filter",
-          "label": "status filter / options",
-          "count": 5,
-          "evidence": [
-            {
-              "line": 76,
-              "excerpt": "const statusFilters = [\"all\", \"draft\", \"pending_review\", \"needs_reconfirmation\"] as const;"
-            },
-            {
-              "line": 80,
-              "excerpt": "const [status, setStatus] = useState<(typeof statusFilters)[number]>(\"all\");"
-            },
-            {
-              "line": 307,
-              "excerpt": "{statusFilters.map((value) => ("
-            },
-            {
-              "line": 639,
-              "excerpt": "function statusFilterLabel(value: (typeof statusFilters)[number]) {"
-            },
-            {
-              "line": 640,
-              "excerpt": "const labels: Record<(typeof statusFilters)[number], string> = {"
-            }
-          ]
-        },
-        {
-          "id": "status-axis-label",
-          "label": "status-axis label",
-          "count": 3,
-          "evidence": [
-            {
-              "line": 390,
-              "excerpt": "<StatusColumnHeader label=\"申請狀態\" context=\"applicationStatus\" />"
-            },
-            {
-              "line": 491,
-              "excerpt": "<StatusColumnHeader label=\"申請狀態\" context=\"applicationStatus\" />"
-            },
-            {
-              "line": 495,
-              "excerpt": "<StatusColumnHeader label=\"還原狀態\" context=\"restorePolicy\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-property",
-          "label": "status-bearing property",
-          "count": 1,
-          "evidence": [
-            {
-              "line": 34,
-              "excerpt": "status: DraftStatus;"
-            }
-          ]
-        }
-      ],
-      "contexts": [
-        "applicationStatus",
-        "restorePolicy"
-      ],
-      "candidateAxes": [
-        "資料狀態",
-        "申請狀態",
-        "審核狀態",
         "發布狀態",
         "檔案狀態",
         "還原狀態",
@@ -1469,168 +1094,6 @@
       "exceptions": []
     },
     {
-      "file": "src/app/numbering/request/page.tsx",
-      "kind": "route",
-      "route": "/numbering/request",
-      "signals": [
-        {
-          "id": "status-column-header",
-          "label": "StatusColumnHeader",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 690,
-              "excerpt": "<details><summary>查看相似資料</summary><div className=\"table-wrap\"><table><thead><tr><th>判定</th><th>代碼</th><th>名稱</th><th><StatusColumnHeader context=\"masterRecord\" /></th><th>相似度</th></tr></thead><tbody>{result.matches.map(("
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 465,
-              "excerpt": "<h1>建立圖料號 <StatusScopeHelp scope=\"numberingRequest\" /></h1>"
-            }
-          ]
-        },
-        {
-          "id": "status-badge",
-          "label": "StatusBadge",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 690,
-              "excerpt": "<details><summary>查看相似資料</summary><div className=\"table-wrap\"><table><thead><tr><th>判定</th><th>代碼</th><th>名稱</th><th><StatusColumnHeader context=\"masterRecord\" /></th><th>相似度</th></tr></thead><tbody>{result.matches.map(("
-            }
-          ]
-        },
-        {
-          "id": "status-filter",
-          "label": "status filter / options",
-          "count": 7,
-          "evidence": [
-            {
-              "line": 22,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 41,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 58,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 68,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 75,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 86,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 690,
-              "excerpt": "<details><summary>查看相似資料</summary><div className=\"table-wrap\"><table><thead><tr><th>判定</th><th>代碼</th><th>名稱</th><th><StatusColumnHeader context=\"masterRecord\" /></th><th>相似度</th></tr></thead><tbody>{result.matches.map(("
-            }
-          ]
-        },
-        {
-          "id": "status-property",
-          "label": "status-bearing property",
-          "count": 14,
-          "evidence": [
-            {
-              "line": 22,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 40,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 41,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 57,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 58,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 67,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 68,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 74,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 75,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 85,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 86,
-              "excerpt": "recordStatus: string;"
-            },
-            {
-              "line": 113,
-              "excerpt": "const developmentPhase = initialDevelopmentPhase;"
-            }
-          ]
-        }
-      ],
-      "contexts": [
-        "masterRecord"
-      ],
-      "candidateAxes": [
-        "資料狀態",
-        "開發階段",
-        "申請狀態",
-        "審核狀態",
-        "發布狀態",
-        "準備狀態",
-        "還原狀態",
-        "提醒"
-      ],
-      "help": {
-        "columnHeaderCount": 2,
-        "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
-      },
-      "exceptions": []
-    },
-    {
       "file": "src/app/numbering/revisions/page.tsx",
       "kind": "route",
       "route": "/numbering/revisions",
@@ -1645,7 +1108,7 @@
               "excerpt": "import { StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 540,
+              "line": 566,
               "excerpt": "<h1>圖面進版 <StatusScopeHelp scope=\"revisionSubmission\" /></h1>"
             }
           ]
@@ -1660,7 +1123,7 @@
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 43,
+              "line": 42,
               "excerpt": "recordStatus: string;"
             }
           ]
@@ -1668,30 +1131,22 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 4,
           "evidence": [
-            {
-              "line": 31,
-              "excerpt": "developmentPhase: string;"
-            },
             {
               "line": 32,
               "excerpt": "recordStatus: string;"
             },
             {
               "line": 42,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 43,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 47,
+              "line": 46,
               "excerpt": "status: ResolveStatus;"
             },
             {
-              "line": 1607,
+              "line": 1648,
               "excerpt": "function resolveStateStyle(status: ResolveStatus | undefined, resolved: boolean): CSSProperties {"
             }
           ]
@@ -1700,7 +1155,6 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -1721,59 +1175,44 @@
       "route": "/numbering/search",
       "signals": [
         {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 12,
-              "excerpt": "import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 728,
-              "excerpt": "<h1>圖料模組 <StatusScopeHelp scope=\"numberingSearch\" /></h1>"
-            }
-          ]
-        },
-        {
           "id": "status-badge",
           "label": "StatusBadge",
           "count": 9,
           "evidence": [
             {
               "line": 12,
-              "excerpt": "import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "excerpt": "import { StatusBadge } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 1008,
+              "line": 959,
               "excerpt": "<StatusBadge status={root.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1037,
+              "line": 987,
               "excerpt": "<StatusBadge status={drawing.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1465,
+              "line": 1404,
               "excerpt": "<StatusBadge status={drawingNumber.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1515,
+              "line": 1455,
               "excerpt": "<StatusBadge status={partNumber.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 2070,
+              "line": 2012,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 2089,
+              "line": 2031,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 2234,
+              "line": 2175,
               "excerpt": "<StatusBadge status={partNumber.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 2299,
+              "line": 2241,
               "excerpt": "<StatusBadge status={drawingNumber.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -1785,54 +1224,11 @@
           "evidence": [
             {
               "line": 14,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from \"@/lib/status-display\";"
+              "excerpt": "import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from \"@/lib/status-display\";"
             },
             {
-              "line": 795,
+              "line": 757,
               "excerpt": "{formatStatusForUser(status, \"masterRecord\")}"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 9,
-          "evidence": [
-            {
-              "line": 14,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 806,
-              "excerpt": "{formatDevelopmentPhaseForUser(phase)}"
-            },
-            {
-              "line": 1009,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(root.developmentPhase)}</span>"
-            },
-            {
-              "line": 1038,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>"
-            },
-            {
-              "line": 1466,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>"
-            },
-            {
-              "line": 1516,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</span>"
-            },
-            {
-              "line": 2094,
-              "excerpt": "<span>{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>"
-            },
-            {
-              "line": 2239,
-              "excerpt": "<span>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</span>"
-            },
-            {
-              "line": 2304,
-              "excerpt": "<span>{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>"
             }
           ]
         },
@@ -1842,51 +1238,51 @@
           "count": 61,
           "evidence": [
             {
-              "line": 43,
+              "line": 40,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 60,
+              "line": 56,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 74,
+              "line": 69,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 88,
+              "line": 82,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 118,
+              "line": 111,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 134,
+              "line": 127,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 248,
+              "line": 233,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 266,
+              "line": 250,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 277,
+              "line": 260,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 296,
+              "line": 278,
               "excerpt": "const statusOptions = masterRecordStatusFilterValues;"
             },
             {
-              "line": 343,
+              "line": 325,
               "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             },
             {
-              "line": 418,
+              "line": 392,
               "excerpt": "if (recordStatus) params.set(\"recordStatus\", recordStatus);"
             }
           ]
@@ -1894,78 +1290,70 @@
         {
           "id": "status-axis-label",
           "label": "status-axis label",
-          "count": 4,
+          "count": 2,
           "evidence": [
             {
-              "line": 789,
+              "line": 751,
               "excerpt": "<label className=\"pdm-master-field\">"
             },
             {
-              "line": 792,
+              "line": 754,
               "excerpt": "<option value=\"\">全部資料狀態</option>"
-            },
-            {
-              "line": 800,
-              "excerpt": "<label className=\"pdm-master-field\">"
-            },
-            {
-              "line": 803,
-              "excerpt": "<option value=\"\">全部開發階段</option>"
             }
           ]
         },
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 92,
+          "count": 65,
           "evidence": [
             {
-              "line": 42,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 43,
+              "line": 40,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 59,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 60,
+              "line": 56,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 73,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 74,
+              "line": 69,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 87,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 88,
+              "line": 82,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 117,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 118,
+              "line": 111,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 126,
+              "line": 119,
               "excerpt": "costProfiles: Array<{ id: string; profileName: string; costType: string; status: string }>;"
             },
             {
-              "line": 127,
+              "line": 120,
               "excerpt": "costChangeRequests: Array<{ id: string; requestType: string; reviewStatus: string }>;"
+            },
+            {
+              "line": 127,
+              "excerpt": "recordStatus: NumberingRecordStatus;"
+            },
+            {
+              "line": 233,
+              "excerpt": "recordStatus: NumberingRecordStatus;"
+            },
+            {
+              "line": 250,
+              "excerpt": "recordStatus: NumberingRecordStatus;"
+            },
+            {
+              "line": 260,
+              "excerpt": "recordStatus: NumberingRecordStatus;"
+            },
+            {
+              "line": 325,
+              "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             }
           ]
         }
@@ -1976,7 +1364,6 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -1989,10 +1376,19 @@
       "help": {
         "columnHeaderCount": 0,
         "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
       },
-      "exceptions": []
+      "exceptions": [
+        {
+          "kind": "status-bearing-without-help",
+          "label": "status-bearing section 尚未使用狀態說明元件",
+          "file": "src/app/numbering/search/page.tsx",
+          "route": "/numbering/search",
+          "line": null,
+          "excerpt": "未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp"
+        }
+      ]
     },
     {
       "file": "src/app/numbering/tasks/page.tsx",
@@ -2009,12 +1405,12 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 284,
+              "line": 283,
               "excerpt": "<StatusColumnHeader context=\"task\" />"
             },
             {
-              "line": 357,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段\" context=\"masterRecord\" />"
+              "line": 356,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態\" context=\"masterRecord\" />"
             }
           ]
         },
@@ -2028,7 +1424,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 166,
+              "line": 165,
               "excerpt": "<h1>圖號待辦 <StatusScopeHelp scope=\"taskCenter\" /></h1>"
             }
           ]
@@ -2043,27 +1439,12 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 307,
+              "line": 306,
               "excerpt": "<StatusBadge status={task.taskStatus} context=\"task\" />"
             },
             {
-              "line": 385,
+              "line": 383,
               "excerpt": "<StatusBadge status={draft.recordStatus} context=\"masterRecord\" />"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 10,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 387,
-              "excerpt": "<span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>"
             }
           ]
         },
@@ -2073,15 +1454,15 @@
           "count": 3,
           "evidence": [
             {
-              "line": 65,
+              "line": 64,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 105,
+              "line": 104,
               "excerpt": "fetch(\"/api/numbering/search?recordStatus=Draft&limit=30\")"
             },
             {
-              "line": 385,
+              "line": 383,
               "excerpt": "<StatusBadge status={draft.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -2092,51 +1473,39 @@
           "count": 1,
           "evidence": [
             {
-              "line": 357,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段\" context=\"masterRecord\" />"
+              "line": 356,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態\" context=\"masterRecord\" />"
             }
           ]
         },
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 10,
+          "count": 6,
           "evidence": [
             {
               "line": 64,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 65,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 105,
+              "line": 104,
               "excerpt": "fetch(\"/api/numbering/search?recordStatus=Draft&limit=30\")"
             },
             {
-              "line": 132,
+              "line": 131,
               "excerpt": "async function updateTask(taskId: string, status: \"open\" | \"handled\" | \"cancelled\") {"
             },
             {
-              "line": 208,
+              "line": 207,
               "excerpt": "<button className={taskStatus === status ? \"active\" : undefined} key={status} type=\"button\" onClick={() => setTaskStatus(status)}>"
             },
             {
-              "line": 257,
+              "line": 256,
               "excerpt": "onUpdate: (taskId: string, status: \"open\" | \"handled\" | \"cancelled\") => void;"
             },
             {
-              "line": 371,
-              "excerpt": "developmentPhase: draft.developmentPhase"
-            },
-            {
-              "line": 385,
+              "line": 383,
               "excerpt": "<StatusBadge status={draft.recordStatus} context=\"masterRecord\" />"
-            },
-            {
-              "line": 387,
-              "excerpt": "<span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>"
             }
           ]
         }
@@ -2147,7 +1516,6 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "任務狀態",
@@ -2172,39 +1540,24 @@
           "count": 5,
           "evidence": [
             {
-              "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "line": 10,
+              "excerpt": "import { StatusBadge, StatusColumnHeader } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 684,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段 / 提醒\" context=\"masterRecord\" />"
+              "line": 651,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 提醒\" context=\"masterRecord\" />"
             },
             {
-              "line": 987,
+              "line": 950,
               "excerpt": "<StatusColumnHeader context=\"cost\" />"
             },
             {
-              "line": 1026,
+              "line": 989,
               "excerpt": "<StatusColumnHeader context=\"cost\" />"
             },
             {
-              "line": 1591,
+              "line": 1555,
               "excerpt": "<StatusColumnHeader context=\"masterRecord\" />"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 545,
-              "excerpt": "<h1>料號模組 <StatusScopeHelp scope=\"partsList\" /></h1>"
             }
           ]
         },
@@ -2214,27 +1567,27 @@
           "count": 6,
           "evidence": [
             {
-              "line": 11,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "line": 10,
+              "excerpt": "import { StatusBadge, StatusColumnHeader } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 712,
+              "line": 677,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 998,
+              "line": 961,
               "excerpt": "<StatusBadge status={profile.status} context=\"cost\" />"
             },
             {
-              "line": 1038,
+              "line": 1001,
               "excerpt": "<StatusBadge status={request.reviewStatus} context=\"cost\" />"
             },
             {
-              "line": 1163,
+              "line": 1128,
               "excerpt": "<StatusBadge status={detail.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1604,
+              "line": 1568,
               "excerpt": "<td><StatusBadge status={model.status} context=\"masterRecord\" /></td>"
             }
           ]
@@ -2245,35 +1598,12 @@
           "count": 2,
           "evidence": [
             {
-              "line": 12,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from \"@/lib/status-display\";"
+              "line": 11,
+              "excerpt": "import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from \"@/lib/status-display\";"
             },
             {
-              "line": 595,
+              "line": 569,
               "excerpt": "<FilterSelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 4,
-          "evidence": [
-            {
-              "line": 12,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 596,
-              "excerpt": "<FilterSelectField label=\"開發階段\" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />"
-            },
-            {
-              "line": 713,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>"
-            },
-            {
-              "line": 1164,
-              "excerpt": "<span className=\"pdm-meta-chip\">{formatDevelopmentPhaseForUser(detail.developmentPhase)}</span>"
             }
           ]
         },
@@ -2283,39 +1613,39 @@
           "count": 12,
           "evidence": [
             {
-              "line": 53,
+              "line": 50,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 184,
+              "line": 180,
               "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             },
             {
-              "line": 235,
+              "line": 231,
               "excerpt": "if (recordStatus) params.set(\"recordStatus\", recordStatus);"
             },
             {
-              "line": 260,
-              "excerpt": "}, [activeTab, developmentPhase, productSeries, query, recordStatus]);"
+              "line": 255,
+              "excerpt": "}, [activeTab, query, recordStatus, seriesCode]);"
             },
             {
-              "line": 595,
+              "line": 569,
               "excerpt": "<FilterSelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 712,
+              "line": 677,
               "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
             },
             {
-              "line": 1092,
+              "line": 1056,
               "excerpt": "rootRecordStatus={detail.recordStatus}"
             },
             {
-              "line": 1096,
+              "line": 1061,
               "excerpt": "recordStatus: detail.recordStatus,"
             },
             {
-              "line": 1163,
+              "line": 1128,
               "excerpt": "<StatusBadge status={detail.recordStatus} context=\"masterRecord\" />"
             }
           ]
@@ -2326,34 +1656,30 @@
           "count": 1,
           "evidence": [
             {
-              "line": 710,
-              "excerpt": "<td data-label=\"資料狀態 / 開發階段 / 提醒\">"
+              "line": 675,
+              "excerpt": "<td data-label=\"資料狀態 / 提醒\">"
             }
           ]
         },
         {
           "id": "status-axis-label",
           "label": "status-axis label",
-          "count": 5,
+          "count": 4,
           "evidence": [
             {
-              "line": 595,
+              "line": 569,
               "excerpt": "<FilterSelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
             },
             {
-              "line": 596,
-              "excerpt": "<FilterSelectField label=\"開發階段\" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />"
+              "line": 651,
+              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 提醒\" context=\"masterRecord\" />"
             },
             {
-              "line": 684,
-              "excerpt": "<StatusColumnHeader label=\"資料狀態 / 開發階段 / 提醒\" context=\"masterRecord\" />"
+              "line": 675,
+              "excerpt": "<td data-label=\"資料狀態 / 提醒\">"
             },
             {
-              "line": 710,
-              "excerpt": "<td data-label=\"資料狀態 / 開發階段 / 提醒\">"
-            },
-            {
-              "line": 1240,
+              "line": 1204,
               "excerpt": ": \"主資料狀態可用，接著確認附件、3D 基準與後續送審。\";"
             }
           ]
@@ -2361,55 +1687,55 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 30,
+          "count": 21,
           "evidence": [
             {
-              "line": 52,
-              "excerpt": "developmentPhase: NumberingPhase;"
-            },
-            {
-              "line": 53,
+              "line": 50,
               "excerpt": "recordStatus: NumberingRecordStatus;"
             },
             {
-              "line": 71,
+              "line": 68,
               "excerpt": "status: string;"
             },
             {
-              "line": 78,
+              "line": 75,
               "excerpt": "reviewStatus: string;"
             },
             {
-              "line": 91,
+              "line": 88,
               "excerpt": "status: string;"
             },
             {
-              "line": 122,
+              "line": 119,
               "excerpt": "status: string;"
             },
             {
-              "line": 184,
+              "line": 180,
               "excerpt": "const [recordStatus, setRecordStatus] = useState(\"\");"
             },
             {
-              "line": 185,
-              "excerpt": "const [developmentPhase, setDevelopmentPhase] = useState(\"\");"
-            },
-            {
-              "line": 235,
+              "line": 231,
               "excerpt": "if (recordStatus) params.set(\"recordStatus\", recordStatus);"
             },
             {
-              "line": 236,
-              "excerpt": "if (developmentPhase) params.set(\"developmentPhase\", developmentPhase);"
+              "line": 255,
+              "excerpt": "}, [activeTab, query, recordStatus, seriesCode]);"
             },
             {
-              "line": 260,
-              "excerpt": "}, [activeTab, developmentPhase, productSeries, query, recordStatus]);"
-            },
-            {
-              "line": 595,
+              "line": 569,
               "excerpt": "<FilterSelectField label=\"資料狀態\" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, \"masterRecord\")} />"
+            },
+            {
+              "line": 677,
+              "excerpt": "<StatusBadge status={part.recordStatus} context=\"masterRecord\" />"
+            },
+            {
+              "line": 1001,
+              "excerpt": "<StatusBadge status={request.reviewStatus} context=\"cost\" />"
+            },
+            {
+              "line": 1006,
+              "excerpt": "{request.reviewStatus === \"pending\" ? ("
             }
           ]
         }
@@ -2421,7 +1747,6 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -2433,8 +1758,8 @@
       "help": {
         "columnHeaderCount": 5,
         "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
       },
       "exceptions": []
     },
@@ -2490,31 +1815,31 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 1687,
+              "line": 1696,
               "excerpt": "<StatusColumnHeader context=\"masterRecord\" />"
             },
             {
-              "line": 2140,
+              "line": 2124,
               "excerpt": "<th><StatusColumnHeader label=\"複核狀態\" context=\"settingsLifecycle\" /></th>"
             },
             {
-              "line": 2497,
+              "line": 2481,
               "excerpt": "<StatusColumnHeader label=\"指派狀態\" context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2642,
+              "line": 2626,
               "excerpt": "<StatusColumnHeader label=\"設定狀態\" context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2758,
+              "line": 2742,
               "excerpt": "<StatusColumnHeader label=\"設定狀態\" context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2881,
+              "line": 2865,
               "excerpt": "<StatusColumnHeader label=\"代理狀態\" context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2924,
+              "line": 2908,
               "excerpt": "<StatusColumnHeader label=\"設定狀態\" context=\"settingsLifecycle\" />"
             }
           ]
@@ -2529,7 +1854,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 380,
+              "line": 376,
               "excerpt": "<h1>系統設定 <StatusScopeHelp scope=\"settingsCenter\" /></h1>"
             }
           ]
@@ -2544,31 +1869,31 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 2053,
+              "line": 2037,
               "excerpt": "<StatusBadge status=\"active\" context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2159,
+              "line": 2143,
               "excerpt": "<StatusBadge status={assignment.revokedAt ? \"revoked\" : due ? \"warning\" : \"active\"} context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2530,
+              "line": 2514,
               "excerpt": "<StatusBadge status={roleAssignmentStatus(assignment)} context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2654,
+              "line": 2638,
               "excerpt": "<StatusBadge status={version.status} context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2770,
+              "line": 2754,
               "excerpt": "<StatusBadge status={scope.allowed ? \"active\" : \"disabled\"} context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2899,
+              "line": 2883,
               "excerpt": "<StatusBadge status={delegation.revokedAt ? \"revoked\" : \"active\"} context=\"settingsLifecycle\" />"
             },
             {
-              "line": 2939,
+              "line": 2923,
               "excerpt": "<StatusBadge status={version.status} context=\"settingsLifecycle\" />"
             }
           ]
@@ -2579,11 +1904,11 @@
           "count": 2,
           "evidence": [
             {
-              "line": 40,
+              "line": 39,
               "excerpt": "import { formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 2663,
+              "line": 2647,
               "excerpt": "<td>{formatStatusForUser(\"default\", \"settingsLifecycle\")}</td>"
             }
           ]
@@ -2594,40 +1919,51 @@
           "count": 9,
           "evidence": [
             {
-              "line": 152,
+              "line": 150,
               "excerpt": "recordStatus: string | null;"
             },
             {
-              "line": 304,
+              "line": 300,
               "excerpt": "recordStatus: null,"
             },
             {
-              "line": 1735,
+              "line": 1734,
               "excerpt": "value={draft.recordStatus}"
             },
             {
-              "line": 1739,
+              "line": 1738,
               "excerpt": "onChange={(value) => updateDraft(rule.id, \"recordStatus\", value)}"
             },
             {
-              "line": 1818,
+              "line": 1808,
               "excerpt": "value={newRule.recordStatus}"
             },
             {
-              "line": 1822,
+              "line": 1812,
               "excerpt": "onChange={(value) => updateNewRule(\"recordStatus\", value)}"
             },
             {
-              "line": 1942,
+              "line": 1931,
               "excerpt": "const [recordStatus, setRecordStatus] = useState<string | null>(null);"
             },
             {
-              "line": 1956,
+              "line": 1944,
               "excerpt": "recordStatus,"
             },
             {
-              "line": 1992,
+              "line": 1976,
               "excerpt": "value={recordStatus}"
+            }
+          ]
+        },
+        {
+          "id": "status-axis-label",
+          "label": "status-axis label",
+          "count": 1,
+          "evidence": [
+            {
+              "line": 1960,
+              "excerpt": "<InfoMark text=\"輸入動作、資料狀態、料件與風險旗標後，系統會用目前矩陣加不可關閉硬限制計算審核結果。\" />"
             }
           ]
         },
@@ -2637,51 +1973,51 @@
           "count": 39,
           "evidence": [
             {
-              "line": 43,
+              "line": 42,
               "excerpt": "| { status: \"loading\" }"
             },
             {
-              "line": 44,
+              "line": 43,
               "excerpt": "| { status: \"forbidden\" }"
             },
             {
-              "line": 45,
+              "line": 44,
               "excerpt": "| { status: \"unauthorized\" }"
             },
             {
-              "line": 46,
+              "line": 45,
               "excerpt": "| { status: \"ready\"; settings: Record<string, boolean | string> }"
             },
             {
-              "line": 47,
+              "line": 46,
               "excerpt": "| { status: \"error\"; message: string };"
             },
             {
-              "line": 93,
+              "line": 92,
               "excerpt": "status: string;"
             },
             {
-              "line": 152,
+              "line": 150,
               "excerpt": "recordStatus: string | null;"
             },
             {
-              "line": 186,
+              "line": 184,
               "excerpt": "status: string;"
             },
             {
-              "line": 251,
+              "line": 248,
               "excerpt": "| { status: \"idle\" }"
             },
             {
-              "line": 252,
+              "line": 249,
               "excerpt": "| { status: \"loading\" }"
             },
             {
-              "line": 253,
+              "line": 250,
               "excerpt": "| { status: \"ready\"; folders: GDriveFolderNode[] }"
             },
             {
-              "line": 254,
+              "line": 251,
               "excerpt": "| { status: \"error\"; message: string };"
             }
           ]
@@ -2695,7 +2031,6 @@
         "資料狀態",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "檔案狀態",
         "任務狀態",
         "帳號狀態",
@@ -2716,68 +2051,12 @@
       "route": "/settings/account-invitations",
       "signals": [
         {
-          "id": "status-column-header",
-          "label": "StatusColumnHeader",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 259,
-              "excerpt": "<th><StatusColumnHeader label=\"邀請狀態\" context=\"invitationStatus\" /></th>"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 166,
-              "excerpt": "<h1>帳號邀請 <StatusScopeHelp scope=\"invitationList\" /></h1>"
-            }
-          ]
-        },
-        {
-          "id": "status-badge",
-          "label": "StatusBadge",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 6,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 270,
-              "excerpt": "<td><StatusBadge status={invitation.status} context=\"invitationStatus\" /></td>"
-            }
-          ]
-        },
-        {
-          "id": "status-axis-label",
-          "label": "status-axis label",
-          "count": 1,
-          "evidence": [
-            {
-              "line": 259,
-              "excerpt": "<th><StatusColumnHeader label=\"邀請狀態\" context=\"invitationStatus\" /></th>"
-            }
-          ]
-        },
-        {
           "id": "status-property",
           "label": "status-bearing property",
           "count": 2,
           "evidence": [
             {
-              "line": 16,
+              "line": 15,
               "excerpt": "status: InvitationStatus;"
             },
             {
@@ -2787,20 +2066,27 @@
           ]
         }
       ],
-      "contexts": [
-        "invitationStatus"
-      ],
+      "contexts": [],
       "candidateAxes": [
         "帳號狀態",
         "邀請狀態"
       ],
       "help": {
-        "columnHeaderCount": 2,
+        "columnHeaderCount": 0,
         "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
       },
-      "exceptions": []
+      "exceptions": [
+        {
+          "kind": "plain-status-label",
+          "label": "使用單一「狀態」欄名",
+          "file": "src/app/settings/account-invitations/page.tsx",
+          "route": "/settings/account-invitations",
+          "line": 314,
+          "excerpt": "<th>狀態</th>"
+        }
+      ]
     },
     {
       "file": "src/app/settings/accounts/page.tsx",
@@ -2808,69 +2094,16 @@
       "route": "/settings/accounts",
       "signals": [
         {
-          "id": "status-column-header",
-          "label": "StatusColumnHeader",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 367,
-              "excerpt": "<th><StatusColumnHeader label=\"帳號狀態\" context=\"accountStatus\" /></th>"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 122,
-              "excerpt": "<h1>帳號與權限 <StatusScopeHelp scope=\"accountList\" /></h1>"
-            }
-          ]
-        },
-        {
-          "id": "status-badge",
-          "label": "StatusBadge",
-          "count": 4,
-          "evidence": [
-            {
-              "line": 7,
-              "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 391,
-              "excerpt": "<StatusBadge status={account.accountStatus} context=\"accountStatus\" />"
-            },
-            {
-              "line": 446,
-              "excerpt": "<div><dt>帳號狀態</dt><dd>{detail ? <StatusBadge status={detail.accountStatus} context=\"accountStatus\" /> : \"-\"}</dd></div>"
-            },
-            {
-              "line": 457,
-              "excerpt": "<StatusBadge status={identity.status} context=\"identityStatus\" />"
-            }
-          ]
-        },
-        {
           "id": "status-filter",
           "label": "status filter / options",
           "count": 2,
           "evidence": [
             {
-              "line": 81,
+              "line": 80,
               "excerpt": "const statusOptions: Array<{ value: string; label: string }> = ["
             },
             {
-              "line": 349,
+              "line": 358,
               "excerpt": "{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}"
             }
           ]
@@ -2878,34 +2111,26 @@
         {
           "id": "status-axis-label",
           "label": "status-axis label",
-          "count": 7,
+          "count": 5,
           "evidence": [
             {
-              "line": 82,
-              "excerpt": "{ value: \"\", label: \"全部帳號狀態\" },"
-            },
-            {
-              "line": 217,
+              "line": 226,
               "excerpt": "setMessage({ type: \"error\", text: body.message ?? \"帳號狀態異動失敗。\" });"
             },
             {
-              "line": 220,
+              "line": 229,
               "excerpt": "setMessage({ type: \"success\", text: \"帳號狀態已更新。\" });"
             },
             {
-              "line": 344,
+              "line": 353,
               "excerpt": "<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder=\"姓名、電子郵件或工號\" />"
             },
             {
-              "line": 367,
-              "excerpt": "<th><StatusColumnHeader label=\"帳號狀態\" context=\"accountStatus\" /></th>"
-            },
-            {
-              "line": 445,
+              "line": 454,
               "excerpt": "<dl className=\"account-detail-facts\">"
             },
             {
-              "line": 577,
+              "line": 585,
               "excerpt": "<div className=\"panel-header\">"
             }
           ]
@@ -2913,47 +2138,65 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 5,
+          "count": 6,
           "evidence": [
             {
-              "line": 32,
+              "line": 31,
               "excerpt": "status: IdentityStatus;"
             },
             {
-              "line": 41,
+              "line": 40,
               "excerpt": "status: \"active\" | \"retired\";"
             },
             {
-              "line": 59,
+              "line": 58,
               "excerpt": "status: \"acknowledged\" | \"reacknowledgement_required\" | \"not_acknowledged\";"
             },
             {
-              "line": 245,
+              "line": 88,
+              "excerpt": "function statusLabel(status: AccountStatus) {"
+            },
+            {
+              "line": 254,
               "excerpt": "async function updateIdentity(identity: AccountIdentity, status: IdentityStatus) {"
             },
             {
-              "line": 527,
+              "line": 535,
               "excerpt": "<span className={`status-badge privacy-status-${detail?.privacyEvidence.status ?? \"not_acknowledged\"}`}>"
             }
           ]
         }
       ],
-      "contexts": [
-        "accountStatus",
-        "identityStatus"
-      ],
+      "contexts": [],
       "candidateAxes": [
         "審核狀態",
         "帳號狀態",
         "邀請狀態"
       ],
       "help": {
-        "columnHeaderCount": 2,
+        "columnHeaderCount": 0,
         "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 2,
-        "scopeHelpStatus": "present"
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
       },
-      "exceptions": []
+      "exceptions": [
+        {
+          "kind": "plain-status-label",
+          "label": "使用單一「狀態」欄名",
+          "file": "src/app/settings/accounts/page.tsx",
+          "route": "/settings/accounts",
+          "line": 376,
+          "excerpt": "<th>狀態</th>"
+        },
+        {
+          "kind": "status-bearing-without-help",
+          "label": "status-bearing section 尚未使用狀態說明元件",
+          "file": "src/app/settings/accounts/page.tsx",
+          "route": "/settings/accounts",
+          "line": null,
+          "excerpt": "未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp"
+        }
+      ]
     },
     {
       "file": "src/app/share/[token]/page.tsx",
@@ -3009,7 +2252,7 @@
               "excerpt": "import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 114,
+              "line": 119,
               "excerpt": "<h1>送審明細 <StatusScopeHelp scope=\"submissionDetail\" /></h1>"
             }
           ]
@@ -3024,11 +2267,11 @@
               "excerpt": "import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 191,
+              "line": 196,
               "excerpt": "<StatusBadge status={summary.status} context=\"submission\" />"
             },
             {
-              "line": 300,
+              "line": 305,
               "excerpt": "<StatusBadge status={submission.status} context=\"submission\" />"
             }
           ]
@@ -3036,14 +2279,18 @@
         {
           "id": "format-status-for-user",
           "label": "formatStatusForUser",
-          "count": 2,
+          "count": 3,
           "evidence": [
             {
               "line": 9,
               "excerpt": "import { formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 435,
+              "line": 315,
+              "excerpt": "<Info label=\"狀態\" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, \"submission\")} />"
+            },
+            {
+              "line": 441,
               "excerpt": "<span className=\"metadata-value\">{formatStatusForUser(file.gdrive_status, \"fileSync\")}</span>"
             }
           ]
@@ -3054,7 +2301,7 @@
           "count": 2,
           "evidence": [
             {
-              "line": 515,
+              "line": 521,
               "excerpt": "if (text.includes(\"主資料狀態同步失敗\")) return \"發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。\";"
             }
           ]
@@ -3093,23 +2340,23 @@
               "excerpt": "status: string;"
             },
             {
-              "line": 40,
+              "line": 45,
               "excerpt": "const [state, setState] = useState<PageState>({ status: \"loading\" });"
             },
             {
-              "line": 46,
+              "line": 51,
               "excerpt": "setState({ status: \"loading\" });"
             },
             {
-              "line": 51,
+              "line": 56,
               "excerpt": "setState({ status: \"unauthorized\" });"
             },
             {
-              "line": 55,
+              "line": 60,
               "excerpt": "setState({ status: \"not_found\" });"
             },
             {
-              "line": 62,
+              "line": 67,
               "excerpt": "setState({ status: \"unauthorized\" });"
             }
           ]
@@ -3132,7 +2379,16 @@
         "scopeHelpCount": 2,
         "scopeHelpStatus": "present"
       },
-      "exceptions": []
+      "exceptions": [
+        {
+          "kind": "plain-status-label",
+          "label": "使用單一「狀態」欄名",
+          "file": "src/app/submissions/[id]/page.tsx",
+          "route": "/submissions/:id",
+          "line": 315,
+          "excerpt": "<Info label=\"狀態\" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, \"submission\")} />"
+        }
+      ]
     },
     {
       "file": "src/app/upload/page.tsx",
@@ -3149,7 +2405,7 @@
               "excerpt": "import { StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 1112,
+              "line": 1125,
               "excerpt": "<h1>圖面送審 <StatusScopeHelp scope=\"uploadSubmission\" /></h1>"
             }
           ]
@@ -3161,26 +2417,11 @@
           "evidence": [
             {
               "line": 12,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
+              "excerpt": "import { formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 1172,
-              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 12,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 1172,
-              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}"
+              "line": 1185,
+              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")}"
             }
           ]
         },
@@ -3190,47 +2431,31 @@
           "count": 2,
           "evidence": [
             {
-              "line": 142,
+              "line": 141,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 1172,
-              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}"
+              "line": 1185,
+              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")}"
             }
           ]
         },
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 9,
+          "count": 3,
           "evidence": [
             {
-              "line": 85,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 107,
+              "line": 106,
               "excerpt": "status: string;"
             },
             {
-              "line": 142,
+              "line": 141,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 143,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 304,
-              "excerpt": "developmentPhase: params.get(\"developmentPhase\") ?? \"\","
-            },
-            {
-              "line": 477,
-              "excerpt": "phase={prefillContext.developmentPhase || \"EVT\"}"
-            },
-            {
-              "line": 1172,
-              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}"
+              "line": 1185,
+              "excerpt": "{context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, \"masterRecord\")}"
             }
           ]
         }
@@ -3238,7 +2463,6 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -3517,15 +2741,15 @@
               "excerpt": "return NextResponse.json({ error: \"account_invitation_failed\", message: \"邀請處理失敗，請稍後重試。\" }, { status: 500 });"
             },
             {
-              "line": 66,
+              "line": 69,
               "excerpt": "return NextResponse.json(created, { status: 201 });"
             },
             {
-              "line": 77,
+              "line": 80,
               "excerpt": "return NextResponse.json({ invitation: created.invitation, inviteUrl: inviteUrl.toString(), delivery: \"manual_email\" }, { status: 201 });"
             },
             {
-              "line": 89,
+              "line": 92,
               "excerpt": "return NextResponse.json({ error: \"invalid_invitation_action\", message: \"目前只支援撤銷邀請。\" }, { status: 400 });"
             }
           ]
@@ -3876,18 +3100,22 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 3,
+          "count": 4,
           "evidence": [
             {
-              "line": 30,
+              "line": 32,
               "excerpt": "if (!detail) return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 42,
+              "line": 44,
               "excerpt": "return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 50,
+              "line": 65,
+              "excerpt": "return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
+            },
+            {
+              "line": 73,
               "excerpt": "return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });"
             }
           ]
@@ -3914,30 +3142,34 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 7,
           "evidence": [
             {
-              "line": 27,
+              "line": 29,
               "excerpt": "return NextResponse.json({ error: \"decision must be approved, rejected, or needs_info\" }, { status: 400 });"
             },
             {
-              "line": 38,
+              "line": 40,
               "excerpt": "if (!detail) return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 50,
+              "line": 52,
               "excerpt": "return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 76,
+              "line": 78,
               "excerpt": "return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 86,
+              "line": 104,
+              "excerpt": "return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
+            },
+            {
+              "line": 114,
               "excerpt": "if (!updated) return NextResponse.json({ error: \"APPROVAL_REQUEST_NOT_FOUND\" }, { status: 404 });"
             },
             {
-              "line": 90,
+              "line": 118,
               "excerpt": "return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });"
             }
           ]
@@ -5175,7 +4407,7 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 5,
+          "count": 3,
           "evidence": [
             {
               "line": 28,
@@ -5184,14 +4416,6 @@
             {
               "line": 37,
               "excerpt": "status: \"approved\","
-            },
-            {
-              "line": 118,
-              "excerpt": "? [request.entitySummary.rootCode, request.entitySummary.developmentPhase].filter(Boolean).join(\" / \")"
-            },
-            {
-              "line": 119,
-              "excerpt": ": [request.entitySummary.partNumber, request.entitySummary.developmentPhase].filter(Boolean).join(\" / \");"
             },
             {
               "line": 138,
@@ -5203,7 +4427,6 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -5473,7 +4696,7 @@
           "count": 3,
           "evidence": [
             {
-              "line": 140,
+              "line": 139,
               "excerpt": "recordStatus: typeof body.recordStatus === \"string\" ? body.recordStatus : undefined,"
             }
           ]
@@ -5492,19 +4715,19 @@
               "excerpt": "return NextResponse.json({ error: \"scopeKind must be department, project, or action\" }, { status: 400 });"
             },
             {
-              "line": 140,
+              "line": 139,
               "excerpt": "recordStatus: typeof body.recordStatus === \"string\" ? body.recordStatus : undefined,"
             },
             {
-              "line": 153,
+              "line": 152,
               "excerpt": "return NextResponse.json({ error: error instanceof Error ? error.message : \"Approval rule update failed\" }, { status: 400 });"
             },
             {
-              "line": 165,
+              "line": 164,
               "excerpt": "return NextResponse.json({ error: \"templateCode must be rd_efficiency, standard_control, or strict_control\" }, { status: 400 });"
             },
             {
-              "line": 171,
+              "line": 170,
               "excerpt": "return NextResponse.json({ error: error instanceof Error ? error.message : \"Approval rule template apply failed\" }, { status: 400 });"
             }
           ]
@@ -5571,15 +4794,15 @@
           "count": 3,
           "evidence": [
             {
-              "line": 45,
+              "line": 43,
               "excerpt": "status: status as ListNumberingApprovalBatchesInput[\"status\"],"
             },
             {
-              "line": 77,
+              "line": 75,
               "excerpt": "return NextResponse.json({ error: \"approvalRequestIds is required\" }, { status: 400 });"
             },
             {
-              "line": 88,
+              "line": 86,
               "excerpt": "return NextResponse.json(result, { status: 201 });"
             }
           ]
@@ -5589,7 +4812,6 @@
       "candidateAxes": [
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "還原狀態"
       ],
       "help": {
@@ -5642,27 +4864,27 @@
           "count": 6,
           "evidence": [
             {
-              "line": 33,
+              "line": 31,
               "excerpt": "return NextResponse.json({ error: \"Invalid approval action code\" }, { status: 400 });"
             },
             {
-              "line": 36,
+              "line": 34,
               "excerpt": "return NextResponse.json({ error: \"reason is required\" }, { status: 400 });"
             },
             {
-              "line": 54,
+              "line": 52,
               "excerpt": "return NextResponse.json(result, { status: 201 });"
             },
             {
-              "line": 65,
+              "line": 63,
               "excerpt": "return NextResponse.json(result, { status: 201 });"
             },
             {
-              "line": 71,
+              "line": 69,
               "excerpt": "return NextResponse.json({ error: \"entityType and entityId are required\" }, { status: 400 });"
             },
             {
-              "line": 83,
+              "line": 81,
               "excerpt": "return NextResponse.json(result, { status: 201 });"
             }
           ]
@@ -5672,8 +4894,71 @@
       "candidateAxes": [
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "還原狀態"
+      ],
+      "help": {
+        "columnHeaderCount": 0,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
+      },
+      "exceptions": []
+    },
+    {
+      "file": "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
+      "kind": "section",
+      "signals": [
+        {
+          "id": "status-property",
+          "label": "status-bearing property",
+          "count": 3,
+          "evidence": [
+            {
+              "line": 19,
+              "excerpt": "if (!form) return numberStateFlowJson({ error: { code: \"candidate_file_required\", message: \"A valid multipart body is required.\", retryable: false } }, { status: 400 });"
+            },
+            {
+              "line": 22,
+              "excerpt": "return numberStateFlowJson({ error: { code: \"candidate_file_required\", message: \"A candidate revision file is required.\", retryable: false } }, { status: 400 });"
+            },
+            {
+              "line": 46,
+              "excerpt": "return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: 201 });"
+            }
+          ]
+        }
+      ],
+      "contexts": [],
+      "candidateAxes": [
+        "申請狀態"
+      ],
+      "help": {
+        "columnHeaderCount": 0,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
+      },
+      "exceptions": []
+    },
+    {
+      "file": "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/route.ts",
+      "kind": "section",
+      "signals": [
+        {
+          "id": "status-property",
+          "label": "status-bearing property",
+          "count": 1,
+          "evidence": [
+            {
+              "line": 28,
+              "excerpt": "return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: 201 });"
+            }
+          ]
+        }
+      ],
+      "contexts": [],
+      "candidateAxes": [
+        "申請狀態"
       ],
       "help": {
         "columnHeaderCount": 0,
@@ -5693,11 +4978,11 @@
           "count": 2,
           "evidence": [
             {
-              "line": 66,
+              "line": 71,
               "excerpt": "{ status: result.idempotentReplay ? 200 : 201 }"
             },
             {
-              "line": 69,
+              "line": 74,
               "excerpt": "return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: result.idempotentReplay ? 200 : 201 });"
             }
           ]
@@ -5898,39 +5183,39 @@
           "count": 9,
           "evidence": [
             {
-              "line": 31,
+              "line": 32,
               "excerpt": "{ status: 403 }"
             },
             {
-              "line": 69,
+              "line": 73,
               "excerpt": "return NextResponse.json({ error: \"Invalid drawing revision submission\", details: errors }, { status: 400 });"
             },
             {
-              "line": 114,
+              "line": 121,
               "excerpt": "status: submissionResult.status,"
             },
             {
-              "line": 123,
+              "line": 130,
               "excerpt": "{ status: 201 }"
             },
             {
-              "line": 145,
+              "line": 152,
               "excerpt": "{ status: error.status }"
             },
             {
-              "line": 162,
+              "line": 169,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 167,
+              "line": 174,
               "excerpt": "{ status: 500 }"
             },
             {
-              "line": 203,
+              "line": 210,
               "excerpt": "{ status: statusForPdmChangeControlError(error.code) }"
             },
             {
-              "line": 213,
+              "line": 220,
               "excerpt": "{ status: 400 }"
             }
           ]
@@ -6221,11 +5506,11 @@
           "count": 2,
           "evidence": [
             {
-              "line": 26,
+              "line": 32,
               "excerpt": "return NextResponse.json({ error: error.code, message: error.message, details: error.details }, { status: error.status });"
             },
             {
-              "line": 33,
+              "line": 39,
               "excerpt": "{ status: 500 }"
             }
           ]
@@ -6254,35 +5539,35 @@
           "count": 8,
           "evidence": [
             {
-              "line": 31,
+              "line": 32,
               "excerpt": "const readiness = resolveSubmissionReadiness({"
             },
             {
-              "line": 48,
+              "line": 49,
               "excerpt": "blockers: readiness.blockers"
             },
             {
-              "line": 50,
+              "line": 51,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 77,
+              "line": 87,
               "excerpt": "status: result.status,"
             },
             {
-              "line": 81,
+              "line": 91,
               "excerpt": "{ status: 201 }"
             },
             {
-              "line": 97,
+              "line": 107,
               "excerpt": "{ status: error.status }"
             },
             {
-              "line": 114,
+              "line": 124,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 119,
+              "line": 129,
               "excerpt": "{ status: 500 }"
             }
           ]
@@ -6314,11 +5599,11 @@
           "count": 3,
           "evidence": [
             {
-              "line": 33,
+              "line": 31,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 43,
+              "line": 42,
               "excerpt": "recordStatus,"
             }
           ]
@@ -6326,23 +5611,15 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 3,
           "evidence": [
             {
-              "line": 33,
+              "line": 31,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 34,
-              "excerpt": "const developmentPhase = normalizeEnum(url.searchParams.get(\"developmentPhase\"), phases) as NumberingPhase | undefined;"
-            },
-            {
-              "line": 43,
+              "line": 42,
               "excerpt": "recordStatus,"
-            },
-            {
-              "line": 44,
-              "excerpt": "developmentPhase,"
             }
           ]
         }
@@ -6350,10 +5627,72 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "審核狀態",
-        "發布狀態",
-        "準備狀態"
+        "發布狀態"
+      ],
+      "help": {
+        "columnHeaderCount": 0,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
+      },
+      "exceptions": []
+    },
+    {
+      "file": "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
+      "kind": "section",
+      "signals": [
+        {
+          "id": "status-property",
+          "label": "status-bearing property",
+          "count": 2,
+          "evidence": [
+            {
+              "line": 13,
+              "excerpt": "return NextResponse.json({ error: \"drawing_workbench_not_enabled\" }, { status: 404 });"
+            },
+            {
+              "line": 42,
+              "excerpt": "if (!detail) return NextResponse.json({ error: \"drawing_workbench_row_not_found\" }, { status: 404 });"
+            }
+          ]
+        }
+      ],
+      "contexts": [],
+      "candidateAxes": [
+        "申請狀態",
+        "審核狀態",
+        "發布狀態"
+      ],
+      "help": {
+        "columnHeaderCount": 0,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
+      },
+      "exceptions": []
+    },
+    {
+      "file": "src/app/api/numbering/drawings/workbench/route.ts",
+      "kind": "section",
+      "signals": [
+        {
+          "id": "status-property",
+          "label": "status-bearing property",
+          "count": 1,
+          "evidence": [
+            {
+              "line": 13,
+              "excerpt": "return NextResponse.json({ error: \"drawing_workbench_not_enabled\" }, { status: 404 });"
+            }
+          ]
+        }
+      ],
+      "contexts": [],
+      "candidateAxes": [
+        "申請狀態",
+        "審核狀態",
+        "發布狀態"
       ],
       "help": {
         "columnHeaderCount": 0,
@@ -6385,38 +5724,6 @@
       ],
       "contexts": [],
       "candidateAxes": [],
-      "help": {
-        "columnHeaderCount": 0,
-        "statusHelpPopoverCount": 0,
-        "scopeHelpCount": 0,
-        "scopeHelpStatus": "not_yet_present"
-      },
-      "exceptions": []
-    },
-    {
-      "file": "src/app/api/numbering/dvt-candidates/route.ts",
-      "kind": "section",
-      "signals": [
-        {
-          "id": "status-property",
-          "label": "status-bearing property",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 61,
-              "excerpt": "return NextResponse.json({ error: \"decisions is required\" }, { status: 400 });"
-            },
-            {
-              "line": 71,
-              "excerpt": "return NextResponse.json(result, { status: 201 });"
-            }
-          ]
-        }
-      ],
-      "contexts": [],
-      "candidateAxes": [
-        "準備狀態"
-      ],
       "help": {
         "columnHeaderCount": 0,
         "statusHelpPopoverCount": 0,
@@ -6897,31 +6204,21 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 4,
+          "count": 2,
           "evidence": [
             {
-              "line": 19,
-              "excerpt": "const developmentPhase = initialDevelopmentPhase;"
-            },
-            {
-              "line": 39,
+              "line": 37,
               "excerpt": "return NextResponse.json({ error: \"Invalid numbering record request\", details: errors }, { status: 400 });"
             },
             {
-              "line": 47,
-              "excerpt": "developmentPhase,"
-            },
-            {
-              "line": 57,
+              "line": 54,
               "excerpt": "return NextResponse.json({ ...result, pdmCompany: access.company }, { status: 201 });"
             }
           ]
         }
       ],
       "contexts": [],
-      "candidateAxes": [
-        "開發階段"
-      ],
+      "candidateAxes": [],
       "help": {
         "columnHeaderCount": 0,
         "statusHelpPopoverCount": 0,
@@ -6940,35 +6237,35 @@
           "count": 13,
           "evidence": [
             {
-              "line": 61,
+              "line": 58,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 72,
+              "line": 70,
               "excerpt": "recordStatus,"
             },
             {
-              "line": 144,
+              "line": 142,
               "excerpt": "recordStatus: detail.root.recordStatus,"
             },
             {
-              "line": 166,
+              "line": 163,
               "excerpt": "recordStatus: drawing.recordStatus,"
             },
             {
-              "line": 169,
+              "line": 165,
               "excerpt": "nextStep: isReferenceOnly ? \"參考圖不可作為製造基準\" : links.length === 0 ? \"未關聯料號\" : drawing.recordStatus === \"Draft\" ? \"送審前確認\" : \"製造基準關聯待狀態確認\""
             },
             {
-              "line": 183,
+              "line": 179,
               "excerpt": "recordStatus: part.recordStatus,"
             },
             {
-              "line": 303,
-              "excerpt": "if ([\"Obsolete\", \"Merged\", \"EVTDisabled\", \"MainDrawingInvalid\"].includes(detail.root.recordStatus)) return \"blocked\";"
+              "line": 298,
+              "excerpt": "if ([\"Obsolete\", \"Merged\", \"MainDrawingInvalid\"].includes(detail.root.recordStatus)) return \"blocked\";"
             },
             {
-              "line": 308,
+              "line": 303,
               "excerpt": "if (detail.root.recordStatus === \"Draft\" || detail.root.recordStatus === \"NeedInfo\") return \"draft\";"
             }
           ]
@@ -6976,55 +6273,43 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 23,
+          "count": 14,
           "evidence": [
             {
-              "line": 61,
+              "line": 58,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 62,
-              "excerpt": "const developmentPhase = normalizeEnum(url.searchParams.get(\"developmentPhase\"), phases) as NumberingPhase | undefined;"
-            },
-            {
-              "line": 72,
+              "line": 70,
               "excerpt": "recordStatus,"
             },
             {
-              "line": 73,
-              "excerpt": "developmentPhase,"
-            },
-            {
-              "line": 106,
+              "line": 104,
               "excerpt": "if (errors.length > 0) return NextResponse.json({ error: \"Invalid drawing-part relation request\", details: errors }, { status: 400 });"
             },
             {
-              "line": 144,
+              "line": 142,
               "excerpt": "recordStatus: detail.root.recordStatus,"
             },
             {
-              "line": 145,
-              "excerpt": "developmentPhase: detail.root.developmentPhase,"
-            },
-            {
-              "line": 166,
+              "line": 163,
               "excerpt": "recordStatus: drawing.recordStatus,"
             },
             {
-              "line": 167,
-              "excerpt": "developmentPhase: drawing.developmentPhase,"
-            },
-            {
-              "line": 169,
+              "line": 165,
               "excerpt": "nextStep: isReferenceOnly ? \"參考圖不可作為製造基準\" : links.length === 0 ? \"未關聯料號\" : drawing.recordStatus === \"Draft\" ? \"送審前確認\" : \"製造基準關聯待狀態確認\""
             },
             {
-              "line": 183,
+              "line": 179,
               "excerpt": "recordStatus: part.recordStatus,"
             },
             {
-              "line": 184,
-              "excerpt": "developmentPhase: part.developmentPhase,"
+              "line": 298,
+              "excerpt": "if ([\"Obsolete\", \"Merged\", \"MainDrawingInvalid\"].includes(detail.root.recordStatus)) return \"blocked\";"
+            },
+            {
+              "line": 303,
+              "excerpt": "if (detail.root.recordStatus === \"Draft\" || detail.root.recordStatus === \"NeedInfo\") return \"draft\";"
             }
           ]
         }
@@ -7032,10 +6317,8 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "提醒"
       ],
       "help": {
@@ -7061,7 +6344,7 @@
             },
             {
               "line": 32,
-              "excerpt": "const locked = [\"Obsolete\", \"Merged\", \"EVTDisabled\"].includes(detail.root.recordStatus);"
+              "excerpt": "const locked = [\"Obsolete\", \"Merged\"].includes(detail.root.recordStatus);"
             }
           ]
         },
@@ -7080,7 +6363,7 @@
             },
             {
               "line": 32,
-              "excerpt": "const locked = [\"Obsolete\", \"Merged\", \"EVTDisabled\"].includes(detail.root.recordStatus);"
+              "excerpt": "const locked = [\"Obsolete\", \"Merged\"].includes(detail.root.recordStatus);"
             }
           ]
         }
@@ -7303,7 +6586,7 @@
           "count": 2,
           "evidence": [
             {
-              "line": 24,
+              "line": 23,
               "excerpt": "recordStatus: body.recordStatus ?? body.record_status,"
             }
           ]
@@ -7314,20 +6597,20 @@
           "count": 5,
           "evidence": [
             {
-              "line": 24,
+              "line": 23,
               "excerpt": "recordStatus: body.recordStatus ?? body.record_status,"
             },
             {
-              "line": 32,
+              "line": 31,
               "excerpt": "return NextResponse.json({ error: message }, { status: 400 });"
             },
             {
-              "line": 44,
+              "line": 43,
               "excerpt": "return NextResponse.json({ error: \"Invalid numbering rule simulation request\", details: errors }, { status: 400 });"
             },
             {
-              "line": 47,
-              "excerpt": "return NextResponse.json({ error: \"gate must be DVT or Release\" }, { status: 400 });"
+              "line": 46,
+              "excerpt": "return NextResponse.json({ error: \"gate must be TechnicalTransfer or Release\" }, { status: 400 });"
             }
           ]
         }
@@ -7336,8 +6619,7 @@
       "candidateAxes": [
         "資料狀態",
         "審核狀態",
-        "發布狀態",
-        "準備狀態"
+        "發布狀態"
       ],
       "help": {
         "columnHeaderCount": 0,
@@ -7357,11 +6639,11 @@
           "count": 3,
           "evidence": [
             {
-              "line": 34,
+              "line": 32,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 41,
+              "line": 38,
               "excerpt": "recordStatus,"
             }
           ]
@@ -7369,23 +6651,15 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 3,
           "evidence": [
             {
-              "line": 34,
+              "line": 32,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 35,
-              "excerpt": "const developmentPhase = normalizeEnum(url.searchParams.get(\"developmentPhase\"), phases) as NumberingPhase | undefined;"
-            },
-            {
-              "line": 41,
+              "line": 38,
               "excerpt": "recordStatus,"
-            },
-            {
-              "line": 42,
-              "excerpt": "developmentPhase,"
             }
           ]
         }
@@ -7393,10 +6667,8 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "審核狀態",
-        "發布狀態",
-        "準備狀態"
+        "發布狀態"
       ],
       "help": {
         "columnHeaderCount": 0,
@@ -7855,11 +7127,11 @@
           "count": 3,
           "evidence": [
             {
-              "line": 33,
+              "line": 31,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 42,
+              "line": 41,
               "excerpt": "recordStatus,"
             }
           ]
@@ -7867,23 +7139,15 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 3,
           "evidence": [
             {
-              "line": 33,
+              "line": 31,
               "excerpt": "const recordStatus = normalizeEnum(url.searchParams.get(\"recordStatus\"), recordStatuses) as NumberingRecordStatus | undefined;"
             },
             {
-              "line": 34,
-              "excerpt": "const developmentPhase = normalizeEnum(url.searchParams.get(\"developmentPhase\"), phases) as NumberingPhase | undefined;"
-            },
-            {
-              "line": 42,
+              "line": 41,
               "excerpt": "recordStatus,"
-            },
-            {
-              "line": 43,
-              "excerpt": "developmentPhase,"
             }
           ]
         }
@@ -7891,10 +7155,8 @@
       "contexts": [],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "成本狀態"
       ],
       "help": {
@@ -8718,51 +7980,55 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 11,
+          "count": 13,
           "evidence": [
             {
-              "line": 30,
+              "line": 31,
               "excerpt": "return NextResponse.json({ error: \"submission_not_found\", message: \"找不到送審資料。\" }, { status: 404 });"
             },
             {
-              "line": 36,
+              "line": 37,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 56,
+              "line": 57,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 63,
+              "line": 64,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 70,
+              "line": 71,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 74,
+              "line": 75,
               "excerpt": "return NextResponse.json({ error: \"reviewer_already_decided\", message: \"你已經判定過這筆送審。\" }, { status: 409 });"
             },
             {
-              "line": 90,
+              "line": 85,
+              "excerpt": "if (!policyGate.ok) return NextResponse.json(policyGate.responseBody, { status: policyGate.status });"
+            },
+            {
+              "line": 101,
               "excerpt": "status: \"Pending\","
             },
             {
-              "line": 104,
+              "line": 117,
               "excerpt": "status: \"Pending\","
             },
             {
-              "line": 113,
+              "line": 126,
+              "excerpt": "return NextResponse.json(releaseResult.policy, { status: 409 });"
+            },
+            {
+              "line": 129,
               "excerpt": "{ error: \"release_failed\", message: releaseResult.error, status: \"ReleaseFailed\" },"
             },
             {
-              "line": 114,
+              "line": 130,
               "excerpt": "{ status: 500 }"
-            },
-            {
-              "line": 119,
-              "excerpt": "status: \"Released\","
             }
           ]
         }
@@ -9683,30 +8949,38 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 8,
           "evidence": [
             {
-              "line": 18,
+              "line": 19,
               "excerpt": "return NextResponse.json({ error: \"submission_not_found\", message: \"找不到送審資料。\" }, { status: 404 });"
             },
             {
-              "line": 24,
+              "line": 25,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 30,
+              "line": 31,
               "excerpt": "{ status: 409 }"
             },
             {
-              "line": 50,
+              "line": 35,
+              "excerpt": "if (!policyGate.ok) return NextResponse.json(policyGate.responseBody, { status: policyGate.status });"
+            },
+            {
+              "line": 51,
+              "excerpt": "return NextResponse.json(releaseResult.policy, { status: 409 });"
+            },
+            {
+              "line": 57,
               "excerpt": "status: \"ReleaseFailed\""
             },
             {
-              "line": 52,
+              "line": 59,
               "excerpt": "{ status: 500 }"
             },
             {
-              "line": 58,
+              "line": 65,
               "excerpt": "status: \"Released\","
             }
           ]
@@ -10135,11 +9409,15 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 1,
+          "count": 2,
           "evidence": [
             {
-              "line": 18,
+              "line": 34,
               "excerpt": "return NextResponse.json({ error: \"drawing_number_required\" }, { status: 400 });"
+            },
+            {
+              "line": 45,
+              "excerpt": "{ status: 400 }"
             }
           ]
         }
@@ -10585,7 +9863,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 496,
+              "line": 492,
               "excerpt": "<StatusColumnHeader context=\"masterRecord\" />"
             }
           ]
@@ -10600,7 +9878,7 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 2303,
+              "line": 2299,
               "excerpt": "<h1>PDM 圖面資料庫 <StatusScopeHelp scope=\"dashboardSummary\" /></h1>"
             }
           ]
@@ -10615,23 +9893,23 @@
               "excerpt": "import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 2439,
+              "line": 2435,
               "excerpt": "<StatusBadge status={submission.status} context=\"submission\" />"
             },
             {
-              "line": 2856,
+              "line": 2852,
               "excerpt": "<StatusBadge status={entry.status} context=\"submission\" />"
             },
             {
-              "line": 3050,
+              "line": 3046,
               "excerpt": "<StatusBadge status={entry.parent_status} context=\"submission\" />"
             },
             {
-              "line": 3314,
+              "line": 3310,
               "excerpt": "<StatusBadge status={candidate.status} context=\"submission\" />"
             },
             {
-              "line": 3361,
+              "line": 3357,
               "excerpt": "<StatusBadge status={candidate.status} context=\"submission\" />"
             }
           ]
@@ -10639,72 +9917,65 @@
         {
           "id": "format-status-for-user",
           "label": "formatStatusForUser",
-          "count": 6,
+          "count": 7,
           "evidence": [
             {
               "line": 39,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
+              "excerpt": "import { formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
               "line": 69,
               "excerpt": "return formatStatusForUser(value, \"workflow\");"
             },
             {
-              "line": 593,
+              "line": 436,
+              "excerpt": "{draft.partNumber ?? \"未帶入料號\"} / {drawingNumber ?? \"未帶入圖號\"} / {formatStatusForUser(draft.recordStatus, \"masterRecord\")}"
+            },
+            {
+              "line": 589,
               "excerpt": "if (line.child_status !== \"Released\") return { className: \"not-released\", label: line.child_status ? formatStatusForUser(line.child_status, \"submission\") : \"未發布\" };"
             },
             {
-              "line": 606,
+              "line": 602,
               "excerpt": "if (entry.child_status !== \"Released\") return { className: \"not-released\", label: entry.child_status ? formatStatusForUser(entry.child_status, \"submission\") : \"未發布\" };"
             },
             {
-              "line": 829,
+              "line": 825,
               "excerpt": "const statusLabel = evidence?.run ? `${evidence.run.period} / ${formatStatusForUser(evidence.run.status, \"fileSync\")}` : evidence?.source.available === false ? \"缺少證據\" : \"尚未載入\";"
             },
             {
-              "line": 4298,
+              "line": 4294,
               "excerpt": "<span className=\"metadata-badge\">{formatStatusForUser(file.gdrive_status, \"fileSync\")}</span>"
-            }
-          ]
-        },
-        {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 39,
-              "excerpt": "import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from \"@/lib/status-display\";"
-            },
-            {
-              "line": 440,
-              "excerpt": "{draft.partNumber ?? \"未帶入料號\"} / {drawingNumber ?? \"未帶入圖號\"} / {formatDevelopmentPhaseForUser(draft.developmentPhase)}"
             }
           ]
         },
         {
           "id": "status-filter",
           "label": "status filter / options",
-          "count": 5,
+          "count": 6,
           "evidence": [
             {
-              "line": 135,
+              "line": 134,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 167,
+              "line": 166,
               "excerpt": "const statusFilters: StatusFilterConfig[] = ["
             },
             {
-              "line": 393,
+              "line": 392,
               "excerpt": "status={firstDraft.recordStatus}"
             },
             {
-              "line": 1401,
+              "line": 436,
+              "excerpt": "{draft.partNumber ?? \"未帶入料號\"} / {drawingNumber ?? \"未帶入圖號\"} / {formatStatusForUser(draft.recordStatus, \"masterRecord\")}"
+            },
+            {
+              "line": 1397,
               "excerpt": "const response = await fetch(\"/api/numbering/search?recordStatus=Draft&limit=8\");"
             },
             {
-              "line": 2461,
+              "line": 2457,
               "excerpt": "{statusFilters.map((filter) => ("
             }
           ]
@@ -10719,7 +9990,7 @@
               "excerpt": "if (text.includes(\"主資料狀態同步失敗\")) return \"發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。\";"
             },
             {
-              "line": 305,
+              "line": 304,
               "excerpt": "description: \"讓製造、採購、供應商與管理者從已發布狀態取得可用資料。\","
             }
           ]
@@ -10727,7 +9998,7 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 28,
+          "count": 22,
           "evidence": [
             {
               "line": 102,
@@ -10735,47 +10006,47 @@
             },
             {
               "line": 134,
-              "excerpt": "developmentPhase: string;"
-            },
-            {
-              "line": 135,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 145,
+              "line": 144,
               "excerpt": "status: SubmissionStatus | \"All\";"
             },
             {
-              "line": 168,
+              "line": 167,
               "excerpt": "{ label: \"全部\", status: \"All\" },"
             },
             {
-              "line": 169,
+              "line": 168,
               "excerpt": "{ label: \"審核中\", status: \"Pending\" },"
             },
             {
-              "line": 170,
+              "line": 169,
               "excerpt": "{ label: \"已發布\", status: \"Released\" },"
             },
             {
-              "line": 171,
+              "line": 170,
               "excerpt": "{ label: \"已駁回\", status: \"Rejected\" },"
             },
             {
-              "line": 172,
+              "line": 171,
               "excerpt": "{ label: \"發行未完成\", status: \"ReleaseFailed\" }"
             },
             {
-              "line": 393,
+              "line": 392,
               "excerpt": "status={firstDraft.recordStatus}"
             },
             {
-              "line": 394,
-              "excerpt": "phase={firstDraft.developmentPhase}"
+              "line": 436,
+              "excerpt": "{draft.partNumber ?? \"未帶入料號\"} / {drawingNumber ?? \"未帶入圖號\"} / {formatStatusForUser(draft.recordStatus, \"masterRecord\")}"
             },
             {
-              "line": 411,
-              "excerpt": "developmentPhase: firstDraft.developmentPhase"
+              "line": 645,
+              "excerpt": "status: isSubmissionStatusOrAll(value.status) ? value.status : \"All\","
+            },
+            {
+              "line": 753,
+              "excerpt": "status: string;"
             }
           ]
         }
@@ -10786,7 +10057,6 @@
       ],
       "candidateAxes": [
         "資料狀態",
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
@@ -10862,21 +10132,25 @@
       "exceptions": []
     },
     {
-      "file": "src/components/lifecycle-ux.tsx",
+      "file": "src/components/drawing-workbench.tsx",
       "kind": "section",
       "signals": [
         {
-          "id": "format-development-phase",
-          "label": "formatDevelopmentPhaseForUser",
-          "count": 2,
+          "id": "status-filter",
+          "label": "status filter / options",
+          "count": 5,
           "evidence": [
             {
-              "line": 17,
-              "excerpt": "import { formatDevelopmentPhaseForUser } from \"@/lib/status-display\";"
+              "line": 377,
+              "excerpt": "<dl className=\"drawing-workbench-facts\"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join(\"、\") : \"尚未關聯\"}</dd></div><div><dt>資"
             },
             {
-              "line": 362,
-              "excerpt": "const phaseLabel = phase ? formatDevelopmentPhaseForUser(phase) : \"\";"
+              "line": 383,
+              "excerpt": "drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}"
+            },
+            {
+              "line": 384,
+              "excerpt": "part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}"
             }
           ]
         },
@@ -10886,34 +10160,63 @@
           "count": 1,
           "evidence": [
             {
-              "line": 75,
-              "excerpt": "doneSignal: \"料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。\","
+              "line": 377,
+              "excerpt": "<dl className=\"drawing-workbench-facts\"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join(\"、\") : \"尚未關聯\"}</dd></div><div><dt>資"
             }
           ]
         },
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 7,
+          "count": 5,
           "evidence": [
             {
-              "line": 316,
-              "excerpt": "developmentPhase"
+              "line": 377,
+              "excerpt": "<dl className=\"drawing-workbench-facts\"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join(\"、\") : \"尚未關聯\"}</dd></div><div><dt>資"
             },
             {
-              "line": 322,
-              "excerpt": "developmentPhase?: string | null;"
+              "line": 383,
+              "excerpt": "drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}"
             },
             {
-              "line": 332,
-              "excerpt": "if (developmentPhase) params.set(\"developmentPhase\", developmentPhase);"
-            },
+              "line": 384,
+              "excerpt": "part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}"
+            }
+          ]
+        }
+      ],
+      "contexts": [],
+      "candidateAxes": [
+        "資料狀態",
+        "申請狀態",
+        "審核狀態",
+        "發布狀態",
+        "檔案狀態",
+        "提醒"
+      ],
+      "help": {
+        "columnHeaderCount": 0,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 0,
+        "scopeHelpStatus": "not_yet_present"
+      },
+      "exceptions": []
+    },
+    {
+      "file": "src/components/lifecycle-ux.tsx",
+      "kind": "section",
+      "signals": [
+        {
+          "id": "status-property",
+          "label": "status-bearing property",
+          "count": 2,
+          "evidence": [
             {
-              "line": 351,
+              "line": 345,
               "excerpt": "status: ObjectLifecycleStatus;"
             },
             {
-              "line": 464,
+              "line": 456,
               "excerpt": "function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {"
             }
           ]
@@ -10921,11 +10224,9 @@
       ],
       "contexts": [],
       "candidateAxes": [
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "檔案狀態",
         "任務狀態",
         "提醒"
@@ -10945,46 +10246,18 @@
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 10,
+          "count": 3,
           "evidence": [
             {
-              "line": 43,
+              "line": 42,
               "excerpt": "status: \"ready\" | \"stale\" | \"retired\" | \"failed\";"
             },
             {
-              "line": 50,
+              "line": 49,
               "excerpt": "status: \"queued\" | \"running\" | \"succeeded\" | \"failed\" | \"skipped\" | \"cancelled\";"
             },
             {
-              "line": 170,
-              "excerpt": "developmentPhase,"
-            },
-            {
-              "line": 178,
-              "excerpt": "developmentPhase?: NumberingPhase | null;"
-            },
-            {
-              "line": 226,
-              "excerpt": "() => revisionLifecycleStageForAttachment(entityType, developmentPhase, processControlled),"
-            },
-            {
-              "line": 227,
-              "excerpt": "[developmentPhase, entityType, processControlled]"
-            },
-            {
-              "line": 1406,
-              "excerpt": "developmentPhase: NumberingPhase | null | undefined,"
-            },
-            {
-              "line": 1410,
-              "excerpt": "if (developmentPhase === \"Release\") return \"release_area\";"
-            },
-            {
-              "line": 1412,
-              "excerpt": "if (developmentPhase === \"ECR\") return \"design_change_workspace\";"
-            },
-            {
-              "line": 1422,
+              "line": 1420,
               "excerpt": "function driveStatusLabel(status: DriveStatus) {"
             }
           ]
@@ -10992,11 +10265,9 @@
       ],
       "contexts": [],
       "candidateAxes": [
-        "開發階段",
         "申請狀態",
         "審核狀態",
         "發布狀態",
-        "準備狀態",
         "檔案狀態",
         "任務狀態",
         "還原狀態",
@@ -11047,36 +10318,17 @@
       "kind": "section",
       "signals": [
         {
-          "id": "status-help-popover",
-          "label": "StatusHelpPopover",
+          "id": "status-scope-help",
+          "label": "StatusScopeHelp",
           "count": 2,
           "evidence": [
             {
-              "line": 25,
-              "excerpt": "import { StatusHelpPopover, StatusScopeHelp } from \"@/components/status-help-popover\";"
+              "line": 30,
+              "excerpt": "import { StatusScopeHelp } from \"@/components/status-help-popover\";"
             },
             {
-              "line": 783,
-              "excerpt": "<div><div className=\"number-state-list-title\"><h2>領號申請清單</h2><StatusScopeHelp scope=\"numberStateWorkspace\" /><StatusHelpPopover context=\"numberEffectiveness\" buttonLabel=\"查看號碼效力說明\" /></div><p>{filtered.length} 筆；已保留號碼與正式"
-            }
-          ]
-        },
-        {
-          "id": "status-scope-help",
-          "label": "StatusScopeHelp",
-          "count": 3,
-          "evidence": [
-            {
-              "line": 25,
-              "excerpt": "import { StatusHelpPopover, StatusScopeHelp } from \"@/components/status-help-popover\";"
-            },
-            {
-              "line": 743,
-              "excerpt": "<h1>料號模組 <StatusScopeHelp scope=\"numberStateWorkspace\" /></h1>"
-            },
-            {
-              "line": 783,
-              "excerpt": "<div><div className=\"number-state-list-title\"><h2>領號申請清單</h2><StatusScopeHelp scope=\"numberStateWorkspace\" /><StatusHelpPopover context=\"numberEffectiveness\" buttonLabel=\"查看號碼效力說明\" /></div><p>{filtered.length} 筆；已保留號碼與正式"
+              "line": 616,
+              "excerpt": "<StatusScopeHelp"
             }
           ]
         },
@@ -11086,11 +10338,11 @@
           "count": 2,
           "evidence": [
             {
-              "line": 26,
+              "line": 31,
               "excerpt": "import { formatStatusForUser } from \"@/lib/status-display\";"
             },
             {
-              "line": 1495,
+              "line": 2009,
               "excerpt": "return <span className={`number-state-badge qualification-${qualification}`}>{formatStatusForUser(qualification, \"numberEffectiveness\")}</span>;"
             }
           ]
@@ -11101,92 +10353,91 @@
           "count": 2,
           "evidence": [
             {
-              "line": 147,
+              "line": 197,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 166,
+              "line": 216,
               "excerpt": "recordStatus: string;"
-            }
-          ]
-        },
-        {
-          "id": "status-data-label",
-          "label": "status-bearing data-label",
-          "count": 2,
-          "evidence": [
-            {
-              "line": 799,
-              "excerpt": "<td data-label=\"申請狀態\"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>"
-            },
-            {
-              "line": 800,
-              "excerpt": "<td data-label=\"號碼效力\"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>"
             }
           ]
         },
         {
           "id": "status-axis-label",
           "label": "status-axis label",
-          "count": 5,
+          "count": 3,
           "evidence": [
             {
-              "line": 776,
+              "line": 951,
               "excerpt": "<label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as \"all\" | LifecycleStatus)}><option value=\"all\">全部</option><option value=\"active\">進行中</option><option value=\"cancell"
             },
             {
-              "line": 783,
-              "excerpt": "<div><div className=\"number-state-list-title\"><h2>領號申請清單</h2><StatusScopeHelp scope=\"numberStateWorkspace\" /><StatusHelpPopover context=\"numberEffectiveness\" buttonLabel=\"查看號碼效力說明\" /></div><p>{filtered.length} 筆；已保留號碼與正式"
+              "line": 970,
+              "excerpt": "<thead><tr><th>{moduleConfig.reservedCodeLabel}</th><th>申請名稱</th><th>內容</th><th>{lifecycleV2Enabled && module === \"drawings\" ? \"首版準備 / 整包狀態\" : \"申請狀態 / 號碼效力\"}</th></tr></thead>"
             },
             {
-              "line": 792,
-              "excerpt": "<table className=\"data-table number-state-table\">"
-            },
-            {
-              "line": 799,
-              "excerpt": "<td data-label=\"申請狀態\"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>"
-            },
-            {
-              "line": 800,
-              "excerpt": "<td data-label=\"號碼效力\"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>"
+              "line": 1001,
+              "excerpt": "<td data-label={lifecycleV2Enabled && module === \"drawings\" ? \"首版準備 / 整包狀態\" : \"申請狀態 / 號碼效力\"}>"
             }
           ]
         },
         {
           "id": "status-property",
           "label": "status-bearing property",
-          "count": 6,
+          "count": 12,
           "evidence": [
             {
-              "line": 42,
+              "line": 60,
               "excerpt": "readiness: \"incomplete\" | \"ready\" | \"stale\" | \"not_applicable\";"
             },
             {
-              "line": 112,
+              "line": 133,
               "excerpt": "status: \"pending\" | \"approved\" | \"rejected\" | \"needs_info\" | \"cancelled\" | \"apply_failed\" | \"applied\";"
             },
             {
-              "line": 147,
+              "line": 197,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 166,
+              "line": 216,
               "excerpt": "recordStatus: string;"
             },
             {
-              "line": 1382,
+              "line": 1659,
               "excerpt": "return <section className=\"number-state-drawer-section\"><div className=\"number-state-section-heading\"><h3>目前狀態</h3><ProjectionBadges projection={projection} /></div><dl className=\"number-state-state-grid\"><div><dt>審核</dt"
             },
             {
-              "line": 1545,
+              "line": 1773,
+              "excerpt": "status: \"idle\" | \"loading\" | \"ready\" | \"error\";"
+            },
+            {
+              "line": 1776,
+              "excerpt": "}>({ status: \"idle\", revision: null, message: \"\" });"
+            },
+            {
+              "line": 1780,
+              "excerpt": "setSuggestion({ status: \"idle\", revision: null, message: \"\" });"
+            },
+            {
+              "line": 1785,
+              "excerpt": "setSuggestion({ status: \"loading\", revision: null, message: \"\" });"
+            },
+            {
+              "line": 1800,
+              "excerpt": "setSuggestion({ status: \"ready\", revision, message: \"\" });"
+            },
+            {
+              "line": 1804,
+              "excerpt": "status: \"error\","
+            },
+            {
+              "line": 2114,
               "excerpt": "function readinessLabel(value: NumberStateProjection[\"readiness\"]) { return ({ incomplete: \"未完成\", ready: \"完成\", stale: \"需重整\", not_applicable: \"不適用\" } as const)[value]; }"
             }
           ]
         }
       ],
-      "contexts": [
-        "numberEffectiveness"
-      ],
+      "contexts": [],
       "candidateAxes": [
         "資料狀態",
         "號碼效力",
@@ -11198,8 +10449,8 @@
       ],
       "help": {
         "columnHeaderCount": 0,
-        "statusHelpPopoverCount": 2,
-        "scopeHelpCount": 3,
+        "statusHelpPopoverCount": 0,
+        "scopeHelpCount": 2,
         "scopeHelpStatus": "present"
       },
       "exceptions": []
@@ -11218,47 +10469,47 @@
               "excerpt": "type RecordStatus ="
             },
             {
-              "line": 35,
+              "line": 34,
               "excerpt": "formalTargets: Array<{ entityType: \"part_number\" | \"drawing_number\"; entityCode: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 36,
+              "line": 35,
               "excerpt": "parts: Array<{ partNumber: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 37,
+              "line": 36,
               "excerpt": "drawings: Array<{ drawingNumber: string; purposeCode: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 58,
+              "line": 59,
               "excerpt": "rootRecordStatus?: RecordStatus;"
             },
             {
-              "line": 62,
-              "excerpt": "drawing?: { drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };"
-            },
-            {
               "line": 63,
-              "excerpt": "part?: { partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };"
+              "excerpt": "drawing?: { id?: string; drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };"
             },
             {
-              "line": 175,
+              "line": 64,
+              "excerpt": "part?: { id?: string; partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };"
+            },
+            {
+              "line": 188,
               "excerpt": "{isFormalObsoleteCandidate(drawing.recordStatus) ? ("
             },
             {
-              "line": 193,
+              "line": 206,
               "excerpt": "{isFormalObsoleteCandidate(part.recordStatus) ? ("
             },
             {
-              "line": 653,
+              "line": 752,
               "excerpt": "{impact.formalTargets.slice(0, 8).map((target) => <li key={`${target.entityType}:${target.entityCode}`}>{target.entityCode} / {target.recordStatus}</li>)}"
             },
             {
-              "line": 706,
+              "line": 805,
               "excerpt": "function isFormalObsoleteCandidate(status: RecordStatus) {"
             },
             {
-              "line": 710,
+              "line": 809,
               "excerpt": "function isDraftDeleteCandidate(status: RecordStatus) {"
             }
           ]
@@ -11269,7 +10520,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 204,
+              "line": 217,
               "excerpt": "{!canDeleteDraftRoot && !canObsoleteRoot && mode === \"root\" ? <p className=\"pdm-contextual-hint\">目前狀態不可新增、刪除或申請作廢，請先查看待辦或審核狀態。</p> : null}"
             }
           ]
@@ -11280,47 +10531,47 @@
           "count": 11,
           "evidence": [
             {
-              "line": 35,
+              "line": 34,
               "excerpt": "formalTargets: Array<{ entityType: \"part_number\" | \"drawing_number\"; entityCode: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 36,
+              "line": 35,
               "excerpt": "parts: Array<{ partNumber: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 37,
+              "line": 36,
               "excerpt": "drawings: Array<{ drawingNumber: string; purposeCode: string; recordStatus: RecordStatus }>;"
             },
             {
-              "line": 62,
-              "excerpt": "drawing?: { drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };"
-            },
-            {
               "line": 63,
-              "excerpt": "part?: { partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };"
+              "excerpt": "drawing?: { id?: string; drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };"
             },
             {
-              "line": 175,
+              "line": 64,
+              "excerpt": "part?: { id?: string; partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };"
+            },
+            {
+              "line": 188,
               "excerpt": "{isFormalObsoleteCandidate(drawing.recordStatus) ? ("
             },
             {
-              "line": 193,
+              "line": 206,
               "excerpt": "{isFormalObsoleteCandidate(part.recordStatus) ? ("
             },
             {
-              "line": 653,
+              "line": 752,
               "excerpt": "{impact.formalTargets.slice(0, 8).map((target) => <li key={`${target.entityType}:${target.entityCode}`}>{target.entityCode} / {target.recordStatus}</li>)}"
             },
             {
-              "line": 706,
+              "line": 805,
               "excerpt": "function isFormalObsoleteCandidate(status: RecordStatus) {"
             },
             {
-              "line": 710,
+              "line": 809,
               "excerpt": "function isDraftDeleteCandidate(status: RecordStatus) {"
             },
             {
-              "line": 714,
+              "line": 813,
               "excerpt": "function isRootObsoleteCandidate(status: RecordStatus, formalChildCount: number) {"
             }
           ]
@@ -11353,7 +10604,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 153,
+              "line": 156,
               "excerpt": "export function StatusColumnHeader({ context = \"generic\", label = \"狀態\", className = \"\" }: StatusColumnHeaderProps) {"
             }
           ]
@@ -11368,7 +10619,7 @@
               "excerpt": "export function StatusHelpPopover({ context = \"generic\", buttonLabel = \"查看狀態說明\", className = \"\" }: StatusHelpPopoverProps) {"
             },
             {
-              "line": 157,
+              "line": 160,
               "excerpt": "<StatusHelpPopover context={context} />"
             }
           ]
@@ -11379,7 +10630,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 162,
+              "line": 165,
               "excerpt": "export function StatusScopeHelp({ scope, buttonLabel, className = \"\" }: StatusScopeHelpProps) {"
             }
           ]
@@ -11390,7 +10641,7 @@
           "count": 1,
           "evidence": [
             {
-              "line": 311,
+              "line": 318,
               "excerpt": "export function StatusBadge({ status, context = \"generic\", className = \"\" }: StatusBadgeProps) {"
             }
           ]
@@ -11433,7 +10684,7 @@
           "label": "使用 generic status context",
           "file": "src/components/status-help-popover.tsx",
           "route": null,
-          "line": 153,
+          "line": 156,
           "excerpt": "export function StatusColumnHeader({ context = \"generic\", label = \"狀態\", className = \"\" }: StatusColumnHeaderProps) {"
         },
         {
@@ -11441,7 +10692,7 @@
           "label": "使用 generic status context",
           "file": "src/components/status-help-popover.tsx",
           "route": null,
-          "line": 311,
+          "line": 318,
           "excerpt": "export function StatusBadge({ status, context = \"generic\", className = \"\" }: StatusBadgeProps) {"
         },
         {
@@ -11449,7 +10700,7 @@
           "label": "使用單一「狀態」欄名",
           "file": "src/components/status-help-popover.tsx",
           "route": null,
-          "line": 153,
+          "line": 156,
           "excerpt": "export function StatusColumnHeader({ context = \"generic\", label = \"狀態\", className = \"\" }: StatusColumnHeaderProps) {"
         }
       ]
@@ -11590,6 +10841,46 @@
   ],
   "exceptions": [
     {
+      "kind": "status-bearing-without-help",
+      "label": "status-bearing section 尚未使用狀態說明元件",
+      "file": "src/app/numbering/search/page.tsx",
+      "route": "/numbering/search",
+      "line": null,
+      "excerpt": "未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp"
+    },
+    {
+      "kind": "plain-status-label",
+      "label": "使用單一「狀態」欄名",
+      "file": "src/app/settings/account-invitations/page.tsx",
+      "route": "/settings/account-invitations",
+      "line": 314,
+      "excerpt": "<th>狀態</th>"
+    },
+    {
+      "kind": "status-bearing-without-help",
+      "label": "status-bearing section 尚未使用狀態說明元件",
+      "file": "src/app/settings/accounts/page.tsx",
+      "route": "/settings/accounts",
+      "line": null,
+      "excerpt": "未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp"
+    },
+    {
+      "kind": "plain-status-label",
+      "label": "使用單一「狀態」欄名",
+      "file": "src/app/settings/accounts/page.tsx",
+      "route": "/settings/accounts",
+      "line": 376,
+      "excerpt": "<th>狀態</th>"
+    },
+    {
+      "kind": "plain-status-label",
+      "label": "使用單一「狀態」欄名",
+      "file": "src/app/submissions/[id]/page.tsx",
+      "route": "/submissions/:id",
+      "line": 315,
+      "excerpt": "<Info label=\"狀態\" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, \"submission\")} />"
+    },
+    {
       "kind": "generic-status-context",
       "label": "使用 generic status context",
       "file": "src/components/status-help-popover.tsx",
@@ -11602,7 +10893,7 @@
       "label": "使用 generic status context",
       "file": "src/components/status-help-popover.tsx",
       "route": null,
-      "line": 153,
+      "line": 156,
       "excerpt": "export function StatusColumnHeader({ context = \"generic\", label = \"狀態\", className = \"\" }: StatusColumnHeaderProps) {"
     },
     {
@@ -11610,7 +10901,7 @@
       "label": "使用單一「狀態」欄名",
       "file": "src/components/status-help-popover.tsx",
       "route": null,
-      "line": 153,
+      "line": 156,
       "excerpt": "export function StatusColumnHeader({ context = \"generic\", label = \"狀態\", className = \"\" }: StatusColumnHeaderProps) {"
     },
     {
@@ -11618,7 +10909,7 @@
       "label": "使用 generic status context",
       "file": "src/components/status-help-popover.tsx",
       "route": null,
-      "line": 311,
+      "line": 318,
       "excerpt": "export function StatusBadge({ status, context = \"generic\", className = \"\" }: StatusBadgeProps) {"
     }
   ]

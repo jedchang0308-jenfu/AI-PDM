@@ -7,13 +7,13 @@ import {
 } from "@/lib/approval-async";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { forbidden, requireRoleAsync } from "@/lib/auth-async";
-import { listOpenRequiredPhaseGateChecksAsync } from "@/lib/collaboration-async";
 import { getDuplicateActiveSubmissionConflictForReviewAsync } from "@/lib/drawing-submission-workbench";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
 import { getActiveSandboxBranchForSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
+import { resolveLegacyDrawingLifecycleNavigation } from "@/lib/approval-workbench-legacy-redirect";
 
 export const runtime = "nodejs";
 
@@ -22,6 +22,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (auth.response) return auth.response;
 
   const { id } = await params;
+  const lifecycleNavigation = await resolveLegacyDrawingLifecycleNavigation({
+    submissionId: id,
+    actorId: auth.user.id,
+    companyId: auth.user.company_id
+  });
+  if (lifecycleNavigation) {
+    return NextResponse.json(
+      {
+        error: "DRAWING_LIFECYCLE_LEGACY_MUTATION_DISABLED",
+        code: "DRAWING_LIFECYCLE_LEGACY_MUTATION_DISABLED",
+        message: "這筆圖面進版已改由審核工作台處理。",
+        canonicalHref: lifecycleNavigation.canonicalHref
+      },
+      { status: 410 }
+    );
+  }
   const body = await request.json().catch(() => ({}));
   const reviewerId = auth.user.id;
   const comment = String(body.comment ?? "");
@@ -64,13 +80,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
-  const openPhaseGateChecks = await listOpenRequiredPhaseGateChecksAsync(id);
-  if (openPhaseGateChecks.length > 0) {
-    return NextResponse.json(
-      { error: "phase_gate_required", message: "此送審仍有必要檢查未完成，不能核准。", checks: openPhaseGateChecks },
-      { status: 409 }
-    );
-  }
   if (await reviewerHasDecisionAsync({ submissionId: id, reviewerId })) {
     return NextResponse.json({ error: "reviewer_already_decided", message: "你已經判定過這筆送審。" }, { status: 409 });
   }
@@ -80,7 +89,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const openApprovalMatrixRequirementsBeforeApproval = finalApprovalWouldRelease
     ? await listOpenApprovalMatrixRequirementsAsync(id)
     : [];
-  if (finalApprovalWouldRelease && openApprovalMatrixRequirementsBeforeApproval.length === 0) {
+  const reviewerWouldCloseApprovalMatrix =
+    openApprovalMatrixRequirementsBeforeApproval.length === 0 ||
+    openApprovalMatrixRequirementsBeforeApproval.every((requirement) => requirement.required_role === auth.user.role);
+  if (finalApprovalWouldRelease && reviewerWouldCloseApprovalMatrix) {
     const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId: id, actorId: reviewerId });
     if (!policyGate.ok) return NextResponse.json(policyGate.responseBody, { status: policyGate.status });
   }
@@ -102,9 +114,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       approval: { approved: summary.approved, required: submission.approval_required }
     });
   }
-  const openApprovalMatrixRequirements = finalApprovalWouldRelease
-    ? openApprovalMatrixRequirementsBeforeApproval
-    : await listOpenApprovalMatrixRequirementsAsync(id);
+  const openApprovalMatrixRequirements = await listOpenApprovalMatrixRequirementsAsync(id);
   if (openApprovalMatrixRequirements.length > 0) {
     await createAuditLogAsync({
       submissionId: id,

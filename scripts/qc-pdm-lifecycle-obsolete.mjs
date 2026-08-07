@@ -85,10 +85,10 @@ assert(
   approvalLegacyRedirect.includes("numbering_approvals") && approvalLegacyRedirect.includes('domain: "numbering"'),
   "Legacy numbering approvals redirect preserves numbering domain filter"
 );
-assert(approvalWorkbenchPage.includes("<h1>審核工作台</h1>"), "Approval workbench title covers obsolete approvals");
+assert(approvalWorkbenchPage.includes("<h1>審核工作台"), "Approval workbench title covers obsolete approvals");
 assert(approvalWorkbenchPage.includes("料號作廢審核"), "Approval workbench labels part obsolete action");
 assert(approvalWorkbenchPage.includes("圖號作廢審核"), "Approval workbench labels drawing obsolete action");
-assert(!approvalWorkbenchPage.includes("<th>DVT/發行動作</th>"), "Approval workbench no longer labels action as DVT/release only");
+assert(approvalWorkbenchPage.includes("const actionFilters"), "Approval workbench exposes explicit action filters");
 
 assert(policy.includes('"bom_workbench_draft"'), "Lifecycle policy supports BOM workbench formal records");
 assert(policy.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM lifecycle policy builder exists");

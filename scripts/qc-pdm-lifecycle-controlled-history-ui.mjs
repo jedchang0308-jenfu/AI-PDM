@@ -3,10 +3,20 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
-import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
+import { createLifecycleQcRuntime } from "./qc-pdm-lifecycle-isolated-runtime.mjs";
 
 const root = process.cwd();
-const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const password = "Lifecycle-Controlled-History-UI-QC-2026";
+const principals = [
+  {
+    id: "lifecycle-controlled-history-ui-admin",
+    displayName: "Lifecycle Controlled History UI QC Admin",
+    email: "lifecycle.controlled.history.ui.admin@example.invalid",
+    password,
+    role: "Admin",
+    companyCodes: ["JENFU"]
+  }
+];
 const screenshotDir = path.join(root, "output", "playwright");
 const desktopScreenshotPath = path.join(screenshotDir, "pdm-lifecycle-controlled-history-desktop.png");
 const mobileScreenshotPath = path.join(screenshotDir, "pdm-lifecycle-controlled-history-mobile.png");
@@ -25,24 +35,11 @@ function jsonResponse(route, body, status = 200) {
   });
 }
 
-async function isAppReady(baseUrl) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
-  try {
-    const response = await fetch(`${baseUrl}/login`, { signal: controller.signal });
-    return response.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function login(baseUrl) {
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "admin@example.com", password })
+    body: JSON.stringify({ email: principals[0].email, password })
   });
   record("admin login succeeds", response.ok, `HTTP ${response.status}`);
   const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
@@ -317,7 +314,6 @@ async function installApiFixture(page) {
       pathName.endsWith("/discussions") ||
       pathName.endsWith("/issues") ||
       pathName.endsWith("/changes") ||
-      pathName.endsWith("/phase-gates") ||
       pathName.endsWith("/approval-matrix") ||
       pathName.endsWith("/pdf-markups") ||
       pathName.endsWith("/shares") ||
@@ -457,32 +453,33 @@ async function runFixture(baseUrl, cookie) {
 }
 
 async function main() {
-  const configuredBaseUrl = process.env.PDM_BASE_URL?.replace(/\/$/u, "");
-  let baseUrl = configuredBaseUrl ?? null;
-  let app = null;
+  const runtime = createLifecycleQcRuntime({ root, suite: "lifecycle-controlled-history-ui", principals });
+  let receipt = null;
+  let runError = null;
   try {
-    if (!baseUrl) {
-      for (const candidate of ["http://127.0.0.1:3000", "http://localhost:3000"]) {
-        if (await isAppReady(candidate)) {
-          baseUrl = candidate;
-          break;
-        }
-      }
-    }
-    if (!baseUrl) {
-      const port = await getFreePort();
-      baseUrl = `http://127.0.0.1:${port}`;
-      app = startNextApp(root, "dev", port);
-      await waitForNextAppReady(baseUrl, app.getOutput);
-    }
-    const cookie = await login(baseUrl);
-    await runFixture(baseUrl, cookie);
+    const target = await runtime.start();
+    record(
+      "runtime is disposable and production-disconnected",
+      target.productionConnected === false && target.productionWrites === false && target.baseUrl !== "http://127.0.0.1:3000",
+      JSON.stringify(target)
+    );
+    const cookie = await login(target.baseUrl);
+    await runFixture(target.baseUrl, cookie);
+  } catch (error) {
+    runError = error;
   } finally {
-    if (app) await stopNextApp(app.child);
+    receipt = await runtime.cleanup({ checks: checks.length, runPassedBeforeCleanup: runError === null });
   }
+  record(
+    "disposable runtime cleanup is proven",
+    receipt.cleanupStatus === "removed" && receipt.productionDataUnchanged === true,
+    JSON.stringify(receipt)
+  );
+  if (runError) throw runError;
   console.log(`qc:pdm-lifecycle-controlled-history-ui passed ${checks.length}/${checks.length} checks`);
   console.log(`desktop screenshot: ${desktopScreenshotPath}`);
   console.log(`mobile screenshot: ${mobileScreenshotPath}`);
+  console.log(`isolation receipt: ${path.join(runtime.evidenceDir, "isolation-receipt.json")}`);
 }
 
 main().catch((error) => {

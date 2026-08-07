@@ -4,11 +4,15 @@ import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, X, XCircle } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { HumanStatusBadge } from "@/components/human-status-badge";
 import { NextStepState } from "@/components/next-step-state";
+import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
-import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
+import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
+import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -20,10 +24,8 @@ type NumberingRecordStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
-type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type PartVariant = {
   materialCode: string | null;
   materialLabel: string | null;
@@ -42,21 +44,24 @@ type PartStandardCost = {
 };
 type PartListRecord = {
   id: string;
+  partRootId: string;
   rootCode: string;
   coreName: string;
   partNumber: string;
   partName: string;
   itemKind: string;
   seriesCode: string | null;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   variant: PartVariant | null;
   primaryDrawingNumber: string | null;
   drawingCount: number;
   standardCost: PartStandardCost | null;
   pendingCostRequestCount: number;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
 };
-type PartDetail = PartListRecord & {
+export type PartDetail = PartListRecord & {
   linkedDrawings: Array<{ id: string; drawingNumber: string; linkType: string }>;
   sameDrawingVariants: Array<{ id: string; drawingNumber: string; fieldName: string; fieldValue: string }>;
   costProfiles: Array<{
@@ -120,7 +125,7 @@ type ManufacturingBaselineDraftState = {
   baselineRevision: string;
   status: string;
 };
-type PartDetailFocusSection = "cost" | null;
+export type PartDetailFocusSection = "cost" | null;
 type ProductionSliceClientStatus = {
   configured: boolean;
   active: boolean;
@@ -129,8 +134,15 @@ type ProductionSliceClientStatus = {
 };
 
 const statuses = ["", ...partRecordStatusFilterValues] as const;
-const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
 const itemKinds = ["", "purchased", "manufactured", "outsourced", "shared", "custom"] as const;
+const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
+  { value: "all", label: "全部狀態" },
+  { value: "needs_action", label: "待我處理" },
+  { value: "waiting", label: "等他人處理" },
+  { value: "system", label: "系統處理中" },
+  { value: "usable", label: "可使用" },
+  { value: "history", label: "歷史" }
+];
 const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
 const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
 const DETAIL_DRAWER_MIN_WIDTH = 380;
@@ -181,7 +193,7 @@ export default function PartsPage() {
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
-  const [developmentPhase, setDevelopmentPhase] = useState("");
+  const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
   const [parts, setParts] = useState<PartListRecord[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
   const selectedPartNumberRef = useRef<string | null>(null);
@@ -203,9 +215,11 @@ export default function PartsPage() {
     const tab = params.get("tab");
     setActiveTab(tab === "drafts" || tab === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
+    const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
     const detailPartNumber = params.get("detail")?.trim();
     const focusSection = params.get("focus")?.trim();
     if (initialQuery) setQuery(initialQuery);
+    if (initialHumanStatus && humanStatusFilters.some((option) => option.value === initialHumanStatus)) setHumanStatus(initialHumanStatus);
     if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
     if (focusSection === "cost") initialDetailFocusRef.current = "cost";
   }, []);
@@ -233,7 +247,7 @@ export default function PartsPage() {
     if (query.trim()) params.set("query", query.trim());
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
-    if (developmentPhase) params.set("developmentPhase", developmentPhase);
+    if (humanStatus !== "all") params.set("humanStatus", humanStatus);
     const response = await fetch(`/api/parts?${params.toString()}`);
     if (response.status === 401 || response.status === 403) {
       setState("unauthorized");
@@ -257,7 +271,7 @@ export default function PartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [activeTab, developmentPhase, query, recordStatus, seriesCode]);
+  }, [activeTab, humanStatus, query, recordStatus, seriesCode]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -309,11 +323,13 @@ export default function PartsPage() {
       if (visibleParts.length === 0) return;
       const nextIndex = Math.min(Math.max(index, 0), visibleParts.length - 1);
       const part = visibleParts[nextIndex];
+      const previousPartNumber = selectedPartNumberRef.current;
       selectedPartNumberRef.current = part.partNumber;
       setSelectedPartNumber(part.partNumber);
       scrollPartRowIntoView(nextIndex);
       focusPartList();
       if (isDetailOpen) {
+        if (previousPartNumber !== part.partNumber) setDetail(null);
         setDetailFocus(null);
         void loadDetail(part.partNumber);
       }
@@ -572,7 +588,12 @@ export default function PartsPage() {
               <FilterSelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
               <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-              <FilterSelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
+              <label className="pdm-master-field">
+                <span>工作狀態</span>
+                <select value={humanStatus} onChange={(event) => setHumanStatus(event.target.value as HumanStatusFilter)}>
+                  {humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+                </select>
+              </label>
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadParts}>
                 <PackageSearch size={16} />
                 查詢
@@ -637,7 +658,7 @@ function PartList({
         ref={listRef}
         className="table-wrap pdm-identity-scroll"
         role="region"
-        aria-label="料號模組清單"
+        aria-label="料號模組清單（可用上下鍵快速查閱）"
         aria-keyshortcuts="ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C"
         tabIndex={0}
       >
@@ -651,10 +672,10 @@ function PartList({
           <thead>
             <tr>
               <th>料號</th>
-              <th>品名</th>
-              <th>圖號</th>
+              <th>名稱</th>
+              <th>關聯摘要</th>
               <th>
-                <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
+                <StatusColumnHeader label="資料狀態 / 提醒" context="masterRecord" />
               </th>
             </tr>
           </thead>
@@ -670,20 +691,21 @@ function PartList({
                 <td data-label="料號">
                   <div className="pdm-identity-code">{part.partNumber}</div>
                 </td>
-                <td data-label="品名">
+                <td data-label="名稱">
                   <div className="pdm-identity-name" title={part.partName}>
                     {part.partName}
                   </div>
                 </td>
-                <td data-label="圖號">
+                <td data-label="關聯摘要">
                   <div className="pdm-identity-code">{part.primaryDrawingNumber ?? "未關聯圖號"}</div>
+                  {part.drawingCount > 1 ? <small className="pdm-identity-subline">共 {part.drawingCount} 張圖號</small> : null}
+                  {part.variant ? <small className="pdm-identity-subline">{variantLabel(part.variant)}</small> : null}
                 </td>
-                <td data-label="資料狀態 / 開發階段 / 提醒">
+                <td data-label="資料狀態 / 提醒">
                   <div className="pdm-meta-strip">
-                    <StatusBadge status={part.recordStatus} context="masterRecord" />
-                    <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
-                    {part.standardCost ? <span className="pdm-meta-chip">{standardCostChipLabel(part.standardCost)}</span> : null}
-                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-chip">{part.pendingCostRequestCount} 成本審核中</span> : null}
+                    <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
+                    {part.standardCost ? <span className="pdm-meta-text">{standardCostChipLabel(part.standardCost)}</span> : null}
+                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-text">成本審核中 {part.pendingCostRequestCount}</span> : null}
                   </div>
                 </td>
               </tr>
@@ -722,32 +744,24 @@ function PartDetailDrawer({
 }) {
   if (!open) return null;
   return (
-    <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside
-        className="pdm-detail-drawer"
-        aria-label="料號明細"
-        role="dialog"
-        data-detail-target="part_number"
-        data-detail-code={detail?.partNumber ?? ""}
-        data-entity-type="part_number"
-        data-entity-code={detail?.partNumber ?? ""}
-        data-source-context="parts"
-        style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}
-      >
-        <button
-          className="pdm-detail-drawer-resize-handle"
-          type="button"
-          aria-label="調整料號明細寬度"
-          title="拖拉調整寬度"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onStartResize(event.clientX);
-          }}
-        />
-        <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉料號明細" onClick={onClose}>
-          <X size={16} />
-        </button>
+    <PdmDetailDrawer
+      open
+      width={width}
+      ariaLabel="料號明細"
+      resizeLabel="調整料號明細寬度"
+      onClose={onClose}
+      onStartResize={onStartResize}
+    >
+      <div className="drawing-workbench-drawer-header">
+        <div className="drawing-workbench-drawer-identity">
+          <HumanStatusBadge status={detail?.humanStatus} viewerStatus={detail?.viewerStatus} availabilityScope={detail?.availabilityScope} />
+          <div><h2>{detail?.partNumber ?? "料號明細"}</h2><p>{detail?.partName ?? ""}</p></div>
+        </div>
+        <div className="drawing-workbench-drawer-header-actions">
+          <button className="icon-button" type="button" aria-label="關閉料號明細" onClick={onClose}><X size={20} /></button>
+        </div>
+      </div>
+      <div className="drawing-workbench-drawer-body" data-detail-target="part_number" data-detail-code={detail?.partNumber ?? ""} data-entity-type="part_number" data-entity-code={detail?.partNumber ?? ""} data-source-context="parts">
         {detail ? (
           <PartDetailPanel
             detail={detail}
@@ -763,17 +777,18 @@ function PartDetailDrawer({
             <div className="empty">正在載入料號明細...</div>
           </section>
         )}
-      </aside>
-    </div>
+      </div>
+    </PdmDetailDrawer>
   );
 }
 
-function PartDetailPanel({
+export function PartDetailPanel({
   detail,
   busy,
   focusSection,
   productionSliceEnforced,
   productionSliceUnopenedMessage,
+  showIdentityHeader = true,
   setBusy,
   onUpdated
 }: {
@@ -782,6 +797,7 @@ function PartDetailPanel({
   focusSection: PartDetailFocusSection;
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
+  showIdentityHeader?: boolean;
   setBusy: (value: boolean) => void;
   onUpdated: () => Promise<void>;
 }) {
@@ -870,6 +886,7 @@ function PartDetailPanel({
         detail={detail}
         productionSliceEnforced={productionSliceEnforced}
         productionSliceUnopenedMessage={productionSliceUnopenedMessage}
+        showIdentityHeader={showIdentityHeader}
         onOpenCost={() => costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
         onOpenShared3d={() => shared3dSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
       />
@@ -1057,10 +1074,12 @@ function PartDetailPanel({
 
       <NumberingContextualEntrypoints
         mode="part"
+        rootId={detail.partRootId}
         rootCode={detail.rootCode}
         coreName={detail.partName}
         rootRecordStatus={detail.recordStatus}
         part={{
+          id: detail.id,
           partNumber: detail.partNumber,
           partName: detail.partName,
           recordStatus: detail.recordStatus,
@@ -1111,27 +1130,29 @@ function PartDetailHero({
   detail,
   productionSliceEnforced,
   productionSliceUnopenedMessage,
+  showIdentityHeader,
   onOpenCost,
   onOpenShared3d
 }: {
   detail: PartDetail;
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
+  showIdentityHeader: boolean;
   onOpenCost: () => void;
   onOpenShared3d: () => void;
 }) {
   const primaryDrawingNumber = detail.primaryDrawingNumber ?? detail.linkedDrawings.find((link) => link.linkType === "primary_manufacturing")?.drawingNumber ?? "";
   return (
     <section className="panel drawing-detail-hero" data-part-detail-section="hero">
-      <div className="drawing-detail-hero-header">
-        <div>
-          <h2>{detail.partNumber}</h2>
-          <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
+      {showIdentityHeader ? (
+        <div className="drawing-detail-hero-header">
+          <div>
+            <h2>{detail.partNumber}</h2>
+            <p style={mutedStyle}>{detail.rootCode} / {detail.partName}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="drawing-detail-hero-meta">
-        <StatusBadge status={detail.recordStatus} context="masterRecord" />
-        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(detail.developmentPhase)}</span>
         <span className="pdm-meta-chip">{partKindLabel(detail.itemKind)}</span>
         {detail.seriesCode ? <span className="pdm-meta-chip">系列 {detail.seriesCode}</span> : null}
         <span className="pdm-meta-chip">關聯圖號 {detail.linkedDrawings.length}</span>

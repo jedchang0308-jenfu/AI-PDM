@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | MATRIX-FMEA-001 | Matrix table not created | API fails at runtime | Build plus API route tests |
 | MATRIX-FMEA-002 | Role count uses total approvals instead of role-specific approvals | Wrong release decision | Manager/Admin role-specific API scenario |
-| MATRIX-FMEA-003 | Matrix bypasses phase-gate block | Release before required PLM checks | Existing phase-gate regression tests |
+| MATRIX-FMEA-003 | Matrix requirement is skipped | Release before required role approvals | Approval-matrix open-requirement regression tests |
 | MATRIX-FMEA-004 | Waive action has weak authorization | Engineer can bypass approval | Engineer forbidden test |
 | MATRIX-FMEA-005 | UI load error breaks detail panel | User cannot review submission | UI smoke test |
 
@@ -36,4 +36,4 @@
 
 - All automated checks pass.
 - Approval matrix blocks release until all open requirements are satisfied or waived.
-- Existing approval, phase-gate, sandbox, change request, file, and UI tests remain passing.
+- Existing approval, sandbox, change request, file, and UI tests remain passing; retired PLM phase-gate behavior must stay absent under `DEV-054`.

@@ -99,15 +99,18 @@ export function createRevisionSuggestion(input: {
   drawingNumber: string;
   workflowIntent: RevisionWorkflowIntent;
   revisions: RevisionHistorySource[];
+  attachmentRevisions?: RevisionHistorySource[];
   generatedAt?: string;
 }): RevisionPolicySuggestionResponse {
-  const suggestedRevision = suggestRevisionCode(input.revisions, input.workflowIntent);
-  const releasedMajor = latestReleasedMajor(input.revisions);
+  const revisions = [...input.revisions, ...(input.attachmentRevisions ?? [])];
+  const suggestionInput = { ...input, revisions };
+  const suggestedRevision = suggestRevisionCode(revisions, input.workflowIntent);
+  const releasedMajor = latestReleasedMajor(revisions);
   return {
     suggestedRevision,
     workflowIntent: input.workflowIntent,
     policyVersion: REVISION_POLICY_VERSION,
-    basisHash: computeRevisionPolicyBasisHash(input),
+    basisHash: computeRevisionPolicyBasisHash(suggestionInput),
     reasonCodes: suggestionReasonCodes(input.workflowIntent, releasedMajor),
     generatedAt: input.generatedAt ?? new Date().toISOString()
   };

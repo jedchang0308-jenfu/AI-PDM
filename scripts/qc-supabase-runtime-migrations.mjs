@@ -51,7 +51,12 @@ const requiredMigrationFiles = [
   "supabase/migrations/20260714010000_part_number_series_code.sql",
   "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql",
   "supabase/migrations/20260714030000_account_session_records.sql",
-  "supabase/migrations/20260804010000_number_lifecycle_simplification.sql"
+  "supabase/migrations/20260804010000_number_lifecycle_simplification.sql",
+  "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
+  "supabase/migrations/20260804030000_remove_project_status_authority.sql",
+  "supabase/migrations/20260805010000_remove_submission_phase_gate.sql",
+  "supabase/migrations/20260806010000_submission_part_scope.sql",
+  "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql"
 ];
 const requiredFiles = [
   "supabase/README.md",
@@ -101,6 +106,8 @@ const migrationNumberStateFlowPhase1d = readProjectFile(root, "supabase/migratio
 const migrationNumberStateFlowRequestEquivalence = readProjectFile(root, "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql");
 const migrationAccountSessionRecords = readProjectFile(root, "supabase/migrations/20260714030000_account_session_records.sql");
 const migrationNumberLifecycleSimplification = readProjectFile(root, "supabase/migrations/20260804010000_number_lifecycle_simplification.sql");
+const submissionPartScope = readProjectFile(root, "db/postgres/025_submission_part_scope.sql");
+const migrationSubmissionPartScope = readProjectFile(root, "supabase/migrations/20260806010000_submission_part_scope.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -274,6 +281,19 @@ record(
     migrationNumberLifecycleSimplification.includes("ON CONFLICT (action_code) DO NOTHING") &&
     !/ALTER\s+TABLE\s+public\.drawing_revision_packages/iu.test(migrationNumberLifecycleSimplification),
   "DEV-052 RLS, immutability, additive action and physical-status boundary"
+);
+record(
+  "SUPA-MIG-007ZF multi-part submission scope migration embeds source hash",
+  migrationSubmissionPartScope.includes(`Source SHA-256: ${sha256(submissionPartScope)}`),
+  "DEV-053 multi-part submission scope source hash"
+);
+record(
+  "SUPA-MIG-007ZG multi-part submission scope is server-owned and unique per submission/part",
+  migrationSubmissionPartScope.includes("UNIQUE (submission_id, part_number_id)") &&
+    migrationSubmissionPartScope.includes("ALTER TABLE public.submission_part_scopes ENABLE ROW LEVEL SECURITY") &&
+    migrationSubmissionPartScope.includes("ALTER TABLE public.submission_part_scopes FORCE ROW LEVEL SECURITY") &&
+    migrationSubmissionPartScope.includes("REVOKE ALL ON TABLE public.submission_part_scopes FROM PUBLIC, anon, authenticated"),
+  "DEV-053 batch scope uniqueness and Data API boundary"
 );
 const manifestTargets = Array.isArray(manifest.migrations)
   ? manifest.migrations.map((migration) => migration.target)

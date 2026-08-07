@@ -14,18 +14,13 @@ export {
   createPdfMarkup,
   createReviewIssue,
   decideChangeRequest,
-  decidePhaseGateCheck,
   getChangeRequest,
   getDiscussionComment,
   getPdfMarkup,
-  getPhaseGateCheck,
   getReviewIssue,
-  initializePhaseGateChecks,
   listChangeRequests,
   listDiscussionComments,
-  listOpenRequiredPhaseGateChecks,
   listPdfMarkups,
-  listPhaseGateChecks,
   listReviewIssues,
   resolveDiscussionComment,
   resolvePdfMarkup,
@@ -128,7 +123,6 @@ export {
   decideNumberingApproval,
   evaluateApprovalRules,
   evaluateNumberingGate,
-  listDvtPromotionCandidates,
   getNumberingRootDetail,
   getNumberingApprovalBatch,
   getNumberingExportJob,
@@ -157,7 +151,6 @@ export {
   revokeNumberingUserRoleAssignment,
   saveNumberingRolePriority,
   searchNumberingRecords,
-  submitDvtPromotionDecisions,
   getPartModuleDetail,
   updateDraftNumberingRecord,
   upsertNumberingAdminRole,
@@ -174,11 +167,6 @@ export {
   type ApplyNumberingRuleTemplateInput,
   type CreateNumberingRecordInput,
   type DecideNumberingApprovalInput,
-  type DvtPromotionCandidateRecord,
-  type DvtPromotionCandidateStatus,
-  type DvtPromotionDecisionAction,
-  type DvtPromotionDecisionResult,
-  type DvtPromotionSubmissionRecord,
   type DrawingModuleListInput,
   type DrawingModuleListRecord,
   type DrawingPurposeCode,
@@ -196,7 +184,6 @@ export {
   type LinkPartNumberToDrawingInput,
   type ListMonthlyNumberingAuditReportsInput,
   type ListNumberingApprovalBatchesInput,
-  type ListDvtPromotionCandidatesInput,
   type ListNumberingExportJobsInput,
   type ListNumberingImportBatchesInput,
   type MarkOverdueDraftNumberingInput,
@@ -219,7 +206,6 @@ export {
   type NumberingApprovalReviewRequestRecord,
   type NumberingApprovalDecisionRecord,
   type NumberingApprovalEntitySummaryRecord,
-  type NumberingPhase,
   type NumberingNotificationRecord,
   type NumberingImportBatchRecord,
   type NumberingItemKind,
@@ -270,8 +256,6 @@ export {
   type UpsertNumberingUserRoleAssignmentInput,
   type UpdateDraftNumberingRecordInput,
   type RequestSameDrawingVariantApprovalInput,
-  type SubmitDvtPromotionDecision,
-  type SubmitDvtPromotionInput,
   type PartNumberRecord,
   type PartRootRecord
 } from "@/lib/repositories/numbering-repository";
@@ -328,6 +312,7 @@ let dbProvider: DatabaseProvider | null = null;
 function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   ensurePreSchemaCompatibility(database);
+  ensureDrawingRevisionLifecycleAuthorityPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureTransferPackagePhase1DSchema(database);
@@ -349,6 +334,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "review_issues", "assignee_id", "TEXT");
   ensureColumn(database, "part_numbers", "custom_specification", "TEXT");
   ensureColumn(database, "part_numbers", "series_code", "TEXT");
+  ensureProjectStatusRemovalSchema(database);
   ensureColumn(database, "numbering_draft_workspaces", "append_reason", "TEXT");
   ensureColumn(database, "numbering_draft_workspaces", "source_drawing_number_id", "TEXT");
   ensureColumn(database, "numbering_draft_workspaces", "source_part_number_id", "TEXT");
@@ -597,6 +583,32 @@ function ensureSubmissionSnapshotAndAttemptSchema(database: SqliteDatabase) {
       ON submission_snapshots(company_id, source_root_code);
     CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
       ON submission_snapshots(company_id, source_drawing_number);
+
+    CREATE TABLE IF NOT EXISTS submission_part_scopes (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL,
+      company_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      part_number_id TEXT NOT NULL,
+      part_number TEXT NOT NULL,
+      part_name TEXT NOT NULL DEFAULT '',
+      link_type TEXT NOT NULL CHECK (link_type IN ('primary_manufacturing', 'reference')),
+      form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+      fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+      function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+      fff_outcome TEXT NOT NULL CHECK (fff_outcome IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+      FOREIGN KEY (company_id) REFERENCES companies(id),
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+      UNIQUE (submission_id, part_number_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_submission_part_scopes_part
+      ON submission_part_scopes(company_id, part_number_id, submission_id);
+    CREATE INDEX IF NOT EXISTS idx_submission_part_scopes_submission
+      ON submission_part_scopes(submission_id, part_number);
 
     CREATE TABLE IF NOT EXISTS submission_attempts (
       id TEXT PRIMARY KEY,
@@ -927,8 +939,7 @@ function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
         root_code TEXT NOT NULL,
         core_name TEXT NOT NULL,
         item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
-        development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -942,10 +953,11 @@ function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
     database
       .prepare(
         `INSERT OR IGNORE INTO part_roots_company_scope_migration (
-           id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+           id, company_id, root_code, core_name, item_kind, record_status,
            rule_version_id, created_by, created_at, updated_at
          )
-         SELECT id, ${selectCompanyId}, root_code, core_name, item_kind, development_phase, record_status,
+         SELECT id, ${selectCompanyId}, root_code, core_name, item_kind,
+                CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                 rule_version_id, created_by, created_at, updated_at
          FROM part_roots`
       )
@@ -985,8 +997,7 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
         bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
         custom_specification TEXT,
-        development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         universal_reason TEXT,
         rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
@@ -1004,12 +1015,13 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
       .prepare(
         `INSERT OR IGNORE INTO part_numbers_company_scope_migration (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, bom_usage_policy, custom_specification, development_phase,
+           item_kind, is_universal, bom_usage_policy, custom_specification,
            record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
          )
          SELECT id, ${selectCompanyId}, part_root_id, part_number, sequence_no, sequence_code, part_name,
-                item_kind, is_universal, bom_usage_policy, custom_specification, development_phase,
-                record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
+                item_kind, is_universal, bom_usage_policy, custom_specification,
+                CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
+                universal_reason, rule_version_id, created_by, created_at, updated_at
          FROM part_numbers`
       )
       .run();
@@ -1046,8 +1058,7 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
         purpose_description TEXT NOT NULL DEFAULT '',
         sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
         is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
-        development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+        record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1064,17 +1075,216 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
       .prepare(
         `INSERT OR IGNORE INTO drawing_numbers_company_scope_migration (
            id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-           is_primary_manufacturing, development_phase, record_status, rule_version_id,
+           is_primary_manufacturing, record_status, rule_version_id,
            created_by, created_at, updated_at
          )
          SELECT id, ${selectCompanyId}, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-                is_primary_manufacturing, development_phase, record_status, rule_version_id,
+                is_primary_manufacturing, CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END, rule_version_id,
                 created_by, created_at, updated_at
          FROM drawing_numbers`
       )
       .run();
     database.exec("DROP TABLE drawing_numbers");
     database.exec("ALTER TABLE drawing_numbers_company_scope_migration RENAME TO drawing_numbers");
+  } finally {
+    database.pragma("foreign_keys = ON");
+  }
+}
+
+function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
+  const tableInfo = (tableName: string) =>
+    database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  const tableSql = (tableName: string) =>
+    (database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(tableName) as { sql?: string } | undefined)?.sql ?? "";
+  const masterTables = ["part_roots", "part_numbers", "drawing_numbers"];
+  const requiresMasterRebuild = masterTables.some(
+    (tableName) => tableInfo(tableName).some((column) => column.name === "development_phase") || tableSql(tableName).includes("EVTDisabled")
+  );
+  const approvalColumns = tableInfo("approval_rules");
+  const requiresApprovalRebuild = approvalColumns.some((column) => column.name === "phase");
+  const hasLegacyPhaseGateTable = Boolean(
+    database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'phase_gate_checks'").get()
+  );
+  if (!requiresMasterRebuild && !requiresApprovalRebuild && !hasLegacyPhaseGateTable) return;
+
+  database.pragma("foreign_keys = OFF");
+  try {
+    database.exec("BEGIN IMMEDIATE");
+    if (requiresMasterRebuild) {
+      database.exec(`
+        DROP TABLE IF EXISTS part_roots_project_status_removal;
+        CREATE TABLE part_roots_project_status_removal (
+          id TEXT PRIMARY KEY,
+          company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+          root_code TEXT NOT NULL,
+          core_name TEXT NOT NULL,
+          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+          record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+          rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (company_id) REFERENCES companies(id),
+          FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+          FOREIGN KEY (created_by) REFERENCES users(id),
+          UNIQUE (company_id, root_code)
+        );
+        INSERT INTO part_roots_project_status_removal (
+          id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+        )
+        SELECT id, company_id, root_code, core_name, item_kind,
+               CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
+               rule_version_id, created_by, created_at, updated_at
+        FROM part_roots;
+        DROP TABLE part_roots;
+        ALTER TABLE part_roots_project_status_removal RENAME TO part_roots;
+
+        DROP TABLE IF EXISTS part_numbers_project_status_removal;
+        CREATE TABLE part_numbers_project_status_removal (
+          id TEXT PRIMARY KEY,
+          company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+          part_root_id TEXT NOT NULL,
+          part_number TEXT NOT NULL,
+          sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
+          sequence_code TEXT NOT NULL,
+          part_name TEXT NOT NULL,
+          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+          is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
+          bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
+          custom_specification TEXT,
+          series_code TEXT,
+          record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+          universal_reason TEXT,
+          rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (company_id) REFERENCES companies(id),
+          FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
+          FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+          FOREIGN KEY (created_by) REFERENCES users(id),
+          UNIQUE (company_id, part_number),
+          UNIQUE (part_root_id, sequence_code)
+        );
+        INSERT INTO part_numbers_project_status_removal (
+          id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
+          is_universal, bom_usage_policy, custom_specification, series_code, record_status, universal_reason,
+          rule_version_id, created_by, created_at, updated_at
+        )
+        SELECT id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
+               is_universal, bom_usage_policy, custom_specification, series_code,
+               CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
+               universal_reason, rule_version_id, created_by, created_at, updated_at
+        FROM part_numbers;
+        DROP TABLE part_numbers;
+        ALTER TABLE part_numbers_project_status_removal RENAME TO part_numbers;
+
+        DROP TABLE IF EXISTS drawing_numbers_project_status_removal;
+        CREATE TABLE drawing_numbers_project_status_removal (
+          id TEXT PRIMARY KEY,
+          company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+          part_root_id TEXT NOT NULL,
+          drawing_number TEXT NOT NULL,
+          purpose_code TEXT NOT NULL CHECK (purpose_code IN ('MA', 'OT', 'M', 'R')),
+          purpose_description TEXT NOT NULL DEFAULT '',
+          sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
+          is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
+          record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+          rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (company_id) REFERENCES companies(id),
+          FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE CASCADE,
+          FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+          FOREIGN KEY (created_by) REFERENCES users(id),
+          UNIQUE (company_id, drawing_number),
+          UNIQUE (part_root_id, purpose_code, sequence_no)
+        );
+        INSERT INTO drawing_numbers_project_status_removal (
+          id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
+          is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+        )
+        SELECT id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
+               is_primary_manufacturing,
+               CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
+               rule_version_id, created_by, created_at, updated_at
+        FROM drawing_numbers;
+        DROP TABLE drawing_numbers;
+        ALTER TABLE drawing_numbers_project_status_removal RENAME TO drawing_numbers;
+      `);
+    }
+
+    if (requiresApprovalRebuild) {
+      database.exec(`
+        DROP TABLE IF EXISTS approval_rules_project_status_removal;
+        CREATE TABLE approval_rules_project_status_removal (
+          id TEXT PRIMARY KEY,
+          rule_version_id TEXT NOT NULL,
+          rule_name TEXT NOT NULL,
+          action_code TEXT NOT NULL,
+          record_status TEXT,
+          item_kind TEXT,
+          risk_flag TEXT,
+          requires_approval INTEGER NOT NULL DEFAULT 0 CHECK (requires_approval IN (0, 1)),
+          approver_role TEXT,
+          blocks_usage INTEGER NOT NULL DEFAULT 0 CHECK (blocks_usage IN (0, 1)),
+          blocks_release INTEGER NOT NULL DEFAULT 0 CHECK (blocks_release IN (0, 1)),
+          shows_warning INTEGER NOT NULL DEFAULT 1 CHECK (shows_warning IN (0, 1)),
+          export_marker INTEGER NOT NULL DEFAULT 1 CHECK (export_marker IN (0, 1)),
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id),
+          FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+        INSERT INTO approval_rules_project_status_removal (
+          id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
+          requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker,
+          created_by, created_at, updated_at
+        )
+        SELECT
+          replace(id, 'approval-rule-obsolete-part-release', 'approval-rule-obsolete-part-released'),
+          rule_version_id, rule_name, action_code,
+          CASE
+            WHEN record_status IS NULL AND phase = 'Release' AND action_code IN ('update_name', 'update_spec', 'obsolete_part_number') THEN 'Released'
+            ELSE record_status
+          END,
+          item_kind, risk_flag, requires_approval, approver_role, blocks_usage, blocks_release,
+          shows_warning, export_marker, created_by, created_at, updated_at
+        FROM approval_rules
+        WHERE action_code NOT IN ('dvt_promotion', 'dvt_missing_ma_override')
+          AND COALESCE(phase, '') <> 'DVT'
+          AND id NOT GLOB '*approval-rule-update-name-release';
+        DROP TABLE approval_rules;
+        ALTER TABLE approval_rules_project_status_removal RENAME TO approval_rules;
+      `);
+    }
+
+    database.exec(`
+      DROP TABLE IF EXISTS phase_gate_checks;
+      DELETE FROM role_permissions
+      WHERE permission_code IN ('numbering.dvt', 'numbering.dvt.submit', 'dvt_promotion', 'dvt_missing_ma_override');
+      UPDATE approval_platform_actions
+      SET enabled = 0,
+          metadata_json = '{"legacyProjectStatusAction":true,"disabledBy":"DEV-054"}',
+          updated_at = datetime('now')
+      WHERE action_code IN ('numbering.dvt_promotion', 'numbering.dvt_missing_ma_override');
+      CREATE INDEX IF NOT EXISTS idx_part_roots_status ON part_roots(record_status);
+      CREATE INDEX IF NOT EXISTS idx_part_numbers_root_id ON part_numbers(part_root_id);
+      CREATE INDEX IF NOT EXISTS idx_part_numbers_status ON part_numbers(record_status);
+      CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_root_id);
+      CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status ON drawing_numbers(record_status);
+      CREATE INDEX IF NOT EXISTS idx_approval_rules_version_action ON approval_rules(rule_version_id, action_code);
+      COMMIT;
+    `);
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {
+      // Preserve the original migration error.
+    }
+    throw error;
   } finally {
     database.pragma("foreign_keys = ON");
   }
@@ -1154,6 +1364,25 @@ function ensureColumn(database: SqliteDatabase, table: string, column: string, d
   if (!columns.some((item) => item.name === column)) {
     database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
+}
+
+function ensureDrawingRevisionLifecycleAuthorityPreSchema(database: SqliteDatabase) {
+  const packageTable = database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'drawing_revision_packages'")
+    .get();
+  if (!packageTable) return;
+  ensureColumn(
+    database,
+    "drawing_revision_packages",
+    "lifecycle_state",
+    "TEXT CHECK (lifecycle_state IN ('preparing', 'in_review', 'correction_required', 'rd_controlled', 'released'))"
+  );
+  ensureColumn(database, "drawing_revision_packages", "active_correction_reason", "TEXT");
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_lifecycle_unique
+      ON drawing_revision_packages(company_id, drawing_number_id, revision)
+      WHERE lifecycle_state IS NOT NULL;
+  `);
 }
 
 function ensureSubmissionStoragePointerSchema(database: SqliteDatabase) {

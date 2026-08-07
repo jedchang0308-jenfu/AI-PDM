@@ -57,16 +57,19 @@ export const MARK_ASYNC_SUBMISSION_RELEASE_FAILED_SQL = `
 
 export const SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL = `
   SELECT
-    id,
-    company_id,
-    item_id,
-    drawing_number,
-    revision,
-    corrects_submission_id,
-    source_entity_type,
-    source_entity_id
-  FROM submissions
-  WHERE id = :id
+    s.id,
+    s.company_id,
+    s.item_id,
+    s.drawing_number,
+    s.revision,
+    s.corrects_submission_id,
+    s.source_entity_type,
+    s.source_entity_id,
+    ss.source_part_number_id,
+    ss.source_part_number
+  FROM submissions s
+  LEFT JOIN submission_snapshots ss ON ss.submission_id = s.id
+  WHERE s.id = :id
 `;
 
 export const SELECT_ASYNC_RELEASE_SOURCE_DRAWING_BY_ID_SQL = `
@@ -75,11 +78,9 @@ export const SELECT_ASYNC_RELEASE_SOURCE_DRAWING_BY_ID_SQL = `
     d.company_id,
     d.part_root_id,
     d.drawing_number,
-    d.development_phase AS drawing_development_phase,
     d.record_status AS drawing_record_status,
     r.id AS root_id,
     r.root_code,
-    r.development_phase AS root_development_phase,
     r.record_status AS root_record_status
   FROM drawing_numbers d
   JOIN part_roots r ON r.id = d.part_root_id
@@ -94,11 +95,9 @@ export const SELECT_ASYNC_RELEASE_SOURCE_DRAWING_BY_NUMBER_SQL = `
     d.company_id,
     d.part_root_id,
     d.drawing_number,
-    d.development_phase AS drawing_development_phase,
     d.record_status AS drawing_record_status,
     r.id AS root_id,
     r.root_code,
-    r.development_phase AS root_development_phase,
     r.record_status AS root_record_status
   FROM drawing_numbers d
   JOIN part_roots r ON r.id = d.part_root_id
@@ -112,7 +111,6 @@ export const SELECT_ASYNC_RELEASE_SOURCE_PART_LINKS_SQL = `
     l.link_type,
     p.id AS part_id,
     p.part_number,
-    p.development_phase AS part_development_phase,
     p.record_status AS part_record_status
   FROM drawing_part_links l
   JOIN part_numbers p ON p.id = l.part_number_id
@@ -121,6 +119,27 @@ export const SELECT_ASYNC_RELEASE_SOURCE_PART_LINKS_SQL = `
     CASE WHEN l.link_type = 'primary_manufacturing' THEN 0 ELSE 1 END,
     p.part_number ASC,
     p.id ASC
+`;
+
+export const SELECT_ASYNC_RELEASE_SUBMISSION_PART_SCOPES_SQL = `
+  SELECT
+    scope.id AS scope_id,
+    scope.item_id,
+    scope.part_number_id AS part_id,
+    scope.part_number,
+    scope.link_type AS snapshotted_link_type,
+    p.record_status AS part_record_status,
+    l.link_type AS current_link_type
+  FROM submission_part_scopes scope
+  JOIN part_numbers p
+    ON p.id = scope.part_number_id
+   AND p.company_id = scope.company_id
+  LEFT JOIN drawing_part_links l
+    ON l.part_number_id = scope.part_number_id
+   AND l.drawing_number_id = :drawingNumberId
+  WHERE scope.submission_id = :submissionId
+    AND scope.company_id = :companyId
+  ORDER BY scope.part_number ASC, scope.part_number_id ASC
 `;
 
 export const SELECT_ASYNC_RELATED_RELEASE_FAILED_SUBMISSIONS_SQL = `
@@ -186,29 +205,26 @@ export const UPDATE_ASYNC_ITEM_CURRENT_REVISION_SQL = `
 
 export const UPDATE_ASYNC_RELEASE_DRAWING_MASTER_SQL = `
   UPDATE drawing_numbers
-  SET development_phase = 'Release',
-      record_status = 'Released',
+  SET record_status = 'Released',
       updated_at = :now
   WHERE id = :drawingNumberId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+    AND record_status NOT IN ('Obsolete', 'Merged')
 `;
 
 export const UPDATE_ASYNC_RELEASE_PART_MASTER_SQL = `
   UPDATE part_numbers
-  SET development_phase = 'Release',
-      record_status = 'Released',
+  SET record_status = 'Released',
       updated_at = :now
   WHERE id = :partNumberId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+    AND record_status NOT IN ('Obsolete', 'Merged')
 `;
 
 export const UPDATE_ASYNC_RELEASE_ROOT_MASTER_SQL = `
   UPDATE part_roots
-  SET development_phase = 'Release',
-      record_status = 'Released',
+  SET record_status = 'Released',
       updated_at = :now
   WHERE id = :rootId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+    AND record_status NOT IN ('Obsolete', 'Merged')
 `;
 
 export const MARK_ASYNC_PREVIOUS_SUBMISSION_OBSOLETE_SQL = `
@@ -253,7 +269,6 @@ export const INSERT_ASYNC_RELEASE_MASTER_STATUS_SYNC_AUDIT_LOG_SQL = `
   VALUES (:id, :submissionId, :actorId, 'ReleaseMasterStatusSynced', :detailJson, :createdAt)
 `;
 
-type MasterLifecyclePhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type MasterLifecycleStatus =
   | "Draft"
   | "NeedInfo"
@@ -263,7 +278,6 @@ type MasterLifecycleStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
 
@@ -276,6 +290,8 @@ type ReleaseLifecycleSubmissionRow = {
   corrects_submission_id: string | null;
   source_entity_type: string | null;
   source_entity_id: string | null;
+  source_part_number_id: string | null;
+  source_part_number: string | null;
 };
 
 type FormalRevisionRow = {
@@ -289,11 +305,9 @@ type ReleaseSourceDrawingRow = {
   company_id: string;
   part_root_id: string;
   drawing_number: string;
-  drawing_development_phase: MasterLifecyclePhase;
   drawing_record_status: MasterLifecycleStatus;
   root_id: string;
   root_code: string;
-  root_development_phase: MasterLifecyclePhase;
   root_record_status: MasterLifecycleStatus;
 };
 
@@ -301,19 +315,26 @@ type ReleaseSourcePartLinkRow = {
   link_type: "primary_manufacturing" | "reference";
   part_id: string;
   part_number: string;
-  part_development_phase: MasterLifecyclePhase;
   part_record_status: MasterLifecycleStatus;
+};
+
+type ReleaseSubmissionPartScopeRow = {
+  scope_id: string;
+  item_id: string;
+  part_id: string;
+  part_number: string;
+  snapshotted_link_type: "primary_manufacturing" | "reference";
+  part_record_status: MasterLifecycleStatus;
+  current_link_type: "primary_manufacturing" | "reference" | null;
 };
 
 type MasterStatusSyncEntityResult = {
   id: string;
   code: string;
   before: {
-    development_phase: MasterLifecyclePhase;
     record_status: MasterLifecycleStatus;
   };
   after: {
-    development_phase: MasterLifecyclePhase;
     record_status: MasterLifecycleStatus;
   };
   updated: boolean;
@@ -323,8 +344,9 @@ type MasterStatusSyncEntityResult = {
 export type AsyncReleaseMasterStatusSyncResult = {
   drawing: MasterStatusSyncEntityResult;
   part: MasterStatusSyncEntityResult;
+  parts: MasterStatusSyncEntityResult[];
   root: MasterStatusSyncEntityResult;
-  part_resolution: "primary_manufacturing" | "single_link_fallback";
+  part_resolution: "submission_scope" | "submission_snapshot" | "primary_manufacturing" | "single_link_fallback";
 };
 
 export type AsyncReleaseLifecycleResult = {
@@ -341,7 +363,7 @@ export type AsyncReleaseLifecycleResult = {
   master_status_sync: AsyncReleaseMasterStatusSyncResult;
 };
 
-const PROTECTED_RELEASE_MASTER_STATUSES = new Set<MasterLifecycleStatus>(["Obsolete", "Merged", "EVTDisabled"]);
+const PROTECTED_RELEASE_MASTER_STATUSES = new Set<MasterLifecycleStatus>(["Obsolete", "Merged"]);
 
 function isProtectedReleaseMasterStatus(status: MasterLifecycleStatus) {
   return PROTECTED_RELEASE_MASTER_STATUSES.has(status);
@@ -350,7 +372,6 @@ function isProtectedReleaseMasterStatus(status: MasterLifecycleStatus) {
 function buildMasterStatusResult(input: {
   id: string;
   code: string;
-  beforePhase: MasterLifecyclePhase;
   beforeStatus: MasterLifecycleStatus;
 }): MasterStatusSyncEntityResult {
   const protectedStatus = isProtectedReleaseMasterStatus(input.beforeStatus);
@@ -358,14 +379,12 @@ function buildMasterStatusResult(input: {
     id: input.id,
     code: input.code,
     before: {
-      development_phase: input.beforePhase,
       record_status: input.beforeStatus
     },
     after: {
-      development_phase: protectedStatus ? input.beforePhase : "Release",
       record_status: protectedStatus ? input.beforeStatus : "Released"
     },
-    updated: !protectedStatus && (input.beforePhase !== "Release" || input.beforeStatus !== "Released"),
+    updated: !protectedStatus && input.beforeStatus !== "Released",
     skipped_reason: protectedStatus ? "protected_terminal_status" : null
   };
 }
@@ -477,6 +496,18 @@ export class AsyncSubmissionStatusRepository {
         revision: releasePlan.latest.revision,
         now
       });
+      const scopedItems = await client.query<ReleaseSubmissionPartScopeRow>(SELECT_ASYNC_RELEASE_SUBMISSION_PART_SCOPES_SQL, {
+        submissionId: submission.id,
+        companyId: submission.company_id,
+        drawingNumberId: submission.source_entity_type === "drawing_number" ? submission.source_entity_id : null
+      });
+      for (const scope of scopedItems) {
+        await client.execute(UPDATE_ASYNC_ITEM_CURRENT_REVISION_SQL, {
+          itemId: scope.item_id,
+          revision: releasePlan.latest.revision,
+          now
+        });
+      }
       await client.execute(MARK_ASYNC_FORMAL_SUBMISSION_CURRENT_SQL, {
         id: releasePlan.latest.id,
         now
@@ -558,41 +589,74 @@ export class AsyncSubmissionStatusRepository {
     }
   ): Promise<AsyncReleaseMasterStatusSyncResult> {
     const drawing = await this.resolveReleaseSourceDrawing(client, input.submission);
-    const partResolution = await this.resolveReleaseSourcePart(client, drawing);
+    const scopedParts = await client.query<ReleaseSubmissionPartScopeRow>(SELECT_ASYNC_RELEASE_SUBMISSION_PART_SCOPES_SQL, {
+      submissionId: input.submission.id,
+      companyId: input.submission.company_id,
+      drawingNumberId: drawing.drawing_id
+    });
+    for (const scope of scopedParts) {
+      if (!scope.current_link_type) {
+        throw new Error(
+          `主資料狀態同步失敗：送審範圍料號 ${scope.part_number} 已不在此圖號關聯中，整批不能發布。請重新確認圖料關係後重送。`
+        );
+      }
+      if (scope.current_link_type !== scope.snapshotted_link_type) {
+        throw new Error(
+          `主資料狀態同步失敗：送審範圍料號 ${scope.part_number} 的圖料關聯類型已變更，整批不能發布。請重新確認後重送。`
+        );
+      }
+    }
+    const legacyPartResolution = scopedParts.length === 0
+      ? await this.resolveReleaseSourcePart(client, drawing, input.submission)
+      : null;
+    const releaseParts: ReleaseSourcePartLinkRow[] = scopedParts.length > 0
+      ? scopedParts.map((scope) => ({
+          link_type: scope.current_link_type ?? scope.snapshotted_link_type,
+          part_id: scope.part_id,
+          part_number: scope.part_number,
+          part_record_status: scope.part_record_status
+        }))
+      : legacyPartResolution
+        ? [legacyPartResolution.part]
+        : [];
+    if (releaseParts.length === 0) {
+      throw new Error("主資料狀態同步失敗：送審沒有可發布的料號範圍。");
+    }
 
     await client.execute(UPDATE_ASYNC_RELEASE_DRAWING_MASTER_SQL, {
       drawingNumberId: drawing.drawing_id,
       now: input.now
     });
-    await client.execute(UPDATE_ASYNC_RELEASE_PART_MASTER_SQL, {
-      partNumberId: partResolution.part.part_id,
-      now: input.now
-    });
+    for (const part of releaseParts) {
+      await client.execute(UPDATE_ASYNC_RELEASE_PART_MASTER_SQL, {
+        partNumberId: part.part_id,
+        now: input.now
+      });
+    }
     await client.execute(UPDATE_ASYNC_RELEASE_ROOT_MASTER_SQL, {
       rootId: drawing.root_id,
       now: input.now
     });
 
+    const partResults = releaseParts.map((part) => buildMasterStatusResult({
+      id: part.part_id,
+      code: part.part_number,
+      beforeStatus: part.part_record_status
+    }));
     const result: AsyncReleaseMasterStatusSyncResult = {
       drawing: buildMasterStatusResult({
         id: drawing.drawing_id,
         code: drawing.drawing_number,
-        beforePhase: drawing.drawing_development_phase,
         beforeStatus: drawing.drawing_record_status
       }),
-      part: buildMasterStatusResult({
-        id: partResolution.part.part_id,
-        code: partResolution.part.part_number,
-        beforePhase: partResolution.part.part_development_phase,
-        beforeStatus: partResolution.part.part_record_status
-      }),
+      part: partResults[0],
+      parts: partResults,
       root: buildMasterStatusResult({
         id: drawing.root_id,
         code: drawing.root_code,
-        beforePhase: drawing.root_development_phase,
         beforeStatus: drawing.root_record_status
       }),
-      part_resolution: partResolution.resolution
+      part_resolution: scopedParts.length > 0 ? "submission_scope" : legacyPartResolution!.resolution
     };
 
     await client.execute(INSERT_ASYNC_RELEASE_MASTER_STATUS_SYNC_AUDIT_LOG_SQL, {
@@ -639,11 +703,19 @@ export class AsyncSubmissionStatusRepository {
 
   private async resolveReleaseSourcePart(
     client: AsyncDatabaseClient,
-    drawing: ReleaseSourceDrawingRow
+    drawing: ReleaseSourceDrawingRow,
+    submission: ReleaseLifecycleSubmissionRow
   ): Promise<{ part: ReleaseSourcePartLinkRow; resolution: AsyncReleaseMasterStatusSyncResult["part_resolution"] }> {
     const links = await client.query<ReleaseSourcePartLinkRow>(SELECT_ASYNC_RELEASE_SOURCE_PART_LINKS_SQL, {
       drawingNumberId: drawing.drawing_id
     });
+    if (submission.source_part_number_id) {
+      const snapshottedPart = links.find((row) => row.part_id === submission.source_part_number_id);
+      if (snapshottedPart) return { part: snapshottedPart, resolution: "submission_snapshot" };
+      throw new Error(
+        `主資料狀態同步失敗：送審快照料號 ${submission.source_part_number ?? submission.source_part_number_id} 已不在此圖號關聯中，不能標記為已發布。請重新確認圖料關係後重送。`
+      );
+    }
     const primaryLinks = links.filter((row) => row.link_type === "primary_manufacturing");
     if (primaryLinks.length === 1) {
       return { part: primaryLinks[0], resolution: "primary_manufacturing" };

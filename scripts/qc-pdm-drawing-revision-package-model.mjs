@@ -25,6 +25,8 @@ const submissionRoute = read("src/app/api/numbering/drawing-revisions/submission
 const releaseWorkflow = read("src/lib/submission-release-workflow.ts");
 const submissionStatusRepository = read("src/lib/repositories/submission-status-async-repository.ts");
 const masterAttachmentAsyncRepository = read("src/lib/repositories/master-attachment-async-repository.ts");
+const submissionListAsyncRepository = read("src/lib/repositories/submission-list-async-repository.ts");
+const approvalPlatform = read("src/lib/approval-platform.ts");
 const masterAttachmentPanel = read("src/components/master-attachment-panel.tsx");
 const globals = read("src/app/globals.css");
 const devTask = read(".ai-doc/dev_task.md");
@@ -91,6 +93,7 @@ for (const methodName of [
 }
 assert(repository.includes("duplicate_released_revision_package"), "Repository blocks duplicate Released package");
 assert(repository.includes("supplement_reason_note_required"), "Repository requires note for other supplement reason");
+assert(repository.includes("drawing_revision_fff_assessments fff") && repository.includes("ReviewApproved"), "Revision package projects approved FFF minor revisions as ReviewApproved");
 assert(repository.includes("supplement_self_approve_forbidden"), "Repository blocks non-Admin self approval");
 assert(repository.includes("R&D Manager") && repository.includes("Admin"), "Repository restricts supplement decision to manager/Admin");
 assert(wrapper.includes("requestDrawingRevisionPackageSupplementAsync") && wrapper.includes("decideDrawingRevisionPackageSupplementAsync"), "Async wrapper exposes supplement APIs");
@@ -111,6 +114,7 @@ assert(releaseWorkflow.includes("ensureDrawingRevisionPackageForSubmissionAsync"
 assert(submissionStatusRepository.includes("UPDATE drawing_revision_packages") && submissionStatusRepository.includes("status = 'Released'"), "Release transaction marks package Released");
 
 assert(masterAttachmentAsyncRepository.includes("drawing_revision_package_supplement_files"), "Master attachment query links supplement files");
+assert(masterAttachmentAsyncRepository.includes("review_confirmation_events rce") && masterAttachmentAsyncRepository.includes("instr(p.revision, '.') > 0"), "Master attachment query projects approved FFF minor revisions");
 assert(masterAttachmentAsyncRepository.includes("revision_package_file_kind"), "Master attachment query exposes package file kind");
 assert(masterAttachmentPanel.includes("isApprovedSupplementAttachment"), "Master attachment panel detects approved supplements");
 assert(masterAttachmentPanel.includes("master-attachment-status supplement") && masterAttachmentPanel.includes("補件"), "Master attachment panel renders 補件 tag");
@@ -127,6 +131,8 @@ assert(spec.includes("no product `待確認附件`") || spec.includes("不新增
 assert(qaPlan.includes("QA-SUP-004") && qaPlan.includes("QA-MIG-003"), "QA plan covers supplement tag and no product pending area");
 assert(devTask.includes("DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4"), "dev_task tracks Phase 4");
 assert(packageJson.scripts["qc:pdm-drawing-revision-package-model"] === "node scripts/qc-pdm-drawing-revision-package-model.mjs", "package script registered");
+assert(submissionListAsyncRepository.includes("SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL") && submissionListAsyncRepository.includes("effective_status"), "Submission detail exposes effective approved package status");
+assert(approvalPlatform.includes("advanceDrawingRevisionSubmissionAfterImpactReviewAsync") && approvalPlatform.includes("minor_revision_remains_pending"), "FFF approval advances major release and preserves minor review approval");
 
 const failed = checks.filter((check) => !check.passed);
 console.log(

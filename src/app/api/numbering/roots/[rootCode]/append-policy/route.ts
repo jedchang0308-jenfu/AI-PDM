@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
   const reasonRequired = [detail.root.recordStatus, ...detail.partNumbers.map((part) => part.recordStatus), ...detail.drawingNumbers.map((drawing) => drawing.recordStatus)].some(
     (status) => status === "Active" || status === "Released" || status === "MainDrawingInvalid"
   );
-  const locked = ["Obsolete", "Merged", "EVTDisabled"].includes(detail.root.recordStatus);
+  const locked = ["Obsolete", "Merged"].includes(detail.root.recordStatus);
 
   return NextResponse.json({
     root: detail.root,

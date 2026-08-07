@@ -27,6 +27,23 @@ try {
     import("@/lib/repositories/number-lifecycle-simplification-async-repository")
   ]);
   database = dbModule.getDb();
+  const fileAssetsDefinition = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'file_assets'")
+    .get()?.sql;
+  const currentProviderClause =
+    "storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('j_drive', 'local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage', 'external'))";
+  const legacyProviderClause =
+    "storage_provider TEXT NOT NULL DEFAULT 'j_drive' CHECK (storage_provider IN ('j_drive', 'supabase_storage', 'external'))";
+  if (!fileAssetsDefinition?.includes(currentProviderClause)) {
+    throw new Error("DEV-052 fixture cannot establish the legacy file_assets provider contract.");
+  }
+  if (database.prepare("SELECT COUNT(*) AS count FROM file_assets").get().count !== 0) {
+    throw new Error("DEV-052 fixture expected an empty file_assets table before compatibility setup.");
+  }
+  database.pragma("foreign_keys = OFF");
+  database.exec("DROP TABLE file_assets");
+  database.exec(fileAssetsDefinition.replace(currentProviderClause, legacyProviderClause));
+  database.pragma("foreign_keys = ON");
   const client = providerModule.createAsyncDatabaseClient({ kind: "sqlite", database });
   const { AsyncNumberLifecycleSimplificationRepository, NumberLifecycleRepositoryFault } = repositoryModule;
 
@@ -131,10 +148,21 @@ try {
       }
     }
   }));
+  const storedAsset = database
+    .prepare("SELECT storage_provider, sync_status FROM file_assets WHERE id = 'dev052-file-asset'")
+    .get();
   record(
     "DEV052-FLOW-002 primary file and finalized evidence make the bundle ready",
-    added.lifecycleV2?.stage === "bundle_ready" && added.candidateRevisions[0]?.files[0]?.publicationEvidenceId === "dev052-evidence",
-    JSON.stringify({ stage: added.lifecycleV2?.stage, evidence: added.candidateRevisions[0]?.files[0]?.publicationEvidenceId })
+    added.lifecycleV2?.stage === "bundle_ready" &&
+      added.candidateRevisions[0]?.files[0]?.publicationEvidenceId === "dev052-evidence" &&
+      storedAsset?.storage_provider === "j_drive" &&
+      storedAsset?.sync_status === "local_only",
+    JSON.stringify({
+      stage: added.lifecycleV2?.stage,
+      evidence: added.candidateRevisions[0]?.files[0]?.publicationEvidenceId,
+      storageProvider: storedAsset?.storage_provider,
+      syncStatus: storedAsset?.sync_status
+    })
   );
 
   const submitted = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).submitBundleReview({

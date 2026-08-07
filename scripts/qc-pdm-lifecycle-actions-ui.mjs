@@ -3,10 +3,20 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
-import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
+import { createLifecycleQcRuntime } from "./qc-pdm-lifecycle-isolated-runtime.mjs";
 
 const root = process.cwd();
-const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const password = "Lifecycle-Actions-UI-QC-2026";
+const principals = [
+  {
+    id: "lifecycle-actions-ui-admin",
+    displayName: "Lifecycle Actions UI QC Admin",
+    email: "lifecycle.actions.ui.admin@example.invalid",
+    password,
+    role: "Admin",
+    companyCodes: ["JENFU"]
+  }
+];
 const screenshotPath = path.join(root, "output", "playwright", "pdm-lifecycle-attachments-deleted-fixture.png");
 const checks = [];
 
@@ -19,7 +29,7 @@ async function login(baseUrl) {
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "admin@example.com", password })
+    body: JSON.stringify({ email: principals[0].email, password })
   });
   record("admin login succeeds", response.ok, `HTTP ${response.status}`);
   const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
@@ -47,19 +57,6 @@ function jsonResponse(route, body, status = 200) {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(body)
   });
-}
-
-async function isAppReady(baseUrl) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
-  try {
-    const response = await fetch(`${baseUrl}/login`, { signal: controller.signal });
-    return response.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 function attachmentFixture(id, displayName, fileName, description) {
@@ -112,7 +109,6 @@ async function runFixture(baseUrl, cookie) {
     partNumber,
     partName: "Lifecycle Attachment Fixture",
     itemKind: "manufactured",
-    developmentPhase: "DVT",
     recordStatus: "Active",
     variant: null,
     primaryDrawingNumber: null,
@@ -142,6 +138,9 @@ async function runFixture(baseUrl, cookie) {
       const url = new URL(request.url());
       const pathName = decodeURIComponent(url.pathname);
       if (pathName === "/api/parts") return jsonResponse(route, { parts: [partRecord] });
+      if (pathName === `/api/parts/${partNumber}/shared-models`) {
+        return jsonResponse(route, { owner: null, models: [] });
+      }
       if (pathName === `/api/parts/${partNumber}`) {
         return jsonResponse(route, {
           part: {
@@ -182,6 +181,14 @@ async function runFixture(baseUrl, cookie) {
       }
       return route.continue();
     });
+    await page.route("**/api/numbering/roots/QC-LIFE/append-policy", (route) =>
+      jsonResponse(route, {
+        locked: false,
+        reasonRequired: false,
+        nextNumbers: { part: "QC-LIFE-P02", drawingM: "QC-LIFE-M02", drawingR: "QC-LIFE-R01" }
+      })
+    );
+    await page.route("**/api/manufacturing-baselines/resolve", (route) => jsonResponse(route, { required: [], missing: [] }));
 
     await page.goto(`${baseUrl}/parts`, { waitUntil: "domcontentloaded" });
     await page.locator("[data-part-row='true']").first().click();
@@ -200,9 +207,10 @@ async function runFixture(baseUrl, cookie) {
     await page.locator(".master-attachment-message.success", { hasText: "附件已還原" }).waitFor({ timeout: 15000 });
     record("restore subresource was called once", restorePostCount === 1, `count=${restorePostCount}`);
     await page.locator(".master-attachment-row.deleted").filter({ hasText: "恢復測試附件" }).waitFor({ state: "detached", timeout: 15000 });
-    await page.locator("section.master-attachment-panel > div.master-attachment-list > article").filter({ hasText: "恢復測試附件" }).waitFor({ timeout: 15000 });
+    const restoredRow = page.locator(".master-attachment-sections .master-attachment-row:not(.deleted)").filter({ hasText: "恢復測試附件" });
+    await restoredRow.waitFor({ timeout: 15000 });
     record("restored row moved out of deleted surface", (await page.locator(".master-attachment-row.deleted").filter({ hasText: "恢復測試附件" }).count()) === 0);
-    record("restored attachment appears in active list", (await page.locator("section.master-attachment-panel > div.master-attachment-list > article").filter({ hasText: "恢復測試附件" }).count()) === 1);
+    record("restored attachment appears in active list", (await restoredRow.count()) === 1);
 
     const noHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
     record("desktop viewport has no horizontal overflow", noHorizontalOverflow);
@@ -219,31 +227,32 @@ async function runFixture(baseUrl, cookie) {
 }
 
 async function main() {
-  const configuredBaseUrl = process.env.PDM_BASE_URL?.replace(/\/$/u, "");
-  let baseUrl = configuredBaseUrl ?? null;
-  let app = null;
+  const runtime = createLifecycleQcRuntime({ root, suite: "lifecycle-actions-ui", principals });
+  let receipt = null;
+  let runError = null;
   try {
-    if (!baseUrl) {
-      for (const candidate of ["http://127.0.0.1:3000", "http://localhost:3000"]) {
-        if (await isAppReady(candidate)) {
-          baseUrl = candidate;
-          break;
-        }
-      }
-    }
-    if (!baseUrl) {
-      const port = await getFreePort();
-      baseUrl = `http://127.0.0.1:${port}`;
-      app = startNextApp(root, "dev", port);
-      await waitForNextAppReady(baseUrl, app.getOutput);
-    }
-    const cookie = await login(baseUrl);
-    await runFixture(baseUrl, cookie);
+    const target = await runtime.start();
+    record(
+      "runtime is disposable and production-disconnected",
+      target.productionConnected === false && target.productionWrites === false && target.baseUrl !== "http://127.0.0.1:3000",
+      JSON.stringify(target)
+    );
+    const cookie = await login(target.baseUrl);
+    await runFixture(target.baseUrl, cookie);
+  } catch (error) {
+    runError = error;
   } finally {
-    if (app) await stopNextApp(app.child);
+    receipt = await runtime.cleanup({ checks: checks.length, runPassedBeforeCleanup: runError === null });
   }
+  record(
+    "disposable runtime cleanup is proven",
+    receipt.cleanupStatus === "removed" && receipt.productionDataUnchanged === true,
+    JSON.stringify(receipt)
+  );
+  if (runError) throw runError;
   console.log(`qc:pdm-lifecycle-actions-ui passed ${checks.length}/${checks.length} checks`);
   console.log(`screenshot: ${screenshotPath}`);
+  console.log(`isolation receipt: ${path.join(runtime.evidenceDir, "isolation-receipt.json")}`);
 }
 
 main().catch((error) => {

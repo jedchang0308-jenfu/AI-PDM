@@ -89,8 +89,8 @@ function insertReplacementDrawing(root, adminUserId) {
       `
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-        is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'M', 'Replacement manufacturing drawing', 2, 1, 'EVT', 'Active', 'numbering-rule-v2', ?, ?, ?)
+        is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, 'M', 'Replacement manufacturing drawing', 2, 1, 'Active', 'numbering-rule-v2', ?, ?, ?)
     `
     ).run(drawingId, root.id, drawingNumber, adminUserId, now, now);
     return { id: drawingId, drawingNumber };
@@ -127,8 +127,8 @@ function assertDuplicateRootRejected(root) {
       db.prepare(
         `
         INSERT INTO part_roots (
-          id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, 'QC duplicate root', 'manufactured', 'EVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, 'QC duplicate root', 'manufactured', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-data-dup-root-${unique}`, root.rootCode);
     }, "UNIQUE");
@@ -145,8 +145,8 @@ function assertDuplicatePartRejected(root, partNumber) {
         `
         INSERT INTO part_numbers (
           id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-          item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 99, '099', 'QC duplicate part', 'manufactured', 0, 'EVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          item_kind, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, 99, '099', 'QC duplicate part', 'manufactured', 0, 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-data-dup-part-${unique}`, root.id, partNumber);
     }, "UNIQUE");
@@ -163,8 +163,8 @@ function assertDuplicateDrawingRejected(root, drawingNumber) {
         `
         INSERT INTO drawing_numbers (
           id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-          is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 'MA', 'QC duplicate drawing', 99, 0, 'EVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, 'MA', 'QC duplicate drawing', 99, 0, 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-data-dup-drawing-${unique}`, root.id, drawingNumber);
     }, "UNIQUE");
@@ -248,7 +248,6 @@ try {
       coreName: `QC data consistency restore ${unique}`,
       partName: `QC data consistency part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -310,7 +309,6 @@ try {
       coreName: `QC data consistency override ${unique}`,
       partName: `QC missing MA override part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested: false
     },
     201
@@ -321,7 +319,7 @@ try {
     "/api/numbering/approval-requests",
     adminCookie,
     {
-      actionCode: "dvt_missing_ma_override",
+      actionCode: "release_missing_ma_confirm",
       entityType: "part_number",
       entityId: overrideCase.partNumber.id,
       reason: `QC missing MA override ${unique}`,
@@ -350,20 +348,20 @@ try {
   const overrideAuditHasTrace = overrideTrace.auditRows.some(
     (row) =>
       row.action === "numbering.approval.request" &&
-      row.detail?.actionCode === "dvt_missing_ma_override" &&
+      row.detail?.actionCode === "release_missing_ma_confirm" &&
       row.detail?.after &&
       row.detail?.diff
   );
   const overrideDecisionHasTrace = overrideTrace.auditRows.some(
     (row) =>
       row.action === "numbering.approval.decision" &&
-      row.detail?.actionCode === "dvt_missing_ma_override" &&
+      row.detail?.actionCode === "release_missing_ma_confirm" &&
       row.detail?.after &&
       row.detail?.diff
   );
   record(
     "Override approval keeps request, decision, and audit trace",
-    overrideTrace.request?.action_code === "dvt_missing_ma_override" &&
+    overrideTrace.request?.action_code === "release_missing_ma_confirm" &&
       overrideTrace.decision?.decision === "approved" &&
       overrideAuditHasTrace &&
       overrideDecisionHasTrace,

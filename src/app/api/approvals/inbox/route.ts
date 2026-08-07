@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   const companyId = auth.user.company_id || undefined;
   const domainCode = url.searchParams.get("domain")?.trim() || undefined;
   const actionCode = url.searchParams.get("action")?.trim() || undefined;
-  const items = await listApprovalPlatformInboxAsync({ companyId, status, limit, domainCode, actionCode });
+  const items = await listApprovalPlatformInboxAsync({ companyId, actorId: auth.user.id, status, limit, domainCode, actionCode });
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),

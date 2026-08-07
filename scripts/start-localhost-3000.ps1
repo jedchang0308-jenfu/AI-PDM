@@ -20,6 +20,11 @@ $PortOwnerPidFile = Join-Path $RuntimeDir "ai-pdm-3000.port-owner.pid"
 $StatusFile = Join-Path $RuntimeDir "ai-pdm-3000.status.json"
 $StdoutLog = Join-Path $RuntimeDir "ai-pdm-3000.out.log"
 $StderrLog = Join-Path $RuntimeDir "ai-pdm-3000.err.log"
+$PreviewWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.pid"
+$PreviewWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.token"
+$PreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.out.log"
+$PreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.err.log"
+$PreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-windows-shell-preview-worker.mjs"
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
@@ -28,6 +33,99 @@ $HealthChecks = @(
 
 function Ensure-RuntimeDir {
   New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
+}
+
+function Ensure-PreviewWorkerToken {
+  if ($env:PDM_PREVIEW_WORKER_TOKEN -and $env:PDM_PREVIEW_WORKER_TOKEN.Trim().Length -ge 32) {
+    return
+  }
+
+  if (Test-Path -LiteralPath $PreviewWorkerTokenFile) {
+    $storedToken = (Get-Content -LiteralPath $PreviewWorkerTokenFile -Raw).Trim()
+    if ($storedToken.Length -ge 32) {
+      $env:PDM_PREVIEW_WORKER_TOKEN = $storedToken
+      return
+    }
+  }
+
+  $bytes = New-Object byte[] 32
+  $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $generator.GetBytes($bytes)
+  }
+  finally {
+    $generator.Dispose()
+  }
+  $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+  Set-Content -LiteralPath $PreviewWorkerTokenFile -Value $token -Encoding ascii
+  $env:PDM_PREVIEW_WORKER_TOKEN = $token
+}
+
+function Get-PreviewWorkerProcessInfo {
+  if (-not (Test-Path -LiteralPath $PreviewWorkerPidFile)) {
+    return $null
+  }
+
+  try {
+    $workerProcessId = [int](Get-Content -LiteralPath $PreviewWorkerPidFile -Raw).Trim()
+  }
+  catch {
+    Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $processInfo = Get-OwnerProcessInfo -OwnerProcessId $workerProcessId
+  if (-not $processInfo -or -not $processInfo.CommandLine) {
+    Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $commandLine = $processInfo.CommandLine.ToLowerInvariant()
+  if (-not $commandLine.Contains($ProjectRootLower) -or -not $commandLine.Contains("run-windows-shell-preview-worker.mjs")) {
+    Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  return $processInfo
+}
+
+function Stop-PreviewWorker {
+  $processInfo = Get-PreviewWorkerProcessInfo
+  if ($processInfo) {
+    Write-Host "Stopping AI_PDM preview worker PID $($processInfo.ProcessId)."
+    Stop-Process -Id $processInfo.ProcessId -Force
+  }
+  Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+}
+
+function Start-PreviewWorker {
+  $existing = Get-PreviewWorkerProcessInfo
+  if ($existing) {
+    return $existing
+  }
+
+  Ensure-PreviewWorkerToken
+  Remove-Item -LiteralPath $PreviewWorkerStdoutLog, $PreviewWorkerStderrLog, $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+  $worker = Start-Process `
+    -FilePath "node.exe" `
+    -ArgumentList @("`"$PreviewWorkerScript`"", "--watch", "--models-only") `
+    -WorkingDirectory $ProjectRoot `
+    -WindowStyle Hidden `
+    -PassThru `
+    -RedirectStandardOutput $PreviewWorkerStdoutLog `
+    -RedirectStandardError $PreviewWorkerStderrLog
+
+  Set-Content -LiteralPath $PreviewWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
+  Start-Sleep -Milliseconds 1500
+  if ($worker.HasExited) {
+    Write-Host "Preview worker exited during startup."
+    Get-Content -LiteralPath $PreviewWorkerStderrLog -ErrorAction SilentlyContinue | Select-Object -Last 20
+    Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+    throw "AI_PDM preview worker did not start. Restart the local server so the server and worker share the local service token."
+  }
+
+  Write-Host "Preview worker is running (PID $($worker.Id))."
+  return Get-PreviewWorkerProcessInfo
 }
 
 function Get-PortListeners {
@@ -108,6 +206,7 @@ function Write-RuntimeStatus {
     [string]$State,
     [int]$LauncherProcessId = 0,
     [int]$PortOwnerProcessId = 0,
+    [int]$PreviewWorkerProcessId = 0,
     $PortOwnerProcessInfo = $null,
     $Health = $null,
     [string]$Message = ""
@@ -124,6 +223,8 @@ function Write-RuntimeStatus {
     portOwnerProcessId = $PortOwnerProcessId
     portOwnerProcessName = $processName
     portOwnerCommandLine = $commandLine
+    previewWorkerProcessId = $PreviewWorkerProcessId
+    previewWorkerState = if ($PreviewWorkerProcessId -gt 0) { "running" } else { "not_running" }
     health = $Health
     message = $Message
     updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -213,19 +314,36 @@ if ($listeners.Count -gt 0) {
     $health = Test-LocalHttpHealth
     if ($health.Healthy) {
       if ($CheckOnly) {
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy."
+        $previewWorker = Get-PreviewWorkerProcessInfo
+        if (-not $previewWorker) {
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website is healthy but the 3D preview worker is not running."
+          Write-Error "AI_PDM website is healthy, but the 3D preview worker is not running. Run npm run dev:local:restart."
+          exit 1
+        }
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview worker are healthy."
         Write-Host "AI_PDM is healthy."
+        Write-Host "3D preview worker is running."
         Write-Host "Local URL: $Url"
         exit 0
       }
       if (-not $RestartProjectProcess) {
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy."
+        try {
+          $previewWorker = Start-PreviewWorker
+        }
+        catch {
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message $_.Exception.Message
+          Write-Error $_.Exception.Message
+          exit 1
+        }
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview worker are healthy."
         Write-Host "AI_PDM is healthy."
+        Write-Host "3D preview worker is running."
         Write-Host "Local URL: $Url"
         Open-LocalPage
         exit 0
       }
 
+      Stop-PreviewWorker
       Write-Host "Stopping healthy AI_PDM project process PID $ownerProcessId because -RestartProjectProcess was provided."
       Stop-Process -Id $ownerProcessId -Force
       if (-not (Wait-PortReleased)) {
@@ -246,6 +364,7 @@ if ($listeners.Count -gt 0) {
         exit 1
       }
 
+      Stop-PreviewWorker
       Write-Host "Stopping stale AI_PDM project process PID $ownerProcessId because -RestartProjectProcess was provided."
       Stop-Process -Id $ownerProcessId -Force
       if (-not (Wait-PortReleased)) {
@@ -285,7 +404,10 @@ Invoke-CleanNext
 Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $PortOwnerPidFile, $StatusFile -ErrorAction SilentlyContinue
 
+$env:PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true"
+Ensure-PreviewWorkerToken
 Write-Host "Starting AI_PDM local server..."
+Write-Host "Local full-function validation is enabled; production slice settings remain production-only."
 $process = Start-Process `
   -FilePath "npm.cmd" `
   -ArgumentList @("run", "dev:server") `
@@ -315,8 +437,17 @@ do {
   $health = Test-LocalHttpHealth
   if ($health.Healthy) {
     $owner = Get-CurrentPortOwner
-    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server started and all health checks passed."
+    try {
+      $previewWorker = Start-PreviewWorker
+    }
+    catch {
+      Write-RuntimeStatus -State "degraded_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message $_.Exception.Message
+      Write-Error $_.Exception.Message
+      exit 1
+    }
+    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and 3D preview worker started; all health checks passed."
     Write-Host "AI_PDM is healthy."
+    Write-Host "3D preview worker is running."
     Write-Host "Local URL: $Url"
     Open-LocalPage
     exit 0

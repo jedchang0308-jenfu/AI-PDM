@@ -1,6 +1,5 @@
 export type ApprovalRuleSummaryInput = {
   actionCode?: string | null;
-  phase?: string | null;
   recordStatus?: string | null;
   itemKind?: string | null;
   riskFlag?: string | null;
@@ -24,7 +23,6 @@ export function approvalActionLabel(code: string | null | undefined) {
   const labels: Record<string, string> = {
     "numbering.search": "查詢",
     "numbering.drawings.view": "圖號模組",
-    "numbering.dvt": "DVT",
     "numbering.approvals": "審核",
     "numbering.impact": "影響",
     "numbering.tasks": "待辦",
@@ -37,7 +35,6 @@ export function approvalActionLabel(code: string | null | undefined) {
     "numbering.draft.admin_confirm": "管理員確認",
     "numbering.duplicate_check": "查重",
     "numbering.link_variant": "同圖連結",
-    "numbering.dvt.submit": "送 DVT",
     "numbering.approval.request": "送審",
     "numbering.approval.batch.create": "建審核批次",
     "numbering.approval.batch.decide": "批次決議",
@@ -53,8 +50,6 @@ export function approvalActionLabel(code: string | null | undefined) {
     "numbering.attachments.manage": "管理附件",
     "pdm.comment.create": "留言",
     "pdm.advice.create": "提供建議",
-    dvt_promotion: "DVT 階段晉升",
-    dvt_missing_ma_override: "DVT 缺少主要製造圖例外",
     release: "正式發行審核",
     release_missing_ma_confirm: "發行時缺少主要製造圖確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
@@ -74,16 +69,6 @@ export function approvalActionLabel(code: string | null | undefined) {
   return labels[normalized] ?? (normalized ? "自訂動作" : "未選動作");
 }
 
-export function approvalPhaseLabel(value: string | null | undefined) {
-  const labels: Record<string, string> = {
-    EVT: "EVT 試作",
-    DVT: "DVT 驗證",
-    Release: "正式發行"
-  };
-  const normalized = value?.trim() ?? "";
-  return labels[normalized] ?? (normalized ? "自訂階段" : null);
-}
-
 export function approvalRecordStatusLabel(value: string | null | undefined) {
   const labels: Record<string, string> = {
     Draft: "草稿",
@@ -93,7 +78,6 @@ export function approvalRecordStatusLabel(value: string | null | undefined) {
     Released: "已發布",
     Obsolete: "已作廢",
     Merged: "已合併",
-    EVTDisabled: "EVT 停用",
     PendingAdminConfirm: "待管理員確認",
     MainDrawingInvalid: "主要製造圖失效"
   };
@@ -149,8 +133,6 @@ export function approvalRoleLabel(code: string | null | undefined) {
 
 function approvalActionUserPhrase(code: string | null | undefined) {
   const labels: Record<string, string> = {
-    dvt_promotion: "送 DVT 階段晉升",
-    dvt_missing_ma_override: "申請主要製造圖例外",
     release: "正式發行",
     release_missing_ma_confirm: "確認沒有主要製造圖仍要發行",
     same_drawing_variant_after_release: "處理已發布後的同圖多料號",
@@ -169,16 +151,6 @@ function approvalActionUserPhrase(code: string | null | undefined) {
   return labels[normalized] ?? `執行「${approvalActionLabel(normalized)}」`;
 }
 
-function approvalPhaseUserPhrase(value: string | null | undefined) {
-  const labels: Record<string, string> = {
-    EVT: "EVT 試作階段",
-    DVT: "DVT 驗證階段",
-    Release: "正式發行階段"
-  };
-  const normalized = value?.trim() ?? "";
-  return labels[normalized] ?? approvalPhaseLabel(normalized);
-}
-
 function approvalRecordStatusUserPhrase(value: string | null | undefined) {
   const labels: Record<string, string> = {
     Draft: "資料還是草稿",
@@ -188,7 +160,6 @@ function approvalRecordStatusUserPhrase(value: string | null | undefined) {
     Released: "資料已發布",
     Obsolete: "資料已作廢",
     Merged: "資料已合併",
-    EVTDisabled: "EVT 資料已停用",
     PendingAdminConfirm: "等待管理員確認",
     MainDrawingInvalid: "主要製造圖失效"
   };
@@ -228,7 +199,6 @@ function approvalRiskUserPhrase(value: string | null | undefined) {
 function buildRuleSituation(rule: ApprovalRuleSummaryInput) {
   const conditionParts = [
     approvalItemKindUserPhrase(rule.itemKind),
-    approvalPhaseUserPhrase(rule.phase),
     approvalRecordStatusUserPhrase(rule.recordStatus),
     approvalRiskUserPhrase(rule.riskFlag)
   ].filter((item): item is string => Boolean(item));

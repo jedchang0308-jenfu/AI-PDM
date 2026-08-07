@@ -67,11 +67,12 @@ record("TRF-001 three tabs and one page-level create CTA exist", all(technicalPa
   'href="/transfer-packages/new?returnTo=', "建立技轉包"
 ]));
 
-record("UI-003 sidebar replaces old handoff with technical transfer under flag", all(sidebar, [
-  '{ href: "/technical-transfer", label: "技術移轉"',
-  'item.href === "/technical-transfer" && !numberStateFlowV1Enabled',
-  '"/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"'
-]));
+record(
+  "UI-003 sidebar exposes canonical technical transfer and omits retired routes",
+  sidebar.includes('{ href: "/technical-transfer", label: "技術移轉"') &&
+    ["/numbering/part-drafts", "/numbering/request", "/upload", "/handoff"]
+      .every((route) => !sidebar.includes(`href: "${route}"`))
+);
 
 record("TRF-012 API and export share the same published-only predicate", all(technicalApi, [
   '"handoff.published.view"', "listPublishedTransferHandoffs"

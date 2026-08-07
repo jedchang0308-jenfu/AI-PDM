@@ -124,16 +124,16 @@ function seedNumberingContext(input) {
   db.prepare(
     `
     INSERT INTO part_roots (
-      id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(input.rootId, input.rootCode, input.coreName, "user-dsw-owner", time, time);
   db.prepare(
     `
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'available', 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      is_universal, bom_usage_policy, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'available', 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(input.partId, input.rootId, input.partNumber, input.partName, "user-dsw-owner", time, time);
   db.prepare(
@@ -147,8 +147,8 @@ function seedNumberingContext(input) {
     `
     INSERT INTO drawing_numbers (
       id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-      is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 'MA', 'MA 製造圖', 1, 1, 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'MA', 'MA 製造圖', 1, 1, 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(input.drawingId, input.rootId, input.drawingNumber, "user-dsw-owner", time, time);
   db.prepare(
@@ -300,6 +300,8 @@ function getWorkbenchFacts(drawingNumber, revision) {
 
 async function run() {
   fs.mkdirSync(repositoryDir, { recursive: true });
+  process.env.PDM_DB_PROVIDER = "sqlite";
+  process.env.PDM_PRODUCTION_SLICE_MODE = "";
   process.env.PDM_AUTH_MODE = "managed";
   process.env.PDM_BOOTSTRAP_USERS = JSON.stringify(bootstrapUsers);
   process.env.PDM_DATA_DIR = dataDir;

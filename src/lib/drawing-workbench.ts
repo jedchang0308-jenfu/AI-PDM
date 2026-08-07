@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { DrawingWorkbenchAsyncRepository } from "@/lib/repositories/drawing-workbench-async-repository";
+import { projectViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { projectDrawingAvailability, type AvailabilityScopeProjection } from "@/lib/availability-scope";
+import { projectDrawingHumanStatus } from "@/lib/drawing-workbench-status";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type { DrawingModuleListRecord, DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
@@ -12,6 +15,7 @@ export const DRAWING_WORKBENCH_STAGES = [
   "auto_finalizing",
   "recovery_required",
   "official_controlled",
+  "correction_required",
   "revision_in_review",
   "released",
   "history_only"
@@ -36,6 +40,21 @@ export type DrawingWorkbenchPrimaryAction = {
   enabled: boolean;
   disabledReason: string | null;
   href: string | null;
+  permissionCode?: string | null;
+  contactRole?: string | null;
+  adminHref?: string | null;
+};
+
+export type DrawingWorkbenchSecondaryAction = {
+  kind: "withdraw_review";
+  label: "撤回送審";
+  commandHref: string;
+};
+
+export type DrawingWorkbenchTerminalInfo = {
+  kind: "cancelled" | "obsolete" | "merged";
+  reasonLabel: string;
+  nextStepLabel: string;
 };
 
 export type DrawingWorkbenchRow = {
@@ -56,8 +75,13 @@ export type DrawingWorkbenchRow = {
   stageLabel: string;
   usage: "not_for_formal_use" | "rd_controlled" | "released" | "historical_only";
   primaryAction: DrawingWorkbenchPrimaryAction | null;
+  secondaryAction?: DrawingWorkbenchSecondaryAction | null;
   warning: { code: string; message: string } | null;
+  terminal: DrawingWorkbenchTerminalInfo | null;
   updatedAt: string;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
 };
 
 export type DrawingWorkbenchPermissions = {
@@ -67,6 +91,9 @@ export type DrawingWorkbenchPermissions = {
   candidateReview: boolean;
   publish: boolean;
   createRevision: boolean;
+  draftUpdate: boolean;
+  manageReferenceAttachments: boolean;
+  managePermissions: boolean;
 };
 
 export type DrawingWorkbenchActor = {
@@ -94,7 +121,24 @@ export type DrawingWorkbenchDetailResponse = {
   capabilities: {
     canReviewApprovals: boolean;
     canCreateRevision: boolean;
+    canUpdateDraft: boolean;
+    canManageReferenceAttachments: boolean;
+    canRequestSupplement: boolean;
+    canDecideSupplement: boolean;
+    canManagePermissions: boolean;
+    permissionRequirements: {
+      updateDraft: DrawingWorkbenchPermissionRequirement;
+      createRevision: DrawingWorkbenchPermissionRequirement;
+      manageReferenceAttachments: DrawingWorkbenchPermissionRequirement;
+    };
   };
+};
+
+export type DrawingWorkbenchPermissionRequirement = {
+  permissionCode: string;
+  label: string;
+  contactRole: string;
+  adminHref: string | null;
 };
 
 export class DrawingWorkbenchError extends Error {
@@ -115,8 +159,10 @@ type NormalizedQuery = {
   seriesCode: string;
   purposeCode: DrawingPurposeCode | "";
   recordStatus: NumberingRecordStatus | "";
+  includeHistory: boolean;
   cursor: string;
   limit: number;
+  humanStatus: HumanStatusFilter;
 };
 
 type CursorPayload = {
@@ -134,12 +180,13 @@ const stageLabels: Record<DrawingWorkbenchStage, string> = {
   auto_finalizing: "系統正式化中",
   recovery_required: "需要處理",
   official_controlled: "研發受控",
+  correction_required: "需要修正",
   revision_in_review: "新版審核中",
   released: "已發布",
   history_only: "歷史紀錄"
 };
 
-const terminalDrawingStatuses = new Set<NumberingRecordStatus>(["Obsolete", "Merged", "Rejected"]);
+const terminalDrawingStatuses = new Set<NumberingRecordStatus>(["Obsolete", "Merged"]);
 const drawingPurposeCodes = ["M", "R", "MA", "OT"] as const satisfies readonly DrawingPurposeCode[];
 const drawingRecordStatuses = [
   "Draft",
@@ -161,7 +208,7 @@ function normalizedText(value: string | null, maximum: number) {
 export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
   const query = normalizedText(url.searchParams.get("query"), 200);
   const requestedView = normalizedText(url.searchParams.get("view"), 20);
-  const view: DrawingWorkbenchView = requestedView === "work" || requestedView === "all" ? requestedView : "mine";
+  const view: DrawingWorkbenchView = requestedView === "mine" || requestedView === "work" ? requestedView : "all";
   const requestedStage = normalizedText(url.searchParams.get("stage"), 40);
   if (requestedStage && !(DRAWING_WORKBENCH_STAGES as readonly string[]).includes(requestedStage)) {
     throw new DrawingWorkbenchError("workbench_invalid_stage", "請重新選擇有效的階段篩選。", 400);
@@ -179,6 +226,15 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
   if (requestedRecordStatus && !(drawingRecordStatuses as readonly string[]).includes(requestedRecordStatus)) {
     throw new DrawingWorkbenchError("workbench_invalid_record_status", "請重新選擇有效的資料狀態。", 400);
   }
+  const requestedHistory = normalizedText(url.searchParams.get("history"), 20);
+  if (requestedHistory && requestedHistory !== "include" && requestedHistory !== "exclude") {
+    throw new DrawingWorkbenchError("workbench_invalid_history", "請重新選擇有效的歷史資料範圍。", 400);
+  }
+  const requestedHumanStatus = normalizedText(url.searchParams.get("humanStatus"), 30) || "all";
+  const humanStatusFilters: HumanStatusFilter[] = ["all", "needs_action", "waiting", "system", "ready", "usable", "history"];
+  if (!humanStatusFilters.includes(requestedHumanStatus as HumanStatusFilter)) {
+    throw new DrawingWorkbenchError("workbench_invalid_human_status", "請重新選擇有效的人類狀態篩選。", 400);
+  }
   return {
     query,
     view,
@@ -186,8 +242,10 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
     seriesCode: normalizedText(url.searchParams.get("seriesCode"), 80),
     purposeCode: requestedPurposeCode as DrawingPurposeCode | "",
     recordStatus: requestedRecordStatus as NumberingRecordStatus | "",
+    includeHistory: requestedHistory === "include",
     cursor: normalizedText(url.searchParams.get("cursor"), 2_000),
-    limit
+    limit,
+    humanStatus: requestedHumanStatus as HumanStatusFilter
   };
 }
 
@@ -206,6 +264,8 @@ function filterHash(query: NormalizedQuery, actor: DrawingWorkbenchActor) {
     seriesCode: query.seriesCode,
     purposeCode: query.purposeCode,
     recordStatus: query.recordStatus,
+    includeHistory: query.includeHistory,
+    humanStatus: query.humanStatus,
     companyId: actor.companyId,
     actorId: actor.id
   })).digest("hex");
@@ -260,18 +320,35 @@ function candidateAction(
   stage: DrawingWorkbenchStage,
   actor: DrawingWorkbenchActor
 ): DrawingWorkbenchPrimaryAction | null {
-  const href = `/numbering/drawings?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`;
+  const historyQuery = stage === "history_only" ? "&history=include" : "";
+  const href = `/numbering/drawings?view=work${historyQuery}&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`;
   const owner = workspace.ownerId === actor.id;
-  const disabled = (kind: DrawingWorkbenchPrimaryActionKind, label: string, allowed: boolean, reason: string) => ({
-    kind,
-    label,
-    enabled: allowed,
-    disabledReason: allowed ? null : reason,
-    href: allowed ? href : null
-  });
-  if (stage === "building") return disabled("continue_building", "繼續建立", owner && actor.permissions.workspaceUpdate, "只有負責人可繼續編輯。 ".trim());
-  if (stage === "drawing_preparation") return disabled("complete_first_drawing", "完成首版", owner && actor.permissions.workspaceUpdate, "只有負責人可完成首版。 ".trim());
-  if (stage === "bundle_ready") return disabled("submit_bundle_review", "送交審核", owner && actor.permissions.candidateSubmit, "只有負責人且具送審權限時可送出。 ".trim());
+  const disabled = (
+    kind: DrawingWorkbenchPrimaryActionKind,
+    label: string,
+    permissionAllowed: boolean,
+    permissionCode: string,
+    permissionLabel: string
+  ): DrawingWorkbenchPrimaryAction => {
+    const enabled = owner && permissionAllowed;
+    return {
+      kind,
+      label,
+      enabled,
+      disabledReason: enabled
+        ? null
+        : owner
+          ? `缺少「${permissionLabel}」權限（${permissionCode}），請聯絡研發主管或 PDM Admin。`
+          : "這筆工作需由負責人處理；請聯絡目前負責人。",
+      href: enabled ? href : null,
+      permissionCode: owner && !permissionAllowed ? permissionCode : null,
+      contactRole: owner && !permissionAllowed ? "研發主管或 PDM Admin" : "工作負責人",
+      adminHref: owner && !permissionAllowed && actor.permissions.managePermissions ? "/settings/workflow" : null
+    };
+  };
+  if (stage === "building") return disabled("continue_building", "繼續建立", actor.permissions.workspaceUpdate, "numbering.workspace.update", "維護圖號工作");
+  if (stage === "drawing_preparation") return disabled("complete_first_drawing", "完成首版", actor.permissions.draftUpdate, "numbering.draft.update", "維護受控草稿");
+  if (stage === "bundle_ready") return disabled("submit_bundle_review", "送交審核", actor.permissions.candidateSubmit, "numbering.candidate.review.submit", "送交候選審核");
   if (stage === "in_review") return { kind: "view_review", label: "查看審核", enabled: true, disabledReason: null, href };
   if (stage === "auto_finalizing") return null;
   if (stage === "recovery_required") {
@@ -279,7 +356,77 @@ function candidateAction(
       ? { kind: "retry_formalization", label: "重試正式化", enabled: true, disabledReason: null, href }
       : { kind: "view_processing", label: "查看處理狀態", enabled: true, disabledReason: null, href };
   }
-  return { kind: "view_history", label: "查看紀錄", enabled: true, disabledReason: null, href };
+  return { kind: "view_history", label: "查看取消紀錄", enabled: true, disabledReason: null, href };
+}
+
+function permissionRequirement(
+  actor: DrawingWorkbenchActor,
+  permissionCode: string,
+  label: string,
+  contactRole: string
+): DrawingWorkbenchPermissionRequirement {
+  return {
+    permissionCode,
+    label,
+    contactRole,
+    adminHref: actor.permissions.managePermissions ? "/settings/workflow" : null
+  };
+}
+
+function workbenchCapabilities(actor: DrawingWorkbenchActor): DrawingWorkbenchDetailResponse["capabilities"] {
+  return {
+    canReviewApprovals: actor.permissions.candidateReview,
+    canCreateRevision: actor.permissions.createRevision,
+    canUpdateDraft: actor.permissions.draftUpdate,
+    canManageReferenceAttachments: actor.permissions.manageReferenceAttachments,
+    canRequestSupplement: actor.permissions.manageReferenceAttachments,
+    canDecideSupplement: actor.permissions.manageReferenceAttachments,
+    canManagePermissions: actor.permissions.managePermissions,
+    permissionRequirements: {
+      updateDraft: permissionRequirement(actor, "numbering.draft.update", "維護受控草稿", "研發主管或 PDM Admin"),
+      createRevision: permissionRequirement(actor, "post_release_change", "建立正式圖面新版", "研發主管或 PDM Admin"),
+      manageReferenceAttachments: permissionRequirement(actor, "numbering.attachments.manage", "管理參考附件", "PDM Admin")
+    }
+  };
+}
+
+function candidateViewerStatus(
+  workspace: NumberingDraftWorkspaceRecord,
+  row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope">,
+  actor: DrawingWorkbenchActor,
+  humanStatus: HumanStatusProjection
+) {
+  if (row.stage === "auto_finalizing") {
+    return projectViewerHumanStatus(humanStatus, { responsibility: "system", basis: "system", canAct: false, actorLabel: "系統正在建立正式資料" });
+  }
+  if (row.stage === "in_review") {
+    return projectViewerHumanStatus(humanStatus, {
+      responsibility: actor.permissions.candidateReview ? "current_user" : "other_user",
+      basis: "role_capability",
+      canAct: actor.permissions.candidateReview,
+      actorLabel: actor.permissions.candidateReview ? "你的角色可進行審核" : "等待審核人員處理",
+      nextStep: actor.permissions.candidateReview ? "前往審核" : "查看審核進度"
+    });
+  }
+  if (row.stage === "recovery_required") {
+    return projectViewerHumanStatus(humanStatus, {
+      responsibility: actor.permissions.publish ? "current_user" : "other_user",
+      basis: "role_capability",
+      canAct: actor.permissions.publish,
+      actorLabel: actor.permissions.publish ? "你的角色可重試正式化" : "等待發布負責人處理",
+      nextStep: actor.permissions.publish ? "重試正式化" : "查看處理進度"
+    });
+  }
+  const owner = workspace.ownerId === actor.id;
+  return projectViewerHumanStatus(humanStatus, {
+    responsibility: owner ? "current_user" : "other_user",
+    basis: "assignee",
+    canAct: owner && Boolean(row.primaryAction?.enabled),
+    actorLabel: owner
+      ? row.primaryAction?.enabled ? "這筆工作由你負責" : "這筆工作由你負責，但目前缺少操作權限"
+      : "等待工作負責人處理",
+    nextStep: owner ? row.primaryAction?.label ?? "開啟工作" : "查看進度"
+  });
 }
 
 function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWorkbenchActor): DrawingWorkbenchRow {
@@ -294,7 +441,7 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWo
     .sort((left, right) => left.localeCompare(right, "zh-Hant", { numeric: true }));
   const displayCode = drawingCodes[0] ?? partCodes[0] ?? workspace.root?.candidateCode ?? "尚未產生圖號";
   const displayName = workspace.root?.coreName ?? workspace.parts[0]?.partName ?? (workspace.draftMode === "append_part" ? "新增同圖料號" : "新增同根圖號");
-  return {
+  const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
     rowKey: `candidate:${workspace.id}`,
     rowKind: "candidate_bundle",
     workspaceId: workspace.id,
@@ -315,45 +462,113 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWo
     warning: stage === "recovery_required"
       ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" }
       : null,
+    terminal: stage === "history_only" ? {
+      kind: "cancelled",
+      reasonLabel: "此候選工作已取消，不能再由原工作往前推進。",
+      nextStepLabel: "如仍需要圖號，請建立新的圖號工作。"
+    } : null,
     updatedAt: workspace.updatedAt
   };
+  const humanStatus = projectDrawingHumanStatus(row);
+  return { ...row, humanStatus, viewerStatus: candidateViewerStatus(workspace, row, actor, humanStatus), availabilityScope: projectDrawingAvailability(row) };
 }
 
 function drawingStage(drawing: DrawingModuleListRecord): DrawingWorkbenchStage {
+  if (drawing.lifecycle?.state === "in_review") return "revision_in_review";
+  if (drawing.lifecycle?.state === "correction_required") return "correction_required";
+  if (drawing.lifecycle?.state === "released") return "released";
+  if (drawing.lifecycle?.state === "preparing") return "drawing_preparation";
+  if (drawing.lifecycle?.state === "rd_controlled") return "official_controlled";
   if (drawing.pendingApproval && drawing.pendingApproval.count > 0) return "revision_in_review";
   if (drawing.recordStatus === "Released") return "released";
+  if (drawing.recordStatus === "Rejected") return "correction_required";
   if (terminalDrawingStatuses.has(drawing.recordStatus)) return "history_only";
   return "official_controlled";
 }
 
+function drawingViewerStatus(
+  drawing: DrawingModuleListRecord,
+  row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope">,
+  actor: DrawingWorkbenchActor,
+  humanStatus: HumanStatusProjection
+) {
+  if (row.stage === "revision_in_review") {
+    const exactReviewer = Boolean(drawing.lifecycle?.requestId && drawing.lifecycle.reviewerIds.includes(actor.id));
+    return projectViewerHumanStatus(humanStatus, {
+      responsibility: exactReviewer ? "current_user" : "other_user",
+      basis: "reviewer",
+      canAct: exactReviewer,
+      actorLabel: exactReviewer ? "這筆審核需要你處理" : "等待指定審核人員處理",
+      nextStep: exactReviewer ? "前往審核" : "查看審核進度"
+    });
+  }
+  const submittedByCurrentUser = Boolean(drawing.lifecycle?.submittedBy && drawing.lifecycle.submittedBy === actor.id);
+  const roleCanHandle = actor.permissions.createRevision;
+  const currentUserResponsible = submittedByCurrentUser || (!drawing.lifecycle?.submittedBy && roleCanHandle);
+  return projectViewerHumanStatus(humanStatus, {
+    responsibility: currentUserResponsible ? "current_user" : "other_user",
+    basis: submittedByCurrentUser ? "assignee" : "role_capability",
+    canAct: currentUserResponsible && Boolean(row.primaryAction?.enabled),
+    actorLabel: submittedByCurrentUser
+      ? "這筆圖面變更由你負責"
+      : currentUserResponsible ? "你的角色可處理這一步" : "等待圖面負責人處理",
+    nextStep: currentUserResponsible ? row.primaryAction?.label ?? "開啟圖面" : "查看進度"
+  });
+}
+
 function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchActor): DrawingWorkbenchRow {
   const stage = drawingStage(drawing);
-  const detailHref = `/numbering/drawings?view=all&detail=${encodeURIComponent(`drawing:${drawing.id}`)}`;
+  const terminal = stage === "history_only";
+  const detailHref = `/numbering/drawings?view=all${terminal ? "&history=include" : ""}&detail=${encodeURIComponent(`drawing:${drawing.id}`)}`;
   let primaryAction: DrawingWorkbenchPrimaryAction;
   if (stage === "revision_in_review") {
-    primaryAction = { kind: "view_review", label: "查看審核", enabled: true, disabledReason: null, href: drawing.pendingApproval?.workbenchHref ?? detailHref };
+    const exactReviewer = Boolean(drawing.lifecycle?.requestId && drawing.lifecycle.reviewerIds.includes(actor.id));
+    primaryAction = {
+      kind: "view_review",
+      label: exactReviewer ? "前往審核" : "查看進度",
+      enabled: true,
+      disabledReason: null,
+      href: exactReviewer ? drawing.pendingApproval?.workbenchHref ?? detailHref : detailHref
+    };
   } else if (stage === "released") {
     const href = `/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
     primaryAction = {
       kind: "create_revision",
       label: "建立新版",
       enabled: actor.permissions.createRevision,
-      disabledReason: actor.permissions.createRevision ? null : "你目前沒有建立新版的權限。",
-      href: actor.permissions.createRevision ? href : null
+      disabledReason: actor.permissions.createRevision ? null : "缺少「建立正式圖面新版」權限（post_release_change），請聯絡研發主管或 PDM Admin。",
+      href: actor.permissions.createRevision ? href : null,
+      permissionCode: actor.permissions.createRevision ? null : "post_release_change",
+      contactRole: actor.permissions.createRevision ? null : "研發主管或 PDM Admin",
+      adminHref: !actor.permissions.createRevision && actor.permissions.managePermissions ? "/settings/workflow" : null
     };
   } else if (stage === "history_only") {
-    primaryAction = { kind: "view_history", label: "查看紀錄", enabled: true, disabledReason: null, href: detailHref };
+    primaryAction = { kind: "view_history", label: drawing.recordStatus === "Merged" ? "查看合併紀錄" : "查看作廢紀錄", enabled: true, disabledReason: null, href: detailHref };
   } else {
     const href = `/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
     primaryAction = {
       kind: "create_revision",
-      label: "圖面進版",
+      label: stage === "correction_required" ? "繼續修正" : stage === "drawing_preparation" ? "繼續準備" : "圖面進版",
       enabled: actor.permissions.createRevision,
-      disabledReason: actor.permissions.createRevision ? null : "你目前沒有建立新版的權限。",
-      href: actor.permissions.createRevision ? href : null
+      disabledReason: actor.permissions.createRevision ? null : "缺少「建立正式圖面新版」權限（post_release_change），請聯絡研發主管或 PDM Admin。",
+      href: actor.permissions.createRevision ? href : null,
+      permissionCode: actor.permissions.createRevision ? null : "post_release_change",
+      contactRole: actor.permissions.createRevision ? null : "研發主管或 PDM Admin",
+      adminHref: !actor.permissions.createRevision && actor.permissions.managePermissions ? "/settings/workflow" : null
     };
   }
-  return {
+  const secondaryAction: DrawingWorkbenchSecondaryAction | null =
+    stage === "revision_in_review" &&
+    drawing.lifecycle?.requestId &&
+    drawing.lifecycle.submittedBy === actor.id &&
+    drawing.lifecycle.decisionCount === 0
+      ? {
+          kind: "withdraw_review",
+          label: "撤回送審",
+          commandHref: `/api/approvals/requests/${encodeURIComponent(drawing.lifecycle.requestId)}/withdraw`
+        }
+      : null;
+  const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
     rowKey: `drawing:${drawing.id}`,
     rowKind: "drawing_master",
     workspaceId: null,
@@ -368,14 +583,49 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
     releaseStatusMismatch: Boolean(drawing.releaseStatusMismatch),
     warningCount: drawing.warningCount,
     stage,
-    stageLabel: stageLabels[stage],
-    usage: stage === "released" ? "released" : stage === "history_only" ? "historical_only" : "rd_controlled",
+    stageLabel: drawing.lifecycle
+      ? ({
+          preparing: "準備中",
+          in_review: "送審中",
+          correction_required: "退回修改",
+          rd_controlled: "研發受控",
+          released: "正式發布"
+        } as const)[drawing.lifecycle.state]
+      : stageLabels[stage],
+    usage: drawing.lifecycle?.state === "released"
+      ? "released"
+      : drawing.lifecycle?.state === "rd_controlled"
+        ? "rd_controlled"
+        : stage === "released"
+          ? "released"
+          : stage === "history_only"
+            ? "historical_only"
+            : stage === "correction_required" || stage === "drawing_preparation"
+              ? "not_for_formal_use"
+              : "rd_controlled",
     primaryAction,
+    secondaryAction,
     warning: drawing.releaseStatusMismatch
       ? { code: "release_status_mismatch", message: "發布狀態需要確認，請先查看圖面。" }
-      : null,
+      : drawing.lifecycle?.state === "correction_required"
+        ? {
+            code: "correction_required",
+            message: drawing.lifecycle.correctionReason || "審核已退回；請修正本次版次後重新送審。"
+          }
+        : null,
+    terminal: stage === "history_only" ? drawing.recordStatus === "Merged" ? {
+      kind: "merged",
+      reasonLabel: "此圖號已合併到其他圖號，不能再作為有效圖面使用。",
+      nextStepLabel: "請改用合併後圖號；需要追溯時再查看合併紀錄。"
+    } : {
+      kind: "obsolete",
+      reasonLabel: "此圖號已作廢，不能再作為有效圖面使用。",
+      nextStepLabel: "如需變更，請建立新圖號；需要追溯時再查看作廢紀錄。"
+    } : null,
     updatedAt: drawing.updatedAt
   };
+  const humanStatus = projectDrawingHumanStatus(row);
+  return { ...row, humanStatus, viewerStatus: drawingViewerStatus(drawing, row, actor, humanStatus), availabilityScope: projectDrawingAvailability(row) };
 }
 
 function rowInView(row: DrawingWorkbenchRow, source: NumberingDraftWorkspaceRecord | DrawingModuleListRecord, actor: DrawingWorkbenchActor, view: DrawingWorkbenchView) {
@@ -388,6 +638,9 @@ function rowInView(row: DrawingWorkbenchRow, source: NumberingDraftWorkspaceReco
       || (row.stage === "recovery_required" && actor.permissions.publish);
   }
   const drawing = source as DrawingModuleListRecord;
+  if (drawing.lifecycle?.state === "in_review") {
+    return drawing.lifecycle.reviewerIds.includes(actor.id) || Boolean(row.secondaryAction);
+  }
   return row.stage === "revision_in_review" && Boolean(drawing.pendingApproval) && actor.permissions.candidateReview;
 }
 
@@ -414,9 +667,11 @@ export class DrawingWorkbenchService {
       const candidates = candidateRecords.map((workspace) => ({ row: candidateRow(workspace, actor), source: workspace }));
       const drawings = drawingRecords.map((drawing) => ({ row: drawingRow(drawing, actor), source: drawing }));
       return [...candidates, ...drawings]
+        .filter(({ row }) => query.includeHistory || row.stage !== "history_only")
         .filter(({ row, source }) => rowInView(row, source, actor, query.view))
         .map(({ row }) => row)
-        .filter((row) => !query.stage || row.stage === query.stage);
+        .filter((row) => !query.stage || row.stage === query.stage)
+        .filter((row) => viewerStatusMatchesFilter(row.viewerStatus, row.humanStatus, query.humanStatus));
     });
     const hasNext = page.rows.length > query.limit;
     const pageRows = page.rows.slice(0, query.limit);
@@ -450,10 +705,7 @@ export class DrawingWorkbenchService {
         candidate,
         drawing: null,
         sourceWorkspace: null,
-        capabilities: {
-          canReviewApprovals: actor.permissions.candidateReview,
-          canCreateRevision: actor.permissions.createRevision
-        }
+        capabilities: workbenchCapabilities(actor)
       };
     }
     if (rowKey.startsWith("drawing:")) {
@@ -465,15 +717,31 @@ export class DrawingWorkbenchService {
         includeSourceWorkspace: actor.permissions.workspaceView
       });
       if (!detail) return null;
+      const row = drawingRow(detail.drawing, actor);
+      const publicDrawing: DrawingModuleListRecord = detail.drawing.lifecycle
+        ? {
+            ...detail.drawing,
+            lifecycle: {
+              state: detail.drawing.lifecycle.state,
+              revision: detail.drawing.lifecycle.revision,
+              requestId: null,
+              submittedBy: null,
+              decisionCount: 0,
+              reviewerIds: [],
+              correctionReason: detail.drawing.lifecycle.correctionReason
+            }
+          }
+        : detail.drawing;
+      const capabilities = workbenchCapabilities(actor);
+      if (detail.drawing.lifecycle?.state === "in_review") {
+        capabilities.canReviewApprovals = detail.drawing.lifecycle.reviewerIds.includes(actor.id);
+      }
       return {
-        row: drawingRow(detail.drawing, actor),
+        row,
         candidate: null,
-        drawing: detail.drawing,
+        drawing: publicDrawing,
         sourceWorkspace: detail.sourceWorkspace,
-        capabilities: {
-          canReviewApprovals: actor.permissions.candidateReview,
-          canCreateRevision: actor.permissions.createRevision
-        }
+        capabilities
       };
     }
     return null;

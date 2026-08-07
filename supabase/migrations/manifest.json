@@ -168,8 +168,36 @@
       "source": "db/postgres/022_unified_drawing_workbench.sql",
       "target": "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
       "description": "Add DEV-053 source drawing and part context for candidate workspaces",
-      "sourceSha256": "e3d6e10549bde9b5f4cfb3a82531b91bf4da50927371671fe9d8fe0642bf8f90",
-      "targetSha256": "525ae1fb38a2119f47b9f48e6164241363e99af6b63d3ca7b47d99e5f6c7786e"
+      "sourceSha256": "bb591af7db5e4750dcfc2349a2cc592e9296e8c1fa079a1a6acb8c01ead23e95",
+      "targetSha256": "188cea6876bafc0fdcae463fed5068a8351e49f72e81442a7e71e7f03e407e1e"
+    },
+    {
+      "source": "db/postgres/023_remove_project_status_authority.sql",
+      "target": "supabase/migrations/20260804030000_remove_project_status_authority.sql",
+      "description": "Remove project-status authority while preserving PDM quality and change-control evidence",
+      "sourceSha256": "047cbcbbc525cfd81369144b70f18a40ceaca38f59dc40850bf0d3ff9b30bcc0",
+      "targetSha256": "2be4c81d8007d3cb8957e07c96d95a466680bb15e7cccf672d6375a5c8f78956"
+    },
+    {
+      "source": "db/postgres/024_remove_submission_phase_gate.sql",
+      "target": "supabase/migrations/20260805010000_remove_submission_phase_gate.sql",
+      "description": "Remove the retired submission approval blocker workflow",
+      "sourceSha256": "2356b3512aa6a402dd449859eb18c75400936234fb354e0a4cf73a011bb997a6",
+      "targetSha256": "29c1c71c87aea05bddd37a7e750ad6c057f8aea18295fef39b0ea701271b2146"
+    },
+    {
+      "source": "db/postgres/025_submission_part_scope.sql",
+      "target": "supabase/migrations/20260806010000_submission_part_scope.sql",
+      "description": "Add immutable multi-part scope for one controlled drawing revision submission",
+      "sourceSha256": "77e84683676fa5cc3e2c72a78abddcc55dcc8bd3aaf778298b77bc235b53ea66",
+      "targetSha256": "1f74cd8e1da18c65c58de3e5160e0d4277e91848097493fc1e0c99323ffb1f71"
+    },
+    {
+      "source": "db/postgres/026_drawing_revision_lifecycle_authority.sql",
+      "target": "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql",
+      "description": "Add DEV-053 Phase 1H drawing-revision lifecycle authority and guarded cleanup",
+      "sourceSha256": "29596ec10e2b9d877f3f3ef8228130969245b458e032f7ff6b211c5d8926666d",
+      "targetSha256": "0482763515fa5b308ce08ed38ec7eb41d35b07293dfbdc84b20c4c0a214a6acd"
     }
   ]
 }

@@ -25,7 +25,10 @@ export const SELECT_ASYNC_ITEM_REVISION_HISTORY_SQL = `
     s.obsolete_at,
     s.obsolete_by
   FROM submissions s
-  JOIN items i ON i.id = s.item_id
+  LEFT JOIN submission_part_scopes scope
+    ON scope.submission_id = s.id
+   AND scope.part_number = :partNumber
+  JOIN items i ON i.id = COALESCE(scope.item_id, s.item_id)
   JOIN users u ON u.id = s.submitted_by
   WHERE i.part_number = :partNumber
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)

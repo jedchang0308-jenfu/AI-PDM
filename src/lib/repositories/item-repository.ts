@@ -9,7 +9,13 @@ export function reconcileItemCurrentRevisions(database: SqliteDatabase) {
     SET current_revision = (
           SELECT s.revision
           FROM submissions s
-          WHERE s.item_id = items.id
+          WHERE (
+              s.item_id = items.id
+              OR EXISTS (
+                SELECT 1 FROM submission_part_scopes scope
+                WHERE scope.submission_id = s.id AND scope.item_id = items.id
+              )
+            )
             AND s.status = 'Released'
           ORDER BY datetime(COALESCE(s.released_at, s.updated_at, s.created_at)) DESC
           LIMIT 1
@@ -18,7 +24,13 @@ export function reconcileItemCurrentRevisions(database: SqliteDatabase) {
           WHEN EXISTS (
             SELECT 1
             FROM submissions s
-            WHERE s.item_id = items.id
+            WHERE (
+                s.item_id = items.id
+                OR EXISTS (
+                  SELECT 1 FROM submission_part_scopes scope
+                  WHERE scope.submission_id = s.id AND scope.item_id = items.id
+                )
+              )
               AND s.status = 'Released'
           )
           THEN updated_at
@@ -29,7 +41,7 @@ export function reconcileItemCurrentRevisions(database: SqliteDatabase) {
 
 export function listItemRevisionHistory(input: { partNumber: string; submittedBy?: string; companyId?: string }) {
   const filters = ["i.part_number = ?"];
-  const values = [input.partNumber];
+  const values = [input.partNumber, input.partNumber];
   if (input.companyId) {
     filters.push("i.company_id = ?");
     values.push(input.companyId);
@@ -60,7 +72,10 @@ export function listItemRevisionHistory(input: { partNumber: string; submittedBy
         s.obsolete_at,
         s.obsolete_by
       FROM submissions s
-      JOIN items i ON i.id = s.item_id
+      LEFT JOIN submission_part_scopes scope
+        ON scope.submission_id = s.id
+       AND scope.part_number = ?
+      JOIN items i ON i.id = COALESCE(scope.item_id, s.item_id)
       JOIN users u ON u.id = s.submitted_by
       WHERE ${filters.join(" AND ")}
       ORDER BY s.created_at DESC, s.revision DESC

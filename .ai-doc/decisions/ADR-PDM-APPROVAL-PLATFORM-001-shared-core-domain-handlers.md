@@ -5,12 +5,14 @@ Date: 2026-07-08
 Owner: Dev PM
 Related Spec: `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
+Amended by: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
 Implementation update on 2026-07-08:
 
 - Phase 1A selected additive v2 platform tables in `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`.
 - Phase 1B local platform foundation was implemented with `approval_platform_*` schema, registry, handler dispatch, unified APIs, `/approvals` UI and legacy adapters.
 - Production deploy, Supabase live migration, direct data repair/deletion, merge, PR, rollback and release artifacts remain unauthorized.
+- 2026-08-06：DEV-053 Phase 1H取得drawing-revision-only `lifecycle_only` retention例外。shared core在active期間仍是唯一authority；guarded terminal cleanup後不保留fresh或8B adopted-active流程的durable approval history。既有completed/unknown與其他domain仍維持append-only。
 
 ## Context
 
@@ -31,7 +33,7 @@ Follow-up architecture review showed that numbering approvals are mostly central
 
 Build a system-wide approval platform before launch using:
 
-- A shared approval core for request identity, package identity, status, decision, assignment, delegation, audit, impact snapshot, inbox and common APIs.
+- A shared approval core for request identity, package identity, status, decision, assignment, delegation, audit, impact snapshot, inbox and common APIs, subject only to explicit domain retention ADRs such as ADR-003.
 - An approval action registry for domain/action metadata and handler binding.
 - Domain-specific handlers for validation, impact preview and apply-approved side effects.
 - Compatibility adapters for existing domain flows where immediate physical table migration is not necessary.
@@ -119,7 +121,7 @@ Allowed:
 Not allowed:
 
 - Launching formal approvals as multiple unrelated active inboxes.
-- Direct formal lifecycle mutation without platform audit when policy says approval is required.
+- Direct formal lifecycle mutation without platform authority when policy says approval is required. ADR-003 permits post-completion history cleanup, not bypass mutation.
 - One generic apply function that mutates every domain by interpreting payload strings.
 - Choosing approval platform table strategy without the required spike decision record.
 - Claiming launch readiness while known historical approval-like records remain only in legacy approval tables without physical platform migration or explicit human exception.

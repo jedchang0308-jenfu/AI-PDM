@@ -96,7 +96,6 @@ export type DrawingSubmissionContext = {
     rootCode: string;
     coreName: string;
     recordStatus: string;
-    developmentPhase: string;
   };
   drawing: {
     id: string;
@@ -104,7 +103,6 @@ export type DrawingSubmissionContext = {
     purposeCode: string;
     purposeLabel: string;
     recordStatus: string;
-    developmentPhase: string;
     coreName: string;
   };
   primaryPart: null | {
@@ -117,11 +115,24 @@ export type DrawingSubmissionContext = {
     processName: string;
     productSeries: string;
   };
+  submissionParts: Array<{
+    id: string;
+    itemId: string | null;
+    partNumber: string;
+    partName: string;
+    itemKind: string;
+    material: string;
+    surfaceFinish: string;
+    processName: string;
+    productSeries: string;
+    linkType: "primary_manufacturing" | "reference";
+  }>;
   linkedParts: Array<{
     id: string;
     partNumber: string;
     partName: string;
     isPrimary: boolean;
+    isSelectedForSubmission: boolean;
   }>;
   attachments: DrawingSubmissionAttachment[];
   suggestedRevision: {
@@ -135,6 +146,10 @@ export type DrawingSubmissionContext = {
     generatedAt: string;
   };
   revisionPolicySuggestion: RevisionPolicySuggestionResponse;
+  lifecycle: {
+    state: "preparing" | "in_review" | "correction_required" | "rd_controlled" | "released";
+    correctionReason: string | null;
+  } | null;
   blockers: DrawingSubmissionBlocker[];
   sameRevisionRecords: SameRevisionSubmissionRecord[];
   nonBlockingHistory: Array<{ message: string; submissionId: string; href: string }>;
@@ -185,22 +200,25 @@ type DrawingRow = {
   drawing_number: string;
   purpose_code: string;
   purpose_description: string;
-  development_phase: string;
   record_status: string;
   core_name: string | null;
   root_code: string;
   root_record_status: string;
-  root_development_phase: string;
   rule_version_id: string;
+};
+
+type DrawingLifecycleRow = {
+  lifecycle_state: "preparing" | "in_review" | "correction_required" | "rd_controlled" | "released";
+  active_correction_reason: string | null;
 };
 
 type LinkedPartRow = {
   id: string;
+  item_id: string | null;
   part_root_id: string;
   part_number: string;
   part_name: string;
   item_kind: string;
-  development_phase: string;
   record_status: string;
   link_type: string;
   material_code: string | null;
@@ -223,7 +241,7 @@ type AttachmentRow = {
 };
 
 const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "x_t"]);
-const blockedDrawingStatuses = new Set(["Obsolete", "Merged", "EVTDisabled", "MainDrawingInvalid"]);
+const blockedDrawingStatuses = new Set(["Obsolete", "Merged", "MainDrawingInvalid"]);
 const submittablePrimaryPartKinds = new Set(["manufactured", "outsourced", "custom"]);
 const snapshotRulesVersion = "drawing_part_submission_v1.2026-07-01";
 const activeSubmissionStatusSql = "'Pending', 'Releasing'";
@@ -237,7 +255,6 @@ type RootRow = {
   id: string;
   root_code: string;
   core_name: string;
-  development_phase: string;
   record_status: string;
 };
 
@@ -297,6 +314,8 @@ export async function resolveDrawingSubmissionContext(input: {
   drawingNumber: string;
   targetRevision?: string | null;
   workflowIntent?: RevisionWorkflowIntent | string | null;
+  currentPartNumberId?: string | null;
+  partNumberIds?: string[];
 }): Promise<DrawingSubmissionContext> {
   const client = getAsyncDatabaseClient();
   const drawingNumber = normalizeText(input.drawingNumber);
@@ -309,7 +328,21 @@ export async function resolveDrawingSubmissionContext(input: {
 
   const linkedPartRows = await listLinkedParts(client, input.company.companyId, drawing.id);
   const rootPrimaryDrawings = await listRootPrimaryDrawings(client, input.company.companyId, drawing.part_root_id);
-  const primaryPart = resolvePrimaryPart(linkedPartRows);
+  const requestedPartNumberIds = uniqueStrings([
+    ...(input.partNumberIds ?? []).map(normalizeText).filter(Boolean),
+    ...((input.partNumberIds?.length ?? 0) === 0 && normalizeText(input.currentPartNumberId)
+      ? [normalizeText(input.currentPartNumberId)]
+      : [])
+  ]);
+  const selectedPartRows = resolveSubmissionParts(linkedPartRows, requestedPartNumberIds);
+  if (requestedPartNumberIds.length > 0 && selectedPartRows.length !== requestedPartNumberIds.length) {
+    throw new DrawingSubmissionWorkbenchError(
+      "DRAWING_SUBMISSION_PRIMARY_PART_INVALID",
+      "選擇的料號中有項目不屬於此圖號的主要製造料關聯，請重新選擇本次進版範圍。",
+      409
+    );
+  }
+  const primaryPart = selectedPartRows[0] ?? null;
   const attachmentRows = await listDrawingAttachments(client, drawing.id);
   const attachments = (
     await enrichAttachmentsWithReleaseConflicts(client, attachmentRows.map(mapAttachment), primaryPart)
@@ -322,10 +355,14 @@ export async function resolveDrawingSubmissionContext(input: {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number,
     workflowIntent,
-    revisions
+    revisions,
+    attachmentRevisions: attachmentRows
+      .filter((attachment) => attachment.revision?.trim())
+      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
   });
   const suggestedRevision = targetRevision || revisionPolicySuggestion.suggestedRevision;
   const suggestedRevisionSource = targetRevision ? "manual_master" : "revision_policy";
+  const lifecycle = await findDrawingLifecycle(client, input.company.companyId, drawing.id, suggestedRevision);
   const sameRevisionRecords = await listSameRevisionSubmissions(client, {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number,
@@ -335,6 +372,7 @@ export async function resolveDrawingSubmissionContext(input: {
   const blockers = buildBlockers({
     drawing,
     primaryPart,
+    selectedPartRows,
     linkedPartRows,
     rootPrimaryDrawings,
     attachments,
@@ -348,8 +386,7 @@ export async function resolveDrawingSubmissionContext(input: {
       id: drawing.part_root_id,
       rootCode: drawing.root_code,
       coreName: drawing.core_name ?? "",
-      recordStatus: drawing.root_record_status,
-      developmentPhase: drawing.root_development_phase
+      recordStatus: drawing.root_record_status
     },
     drawing: {
       id: drawing.id,
@@ -357,15 +394,20 @@ export async function resolveDrawingSubmissionContext(input: {
       purposeCode: drawing.purpose_code,
       purposeLabel: `${drawing.purpose_code} ${displayDrawingPurposeLabel(drawing.purpose_code)}`,
       recordStatus: drawing.record_status,
-      developmentPhase: drawing.development_phase,
       coreName: drawing.core_name ?? ""
     },
     primaryPart: primaryPart ? mapPrimaryPart(primaryPart) : null,
+    submissionParts: selectedPartRows.map((part) => ({
+      ...mapPrimaryPart(part),
+      itemId: part.item_id,
+      linkType: part.link_type === "reference" ? "reference" : "primary_manufacturing"
+    })),
     linkedParts: linkedPartRows.map((part) => ({
       id: part.id,
       partNumber: part.part_number,
       partName: part.part_name,
-      isPrimary: part.id === primaryPart?.id
+      isPrimary: part.link_type === "primary_manufacturing",
+      isSelectedForSubmission: selectedPartRows.some((selected) => selected.id === part.id)
     })),
     attachments,
     suggestedRevision: {
@@ -379,6 +421,9 @@ export async function resolveDrawingSubmissionContext(input: {
       generatedAt: revisionPolicySuggestion.generatedAt
     },
     revisionPolicySuggestion,
+    lifecycle: lifecycle
+      ? { state: lifecycle.lifecycle_state, correctionReason: lifecycle.active_correction_reason }
+      : null,
     blockers,
     sameRevisionRecords,
     nonBlockingHistory: sameRevisionRecords
@@ -445,6 +490,13 @@ export async function resolveRootSubmissionReadiness(input: {
 export async function createDrawingSourceSubmission(input: {
   company: PdmCompany;
   drawingNumber: string;
+  currentPartNumberId?: string | null;
+  partNumberIds?: string[];
+  fffAssessment?: {
+    formState: "no_impact" | "suspected_impact" | "confirmed_impact";
+    fitState: "no_impact" | "suspected_impact" | "confirmed_impact";
+    functionState: "no_impact" | "suspected_impact" | "confirmed_impact";
+  };
   expectedRevision?: string | null;
   workflowIntent?: RevisionWorkflowIntent | string | null;
   revisionPolicySuggestion?: RevisionPolicySuggestionResponse | null;
@@ -467,9 +519,18 @@ export async function createDrawingSourceSubmission(input: {
   const context = await resolveDrawingSubmissionContext({
     company: input.company,
     drawingNumber: input.drawingNumber,
+    currentPartNumberId: input.currentPartNumberId,
+    partNumberIds: input.partNumberIds,
     targetRevision: expectedRevision,
     workflowIntent
   });
+  if (fffOutcome(input.fffAssessment) === "confirmed_impact" && context.submissionParts.length > 1) {
+    throw new DrawingSubmissionWorkbenchError(
+      "DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED",
+      "多料號批次中有確認影響時，每個料號都需要各自的替代料號。請先縮小為單一料號完成替代流程，或將 FFF 改為實際判定結果。",
+      409
+    );
+  }
   const client = getAsyncDatabaseClient();
   const existingAttempt = await getSubmissionAttempt(client, {
     companyId: input.company.companyId,
@@ -723,7 +784,10 @@ export async function createDrawingSourceSubmission(input: {
     revisions: await listSubmissionRevisionsByDrawingAsync({
       companyId: input.company.companyId,
       drawingNumber: context.drawing.drawingNumber
-    })
+    }),
+    attachmentRevisions: attachmentRows
+      .filter((attachment) => attachment.revision?.trim())
+      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
   });
   if (input.revisionPolicySuggestion?.basisHash && input.revisionPolicySuggestion.basisHash !== currentPolicySuggestion.basisHash) {
     throw new DrawingSubmissionWorkbenchError(
@@ -886,6 +950,16 @@ export async function createDrawingSourceSubmission(input: {
       sourceEntityType: "drawing_number",
       sourceEntityId: context.drawing.id,
       files: savedFiles,
+      partScopes: context.submissionParts.map((part) => ({
+        partNumberId: part.id,
+        partNumber: part.partNumber,
+        partName: part.partName,
+        linkType: part.linkType,
+        formState: input.fffAssessment?.formState ?? "no_impact",
+        fitState: input.fffAssessment?.fitState ?? "no_impact",
+        functionState: input.fffAssessment?.functionState ?? "no_impact",
+        fffOutcome: fffOutcome(input.fffAssessment)
+      })),
       snapshot: {
         sourceRootId: context.root.id,
         sourceRootCode: context.root.rootCode,
@@ -1074,6 +1148,32 @@ export async function returnReleaseFailedSubmissionForCorrectionAsync(input: {
     `,
     { submissionId: input.submissionId }
   );
+  const partScopes = await client.query<{
+    part_number_id: string;
+    part_number: string;
+    part_name: string;
+    link_type: "primary_manufacturing" | "reference";
+    form_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+    fit_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+    function_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+    fff_outcome: "no_impact" | "suspected_impact" | "confirmed_impact";
+  }>(
+    `
+    SELECT
+      part_number_id,
+      part_number,
+      part_name,
+      link_type,
+      form_state,
+      fit_state,
+      function_state,
+      fff_outcome
+    FROM submission_part_scopes
+    WHERE submission_id = :submissionId
+    ORDER BY part_number ASC, part_number_id ASC
+    `,
+    { submissionId: input.submissionId }
+  );
 
   const correctionReason = normalizeText(input.reason) || "退回修正發行未完成。";
   const now = new Date().toISOString();
@@ -1103,6 +1203,16 @@ export async function returnReleaseFailedSubmissionForCorrectionAsync(input: {
     sourceEntityId: source.source_entity_id ?? null,
     correctsSubmissionId: source.id,
     files: correctionSource.savedFiles,
+    partScopes: partScopes.map((scope) => ({
+      partNumberId: scope.part_number_id,
+      partNumber: scope.part_number,
+      partName: scope.part_name,
+      linkType: scope.link_type,
+      formState: scope.form_state,
+      fitState: scope.fit_state,
+      functionState: scope.function_state,
+      fffOutcome: scope.fff_outcome
+    })),
     snapshot: snapshot
       ? {
           sourceRootId: snapshot.source_root_id,
@@ -1323,8 +1433,7 @@ async function findDrawing(client: AsyncDatabaseClient, companyId: string, drawi
       d.*,
       r.core_name,
       r.root_code,
-      r.record_status AS root_record_status,
-      r.development_phase AS root_development_phase
+      r.record_status AS root_record_status
     FROM drawing_numbers d
     JOIN part_roots r ON r.id = d.part_root_id AND r.company_id = d.company_id
     WHERE d.company_id = :companyId
@@ -1335,10 +1444,31 @@ async function findDrawing(client: AsyncDatabaseClient, companyId: string, drawi
   );
 }
 
+async function findDrawingLifecycle(
+  client: AsyncDatabaseClient,
+  companyId: string,
+  drawingNumberId: string,
+  revision: string
+) {
+  return client.queryOne<DrawingLifecycleRow>(
+    `
+    SELECT lifecycle_state, active_correction_reason
+    FROM drawing_revision_packages
+    WHERE company_id = :companyId
+      AND drawing_number_id = :drawingNumberId
+      AND revision = :revision
+      AND lifecycle_state IS NOT NULL
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+    `,
+    { companyId, drawingNumberId, revision }
+  );
+}
+
 async function findRoot(client: AsyncDatabaseClient, companyId: string, rootCode: string) {
   return client.queryOne<RootRow>(
     `
-    SELECT id, root_code, core_name, development_phase, record_status
+    SELECT id, root_code, core_name, record_status
     FROM part_roots
     WHERE company_id = :companyId
       AND root_code = :rootCode
@@ -1357,7 +1487,7 @@ async function listRootPrimaryDrawings(client: AsyncDatabaseClient, companyId: s
       AND part_root_id = :rootId
       AND purpose_code IN ('MA', 'M')
       AND is_primary_manufacturing = 1
-      AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+      AND record_status NOT IN ('Obsolete', 'Merged')
     ORDER BY drawing_number ASC
     `,
     { companyId, rootId }
@@ -1369,11 +1499,11 @@ async function listLinkedParts(client: AsyncDatabaseClient, companyId: string, d
     `
     SELECT
       p.id,
+      i.id AS item_id,
       p.part_root_id,
       p.part_number,
       p.part_name,
       p.item_kind,
-      p.development_phase,
       p.record_status,
       l.link_type,
       va.material_code,
@@ -1381,6 +1511,7 @@ async function listLinkedParts(client: AsyncDatabaseClient, companyId: string, d
       va.surface_treatment
     FROM drawing_part_links l
     JOIN part_numbers p ON p.id = l.part_number_id
+    LEFT JOIN items i ON i.company_id = p.company_id AND i.part_number = p.part_number
     LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
     WHERE l.drawing_number_id = :drawingNumberId
       AND p.company_id = :companyId
@@ -1563,11 +1694,12 @@ function mapSameRevisionSubmissionRecord(row: ExistingSubmissionRow): SameRevisi
   };
 }
 
-function resolvePrimaryPart(rows: LinkedPartRow[]) {
+function resolveSubmissionParts(rows: LinkedPartRow[], requestedPartNumberIds: string[]) {
   const primaryRows = rows.filter((row) => row.link_type === "primary_manufacturing");
-  if (primaryRows.length === 1) return primaryRows[0];
-  if (primaryRows.length === 0 && rows.length === 1) return rows[0];
-  return null;
+  const candidates = primaryRows.length > 0 ? primaryRows : rows.length === 1 ? rows : [];
+  if (requestedPartNumberIds.length === 0) return candidates;
+  const byId = new Map(candidates.map((row) => [row.id, row]));
+  return requestedPartNumberIds.map((id) => byId.get(id)).filter((row): row is LinkedPartRow => Boolean(row));
 }
 
 function mapPrimaryPart(row: LinkedPartRow): NonNullable<DrawingSubmissionContext["primaryPart"]> {
@@ -1718,6 +1850,7 @@ function classifySubmissionBlocker(code: DrawingSubmissionBlockerCode): DrawingS
 function buildBlockers(input: {
   drawing: DrawingRow;
   primaryPart: LinkedPartRow | null;
+  selectedPartRows: LinkedPartRow[];
   linkedPartRows: LinkedPartRow[];
   rootPrimaryDrawings: PrimaryDrawingRow[];
   attachments: DrawingSubmissionAttachment[];
@@ -1748,11 +1881,13 @@ function buildBlockers(input: {
       recoveryHref
     }));
   }
-  if (input.linkedPartRows.filter((row) => row.link_type === "primary_manufacturing").length > 1) {
+  const primaryPartLinkCount = input.linkedPartRows.filter((row) => row.link_type === "primary_manufacturing").length;
+  if (primaryPartLinkCount > 0 && input.selectedPartRows.length === 0) {
     blockers.push(makeSubmissionBlocker({
       code: "multiple_primary_parts",
-      message: "此主根號有多個主料號，系統無法判定送審主料，請先修正主料設定。",
-      recoveryHref
+      message: "此圖號同時服務多個料號。請至少選擇一個本次要一起進版的料號。",
+      recoveryHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(input.drawing.drawing_number)}`,
+      recoveryLabel: "選擇本次進版料號"
     }));
   }
   if (blockedDrawingStatuses.has(input.drawing.record_status)) {
@@ -1763,36 +1898,40 @@ function buildBlockers(input: {
     }));
   }
   if (!input.primaryPart) {
-    blockers.push(makeSubmissionBlocker({
-      code: "missing_primary_part",
-      message:
-        input.linkedPartRows.length > 1
-          ? "此圖號關聯多個料號，但未指定主要料號。請先在圖號模組完成關聯主料號。"
-          : "此圖號尚未關聯料號。請先在圖號模組完成圖料關係。",
-      recoveryHref
-    }));
+    if (primaryPartLinkCount <= 1) {
+      blockers.push(makeSubmissionBlocker({
+        code: "missing_primary_part",
+        message:
+          input.linkedPartRows.length > 1
+            ? "此圖號關聯多個料號，但未指定主要料號。請先在圖號模組完成關聯主料號。"
+            : "此圖號尚未關聯料號。請先在圖號模組完成圖料關係。",
+        recoveryHref
+      }));
+    }
   } else {
-    const part = mapPrimaryPart(input.primaryPart);
-    if (!submittablePrimaryPartKinds.has(input.primaryPart.item_kind)) {
+    for (const selectedPart of input.selectedPartRows) {
+      const part = mapPrimaryPart(selectedPart);
+      if (!submittablePrimaryPartKinds.has(selectedPart.item_kind)) {
       blockers.push(makeSubmissionBlocker({
         code: "primary_part_not_manufacturing",
-        message: "主料號不是可送審的製造料，請先修正圖料關聯。",
+          message: `本次進版料號 ${part.partNumber} 不是可送審的製造料，請先修正圖料關聯。`,
         recoveryHref
       }));
-    }
-    if (!part.material) {
+      }
+      if (!part.material) {
       blockers.push(makeSubmissionBlocker({
         code: "missing_material",
-        message: "主要料號尚未完成材質主資料。請回圖號/料號模組補齊，不可在送審頁補填。",
+          message: `本次進版料號 ${part.partNumber} 尚未完成材質主資料。請回圖號/料號模組補齊，不可在送審頁補填。`,
         recoveryHref
       }));
-    }
-    if (!part.surfaceFinish) {
+      }
+      if (!part.surfaceFinish) {
       blockers.push(makeSubmissionBlocker({
         code: "missing_surface_finish",
-        message: "主要料號尚未完成表面處理主資料。請回圖號/料號模組補齊，不可在送審頁補填。",
+          message: `本次進版料號 ${part.partNumber} 尚未完成表面處理主資料。請回圖號/料號模組補齊，不可在送審頁補填。`,
         recoveryHref
       }));
+      }
     }
   }
   const hasTargetRevisionAttachment = input.attachments.some(
@@ -1818,8 +1957,7 @@ function mapRootForContext(root: RootRow): DrawingSubmissionContext["root"] {
     id: root.id,
     rootCode: root.root_code,
     coreName: root.core_name,
-    recordStatus: root.record_status,
-    developmentPhase: root.development_phase
+    recordStatus: root.record_status
   };
 }
 
@@ -2140,6 +2278,15 @@ function buildSnapshotBase(input: {
     drawing: input.context.drawing,
     primaryPart: input.context.primaryPart,
     linkedParts: input.context.linkedParts,
+    partSelection: input.context.primaryPart
+      ? {
+          currentPartNumberId: input.context.primaryPart.id,
+          currentPartNumber: input.context.primaryPart.partNumber,
+          selectedPartNumberIds: input.context.submissionParts.map((part) => part.id),
+          selectedPartNumbers: input.context.submissionParts.map((part) => part.partNumber),
+          basis: input.context.submissionParts.length > 1 ? "explicit_multi_part_scope" : "single_primary_part"
+        }
+      : null,
     submission: {
       revision: input.revision,
       note: input.note,
@@ -2231,6 +2378,23 @@ function extensionFromFilename(filename: string) {
 
 function normalizeFileExt(value: string) {
   return value.trim().toLowerCase().replace(/^\./u, "");
+}
+
+function fffOutcome(
+  assessment:
+    | {
+        formState: "no_impact" | "suspected_impact" | "confirmed_impact";
+        fitState: "no_impact" | "suspected_impact" | "confirmed_impact";
+        functionState: "no_impact" | "suspected_impact" | "confirmed_impact";
+      }
+    | undefined
+) {
+  const states = assessment
+    ? [assessment.formState, assessment.fitState, assessment.functionState]
+    : ["no_impact"];
+  if (states.includes("confirmed_impact")) return "confirmed_impact" as const;
+  if (states.includes("suspected_impact")) return "suspected_impact" as const;
+  return "no_impact" as const;
 }
 
 function normalizeText(value: string | null | undefined) {

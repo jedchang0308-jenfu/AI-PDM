@@ -7,12 +7,16 @@ import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
+import { restoreTrackedConfigSnapshots, stopNextProcess } from "./qc-next-tracked-config-guard.mjs";
 
 const root = process.cwd();
 const runId = crypto.randomUUID();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev048-phase1c-ui-"));
+const legacyTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev048-phase1c-ui-legacy-"));
 const distDirRelative = `.tmp/next-qc-dev048-phase1c-ui-${runId}`;
 const distDir = path.join(root, ...distDirRelative.split("/"));
+const v2DistDir = `${distDir}-v2`;
+const legacyDistDir = `${distDir}-legacy`;
 const outputDir = path.join(root, "output", "playwright", "dev048-phase1c-qc-rerun");
 const password = "DEV048-Phase1C-UI-QC";
 const results = [];
@@ -21,6 +25,7 @@ const snapshots = new Map(
   ["next-env.d.ts", "tsconfig.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")])
 );
 let app;
+let v2App;
 let browser;
 let sequence = 0;
 
@@ -50,7 +55,7 @@ function getFreePort() {
   });
 }
 
-function startApp(port) {
+function startApp(port, lifecycleV2Enabled, runtimeDataDir) {
   const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
   const child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
@@ -58,14 +63,15 @@ function startApp(port) {
       ...process.env,
       PDM_AUTH_MODE: "managed",
       PDM_BOOTSTRAP_USERS: JSON.stringify(users),
-      PDM_DATA_DIR: tempDir,
-      PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
+      PDM_DATA_DIR: runtimeDataDir,
+      PDM_REPOSITORY_DIR: path.join(runtimeDataDir, "repository"),
       PDM_DB_PROVIDER: "sqlite",
       PDM_RELEASE_MODE: "local_stub",
       PDM_PUBLICATION_EVIDENCE_MODE: "local_fake",
       PDM_NUMBER_STATE_FLOW_V1: "true",
+      PDM_NUMBER_LIFECYCLE_V2: lifecycleV2Enabled ? "true" : "false",
       PDM_PRODUCTION_SLICE_MODE: "",
-      PDM_NEXT_DIST_DIR: distDirRelative
+      PDM_NEXT_DIST_DIR: `${distDirRelative}-${lifecycleV2Enabled ? "v2" : "legacy"}`
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -86,13 +92,8 @@ async function waitForApp(baseUrl) {
   throw new Error(`SERVER_START_TIMEOUT\n${app?.output() ?? ""}`);
 }
 
-async function stopApp() {
-  if (!app || app.child.exitCode !== null) return;
-  app.child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => app.child.once("exit", resolve)),
-    delay(4000).then(() => { if (app.child.exitCode === null) app.child.kill("SIGTERM"); })
-  ]);
+async function stopApp(target = app) {
+  await stopNextProcess(target?.child);
 }
 
 async function removeTempDir(target) {
@@ -179,9 +180,12 @@ function monitorPage(page) {
   });
 }
 
-async function openWorkspace(page, baseUrl, workspaceId, expectedText) {
+async function openWorkspace(page, baseUrl, workspaceId, expectedText, expectedLifecycleStage) {
   await page.goto(`${baseUrl}/parts?tab=drafts&detail=${encodeURIComponent(workspaceId)}`, { waitUntil: "networkidle" });
   await page.locator(".number-state-drawer").waitFor({ state: "visible" });
+  if (expectedLifecycleStage) {
+    await page.locator(`[data-lifecycle-v2-stage="${expectedLifecycleStage}"]`).waitFor({ state: "visible" });
+  }
   if (expectedText) await page.getByText(expectedText, { exact: true }).first().waitFor({ state: "visible" });
 }
 
@@ -199,11 +203,32 @@ async function viewportMetrics(page) {
         return rect.left < -1 || rect.right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 2;
       })
       .map((element) => (element.textContent || element.getAttribute("aria-label") || element.tagName).trim().slice(0, 80));
+    const visibleScrollOwners = [...document.querySelectorAll(".number-state-drawer, .number-state-drawer *")]
+      .filter((element) => visible(element))
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        return [style.overflowX, style.overflowY].some((value) => value === "auto" || value === "scroll");
+      })
+      .map((element) => ({
+        selector: element.classList.contains("number-state-drawer-body")
+          ? ".number-state-drawer-body"
+          : element.className || element.tagName.toLowerCase(),
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        horizontalOverflow: element.scrollWidth > element.clientWidth + 1
+      }));
+    const drawerBody = document.querySelector(".number-state-drawer-body");
     return {
       width: window.innerWidth,
       documentScrollWidth: document.documentElement.scrollWidth,
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       overflowingControls,
+      visibleScrollOwners,
+      drawerBody: drawerBody ? {
+        clientWidth: drawerBody.clientWidth,
+        scrollWidth: drawerBody.scrollWidth,
+        horizontalOverflow: drawerBody.scrollWidth > drawerBody.clientWidth + 1
+      } : null,
       candidateWatermarkCount: document.querySelectorAll(".number-state-candidate-watermark").length,
       dialogVisible: Boolean(document.querySelector(".number-state-drawer"))
     };
@@ -235,8 +260,9 @@ async function drawerResizeMetrics(page) {
 try {
   fs.mkdirSync(outputDir, { recursive: true });
   const port = await getFreePort();
-  const baseUrl = `http://127.0.0.1:${port}`;
-  app = startApp(port);
+  let baseUrl = `http://127.0.0.1:${port}`;
+  app = startApp(port, true, tempDir);
+  v2App = app;
   await waitForApp(baseUrl);
   browser = await chromium.launch({ headless: true });
   const owner = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -248,7 +274,7 @@ try {
 
   const publishedFlow = await createSubmitted(owner, baseUrl, "Published responsive");
   await decide(reviewer, baseUrl, publishedFlow.requestId, "approved");
-  await api(admin, baseUrl, {
+  const officialResult = await api(admin, baseUrl, {
     method: "POST",
     path: `/api/numbering/draft-workspaces/${publishedFlow.workspace.id}/publish`,
     key: nextKey("publish-responsive"),
@@ -258,7 +284,17 @@ try {
   const ownerPage = await owner.newPage();
   monitorPage(ownerPage);
   await ownerPage.setViewportSize({ width: 1440, height: 1000 });
-  await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "可正式使用");
+  await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "圖料號正式；研發版核准", "official_controlled");
+  await ownerPage.getByText("圖料號已正式建立；研發版已核准。", { exact: true }).waitFor({ state: "visible" });
+  const officialDrawerText = await ownerPage.locator(".number-state-drawer").innerText();
+  record(
+    "UI-C-00A V2 uses the official_controlled projection and controlled wording instead of legacy release wording",
+    officialResult.workspace?.lifecycleV2?.stage === "official_controlled" &&
+      officialDrawerText.includes("圖料號正式；研發版核准") &&
+      !officialDrawerText.includes("Released") &&
+      !officialDrawerText.includes("可正式使用"),
+    { lifecycleStage: officialResult.workspace?.lifecycleV2?.stage }
+  );
   const resizeMetrics = await drawerResizeMetrics(ownerPage);
   await ownerPage.screenshot({ path: path.join(outputDir, "drawer-resized-1440.png"), fullPage: true });
   record(
@@ -272,16 +308,28 @@ try {
   const responsiveMetrics = [];
   for (const width of [1440, 1024, 768, 390, 320]) {
     await ownerPage.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
-    await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "可正式使用");
+    await openWorkspace(ownerPage, baseUrl, publishedFlow.workspace.id, "圖料號正式；研發版核准", "official_controlled");
     const metrics = await viewportMetrics(ownerPage);
     responsiveMetrics.push(metrics);
     await ownerPage.screenshot({ path: path.join(outputDir, `published-${width}.png`), fullPage: true });
   }
   record(
     "UI-C-001 published workspace is usable at 1440/1024/768/390/320 without candidate warning or viewport overflow",
-    responsiveMetrics.every((item) => item.dialogVisible && !item.horizontalOverflow && item.candidateWatermarkCount === 0 && item.overflowingControls.length === 0),
+    responsiveMetrics.every((item) => item.dialogVisible && !item.horizontalOverflow &&
+      item.drawerBody && item.drawerBody.scrollWidth <= item.drawerBody.clientWidth + 1 &&
+      item.candidateWatermarkCount === 0 && item.overflowingControls.length === 0),
     { responsiveMetrics }
   );
+
+  const legacyPort = await getFreePort();
+  baseUrl = `http://127.0.0.1:${legacyPort}`;
+  app = startApp(legacyPort, false, legacyTempDir);
+  await waitForApp(baseUrl);
+  await Promise.all([
+    login(owner, baseUrl, "phase1c.ui.owner@example.invalid"),
+    login(reviewer, baseUrl, "phase1c.ui.reviewer@example.invalid"),
+    login(admin, baseUrl, "phase1c.ui.admin@example.invalid")
+  ]);
 
   await ownerPage.setViewportSize({ width: 1024, height: 900 });
   const withdrawFlow = await createSubmitted(owner, baseUrl, "Withdraw browser");
@@ -308,7 +356,7 @@ try {
   record("UI-C-003 needs-info and rejected projections are visible and remain draft-only", true);
 
   const applyFailedFlow = await createSubmitted(owner, baseUrl, "Apply failed browser");
-  const db = new Database(path.join(tempDir, "ai-pdm.sqlite"));
+  const db = new Database(path.join(legacyTempDir, "ai-pdm.sqlite"));
   const now = new Date().toISOString();
   db.prepare(`
     INSERT INTO approval_platform_decisions (
@@ -334,7 +382,7 @@ try {
     reviewerPage.getByRole("button", { name: "重試套用" }).click()
   ]);
   await delay(500);
-  const retryDb = new Database(path.join(tempDir, "ai-pdm.sqlite"), { readonly: true });
+  const retryDb = new Database(path.join(legacyTempDir, "ai-pdm.sqlite"), { readonly: true });
   const retryFacts = retryDb.prepare("SELECT request_status, apply_status, apply_attempts FROM approval_platform_requests WHERE id = ?").get(applyFailedFlow.requestId);
   const workspaceAfterRetry = retryDb.prepare("SELECT lifecycle_status FROM numbering_draft_workspaces WHERE id = ?").get(applyFailedFlow.workspace.id);
   const promotedAfterRetry = retryDb.prepare("SELECT count(*) count FROM number_candidate_reservations WHERE workspace_id = ? AND reservation_state = 'promoted'").get(applyFailedFlow.workspace.id).count;
@@ -362,9 +410,13 @@ try {
 } finally {
   await browser?.close().catch(() => undefined);
   await stopApp();
-  for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+  if (v2App !== app) await stopApp(v2App);
+  restoreTrackedConfigSnapshots(root, snapshots);
   await removeTempDir(distDir);
+  await removeTempDir(v2DistDir);
+  await removeTempDir(legacyDistDir);
   await removeTempDir(tempDir);
+  await removeTempDir(legacyTempDir);
 }
 
 const failed = results.filter((result) => !result.passed);

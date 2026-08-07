@@ -5,6 +5,7 @@ import { forbidden, requireRoleAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { rejectSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
+import { resolveLegacyDrawingLifecycleNavigation } from "@/lib/approval-workbench-legacy-redirect";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (auth.response) return auth.response;
 
   const { id } = await params;
+  const lifecycleNavigation = await resolveLegacyDrawingLifecycleNavigation({
+    submissionId: id,
+    actorId: auth.user.id,
+    companyId: auth.user.company_id
+  });
+  if (lifecycleNavigation) {
+    return NextResponse.json(
+      {
+        error: "DRAWING_LIFECYCLE_LEGACY_MUTATION_DISABLED",
+        code: "DRAWING_LIFECYCLE_LEGACY_MUTATION_DISABLED",
+        message: "這筆圖面進版已改由審核工作台處理。",
+        canonicalHref: lifecycleNavigation.canonicalHref
+      },
+      { status: 410 }
+    );
+  }
   const body = await request.json().catch(() => ({}));
   const reviewerId = auth.user.id;
   const reason = String(body.reason ?? body.comment ?? "Rejected").trim();

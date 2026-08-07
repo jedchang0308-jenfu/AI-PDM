@@ -16,7 +16,6 @@ const SIGNALS = [
   { id: "status-scope-help", label: "StatusScopeHelp", pattern: /\bStatusScopeHelp\b/gu },
   { id: "status-badge", label: "StatusBadge", pattern: /\bStatusBadge\b/gu },
   { id: "format-status-for-user", label: "formatStatusForUser", pattern: /\bformatStatusForUser\b/gu },
-  { id: "format-development-phase", label: "formatDevelopmentPhaseForUser", pattern: /\bformatDevelopmentPhaseForUser\b/gu },
   {
     id: "status-filter",
     label: "status filter / options",
@@ -25,17 +24,17 @@ const SIGNALS = [
   {
     id: "status-data-label",
     label: "status-bearing data-label",
-    pattern: /data-label\s*=\s*["'`][^"'`]*(?:狀態|階段|提醒|審核|發布|準備|檔案|任務|帳號|邀請|還原|效力)[^"'`]*["'`]/gu
+    pattern: /data-label\s*=\s*["'`][^"'`]*(?:狀態|提醒|審核|發布|準備|檔案|任務|帳號|邀請|還原|效力)[^"'`]*["'`]/gu
   },
   {
     id: "status-axis-label",
     label: "status-axis label",
-    pattern: /["'`][^"'`]*(?:資料狀態|開發階段|申請狀態|審核狀態|發布狀態|準備狀態|檔案狀態|任務狀態|帳號狀態|邀請狀態|還原狀態|號碼效力|狀態\s*\/\s*階段\s*\/\s*提醒)[^"'`]*["'`]/gu
+    pattern: /["'`][^"'`]*(?:資料狀態|申請狀態|審核狀態|發布狀態|準備狀態|檔案狀態|任務狀態|帳號狀態|邀請狀態|還原狀態|號碼效力)[^"'`]*["'`]/gu
   },
   {
     id: "status-property",
     label: "status-bearing property",
-    pattern: /\b(?:recordStatus|reviewStatus|publicationStatus|developmentPhase|readiness|gdrive_status)\b|\bstatus\s*[:?]/gu
+    pattern: /\b(?:recordStatus|reviewStatus|publicationStatus|readiness|gdrive_status)\b|\bstatus\s*[:?]/gu
   }
 ];
 
@@ -43,12 +42,11 @@ const CONTEXT_PATTERN = /\bcontext\s*(?:=|:)\s*["'`]([A-Za-z0-9_-]+)["'`]/gu;
 
 const AXIS_RULES = [
   { axis: "資料狀態", pattern: /masterRecord|recordStatus|資料狀態/iu },
-  { axis: "開發階段", pattern: /developmentPhase|formatDevelopmentPhase|開發階段|label\s*=\s*["'`][^"'`]*階段/iu },
   { axis: "號碼效力", pattern: /numberEffectiveness|號碼效力/iu },
   { axis: "申請狀態", pattern: /applicationStatus|requestStatus|submission|申請狀態|申請中|number-state|numbering[\\/]request|part-drafts/iu },
   { axis: "審核狀態", pattern: /approvalStatus|reviewStatus|approval|review|審核狀態|送審/iu },
   { axis: "發布狀態", pattern: /publicationStatus|releaseStatus|publish|publication|release|發布狀態|正式/iu },
-  { axis: "準備狀態", pattern: /readiness|dvtReadiness|DVT|準備狀態/iu },
+  { axis: "準備狀態", pattern: /readiness|準備狀態/iu },
   { axis: "檔案狀態", pattern: /fileStatus|fileSync|gdrive_status|attachment|檔案狀態|附件/iu },
   { axis: "任務狀態", pattern: /taskStatus|jobStatus|notificationStatus|task|job|任務狀態|待辦/iu },
   { axis: "帳號狀態", pattern: /accountStatus|identityStatus|account|帳號狀態|身分狀態/iu },
@@ -68,11 +66,6 @@ const EXCEPTION_RULES = [
     kind: "plain-status-label",
     label: "使用單一「狀態」欄名",
     pattern: /(?:label|data-label)\s*=\s*["'`]狀態["'`]|<th>狀態<\/th>/gu
-  },
-  {
-    kind: "mixed-axis-status-label",
-    label: "使用混合狀態軸欄名",
-    pattern: /狀態\s*\/\s*階段\s*\/\s*提醒/gu
   },
   {
     kind: "raw-english-status-label",

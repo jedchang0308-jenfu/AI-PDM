@@ -214,6 +214,7 @@ const DEFAULT_COMPANY_ID = "company-jenfu";
 
 type ApprovalPlatformInboxFilter = {
   companyId?: string;
+  actorId?: string;
   status?: "active" | "all" | ApprovalPlatformStatus;
   limit?: number;
   domainCode?: string;
@@ -365,6 +366,7 @@ export class AsyncApprovalPlatformRepository {
       `
       SELECT *
       FROM approval_platform_actions
+      WHERE enabled = 1
       ORDER BY domain_code ASC, action_code ASC
     `
     );
@@ -512,7 +514,7 @@ export class AsyncApprovalPlatformRepository {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
     const [nativeItems, numbering, submission, bom, partCost, supplement, drawingRevisionReviews] = await Promise.all([
-      this.listNativeInbox({ companyId, status: input.status, limit }),
+      this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, limit }),
       this.listLegacyNumberingInbox({ companyId, status: input.status, limit }),
       this.listLegacySubmissionInbox({ status: input.status, limit }),
       this.listLegacyBomInbox({ status: input.status, limit }),
@@ -672,7 +674,7 @@ export class AsyncApprovalPlatformRepository {
     return this.getRequestDetail(input.requestId);
   }
 
-  private async listNativeInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listNativeInbox(input: { companyId: string; actorId?: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
     const statusClause = this.statusWhereClause("r.request_status", input.status);
     const rows = await this.client.query<NativeRequestRow>(
       `
@@ -687,11 +689,25 @@ export class AsyncApprovalPlatformRepository {
       JOIN users requester ON requester.id = r.requested_by
       LEFT JOIN approval_platform_packages p ON p.id = r.package_id
       WHERE r.company_id = :companyId
+        AND (
+          r.action_code <> 'numbering.drawing_revision_lifecycle_review'
+          OR (
+            :actorId IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM drawing_revision_lifecycle_workflows lifecycle
+              JOIN drawing_revision_lifecycle_reviewers reviewer ON reviewer.workflow_id = lifecycle.id
+              WHERE lifecycle.approval_request_id = r.id
+                AND lifecycle.state = 'active'
+                AND reviewer.reviewer_id = :actorId
+            )
+          )
+        )
         ${statusClause.sql}
       ORDER BY r.requested_at DESC, r.id DESC
       LIMIT :limit
     `,
-      { companyId: input.companyId, limit: input.limit, ...statusClause.params }
+      { companyId: input.companyId, actorId: input.actorId ?? null, limit: input.limit, ...statusClause.params }
     );
     const items: ApprovalPlatformInboxItem[] = [];
     for (const row of rows) {
@@ -1206,6 +1222,11 @@ export class AsyncApprovalPlatformRepository {
         LIMIT 1
       )
       WHERE a.company_id = :companyId
+        AND NOT EXISTS (
+          SELECT 1
+          FROM drawing_revision_lifecycle_workflows lifecycle
+          WHERE lifecycle.legacy_fff_assessment_id = a.id
+        )
         ${statusSql}
       ORDER BY COALESCE(rce.occurred_at, a.assessed_at) DESC, a.id DESC
       LIMIT :limit
@@ -1384,10 +1405,8 @@ export class AsyncApprovalPlatformRepository {
 
 function numberingActionTitle(actionCode: string) {
   const titles: Record<string, string> = {
-    dvt_promotion: "DVT 升階審核",
     release: "發行審核",
     same_drawing_variant_after_release: "同圖多料號審核",
-    dvt_missing_ma_override: "DVT 缺製造圖例外審核",
     release_missing_ma_confirm: "發行缺製造圖確認",
     main_drawing_restore: "主圖恢復審核",
     obsolete_part_number: "料號作廢審核",

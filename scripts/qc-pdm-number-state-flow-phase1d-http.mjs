@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
+import { restoreTrackedConfigSnapshots, stopNextProcess } from "./qc-next-tracked-config-guard.mjs";
 
 const root = process.cwd();
 const runId = crypto.randomUUID();
@@ -47,6 +48,9 @@ function startApp(port) {
     cwd: root,
     env: {
       ...process.env,
+      NODE_ENV: "development",
+      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+      PDM_PRODUCTION_SLICE_MODE: "",
       PDM_AUTH_MODE: "managed",
       PDM_BOOTSTRAP_USERS: JSON.stringify(users),
       PDM_DATA_DIR: tempDir,
@@ -110,12 +114,7 @@ async function api(baseUrl, input) {
 }
 
 async function stopApp() {
-  if (!app || app.child.exitCode !== null) return;
-  app.child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => app.child.once("exit", resolve)),
-    delay(4000).then(() => { if (app.child.exitCode === null) app.child.kill("SIGTERM"); })
-  ]);
+  await stopNextProcess(app?.child);
 }
 
 async function removeTree(target) {
@@ -160,6 +159,9 @@ try {
     method: "POST", path: "/api/numbering/draft-workspaces", cookie: cookies.owner, company: "JENFU",
     key: "phase1d:http:workspace:create", body: draftBody()
   });
+  if (workspaceCreated.status !== 201 || !workspaceCreated.body?.workspace) {
+    throw new Error(`HTTP_ROOT_CREATE_FAILED path=/api/numbering/draft-workspaces status=${workspaceCreated.status} body=${JSON.stringify(workspaceCreated.body)}`);
+  }
   const workspaceAcquired = await api(baseUrl, {
     method: "POST", path: `/api/numbering/draft-workspaces/${workspaceCreated.body.workspace.id}/candidate-numbers`,
     cookie: cookies.owner, company: "JENFU", key: "phase1d:http:workspace:acquire",
@@ -176,6 +178,9 @@ try {
       sourceReferenceStatus: "not_available", sourceReferenceReason: "Disposable QC fixture"
     }
   });
+  if (packageCreated.status !== 201 || !packageCreated.body?.workbench) {
+    throw new Error(`HTTP_TRANSFER_PACKAGE_CREATE_FAILED path=/api/transfer-packages status=${packageCreated.status} body=${JSON.stringify(packageCreated.body)}`);
+  }
   let workbench = packageCreated.body.workbench;
   record("HTTP-D-002 owner creates a transfer package", packageCreated.status === 201 && Boolean(workbench?.id), { status: packageCreated.status, packageId: workbench?.id });
 
@@ -314,7 +319,7 @@ try {
   record("HTTP-D-RUNTIME", false, { error: String(error), stack: error instanceof Error ? error.stack : "", serverOutput: app?.output() ?? "" });
 } finally {
   await stopApp();
-  for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+  restoreTrackedConfigSnapshots(root, snapshots);
   await removeTree(tempDir);
   await removeTree(distDir);
 }

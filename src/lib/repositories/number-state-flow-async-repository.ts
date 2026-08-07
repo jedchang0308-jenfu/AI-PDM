@@ -2355,10 +2355,10 @@ export class AsyncNumberStateFlowRepository {
       this.approvalFaultInjector?.("before_root_insert");
       await this.client.execute(
         `INSERT INTO part_roots (
-           id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+           id, company_id, root_code, core_name, item_kind, record_status,
            rule_version_id, created_by, created_at, updated_at
          ) VALUES (
-           :id, :companyId, :rootCode, :coreName, :itemKind, 'EVT', 'Active',
+           :id, :companyId, :rootCode, :coreName, :itemKind, 'Active',
            :ruleVersionId, :createdBy, :createdAt, :updatedAt
          )`,
         {
@@ -2382,11 +2382,11 @@ export class AsyncNumberStateFlowRepository {
       await this.client.execute(
         `INSERT INTO part_numbers (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, custom_specification, series_code, development_phase, record_status,
+           item_kind, is_universal, custom_specification, series_code, record_status,
            universal_reason, rule_version_id, created_by, created_at, updated_at
          ) VALUES (
            :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-           :itemKind, :isUniversal, :customSpecification, :seriesCode, 'EVT', 'Active',
+           :itemKind, :isUniversal, :customSpecification, :seriesCode, 'Active',
            :universalReason, :ruleVersionId, :createdBy, :createdAt, :updatedAt
          )`,
         {
@@ -2419,11 +2419,11 @@ export class AsyncNumberStateFlowRepository {
       await this.client.execute(
         `INSERT INTO drawing_numbers (
            id, company_id, part_root_id, drawing_number, purpose_code, purpose_description,
-           sequence_no, is_primary_manufacturing, development_phase, record_status,
+           sequence_no, is_primary_manufacturing, record_status,
            rule_version_id, created_by, created_at, updated_at
          ) VALUES (
            :id, :companyId, :partRootId, :drawingNumber, :purposeCode, :purposeDescription,
-           :sequenceNo, :isPrimaryManufacturing, 'EVT', 'Active',
+           :sequenceNo, :isPrimaryManufacturing, 'Active',
            :ruleVersionId, :createdBy, :createdAt, :updatedAt
          )`,
         {

@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-08-04
+更新日期：2026-08-06
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -76,16 +76,30 @@ Owner：Dev PM
   - UI：保留既有 `保留號` 頁籤與 `/numbering/drawings?tab=reserved`；工作區改稱 `保留號／首版準備`，正常狀態單一CTA，正式化後轉入正式圖號且歷史仍可查。
   - 安全邊界：不批次回填、不改號、不重播舊審核；開啟／讀取零寫入。舊 number-only 核准不得冒充圖面核准，須接續圖面差異審核。正式 migration、deploy、release 與 production data 仍未授權。
   - readiness 結果：採 physical `Pending` package + immutable review-approval companion 投影 effective `ReviewApproved`，避開既有 package status 擴張、SQLite table rebuild與舊版 reader 風險。
-  - 驗證結果：獨立QC在RD凍結後重跑`npm run qc:dev-052`（181項可計數檢查）、全專案lint與隔離production build均通過；AI真實操作RO-00～RO-20為41/41，正式連線／寫入皆false且測試資料已清除。
+  - 驗證結果：2026-08-06獨立QC重跑`npm run qc:dev-052`，schema 12/12、data protection 4/4、HTTP 10/10、UI 16/16、flow 8/8、AI真實操作41/41及附帶回歸／typecheck全數通過；run `DEV052-20260806-015522-local-isolated`，production連線／寫入皆false且cleanup removed。
   - 下一步：維持production release gate；若要staging／production migration、啟用flag、deploy或release，另走target、backup、rollback與smoke gate，不直接碰既有正式保留號。
 
-- 單一圖號工作台：`DEV-053` 已完成 `Phase 1E Regression Recovery`，目前為 `Independent Local QC Passed / Production Release Gated`。
+- 單一圖號工作台：`DEV-053` 已完成Phase 1H單一生命週期與審核權威收斂及四項gap repair的本機實作／AI QA／獨立QC，現為 `Phase 1H Gap Repair Independent Local QC Passed / Commit Pending / Production Migration & Release Gated`。
   - 保留決策：取消「圖號總表／保留號」雙分頁，維持單一「圖號工作台」與生命週期唯一 primary CTA。
   - 修正原則：單頁化只能減少導覽選擇，不能刪除或遮蔽既有圖號、料號、版次、附件、送審、關係、影響與主資料治理能力。
-  - 現況判定：Phase 1A read foundation、Phase 1C candidate routing與Phase 1E正式圖面能力恢復均已完成；14組能力清冊已納入focused與真實瀏覽器驗證。
+  - 現況判定：16組能力與可達性缺口已完成修復；A0005既有受控檔可驗證並進入`整包可送審`，正式能力、附件authority、生命週期狀態與單頁入口均已恢復。
   - 受保護邊界：`DEV-054`為另一AI的必要並行任務；不得恢復開發階段/DVT、修改其migration/spec/QA/QC、還原其刪檔，或把其變更混入DEV-053 commit。
-  - 證據：frozen commit `6ddd5759`通過focused 50/50、TypeScript、scoped lint與isolated build；獨立真實Chromium run `DEV053-20260805-035048-local-isolated`為27/27，含真實PDF上傳、送審／撤回／再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。
-  - 下一步：本機開發與QC已完成；若要migration、啟用flag、deploy或release，另走production deployment release gate。
+  - 證據：Phase 1F獨立QC `npm run qc:dev-053`為92/92；Phase 1H gap repair `npm run qc:dev-053:phase1h` 全套通過（schema 15/15、adoption 10/10、authority 9/9、HTTP 10/10、UI 12/12、real-operation 8/8）；完整 AI 真實操作 run `DEV053-PHASE1H-FULL-20260807-014809` 為24/24，含文字退回理由、cleanup retry、cross-company與4 viewport，browser/5xx errors為0、production connection/write false、cleanup removed；TypeScript PASS。DEV-054 protected hashes不變。
+  - 2026-08-06修復：FFF影響審核完成後，審核工作台以`review_confirmation_events`為核准證據；一般小數版送審包以read-time projection顯示effective `ReviewApproved`／`研發受控`，不改physical `Pending`、不誤發正式`Released`；整數版才承接approval step與原子正式化。既有A0005-M01不回填、不重播審核，固定3000唯讀驗證已確認無`核准發布`錯誤入口、無visible error、console error 0、1280 viewport水平溢位0。DEV-054 protected boundary未觸碰。
+  - 下一步：維持commit與production release gate；若要stage／commit、staging／production migration、flag activation、deploy或release，需另行明確授權並執行對應gate。
+
+- 專案狀態權威移除：`DEV-054` 已於 2026-08-05 完成 RD 修正與獨立 QA/QC，狀態為 `Local RD/QA/QC Passed / Production Release Gated`。
+  - 決策：AI PDM 不管理、保存或同步 EVT/DVT/PVT；專案管理軟體是唯一專案狀態權威。
+  - 範圍：移除 `development_phase`、DVT 晉升、phase-based approval、相關 UI/API/permission，保留 PDM 資料、技轉、發布、版次與 ECR/ECO/ECN change control。
+  - 安全邊界：只做本機產品、SQLite compatibility 與 forward migration artifact；不操作 live Supabase/Cloud SQL/production data/deploy/release。
+  - 驗收：active runtime零專案狀態依賴，research/technical-transfer與release/change-control回歸通過，代表性UI無殘留與破版。
+  - 證據：專項 QC 10/10、隔離 API 396/396、approval 125/125、migration mirror、technical-transfer、change control、release sync、狀態回歸、全專案 lint、TypeScript、122-route 隔離 production build，以及 3 種 viewport × 5 routes 的瀏覽器 R12 15/15 全數通過；詳見 `.ai-doc/qc/qc-dev-054-project-status-removal-2026-08-04.md`。
+
+- 狀態 UI 交付：`DEV-055` 任務導向的人類狀態投影已達 `RD Implementation Ready / Human Confirmed / Local RD Complete / Production Release Gated`。
+  - 目標：圖號、料號、圖料清單每列只顯示一個人類結論；drawer、filter 與 owner module 使用同一 projection。
+  - 已決策：維持覆蓋式 drawer、共用圖號／料號 owner detail、完成詞必須有 evidence，移除「草稿確認」與多 badge 競爭。
+  - Phase 1 邊界：1A projector contract、1B server projection/filter、1C lists/shared drawers、1D browser QA/QC；不改 DB/schema、狀態轉換、權限、正式資料或 production。
+  - 下一步：本機 1A～1D 已完成；若要正式使用，另走 disposable DB 關聯操作回歸與 production release gate。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -276,25 +290,119 @@ Owner：Dev PM
   - 證據：`.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`、`output/playwright/dev052-real-operation/DEV052-20260804-045957-local-isolated/`、`npm run qc:dev-052`、DEV-052 schema 12/12、data protection 4/4、HTTP/idempotency 10/10、UI 15/15、flow/atomic recovery 8/8、AI真實操作41/41、revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、全專案lint、TypeScript與隔離production build。
   - 計入交付：是（本機產品 UX 與交易流程交付點；production activation 仍未計入）
 
-- ✓ DEV-053 [交付點] [Independent Local QC Passed／Production Release Gated] [P0] [Phase 1E Local Complete] 單一圖號工作台與既有管理能力整合
-  - 摘要：維持單一生命週期工作台，但把被簡版UI遮蔽的圖號、料號、版次、附件、送審、圖料關係、影響分析與治理能力完整整合回同一頁，禁止以流程簡化為由降低既有工作能力。
+- ● DEV-053 [交付點] [本機完成] [P0] [Phase 1H Gap Repair Independent Local QC Passed] 單一圖號工作台與審核權威收斂
+  - 摘要：Phase 1A～1G本機成果保留；Phase 1H以「2個操作介面、1個使用者狀態、1個主要下一步、0個可見legacy操作」收斂圖號生命週期與審核權威，不再讓使用者理解內部多軸狀態或平行送審頁。
   - 來源 ID：`DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
   - 父任務：`DEV-052`、`DEV-050`、`DEV-051`
-  - 下一步：本機產品與獨立QC已完成；production migration、flag activation、deploy與release仍走獨立release gate。
-  - 證據：frozen commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`；DEV-053 schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7，共50/50；TypeScript、scoped lint與isolated build通過；獨立真實Chromium 27/27，run位於`output/playwright/dev053-real-operation/DEV053-20260805-035048-local-isolated/`；P0=0、P1=0、P2=0。
+  - 下一步：本機RD、AI QA與獨立QC均已完成。commit、production migration、8B active adoption apply、flag activation、deploy與release仍須各自明確指令及release gate。
+  - 阻塞 / 恢復條件：無待人類產品決策。啟用前的active-workflow adoption dry-run必須`blocked=0`；任一進行中案件無法無重播地轉接、cleanup需放寬其他approval領域append-only／RLS、無法保留正式版次／檔案／多料號scope、需要觸及DEV-054或既有已完成資料時，停止回PM。Phase 1G confirmed-impact多料號仍fail closed；production migration/deploy/release另走release gate。
+  - 證據：權威SPEC 0.10、ADR-003、QA 9G與QC 19；gap repair後 `npm run qc:dev-053:phase1h` 為 schema 15/15、adoption 10/10、authority 9/9、HTTP 10/10、UI 12/12、real-operation 8/8；完整 AI 真實操作 `DEV053-PHASE1H-FULL-20260807-014809` 為24/24，實際覆蓋文字退回理由、cleanup retry、跨公司與4 viewport，production connection/write false、cleanup removed。fresh flow仍無legacy submission／永久task／notification，terminal後transient graph為0而package/files/P01-P03保留。DEV-054 protected hashes不變。
   - 計入交付：是
   - Human Confirmed：
     - [x] 保持單一`圖號工作台`，不恢復`圖號總表／保留號`雙分頁；`保留號`是生命週期狀態。
     - [x] 單頁化不得刪除、遮蔽或弱化既有圖、料、版次與治理功能；正式圖面仍須在同頁完成原本可完成的工作。
     - [x] `DEV-054`為必要並行任務，屬受保護範圍；DEV-053不得恢復開發階段/DVT或修改其程式、migration與文件。
+    - [x] 一張圖面服務多個料號時，本次進版要帶著三個料號一起走；預設全選、一次送審、共用附件、原子核准／正式化，不退化為只選一個。
+    - [x] 2026-08-06：圖面進版送審的標準成本改為非必要；未設定成本不計入待補、不顯示紅色阻擋且不影響送審，但仍保留成本維護入口與中性選填提示。
+    - [x] Guided `1A`：候選受控檔上傳後由系統自動驗證為可送審；不增加「完成準備」步驟，也不自動送審，失敗時保留草稿並提供恢復入口。
+    - [x] Guided `2A`：同一drawer分開顯示受控版次檔案與參考附件；只有受控檔案計入送審／publication evidence。
+    - [x] Guided `3A`：正式圖面採混合式操作；高頻進版與上傳送審留在drawer，關係、影響、主資料與歷史進專用工作面並保留返回上下文。
+    - [x] Guided `4A`：每張候選圖面只要求至少一個active primary finalized controlled file；缺PDF、DWG/DXF或3D檔只警告並交reviewer判斷，不阻擋送審。
+    - [x] Guided `5B`：第一次進入顯示進行中、正式受控與已發布，歷史預設隱藏於`包含歷史`切換；不記憶上次範圍。
+    - [x] Guided `6A`：403顯示確切permission與聯絡角色；具`settings.admin_matrix`的Admin可前往`/settings/workflow`，一般使用者不顯示管理連結。
+    - [x] 2026-08-06 Phase 1H：頂層只保留`圖號工作台`與`審核工作台`；`保留號`是生命週期狀態，`補歷史版`是正常進版的輸入模式，不另開頁面或審核流。
+    - [x] 2026-08-06 Phase 1H：送審、核准、退回與撤回只能經由一個權威；舊`submission`明細不再作為使用者頁面，deep link只導向canonical圖號／審核工作台，不得顯示平行核准／駁回／取消動作。
+    - [x] 2026-08-06 Phase 1H：同一角色、同一狀態最多一個primary CTA；使用者只看到準備中、送審中、退回修改、研發受控與正式發布，歷史是檢視分類而非第二狀態機。
+    - [x] `HD-053-1H-01 / Guided 1A`：送審成功後只顯示一個動態primary CTA；目前使用者對exact approval request具可執行審核責任與權限時顯示`前往審核`，其餘情況顯示`查看進度`。
+    - [x] `HD-053-1H-02 / Guided 2A`：申請人可在第一個審核決策發生前撤回；任何核准／退回決策發生後即不可撤回，後續必須走修正或新進版。撤回只能經canonical approval command與同一transaction authority，不得直接改raw submission status。
+    - [x] `HD-053-1H-03 / Guided 3A`：移除獨立legacy送審明細操作面與使用者可見的稽核drawer／頁面；舊deep link依角色與狀態導向圖號工作台或exact審核工作台，不保留平行決策介面。後端紀錄政策由後續`HD-053-1H-04 / 4C`另行取代。
+    - [x] `HD-053-1H-04 / Guided 4C`：DEV-053圖面進版流程完成後，前後端都不保留審核歷程，只留下版次生命週期狀態；不保留永久申請人／審核人／決策／時間／理由紀錄。此為圖面進版領域的限定資料政策例外，不追溯刪除既有資料，也不自動套用至BOM、成本、作廢或其他審核領域。
+    - [x] `HD-053-1H-05 / Guided 5A`：退回理由為選填；若有填寫，只作為目前`退回修改`狀態的active correction instruction，重新送審成功時立即刪除。未填理由時顯示中性通用下一步，不阻擋退回。
+    - [x] `HD-053-1H-06 / Guided 6A`：先成功固化版次生命週期結果並送達必要通知，才將workflow視為完成並清除submission／approval／decision／outbox business data；任一步失敗不得提前清除。
+    - [x] `HD-053-1H-07 / Guided 7A`：允許最長7天的短期技術idempotency／recovery token；只含防重雜湊、操作scope與到期時間，不含人員、理由、檔案內容或可重建審核歷程的payload，到期自動刪除。
+    - [x] `HD-053-1H-08 / Guided 8B`：Phase 1H啟用時，既有進行中圖面進版案件一併轉接新流程；啟用採全批次fail-closed，先dry-run、再無決策重播地建立canonical active authority，任何阻擋即不得部分開啟。既有已完成案件與正式PDM資料不轉接、不刪除、不重寫。
+    - [x] `HD-053-1H-09 / Guided 9B`：必要通知以成功更新`圖面目前狀態／我的待辦`投影為送達；投影不得保存申請人、審核人、理由或request history。terminal結果與目前狀態投影同一transaction完成，Phase 1H不建立永久`numbering_notifications`審核訊息。
+    - [x] `HD-053-1H-10 / Guided 10B`：完成／清除後的舊送審連結導向該圖號的最新版，不再開啟原送審版次或歷史審核頁；新連結必須攜帶server驗證的drawing fallback，無法解析的舊bookmark安全回`圖號工作台`。
+  - Phase 1G Multi-Part Batch Revision Contract：
+    - UI：`/numbering/revisions`顯示所有合法primary-manufacturing料號checkbox，預設全選；至少一個，摘要與CTA直接顯示數量／清單及`核准時全成或全退`。
+    - API：GET/POST接受`partNumberIds`；scalar `currentPartNumberId`只保留舊client相容。Server必須逐一驗證company、drawing與link type，任何一筆失效即整批拒絕。
+    - Data：新增additive `submission_part_scopes`，不回填既有submission；舊資料沒有scope row時沿用`submissions.item_id`／legacy snapshot。新submission、scope、files、snapshot與audit同一transaction。
+    - FFF：同一圖面變更共用一組FFF輸入，並把state/outcome複製至每個scope。no/suspected impact支援多料號；confirmed impact多料號回`DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED`，直到可逐舊料號提供替代結果。
+    - Release：正式化前逐一驗證snapshot link仍存在且link type一致，再於單一transaction更新全部item/part；任一關係漂移或寫入失敗完整rollback。P01/P02/P03歷史都必須追到同一submission。
+    - Security/compatibility：PostgreSQL/Supabase 025啟用且強制RLS，撤銷`PUBLIC/anon/authenticated`直連；migration未套production。既有正式／保留號資料零回填、零改號、零狀態重播。
+    - Affected files：`src/app/numbering/revisions/page.tsx`、submission workbench/create/status/list/item-history repositories、三個revision submission API routes、`db/schema.sql`、`db/postgres/025_submission_part_scope.sql`、Supabase mirror、types與focused QC scripts。
+    - Spec Impact Preflight：`Intentional replacement`；取代三份舊規格與既有ADR中的「多個primary只能選一個current part」，但保留一圖多料、owner authority、legacy snapshot與正式版次政策。
+    - Stop：production migration/deploy/release、歷史回填、逐料號confirmed-impact替代演算法、權限放寬、DEV-054任何hunk、或無法以單一transaction保證全成全退時停止。
+  - 2026-08-06 Optional Standard Cost Amendment：
+    - Scope：只調整圖號工作台與圖料查詢drawer的圖面進版送審準備語意；標準成本資料、成本設定／審核、金額權限與`補成本`入口保持原功能。
+    - Rule：`missing standard cost`為`optional`，不得加入`outstandingCount`、紅色`待補`或送審disabled條件；有缺漏時顯示`未設定（選填）`，已設定時仍顯示完成狀態。
+    - Compatibility：本修正不改schema、API payload、既有料號／成本資料或權限，也不觸及DEV-054；技轉包的獨立submission-gate政策不在本次DEV-053畫面修正範圍。
+    - Acceptance：當三個料號唯一缺口都是標準成本時，送審檢查顯示`資料已備妥`，成本顯示為中性選填資訊；若另有主資料或待審項目，待補數只計真正阻擋項。
+  - 2026-08-06 Revision Intent Recovery Amendment：
+    - Scope：修正加入新版次檔案後的送審工作台刷新行為；不改版次政策、附件authority、資料schema或既有附件。
+    - Rule：使用者開始將檔案加入目標版次後，該版次意圖鎖定；context refresh不得將`0.2`自動推進成`0.3`，新檔必須仍留在本次送審範圍。
+    - Acceptance：A0005-M01以0.2加入2個新版檔案後，畫面仍保持0.2、兩檔可選為本次送審，`建立送審（1張圖・3個料號）`依其他必要條件啟用；重新解析另一圖號才可重置版次建議。
+  - 2026-08-06 Historical Revision Backfill UX Amendment：
+    - Scope：在既有圖號drawer辨識低於目前受控最新版、但尚未納入送審的工作附件，依版次聚合並提供單一`補登 X 歷史版`入口；入口導向canonical `/numbering/revisions`正常送審頁，不在drawer內嵌第二套表單，也不新增頁面、schema、API或審核流程。
+    - Rule：正常進版與歷史補登共用同一全頁工作台。補登連結只額外預填舊版次、該組附件與安全`returnTo`，並鎖定版次意圖；不得自動送審、刪除、重傳、改號或改寫既有資料。核准結果沿用既有out-of-order規則只進歷史，不取代較新正式版。
+    - Supplement boundary：`申請補件`只可對目前physical `Released`附件包的同版次工作檔顯示；舊版補登與effective `ReviewApproved`／physical `Pending`附件包不得誤顯示補件表單。
+    - Spec Impact Preflight：Intentional replacement；依2026-08-06使用者最新決策，將前一版「drawer內展開共用元件」替換為「導向canonical正常送審頁」。較低版次補登、核准後進歷史、authority與資料生命週期不變。
+    - Acceptance：固定3000的A0005-M01顯示`0.2 未送審舊版`、`目前最新版 0.3；核准後只進歷史。`及單一CTA；點擊後離開drawer並在正常圖面進版頁維持0.2、預選兩個0.2檔案與三個料號，提供`返回圖號`，無drawer內嵌表單、無`申請補件`、無0.4誤跳、無自動mutation。
+    - Evidence：`qc:dev-053:ui` 23/23、TypeScript PASS、scoped ESLint 0 error；固定3000登入session真實點擊確認drawer內嵌表單0個，補登URL帶`source=historical_backfill`、0.2與兩個attachmentId，正常頁預選2檔／3料號且顯示安全`返回圖號`；一般`上傳與送審`亦導向相同頁面。console error 0、水平overflow 0，驗證停在建立送審前，既有A0005資料零寫入。
+  - Phase 1H Single Lifecycle and Approval Authority RD Implementation Contract：
+    - 文件成熟度：`Local RD Implemented / AI QA + Independent QC Passed / Production Release Gated`。`HD-053-1H-01..10`均已落地；exact schema、migration、adoption、command、cleanup、UI、error code與QA/QC mapping見權威SPEC 0.10。
+    - 問題：圖面進版建立送審後，系統仍可把使用者導向舊`/submissions/{id}`操作面，同時各頁以raw `Pending`、effective review與publication不同口徑顯示狀態，造成已核准仍待審、舊核准入口觸發minor release blocker與通知長期殘留。
+    - 使用者價值：使用者只需知道「現在是什麼狀態、下一步做什麼」，不需辨識FFF、raw/effective status、legacy submission或多個審核頁。
+    - 精簡原則：`2-1-1-0`—只有圖號與審核兩個作業面；每個情境只有一個使用者狀態、一個primary CTA；沒有可見legacy決策動作。
+    - Scope：收斂圖號工作台、送審後成功狀態、審核工作台、active workflow投影、terminal cleanup、dashboard/KPI、通知、附件／歷史列與舊approve/reject/cancel route的狀態與動作口徑。
+    - UI：`圖號工作台`承接建立、上傳、補歷史版、送審、進度與歷史；`審核工作台`承接所有reviewer決策。送審後只顯示一個動態primary CTA：對exact approval request具可執行審核責任與權限者顯示`前往審核`，其餘顯示`查看進度`。
+    - 狀態：主畫面只使用`準備中`、`送審中`、`退回修改`、`研發受控`、`正式發布`；低於最新版只決定列入歷史，不建第二套狀態。新Phase 1H流程完成後不得另留raw/effective approval business history。
+    - Architecture Memory Capsule：流程active期間`ApprovalRequest`是唯一review decision authority；完成後`RevisionPackage`的server-side lifecycle projection是唯一保留的審核業務結果，Phase 1H不永久保留`Submission`／approval decision／audit history。正式版次、受控檔案、三個料號scope及latest/history分類仍是PDM主資料，不屬審核歷程。核心層回傳semantic allowed actions，BFF/presenter當下計算`displayStatus`與唯一`primaryAction`，不持久化URL或下一步。
+    - Compatibility：既有已完成正式／保留號、版次、submission、approval與audit資料零刪除、零回填、零改號、零重播；依8B，啟用時仍進行中的合格圖面進版workflow會由一次性adopter建立canonical native request與transient sidecar，legacy列只讀且從inbox抑制，完成後才依4C清除其workflow graph。任何ambiguous／已決策衝突／含非本流程子資料案件阻擋整批啟用。
+    - Out of Scope：追溯刪除既有production submission／approval／audit、將`4C`擴大至其他審核領域、production資料修復／live migration／deploy／release、改寫DEV-050 minor `Released`政策、confirmed-impact多料號替代演算、DEV-054任何程式／migration／SPEC／QA／QC或刪檔。
+    - RD Handoff／狀態動作：server projection優先序固定為`正式發布 > 研發受控 > 退回修改 > 送審中 > 準備中`，raw legacy status不得覆蓋effective lifecycle；history只是分類。semantic actions限`continue_preparation`、`submit_for_review`、`open_exact_review`、`view_progress`、`withdraw_before_decision`、`correct_and_resubmit`、`create_revision`與`none`，每位使用者只可有一個primary。
+    - RD Handoff／退回撤回：DEV-053 reviewer UI只提供`核准`與`退回修改`；退回理由選填，保存到目前correction state並於重新送審成功時刪除。申請人只有在decision count為0時可撤回；撤回回到可編輯準備狀態並保留已準備檔案，但不保留撤回歷程。
+    - RD Handoff／資料保留：fresh Phase 1H不再建立legacy `submissions`作審核authority；以native `approval_platform_requests`加transient `drawing_revision_lifecycle_workflows`運作。正式版次包、受控檔案及`drawing_revision_package_part_scopes`永久保存；terminal apply同交易更新`drawing_revision_packages.lifecycle_state`作9B目前狀態投影，再以domain-scoped cleanup清除active graph。既有已完成列隱含permanent；8B只允許明確adopted active graph在完成後清除。
+    - RD Handoff／防重：technical token最長7天，只存不可逆雜湊、command scope、結果指紋與expiry，不存actor／reason／file／snapshot。每次重試仍重做company、permission、assignment與state檢查；token到期自動刪除且不得成為查詢型audit API。
+    - RD Handoff／API與deep link：建立送審、exact approval decision及新增withdraw command都委派同一authority；成功response回傳drawingNumber、revision、displayStatus、semantic actions與canonical redirect，不要求client再讀已清除request。新exact review URL必須帶安全drawing fallback；terminal cleanup後舊request URL回canonical圖號狀態，不提供歷史明細。legacy mutation只能delegate或fail closed零寫入。
+    - RD Handoff／權限：送審維持`numbering.draft.update`加Engineer/Admin與company scope；審核需R&D Manager/Admin且必須是當下assigned eligible reviewer；撤回僅原submitter且尚無decision，Admin無額外覆寫；cleanup只允許system service。403須顯示缺少能力與聯絡角色，不得顯示不存在的audit入口。
+    - RD Handoff／交易恢復：final decision、revision materialization與9B目前狀態／待辦投影同一transaction；不以外部通知或永久notification row作cleanup前置條件。其後單一idempotent cleanup transaction刪除transient graph。apply失敗不得terminal或cleanup；cleanup失敗禁止重做decision/apply，只重試cleanup。generic metric只記去識別計數。
+    - 驗收方向：正常進版與歷史補登都必須從圖號工作台送到exact canonical審核案；0.3已是最新版時補送0.2，核准後0.2自動列入歷史且0.3仍是最新；圖號、通知、KPI、附件與審核佇列口徑一致；舊決策頁／API不可產生寫入。另須驗證有／無退回理由、第一decision前後撤回、通知失敗與cleanup重試、7天token清除、完成後業務審核資料為0及既有資料hash零變化。
+    - UI/QC方向：每個受影響狀態5秒內可辨識狀態與下一步，正常狀態最多一個primary CTA；不顯示內部識別、重複說明或無決策價值警語；真實登入UI必須完成create → system CTA → exact review → approve → reload，且visible/console error、誤導動作與非預期overflow為0。
+    - Stop：需要第二個持久化狀態權威、cleanup會放寬其他approval領域append-only／RLS、無法先解除transient FK再清除、無法隔離既有資料、必須寫既有A0005／production資料、需觸及DEV-054，或無法安全分離共用hunk時停止回PM。
+    - Evidence Required：targeted contract tests覆蓋projection/actions/permission/withdraw/optional reason/terminal cleanup/token TTL/legacy fail-closed；disposable DB證明新flow cleanup後無business workflow rows且formal package完整；existing-data hash與DEV-054 manifest不變；固定3000真實登入完成submitter與reviewer雙角色流程、visible/console error 0、主要viewport無overflow。
+    - Exact implementation：新增`db/postgres/026_drawing_revision_lifecycle_authority.sql`及Supabase mirror、package lifecycle欄位、durable part-scope、transient workflow與7-day token表；新增`drawing-revision-lifecycle` domain/repository/adopter，收斂create/decision/withdraw/legacy redirect與workbench projection。exact files、FK cleanup order、錯誤碼、切片與QC commands見SPEC 0.10。
+    - Execution result：`1H-1～1H-4`本機完成；schema 15/15、adoption 9/9、authority 9/9、HTTP 9/9、UI 9/9、真實Chromium 8/8，共59/59；獨立QC重跑同為59/59，`P0=0 / P1=0 / P2=0`。optimized build與approval-platform 126/126回歸通過。
+    - Re-entry：只有明確commit或release型指令才進下一關；production migration、8B live adoption、flag activation、deploy與release仍需獨立release gate，開始前重新保存DEV-054 protected manifest與dirty-boundary。
+  - Phase 1F PM Reopen Brief：
+    - 問題：目前16組缺口涵蓋固定3000生命週期閉環、既有上傳／附件能力、受控檔與參考附件authority、recovery routing、預設可發現性、搜尋競速、drawer-list一致性、keyboard／403／empty／terminal狀態、可見文字、計數口徑與accessible name。
+    - 已確認：工作台第一次進入固定`全部`且不含歷史；`我的待處理`與`工作中`保留為效率篩選，歷史由明確toggle控制，不使用localStorage恢復上次範圍。
+    - Scope：Phase 1F只修正常固定3000與單一工作台能力／狀態退化，並補AI真實操作gate；既有正式與保留資料只讀驗證、零回填／零改號／零審核重播。
+    - Out of Scope：雙分頁、`development_phase`／DVT、DEV-054任何hunk、production migration／資料修復／deploy／release、權限放寬或第二套受控檔案authority。
+    - 驗收方向：使用新建可清理fixture在正常固定3000完成`建立 → 候選首版 → 多檔加入 → 證據完成／可恢復 → 送審 → 撤回／再送審 → 核准 → 原子正式化`；正式secondary入口必須實際點入完成代表性任務，link count不算通過。
+    - 防再發：完成宣告必須同時綁定normal runtime、current scoped SHA、dirty-boundary、完整capability matrix、Now What／visible text／accessibility與DEV-054 unchanged evidence。
+    - 權威文件：`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`第0節、對應QA delta與QC reopen紀錄。
   - 問題與根因：`src/app/numbering/drawings/page.tsx`在flag開啟後直接回傳`DrawingWorkbench`，造成舊正式圖面drawer與管理區完全不渲染；QA只驗證新生命週期主線，沒有以既有能力清冊做negative-regression gate。
   - 使用者價值：使用者只需進入一個頁面，但仍能搜尋、判斷生命週期並完成正式圖面、料號主資料、版次、送審、附件與關係治理，不必在「簡單流程」與「完整功能」之間二選一。
   - 目前有效成果：
     - [x] `Phase 1A` server-side一致性投影、stable row key、detail BFF、default-off flag及additive source context。
     - [x] `Phase 1C` contextual append改走candidate workspace、relationship-only bundle、原子正式化與權限/idempotency邊界。
     - [x] `Phase 1B` 最小formal drawer驗收維持撤銷，已由Phase 1E完整能力組合取代。
-    - [x] `Phase 1D` 舊QA證據只保留歷史；目前產品改由Phase 1E新focused與真實操作證據重新驗證。
-  - Current Phase 1E RD Implementation Contract：
+    - [x] `Phase 1D／1E` QA與QC證據只保留為歷史凍結快照；Phase 1F已由current source重新取得完整產品PASS。
+  - Phase 1F RD Implementation Contract：
+    - `1F-1 / P0 Normal-3000 candidate closure`：在`NODE_ENV !== production && PDM_LOCAL_FULL_FUNCTION_VALIDATION=true`使用現有storage寫入、SHA-256 read-back驗證與non-production evidence receipt；production忽略此flag。候選UI支援多檔、分類、說明與primary，逐檔成功／失敗；每張圖只以至少一個active primary finalized controlled file作blocker，其他格式缺漏只警告。完成必要檔案後自動顯示送審，不另增完成按鈕、不自動送審。
+    - `1F-2 / P0-P1 Workbench state integrity`：`/numbering/drawings`預設`view=all&history=exclude`，`tab=reserved`相容為work；`包含歷史`明確切換。Rejected改為`correction_required／建立修正版`，Obsolete、Merged與取消各有原因／下一步。list request採abort+sequence；filter重設cursor，選取列離開結果即關drawer；恢復完整keyboard與focus。
+    - `1F-3 / P1 Formal capability restoration`：`MasterAttachmentPanel`以`authorityMode`分離唯讀受控摘要與可管理參考附件，恢復預覽重建、Drive重試、刪除／還原、補件流程且不形成雙authority。抽出共享`DrawingRevisionWorkbench`供page/drawer使用；進版與上傳送審只差initial focus。關係、影響、主資料與歷史保留專用頁並帶drawing/return context。
+    - `1F-3 permission/recovery`：detail BFF提供`canUpdateDraft`、`canCreateRevision`、`canManageReferenceAttachments`、補件與`canManagePermissions`等server-derived capabilities，後者只由`settings.admin_matrix`推導；disabled/403顯示permission code、中文能力與contact role，只有有權Admin可到`/settings/workflow`。401/403/404/409/5xx分流，使用者草稿與已成功檔案不得因可重試錯誤消失。
+    - `1F-4 / P0 Freeze and AI QA handoff`：更新既有DEV-053 schema/read-model/http/ui/flow/real-operation scripts；正常`npm run dev:local`先驗證既有檔不用重傳即可解鎖送審，再完成新檔上傳→送審→撤回／再送審→核准→原子正式化，另驗證secondary實際操作、RWD、accessibility、既有資料zero-write hash、scoped SHA及DEV-054 unchanged manifest。
+    - [x] `1F-1`完成：development-only storage write + SHA-256 read-back evidence、多檔逐檔上傳／恢復、主要受控檔blocker與格式warning已實作並由UI真實操作通過。
+    - [x] `1F-2`完成：default all、明確history、Rejected correction、terminal說明、request/cursor/selection競速保護與keyboard操作通過focused contracts。
+    - [x] `1F-3`完成：受控／參考附件authority分離、共享revision workbench、正式secondary入口、exact permission/admin routing與恢復文案通過。
+    - [x] `1F-4`完成：aggregate QC、真實Chromium、固定3000唯讀驗證、production build與cleanup證據完成；未連線或寫入production。
+    - Exact data/API：沿用`numbering_candidate_revision_*`與`numbering_publication_evidence`，不新增schema/migration；既有`candidate-revisions/{revisionId}/files` route的POST維持上傳authority，PATCH提供target-only既有檔驗證，多檔由UI逐檔編排；list BFF新增／正規化`history=exclude|include`與capability fields，不新增平行mutation API。
+    - Exact primary files：`scripts/start-localhost-3000.ps1`、`src/lib/number-lifecycle-simplification.ts`、`src/lib/publication-evidence.ts`、`src/components/numbering-candidate-revision-editor.tsx`、`src/components/drawing-workbench.tsx`、`src/lib/drawing-workbench.ts`、`src/lib/repositories/drawing-workbench-async-repository.ts`、`src/app/api/numbering/drawings/workbench/**`、`src/components/master-attachment-panel.tsx`、`src/app/numbering/revisions/page.tsx`、新`src/components/drawing-revision-workbench.tsx`與DEV-053 focused scripts。files/attachments route只有contract test證明必要時才做最小變更。
+    - Stop：需要schema/provider enum、新business table、production target/credential、既有資料寫入、權限放寬、第二套受控檔authority、direct master create或觸及DEV-054時立即停止回PM。
+  - Historical Phase 1E RD Implementation Contract（不代表目前Phase 1F ready）：
     - 單頁資訊架構：保留`我的待處理／工作中／全部`與唯一primary CTA；候選列使用生命週期drawer，正式drawing列使用完整正式圖面drawer，兩者共享同一頁與deep link，不共用一個過度簡化內容模板。
     - 清單可見性：保留核心`圖號／品名／工作狀態／下一步`，並以欄位或列內次資訊恢復關聯料號、主資料狀態、待審、發布不一致與警告；恢復用途與資料狀態篩選。不得加入`development_phase`篩選或顯示。
     - 正式圖面操作：生命週期primary CTA置頂；另保留不競爭primary的固定secondary入口：`圖面進版`、`上傳與送審`、`完整圖料關係`、製造圖`影響分析`與`申請作廢`。production slice封鎖時顯示既有`未開放`原因，不可把功能靜默隱藏。
@@ -302,17 +410,17 @@ Owner：Dev PM
     - 料號主資料：恢復同主根料號清單與既有權限下的材質、顏色、表面處理、變體備註編輯；Released/locked資料仍走原authoritative guard，不因同頁化放寬權限。
     - 附件：candidate首版與formal revision仍是受控檔案唯一寫入authority；正式master drawer顯示受控摘要與前往權威工作台的入口。若保留既有一般附件CRUD，必須標為`參考附件`、沿用原權限/production-slice guard，且不得成為送審或publication evidence。
     - API/data：優先擴充既有workbench detail projection以提供正式drawer所需欄位；不得由browser額外拼接形成不一致資料。Phase 1E不新增schema/migration、不回填、不改號、不修改approval/release authority。
-  - Phase 1E exact implementation boundary：
+  - Historical Phase 1E exact implementation boundary（Phase 1F不得直接照此開工）：
     - 主要檔案：`src/components/drawing-workbench.tsx`、`src/app/numbering/drawings/page.tsx`、`src/lib/drawing-workbench.ts`、`src/lib/repositories/drawing-workbench-async-repository.ts`、`src/app/api/numbering/drawings/workbench/**`、DEV-053 focused scripts與必要CSS。
     - 可最小修改的共用檔：`src/components/master-attachment-panel.tsx`、`src/components/numbering-contextual-entrypoints.tsx`、`src/app/globals.css`；只允許DEV-053能力恢復hunk，不得覆寫其他任務變更。
     - 受保護/禁止修改：`db/postgres/023_remove_project_status_authority.sql`、`supabase/migrations/20260804030000_remove_project_status_authority.sql`、DEV-054 SPEC/ADR/QA/QC、已刪除的DVT頁面/API/測試、`development_phase`移除與DEV-054權限/規則調整。
     - Git邊界：不得整檔stage混合變更；共用檔必須逐hunk檢查。若DEV-053無法與DEV-054安全分離，停止commit並回Dev PM，不以還原另一AI成果解決。
-  - Phase 1E slices：
+  - Historical Phase 1E slices：
     - [x] `1E-1 Formal row parity`：已恢復篩選、列內關聯/治理摘要與固定secondary入口。
     - [x] `1E-2 Full formal drawer`：已恢復治理面板、同根料號、主資料編輯、成本/主要圖與附件authority導流。
     - [x] `1E-3 Regression automation`：已新增舊功能清冊assertions、route/action可達性、read-only authority、production-slice visible-disabled與bounded keyset檢查。
     - [x] `1E-4 AI QA + Independent QC`：AI QA與凍結commit獨立QC真實操作皆為27/27；focused 50/50、TypeScript、scoped lint、isolated build通過，P0/P1/P2皆為0。
-  - 驗收標準：
+  - Historical Phase 1E驗收紀錄（不得作Phase 1F PASS）：
     - [x] 單一工作台、候選/正式row去重、唯一primary CTA與舊reserved deep link仍成立。
     - [x] 正式drawing可依用途、資料狀態、系列與關鍵字查詢；關聯料號與治理警示不需猜測或切回舊頁。
     - [x] 每張正式drawing都能發現版次、上傳送審、完整圖料關係、影響分析（適用時）與作廢入口；被production slice或權限封鎖時可見原因。
@@ -322,12 +430,12 @@ Owner：Dev PM
     - [x] DEV-053範圍未修改、還原或提交`DEV-054`的DVT刪檔、023/024 migration、SPEC/ADR/QA/QC或專案狀態移除hunk。
     - [x] 1440×900、1280×720、1024×768及390×844可完成主流程，無水平overflow、CTA裁切或drawer重要功能不可達。
     - [x] open/search/filter/drawer/deep link零寫入；隔離寫入流程cleanup完成，productionConnected=false、productionWrites=false。
-  - QA/QC evidence：`qc:dev-053` aggregate、typecheck、scoped lint、isolated build、AI真實操作與產品凍結後獨立QC均已完成並通過；舊QA/QC只保留歷史，不作本次PASS依據。
+  - Historical QA/QC evidence：`qc:dev-053` aggregate、typecheck、scoped lint、isolated build與Chromium 27/27只對Phase 1E frozen snapshot有效；不得作Phase 1F或目前固定3000 PASS依據。
   - Spec Impact Preflight：`Intentional replacement`。保留單頁與server projection，撤銷「四欄簡版＋最小drawer即完成」的錯誤UI契約；DEV-052/050 authority與DEV-054專案狀態移除均保持authoritative。
-  - ADR判定：既有source-context/read-projection ADR仍有效；Phase 1E不新增schema、authority或跨模組決策，無需新ADR。
-  - 風險等級：Medium-High。主要風險為再次漏功能、雙檔案authority、錯誤action routing、production-slice靜默隱藏與覆寫並行DEV-054。
+  - ADR判定：不新增ADR。development evidence adapter不改production provider，附件分層沿用既有controlled/reference authority，read projection仍由現有ADR涵蓋；若實作需要provider enum、持久化authority、migration或新mutation route，停止並另開ADR。
+  - 風險等級：High。主要風險為正常固定3000無法閉環、再次漏功能、雙檔案authority、錯誤action routing、production-slice靜默隱藏、證據與current SHA脫鉤及覆寫並行DEV-054。
   - RD停止條件：需要新增schema/migration、回填/改號、放寬權限、direct master create、雙file authority、修改DEV-054、操作3000正式資料、production/deploy/release或無法安全分離共用hunk時停止。
-  - 文件成熟度與執行邊界：`RD Implementation Ready / Human Confirmed / Phase 1E Local Only`；P0/P1產品決策缺口為0，可由RD直接開始本機修復，不代表release ready。
+  - 文件成熟度與執行邊界：`Phase 1G Multi-Part + Optional Cost Local RD / AI QC Passed / Commit Pending / Production Migration & Release Gated`。本機批次進版及成本選填修正完成；尚未commit，025 production migration／deploy／release仍未授權。
 
 - ✓ DEV-045 [交付點] [本機完成] [P0] [Phase 1+2 + Phase 3A Local QC Passed / Release Gate Required] 帳號生命週期與安全管理台
   - 摘要：補齊已啟用帳號的 Admin 管理 UI 與 server lifecycle，並把邀請帳號、既有帳號、角色與權限、異動紀錄收斂到同一個「帳號與權限」管理入口，避免系統只有分散的邀請／角色 UI，卻無法安全處理停權、離職、session 撤銷與密碼重設。
@@ -377,6 +485,31 @@ Owner：Dev PM
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-001）
   - 批次發版：見 `DEV-032`；歷史實體遷移、Supabase live migration、production release 需走 release gate 或高風險確認。
   - 計入交付：是
+
+- ✓ DEV-054 [交付點] [本機 RD/QA/QC 通過] [P0] [Production Release Gated] 移除 PDM 專案狀態權威
+  - 摘要：完整移除 AI PDM 的 EVT/DVT/PVT 與語意等價 PLM phase-gate、`development_phase`、DVT 晉升及 phase-based rules，讓專案管理軟體成為唯一專案狀態權威。
+  - 來源 ID：`DEV-PDM-PROJECT-STATUS-BOUNDARY-001`
+  - 父任務：`DEV-049`、`DEV-053`、`DEV-005`
+  - Human Decision：2026-08-04 使用者明確要求直接從系統移除；不採隱藏、降級或雙軌相容。
+  - 執行範圍：本機產品、SQLite compatibility、PostgreSQL source migration、Supabase mirror、targeted QA/QC；不連線或修改正式環境。
+  - 驗收標準：active runtime/API/UI/current schema 無 project phase 或 PLM phase-gate；品質階段只有研發階段／技術移轉；變更管制是獨立 workflow dimension；DVT workflow 與正常 action catalog 資訊退役；release/technical-transfer/revision/change-control authority 不退化；舊註冊測試、migration 與 UI 證據齊備。
+  - 下一步：本機產品範圍已完成；只有收到明確 production migration/deploy/release 指令時才進 release gate。
+  - 證據：保留 2026-08-05 QA reopen 作歷史，修正後 R01～R12 獨立重驗全部通過；完整證據收斂至 `.ai-doc/qc/qc-dev-054-project-status-removal-2026-08-04.md` 與 `output/playwright/dev-054-project-status-removal/evidence.md`。
+  - 停止條件：需要 live migration、production data rewrite、deploy/release、清除不可變歷史audit或建立外部專案管理整合時停止並另走gate。
+  - 必讀文件：`.ai-doc/specs/SPEC-PDM-PROJECT-STATUS-BOUNDARY-001-remove-project-phase-authority.md`、`.ai-doc/decisions/ADR-PDM-PROJECT-STATUS-BOUNDARY-001-external-project-authority.md`、`.ai-doc/qa/qa-pdm-project-status-removal-validation-plan-2026-08-04.md`。
+  - 計入交付：是
+
+- ✓ DEV-055 [交付點] [完成] [P1] [Phase 1A～1D 本機] 任務導向的人類狀態投影
+  - 摘要：把多維 domain status 經 projector 收斂成一個人類可判斷的主要狀態，另以 availability scope 區分研發可用／生產可用，統一圖號、料號、圖料清單、filter 與共用 drawer，移除「草稿確認」及重複 badge。
+  - 成熟度：`RD Implementation Ready / Human Confirmed / Local RD Complete / Production Release Gated`
+  - 來源 ID：`DEV-PDM-HUMAN-STATUS-PROJECTION-001`
+  - 父任務：`DEV-PDM-STATUS-UX-001～003`、`DEV-PDM-NEXT-STEP-UX-001`、`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-053`
+  - 執行範圍：1A shared contract/projectors；1B additive API/server filter；1C 一狀態清單與共用 drawer；1D 三 route、三 viewport QA/QC。Drawing workbench 沿用既有 cursor；parts/relations 本輪沒有 client pagination。
+  - 驗收標準：每物件最多一個主要狀態；usable 依 evidence 顯示研發／生產可用範圍；list/drawer/filter同源；無「草稿確認」；owner detail共用；server filter先於 response limit；既有權限與 lifecycle 不退化；資料不足不得宣稱生產可用。
+  - 下一步：本機 Phase 1A～1D 已完成；若進 production，先依 release gate 在 disposable DB 重跑關聯操作 suite，再另行處理 deploy/release。
+  - 阻塞 / 恢復條件：若正確狀態需 confirmation schema、正式資料回填、權限或 lifecycle authority變更，停止並回到規劃；不得由 Draft或無 blocker推論已確認。
+  - 證據：`.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`、`.ai-doc/decisions/ADR-PDM-STATUS-UX-004-task-driven-human-status-projection.md`、`.ai-doc/qa/qa-pdm-human-status-projection-validation-plan-2026-08-06.md`、`.ai-doc/qc/qc-dev-055-human-status-projection-2026-08-06.md`。
+  - 計入交付：是（文件 ready 不計完成；產品實作及 QC 通過後才計入）
 
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
   - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
@@ -966,8 +1099,24 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
-- 2026-08-05: `DEV-053`凍結commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`完成獨立QC並判定PASS，P0/P1/P2皆為0。QC在短路徑、`npm ci`、乾淨detached worktree重跑focused 50/50、TypeScript、scoped lint與`npm run build:isolated`，全部通過；獨立真實Chromium run `DEV053-20260805-035048-local-isolated`為27/27、14張截圖，涵蓋舊reserved URL、既有保留號原地推進、真實上傳、送審/撤回/再送審、核准原子正式化、正式受控檔唯讀、四種viewport與reload冪等。`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。commit未含DEV-054、DVT/phase-gate刪檔、023/024 migration或project-status removal；DEV-054仍保留在未暫存工作區。DEV-053狀態更新為`Independent Local QC Passed / Production Release Gated`，未部署或修改production。
-- 2026-08-05: 完成`DEV-053 Phase 1E Regression Recovery`本機實作與AI QA證據凍結。單一`圖號工作台`恢復CAP-01～14：用途/資料狀態/系列/關鍵字篩選、關聯料號與治理摘要、圖面進版、上傳送審、完整圖料關係、製造影響、受控檔案摘要、發布不一致、Title block風險、送審完整性、同根料號、料號主資料編輯、標準成本與主要製造圖；生命週期primary CTA維持唯一，production-slice/權限限制維持可見且fail closed。focused contracts為schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript與DEV-053 lint為0 error。乾淨 staged product snapshot隔離真實Chromium run `DEV053-20260805-033336-local-isolated`為27/27，含真實PDF上傳、送審/撤回/再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。共用檔採hunk級邊界，未修改、還原或提交DEV-054的DVT刪檔、023/024 migration、專案狀態移除程式與文件。狀態為`RD and AI QA Evidence Frozen / Independent QC Pending / Local Only`；下一步以範圍化Git SHA交獨立QC，production activation/deploy/release仍未授權。
+- 2026-08-07: 依使用者決策刪除圖號工作台總表「下一步」欄與列內重複CTA，表格收斂為`圖號／品名／工作狀態`三欄；server primary action與權限說明仍保留於明細抽屜，不改API、domain lifecycle或寫入流程。同步更新DEV-053/055 contract、browser操作路徑與STATUS-UX-004 QA gate；`DEV053 UI 23/23`、`DEV055 contract 13/13`、TypeScript、scoped lint及隔離browser三viewport PASS。
+- 2026-08-07: 依使用者要求執行`DEV-055 viewer-aware responsibility projection`。保留客觀`humanStatus`，新增actor-specific`viewerStatus`：`待你處理／等他人處理／系統處理中／可使用／已結束`；drawing workbench以owner/reviewer為優先證據，part/relation因尚無個人assignment model而以role capability表示共享工作佇列。viewer filter改在response limit前依actor分類，相關API加`private, no-store`；共用badge懸浮層改用人類語言說明責任、是否自動完成及下一步。新增role matrix、filter與cache contract驗證；不修改domain lifecycle、schema/migration、正式資料、production、deploy或release。
+- 2026-08-07: 依使用者要求執行`availabilityScope`擴充。保留`humanStatus`與`viewerStatus`，新增客觀可用範圍投影：研發受控顯示`研發可用`，正式發布且製造依賴完整顯示`生產可用`；發布衝突、主要製造圖未發布或關聯缺口時 fail closed，不宣稱生產可用。新增主要製造圖 record status 的 read-only查詢欄位，未修改schema/migration、domain lifecycle、正式資料或寫入流程；同步補 availability matrix、API DTO、badge說明與browser QC。`qc:dev-055:projection` 44/44、contract 13/13、隔離 Chromium 三 viewport、TypeScript、affected-file ESLint 通過。
+- 2026-08-06: 完成`DEV-055 Phase 1A～1D`本機RD與QA/QC。新增`HumanStatusProjection`、part/relation/drawing projectors與共用`HumanStatusBadge`；三個清單與明細抽屜改用單一主要狀態，新增工作狀態篩選，server filter先於response limit，料號抽屜收斂至共用overlay與單一inline X，移除「草稿確認」及重複 primary badge。`qc:dev-055:projection` 21/21、contract 10/10、隔離 Chromium browser（API rows: parts 5 / relations 3 / drawings 5）、TypeScript、affected-file ESLint、entity-detail-drawer 15/15、part-number-module 86/86 全部通過；未修改正式資料、schema/migration、commit、deploy或release。既有關聯操作 suite因protected runtime guard未直接執行，列為正式release前 disposable DB gate。
+- 2026-08-06: 完成`DEV-053 Phase 1H`本機RD、AI QA與獨立QC。已落地native drawing-revision lifecycle authority、026 schema/mirror、8B全批次active adoption guard、9B無永久notification的current-state/task projection、10B cleaned-link latest redirect、pre-decision withdraw、optional correction reason、7-day payload-free token、terminal cleanup、單一CTA與legacy mutation 410 closure。AI QA與獨立QC各59/59，獨立run `DEV053-PHASE1H-20260806-134417`為8/8、production connection/write false、cleanup removed；TypeScript、30檔scoped lint、isolated build、Supabase mirror 76/76及approval-platform 126/126通過。27個frozen product檔與DEV-054 protected hashes不變。未stage/commit，未修改固定3000或production，未執行live migration/adoption/flag/deploy/release。
+- 2026-08-06: 依使用者要求將 `DEV-055` 補至 `RD Implementation Ready / Human Confirmed / Awaiting Local RD`。完成實際 repo/file impact、closed `HumanStatusProjection` contract、drawing/part/relation projector matrix、server API/list-detail parity、server filter-before-response-limit、part owner `PdmDetailDrawer` 收斂、stale drawer recovery、無 schema/migration 相容契約，以及 1A～1D sequential gates與 `qc:dev-055` QA/QC mapping；drawing workbench cursor沿用既有契約，parts/relations client pagination保留為future capsule；P0/P1 open question為0。Spec preflight對 STATUS-UX/NEXT-STEP/DEV-053為 compatible exception，對 relation root多 badge為 intentional replacement。本輪只修改開發文件，未修改產品、資料、production、commit、deploy或release。
+- 2026-08-06: 依使用者指定 `dev-pm`，建立 `DEV-055` 任務導向人類狀態投影開發文件、ADR 與 QA 驗證計畫，狀態為 `Brief Ready / Human Confirmed / RD Not Requested`。Phase 1 固定圖號、料號、圖料總表每列一個主要狀態、完成 evidence gate、覆蓋式共用 owner drawer、完整結果集 filter 與 1440／1024／390 browser QC；`STATUS-UX-001～003` 的字典／狀態軸保留為 detail/help authority，圖料關係原多 badge summary 由新規格 intentional replacement。本輪只修改文件，未修改產品、schema/migration、資料、production、commit、deploy或release。
+- 2026-08-06: 使用者以引導決策`8B 9B 10B`完成DEV-053 Phase 1H RD契約。文件升級為`RD Implementation Ready / Human Confirmed / RD not started`：啟用前對所有進行中圖面進版workflow做all-or-nothing adoption，completed/unknown資料維持永久；必要通知改為同交易更新drawing/current-task projection，不建立永久審核notification；cleaned deep link導向drawing最新版。權威SPEC 0.10已固定native action、026 schema/mirror、durable part scope、transient workflow/reviewer/token、narrow delete guards、adopter、API/errors、FK cleanup order、exact files、1H-1～1H-4切片與H-QA-01～20。DEV-054、產品程式、schema/migration、資料、commit、deploy與release均未執行。
+- 2026-08-06: 使用者以引導決策`5A（理由選填） 6A 7A`關閉DEV-053 Phase 1H剩餘產品決策，文件升級為`RD Contract Ready / Human Confirmed / RD not started`。退回理由只在目前correction state有效且重新送審即刪；版次結果固化與必要通知送達後才清除workflow business data；technical idempotency/recovery token最長7天且禁止人員、理由、檔案與snapshot payload。RD Contract已補server lifecycle precedence、唯一semantic CTA、第一decision前撤回、domain-scoped terminal cleanup、既有資料grandfather、API/deep-link/permission、transaction/recovery、QA/QC evidence與stop conditions，並同步修正approval platform永久audit契約的圖面進版限定例外。本輪只改權威開發文件；未修改產品、schema/migration、既有資料、DEV-054、commit、deploy或release。
+- 2026-08-06: 使用者以資深PM視角確認將DEV-053收斂為`2-1-1-0`精簡系統：兩個操作介面、一個使用者狀態、一個primary CTA、零個可見legacy操作。新增`Phase 1H Single Lifecycle and Approval Authority Convergence`並標記`Brief Ready / Human Confirmed`；保留Phase 1A～1G本機成果為歷史證據，尚未開始Phase 1H RD。本輪只更新DEV-053權威文件與索引，未修改產品、schema/migration、既有資料、DEV-054、commit、deploy或release。
+- 2026-08-06: 使用者確認A0005-M01進版必須同時帶P01/P02/P03，完成`DEV-053 Phase 1G Multi-Part Batch Revision`本機實作。UI預設全選合法主要料號並顯示`1 張圖・N 個料號`／全成全退；API改接非空`partNumberIds`，新增additive `submission_part_scopes`與PostgreSQL/Supabase 025 artifact，舊submission零回填並保留scalar compatibility；建立、FFF scope、歷史搜尋與release改為多料號且原子rollback。固定3000真實操作確認3↔2選取、console error 0、overflow 0且未送出A0005。TypeScript、production build、atomic release 45/45、security、access repository 236/236、change control 62/62、Supabase mirror均PASS；production migration/deploy/release與commit未執行，DEV-054 protected files hash/範圍未更動。confirmed-impact多料號在逐料號替代契約完成前保持fail closed；舊mutation suite另有小數版release/nonBlockingHistory契約債，未以放寬正式政策處理。
+- 2026-08-06: 修復`DEV-053`／圖面進版核准後狀態不同步缺口。根因為FFF影響審核核准已寫入`review_confirmation_events`並從審核工作台移除，但一般送審附件查詢只辨識候選號review companion，導致小數研發版仍顯示送審中。RD新增小數版effective `ReviewApproved`投影、送審明細狀態與Now What、整數版自動承接原approval/release workflow；未新增schema、未改既有A0005資料、未碰DEV-054。`qc:pdm-drawing-revision-package-model` 63/63、TypeScript、受影響檔ESLint與3000唯讀browser驗證通過；`qc:pdm-drawing-submission-review-only`與UI operation runner仍有既有測試契約／登入locator失敗，未以放寬產品政策處理。
+- 2026-08-05: 使用者以引導決策`1A 2A 3A 4A 5B 6A`完成`DEV-053 Phase 1F`需求收斂。PM/RD preflight確認現有candidate file/evidence/attachment/revision資料模型足以實作，不需schema/migration；開發文件已補normal fixed-3000 hash-verified evidence、多檔與逐檔恢復、每圖至少一個主要受控檔blocker、缺格式warning、預設all且歷史toggle、Rejected correction、request/cursor/selection一致性、keyboard、controlled/reference attachment authority、共享revision drawer、exact permission/admin routing、affected files、四個sequential slices、stop conditions與F1 QA delta。狀態升級為`RD Implementation Ready / Awaiting Local RD`，下一步為`1F-1`；本輪只改文件，未修改產品、schema/migration、既有資料、DEV-054、commit、deploy或release。
+- 2026-08-05: PM主管依使用者固定3000實際操作、Phase 1E前後程式與交付證據重審`DEV-053`，確認16組產品／交付缺口，將任務重啟為`Phase 1F Brief Ready / Current 3000 Not Accepted / Production Release Gated`。開發文件已補完整gap matrix、UX意圖、scope/out-of-scope、驗收方向、根因／CA／PA、AI真實操作F1-QA-01～11與QC reopen規則；先前27/27、50/50與獨立QC PASS全部降為歷史凍結快照，不得作目前驗收。下一成熟度為`RD Contract Ready`，本輪僅修改DEV-053文件，未修改產品、schema/migration、既有資料、DEV-054、commit、deploy或release。
+- 2026-08-05: RD完成`DEV-053 Phase 1F`的1F-1～1F-4，AI QC以current source重跑`npm run qc:dev-053`並全數通過：schema 9/9、read 10/10、HTTP 13/13、UI 20/20、flow 7/7、real operation 27/27、TypeScript PASS；optimized build compile與122/122 static pages通過。固定3000只讀smoke確認新UI已載入，既有A0005未被寫入；隔離run cleanup removed且production writes false。DEV-054維持受保護。狀態更新為`Local RD / AI QC Passed / Commit Pending / Production Release Gated`。
+- 2026-08-05（歷史Phase 1E紀錄，已被上方Phase 1F重啟取代）: `DEV-053`凍結commit `6ddd5759e22178b7004e5d5a9927b0dfbe11b706`完成獨立QC並判定PASS，P0/P1/P2皆為0。QC在短路徑、`npm ci`、乾淨detached worktree重跑focused 50/50、TypeScript、scoped lint與`npm run build:isolated`，全部通過；獨立真實Chromium run `DEV053-20260805-035048-local-isolated`為27/27、14張截圖，涵蓋舊reserved URL、既有保留號原地推進、真實上傳、送審/撤回/再送審、核准原子正式化、正式受控檔唯讀、四種viewport與reload冪等。`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。commit未含DEV-054、DVT/phase-gate刪檔、023/024 migration或project-status removal；DEV-054仍保留在未暫存工作區。該次狀態曾更新為`Independent Local QC Passed / Production Release Gated`，未部署或修改production。
+- 2026-08-05: `DEV-054`完成 QA 退回後的 RD 全鏈路修正與獨立 QA/QC。active PLM phase-gate schema/API/UI/approval blocker、DVT page/API、第三品質階段語意及舊註冊測試殘留已移除；品質階段只保留研發階段／技術移轉，變更管制為獨立維度。專項 gate 10/10、隔離 API 396/396、approval 125/125、access control 245/245、DB split 129/129、numbering core 232/232、submission gate 15/15、transfer 18/18、release 31/31、change control 62/62、Supabase migration 72/72、TypeScript、lint及122-route isolated build均通過。瀏覽器R12為3 viewports × 5 routes、15/15，browser error與非預期overflow為0；舊routes在slice-disabled隔離router均為404。狀態更新為`Local RD/QA/QC Passed / Production Release Gated`；未執行live migration、production data rewrite、deploy或release。
+- 2026-08-05（歷史Phase 1E紀錄）: 完成`DEV-053 Phase 1E Regression Recovery`本機實作與AI QA證據凍結。單一`圖號工作台`恢復CAP-01～14：用途/資料狀態/系列/關鍵字篩選、關聯料號與治理摘要、圖面進版、上傳送審、完整圖料關係、製造影響、受控檔案摘要、發布不一致、Title block風險、送審完整性、同根料號、料號主資料編輯、標準成本與主要製造圖；生命週期primary CTA維持唯一，production-slice/權限限制維持可見且fail closed。focused contracts為schema 9/9、read model 8/8、HTTP 10/10、UI 16/16、flow 7/7；全`src` TypeScript與DEV-053 lint為0 error。乾淨 staged product snapshot隔離真實Chromium run `DEV053-20260805-033336-local-isolated`為27/27，含真實PDF上傳、送審/撤回/再送審、reviewer核准、原子正式化、正式附件readback、四種viewport、zero-write與reload冪等；`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。共用檔採hunk級邊界，未修改、還原或提交DEV-054的DVT刪檔、023/024 migration、專案狀態移除程式與文件。當時狀態為`RD and AI QA Evidence Frozen / Independent QC Pending / Local Only`；production activation/deploy/release未授權。
 - 2026-08-04: 依使用者「下一成熟度為RD Implementation Ready，請推進」，完成`DEV-053` Implementation Readiness Review並改為`☐ 可執行 / Awaiting Phase 1A Local Execution`。repo盤點發現現有append workspace只有source root，無法保存使用者指定的existing drawing/part；已建立並Accepted `ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001`，採server-side一致性投影及workspace三個nullable source-context欄位，既有rows保持NULL且不backfill。SPEC/QA/dev board已補exact files、PostgreSQL 022與Supabase mirror、relationship-only append、atomic cross-boundary relation、opaque keyset cursor、正式版次local-draft狀態限制、`PDM_UNIFIED_DRAWING_WORKBENCH_V1` default-off、Phase 1A-1D、focused commands、rollback與production release feasibility；P0/P1 open question為0。下一步只執行Phase 1A本機read foundation，本輪未修改產品、schema實體、資料、production、deploy或release。
 - 2026-08-04: 依使用者「下一成熟度為RD Contract Ready，請執行」，將`DEV-053`由Brief Ready升級為`RD Contract Ready / Human Confirmed / Awaiting RD Implementation Readiness Review`。新增單一圖號工作台SPEC與「由AI執行的真實操作驗證計畫」，完成server-side unified read BFF、candidate bundle→formal drawing canonical row切換、多圖去重、state-to-primary-action、舊reserved URL zero-write相容、contextual append改走candidate workspace、controlled-file單一authority、permission交集、source failure fail-whole、feature flag與stop conditions。Spec preflight維持對DEV-052 `HD-052-04`的`Intentional replacement`；本輪只改文件，未修改product/schema/migration/production/deploy/release。
 - 2026-08-04: 使用者確認不再以「圖號總表／保留號」兩頁呈現圖號生命週期；建立`DEV-053`單一圖號工作台`Brief Ready / Human Confirmed`。新方向把保留號改為生命週期狀態，以單一清單、統一drawer與每狀態唯一CTA承接建立、首版、審核、正式化、發行與進版；UI合併但底層workspace/master/revision/approval authority仍分離。Spec preflight判定為對DEV-052 `HD-052-04`的`Intentional replacement`，現有產品與DEV-052證據不回寫成新契約；本輪未修改product/schema/migration/production/deploy/release。

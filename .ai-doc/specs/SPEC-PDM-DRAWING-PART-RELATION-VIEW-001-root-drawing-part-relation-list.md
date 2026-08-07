@@ -1,5 +1,9 @@
 # SPEC-PDM-DRAWING-PART-RELATION-VIEW-001 - 圖料模組主根號-圖號-料號關係視圖
 
+> 2026-08-06 Amendment：`SPEC-PDM-STATUS-UX-004` 取代本文件 root/drawing/part row 的多狀態 badge
+> 呈現。counts 與用途可保留，但每列只顯示一個 human status；「草稿確認」退役。圖／料節點開啟
+> owner module 共用 overlay drawer，不建立圖料模組專用的第二套明細內容。
+
 Status: Implemented / local verification passed for Phase 1-3
 Date: 2026-07-07
 Owner: Dev PM

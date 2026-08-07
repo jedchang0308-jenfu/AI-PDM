@@ -76,8 +76,8 @@ function seedMasterSearchData() {
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, 'company-jenfu', ?, 'QC 工作台關係總成', 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, 'QC 工作台關係總成', 'manufactured', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(searchRootId, searchRootCode, now, now);
     for (const [index, partNumber, partName] of [
@@ -88,8 +88,8 @@ function seedMasterSearchData() {
         `
         INSERT INTO part_numbers (
           id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-          item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+          item_kind, is_universal, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 'manufactured', 0, 'Active', 'numbering-rule-v2', ?, ?)
       `
       ).run(`qc-master-search-part-${index}-${unique}`, searchRootId, partNumber, index, `P${String(index).padStart(2, "0")}`, partName, now, now);
     }
@@ -101,8 +101,8 @@ function seedMasterSearchData() {
         `
         INSERT INTO drawing_numbers (
           id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-          is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
-        ) VALUES (?, 'company-jenfu', ?, ?, 'M', ?, ?, 1, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+          is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'M', ?, ?, 1, 'Active', 'numbering-rule-v2', ?, ?)
       `
       ).run(`qc-master-search-drawing-${index}-${unique}`, searchRootId, drawingNumber, purposeDescription, index, now, now);
     }

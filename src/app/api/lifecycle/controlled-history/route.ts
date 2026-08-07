@@ -115,8 +115,8 @@ function buildNumberingControlledHistoryEntry(request: NumberingApprovalReviewRe
   const entityLabel = entityType === "numbering_part_number" ? "正式料號" : "正式圖號";
   const secondaryCode =
     entityType === "numbering_part_number"
-      ? [request.entitySummary.rootCode, request.entitySummary.developmentPhase].filter(Boolean).join(" / ")
-      : [request.entitySummary.partNumber, request.entitySummary.developmentPhase].filter(Boolean).join(" / ");
+      ? request.entitySummary.rootCode
+      : request.entitySummary.partNumber;
 
   return {
     id: `${entityType}:${request.entityId}`,

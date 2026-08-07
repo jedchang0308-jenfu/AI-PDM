@@ -1,6 +1,6 @@
 # SPEC-PDM-DRAWING-REVISION-SUBMISSION-001 - 圖面進版受控送審包
 
-Status: Phase 1, Phase 2 and Phase 3 implemented / verification passed locally; Phase 4 first-class package model is RD Implementation Ready / not implemented; Phase 5/6 not authorized
+Status: Phase 1, Phase 2 and Phase 3 implemented / verification passed locally; DEV-053 multi-part scope amendment implemented locally; Phase 4 first-class package model is RD Implementation Ready / not implemented; Phase 5/6 not authorized
 Date: 2026-07-03
 Owner: Dev PM
 Related DEV: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
@@ -29,6 +29,7 @@ Confirmed product decisions:
 - A formal drawing revision requires a controlled submission/review/release package that contains the new drawing files, FFF judgement, revision value, reason category, reviewer confirmation and audit trail.
 - No-impact changes such as `標註 / 文字修正` can keep the same part number and BOM, but the reviewer must still confirm why BOM does not revise.
 - Confirmed-impact changes still require replacement part draft and drawing part-number match under the existing change-control rule.
+- One drawing revision package may carry one or more legitimate primary parts. It keeps one revision, one attachment package and one review lifecycle, while preserving an immutable per-part scope and all-or-nothing release.
 
 Rejected behavior:
 
@@ -184,6 +185,13 @@ Drawing D-0007-MA1: 0.1 -> 0.2
 Part P-0007-001: unchanged
 BOM: unchanged, reviewer-confirmed no revision
 ```
+
+Approval/status boundary:
+
+- `review_confirmation_events` is the canonical evidence that the linked FFF impact review was completed.
+- For a minor revision (`0.x` or `N.x`), an approved FFF event projects the physical `Pending` package to effective `ReviewApproved` / `研發受控`; it must not be promoted to physical `Released` or manufacturing-current data.
+- For a major revision, the same approved review hands off to the existing approval-step and atomic release workflow. A rejected replacement action never advances the submission.
+- The read model and submission detail must show the effective status and remove a misleading `核准發布` action for a minor revision already approved by FFF.
 
 Forbidden result:
 
@@ -415,6 +423,10 @@ Display rules:
 - Non-latest approved revisions are grouped under `歷史版次`, `歷史附件` or an equivalent history area.
 - A backfilled older revision must display as `歷史版次：已核准，僅供追溯`, not as a current file.
 - If the user is preparing a lower revision than the current latest, the workbench must show a warning such as `此版次低於目前最新版，核准後會進入歷史區，不會取代最新版。`
+- Unsubmitted attachments whose revision is lower than the computed latest are grouped by revision and shown with one concise action such as `補登 0.2 歷史版`; the action opens the canonical `/numbering/revisions` work page and pre-fills the drawing, target revision, eligible attachment IDs and safe return path.
+- Historical backfill and normal revision submission must use the same full-page workbench. The drawing detail drawer must not render a second embedded submission form or create a parallel navigation/validation path.
+- Historical backfill entry must not auto-submit, delete, re-upload or rewrite an attachment. The submitter still reviews the selected files, completes FFF/change reason and explicitly creates the submission.
+- The normal `申請補件` form is only available for same-revision files against the current physically `Released` package. A lower unsubmitted revision and an effective `ReviewApproved` but physically `Pending` package must not be presented as supplement candidates.
 - If the user is preparing a higher or skipped revision, the workbench must show a confirmation such as `此版次核准後會成為最新版。`
 - Manufacturing handoff, download defaults, package summary and BOM/where-used default views must use the computed latest unless the user explicitly opens history.
 
@@ -437,7 +449,8 @@ createDrawingRevisionSubmissionPackage(input: {
   functionState: "no_impact" | "suspected_impact" | "confirmed_impact";
   selectedAttachmentIds: string[];
   note?: string | null;
-  currentPartNumberId?: string | null;
+  partNumberIds?: string[];
+  currentPartNumberId?: string | null; // legacy one-part compatibility only
   replacementReservedPartNumber?: string | null;
   replacementItemType?: "self_made" | "purchased" | "standard";
   detectedPartNumber?: string | null;
@@ -449,20 +462,24 @@ createDrawingRevisionSubmissionPackage(input: {
   outcome: "no_impact" | "suspected_impact" | "confirmed_impact";
   revision: string;
   selectedAttachmentIds: string[];
+  selectedPartNumberIds: string[];
   replacementDraftId?: string | null;
 }>;
 ```
 
 Required behavior:
 
-- Resolve and re-check drawing, primary part, selected attachments and same-revision blockers in the transaction or immediately before it.
+- Resolve and re-check drawing, every selected primary part, selected attachments and same-revision blockers in the transaction or immediately before it.
 - Create a Pending drawing submission package from selected drawing attachments using the existing source-traceability/snapshot mechanism.
+- Insert one `submission_part_scopes` row per selected part in the same transaction; existing submissions without rows remain valid through the legacy scalar anchor.
 - Insert the FFF assessment with `submission_id = created submission id`.
 - If implementation must create the assessment first, it must update `submission_id` in the same transaction before returning success.
 - If submission creation fails, no orphan FFF assessment should remain as a pending reviewer task.
 - If FFF assessment creation fails after file copy, submission creation and file copy must roll back or be compensated per existing file-store behavior.
 - Replayed idempotency key must return the same submission/assessment pair.
 - Different idempotency keys must not create duplicate active same drawing + revision submissions.
+- Release must validate every frozen relationship and update all scoped parts atomically. Partial success is forbidden.
+- Shared FFF states are copied into each scope row for traceability. Confirmed-impact batches with more than one old part remain blocked until a replacement result can be supplied for each old part.
 
 ### 7.2 No-Impact / Suspected-Impact Rules
 

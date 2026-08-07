@@ -30,7 +30,6 @@ import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/s
 import {
   approvalActionLabel,
   approvalItemKindLabel,
-  approvalPhaseLabel,
   approvalRecordStatusLabel,
   approvalRiskFlagLabel,
   approvalRoleLabel,
@@ -148,7 +147,6 @@ type ApprovalRule = {
   ruleVersionId: string;
   ruleName: string;
   actionCode: string;
-  phase: string | null;
   recordStatus: string | null;
   itemKind: string | null;
   riskFlag: string | null;
@@ -206,7 +204,6 @@ type MatrixResponse = {
   options: {
     actionCodes: string[];
     pagePermissionCodes: string[];
-    phases: string[];
     recordStatuses: string[];
     itemKinds: string[];
     riskFlags: string[];
@@ -300,7 +297,6 @@ const emptyRuleDraft: RuleDraft = {
   ruleVersionId: "numbering-rule-v3-alpha-root",
   ruleName: "",
   actionCode: "",
-  phase: null,
   recordStatus: null,
   itemKind: null,
   riskFlag: null,
@@ -1696,7 +1692,6 @@ export function ApprovalMatrixSettings() {
               <tr>
                 <th>規則摘要</th>
                 <th>觸發動作</th>
-                <th>階段</th>
                 <th>
                   <StatusColumnHeader context="masterRecord" />
                 </th>
@@ -1731,16 +1726,6 @@ export function ApprovalMatrixSettings() {
                         emptyLabel="請選擇動作"
                         minWidth="190px"
                         onChange={(value) => updateDraft(rule.id, "actionCode", value ?? "")}
-                      />
-                    </td>
-                    <td>
-                      <MatrixSelect
-                        testId="approval-rule-phase"
-                        value={draft.phase}
-                        options={matrix.options.phases}
-                        labels={labelsFor(matrix.options.phases, phaseLabel)}
-                        minWidth="120px"
-                        onChange={(value) => updateDraft(rule.id, "phase", value)}
                       />
                     </td>
                     <td>
@@ -1816,15 +1801,6 @@ export function ApprovalMatrixSettings() {
                     emptyLabel="請選擇動作"
                     minWidth="190px"
                     onChange={(value) => updateNewRule("actionCode", value ?? "")}
-                  />
-                </td>
-                <td>
-                  <MatrixSelect
-                    value={newRule.phase}
-                    options={matrix.options.phases}
-                    labels={labelsFor(matrix.options.phases, phaseLabel)}
-                    minWidth="120px"
-                    onChange={(value) => updateNewRule("phase", value)}
                   />
                 </td>
                 <td>
@@ -1952,7 +1928,6 @@ export function ApprovalMatrixSettings() {
 
 function RuleSimulator({ matrix }: { matrix: MatrixResponse }) {
   const [actionCode, setActionCode] = useState("release");
-  const [phase, setPhase] = useState<string | null>("Release");
   const [recordStatus, setRecordStatus] = useState<string | null>(null);
   const [itemKind, setItemKind] = useState<string | null>("manufactured");
   const [riskFlag, setRiskFlag] = useState<string | null>("missing_primary_ma");
@@ -1966,7 +1941,6 @@ function RuleSimulator({ matrix }: { matrix: MatrixResponse }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         actionCode,
-        phase,
         recordStatus,
         itemKind,
         riskFlags: riskFlag ? [riskFlag] : [],
@@ -1983,7 +1957,7 @@ function RuleSimulator({ matrix }: { matrix: MatrixResponse }) {
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
         <SlidersHorizontal size={18} aria-hidden="true" />
         <strong>規則模擬器</strong>
-        <InfoMark text="輸入動作、階段、狀態、料件與風險旗標後，系統會用目前矩陣加不可關閉硬限制計算審核結果。" />
+        <InfoMark text="輸入動作、資料狀態、料件與風險旗標後，系統會用目前矩陣加不可關閉硬限制計算審核結果。" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem" }}>
         <label style={labelStyle}>
@@ -1995,10 +1969,6 @@ function RuleSimulator({ matrix }: { matrix: MatrixResponse }) {
             emptyLabel="請選擇動作"
             onChange={(value) => setActionCode(value ?? "")}
           />
-        </label>
-        <label style={labelStyle}>
-          階段
-          <MatrixSelect value={phase} options={matrix.options.phases} labels={labelsFor(matrix.options.phases, phaseLabel)} onChange={setPhase} />
         </label>
         <label style={labelStyle}>
           狀態
@@ -3059,7 +3029,6 @@ function permissionLabel(code: string) {
     "numbering.request": "申請",
     "numbering.search": "查詢",
     "numbering.drawings.view": "圖號模組",
-    "numbering.dvt": "DVT",
     "numbering.approvals": "審核",
     "numbering.impact": "影響",
     "numbering.tasks": "待辦",
@@ -3072,7 +3041,6 @@ function permissionLabel(code: string) {
     "numbering.draft.admin_confirm": "管理員確認",
     "numbering.duplicate_check": "查重",
     "numbering.link_variant": "同圖連結",
-    "numbering.dvt.submit": "送 DVT",
     "numbering.approval.request": "送審",
     "numbering.approval.batch.create": "建審核批次",
     "numbering.approval.batch.decide": "批次決議",
@@ -3091,8 +3059,6 @@ function permissionLabel(code: string) {
     "pdm.drawing_package.model_exception.confirm": "確認純 2D 圖包例外",
     "pdm.manufacturing_baseline.release": "發布製造基準",
     "pdm.shared_model.release": "發布共用 3D",
-    dvt_promotion: "DVT 階段晉升",
-    dvt_missing_ma_override: "DVT 缺少主要製造圖例外",
     release: "正式發行審核",
     release_missing_ma_confirm: "發行時缺少主要製造圖確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
@@ -3109,10 +3075,6 @@ function permissionLabel(code: string) {
 
 function actionCodeLabel(code: string) {
   return approvalActionLabel(code);
-}
-
-function phaseLabel(value: string) {
-  return approvalPhaseLabel(value) ?? "不限制";
 }
 
 function recordStatusLabel(value: string) {
@@ -3133,7 +3095,7 @@ function hardRuleLabel(code: string) {
     PRIMARY_MA_UNIQUENESS_HARD_BLOCK: "主要製造圖只能有一張",
     RELEASED_DOCUMENT_REVISION_REQUIRED: "已發布文件必須先進版",
     MAIN_DRAWING_INVALID_REVIEW_REQUIRED: "主要製造圖失效需先審核",
-    PRIMARY_MA_REQUIRED_FROM_DVT: "DVT 起必須有主要製造圖",
+    PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF: "受控移轉必須有主要製造圖",
     OVERRIDE_AUDIT_MARKER_REQUIRED: "例外必須留下稽核標示",
     HIGH_SIMILARITY_WARNING_ONLY: "高相似編號只提醒"
   };
@@ -3146,7 +3108,7 @@ function hardRuleMessageLabel(code: string, fallback: string) {
     PRIMARY_MA_UNIQUENESS_HARD_BLOCK: "同一個料號只能指定一張主要製造圖。",
     RELEASED_DOCUMENT_REVISION_REQUIRED: "已正式發布的受影響文件，必須先建立新版或修訂後才能放行。",
     MAIN_DRAWING_INVALID_REVIEW_REQUIRED: "主要製造圖失效的料號，必須通過恢復審核後才能再次使用。",
-    PRIMARY_MA_REQUIRED_FROM_DVT: "自 DVT 或正式發行開始，自製、委外與客製件必須有主要製造圖；若缺少需走例外審核。",
+    PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF: "自製、委外與客製件進入技術移轉或正式發行前必須有主要製造圖；若缺少需走例外審核。",
     OVERRIDE_AUDIT_MARKER_REQUIRED: "所有例外放行都必須在畫面與匯出資料留下標示，方便追蹤。",
     HIGH_SIMILARITY_WARNING_ONLY: "高相似編號會提醒使用者，但不會直接阻擋編號。"
   };

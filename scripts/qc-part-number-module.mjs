@@ -96,9 +96,9 @@ assert(partCostVisibility.includes('"system_admin", "pdm_admin", "rd_manager", "
 assert(partCostVisibility.includes("unitCost: null"), "part cost redaction clears standard cost amount");
 assert(partCostVisibility.includes("costProfiles: []"), "part cost redaction hides cost profile tier amounts");
 assert(repository.includes("PART_COST_TIER_RANGE_OVERLAP"), "repository rejects overlapping cost tiers");
-assert(repository.includes("SAME_DRAWING_VARIANT_DETAIL_REQUIRED"), "repository blocks DVT/Release gate when same-drawing variant details are missing");
+assert(repository.includes("SAME_DRAWING_VARIANT_DETAIL_REQUIRED"), "repository blocks technical-transfer/release use when same-drawing variant details are missing");
 assert(repository.includes("primaryDrawingHasMultipleLinkedParts"), "repository detects multi-part primary MA drawing links");
-assert(repository.includes("partHasVariantDescriptor"), "repository checks material, color, or variant note before DVT/Release");
+assert(repository.includes("partHasVariantDescriptor"), "repository checks material, color, or variant note before technical transfer or release");
 assert(repository.includes("DrawingModuleLinkedPartRecord"), "drawing module exposes same-root linked part detail contract");
 assert(repository.includes("selectDrawingModuleLinkedPartsByRoot"), "drawing module loads same-root parts for drawing detail");
 assert(repository.includes("standardCostStatus") && repository.includes("part_standard_costs"), "drawing detail includes active or missing standard cost status");

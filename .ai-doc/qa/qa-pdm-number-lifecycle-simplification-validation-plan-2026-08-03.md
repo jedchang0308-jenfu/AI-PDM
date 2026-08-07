@@ -512,9 +512,13 @@ output/playwright/dev052-real-operation/<RUN_ID>/
 
 | Sign-off | AI task／principal識別 | 時間 | 結論 | Evidence path／defect IDs |
 |---|---|---|---|---|
-| AI-QA executor | task/thread ID待填 | 待填 | 待執行 | 待填 |
-| Operator／Approver contexts | principal IDs待填 | 待填 | 待執行 | 待填 |
-| 獨立AI-QC reviewer | task/thread ID待填 | 待填 | 待執行 | 待填 |
-| Human release owner（僅C gate授權，不執行測試） | 待填 | 待填 | 未授權 | 待填 |
+| AI-QA executor | isolated local AI runner | 2026-08-06 | PASS | `output/playwright/dev052-real-operation/DEV052-20260806-015522-local-isolated/` |
+| Operator／Approver contexts | disposable Engineer／R&D Manager principals | 2026-08-06 | PASS | `permissions.json`、`case-results.md`、screenshots與receipts |
+| 獨立AI-QC reviewer | `independent_qc_final` | 2026-08-06 | PASS；P0=0、P1=0、P2=0 | `.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md` |
+| Human release owner（僅C gate授權，不執行測試） | 未指定 | 2026-08-06 | 未授權 | production release gate維持關閉 |
 
 文件治理結論：本章只把既有SPEC/ADR契約展開為AI真實瀏覽器驗證步驟，分類為`No contract drift`；不改狀態機、API、權限、release semantics、DEV狀態或production授權，故不新增ADR、DEV或第二份QA plan。
+
+### 15.14 2026-08-06 final execution record
+
+獨立AI-QC在RD freeze後重跑`npm run qc:dev-052`：schema 12/12、data protection 4/4、HTTP 10/10、UI 16/16、flow 8/8與AI real-operation 41/41均為0 fail；revision policy、number-state runtime、Supabase migration與TypeScript附帶gate亦通過。run manifest證明`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。本結果只解除local QC gate，不授權staging、production、migration、flag activation、deploy或release。

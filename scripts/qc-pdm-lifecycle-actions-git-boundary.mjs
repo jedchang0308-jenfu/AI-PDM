@@ -41,6 +41,19 @@ const lifecycleCandidateFiles = [
   "scripts/qc-pdm-lifecycle-release-readiness.mjs"
 ];
 
+const lifecycleQcInfrastructureFiles = [
+  "scripts/qc-pdm-lifecycle-isolated-runtime.mjs"
+];
+
+const protectedParallelTaskPatterns = [
+  /(?:^|\/)db\/postgres\/023_remove_project_status_authority\.sql$/iu,
+  /(?:^|\/)db\/postgres\/024_remove_submission_phase_gate\.sql$/iu,
+  /(?:^|\/)supabase\/migrations\/20260804030000_remove_project_status_authority\.sql$/iu,
+  /(?:^|\/)supabase\/migrations\/20260805010000_remove_submission_phase_gate\.sql$/iu,
+  /(?:^|\/)(?:DEV-054|dev054)(?:\/|[-_.])/iu,
+  /(?:^|\/)(?:dvt|development[_-]phase)(?:\/|[-_.])/iu
+];
+
 const requiredEvidenceArtifacts = [
   "output/playwright/pdm-lifecycle-attachments-desktop-final.png",
   "output/playwright/pdm-lifecycle-attachments-laptop-final.png",
@@ -92,8 +105,16 @@ function read(relativePath) {
   return readProjectFile(root, relativePath);
 }
 
-for (const relativePath of lifecycleCandidateFiles) {
+const lifecycleScopeManifest = [...lifecycleCandidateFiles, ...lifecycleQcInfrastructureFiles];
+for (const relativePath of lifecycleScopeManifest) {
   if (!exists(relativePath)) failures.push(`missing lifecycle boundary candidate: ${relativePath}`);
+}
+
+const protectedScopeEntries = lifecycleScopeManifest.filter((relativePath) =>
+  protectedParallelTaskPatterns.some((pattern) => pattern.test(relativePath.replaceAll("\\", "/")))
+);
+if (protectedScopeEntries.length > 0) {
+  failures.push(`lifecycle scope manifest crosses protected DEV-054 boundary: ${protectedScopeEntries.join(", ")}`);
 }
 
 for (const relativePath of requiredEvidenceArtifacts) {
@@ -139,9 +160,41 @@ if (unrelatedStaged.length > 0) {
 }
 
 const trackedOrUntracked = new Set([...git(["diff", "--name-only"]), ...git(["ls-files", "--others", "--exclude-standard"])]);
-const missingFromWorkingBoundary = lifecycleCandidateFiles.filter((relativePath) => !trackedOrUntracked.has(relativePath) && !stagedSet.has(relativePath));
-if (missingFromWorkingBoundary.length > 0) {
-  failures.push(`candidate files are not present in staged, unstaged, or untracked changes: ${missingFromWorkingBoundary.join(", ")}`);
+const currentlyChangedScopeFiles = lifecycleScopeManifest.filter((relativePath) => trackedOrUntracked.has(relativePath) || stagedSet.has(relativePath));
+notes.push(
+  `${currentlyChangedScopeFiles.length}/${lifecycleScopeManifest.length} lifecycle scope files currently differ from HEAD; dirty-tree membership is informational, not a product pass condition`
+);
+
+const isolationRuntime = read("scripts/qc-pdm-lifecycle-isolated-runtime.mjs");
+for (const requiredMarker of [
+  "LIFECYCLE_QC_EXTERNAL_TARGET_REFUSED",
+  "PDM_DATA_DIR: dataDir",
+  "PDM_REPOSITORY_DIR: repositoryDir",
+  "PDM_POSTGRES_URL: \"\"",
+  "DATABASE_URL: \"\"",
+  "productionConnected: false",
+  "productionDataUnchanged",
+  "cleanupStatus"
+]) {
+  if (!isolationRuntime.includes(requiredMarker)) failures.push(`isolated lifecycle runtime missing safety marker: ${requiredMarker}`);
+}
+
+for (const relativePath of [
+  "scripts/qc-pdm-lifecycle-actions-ui.mjs",
+  "scripts/qc-pdm-lifecycle-bom-obsolete.mjs",
+  "scripts/qc-pdm-lifecycle-submission-obsolete.mjs",
+  "scripts/qc-pdm-lifecycle-controlled-history-ui.mjs"
+]) {
+  const source = read(relativePath);
+  if (!source.includes('from "./qc-pdm-lifecycle-isolated-runtime.mjs"')) {
+    failures.push(`mutating lifecycle QC does not use isolated runtime: ${relativePath}`);
+  }
+  if (source.includes('process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000"')) {
+    failures.push(`mutating lifecycle QC still defaults to fixed port 3000: ${relativePath}`);
+  }
+  if (source.includes('path.join(root, "data", "ai-pdm.sqlite")')) {
+    failures.push(`mutating lifecycle QC still targets workspace database: ${relativePath}`);
+  }
 }
 
 const lifecycleQc = read("scripts/qc-pdm-lifecycle-actions.mjs");
@@ -157,4 +210,4 @@ if (failures.length > 0) {
 
 console.log("QC PDM lifecycle actions git boundary: PASS");
 for (const note of notes) console.log(`- ${note}`);
-console.log("- lifecycle Phase 1-6 boundary group is documented; scoped index cleanup may proceed when no unrelated staged files are detected");
+console.log("- lifecycle Phase 1-6 scope manifest, DEV-054 exclusion, isolated runtime, and evidence files are verified independently of working-tree dirtiness");

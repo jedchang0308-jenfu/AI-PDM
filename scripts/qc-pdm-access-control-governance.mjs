@@ -217,8 +217,8 @@ async function assertSettingsUi(browser, cookie, viewportName, viewport) {
       .evaluateAll((items) => items.map((item) => item.innerText?.trim() ?? ""));
     record(
       `${viewportName} 規則矩陣使用中文管理語言`,
-      ruleSummaryValues.some((summary) => summary.includes("申請主要製造圖例外")) &&
-        ruleSummaryValues.some((summary) => summary.includes("送 DVT 階段晉升")) &&
+      ruleSummaryValues.some((summary) => summary.includes("確認沒有主要製造圖仍要發行")) &&
+        ruleSummaryValues.some((summary) => summary.includes("正式發行")) &&
         rolesPanelText.includes("自製件") &&
         rolesPanelText.includes("待審核") &&
         rolesPanelText.includes("編號不可重複"),
@@ -247,9 +247,6 @@ async function assertSettingsUi(browser, cookie, viewportName, viewport) {
       (await page.locator('[data-testid="approval-rule-name"], [data-testid="approval-new-rule-name"], input[data-testid="approval-rule-summary"], input[data-testid="approval-new-rule-summary"]').count()) === 0
     );
     const developerTerms = [
-      "DVT missing MA override",
-      "dvt_missing_ma_override",
-      "dvt_promotion",
       "main_drawing_restore",
       "merge_part_number",
       "obsolete_ma_drawing",
@@ -272,7 +269,7 @@ async function assertSettingsUi(browser, cookie, viewportName, viewport) {
     const actionOptions = await page.locator('[data-testid="approval-rule-action"]').first().evaluate((select) => Array.from(select.options).map((option) => option.textContent?.trim() ?? ""));
     record(
       `${viewportName} 規則動作下拉選單使用中文選項`,
-      actionOptions.includes("DVT 缺少主要製造圖例外") && actionOptions.includes("正式發行審核") && !actionOptions.includes("dvt_missing_ma_override"),
+      actionOptions.includes("發行時缺少主要製造圖確認") && actionOptions.includes("正式發行審核") && !actionOptions.includes("release_missing_ma_confirm"),
       actionOptions.join(" / ")
     );
     const itemOptions = await page.locator('[data-testid="approval-rule-item-kind"]').first().evaluate((select) => Array.from(select.options).map((option) => option.textContent?.trim() ?? ""));

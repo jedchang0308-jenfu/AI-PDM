@@ -9,7 +9,7 @@ import { LifecycleStageGuidance, ObjectLifecycleStatusPanel } from "@/components
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import type { PdmMetadata, PdmMetadataDetection } from "@/lib/pdm-metadata";
-import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
+import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import { buildTransferPackageHref, type SubmissionMode } from "@/lib/submission-gate";
 
 const emptyMetadata: PdmMetadata = {
@@ -82,7 +82,6 @@ type AuthUserPayload = {
 };
 type UploadPrefillContext = {
   rootCode: string;
-  developmentPhase: string;
   metadata: Partial<PdmMetadata>;
 };
 type RevisionSuggestion = {
@@ -140,7 +139,6 @@ type DrawingSubmissionContext = {
     purposeCode: string;
     purposeLabel: string;
     recordStatus: string;
-    developmentPhase: string;
     coreName: string;
   };
   primaryPart: null | {
@@ -315,7 +313,6 @@ function GenericUploadPage() {
     };
     const nextPrefill: UploadPrefillContext = {
       rootCode: params.get("rootCode") ?? "",
-      developmentPhase: params.get("developmentPhase") ?? "",
       metadata: nextMetadata
     };
     setPrefillContext(nextPrefill);
@@ -488,7 +485,6 @@ function GenericUploadPage() {
           title="從領號草稿接續送審"
           objectName={`${prefillContext.rootCode || "未帶入主根號"} / ${metadata.part_number || "未帶入料號"} / ${metadata.drawing_number || "未帶入圖號"}`}
           status="Draft"
-          phase={prefillContext.developmentPhase || "EVT"}
           owner="RD"
           identities={[
             { label: "主根號", value: prefillContext.rootCode || "-" },
@@ -1186,7 +1182,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
               <div>
                 <h2>送審來源：{context.drawing.drawingNumber}</h2>
                 <p style={drawingSubmissionMutedStyle}>
-                  {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}
+                  {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")}
                 </p>
               </div>
               <span className="section-label">{context.pdmCompany.displayName}</span>

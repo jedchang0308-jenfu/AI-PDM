@@ -1,17 +1,24 @@
 "use client";
 
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, GitBranch, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
+import { HumanStatusBadge } from "@/components/human-status-badge";
+import { DrawingDetailContent, type DrawingDetail, type DrawingWorkbenchCapabilities } from "@/components/drawing-workbench";
+import { PartDetailPanel, type PartDetail } from "@/app/parts/page";
+import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { StatusBadge } from "@/components/status-help-popover";
+import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
-import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
+import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type RelationViewMode = "tree" | "matrix";
@@ -25,11 +32,17 @@ type NumberingRecordStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
-type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
+const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
+  { value: "all", label: "全部狀態" },
+  { value: "needs_action", label: "待我處理" },
+  { value: "waiting", label: "等他人處理" },
+  { value: "system", label: "系統處理中" },
+  { value: "usable", label: "可使用" },
+  { value: "history", label: "歷史" }
+];
 
 type SearchResult = {
   entityType: Exclude<EntityType, "all">;
@@ -39,7 +52,6 @@ type SearchResult = {
   displayCode: string;
   displayName: string;
   itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   purposeCode: DrawingPurposeCode | null;
   partNumber: string | null;
@@ -56,9 +68,11 @@ type PartRoot = {
   rootCode: string;
   coreName: string;
   itemKind: SearchResult["itemKind"];
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
+  humanStatus?: HumanStatusProjection;
+  viewerStatus?: ViewerHumanStatusProjection;
+  availabilityScope?: AvailabilityScopeProjection;
 };
 
 type PartNumber = {
@@ -70,10 +84,12 @@ type PartNumber = {
   partName: string;
   itemKind: SearchResult["itemKind"];
   isUniversal: boolean;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   universalReason: string | null;
   ruleVersionId: string;
+  humanStatus?: HumanStatusProjection;
+  viewerStatus?: ViewerHumanStatusProjection;
+  availabilityScope?: AvailabilityScopeProjection;
 };
 
 type DrawingNumber = {
@@ -84,9 +100,11 @@ type DrawingNumber = {
   purposeDescription: string;
   sequenceNo: number;
   isPrimaryManufacturing: boolean;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
+  humanStatus?: HumanStatusProjection;
+  viewerStatus?: ViewerHumanStatusProjection;
+  availabilityScope?: AvailabilityScopeProjection;
 };
 
 type PartVariant = {
@@ -114,7 +132,6 @@ type PartEntityDetail = {
   partNumber: string;
   partName: string;
   itemKind: SearchResult["itemKind"];
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   variant: PartVariant | null;
   primaryDrawingNumber: string | null;
@@ -207,6 +224,9 @@ type NumberingAudit = {
 };
 
 type RootDetail = {
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
   root: PartRoot;
   partNumbers: PartNumber[];
   drawingNumbers: DrawingNumber[];
@@ -238,7 +258,9 @@ type DrawingPartRelationRoot = {
   rootCode: string;
   coreName: string;
   recordStatus: NumberingRecordStatus;
-  developmentPhase: NumberingPhase;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
   relationshipHealth: "complete" | "missing_manufacturing_drawing" | "missing_part" | "ambiguous" | "blocked" | "draft";
   nextStep: { label: string; target?: string; severity: RelationSeverity };
   drawings: DrawingPartRelationDrawing[];
@@ -256,7 +278,9 @@ type DrawingPartRelationDrawing = {
   isManufacturing: boolean;
   isReferenceOnly: boolean;
   recordStatus: NumberingRecordStatus;
-  developmentPhase: NumberingPhase;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
   linkedPartNumbers: string[];
   nextStep: string;
 };
@@ -267,7 +291,9 @@ type DrawingPartRelationPart = {
   partName: string;
   itemKind: SearchResult["itemKind"];
   recordStatus: NumberingRecordStatus;
-  developmentPhase: NumberingPhase;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
   linkedDrawingNumbers: string[];
   hasManufacturingDrawing: boolean;
 };
@@ -286,7 +312,6 @@ type DetailTarget =
   | { entityType: "part_number"; rootCode: string; partNumber: string };
 
 const statusOptions = masterRecordStatusFilterValues;
-const phaseOptions: NumberingPhase[] = ["EVT", "DVT", "PVT", "Release", "ECR"];
 const SEARCH_DRAWER_WIDTH_STORAGE_KEY = "pdm-search-detail-drawer-width";
 const DETAIL_DRAWER_DEFAULT_WIDTH = 500;
 const DETAIL_DRAWER_MIN_WIDTH = 380;
@@ -334,7 +359,7 @@ export default function NumberingSearchPage() {
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [entityType, setEntityType] = useState<EntityType>("all");
   const [recordStatus, setRecordStatus] = useState("");
-  const [developmentPhase, setDevelopmentPhase] = useState("");
+  const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
   const [viewMode, setViewMode] = useState<RelationViewMode>("tree");
   const [relationRoots, setRelationRoots] = useState<DrawingPartRelationRoot[]>([]);
   const [expandedRootCodes, setExpandedRootCodes] = useState<Set<string>>(new Set());
@@ -349,27 +374,31 @@ export default function NumberingSearchPage() {
   const [drawerWidth, setDrawerWidth] = useState(DETAIL_DRAWER_DEFAULT_WIDTH);
   const [busy, setBusy] = useState<"search" | "detail" | "impact" | null>(null);
   const [error, setError] = useState("");
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const initialEntityType = params.get("entityType") as EntityType | null;
+    const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
     const detailRootCode = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
+    if (initialHumanStatus && humanStatusFilters.some((option) => option.value === initialHumanStatus)) setHumanStatus(initialHumanStatus);
     if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
 
   const loadDetail = useCallback(async (rootCode: string, target?: DetailTarget) => {
     const nextTarget = target ?? { entityType: "part_root", rootCode };
+    const isDifferentRoot = selectedRootCodeRef.current !== rootCode;
     setBusy("detail");
     setError("");
     selectedRootCodeRef.current = rootCode;
     setSelectedRootCode(rootCode);
     setDetailTarget(nextTarget);
     setImpact(null);
+    if (isDifferentRoot) setDetail(null);
     const response = await fetch(`/api/numbering/roots/${encodeURIComponent(rootCode)}`);
+    if (selectedRootCodeRef.current !== rootCode) return;
     setBusy(null);
     if (response.status === 401) {
       setState("unauthorized");
@@ -402,7 +431,7 @@ export default function NumberingSearchPage() {
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (entityType !== "all") params.set("entityType", entityType);
     if (recordStatus) params.set("recordStatus", recordStatus);
-    if (developmentPhase) params.set("developmentPhase", developmentPhase);
+    if (humanStatus !== "all") params.set("humanStatus", humanStatus);
     const response = await fetch(`/api/numbering/relations?${params.toString()}`);
     setBusy(null);
     if (response.status === 401) {
@@ -444,7 +473,7 @@ export default function NumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [activeTab, developmentPhase, entityType, query, recordStatus, seriesCode]);
+  }, [activeTab, entityType, humanStatus, query, recordStatus, seriesCode]);
 
   useEffect(() => {
     void loadResults();
@@ -529,12 +558,16 @@ export default function NumberingSearchPage() {
       if (relationRoots.length === 0) return;
       const nextIndex = Math.min(Math.max(index, 0), relationRoots.length - 1);
       const root = relationRoots[nextIndex];
+      const previousRootCode = selectedRootCodeRef.current;
       selectedRootCodeRef.current = root.rootCode;
       setSelectedRootCode(root.rootCode);
       setExpandedRootCodes((current) => new Set(current).add(root.rootCode));
       scrollSearchRowIntoView(nextIndex);
       focusSearchList();
-      if (isDetailOpen) void loadDetail(root.rootCode);
+      if (isDetailOpen) {
+        if (previousRootCode !== root.rootCode) setDetail(null);
+        void loadDetail(root.rootCode);
+      }
     },
     [focusSearchList, isDetailOpen, loadDetail, relationRoots, scrollSearchRowIntoView]
   );
@@ -773,14 +806,9 @@ export default function NumberingSearchPage() {
                 </select>
               </label>
               <label className="pdm-master-field">
-                <span>開發階段</span>
-                <select value={developmentPhase} onChange={(event) => setDevelopmentPhase(event.target.value)}>
-                  <option value="">全部開發階段</option>
-                  {phaseOptions.map((phase) => (
-                    <option value={phase} key={phase}>
-                      {formatDevelopmentPhaseForUser(phase)}
-                    </option>
-                  ))}
+                <span>工作狀態</span>
+                <select value={humanStatus} onChange={(event) => setHumanStatus(event.target.value as HumanStatusFilter)}>
+                  {humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadResults} disabled={busy === "search"}>
@@ -876,7 +904,7 @@ function RelationResultsPanel({
         ref={listRef}
         className="pdm-relation-scroll"
         role="region"
-        aria-label="圖料模組關係清單"
+        aria-label="圖料模組關係清單（可用上下鍵快速查閱）"
         aria-keyshortcuts="ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C"
         tabIndex={0}
       >
@@ -977,11 +1005,10 @@ function RelationRootHeader({
           {root.rootCode}
         </button>
         <strong title={root.coreName || undefined}>{root.coreName || "-"}</strong>
-        <RelationHealthChip health={root.relationshipHealth} severity={root.nextStep.severity} />
       </div>
       <div className="pdm-relation-root-meta">
-        <StatusBadge status={root.recordStatus} context="masterRecord" />
-        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(root.developmentPhase)}</span>
+        <span className="pdm-relation-root-summary">{root.drawings.length} 圖號・{root.parts.length} 料號</span>
+        <HumanStatusBadge status={root.humanStatus} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
       </div>
     </div>
   );
@@ -1009,8 +1036,7 @@ function RelationDrawingNode({
           {drawing.drawingNumber}
         </button>
         <span className={drawing.isReferenceOnly ? "pdm-relation-purpose reference" : "pdm-relation-purpose manufacturing"}>{drawing.purposeLabel}</span>
-        <StatusBadge status={drawing.recordStatus} context="masterRecord" />
-        <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
+        <HumanStatusBadge status={drawing.humanStatus} viewerStatus={drawing.viewerStatus} availabilityScope={drawing.availabilityScope} />
         <span className="pdm-relation-node-step">{drawing.nextStep}</span>
       </div>
       {linkedParts.length > 0 ? (
@@ -1030,6 +1056,7 @@ function RelationDrawingNode({
                 >
                   <span>{part.partNumber}</span>
                   <small title={part.partName}>{part.partName}</small>
+                  <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
                   {showRole ? <strong>{role}</strong> : null}
                 </button>
               );
@@ -1059,7 +1086,7 @@ function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRe
           >
             <span>{part.partNumber}</span>
             <small title={part.partName}>{part.partName}</small>
-            <strong>缺製造圖</strong>
+            <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
           </button>
         ))}
       </div>
@@ -1162,22 +1189,6 @@ function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRel
   );
 }
 
-function RelationHealthChip({ health, severity }: { health: DrawingPartRelationRoot["relationshipHealth"]; severity: RelationSeverity }) {
-  return <span className={`pdm-relation-health ${severity}`}>{relationHealthLabel(health)}</span>;
-}
-
-function relationHealthLabel(health: DrawingPartRelationRoot["relationshipHealth"]) {
-  const labels: Record<DrawingPartRelationRoot["relationshipHealth"], string> = {
-    complete: "關聯完整",
-    missing_manufacturing_drawing: "缺製造圖",
-    missing_part: "缺料號",
-    ambiguous: "有歧義",
-    blocked: "不可製造",
-    draft: "草稿確認"
-  };
-  return labels[health];
-}
-
 function relationCellLabel(relationType: DrawingPartRelationCell["relationType"]) {
   if (relationType === "manufacturing_basis") return "製造依據";
   if (relationType === "reference") return "參考";
@@ -1218,27 +1229,40 @@ function RootDetailDrawer({
   onStartResize: (clientX: number) => void;
   onClose: () => void;
 }) {
-  if (!open || !detail) return null;
+  if (!open) return null;
+  const header = detail ? detailTargetHeader(detail, resolveDetailTarget(detail, detailTarget)) : { code: "圖料明細", subtitle: "" };
+  const headerStatus = detail ? detailTargetHumanStatus(detail, resolveDetailTarget(detail, detailTarget)) : null;
+  const headerViewerStatus = detail ? detailTargetViewerStatus(detail, resolveDetailTarget(detail, detailTarget)) : null;
+  const headerAvailabilityScope = detail ? detailTargetAvailabilityScope(detail, resolveDetailTarget(detail, detailTarget)) : null;
   return (
-    <div className="pdm-detail-drawer-backdrop" role="presentation">
-      <aside className="pdm-detail-drawer" aria-label="圖料明細" role="dialog" style={{ "--pdm-detail-drawer-width": `${width}px` } as CSSProperties}>
-        <button
-          className="pdm-detail-drawer-resize-handle"
-          type="button"
-          aria-label="調整圖料明細寬度"
-          title="拖拉調整寬度"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onStartResize(event.clientX);
-          }}
-        />
-        <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉圖料明細" onClick={onClose}>
-          <X size={16} />
-        </button>
+    <PdmDetailDrawer
+      open
+      width={width}
+      ariaLabel="圖料明細"
+      resizeLabel="調整圖料明細寬度"
+      resizeTitle="拖拉調整寬度"
+      onClose={onClose}
+      onStartResize={onStartResize}
+      className="drawing-workbench-master-drawer"
+    >
+      <div className="drawing-workbench-drawer-header">
+        <div className="drawing-workbench-drawer-identity">
+          {detail ? <HumanStatusBadge status={headerStatus ?? detail.humanStatus} viewerStatus={headerViewerStatus ?? detail.viewerStatus} availabilityScope={headerAvailabilityScope ?? detail.availabilityScope} /> : null}
+          <div>
+            <h2>{header.code}</h2>
+            {header.subtitle ? <p>{header.subtitle}</p> : null}
+          </div>
+        </div>
+        <div className="drawing-workbench-drawer-header-actions">
+          <button className="icon-button" type="button" aria-label="關閉圖料明細" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+      </div>
+      <div className="drawing-workbench-drawer-body">
         <RootDetailPanel detail={detail} detailTarget={detailTarget} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} />
-      </aside>
-    </div>
+      </div>
+    </PdmDetailDrawer>
   );
 }
 
@@ -1273,91 +1297,67 @@ function RootDetailPanel({
     record.recordStatus === "Active" || record.recordStatus === "Released" || record.recordStatus === "MainDrawingInvalid"
   ).length;
   const isRootTarget = target.entityType === "part_root";
-  const headerWarnings = detailTargetHeaderWarnings(detail, target);
   const selectedPartNumber = target.entityType === "part_number" ? target.partNumber : "";
   const selectedDrawingNumber = target.entityType === "drawing_number" ? target.drawingNumber : "";
 
   return (
-    <section
-      className="panel pdm-master-detail-panel"
+    <div
+      className="pdm-master-detail-panel pdm-master-detail-stack"
       data-detail-target={target.entityType}
       data-detail-code={header.code}
       data-entity-type={target.entityType}
       data-entity-code={header.code}
       data-source-context="numbering_search"
     >
-      <div className="panel-header">
-        <div>
-          <h2>{header.title}</h2>
-          <p style={mutedTextStyle}>{header.subtitle}</p>
-        </div>
-        <div style={actionGroupStyle}>
-          {headerWarnings.map((warning) => (
-            <WarningDot title={warning} key={warning} />
-          ))}
-        </div>
-      </div>
-      <div style={detailBodyStyle}>
-        {isRootTarget ? (
-          <>
-            <div className="metrics" style={{ marginBottom: 0 }} data-root-aggregate-section="summary-metrics">
-              <Metric label="料號" value={detail.summary.partCount} />
-              <Metric label="圖號" value={detail.summary.drawingCount} />
-              <Metric label="製造圖" value={detail.summary.primaryManufacturingCount} />
-              <Metric label="提醒" value={detail.summary.warningCount} />
+      {isRootTarget ? (
+        <>
+          <RootDetailHero detail={detail} formalChildCount={formalChildCount} onChanged={onChanged} />
+
+          <section style={sectionStyle} data-root-aggregate-section="part-list">
+            <h3 style={sectionHeadingStyle}>料號</h3>
+            <div style={cardListStyle}>
+              {detail.partNumbers.map((partNumber) => (
+                <PartNumberCard
+                  partNumber={partNumber}
+                  detail={detail}
+                  selected={partNumber.partNumber === selectedPartNumber}
+                  showEntrypoints={false}
+                  onChanged={onChanged}
+                  key={partNumber.id}
+                />
+              ))}
             </div>
+          </section>
 
-            <DetailTargetLifecyclePanel detail={detail} target={target} />
-            <DetailTargetActionSection detail={detail} target={target} formalChildCount={formalChildCount} onChanged={onChanged} />
-            <DetailTargetCoreSections detail={detail} target={target} />
+          <section style={sectionStyle} data-root-aggregate-section="drawing-list">
+            <h3 style={sectionHeadingStyle}>圖號</h3>
+            <div style={cardListStyle}>
+              {detail.drawingNumbers.map((drawingNumber) => (
+                <DrawingNumberCard
+                  drawingNumber={drawingNumber}
+                  detail={detail}
+                  busy={busy}
+                  selected={drawingNumber.drawingNumber === selectedDrawingNumber}
+                  showEntrypoints={false}
+                  onAnalyzeImpact={onAnalyzeImpact}
+                  onChanged={onChanged}
+                  key={drawingNumber.id}
+                />
+              ))}
+            </div>
+          </section>
 
-            <section style={sectionStyle} data-root-aggregate-section="part-list">
-              <h3 style={sectionHeadingStyle}>料號</h3>
-              <div style={cardListStyle}>
-                {detail.partNumbers.map((partNumber) => (
-                  <PartNumberCard
-                    partNumber={partNumber}
-                    detail={detail}
-                    selected={partNumber.partNumber === selectedPartNumber}
-                    showEntrypoints={partNumber.partNumber !== selectedPartNumber}
-                    onChanged={onChanged}
-                    key={partNumber.id}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <section style={sectionStyle} data-root-aggregate-section="drawing-list">
-              <h3 style={sectionHeadingStyle}>圖號</h3>
-              <div style={cardListStyle}>
-                {detail.drawingNumbers.map((drawingNumber) => (
-                  <DrawingNumberCard
-                    drawingNumber={drawingNumber}
-                    detail={detail}
-                    busy={busy}
-                    selected={drawingNumber.drawingNumber === selectedDrawingNumber}
-                    showEntrypoints={drawingNumber.drawingNumber !== selectedDrawingNumber}
-                    onAnalyzeImpact={onAnalyzeImpact}
-                    onChanged={onChanged}
-                    key={drawingNumber.id}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <RelationMaintenancePanel detail={detail} target={target} onRelationChange={onRelationChange} />
-            <WarningsPanel warnings={detail.warnings} />
-            <ImpactPanel impact={impact} />
-            <AuditPanel auditTrail={detail.auditTrail} />
-          </>
-        ) : (
-          <>
-            <DetailTargetObjectHero detail={detail} target={target} onChanged={onChanged} />
-            <DetailTargetCoreSections detail={detail} target={target} />
-          </>
-        )}
-      </div>
-    </section>
+          <RelationMaintenancePanel detail={detail} target={target} onRelationChange={onRelationChange} />
+          <WarningsPanel warnings={detail.warnings} />
+          <ImpactPanel impact={impact} />
+          <AuditPanel auditTrail={detail.auditTrail} />
+        </>
+      ) : (
+        <>
+          <DetailTargetCoreSections detail={detail} target={target} onChanged={onChanged} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1392,139 +1392,73 @@ function detailTargetHeader(detail: RootDetail, target: DetailTarget) {
   };
 }
 
-function detailTargetHeaderWarnings(detail: RootDetail, target: DetailTarget) {
-  if (target.entityType === "part_number") {
-    const partNumber = detail.partNumbers.find((part) => part.partNumber === target.partNumber);
-    if (!partNumber) return [];
-    const warnings = detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id && !warning.acknowledgedAt);
-    return [
-      partNumber.recordStatus === "MainDrawingInvalid" ? "此料號的製造基準關聯已失效，恢復可用前需重新送審。" : "",
-      warnings.length > 0 ? `此料號尚有 ${warnings.length} 則未確認提醒。` : ""
-    ].filter(Boolean);
-  }
-
+function detailTargetHumanStatus(detail: RootDetail, target: DetailTarget): HumanStatusProjection | null {
   if (target.entityType === "drawing_number") {
-    const drawingNumber = detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber);
-    if (!drawingNumber) return [];
-    const warnings = detail.warnings.filter((warning) => warning.entityType === "drawing_number" && warning.entityId === drawingNumber.id && !warning.acknowledgedAt);
-    return [
-      isReferenceDrawingPurpose(drawingNumber.purposeCode) ? "參考圖不可作為製造基準。" : "",
-      warnings.length > 0 ? `此圖號尚有 ${warnings.length} 則未確認提醒。` : ""
-    ].filter(Boolean);
+    return detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber)?.humanStatus ?? null;
   }
-
-  return [
-    detail.summary.hasMainDrawingInvalid ? "此主根或料號含製造基準失效狀態，恢復可用前需完成重新送審。" : "",
-    detail.summary.warningCount > 0 ? `此主根尚有 ${detail.summary.warningCount} 則未確認提醒。` : ""
-  ].filter(Boolean);
+  if (target.entityType === "part_number") {
+    return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.humanStatus ?? null;
+  }
+  return detail.humanStatus;
 }
 
-function DetailTargetObjectHero({ detail, target, onChanged }: { detail: RootDetail; target: DetailTarget; onChanged: () => Promise<void> }) {
+function detailTargetViewerStatus(detail: RootDetail, target: DetailTarget): ViewerHumanStatusProjection | null {
   if (target.entityType === "drawing_number") {
-    const drawingNumber = detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber);
-    if (!drawingNumber) return null;
-    const links = detail.links.filter((link) => link.drawingNumberId === drawingNumber.id);
-    return (
-      <section className="panel drawing-detail-hero" data-entity-core-section="object-owner-hero">
-        <div className="drawing-detail-hero-meta">
-          <StatusBadge status={drawingNumber.recordStatus} context="masterRecord" />
-          <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>
-          <span className="pdm-meta-chip">{purposeLabel(drawingNumber.purposeCode)}</span>
-          <span className="pdm-meta-chip">關聯料號 {links.length}</span>
-        </div>
-        <div className="drawing-detail-action-row">
-          <a className="primary-button" href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawingNumber.drawingNumber)}`}>
-            <GitBranch size={16} />
-            進版
-          </a>
-          <a className="secondary-button" href={`/drawings/${encodeURIComponent(drawingNumber.drawingNumber)}/submission-workbench`}>
-            <FileText size={16} />
-            送審
-          </a>
-          <a className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(drawingNumber.drawingNumber)}&entityType=drawing_number`}>
-            <Search size={16} />
-            追溯
-          </a>
-          {isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? (
-            <a className="secondary-button" href={`/numbering/impact?drawingNumber=${encodeURIComponent(drawingNumber.drawingNumber)}`}>
-              <Workflow size={16} />
-              影響
-            </a>
-          ) : null}
-        </div>
-        <NumberingContextualEntrypoints
-          mode="drawing"
-          rootCode={detail.root.rootCode}
-          coreName={detail.root.coreName}
-          rootRecordStatus={detail.root.recordStatus}
-          drawing={{
-            drawingNumber: drawingNumber.drawingNumber,
-            purposeCode: drawingNumber.purposeCode,
-            recordStatus: drawingNumber.recordStatus,
-            linkedPartNumbers: links.map((link) => link.partNumber)
-          }}
-          onChanged={onChanged}
-        />
-      </section>
-    );
+    return detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber)?.viewerStatus ?? null;
   }
-
   if (target.entityType === "part_number") {
-    const partNumber = detail.partNumbers.find((part) => part.partNumber === target.partNumber);
-    if (!partNumber) return null;
-    const links = detail.links.filter((link) => link.partNumberId === partNumber.id);
-    const primaryDrawingNumber = links.find((link) => link.linkType === "primary_manufacturing")?.drawingNumber ?? links[0]?.drawingNumber ?? "";
-    return (
-      <section className="panel drawing-detail-hero" data-entity-core-section="object-owner-hero">
-        <div className="drawing-detail-hero-meta">
-          <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
-          <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</span>
-          <span className="pdm-meta-chip">{kindLabel(partNumber.itemKind)}</span>
-          <span className="pdm-meta-chip">關聯圖號 {links.length}</span>
-        </div>
-        <div className="drawing-detail-action-row">
-          {primaryDrawingNumber ? (
-            <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawingNumber)}/submission-workbench`}>
-              <FileText size={16} />
-              送審製造圖
-            </a>
-          ) : (
-            <a className="primary-button" href={`/numbering/search?query=${encodeURIComponent(partNumber.partNumber)}&entityType=part_number`}>
-              <Link2 size={16} />
-              補關聯
-            </a>
-          )}
-          <a className="secondary-button" href={`/numbering/search?query=${encodeURIComponent(partNumber.partNumber)}&entityType=part_number`}>
-            <Search size={16} />
-            追溯
-          </a>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(partNumber.partNumber)}`}>
-            <Workflow size={16} />
-            3D 基準
-          </a>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(partNumber.partNumber)}&focus=cost`}>
-            <DollarSign size={16} />
-            成本
-          </a>
-        </div>
-        <NumberingContextualEntrypoints
-          mode="part"
-          rootCode={detail.root.rootCode}
-          coreName={detail.root.coreName}
-          rootRecordStatus={detail.root.recordStatus}
-          part={{
-            partNumber: partNumber.partNumber,
-            partName: partNumber.partName,
-            recordStatus: partNumber.recordStatus,
-            linkedDrawingNumbers: links.map((link) => link.drawingNumber)
-          }}
-          onChanged={onChanged}
-        />
-      </section>
-    );
+    return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.viewerStatus ?? null;
   }
+  return detail.viewerStatus;
+}
 
-  return null;
+function detailTargetAvailabilityScope(detail: RootDetail, target: DetailTarget): AvailabilityScopeProjection | null {
+  if (target.entityType === "drawing_number") {
+    return detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber)?.availabilityScope ?? null;
+  }
+  if (target.entityType === "part_number") {
+    return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.availabilityScope ?? null;
+  }
+  return detail.availabilityScope;
+}
+
+function RootDetailHero({ detail, formalChildCount, onChanged }: { detail: RootDetail; formalChildCount: number; onChanged: () => Promise<void> }) {
+  const primaryDrawing = detail.drawingNumbers.find((drawing) => drawing.isPrimaryManufacturing) ?? detail.drawingNumbers[0] ?? null;
+  const primaryActionLabel = detail.root.recordStatus === "Released" ? "檢查新版送審" : "檢查送審";
+  return (
+    <section className="panel drawing-detail-hero" data-entity-core-section="object-owner-hero">
+      <div className="drawing-detail-hero-meta">
+        <StatusBadge status={detail.root.recordStatus} context="masterRecord" />
+        <span className="pdm-meta-chip">料號 {detail.summary.partCount}</span>
+        <span className="pdm-meta-chip">圖號 {detail.summary.drawingCount}</span>
+        {detail.summary.primaryManufacturingCount > 0 ? <span className="pdm-meta-chip">製造圖 {detail.summary.primaryManufacturingCount}</span> : null}
+        {detail.summary.warningCount > 0 ? <span className="pdm-meta-chip drawing-workbench-alert-chip">提醒 {detail.summary.warningCount}</span> : null}
+      </div>
+      <div className="drawing-detail-action-row">
+        {primaryDrawing ? (
+          <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawing.drawingNumber)}/submission-workbench`}>
+            <FileText size={16} />
+            {primaryActionLabel}
+          </a>
+        ) : null}
+        <a className="secondary-button" href="/numbering/tasks">
+          <ClipboardCheck size={16} />
+          待辦
+        </a>
+      </div>
+      <NumberingContextualEntrypoints
+        mode="root"
+        rootId={detail.root.id}
+        rootCode={detail.root.rootCode}
+        coreName={detail.root.coreName}
+        rootRecordStatus={detail.root.recordStatus}
+        rootFormalChildCount={formalChildCount}
+        rootPartCount={detail.summary.partCount}
+        rootDrawingCount={detail.summary.drawingCount}
+        onChanged={onChanged}
+      />
+    </section>
+  );
 }
 
 function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; target: DetailTarget }) {
@@ -1541,7 +1475,6 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         title="這個料號目前狀態"
         objectName={`${partNumber.partNumber} / ${partNumber.partName}`}
         status={partNumber.recordStatus}
-        phase={partNumber.developmentPhase}
         owner="RD / Manager"
         identities={[
           { label: "料號", value: partNumber.partNumber },
@@ -1550,7 +1483,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
           { label: "製造圖", value: manufacturingLinks.map((link) => link.drawingNumber).join("、") || "-" }
         ]}
         blockers={[
-          needsManufacturingDrawing ? "此料號尚未指定製造圖，DVT 與正式發布關卡可能會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
+          needsManufacturingDrawing ? "此料號尚未指定製造圖，技術移轉與正式發布會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
           warnings.length > 0 ? `此料號有 ${warnings.length} 則提醒未收斂。` : "目前沒有未確認提醒。",
           partNumber.recordStatus === "MainDrawingInvalid" ? "主圖失效，需重新送審並指定有效製造圖。" : "狀態可用時可接續送審或補關聯。"
         ]}
@@ -1585,7 +1518,6 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         title="這個圖號目前狀態"
         objectName={`${drawingNumber.drawingNumber} / ${drawingNumber.purposeDescription || purposeLabel(drawingNumber.purposeCode)}`}
         status={drawingNumber.recordStatus}
-        phase={drawingNumber.developmentPhase}
         owner="RD / Manager"
         identities={[
           { label: "圖號", value: drawingNumber.drawingNumber },
@@ -1624,7 +1556,6 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
       title="這個主根目前狀態"
       objectName={`${detail.root.rootCode} / ${detail.root.coreName}`}
       status={detail.root.recordStatus}
-      phase={detail.root.developmentPhase}
       owner="RD / Manager"
       identities={[
         { label: "主根號", value: detail.root.rootCode },
@@ -1674,10 +1605,12 @@ function DetailTargetActionSection({
         <h3 style={sectionHeadingStyle}>此料號可執行</h3>
         <NumberingContextualEntrypoints
           mode="part"
+          rootId={detail.root.id}
           rootCode={detail.root.rootCode}
           coreName={detail.root.coreName}
           rootRecordStatus={detail.root.recordStatus}
           part={{
+            id: partNumber.id,
             partNumber: partNumber.partNumber,
             partName: partNumber.partName,
             recordStatus: partNumber.recordStatus,
@@ -1698,10 +1631,12 @@ function DetailTargetActionSection({
         <h3 style={sectionHeadingStyle}>此圖號可執行</h3>
         <NumberingContextualEntrypoints
           mode="drawing"
+          rootId={detail.root.id}
           rootCode={detail.root.rootCode}
           coreName={detail.root.coreName}
           rootRecordStatus={detail.root.recordStatus}
           drawing={{
+            id: drawingNumber.id,
             drawingNumber: drawingNumber.drawingNumber,
             purposeCode: drawingNumber.purposeCode,
             recordStatus: drawingNumber.recordStatus,
@@ -1718,6 +1653,7 @@ function DetailTargetActionSection({
       <h3 style={sectionHeadingStyle}>新增相關資料</h3>
       <NumberingContextualEntrypoints
         mode="root"
+        rootId={detail.root.id}
         rootCode={detail.root.rootCode}
         coreName={detail.root.coreName}
         rootRecordStatus={detail.root.recordStatus}
@@ -1730,12 +1666,15 @@ function DetailTargetActionSection({
   );
 }
 
-function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; target: DetailTarget }) {
+function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootDetail; target: DetailTarget; onChanged: () => Promise<void> }) {
   const targetDrawingNumber = target.entityType === "drawing_number" ? target.drawingNumber : "";
   const targetPartNumber = target.entityType === "part_number" ? target.partNumber : "";
-  const [partDetail, setPartDetail] = useState<PartEntityDetail | null>(null);
-  const [drawingDetail, setDrawingDetail] = useState<DrawingEntityDetail | null>(null);
-  const [canReviewApprovals, setCanReviewApprovals] = useState(false);
+  const [partDetail, setPartDetail] = useState<PartDetail | null>(null);
+  const [drawingWorkbench, setDrawingWorkbench] = useState<{
+    drawing: DrawingDetail;
+    row: DrawingWorkbenchRow;
+    capabilities: DrawingWorkbenchCapabilities;
+  } | null>(null);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [loadError, setLoadError] = useState("");
 
@@ -1743,8 +1682,7 @@ function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; targ
     let cancelled = false;
     const controller = new AbortController();
     setPartDetail(null);
-    setDrawingDetail(null);
-    setCanReviewApprovals(false);
+    setDrawingWorkbench(null);
     setLoadError("");
 
     if (target.entityType === "part_root") {
@@ -1762,17 +1700,17 @@ function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; targ
         if (target.entityType === "part_number" && targetPartNumber) {
           const response = await fetch(`/api/parts/${encodeURIComponent(targetPartNumber)}`, { signal: controller.signal });
           if (!response.ok) throw new Error(`料號 owner detail 載入失敗 (${response.status})`);
-          const body = (await response.json()) as { part?: PartEntityDetail };
+          const body = (await response.json()) as { part?: PartDetail };
           if (!cancelled) setPartDetail(body.part ?? null);
         } else if (target.entityType === "drawing_number" && targetDrawingNumber) {
-          const params = new URLSearchParams({ query: targetDrawingNumber, limit: "10" });
-          const response = await fetch(`/api/numbering/drawings?${params.toString()}`, { signal: controller.signal });
+          const drawing = detail.drawingNumbers.find((item) => item.drawingNumber === targetDrawingNumber);
+          if (!drawing) throw new Error("圖號 owner detail 找不到");
+          const rowKey = `drawing:${drawing.id}`;
+          const response = await fetch(`/api/numbering/drawings/workbench/${encodeURIComponent(rowKey)}`, { signal: controller.signal });
           if (!response.ok) throw new Error(`圖號 owner detail 載入失敗 (${response.status})`);
-          const body = (await response.json()) as { drawings?: DrawingEntityDetail[]; approvalProjection?: { canReview?: boolean } };
-          const exactDrawing = (body.drawings ?? []).find((drawing) => drawing.drawingNumber === targetDrawingNumber) ?? null;
+          const body = (await response.json()) as { drawing?: DrawingDetail; row?: DrawingWorkbenchRow; capabilities?: DrawingWorkbenchCapabilities };
           if (!cancelled) {
-            setDrawingDetail(exactDrawing);
-            setCanReviewApprovals(Boolean(body.approvalProjection?.canReview));
+            if (body.drawing && body.row && body.capabilities) setDrawingWorkbench({ drawing: body.drawing, row: body.row, capabilities: body.capabilities });
           }
         }
         if (!cancelled) setLoadState("ready");
@@ -1791,7 +1729,7 @@ function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; targ
       cancelled = true;
       controller.abort();
     };
-  }, [target.entityType, targetDrawingNumber, targetPartNumber]);
+  }, [detail.drawingNumbers, target.entityType, targetDrawingNumber, targetPartNumber]);
 
   if (target.entityType === "drawing_number") {
     const drawing = detail.drawingNumbers.find((item) => item.drawingNumber === target.drawingNumber);
@@ -1800,10 +1738,10 @@ function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; targ
       <TargetDrawingCoreSections
         detail={detail}
         drawing={drawing}
-        ownerDrawing={drawingDetail}
-        canReviewApprovals={canReviewApprovals}
+        drawingWorkbench={drawingWorkbench}
         loadState={loadState}
         loadError={loadError}
+        onChanged={onChanged}
       />
     );
   }
@@ -1811,7 +1749,7 @@ function DetailTargetCoreSections({ detail, target }: { detail: RootDetail; targ
   if (target.entityType === "part_number") {
     const part = detail.partNumbers.find((item) => item.partNumber === target.partNumber);
     if (!part) return null;
-    return <TargetPartCoreSections detail={detail} part={part} ownerPart={partDetail} loadState={loadState} loadError={loadError} />;
+    return <TargetPartCoreSections detail={detail} part={part} ownerPart={partDetail} loadState={loadState} loadError={loadError} onChanged={onChanged} />;
   }
 
   return <TargetRootCoreSection detail={detail} />;
@@ -1836,18 +1774,38 @@ function TargetRootCoreSection({ detail }: { detail: RootDetail }) {
 function TargetDrawingCoreSections({
   detail,
   drawing,
-  ownerDrawing,
-  canReviewApprovals,
+  drawingWorkbench,
   loadState,
-  loadError
+  loadError,
+  onChanged
 }: {
   detail: RootDetail;
   drawing: DrawingNumber;
-  ownerDrawing: DrawingEntityDetail | null;
-  canReviewApprovals: boolean;
+  drawingWorkbench: {
+    drawing: DrawingDetail;
+    row: DrawingWorkbenchRow;
+    capabilities: DrawingWorkbenchCapabilities;
+  } | null;
   loadState: "idle" | "loading" | "ready" | "error";
   loadError: string;
+  onChanged: () => Promise<void>;
 }) {
+  if (drawingWorkbench && loadState === "ready") {
+    return (
+      <DrawingDetailContent
+        drawing={drawingWorkbench.drawing}
+        row={drawingWorkbench.row}
+        capabilities={drawingWorkbench.capabilities}
+        productionSlice={null}
+        onDataChanged={onChanged}
+        embedded
+        returnTo={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}
+      />
+    );
+  }
+
+  const ownerDrawing = null as unknown as DrawingEntityDetail | null;
+  const canReviewApprovals = false;
   const links = detail.links.filter((link) => link.drawingNumberId === drawing.id);
   const linkedParts = detail.partNumbers.filter((part) => links.some((link) => link.partNumberId === part.id));
   const ownerParts = ownerDrawing?.sameRootParts ?? [];
@@ -1860,14 +1818,13 @@ function TargetDrawingCoreSections({
     : links.length > 0
       ? `已關聯 ${links.length} 筆料號`
       : "尚未關聯料號";
-  const readinessCost = ownerDrawing ? (missingCostParts.length > 0 ? `${missingCostParts.length} 筆待補` : "完成") : "由料號 owner detail 同步";
+  const readinessCost = ownerDrawing ? (missingCostParts.length > 0 ? `${missingCostParts.length} 筆未設定（選填）` : "已設定") : "由料號 owner detail 同步";
 
   return (
     <>
       <MasterAttachmentPanel
         entityType="drawing_number"
         entityCode={drawing.drawingNumber}
-        developmentPhase={drawing.developmentPhase}
         processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}
         pendingRevisionReviews={ownerDrawing?.pendingApproval ? { ...ownerDrawing.pendingApproval, canReview: canReviewApprovals } : null}
       />
@@ -1878,7 +1835,7 @@ function TargetDrawingCoreSections({
         <div style={targetInfoGridStyle}>
           <TargetInfoBlock icon={<FileText size={16} />} title="圖面附件" value="下方圖號附件庫使用圖號主檔 API" />
           <TargetInfoBlock icon={<Link2 size={16} />} title="主資料" value={readinessMasterData} tone={incompleteParts.length > 0 || links.length === 0 ? "danger" : "success"} />
-          <TargetInfoBlock icon={<DollarSign size={16} />} title="標準成本" value={readinessCost} tone={missingCostParts.length > 0 ? "danger" : "success"} />
+          <TargetInfoBlock icon={<DollarSign size={16} />} title="標準成本" value={readinessCost} tone={missingCostParts.length > 0 ? "default" : "success"} />
           {ownerDrawing?.pendingApproval ? (
             <TargetInfoBlock
               icon={<ClipboardCheck size={16} />}
@@ -1914,14 +1871,32 @@ function TargetPartCoreSections({
   part,
   ownerPart,
   loadState,
-  loadError
+  loadError,
+  onChanged
 }: {
   detail: RootDetail;
   part: PartNumber;
-  ownerPart: PartEntityDetail | null;
+  ownerPart: PartDetail | null;
   loadState: "idle" | "loading" | "ready" | "error";
   loadError: string;
+  onChanged: () => Promise<void>;
 }) {
+  const [panelBusy, setPanelBusy] = useState(false);
+  if (ownerPart && loadState === "ready") {
+    return (
+      <PartDetailPanel
+        detail={ownerPart}
+        busy={panelBusy}
+        focusSection={null}
+        productionSliceEnforced={false}
+        productionSliceUnopenedMessage=""
+        showIdentityHeader={false}
+        setBusy={setPanelBusy}
+        onUpdated={onChanged}
+      />
+    );
+  }
+
   const links = detail.links.filter((link) => link.partNumberId === part.id);
   const linkedDrawings = ownerPart?.linkedDrawings ?? links.map((link) => ({ id: link.id, drawingNumber: link.drawingNumber, linkType: link.linkType }));
   const variants = ownerPart?.sameDrawingVariants ?? detail.variants.filter((variant) => variant.partNumberId === part.id);
@@ -2056,7 +2031,6 @@ function DrawingFallbackPartSummaryCard({ part, links }: { part: PartNumber; lin
       <div style={mutedTextStyle}>{part.partName}</div>
       <div style={metaRowStyle}>
         <span>{kindLabel(part.itemKind)}</span>
-        <span>{formatDevelopmentPhaseForUser(part.developmentPhase)}</span>
         <span>{relation ? relationLinkTypeLabel(relation.linkType) : "尚未關聯"}</span>
       </div>
     </article>
@@ -2103,7 +2077,7 @@ function RelationMaintenancePanel({
   const selectedPart = detail.partNumbers.find((part) => part.partNumber === partNumber) ?? detail.partNumbers[0];
   const existingLinks = detail.links.filter((link) => link.drawingNumber === selectedDrawing?.drawingNumber && link.partNumber === selectedPart?.partNumber);
   const locked = [detail.root.recordStatus, selectedDrawing?.recordStatus, selectedPart?.recordStatus].some((status) =>
-    ["PendingReview", "Released", "Obsolete", "Merged", "EVTDisabled"].includes(status ?? "")
+    ["PendingReview", "Released", "Obsolete", "Merged"].includes(status ?? "")
   );
 
   async function submit(operation: RelationMaintenanceOperation) {
@@ -2125,7 +2099,7 @@ function RelationMaintenancePanel({
       <h3 style={sectionHeadingStyle}>關係維護</h3>
       <div style={recordCardStyle}>
         <div style={recordTitleStyle}>
-          <strong>受控圖料關係</strong>
+          <strong>圖號 × 料號</strong>
           <span className="pdm-meta-chip">{locked ? "狀態鎖定" : existingLinks.length > 0 ? "已有關聯" : "未建立關聯"}</span>
         </div>
         <div className="pdm-relation-maintenance-grid">
@@ -2152,7 +2126,6 @@ function RelationMaintenancePanel({
         </div>
         <div style={metaRowStyle}>
           <span>目前關係：{existingLinks.length > 0 ? existingLinks.map((link) => relationLinkTypeLabel(link.linkType)).join("、") : "尚未關聯"}</span>
-          <span>Owner API / audit gate</span>
         </div>
         <div style={actionGroupStyle}>
           <button className="secondary-button" type="button" disabled={locked || Boolean(workingOperation)} onClick={() => void submit("link")}>
@@ -2191,7 +2164,7 @@ function PartNumberCard({
   const links = detail.links.filter((link) => link.partNumberId === partNumber.id);
   const variants = detail.variants.filter((variant) => variant.partNumberId === partNumber.id);
   const warnings = detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id && !warning.acknowledgedAt);
-  const missingPrimaryMa = ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind) && ["DVT", "Release"].includes(partNumber.developmentPhase) && !links.some((link) => link.linkType === "primary_manufacturing");
+  const missingPrimaryMa = ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind) && !links.some((link) => link.linkType === "primary_manufacturing");
   return (
     <article style={selected ? selectedRecordCardStyle : recordCardStyle}>
       <div style={recordTitleStyle}>
@@ -2201,7 +2174,6 @@ function PartNumberCard({
       <div style={mutedTextStyle}>{partNumber.partName}</div>
       <div style={metaRowStyle}>
         <span>{kindLabel(partNumber.itemKind)}</span>
-        <span>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</span>
         <span>{partNumber.isUniversal ? "共用件" : `序號 ${partNumber.sequenceCode}`}</span>
       </div>
       <div style={chipsStyle}>
@@ -2213,7 +2185,7 @@ function PartNumberCard({
         ))}
       </div>
       <div style={actionGroupStyle}>
-        {missingPrimaryMa ? <WarningDot title="DVT 或正式階段的自製、發包、客製件缺製造基準關聯時會被關卡阻擋，需補圖或走 override。" /> : null}
+        {missingPrimaryMa ? <WarningDot title="自製、發包、客製件缺製造基準關聯時會被技術移轉與發行關卡阻擋，需補圖或走例外審核。" /> : null}
         {partNumber.recordStatus === "MainDrawingInvalid" ? <WarningDot title="製造基準關聯已失效，料號需重新送審並指定有效製造圖後才能恢復使用。" /> : null}
         {warnings.length > 0 ? <WarningDot title={`此料號有 ${warnings.length} 則查重或高相似提醒。`} /> : null}
         {variants.length > 0 ? <WarningDot title={`同圖多料號差異欄位：${variants.map((variant) => `${variant.fieldName}=${variant.fieldValue}`).join("、")}`} /> : null}
@@ -2221,10 +2193,12 @@ function PartNumberCard({
       {showEntrypoints ? (
         <NumberingContextualEntrypoints
           mode="part"
+          rootId={detail.root.id}
           rootCode={detail.root.rootCode}
           coreName={detail.root.coreName}
           rootRecordStatus={detail.root.recordStatus}
           part={{
+            id: partNumber.id,
             partNumber: partNumber.partNumber,
             partName: partNumber.partName,
             recordStatus: partNumber.recordStatus,
@@ -2265,9 +2239,7 @@ function DrawingNumberCard({
       </div>
       <div style={mutedTextStyle}>{drawingNumber.purposeDescription || purposeLabel(drawingNumber.purposeCode)}</div>
       <div style={metaRowStyle}>
-        <span>{purposeLabel(drawingNumber.purposeCode)}</span>
-        <span>{formatDevelopmentPhaseForUser(drawingNumber.developmentPhase)}</span>
-        <span>{drawingNumber.isPrimaryManufacturing ? "製造基準關聯" : "參考/其他"}</span>
+        <span>{drawingNumber.isPrimaryManufacturing ? "製造基準" : "參考"}</span>
       </div>
       <div style={chipsStyle}>
         {links.map((link) => (
@@ -2291,10 +2263,12 @@ function DrawingNumberCard({
       {showEntrypoints ? (
         <NumberingContextualEntrypoints
           mode="drawing"
+          rootId={detail.root.id}
           rootCode={detail.root.rootCode}
           coreName={detail.root.coreName}
           rootRecordStatus={detail.root.recordStatus}
           drawing={{
+            id: drawingNumber.id,
             drawingNumber: drawingNumber.drawingNumber,
             purposeCode: drawingNumber.purposeCode,
             recordStatus: drawingNumber.recordStatus,
@@ -2464,11 +2438,6 @@ const actionGroupStyle = {
   alignItems: "center",
   gap: "0.5rem",
   flexWrap: "wrap" as const
-};
-const detailBodyStyle = {
-  display: "grid",
-  gap: "1rem",
-  padding: "16px"
 };
 const sectionStyle = {
   display: "grid",

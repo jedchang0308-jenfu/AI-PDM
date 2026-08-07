@@ -10,7 +10,7 @@ const KEYWORD_ALIASES: Record<string, string[]> = {
   part: ["part", "part_number", "料號"],
   revision: ["revision", "版次", "rev"],
   development: ["npd", "新產品", "開發", "技術移轉", "設計變更", "eco"],
-  validation: ["evt", "dvt", "pvt", "驗證", "工程驗證", "設計驗證", "製程驗證"],
+  validation: ["驗證", "設計驗證", "製程驗證"],
   file: ["file", "檔案", "pdf", "dwg", "sldprt", "sldasm", "slddrw", "sha256"],
   approval: ["approval", "approve", "review", "審核", "核准"],
   release: ["release", "released", "發布", "發佈", "同名", "filename"],

@@ -3,7 +3,6 @@ import { getStatusHelpItems, type StatusDisplay, type StatusDisplayContext } fro
 export type StatusAxisId =
   | "numberEffectiveness"
   | "dataStatus"
-  | "developmentPhase"
   | "applicationStatus"
   | "approvalStatus"
   | "publicationStatus"
@@ -34,7 +33,6 @@ export type StatusScopeId =
   | "importCenter"
   | "reportCenter"
   | "taskCenter"
-  | "dvtWorkbench"
   | "impactWorkbench"
   | "settingsCenter"
   | "accountList"
@@ -81,12 +79,6 @@ export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition>
     label: "資料狀態",
     question: "這筆主資料是否可用、已發布或已終止？",
     description: "說明主資料目前能否作業，以及是否需要補資料或改走其他流程。"
-  },
-  developmentPhase: {
-    id: "developmentPhase",
-    label: "開發階段",
-    question: "產品目前在哪一個工程成熟度階段？",
-    description: "說明資料目前處於 EVT、DVT、PVT、正式或 ECR 階段。"
   },
   applicationStatus: {
     id: "applicationStatus",
@@ -178,9 +170,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/parts",
     section: "料號總表",
     title: "料號資料範圍",
-    description: "料號總表的主資料、開發階段、成本與提醒分開判讀。",
-    axes: ["dataStatus", "developmentPhase", "costStatus", "reminderStatus"],
-    contexts: ["masterRecord", "developmentPhase", "cost", "reminderStatus"],
+    description: "料號總表的主資料、成本與提醒分開判讀。",
+    axes: ["dataStatus", "costStatus", "reminderStatus"],
+    contexts: ["masterRecord", "cost", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   drawingList: {
@@ -188,9 +180,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/numbering/drawings",
     section: "圖號清單",
     title: "圖號資料範圍",
-    description: "圖號清單將主資料、開發階段、審核與發布提醒分開顯示。",
-    axes: ["dataStatus", "developmentPhase", "approvalStatus", "publicationStatus", "reminderStatus"],
-    contexts: ["masterRecord", "developmentPhase", "approvalStatus", "publicationStatus", "reminderStatus"],
+    description: "圖號清單將主資料、審核與發布提醒分開顯示。",
+    axes: ["dataStatus", "approvalStatus", "publicationStatus", "reminderStatus"],
+    contexts: ["masterRecord", "approvalStatus", "publicationStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   numberingSearch: {
@@ -198,9 +190,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/numbering/search",
     section: "圖料查詢",
     title: "圖料查詢資料範圍",
-    description: "查詢結果分開呈現資料狀態、開發階段、關聯與成本提醒。",
-    axes: ["dataStatus", "developmentPhase", "approvalStatus", "publicationStatus", "costStatus", "reminderStatus"],
-    contexts: ["masterRecord", "developmentPhase", "approvalStatus", "publicationStatus", "cost", "reminderStatus"],
+    description: "查詢結果分開呈現資料狀態、關聯與成本提醒。",
+    axes: ["dataStatus", "approvalStatus", "publicationStatus", "costStatus", "reminderStatus"],
+    contexts: ["masterRecord", "approvalStatus", "publicationStatus", "cost", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   numberingRequest: {
@@ -323,24 +315,14 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     contexts: ["task", "notification", "masterRecord", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
-  dvtWorkbench: {
-    id: "dvtWorkbench",
-    route: "/numbering/dvt",
-    section: "DVT 候選清單",
-    title: "DVT 資料範圍",
-    description: "主資料、開發階段、DVT 準備與審核狀態分開說明。",
-    axes: ["dataStatus", "developmentPhase", "readinessStatus", "approvalStatus", "reminderStatus"],
-    contexts: ["masterRecord", "developmentPhase", "dvtReadiness", "approvalStatus", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
   impactWorkbench: {
     id: "impactWorkbench",
     route: "/numbering/impact",
     section: "影響分析",
     title: "影響分析資料範圍",
-    description: "影響分析以資料狀態與開發階段為主，提醒另行列出。",
-    axes: ["dataStatus", "developmentPhase", "readinessStatus", "reminderStatus"],
-    contexts: ["masterRecord", "developmentPhase", "readinessStatus", "reminderStatus"],
+    description: "影響分析以資料狀態與關聯準備度為主，提醒另行列出。",
+    axes: ["dataStatus", "readinessStatus", "reminderStatus"],
+    contexts: ["masterRecord", "readinessStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   settingsCenter: {
@@ -399,7 +381,6 @@ const CONTEXT_AXIS_MAP: Partial<Record<StatusDisplayContext, readonly StatusAxis
   identityStatus: ["accountStatus"],
   invitationStatus: ["invitationStatus"],
   reminderStatus: ["reminderStatus"],
-  developmentPhase: ["developmentPhase"],
   numberEffectiveness: ["numberEffectiveness"],
   task: ["taskStatus"],
   importRow: ["fileStatus", "readinessStatus"],
@@ -407,7 +388,6 @@ const CONTEXT_AXIS_MAP: Partial<Record<StatusDisplayContext, readonly StatusAxis
   settingsLifecycle: ["settingsStatus"],
   jobStatus: ["taskStatus"],
   restorePolicy: ["restoreStatus"],
-  dvtReadiness: ["readinessStatus"],
   fileSync: ["fileStatus"],
   cost: ["costStatus"],
   notification: ["taskStatus"]

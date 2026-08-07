@@ -33,6 +33,20 @@ export interface PublicationEvidencePort {
   }): Promise<PublicationEvidenceResult>;
 }
 
+type PublicationEvidenceEnv = {
+  NODE_ENV?: string;
+  PDM_LOCAL_FULL_FUNCTION_VALIDATION?: string;
+  PDM_PUBLICATION_EVIDENCE_MODE?: string;
+};
+
+export function isLocalDevelopmentPublicationEvidenceEnabled(
+  env: PublicationEvidenceEnv = process.env
+) {
+  if (String(env.NODE_ENV ?? "").trim().toLowerCase() === "production") return false;
+  return String(env.PDM_LOCAL_FULL_FUNCTION_VALIDATION ?? "").trim().toLowerCase() === "true"
+    || String(env.PDM_PUBLICATION_EVIDENCE_MODE ?? "").trim().toLowerCase() === "local_fake";
+}
+
 type EvidenceRow = {
   id: string;
   draft_drawing_id: string;
@@ -99,7 +113,7 @@ export class DatabasePublicationEvidencePort implements PublicationEvidencePort 
       };
     }
 
-    if (process.env.PDM_PUBLICATION_EVIDENCE_MODE !== "local_fake" || process.env.NODE_ENV === "production") {
+    if (!isLocalDevelopmentPublicationEvidenceEnabled()) {
       return notReady("direct_gcs_verifier_unavailable");
     }
 

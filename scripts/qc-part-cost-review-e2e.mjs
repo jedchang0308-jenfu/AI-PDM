@@ -47,21 +47,21 @@ database.prepare("INSERT INTO users (id, display_name, email, role, created_at, 
 database
   .prepare(
     `
-    INSERT INTO part_roots (id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO part_roots (id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
   )
-  .run(rootId, "9001", "Cost Review Fixture", "manufactured", "DVT", "Active", "numbering-rule-v1", managerUserId, now, now);
+  .run(rootId, "9001", "Cost Review Fixture", "manufactured", "Active", "numbering-rule-v1", managerUserId, now, now);
 database
   .prepare(
     `
     INSERT INTO part_numbers (
       id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
   )
-  .run(partNumberId, rootId, "P-9001-001", 1, "001", "Costed Part", "manufactured", 0, "DVT", "Active", "numbering-rule-v1", managerUserId, now, now);
+  .run(partNumberId, rootId, "P-9001-001", 1, "001", "Costed Part", "manufactured", 0, "Active", "numbering-rule-v1", managerUserId, now, now);
 
 function createPendingProfile(profileId, requestId, unitCost) {
   database

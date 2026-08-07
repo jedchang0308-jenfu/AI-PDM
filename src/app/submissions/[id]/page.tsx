@@ -37,6 +37,7 @@ type RestrictedSubmissionSummary = {
 };
 
 const submissionDetailStatusLabels: Record<string, string> = {
+  ReviewApproved: "研發受控（已核准）",
   ReleaseFailed: "發行未完成",
   Cancelled: "已取消"
 };
@@ -58,6 +59,10 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
         }
         if (response.status === 404) {
           setState({ status: "not_found" });
+          return;
+        }
+        if (response.status === 410 && typeof body.canonicalHref === "string") {
+          window.location.replace(body.canonicalHref);
           return;
         }
         if (response.status === 403) {
@@ -158,7 +163,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
             title="找不到這筆送審資料"
             body={`現在請回送審來源或圖料模組重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
             actions={[
-              { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+              { href: "/numbering/drawings", label: "回圖號工作台", variant: "primary" },
               { href: "/", label: "回工作台" }
             ]}
           />
@@ -257,8 +262,9 @@ function SubmissionDetailView({
   const [busyAction, setBusyAction] = useState<"approve" | "cancel" | "retry" | "return" | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string; href?: string; label?: string } | null>(null);
   const canManageRelease = currentUser?.role === "R&D Manager" || currentUser?.role === "Admin";
-  const canApprove = submission.status === "Pending" && canManageRelease;
-  const canCancel = submission.status === "Pending" && (canManageRelease || currentUser?.id === submission.submitted_by);
+  const packageReviewApproved = submission.revision_package?.effective_status === "ReviewApproved";
+  const canApprove = submission.status === "Pending" && !packageReviewApproved && canManageRelease;
+  const canCancel = submission.status === "Pending" && !packageReviewApproved && (canManageRelease || currentUser?.id === submission.submitted_by);
   const isUnresolvedReleaseIncomplete =
     submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id && !submission.resolved_at;
   const workbenchHref = `/drawings/${encodeURIComponent(submission.drawing_number)}/submission-workbench`;
@@ -302,22 +308,39 @@ function SubmissionDetailView({
         <div className="panel-header">
           <h2>
             {submission.drawing_number}
-            <StatusBadge status={submission.status} context="submission" />
+            <StatusBadge status={packageReviewApproved ? "ReviewApproved" : submission.status} context="submission" />
           </h2>
           <span className="metadata-badge">送審 ID {submission.id}</span>
         </div>
 
         <div className="handoff-grid">
           <Info label="圖號" value={submission.drawing_number} />
-          <Info label="主料號" value={submission.part_number} />
+          <Info
+            label={submission.part_scopes.length > 1 ? `進版料號（${submission.part_scopes.length}）` : "主料號"}
+            value={submission.part_scopes.length > 0 ? submission.part_scopes.map((part) => part.part_number).join("、") : submission.part_number}
+          />
           <Info label="品名" value={submission.part_name} />
           <Info label="版次" value={submission.revision} />
-          <Info label="狀態" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")} />
+          <Info
+            label="狀態"
+            value={
+              packageReviewApproved
+                ? submissionDetailStatusLabels.ReviewApproved
+                : submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")
+            }
+          />
           <Info label="材質" value={submission.material || "未填"} />
           <Info label="表面處理" value={submission.surface_finish || "未填"} />
           <Info label="建立者" value={submission.submitted_by_name || submission.submitted_by} />
           <Info label="建立時間" value={new Date(submission.created_at).toLocaleString()} />
         </div>
+
+        {packageReviewApproved ? (
+          <div className="upload-message success">
+            <p>影響審核已核准，這個小數研發版已進入研發受控；不需要再按「核准發布」，也不會成為量產正式版。</p>
+            <Link href={workbenchHref}>查看圖面工作台</Link>
+          </div>
+        ) : null}
 
         {revisionPackageWarnings.length > 0 ? <RevisionPackageReviewWarnings warnings={revisionPackageWarnings} /> : null}
 
@@ -370,7 +393,7 @@ function SubmissionDetailView({
           ) : null}
         </div>
 
-        {submission.status === "Pending" && !canCancel ? (
+        {submission.status === "Pending" && !packageReviewApproved && !canCancel ? (
           <div className="upload-message error">
             <ShieldAlert size={16} aria-hidden="true" />
             <p>這筆送審仍在審核中；若需要取消，請由送審建立者、主管或 Admin 處理。</p>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { searchNumberingRecordsAsync } from "@/lib/numbering-async";
-import type { NumberingPhase, NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
+import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
@@ -16,11 +16,9 @@ const recordStatuses = new Set([
   "Rejected",
   "Obsolete",
   "Merged",
-  "EVTDisabled",
   "PendingAdminConfirm",
   "MainDrawingInvalid"
 ]);
-const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 
 export async function GET(request: Request) {
   const auth = await requireNumberingPageAsync(request, "numbering.search");
@@ -32,14 +30,12 @@ export async function GET(request: Request) {
 
   const entityType = normalizeEnum(url.searchParams.get("entityType"), entityTypes) as NumberingSearchEntityType | undefined;
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
 
   const results = await searchNumberingRecordsAsync({
     companyId: companyResult.company.companyId,
     query: url.searchParams.get("query") ?? "",
     entityType,
     recordStatus,
-    developmentPhase,
     limit: Number(url.searchParams.get("limit") ?? 50)
   });
 

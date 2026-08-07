@@ -55,7 +55,10 @@ assert(bomWorkbenchRepository.includes("COALESCE(rr.lifecycle_action, 'release')
 
 assert(submissionListRepository.includes("includeHistory?: boolean"), "Submission list/search supports explicit history inclusion");
 assert((submissionListRepository.match(/s\.status <> 'Obsolete'/g) ?? []).length >= 2, "Daily list/search repository excludes Obsolete by default");
-assert((submissionListRepository.match(/:includeHistory = 1/g) ?? []).length >= 2, "Repository SQL has includeHistory gate");
+assert(
+  (submissionListRepository.match(/(?:CAST\(\s*:includeHistory\s+AS\s+integer\s*\)|:includeHistory)\s*=\s*1/gi) ?? []).length >= 2,
+  "Repository SQL has at least two provider-safe includeHistory gates"
+);
 assert(submissionsRoute.includes('const includeHistory = status === "Obsolete"'), "Submissions route only includes history for explicit Obsolete status");
 assert(searchRoute.includes('const includeHistory = status === "Obsolete"'), "Search route only includes history for explicit Obsolete status");
 

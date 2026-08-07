@@ -7,7 +7,7 @@ Scope: PDM_dev_task P1 drawing detail reorder
 
 - User finds a drawing and opens detail to confirm identity, files, revision history, BOM, and Where-used before doing review work.
 - User can reach preview/download actions quickly after selecting a search result.
-- Review comments, review issues, phase gates, approval matrix, and approval buttons remain available but are visually lower priority.
+- Review comments, review issues, approval matrix, and approval buttons remain available but are visually lower priority; retired PLM phase-gate controls must be absent.
 
 ## FMEA Checks
 

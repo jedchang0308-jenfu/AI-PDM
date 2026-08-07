@@ -21,7 +21,6 @@ export type ResolvedDrawing = {
   drawingNumber: string;
   purposeCode: string;
   purposeDescription: string;
-  developmentPhase: string;
   recordStatus: string;
   partRootId: string;
   rootCode: string | null;
@@ -33,7 +32,6 @@ export type ResolvedPart = {
   partNumber: string;
   partName: string;
   itemKind: string;
-  developmentPhase: string;
   recordStatus: string;
 };
 
@@ -53,7 +51,6 @@ type DrawingRow = {
   drawing_number: string;
   purpose_code: string;
   purpose_description: string;
-  development_phase: string;
   record_status: string;
   part_root_id: string;
   root_code: string | null;
@@ -65,8 +62,12 @@ type PartRow = {
   part_number: string;
   part_name: string;
   item_kind: string;
-  development_phase: string;
   record_status: string;
+};
+
+type AttachmentRevisionRow = {
+  revision: string | null;
+  created_at: string;
 };
 
 type ResolveInput = {
@@ -133,13 +134,21 @@ async function buildResolvedContext(
   workflowIntent: RevisionWorkflowIntent
 ) {
   const primaryParts = (await findPrimaryParts(client, companyId, drawing.id)).map(mapPart);
+  const attachmentRevisions = await listDrawingAttachmentRevisions(client, drawing.id);
   const revisions = await listSubmissionRevisionsByDrawingAsync({ companyId, drawingNumber: drawing.drawingNumber });
-  const latestRevision = latestRevisionByVersion(revisions.map((revision) => revision.revision));
+  const latestRevision = latestRevisionByVersion([
+    ...revisions.map((revision) => revision.revision),
+    ...attachmentRevisions.map((attachment) => attachment.revision ?? "")
+  ]);
   const revisionPolicySuggestion = createRevisionSuggestion({
     companyId,
     drawingNumber: drawing.drawingNumber,
     workflowIntent,
-    revisions
+    revisions,
+    attachmentRevisions: attachmentRevisions.map((attachment) => ({
+      revision: attachment.revision ?? "",
+      createdAt: attachment.created_at
+    }))
   });
   return {
     status: primaryParts.length === 0 ? "resolved_with_missing_part" : primaryParts.length > 1 ? "multiple_primary_parts" : "resolved",
@@ -268,13 +277,28 @@ async function findPrimaryParts(client: AsyncDatabaseClient, companyId: string, 
   );
 }
 
+async function listDrawingAttachmentRevisions(client: AsyncDatabaseClient, drawingNumberId: string) {
+  return client.query<AttachmentRevisionRow>(
+    `
+    SELECT revision, created_at
+    FROM file_assets
+    WHERE linked_entity_type = 'drawing_number'
+      AND linked_entity_id = :drawingNumberId
+      AND deleted_at IS NULL
+      AND revision IS NOT NULL
+      AND TRIM(revision) <> ''
+    ORDER BY created_at ASC, id ASC
+    `,
+    { drawingNumberId }
+  );
+}
+
 function mapDrawing(row: DrawingRow): ResolvedDrawing {
   return {
     id: row.id,
     drawingNumber: row.drawing_number,
     purposeCode: row.purpose_code,
     purposeDescription: row.purpose_description,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     partRootId: row.part_root_id,
     rootCode: row.root_code,
@@ -288,7 +312,6 @@ function mapPart(row: PartRow): ResolvedPart {
     partNumber: row.part_number,
     partName: row.part_name,
     itemKind: row.item_kind,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status
   };
 }

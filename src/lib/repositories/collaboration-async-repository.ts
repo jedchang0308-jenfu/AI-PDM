@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
-import type { ChangeRequest, DiscussionComment, PhaseGateCheck, PdfMarkup, ReviewIssue } from "@/lib/types";
+import type { ChangeRequest, DiscussionComment, PdfMarkup, ReviewIssue } from "@/lib/types";
 
 export const SELECT_ASYNC_DISCUSSION_COMMENTS_SQL = `
   SELECT
@@ -138,87 +138,8 @@ export const DECIDE_ASYNC_CHANGE_REQUEST_SQL = `
     AND id = :changeId
 `;
 
-export const DEFAULT_ASYNC_PHASE_GATE_CHECKS: Array<{
-  gateCode: PhaseGateCheck["gate_code"];
-  gateName: string;
-  checklistItem: string;
-  required: 0 | 1;
-}> = [
-  {
-    gateCode: "concept",
-    gateName: "Concept Gate",
-    checklistItem: "Requirements and business case are reviewed before design work continues.",
-    required: 1
-  },
-  {
-    gateCode: "design",
-    gateName: "Design Gate",
-    checklistItem: "CAD, drawings, and engineering data are complete enough for verification.",
-    required: 1
-  },
-  {
-    gateCode: "verification",
-    gateName: "Verification Gate",
-    checklistItem: "BOM, risk, and validation evidence are reviewed before release.",
-    required: 1
-  },
-  {
-    gateCode: "release",
-    gateName: "Release Gate",
-    checklistItem: "Release package and required approvals are complete before release.",
-    required: 1
-  }
-];
-
-export const SELECT_ASYNC_PHASE_GATE_CHECKS_SQL = `
-  SELECT
-    p.*,
-    creator.display_name AS created_by_name,
-    decider.display_name AS decided_by_name
-  FROM phase_gate_checks p
-  JOIN users creator ON creator.id = p.created_by
-  LEFT JOIN users decider ON decider.id = p.decided_by
-  WHERE p.submission_id = :submissionId
-  ORDER BY
-    CASE p.gate_code
-      WHEN 'concept' THEN 1
-      WHEN 'design' THEN 2
-      WHEN 'verification' THEN 3
-      WHEN 'release' THEN 4
-      ELSE 5
-    END,
-    p.created_at ASC,
-    p.id ASC
-`;
-
-export const INSERT_ASYNC_PHASE_GATE_CHECK_SQL = `
-  INSERT INTO phase_gate_checks (
-    id, submission_id, gate_code, gate_name, checklist_item, required, status, created_by, created_at, updated_at
-  ) VALUES (:id, :submissionId, :gateCode, :gateName, :checklistItem, :required, 'open', :createdBy, :now, :now)
-`;
-
-export const DECIDE_ASYNC_PHASE_GATE_CHECK_SQL = `
-  UPDATE phase_gate_checks
-  SET status = :status,
-      decided_by = :decidedBy,
-      decision_comment = :comment,
-      decided_at = :now,
-      updated_at = :now
-  WHERE submission_id = :submissionId
-    AND id = :checkId
-`;
-
 export type AsyncChangeRequestDecisionResult =
   | { ok: true; change: ChangeRequest | null }
-  | { ok: false; status: 404 | 409; error: string };
-
-export type AsyncPhaseGateInitializationResult = {
-  created: boolean;
-  checks: PhaseGateCheck[];
-};
-
-export type AsyncPhaseGateDecisionResult =
-  | { ok: true; check: PhaseGateCheck | null }
   | { ok: false; status: 404 | 409; error: string };
 
 export class AsyncCollaborationRepository {
@@ -461,81 +382,6 @@ export class AsyncCollaborationRepository {
       ok: true,
       change: await this.getChangeRequest({ submissionId: input.submissionId, changeId: input.changeId })
     };
-  }
-
-  async listPhaseGateChecks(submissionId: string): Promise<PhaseGateCheck[]> {
-    return this.client.query<PhaseGateCheck>(SELECT_ASYNC_PHASE_GATE_CHECKS_SQL, { submissionId });
-  }
-
-  async getPhaseGateCheck(input: { submissionId: string; checkId: string }): Promise<PhaseGateCheck | null> {
-    const checks = await this.listPhaseGateChecks(input.submissionId);
-    return checks.find((check) => check.id === input.checkId) ?? null;
-  }
-
-  async initializePhaseGateChecks(input: {
-    submissionId: string;
-    createdBy: string;
-  }): Promise<AsyncPhaseGateInitializationResult> {
-    const existing = await this.listPhaseGateChecks(input.submissionId);
-    if (existing.length > 0) return { created: false, checks: existing };
-
-    const now = this.clock();
-    for (const check of DEFAULT_ASYNC_PHASE_GATE_CHECKS) {
-      await this.client.execute(INSERT_ASYNC_PHASE_GATE_CHECK_SQL, {
-        id: this.idFactory(),
-        submissionId: input.submissionId,
-        gateCode: check.gateCode,
-        gateName: check.gateName,
-        checklistItem: check.checklistItem,
-        required: check.required,
-        createdBy: input.createdBy,
-        now
-      });
-    }
-    await this.audit("PhaseGateInitialized", input.submissionId, input.createdBy, {
-      checkCount: DEFAULT_ASYNC_PHASE_GATE_CHECKS.length
-    });
-
-    return { created: true, checks: await this.listPhaseGateChecks(input.submissionId) };
-  }
-
-  async decidePhaseGateCheck(input: {
-    submissionId: string;
-    checkId: string;
-    decidedBy: string;
-    status: "completed" | "waived";
-    comment: string;
-  }): Promise<AsyncPhaseGateDecisionResult> {
-    const existing = await this.getPhaseGateCheck({ submissionId: input.submissionId, checkId: input.checkId });
-    if (!existing) return { ok: false, status: 404, error: "Phase gate check not found" };
-    if (existing.status !== "open") {
-      return { ok: false, status: 409, error: "Phase gate check is already decided" };
-    }
-
-    const now = this.clock();
-    await this.client.execute(DECIDE_ASYNC_PHASE_GATE_CHECK_SQL, {
-      submissionId: input.submissionId,
-      checkId: input.checkId,
-      decidedBy: input.decidedBy,
-      status: input.status,
-      comment: input.comment,
-      now
-    });
-    await this.audit("PhaseGateDecided", input.submissionId, input.decidedBy, {
-      checkId: input.checkId,
-      status: input.status,
-      comment: input.comment
-    });
-
-    return {
-      ok: true,
-      check: await this.getPhaseGateCheck({ submissionId: input.submissionId, checkId: input.checkId })
-    };
-  }
-
-  async listOpenRequiredPhaseGateChecks(submissionId: string): Promise<PhaseGateCheck[]> {
-    const checks = await this.listPhaseGateChecks(submissionId);
-    return checks.filter((check) => check.required === 1 && check.status === "open");
   }
 
   private async audit(action: string, submissionId: string, actorId: string, detail: Record<string, unknown>) {

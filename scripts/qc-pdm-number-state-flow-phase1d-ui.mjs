@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
+import { restoreTrackedConfigSnapshots, stopNextProcess } from "./qc-next-tracked-config-guard.mjs";
 
 const root = process.cwd();
 const runId = crypto.randomUUID();
@@ -49,6 +50,9 @@ function startApp(port) {
     cwd: root,
     env: {
       ...process.env,
+      NODE_ENV: "development",
+      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+      PDM_PRODUCTION_SLICE_MODE: "",
       PDM_AUTH_MODE: "managed",
       PDM_BOOTSTRAP_USERS: JSON.stringify(users),
       PDM_DATA_DIR: tempDir,
@@ -119,21 +123,21 @@ function seedTransferPackages() {
     );
   }
   db.prepare(`INSERT INTO part_roots (
-    id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+    id, company_id, root_code, core_name, item_kind, record_status,
     rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     'ui-published-root', 'company-jenfu', 'UI-PUBLISHED-ROOT', 'Published browser fixture',
-    'manufactured', 'Release', 'Active', 'numbering-rule-v3-alpha-root',
+    'manufactured', 'Active', 'numbering-rule-v3-alpha-root',
     'phase1d-ui-admin', ?, ?
   )`).run(now, now);
   db.prepare(`INSERT INTO part_numbers (
     id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-    item_kind, is_universal, bom_usage_policy, custom_specification, development_phase,
+    item_kind, is_universal, bom_usage_policy, custom_specification,
     record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     'ui-published-part', 'company-jenfu', 'ui-published-root', 'UI-PUBLISHED-PART-001',
     1, '001', 'Published browser fixture part', 'manufactured', 0, 'not_required',
-    NULL, 'Release', 'Active', NULL, 'numbering-rule-v3-alpha-root',
+    NULL, 'Active', NULL, 'numbering-rule-v3-alpha-root',
     'phase1d-ui-admin', ?, ?
   )`).run(now, now);
   db.prepare(`INSERT INTO transfer_package_items (
@@ -181,12 +185,7 @@ async function metrics(page) {
 }
 
 async function stopApp() {
-  if (!app || app.child.exitCode !== null) return;
-  app.child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => app.child.once("exit", resolve)),
-    delay(4000).then(() => { if (app.child.exitCode === null) app.child.kill("SIGTERM"); })
-  ]);
+  await stopNextProcess(app?.child);
 }
 
 async function removeTree(target) {
@@ -267,7 +266,7 @@ try {
 } finally {
   await browser?.close().catch(() => {});
   await stopApp();
-  for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+  restoreTrackedConfigSnapshots(root, snapshots);
   await removeTree(tempDir);
   await removeTree(distDir);
 }

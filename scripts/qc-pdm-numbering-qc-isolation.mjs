@@ -10,13 +10,11 @@ const results = [];
 
 const guardedScripts = [
   "scripts/qc-pdm-numbering-api-regression.mjs",
-  "scripts/qc-pdm-numbering-approval-review-ui.mjs",
   "scripts/qc-pdm-numbering-concurrency-reuse.mjs",
   "scripts/qc-pdm-numbering-cross-role-audit-e2e.mjs",
   "scripts/qc-pdm-numbering-cross-role-permission.mjs",
   "scripts/qc-pdm-numbering-data-consistency.mjs",
   "scripts/qc-pdm-numbering-draft-lifecycle.mjs",
-  "scripts/qc-pdm-numbering-dvt-ui.mjs",
   "scripts/qc-pdm-numbering-impact-ui.mjs",
   "scripts/qc-pdm-numbering-import-center-ui.mjs",
   "scripts/qc-pdm-numbering-permission-guard-ui.mjs",

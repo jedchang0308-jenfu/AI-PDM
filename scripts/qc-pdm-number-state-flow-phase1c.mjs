@@ -250,16 +250,16 @@ try {
   const published = await flow.publishNumberingDraftWorkspace({ metadata: publishMetadata, workspaceId: reviewWorkspace.id });
   const replay = await flow.publishNumberingDraftWorkspace({ metadata: publishMetadata, workspaceId: reviewWorkspace.id });
   const publishedMasters = {
-    root: db.prepare("SELECT root_code, development_phase, record_status FROM part_roots WHERE id = ?").get(published.masters.rootId),
-    part: db.prepare("SELECT part_number, development_phase, record_status FROM part_numbers WHERE id = ?").get(published.masters.partIds[0]),
+    root: db.prepare("SELECT root_code, record_status FROM part_roots WHERE id = ?").get(published.masters.rootId),
+    part: db.prepare("SELECT part_number, record_status FROM part_numbers WHERE id = ?").get(published.masters.partIds[0]),
     eventCount: db.prepare("SELECT count(*) count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.official_number_published.v1' AND idempotency_key = ?").get(publishMetadata.idempotencyKey).count
   };
   record(
-    "PUB-003 explicit publication atomically creates Active EVT masters",
+    "PUB-003 explicit publication atomically creates Active masters",
     published.workspace.lifecycleStatus === "published" && replay.idempotentReplay &&
       published.workspace.reservations.every((item) => item.state === "promoted") &&
-      publishedMasters.root?.record_status === "Active" && publishedMasters.root?.development_phase === "EVT" &&
-      publishedMasters.part?.record_status === "Active" && publishedMasters.part?.development_phase === "EVT" &&
+      publishedMasters.root?.record_status === "Active" &&
+      publishedMasters.part?.record_status === "Active" &&
       publishedMasters.eventCount === 1,
     publishedMasters
   );
@@ -512,9 +512,9 @@ try {
   const rootReservation = collisionApproved.workspace.reservations.find((item) => item.itemType === "root");
   db.prepare(`
     INSERT INTO part_roots (
-      id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+      id, company_id, root_code, core_name, item_kind, record_status,
       rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, ?, ?, 'Collision sentinel', 'manufactured', 'EVT', 'Active', ?, ?, datetime('now'), datetime('now'))
+    ) VALUES (?, ?, ?, 'Collision sentinel', 'manufactured', 'Active', ?, ?, datetime('now'), datetime('now'))
   `).run(
     `collision-root-${crypto.randomUUID()}`,
     companyId,
@@ -565,7 +565,7 @@ try {
 
   const publicationEvents = db.prepare("SELECT payload_json, delivery_status, attempt_count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.official_number_published.v1'").all();
   record(
-    "EVT-001 publication events remain durable pending or retryable outbox records with trace facts",
+    "EVENT-001 publication events remain durable pending or retryable outbox records with trace facts",
     publicationEvents.length >= 2 && publicationEvents.every((row) => {
       const payload = JSON.parse(row.payload_json);
       return ["pending", "failed"].includes(row.delivery_status) && row.attempt_count >= 0 && payload.workspaceId && payload.approvalRequestId && payload.snapshotHash && payload.masters;

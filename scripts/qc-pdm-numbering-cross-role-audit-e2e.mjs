@@ -85,20 +85,20 @@ function seedCrossRoleFixture() {
     const drawingNumber = `D-${rootCode}-MA1`;
     db.prepare(
       `INSERT INTO part_roots (
-        id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'manufactured', 'DVT', 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
+        id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, 'manufactured', 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
     ).run(rootId, rootCode, `QC cross-role audit root ${unique}`, now, now);
     db.prepare(
       `INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal,
-        development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 1, '001', ?, 'manufactured', 0, 'DVT', 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
+        record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, 1, '001', ?, 'manufactured', 0, 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
     ).run(partId, rootId, partNumber, `QC cross-role audit part ${unique}`, now, now);
     db.prepare(
       `INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-        is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'MA', 'Manufacturing drawing', 1, 1, 'DVT', 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
+        is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, 'MA', 'Manufacturing drawing', 1, 1, 'PendingReview', 'numbering-rule-v1', 'user-engineer-demo', ?, ?)`
     ).run(drawingId, rootId, drawingNumber, now, now);
     db.prepare(
       "INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at) VALUES (?, ?, ?, 'primary_manufacturing', 'user-engineer-demo', ?)"
@@ -112,19 +112,19 @@ function seedCrossRoleFixture() {
       proxyReason: `QC proxy submission ${unique}`,
       riskFlags: ["impact_scope"],
       impactedPartNumbers: [partNumber],
-      requiredDocuments: ["MA drawing", "DVT checklist"]
+      requiredDocuments: ["MA drawing", "release checklist"]
     };
     db.prepare(
       `INSERT INTO approval_requests (
         id, request_type, action_code, entity_type, entity_id, request_status,
         reason, payload_json, requested_by, requested_at, created_at, updated_at
-      ) VALUES (?, 'numbering', 'dvt_promotion', 'part_number', ?, 'pending', ?, ?, 'user-engineer-demo', ?, ?, ?)`
+      ) VALUES (?, 'numbering', 'release', 'part_number', ?, 'pending', ?, ?, 'user-engineer-demo', ?, ?, ?)`
     ).run(requestId, partId, `QC cross-role audit request ${unique}`, JSON.stringify(payload), now, now, now);
     db.prepare(
       `INSERT INTO approval_batches (
         id, batch_code, request_type, project_code, action_code, batch_status,
         submitted_by, submitted_at, created_at, updated_at
-      ) VALUES (?, ?, 'numbering', ?, 'dvt_promotion', 'pending', 'user-engineer-demo', ?, ?, ?)`
+      ) VALUES (?, ?, 'numbering', ?, 'release', 'pending', 'user-engineer-demo', ?, ?, ?)`
     ).run(batchId, `NB-QCAUDIT-${unique}`, projectCode, now, now, now);
     db.prepare(
       "INSERT INTO approval_batch_items (id, batch_id, approval_request_id, item_status, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?)"
@@ -152,10 +152,10 @@ function seedCrossRoleFixture() {
     db.prepare(
       `INSERT OR IGNORE INTO role_scope_rules (
         id, role_id, scope_kind, scope_code, allowed, created_by, created_at, updated_at
-      ) VALUES (?, ?, 'action', 'dvt_promotion', 1, 'user-admin-demo', ?, ?)`
+      ) VALUES (?, ?, 'action', 'release', 1, 'user-admin-demo', ?, ?)`
     ).run(managerActionScopeId, managerRole.id, now, now);
 
-    const detail = JSON.stringify({ projectCode, actionCode: "dvt_promotion", payload });
+    const detail = JSON.stringify({ projectCode, actionCode: "release", payload });
     db.prepare(
       `INSERT INTO numbering_task_items (
         id, task_type, entity_type, entity_id, title, message, risk_level, task_status,

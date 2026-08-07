@@ -124,8 +124,6 @@ const submissionIssuesRoutePath = path.join(root, "src", "app", "api", "submissi
 const submissionIssueRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "issues", "[issueId]", "route.ts");
 const submissionChangesRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "changes", "route.ts");
 const submissionChangeRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "changes", "[changeId]", "route.ts");
-const submissionPhaseGatesRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "phase-gates", "route.ts");
-const submissionPhaseGateRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "phase-gates", "[checkId]", "route.ts");
 const submissionApprovalMatrixRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "approval-matrix", "route.ts");
 const submissionApprovalMatrixRequirementRoutePath = path.join(
   root,
@@ -171,7 +169,6 @@ const numberingImportBatchConfirmRoutePath = path.join(
   "route.ts"
 );
 const numberingAdminMatrixRoutePath = path.join(root, "src", "app", "api", "numbering", "admin", "matrix", "route.ts");
-const numberingDvtCandidatesRoutePath = path.join(root, "src", "app", "api", "numbering", "dvt-candidates", "route.ts");
 const numberingImpactAnalysisRoutePath = path.join(root, "src", "app", "api", "numbering", "impact-analysis", "route.ts");
 const numberingRuleSimulatorRoutePath = path.join(root, "src", "app", "api", "numbering", "rule-simulator", "route.ts");
 const numberingVariantsRoutePath = path.join(root, "src", "app", "api", "numbering", "variants", "route.ts");
@@ -343,8 +340,6 @@ const submissionIssuesRouteSource = readProjectPath(submissionIssuesRoutePath);
 const submissionIssueRouteSource = readProjectPath(submissionIssueRoutePath);
 const submissionChangesRouteSource = readProjectPath(submissionChangesRoutePath);
 const submissionChangeRouteSource = readProjectPath(submissionChangeRoutePath);
-const submissionPhaseGatesRouteSource = readProjectPath(submissionPhaseGatesRoutePath);
-const submissionPhaseGateRouteSource = readProjectPath(submissionPhaseGateRoutePath);
 const submissionApprovalMatrixRouteSource = readProjectPath(submissionApprovalMatrixRoutePath);
 const submissionApprovalMatrixRequirementRouteSource = readProjectPath(submissionApprovalMatrixRequirementRoutePath);
 const handoffRouteSource = readProjectPath(handoffRoutePath);
@@ -369,7 +364,6 @@ const numberingImportBatchesRouteSource = readProjectPath(numberingImportBatches
 const numberingImportBatchRouteSource = readProjectPath(numberingImportBatchRoutePath);
 const numberingImportBatchConfirmRouteSource = readProjectPath(numberingImportBatchConfirmRoutePath);
 const numberingAdminMatrixRouteSource = readProjectPath(numberingAdminMatrixRoutePath);
-const numberingDvtCandidatesRouteSource = readProjectPath(numberingDvtCandidatesRoutePath);
 const numberingImpactAnalysisRouteSource = readProjectPath(numberingImpactAnalysisRoutePath);
 const numberingRuleSimulatorRouteSource = readProjectPath(numberingRuleSimulatorRoutePath);
 const numberingVariantsRouteSource = readProjectPath(numberingVariantsRoutePath);
@@ -938,32 +932,6 @@ record(
   "submissions/[id]/changes route.ts, submissions/[id]/changes/[changeId] route.ts"
 );
 record(
-  "ROUTE-AUTH-ASYNC-011 phase gate routes use async auth and role guards",
-  submissionPhaseGatesRouteSource.includes("requireAuthAsync") &&
-    submissionPhaseGatesRouteSource.includes("await requireAuthAsync(request)") &&
-    submissionPhaseGatesRouteSource.includes("requireRoleAsync") &&
-    submissionPhaseGatesRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
-    submissionPhaseGatesRouteSource.includes("listPhaseGateChecksAsync") &&
-    submissionPhaseGatesRouteSource.includes("initializePhaseGateChecksAsync") &&
-    submissionPhaseGatesRouteSource.includes("getSubmissionAsync") &&
-    submissionPhaseGatesRouteSource.includes("buildPhaseGateSummary") &&
-    submissionPhaseGatesRouteSource.includes("canReadSubmission") &&
-    submissionPhaseGateRouteSource.includes("requireRoleAsync") &&
-    submissionPhaseGateRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
-    submissionPhaseGateRouteSource.includes("getPhaseGateCheckAsync") &&
-    submissionPhaseGateRouteSource.includes("decidePhaseGateCheckAsync") &&
-    submissionPhaseGateRouteSource.includes("getSubmissionAsync") &&
-    submissionPhaseGateRouteSource.includes("canReadSubmission") &&
-    [submissionPhaseGatesRouteSource, submissionPhaseGateRouteSource].every(
-      (routeSource) =>
-        !routeSource.includes("requireAuth(request") &&
-        !routeSource.includes("requireRole(request") &&
-        !routeSource.includes('from "@/lib/db"') &&
-        !routeSource.includes('from "@/lib/auth"')
-    ),
-  "submissions/[id]/phase-gates route.ts, submissions/[id]/phase-gates/[checkId] route.ts"
-);
-record(
   "ROUTE-AUTH-ASYNC-012 approval matrix routes use async auth and role guards",
   submissionApprovalMatrixRouteSource.includes("requireAuthAsync") &&
     submissionApprovalMatrixRouteSource.includes("await requireAuthAsync(request)") &&
@@ -1054,7 +1022,6 @@ record(
   "ROUTE-AUTH-ASYNC-015 submission approve and reject routes use async role guard",
   submissionApproveRouteSource.includes("requireRoleAsync") &&
   submissionApproveRouteSource.includes('await requireRoleAsync(request, ["R&D Manager", "Admin"])') &&
-    submissionApproveRouteSource.includes("listOpenRequiredPhaseGateChecksAsync") &&
     submissionApproveRouteSource.includes("listOpenApprovalMatrixRequirementsAsync") &&
     submissionApproveRouteSource.includes("executeSubmissionReleaseWorkflowAsync") &&
     submissionApproveRouteSource.includes("await executeSubmissionReleaseWorkflowAsync") &&
@@ -1587,15 +1554,11 @@ record(
       "SELECT_ASYNC_ADMIN_RULE_TEMPLATES_SQL",
       "SELECT_ASYNC_ADMIN_RULE_VERSIONS_SQL",
       "SELECT_ASYNC_APPROVED_NUMBERING_APPROVAL_SQL",
-      "SELECT_ASYNC_DVT_PROMOTION_CANDIDATES_SQL",
       "SELECT_ASYNC_DRAWING_NUMBERS_FOR_ROOT_SQL",
       "SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL",
       "UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL",
       "UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL",
-      "UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL",
-      "UPDATE_ASYNC_DVT_PART_PENDING_REVIEW_SQL",
-      "UPDATE_ASYNC_DVT_ROOT_PENDING_REVIEW_SQL",
-      "UPDATE_ASYNC_DVT_DRAWINGS_PENDING_REVIEW_SQL"
+      "UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL"
     ].every((constant) => numberingAsyncSource.includes(constant)) &&
     numberingAsyncSource.includes("export class AsyncNumberingRepository") &&
     numberingAsyncSource.includes("createNumberingRecord") &&
@@ -1649,8 +1612,6 @@ record(
     numberingAsyncSource.includes("applyNumberingRuleTemplate") &&
     numberingAsyncSource.includes("evaluateApprovalRules") &&
     numberingAsyncSource.includes("evaluateNumberingGate") &&
-    numberingAsyncSource.includes("listDvtPromotionCandidates") &&
-    numberingAsyncSource.includes("submitDvtPromotionDecisions") &&
     numberingAsyncSource.includes("analyzeMainDrawingObsolescence") &&
     numberingAsyncSource.includes("linkPartNumberToDrawing") &&
     numberingAsyncSource.includes("insertNumberingApprovalRequest") &&
@@ -1686,8 +1647,6 @@ record(
     numberingAsyncHelperSource.includes("applyNumberingRuleTemplateAsync") &&
     numberingAsyncHelperSource.includes("evaluateApprovalRulesAsync") &&
     numberingAsyncHelperSource.includes("evaluateNumberingGateAsync") &&
-    numberingAsyncHelperSource.includes("listDvtPromotionCandidatesAsync") &&
-    numberingAsyncHelperSource.includes("submitDvtPromotionDecisionsAsync") &&
     numberingAsyncHelperSource.includes("analyzeMainDrawingObsolescenceAsync") &&
     numberingAsyncHelperSource.includes("linkPartNumberToDrawingAsync") &&
     numberingAsyncHelperSource.includes("listNumberingTasksAsync") &&
@@ -1775,11 +1734,6 @@ record(
     !numberingAdminMatrixRouteSource.includes("upsertNumberingApprovalRule(") &&
     !numberingAdminMatrixRouteSource.includes("applyNumberingRuleTemplate(") &&
     !numberingAdminMatrixRouteSource.includes('from "@/lib/db"') &&
-    numberingDvtCandidatesRouteSource.includes("listDvtPromotionCandidatesAsync") &&
-    numberingDvtCandidatesRouteSource.includes("submitDvtPromotionDecisionsAsync") &&
-    !numberingDvtCandidatesRouteSource.includes("listDvtPromotionCandidates(") &&
-    !numberingDvtCandidatesRouteSource.includes("submitDvtPromotionDecisions(") &&
-    !numberingDvtCandidatesRouteSource.includes('from "@/lib/db"') &&
     numberingImpactAnalysisRouteSource.includes("analyzeMainDrawingObsolescenceAsync") &&
     !numberingImpactAnalysisRouteSource.includes("analyzeMainDrawingObsolescence(") &&
     !numberingImpactAnalysisRouteSource.includes('from "@/lib/db"') &&
@@ -2088,8 +2042,9 @@ record(
 record(
   "DASHBOARD-METRICS-ASYNC-002 repository exposes portable scoped status count SQL",
   dashboardAsyncSource.includes("SELECT_ASYNC_DASHBOARD_STATUS_COUNTS_SQL") &&
-    dashboardAsyncSource.includes(":submittedBy IS NULL") &&
-    dashboardAsyncSource.includes("submitted_by = :submittedBy") &&
+    dashboardAsyncSource.includes("CAST(:submittedBy AS text) IS NULL") &&
+    dashboardAsyncSource.includes("submitted_by = CAST(:submittedBy AS text)") &&
+    dashboardAsyncSource.includes("company_id = CAST(:companyId AS text)") &&
     dashboardAsyncSource.includes("GROUP BY status"),
   "dashboard-async-repository.ts"
 );
@@ -2405,54 +2360,6 @@ record(
   "change request routes"
 );
 record(
-  "PHASE-GATE-ASYNC-001 repository exposes provider-neutral phase gate SQL constants",
-  [
-    "SELECT_ASYNC_PHASE_GATE_CHECKS_SQL",
-    "INSERT_ASYNC_PHASE_GATE_CHECK_SQL",
-    "DECIDE_ASYNC_PHASE_GATE_CHECK_SQL",
-    "DEFAULT_ASYNC_PHASE_GATE_CHECKS"
-  ].every((constant) => collaborationAsyncSource.includes(constant)) &&
-    collaborationAsyncSource.includes("listPhaseGateChecks") &&
-    collaborationAsyncSource.includes("initializePhaseGateChecks") &&
-    collaborationAsyncSource.includes("decidePhaseGateCheck") &&
-    collaborationAsyncSource.includes("listOpenRequiredPhaseGateChecks"),
-  "collaboration-async-repository.ts"
-);
-record(
-  "PHASE-GATE-ASYNC-002 repository avoids sync database access and SQLite-only ordering",
-  collaborationAsyncSource.includes("AsyncDatabaseClient") &&
-    collaborationAsyncSource.includes("AsyncAuditRepository") &&
-    !collaborationAsyncSource.includes("getDb(") &&
-    !collaborationAsyncSource.includes("better-sqlite3") &&
-    !collaborationAsyncSource.includes("datetime(") &&
-    !collaborationAsyncSource.includes("rowid"),
-  "collaboration-async-repository.ts"
-);
-record(
-  "PHASE-GATE-ASYNC-003 runtime helper exposes phase gate operations through async provider selector",
-  collaborationAsyncHelperSource.includes("getAsyncDatabaseClient") &&
-    [
-      "listPhaseGateChecksAsync",
-      "getPhaseGateCheckAsync",
-      "initializePhaseGateChecksAsync",
-      "decidePhaseGateCheckAsync",
-      "listOpenRequiredPhaseGateChecksAsync"
-    ].every((helper) => collaborationAsyncHelperSource.includes(helper)) &&
-    !collaborationAsyncHelperSource.includes("getDb("),
-  "collaboration-async.ts"
-);
-record(
-  "PHASE-GATE-ASYNC-004 phase gate routes use async helpers and avoid sync DB imports",
-  [submissionPhaseGatesRouteSource, submissionPhaseGateRouteSource].every(
-    (routeSource) => routeSource.includes('from "@/lib/collaboration-async"') && !routeSource.includes('from "@/lib/db"')
-  ) &&
-    submissionPhaseGatesRouteSource.includes("listPhaseGateChecksAsync") &&
-    submissionPhaseGatesRouteSource.includes("initializePhaseGateChecksAsync") &&
-    submissionPhaseGateRouteSource.includes("getPhaseGateCheckAsync") &&
-    submissionPhaseGateRouteSource.includes("decidePhaseGateCheckAsync"),
-  "phase gate routes"
-);
-record(
   "APPROVAL-MATRIX-ASYNC-001 repository exposes provider-neutral approval matrix SQL constants",
   [
     "SELECT_ASYNC_APPROVAL_MATRIX_REQUIREMENTS_SQL",
@@ -2613,7 +2520,6 @@ record(
   "RELEASE-DECISION-ASYNC-005 approve route delegates to the async release workflow without sync DB imports",
   submissionApproveRouteSource.includes("getSubmissionAsync") &&
     submissionApproveRouteSource.includes("getActiveSandboxBranchForSubmissionAsync") &&
-    submissionApproveRouteSource.includes("listOpenRequiredPhaseGateChecksAsync") &&
     submissionApproveRouteSource.includes("reviewerHasDecisionAsync") &&
     submissionApproveRouteSource.includes("addApprovalAsync") &&
     submissionApproveRouteSource.includes("getApprovalSummaryAsync") &&
@@ -3324,9 +3230,6 @@ try {
   const changeRequestsSql = extractSqlConstant("SELECT_ASYNC_CHANGE_REQUESTS_SQL", collaborationAsyncSource);
   const insertChangeRequestSql = extractSqlConstant("INSERT_ASYNC_CHANGE_REQUEST_SQL", collaborationAsyncSource);
   const decideChangeRequestSql = extractSqlConstant("DECIDE_ASYNC_CHANGE_REQUEST_SQL", collaborationAsyncSource);
-  const phaseGateChecksSql = extractSqlConstant("SELECT_ASYNC_PHASE_GATE_CHECKS_SQL", collaborationAsyncSource);
-  const insertPhaseGateCheckSql = extractSqlConstant("INSERT_ASYNC_PHASE_GATE_CHECK_SQL", collaborationAsyncSource);
-  const decidePhaseGateCheckSql = extractSqlConstant("DECIDE_ASYNC_PHASE_GATE_CHECK_SQL", collaborationAsyncSource);
   const approvalMatrixRequirementsSql = extractSqlConstant("SELECT_ASYNC_APPROVAL_MATRIX_REQUIREMENTS_SQL", approvalAsyncSource);
   const insertApprovalMatrixRequirementSql = extractSqlConstant("INSERT_ASYNC_APPROVAL_MATRIX_REQUIREMENT_SQL", approvalAsyncSource);
   const satisfyApprovalMatrixRequirementSql = extractSqlConstant(
@@ -3527,7 +3430,6 @@ try {
       root_code TEXT NOT NULL UNIQUE,
       core_name TEXT NOT NULL,
       item_kind TEXT NOT NULL,
-      development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       rule_version_id TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -3545,7 +3447,6 @@ try {
       item_kind TEXT NOT NULL,
       is_universal INTEGER NOT NULL DEFAULT 0,
       custom_specification TEXT,
-      development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       universal_reason TEXT,
       rule_version_id TEXT NOT NULL,
@@ -3562,7 +3463,6 @@ try {
       purpose_description TEXT NOT NULL,
       sequence_no INTEGER NOT NULL,
       is_primary_manufacturing INTEGER NOT NULL DEFAULT 0,
-      development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       rule_version_id TEXT NOT NULL,
       updated_at TEXT,
@@ -3827,6 +3727,30 @@ try {
       source_entity_id TEXT,
       UNIQUE (drawing_number, revision),
       UNIQUE (company_id, drawing_number, revision)
+    );
+
+    CREATE TABLE submission_snapshots (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL UNIQUE,
+      source_part_number_id TEXT NOT NULL,
+      source_part_number TEXT NOT NULL
+    );
+
+    CREATE TABLE submission_part_scopes (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL,
+      company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+      item_id TEXT NOT NULL,
+      part_number_id TEXT NOT NULL,
+      part_number TEXT NOT NULL,
+      part_name TEXT NOT NULL,
+      link_type TEXT NOT NULL DEFAULT 'primary',
+      form_state TEXT NOT NULL DEFAULT 'no_impact',
+      fit_state TEXT NOT NULL DEFAULT 'no_impact',
+      function_state TEXT NOT NULL DEFAULT 'no_impact',
+      fff_outcome TEXT NOT NULL DEFAULT 'no_impact',
+      created_at TEXT NOT NULL,
+      UNIQUE (submission_id, part_number_id)
     );
 
     CREATE TABLE submission_files (
@@ -4187,22 +4111,6 @@ try {
       updated_at TEXT NOT NULL
     );
 
-    CREATE TABLE phase_gate_checks (
-      id TEXT PRIMARY KEY,
-      submission_id TEXT NOT NULL,
-      gate_code TEXT NOT NULL,
-      gate_name TEXT NOT NULL,
-      checklist_item TEXT NOT NULL,
-      required INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      created_by TEXT NOT NULL,
-      decided_by TEXT,
-      decision_comment TEXT,
-      decided_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
     INSERT INTO users (id, display_name, email, password_hash, role)
     VALUES
       ('user-admin-demo', 'Admin User', 'admin@example.com', 'hash-admin', 'Admin'),
@@ -4234,7 +4142,7 @@ try {
     INSERT INTO approval_rules (id, action_code, approver_role, requires_approval)
     VALUES
       ('approval-rule-rd-manager', 'release', 'rd_manager', 1),
-      ('approval-rule-pdm-admin', 'dvt_promotion', 'pdm_admin', 1);
+      ('approval-rule-pdm-admin', 'release_missing_ma_confirm', 'pdm_admin', 1);
 
     INSERT INTO items (id, part_number, part_name, current_revision, created_at, updated_at)
     VALUES
@@ -4308,29 +4216,29 @@ try {
     VALUES ('audit-parent-a', 'sub-parent-a', 'user-manager-demo', 'DetailFixture', '{"source":"detail"}', '2026-06-08T06:20:00.000Z');
 
     INSERT INTO part_roots (
-      id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, updated_at
+      id, root_code, core_name, item_kind, record_status, rule_version_id, updated_at
     )
     VALUES
-      ('root-duplicate-async', 'ROOT-ASYNC-001', 'Async Pump Housing', 'manufactured', 'EVT', 'Draft', 'rule-v1', '2026-06-08T06:30:00.000Z'),
-      ('root-similar-async', 'ROOT-ASYNC-002', 'Async Pump Housing Variant', 'manufactured', 'EVT', 'Draft', 'rule-v1', '2026-06-08T06:31:00.000Z'),
-      ('root-overdue-async', 'ROOT-ASYNC-003', 'Async Overdue Draft', 'manufactured', 'EVT', 'NeedInfo', 'rule-v1', '2026-05-01T06:31:00.000Z');
+      ('root-duplicate-async', 'ROOT-ASYNC-001', 'Async Pump Housing', 'manufactured', 'Draft', 'rule-v1', '2026-06-08T06:30:00.000Z'),
+      ('root-similar-async', 'ROOT-ASYNC-002', 'Async Pump Housing Variant', 'manufactured', 'Draft', 'rule-v1', '2026-06-08T06:31:00.000Z'),
+      ('root-overdue-async', 'ROOT-ASYNC-003', 'Async Overdue Draft', 'manufactured', 'NeedInfo', 'rule-v1', '2026-05-01T06:31:00.000Z');
 
     INSERT INTO part_numbers (
       id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal,
-      custom_specification, development_phase, record_status, universal_reason, rule_version_id, updated_at
+      custom_specification, record_status, universal_reason, rule_version_id, updated_at
     )
     VALUES
-      ('part-duplicate-async', 'root-duplicate-async', 'PN-ASYNC-001', 1, '001', 'Async Pump Housing', 'manufactured', 0, NULL, 'EVT', 'Draft', NULL, 'rule-v1', '2026-06-08T06:32:00.000Z'),
-      ('part-similar-async', 'root-similar-async', 'PN-ASYNC-002', 2, '002', 'Async Pump Cover', 'manufactured', 0, NULL, 'EVT', 'Draft', NULL, 'rule-v1', '2026-06-08T06:33:00.000Z'),
-      ('part-overdue-async', 'root-overdue-async', 'PN-ASYNC-003', 3, '003', 'Async Overdue Part', 'manufactured', 0, NULL, 'EVT', 'NeedInfo', NULL, 'rule-v1', '2026-05-01T06:33:00.000Z');
+      ('part-duplicate-async', 'root-duplicate-async', 'PN-ASYNC-001', 1, '001', 'Async Pump Housing', 'manufactured', 0, NULL, 'Draft', NULL, 'rule-v1', '2026-06-08T06:32:00.000Z'),
+      ('part-similar-async', 'root-similar-async', 'PN-ASYNC-002', 2, '002', 'Async Pump Cover', 'manufactured', 0, NULL, 'Draft', NULL, 'rule-v1', '2026-06-08T06:33:00.000Z'),
+      ('part-overdue-async', 'root-overdue-async', 'PN-ASYNC-003', 3, '003', 'Async Overdue Part', 'manufactured', 0, NULL, 'NeedInfo', NULL, 'rule-v1', '2026-05-01T06:33:00.000Z');
 
     INSERT INTO drawing_numbers (
       id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing,
-      development_phase, record_status, rule_version_id
+      record_status, rule_version_id
     )
     VALUES
-      ('drawing-duplicate-async', 'root-duplicate-async', 'DRW-ASYNC-001', 'MA', 'Manufacturing drawing', 1, 1, 'EVT', 'Draft', 'rule-v1'),
-      ('drawing-overdue-async', 'root-overdue-async', 'DRW-ASYNC-003', 'MA', 'Overdue manufacturing drawing', 1, 1, 'EVT', 'NeedInfo', 'rule-v1');
+      ('drawing-duplicate-async', 'root-duplicate-async', 'DRW-ASYNC-001', 'MA', 'Manufacturing drawing', 1, 1, 'Draft', 'rule-v1'),
+      ('drawing-overdue-async', 'root-overdue-async', 'DRW-ASYNC-003', 'MA', 'Overdue manufacturing drawing', 1, 1, 'NeedInfo', 'rule-v1');
 
     INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at)
     VALUES ('link-numbering-root-detail-async', 'drawing-duplicate-async', 'part-duplicate-async', 'primary_manufacturing', 'user-engineer-demo', '2026-06-08T06:33:30.000Z');
@@ -5454,52 +5362,6 @@ try {
     createdAt: "2026-06-08T13:41:01.000Z"
   });
   const asyncChangeRequestsAfterDecision = database.prepare(changeRequestsSql).all({ submissionId: "sub-dashboard-pending" });
-  database.prepare(insertPhaseGateCheckSql).run({
-    id: "phase-concept",
-    submissionId: "sub-dashboard-pending",
-    gateCode: "concept",
-    gateName: "Concept Gate",
-    checklistItem: "Concept checklist",
-    required: 1,
-    createdBy: "user-engineer-demo",
-    now: "2026-06-08T13:50:00.000Z"
-  });
-  database.prepare(insertPhaseGateCheckSql).run({
-    id: "phase-design",
-    submissionId: "sub-dashboard-pending",
-    gateCode: "design",
-    gateName: "Design Gate",
-    checklistItem: "Design checklist",
-    required: 1,
-    createdBy: "user-engineer-demo",
-    now: "2026-06-08T13:50:01.000Z"
-  });
-  database.prepare(insertAuditSql).run({
-    id: "audit-phase-gate-init-async",
-    submissionId: "sub-dashboard-pending",
-    actorId: "user-engineer-demo",
-    action: "PhaseGateInitialized",
-    detailJson: JSON.stringify({ checkCount: 2 }),
-    createdAt: "2026-06-08T13:50:02.000Z"
-  });
-  const asyncPhaseGateChecksBeforeDecision = database.prepare(phaseGateChecksSql).all({ submissionId: "sub-dashboard-pending" });
-  database.prepare(decidePhaseGateCheckSql).run({
-    submissionId: "sub-dashboard-pending",
-    checkId: "phase-concept",
-    decidedBy: "user-manager-demo",
-    status: "completed",
-    comment: "Completed for async migration",
-    now: "2026-06-08T13:51:00.000Z"
-  });
-  database.prepare(insertAuditSql).run({
-    id: "audit-phase-gate-decided-async",
-    submissionId: "sub-dashboard-pending",
-    actorId: "user-manager-demo",
-    action: "PhaseGateDecided",
-    detailJson: JSON.stringify({ checkId: "phase-concept", status: "completed", comment: "Completed for async migration" }),
-    createdAt: "2026-06-08T13:51:01.000Z"
-  });
-  const asyncPhaseGateChecksAfterDecision = database.prepare(phaseGateChecksSql).all({ submissionId: "sub-dashboard-pending" });
   database
     .prepare(
       "INSERT INTO approval_steps (id, submission_id, reviewer_id, sequence_no, decision, comment, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -6982,31 +6844,28 @@ try {
       `${numberingSearchRootsSql}
        WHERE (r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')
          AND r.record_status = :recordStatus
-         AND r.development_phase = :developmentPhase
        ORDER BY r.updated_at DESC, r.root_code ASC
        LIMIT :limit`
     )
-    .all({ queryLike: "%Async Pump%", recordStatus: "Draft", developmentPhase: "EVT", limit: 10 });
+    .all({ queryLike: "%Async Pump%", recordStatus: "Draft", limit: 10 });
   const asyncSearchParts = database
     .prepare(
       `${numberingSearchPartsSql}
        WHERE (p.part_number LIKE :queryLike ESCAPE '\\' OR p.part_name LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')
          AND p.record_status = :recordStatus
-         AND p.development_phase = :developmentPhase
        ORDER BY p.updated_at DESC, p.part_number ASC
        LIMIT :limit`
     )
-    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", developmentPhase: "EVT", limit: 10 });
+    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", limit: 10 });
   const asyncSearchDrawings = database
     .prepare(
       `${numberingSearchDrawingsSql}
        WHERE (d.drawing_number LIKE :queryLike ESCAPE '\\' OR d.purpose_description LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')
          AND d.record_status = :recordStatus
-         AND d.development_phase = :developmentPhase
        ORDER BY d.updated_at DESC, d.drawing_number ASC
        LIMIT :limit`
     )
-    .all({ queryLike: "%DRW-ASYNC-001%", recordStatus: "Draft", developmentPhase: "EVT", limit: 10 });
+    .all({ queryLike: "%DRW-ASYNC-001%", recordStatus: "Draft", limit: 10 });
   record(
     "NUMBERING-SEARCH-ASYNC-002 SQLite semantic search SQL returns roots parts drawings and warning counts",
     asyncSearchRoots.some((row) => row.entity_type === "part_root" && row.entity_id === "root-duplicate-async" && row.primary_drawing_number === "DRW-ASYNC-001") &&
@@ -7043,12 +6902,11 @@ try {
          )
        )
          AND d.record_status = :recordStatus
-         AND d.development_phase = :developmentPhase
          AND d.purpose_code = :purposeCode
        ORDER BY d.updated_at DESC, d.drawing_number ASC
        LIMIT :limit`
     )
-    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", developmentPhase: "EVT", purposeCode: "MA", limit: 10 });
+    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", purposeCode: "MA", limit: 10 });
   const asyncDrawingModuleLinkedPartNumbers = database
     .prepare(
       `${drawingModuleLinkedPartNumbersSql}
@@ -7091,11 +6949,10 @@ try {
       `${partModuleRecordsSql}
        WHERE (p.part_number LIKE :queryLike OR p.part_name LIKE :queryLike OR r.root_code LIKE :queryLike OR r.core_name LIKE :queryLike OR va.material_label LIKE :queryLike OR va.color_label LIKE :queryLike)
          AND p.record_status = :recordStatus
-         AND p.development_phase = :developmentPhase
        ORDER BY r.root_code ASC, p.sequence_no ASC, p.part_number ASC
        LIMIT :limit`
     )
-    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", developmentPhase: "EVT", limit: 10 });
+    .all({ queryLike: "%PN-ASYNC-001%", recordStatus: "Draft", limit: 10 });
   record(
     "NUMBERING-PART-MODULE-ASYNC-002 SQLite semantic part module SQL returns variant drawing and standard cost fields",
     asyncPartModuleRows.some(
@@ -8276,34 +8133,6 @@ try {
     JSON.stringify(asyncCollaborationAuditLogs)
   );
   record(
-    "PHASE-GATE-ASYNC-005 SQLite semantic phase gate list ordering works",
-    asyncPhaseGateChecksBeforeDecision.length === 2 &&
-      asyncPhaseGateChecksBeforeDecision[0].id === "phase-concept" &&
-      asyncPhaseGateChecksBeforeDecision[0].gate_code === "concept" &&
-      asyncPhaseGateChecksBeforeDecision[0].status === "open" &&
-      asyncPhaseGateChecksBeforeDecision[0].created_by_name === "Engineer Updated" &&
-      Number(asyncPhaseGateChecksBeforeDecision[0].required) === 1 &&
-      asyncPhaseGateChecksBeforeDecision[1].id === "phase-design",
-    JSON.stringify(asyncPhaseGateChecksBeforeDecision)
-  );
-  record(
-    "PHASE-GATE-ASYNC-006 SQLite semantic phase gate decide works",
-    asyncPhaseGateChecksAfterDecision.length === 2 &&
-      asyncPhaseGateChecksAfterDecision[0].id === "phase-concept" &&
-      asyncPhaseGateChecksAfterDecision[0].status === "completed" &&
-      asyncPhaseGateChecksAfterDecision[0].decided_by_name === "Manager User" &&
-      asyncPhaseGateChecksAfterDecision[0].decision_comment === "Completed for async migration" &&
-      asyncPhaseGateChecksAfterDecision[1].status === "open",
-    JSON.stringify(asyncPhaseGateChecksAfterDecision)
-  );
-  record(
-    "PHASE-GATE-ASYNC-007 SQLite semantic phase gate audit insert works",
-    ["PhaseGateInitialized", "PhaseGateDecided"].every((action) =>
-      asyncCollaborationAuditLogs.some((row) => row.action === action)
-    ),
-    JSON.stringify(asyncCollaborationAuditLogs)
-  );
-  record(
     "APPROVAL-MATRIX-ASYNC-005 SQLite semantic approval matrix list and approved count work",
     asyncApprovalMatrixBeforeRefresh.length === 2 &&
       asyncApprovalMatrixBeforeRefresh[0].id === "approval-matrix-manager" &&
@@ -8630,9 +8459,6 @@ try {
   record("CHANGE-REQUEST-ASYNC-005 SQLite semantic change request create/list works", false, "semantic setup failed");
   record("CHANGE-REQUEST-ASYNC-006 SQLite semantic change request decide works", false, "semantic setup failed");
   record("CHANGE-REQUEST-ASYNC-007 SQLite semantic change request audit insert works", false, "semantic setup failed");
-  record("PHASE-GATE-ASYNC-005 SQLite semantic phase gate list ordering works", false, "semantic setup failed");
-  record("PHASE-GATE-ASYNC-006 SQLite semantic phase gate decide works", false, "semantic setup failed");
-  record("PHASE-GATE-ASYNC-007 SQLite semantic phase gate audit insert works", false, "semantic setup failed");
   record("APPROVAL-MATRIX-ASYNC-005 SQLite semantic approval matrix list and approved count work", false, "semantic setup failed");
   record("APPROVAL-MATRIX-ASYNC-006 SQLite semantic approval matrix refresh satisfies approved requirement", false, "semantic setup failed");
   record("APPROVAL-MATRIX-ASYNC-007 SQLite semantic approval matrix waive and audit work", false, "semantic setup failed");

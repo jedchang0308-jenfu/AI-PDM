@@ -164,7 +164,7 @@ assertIncludes(sidebarSource, "approval-inbox-changed", "Phase 1C sidebar badge 
 assert(!sidebarSource.includes('label: "BOM 審核"'), "Phase 1C removes BOM review from primary sidebar");
 assert(!sidebarSource.includes('label: "發行審核"'), "Phase 1C removes release review from primary sidebar");
 assert(!sidebarSource.includes('label: "圖面進版影響審核"'), "Phase 1C removes drawing revision impact review from primary sidebar");
-assertIncludes(approvalPageSource, "<h1>審核工作台</h1>", "Phase 1C workbench page is labeled as approval workbench");
+assertIncludes(approvalPageSource, "<h1>審核工作台", "Phase 1C workbench page is labeled as approval workbench");
 assertIncludes(approvalPageSource, "const domainFilters", "Phase 1C workbench provides domain filters");
 assertIncludes(approvalPageSource, "const actionFilters", "Phase 1C workbench provides action filters");
 assertIncludes(approvalPageSource, "numbering.drawing_revision_impact_review", "Phase 1C-B workbench exposes drawing revision impact review filter");
@@ -177,7 +177,8 @@ assertNotIncludes(numberingDrawingsPageSource, "PendingApprovalPanel", "Phase 1C
 assertNotIncludes(numberingDrawingsPageSource, "待審焦點", "Phase 1C-C drawing detail removes the pending approval focus block");
 assertIncludes(numberingDrawingsPageSource, "pendingRevisionReviews", "Phase 1C-C drawing detail passes pending revisions to attachment history");
 assertIncludes(numberingDrawingsPageSource, "canReviewApprovals", "Phase 1C-C drawing detail role-scopes review CTA");
-assertIncludes(numberingSearchPageSource, "approvalProjection", "Phase 1C-C relation drawer keeps reviewer context from drawing owner API");
+assertIncludes(numberingSearchPageSource, "/api/numbering/drawings/workbench/", "Phase 1C-C relation drawer loads the canonical drawing owner projection");
+assertIncludes(numberingSearchPageSource, "capabilities={drawingWorkbench.capabilities}", "Phase 1C-C relation drawer keeps reviewer capability from the canonical drawing owner API");
 assertIncludes(numberingSearchPageSource, "pendingRevisionReviews", "Phase 1C-C relation drawer passes pending revisions to attachment history");
 assertIncludes(numberingSearchPageSource, "進版審核", "Phase 1C-C relation drawer surfaces compact drawing pending state");
 assertIncludes(masterAttachmentPanelSource, "pendingRevisionReviews", "Phase 1C-C attachment history accepts pending revision projection");

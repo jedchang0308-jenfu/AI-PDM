@@ -36,14 +36,12 @@ function sourceFiles() {
 const statusDisplay = read("src/lib/status-display.ts");
 const statusHelp = read("src/components/status-help-popover.tsx");
 
-for (const label of ["未發布", "編輯中", "申請中", "待補資料", "審核中", "已發布", "發行未完成", "主圖失效", "未分類狀態", "正式階段"]) {
+for (const label of ["未發布", "編輯中", "申請中", "待補資料", "審核中", "已發布", "發行未完成", "主圖失效", "未分類狀態"]) {
   record(`Central status dictionary includes ${label}`, statusDisplay.includes(`label: "${label}"`));
 }
 record("Central status dictionary does not require legacy 待審核 label", !statusDisplay.includes('label: "待審核"'));
 record("Master record Draft is displayed as 未發布", statusDisplay.includes('keys: ["Draft", "draft"], label: "未發布"'));
 record("Number request Draft is displayed as 編輯中", statusDisplay.includes('applicationStatusStatuses') && statusDisplay.includes('keys: ["Draft", "draft", "editing", "editable"], label: "編輯中"'));
-
-record("Central status dictionary exports development phase formatter", statusDisplay.includes("formatDevelopmentPhaseForUser"));
 
 for (const context of [
   "applicationStatus",
@@ -60,15 +58,14 @@ for (const context of [
   "importBatch",
   "settingsLifecycle",
   "jobStatus",
-  "restorePolicy",
-  "dvtReadiness"
+  "restorePolicy"
 ]) {
   record(`Central status dictionary includes ${context} context`, statusDisplay.includes(`${context}: ${context === "jobStatus" ? "jobStatuses" : `${context}Statuses`}`));
 }
 
 record("Task status context does not alias workflow statuses", !statusDisplay.includes("task: workflowStatuses"));
 
-for (const label of ["待處理", "待檢查", "暫存中", "啟用中", "等待中", "可還原", "需補資料或 Override"]) {
+for (const label of ["待處理", "待檢查", "暫存中", "啟用中", "等待中", "可還原"]) {
   record(`Context-specific status dictionary includes ${label}`, statusDisplay.includes(`label: "${label}"`));
 }
 
@@ -92,7 +89,6 @@ const requiredHeaderFiles = [
   "src/app/numbering/drawings/page.tsx",
   "src/app/parts/page.tsx",
   "src/app/numbering/tasks/page.tsx",
-  "src/app/numbering/dvt/page.tsx",
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
   "src/app/numbering/imports/page.tsx",
@@ -123,10 +119,6 @@ const settingsPage = read("src/app/settings/page.tsx");
 record("Settings lifecycle uses settingsLifecycle context", settingsPage.includes('context="settingsLifecycle"'));
 record("Settings page does not use workflow status help for settings lifecycle", !settingsPage.includes('context="workflow"'));
 
-const dvtPage = read("src/app/numbering/dvt/page.tsx");
-record("DVT readiness uses dvtReadiness context", dvtPage.includes('context="dvtReadiness"'));
-record("DVT readiness column is labeled as DVT check", dvtPage.includes('label="DVT 檢查"'));
-
 for (const relativePath of ["src/app/bom/workbench/page.tsx"]) {
   const source = read(relativePath);
   record(`${relativePath} uses restorePolicy for restore status`, source.includes('context="restorePolicy"'));
@@ -145,17 +137,16 @@ record(
 
 for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx"]) {
   const source = read(relativePath);
-  record(`${relativePath} mixed status column is explicitly labeled`, source.includes('label="資料狀態 / 開發階段 / 提醒"'));
+  record(`${relativePath} mixed status column is explicitly labeled`, source.includes('label="資料狀態 / 提醒"'));
   record(`${relativePath} no longer labels mixed status column as 其他`, !source.includes('label="其他"'));
 }
 
 for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/parts/page.tsx"]) {
-  record(`${relativePath} filters use axis-specific labels`, read(relativePath).includes('label="資料狀態"') && read(relativePath).includes('label="開發階段"'));
+  record(`${relativePath} filters expose PDM data status`, read(relativePath).includes('label="資料狀態"'));
 }
 
 const searchPage = read("src/app/numbering/search/page.tsx");
 record("Search page labels status filter as 資料狀態", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("全部資料狀態"));
-record("Search page labels phase filter as 開發階段", searchPage.includes("<span>開發階段</span>") && searchPage.includes("全部開發階段"));
 
 const accountPage = read("src/app/settings/accounts/page.tsx");
 const invitationPage = read("src/app/settings/account-invitations/page.tsx");
@@ -171,12 +162,21 @@ for (const relativePath of [
   "src/app/numbering/drawings/page.tsx",
   "src/app/numbering/search/page.tsx",
   "src/app/parts/page.tsx",
-  "src/app/upload/page.tsx",
-  "src/components/lifecycle-ux.tsx"
+  "src/app/upload/page.tsx"
 ]) {
   const source = read(relativePath);
-  record(`${relativePath} renders development phase through dictionary`, source.includes("formatDevelopmentPhaseForUser"));
+  record(`${relativePath} renders record status through the central dictionary`, source.includes("formatStatusForUser"));
 }
+
+const lifecycleUx = read("src/components/lifecycle-ux.tsx");
+record(
+  "Lifecycle UI keeps the two quality-system stages explicit",
+  lifecycleUx.includes('qualityStage: "研發階段"') && lifecycleUx.includes('qualityStage: "技術移轉"')
+);
+record(
+  "Change control remains an independent lifecycle dimension",
+  lifecycleUx.includes('controlDimension: "變更管制"') && lifecycleUx.includes("stage.controlDimension ?? stage.qualityStage")
+);
 
 const productionStatusHeaderExceptions = new Set([
   "src/app/settings/account-invitations/page.tsx",
@@ -198,7 +198,6 @@ const prohibitedVisiblePhrases = [
   "Pending items",
   "Released BOM",
   "Storage Evidence",
-  "DVT、PVT、Release",
   ">Release<",
   ">Draft<",
   ">Pending<",

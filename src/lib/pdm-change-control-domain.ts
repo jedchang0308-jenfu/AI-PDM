@@ -1348,9 +1348,9 @@ export class PdmChangeControlDomainService {
       await this.client.execute(
         `
         INSERT INTO part_roots (
-          id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+          id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
         ) VALUES (
-          :id, :companyId, :rootCode, :coreName, :itemKind, 'Release', 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
+          :id, :companyId, :rootCode, :coreName, :itemKind, 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
         )
         `,
         {
@@ -1370,10 +1370,10 @@ export class PdmChangeControlDomainService {
       `
       INSERT INTO part_numbers (
         id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
+        item_kind, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
       ) VALUES (
         :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-        :itemKind, 0, 'Release', 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
+        :itemKind, 0, 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
       )
       `,
       {

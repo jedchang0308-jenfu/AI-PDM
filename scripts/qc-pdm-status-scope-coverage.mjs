@@ -44,7 +44,7 @@ const inventoryPath = "output/dev-049-status-scope-inventory/status-scope-invent
 record("Phase 1B inventory artifact exists", exists(inventoryPath));
 if (exists(inventoryPath)) {
   const inventory = JSON.parse(read(inventoryPath));
-  record("Inventory preserves broad route coverage", Number(inventory.summary?.routeCount ?? 0) >= 22, `routeCount=${inventory.summary?.routeCount}`);
+  record("Inventory preserves broad route coverage after project-phase route removal", Number(inventory.summary?.routeCount ?? 0) >= 19, `routeCount=${inventory.summary?.routeCount}`);
   record("Inventory preserves section scan coverage", Number(inventory.summary?.sectionCount ?? 0) >= 197, `sectionCount=${inventory.summary?.sectionCount}`);
 }
 
@@ -65,7 +65,6 @@ for (const context of [
 for (const label of [
   "號碼效力",
   "資料狀態",
-  "開發階段",
   "申請狀態",
   "審核狀態",
   "發布狀態",
@@ -93,7 +92,6 @@ const requiredScopes = {
   importCenter: "src/app/numbering/imports/page.tsx",
   reportCenter: "src/app/numbering/reports/page.tsx",
   taskCenter: "src/app/numbering/tasks/page.tsx",
-  dvtWorkbench: "src/app/numbering/dvt/page.tsx",
   impactWorkbench: "src/app/numbering/impact/page.tsx",
   settingsCenter: "src/app/settings/page.tsx",
   accountList: "src/app/settings/accounts/page.tsx",
@@ -168,9 +166,17 @@ record("No plain status table header remains", rawStatusHeaders.length === 0, ra
 const partsPage = read("src/app/parts/page.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
-record("Parts mixed column names all axes", partsPage.includes('label="資料狀態 / 開發階段 / 提醒"') && partsPage.includes('data-label="資料狀態 / 開發階段 / 提醒"'));
-record("Drawings mixed column names all axes", drawingsPage.includes('label="資料狀態 / 開發階段 / 提醒"') && drawingsPage.includes('data-label="資料狀態 / 開發階段 / 提醒"'));
-record("Search filter separates status and phase axes", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("<span>開發階段</span>"));
+record("Parts mixed column names PDM axes", partsPage.includes('label="資料狀態 / 提醒"') && partsPage.includes('data-label="資料狀態 / 提醒"'));
+record("Drawings mixed column names PDM axes", drawingsPage.includes('label="資料狀態 / 提醒"') && drawingsPage.includes('data-label="資料狀態 / 提醒"'));
+record("Search filter exposes the data-status axis", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("全部資料狀態"));
+
+const lifecycleUx = read("src/components/lifecycle-ux.tsx");
+record(
+  "Lifecycle scope exposes exactly the controlled quality-system and change-control dimensions",
+  lifecycleUx.includes('qualityStage: "研發階段" | "技術移轉"') &&
+    lifecycleUx.includes('controlDimension: "變更管制"') &&
+    lifecycleUx.includes("stage.controlDimension ?? stage.qualityStage")
+);
 
 const numberState = read("src/components/number-state-workspace.tsx");
 record("Number state tabs use 保留號 instead of first-level 草稿 label", numberState.includes("料號總表") && numberState.includes("保留號"));

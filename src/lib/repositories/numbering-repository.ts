@@ -29,7 +29,6 @@ import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } fr
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
-export type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 export type NumberingRecordStatus =
   | "Draft"
   | "NeedInfo"
@@ -39,7 +38,6 @@ export type NumberingRecordStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
 export type { DrawingPurposeCode } from "@/lib/numbering-identity";
@@ -50,7 +48,6 @@ export type PartRootRecord = {
   rootCode: string;
   coreName: string;
   itemKind: NumberingItemKind;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
 };
@@ -67,7 +64,6 @@ export type PartNumberRecord = {
   isUniversal: boolean;
   customSpecification: string | null;
   seriesCode: string | null;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   universalReason: string | null;
   ruleVersionId: string;
@@ -82,7 +78,6 @@ export type DrawingNumberRecord = {
   purposeDescription: string;
   sequenceNo: number;
   isPrimaryManufacturing: boolean;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
 };
@@ -129,6 +124,15 @@ export type DrawingModuleListRecord = DrawingNumberRecord & {
   warningCount: number;
   releaseStatusMismatch: DrawingModuleReleaseStatusMismatch | null;
   pendingApproval?: DrawingModulePendingApprovalSummary | null;
+  lifecycle?: {
+    state: "preparing" | "in_review" | "correction_required" | "rd_controlled" | "released";
+    revision: string;
+    requestId: string | null;
+    submittedBy: string | null;
+    decisionCount: number;
+    reviewerIds: string[];
+    correctionReason: string | null;
+  } | null;
   updatedAt: string;
 };
 
@@ -138,7 +142,6 @@ export type DrawingModuleListInput = {
   productSeries?: string;
   seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
-  developmentPhase?: NumberingPhase;
   purposeCode?: DrawingPurposeCode;
   limit?: number;
 };
@@ -152,7 +155,6 @@ export type NumberingSearchInput = {
   seriesCode?: string;
   entityType?: NumberingSearchEntityType;
   recordStatus?: NumberingRecordStatus;
-  developmentPhase?: NumberingPhase;
   limit?: number;
 };
 
@@ -164,7 +166,6 @@ export type NumberingSearchResultRecord = {
   displayCode: string;
   displayName: string;
   itemKind: NumberingItemKind;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   purposeCode: DrawingPurposeCode | null;
   partNumber: string | null;
@@ -328,6 +329,7 @@ export type PartModuleListRecord = PartNumberRecord & {
   coreName: string;
   variant: PartVariantAttributesRecord | null;
   primaryDrawingNumber: string | null;
+  primaryDrawingRecordStatus?: NumberingRecordStatus | null;
   drawingCount: number;
   standardCost: PartStandardCostRecord | null;
   pendingCostRequestCount: number;
@@ -339,7 +341,6 @@ export type PartModuleListInput = {
   productSeries?: string;
   seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
-  developmentPhase?: NumberingPhase;
   limit?: number;
 };
 
@@ -409,7 +410,6 @@ export type CreateNumberingRecordInput = {
   coreName: string;
   partName?: string;
   itemKind: NumberingItemKind;
-  developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -427,7 +427,6 @@ export type AddPartNumberInput = {
   rootCode: string;
   partName?: string;
   itemKind?: NumberingItemKind;
-  developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -447,7 +446,6 @@ export type AddDrawingNumberInput = {
   rootCode: string;
   purposeCode: DrawingPurposeCode;
   purposeDescription?: string;
-  developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
   createdBy?: string | null;
   ruleVersionId?: string;
@@ -465,7 +463,6 @@ export type AddDrawingAndPartToRootInput = {
   purposeDescription?: string;
   partName?: string;
   itemKind?: NumberingItemKind;
-  developmentPhase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -581,7 +578,7 @@ export type MaintainDrawingPartRelationResult = {
   changed: boolean;
 };
 
-export type NumberingGate = "DVT" | "Release";
+export type NumberingGate = "TechnicalTransfer" | "Release";
 
 export type NumberingGateIssue = {
   code: string;
@@ -609,55 +606,8 @@ export type EvaluateNumberingGateInput = {
   allowMainDrawingOverride?: boolean;
 };
 
-export type DvtPromotionCandidateStatus = "ready" | "needs_override" | "blocked";
-export type DvtPromotionDecisionAction = "submit_dvt" | "keep_evt" | "disable_evt" | "obsolete";
-
-export type DvtPromotionCandidateRecord = {
-  root: PartRootRecord;
-  partNumber: PartNumberRecord;
-  drawingNumbers: DrawingNumberRecord[];
-  gate: NumberingGateEvaluation;
-  status: DvtPromotionCandidateStatus;
-  recommendedAction: DvtPromotionDecisionAction;
-  missingItems: string[];
-};
-
-export type ListDvtPromotionCandidatesInput = {
-  companyId?: string;
-  limit?: number;
-  includeBlocked?: boolean;
-};
-
-export type SubmitDvtPromotionDecision = {
-  partNumber: string;
-  action: DvtPromotionDecisionAction;
-  reason?: string;
-};
-
-export type SubmitDvtPromotionInput = {
-  companyId?: string;
-  decisions: SubmitDvtPromotionDecision[];
-  projectCode?: string;
-  submittedBy: string;
-};
-
-export type DvtPromotionDecisionResult = {
-  partNumber: string;
-  action: DvtPromotionDecisionAction;
-  status: "submitted" | "kept" | "disabled" | "obsolete" | "skipped";
-  message: string;
-  approvalRequestId: string | null;
-};
-
-export type DvtPromotionSubmissionRecord = {
-  approvalBatch: NumberingApprovalBatchRecord | null;
-  approvalRequests: NumberingApprovalRecord[];
-  decisions: DvtPromotionDecisionResult[];
-};
-
 export type EvaluateApprovalRuleInput = {
   actionCode: string;
-  phase?: NumberingPhase;
   recordStatus?: NumberingRecordStatus;
   itemKind?: NumberingItemKind;
   riskFlags?: string[];
@@ -668,7 +618,6 @@ export type MatchedApprovalRule = {
   id: string;
   ruleName: string;
   actionCode: string;
-  phase: string | null;
   recordStatus: string | null;
   itemKind: string | null;
   riskFlag: string | null;
@@ -839,7 +788,6 @@ export type NumberingAdminMatrixRecord = {
   options: {
     actionCodes: string[];
     pagePermissionCodes: string[];
-    phases: string[];
     recordStatuses: string[];
     itemKinds: string[];
     riskFlags: string[];
@@ -851,7 +799,6 @@ export type UpsertNumberingApprovalRuleInput = {
   ruleVersionId?: string;
   ruleName?: string;
   actionCode: string;
-  phase?: string | null;
   recordStatus?: string | null;
   itemKind?: string | null;
   riskFlag?: string | null;
@@ -984,10 +931,8 @@ export type DuplicateCheckResult = {
 };
 
 export type NumberingApprovalActionCode =
-  | "dvt_promotion"
   | "release"
   | "same_drawing_variant_after_release"
-  | "dvt_missing_ma_override"
   | "release_missing_ma_confirm"
   | "main_drawing_restore"
   | "obsolete_part_number"
@@ -1043,7 +988,6 @@ export type NumberingApprovalEntitySummaryRecord = {
   partName: string | null;
   coreName: string | null;
   itemKind: NumberingItemKind | null;
-  developmentPhase: NumberingPhase | null;
   recordStatus: NumberingRecordStatus | null;
 };
 
@@ -1097,7 +1041,6 @@ export type RootObsoleteImpactTarget = {
   entityId: string;
   entityCode: string;
   recordStatus: NumberingRecordStatus;
-  developmentPhase: NumberingPhase;
 };
 
 export type RootObsoleteImpactLink = {
@@ -1420,7 +1363,6 @@ type PartRootRow = {
   root_code: string;
   core_name: string;
   item_kind: NumberingItemKind;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   rule_version_id: string;
 };
@@ -1437,7 +1379,6 @@ type PartNumberRow = {
   is_universal: number;
   custom_specification: string | null;
   series_code: string | null;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   universal_reason: string | null;
   rule_version_id: string;
@@ -1452,7 +1393,6 @@ type DrawingNumberRow = {
   purpose_description: string;
   sequence_no: number;
   is_primary_manufacturing: number;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   rule_version_id: string;
 };
@@ -1465,7 +1405,6 @@ type NumberingSearchRow = {
   display_code: string;
   display_name: string;
   item_kind: NumberingItemKind;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   purpose_code: DrawingPurposeCode | null;
   part_number: string | null;
@@ -1595,6 +1534,7 @@ type PartModuleListRow = PartNumberRow & {
   root_code: string;
   core_name: string;
   primary_drawing_number: string | null;
+  primary_drawing_record_status?: NumberingRecordStatus | null;
   drawing_count: number | null;
   pending_cost_request_count: number | null;
   variant_id: string | null;
@@ -1644,7 +1584,6 @@ type ApprovalRuleRow = {
   rule_version_id: string;
   rule_name: string;
   action_code: string;
-  phase: string | null;
   record_status: string | null;
   item_kind: string | null;
   risk_flag: string | null;
@@ -1967,8 +1906,8 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
     editable: false
   },
   {
-    code: "PRIMARY_MA_REQUIRED_FROM_DVT",
-    message: "DVT or Release manufactured, outsourced, and custom items require a primary MA drawing unless an override is approved.",
+    code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
+    message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
     requiresApproval: true,
     blocksUsage: true,
     blocksRelease: true,
@@ -1999,17 +1938,12 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
 ];
 
 const STANDARD_APPROVAL_RULE_DEFAULTS = [
-  ["approval-rule-update-name-dvt", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-update-name-release", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-update-name-released", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-update-spec-released", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-obsolete-part-release", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 0, 1, 1, 1],
+  ["approval-rule-obsolete-part-released", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-obsolete-root-admin", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-merge-part-referenced", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release", 1, "rd_manager", 0, 1, 1, 1],
   ["approval-rule-post-release-change-manager", 1, "rd_manager", 0, 1, 1, 1],
@@ -2060,11 +1994,11 @@ function ensureDefaultApprovalRulesForCurrentRuleVersion(database: SqliteDatabas
     .prepare(
       `
       INSERT OR IGNORE INTO approval_rules (
-        id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+        id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
         requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
       )
       SELECT
-        ? || source_rules.id, ?, source_rules.rule_name, source_rules.action_code, source_rules.phase, source_rules.record_status,
+        ? || source_rules.id, ?, source_rules.rule_name, source_rules.action_code, source_rules.record_status,
         source_rules.item_kind, source_rules.risk_flag, source_rules.requires_approval, source_rules.approver_role, source_rules.blocks_usage,
         source_rules.blocks_release, source_rules.shows_warning, source_rules.export_marker,
         CASE
@@ -2112,7 +2046,6 @@ function mapPartRoot(row: PartRootRow): PartRootRecord {
     rootCode: row.root_code,
     coreName: row.core_name,
     itemKind: row.item_kind,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     ruleVersionId: row.rule_version_id
   };
@@ -2131,7 +2064,6 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
     seriesCode: row.series_code,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     universalReason: row.universal_reason,
     ruleVersionId: row.rule_version_id
@@ -2148,7 +2080,6 @@ function mapDrawingNumber(row: DrawingNumberRow): DrawingNumberRecord {
     purposeDescription: row.purpose_description,
     sequenceNo: row.sequence_no,
     isPrimaryManufacturing: row.is_primary_manufacturing === 1,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     ruleVersionId: row.rule_version_id
   };
@@ -2218,7 +2149,6 @@ function mapNumberingSearchRow(row: NumberingSearchRow): NumberingSearchResultRe
     displayCode: row.display_code,
     displayName: row.display_name,
     itemKind: row.item_kind,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     purposeCode: row.purpose_code,
     partNumber: row.part_number,
@@ -2340,6 +2270,7 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
     rootCode: row.root_code,
     coreName: row.core_name,
     primaryDrawingNumber: row.primary_drawing_number,
+    primaryDrawingRecordStatus: row.primary_drawing_record_status ?? null,
     drawingCount: row.drawing_count ?? 0,
     pendingCostRequestCount: row.pending_cost_request_count ?? 0,
     variant: mapPartVariantAttributes({
@@ -2442,19 +2373,17 @@ function emptyApprovalEntitySummary(request: ApprovalRequestRow): NumberingAppro
     partName: null,
     coreName: null,
     itemKind: null,
-    developmentPhase: null,
     recordStatus: null
   };
 }
 
 function approvalEntitySummary(database: SqliteDatabase, request: ApprovalRequestRow): NumberingApprovalEntitySummaryRecord {
   if (request.entity_type === "part_root") {
-    const row = database.prepare("SELECT root_code, core_name, item_kind, development_phase, record_status FROM part_roots WHERE id = ?").get(request.entity_id) as
+    const row = database.prepare("SELECT root_code, core_name, item_kind, record_status FROM part_roots WHERE id = ?").get(request.entity_id) as
       | {
           root_code: string;
           core_name: string;
           item_kind: NumberingItemKind;
-          development_phase: NumberingPhase;
           record_status: NumberingRecordStatus;
         }
       | undefined;
@@ -2470,7 +2399,6 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
       partName: null,
       coreName: row.core_name,
       itemKind: row.item_kind,
-      developmentPhase: row.development_phase,
       recordStatus: row.record_status
     };
   }
@@ -2479,7 +2407,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
     const row = database
       .prepare(
         `
-        SELECT p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status,
+        SELECT p.part_number, p.part_name, p.item_kind, p.record_status,
                r.root_code, r.core_name,
                (
                  SELECT d.drawing_number
@@ -2488,7 +2416,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
                  WHERE l.part_number_id = p.id
                    AND l.link_type = 'primary_manufacturing'
                    AND d.purpose_code IN ('MA', 'M')
-                   AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+                   AND d.record_status NOT IN ('Obsolete', 'Merged')
                  ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
                  LIMIT 1
                ) AS primary_drawing_number
@@ -2502,7 +2430,6 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
           part_number: string;
           part_name: string;
           item_kind: NumberingItemKind;
-          development_phase: NumberingPhase;
           record_status: NumberingRecordStatus;
           root_code: string;
           core_name: string;
@@ -2521,7 +2448,6 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
       partName: row.part_name,
       coreName: row.core_name,
       itemKind: row.item_kind,
-      developmentPhase: row.development_phase,
       recordStatus: row.record_status
     };
   }
@@ -2529,7 +2455,7 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
   const drawingRow = database
     .prepare(
       `
-      SELECT d.drawing_number, d.purpose_code, d.development_phase, d.record_status,
+      SELECT d.drawing_number, d.purpose_code, d.record_status,
              r.root_code, r.core_name, r.item_kind
       FROM drawing_numbers d
       JOIN part_roots r ON r.id = d.part_root_id
@@ -2540,7 +2466,6 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
     | {
         drawing_number: string;
         purpose_code: DrawingPurposeCode;
-        development_phase: NumberingPhase;
         record_status: NumberingRecordStatus;
         root_code: string;
         core_name: string;
@@ -2562,7 +2487,6 @@ function approvalEntitySummary(database: SqliteDatabase, request: ApprovalReques
     partName: null,
     coreName: drawingRow.core_name,
     itemKind: drawingRow.item_kind,
-    developmentPhase: drawingRow.development_phase,
     recordStatus: drawingRow.record_status
   };
 }
@@ -2592,8 +2516,6 @@ function approvalUserSummary(database: SqliteDatabase, userId: string) {
 
 function numberingApprovalActionLabel(value: string | null | undefined) {
   const labels: Record<string, string> = {
-    dvt_promotion: "DVT 階段晉升",
-    dvt_missing_ma_override: "DVT 缺 MA Override",
     release: "發行審核",
     release_missing_ma_confirm: "發行缺 MA 再確認",
     same_drawing_variant_after_release: "發行後同圖多料號",
@@ -2688,7 +2610,6 @@ function buildNumberingActionMarkers(input: {
 
 function approvalRecipientRole(actionCode: NumberingApprovalActionCode) {
   if (
-    actionCode === "dvt_promotion" ||
     actionCode === "release" ||
     actionCode === "same_drawing_variant_after_release" ||
     actionCode === "obsolete_ma_drawing"
@@ -2718,7 +2639,6 @@ function mapApprovalReviewRequest(database: SqliteDatabase, row: ApprovalRequest
 function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
   const predictedRule = withPredictedApprovalControls({
     actionCode: row.action_code,
-    phase: row.phase,
     recordStatus: row.record_status,
     itemKind: row.item_kind,
     riskFlag: row.risk_flag,
@@ -3083,7 +3003,6 @@ function normalizeRiskFlags(riskFlags: string[] | undefined) {
 
 function approvalRuleMatches(row: ApprovalRuleRow, input: EvaluateApprovalRuleInput, riskFlags: Set<string>) {
   if (row.action_code !== input.actionCode) return false;
-  if (row.phase && row.phase !== input.phase) return false;
   if (row.record_status && row.record_status !== input.recordStatus) return false;
   if (row.item_kind && row.item_kind !== input.itemKind) return false;
   if (row.risk_flag && !riskFlags.has(row.risk_flag)) return false;
@@ -3144,11 +3063,11 @@ function evaluateHardApprovalRules(input: EvaluateApprovalRuleInput, riskFlags: 
 
   if (riskFlags.has("missing_primary_ma") && ["manufactured", "outsourced", "custom"].includes(input.itemKind ?? "")) {
     addHardRule({
-      code: "PRIMARY_MA_REQUIRED_FROM_DVT",
-      message: "DVT or Release manufactured, outsourced, and custom items require a primary MA drawing unless an override is approved.",
+      code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
+      message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
       requiresApproval: true,
-      blocksUsage: input.phase === "DVT" || input.phase === "Release",
-      blocksRelease: input.phase === "Release",
+      blocksUsage: true,
+      blocksRelease: true,
       showsWarning: true,
       exportMarker: true
     });
@@ -3436,7 +3355,7 @@ function getPrimaryManufacturingDrawingForPart(database: SqliteDatabase, partNum
       WHERE l.part_number_id = ?
         AND l.link_type = 'primary_manufacturing'
         AND d.purpose_code IN ('MA', 'M')
-        AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+        AND d.record_status NOT IN ('Obsolete', 'Merged')
       LIMIT 1
     `
     )
@@ -3452,7 +3371,7 @@ function validateReplacementManufacturingDrawing(database: SqliteDatabase, partR
   if (replacement.part_root_id !== partRow.part_root_id || !isManufacturingDrawingPurpose(replacement.purpose_code)) {
     throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_SAME_ROOT_MA_DRAWING");
   }
-  if (["Obsolete", "Merged", "EVTDisabled"].includes(replacement.record_status)) {
+  if (["Obsolete", "Merged"].includes(replacement.record_status)) {
     throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_ACTIVE_MA_DRAWING");
   }
   return replacement;
@@ -3665,7 +3584,6 @@ function insertPartRoot(
   input: {
     coreName: string;
     itemKind: NumberingItemKind;
-    developmentPhase: NumberingPhase;
     recordStatus: NumberingRecordStatus;
     ruleVersionId: string;
     createdBy?: string | null;
@@ -3679,9 +3597,9 @@ function insertPartRoot(
     .prepare(
       `
       INSERT INTO part_roots (
-        id, root_code, core_name, item_kind, development_phase, record_status,
+        id, root_code, core_name, item_kind, record_status,
         rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -3689,7 +3607,6 @@ function insertPartRoot(
       rootCode,
       input.coreName.trim(),
       input.itemKind,
-      input.developmentPhase,
       input.recordStatus,
       input.ruleVersionId,
       input.createdBy ?? null,
@@ -3705,7 +3622,6 @@ function insertPartNumber(
   input: {
     partName: string;
     itemKind: NumberingItemKind;
-    developmentPhase: NumberingPhase;
     recordStatus: NumberingRecordStatus;
     isUniversal: boolean;
     universalReason?: string;
@@ -3729,9 +3645,9 @@ function insertPartNumber(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, custom_specification, series_code, development_phase, record_status, universal_reason,
+        item_kind, is_universal, custom_specification, series_code, record_status, universal_reason,
         rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -3745,7 +3661,6 @@ function insertPartNumber(
       effectiveIsUniversal ? 1 : 0,
       input.customSpecification?.trim() || null,
       seriesCode,
-      input.developmentPhase,
       input.recordStatus,
       input.universalReason?.trim() || null,
       input.ruleVersionId,
@@ -3763,7 +3678,6 @@ function insertDrawingNumber(
   input: {
     purposeCode: DrawingPurposeCode;
     purposeDescription?: string;
-    developmentPhase: NumberingPhase;
     recordStatus: NumberingRecordStatus;
     ruleVersionId: string;
     createdBy?: string | null;
@@ -3781,9 +3695,9 @@ function insertDrawingNumber(
       `
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-        is_primary_manufacturing, development_phase, record_status, rule_version_id,
+        is_primary_manufacturing, record_status, rule_version_id,
         created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -3794,7 +3708,6 @@ function insertDrawingNumber(
       purposeDescription,
       sequenceNo,
       isManufacturingDrawingPurpose(input.purposeCode) ? 1 : 0,
-      input.developmentPhase,
       input.recordStatus,
       input.ruleVersionId,
       input.createdBy ?? null,
@@ -5019,8 +4932,8 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
           .prepare(
             `
             INSERT INTO part_roots (
-              id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 'EVT', 'Active', ?, ?, ?, ?)
+              id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'Active', ?, ?, ?, ?)
           `
           )
           .run(crypto.randomUUID(), rootCode, coreName, itemKind, ruleVersionId, input.confirmedBy, now, now);
@@ -5037,8 +4950,8 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
             `
             INSERT INTO part_numbers (
               id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-              is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'EVT', 'Active', ?, ?, ?, ?)
+              is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'Active', ?, ?, ?, ?)
           `
           )
           .run(
@@ -5065,8 +4978,8 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
             `
             INSERT INTO drawing_numbers (
               id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-              is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'EVT', 'Active', ?, ?, ?, ?)
+              is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?)
           `
           )
           .run(
@@ -5121,11 +5034,11 @@ export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchIn
 }
 
 function buildNumberingExportPayload(database: SqliteDatabase, exportMode: NumberingExportMode) {
-  const roots = database.prepare("SELECT root_code, core_name, item_kind, development_phase, record_status, updated_at FROM part_roots ORDER BY root_code").all();
+  const roots = database.prepare("SELECT root_code, core_name, item_kind, record_status, updated_at FROM part_roots ORDER BY root_code").all();
   const parts = database
     .prepare(
       `
-      SELECT r.root_code, p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status, p.updated_at
+      SELECT r.root_code, p.part_number, p.part_name, p.item_kind, p.record_status, p.updated_at
       FROM part_numbers p
       JOIN part_roots r ON r.id = p.part_root_id
       ORDER BY r.root_code, p.sequence_no
@@ -5135,7 +5048,7 @@ function buildNumberingExportPayload(database: SqliteDatabase, exportMode: Numbe
   const drawings = database
     .prepare(
       `
-      SELECT r.root_code, d.drawing_number, d.purpose_code, d.purpose_description, d.development_phase, d.record_status, d.updated_at
+      SELECT r.root_code, d.drawing_number, d.purpose_code, d.purpose_description, d.record_status, d.updated_at
       FROM drawing_numbers d
       JOIN part_roots r ON r.id = d.part_root_id
       ORDER BY r.root_code, d.purpose_code, d.sequence_no
@@ -5393,7 +5306,7 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
   ).map(mapNumberingAdminAuditEvent);
   const approvalRules = (
     database
-      .prepare("SELECT * FROM approval_rules WHERE rule_version_id = ? ORDER BY action_code ASC, COALESCE(phase, '') ASC, rule_name ASC")
+      .prepare("SELECT * FROM approval_rules WHERE rule_version_id = ? ORDER BY action_code ASC, rule_name ASC")
       .all(DEFAULT_RULE_VERSION_ID) as ApprovalRuleRow[]
   ).map(mapAdminApprovalRule);
   const ruleTemplates = (
@@ -5428,8 +5341,7 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
     options: {
       actionCodes,
       pagePermissionCodes: [...NUMBERING_PAGE_PERMISSION_CODES],
-      phases: ["EVT", "DVT", "Release"],
-      recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "EVTDisabled", "PendingAdminConfirm", "MainDrawingInvalid"],
+      recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "PendingAdminConfirm", "MainDrawingInvalid"],
       itemKinds: ["manufactured", "outsourced", "purchased", "custom", "universal"],
       riskFlags: [
         "duplicate_code",
@@ -5900,7 +5812,6 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
       throw new Error("APPROVAL_RULE_APPROVER_ROLE_NOT_FOUND");
     }
 
-    const phase = nullableTextOrExisting(input.phase, existing?.phase);
     const recordStatus = nullableTextOrExisting(input.recordStatus, existing?.record_status);
     const itemKind = nullableTextOrExisting(input.itemKind, existing?.item_kind);
     const riskFlag = nullableTextOrExisting(input.riskFlag, existing?.risk_flag);
@@ -5908,7 +5819,6 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
     const exportMarker = input.exportMarker ?? (existing ? existing.export_marker === 1 : true);
     const predictedRule = withPredictedApprovalControls({
       actionCode,
-      phase,
       recordStatus,
       itemKind,
       riskFlag,
@@ -5920,7 +5830,6 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
     const values = {
       ruleName: buildApprovalRuleSummary(predictedRule),
       actionCode,
-      phase,
       recordStatus,
       itemKind,
       riskFlag,
@@ -5938,7 +5847,7 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
         .prepare(
           `
           UPDATE approval_rules
-          SET rule_version_id = ?, rule_name = ?, action_code = ?, phase = ?, record_status = ?, item_kind = ?, risk_flag = ?,
+          SET rule_version_id = ?, rule_name = ?, action_code = ?, record_status = ?, item_kind = ?, risk_flag = ?,
               requires_approval = ?, approver_role = ?, blocks_usage = ?, blocks_release = ?, shows_warning = ?, export_marker = ?, updated_at = ?
           WHERE id = ?
         `
@@ -5947,7 +5856,6 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
           ruleVersionId,
           values.ruleName,
           values.actionCode,
-          values.phase,
           values.recordStatus,
           values.itemKind,
           values.riskFlag,
@@ -5965,9 +5873,9 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
         .prepare(
           `
           INSERT INTO approval_rules (
-            id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+            id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
             requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
         )
         .run(
@@ -5975,7 +5883,6 @@ export function upsertNumberingApprovalRule(input: UpsertNumberingApprovalRuleIn
           ruleVersionId,
           values.ruleName,
           values.actionCode,
-          values.phase,
           values.recordStatus,
           values.itemKind,
           values.riskFlag,
@@ -6029,7 +5936,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
           `
           UPDATE approval_rules
           SET requires_approval = 0, approver_role = NULL, blocks_usage = 0, blocks_release = 1, shows_warning = 1, export_marker = 1, updated_at = ?
-          WHERE action_code IN ('update_name', 'obsolete_part_number') AND phase = 'DVT'
+          WHERE record_status IS NULL AND action_code IN ('update_name', 'obsolete_part_number')
         `
         )
         .run(now);
@@ -6038,8 +5945,7 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
           `
           UPDATE approval_rules
           SET requires_approval = 1, approver_role = COALESCE(approver_role, 'pdm_admin'), blocks_usage = 0, blocks_release = 1, shows_warning = 1, export_marker = 1, updated_at = ?
-          WHERE action_code IN ('dvt_missing_ma_override', 'release_missing_ma_confirm', 'same_drawing_variant_after_release', 'main_drawing_restore', 'release')
-             OR phase = 'Release'
+          WHERE action_code IN ('release_missing_ma_confirm', 'same_drawing_variant_after_release', 'main_drawing_restore', 'release')
              OR record_status = 'Released'
         `
         )
@@ -6075,37 +5981,6 @@ export function applyNumberingRuleTemplate(input: ApplyNumberingRuleTemplateInpu
 }
 
 function applyApprovedNumberingRequest(database: SqliteDatabase, request: NumberingApprovalRecord, actorId: string) {
-  if (request.actionCode === "dvt_promotion") {
-    const partNumberFromPayload = String(request.payload.partNumber ?? "").trim();
-    const partRow = selectPartNumberById(database, request.entityId) ?? selectPartNumberByNumber(database, partNumberFromPayload);
-    if (!partRow) {
-      throw new Error(`PART_NUMBER_NOT_FOUND: ${request.entityId}`);
-    }
-    const now = new Date().toISOString();
-    database
-      .prepare("UPDATE part_numbers SET development_phase = 'DVT', record_status = 'Active', updated_at = ? WHERE id = ?")
-      .run(now, partRow.id);
-    database.prepare("UPDATE part_roots SET development_phase = 'DVT', record_status = 'Active', updated_at = ? WHERE id = ?").run(now, partRow.part_root_id);
-    database
-      .prepare(
-        `
-        UPDATE drawing_numbers
-        SET development_phase = 'DVT',
-            record_status = CASE WHEN record_status = 'PendingReview' THEN 'Active' ELSE record_status END,
-            updated_at = ?
-        WHERE part_root_id = ?
-          AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
-      `
-      )
-      .run(now, partRow.part_root_id);
-    insertAudit(database, {
-      actorId,
-      action: "numbering.dvt.approved",
-      detail: { approvalRequestId: request.id, partNumber: partRow.part_number }
-    });
-    return;
-  }
-
   if (request.actionCode === "release") {
     const partNumberFromPayload = String(request.payload.partNumber ?? "").trim();
     const partRow = selectPartNumberById(database, request.entityId) ?? selectPartNumberByNumber(database, partNumberFromPayload);
@@ -6114,15 +5989,14 @@ function applyApprovedNumberingRequest(database: SqliteDatabase, request: Number
     }
     const now = new Date().toISOString();
     database
-      .prepare("UPDATE part_numbers SET development_phase = 'Release', record_status = 'Released', updated_at = ? WHERE id = ?")
+      .prepare("UPDATE part_numbers SET record_status = 'Released', updated_at = ? WHERE id = ?")
       .run(now, partRow.id);
-    database.prepare("UPDATE part_roots SET development_phase = 'Release', record_status = 'Released', updated_at = ? WHERE id = ?").run(now, partRow.part_root_id);
+    database.prepare("UPDATE part_roots SET record_status = 'Released', updated_at = ? WHERE id = ?").run(now, partRow.part_root_id);
     database
       .prepare(
         `
         UPDATE drawing_numbers
-        SET development_phase = 'Release',
-            record_status = CASE WHEN record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled') THEN 'Released' ELSE record_status END,
+        SET record_status = CASE WHEN record_status NOT IN ('Obsolete', 'Merged') THEN 'Released' ELSE record_status END,
             updated_at = ?
         WHERE part_root_id = ?
       `
@@ -6394,12 +6268,8 @@ function evaluateNumberingGateInDatabase(database: SqliteDatabase, input: Evalua
     });
   }
 
-  const requiresOverride = issues.some((issue) => issue.code === "PRIMARY_MA_REQUIRED");
-  const approvalActionCode: NumberingApprovalActionCode | null = requiresOverride
-    ? input.gate === "DVT"
-      ? "dvt_missing_ma_override"
-      : "release_missing_ma_confirm"
-    : null;
+  const requiresOverride = input.gate === "Release" && issues.some((issue) => issue.code === "PRIMARY_MA_REQUIRED");
+  const approvalActionCode: NumberingApprovalActionCode | null = requiresOverride ? "release_missing_ma_confirm" : null;
   const approvedOverride = approvalActionCode
     ? hasApprovedNumberingApproval(database, {
         entityType: "part_number",
@@ -6428,68 +6298,14 @@ export function evaluateNumberingGate(input: EvaluateNumberingGateInput): Number
   return evaluateNumberingGateInDatabase(database, input);
 }
 
-function listDrawingNumbersForRoot(database: SqliteDatabase, rootId: string) {
-  return (
-    database
-      .prepare("SELECT * FROM drawing_numbers WHERE part_root_id = ? ORDER BY purpose_code ASC, sequence_no ASC, drawing_number ASC")
-      .all(rootId) as DrawingNumberRow[]
-  ).map(mapDrawingNumber);
-}
-
-function classifyDvtPromotionCandidate(gate: NumberingGateEvaluation): Pick<DvtPromotionCandidateRecord, "status" | "recommendedAction" | "missingItems"> {
-  const missingItems = gate.issues.map((issue) => issue.message);
-  if (gate.allowed && !gate.requiresOverride) {
-    return { status: "ready", recommendedAction: "submit_dvt", missingItems };
-  }
-  if (gate.requiresOverride && gate.approvalActionCode === "dvt_missing_ma_override") {
-    return { status: "needs_override", recommendedAction: "keep_evt", missingItems };
-  }
-  return { status: "blocked", recommendedAction: "keep_evt", missingItems };
-}
-
-export function listDvtPromotionCandidates(input: ListDvtPromotionCandidatesInput = {}): DvtPromotionCandidateRecord[] {
-  const database = getDb();
-  const limit = clampListLimit(input.limit);
-  const rows = database
-    .prepare(
-      `
-      SELECT *
-      FROM part_numbers
-      WHERE development_phase = 'EVT'
-        AND record_status NOT IN ('PendingReview', 'Released', 'Obsolete', 'Merged', 'EVTDisabled')
-      ORDER BY updated_at DESC, part_number ASC
-      LIMIT ?
-    `
-    )
-    .all(limit) as PartNumberRow[];
-
-  return rows
-    .map((row) => {
-      const rootRow = selectPartRootById(database, row.part_root_id);
-      if (!rootRow) return null;
-      const partNumber = mapPartNumber(row);
-      const gate = evaluateNumberingGateInDatabase(database, { partNumber: partNumber.partNumber, gate: "DVT" });
-      const classification = classifyDvtPromotionCandidate(gate);
-      return {
-        root: mapPartRoot(rootRow),
-        partNumber,
-        drawingNumbers: listDrawingNumbersForRoot(database, row.part_root_id),
-        gate,
-        ...classification
-      } satisfies DvtPromotionCandidateRecord;
-    })
-    .filter((candidate): candidate is DvtPromotionCandidateRecord => Boolean(candidate))
-    .filter((candidate) => input.includeBlocked !== false || candidate.status !== "blocked");
-}
-
-function markRootClosedIfNoOpenParts(database: SqliteDatabase, rootId: string, status: "EVTDisabled" | "Obsolete", now: string) {
+function markRootClosedIfNoOpenParts(database: SqliteDatabase, rootId: string, status: "Obsolete", now: string) {
   const openCount = database
     .prepare(
       `
       SELECT COUNT(*) AS count
       FROM part_numbers
       WHERE part_root_id = ?
-        AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+        AND record_status NOT IN ('Obsolete', 'Merged')
     `
     )
     .get(rootId) as { count: number };
@@ -6499,143 +6315,6 @@ function markRootClosedIfNoOpenParts(database: SqliteDatabase, rootId: string, s
   } else {
     database.prepare("UPDATE part_roots SET updated_at = ? WHERE id = ?").run(now, rootId);
   }
-}
-
-function markPartPendingDvtReview(database: SqliteDatabase, partRow: PartNumberRow, now: string) {
-  database
-    .prepare("UPDATE part_numbers SET development_phase = 'DVT', record_status = 'PendingReview', updated_at = ? WHERE id = ?")
-    .run(now, partRow.id);
-  database
-    .prepare("UPDATE part_roots SET development_phase = 'DVT', record_status = 'PendingReview', updated_at = ? WHERE id = ?")
-    .run(now, partRow.part_root_id);
-  database
-    .prepare(
-      `
-      UPDATE drawing_numbers
-      SET development_phase = 'DVT',
-          record_status = CASE WHEN record_status IN ('Draft', 'Active', 'NeedInfo') THEN 'PendingReview' ELSE record_status END,
-          updated_at = ?
-      WHERE part_root_id = ?
-        AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
-    `
-    )
-    .run(now, partRow.part_root_id);
-}
-
-export function submitDvtPromotionDecisions(input: SubmitDvtPromotionInput): DvtPromotionSubmissionRecord {
-  const decisions = input.decisions.filter((decision) => decision.partNumber.trim());
-  if (decisions.length === 0) {
-    throw new Error("DVT_PROMOTION_REQUIRES_DECISIONS");
-  }
-
-  const database = getDb();
-  return database.transaction(() => {
-    const approvalRequests: NumberingApprovalRecord[] = [];
-    const decisionResults: DvtPromotionDecisionResult[] = [];
-    const now = new Date().toISOString();
-
-    for (const decision of decisions) {
-      const partRow = selectPartNumberByNumber(database, decision.partNumber.trim());
-      if (!partRow) {
-        throw new Error(`PART_NUMBER_NOT_FOUND: ${decision.partNumber}`);
-      }
-      if (partRow.development_phase !== "EVT") {
-        decisionResults.push({
-          partNumber: partRow.part_number,
-          action: decision.action,
-          status: "skipped",
-          message: "Only EVT part numbers can be processed by the DVT promotion list.",
-          approvalRequestId: null
-        });
-        continue;
-      }
-
-      if (decision.action === "submit_dvt") {
-        const gate = evaluateNumberingGateInDatabase(database, { partNumber: partRow.part_number, gate: "DVT" });
-        if (!gate.allowed || gate.requiresOverride) {
-          decisionResults.push({
-            partNumber: partRow.part_number,
-            action: decision.action,
-            status: "skipped",
-            message: "DVT gate is not complete; keep the item in EVT until missing data is resolved.",
-            approvalRequestId: null
-          });
-          continue;
-        }
-        markPartPendingDvtReview(database, partRow, now);
-        const approvalRequest = insertNumberingApprovalRequest(database, {
-          actionCode: "dvt_promotion",
-          entityType: "part_number",
-          entityId: partRow.id,
-          reason: decision.reason?.trim() || "EVT to DVT promotion",
-          payload: {
-            partNumber: partRow.part_number,
-            fromPhase: "EVT",
-            toPhase: "DVT",
-            rootId: partRow.part_root_id
-          },
-          requestedBy: input.submittedBy
-        });
-        approvalRequests.push(approvalRequest);
-        decisionResults.push({
-          partNumber: partRow.part_number,
-          action: decision.action,
-          status: "submitted",
-          message: "Submitted to DVT review batch.",
-          approvalRequestId: approvalRequest.id
-        });
-        continue;
-      }
-
-      if (decision.action === "keep_evt") {
-        insertAudit(database, {
-          actorId: input.submittedBy,
-          action: "numbering.dvt.keep_evt",
-          detail: { partNumber: partRow.part_number, reason: decision.reason?.trim() || null }
-        });
-        decisionResults.push({
-          partNumber: partRow.part_number,
-          action: decision.action,
-          status: "kept",
-          message: "Kept in EVT.",
-          approvalRequestId: null
-        });
-        continue;
-      }
-
-      const nextStatus: "EVTDisabled" | "Obsolete" = decision.action === "disable_evt" ? "EVTDisabled" : "Obsolete";
-      database.prepare("UPDATE part_numbers SET record_status = ?, updated_at = ? WHERE id = ?").run(nextStatus, now, partRow.id);
-      markRootClosedIfNoOpenParts(database, partRow.part_root_id, nextStatus, now);
-      insertAudit(database, {
-        actorId: input.submittedBy,
-        action: decision.action === "disable_evt" ? "numbering.dvt.disable_evt" : "numbering.dvt.obsolete",
-        detail: { partNumber: partRow.part_number, status: nextStatus, reason: decision.reason?.trim() || null }
-      });
-      decisionResults.push({
-        partNumber: partRow.part_number,
-        action: decision.action,
-        status: decision.action === "disable_evt" ? "disabled" : "obsolete",
-        message: decision.action === "disable_evt" ? "EVT item disabled." : "EVT item obsoleted.",
-        approvalRequestId: null
-      });
-    }
-
-    const approvalBatch =
-      approvalRequests.length > 0
-        ? createNumberingApprovalBatchInDatabase(database, {
-            approvalRequestIds: approvalRequests.map((approvalRequest) => approvalRequest.id),
-            projectCode: input.projectCode,
-            actionCode: "dvt_promotion",
-            submittedBy: input.submittedBy
-          })
-        : null;
-
-    return {
-      approvalBatch,
-      approvalRequests,
-      decisions: decisionResults
-    };
-  })();
 }
 
 export function analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): MainDrawingImpactAnalysis {
@@ -6900,10 +6579,6 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
     filters.push("r.record_status = ?");
     params.push(input.recordStatus);
   }
-  if (input.developmentPhase) {
-    filters.push("r.development_phase = ?");
-    params.push(input.developmentPhase);
-  }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   return database
     .prepare(
@@ -6916,7 +6591,6 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
         r.root_code AS display_code,
         r.core_name AS display_name,
         r.item_kind,
-        r.development_phase,
         r.record_status,
         NULL AS purpose_code,
         NULL AS part_number,
@@ -6959,10 +6633,6 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
     filters.push("p.record_status = ?");
     params.push(input.recordStatus);
   }
-  if (input.developmentPhase) {
-    filters.push("p.development_phase = ?");
-    params.push(input.developmentPhase);
-  }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   return database
     .prepare(
@@ -6975,7 +6645,6 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
         p.part_number AS display_code,
         p.part_name AS display_name,
         p.item_kind,
-        p.development_phase,
         p.record_status,
         NULL AS purpose_code,
         p.part_number,
@@ -7024,10 +6693,6 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
   }
-  if (input.developmentPhase) {
-    filters.push("d.development_phase = ?");
-    params.push(input.developmentPhase);
-  }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   return database
     .prepare(
@@ -7040,7 +6705,6 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
         d.drawing_number AS display_code,
         d.purpose_description AS display_name,
         r.item_kind,
-        d.development_phase,
         d.record_status,
         d.purpose_code,
         NULL AS part_number,
@@ -7137,10 +6801,6 @@ export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
   if (input.recordStatus) {
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
-  }
-  if (input.developmentPhase) {
-    filters.push("d.development_phase = ?");
-    params.push(input.developmentPhase);
   }
   if (input.purposeCode) {
     filters.push("d.purpose_code = ?");
@@ -7473,10 +7133,6 @@ function buildPartModuleWhere(input: PartModuleListInput) {
   if (input.recordStatus) {
     where.push("p.record_status = ?");
     params.push(input.recordStatus);
-  }
-  if (input.developmentPhase) {
-    where.push("p.development_phase = ?");
-    params.push(input.developmentPhase);
   }
   return {
     sql: where.length ? `WHERE ${where.join(" AND ")}` : "",
@@ -7989,7 +7645,6 @@ export function decidePartCostChangeRequest(input: DecidePartCostChangeRequestIn
 export function createNumberingRecord(input: CreateNumberingRecordInput) {
   const database = getDb();
   const companyId = input.companyId ?? "company-jenfu";
-  const developmentPhase = input.developmentPhase ?? "EVT";
   const recordStatus = input.recordStatus ?? "Draft";
   const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
   const isUniversal = input.isUniversal ?? false;
@@ -7999,7 +7654,6 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
     const root = insertPartRoot(database, {
       coreName: rootName,
       itemKind: input.itemKind,
-      developmentPhase,
       recordStatus,
       ruleVersionId,
       createdBy: input.createdBy
@@ -8007,7 +7661,6 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
     const partNumber = insertPartNumber(database, root, {
       partName: root.coreName,
       itemKind: input.itemKind,
-      developmentPhase,
       recordStatus,
       isUniversal,
       universalReason: input.universalReason,
@@ -8020,7 +7673,6 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
       ? insertDrawingNumber(database, root, {
           purposeCode: input.drawingPurposeCode,
           purposeDescription: input.drawingPurposeDescription,
-          developmentPhase,
           recordStatus,
           ruleVersionId,
           createdBy: input.createdBy
@@ -8061,7 +7713,6 @@ export function addPartNumberToRoot(input: AddPartNumberInput) {
     const partNumber = insertPartNumber(database, root, {
       partName: root.coreName,
       itemKind: input.itemKind ?? root.itemKind,
-      developmentPhase: input.developmentPhase ?? root.developmentPhase,
       recordStatus: input.recordStatus ?? "Draft",
       isUniversal,
       universalReason: input.universalReason,
@@ -8090,7 +7741,6 @@ export function addDrawingNumberToRoot(input: AddDrawingNumberInput) {
     const drawingNumber = insertDrawingNumber(database, root, {
       purposeCode: input.purposeCode,
       purposeDescription: input.purposeDescription,
-      developmentPhase: input.developmentPhase ?? root.developmentPhase,
       recordStatus: input.recordStatus ?? "Draft",
       ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
       createdBy: input.createdBy

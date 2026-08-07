@@ -190,7 +190,7 @@ try {
     "src/app/api/numbering/relations/route.ts",
     "src/app/api/numbering/draft-workspaces/route.ts"
   ].map((file) => fs.readFileSync(path.join(root, file), "utf8"));
-  record("SERIES-012 publication copies series code to official part", repositorySource.includes("custom_specification, series_code, development_phase") && repositorySource.includes("seriesCode: part.seriesCode"), "publication SQL and parameter mapping");
+  record("SERIES-012 publication copies series code to official part", repositorySource.includes("custom_specification, series_code, record_status") && repositorySource.includes("seriesCode: part.seriesCode"), "publication SQL and parameter mapping");
   record(
     "SERIES-013 all module pages expose the shared series-code filter",
     modulePageSources.every((source) => source.includes('seriesCodeOptions') && source.includes('params.set("seriesCode", seriesCode)') && source.includes('系列代號')) &&

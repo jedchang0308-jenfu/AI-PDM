@@ -67,6 +67,22 @@ export type SubmissionFile = {
   created_at: string;
 };
 
+export type SubmissionPartScope = {
+  id: string;
+  submission_id: string;
+  company_id: string;
+  item_id: string;
+  part_number_id: string;
+  part_number: string;
+  part_name: string;
+  link_type: "primary_manufacturing" | "reference";
+  form_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+  fit_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+  function_state: "no_impact" | "suspected_impact" | "confirmed_impact";
+  fff_outcome: "no_impact" | "suspected_impact" | "confirmed_impact";
+  created_at: string;
+};
+
 export type FileReference = {
   id: string;
   submission_id: string;
@@ -539,24 +555,6 @@ export type ChangeRequest = {
   updated_at: string;
 };
 
-export type PhaseGateCheck = {
-  id: string;
-  submission_id: string;
-  gate_code: "concept" | "design" | "verification" | "release";
-  gate_name: string;
-  checklist_item: string;
-  required: 0 | 1;
-  status: "open" | "completed" | "waived";
-  created_by: string;
-  created_by_name: string;
-  decided_by: string | null;
-  decided_by_name: string | null;
-  decision_comment: string | null;
-  decided_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type ApprovalMatrixRequirement = {
   id: string;
   submission_id: string;
@@ -595,8 +593,10 @@ export type PdfMarkup = {
 
 export type SubmissionDetail = SubmissionSummary & {
   files: SubmissionFile[];
+  part_scopes: SubmissionPartScope[];
   references: FileReference[];
   revision_package?: {
+    effective_status?: "Pending" | "ReviewApproved" | "Released" | "Cancelled" | null;
     files: Array<{
       source_attachment_id: string | null;
       submission_file_id: string | null;

@@ -150,7 +150,7 @@ try {
   } catch (error) {
     eventMutation = String(error);
   }
-  record("domain", "NSF-EVT-append-only", eventMutation.includes("NUMBER_CANDIDATE_EVENT_APPEND_ONLY"), eventMutation);
+  record("domain", "NSF-EVENT-append-only", eventMutation.includes("NUMBER_CANDIDATE_EVENT_APPEND_ONLY"), eventMutation);
 
   const permissions = db.prepare(`
     SELECT r.role_code, p.permission_code

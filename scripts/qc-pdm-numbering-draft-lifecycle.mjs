@@ -181,7 +181,6 @@ try {
       coreName: `QC draft lifecycle root ${unique}`,
       partName: `QC draft lifecycle part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -240,7 +239,6 @@ try {
       coreName: `QC overdue old root ${unique}`,
       partName: `QC overdue old part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -254,7 +252,6 @@ try {
       coreName: `QC overdue fresh root ${unique}`,
       partName: `QC overdue fresh part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },

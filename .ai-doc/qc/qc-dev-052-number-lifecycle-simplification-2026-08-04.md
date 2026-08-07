@@ -69,3 +69,10 @@ Evidence root: `output/playwright/dev052-real-operation/DEV052-20260804-045957-l
 ## 6. Deferred Release Gate
 
 本次PASS只涵蓋local implementation，不等於production release。另有明確release指令與target evidence前，不執行production migration/backfill、feature activation、真實GCS authority、live approval、deploy、release或production smoke。Release前仍須確認target identity、backup、rollback、recovery owner、old/new reader相容與staging smoke。
+
+## 7. 2026-08-06 Independent Revalidation
+
+- `npm run qc:dev-052` exit 0：schema 12/12、data protection 4/4、HTTP 10/10、UI 16/16、flow 8/8、AI real-operation 41/41；附帶revision policy、number-state runtime、Supabase migration與TypeScript gate全數通過。
+- Current run：`output/playwright/dev052-real-operation/DEV052-20260806-015522-local-isolated/`；manifest為`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。
+- DEV-053／lifecycle回歸另由同一獨立QC freeze依序執行，未以共用固定3000或production資料代替隔離fixture。
+- 最終判定維持`PASS / P0=0 / P1=0 / P2=0`；commit、migration、activation、deploy與production release未授權。

@@ -18,9 +18,25 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev053-real-opera
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(dataDir, "repository");
 const databasePath = path.join(dataDir, "ai-pdm.sqlite");
-const distDirRelative = `.tmp/next-qc-dev053-real-operation-${crypto.randomUUID()}`;
+const distDirRelative = `.tmp/q53-${crypto.randomUUID().slice(0, 8)}`;
 const distDir = path.join(root, ...distDirRelative.split("/"));
 const fixturePdf = path.join(tempRoot, "dev053-primary-drawing.pdf");
+const existingFileFixtures = {
+  trusted: {
+    fileId: "dev053-real-existing-file",
+    assetId: "dev053-real-existing-asset",
+    fileName: "dev053-existing-primary.sldprt",
+    bytes: Buffer.from("DEV053 trusted legacy CAD payload\n", "utf8"),
+    contentHashOverride: null
+  },
+  mismatched: {
+    fileId: "dev053-real-mismatched-file",
+    assetId: "dev053-real-mismatched-asset",
+    fileName: "dev053-mismatched-primary.sldprt",
+    bytes: Buffer.from("DEV053 tampered legacy CAD payload\n", "utf8"),
+    contentHashOverride: "0".repeat(64)
+  }
+};
 const password = "DEV053-Real-Operation-2026";
 const fixture = {
   workspaceId: "dev053-real-candidate",
@@ -50,11 +66,17 @@ const sourceFiles = [
   "src/app/numbering/drawings/page.tsx",
   "src/app/api/numbering/drawings/workbench/route.ts",
   "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
+  "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
   "src/components/drawing-workbench.tsx",
   "src/components/master-attachment-panel.tsx",
+  "src/components/numbering-candidate-revision-editor.tsx",
   "src/components/numbering-contextual-entrypoints.tsx",
+  "src/app/numbering/revisions/page.tsx",
   "src/lib/drawing-workbench.ts",
+  "src/lib/number-lifecycle-simplification.ts",
+  "src/lib/publication-evidence.ts",
   "src/lib/repositories/drawing-workbench-async-repository.ts",
+  "src/lib/repositories/number-lifecycle-simplification-async-repository.ts",
   "src/lib/repositories/master-attachment-async-repository.ts",
   "src/lib/repositories/master-attachment-repository.ts",
   "db/postgres/022_unified_drawing_workbench.sql",
@@ -64,6 +86,7 @@ const sourceFiles = [
 const results = [];
 const screenshots = [];
 const browserErrors = [];
+const expectedBrowserErrors = [];
 const failedResponses = [];
 const observedRequests = [];
 const visibleErrors = [];
@@ -161,6 +184,45 @@ function seedFixture() {
       ) VALUES ('dev053-real-master-link', 'dev053-real-master-drawing', 'dev053-real-master-part',
         'primary_manufacturing', ?, ?)` ).run(user.id, now);
   })();
+}
+
+function seedExistingCandidateFile(candidateId, fileFixture) {
+  const current = database.prepare(`SELECT row_version FROM numbering_candidate_revision_drafts
+    WHERE id = ? AND workspace_id = ?`).get(candidateId, fixture.workspaceId);
+  if (!current) throw new Error(`DEV053_EXISTING_FILE_CANDIDATE_NOT_FOUND:${candidateId}`);
+  const storageKey = ["candidate-revisions", "company-jenfu", candidateId, `${fileFixture.fileId}-${fileFixture.fileName}`].join("/");
+  const originalPath = path.join(repositoryDir, ...storageKey.split("/"));
+  fs.mkdirSync(path.dirname(originalPath), { recursive: true });
+  fs.writeFileSync(originalPath, fileFixture.bytes);
+  const actualHash = sha(fileFixture.bytes);
+  const contentHash = fileFixture.contentHashOverride ?? actualHash;
+  const now = new Date().toISOString();
+  database.transaction(() => {
+    database.prepare(`INSERT INTO file_assets (
+        id, storage_provider, original_path, storage_key, file_name, file_ext, mime_type, file_size,
+        content_hash, hash_algorithm, linked_entity_type, linked_entity_id, document_category,
+        display_name, description, revision, uploaded_by, gdrive_status, sync_status, created_at, updated_at
+      ) VALUES (?, 'local_repository', ?, ?, ?, '.sldprt', 'application/octet-stream', ?, ?, 'SHA-256',
+        'numbering_candidate_revision', ?, 'cad_3d', ?, '', '0.1', ?, 'none', 'migrated', ?, ?)`)
+      .run(fileFixture.assetId, originalPath, storageKey, fileFixture.fileName, fileFixture.bytes.byteLength,
+        contentHash, candidateId, fileFixture.fileName, user.id, now, now);
+    database.prepare(`INSERT INTO numbering_candidate_revision_files (
+        id, company_id, candidate_revision_id, source_file_asset_id, publication_evidence_id,
+        role, role_source, display_name, description, sort_order, is_primary, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, ?, NULL, 'cad_3d', 'migration', ?, '', 0, 1, ?, ?, ?)`)
+      .run(fileFixture.fileId, candidateId, fileFixture.assetId, fileFixture.fileName, user.id, now, now);
+    database.prepare(`UPDATE numbering_candidate_revision_drafts
+      SET row_version = row_version + 1, updated_at = ? WHERE id = ? AND row_version = ?`)
+      .run(now, candidateId, Number(current.row_version));
+  })();
+  return {
+    ...fileFixture,
+    originalPath,
+    storageKey,
+    actualHash,
+    contentHash,
+    expectedRowVersion: Number(current.row_version) + 1
+  };
 }
 
 async function capture(page, name) {
@@ -282,7 +344,8 @@ async function run() {
     DATABASE_URL: "",
     PDM_STORAGE_PROVIDER: "local_repository",
     PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
-    PDM_PUBLICATION_EVIDENCE_MODE: "local_fake",
+    PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+    PDM_PUBLICATION_EVIDENCE_MODE: "",
     PDM_RELEASE_MODE: "local_stub",
     PDM_NUMBER_STATE_FLOW_V1: "true",
     PDM_NUMBER_LIFECYCLE_V2: "true",
@@ -308,6 +371,17 @@ async function run() {
   ]) {
     await fetch(`${baseUrl}${route}`, { redirect: "manual" }).catch(() => null);
   }
+  const existingFileVerificationWarmPath =
+    "/api/numbering/draft-workspaces/prewarm/candidate-revisions/prewarm/files";
+  let existingFileVerificationWarmStatus = 404;
+  for (let attempt = 0; attempt < 20 && existingFileVerificationWarmStatus === 404; attempt += 1) {
+    const response = await fetch(`${baseUrl}${existingFileVerificationWarmPath}`, { redirect: "manual" }).catch(() => null);
+    existingFileVerificationWarmStatus = response?.status ?? 0;
+    if (existingFileVerificationWarmStatus === 404) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  if (existingFileVerificationWarmStatus === 404 || existingFileVerificationWarmStatus === 0) {
+    throw new Error(`DEV053_EXISTING_FILE_VERIFICATION_ROUTE_NOT_READY:${existingFileVerificationWarmStatus}`);
+  }
   await new Promise((resolve) => setTimeout(resolve, 500));
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -315,7 +389,17 @@ async function run() {
   const page = await context.newPage();
   const approverPage = await approverContext.newPage();
   const monitor = (target, actor) => {
-    target.on("console", (message) => { if (message.type() === "error") browserErrors.push({ type: "console", actor, text: message.text().slice(0, 500) }); });
+    target.on("console", (message) => {
+      if (message.type() !== "error") return;
+      const location = message.location();
+      browserErrors.push({
+        type: "console",
+        actor,
+        text: message.text().slice(0, 500),
+        url: location.url || null,
+        lineNumber: location.lineNumber ?? null
+      });
+    });
     target.on("pageerror", (error) => browserErrors.push({ type: "pageerror", actor, text: error.message.slice(0, 500) }));
     target.on("request", (request) => {
       const url = new URL(request.url());
@@ -357,16 +441,17 @@ async function run() {
     await page.locator('[role="tab"]').count() === 0 && await page.locator(".number-state-tabs").count() === 0,
     { url: page.url() });
   const headers = await page.locator(".drawing-workbench-table thead th").allTextContents();
-  record("DEV053-REAL-002 rendered list has four decision columns",
-    JSON.stringify(headers.map((value) => value.trim())) === JSON.stringify(["圖號", "品名", "工作狀態", "下一步"]), { headers });
+  record("DEV053-REAL-002 rendered list has three scan columns",
+    JSON.stringify(headers.map((value) => value.trim())) === JSON.stringify(["圖號", "品名", "工作狀態"]), { headers });
 
   const search = page.getByPlaceholder("圖號、品名、料號");
   await searchWorkbench(page, search, "Z3053-M01");
   await page.getByRole("button", { name: "Z3053-M01", exact: true }).waitFor({ state: "visible" });
   const candidateRow = page.locator(".drawing-workbench-table tbody tr").filter({ has: page.getByRole("button", { name: "Z3053-M01", exact: true }) });
-  record("DEV053-REAL-003 existing reservation advances in-place",
-    await page.getByRole("button", { name: "完成首版", exact: true }).count() === 1 &&
+  record("DEV053-REAL-003 list row removes the repeated next-step action",
+    await candidateRow.getByRole("button", { name: "完成首版", exact: true }).count() === 0 &&
     (await candidateRow.innerText()).includes("尚不可正式使用"));
+  await candidateRow.getByRole("button", { name: "Z3053-M01", exact: true }).click();
   await page.getByRole("dialog").waitFor({ state: "visible" });
   record("DEV053-REAL-004 candidate drawer exposes state risk and one next step",
     (await page.getByRole("dialog").innerText()).includes("尚不可正式使用") &&
@@ -377,21 +462,23 @@ async function run() {
 
   await searchWorkbench(page, search, "Z4053-M01");
   await page.getByRole("button", { name: "Z4053-M01", exact: true }).waitFor({ state: "visible" });
-  await page.getByText("受控檔案摘要", { exact: true }).waitFor({ state: "visible" });
+  await page.getByText("受控版次檔案", { exact: true }).waitFor({ state: "visible" });
+  await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalMasterRowText = await page.locator(".drawing-workbench-table tbody tr").innerText();
   const formalMasterDrawer = page.getByRole("dialog", { name: "圖號明細" });
   const formalMasterDrawerText = await formalMasterDrawer.innerText();
-  record("DEV053-REAL-005 formal master preserves management capabilities and controlled files stay read-only",
-    await page.getByRole("button", { name: "上傳檔案", exact: true }).count() === 0 &&
-    await page.getByRole("button", { name: "刪除", exact: true }).count() === 0 &&
+  const initialControlledPanel = page.locator(".master-attachment-panel").filter({ has: page.getByText("受控版次檔案", { exact: true }) });
+  const disabledRevisionButtons = formalMasterDrawer.getByRole("button", { name: /圖面進版|上傳與送審/u });
+  record("DEV053-REAL-005 formal master preserves management capabilities, authority split and permission guidance",
+    await initialControlledPanel.getByRole("button", { name: /上傳|刪除/u }).count() === 0 &&
     formalMasterRowText.includes("料號：Z4053-P01") &&
     formalMasterDrawerText.includes("同主根號料號") && formalMasterDrawerText.includes("主要製造圖") &&
-    await formalMasterDrawer.getByRole("link", { name: "圖面進版", exact: true }).count() +
-      await formalMasterDrawer.getByRole("button", { name: "圖面進版", exact: true }).count() === 1 &&
-    await formalMasterDrawer.getByRole("link", { name: "上傳與送審", exact: true }).count() === 1 &&
+    formalMasterDrawerText.includes("post_release_change") && formalMasterDrawerText.includes("研發主管或 PDM Admin") &&
+    await disabledRevisionButtons.count() >= 2 && await disabledRevisionButtons.evaluateAll((buttons) => buttons.every((button) => button.hasAttribute("disabled"))) &&
     await formalMasterDrawer.getByRole("link", { name: "完整圖料關係", exact: true }).count() === 1 &&
     await formalMasterDrawer.getByRole("link", { name: "製造影響", exact: true }).count() === 1 &&
-    await formalMasterDrawer.getByRole("link", { name: "補標準成本", exact: true }).count() === 1 &&
+    await formalMasterDrawer.getByRole("link", { name: "補成本", exact: true }).count() === 1 &&
+    formalMasterDrawerText.includes("標準成本未設定（選填）") &&
     await formalMasterDrawer.getByRole("button", { name: "補主資料", exact: true }).count() === 1,
     { formalMasterRowText, formalMasterDrawerText });
   await capture(page, "master-read-only-drawer-1440x900.png");
@@ -526,6 +613,136 @@ async function run() {
   record("DEV053-REAL-011 clicking the unified CTA creates one candidate revision and no formal master",
     candidate?.revision === "0.1" && candidate?.lifecycle_status === "draft" && formalFacts().drawings === 0,
     { candidate });
+
+  const trustedExisting = seedExistingCandidateFile(candidate.id, existingFileFixtures.trusted);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator('[data-candidate-editor="true"]').waitFor({ state: "visible" });
+  const verifyExistingButton = page.getByRole("button", { name: "驗證既有檔案（1）", exact: true });
+  await verifyExistingButton.waitFor({ state: "visible" });
+  const trustedBefore = database.prepare(`SELECT asset.id AS asset_id, asset.original_path, asset.storage_key,
+      asset.file_name, asset.file_size, asset.content_hash, file.publication_evidence_id
+    FROM numbering_candidate_revision_files file
+    JOIN file_assets asset ON asset.id = file.source_file_asset_id
+    WHERE file.id = ?`).get(trustedExisting.fileId);
+  record("DEV053-REAL-011A legacy files show one no-reupload recovery action before submit",
+    await page.getByText("先驗證已保存的檔案，不用重新上傳。", { exact: true }).count() === 1 &&
+    await page.getByText("系統會逐檔核對內容完整性；原檔與編號都不會改變。", { exact: true }).count() === 1 &&
+    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 0,
+    { trustedBefore });
+
+  const verificationPath = `/api/numbering/draft-workspaces/${encodeURIComponent(fixture.workspaceId)}` +
+    `/candidate-revisions/${encodeURIComponent(candidate.id)}/files`;
+  const verificationIdempotencyKey = `dev053:verify-existing:${trustedExisting.fileId}:${trustedExisting.expectedRowVersion}`;
+  const verificationResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "PATCH" && new URL(response.url()).pathname === verificationPath,
+  { timeout: 30000 });
+  const [verificationResponse] = await Promise.all([verificationResponsePromise, verifyExistingButton.click()]);
+  const verificationBody = await verificationResponse.json().catch(() => ({}));
+  if (!verificationResponse.ok() || !verificationBody.workspace) {
+    throw new Error(`DEV053_EXISTING_VERIFICATION_FAILED:${verificationResponse.status()}:${JSON.stringify(verificationBody)}`);
+  }
+  await page.getByText("主要受控檔已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
+  const trustedAfter = database.prepare(`SELECT asset.id AS asset_id, asset.original_path, asset.storage_key,
+      asset.file_name, asset.file_size, asset.content_hash, file.publication_evidence_id,
+      evidence.bucket, evidence.object_key, evidence.generation, evidence.finalized_at
+    FROM numbering_candidate_revision_files file
+    JOIN file_assets asset ON asset.id = file.source_file_asset_id
+    LEFT JOIN numbering_publication_evidence evidence ON evidence.id = file.publication_evidence_id
+    WHERE file.id = ?`).get(trustedExisting.fileId);
+  const trustedCandidateAfter = database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id);
+  const verificationAudit = database.prepare(`SELECT action, detail_json FROM audit_logs
+    WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'
+      AND json_extract(detail_json, '$.candidateFileId') = ?`).get(trustedExisting.fileId);
+  record("DEV053-REAL-011B target-only verification preserves the existing asset and unlocks submit",
+    verificationBody.localDevelopmentEvidence === true &&
+    trustedBefore.asset_id === trustedAfter.asset_id && trustedBefore.original_path === trustedAfter.original_path &&
+    trustedBefore.storage_key === trustedAfter.storage_key && trustedBefore.file_name === trustedAfter.file_name &&
+    trustedBefore.file_size === trustedAfter.file_size && trustedBefore.content_hash === trustedAfter.content_hash &&
+    trustedAfter.content_hash === trustedExisting.actualHash && Boolean(trustedAfter.publication_evidence_id) &&
+    trustedAfter.bucket === "local-development-validation" && trustedAfter.object_key === trustedExisting.storageKey &&
+    String(trustedAfter.generation ?? "").startsWith("local-") && Boolean(trustedAfter.finalized_at) &&
+    trustedCandidateAfter.row_version === trustedExisting.expectedRowVersion + 1 && Boolean(verificationAudit) &&
+    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 1,
+    { verificationBody, trustedBefore, trustedAfter, trustedCandidateAfter, verificationAudit });
+  await capture(page, "candidate-ready-after-existing-file-verification-1440x900.png");
+
+  const beforeReplay = {
+    candidateVersion: database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id).row_version,
+    evidenceCount: database.prepare("SELECT count(*) AS count FROM numbering_publication_evidence WHERE object_key = ?").get(trustedExisting.storageKey).count,
+    auditCount: database.prepare("SELECT count(*) AS count FROM audit_logs WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'").get().count,
+    outboxCount: database.prepare("SELECT count(*) AS count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.candidate_revision.existing_file_verified.v1'").get().count
+  };
+  const replayResponse = await page.request.patch(`${baseUrl}${verificationPath}`, {
+    headers: { "content-type": "application/json", "Idempotency-Key": verificationIdempotencyKey },
+    data: { fileId: trustedExisting.fileId, expectedRowVersion: trustedExisting.expectedRowVersion }
+  });
+  const replayBody = await replayResponse.json().catch(() => ({}));
+  const afterReplay = {
+    candidateVersion: database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id).row_version,
+    evidenceCount: database.prepare("SELECT count(*) AS count FROM numbering_publication_evidence WHERE object_key = ?").get(trustedExisting.storageKey).count,
+    auditCount: database.prepare("SELECT count(*) AS count FROM audit_logs WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'").get().count,
+    outboxCount: database.prepare("SELECT count(*) AS count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.candidate_revision.existing_file_verified.v1'").get().count
+  };
+  record("DEV053-REAL-011C identical verification replay is receipt-backed and produces no duplicate write",
+    replayResponse.ok() && replayBody.receipt?.idempotentReplay === true &&
+    JSON.stringify(beforeReplay) === JSON.stringify(afterReplay),
+    { status: replayResponse.status(), replayBody, beforeReplay, afterReplay });
+
+  const trustedRemoveResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/${trustedExisting.fileId}/remove`),
+  { timeout: 30000 });
+  await Promise.all([
+    trustedRemoveResponsePromise,
+    page.getByRole("button", { name: `移除 ${trustedExisting.fileName}`, exact: true }).click()
+  ]);
+  await page.getByRole("button", { name: `移除 ${trustedExisting.fileName}`, exact: true }).waitFor({ state: "hidden" });
+
+  const mismatchedExisting = seedExistingCandidateFile(candidate.id, existingFileFixtures.mismatched);
+  await page.reload({ waitUntil: "networkidle" });
+  const mismatchedVerifyButton = page.getByRole("button", { name: "驗證既有檔案（1）", exact: true });
+  await mismatchedVerifyButton.waitFor({ state: "visible" });
+  const mismatchVerificationPath = `/api/numbering/draft-workspaces/${encodeURIComponent(fixture.workspaceId)}` +
+    `/candidate-revisions/${encodeURIComponent(candidate.id)}/files`;
+  const mismatchBrowserErrorStart = browserErrors.length;
+  const mismatchResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "PATCH" && new URL(response.url()).pathname === mismatchVerificationPath,
+  { timeout: 30000 });
+  const [mismatchResponse] = await Promise.all([mismatchResponsePromise, mismatchedVerifyButton.click()]);
+  const mismatchBody = await mismatchResponse.json().catch(() => ({}));
+  const mismatchAlert = page.getByRole("alert").filter({ hasText: "雜湊不一致" });
+  await mismatchAlert.waitFor({ state: "visible", timeout: 20000 });
+  await page.waitForTimeout(100);
+  const mismatchConsoleCandidates = browserErrors.splice(mismatchBrowserErrorStart);
+  const mismatchUnexpectedConsoleErrors = [];
+  for (const error of mismatchConsoleCandidates) {
+    let pathname = "";
+    try { pathname = error.url ? new URL(error.url).pathname : ""; } catch {}
+    const isExpected409 = error.actor === "operator" && error.type === "console" &&
+      error.text.includes("status of 409") && (!pathname || pathname === mismatchVerificationPath);
+    if (isExpected409) expectedBrowserErrors.push({ ...error, caseId: "DEV053-REAL-011D", expectedStatus: 409 });
+    else mismatchUnexpectedConsoleErrors.push(error);
+  }
+  browserErrors.push(...mismatchUnexpectedConsoleErrors);
+  const mismatchFile = database.prepare(`SELECT publication_evidence_id FROM numbering_candidate_revision_files WHERE id = ?`).get(mismatchedExisting.fileId);
+  const mismatchCandidate = database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id);
+  record("DEV053-REAL-011D hash mismatch fails closed, leaves the file unchanged and explains recovery",
+    mismatchResponse.status() === 409 && mismatchBody.error?.code === "candidate_file_verification_failed" &&
+    mismatchFile.publication_evidence_id === null && mismatchCandidate.row_version === mismatchedExisting.expectedRowVersion &&
+    (await mismatchAlert.innerText()).includes("請重新上傳正確原檔") &&
+    mismatchUnexpectedConsoleErrors.length === 0 &&
+    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 0,
+    { status: mismatchResponse.status(), mismatchBody, mismatchFile, mismatchCandidate,
+      expectedBrowserErrors: expectedBrowserErrors.filter((error) => error.caseId === "DEV053-REAL-011D"), mismatchUnexpectedConsoleErrors });
+  await capture(page, "candidate-existing-file-hash-mismatch-1440x900.png");
+  const mismatchRemoveResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/${mismatchedExisting.fileId}/remove`),
+  { timeout: 30000 });
+  await Promise.all([
+    mismatchRemoveResponsePromise,
+    page.getByRole("button", { name: `移除 ${mismatchedExisting.fileName}`, exact: true }).click()
+  ]);
+  await page.getByRole("button", { name: `移除 ${mismatchedExisting.fileName}`, exact: true }).waitFor({ state: "hidden" });
+
   await page.locator('[data-candidate-editor="true"] input[type="file"]').setInputFiles(fixturePdf);
   const uploadResponsePromise = page.waitForResponse((response) =>
     response.request().method() === "POST" &&
@@ -533,21 +750,27 @@ async function run() {
   { timeout: 30000 });
   const [uploadResponse] = await Promise.all([
     uploadResponsePromise,
-    page.getByRole("button", { name: "上傳主要檔案", exact: true }).click()
+    page.getByRole("button", { name: "上傳並完成驗證", exact: true }).click()
   ]);
   const uploadBody = await uploadResponse.json().catch(() => ({}));
   if (!uploadResponse.ok() || !uploadBody.workspace) {
     throw new Error(`DEV053_REAL_UPLOAD_FAILED:${uploadResponse.status()}:${JSON.stringify(uploadBody)}`);
   }
-  await page.getByText("證據已 finalized", { exact: false }).waitFor({ state: "visible", timeout: 20000 });
-  const uploaded = database.prepare(`SELECT asset.file_name, file.is_primary, file.publication_evidence_id
+  await page.getByText("主要受控檔已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
+  const uploaded = database.prepare(`SELECT asset.file_name, asset.original_path, asset.content_hash, file.is_primary,
+      file.publication_evidence_id, evidence.bucket, evidence.generation, evidence.finalized_at
     FROM numbering_candidate_revision_files file
     JOIN file_assets asset ON asset.id = file.source_file_asset_id
+    LEFT JOIN numbering_publication_evidence evidence ON evidence.id = file.publication_evidence_id
     JOIN numbering_candidate_revision_drafts candidate ON candidate.id = file.candidate_revision_id
     WHERE candidate.workspace_id = ? AND file.removed_at IS NULL`).all(fixture.workspaceId);
-  record("DEV053-REAL-012 browser file chooser creates one finalized primary drawing",
-    uploaded.length === 1 && uploaded[0].file_name === fixture.fileName && uploaded[0].is_primary === 1 && Boolean(uploaded[0].publication_evidence_id),
-    { uploaded });
+  const uploadedPath = uploaded[0]?.original_path;
+  const storedHash = uploadedPath && fs.existsSync(uploadedPath) ? sha(fs.readFileSync(uploadedPath)) : "";
+  record("DEV053-REAL-012 normal local validation reads back storage and creates finalized primary evidence",
+    uploadBody.localDevelopmentEvidence === true && uploaded.length === 1 && uploaded[0].file_name === fixture.fileName &&
+    uploaded[0].is_primary === 1 && Boolean(uploaded[0].publication_evidence_id) && uploaded[0].bucket === "local-development-validation" &&
+    String(uploaded[0].generation ?? "").startsWith("local-") && Boolean(uploaded[0].finalized_at) && storedHash === uploaded[0].content_hash,
+    { localDevelopmentEvidence: uploadBody.localDevelopmentEvidence, uploaded, storedHash });
   await capture(page, "candidate-ready-after-real-upload-1440x900.png");
 
   await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).click();
@@ -612,30 +835,32 @@ async function run() {
     await page.locator(".drawing-workbench-table tbody tr").count() === 1 &&
     (await page.locator(".drawing-workbench-table tbody tr").innerText()).includes("研發受控") &&
     await page.getByRole("button", { name: "完成首版", exact: true }).count() === 0);
-  await page.getByText("受控檔案摘要", { exact: true }).waitFor({ state: "visible" });
+  await page.getByText("受控版次檔案", { exact: true }).waitFor({ state: "visible" });
+  await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalAttachmentResponse = await page.request.get(
     `${baseUrl}/api/numbering/drawings/${encodeURIComponent(fixture.drawingCode)}/attachments`
   );
   const formalAttachmentBody = await formalAttachmentResponse.json().catch(() => ({}));
   const finalizedFile = page.getByText(fixture.fileName, { exact: true }).first();
   const finalizedFileVisible = await finalizedFile.waitFor({ state: "visible", timeout: 20000 }).then(() => true).catch(() => false);
-  const uploadButtonCount = await page.getByRole("button", { name: "上傳檔案", exact: true }).count();
-  const deleteButtonCount = await page.getByRole("button", { name: "刪除", exact: true }).count();
+  const controlledPanel = page.locator(".master-attachment-panel").filter({ has: page.getByText("受控版次檔案", { exact: true }) });
+  const controlledUploadButtonCount = await controlledPanel.getByRole("button", { name: /上傳/u }).count();
+  const controlledDeleteButtonCount = await controlledPanel.getByRole("button", { name: /刪除/u }).count();
   const effectiveStatuses = (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.revisionPackageEffectiveStatus);
   const controlledLabelVisible = await page.getByText("研發受控", { exact: true }).count() > 0;
   const misleadingPendingTextVisible = await page.getByText("待處理附件", { exact: true }).count() > 0 ||
     await page.getByText("尚未納入送審", { exact: false }).count() > 0;
-  record("DEV053-REAL-019 finalized master remains a read-only controlled-file authority",
+  record("DEV053-REAL-019 controlled revision files stay read-only and separate from reference attachments",
     formalAttachmentResponse.ok() && formalAttachmentBody.attachments?.length === 1 && finalizedFileVisible &&
-    uploadButtonCount === 0 && deleteButtonCount === 0 && effectiveStatuses.every((status) => status === "ReviewApproved") &&
+    controlledUploadButtonCount === 0 && controlledDeleteButtonCount === 0 && effectiveStatuses.every((status) => status === "ReviewApproved") &&
     controlledLabelVisible && !misleadingPendingTextVisible,
     {
       apiStatus: formalAttachmentResponse.status(),
       apiFiles: (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.fileName),
       effectiveStatuses,
       finalizedFileVisible,
-      uploadButtonCount,
-      deleteButtonCount,
+      controlledUploadButtonCount,
+      controlledDeleteButtonCount,
       controlledLabelVisible,
       misleadingPendingTextVisible
     });
@@ -680,7 +905,7 @@ async function run() {
   await collectVisibleErrors(approverPage, "approver");
   record("DEV053-REAL-023 no console error, visible error or 5xx response",
     browserErrors.length === 0 && failedResponses.length === 0 && visibleErrors.length === 0,
-    { browserErrors, failedResponses, visibleErrors });
+    { browserErrors, expectedBrowserErrors, failedResponses, visibleErrors });
   await Promise.all([context.close(), approverContext.close()]);
 }
 
@@ -731,6 +956,7 @@ const summary = {
   results,
   screenshots,
   browserErrors,
+  expectedBrowserErrors,
   failedResponses,
   visibleErrors,
   observedRequests
@@ -771,7 +997,7 @@ fs.writeFileSync(path.join(outputDir, "network-summary.json"), JSON.stringify({
   mutatingHttpEvents: observedRequests,
   failedResponses
 }, null, 2), "utf8");
-fs.writeFileSync(path.join(outputDir, "console-summary.json"), JSON.stringify({ runId, errors: browserErrors }, null, 2), "utf8");
+fs.writeFileSync(path.join(outputDir, "console-summary.json"), JSON.stringify({ runId, errors: browserErrors, expectedErrors: expectedBrowserErrors }, null, 2), "utf8");
 fs.writeFileSync(path.join(outputDir, "visible-error-summary.json"), JSON.stringify({ runId, errors: visibleErrors }, null, 2), "utf8");
 fs.writeFileSync(path.join(outputDir, "cleanup.json"), JSON.stringify({
   runId,

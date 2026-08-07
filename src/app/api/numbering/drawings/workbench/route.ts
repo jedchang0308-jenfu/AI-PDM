@@ -18,13 +18,16 @@ export async function GET(request: Request) {
   );
   if (companyResult.response) return companyResult.response;
   try {
-    const [workspaceView, workspaceUpdate, candidateSubmit, candidateReview, publish, createRevision] = await Promise.all([
+    const [workspaceView, workspaceUpdate, candidateSubmit, candidateReview, publish, createRevision, draftUpdate, manageReferenceAttachments, managePermissions] = await Promise.all([
       canUserUseNumberingActionAsync(auth.user, "numbering.workspace.view"),
       canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update"),
       canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.submit"),
       canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.decide"),
       canUserUseNumberingActionAsync(auth.user, "numbering.publish"),
-      canUserUseNumberingActionAsync(auth.user, "post_release_change")
+      canUserUseNumberingActionAsync(auth.user, "post_release_change"),
+      canUserUseNumberingActionAsync(auth.user, "numbering.draft.update"),
+      canUserUseNumberingActionAsync(auth.user, "numbering.attachments.manage"),
+      canUserUseNumberingActionAsync(auth.user, "settings.admin_matrix")
     ]);
     const result = await new DrawingWorkbenchService().list(normalizeDrawingWorkbenchQuery(new URL(request.url)), {
       id: auth.user.id,
@@ -35,7 +38,10 @@ export async function GET(request: Request) {
         candidateSubmit: candidateSubmit.allowed,
         candidateReview: candidateReview.allowed,
         publish: publish.allowed,
-        createRevision: createRevision.allowed
+        createRevision: createRevision.allowed,
+        draftUpdate: draftUpdate.allowed,
+        manageReferenceAttachments: manageReferenceAttachments.allowed,
+        managePermissions: managePermissions.allowed
       }
     });
     return NextResponse.json({ ...result, pdmCompany: companyResult.company }, {

@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
+import { restoreTrackedConfigSnapshots, stopNextProcess } from "./qc-next-tracked-config-guard.mjs";
 
 const root = process.cwd();
 const runId = crypto.randomUUID();
@@ -48,6 +49,9 @@ function startApp(port) {
     cwd: root,
     env: {
       ...process.env,
+      NODE_ENV: "development",
+      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+      PDM_PRODUCTION_SLICE_MODE: "",
       PDM_AUTH_MODE: "managed",
       PDM_BOOTSTRAP_USERS: JSON.stringify(bootstrapUsers),
       PDM_DATA_DIR: tempDir,
@@ -77,12 +81,7 @@ async function waitForApp(baseUrl) {
 }
 
 async function stopApp() {
-  if (!app || app.child.exitCode !== null) return;
-  app.child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => app.child.once("exit", resolve)),
-    delay(4000).then(() => { if (app.child.exitCode === null) app.child.kill("SIGTERM"); })
-  ]);
+  await stopNextProcess(app?.child);
 }
 
 async function removeTempDir(target) {
@@ -152,6 +151,9 @@ try {
     method: "POST", path: "/api/numbering/draft-workspaces", cookie: cookies.owner, company: "JENFU",
     key: "phase1c:http:create", body: rootPartBody("HTTP approval")
   });
+  if (created.status !== 201 || !created.body?.workspace) {
+    throw new Error(`HTTP_ROOT_CREATE_FAILED path=/api/numbering/draft-workspaces status=${created.status} body=${JSON.stringify(created.body)}`);
+  }
   const workspace = created.body.workspace;
   const acquired = await api(baseUrl, {
     method: "POST", path: `/api/numbering/draft-workspaces/${workspace.id}/candidate-numbers`, cookie: cookies.owner, company: "JENFU",
@@ -268,15 +270,15 @@ try {
   const published = await api(baseUrl, publishInput);
   const publishReplay = await api(baseUrl, publishInput);
   const officialRows = {
-    root: db.prepare("SELECT development_phase, record_status FROM part_roots WHERE id = ?").get(published.body?.masters?.rootId),
-    part: db.prepare("SELECT development_phase, record_status FROM part_numbers WHERE id = ?").get(published.body?.masters?.partIds?.[0]),
+    root: db.prepare("SELECT record_status FROM part_roots WHERE id = ?").get(published.body?.masters?.rootId),
+    part: db.prepare("SELECT record_status FROM part_numbers WHERE id = ?").get(published.body?.masters?.partIds?.[0]),
     eventCount: db.prepare("SELECT count(*) count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.official_number_published.v1' AND idempotency_key = 'phase1c:http:publish'").get().count
   };
   record(
-    "HTTP-C-009 explicit publish creates Active EVT masters once",
+    "HTTP-C-009 explicit publish creates Active masters once",
     published.status === 200 && publishReplay.status === 200 && publishReplay.body?.idempotentReplay === true &&
-      officialRows.root?.record_status === "Active" && officialRows.root?.development_phase === "EVT" &&
-      officialRows.part?.record_status === "Active" && officialRows.part?.development_phase === "EVT" && officialRows.eventCount === 1,
+      officialRows.root?.record_status === "Active" &&
+      officialRows.part?.record_status === "Active" && officialRows.eventCount === 1,
     { published: published.status, replay: publishReplay.body?.idempotentReplay, officialRows }
   );
 
@@ -299,7 +301,7 @@ try {
   record("HTTP-C-FIXTURE", false, { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined, serverTail: app?.output() ?? "" });
 } finally {
   await stopApp();
-  for (const [file, content] of generatedConfigSnapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
+  restoreTrackedConfigSnapshots(root, generatedConfigSnapshots);
   await removeTempDir(distDir);
   await removeTempDir(tempDir);
 }

@@ -12,6 +12,7 @@ import type {
   ItemLock,
   ReleasePackage,
   SubmissionLifecycleRequest,
+  SubmissionPartScope,
   SubmissionDetail,
   SubmissionFile,
   SubmissionSummary
@@ -63,6 +64,10 @@ type SubmissionDetailRow = SubmissionSummary & {
 
 type SubmissionSnapshotRow = {
   snapshot_json: string | null;
+};
+
+type SubmissionRevisionPackageStatusRow = {
+  effective_status: "Pending" | "ReviewApproved" | "Released" | "Cancelled" | null;
 };
 
 type ReuseCandidateRow = SubmissionSummaryRow & {
@@ -322,6 +327,46 @@ export const SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL = `
   LIMIT 1
 `;
 
+export const SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL = `
+  SELECT
+    CASE
+      WHEN p.status = 'Pending'
+       AND (
+         EXISTS (
+           SELECT 1
+           FROM drawing_revision_package_review_approvals companion
+           JOIN numbering_candidate_revision_drafts candidate
+             ON candidate.id = companion.candidate_revision_id
+            AND candidate.formal_revision_package_id = p.id
+           WHERE companion.package_id = p.id
+             AND companion.snapshot_hash = candidate.review_snapshot_hash
+         )
+         OR (
+           instr(p.revision, '.') > 0
+           AND EXISTS (
+             SELECT 1
+             FROM drawing_revision_fff_assessments fff
+             JOIN review_confirmation_events rce
+               ON rce.review_id = fff.id
+              AND rce.company_id = fff.company_id
+             WHERE fff.company_id = p.company_id
+               AND fff.submission_id = p.source_submission_id
+               AND rce.action IN (
+                 'confirm_bom_no_revision',
+                 'confirm_original_part_reuse',
+                 'approve_replacement_part_and_drawing_release'
+               )
+           )
+         )
+       )
+      THEN 'ReviewApproved'
+      ELSE p.status
+    END AS effective_status
+  FROM drawing_revision_packages p
+  WHERE p.source_submission_id = :id
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_DESIGN_REUSE_CANDIDATES_SQLITE = `
   SELECT
     s.id,
@@ -513,6 +558,13 @@ export const SELECT_ASYNC_SUBMISSION_FILES_SQL = `
   ORDER BY created_at ASC
 `;
 
+export const SELECT_ASYNC_SUBMISSION_PART_SCOPES_SQL = `
+  SELECT *
+  FROM submission_part_scopes
+  WHERE submission_id = :id
+  ORDER BY part_number ASC, part_number_id ASC
+`;
+
 export const SELECT_ASYNC_SUBMISSION_REFERENCES_SQL = `
   SELECT *
   FROM file_references
@@ -672,8 +724,9 @@ export class AsyncSubmissionListRepository {
     const row = await this.client.queryOne<SubmissionDetailRow>(SELECT_ASYNC_SUBMISSION_DETAIL_SQL, { id });
     if (!row) return null;
 
-    const [files, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom, snapshot] = await Promise.all([
+    const [files, partScopes, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom, snapshot, revisionPackageStatus] = await Promise.all([
       this.client.query<SubmissionFile>(SELECT_ASYNC_SUBMISSION_FILES_SQL, { id }),
+      this.client.query<SubmissionPartScope>(SELECT_ASYNC_SUBMISSION_PART_SCOPES_SQL, { id }),
       this.client.query<FileReference>(SELECT_ASYNC_SUBMISSION_REFERENCES_SQL, { id }),
       this.client.query<SubmissionDetail["approvals"][number]>(SELECT_ASYNC_SUBMISSION_APPROVALS_SQL, { id }),
       this.client.query<SubmissionDetail["audit_logs"][number]>(SELECT_ASYNC_SUBMISSION_AUDIT_LOGS_SQL, { id }),
@@ -684,7 +737,8 @@ export class AsyncSubmissionListRepository {
       }),
       this.client.queryOne<ReleasePackage>(SELECT_ASYNC_SUBMISSION_RELEASE_PACKAGE_SQL, { id }),
       this.getSubmissionBom(id),
-      this.client.queryOne<SubmissionSnapshotRow>(SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL, { id })
+      this.client.queryOne<SubmissionSnapshotRow>(SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL, { id }),
+      this.client.queryOne<SubmissionRevisionPackageStatusRow>(SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL, { id })
     ]);
     const fileRoles = [...new Set(files.map((file) => file.file_role))].join(",");
     const normalizedFiles = files.map(normalizeSubmissionFile);
@@ -695,8 +749,9 @@ export class AsyncSubmissionListRepository {
       file_roles: fileRoles || null,
       has_release_package: Number(row.has_release_package ?? 0),
       files: normalizedFiles,
+      part_scopes: partScopes,
       references: references.map(normalizeFileReference),
-      revision_package: buildSubmissionRevisionPackage(snapshot, normalizedFiles, row),
+      revision_package: buildSubmissionRevisionPackage(snapshot, normalizedFiles, row, revisionPackageStatus?.effective_status ?? null),
       bom,
       active_lock: activeLock,
       release_package: releasePackage,
@@ -827,7 +882,8 @@ const revisionPackageWarningCodes = new Set<RevisionPackageWarning["code"]>([
 function buildSubmissionRevisionPackage(
   snapshotRow: SubmissionSnapshotRow | null,
   files: SubmissionFile[],
-  row: Pick<SubmissionDetailRow, "drawing_number" | "revision">
+  row: Pick<SubmissionDetailRow, "drawing_number" | "revision">,
+  effectiveStatus: SubmissionRevisionPackageStatusRow["effective_status"] = null
 ): SubmissionDetail["revision_package"] {
   const snapshot = parseSnapshotJson(snapshotRow?.snapshot_json);
   const revisionPackage = snapshot && isRecord(snapshot.revisionPackage) ? snapshot.revisionPackage : null;
@@ -878,6 +934,7 @@ function buildSubmissionRevisionPackage(
         });
 
   return {
+    effective_status: effectiveStatus,
     files: packageFiles,
     warnings
   };
@@ -1188,6 +1245,15 @@ function buildSearchWhere(input: SearchSubmissionsAsyncInput, normalizedFilters:
       OR lower(s.status) LIKE :queryLike
       OR lower(i.part_number) LIKE :queryLike
       OR lower(i.part_name) LIKE :queryLike
+      OR EXISTS (
+        SELECT 1
+        FROM submission_part_scopes query_scope
+        WHERE query_scope.submission_id = s.id
+          AND (
+            lower(query_scope.part_number) LIKE :queryLike
+            OR lower(query_scope.part_name) LIKE :queryLike
+          )
+      )
       OR lower(u.display_name) LIKE :queryLike
       OR lower(f.original_filename) LIKE :queryLike
       OR lower(r.referenced_filename) LIKE :queryLike

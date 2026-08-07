@@ -110,6 +110,15 @@ record(
   "server suggestion 非同步回來時不得覆蓋使用者已手動修改的版次。"
 );
 
+record(
+  "upload_revision_intent_lock_missing",
+  revisionsPage.includes("revisionIntentLockedRef") &&
+    revisionsPage.includes("revisionIntentLockedRef.current = true") &&
+    revisionsPage.includes("!revisionIntentLockedRef.current") &&
+    revisionsPage.includes("加入附件庫"),
+  "加入某一版次檔案後，重新讀取送審 context 不得把使用者目標版次自動推進成下一版。"
+);
+
 const workspaceContract = between(workspace, "type NumberingDraftWorkspace =", "type ApiErrorEnvelope =");
 const workspaceEditForm = between(workspace, "function WorkspaceEditForm", "function ConfirmDialog");
 record(

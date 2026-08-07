@@ -60,8 +60,8 @@ function seedImpactData() {
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, 'QC MA impact root', 'manufactured', 'DVT', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
+        id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, 'QC MA impact root', 'manufactured', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
     `
     ).run(`qc-impact-root-${unique}`, rootCode, now, now);
     for (const [id, partNumber, partName, status, sequenceNo] of [
@@ -72,8 +72,8 @@ function seedImpactData() {
         `
         INSERT INTO part_numbers (
           id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-          item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v1', ?, ?)
+          item_kind, is_universal, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, ?, 'numbering-rule-v1', ?, ?)
       `
       ).run(id, `qc-impact-root-${unique}`, partNumber, sequenceNo, String(sequenceNo).padStart(3, "0"), partName, status, now, now);
     }
@@ -81,8 +81,8 @@ function seedImpactData() {
       `
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-        is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, 'MA', 'QC 影響製造圖', 1, 1, 'DVT', 'Released', 'numbering-rule-v1', ?, ?)
+        is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at
+      ) VALUES (?, ?, ?, 'MA', 'QC 影響製造圖', 1, 1, 'Released', 'numbering-rule-v1', ?, ?)
     `
     ).run(`qc-impact-drawing-${unique}`, `qc-impact-root-${unique}`, drawingNumber, now, now);
     for (const [id, partId] of [
@@ -128,7 +128,7 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/impact`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "製造圖影響", exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { level: 1, name: /^製造圖影響/u }).waitFor({ timeout: 10_000 });
   record(`Impact page renders at ${viewport.width}px`, await page.getByText("影響範圍查詢").isVisible());
 
   await page.getByLabel("製造圖圖號").fill(drawingNumber);

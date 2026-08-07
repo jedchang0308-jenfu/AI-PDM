@@ -36,9 +36,6 @@ import type {
   AddPartNumberToRootResult,
   ApplyNumberingRuleTemplateInput,
   DrawingPurposeCode,
-  DvtPromotionCandidateRecord,
-  DvtPromotionDecisionResult,
-  DvtPromotionSubmissionRecord,
   DuplicateCheckInput,
   DuplicateCheckMatch,
   DuplicateCheckResult,
@@ -58,7 +55,6 @@ import type {
   DecidePartCostChangeRequestInput,
   GenerateMonthlyNumberingAuditReportInput,
   ListNumberingApprovalBatchesInput,
-  ListDvtPromotionCandidatesInput,
   ListNumberingImportBatchesInput,
   ListMonthlyNumberingAuditReportsInput,
   ListNumberingNotificationsInput,
@@ -111,7 +107,6 @@ import type {
   NumberingItemKind,
   NumberingLinkRecord,
   NumberingNotificationRecord,
-  NumberingPhase,
   NumberingRecordStatus,
   NumberingGate,
   NumberingGateEvaluation,
@@ -157,7 +152,6 @@ import type {
   RestoreNumberingImportBatchInput,
   ResolvePartCostInput,
   SaveNumberingRolePriorityInput,
-  SubmitDvtPromotionInput,
   ObsoleteDraftNumberingRecordInput,
   PartRootRecord,
   UpsertNumberingAdminRoleInput,
@@ -178,7 +172,6 @@ type PartRootRow = {
   root_code: string;
   core_name: string;
   item_kind: NumberingItemKind;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   rule_version_id: string;
   updated_at?: string;
@@ -196,7 +189,6 @@ type PartNumberRow = {
   is_universal: number;
   custom_specification: string | null;
   series_code: string | null;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   universal_reason: string | null;
   rule_version_id: string;
@@ -212,7 +204,6 @@ type DrawingNumberRow = {
   purpose_description: string;
   sequence_no: number;
   is_primary_manufacturing: number;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   rule_version_id: string;
 };
@@ -333,7 +324,6 @@ type ApprovalRuleRow = {
   rule_version_id: string;
   rule_name: string;
   action_code: string;
-  phase: string | null;
   record_status: string | null;
   item_kind: string | null;
   risk_flag: string | null;
@@ -455,6 +445,7 @@ type PartModuleListRow = PartNumberRow & {
   root_code: string;
   core_name: string;
   primary_drawing_number: string | null;
+  primary_drawing_record_status: NumberingRecordStatus | null;
   drawing_count: number | string | null;
   pending_cost_request_count: number | string | null;
   variant_id: string | null;
@@ -676,7 +667,6 @@ type NumberingSearchRow = {
   display_code: string;
   display_name: string;
   item_kind: NumberingItemKind;
-  development_phase: NumberingPhase;
   record_status: NumberingRecordStatus;
   purpose_code: DrawingPurposeCode | null;
   part_number: string | null;
@@ -820,8 +810,8 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
     editable: false
   },
   {
-    code: "PRIMARY_MA_REQUIRED_FROM_DVT",
-    message: "DVT or Release manufactured, outsourced, and custom items require a primary MA drawing unless an override is approved.",
+    code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
+    message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
     requiresApproval: true,
     blocksUsage: true,
     blocksRelease: true,
@@ -852,17 +842,13 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
 ];
 
 const STANDARD_APPROVAL_RULE_DEFAULTS = [
-  ["approval-rule-update-name-dvt", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-update-name-release", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-update-name-released", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-update-spec-released", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-obsolete-part-dvt", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-obsolete-part-release", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-obsolete-ma-drawing-dvt", 1, "rd_manager", 0, 1, 1, 1],
   ["approval-rule-obsolete-ma-drawing-admin", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-obsolete-root-admin", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-merge-part-referenced", 1, "pdm_admin", 0, 1, 1, 1],
-  ["approval-rule-dvt-missing-ma-override", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release-missing-ma-confirm", 1, "pdm_admin", 0, 1, 1, 1],
   ["approval-rule-release", 1, "rd_manager", 0, 1, 1, 1],
   ["approval-rule-post-release-change-manager", 1, "rd_manager", 0, 1, 1, 1],
@@ -949,12 +935,10 @@ const SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL = `
   WHERE r.company_id = :companyId
     AND r.core_name = :coreName
     AND r.item_kind = :itemKind
-    AND r.development_phase = :developmentPhase
     AND r.record_status = :recordStatus
     AND r.rule_version_id = :ruleVersionId
     AND p.part_name = :partName
     AND p.item_kind = :itemKind
-    AND p.development_phase = :developmentPhase
     AND p.record_status = :recordStatus
     AND p.rule_version_id = :ruleVersionId
     AND p.is_universal = :isUniversal
@@ -969,7 +953,6 @@ const SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL = `
         :drawingRequested = 1
         AND d.purpose_code = :drawingPurposeCode
         AND COALESCE(d.purpose_description, '') = :drawingPurposeDescription
-        AND d.development_phase = :developmentPhase
         AND d.record_status = :recordStatus
         AND d.rule_version_id = :ruleVersionId
       )
@@ -1087,7 +1070,7 @@ export const SELECT_ASYNC_ADMIN_APPROVAL_RULES_SQL = `
   SELECT *
   FROM approval_rules
   WHERE rule_version_id = :ruleVersionId
-  ORDER BY action_code ASC, COALESCE(phase, '') ASC, rule_name ASC
+  ORDER BY action_code ASC, rule_name ASC
 `;
 
 export const COUNT_ASYNC_ADMIN_APPROVAL_RULES_BY_VERSION_SQL = `
@@ -1098,11 +1081,11 @@ export const COUNT_ASYNC_ADMIN_APPROVAL_RULES_BY_VERSION_SQL = `
 
 export const INSERT_ASYNC_DEFAULT_APPROVAL_RULES_FOR_VERSION_SQL = `
   INSERT INTO approval_rules (
-    id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+    id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
     requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
   )
   SELECT
-    :targetIdPrefix || source_rules.id, :targetRuleVersionId, source_rules.rule_name, source_rules.action_code, source_rules.phase, source_rules.record_status,
+    :targetIdPrefix || source_rules.id, :targetRuleVersionId, source_rules.rule_name, source_rules.action_code, source_rules.record_status,
     source_rules.item_kind, source_rules.risk_flag, source_rules.requires_approval, source_rules.approver_role, source_rules.blocks_usage,
     source_rules.blocks_release, source_rules.shows_warning, source_rules.export_marker,
     CASE
@@ -1314,10 +1297,10 @@ export const UPDATE_ASYNC_APPROVAL_DELEGATION_REVOKED_SQL = `
 
 export const INSERT_ASYNC_APPROVAL_RULE_SQL = `
   INSERT INTO approval_rules (
-    id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+    id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
     requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
   ) VALUES (
-    :id, :ruleVersionId, :ruleName, :actionCode, :phase, :recordStatus, :itemKind, :riskFlag,
+    :id, :ruleVersionId, :ruleName, :actionCode, :recordStatus, :itemKind, :riskFlag,
     :requiresApproval, :approverRole, :blocksUsage, :blocksRelease, :showsWarning, :exportMarker, :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -1327,7 +1310,6 @@ export const UPDATE_ASYNC_APPROVAL_RULE_SQL = `
   SET rule_version_id = :ruleVersionId,
       rule_name = :ruleName,
       action_code = :actionCode,
-      phase = :phase,
       record_status = :recordStatus,
       item_kind = :itemKind,
       risk_flag = :riskFlag,
@@ -1363,7 +1345,7 @@ export const UPDATE_ASYNC_RD_EFFICIENCY_RULES_RELAXED_SQL = `
       export_marker = 1,
       updated_at = :updatedAt
   WHERE action_code IN ('update_name', 'obsolete_part_number')
-    AND phase = 'DVT'
+    AND record_status IS NULL
 `;
 
 export const UPDATE_ASYNC_RD_EFFICIENCY_RULES_STRICT_SQL = `
@@ -1375,8 +1357,7 @@ export const UPDATE_ASYNC_RD_EFFICIENCY_RULES_STRICT_SQL = `
       shows_warning = 1,
       export_marker = 1,
       updated_at = :updatedAt
-  WHERE action_code IN ('dvt_missing_ma_override', 'release_missing_ma_confirm', 'same_drawing_variant_after_release', 'main_drawing_restore', 'release')
-     OR phase = 'Release'
+  WHERE action_code IN ('release_missing_ma_confirm', 'same_drawing_variant_after_release', 'main_drawing_restore', 'release')
      OR record_status = 'Released'
 `;
 
@@ -1437,16 +1418,6 @@ export const SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL = `
   ORDER BY p.part_number ASC
 `;
 
-export const SELECT_ASYNC_DVT_PROMOTION_CANDIDATES_SQL = `
-  SELECT *
-  FROM part_numbers
-  WHERE development_phase = 'EVT'
-    AND company_id = :companyId
-    AND record_status NOT IN ('PendingReview', 'Released', 'Obsolete', 'Merged', 'EVTDisabled')
-  ORDER BY updated_at DESC, part_number ASC
-  LIMIT :limit
-`;
-
 export const SELECT_ASYNC_DRAWING_NUMBERS_FOR_ROOT_SQL = `
   SELECT *
   FROM drawing_numbers
@@ -1482,32 +1453,7 @@ export const UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL = `
   WHERE id = :rootId
 `;
 
-export const UPDATE_ASYNC_DVT_PART_PENDING_REVIEW_SQL = `
-  UPDATE part_numbers
-  SET development_phase = 'DVT',
-      record_status = 'PendingReview',
-      updated_at = :updatedAt
-  WHERE id = :partNumberId
-`;
-
-export const UPDATE_ASYNC_DVT_ROOT_PENDING_REVIEW_SQL = `
-  UPDATE part_roots
-  SET development_phase = 'DVT',
-      record_status = 'PendingReview',
-      updated_at = :updatedAt
-  WHERE id = :rootId
-`;
-
-export const UPDATE_ASYNC_DVT_DRAWINGS_PENDING_REVIEW_SQL = `
-  UPDATE drawing_numbers
-  SET development_phase = 'DVT',
-      record_status = CASE WHEN record_status IN ('Draft', 'Active', 'NeedInfo') THEN 'PendingReview' ELSE record_status END,
-      updated_at = :updatedAt
-  WHERE part_root_id = :rootId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
-`;
-
-export const UPDATE_ASYNC_DVT_PART_CLOSED_SQL = `
+export const UPDATE_ASYNC_PART_CLOSED_SQL = `
   UPDATE part_numbers
   SET record_status = :recordStatus,
       updated_at = :updatedAt
@@ -1518,7 +1464,7 @@ export const SELECT_ASYNC_OPEN_PART_COUNT_FOR_ROOT_SQL = `
   SELECT COUNT(*) AS count
   FROM part_numbers
   WHERE part_root_id = :rootId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+    AND record_status NOT IN ('Obsolete', 'Merged')
 `;
 
 export const UPDATE_ASYNC_ROOT_CLOSED_SQL = `
@@ -1589,10 +1535,10 @@ export const UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL = `
 
 export const INSERT_ASYNC_PART_ROOT_SQL = `
   INSERT INTO part_roots (
-    id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+    id, company_id, root_code, core_name, item_kind, record_status,
     rule_version_id, created_by, created_at, updated_at
   ) VALUES (
-    :id, :companyId, :rootCode, :coreName, :itemKind, :developmentPhase, :recordStatus,
+    :id, :companyId, :rootCode, :coreName, :itemKind, :recordStatus,
     :ruleVersionId, :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -1600,11 +1546,11 @@ export const INSERT_ASYNC_PART_ROOT_SQL = `
 export const INSERT_ASYNC_PART_NUMBER_SQL = `
   INSERT INTO part_numbers (
     id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-    item_kind, is_universal, custom_specification, series_code, development_phase, record_status, universal_reason,
+    item_kind, is_universal, custom_specification, series_code, record_status, universal_reason,
     rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-    :itemKind, :isUniversal, :customSpecification, :seriesCode, :developmentPhase, :recordStatus, :universalReason,
+    :itemKind, :isUniversal, :customSpecification, :seriesCode, :recordStatus, :universalReason,
     :ruleVersionId, :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -1612,11 +1558,11 @@ export const INSERT_ASYNC_PART_NUMBER_SQL = `
 export const INSERT_ASYNC_DRAWING_NUMBER_SQL = `
   INSERT INTO drawing_numbers (
     id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-    is_primary_manufacturing, development_phase, record_status, rule_version_id,
+    is_primary_manufacturing, record_status, rule_version_id,
     created_by, created_at, updated_at
   ) VALUES (
     :id, :companyId, :partRootId, :drawingNumber, :purposeCode, :purposeDescription, :sequenceNo,
-    :isPrimaryManufacturing, :developmentPhase, :recordStatus, :ruleVersionId,
+    :isPrimaryManufacturing, :recordStatus, :ruleVersionId,
     :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -1846,13 +1792,13 @@ export const UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL = `
 `;
 
 export const SELECT_ASYNC_APPROVAL_PART_ROOT_SUMMARY_SQL = `
-  SELECT root_code, core_name, item_kind, development_phase, record_status
+  SELECT root_code, core_name, item_kind, record_status
   FROM part_roots
   WHERE id = :entityId
 `;
 
 export const SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL = `
-  SELECT p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status,
+  SELECT p.part_number, p.part_name, p.item_kind, p.record_status,
          r.root_code, r.core_name,
          (
            SELECT d.drawing_number
@@ -1861,7 +1807,7 @@ export const SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL = `
            WHERE l.part_number_id = p.id
              AND l.link_type = 'primary_manufacturing'
              AND d.purpose_code IN ('MA', 'M')
-             AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+             AND d.record_status NOT IN ('Obsolete', 'Merged')
            ORDER BY d.is_primary_manufacturing DESC, d.sequence_no ASC, d.drawing_number ASC
            LIMIT 1
          ) AS primary_drawing_number
@@ -1871,58 +1817,30 @@ export const SELECT_ASYNC_APPROVAL_PART_NUMBER_SUMMARY_SQL = `
 `;
 
 export const SELECT_ASYNC_APPROVAL_DRAWING_SUMMARY_SQL = `
-  SELECT d.drawing_number, d.purpose_code, d.development_phase, d.record_status,
+  SELECT d.drawing_number, d.purpose_code, d.record_status,
          r.root_code, r.core_name, r.item_kind
   FROM drawing_numbers d
   JOIN part_roots r ON r.id = d.part_root_id
   WHERE d.id = :entityId
 `;
 
-export const UPDATE_ASYNC_APPROVAL_DVT_PART_SQL = `
-  UPDATE part_numbers
-  SET development_phase = 'DVT',
-      record_status = 'Active',
-      updated_at = :updatedAt
-  WHERE id = :partNumberId
-`;
-
-export const UPDATE_ASYNC_APPROVAL_DVT_ROOT_SQL = `
-  UPDATE part_roots
-  SET development_phase = 'DVT',
-      record_status = 'Active',
-      updated_at = :updatedAt
-  WHERE id = :rootId
-`;
-
-export const UPDATE_ASYNC_APPROVAL_DVT_DRAWINGS_SQL = `
-  UPDATE drawing_numbers
-  SET development_phase = 'DVT',
-      record_status = CASE WHEN record_status = 'PendingReview' THEN 'Active' ELSE record_status END,
-      updated_at = :updatedAt
-  WHERE part_root_id = :rootId
-    AND record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
-`;
-
 export const UPDATE_ASYNC_APPROVAL_RELEASE_PART_SQL = `
   UPDATE part_numbers
-  SET development_phase = 'Release',
-      record_status = 'Released',
+  SET record_status = 'Released',
       updated_at = :updatedAt
   WHERE id = :partNumberId
 `;
 
 export const UPDATE_ASYNC_APPROVAL_RELEASE_ROOT_SQL = `
   UPDATE part_roots
-  SET development_phase = 'Release',
-      record_status = 'Released',
+  SET record_status = 'Released',
       updated_at = :updatedAt
   WHERE id = :rootId
 `;
 
 export const UPDATE_ASYNC_APPROVAL_RELEASE_DRAWINGS_SQL = `
   UPDATE drawing_numbers
-  SET development_phase = 'Release',
-      record_status = CASE WHEN record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled') THEN 'Released' ELSE record_status END,
+  SET record_status = CASE WHEN record_status NOT IN ('Obsolete', 'Merged') THEN 'Released' ELSE record_status END,
       updated_at = :updatedAt
   WHERE part_root_id = :rootId
 `;
@@ -1992,7 +1910,7 @@ export const SELECT_ASYNC_PRIMARY_MANUFACTURING_DRAWING_FOR_PART_SQL = `
   WHERE l.part_number_id = :partNumberId
     AND l.link_type = 'primary_manufacturing'
     AND d.purpose_code IN ('MA', 'M')
-    AND d.record_status NOT IN ('Obsolete', 'Merged', 'EVTDisabled')
+    AND d.record_status NOT IN ('Obsolete', 'Merged')
   LIMIT 1
 `;
 
@@ -2164,14 +2082,14 @@ export const UPDATE_ASYNC_NUMBERING_NOTIFICATION_STATE_SQL = `
 `;
 
 export const SELECT_ASYNC_NUMBERING_EXPORT_ROOTS_SQL = `
-  SELECT root_code, core_name, item_kind, development_phase, record_status, updated_at
+  SELECT root_code, core_name, item_kind, record_status, updated_at
   FROM part_roots
   WHERE company_id = :companyId
   ORDER BY root_code
 `;
 
 export const SELECT_ASYNC_NUMBERING_EXPORT_PARTS_SQL = `
-  SELECT r.root_code, p.part_number, p.part_name, p.item_kind, p.development_phase, p.record_status, p.updated_at
+  SELECT r.root_code, p.part_number, p.part_name, p.item_kind, p.record_status, p.updated_at
   FROM part_numbers p
   JOIN part_roots r ON r.id = p.part_root_id
   WHERE p.company_id = :companyId
@@ -2179,7 +2097,7 @@ export const SELECT_ASYNC_NUMBERING_EXPORT_PARTS_SQL = `
 `;
 
 export const SELECT_ASYNC_NUMBERING_EXPORT_DRAWINGS_SQL = `
-  SELECT r.root_code, d.drawing_number, d.purpose_code, d.purpose_description, d.development_phase, d.record_status, d.updated_at
+  SELECT r.root_code, d.drawing_number, d.purpose_code, d.purpose_description, d.record_status, d.updated_at
   FROM drawing_numbers d
   JOIN part_roots r ON r.id = d.part_root_id
   WHERE d.company_id = :companyId
@@ -2663,7 +2581,6 @@ export const SELECT_ASYNC_NUMBERING_SEARCH_ROOTS_BASE_SQL = `
     r.root_code AS display_code,
     r.core_name AS display_name,
     r.item_kind,
-    r.development_phase,
     r.record_status,
     NULL AS purpose_code,
     NULL AS part_number,
@@ -2695,7 +2612,6 @@ export const SELECT_ASYNC_NUMBERING_SEARCH_PARTS_BASE_SQL = `
     p.part_number AS display_code,
     p.part_name AS display_name,
     p.item_kind,
-    p.development_phase,
     p.record_status,
     NULL AS purpose_code,
     p.part_number,
@@ -2733,7 +2649,6 @@ export const SELECT_ASYNC_NUMBERING_SEARCH_DRAWINGS_BASE_SQL = `
     d.drawing_number AS display_code,
     d.purpose_description AS display_name,
     r.item_kind,
-    d.development_phase,
     d.record_status,
     d.purpose_code,
     NULL AS part_number,
@@ -2853,6 +2768,14 @@ export const SELECT_ASYNC_PART_MODULE_RECORDS_BASE_SQL = `
       ORDER BY d.drawing_number ASC
       LIMIT 1
     ) AS primary_drawing_number,
+    (
+      SELECT d.record_status
+      FROM drawing_part_links l
+      JOIN drawing_numbers d ON d.id = l.drawing_number_id
+      WHERE l.part_number_id = p.id AND l.link_type = 'primary_manufacturing'
+      ORDER BY d.drawing_number ASC
+      LIMIT 1
+    ) AS primary_drawing_record_status,
     (
       SELECT COUNT(*)
       FROM drawing_part_links l
@@ -3302,7 +3225,7 @@ function isFormalRecordStatus(status: NumberingRecordStatus) {
 }
 
 function isClosedRecordStatus(status: NumberingRecordStatus) {
-  return status === "Obsolete" || status === "Merged" || status === "EVTDisabled";
+  return status === "Obsolete" || status === "Merged";
 }
 
 function actionCodeFromDetail(detail: Record<string, unknown>) {
@@ -3322,8 +3245,6 @@ function textList(value: unknown) {
 
 function numberingApprovalActionLabel(value: string | null | undefined) {
   const labels: Record<string, string> = {
-    dvt_promotion: "DVT 階段晉升",
-    dvt_missing_ma_override: "DVT \u7f3a MA Override",
     release: "\u767c\u884c\u5be9\u6838",
     release_missing_ma_confirm: "\u767c\u884c\u7f3a MA \u518d\u78ba\u8a8d",
     same_drawing_variant_after_release: "\u767c\u884c\u5f8c\u540c\u5716\u591a\u6599\u865f",
@@ -3371,7 +3292,6 @@ function normalizeRiskFlags(riskFlags: string[] | undefined) {
 
 function approvalRuleMatches(row: ApprovalRuleRow, input: EvaluateApprovalRuleInput, riskFlags: Set<string>) {
   if (row.action_code !== input.actionCode) return false;
-  if (row.phase && row.phase !== input.phase) return false;
   if (row.record_status && row.record_status !== input.recordStatus) return false;
   if (row.item_kind && row.item_kind !== input.itemKind) return false;
   if (row.risk_flag && !riskFlags.has(row.risk_flag)) return false;
@@ -3428,11 +3348,11 @@ function evaluateHardApprovalRules(input: EvaluateApprovalRuleInput, riskFlags: 
   }
   if (riskFlags.has("missing_primary_ma") && ["manufactured", "outsourced", "custom"].includes(input.itemKind ?? "")) {
     addHardRule({
-      code: "PRIMARY_MA_REQUIRED_FROM_DVT",
-      message: "DVT or Release manufactured, outsourced, and custom items require a primary MA drawing unless an override is approved.",
+      code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
+      message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
       requiresApproval: true,
-      blocksUsage: input.phase === "DVT" || input.phase === "Release",
-      blocksRelease: input.phase === "Release",
+      blocksUsage: true,
+      blocksRelease: true,
       showsWarning: true,
       exportMarker: true
     });
@@ -3503,7 +3423,6 @@ function buildNumberingSearchWhere(
   input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput,
   queryFilter: string,
   recordStatusColumn: string,
-  developmentPhaseColumn: string,
   seriesCodeTarget: "root" | "part"
 ) {
   const filters: string[] = ["r.company_id = :companyId"];
@@ -3517,10 +3436,6 @@ function buildNumberingSearchWhere(
   if (input.recordStatus) {
     filters.push(`${recordStatusColumn} = :recordStatus`);
     params.recordStatus = input.recordStatus;
-  }
-  if (input.developmentPhase) {
-    filters.push(`${developmentPhaseColumn} = :developmentPhase`);
-    params.developmentPhase = input.developmentPhase;
   }
   params.limit = input.limit;
   return {
@@ -3554,10 +3469,6 @@ function buildDrawingModuleWhere(input: Required<Pick<DrawingModuleListInput, "q
     filters.push("d.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
   }
-  if (input.developmentPhase) {
-    filters.push("d.development_phase = :developmentPhase");
-    params.developmentPhase = input.developmentPhase;
-  }
   if (input.purposeCode) {
     filters.push("d.purpose_code = :purposeCode");
     params.purposeCode = input.purposeCode;
@@ -3583,10 +3494,6 @@ function buildPartModuleWhere(input: Required<Pick<PartModuleListInput, "query" 
   if (input.recordStatus) {
     filters.push("p.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
-  }
-  if (input.developmentPhase) {
-    filters.push("p.development_phase = :developmentPhase");
-    params.developmentPhase = input.developmentPhase;
   }
   params.limit = input.limit;
   return {
@@ -3734,7 +3641,6 @@ function mapPartRoot(row: PartRootRow): PartRootRecord {
     rootCode: row.root_code,
     coreName: row.core_name,
     itemKind: row.item_kind,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     ruleVersionId: row.rule_version_id
   };
@@ -3753,7 +3659,6 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
     seriesCode: row.series_code,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     universalReason: row.universal_reason,
     ruleVersionId: row.rule_version_id
@@ -3770,7 +3675,6 @@ function mapDrawingNumber(row: DrawingNumberRow): DrawingNumberRecord {
     purposeDescription: row.purpose_description,
     sequenceNo: row.sequence_no,
     isPrimaryManufacturing: row.is_primary_manufacturing === 1,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     ruleVersionId: row.rule_version_id
   };
@@ -3785,7 +3689,6 @@ function mapNumberingSearchRow(row: NumberingSearchRow): NumberingSearchResultRe
     displayCode: row.display_code,
     displayName: row.display_name,
     itemKind: row.item_kind,
-    developmentPhase: row.development_phase,
     recordStatus: row.record_status,
     purposeCode: row.purpose_code,
     partNumber: row.part_number,
@@ -3973,6 +3876,7 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
     rootCode: row.root_code,
     coreName: row.core_name,
     primaryDrawingNumber: row.primary_drawing_number,
+    primaryDrawingRecordStatus: row.primary_drawing_record_status ?? null,
     drawingCount: Number(row.drawing_count ?? 0),
     pendingCostRequestCount: Number(row.pending_cost_request_count ?? 0),
     variant: mapPartVariantAttributes({
@@ -4075,7 +3979,6 @@ function mapApprovalRequest(row: ApprovalRequestRow): NumberingApprovalRecord {
 function mapApprovalRule(row: ApprovalRuleRow): MatchedApprovalRule {
   const predictedRule = withPredictedApprovalControls({
     actionCode: row.action_code,
-    phase: row.phase,
     recordStatus: row.record_status,
     itemKind: row.item_kind,
     riskFlag: row.risk_flag,
@@ -4291,14 +4194,12 @@ function emptyApprovalEntitySummary(request: ApprovalRequestRow): NumberingAppro
     partName: null,
     coreName: null,
     itemKind: null,
-    developmentPhase: null,
     recordStatus: null
   };
 }
 
 function approvalRecipientRole(actionCode: NumberingApprovalActionCode) {
   if (
-    actionCode === "dvt_promotion" ||
     actionCode === "release" ||
     actionCode === "same_drawing_variant_after_release" ||
     actionCode === "obsolete_ma_drawing"
@@ -4613,7 +4514,6 @@ export class AsyncNumberingRepository {
   }> {
     const run = async (client: AsyncDatabaseClient) => {
       const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const developmentPhase = input.developmentPhase ?? "EVT";
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
       const isUniversal = input.isUniversal ?? false;
@@ -4623,7 +4523,6 @@ export class AsyncNumberingRepository {
         coreName: rootName,
         partName: rootName,
         itemKind: input.itemKind,
-        developmentPhase,
         recordStatus,
         isUniversal,
         universalReason: input.universalReason,
@@ -4640,7 +4539,6 @@ export class AsyncNumberingRepository {
         coreName: rootName,
         companyId,
         itemKind: input.itemKind,
-        developmentPhase,
         recordStatus,
         ruleVersionId,
         createdBy: input.createdBy
@@ -4648,7 +4546,6 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: input.itemKind,
-        developmentPhase,
         recordStatus,
         isUniversal,
         universalReason: input.universalReason,
@@ -4661,7 +4558,6 @@ export class AsyncNumberingRepository {
         ? await this.insertDrawingNumber(client, root, {
             purposeCode: input.drawingPurposeCode,
             purposeDescription: input.drawingPurposeDescription,
-            developmentPhase,
             recordStatus,
             ruleVersionId,
             createdBy: input.createdBy
@@ -4727,7 +4623,6 @@ export class AsyncNumberingRepository {
       const drawingNumber = await this.insertDrawingNumber(client, root, {
         purposeCode: input.purposeCode,
         purposeDescription: input.purposeDescription,
-        developmentPhase: input.developmentPhase ?? root.developmentPhase,
         recordStatus: input.recordStatus ?? "Draft",
         ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
         createdBy: input.createdBy
@@ -4815,7 +4710,6 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: input.itemKind ?? root.itemKind,
-        developmentPhase: input.developmentPhase ?? root.developmentPhase,
         recordStatus: input.recordStatus ?? "Draft",
         isUniversal: input.isUniversal ?? false,
         universalReason: input.universalReason,
@@ -4912,13 +4806,11 @@ export class AsyncNumberingRepository {
       if (reasonRequired && !reason) throw new Error("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT");
 
       const root = mapPartRoot(rootRow);
-      const developmentPhase = input.developmentPhase ?? root.developmentPhase;
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? root.ruleVersionId;
       const drawingNumber = await this.insertDrawingNumber(client, root, {
         purposeCode: input.purposeCode,
         purposeDescription: input.purposeDescription,
-        developmentPhase,
         recordStatus,
         ruleVersionId,
         createdBy: input.createdBy
@@ -4926,7 +4818,6 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: input.itemKind ?? root.itemKind,
-        developmentPhase,
         recordStatus,
         isUniversal: input.isUniversal ?? false,
         universalReason: input.universalReason,
@@ -5019,7 +4910,6 @@ export class AsyncNumberingRepository {
     client: AsyncDatabaseClient,
     input: CreateNumberingRecordInput & {
       companyId: string;
-      developmentPhase: NumberingPhase;
       recordStatus: NumberingRecordStatus;
       isUniversal: boolean;
       ruleVersionId: string;
@@ -5040,7 +4930,6 @@ export class AsyncNumberingRepository {
       coreName: input.coreName.trim(),
       partName: input.partName?.trim() || input.coreName.trim(),
       itemKind: input.itemKind,
-      developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       ruleVersionId: input.ruleVersionId,
       isUniversal: input.isUniversal ? 1 : 0,
@@ -5696,7 +5585,6 @@ export class AsyncNumberingRepository {
             rootCode,
             coreName,
             itemKind,
-            developmentPhase: "EVT",
             recordStatus: "Active",
             ruleVersionId,
             createdBy: input.confirmedBy,
@@ -5722,7 +5610,7 @@ export class AsyncNumberingRepository {
             itemKind,
             isUniversal: 0,
             customSpecification: null,
-            developmentPhase: "EVT",
+            seriesCode: null,
             recordStatus: "Active",
             universalReason: null,
             ruleVersionId,
@@ -5745,7 +5633,6 @@ export class AsyncNumberingRepository {
             purposeDescription: normalizePurposeDescription(purposeCode, importString(raw, "purposeDescription", "purpose_description", "圖面用途")),
             sequenceNo: importedDrawingSequence(drawingNumber),
             isPrimaryManufacturing: isManufacturingDrawingPurpose(purposeCode) ? 1 : 0,
-            developmentPhase: "EVT",
             recordStatus: "Active",
             ruleVersionId,
             createdBy: input.confirmedBy,
@@ -5892,8 +5779,7 @@ export class AsyncNumberingRepository {
       options: {
         actionCodes,
         pagePermissionCodes: [...NUMBERING_PAGE_PERMISSION_CODES],
-        phases: ["EVT", "DVT", "Release"],
-        recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "EVTDisabled", "PendingAdminConfirm", "MainDrawingInvalid"],
+        recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "PendingAdminConfirm", "MainDrawingInvalid"],
         itemKinds: ["manufactured", "outsourced", "purchased", "custom", "universal"],
         riskFlags: [
           "duplicate_code",
@@ -6219,7 +6105,6 @@ export class AsyncNumberingRepository {
       if (approverRole && !(await client.queryOne<NumberingAdminRoleRow>(SELECT_ASYNC_ROLE_BY_CODE_SQL, { roleCode: approverRole }))) {
         throw new Error("APPROVAL_RULE_APPROVER_ROLE_NOT_FOUND");
       }
-      const phase = nullableTextOrExisting(input.phase, existing?.phase);
       const recordStatus = nullableTextOrExisting(input.recordStatus, existing?.record_status);
       const itemKind = nullableTextOrExisting(input.itemKind, existing?.item_kind);
       const riskFlag = nullableTextOrExisting(input.riskFlag, existing?.risk_flag);
@@ -6227,7 +6112,6 @@ export class AsyncNumberingRepository {
       const exportMarker = input.exportMarker ?? (existing ? existing.export_marker === 1 : true);
       const predictedRule = withPredictedApprovalControls({
         actionCode,
-        phase,
         recordStatus,
         itemKind,
         riskFlag,
@@ -6239,7 +6123,6 @@ export class AsyncNumberingRepository {
       const values = {
         ruleName: buildApprovalRuleSummary(predictedRule),
         actionCode,
-        phase,
         recordStatus,
         itemKind,
         riskFlag,
@@ -6362,129 +6245,6 @@ export class AsyncNumberingRepository {
     return this.evaluateNumberingGateInClient(this.client, input);
   }
 
-  async listDvtPromotionCandidates(input: ListDvtPromotionCandidatesInput = {}): Promise<DvtPromotionCandidateRecord[]> {
-    const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-    const limit = clampNumberingListLimit(input.limit, 50);
-    const rows = await this.client.query<PartNumberRow>(SELECT_ASYNC_DVT_PROMOTION_CANDIDATES_SQL, { companyId, limit });
-    const candidates: DvtPromotionCandidateRecord[] = [];
-    for (const row of rows) {
-      const rootRow = await this.client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_ID_SQL, { rootId: row.part_root_id });
-      if (!rootRow) continue;
-      const partNumber = mapPartNumber(row);
-      const gate = await this.evaluateNumberingGateInClient(this.client, { companyId, partNumber: partNumber.partNumber, gate: "DVT" });
-      const classification = this.classifyDvtPromotionCandidate(gate);
-      candidates.push({
-        root: mapPartRoot(rootRow),
-        partNumber,
-        drawingNumbers: (await this.client.query<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBERS_FOR_ROOT_SQL, { rootId: row.part_root_id })).map(mapDrawingNumber),
-        gate,
-        ...classification
-      });
-    }
-    return candidates.filter((candidate) => input.includeBlocked !== false || candidate.status !== "blocked");
-  }
-
-  async submitDvtPromotionDecisions(input: SubmitDvtPromotionInput): Promise<DvtPromotionSubmissionRecord> {
-    const decisions = input.decisions.filter((decision) => decision.partNumber.trim());
-    if (decisions.length === 0) throw new Error("DVT_PROMOTION_REQUIRES_DECISIONS");
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const approvalRequests: NumberingApprovalRecord[] = [];
-      const decisionResults: DvtPromotionDecisionResult[] = [];
-      const now = this.clock();
-      for (const decision of decisions) {
-        const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
-          partNumber: decision.partNumber.trim(),
-          companyId
-        });
-        if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${decision.partNumber}`);
-        if (partRow.development_phase !== "EVT") {
-          decisionResults.push({
-            partNumber: partRow.part_number,
-            action: decision.action,
-            status: "skipped",
-            message: "Only EVT part numbers can be processed by the DVT promotion list.",
-            approvalRequestId: null
-          });
-          continue;
-        }
-        if (decision.action === "submit_dvt") {
-          const gate = await this.evaluateNumberingGateInClient(client, { companyId, partNumber: partRow.part_number, gate: "DVT" });
-          if (!gate.allowed || gate.requiresOverride) {
-            decisionResults.push({
-              partNumber: partRow.part_number,
-              action: decision.action,
-              status: "skipped",
-              message: "DVT gate is not complete; keep the item in EVT until missing data is resolved.",
-              approvalRequestId: null
-            });
-            continue;
-          }
-          await this.markPartPendingDvtReview(client, partRow, now);
-          const approvalRequest = await this.insertNumberingApprovalRequest(client, {
-            companyId,
-            actionCode: "dvt_promotion",
-            entityType: "part_number",
-            entityId: partRow.id,
-            reason: decision.reason?.trim() || "EVT to DVT promotion",
-            payload: {
-              partNumber: partRow.part_number,
-              fromPhase: "EVT",
-              toPhase: "DVT",
-              rootId: partRow.part_root_id
-            },
-            requestedBy: input.submittedBy
-          });
-          approvalRequests.push(approvalRequest);
-          decisionResults.push({
-            partNumber: partRow.part_number,
-            action: decision.action,
-            status: "submitted",
-            message: "Submitted to DVT review batch.",
-            approvalRequestId: approvalRequest.id
-          });
-          continue;
-        }
-        if (decision.action === "keep_evt") {
-          await this.insertAudit(client, {
-            actorId: input.submittedBy,
-            action: "numbering.dvt.keep_evt",
-            detail: { partNumber: partRow.part_number, reason: decision.reason?.trim() || null }
-          });
-          decisionResults.push({ partNumber: partRow.part_number, action: decision.action, status: "kept", message: "Kept in EVT.", approvalRequestId: null });
-          continue;
-        }
-        const nextStatus: "EVTDisabled" | "Obsolete" = decision.action === "disable_evt" ? "EVTDisabled" : "Obsolete";
-        await client.execute(UPDATE_ASYNC_DVT_PART_CLOSED_SQL, { recordStatus: nextStatus, updatedAt: now, partNumberId: partRow.id });
-        await this.markRootClosedIfNoOpenParts(client, partRow.part_root_id, nextStatus, now);
-        await this.insertAudit(client, {
-          actorId: input.submittedBy,
-          action: decision.action === "disable_evt" ? "numbering.dvt.disable_evt" : "numbering.dvt.obsolete",
-          detail: { partNumber: partRow.part_number, status: nextStatus, reason: decision.reason?.trim() || null }
-        });
-        decisionResults.push({
-          partNumber: partRow.part_number,
-          action: decision.action,
-          status: decision.action === "disable_evt" ? "disabled" : "obsolete",
-          message: decision.action === "disable_evt" ? "EVT item disabled." : "EVT item obsoleted.",
-          approvalRequestId: null
-        });
-      }
-      const approvalBatch =
-        approvalRequests.length > 0
-          ? await this.createNumberingApprovalBatchInClient(client, {
-              companyId,
-              approvalRequestIds: approvalRequests.map((approvalRequest) => approvalRequest.id),
-              projectCode: input.projectCode,
-              actionCode: "dvt_promotion",
-              submittedBy: input.submittedBy
-            })
-          : null;
-      return { approvalBatch, approvalRequests, decisions: decisionResults };
-    };
-    return this.client.transaction(run);
-  }
-
   async analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): Promise<MainDrawingImpactAnalysis> {
     const run = async (client: AsyncDatabaseClient) => {
       const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
@@ -6542,7 +6302,15 @@ export class AsyncNumberingRepository {
   async listNumberingTasks(input: ListNumberingTasksInput): Promise<NumberingTaskRecord[]> {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const context = await this.getNumberingAccessContext(input.user);
-    const where: string[] = ["company_id = :companyId"];
+    const where: string[] = [
+      "company_id = :companyId",
+      `NOT EXISTS (
+        SELECT 1 FROM drawing_revision_lifecycle_workflows lifecycle
+        WHERE lifecycle.origin = 'adopted_active'
+          AND lifecycle.legacy_submission_id = numbering_task_items.entity_id
+          AND numbering_task_items.entity_type = 'submission'
+      )`
+    ];
     const params: Record<string, unknown> = { companyId };
 
     if (input.status && input.status !== "all") {
@@ -6567,10 +6335,60 @@ export class AsyncNumberingRepository {
       LIMIT :limit
     `;
     const rows = await this.client.query<NumberingTaskRow>(sql, params);
-    return rows
+    const stored = rows
       .filter((row) => canAccessNumberingRoleItem(context, row.assigned_to, row.created_by, row.assigned_role, row.project_code, actionCodeFromDetail(parseJsonDetail(row.detail_json))))
-      .slice(0, 100)
       .map((row) => mapNumberingTask(row, context));
+    const lifecycleTasks = input.status === "handled" || input.status === "cancelled"
+      ? []
+      : await this.client.query<{
+          workflow_id: string;
+          package_id: string;
+          request_id: string;
+          drawing_number: string;
+          revision: string;
+          requested_at: string;
+        }>(
+          `SELECT
+             workflow.id AS workflow_id,
+             workflow.package_id,
+             workflow.approval_request_id AS request_id,
+             package.drawing_number,
+             package.revision,
+             request.requested_at
+           FROM drawing_revision_lifecycle_workflows workflow
+           JOIN drawing_revision_lifecycle_reviewers reviewer
+             ON reviewer.workflow_id = workflow.id AND reviewer.reviewer_id = :actorId
+           JOIN drawing_revision_packages package ON package.id = workflow.package_id
+           JOIN approval_platform_requests request ON request.id = workflow.approval_request_id
+           WHERE workflow.company_id = :companyId
+             AND workflow.state = 'active'
+             AND package.lifecycle_state = 'in_review'
+             AND request.request_status = 'pending'
+           ORDER BY request.requested_at DESC`,
+          { companyId, actorId: input.user.id }
+        );
+    const projected: NumberingTaskRecord[] = lifecycleTasks.map((task) => ({
+      id: `phase1h:${task.workflow_id}`,
+      companyId,
+      taskType: "drawing_revision_lifecycle_review",
+      entityType: "drawing_revision_package",
+      entityId: task.package_id,
+      title: `${task.drawing_number} / rev ${task.revision}`,
+      message: "圖面進版待你審核。",
+      riskLevel: "warning",
+      taskStatus: "open",
+      assignedTo: input.user.id,
+      assignedRole: null,
+      projectCode: null,
+      actionUrl: `/approvals?requestId=${encodeURIComponent(task.request_id)}&drawing=${encodeURIComponent(task.drawing_number)}`,
+      detail: {},
+      markers: [],
+      createdAt: task.requested_at,
+      handledAt: null
+    }));
+    return [...projected, ...stored]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, 100);
   }
 
   async updateNumberingTaskStatus(input: UpdateNumberingTaskStatusInput): Promise<NumberingTaskRecord> {
@@ -6592,7 +6410,15 @@ export class AsyncNumberingRepository {
   async listNumberingNotifications(input: ListNumberingNotificationsInput): Promise<NumberingNotificationRecord[]> {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const context = await this.getNumberingAccessContext(input.user);
-    const where: string[] = ["company_id = :companyId"];
+    const where: string[] = [
+      "company_id = :companyId",
+      `NOT EXISTS (
+        SELECT 1 FROM drawing_revision_lifecycle_workflows lifecycle
+        WHERE lifecycle.origin = 'adopted_active'
+          AND lifecycle.legacy_submission_id = numbering_notifications.entity_id
+          AND numbering_notifications.entity_type = 'submission'
+      )`
+    ];
     const params: Record<string, unknown> = { companyId };
 
     if (input.read === "read") where.push("read_at IS NOT NULL");
@@ -7376,7 +7202,6 @@ export class AsyncNumberingRepository {
       input,
       "(r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "r.record_status",
-      "r.development_phase",
       "root"
     );
     return this.client.query<NumberingSearchRow>(
@@ -7395,7 +7220,6 @@ export class AsyncNumberingRepository {
       input,
       "(p.part_number LIKE :queryLike ESCAPE '\\' OR p.part_name LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "p.record_status",
-      "p.development_phase",
       "part"
     );
     return this.client.query<NumberingSearchRow>(
@@ -7414,7 +7238,6 @@ export class AsyncNumberingRepository {
       input,
       "(d.drawing_number LIKE :queryLike ESCAPE '\\' OR d.purpose_description LIKE :queryLike ESCAPE '\\' OR r.root_code LIKE :queryLike ESCAPE '\\' OR r.core_name LIKE :queryLike ESCAPE '\\')",
       "d.record_status",
-      "d.development_phase",
       "root"
     );
     return this.client.query<NumberingSearchRow>(
@@ -8161,7 +7984,6 @@ export class AsyncNumberingRepository {
         root_code: string;
         core_name: string;
         item_kind: NumberingItemKind;
-        development_phase: NumberingPhase;
         record_status: NumberingRecordStatus;
       }>(SELECT_ASYNC_APPROVAL_PART_ROOT_SUMMARY_SQL, { entityId: request.entity_id });
       if (!row) return emptyApprovalEntitySummary(request);
@@ -8176,7 +7998,6 @@ export class AsyncNumberingRepository {
         partName: null,
         coreName: row.core_name,
         itemKind: row.item_kind,
-        developmentPhase: row.development_phase,
         recordStatus: row.record_status
       };
     }
@@ -8186,7 +8007,6 @@ export class AsyncNumberingRepository {
         part_number: string;
         part_name: string;
         item_kind: NumberingItemKind;
-        development_phase: NumberingPhase;
         record_status: NumberingRecordStatus;
         root_code: string;
         core_name: string;
@@ -8204,7 +8024,6 @@ export class AsyncNumberingRepository {
         partName: row.part_name,
         coreName: row.core_name,
         itemKind: row.item_kind,
-        developmentPhase: row.development_phase,
         recordStatus: row.record_status
       };
     }
@@ -8212,7 +8031,6 @@ export class AsyncNumberingRepository {
     const drawingRow = await client.queryOne<{
       drawing_number: string;
       purpose_code: DrawingPurposeCode;
-      development_phase: NumberingPhase;
       record_status: NumberingRecordStatus;
       root_code: string;
       core_name: string;
@@ -8232,7 +8050,6 @@ export class AsyncNumberingRepository {
       partName: null,
       coreName: drawingRow.core_name,
       itemKind: drawingRow.item_kind,
-      developmentPhase: drawingRow.development_phase,
       recordStatus: drawingRow.record_status
     };
   }
@@ -8243,27 +8060,6 @@ export class AsyncNumberingRepository {
     actorId: string,
     companyId: string
   ): Promise<void> {
-    if (request.actionCode === "dvt_promotion") {
-      const partNumberFromPayload = String(request.payload.partNumber ?? "").trim();
-      const partRow =
-        (await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: request.entityId })) ??
-        (partNumberFromPayload
-          ? await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: partNumberFromPayload, companyId })
-          : null);
-      if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${request.entityId}`);
-      if (partRow.company_id !== companyId) throw new Error("PART_NUMBER_COMPANY_MISMATCH");
-      const now = this.clock();
-      await client.execute(UPDATE_ASYNC_APPROVAL_DVT_PART_SQL, { partNumberId: partRow.id, updatedAt: now });
-      await client.execute(UPDATE_ASYNC_APPROVAL_DVT_ROOT_SQL, { rootId: partRow.part_root_id, updatedAt: now });
-      await client.execute(UPDATE_ASYNC_APPROVAL_DVT_DRAWINGS_SQL, { rootId: partRow.part_root_id, updatedAt: now });
-      await this.insertAudit(client, {
-        actorId,
-        action: "numbering.dvt.approved",
-        detail: { approvalRequestId: request.id, partNumber: partRow.part_number }
-      });
-      return;
-    }
-
     if (request.actionCode === "release") {
       const partNumberFromPayload = String(request.payload.partNumber ?? "").trim();
       const partRow =
@@ -8340,7 +8136,7 @@ export class AsyncNumberingRepository {
       const now = this.clock();
       const impactedPartRows = isManufacturingDrawingPurpose(drawingRow.purpose_code)
         ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingRow.id })).filter(
-            (partRow) => partRow.record_status !== "Obsolete" && partRow.record_status !== "Merged" && partRow.record_status !== "EVTDisabled"
+            (partRow) => partRow.record_status !== "Obsolete" && partRow.record_status !== "Merged"
           )
         : [];
       await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
@@ -8581,12 +8377,8 @@ export class AsyncNumberingRepository {
       });
     }
 
-    const requiresOverride = issues.some((issue) => issue.code === "PRIMARY_MA_REQUIRED");
-    const approvalActionCode: NumberingApprovalActionCode | null = requiresOverride
-      ? input.gate === "DVT"
-        ? "dvt_missing_ma_override"
-        : "release_missing_ma_confirm"
-      : null;
+    const requiresOverride = input.gate === "Release" && issues.some((issue) => issue.code === "PRIMARY_MA_REQUIRED");
+    const approvalActionCode: NumberingApprovalActionCode | null = requiresOverride ? "release_missing_ma_confirm" : null;
     const approvedOverride = approvalActionCode
       ? await this.hasApprovedNumberingApproval(client, { entityType: "part_number", entityId: partNumber.id, actionCode: approvalActionCode })
       : false;
@@ -8606,27 +8398,10 @@ export class AsyncNumberingRepository {
     };
   }
 
-  private classifyDvtPromotionCandidate(
-    gate: NumberingGateEvaluation
-  ): Pick<DvtPromotionCandidateRecord, "status" | "recommendedAction" | "missingItems"> {
-    const missingItems = gate.issues.map((issue) => issue.message);
-    if (gate.allowed && !gate.requiresOverride) return { status: "ready", recommendedAction: "submit_dvt", missingItems };
-    if (gate.requiresOverride && gate.approvalActionCode === "dvt_missing_ma_override") {
-      return { status: "needs_override", recommendedAction: "keep_evt", missingItems };
-    }
-    return { status: "blocked", recommendedAction: "keep_evt", missingItems };
-  }
-
-  private async markPartPendingDvtReview(client: AsyncDatabaseClient, partRow: PartNumberRow, now: string): Promise<void> {
-    await client.execute(UPDATE_ASYNC_DVT_PART_PENDING_REVIEW_SQL, { partNumberId: partRow.id, updatedAt: now });
-    await client.execute(UPDATE_ASYNC_DVT_ROOT_PENDING_REVIEW_SQL, { rootId: partRow.part_root_id, updatedAt: now });
-    await client.execute(UPDATE_ASYNC_DVT_DRAWINGS_PENDING_REVIEW_SQL, { rootId: partRow.part_root_id, updatedAt: now });
-  }
-
   private async markRootClosedIfNoOpenParts(
     client: AsyncDatabaseClient,
     rootId: string,
-    status: "EVTDisabled" | "Obsolete",
+    status: "Obsolete",
     now: string
   ): Promise<void> {
     const openCount = await client.queryOne<CountRow>(SELECT_ASYNC_OPEN_PART_COUNT_FOR_ROOT_SQL, { rootId });
@@ -8726,7 +8501,7 @@ export class AsyncNumberingRepository {
     });
     if (!rootRow) throw new Error("PART_ROOT_NOT_FOUND");
 
-    const lockedStatuses: NumberingRecordStatus[] = ["PendingReview", "Released", "Obsolete", "Merged", "EVTDisabled"];
+    const lockedStatuses: NumberingRecordStatus[] = ["PendingReview", "Released", "Obsolete", "Merged"];
     const lockedRecord = [
       { entityType: "part_root", status: rootRow.record_status, code: rootRow.root_code },
       { entityType: "drawing_number", status: drawingRow.record_status, code: drawingRow.drawing_number },
@@ -8846,7 +8621,7 @@ export class AsyncNumberingRepository {
     if (replacement.part_root_id !== partRow.part_root_id || !isManufacturingDrawingPurpose(replacement.purpose_code)) {
       throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_SAME_ROOT_MA_DRAWING");
     }
-    if (["Obsolete", "Merged", "EVTDisabled"].includes(replacement.record_status)) {
+    if (["Obsolete", "Merged"].includes(replacement.record_status)) {
       throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_ACTIVE_MA_DRAWING");
     }
     return replacement;
@@ -9052,8 +8827,7 @@ export class AsyncNumberingRepository {
           entityType: "part_number" as const,
           entityId: part.id,
           entityCode: part.partNumber,
-          recordStatus: part.recordStatus,
-          developmentPhase: part.developmentPhase
+          recordStatus: part.recordStatus
         })),
       ...drawings
         .filter((drawing) => isFormalRecordStatus(drawing.recordStatus))
@@ -9061,8 +8835,7 @@ export class AsyncNumberingRepository {
           entityType: "drawing_number" as const,
           entityId: drawing.id,
           entityCode: drawing.drawingNumber,
-          recordStatus: drawing.recordStatus,
-          developmentPhase: drawing.developmentPhase
+          recordStatus: drawing.recordStatus
         }))
     ];
     const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
@@ -9093,7 +8866,6 @@ export class AsyncNumberingRepository {
       companyId: string;
       coreName: string;
       itemKind: NumberingItemKind;
-      developmentPhase: NumberingPhase;
       recordStatus: NumberingRecordStatus;
       ruleVersionId: string;
       createdBy?: string | null;
@@ -9108,7 +8880,6 @@ export class AsyncNumberingRepository {
       rootCode,
       coreName: input.coreName.trim(),
       itemKind: input.itemKind,
-      developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       ruleVersionId: input.ruleVersionId,
       createdBy: input.createdBy ?? null,
@@ -9126,7 +8897,6 @@ export class AsyncNumberingRepository {
     input: {
       partName: string;
       itemKind: NumberingItemKind;
-      developmentPhase: NumberingPhase;
       recordStatus: NumberingRecordStatus;
       isUniversal: boolean;
       universalReason?: string;
@@ -9160,7 +8930,6 @@ export class AsyncNumberingRepository {
       isUniversal: effectiveIsUniversal ? 1 : 0,
       customSpecification: input.customSpecification?.trim() || null,
       seriesCode,
-      developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       universalReason: input.universalReason?.trim() || null,
       ruleVersionId: input.ruleVersionId,
@@ -9179,7 +8948,6 @@ export class AsyncNumberingRepository {
     input: {
       purposeCode: DrawingPurposeCode;
       purposeDescription?: string;
-      developmentPhase: NumberingPhase;
       recordStatus: NumberingRecordStatus;
       ruleVersionId: string;
       createdBy?: string | null;
@@ -9201,7 +8969,6 @@ export class AsyncNumberingRepository {
       purposeDescription,
       sequenceNo,
       isPrimaryManufacturing: isManufacturingDrawingPurpose(input.purposeCode) ? 1 : 0,
-      developmentPhase: input.developmentPhase,
       recordStatus: input.recordStatus,
       ruleVersionId: input.ruleVersionId,
       createdBy: input.createdBy ?? null,

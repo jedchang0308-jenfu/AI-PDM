@@ -1,6 +1,6 @@
 # SPEC-PDM-CHANGE-CONTROL-002: 圖面進版工作台 UX / API 實作契約
 
-狀態：RD Implementation Ready / implementation authorization pending
+狀態：DEV-053 多料號批次進版修訂已完成本機實作與 targeted QC；production migration / release gated
 日期：2026-06-30
 適用系統：AI_PDM
 節點類型：開發點，隸屬 `DEV-PDM-UI-POLISH-001`，並延伸 `DEV-PDM-CHANGE-CONTROL-001`
@@ -27,10 +27,19 @@
 
 - 圖面進版頁定位為「圖面進版工作台」，不是 FFF API 表單。
 - 使用者以正式圖號、料號、品名或既有清單選擇圖面；內部 ID 由系統解析和隱藏。
-- 系統必須帶出現行圖號、現行料號、現行版次、圖面狀態、BOM 關聯與可進版性。
+- 系統必須帶出現行圖號、本次一起進版的料號集合、現行版次、圖面狀態、BOM 關聯與可進版性。
 - FFF 判定應以工程問題和後果預覽引導，而不是只呈現三排按鈕。
 - 確認影響時，替代料號草稿應優先由系統建立或從既有草稿選取，不要求 RD 猜後端欄位。
 - 送出前必須顯示即將建立的紀錄、審核任務與 BOM 影響摘要。
+
+2026-08-06 使用者確認的多料號修訂：
+
+- 一張 MA 圖合法服務多個主要料號時，預設全選；使用者可明確取消不屬於本次影響範圍的料號，但至少保留一個。
+- 一次操作只建立一筆圖面送審與一組共用附件包；受影響料號以不可變批次範圍保存。
+- 送審、審核與正式化採原子批次；所有所選料號全成或全退，不能只更新部分料號。
+- UI 必須直接顯示料號數量與清單，主要 CTA 使用 `建立送審（1 張圖・N 個料號）`，不得讓使用者誤以為只會進版一個料號。
+- FFF 判定共用於本次圖面變更，並複製到每一筆料號範圍作為追溯證據。
+- 確認影響需要逐舊料號建立替代料號；現階段多料號 + confirmed impact 必須 fail closed，不可用一個新料號替代多個舊料號。
 
 ### 1.2 HCS 引導狀態
 
@@ -343,11 +352,18 @@ Response:
     "developmentPhase": "EVT",
     "isPrimaryManufacturing": true
   },
-  "currentPart": {
+  "currentParts": [{
     "id": "internal-part-id",
     "partNumber": "P-0014-001",
     "partName": "part name",
     "recordStatus": "Draft"
+  }],
+  "currentPart": {
+    "id": "internal-part-id",
+    "partNumber": "P-0014-001",
+    "partName": "part name",
+    "recordStatus": "Draft",
+    "compatibilityAnchor": true
   },
   "revision": {
     "latestRevision": "0.1",
@@ -393,21 +409,21 @@ Not found response:
 
 #### 6.1.1 Primary Part Resolution
 
-Resolver must derive `currentPart` from `drawing_part_links.link_type = 'primary_manufacturing'`.
+Resolver must derive `currentParts` from `drawing_part_links.link_type = 'primary_manufacturing'`. `currentPart` remains only as a legacy compatibility anchor to the first selected part.
 
 Rules:
 
 | Condition | Resolver status | UI behavior | Submit behavior |
 |---|---|---|---|
-| Exactly one primary manufacturing part | `resolved` | Show the part as locked context | Server uses this part as `currentPartNumberId` |
+| Exactly one primary manufacturing part | `resolved` | Show the part as locked context | Server uses this part as `partNumberIds[0]` and legacy `currentPartNumberId` anchor |
 | No linked primary manufacturing part | `resolved_with_missing_part` | Show drawing context and visible warning: `此圖面尚未連結現行料號，確認影響前需先選擇或建立料號關聯。` | No-impact and suspected-impact may submit if domain permits; confirmed-impact must stop until a current part is selected or linked |
-| Multiple primary manufacturing parts | `multiple_primary_parts` | Show candidate part list and require explicit selection | Submit rejects until one current part is selected |
+| Multiple primary manufacturing parts | `resolved` | Show checkbox list, default all selected, and show `1 張圖・N 個料號` plus atomic-release copy | Server accepts one or more `partNumberIds`, revalidates every id against the primary candidates, and freezes the complete scope |
 | Drawing purpose is not `MA` | `resolved_with_warning` | Show warning `此圖號不是主要製造圖，進版前請確認用途。` | Submit allowed only if existing domain rules allow; warning must be visible in preview |
 
 Fallback selector:
 
 - Candidate list must show `partNumber`, `partName`, `recordStatus`, and whether the part is same-root.
-- User-selected fallback part is passed as `currentPartNumberId`, but the server must re-check company scope and drawing/root relationship.
+- User-selected scope is passed as `partNumberIds`; the scalar `currentPartNumberId` is accepted only for legacy clients. The server must re-check every selected id against company scope and the drawing/root relationship.
 - If no safe relationship can be proven, submit returns a visible blocked reason.
 
 This closes the RD ambiguity around MA drawings without primary part links.
@@ -435,6 +451,7 @@ Recommended request:
   "formState": "no_impact",
   "fitState": "confirmed_impact",
   "functionState": "no_impact",
+  "partNumberIds": ["internal-part-id-1", "internal-part-id-2", "internal-part-id-3"],
   "replacementStrategy": "create_system_draft",
   "replacementItemType": "self_made",
   "detectedPartNumber": "P-0014-002",
@@ -449,8 +466,10 @@ Server-side rules:
 - If only `drawingNumber` is provided, resolve by official `drawing_number`.
 - If confirmed impact and replacement strategy is `create_system_draft`, the server creates the replacement draft using numbering rules.
 - If confirmed impact and manual reserved number is supplied, the server must validate it through existing draft reservation/duplicate prevention.
-- `currentPartNumberId` must be resolved server-side when possible from primary manufacturing link.
-- Direct client-provided `currentPartNumberId` is accepted only as a fallback and must be company-scoped and related to the selected drawing.
+- `partNumberIds` defaults to all legitimate primary-manufacturing candidates when omitted by the current UI; an explicit non-empty subset is allowed.
+- Every client-provided id must be company-scoped and related to the selected drawing. One invalid id rejects the whole request.
+- Legacy `currentPartNumberId` remains accepted as a one-element scope during compatibility migration only.
+- No-impact and suspected-impact can use the batch scope. Confirmed-impact with more than one selected part returns `DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED` until the request can supply one replacement result per old part.
 
 #### 6.2.1 Replacement Draft Service Contract
 

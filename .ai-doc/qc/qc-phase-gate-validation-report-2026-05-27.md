@@ -1,5 +1,7 @@
 # QC Validation Report - PLM Phase Gate
 
+Status: Historical evidence / superseded by `DEV-054` on 2026-08-05. The former PASS must not be used as an active regression expectation.
+
 Date: 2026-05-27
 
 ## Scope

@@ -485,6 +485,33 @@ ON submission_snapshots(company_id, source_root_code);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_drawing
 ON submission_snapshots(company_id, source_drawing_number);
 
+CREATE TABLE IF NOT EXISTS submission_part_scopes (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  part_number_id TEXT NOT NULL,
+  part_number TEXT NOT NULL,
+  part_name TEXT NOT NULL DEFAULT '',
+  link_type TEXT NOT NULL CHECK (link_type IN ('primary_manufacturing', 'reference')),
+  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fff_outcome TEXT NOT NULL CHECK (fff_outcome IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (item_id) REFERENCES items(id),
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  UNIQUE (submission_id, part_number_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_part_scopes_part
+ON submission_part_scopes(company_id, part_number_id, submission_id);
+
+CREATE INDEX IF NOT EXISTS idx_submission_part_scopes_submission
+ON submission_part_scopes(submission_id, part_number);
+
 CREATE TABLE IF NOT EXISTS submission_attempts (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
@@ -865,26 +892,6 @@ CREATE TABLE IF NOT EXISTS change_requests (
   FOREIGN KEY (decided_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS phase_gate_checks (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT NOT NULL,
-  gate_code TEXT NOT NULL CHECK (gate_code IN ('concept', 'design', 'verification', 'release')),
-  gate_name TEXT NOT NULL,
-  checklist_item TEXT NOT NULL,
-  required INTEGER NOT NULL DEFAULT 1 CHECK (required IN (0, 1)),
-  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'completed', 'waived')),
-  created_by TEXT NOT NULL,
-  decided_by TEXT,
-  decision_comment TEXT,
-  decided_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (decided_by) REFERENCES users(id),
-  UNIQUE (submission_id, gate_code, checklist_item)
-);
-
 CREATE TABLE IF NOT EXISTS pdf_markups (
   id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL,
@@ -1117,8 +1124,7 @@ CREATE TABLE IF NOT EXISTS part_roots (
   root_code TEXT NOT NULL,
   core_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
-  development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1142,8 +1148,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
   series_code TEXT,
-  development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   universal_reason TEXT,
   rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
@@ -1166,8 +1171,7 @@ CREATE TABLE IF NOT EXISTS drawing_numbers (
   purpose_description TEXT NOT NULL DEFAULT '',
   sequence_no INTEGER NOT NULL CHECK (sequence_no > 0),
   is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
-  development_phase TEXT NOT NULL DEFAULT 'EVT' CHECK (development_phase IN ('EVT', 'DVT', 'PVT', 'Release', 'ECR')),
-  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'EVTDisabled', 'PendingAdminConfirm', 'MainDrawingInvalid')),
+  record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1828,16 +1832,15 @@ CREATE TABLE IF NOT EXISTS rule_templates (
 
 INSERT OR IGNORE INTO rule_templates (id, template_code, title, description)
 VALUES
-  ('rule-template-rd-efficiency', 'rd_efficiency', '研發效率優先', '草稿幾乎不審核，DVT/發行才審核'),
+  ('rule-template-rd-efficiency', 'rd_efficiency', '研發效率優先', '草稿從簡，正式發行與高風險異動才審核'),
   ('rule-template-standard-control', 'standard_control', '標準管制', '依圖料號自動化第一版 spec 預設規則'),
-  ('rule-template-strict-control', 'strict_control', '嚴格管制', 'DVT 後多數異動都需審核');
+  ('rule-template-strict-control', 'strict_control', '嚴格管制', '正式資料與高風險異動需加強審核');
 
 CREATE TABLE IF NOT EXISTS approval_rules (
   id TEXT PRIMARY KEY,
   rule_version_id TEXT NOT NULL,
   rule_name TEXT NOT NULL,
   action_code TEXT NOT NULL,
-  phase TEXT,
   record_status TEXT,
   item_kind TEXT,
   risk_flag TEXT,
@@ -1855,48 +1858,42 @@ CREATE TABLE IF NOT EXISTS approval_rules (
 );
 
 INSERT OR IGNORE INTO approval_rules (
-  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker
 )
 VALUES
-  ('approval-rule-update-name-dvt', 'numbering-rule-v1', 'DVT item name update', 'update_name', 'DVT', NULL, NULL, NULL, 1, 'pdm_admin', 1, 0, 1, 1),
-  ('approval-rule-update-name-release', 'numbering-rule-v1', 'Release item name update', 'update_name', 'Release', NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-update-name-released', 'numbering-rule-v1', 'Released item name update', 'update_name', NULL, 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-update-spec-released', 'numbering-rule-v1', 'Released specification update', 'update_spec', NULL, 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-obsolete-part-dvt', 'numbering-rule-v1', 'DVT part obsolescence', 'obsolete_part_number', 'DVT', NULL, NULL, NULL, 1, 'pdm_admin', 1, 0, 1, 1),
-  ('approval-rule-obsolete-part-release', 'numbering-rule-v1', 'Release part obsolescence', 'obsolete_part_number', 'Release', NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-obsolete-ma-drawing-dvt', 'numbering-rule-v1', 'DVT MA drawing obsolescence manager', 'obsolete_ma_drawing', 'DVT', NULL, NULL, NULL, 1, 'rd_manager', 1, 0, 1, 1),
-  ('approval-rule-obsolete-ma-drawing-admin', 'numbering-rule-v1', 'MA drawing obsolescence admin', 'obsolete_ma_drawing', NULL, NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-obsolete-root-admin', 'numbering-rule-v1', 'Root aggregate obsolescence admin', 'obsolete_part_root', NULL, NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-merge-part-referenced', 'numbering-rule-v1', 'Referenced part merge', 'merge_part_number', NULL, NULL, NULL, 'has_reference', 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-dvt-missing-ma-override', 'numbering-rule-v1', 'DVT missing MA override', 'dvt_missing_ma_override', 'DVT', NULL, 'manufactured', 'missing_primary_ma', 1, 'pdm_admin', 1, 0, 1, 1),
-  ('approval-rule-dvt-promotion', 'numbering-rule-v1', 'DVT promotion approval', 'dvt_promotion', 'DVT', 'PendingReview', NULL, NULL, 1, 'rd_manager', 1, 0, 1, 1),
-  ('approval-rule-release-missing-ma-confirm', 'numbering-rule-v1', 'Release missing MA confirmation', 'release_missing_ma_confirm', 'Release', NULL, NULL, 'missing_primary_ma', 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-release', 'numbering-rule-v1', 'Release approval', 'release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
-  ('approval-rule-shared-model-release', 'numbering-rule-v1', 'Shared 3D model release', 'pdm.shared_model.release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
-  ('approval-rule-model-exception-confirm', 'numbering-rule-v1', '2D-only model exception confirmation', 'pdm.drawing_package.model_exception.confirm', 'Release', NULL, NULL, 'two_d_only_model_exception', 1, 'rd_manager', 1, 1, 1, 1),
-  ('approval-rule-manufacturing-baseline-release', 'numbering-rule-v1', 'Manufacturing baseline release', 'pdm.manufacturing_baseline.release', 'Release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
-  ('approval-rule-post-release-change-manager', 'numbering-rule-v1', 'Post-release change manager', 'post_release_change', NULL, 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
-  ('approval-rule-post-release-change-admin', 'numbering-rule-v1', 'Post-release change admin', 'post_release_change', NULL, 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
-  ('approval-rule-released-same-drawing-variant', 'numbering-rule-v1', 'Released same drawing variant', 'same_drawing_variant_after_release', NULL, 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
-  ('approval-rule-main-drawing-restore', 'numbering-rule-v1', 'Main drawing invalid restore', 'main_drawing_restore', NULL, 'MainDrawingInvalid', NULL, NULL, 1, 'pdm_admin', 1, 0, 1, 1);
+  ('approval-rule-update-name-released', 'numbering-rule-v1', 'Released item name update', 'update_name', 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-update-spec-released', 'numbering-rule-v1', 'Released specification update', 'update_spec', 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-obsolete-part-released', 'numbering-rule-v1', 'Released part obsolescence', 'obsolete_part_number', 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-obsolete-ma-drawing-admin', 'numbering-rule-v1', 'MA drawing obsolescence admin', 'obsolete_ma_drawing', NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-obsolete-root-admin', 'numbering-rule-v1', 'Root aggregate obsolescence admin', 'obsolete_part_root', NULL, NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-merge-part-referenced', 'numbering-rule-v1', 'Referenced part merge', 'merge_part_number', NULL, NULL, 'has_reference', 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-release-missing-ma-confirm', 'numbering-rule-v1', 'Release missing MA confirmation', 'release_missing_ma_confirm', NULL, NULL, 'missing_primary_ma', 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-release', 'numbering-rule-v1', 'Release approval', 'release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
+  ('approval-rule-shared-model-release', 'numbering-rule-v1', 'Shared 3D model release', 'pdm.shared_model.release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
+  ('approval-rule-model-exception-confirm', 'numbering-rule-v1', '2D-only model exception confirmation', 'pdm.drawing_package.model_exception.confirm', NULL, NULL, 'two_d_only_model_exception', 1, 'rd_manager', 1, 1, 1, 1),
+  ('approval-rule-manufacturing-baseline-release', 'numbering-rule-v1', 'Manufacturing baseline release', 'pdm.manufacturing_baseline.release', NULL, NULL, NULL, 1, 'rd_manager', 0, 1, 1, 1),
+  ('approval-rule-post-release-change-manager', 'numbering-rule-v1', 'Post-release change manager', 'post_release_change', 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
+  ('approval-rule-post-release-change-admin', 'numbering-rule-v1', 'Post-release change admin', 'post_release_change', 'Released', NULL, NULL, 1, 'pdm_admin', 1, 1, 1, 1),
+  ('approval-rule-released-same-drawing-variant', 'numbering-rule-v1', 'Released same drawing variant', 'same_drawing_variant_after_release', 'Released', NULL, NULL, 1, 'rd_manager', 1, 1, 1, 1),
+  ('approval-rule-main-drawing-restore', 'numbering-rule-v1', 'Main drawing invalid restore', 'main_drawing_restore', 'MainDrawingInvalid', NULL, NULL, 1, 'pdm_admin', 1, 0, 1, 1);
 
 INSERT OR IGNORE INTO approval_rules (
-  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
 )
 SELECT
-  'v2-' || id, 'numbering-rule-v2', rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  'v2-' || id, 'numbering-rule-v2', rule_name, action_code, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, datetime('now'), datetime('now')
 FROM approval_rules
 WHERE rule_version_id = 'numbering-rule-v1';
 
 INSERT OR IGNORE INTO approval_rules (
-  id, rule_version_id, rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  id, rule_version_id, rule_name, action_code, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, created_at, updated_at
 )
 SELECT
-  'v3-' || id, 'numbering-rule-v3-alpha-root', rule_name, action_code, phase, record_status, item_kind, risk_flag,
+  'v3-' || id, 'numbering-rule-v3-alpha-root', rule_name, action_code, record_status, item_kind, risk_flag,
   requires_approval, approver_role, blocks_usage, blocks_release, shows_warning, export_marker, created_by, datetime('now'), datetime('now')
 FROM approval_rules
 WHERE rule_version_id = 'numbering-rule-v1';
@@ -1986,11 +1983,10 @@ VALUES
   ('platform.test.fake', 'platform', '平台測試審核', 'RD/QC only fake handler used to verify platform submit, decide and idempotent apply behavior.', 'platform.fake', 'low', 0, 1, '{"qcOnly":true}'),
   ('numbering.candidate_publication_review', 'numbering', '候選號碼發布審核', 'Review a locked numbering candidate snapshot without publishing master records.', 'numbering.candidate-publication', 'high', 1, 1, '{}'),
   ('numbering.candidate_bundle_review', 'numbering', '候選圖料整包審核', 'Review candidate numbers, drawing relationships, first revisions, and finalized file evidence as one immutable bundle.', 'numbering.candidate-bundle', 'high', 0, 1, '{}'),
+  ('numbering.drawing_revision_lifecycle_review', 'drawing_revision', '圖面進版生命週期審核', 'Transient Phase 1H review authority; durable PDM revision state survives terminal cleanup.', 'drawing_revision.lifecycle', 'high', 0, 1, '{"retentionClass":"lifecycle_only"}'),
   ('transfer.package_review', 'transfer', '技術移轉包審核', 'Review an immutable aggregate transfer snapshot without publishing master records.', 'transfer.package-review', 'high', 1, 1, '{}'),
-  ('numbering.dvt_promotion', 'numbering', 'DVT 升階審核', 'Numbering DVT promotion compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
   ('numbering.release', 'numbering', '發行審核', 'Numbering release compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
   ('numbering.same_drawing_variant_after_release', 'numbering', '同圖多料號審核', 'Numbering same-drawing variant compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
-  ('numbering.dvt_missing_ma_override', 'numbering', 'DVT 缺製造圖例外審核', 'Numbering DVT missing manufacturing drawing override compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
   ('numbering.release_missing_ma_confirm', 'numbering', '發行缺製造圖確認', 'Numbering release missing manufacturing drawing compatibility action.', 'numbering.compat', 'high', 1, 1, '{}'),
   ('numbering.main_drawing_restore', 'numbering', '主圖恢復審核', 'Numbering main drawing restore compatibility action.', 'numbering.compat', 'normal', 1, 1, '{}'),
   ('numbering.obsolete_part_number', 'numbering', '料號作廢審核', 'Formal part-number obsolete approval action.', 'numbering.compat', 'high', 1, 1, '{}'),
@@ -2220,7 +2216,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'page', 'numbering.request', 1),
     ('system_admin', 'page', 'numbering.search', 1),
     ('system_admin', 'page', 'numbering.drawings.view', 1),
-    ('system_admin', 'page', 'numbering.dvt', 1),
     ('system_admin', 'page', 'numbering.approvals', 1),
     ('system_admin', 'page', 'numbering.impact', 1),
     ('system_admin', 'page', 'numbering.tasks', 1),
@@ -2230,7 +2225,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'numbering.create', 1),
     ('system_admin', 'action', 'numbering.duplicate_check', 1),
     ('system_admin', 'action', 'numbering.link_variant', 1),
-    ('system_admin', 'action', 'numbering.dvt.submit', 1),
     ('system_admin', 'action', 'numbering.approval.request', 1),
     ('system_admin', 'action', 'numbering.approval.batch.create', 1),
     ('system_admin', 'action', 'numbering.approval.batch.decide', 1),
@@ -2254,8 +2248,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'obsolete_ma_drawing', 1),
     ('system_admin', 'action', 'obsolete_part_root', 1),
     ('system_admin', 'action', 'merge_part_number', 1),
-    ('system_admin', 'action', 'dvt_missing_ma_override', 1),
-    ('system_admin', 'action', 'dvt_promotion', 1),
     ('system_admin', 'action', 'release_missing_ma_confirm', 1),
     ('system_admin', 'action', 'release', 1),
     ('system_admin', 'action', 'pdm.shared_model.release', 1),
@@ -2267,7 +2259,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'page', 'numbering.request', 1),
     ('pdm_admin', 'page', 'numbering.search', 1),
     ('pdm_admin', 'page', 'numbering.drawings.view', 1),
-    ('pdm_admin', 'page', 'numbering.dvt', 1),
     ('pdm_admin', 'page', 'numbering.approvals', 1),
     ('pdm_admin', 'page', 'numbering.impact', 1),
     ('pdm_admin', 'page', 'numbering.tasks', 1),
@@ -2277,7 +2268,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'numbering.create', 1),
     ('pdm_admin', 'action', 'numbering.duplicate_check', 1),
     ('pdm_admin', 'action', 'numbering.link_variant', 1),
-    ('pdm_admin', 'action', 'numbering.dvt.submit', 1),
     ('pdm_admin', 'action', 'numbering.approval.request', 1),
     ('pdm_admin', 'action', 'numbering.approval.batch.create', 1),
     ('pdm_admin', 'action', 'numbering.approval.batch.decide', 1),
@@ -2301,8 +2291,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'obsolete_ma_drawing', 1),
     ('pdm_admin', 'action', 'obsolete_part_root', 1),
     ('pdm_admin', 'action', 'merge_part_number', 1),
-    ('pdm_admin', 'action', 'dvt_missing_ma_override', 1),
-    ('pdm_admin', 'action', 'dvt_promotion', 1),
     ('pdm_admin', 'action', 'release_missing_ma_confirm', 1),
     ('pdm_admin', 'action', 'release', 1),
     ('pdm_admin', 'action', 'pdm.shared_model.release', 1),
@@ -2314,7 +2302,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'page', 'numbering.request', 1),
     ('rd_manager', 'page', 'numbering.search', 1),
     ('rd_manager', 'page', 'numbering.drawings.view', 1),
-    ('rd_manager', 'page', 'numbering.dvt', 1),
     ('rd_manager', 'page', 'numbering.approvals', 1),
     ('rd_manager', 'page', 'numbering.impact', 1),
     ('rd_manager', 'page', 'numbering.tasks', 1),
@@ -2322,7 +2309,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'action', 'numbering.create', 1),
     ('rd_manager', 'action', 'numbering.duplicate_check', 1),
     ('rd_manager', 'action', 'numbering.link_variant', 1),
-    ('rd_manager', 'action', 'numbering.dvt.submit', 1),
     ('rd_manager', 'action', 'numbering.approval.request', 1),
     ('rd_manager', 'action', 'numbering.approval.batch.create', 1),
     ('rd_manager', 'action', 'numbering.approval.batch.decide', 1),
@@ -2335,7 +2321,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'action', 'numbering.attachments.manage', 1),
     ('rd_manager', 'action', 'numbering.draft.update', 1),
     ('rd_manager', 'action', 'numbering.draft.obsolete', 1),
-    ('rd_manager', 'action', 'dvt_promotion', 1),
     ('rd_manager', 'action', 'release', 1),
     ('rd_manager', 'action', 'pdm.shared_model.release', 1),
     ('rd_manager', 'action', 'pdm.drawing_package.model_exception.confirm', 1),
@@ -2345,7 +2330,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'page', 'numbering.request', 1),
     ('rd', 'page', 'numbering.search', 1),
     ('rd', 'page', 'numbering.drawings.view', 1),
-    ('rd', 'page', 'numbering.dvt', 1),
     ('rd', 'page', 'numbering.impact', 1),
     ('rd', 'page', 'numbering.tasks', 1),
     ('rd', 'page', 'numbering.imports', 1),
@@ -2354,7 +2338,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'action', 'numbering.link_variant', 1),
     ('rd', 'action', 'numbering.draft.update', 1),
     ('rd', 'action', 'numbering.draft.obsolete', 1),
-    ('rd', 'action', 'numbering.dvt.submit', 1),
     ('rd', 'action', 'numbering.approval.request', 1),
     ('rd', 'action', 'numbering.approval.batch.create', 1),
     ('rd', 'action', 'numbering.approval.batch.resubmit', 1),
@@ -2682,6 +2665,8 @@ CREATE TABLE IF NOT EXISTS drawing_revision_packages (
   drawing_number TEXT NOT NULL,
   revision TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('Draft', 'Pending', 'Released', 'Rejected', 'Cancelled')),
+  lifecycle_state TEXT CHECK (lifecycle_state IN ('preparing', 'in_review', 'correction_required', 'rd_controlled', 'released')),
+  active_correction_reason TEXT,
   source_submission_id TEXT UNIQUE,
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -2696,7 +2681,8 @@ CREATE TABLE IF NOT EXISTS drawing_revision_packages (
   FOREIGN KEY (drawing_number_id) REFERENCES drawing_numbers(id),
   FOREIGN KEY (source_submission_id) REFERENCES submissions(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (superseded_by_package_id) REFERENCES drawing_revision_packages(id)
+  FOREIGN KEY (superseded_by_package_id) REFERENCES drawing_revision_packages(id),
+  CHECK (active_correction_reason IS NULL OR COALESCE(lifecycle_state, '') = 'correction_required')
 );
 
 CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
@@ -2718,6 +2704,90 @@ CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
   FOREIGN KEY (created_by) REFERENCES users(id),
   UNIQUE (package_id, source_file_asset_id)
 );
+
+CREATE TABLE IF NOT EXISTS drawing_revision_package_part_scopes (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  part_number_id TEXT NOT NULL,
+  part_number TEXT NOT NULL,
+  part_name TEXT NOT NULL DEFAULT '',
+  link_type TEXT NOT NULL CHECK (link_type IN ('primary_manufacturing', 'reference')),
+  form_state TEXT NOT NULL CHECK (form_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fit_state TEXT NOT NULL CHECK (fit_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  function_state TEXT NOT NULL CHECK (function_state IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  fff_outcome TEXT NOT NULL CHECK (fff_outcome IN ('no_impact', 'suspected_impact', 'confirmed_impact')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE RESTRICT,
+  UNIQUE (package_id, part_number_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_part
+ON drawing_revision_package_part_scopes(company_id, part_number_id, package_id);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_package
+ON drawing_revision_package_part_scopes(package_id, part_number);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_lifecycle_workflows (
+  id TEXT PRIMARY KEY,
+  package_id TEXT NOT NULL UNIQUE,
+  company_id TEXT NOT NULL,
+  approval_package_id TEXT,
+  approval_request_id TEXT UNIQUE,
+  legacy_submission_id TEXT UNIQUE,
+  legacy_fff_assessment_id TEXT UNIQUE,
+  origin TEXT NOT NULL CHECK (origin IN ('new', 'adopted_active')),
+  state TEXT NOT NULL CHECK (state IN ('active', 'finalizing', 'cleanup_pending')),
+  submitted_by TEXT NOT NULL,
+  snapshot_hash TEXT NOT NULL CHECK (length(trim(snapshot_hash)) > 0),
+  cleanup_authorized_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (package_id) REFERENCES drawing_revision_packages(id) ON DELETE RESTRICT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_package_id) REFERENCES approval_platform_packages(id) ON DELETE SET NULL,
+  FOREIGN KEY (approval_request_id) REFERENCES approval_platform_requests(id) ON DELETE SET NULL,
+  FOREIGN KEY (legacy_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (legacy_fff_assessment_id) REFERENCES drawing_revision_fff_assessments(id) ON DELETE SET NULL,
+  FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_lifecycle_workflows_active
+ON drawing_revision_lifecycle_workflows(company_id, state, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_lifecycle_reviewers (
+  id TEXT PRIMARY KEY,
+  workflow_id TEXT NOT NULL,
+  reviewer_id TEXT NOT NULL,
+  reviewer_role TEXT NOT NULL,
+  required_order INTEGER NOT NULL DEFAULT 1 CHECK (required_order > 0),
+  quorum_group TEXT NOT NULL DEFAULT 'default',
+  quorum_required INTEGER NOT NULL DEFAULT 1 CHECK (quorum_required > 0),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (workflow_id) REFERENCES drawing_revision_lifecycle_workflows(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (workflow_id, reviewer_id, reviewer_role)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_lifecycle_reviewers_assignment
+ON drawing_revision_lifecycle_reviewers(workflow_id, required_order, reviewer_role);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_lifecycle_command_tokens (
+  key_hash TEXT PRIMARY KEY,
+  scope_hash TEXT NOT NULL,
+  result_fingerprint TEXT,
+  status TEXT NOT NULL CHECK (status IN ('processing', 'completed', 'failed')),
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_lifecycle_command_tokens_expiry
+ON drawing_revision_lifecycle_command_tokens(expires_at);
 
 CREATE TABLE IF NOT EXISTS numbering_candidate_revision_drafts (
   id TEXT PRIMARY KEY,
@@ -3047,6 +3117,9 @@ CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_drawing_revision ON drawing_revision_packages(company_id, drawing_number_id, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_lifecycle_unique
+ON drawing_revision_packages(company_id, drawing_number_id, revision)
+WHERE lifecycle_state IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_released_unique
 ON drawing_revision_packages(company_id, drawing_number_id, revision)
 WHERE status = 'Released';
@@ -3093,7 +3166,6 @@ CREATE INDEX IF NOT EXISTS idx_discussion_comments_file_id ON discussion_comment
 CREATE INDEX IF NOT EXISTS idx_review_issues_submission_id ON review_issues(submission_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_review_issues_file_id ON review_issues(file_id);
 CREATE INDEX IF NOT EXISTS idx_change_requests_submission_id ON change_requests(submission_id, status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_phase_gate_checks_submission_id ON phase_gate_checks(submission_id, status, gate_code);
 CREATE INDEX IF NOT EXISTS idx_approval_matrix_submission_id ON approval_matrix_requirements(submission_id, status, required_role);
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submission_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
@@ -3104,11 +3176,11 @@ ON secret_references(kind)
 WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
-CREATE INDEX IF NOT EXISTS idx_part_roots_status_phase ON part_roots(record_status, development_phase);
+CREATE INDEX IF NOT EXISTS idx_part_roots_status ON part_roots(record_status);
 CREATE INDEX IF NOT EXISTS idx_part_numbers_root_id ON part_numbers(part_root_id);
-CREATE INDEX IF NOT EXISTS idx_part_numbers_status_phase ON part_numbers(record_status, development_phase);
+CREATE INDEX IF NOT EXISTS idx_part_numbers_status ON part_numbers(record_status);
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_root_id);
-CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status_phase ON drawing_numbers(record_status, development_phase);
+CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status ON drawing_numbers(record_status);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
 CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
@@ -3305,5 +3377,87 @@ BEFORE DELETE ON transfer_package_events
 BEGIN
   SELECT RAISE(ABORT, 'TRANSFER_PACKAGE_EVENT_APPEND_ONLY');
 END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_packages_lifecycle_state_insert_guard
+BEFORE INSERT ON drawing_revision_packages
+WHEN NEW.active_correction_reason IS NOT NULL AND COALESCE(NEW.lifecycle_state, '') <> 'correction_required'
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_LIFECYCLE_CORRECTION_REASON_INVALID');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_packages_lifecycle_state_update_guard
+BEFORE UPDATE OF lifecycle_state, active_correction_reason ON drawing_revision_packages
+WHEN NEW.active_correction_reason IS NOT NULL AND COALESCE(NEW.lifecycle_state, '') <> 'correction_required'
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_LIFECYCLE_CORRECTION_REASON_INVALID');
+END;
+
+DROP TRIGGER IF EXISTS trg_approval_platform_targets_no_delete;
+CREATE TRIGGER trg_approval_platform_targets_no_delete
+BEFORE DELETE ON approval_platform_targets
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_revision_lifecycle_workflows workflow
+  WHERE workflow.approval_request_id = OLD.request_id
+    AND workflow.cleanup_authorized_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_TARGET_IMMUTABLE');
+END;
+
+DROP TRIGGER IF EXISTS trg_approval_platform_impact_snapshots_no_delete;
+CREATE TRIGGER trg_approval_platform_impact_snapshots_no_delete
+BEFORE DELETE ON approval_platform_impact_snapshots
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_revision_lifecycle_workflows workflow
+  WHERE workflow.cleanup_authorized_at IS NOT NULL
+    AND (
+      (OLD.request_id IS NOT NULL AND workflow.approval_request_id = OLD.request_id)
+      OR (OLD.package_id IS NOT NULL AND workflow.approval_package_id = OLD.package_id)
+    )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_IMPACT_SNAPSHOT_IMMUTABLE');
+END;
+
+DROP TRIGGER IF EXISTS trg_approval_platform_decisions_no_delete;
+CREATE TRIGGER trg_approval_platform_decisions_no_delete
+BEFORE DELETE ON approval_platform_decisions
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_revision_lifecycle_workflows workflow
+  WHERE workflow.approval_request_id = OLD.request_id
+    AND workflow.cleanup_authorized_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_DECISION_APPEND_ONLY');
+END;
+
+DROP TRIGGER IF EXISTS trg_approval_platform_events_no_delete;
+CREATE TRIGGER trg_approval_platform_events_no_delete
+BEFORE DELETE ON approval_platform_events
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_revision_lifecycle_workflows workflow
+  WHERE workflow.cleanup_authorized_at IS NOT NULL
+    AND (
+      (OLD.request_id IS NOT NULL AND workflow.approval_request_id = OLD.request_id)
+      OR (OLD.package_id IS NOT NULL AND workflow.approval_package_id = OLD.package_id)
+    )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'APPROVAL_PLATFORM_EVENT_APPEND_ONLY');
+END;
+
+DROP TRIGGER IF EXISTS trg_audit_logs_no_delete;
+CREATE TRIGGER trg_audit_logs_no_delete
+BEFORE DELETE ON audit_logs
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_revision_lifecycle_workflows workflow
+  WHERE workflow.legacy_submission_id = OLD.submission_id
+    AND workflow.origin = 'adopted_active'
+    AND workflow.cleanup_authorized_at IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'AUDIT_LOG_APPEND_ONLY');
+END;
+
 CREATE INDEX IF NOT EXISTS idx_numbering_export_jobs_generated ON numbering_export_jobs(export_mode, generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monthly_audit_reports_month ON monthly_audit_reports(report_type, report_month);

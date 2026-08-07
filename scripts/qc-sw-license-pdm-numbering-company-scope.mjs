@@ -50,7 +50,6 @@ try {
   assert.match(repository, /APPROVAL_BATCH_COMPANY_MISMATCH/);
   assert.match(repository, /buildNumberingExportPayload\(client, input\.exportMode, companyId\)/);
   assert.match(repository, /SELECT_ASYNC_NUMBERING_EXPORT_ROOTS_SQL, \{ companyId \}/);
-  assert.match(repository, /SELECT_ASYNC_DVT_PROMOTION_CANDIDATES_SQL, \{ companyId, limit \}/);
   assert.match(repository, /WHERE p\.part_number = :partNumber\s+AND p\.company_id = :companyId/);
   assert.match(repository, /INSERT INTO numbering_task_items \(\s+id, company_id,/);
   assert.match(repository, /INSERT INTO numbering_notifications \(\s+id, company_id,/);
@@ -71,8 +70,12 @@ try {
     "src/app/api/parts/route.ts"
   ]) {
     const source = read(route);
-    assert.match(source, /resolveNumberingCompanyContextAsync/, `${route} must resolve numbering company context`);
-    assert.match(source, /pdmCompany/, `${route} must return selected PDM company context`);
+    const usesQueryContext = source.includes("resolveNumberingCompanyContextAsync") && source.includes("pdmCompany");
+    const usesCommandContext =
+      source.includes("requireNumberingPlatformCommandAsync") &&
+      source.includes("access.company.companyId") &&
+      source.includes("pdmCompany: access.company");
+    assert.ok(usesQueryContext || usesCommandContext, `${route} must resolve and return selected PDM company context`);
   }
 
   for (const route of [
@@ -83,7 +86,6 @@ try {
     "src/app/api/numbering/import-batches/route.ts",
     "src/app/api/numbering/import-batches/[batchId]/route.ts",
     "src/app/api/numbering/import-batches/[batchId]/confirm/route.ts",
-    "src/app/api/numbering/dvt-candidates/route.ts",
     "src/app/api/numbering/impact-analysis/route.ts",
     "src/app/api/numbering/export-jobs/route.ts",
     "src/app/api/numbering/export-jobs/[jobId]/route.ts",

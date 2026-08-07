@@ -1,8 +1,10 @@
 export const NUMBER_STATE_FLOW_V1_FLAG = "PDM_NUMBER_STATE_FLOW_V1";
 export const NUMBER_LIFECYCLE_V2_FLAG = "PDM_NUMBER_LIFECYCLE_V2";
 export const UNIFIED_DRAWING_WORKBENCH_V1_FLAG = "PDM_UNIFIED_DRAWING_WORKBENCH_V1";
+export const DRAWING_REVISION_LIFECYCLE_MODE_FLAG = "PDM_DRAWING_REVISION_LIFECYCLE_MODE";
 
 type EnvLike = Record<string, string | undefined>;
+export type DrawingRevisionLifecycleMode = "off" | "shadow" | "enforced";
 
 export function isNumberStateFlowV1Enabled(env: EnvLike = process.env) {
   const value = String(env[NUMBER_STATE_FLOW_V1_FLAG] ?? "").trim().toLowerCase();
@@ -49,5 +51,22 @@ export function unifiedDrawingWorkbenchV1ClientStatus(env: EnvLike = process.env
     flag: UNIFIED_DRAWING_WORKBENCH_V1_FLAG,
     dependency: NUMBER_LIFECYCLE_V2_FLAG,
     phase: "DEV-053"
+  };
+}
+
+export function drawingRevisionLifecycleMode(env: EnvLike = process.env): DrawingRevisionLifecycleMode {
+  const value = String(env[DRAWING_REVISION_LIFECYCLE_MODE_FLAG] ?? "").trim().toLowerCase();
+  if (value === "shadow" || value === "enforced") return value;
+  return "off";
+}
+
+export function drawingRevisionLifecycleModeStatus(env: EnvLike = process.env) {
+  const requested = String(env[DRAWING_REVISION_LIFECYCLE_MODE_FLAG] ?? "").trim().toLowerCase();
+  return {
+    mode: drawingRevisionLifecycleMode(env),
+    requested: requested || "off",
+    valid: !requested || ["off", "shadow", "enforced"].includes(requested),
+    flag: DRAWING_REVISION_LIFECYCLE_MODE_FLAG,
+    phase: "DEV-053-1H"
   };
 }

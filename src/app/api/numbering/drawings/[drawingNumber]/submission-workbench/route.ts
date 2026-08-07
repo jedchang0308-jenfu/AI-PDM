@@ -15,6 +15,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
   const { drawingNumber } = await params;
   const url = new URL(request.url);
   const targetRevision = url.searchParams.get("revision");
+  const currentPartNumberId =
+    url.searchParams.get("currentPartNumberId") ?? url.searchParams.get("current_part_number_id");
+  const partNumberIds = [
+    ...url.searchParams.getAll("partNumberId"),
+    ...url.searchParams.getAll("part_number_id"),
+    ...(url.searchParams.get("partNumberIds") ?? url.searchParams.get("part_number_ids") ?? "").split(",")
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
   const workflowIntent =
     url.searchParams.get("workflowIntent") ??
     url.searchParams.get("workflow_intent") ??
@@ -24,6 +33,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
       company: companyResult.company,
       drawingNumber: decodeURIComponent(drawingNumber),
       targetRevision,
+      currentPartNumberId,
+      partNumberIds,
       workflowIntent
     });
     return NextResponse.json(context);

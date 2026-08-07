@@ -11,6 +11,7 @@ import type {
   FileReference,
   SubmissionDetail,
   SubmissionFile,
+  SubmissionPartScope,
   SubmissionSummary
 } from "@/lib/types";
 
@@ -98,6 +99,9 @@ export function getSubmission(id: string): SubmissionDetail | null {
   const files = database
     .prepare("SELECT * FROM submission_files WHERE submission_id = ? ORDER BY created_at ASC")
     .all(id) as SubmissionFile[];
+  const partScopes = database
+    .prepare("SELECT * FROM submission_part_scopes WHERE submission_id = ? ORDER BY part_number ASC, part_number_id ASC")
+    .all(id) as SubmissionPartScope[];
   const references = database
     .prepare("SELECT * FROM file_references WHERE submission_id = ? ORDER BY source_filename, referenced_filename")
     .all(id) as FileReference[];
@@ -122,6 +126,7 @@ export function getSubmission(id: string): SubmissionDetail | null {
   return {
     ...row,
     files,
+    part_scopes: partScopes,
     references,
     bom,
     active_lock: activeLock,

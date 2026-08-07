@@ -17,6 +17,11 @@ import { normalizeRevisionPackageFileRole } from "@/lib/revision-package";
 import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
+import {
+  drawingRevisionLifecycleErrorPayload,
+  isDrawingRevisionLifecycleEnforced,
+  submitDrawingRevisionLifecycle
+} from "@/lib/drawing-revision-lifecycle";
 
 export const runtime = "nodejs";
 
@@ -49,6 +54,8 @@ export async function POST(request: Request) {
   const revisionPolicySuggestion = revisionPolicySuggestionFromBody(body);
   const workflowIntent = nullableText(body.workflowIntent ?? body.workflow_intent) ?? revisionPolicySuggestion?.workflowIntent ?? "rd_workspace";
   const revisionOverrideReason = nullableText(body.revisionOverrideReason ?? body.revision_override_reason);
+  const currentPartNumberId = nullableText(body.currentPartNumberId ?? body.current_part_number_id);
+  const partNumberIds = normalizeTextArray(body.partNumberIds ?? body.part_number_ids);
   const packageFileRoles = Array.isArray(body.packageFileRoles)
     ? body.packageFileRoles
         .map((value) => {
@@ -73,10 +80,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid drawing revision submission", details: errors }, { status: 400 });
   }
 
+  if (isDrawingRevisionLifecycleEnforced()) {
+    try {
+      const lifecycle = await submitDrawingRevisionLifecycle({
+        company: companyResult.company,
+        drawingNumber,
+        currentPartNumberId,
+        partNumberIds,
+        fffAssessment: { formState, fitState, functionState },
+        expectedRevision: revision,
+        workflowIntent,
+        revisionPolicySuggestion,
+        revisionOverrideReason,
+        selectedAttachmentIds,
+        packageFileRoles,
+        reasonCategory,
+        note: String(body.note ?? ""),
+        submittedBy: auth.user.id,
+        idempotencyKey: String(
+          body.idempotencyKey ??
+          request.headers.get("idempotency-key") ??
+          request.headers.get("x-idempotency-key") ??
+          ""
+        )
+      });
+      return NextResponse.json(
+        {
+          ...lifecycle,
+          lifecycle: true,
+          submissionId: null,
+          status: lifecycle.lifecycleState,
+          outcome: lifecycle.displayStatus,
+          pdmCompany: companyResult.company
+        },
+        { status: lifecycle.cleanupPending ? 202 : 201 }
+      );
+    } catch (error) {
+      const failure = drawingRevisionLifecycleErrorPayload(error);
+      return NextResponse.json(failure.body, { status: failure.status });
+    }
+  }
+
   try {
     const submissionResult = await createDrawingSourceSubmission({
       company: companyResult.company,
       drawingNumber,
+      currentPartNumberId,
+      partNumberIds,
+      fffAssessment: { formState, fitState, functionState },
       expectedRevision: revision,
       workflowIntent,
       revisionPolicySuggestion,
@@ -100,7 +151,7 @@ export async function POST(request: Request) {
         note: nullableText(body.note),
         submissionId: submissionResult.submissionId,
         reviewPackageId: nullableText(body.reviewPackageId ?? body.review_package_id),
-        currentPartNumberId: nullableText(body.currentPartNumberId ?? body.current_part_number_id) ?? submissionResult.context.primaryPart?.id ?? null,
+        currentPartNumberId: submissionResult.context.primaryPart?.id ?? null,
         replacementReservedPartNumber: nullableText(body.replacementReservedPartNumber ?? body.replacement_reserved_part_number),
         replacementItemType: normalizeEnum(body.replacementItemType ?? body.replacement_item_type, itemTypes) as PartNumberDraftItemType | undefined,
         detectedPartNumber: nullableText(body.detectedPartNumber ?? body.detected_part_number),
@@ -237,6 +288,11 @@ function normalizeEnum(value: unknown, allowed: Set<string>) {
 function nullableText(value: unknown) {
   const text = String(value ?? "").trim();
   return text || null;
+}
+
+function normalizeTextArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map((entry) => String(entry ?? "").trim()).filter(Boolean)));
 }
 
 async function triggerBackgroundUpload(submissionId: string, folderId: string) {

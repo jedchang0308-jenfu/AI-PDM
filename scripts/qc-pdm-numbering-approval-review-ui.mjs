@@ -39,12 +39,12 @@ record(
 );
 record(
   "Approval workbench is the canonical reviewer surface",
-  approvalWorkbenchPage.includes("<h1>審核工作台</h1>") && approvalWorkbenchPage.includes("legacyRedirectMessages")
+  approvalWorkbenchPage.includes("<h1>審核工作台") && approvalWorkbenchPage.includes("legacyRedirectMessages")
 );
 record(
   "Approval workbench exposes numbering approval filters",
   approvalWorkbenchPage.includes("numbering.release") &&
-    approvalWorkbenchPage.includes("numbering.dvt_promotion") &&
+    approvalWorkbenchPage.includes("numbering.drawing_revision_impact_review") &&
     approvalWorkbenchPage.includes("numbering.obsolete_part_number") &&
     approvalWorkbenchPage.includes("numbering.obsolete_ma_drawing")
 );

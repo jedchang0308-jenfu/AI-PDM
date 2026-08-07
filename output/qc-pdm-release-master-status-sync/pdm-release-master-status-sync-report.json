@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T10:54:13.681Z",
+  "generatedAt": "2026-08-06T07:48:57.366Z",
   "checks": [
     {
       "name": "success marks submission Released",
@@ -12,17 +12,17 @@
       "detail": ""
     },
     {
-      "name": "drawing master is Released / Release",
+      "name": "drawing master is Released",
       "passed": true,
       "detail": ""
     },
     {
-      "name": "part master is Released / Release",
+      "name": "part master is Released",
       "passed": true,
       "detail": ""
     },
     {
-      "name": "root master is Released / Release",
+      "name": "root master is Released",
       "passed": true,
       "detail": ""
     },
@@ -92,24 +92,39 @@
       "detail": ""
     },
     {
-      "name": "lower revision release is blocked when newer release exists",
+      "name": "snapshot resolves one selected part from multiple legitimate primary links",
       "passed": true,
-      "detail": "不能發布版次 0.2：同一料號已有版次 0.3 的正式紀錄（sub-qc-newer-released）。請建立高於 0.3 的新版次後再送審。"
+      "detail": ""
     },
     {
-      "name": "blocked lower revision remains unreleased",
+      "name": "snapshot-selected part is synced",
       "passed": true,
-      "detail": "{\"status\":\"Releasing\",\"released_at\":null}"
+      "detail": ""
     },
     {
-      "name": "newer released revision is not obsoleted",
+      "name": "other legitimate linked part is not silently mutated",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "lower revision backfill is accepted as history",
+      "passed": true,
+      "detail": "{\"obsolete_count\":2,\"obsolete_submission_ids\":[\"sub-qc-previous-released\",\"sub-qc-current\"],\"latest_submission_id\":\"sub-qc-newer-released\",\"latest_revision\":\"0.3\",\"history_submission_ids\":[\"sub-qc-previous-released\",\"sub-qc-current\"],\"accepted_submission_id\":\"sub-qc-current\",\"accepted_revision\":\"0.2\",\"accepted_as_history\":true,\"resolved_release_failed_count\":1,\"resolved_release_failed_submission_ids\":[\"sub-qc-release-failed\"],\"master_status_sync\":{\"drawing\":{\"id\":\"drawing-qc-0014\",\"code\":\"D-QC-0014-MA1\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"part\":{\"id\":\"part-qc-0014\",\"code\":\"P-QC-0014-001\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"parts\":[{\"id\":\"part-qc-0014\",\"code\":\"P-QC-0014-001\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null}],\"root\":{\"id\":\"root-qc-0014\",\"code\":\"QC0014\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"part_resolution\":\"primary_manufacturing\"}}"
+    },
+    {
+      "name": "backfilled lower revision is obsoleted by newer current",
+      "passed": true,
+      "detail": "{\"status\":\"Obsolete\",\"released_at\":\"2026-07-02T09:00:00.000Z\",\"superseded_by_submission_id\":\"sub-qc-newer-released\"}"
+    },
+    {
+      "name": "newer released revision remains current",
       "passed": true,
       "detail": "{\"status\":\"Released\",\"superseded_by_submission_id\":null}"
     },
     {
-      "name": "older released revision is not partially obsoleted after blocked transaction",
+      "name": "older released revision is recomputed as history",
       "passed": true,
-      "detail": "{\"status\":\"Released\",\"superseded_by_submission_id\":null}"
+      "detail": "{\"status\":\"Obsolete\",\"superseded_by_submission_id\":\"sub-qc-newer-released\"}"
     },
     {
       "name": "item current revision stays on newer release",
@@ -117,9 +132,59 @@
       "detail": "{\"current_revision\":\"0.3\"}"
     },
     {
-      "name": "blocked lower revision writes no partial audit",
+      "name": "history acceptance writes recompute audit",
       "passed": true,
-      "detail": "0"
+      "detail": "{\"detail_json\":\"{\\\"acceptedSubmissionId\\\":\\\"sub-qc-current\\\",\\\"acceptedRevision\\\":\\\"0.2\\\",\\\"latestSubmissionId\\\":\\\"sub-qc-newer-released\\\",\\\"latestRevision\\\":\\\"0.3\\\",\\\"acceptedAsHistory\\\":true,\\\"historySubmissionIds\\\":[\\\"sub-qc-previous-released\\\",\\\"sub-qc-current\\\"]}\"}"
+    },
+    {
+      "name": "submission creation persists one immutable scope row per selected part",
+      "passed": true,
+      "detail": "[{\"part_number\":\"P-WRITE-001\",\"fff_outcome\":\"no_impact\"},{\"part_number\":\"P-WRITE-002\",\"fff_outcome\":\"no_impact\"},{\"part_number\":\"P-WRITE-003\",\"fff_outcome\":\"no_impact\"}]"
+    },
+    {
+      "name": "submission creation upserts all scoped item identities without duplicate anchor",
+      "passed": true,
+      "detail": "[{\"part_number\":\"P-WRITE-001\"},{\"part_number\":\"P-WRITE-002\"},{\"part_number\":\"P-WRITE-003\"}]"
+    },
+    {
+      "name": "submission audit records the full part scope",
+      "passed": true,
+      "detail": "{\"detail_json\":\"{\\\"fileCount\\\":0,\\\"sourceMasterAttachmentIds\\\":[],\\\"partScope\\\":[{\\\"partNumberId\\\":\\\"part-write-001\\\",\\\"partNumber\\\":\\\"P-WRITE-001\\\",\\\"fffOutcome\\\":\\\"no_impact\\\"},{\\\"partNumberId\\\":\\\"part-write-002\\\",\\\"partNumber\\\":\\\"P-WRITE-002\\\",\\\"fffOutcome\\\":\\\"no_impact\\\"},{\\\"partNumberId\\\":\\\"part-write-003\\\",\\\"partNumber\\\":\\\"P-WRITE-003\\\",\\\"fffOutcome\\\":\\\"no_impact\\\"}]}\"}"
+    },
+    {
+      "name": "multi-part scope releases all three part masters",
+      "passed": true,
+      "detail": "[{\"part_number\":\"P-QC-0014-001\",\"record_status\":\"Released\"},{\"part_number\":\"P-QC-0014-002\",\"record_status\":\"Released\"},{\"part_number\":\"P-QC-0014-003\",\"record_status\":\"Released\"}]"
+    },
+    {
+      "name": "multi-part scope updates all three item revisions",
+      "passed": true,
+      "detail": "[{\"part_number\":\"P-QC-0014-001\",\"current_revision\":\"0.2\"},{\"part_number\":\"P-QC-0014-002\",\"current_revision\":\"0.2\"},{\"part_number\":\"P-QC-0014-003\",\"current_revision\":\"0.2\"}]"
+    },
+    {
+      "name": "multi-part release result exposes all affected parts",
+      "passed": true,
+      "detail": "{\"drawing\":{\"id\":\"drawing-qc-0014\",\"code\":\"D-QC-0014-MA1\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"part\":{\"id\":\"part-qc-0014\",\"code\":\"P-QC-0014-001\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"parts\":[{\"id\":\"part-qc-0014\",\"code\":\"P-QC-0014-001\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},{\"id\":\"part-qc-0014-002\",\"code\":\"P-QC-0014-002\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},{\"id\":\"part-qc-0014-003\",\"code\":\"P-QC-0014-003\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null}],\"root\":{\"id\":\"root-qc-0014\",\"code\":\"QC0014\",\"before\":{\"record_status\":\"Draft\"},\"after\":{\"record_status\":\"Released\"},\"updated\":true,\"skipped_reason\":null},\"part_resolution\":\"submission_scope\"}"
+    },
+    {
+      "name": "relationship drift blocks the whole batch with recovery text",
+      "passed": true,
+      "detail": "主資料狀態同步失敗：送審範圍料號 P-QC-0014-003 已不在此圖號關聯中，整批不能發布。請重新確認圖料關係後重送。"
+    },
+    {
+      "name": "relationship drift keeps submission unreleased",
+      "passed": true,
+      "detail": "{\"status\":\"Releasing\"}"
+    },
+    {
+      "name": "relationship drift rolls back every part master",
+      "passed": true,
+      "detail": "[{\"record_status\":\"Draft\"},{\"record_status\":\"Draft\"},{\"record_status\":\"Draft\"}]"
+    },
+    {
+      "name": "relationship drift rolls back every item revision",
+      "passed": true,
+      "detail": "[{\"current_revision\":\"0.1\"},{\"current_revision\":\"0.1\"},{\"current_revision\":\"0.1\"}]"
     },
     {
       "name": "package exposes qc script",
@@ -137,7 +202,17 @@
       "detail": ""
     },
     {
-      "name": "repository blocks lower revision release",
+      "name": "repository blocks duplicate formal revisions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "repository supports lower revision history acceptance",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "repository releases the immutable snapshotted part selection",
       "passed": true,
       "detail": ""
     },

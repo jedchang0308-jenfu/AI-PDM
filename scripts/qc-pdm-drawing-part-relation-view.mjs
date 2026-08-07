@@ -64,15 +64,15 @@ function seedRelationData() {
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, 'company-jenfu', ?, 'QC 關係視圖總成', 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, 'QC 關係視圖總成', 'manufactured', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(rootId, rootCode, now, now);
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(secondaryRootId, secondaryRootCode, `QC ${rootCode} 空白關係主根`, now, now);
     for (const [index, partNumber, partName] of [
@@ -85,8 +85,8 @@ function seedRelationData() {
         `
         INSERT INTO part_numbers (
           id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-          item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+          item_kind, is_universal, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 'manufactured', 0, 'Active', 'numbering-rule-v2', ?, ?)
       `
       ).run(`qc-relation-part-${index}-${unique}`, rootId, partNumber, index, `P${String(index).padStart(2, "0")}`, partName, now, now);
     }
@@ -99,8 +99,8 @@ function seedRelationData() {
         `
         INSERT INTO drawing_numbers (
           id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-          is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
-        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, ?, 'DVT', 'Active', 'numbering-rule-v2', ?, ?)
+          is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, ?, 'Active', 'numbering-rule-v2', ?, ?)
       `
       ).run(`qc-relation-drawing-${idSuffix}-${unique}`, rootId, drawingNumber, purposeCode, purposeDescription, sequenceNo, purposeCode === "M" ? 1 : 0, now, now);
     }

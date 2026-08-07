@@ -136,7 +136,6 @@ export async function PATCH(request: Request) {
       id: typeof body.id === "string" ? body.id : undefined,
       ruleVersionId: typeof body.ruleVersionId === "string" ? body.ruleVersionId : undefined,
       actionCode: String(body.actionCode ?? ""),
-      phase: typeof body.phase === "string" ? body.phase : undefined,
       recordStatus: typeof body.recordStatus === "string" ? body.recordStatus : undefined,
       itemKind: typeof body.itemKind === "string" ? body.itemKind : undefined,
       riskFlag: typeof body.riskFlag === "string" ? body.riskFlag : undefined,

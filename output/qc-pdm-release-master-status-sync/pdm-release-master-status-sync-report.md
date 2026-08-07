@@ -2,9 +2,9 @@
 
 - PASS: success marks submission Released
 - PASS: success stamps released_at
-- PASS: drawing master is Released / Release
-- PASS: part master is Released / Release
-- PASS: root master is Released / Release
+- PASS: drawing master is Released
+- PASS: part master is Released
+- PASS: root master is Released
 - PASS: item current revision is updated
 - PASS: previous released submission is obsoleted
 - PASS: related release-failed submission is resolved
@@ -18,15 +18,30 @@
 - PASS: missing source does not write partial audit
 - PASS: legacy submission can resolve by drawing number fallback
 - PASS: single linked part is still synced
-- PASS: lower revision release is blocked when newer release exists
-- PASS: blocked lower revision remains unreleased
-- PASS: newer released revision is not obsoleted
-- PASS: older released revision is not partially obsoleted after blocked transaction
+- PASS: snapshot resolves one selected part from multiple legitimate primary links
+- PASS: snapshot-selected part is synced
+- PASS: other legitimate linked part is not silently mutated
+- PASS: lower revision backfill is accepted as history
+- PASS: backfilled lower revision is obsoleted by newer current
+- PASS: newer released revision remains current
+- PASS: older released revision is recomputed as history
 - PASS: item current revision stays on newer release
-- PASS: blocked lower revision writes no partial audit
+- PASS: history acceptance writes recompute audit
+- PASS: submission creation persists one immutable scope row per selected part
+- PASS: submission creation upserts all scoped item identities without duplicate anchor
+- PASS: submission audit records the full part scope
+- PASS: multi-part scope releases all three part masters
+- PASS: multi-part scope updates all three item revisions
+- PASS: multi-part release result exposes all affected parts
+- PASS: relationship drift blocks the whole batch with recovery text
+- PASS: relationship drift keeps submission unreleased
+- PASS: relationship drift rolls back every part master
+- PASS: relationship drift rolls back every item revision
 - PASS: package exposes qc script
 - PASS: repository writes master sync audit
 - PASS: repository blocks missing source with Chinese message
-- PASS: repository blocks lower revision release
+- PASS: repository blocks duplicate formal revisions
+- PASS: repository supports lower revision history acceptance
+- PASS: repository releases the immutable snapshotted part selection
 - PASS: drawing list exposes human mismatch text
 - PASS: async drawing list detects released-master mismatch

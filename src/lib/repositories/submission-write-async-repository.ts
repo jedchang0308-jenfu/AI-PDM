@@ -66,6 +66,16 @@ export const INSERT_ASYNC_SUBMISSION_SNAPSHOT_SQL = `
   )
 `;
 
+export const INSERT_ASYNC_SUBMISSION_PART_SCOPE_SQL = `
+  INSERT INTO submission_part_scopes (
+    id, submission_id, company_id, item_id, part_number_id, part_number, part_name,
+    link_type, form_state, fit_state, function_state, fff_outcome, created_at
+  ) VALUES (
+    :id, :submissionId, :companyId, :itemId, :partNumberId, :partNumber, :partName,
+    :linkType, :formState, :fitState, :functionState, :fffOutcome, :createdAt
+  )
+`;
+
 export const INSERT_ASYNC_FILE_REFERENCE_SQL = `
   INSERT INTO file_references (
     id, submission_id, source_file_id, source_filename, source_file_role,
@@ -145,6 +155,7 @@ export type CreateSubmissionAsyncInput = {
     sourceMasterAttachmentId?: string | null;
   }>;
   snapshot?: CreateSubmissionSnapshotInput;
+  partScopes?: CreateSubmissionPartScopeInput[];
   references?: Array<{
     sourceFilename: string;
     sourceFileRole: FileReference["source_file_role"];
@@ -169,6 +180,17 @@ export type CreateSubmissionAsyncInput = {
       reason: string;
     }>;
   };
+};
+
+export type CreateSubmissionPartScopeInput = {
+  partNumberId: string;
+  partNumber: string;
+  partName: string;
+  linkType: "primary_manufacturing" | "reference";
+  formState: "no_impact" | "suspected_impact" | "confirmed_impact";
+  fitState: "no_impact" | "suspected_impact" | "confirmed_impact";
+  functionState: "no_impact" | "suspected_impact" | "confirmed_impact";
+  fffOutcome: "no_impact" | "suspected_impact" | "confirmed_impact";
 };
 
 export type CreateSubmissionSnapshotInput = {
@@ -225,6 +247,11 @@ export class AsyncSubmissionWriteRepository {
     const now = this.clock();
     const submissionId = `SUB-${now.slice(0, 10).replaceAll("-", "")}-${this.idFactory().slice(0, 8).toUpperCase()}`;
     const itemId = this.idFactory();
+    const partScopeEntries = (input.partScopes ?? []).map((scope) => ({
+      ...scope,
+      id: this.idFactory(),
+      itemId: this.idFactory()
+    }));
     const fileEntries = input.files.map((file) => ({
       ...file,
       id: this.idFactory()
@@ -250,6 +277,18 @@ export class AsyncSubmissionWriteRepository {
       });
       if (!item) throw new Error("Failed to create item");
 
+      for (const scope of partScopeEntries) {
+        const scopeItem = await client.queryOne<{ id: string }>(UPSERT_ASYNC_SUBMISSION_ITEM_SQL, {
+          id: scope.itemId,
+          companyId: input.companyId,
+          partNumber: scope.partNumber,
+          partName: scope.partName,
+          now
+        });
+        if (!scopeItem) throw new Error(`Failed to create scoped item ${scope.partNumber}`);
+        scope.itemId = scopeItem.id;
+      }
+
       await client.execute(INSERT_ASYNC_SUBMISSION_RECORD_SQL, {
         id: submissionId,
         companyId: input.companyId,
@@ -272,6 +311,24 @@ export class AsyncSubmissionWriteRepository {
         correctsSubmissionId: input.correctsSubmissionId ?? null,
         now
       });
+
+      for (const scope of partScopeEntries) {
+        await client.execute(INSERT_ASYNC_SUBMISSION_PART_SCOPE_SQL, {
+          id: scope.id,
+          submissionId,
+          companyId: input.companyId,
+          itemId: scope.itemId,
+          partNumberId: scope.partNumberId,
+          partNumber: scope.partNumber,
+          partName: scope.partName,
+          linkType: scope.linkType,
+          formState: scope.formState,
+          fitState: scope.fitState,
+          functionState: scope.functionState,
+          fffOutcome: scope.fffOutcome,
+          createdAt: now
+        });
+      }
 
       for (const file of fileEntries) {
         await client.execute(INSERT_ASYNC_SUBMISSION_FILE_SQL, {
@@ -369,6 +426,11 @@ export class AsyncSubmissionWriteRepository {
             ? { sourceEntityType: input.sourceEntityType, sourceEntityId: input.sourceEntityId }
             : {}),
           sourceMasterAttachmentIds: input.files.map((file) => file.sourceMasterAttachmentId).filter(Boolean),
+          partScope: partScopeEntries.map((scope) => ({
+            partNumberId: scope.partNumberId,
+            partNumber: scope.partNumber,
+            fffOutcome: scope.fffOutcome
+          })),
           ...(input.storageUploadOverride ? { storageUploadOverride: input.storageUploadOverride } : {})
         },
         now

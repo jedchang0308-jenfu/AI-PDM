@@ -1,4 +1,11 @@
 import { approveBomWorkbenchReviewAsync, rejectBomWorkbenchReviewAsync } from "@/lib/bom-workbench-async";
+import {
+  addApprovalAsync,
+  getApprovalSummaryAsync,
+  listOpenApprovalMatrixRequirementsAsync,
+  reviewerHasDecisionAsync
+} from "@/lib/approval-async";
+import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { decideDrawingRevisionPackageSupplementAsync } from "@/lib/drawing-revision-packages-async";
 import {
@@ -8,6 +15,10 @@ import {
 } from "@/lib/numbering-async";
 import { applyDrawingRevisionReviewAction, type DrawingRevisionReviewAction } from "@/lib/pdm-change-control";
 import { approveSubmissionObsoleteReviewAsync, rejectSubmissionObsoleteReviewAsync } from "@/lib/submission-lifecycle-async";
+import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
+import { parseRevisionCode } from "@/lib/revision-policy";
+import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
+import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { DbUser } from "@/lib/db";
 import {
   AsyncApprovalPlatformRepository,
@@ -84,9 +95,14 @@ const candidatePublicationHandler: ApprovalHandler = {
   handlerKey: "numbering.candidate-publication"
 };
 
+const drawingRevisionLifecycleHandler: ApprovalHandler = {
+  handlerKey: "drawing-revision.lifecycle"
+};
+
 const handlers = new Map<string, ApprovalHandler>([
   [fakeHandler.handlerKey, fakeHandler],
-  [candidatePublicationHandler.handlerKey, candidatePublicationHandler]
+  [candidatePublicationHandler.handlerKey, candidatePublicationHandler],
+  [drawingRevisionLifecycleHandler.handlerKey, drawingRevisionLifecycleHandler]
 ]);
 
 function repository() {
@@ -99,6 +115,7 @@ export async function listApprovalPlatformActionsAsync() {
 
 export type ApprovalPlatformInboxFilter = {
   companyId?: string;
+  actorId?: string;
   status?: "active" | "all" | ApprovalPlatformStatus;
   limit?: number;
   domainCode?: string;
@@ -274,12 +291,116 @@ async function decideLegacyApprovalWithResult(
         role: input.actor.role
       }
     });
+    await advanceDrawingRevisionSubmissionAfterImpactReviewAsync({
+      assessment: legacyResult.assessment,
+      action: legacyResult.action,
+      actorId: input.actor.id
+    });
     const detail = await repository().getRequestDetail(input.requestId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
 
   throw new Error(`APPROVAL_LEGACY_SOURCE_UNSUPPORTED: ${source}`);
+}
+
+/**
+ * The FFF review is the approval gate for a drawing revision package.  Minor
+ * revisions must remain physical Pending but become effective ReviewApproved;
+ * major revisions may continue through the existing release workflow.
+ */
+async function advanceDrawingRevisionSubmissionAfterImpactReviewAsync(input: {
+  assessment: { submissionId: string | null; revision: string; companyId: string };
+  action: DrawingRevisionReviewAction;
+  actorId: string;
+}) {
+  const submissionId = input.assessment.submissionId;
+  if (!submissionId || input.action === "return_for_replacement_part") return;
+
+  const submission = await getSubmissionAsync(submissionId);
+  if (!submission) {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.release_blocked_submission_missing",
+      detail: { assessmentRevision: input.assessment.revision, reviewAction: input.action }
+    });
+    return;
+  }
+
+  const parsedRevision = parseRevisionCode(submission.revision);
+  if (parsedRevision?.kind === "minor") {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.review_approved",
+      detail: {
+        reviewAction: input.action,
+        physicalSubmissionStatus: submission.status,
+        effectivePackageStatus: "ReviewApproved",
+        releasePolicy: "minor_revision_remains_pending"
+      }
+    });
+    return;
+  }
+
+  if (submission.status === "Released") return;
+  if (submission.status !== "Pending") {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.release_not_started",
+      detail: { reviewAction: input.action, submissionStatus: submission.status }
+    });
+    return;
+  }
+
+  const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId, actorId: input.actorId });
+  if (!policyGate.ok) {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.release_blocked",
+      detail: { reviewAction: input.action, policy: policyGate.responseBody }
+    });
+    return;
+  }
+
+  if (!(await reviewerHasDecisionAsync({ submissionId, reviewerId: input.actorId }))) {
+    await addApprovalAsync({
+      submissionId,
+      reviewerId: input.actorId,
+      decision: "Approved",
+      comment: "由圖面進版影響審核核准後自動承接正式發行。"
+    });
+  }
+
+  const summary = await getApprovalSummaryAsync(submissionId);
+  if (summary.approved < submission.approval_required) {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.release_pending_additional_approval",
+      detail: { approved: summary.approved, required: submission.approval_required }
+    });
+    return;
+  }
+  const openApprovalMatrixRequirements = await listOpenApprovalMatrixRequirementsAsync(submissionId);
+  if (openApprovalMatrixRequirements.length > 0) {
+    await createAuditLogAsync({
+      submissionId,
+      actorId: input.actorId,
+      action: "drawing_revision_review.release_pending_approval_matrix",
+      detail: { requirements: openApprovalMatrixRequirements.map((requirement) => requirement.required_role) }
+    });
+    return;
+  }
+
+  await executeSubmissionReleaseWorkflowAsync({
+    submissionId,
+    actorId: input.actorId,
+    auditAction: "ReleaseSucceededFromDrawingRevisionImpactReview"
+  });
 }
 
 function drawingRevisionReviewDecisionAction(decision: ApprovalPlatformDecision, outcome: string): DrawingRevisionReviewAction {

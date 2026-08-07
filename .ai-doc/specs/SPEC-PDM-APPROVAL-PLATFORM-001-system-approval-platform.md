@@ -4,7 +4,7 @@ Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench
 Date: 2026-07-08
 Owner: Dev PM
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
-Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`
+Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 Related QA: `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`
 Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYCLE-ACTIONS-001`, numbering approval flows, submission lifecycle requests, BOM review requests, part cost change requests and drawing revision supplement approvals.
 
@@ -24,6 +24,13 @@ The user asked whether the current approval architecture needs optimization, whe
   - `1B`: Sidebar approval navigation should converge to a single primary `審核工作台`; specialized approval pages become workbench filters, detail views or contextual deep links rather than primary reviewer entrypoints.
   - `2A`: First anti-missed-review slice only adds a clear pending-review count badge. Due dates, owner columns, overdue grouping, escalation and external notifications are deferred.
   - `3 phased A -> B`: Short-term compatibility keeps legacy approval pages reachable through workbench deep links while removing them as primary navigation. Long-term target is option `B`: legacy reviewer decision pages redirect into the approval workbench once feature parity, deep-link preservation and QC evidence are complete.
+
+DEV-053 Phase 1H domain-scoped data-policy exception confirmed on 2026-08-06:
+
+- `HD-053-1H-04 / 4C` intentionally replaces this platform's permanent decision-history/audit requirement only for fresh or explicitly adopted-active drawing-revision workflows governed by DEV-053 Phase 1H.
+- The request and decision authority may exist while that workflow is active. After terminal completion and cleanup, the product retains only the drawing revision lifecycle state and no durable submitter, reviewer, decision, timestamp, reason or audit history for that flow.
+- Existing completed/unknown production approval/submission/audit records are grandfathered and must not be deleted, rewritten, backfilled or replayed. Under `HD-053-1H-08 / 8B`, only workflows still active at activation may be dry-run/adopted all-or-nothing without decision replay; their PDM result remains protected. The exception does not apply to numbering, BOM, cost, obsolete, supplement or other approval domains.
+- `5A` makes the return reason optional and active-only; `6A` permits cleanup only after durable lifecycle apply and required delivery; `7A` permits a payload-free technical token for at most seven days; `9B` defines delivery as atomic current drawing/task projection without permanent notification; `10B` redirects cleaned links to the drawing latest revision. DEV-053 Phase 1H is `RD Implementation Ready / implementation not started`.
 
 This document converts the session into a development package. The user later authorized local RD implementation for `DEV-PDM-APPROVAL-PLATFORM-001`. Production deploy, Supabase live migration, direct data repair/deletion, merge, PR, rollback and release artifacts remain unauthorized.
 
@@ -142,7 +149,7 @@ The shared platform owns:
 - Assignment, delegation and reviewer eligibility.
 - Unified inbox and filtering.
 - Impact snapshot storage.
-- Decision history and audit trail.
+- Decision history and audit trail, except the explicit DEV-053 Phase 1H lifecycle-only retention class after guarded terminal cleanup.
 - Idempotency, concurrency and stale-snapshot guards.
 - Common APIs for submit, decide, list, read, return for correction and cancel where allowed.
 
@@ -161,8 +168,8 @@ The approval platform is an orchestration and control layer, not the owner of ev
 ## Goals
 
 - Provide one recognizable approval experience before launch.
-- Make high-risk lifecycle decisions auditable across root, drawing, part, submission, BOM, cost and supplement domains.
-- Prevent bypass routes from mutating formal records without approval history.
+- Make high-risk lifecycle decisions auditable across root, drawing, part, submission, BOM, cost and supplement domains, except where an explicit human data-policy exception such as DEV-053 Phase 1H intentionally retains only the durable lifecycle result.
+- Prevent bypass routes from mutating formal records without the canonical approval authority; domains without a retention exception must also retain approval history.
 - Keep domain logic testable through explicit handler contracts.
 - Let `DEV-PDM-NUMBERING-004` root/drawing/part obsolete use the platform instead of growing another special approval path.
 - Reduce future development cost by reusing approval work item, decision, delegation, audit and inbox mechanics.
@@ -213,21 +220,21 @@ Fixed decisions:
 
 - Full-system approval platformization is a pre-launch architecture direction because launch timing is not urgent and stability is preferred.
 - The approval architecture is shared core plus domain-specific handlers.
-- The shared core owns approval work identity, packages, status, decisions, assignment, delegation, impact snapshots, inbox, audit and common APIs.
+- The shared core owns approval work identity, packages, status, decisions, assignment, delegation, impact snapshots, inbox, audit and common APIs while records are active; only an explicit domain retention class may invoke guarded terminal cleanup.
 - Domain handlers own validation, target resolution, impact preview, apply-approved effects, stale checks and domain history summaries.
 - Formal approval actions must route through the platform or an explicitly documented adapter.
 - Root obsolete must preserve aggregate root intent and child targets; it must not become silent independent child mutations.
 - A no-migration architecture spike is mandatory before schema or migration implementation. The spike must choose and justify either generalized existing approval tables or v2 platform tables.
 - Pre-launch platformization must include platform core, numbering/root/drawing/part approvals, submission formal lifecycle and BOM formal lifecycle.
 - Cost and supplement approvals may use adapters in early implementation, but adapters are transitional and must not prevent final historical migration.
-- All known historical approval-like records must be physically migrated into the canonical platform approval model before launch readiness can be claimed.
+- All known existing historical approval-like records must be physically migrated into the canonical platform approval model before launch readiness can be claimed. This does not create history for new DEV-053 Phase 1H workflows intentionally cleaned under `4C`.
 - Production deploy, Supabase live migration, direct data repair/deletion, merge, PR, rollback and release artifacts are not authorized by this document.
 
 Rejected options:
 
 - Launching with fragmented formal approval inboxes.
 - One monolithic approval apply module that owns every domain side effect.
-- Direct formal lifecycle mutation without approval audit.
+- Direct formal lifecycle mutation without the canonical approval authority. DEV-053 Phase 1H removes durable history only after the controlled decision/apply/notify sequence; it does not permit bypass mutation.
 - No-code approval rule builder before the platform contract is stable.
 - Silent historical approval rewrite.
 
@@ -306,7 +313,7 @@ Phase 1 defines the platform contract and shared mechanics:
 - Action registry.
 - Unified inbox read model.
 - Common submit/read/decision APIs.
-- Decision history.
+- Decision history, with DEV-053 Phase 1H kept only while active and removed by its guarded terminal-cleanup exception.
 - Impact snapshot storage.
 - Permission and delegation hook.
 - Handler dispatch and fail-closed behavior.
@@ -348,6 +355,8 @@ Cost and supplement flows may enter first through adapters if their existing tab
 
 Full physical table migration can be deferred only until Phase 5 if adapter behavior is deterministic and auditable. It cannot be deferred past launch readiness without explicit human data-policy exception.
 
+DEV-053 Phase 1H is such an explicit exception for fresh and guarded adopted-active drawing-revision workflows only. Existing completed/unknown drawing/submission approval history remains subject to Phase 5 migration and must not be deleted.
+
 ### Phase 5 Historical Migration and Legacy Hardening
 
 Phase 5 removes unsafe duplication after platform behavior is proven and closes the user-selected `3C` historical migration requirement:
@@ -381,7 +390,7 @@ The exact schema must be finalized during RD design, but the implementation must
 - A request must support one primary target and optional child targets.
 - A batch/package must preserve parent intent, for example whole-root obsolete.
 - Impact preview snapshots must be immutable after submit.
-- Decision history must be append-only.
+- Decision history must be append-only except for the explicit DEV-053 Phase 1H lifecycle-only retention class. That exception may be cleaned only through its guarded terminal-cleanup contract; all existing and other-domain rows remain append-only and fail closed.
 - Applying an approved request must be idempotent.
 - The platform must expose a stable read model for the unified inbox.
 
@@ -476,6 +485,7 @@ Required:
 - Old approval-like domain routes must either call the platform or be documented as compatibility adapters.
 - New approval-like flows must not introduce new isolated request tables unless an ADR approves the exception.
 - Before launch readiness, known historical approval-like records from numbering, submission lifecycle, BOM review, part cost change and drawing package supplement flows must be physically migrated or explicitly blocked by a human data-policy decision.
+- Fresh or explicitly adopted-active DEV-053 Phase 1H drawing-revision workflows are not historical migration inputs after successful guarded cleanup; their durable revision package, controlled files and part scope remain PDM data, while their transient approval graph does not. Completed/unknown legacy rows are never adopted by this exception.
 - Migration scripts must support dry-run, collision/manual-review reporting, backup/restore evidence and post-migration parity checks before any live target is touched.
 
 Allowed:

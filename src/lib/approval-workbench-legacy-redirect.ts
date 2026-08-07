@@ -1,3 +1,6 @@
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { drawingRevisionLifecycleLatestHref } from "@/lib/drawing-revision-lifecycle";
+
 export type LegacyApprovalRouteKind = "numbering_approvals" | "bom_reviews" | "numbering_change_reviews";
 
 export type LegacyApprovalSearchParams = Record<string, string | string[] | undefined>;
@@ -26,6 +29,50 @@ export function buildLegacyApprovalWorkbenchRedirect(kind: LegacyApprovalRouteKi
   if (requestId) params.set("requestId", requestId);
 
   return `/approvals?${params.toString()}`;
+}
+
+export type LegacyDrawingLifecycleNavigation = {
+  canonicalHref: string;
+  drawingNumber: string;
+};
+
+export async function resolveLegacyDrawingLifecycleNavigation(input: {
+  submissionId: string;
+  actorId: string;
+  companyId: string;
+}): Promise<LegacyDrawingLifecycleNavigation | null> {
+  const row = await getAsyncDatabaseClient().queryOne<{
+    approval_request_id: string | null;
+    drawing_number_id: string;
+    drawing_number: string;
+    company_id: string;
+    reviewer_match: number | string;
+  }>(
+    `SELECT
+       workflow.approval_request_id,
+       package.drawing_number_id,
+       package.drawing_number,
+       workflow.company_id,
+       CASE WHEN EXISTS (
+         SELECT 1
+         FROM drawing_revision_lifecycle_reviewers reviewer
+         WHERE reviewer.workflow_id = workflow.id
+           AND reviewer.reviewer_id = :actorId
+       ) THEN 1 ELSE 0 END AS reviewer_match
+     FROM drawing_revision_lifecycle_workflows workflow
+     JOIN drawing_revision_packages package ON package.id = workflow.package_id
+     WHERE workflow.legacy_submission_id = :submissionId
+     LIMIT 1`,
+    { submissionId: input.submissionId, actorId: input.actorId }
+  );
+  if (!row || row.company_id !== input.companyId) return null;
+  const canonicalHref = row.approval_request_id && Number(row.reviewer_match) === 1
+    ? `/approvals?requestId=${encodeURIComponent(row.approval_request_id)}&drawing=${encodeURIComponent(row.drawing_number)}`
+    : drawingRevisionLifecycleLatestHref({
+        drawingNumber: row.drawing_number,
+        drawingNumberId: row.drawing_number_id
+      });
+  return { canonicalHref, drawingNumber: row.drawing_number };
 }
 
 function firstParam(value: string | string[] | undefined) {

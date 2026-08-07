@@ -100,7 +100,6 @@ async function assertEngineerRecordCreate(cookie, expectedStatus) {
       coreName: "QC permission denied probe",
       partName: "QC permission denied probe",
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: false
     })
   });

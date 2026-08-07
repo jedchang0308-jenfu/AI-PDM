@@ -13,6 +13,7 @@ const workspace = read("src/components/number-state-workspace.tsx");
 const editor = read("src/components/numbering-candidate-revision-editor.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const approvalsPage = read("src/app/approvals/page.tsx");
+const candidateFileRoute = read("src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts");
 const stateRepository = read("src/lib/repositories/number-state-flow-async-repository.ts");
 const eslintConfig = read("eslint.config.mjs");
 const css = read("src/app/globals.css");
@@ -109,6 +110,12 @@ record(
   "DEV052-UI-015 bundle pending review grants owner withdrawal capability",
   has(stateRepository, ["latestBundleApproval", 'latestBundleApproval?.status === "pending"', 'latestApproval?.status === "pending"']),
   "the read model recognizes both simplified bundle reviews and retained legacy reviews"
+);
+record(
+  "DEV052-UI-016 candidate upload failure tells the user what happened and what to do next",
+  has(candidateFileRoute, ["首版主要檔案尚未加入", "請保留原檔並重新上傳", "請聯絡系統管理員"]) &&
+    !candidateFileRoute.includes("Candidate revision file upload failed."),
+  "the visible fallback is actionable and does not expose a raw English server failure"
 );
 
 const failed = results.filter((result) => !result.passed);

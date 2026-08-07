@@ -75,6 +75,19 @@ type CandidateFileRow = {
   removed_by: string | null;
 };
 
+type CandidateFileVerificationRow = CandidateFileRow & {
+  asset_id: string;
+  storage_provider: string | null;
+  original_path: string | null;
+  storage_bucket: string | null;
+  storage_key: string | null;
+  storage_generation: string | null;
+  file_name: string;
+  mime_type: string;
+  file_size: number | string;
+  content_hash: string;
+};
+
 type FinalizedCandidateFileRow = {
   id: string;
   source_file_asset_id: string;
@@ -173,6 +186,21 @@ export type CandidateFileStorageInput = {
   } | null;
 };
 
+export type CandidateFileVerificationSource = {
+  fileId: string;
+  assetId: string;
+  publicationEvidenceId: string | null;
+  storageProvider: string | null;
+  originalPath: string | null;
+  storageBucket: string | null;
+  storageKey: string | null;
+  storageGeneration: string | null;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  contentHash: string;
+};
+
 export type BundleDecisionResult = {
   workspace: NumberingDraftWorkspaceRecord;
   requestId: string;
@@ -195,6 +223,10 @@ const allowedEnvironmentFaultPoints = new Set([
   "after_formal_master_promotion",
   "after_revision_packages"
 ]);
+
+function storageProviderForFileAsset(provider: string) {
+  return provider === "local_repository" ? "j_drive" : provider;
+}
 
 function environmentFaultInjector() {
   const faultPoint = String(process.env.PDM_QC_NUMBER_LIFECYCLE_FAULT_POINT ?? "").trim();
@@ -489,6 +521,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
     if (Number(candidate.row_version) !== input.expectedRowVersion) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
     const now = this.clock();
+    const storageProvider = storageProviderForFileAsset(input.storage.storageProvider);
     await this.client.execute(
       `INSERT INTO file_assets (
          id, storage_provider, original_path, storage_bucket, storage_key, storage_generation,
@@ -504,8 +537,9 @@ export class AsyncNumberLifecycleSimplificationRepository {
       {
         ...input,
         ...input.storage,
+        storageProvider,
         revision: candidate.revision,
-        syncStatus: input.storage.storageProvider === "local_repository" ? "local_only" : "migrated",
+        syncStatus: storageProvider === "j_drive" ? "local_only" : "migrated",
         createdAt: now,
         updatedAt: now
       }
@@ -584,6 +618,134 @@ export class AsyncNumberLifecycleSimplificationRepository {
       role: input.storage.role,
       isPrimary: input.storage.isPrimary,
       evidenceFinalized: Boolean(publicationEvidenceId)
+    });
+    return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
+  }
+
+  async candidateFileVerificationSource(input: {
+    workspaceId: string;
+    companyId: string;
+    candidateRevisionId: string;
+    fileId: string;
+    expectedRowVersion: number;
+  }): Promise<CandidateFileVerificationSource> {
+    const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
+    if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
+    if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
+    if (Number(candidate.row_version) !== input.expectedRowVersion) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
+    const row = await this.client.queryOne<CandidateFileVerificationRow>(
+      `SELECT file.*, asset.id AS asset_id, asset.storage_provider, asset.original_path,
+              asset.storage_bucket, asset.storage_key, asset.storage_generation,
+              asset.file_name, asset.mime_type, asset.file_size, asset.content_hash
+       FROM numbering_candidate_revision_files file
+       JOIN file_assets asset ON asset.id = file.source_file_asset_id
+       WHERE file.id = :fileId AND file.candidate_revision_id = :candidateRevisionId
+         AND file.company_id = :companyId AND file.removed_at IS NULL`,
+      input
+    );
+    if (!row) throw new Error("CANDIDATE_FILE_NOT_FOUND");
+    return {
+      fileId: row.id,
+      assetId: row.asset_id,
+      publicationEvidenceId: row.publication_evidence_id,
+      storageProvider: row.storage_provider,
+      originalPath: row.original_path,
+      storageBucket: row.storage_bucket,
+      storageKey: row.storage_key,
+      storageGeneration: row.storage_generation,
+      fileName: row.file_name,
+      mimeType: row.mime_type,
+      fileSize: Number(row.file_size),
+      contentHash: row.content_hash
+    };
+  }
+
+  async verifyExistingCandidateFile(input: {
+    workspaceId: string;
+    companyId: string;
+    candidateRevisionId: string;
+    fileId: string;
+    actorId: string;
+    expectedRowVersion: number;
+    expectedAssetId: string;
+    expectedContentHash: string;
+    evidence: {
+      id: string;
+      bucket: string;
+      objectKey: string;
+      generation: string;
+      mediaType: string;
+      finalizedAt: string;
+    } | null;
+  }) {
+    const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
+    if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
+    if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
+    if (Number(candidate.row_version) !== input.expectedRowVersion) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
+    const file = await this.client.queryOne<CandidateFileVerificationRow>(
+      `SELECT file.*, asset.id AS asset_id, asset.storage_provider, asset.original_path,
+              asset.storage_bucket, asset.storage_key, asset.storage_generation,
+              asset.file_name, asset.mime_type, asset.file_size, asset.content_hash
+       FROM numbering_candidate_revision_files file
+       JOIN file_assets asset ON asset.id = file.source_file_asset_id
+       WHERE file.id = :fileId AND file.candidate_revision_id = :candidateRevisionId
+         AND file.company_id = :companyId AND file.removed_at IS NULL`,
+      input
+    );
+    if (!file) throw new Error("CANDIDATE_FILE_NOT_FOUND");
+    if (file.publication_evidence_id) {
+      return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
+    }
+    if (file.asset_id !== input.expectedAssetId || file.content_hash !== input.expectedContentHash) {
+      throw new Error("CANDIDATE_FILE_VERIFICATION_STALE");
+    }
+    if (!input.evidence) throw new Error("CANDIDATE_FILE_EXISTING_VERIFICATION_NOT_AVAILABLE");
+    const now = this.clock();
+    await this.client.execute(
+      `INSERT INTO numbering_publication_evidence (
+         id, company_id, workspace_id, drawing_draft_id, provider, bucket, object_key,
+         generation, content_hash, media_type, finalized_at, rule_version, created_at, updated_at
+       ) VALUES (
+         :id, :companyId, :workspaceId, :drawingDraftId, 'google_cloud_storage', :bucket, :objectKey,
+         :generation, :contentHash, :mediaType, :finalizedAt, :ruleVersion, :createdAt, :updatedAt
+       )`,
+      {
+        ...input.evidence,
+        companyId: input.companyId,
+        workspaceId: input.workspaceId,
+        drawingDraftId: candidate.drawing_draft_id,
+        contentHash: input.expectedContentHash,
+        ruleVersion: PUBLICATION_EVIDENCE_RULE_VERSION,
+        createdAt: now,
+        updatedAt: now
+      }
+    );
+    const linked = await this.client.queryOne<{ id: string }>(
+      `UPDATE numbering_candidate_revision_files
+       SET publication_evidence_id = :evidenceId, updated_at = :updatedAt
+       WHERE id = :fileId AND candidate_revision_id = :candidateRevisionId
+         AND company_id = :companyId AND publication_evidence_id IS NULL AND removed_at IS NULL
+       RETURNING id`,
+      { ...input, evidenceId: input.evidence.id, updatedAt: now }
+    );
+    if (!linked) throw new Error("CANDIDATE_FILE_VERIFICATION_STALE");
+    const updated = await this.client.queryOne<{ id: string }>(
+      `UPDATE numbering_candidate_revision_drafts
+       SET row_version = row_version + 1, updated_by = :actorId, updated_at = :updatedAt
+       WHERE id = :candidateRevisionId AND company_id = :companyId
+         AND lifecycle_status = 'draft' AND row_version = :expectedRowVersion
+       RETURNING id`,
+      { ...input, updatedAt: now }
+    );
+    if (!updated) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
+    await this.audit(input.actorId, "pdm.numbering.verify_existing_candidate_revision_file", {
+      companyId: input.companyId,
+      workspaceId: input.workspaceId,
+      candidateRevisionId: input.candidateRevisionId,
+      candidateFileId: input.fileId,
+      sourceFileAssetId: input.expectedAssetId,
+      contentHash: input.expectedContentHash,
+      evidenceId: input.evidence.id
     });
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }

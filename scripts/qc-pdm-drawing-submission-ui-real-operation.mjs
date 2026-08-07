@@ -140,16 +140,16 @@ function seedRootWithoutDrawing(caseId) {
   db.prepare(
     `
     INSERT INTO part_roots (
-      id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(rootId, rootCode, partName, roles.engineer.id, time, time);
   db.prepare(
     `
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'available', 'EVT', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      is_universal, bom_usage_policy, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'available', 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(partId, rootId, partNumber, partName, roles.engineer.id, time, time);
   fixtureLedger.push({ caseId, rootCode, partNumber, drawingNumber: null, type: "root_without_drawing" });
@@ -176,16 +176,16 @@ function seedDrawingFixture(caseId, options = {}) {
   db.prepare(
     `
     INSERT INTO part_roots (
-      id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', ?, ?, 'numbering-rule-v1', ?, ?, ?)
+      id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', ?, 'numbering-rule-v1', ?, ?, ?)
     `
-  ).run(rootId, rootCode, partName, options.rootPhase ?? "EVT", options.rootStatus ?? "Draft", roles.engineer.id, time, time);
+  ).run(rootId, rootCode, partName, options.rootStatus ?? "Draft", roles.engineer.id, time, time);
   db.prepare(
     `
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, ?, 0, 'available', ?, ?, 'numbering-rule-v1', ?, ?, ?)
+      is_universal, bom_usage_policy, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, ?, 0, 'available', ?, 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(
     partId,
@@ -193,7 +193,6 @@ function seedDrawingFixture(caseId, options = {}) {
     partNumber,
     partName,
     options.itemKind ?? "manufactured",
-    options.partPhase ?? "EVT",
     options.partStatus ?? "Draft",
     roles.engineer.id,
     time,
@@ -212,8 +211,8 @@ function seedDrawingFixture(caseId, options = {}) {
     `
     INSERT INTO drawing_numbers (
       id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-      is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 'MA', 'MA 製造圖', ?, ?, ?, ?, 'numbering-rule-v1', ?, ?, ?)
+      is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'MA', 'MA 製造圖', ?, ?, ?, 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(
     drawingId,
@@ -221,7 +220,6 @@ function seedDrawingFixture(caseId, options = {}) {
     drawingNumber,
     options.sequenceNo ?? 1,
     options.isPrimaryManufacturing === false ? 0 : 1,
-    options.drawingPhase ?? "EVT",
     options.drawingStatus ?? "Draft",
     roles.engineer.id,
     time,
@@ -394,11 +392,8 @@ function getMasterStatus(fixture) {
       `
       SELECT
         d.record_status AS drawing_status,
-        d.development_phase AS drawing_phase,
         p.record_status AS part_status,
-        p.development_phase AS part_phase,
-        r.record_status AS root_status,
-        r.development_phase AS root_phase
+        r.record_status AS root_status
       FROM drawing_numbers d
       JOIN part_roots r ON r.id = d.part_root_id
       JOIN drawing_part_links l ON l.drawing_number_id = d.id

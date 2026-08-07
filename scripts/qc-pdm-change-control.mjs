@@ -152,8 +152,8 @@ function seedFormalPart(database, partNumber, sequenceNo = sequence++) {
     .prepare(
       `
       INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by
-      ) VALUES (?, ?, ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v1', ?)
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by
+      ) VALUES (?, ?, ?, ?, 'manufactured', 'Active', 'numbering-rule-v1', ?)
       `
     )
     .run(rootId, companyId, String(sequenceNo).padStart(4, "0"), `QC root ${partNumber}`, engineer.userId);
@@ -162,8 +162,8 @@ function seedFormalPart(database, partNumber, sequenceNo = sequence++) {
       `
       INSERT INTO part_numbers (
         id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, development_phase, record_status, rule_version_id, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', 'Active', 'numbering-rule-v1', ?)
+        item_kind, is_universal, record_status, rule_version_id, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'manufactured', 0, 'Active', 'numbering-rule-v1', ?)
       `
     )
     .run(partId, companyId, rootId, partNumber, sequenceNo, String(sequenceNo).padStart(3, "0"), `QC part ${partNumber}`, engineer.userId);
@@ -177,8 +177,8 @@ function seedDrawing(database, drawingNumber, sequenceNo = sequence++) {
     .prepare(
       `
       INSERT INTO part_roots (
-        id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by
-      ) VALUES (?, ?, ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v1', ?)
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by
+      ) VALUES (?, ?, ?, ?, 'manufactured', 'Active', 'numbering-rule-v1', ?)
       `
     )
     .run(rootId, companyId, `D${String(sequenceNo).padStart(3, "0")}`, `QC drawing root ${drawingNumber}`, engineer.userId);
@@ -187,8 +187,8 @@ function seedDrawing(database, drawingNumber, sequenceNo = sequence++) {
       `
       INSERT INTO drawing_numbers (
         id, company_id, part_root_id, drawing_number, purpose_code, purpose_description,
-        sequence_no, is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by
-      ) VALUES (?, ?, ?, ?, 'MA', 'QC MA drawing', 1, 1, 'DVT', 'Active', 'numbering-rule-v1', ?)
+        sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_by
+      ) VALUES (?, ?, ?, ?, 'MA', 'QC MA drawing', 1, 1, 'Active', 'numbering-rule-v1', ?)
       `
     )
     .run(drawingId, companyId, rootId, drawingNumber, engineer.userId);

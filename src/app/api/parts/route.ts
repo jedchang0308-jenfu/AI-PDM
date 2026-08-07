@@ -3,7 +3,11 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { canViewPartCostAmounts, redactPartListCosts } from "@/lib/part-cost-visibility";
-import type { NumberingPhase, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import { projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter } from "@/lib/human-status-projection";
+import { projectPartHumanStatus } from "@/lib/part-human-status";
+import { projectPartAvailability } from "@/lib/availability-scope";
+import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
+import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
 
@@ -16,11 +20,9 @@ const recordStatuses = new Set([
   "Rejected",
   "Obsolete",
   "Merged",
-  "EVTDisabled",
   "PendingAdminConfirm",
   "MainDrawingInvalid"
 ]);
-const phases = new Set(["EVT", "DVT", "PVT", "Release", "ECR"]);
 
 export async function GET(request: Request) {
   const auth = await requireNumberingPageAsync(request, "numbering.search");
@@ -31,33 +33,59 @@ export async function GET(request: Request) {
   if (companyResult.response) return companyResult.response;
 
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
+  const humanStatus = normalizeHumanStatusFilter(url.searchParams.get("humanStatus"));
+  const requestedLimit = normalizeLimit(url.searchParams.get("limit"), 50);
 
-  const [parts, productSeriesOptions, seriesCodeOptions] = await Promise.all([
+  const [parts, productSeriesOptions, seriesCodeOptions, viewerCapabilities] = await Promise.all([
     listPartModuleRecordsAsync({
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
       productSeries,
       seriesCode,
       recordStatus,
-      developmentPhase,
-      limit: Number(url.searchParams.get("limit") ?? 50)
+      limit: humanStatus === "all" ? requestedLimit : 100
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
-    listSeriesCodeOptionsAsync(companyResult.company.companyId)
+    listSeriesCodeOptionsAsync(companyResult.company.companyId),
+    resolveHumanStatusRoleCapabilitiesAsync(auth.user)
   ]);
 
+  const redactedParts = redactPartListCosts(parts, canViewPartCostAmounts(auth));
+  const projectedParts = redactedParts
+    .map((part) => {
+      const objectiveStatus = projectPartHumanStatus(part);
+      return {
+        ...part,
+        humanStatus: objectiveStatus,
+        viewerStatus: projectRoleViewerHumanStatus(objectiveStatus, viewerCapabilities),
+        availabilityScope: projectPartAvailability(part)
+      };
+    })
+    .filter((part) => viewerStatusMatchesFilter(part.viewerStatus, part.humanStatus, humanStatus))
+    .slice(0, requestedLimit);
   return NextResponse.json({
-    parts: redactPartListCosts(parts, canViewPartCostAmounts(auth)),
+    parts: projectedParts,
     productSeriesOptions,
     seriesCodeOptions,
     pdmCompany: companyResult.company
-  });
+  }, { headers: { "cache-control": "private, no-store" } });
+}
+
+function normalizeHumanStatusFilter(value: string | null): HumanStatusFilter {
+  const text = value?.trim() || "all";
+  return (["all", "needs_action", "waiting", "system", "ready", "usable", "history"] as string[]).includes(text)
+    ? text as HumanStatusFilter
+    : "all";
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {
   const text = value?.trim();
   return text && allowed.has(text) ? text : undefined;
+}
+
+function normalizeLimit(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(Math.max(Math.floor(parsed), 1), 100) : fallback;
 }

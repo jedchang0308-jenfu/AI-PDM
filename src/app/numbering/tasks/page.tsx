@@ -7,7 +7,7 @@ import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
-import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from "@/lib/status-display";
+import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type TaskStatus = "open" | "handled" | "cancelled" | "all";
 type NotificationRead = "all" | "read" | "unread";
@@ -61,7 +61,6 @@ type NumberingDraftRecord = {
   coreName: string;
   displayCode: string;
   displayName: string;
-  developmentPhase: string;
   recordStatus: string;
   partNumber: string | null;
   drawingNumber: string | null;
@@ -314,7 +313,7 @@ function TaskList({
                       查看
                     </Link>
                   ) : null}
-                  {task.taskStatus === "open" ? (
+                  {task.taskType === "drawing_revision_lifecycle_review" ? null : task.taskStatus === "open" ? (
                     <button className="secondary-button" type="button" disabled={busyId === task.id} onClick={() => onUpdate(task.id, "handled")}>
                       <CheckCircle2 size={16} />
                       完成
@@ -354,7 +353,7 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
               <th>主根號</th>
               <th>圖料</th>
               <th>
-                <StatusColumnHeader label="資料狀態 / 開發階段" context="masterRecord" />
+                <StatusColumnHeader label="資料狀態" context="masterRecord" />
               </th>
               <th>現在卡點</th>
               <th>操作</th>
@@ -367,8 +366,7 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
                 rootCode: draft.rootCode,
                 drawingNumber,
                 partNumber: draft.partNumber,
-                partName: draft.displayName || draft.coreName,
-                developmentPhase: draft.developmentPhase
+                partName: draft.displayName || draft.coreName
               });
               return (
                 <tr key={draft.rootCode}>
@@ -383,8 +381,6 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
                   </td>
                   <td>
                     <StatusBadge status={draft.recordStatus} context="masterRecord" />
-                    <br />
-                    <span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>
                   </td>
                   <td>已領號，尚未上傳設計資料送審。</td>
                   <td>

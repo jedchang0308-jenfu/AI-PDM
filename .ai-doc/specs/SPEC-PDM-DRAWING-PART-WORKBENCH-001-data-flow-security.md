@@ -1,6 +1,6 @@
 # SPEC-PDM-DRAWING-PART-WORKBENCH-001 - 圖料模組資料流與送審安全架構
 
-Status: RD Implementation Ready
+Status: DEV-053 multi-part scope amendment implemented locally / production migration gated
 Date: 2026-07-01
 Owner: Dev PM
 Related DEV: `DEV-PDM-DRAWING-PART-WORKBENCH-001`
@@ -18,6 +18,10 @@ Confirmed decisions from user architecture review on 2026-07-01:
 - 同一送審包內不允許相同 `file_role + original_filename` 的附件；送出前阻擋，錯誤訊息必須是人類中文。
 - 失敗送審保留 audit trail，不硬刪、不覆蓋歷史。
 - 舊「上傳送審頁」完全退役，不再作為正式送審入口。
+
+User-approved amendment on 2026-08-06:
+
+- 一張 MA 圖合法服務多個料號時，不要求刪除其他關聯；系統預設將所有主要料號納入同一批次，送審者可明確縮小為非空子集。後端驗證完整集合後寫入不可變 scope，發布時整批沿用同一送審、版次與附件證據。
 
 HCS thinking habits applied:
 
@@ -521,10 +525,10 @@ Input can be rootCode, drawingNumber or partNumber.
 4. If zero roots are linked, block.
 5. If more than one active root is linked, block as ambiguous; do not guess.
 6. Resolve primary manufacturing drawing for the root.
-7. Resolve primary part for the root.
-8. Both primary drawing and primary part must be exactly one.
-9. Read owner fields from drawing, part, root/link and attachment domains.
-10. Return readiness or create snapshot from the resolved canonical owner data.
+7. Resolve primary manufacturing part candidates for the drawing.
+8. Primary drawing must be exactly one. Select all legitimate primary parts by default; accept an explicit non-empty `partNumberIds` subset only after every id is revalidated against those candidates. Do not delete or guess relationships.
+9. Read owner fields and readiness for every selected part plus the drawing, root/link and attachment domains. One selected part that fails readiness blocks the whole batch.
+10. Return readiness or create snapshot plus `submission_part_scopes` from the resolved canonical owner data. Release must reuse the frozen scope and update all scoped parts atomically instead of re-resolving an ambiguous live relationship.
 ```
 
 Additional P0 blocker codes:
@@ -536,10 +540,12 @@ Additional P0 blocker codes:
 | `drawing_part_link_missing` | `此圖號尚未連到主根號，請先建立圖料關聯。` | 圖料關聯 |
 | `ambiguous_root` | `此圖號連到多個主根號，系統無法判定送審來源，請先修正圖料關聯。` | 圖料關聯 |
 | `multiple_primary_drawings` | `此主根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。` | 主圖設定 |
-| `multiple_primary_parts` | `此主根號有多個主料號，系統無法判定送審主料，請先修正主料設定。` | 主料設定 |
+| `part_scope_required` | `請至少選擇一個本次一起進版的料號。` | 圖面進版的批次料號選擇 |
+| `part_scope_invalid` | `本次料號範圍已變更，請重新整理後再送審。` | 重新解析圖料關係 |
+| `DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED` | `確認影響時，每個舊料號都需要自己的替代料號；請分開處理或先補齊逐料號替代規則。` | 確認影響分流 |
 | `primary_part_not_manufacturing` | `主料號不是可送審的製造料，請先修正圖料關聯。` | 主料設定 |
 
-Any ambiguous relationship blocks submission. The UI may offer recovery links, but only the server-side blocker decides the submit state.
+Ambiguous root or primary-drawing ownership blocks submission. Multiple legitimate primary-part links are a supported batch scope, not an ambiguity error. The UI may default and edit the scope, but only the server-side revalidation decides the submit state.
 
 ### 12.3 Owner API contracts
 
@@ -716,6 +722,16 @@ After this addendum, the package remains `RD Implementation Ready` for local imp
 - QA negative tests must cover API bypass, parallel submit, owner API rejection, storage collision and released-record edit blocking.
 
 Production deployment, production migration, direct DB cleanup and data deletion remain stop conditions.
+
+### 12.9 DEV-053 Multi-Part Batch Scope Amendment (2026-08-06)
+
+- `submission_part_scopes` is the canonical immutable list of parts carried by one controlled drawing revision submission. It stores submission, company, item, part identity, link type, shared FFF states/outcome and captured time; `(submission_id, part_number_id)` is unique.
+- Existing submissions are not backfilled. A submission with no scope rows continues to use legacy `submissions.item_id` and scalar snapshot fields, so formal/reserved production history remains readable.
+- Creation of submission, files, snapshot, audit and all scope rows is one transaction.
+- Release first validates that every snapshotted drawing-part relationship still exists with the same link type, then updates all scoped item/part statuses in the same transaction. Any drift or write failure rolls back the complete release.
+- Part history/search must join the scope table so P01/P02/P03 can all trace to the same submission.
+- PostgreSQL/Supabase migration `025_submission_part_scope.sql` is additive, enables and forces RLS, and revokes direct `PUBLIC`, `anon` and `authenticated` table access. Production application remains a separate authorized release gate.
+- The current scalar snapshot/current-part fields remain a compatibility anchor only; they are not allowed to silently reduce a batch to one part.
 
 ## 13. Spec Governance
 

@@ -9,45 +9,43 @@
 
 | 指標 | 數值 |
 | --- | ---: |
-| 掃描 source files | 294 |
-| status-bearing files | 220 |
-| routes | 22 |
-| sections | 198 |
-| exceptions | 4 |
+| 掃描 source files | 298 |
+| status-bearing files | 221 |
+| routes | 19 |
+| sections | 202 |
+| exceptions | 9 |
 
 ### Signal counts
 
 | Signal | 次數 |
 | --- | ---: |
-| `status-column-header` | 47 |
-| `status-help-popover` | 4 |
-| `status-scope-help` | 48 |
-| `status-badge` | 67 |
-| `format-status-for-user` | 26 |
-| `format-development-phase` | 28 |
-| `status-filter` | 205 |
-| `status-data-label` | 4 |
-| `status-axis-label` | 45 |
-| `status-property` | 1077 |
+| `status-column-header` | 35 |
+| `status-help-popover` | 2 |
+| `status-scope-help` | 31 |
+| `status-badge` | 55 |
+| `format-status-for-user` | 28 |
+| `status-filter` | 191 |
+| `status-data-label` | 2 |
+| `status-axis-label` | 33 |
+| `status-property` | 975 |
 
 ### Candidate axis coverage
 
 | 狀態軸 | 涉及檔案數 |
 | --- | ---: |
-| 資料狀態 | 25 |
-| 開發階段 | 18 |
+| 資料狀態 | 23 |
 | 號碼效力 | 1 |
-| 申請狀態 | 106 |
+| 申請狀態 | 108 |
 | 審核狀態 | 85 |
 | 發布狀態 | 67 |
-| 準備狀態 | 26 |
+| 準備狀態 | 11 |
 | 檔案狀態 | 41 |
-| 任務狀態 | 21 |
+| 任務狀態 | 20 |
 | 帳號狀態 | 29 |
 | 邀請狀態 | 8 |
-| 還原狀態 | 17 |
+| 還原狀態 | 15 |
 | 成本狀態 | 10 |
-| 提醒 | 32 |
+| 提醒 | 30 |
 
 ## Status-bearing routes
 
@@ -67,14 +65,14 @@
 - 類型：route
 - Signals：`status-scope-help` ×2、`status-filter` ×14、`status-axis-label` ×1、`status-property` ×6
 - Contexts：（未直接找到 context）
-- 候選狀態軸：申請狀態、審核狀態、發布狀態、準備狀態、還原狀態、成本狀態、提醒
+- 候選狀態軸：申請狀態、審核狀態、發布狀態、還原狀態、成本狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-scope-help` L5: import { StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L286: <h1>審核工作台 <StatusScopeHelp scope="approvalInbox" /></h1>
+  - `status-scope-help` L290: <h1>審核工作台 <StatusScopeHelp scope="approvalInbox" /></h1>
   - `status-filter` L71: const statusFilters = [
-  - `status-filter` L110: type StatusFilter = (typeof statusFilters)[number]["value"];
-  - `status-axis-label` L289: <div className="status-tabs" role="tablist" aria-label="審核狀態">
+  - `status-filter` L109: type StatusFilter = (typeof statusFilters)[number]["value"];
+  - `status-axis-label` L293: <div className="status-tabs" role="tablist" aria-label="審核狀態">
   - `status-property` L19: status: ApprovalStatus;
   - `status-property` L41: status: string | null;
 
@@ -113,66 +111,47 @@
 ### `/numbering/drawings`
 - 檔案：`src/app/numbering/drawings/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×4、`format-status-for-user` ×3、`format-development-phase` ×5、`status-filter` ×15、`status-data-label` ×1、`status-axis-label` ×5、`status-property` ×27
+- Signals：`status-column-header` ×2、`status-badge` ×4、`format-status-for-user` ×3、`status-filter` ×15、`status-data-label` ×1、`status-axis-label` ×4、`status-property` ×15
 - Contexts：`masterRecord`、`numbering_drawings`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、成本狀態、提醒
-- Help：欄位級 2；StatusHelpPopover 0；scope-level present
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、成本狀態、提醒
+- Help：欄位級 2；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-column-header` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L538: <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
-  - `status-scope-help` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L440: <h1>圖號模組 <StatusScopeHelp scope="drawingList" /></h1>
-  - `status-badge` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L586: <StatusBadge status={drawing.recordStatus} context="masterRecord" />
-  - `format-status-for-user` L13: import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L484: <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-  - `format-development-phase` L13: import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-development-phase` L485: <SelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
-
-### `/numbering/dvt`
-- 檔案：`src/app/numbering/dvt/page.tsx`
-- 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×1、`status-filter` ×8、`status-axis-label` ×1、`status-property` ×8
-- Contexts：`dvtReadiness`、`masterRecord`、`workflow`
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態、任務狀態、提醒
-- Help：欄位級 2；StatusHelpPopover 0；scope-level present
-- 代表證據：
-  - `status-column-header` L7: import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L251: <StatusColumnHeader label="DVT 檢查" context="dvtReadiness" />
-  - `status-scope-help` L7: import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L159: <h1>階段晉升：EVT → DVT <StatusScopeHelp scope="dvtWorkbench" /></h1>
-  - `status-badge` L7: import { StatusBadge as SharedStatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-filter` L15: type RecordStatus = "Draft" | "NeedInfo" | "Active" | "PendingReview" | "Released" | "Rejected" | "Obsolete" | "Merged" | "EVTDisabled" | "PendingAdminConfirm" | "MainDrawingInvalid";
-  - `status-filter` L23: recordStatus: RecordStatus;
-  - `status-axis-label` L234: body="DVT 清單沒有待分流項目。若要讓料號進 DVT，請先回圖料模組補齊 EVT 主資料、主要製造圖與審核狀態。"
-  - `status-property` L22: developmentPhase: string;
-  - `status-property` L23: recordStatus: RecordStatus;
+  - `status-column-header` L11: import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+  - `status-column-header` L516: <StatusColumnHeader label="資料狀態 / 提醒" context="masterRecord" />
+  - `status-badge` L11: import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+  - `status-badge` L563: <StatusBadge status={drawing.recordStatus} context="masterRecord" />
+  - `format-status-for-user` L13: import { drawingRecordStatusFilterValues, formatStatusForUser } from "@/lib/status-display";
+  - `format-status-for-user` L469: <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+  - `status-filter` L33: recordStatus: NumberingRecordStatus;
+  - `status-filter` L65: recordStatus: NumberingRecordStatus;
+  - `status-data-label` L561: <td data-label="資料狀態 / 提醒">
+  - `status-axis-label` L469: <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
 
 ### `/numbering/impact`
 - 檔案：`src/app/numbering/impact/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×2、`format-status-for-user` ×2、`format-development-phase` ×2、`status-filter` ×5、`status-axis-label` ×1、`status-property` ×8
+- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×2、`format-status-for-user` ×2、`status-filter` ×5、`status-axis-label` ×1、`status-property` ×5
 - Contexts：`masterRecord`
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態、任務狀態、提醒
+- 候選狀態軸：資料狀態、審核狀態、發布狀態、任務狀態、提醒
 - Help：欄位級 2；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-column-header` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L244: <StatusColumnHeader context="masterRecord" />
+  - `status-column-header` L240: <StatusColumnHeader context="masterRecord" />
   - `status-scope-help` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L102: <h1>製造圖影響 <StatusScopeHelp scope="impactWorkbench" /></h1>
+  - `status-scope-help` L99: <h1>製造圖影響 <StatusScopeHelp scope="impactWorkbench" /></h1>
   - `status-badge` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L257: <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
-  - `format-status-for-user` L11: import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L221: <Metric label="資料狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
-  - `format-development-phase` L11: import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-development-phase` L255: <td>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</td>
+  - `status-badge` L252: <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
+  - `format-status-for-user` L11: import { formatStatusForUser } from "@/lib/status-display";
+  - `format-status-for-user` L218: <Metric label="資料狀態" value={formatStatusForUser(impact.drawingNumber.recordStatus, "masterRecord")} />
+  - `status-filter` L20: recordStatus:
+  - `status-filter` L38: recordStatus: PartNumber["recordStatus"];
 
 ### `/numbering/imports`
 - 檔案：`src/app/numbering/imports/page.tsx`
 - 類型：route
 - Signals：`status-column-header` ×4、`status-scope-help` ×2、`status-badge` ×4、`status-axis-label` ×1、`status-property` ×1
 - Contexts：`importBatch`、`importRow`、`restorePolicy`
-- 候選狀態軸：申請狀態、發布狀態、檔案狀態、還原狀態、提醒
+- 候選狀態軸：發布狀態、檔案狀態、還原狀態、提醒
 - Help：欄位級 4；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-column-header` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
@@ -183,25 +162,6 @@
   - `status-badge` L449: <StatusBadge status={row.checkStatus} context="importRow" />
   - `status-axis-label` L592: <StatusColumnHeader label="還原狀態" context="restorePolicy" />
   - `status-property` L26: status: "staged" | "confirmed" | "rejected";
-
-### `/numbering/part-drafts`
-- 檔案：`src/app/numbering/part-drafts/page.tsx`
-- 類型：route
-- Signals：`status-column-header` ×4、`status-scope-help` ×2、`status-badge` ×3、`status-filter` ×5、`status-axis-label` ×3、`status-property` ×1
-- Contexts：`applicationStatus`、`restorePolicy`
-- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、檔案狀態、還原狀態、提醒
-- Help：欄位級 4；StatusHelpPopover 0；scope-level present
-- 代表證據：
-  - `status-column-header` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L390: <StatusColumnHeader label="申請狀態" context="applicationStatus" />
-  - `status-scope-help` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L233: <h1>領號申請 <StatusScopeHelp scope="numberingDraftList" /></h1>
-  - `status-badge` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L410: <StatusBadge status={draft.status} context="applicationStatus" />
-  - `status-filter` L76: const statusFilters = ["all", "draft", "pending_review", "needs_reconfirmation"] as const;
-  - `status-filter` L80: const [status, setStatus] = useState<(typeof statusFilters)[number]>("all");
-  - `status-axis-label` L390: <StatusColumnHeader label="申請狀態" context="applicationStatus" />
-  - `status-axis-label` L491: <StatusColumnHeader label="申請狀態" context="applicationStatus" />
 
 ### `/numbering/reports`
 - 檔案：`src/app/numbering/reports/page.tsx`
@@ -220,96 +180,77 @@
   - `status-property` L18: status: "queued" | "running" | "completed" | "failed";
   - `status-property` L61: status: "queued" | "running" | "completed" | "failed";
 
-### `/numbering/request`
-- 檔案：`src/app/numbering/request/page.tsx`
-- 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×2、`status-filter` ×7、`status-property` ×14
-- Contexts：`masterRecord`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、準備狀態、還原狀態、提醒
-- Help：欄位級 2；StatusHelpPopover 0；scope-level present
-- 代表證據：
-  - `status-column-header` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L690: <details><summary>查看相似資料</summary><div className="table-wrap"><table><thead><tr><th>判定</th><th>代碼</th><th>名稱</th><th><StatusColumnHeader context="masterRecord" /></th><th>相似度</th></tr></thead><tbody>{result.matches.map((
-  - `status-scope-help` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L465: <h1>建立圖料號 <StatusScopeHelp scope="numberingRequest" /></h1>
-  - `status-badge` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L690: <details><summary>查看相似資料</summary><div className="table-wrap"><table><thead><tr><th>判定</th><th>代碼</th><th>名稱</th><th><StatusColumnHeader context="masterRecord" /></th><th>相似度</th></tr></thead><tbody>{result.matches.map((
-  - `status-filter` L22: recordStatus: string;
-  - `status-filter` L41: recordStatus: string;
-  - `status-property` L22: recordStatus: string;
-  - `status-property` L40: developmentPhase: NumberingPhase;
-
 ### `/numbering/revisions`
 - 檔案：`src/app/numbering/revisions/page.tsx`
 - 類型：route
-- Signals：`status-scope-help` ×2、`status-filter` ×2、`status-property` ×6
+- Signals：`status-scope-help` ×2、`status-filter` ×2、`status-property` ×4
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、檔案狀態、提醒
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、檔案狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-scope-help` L7: import { StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L540: <h1>圖面進版 <StatusScopeHelp scope="revisionSubmission" /></h1>
+  - `status-scope-help` L566: <h1>圖面進版 <StatusScopeHelp scope="revisionSubmission" /></h1>
   - `status-filter` L32: recordStatus: string;
-  - `status-filter` L43: recordStatus: string;
-  - `status-property` L31: developmentPhase: string;
+  - `status-filter` L42: recordStatus: string;
   - `status-property` L32: recordStatus: string;
+  - `status-property` L42: recordStatus: string;
 
 ### `/numbering/search`
 - 檔案：`src/app/numbering/search/page.tsx`
 - 類型：route
-- Signals：`status-scope-help` ×2、`status-badge` ×9、`format-status-for-user` ×2、`format-development-phase` ×9、`status-filter` ×61、`status-axis-label` ×4、`status-property` ×92
+- Signals：`status-badge` ×9、`format-status-for-user` ×2、`status-filter` ×61、`status-axis-label` ×2、`status-property` ×65
 - Contexts：`masterRecord`、`numbering_search`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、成本狀態、提醒
-- Help：欄位級 0；StatusHelpPopover 0；scope-level present
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、成本狀態、提醒
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-scope-help` L12: import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L728: <h1>圖料模組 <StatusScopeHelp scope="numberingSearch" /></h1>
-  - `status-badge` L12: import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L1008: <StatusBadge status={root.recordStatus} context="masterRecord" />
-  - `format-status-for-user` L14: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
-  - `format-status-for-user` L795: {formatStatusForUser(status, "masterRecord")}
-  - `format-development-phase` L14: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
-  - `format-development-phase` L806: {formatDevelopmentPhaseForUser(phase)}
-  - `status-filter` L43: recordStatus: NumberingRecordStatus;
-  - `status-filter` L60: recordStatus: NumberingRecordStatus;
+  - `status-badge` L12: import { StatusBadge } from "@/components/status-help-popover";
+  - `status-badge` L959: <StatusBadge status={root.recordStatus} context="masterRecord" />
+  - `format-status-for-user` L14: import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
+  - `format-status-for-user` L757: {formatStatusForUser(status, "masterRecord")}
+  - `status-filter` L40: recordStatus: NumberingRecordStatus;
+  - `status-filter` L56: recordStatus: NumberingRecordStatus;
+  - `status-axis-label` L751: <label className="pdm-master-field">
+  - `status-axis-label` L754: <option value="">全部資料狀態</option>
+  - `status-property` L40: recordStatus: NumberingRecordStatus;
+  - `status-property` L56: recordStatus: NumberingRecordStatus;
 
 ### `/numbering/tasks`
 - 檔案：`src/app/numbering/tasks/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×3、`status-scope-help` ×2、`status-badge` ×3、`format-development-phase` ×2、`status-filter` ×3、`status-axis-label` ×1、`status-property` ×10
+- Signals：`status-column-header` ×3、`status-scope-help` ×2、`status-badge` ×3、`status-filter` ×3、`status-axis-label` ×1、`status-property` ×6
 - Contexts：`masterRecord`、`task`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、任務狀態、提醒
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、任務狀態、提醒
 - Help：欄位級 3；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-column-header` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L284: <StatusColumnHeader context="task" />
+  - `status-column-header` L283: <StatusColumnHeader context="task" />
   - `status-scope-help` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L166: <h1>圖號待辦 <StatusScopeHelp scope="taskCenter" /></h1>
+  - `status-scope-help` L165: <h1>圖號待辦 <StatusScopeHelp scope="taskCenter" /></h1>
   - `status-badge` L8: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L307: <StatusBadge status={task.taskStatus} context="task" />
-  - `format-development-phase` L10: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser } from "@/lib/status-display";
-  - `format-development-phase` L387: <span style={mutedTextStyle}>{formatDevelopmentPhaseForUser(draft.developmentPhase)}</span>
-  - `status-filter` L65: recordStatus: string;
-  - `status-filter` L105: fetch("/api/numbering/search?recordStatus=Draft&limit=30")
+  - `status-badge` L306: <StatusBadge status={task.taskStatus} context="task" />
+  - `status-filter` L64: recordStatus: string;
+  - `status-filter` L104: fetch("/api/numbering/search?recordStatus=Draft&limit=30")
+  - `status-axis-label` L356: <StatusColumnHeader label="資料狀態" context="masterRecord" />
+  - `status-property` L64: recordStatus: string;
 
 ### `/parts`
 - 檔案：`src/app/parts/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×5、`status-scope-help` ×2、`status-badge` ×6、`format-status-for-user` ×2、`format-development-phase` ×4、`status-filter` ×12、`status-data-label` ×1、`status-axis-label` ×5、`status-property` ×30
+- Signals：`status-column-header` ×5、`status-badge` ×6、`format-status-for-user` ×2、`status-filter` ×12、`status-data-label` ×1、`status-axis-label` ×4、`status-property` ×21
 - Contexts：`cost`、`masterRecord`、`parts`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、成本狀態、提醒
-- Help：欄位級 5；StatusHelpPopover 0；scope-level present
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、成本狀態、提醒
+- Help：欄位級 5；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-column-header` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L684: <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
-  - `status-scope-help` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L545: <h1>料號模組 <StatusScopeHelp scope="partsList" /></h1>
-  - `status-badge` L11: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L712: <StatusBadge status={part.recordStatus} context="masterRecord" />
-  - `format-status-for-user` L12: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
-  - `format-status-for-user` L595: <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-  - `format-development-phase` L12: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
-  - `format-development-phase` L596: <FilterSelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
+  - `status-column-header` L10: import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+  - `status-column-header` L651: <StatusColumnHeader label="資料狀態 / 提醒" context="masterRecord" />
+  - `status-badge` L10: import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+  - `status-badge` L677: <StatusBadge status={part.recordStatus} context="masterRecord" />
+  - `format-status-for-user` L11: import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
+  - `format-status-for-user` L569: <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
+  - `status-filter` L50: recordStatus: NumberingRecordStatus;
+  - `status-filter` L180: const [recordStatus, setRecordStatus] = useState("");
+  - `status-data-label` L675: <td data-label="資料狀態 / 提醒">
+  - `status-axis-label` L569: <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
 
 ### `/privacy/acknowledgement`
 - 檔案：`src/app/privacy/acknowledgement/page.tsx`
@@ -325,58 +266,47 @@
 ### `/settings`
 - 檔案：`src/app/settings/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×8、`status-scope-help` ×2、`status-badge` ×8、`format-status-for-user` ×2、`status-filter` ×9、`status-property` ×39
+- Signals：`status-column-header` ×8、`status-scope-help` ×2、`status-badge` ×8、`format-status-for-user` ×2、`status-filter` ×9、`status-axis-label` ×1、`status-property` ×39
 - Contexts：`masterRecord`、`settingsLifecycle`
-- 候選狀態軸：資料狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、帳號狀態、還原狀態、提醒
+- 候選狀態軸：資料狀態、審核狀態、發布狀態、檔案狀態、任務狀態、帳號狀態、還原狀態、提醒
 - Help：欄位級 8；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-column-header` L29: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L1687: <StatusColumnHeader context="masterRecord" />
+  - `status-column-header` L1696: <StatusColumnHeader context="masterRecord" />
   - `status-scope-help` L29: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L380: <h1>系統設定 <StatusScopeHelp scope="settingsCenter" /></h1>
+  - `status-scope-help` L376: <h1>系統設定 <StatusScopeHelp scope="settingsCenter" /></h1>
   - `status-badge` L29: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L2053: <StatusBadge status="active" context="settingsLifecycle" />
-  - `format-status-for-user` L40: import { formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L2663: <td>{formatStatusForUser("default", "settingsLifecycle")}</td>
-  - `status-filter` L152: recordStatus: string | null;
-  - `status-filter` L304: recordStatus: null,
+  - `status-badge` L2037: <StatusBadge status="active" context="settingsLifecycle" />
+  - `format-status-for-user` L39: import { formatStatusForUser } from "@/lib/status-display";
+  - `format-status-for-user` L2647: <td>{formatStatusForUser("default", "settingsLifecycle")}</td>
+  - `status-filter` L150: recordStatus: string | null;
+  - `status-filter` L300: recordStatus: null,
 
 ### `/settings/account-invitations`
 - 檔案：`src/app/settings/account-invitations/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×2、`status-axis-label` ×1、`status-property` ×2
-- Contexts：`invitationStatus`
+- Signals：`status-property` ×2
+- Contexts：（未直接找到 context）
 - 候選狀態軸：帳號狀態、邀請狀態
-- Help：欄位級 2；StatusHelpPopover 0；scope-level present
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-column-header` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L259: <th><StatusColumnHeader label="邀請狀態" context="invitationStatus" /></th>
-  - `status-scope-help` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L166: <h1>帳號邀請 <StatusScopeHelp scope="invitationList" /></h1>
-  - `status-badge` L6: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L270: <td><StatusBadge status={invitation.status} context="invitationStatus" /></td>
-  - `status-axis-label` L259: <th><StatusColumnHeader label="邀請狀態" context="invitationStatus" /></th>
-  - `status-property` L16: status: InvitationStatus;
+  - `status-property` L15: status: InvitationStatus;
   - `status-property` L41: function statusLabel(status: InvitationStatus) {
 
 ### `/settings/accounts`
 - 檔案：`src/app/settings/accounts/page.tsx`
 - 類型：route
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×4、`status-filter` ×2、`status-axis-label` ×7、`status-property` ×5
-- Contexts：`accountStatus`、`identityStatus`
+- Signals：`status-filter` ×2、`status-axis-label` ×5、`status-property` ×6
+- Contexts：（未直接找到 context）
 - 候選狀態軸：審核狀態、帳號狀態、邀請狀態
-- Help：欄位級 2；StatusHelpPopover 0；scope-level present
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-column-header` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L367: <th><StatusColumnHeader label="帳號狀態" context="accountStatus" /></th>
-  - `status-scope-help` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L122: <h1>帳號與權限 <StatusScopeHelp scope="accountList" /></h1>
-  - `status-badge` L7: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L391: <StatusBadge status={account.accountStatus} context="accountStatus" />
-  - `status-filter` L81: const statusOptions: Array<{ value: string; label: string }> = [
-  - `status-filter` L349: {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-  - `status-axis-label` L82: { value: "", label: "全部帳號狀態" },
-  - `status-axis-label` L217: setMessage({ type: "error", text: body.message ?? "帳號狀態異動失敗。" });
+  - `status-filter` L80: const statusOptions: Array<{ value: string; label: string }> = [
+  - `status-filter` L358: {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+  - `status-axis-label` L226: setMessage({ type: "error", text: body.message ?? "帳號狀態異動失敗。" });
+  - `status-axis-label` L229: setMessage({ type: "success", text: "帳號狀態已更新。" });
+  - `status-property` L31: status: IdentityStatus;
+  - `status-property` L40: status: "active" | "retired";
 
 ### `/share/:token`
 - 檔案：`src/app/share/[token]/page.tsx`
@@ -392,39 +322,37 @@
 ### `/submissions/:id`
 - 檔案：`src/app/submissions/[id]/page.tsx`
 - 類型：route
-- Signals：`status-scope-help` ×2、`status-badge` ×3、`format-status-for-user` ×2、`status-axis-label` ×2、`status-property` ×20
+- Signals：`status-scope-help` ×2、`status-badge` ×3、`format-status-for-user` ×3、`status-axis-label` ×2、`status-property` ×20
 - Contexts：`submission`
 - 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、檔案狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-scope-help` L7: import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L114: <h1>送審明細 <StatusScopeHelp scope="submissionDetail" /></h1>
+  - `status-scope-help` L119: <h1>送審明細 <StatusScopeHelp scope="submissionDetail" /></h1>
   - `status-badge` L7: import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L191: <StatusBadge status={summary.status} context="submission" />
+  - `status-badge` L196: <StatusBadge status={summary.status} context="submission" />
   - `format-status-for-user` L9: import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L435: <span className="metadata-value">{formatStatusForUser(file.gdrive_status, "fileSync")}</span>
-  - `status-axis-label` L515: if (text.includes("主資料狀態同步失敗")) return "發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。";
+  - `format-status-for-user` L315: <Info label="狀態" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")} />
+  - `status-axis-label` L521: if (text.includes("主資料狀態同步失敗")) return "發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。";
   - `status-property` L18: | { status: "loading" }
   - `status-property` L19: | { status: "unauthorized" }
 
 ### `/upload`
 - 檔案：`src/app/upload/page.tsx`
 - 類型：route
-- Signals：`status-scope-help` ×2、`format-status-for-user` ×2、`format-development-phase` ×2、`status-filter` ×2、`status-property` ×9
+- Signals：`status-scope-help` ×2、`format-status-for-user` ×2、`status-filter` ×2、`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、檔案狀態、任務狀態、帳號狀態、提醒
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、檔案狀態、任務狀態、帳號狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-scope-help` L9: import { StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L1112: <h1>圖面送審 <StatusScopeHelp scope="uploadSubmission" /></h1>
-  - `format-status-for-user` L12: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L1172: {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}
-  - `format-development-phase` L12: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-development-phase` L1172: {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}
-  - `status-filter` L142: recordStatus: string;
-  - `status-filter` L1172: {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(context.drawing.developmentPhase)}
-  - `status-property` L85: developmentPhase: string;
-  - `status-property` L107: status: string;
+  - `status-scope-help` L1125: <h1>圖面送審 <StatusScopeHelp scope="uploadSubmission" /></h1>
+  - `format-status-for-user` L12: import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
+  - `format-status-for-user` L1185: {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")}
+  - `status-filter` L141: recordStatus: string;
+  - `status-filter` L1185: {context.drawing.purposeLabel} / {formatStatusForUser(context.drawing.recordStatus, "masterRecord")}
+  - `status-property` L106: status: string;
+  - `status-property` L141: recordStatus: string;
 
 ## Status-bearing sections
 
@@ -598,24 +526,24 @@
 ### `src/app/api/approvals/requests/[requestId]/apply/route.ts`
 - 檔案：`src/app/api/approvals/requests/[requestId]/apply/route.ts`
 - 類型：section
-- Signals：`status-property` ×3
+- Signals：`status-property` ×4
 - Contexts：（未直接找到 context）
 - 候選狀態軸：申請狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L30: if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-  - `status-property` L42: return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+  - `status-property` L32: if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+  - `status-property` L44: return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
 
 ### `src/app/api/approvals/requests/[requestId]/decisions/route.ts`
 - 檔案：`src/app/api/approvals/requests/[requestId]/decisions/route.ts`
 - 類型：section
-- Signals：`status-property` ×6
+- Signals：`status-property` ×7
 - Contexts：（未直接找到 context）
 - 候選狀態軸：申請狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L27: return NextResponse.json({ error: "decision must be approved, rejected, or needs_info" }, { status: 400 });
-  - `status-property` L38: if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+  - `status-property` L29: return NextResponse.json({ error: "decision must be approved, rejected, or needs_info" }, { status: 400 });
+  - `status-property` L40: if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
 
 ### `src/app/api/approvals/requests/[requestId]/route.ts`
 - 檔案：`src/app/api/approvals/requests/[requestId]/route.ts`
@@ -936,9 +864,9 @@
 ### `src/app/api/lifecycle/controlled-history/route.ts`
 - 檔案：`src/app/api/lifecycle/controlled-history/route.ts`
 - 類型：section
-- Signals：`status-filter` ×1、`status-property` ×5
+- Signals：`status-filter` ×1、`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、還原狀態
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、還原狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
   - `status-filter` L138: source_status: request.entitySummary.recordStatus ?? "Obsolete",
@@ -1020,7 +948,7 @@
 - 候選狀態軸：資料狀態、審核狀態、發布狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L140: recordStatus: typeof body.recordStatus === "string" ? body.recordStatus : undefined,
+  - `status-filter` L139: recordStatus: typeof body.recordStatus === "string" ? body.recordStatus : undefined,
   - `status-property` L51: return NextResponse.json({ error: "permissionKind must be page or action" }, { status: 400 });
   - `status-property` L66: return NextResponse.json({ error: "scopeKind must be department, project, or action" }, { status: 400 });
 
@@ -1040,11 +968,11 @@
 - 類型：section
 - Signals：`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：審核狀態、發布狀態、準備狀態、還原狀態
+- 候選狀態軸：審核狀態、發布狀態、還原狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L45: status: status as ListNumberingApprovalBatchesInput["status"],
-  - `status-property` L77: return NextResponse.json({ error: "approvalRequestIds is required" }, { status: 400 });
+  - `status-property` L43: status: status as ListNumberingApprovalBatchesInput["status"],
+  - `status-property` L75: return NextResponse.json({ error: "approvalRequestIds is required" }, { status: 400 });
 
 ### `src/app/api/numbering/approval-decisions/route.ts`
 - 檔案：`src/app/api/numbering/approval-decisions/route.ts`
@@ -1062,11 +990,32 @@
 - 類型：section
 - Signals：`status-property` ×6
 - Contexts：（未直接找到 context）
-- 候選狀態軸：審核狀態、發布狀態、準備狀態、還原狀態
+- 候選狀態軸：審核狀態、發布狀態、還原狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L33: return NextResponse.json({ error: "Invalid approval action code" }, { status: 400 });
-  - `status-property` L36: return NextResponse.json({ error: "reason is required" }, { status: 400 });
+  - `status-property` L31: return NextResponse.json({ error: "Invalid approval action code" }, { status: 400 });
+  - `status-property` L34: return NextResponse.json({ error: "reason is required" }, { status: 400 });
+
+### `src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts`
+- 檔案：`src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts`
+- 類型：section
+- Signals：`status-property` ×3
+- Contexts：（未直接找到 context）
+- 候選狀態軸：申請狀態
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
+- 代表證據：
+  - `status-property` L19: if (!form) return numberStateFlowJson({ error: { code: "candidate_file_required", message: "A valid multipart body is required.", retryable: false } }, { status: 400 });
+  - `status-property` L22: return numberStateFlowJson({ error: { code: "candidate_file_required", message: "A candidate revision file is required.", retryable: false } }, { status: 400 });
+
+### `src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/route.ts`
+- 檔案：`src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/route.ts`
+- 類型：section
+- Signals：`status-property` ×1
+- Contexts：（未直接找到 context）
+- 候選狀態軸：申請狀態
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
+- 代表證據：
+  - `status-property` L28: return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: 201 });
 
 ### `src/app/api/numbering/draft-workspaces/route.ts`
 - 檔案：`src/app/api/numbering/draft-workspaces/route.ts`
@@ -1076,8 +1025,8 @@
 - 候選狀態軸：申請狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L66: { status: result.idempotentReplay ? 200 : 201 }
-  - `status-property` L69: return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: result.idempotentReplay ? 200 : 201 });
+  - `status-property` L71: { status: result.idempotentReplay ? 200 : 201 }
+  - `status-property` L74: return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: result.idempotentReplay ? 200 : 201 });
 
 ### `src/app/api/numbering/drafts/overdue/route.ts`
 - 檔案：`src/app/api/numbering/drafts/overdue/route.ts`
@@ -1141,8 +1090,8 @@
 - 候選狀態軸：申請狀態、審核狀態、檔案狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L31: { status: 403 }
-  - `status-property` L69: return NextResponse.json({ error: "Invalid drawing revision submission", details: errors }, { status: 400 });
+  - `status-property` L32: { status: 403 }
+  - `status-property` L73: return NextResponse.json({ error: "Invalid drawing revision submission", details: errors }, { status: 400 });
 
 ### `src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts`
 - 檔案：`src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts`
@@ -1229,8 +1178,8 @@
 - 候選狀態軸：申請狀態、審核狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L26: return NextResponse.json({ error: error.code, message: error.message, details: error.details }, { status: error.status });
-  - `status-property` L33: { status: 500 }
+  - `status-property` L32: return NextResponse.json({ error: error.code, message: error.message, details: error.details }, { status: error.status });
+  - `status-property` L39: { status: 500 }
 
 ### `src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts`
 - 檔案：`src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts`
@@ -1240,21 +1189,42 @@
 - 候選狀態軸：申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L31: const readiness = resolveSubmissionReadiness({
-  - `status-property` L48: blockers: readiness.blockers
+  - `status-property` L32: const readiness = resolveSubmissionReadiness({
+  - `status-property` L49: blockers: readiness.blockers
 
 ### `src/app/api/numbering/drawings/route.ts`
 - 檔案：`src/app/api/numbering/drawings/route.ts`
 - 類型：section
-- Signals：`status-filter` ×3、`status-property` ×6
+- Signals：`status-filter` ×3、`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態
+- 候選狀態軸：資料狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L33: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-filter` L43: recordStatus,
-  - `status-property` L33: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-property` L34: const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  - `status-filter` L31: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-filter` L42: recordStatus,
+  - `status-property` L31: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-property` L42: recordStatus,
+
+### `src/app/api/numbering/drawings/workbench/[rowKey]/route.ts`
+- 檔案：`src/app/api/numbering/drawings/workbench/[rowKey]/route.ts`
+- 類型：section
+- Signals：`status-property` ×2
+- Contexts：（未直接找到 context）
+- 候選狀態軸：申請狀態、審核狀態、發布狀態
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
+- 代表證據：
+  - `status-property` L13: return NextResponse.json({ error: "drawing_workbench_not_enabled" }, { status: 404 });
+  - `status-property` L42: if (!detail) return NextResponse.json({ error: "drawing_workbench_row_not_found" }, { status: 404 });
+
+### `src/app/api/numbering/drawings/workbench/route.ts`
+- 檔案：`src/app/api/numbering/drawings/workbench/route.ts`
+- 類型：section
+- Signals：`status-property` ×1
+- Contexts：（未直接找到 context）
+- 候選狀態軸：申請狀態、審核狀態、發布狀態
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
+- 代表證據：
+  - `status-property` L13: return NextResponse.json({ error: "drawing_workbench_not_enabled" }, { status: 404 });
 
 ### `src/app/api/numbering/duplicate-check/route.ts`
 - 檔案：`src/app/api/numbering/duplicate-check/route.ts`
@@ -1266,17 +1236,6 @@
 - 代表證據：
   - `status-property` L27: return NextResponse.json({ error: "At least one numbering check field is required" }, { status: 400 });
   - `status-property` L34: return NextResponse.json({ error: message }, { status: 400 });
-
-### `src/app/api/numbering/dvt-candidates/route.ts`
-- 檔案：`src/app/api/numbering/dvt-candidates/route.ts`
-- 類型：section
-- Signals：`status-property` ×2
-- Contexts：（未直接找到 context）
-- 候選狀態軸：準備狀態
-- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
-- 代表證據：
-  - `status-property` L61: return NextResponse.json({ error: "decisions is required" }, { status: 400 });
-  - `status-property` L71: return NextResponse.json(result, { status: 201 });
 
 ### `src/app/api/numbering/export-jobs/[jobId]/route.ts`
 - 檔案：`src/app/api/numbering/export-jobs/[jobId]/route.ts`
@@ -1446,26 +1405,26 @@
 ### `src/app/api/numbering/records/route.ts`
 - 檔案：`src/app/api/numbering/records/route.ts`
 - 類型：section
-- Signals：`status-property` ×4
+- Signals：`status-property` ×2
 - Contexts：（未直接找到 context）
-- 候選狀態軸：開發階段
+- 候選狀態軸：（待人工判定）
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L19: const developmentPhase = initialDevelopmentPhase;
-  - `status-property` L39: return NextResponse.json({ error: "Invalid numbering record request", details: errors }, { status: 400 });
+  - `status-property` L37: return NextResponse.json({ error: "Invalid numbering record request", details: errors }, { status: 400 });
+  - `status-property` L54: return NextResponse.json({ ...result, pdmCompany: access.company }, { status: 201 });
 
 ### `src/app/api/numbering/relations/route.ts`
 - 檔案：`src/app/api/numbering/relations/route.ts`
 - 類型：section
-- Signals：`status-filter` ×13、`status-property` ×23
+- Signals：`status-filter` ×13、`status-property` ×14
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態、提醒
+- 候選狀態軸：資料狀態、審核狀態、發布狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L61: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-filter` L72: recordStatus,
-  - `status-property` L61: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-property` L62: const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  - `status-filter` L58: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-filter` L70: recordStatus,
+  - `status-property` L58: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-property` L70: recordStatus,
 
 ### `src/app/api/numbering/roots/[rootCode]/append-policy/route.ts`
 - 檔案：`src/app/api/numbering/roots/[rootCode]/append-policy/route.ts`
@@ -1476,7 +1435,7 @@
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
   - `status-filter` L29: const reasonRequired = [detail.root.recordStatus, ...detail.partNumbers.map((part) => part.recordStatus), ...detail.drawingNumbers.map((drawing) => drawing.recordStatus)].some(
-  - `status-filter` L32: const locked = ["Obsolete", "Merged", "EVTDisabled"].includes(detail.root.recordStatus);
+  - `status-filter` L32: const locked = ["Obsolete", "Merged"].includes(detail.root.recordStatus);
   - `status-property` L23: if (!detail) return NextResponse.json({ error: "PART_ROOT_NOT_FOUND" }, { status: 404 });
   - `status-property` L29: const reasonRequired = [detail.root.recordStatus, ...detail.partNumbers.map((part) => part.recordStatus), ...detail.drawingNumbers.map((drawing) => drawing.recordStatus)].some(
 
@@ -1549,25 +1508,25 @@
 - 類型：section
 - Signals：`status-filter` ×2、`status-property` ×5
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、審核狀態、發布狀態、準備狀態
+- 候選狀態軸：資料狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L24: recordStatus: body.recordStatus ?? body.record_status,
-  - `status-property` L24: recordStatus: body.recordStatus ?? body.record_status,
-  - `status-property` L32: return NextResponse.json({ error: message }, { status: 400 });
+  - `status-filter` L23: recordStatus: body.recordStatus ?? body.record_status,
+  - `status-property` L23: recordStatus: body.recordStatus ?? body.record_status,
+  - `status-property` L31: return NextResponse.json({ error: message }, { status: 400 });
 
 ### `src/app/api/numbering/search/route.ts`
 - 檔案：`src/app/api/numbering/search/route.ts`
 - 類型：section
-- Signals：`status-filter` ×3、`status-property` ×6
+- Signals：`status-filter` ×3、`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態
+- 候選狀態軸：資料狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L34: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-filter` L41: recordStatus,
-  - `status-property` L34: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-property` L35: const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  - `status-filter` L32: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-filter` L38: recordStatus,
+  - `status-property` L32: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-property` L38: recordStatus,
 
 ### `src/app/api/numbering/tasks/[taskId]/route.ts`
 - 檔案：`src/app/api/numbering/tasks/[taskId]/route.ts`
@@ -1701,15 +1660,15 @@
 ### `src/app/api/parts/route.ts`
 - 檔案：`src/app/api/parts/route.ts`
 - 類型：section
-- Signals：`status-filter` ×3、`status-property` ×6
+- Signals：`status-filter` ×3、`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：資料狀態、開發階段、審核狀態、發布狀態、準備狀態、成本狀態
+- 候選狀態軸：資料狀態、審核狀態、發布狀態、成本狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-filter` L33: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-filter` L42: recordStatus,
-  - `status-property` L33: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
-  - `status-property` L34: const developmentPhase = normalizeEnum(url.searchParams.get("developmentPhase"), phases) as NumberingPhase | undefined;
+  - `status-filter` L31: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-filter` L41: recordStatus,
+  - `status-property` L31: const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
+  - `status-property` L41: recordStatus,
 
 ### `src/app/api/policy/management/route.ts`
 - 檔案：`src/app/api/policy/management/route.ts`
@@ -1950,13 +1909,13 @@
 ### `src/app/api/submissions/[id]/approve/route.ts`
 - 檔案：`src/app/api/submissions/[id]/approve/route.ts`
 - 類型：section
-- Signals：`status-property` ×11
+- Signals：`status-property` ×13
 - Contexts：（未直接找到 context）
 - 候選狀態軸：申請狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L30: return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
-  - `status-property` L36: { status: 409 }
+  - `status-property` L31: return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
+  - `status-property` L37: { status: 409 }
 
 ### `src/app/api/submissions/[id]/bom/diff/route.ts`
 - 檔案：`src/app/api/submissions/[id]/bom/diff/route.ts`
@@ -2190,13 +2149,13 @@
 ### `src/app/api/submissions/[id]/retry-release/route.ts`
 - 檔案：`src/app/api/submissions/[id]/retry-release/route.ts`
 - 類型：section
-- Signals：`status-property` ×6
+- Signals：`status-property` ×8
 - Contexts：（未直接找到 context）
 - 候選狀態軸：申請狀態、審核狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L18: return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
-  - `status-property` L24: { status: 409 }
+  - `status-property` L19: return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
+  - `status-property` L25: { status: 409 }
 
 ### `src/app/api/submissions/[id]/retry-upload/route.ts`
 - 檔案：`src/app/api/submissions/[id]/retry-upload/route.ts`
@@ -2318,12 +2277,13 @@
 ### `src/app/api/submissions/revision-suggestion/route.ts`
 - 檔案：`src/app/api/submissions/revision-suggestion/route.ts`
 - 類型：section
-- Signals：`status-property` ×1
+- Signals：`status-property` ×2
 - Contexts：（未直接找到 context）
 - 候選狀態軸：申請狀態、發布狀態
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L18: return NextResponse.json({ error: "drawing_number_required" }, { status: 400 });
+  - `status-property` L34: return NextResponse.json({ error: "drawing_number_required" }, { status: 400 });
+  - `status-property` L45: { status: 400 }
 
 ### `src/app/api/submissions/route.ts`
 - 檔案：`src/app/api/submissions/route.ts`
@@ -2470,21 +2430,21 @@
 ### `src/components/dashboard.tsx`
 - 檔案：`src/components/dashboard.tsx`
 - 類型：section
-- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×6、`format-status-for-user` ×6、`format-development-phase` ×2、`status-filter` ×5、`status-axis-label` ×3、`status-property` ×28
+- Signals：`status-column-header` ×2、`status-scope-help` ×2、`status-badge` ×6、`format-status-for-user` ×7、`status-filter` ×6、`status-axis-label` ×3、`status-property` ×22
 - Contexts：`masterRecord`、`submission`
-- 候選狀態軸：資料狀態、開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、還原狀態、成本狀態、提醒
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、還原狀態、成本狀態、提醒
 - Help：欄位級 2；StatusHelpPopover 0；scope-level present
 - 代表證據：
   - `status-column-header` L36: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-column-header` L496: <StatusColumnHeader context="masterRecord" />
+  - `status-column-header` L492: <StatusColumnHeader context="masterRecord" />
   - `status-scope-help` L36: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L2303: <h1>PDM 圖面資料庫 <StatusScopeHelp scope="dashboardSummary" /></h1>
+  - `status-scope-help` L2299: <h1>PDM 圖面資料庫 <StatusScopeHelp scope="dashboardSummary" /></h1>
   - `status-badge` L36: import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-badge` L2439: <StatusBadge status={submission.status} context="submission" />
-  - `format-status-for-user` L39: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
+  - `status-badge` L2435: <StatusBadge status={submission.status} context="submission" />
+  - `format-status-for-user` L39: import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
   - `format-status-for-user` L69: return formatStatusForUser(value, "workflow");
-  - `format-development-phase` L39: import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
-  - `format-development-phase` L440: {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"} / {formatDevelopmentPhaseForUser(draft.developmentPhase)}
+  - `status-filter` L134: recordStatus: string;
+  - `status-filter` L166: const statusFilters: StatusFilterConfig[] = [
 
 ### `src/components/dashboard/layout-parts.tsx`
 - 檔案：`src/components/dashboard/layout-parts.tsx`
@@ -2499,30 +2459,41 @@
   - `status-badge` L5: import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
   - `status-badge` L157: <StatusBadge status={submission.status} context="submission" />
 
+### `src/components/drawing-workbench.tsx`
+- 檔案：`src/components/drawing-workbench.tsx`
+- 類型：section
+- Signals：`status-filter` ×5、`status-axis-label` ×1、`status-property` ×5
+- Contexts：（未直接找到 context）
+- 候選狀態軸：資料狀態、申請狀態、審核狀態、發布狀態、檔案狀態、提醒
+- Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
+- 代表證據：
+  - `status-filter` L377: <dl className="drawing-workbench-facts"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join("、") : "尚未關聯"}</dd></div><div><dt>資
+  - `status-filter` L383: drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
+  - `status-axis-label` L377: <dl className="drawing-workbench-facts"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join("、") : "尚未關聯"}</dd></div><div><dt>資
+  - `status-property` L377: <dl className="drawing-workbench-facts"><div><dt>用途</dt><dd>{drawing.purposeCode}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join("、") : "尚未關聯"}</dd></div><div><dt>資
+  - `status-property` L383: drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
+
 ### `src/components/lifecycle-ux.tsx`
 - 檔案：`src/components/lifecycle-ux.tsx`
 - 類型：section
-- Signals：`format-development-phase` ×2、`status-axis-label` ×1、`status-property` ×7
+- Signals：`status-property` ×2
 - Contexts：（未直接找到 context）
-- 候選狀態軸：開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、提醒
+- 候選狀態軸：申請狀態、審核狀態、發布狀態、檔案狀態、任務狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `format-development-phase` L17: import { formatDevelopmentPhaseForUser } from "@/lib/status-display";
-  - `format-development-phase` L362: const phaseLabel = phase ? formatDevelopmentPhaseForUser(phase) : "";
-  - `status-axis-label` L75: doneSignal: "料號、圖號、開發階段與基本屬性已建立，下一步可送設計資料。",
-  - `status-property` L316: developmentPhase
-  - `status-property` L322: developmentPhase?: string | null;
+  - `status-property` L345: status: ObjectLifecycleStatus;
+  - `status-property` L456: function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
 
 ### `src/components/master-attachment-panel.tsx`
 - 檔案：`src/components/master-attachment-panel.tsx`
 - 類型：section
-- Signals：`status-property` ×10
+- Signals：`status-property` ×3
 - Contexts：（未直接找到 context）
-- 候選狀態軸：開發階段、申請狀態、審核狀態、發布狀態、準備狀態、檔案狀態、任務狀態、還原狀態、提醒
+- 候選狀態軸：申請狀態、審核狀態、發布狀態、檔案狀態、任務狀態、還原狀態、提醒
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
-  - `status-property` L43: status: "ready" | "stale" | "retired" | "failed";
-  - `status-property` L50: status: "queued" | "running" | "succeeded" | "failed" | "skipped" | "cancelled";
+  - `status-property` L42: status: "ready" | "stale" | "retired" | "failed";
+  - `status-property` L49: status: "queued" | "running" | "succeeded" | "failed" | "skipped" | "cancelled";
 
 ### `src/components/number-state-legacy-route.tsx`
 - 檔案：`src/components/number-state-legacy-route.tsx`
@@ -2538,21 +2509,21 @@
 ### `src/components/number-state-workspace.tsx`
 - 檔案：`src/components/number-state-workspace.tsx`
 - 類型：section
-- Signals：`status-help-popover` ×2、`status-scope-help` ×3、`format-status-for-user` ×2、`status-filter` ×2、`status-data-label` ×2、`status-axis-label` ×5、`status-property` ×6
-- Contexts：`numberEffectiveness`
+- Signals：`status-scope-help` ×2、`format-status-for-user` ×2、`status-filter` ×2、`status-axis-label` ×3、`status-property` ×12
+- Contexts：（未直接找到 context）
 - 候選狀態軸：資料狀態、號碼效力、申請狀態、審核狀態、發布狀態、準備狀態、提醒
-- Help：欄位級 0；StatusHelpPopover 2；scope-level present
+- Help：欄位級 0；StatusHelpPopover 0；scope-level present
 - 代表證據：
-  - `status-help-popover` L25: import { StatusHelpPopover, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-help-popover` L783: <div><div className="number-state-list-title"><h2>領號申請清單</h2><StatusScopeHelp scope="numberStateWorkspace" /><StatusHelpPopover context="numberEffectiveness" buttonLabel="查看號碼效力說明" /></div><p>{filtered.length} 筆；已保留號碼與正式
-  - `status-scope-help` L25: import { StatusHelpPopover, StatusScopeHelp } from "@/components/status-help-popover";
-  - `status-scope-help` L743: <h1>料號模組 <StatusScopeHelp scope="numberStateWorkspace" /></h1>
-  - `format-status-for-user` L26: import { formatStatusForUser } from "@/lib/status-display";
-  - `format-status-for-user` L1495: return <span className={`number-state-badge qualification-${qualification}`}>{formatStatusForUser(qualification, "numberEffectiveness")}</span>;
-  - `status-filter` L147: recordStatus: string;
-  - `status-filter` L166: recordStatus: string;
-  - `status-data-label` L799: <td data-label="申請狀態"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></td>
-  - `status-data-label` L800: <td data-label="號碼效力"><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></td>
+  - `status-scope-help` L30: import { StatusScopeHelp } from "@/components/status-help-popover";
+  - `status-scope-help` L616: <StatusScopeHelp
+  - `format-status-for-user` L31: import { formatStatusForUser } from "@/lib/status-display";
+  - `format-status-for-user` L2009: return <span className={`number-state-badge qualification-${qualification}`}>{formatStatusForUser(qualification, "numberEffectiveness")}</span>;
+  - `status-filter` L197: recordStatus: string;
+  - `status-filter` L216: recordStatus: string;
+  - `status-axis-label` L951: <label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as "all" | LifecycleStatus)}><option value="all">全部</option><option value="active">進行中</option><option value="cancell
+  - `status-axis-label` L970: <thead><tr><th>{moduleConfig.reservedCodeLabel}</th><th>申請名稱</th><th>內容</th><th>{lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態 / 號碼效力"}</th></tr></thead>
+  - `status-property` L60: readiness: "incomplete" | "ready" | "stale" | "not_applicable";
+  - `status-property` L133: status: "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
 
 ### `src/components/numbering-contextual-entrypoints.tsx`
 - 檔案：`src/components/numbering-contextual-entrypoints.tsx`
@@ -2563,10 +2534,10 @@
 - Help：欄位級 0；StatusHelpPopover 0；scope-level not_yet_present
 - 代表證據：
   - `status-filter` L7: type RecordStatus =
-  - `status-filter` L35: formalTargets: Array<{ entityType: "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
-  - `status-axis-label` L204: {!canDeleteDraftRoot && !canObsoleteRoot && mode === "root" ? <p className="pdm-contextual-hint">目前狀態不可新增、刪除或申請作廢，請先查看待辦或審核狀態。</p> : null}
-  - `status-property` L35: formalTargets: Array<{ entityType: "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
-  - `status-property` L36: parts: Array<{ partNumber: string; recordStatus: RecordStatus }>;
+  - `status-filter` L34: formalTargets: Array<{ entityType: "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
+  - `status-axis-label` L217: {!canDeleteDraftRoot && !canObsoleteRoot && mode === "root" ? <p className="pdm-contextual-hint">目前狀態不可新增、刪除或申請作廢，請先查看待辦或審核狀態。</p> : null}
+  - `status-property` L34: formalTargets: Array<{ entityType: "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
+  - `status-property` L35: parts: Array<{ partNumber: string; recordStatus: RecordStatus }>;
 
 ### `src/components/status-help-popover.tsx`
 - 檔案：`src/components/status-help-popover.tsx`
@@ -2576,11 +2547,11 @@
 - 候選狀態軸：還原狀態
 - Help：欄位級 1；StatusHelpPopover 2；scope-level present
 - 代表證據：
-  - `status-column-header` L153: export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) {
+  - `status-column-header` L156: export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) {
   - `status-help-popover` L36: export function StatusHelpPopover({ context = "generic", buttonLabel = "查看狀態說明", className = "" }: StatusHelpPopoverProps) {
-  - `status-help-popover` L157: <StatusHelpPopover context={context} />
-  - `status-scope-help` L162: export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusScopeHelpProps) {
-  - `status-badge` L311: export function StatusBadge({ status, context = "generic", className = "" }: StatusBadgeProps) {
+  - `status-help-popover` L160: <StatusHelpPopover context={context} />
+  - `status-scope-help` L165: export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusScopeHelpProps) {
+  - `status-badge` L318: export function StatusBadge({ status, context = "generic", className = "" }: StatusBadgeProps) {
   - `status-property` L21: status: unknown;
 
 ### `src/components/technical-transfer-workspace.tsx`
@@ -2613,10 +2584,15 @@
 
 | 類型 | 檔案 | route | 行 | 摘要 |
 | --- | --- | --- | ---: | --- |
+| `status-bearing-without-help` | `src/app/numbering/search/page.tsx` | /numbering/search | - | 未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp |
+| `plain-status-label` | `src/app/settings/account-invitations/page.tsx` | /settings/account-invitations | 314 | <th>狀態</th> |
+| `status-bearing-without-help` | `src/app/settings/accounts/page.tsx` | /settings/accounts | - | 未找到 StatusColumnHeader、StatusHelpPopover 或 StatusScopeHelp |
+| `plain-status-label` | `src/app/settings/accounts/page.tsx` | /settings/accounts | 376 | <th>狀態</th> |
+| `plain-status-label` | `src/app/submissions/[id]/page.tsx` | /submissions/:id | 315 | <Info label="狀態" value={submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")} /> |
 | `generic-status-context` | `src/components/status-help-popover.tsx` | section | 36 | export function StatusHelpPopover({ context = "generic", buttonLabel = "查看狀態說明", className = "" }: StatusHelpPopoverProps) { |
-| `generic-status-context` | `src/components/status-help-popover.tsx` | section | 153 | export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) { |
-| `plain-status-label` | `src/components/status-help-popover.tsx` | section | 153 | export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) { |
-| `generic-status-context` | `src/components/status-help-popover.tsx` | section | 311 | export function StatusBadge({ status, context = "generic", className = "" }: StatusBadgeProps) { |
+| `generic-status-context` | `src/components/status-help-popover.tsx` | section | 156 | export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) { |
+| `plain-status-label` | `src/components/status-help-popover.tsx` | section | 156 | export function StatusColumnHeader({ context = "generic", label = "狀態", className = "" }: StatusColumnHeaderProps) { |
+| `generic-status-context` | `src/components/status-help-popover.tsx` | section | 318 | export function StatusBadge({ status, context = "generic", className = "" }: StatusBadgeProps) { |
 
 ## Next handoff
 

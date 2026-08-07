@@ -190,7 +190,6 @@ async function runApiSmoke() {
 
   const simulator = await request("POST", "/api/numbering/rule-simulator", {
     actionCode: "numbering.create",
-    phase: "EVT",
     recordStatus: "Draft",
     itemKind: "manufactured",
     riskFlags: []

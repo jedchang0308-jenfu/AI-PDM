@@ -8,7 +8,7 @@ import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
-import { formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
+import { formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "idle" | "ready" | "unauthorized" | "forbidden" | "error";
 
@@ -17,7 +17,6 @@ type PartNumber = {
   partNumber: string;
   partName: string;
   itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
-  developmentPhase: "EVT" | "DVT" | "PVT" | "Release" | "ECR";
   recordStatus:
     | "Draft"
     | "NeedInfo"
@@ -27,7 +26,6 @@ type PartNumber = {
     | "Rejected"
     | "Obsolete"
     | "Merged"
-    | "EVTDisabled"
     | "PendingAdminConfirm"
     | "MainDrawingInvalid";
 };
@@ -37,7 +35,6 @@ type DrawingNumber = {
   drawingNumber: string;
   purposeCode: "MA" | "OT" | "M" | "R";
   purposeDescription: string;
-  developmentPhase: "EVT" | "DVT" | "PVT" | "Release" | "ECR";
   recordStatus: PartNumber["recordStatus"];
   isPrimaryManufacturing: boolean;
 };
@@ -239,7 +236,6 @@ function ImpactResult({
                     <th>料號</th>
                     <th>品名</th>
                     <th>類型</th>
-                    <th>階段</th>
                     <th>
                       <StatusColumnHeader context="masterRecord" />
                     </th>
@@ -252,7 +248,6 @@ function ImpactResult({
                       <td>{partNumber.partNumber}</td>
                       <td>{partNumber.partName}</td>
                       <td>{kindLabel(partNumber.itemKind)}</td>
-                      <td>{formatDevelopmentPhaseForUser(partNumber.developmentPhase)}</td>
                       <td>
                         <StatusBadge status={partNumber.recordStatus} context="masterRecord" />
                       </td>

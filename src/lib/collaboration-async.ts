@@ -102,29 +102,3 @@ export async function decideChangeRequestAsync(input: {
 }) {
   return new AsyncCollaborationRepository(getAsyncDatabaseClient()).decideChangeRequest(input);
 }
-
-export async function listPhaseGateChecksAsync(submissionId: string) {
-  return new AsyncCollaborationRepository(getAsyncDatabaseClient()).listPhaseGateChecks(submissionId);
-}
-
-export async function getPhaseGateCheckAsync(input: { submissionId: string; checkId: string }) {
-  return new AsyncCollaborationRepository(getAsyncDatabaseClient()).getPhaseGateCheck(input);
-}
-
-export async function initializePhaseGateChecksAsync(input: { submissionId: string; createdBy: string }) {
-  return new AsyncCollaborationRepository(getAsyncDatabaseClient()).initializePhaseGateChecks(input);
-}
-
-export async function decidePhaseGateCheckAsync(input: {
-  submissionId: string;
-  checkId: string;
-  decidedBy: string;
-  status: "completed" | "waived";
-  comment: string;
-}) {
-  return new AsyncCollaborationRepository(getAsyncDatabaseClient()).decidePhaseGateCheck(input);
-}
-
-export async function listOpenRequiredPhaseGateChecksAsync(submissionId: string) {
-  return new AsyncCollaborationRepository(getAsyncDatabaseClient()).listOpenRequiredPhaseGateChecks(submissionId);
-}

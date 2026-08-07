@@ -72,13 +72,33 @@ try {
   database.prepare(`INSERT INTO drawing_part_links (
       id, drawing_number_id, part_number_id, link_type, created_by, created_at
     ) VALUES ('dev053-master-link', 'dev053-master-drawing', 'dev053-master-part', 'primary_manufacturing', 'dev053-reader', ?)` ).run(now);
+  database.prepare(`INSERT INTO drawing_numbers (
+      id, company_id, part_root_id, drawing_number, purpose_code, sequence_no, is_primary_manufacturing,
+      record_status, created_by, created_at, updated_at
+    ) VALUES ('dev053-rejected-drawing', 'company-jenfu', 'dev053-master-root', 'Z1053-M02', 'M', 2, 0,
+      'Rejected', 'dev053-reader', ?, ?)` ).run(now, now);
+  database.prepare(`INSERT INTO drawing_numbers (
+      id, company_id, part_root_id, drawing_number, purpose_code, sequence_no, is_primary_manufacturing,
+      record_status, created_by, created_at, updated_at
+    ) VALUES ('dev053-obsolete-drawing', 'company-jenfu', 'dev053-master-root', 'Z1053-M03', 'M', 3, 0,
+      'Obsolete', 'dev053-reader', ?, ?)` ).run(now, now);
 
   const client = provider.createAsyncDatabaseClient({ kind: "sqlite", database });
   const service = new workbench.DrawingWorkbenchService(client);
   const actor = {
     id: "dev053-reader",
     companyId: "company-jenfu",
-    permissions: { workspaceView: true, workspaceUpdate: true, candidateSubmit: true, candidateReview: true, publish: true, createRevision: true }
+    permissions: {
+      workspaceView: true,
+      workspaceUpdate: true,
+      candidateSubmit: true,
+      candidateReview: true,
+      publish: true,
+      createRevision: true,
+      draftUpdate: true,
+      manageReferenceAttachments: true,
+      managePermissions: true
+    }
   };
   const all = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&limit=50")), actor);
   record("DEV053-READ-001 candidate and formal master use stable disjoint identities",
@@ -108,7 +128,7 @@ try {
   } catch (error) { mismatchCode = error?.code ?? String(error); }
   record("DEV053-READ-004 bounded keyset pagination has no duplicate and opaque cursor rejects replay",
     Boolean(cursor) && firstPage.rows.length === 1 && secondPage.rows.length === 1 &&
-    firstPage.rows[0].rowKey !== secondPage.rows[0].rowKey && secondPage.nextCursor === null &&
+    firstPage.rows[0].rowKey !== secondPage.rows[0].rowKey &&
     tamperCode === "workbench_invalid_cursor" && mismatchCode === "workbench_invalid_cursor",
     JSON.stringify({ first: firstPage.rows[0]?.rowKey, second: secondPage.rows[0]?.rowKey, tamperCode, mismatchCode }));
 
@@ -137,7 +157,31 @@ try {
   record("DEV053-READ-008 formal detail preserves same-root part management and viewer capabilities",
     formalDetail?.drawing?.sameRootParts.some((part) => part.partNumber === "Z1053-P01" && part.primaryDrawingNumber === "Z1053-M01") &&
     formalDetail?.drawing?.linkedPartNumbers.includes("Z1053-P01") &&
-    formalDetail?.capabilities.canReviewApprovals === true && formalDetail?.capabilities.canCreateRevision === true);
+    formalDetail?.capabilities.canReviewApprovals === true && formalDetail?.capabilities.canCreateRevision === true &&
+    formalDetail?.capabilities.canManageReferenceAttachments === true);
+
+  const defaultQuery = workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/"));
+  const historyExcluded = await service.list(defaultQuery, actor);
+  const historyIncluded = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?history=include")), actor);
+  const correctionRow = historyExcluded.rows.find((row) => row.rowKey === "drawing:dev053-rejected-drawing");
+  const obsoleteRow = historyIncluded.rows.find((row) => row.rowKey === "drawing:dev053-obsolete-drawing");
+  record("DEV053-READ-009 default view is all active work while history remains explicit",
+    defaultQuery.view === "all" && defaultQuery.includeHistory === false &&
+    !historyExcluded.rows.some((row) => row.rowKey === "drawing:dev053-obsolete-drawing") &&
+    correctionRow?.stage === "correction_required" && correctionRow.primaryAction?.label === "建立修正版" &&
+    obsoleteRow?.stage === "history_only" && obsoleteRow.terminal?.kind === "obsolete" && obsoleteRow.primaryAction?.label === "查看作廢紀錄");
+
+  const permissionActor = {
+    ...actor,
+    permissions: { ...actor.permissions, createRevision: false, manageReferenceAttachments: false, managePermissions: false }
+  };
+  const permissionDetail = await service.detail("drawing:dev053-master-drawing", permissionActor);
+  record("DEV053-READ-010 missing permissions return exact code, contact role and no unsafe admin route",
+    permissionDetail?.row.primaryAction?.permissionCode === "post_release_change" &&
+    permissionDetail?.row.primaryAction?.contactRole === "研發主管或 PDM Admin" &&
+    permissionDetail?.row.primaryAction?.adminHref === null &&
+    permissionDetail?.capabilities.permissionRequirements.manageReferenceAttachments.permissionCode === "numbering.attachments.manage" &&
+    permissionDetail?.capabilities.permissionRequirements.manageReferenceAttachments.adminHref === null);
 } catch (error) {
   record("DEV053-READ-fixture", false, error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error));
 } finally {

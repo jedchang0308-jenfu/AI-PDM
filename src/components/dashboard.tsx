@@ -36,7 +36,7 @@ import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { buildAdaptiveTaskFeed, type TaskSummary, type TaskSummarySeverity, type TaskSummarySource } from "@/lib/adaptive-task-feed";
-import { formatDevelopmentPhaseForUser, formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
+import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type {
   ApprovalMatrixRequirement,
   BomDiffResult,
@@ -51,7 +51,6 @@ import type {
   ItemRevisionHistoryEntry,
   NotificationItem,
   NotificationSummary,
-  PhaseGateCheck,
   PdfMarkup,
   ProcurementSyncRun,
   ReadonlyShare,
@@ -131,7 +130,6 @@ type NumberingDraftRecord = {
   coreName: string;
   displayCode: string;
   displayName: string;
-  developmentPhase: string;
   recordStatus: string;
   partNumber: string | null;
   drawingNumber: string | null;
@@ -257,7 +255,7 @@ function getPlatformWorkbenchSections({
         ]
       : [
           { href: "/bom/reviews", label: "BOM 審核", detail: "處理審核中 BOM 差異", icon: ListTree },
-          { href: "/numbering/approvals", label: "發行審核", detail: "審 DVT / 發布關卡", icon: GitPullRequestArrow },
+          { href: "/numbering/approvals", label: "發行審核", detail: "審查發布條件", icon: GitPullRequestArrow },
           { href: "/numbering/reports", label: "圖號報表", detail: "檢視審核與稽核摘要", icon: FileText }
         ];
 
@@ -275,7 +273,7 @@ function getPlatformWorkbenchSections({
           icon: Bell
         },
         { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門 BOM gate", icon: ListTree },
-        { href: "/numbering/approvals", label: "發行審核", detail: "DVT / 發布決策", icon: GitPullRequestArrow }
+        { href: "/numbering/approvals", label: "發行審核", detail: "發布與例外決策", icon: GitPullRequestArrow }
       ]
     },
     {
@@ -386,12 +384,11 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
   const firstDrawing = firstDraft.drawingNumber ?? firstDraft.primaryDrawingNumber;
   const firstPart = firstDraft.partNumber;
   return (
-    <section className="platform-workbench" aria-label="我的開發中圖料">
+    <section className="platform-workbench" aria-label="我的圖料草稿">
       <ObjectLifecycleStatusPanel
-        title="我的開發中圖料"
+        title="我的圖料草稿"
         objectName={`${firstDraft.rootCode} / ${firstPart ?? "未帶入料號"} / ${firstDrawing ?? "未帶入圖號"}`}
         status={firstDraft.recordStatus}
-        phase={firstDraft.developmentPhase}
         owner="RD"
         identities={[
           { label: "待送審草稿", value: uniqueDrafts.length },
@@ -407,8 +404,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
             rootCode: firstDraft.rootCode,
             drawingNumber: firstDrawing,
             partNumber: firstPart,
-            partName: firstDraft.displayName || firstDraft.coreName,
-            developmentPhase: firstDraft.developmentPhase
+            partName: firstDraft.displayName || firstDraft.coreName
           }),
           label: "接續送審"
         }}
@@ -428,8 +424,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
                   rootCode: draft.rootCode,
                   drawingNumber,
                   partNumber: draft.partNumber,
-                  partName: draft.displayName || draft.coreName,
-                  developmentPhase: draft.developmentPhase
+                  partName: draft.displayName || draft.coreName
                 })}
                 key={draft.rootCode}
               >
@@ -437,7 +432,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
                 <span>
                   <strong>{draft.rootCode}</strong>
                   <small>
-                    {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"} / {formatDevelopmentPhaseForUser(draft.developmentPhase)}
+                    {draft.partNumber ?? "未帶入料號"} / {drawingNumber ?? "未帶入圖號"} / {formatStatusForUser(draft.recordStatus, "masterRecord")}
                   </small>
                 </span>
               </Link>
@@ -977,8 +972,6 @@ export function Dashboard() {
   const [changeImpact, setChangeImpact] = useState("");
   const [changeDecision, setChangeDecision] = useState<Record<string, string>>({});
   const [changeLoading, setChangeLoading] = useState(false);
-  const [phaseGateChecks, setPhaseGateChecks] = useState<PhaseGateCheck[]>([]);
-  const [phaseGateLoading, setPhaseGateLoading] = useState(false);
   const [approvalMatrixRequirements, setApprovalMatrixRequirements] = useState<ApprovalMatrixRequirement[]>([]);
   const [approvalMatrixLoading, setApprovalMatrixLoading] = useState(false);
   const [pdfMarkups, setPdfMarkups] = useState<PdfMarkup[]>([]);
@@ -1173,7 +1166,6 @@ export function Dashboard() {
     setChangeReason("");
     setChangeImpact("");
     setChangeDecision({});
-    setPhaseGateChecks([]);
     setApprovalMatrixRequirements([]);
     setPdfMarkups([]);
     setMarkupFileId("");
@@ -1304,12 +1296,11 @@ export function Dashboard() {
     const requestId = detailRequestIdRef.current;
     setDetailResourceLoading((current) => ({ ...current, collaboration: true }));
     try {
-      const [sandboxData, discussionData, issueData, changeData, phaseGateData, approvalMatrixData, markupData] = await Promise.all([
+      const [sandboxData, discussionData, issueData, changeData, approvalMatrixData, markupData] = await Promise.all([
         fetchResourceJson<{ branches?: SandboxBranch[]; current_branch?: SandboxBranch | null }>(requestId, `/api/submissions/${id}/sandbox`),
         fetchResourceJson<{ comments?: DiscussionComment[] }>(requestId, `/api/submissions/${id}/discussions`),
         fetchResourceJson<{ issues?: ReviewIssue[] }>(requestId, `/api/submissions/${id}/issues`),
         fetchResourceJson<{ changes?: ChangeRequest[] }>(requestId, `/api/submissions/${id}/changes`),
-        fetchResourceJson<{ checks?: PhaseGateCheck[] }>(requestId, `/api/submissions/${id}/phase-gates`),
         fetchResourceJson<{ requirements?: ApprovalMatrixRequirement[] }>(requestId, `/api/submissions/${id}/approval-matrix`),
         fetchResourceJson<{ markups?: PdfMarkup[] }>(requestId, `/api/submissions/${id}/pdf-markups`)
       ]);
@@ -1319,7 +1310,6 @@ export function Dashboard() {
       setDiscussionComments(discussionData?.comments ?? []);
       setReviewIssues(issueData?.issues ?? []);
       setChangeRequests(changeData?.changes ?? []);
-      setPhaseGateChecks(phaseGateData?.checks ?? []);
       setApprovalMatrixRequirements(approvalMatrixData?.requirements ?? []);
       setPdfMarkups(markupData?.markups ?? []);
       setDetailResourcesLoaded((current) => ({ ...current, collaboration: true }));
@@ -2093,41 +2083,6 @@ export function Dashboard() {
       });
     }
     setChangeLoading(false);
-  }
-
-  async function initializePhaseGates() {
-    if (!selectedId) return;
-    setPhaseGateLoading(true);
-    const response = await fetch(`/api/submissions/${selectedId}/phase-gates`, {
-      method: "POST"
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      alertSubmissionActionError(body, "啟用階段關卡未完成");
-    } else {
-      setPhaseGateChecks(body.checks ?? []);
-    }
-    setPhaseGateLoading(false);
-  }
-
-  async function decidePhaseGate(checkId: string, action: "complete" | "waive") {
-    if (!selectedId) return;
-    setPhaseGateLoading(true);
-    const response = await fetch(`/api/submissions/${selectedId}/phase-gates/${checkId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action,
-        comment: `階段關卡審查時${action === "complete" ? "完成" : "豁免"}`
-      })
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      alertSubmissionActionError(body, "更新階段關卡未完成");
-    } else if (body.check) {
-      setPhaseGateChecks((items) => items.map((item) => (item.id === checkId ? body.check : item)));
-    }
-    setPhaseGateLoading(false);
   }
 
   async function initializeApprovalMatrix() {
@@ -3873,74 +3828,7 @@ export function Dashboard() {
                   </button>
                 </div>
               </div>
-              <div className="phase-gate-panel">
-                <div className="readonly-share-header">
-                  <div className="readonly-share-title">
-                    <span className="section-label">PLM 階段關卡</span>
-                    <strong>
-                      {phaseGateChecks.length === 0
-                        ? "尚未啟用"
-                        : `${phaseGateChecks.filter((check) => check.required === 1 && check.status === "open").length} 個必要項目未結`}
-                    </strong>
-                    <small>啟用後，必要項目未結案時會阻擋核准與發布。</small>
-                  </div>
-                </div>
-                {phaseGateChecks.length === 0 ? (
-                  canReview ? (
-                    <button className="secondary-button" type="button" onClick={initializePhaseGates} disabled={phaseGateLoading}>
-                      <Archive size={14} aria-hidden="true" />
-                      啟用關卡
-                    </button>
-                  ) : (
-                    <small>目前沒有階段關卡檢核表。</small>
-                  )
-                ) : (
-                  <div className="phase-gate-list">
-                    {phaseGateChecks.map((check) => (
-                      <div className={`phase-gate-item ${check.status}`} key={check.id}>
-                        <div className="issue-heading">
-                          <strong>
-                            <Archive size={14} aria-hidden="true" /> {check.gate_name}
-                          </strong>
-                          <span className="metadata-badge">{formatWorkflowStatus(check.status)}</span>
-                        </div>
-                        <p>{check.checklist_item}</p>
-                        <div className="metadata-list">
-                          <span className="metadata-badge">{check.required === 1 ? "必要" : "選用"}</span>
-                          <span className="metadata-pair">
-                            <span className="metadata-label">建立者</span>
-                            <span className="metadata-value">{check.created_by_name}</span>
-                          </span>
-                        </div>
-                        {check.status === "open" && canReview ? (
-                          <div className="file-actions">
-                            <button className="secondary-button" type="button" onClick={() => decidePhaseGate(check.id, "complete")} disabled={phaseGateLoading}>
-                              <Check size={14} aria-hidden="true" />
-                              完成
-                            </button>
-                            <button className="secondary-button" type="button" onClick={() => decidePhaseGate(check.id, "waive")} disabled={phaseGateLoading}>
-                              <X size={14} aria-hidden="true" />
-                              豁免
-                            </button>
-                          </div>
-                        ) : check.status !== "open" ? (
-                          <div className="metadata-list">
-                            <span className="metadata-pair">
-                              <span className="metadata-label">決議</span>
-                              <span className="metadata-value">{check.decision_comment ?? "-"}</span>
-                            </span>
-                            <span className="metadata-pair">
-                              <span className="metadata-label">決議者</span>
-                              <span className="metadata-value">{check.decided_by_name ?? "-"}</span>
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="phase-gate-panel">
+              <div className="review-control-panel">
                 <div className="readonly-share-header">
                   <div className="readonly-share-title">
                     <span className="section-label">簽核矩陣</span>
@@ -3962,9 +3850,9 @@ export function Dashboard() {
                     <small>目前沒有簽核矩陣。</small>
                   )
                 ) : (
-                  <div className="phase-gate-list">
+                  <div className="review-control-list">
                     {approvalMatrixRequirements.map((requirement) => (
-                      <div className={`phase-gate-item ${requirement.status}`} key={requirement.id}>
+                      <div className={`review-control-item ${requirement.status}`} key={requirement.id}>
                         <div className="issue-heading">
                           <strong>
                             <Lock size={14} aria-hidden="true" /> {requirement.required_role}

@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     try {
       const result = await evaluateApprovalRulesAsync({
         actionCode,
-        phase: body.phase,
         recordStatus: body.recordStatus ?? body.record_status,
         itemKind: body.itemKind ?? body.item_kind,
         riskFlags,
@@ -35,16 +34,16 @@ export async function POST(request: Request) {
 
   const partNumber = String(body.partNumber ?? body.part_number ?? "").trim();
   const rawGate = String(body.gate ?? "").trim();
-  const gate = rawGate === "DVT" || rawGate === "Release" ? rawGate : null;
+  const gate = rawGate === "TechnicalTransfer" || rawGate === "Release" ? rawGate : null;
 
   const errors: string[] = [];
   if (!partNumber) errors.push("partNumber is required");
-  if (!gate) errors.push("gate must be DVT or Release");
+  if (!gate) errors.push("gate must be TechnicalTransfer or Release");
   if (errors.length > 0) {
     return NextResponse.json({ error: "Invalid numbering rule simulation request", details: errors }, { status: 400 });
   }
   if (!gate) {
-    return NextResponse.json({ error: "gate must be DVT or Release" }, { status: 400 });
+    return NextResponse.json({ error: "gate must be TechnicalTransfer or Release" }, { status: 400 });
   }
 
   try {

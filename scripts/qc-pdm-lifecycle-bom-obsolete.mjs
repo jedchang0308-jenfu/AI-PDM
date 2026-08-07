@@ -2,14 +2,33 @@
 
 import Database from "better-sqlite3";
 import path from "node:path";
+import { createLifecycleQcRuntime } from "./qc-pdm-lifecycle-isolated-runtime.mjs";
 
 const root = process.cwd();
-const apiBaseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
-const password = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
-const dbPath = path.join(root, "data", "ai-pdm.sqlite");
+const password = "Lifecycle-BOM-Obsolete-QC-2026";
+const principals = [
+  {
+    id: "lifecycle-bom-obsolete-engineer",
+    displayName: "Lifecycle BOM Obsolete QC Engineer",
+    email: "lifecycle.bom.obsolete.engineer@example.invalid",
+    password,
+    role: "Engineer",
+    companyCodes: ["JENFU"]
+  },
+  {
+    id: "lifecycle-bom-obsolete-manager",
+    displayName: "Lifecycle BOM Obsolete QC Manager",
+    email: "lifecycle.bom.obsolete.manager@example.invalid",
+    password,
+    role: "R&D Manager",
+    companyCodes: ["JENFU"]
+  }
+];
 const token = Date.now().toString().slice(-7);
 const results = [];
 const createdSubmissionIds = [];
+let apiBaseUrl = "";
+let dbPath = "";
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -39,23 +58,59 @@ async function requestJson(cookie, route, init = {}) {
   return { response, body };
 }
 
-async function createSubmission(cookie, input) {
-  const form = new FormData();
-  form.set("drawing_number", input.drawingNumber);
-  form.set("part_number", input.partNumber);
-  form.set("part_name", input.partName);
-  form.set("revision", "1");
-  form.set("material", "QC-Material");
-  form.set("surface_finish", "QC-Finish");
-  form.set("document_type", input.documentType ?? "Part");
-  form.set("change_description", "QC seed for BOM lifecycle obsolete");
-  if (input.references) form.set("cad_references_json", JSON.stringify(input.references));
-  form.append("files", new File([Buffer.from("bom lifecycle obsolete qc")], `${input.drawingNumber}.pdf`, { type: "application/pdf" }));
-
-  const { response, body } = await requestJson(cookie, "/api/submissions", { method: "POST", body: form });
-  record(`Create ${input.partNumber}`, response.status === 201, `HTTP ${response.status} ${JSON.stringify(body)}`);
-  createdSubmissionIds.push(body.submissionId);
-  return { submissionId: body.submissionId, revision: "1", ...input };
+function createSubmission(input) {
+  const submissionId = `qc-bom-obsolete-submission-${token}-${createdSubmissionIds.length + 1}`;
+  const itemId = `qc-bom-obsolete-item-${token}-${createdSubmissionIds.length + 1}`;
+  const now = new Date().toISOString();
+  const db = new Database(dbPath);
+  try {
+    db.prepare(
+      "INSERT INTO items (id, company_id, part_number, part_name, current_revision, created_at, updated_at) VALUES (?, 'company-jenfu', ?, ?, '1', ?, ?)"
+    ).run(itemId, input.partNumber, input.partName, now, now);
+    db.prepare(
+      `INSERT INTO submissions (
+        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
+        change_description, status, submitted_by, approval_required, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, ?, '1', 'QC-Material', 'QC-Finish', ?, ?, 'Pending', ?, 1, ?, ?)`
+    ).run(
+      submissionId,
+      itemId,
+      input.drawingNumber,
+      input.documentType ?? "Part",
+      "QC disposable fixture for BOM lifecycle obsolete",
+      principals[0].id,
+      now,
+      now
+    );
+    for (const [index, reference] of (input.references ?? []).entries()) {
+      db.prepare(
+        `INSERT INTO file_references (
+          id, submission_id, source_file_id, source_filename, source_file_role, referenced_filename,
+          referenced_part_number, referenced_drawing_number, referenced_revision, reference_type,
+          quantity, extraction_method, confidence, created_at
+        ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        `qc-bom-obsolete-reference-${token}-${index + 1}`,
+        submissionId,
+        reference.sourceFilename,
+        reference.sourceFileRole,
+        reference.referencedFilename,
+        reference.referencedPartNumber ?? null,
+        reference.referencedDrawingNumber ?? null,
+        reference.referencedRevision ?? null,
+        reference.referenceType,
+        reference.quantity,
+        reference.extractionMethod,
+        reference.confidence,
+        now
+      );
+    }
+  } finally {
+    db.close();
+  }
+  createdSubmissionIds.push(submissionId);
+  record(`Seed ${input.partNumber} only in disposable database`, true, submissionId);
+  return { submissionId, revision: "1", ...input };
 }
 
 function markReleased(...submissionIds) {
@@ -69,37 +124,11 @@ function markReleased(...submissionIds) {
   }
 }
 
-function cleanup() {
-  if (!createdSubmissionIds.length) return;
-  const db = new Database(dbPath);
-  try {
-    const placeholders = createdSubmissionIds.map(() => "?").join(",");
-    const draftRows = db.prepare(`SELECT id FROM bom_drafts WHERE parent_submission_id IN (${placeholders})`).all(...createdSubmissionIds);
-    const draftIds = draftRows.map((row) => row.id);
-    const draftPlaceholders = draftIds.map(() => "?").join(",");
-    if (draftPlaceholders) {
-      db.prepare(`DELETE FROM bom_release_snapshots WHERE bom_draft_id IN (${draftPlaceholders})`).run(...draftIds);
-      db.prepare(`DELETE FROM bom_review_requests WHERE bom_draft_id IN (${draftPlaceholders})`).run(...draftIds);
-      db.prepare(`DELETE FROM bom_edit_events WHERE bom_draft_id IN (${draftPlaceholders})`).run(...draftIds);
-      db.prepare(`DELETE FROM bom_lines_tree WHERE bom_draft_id IN (${draftPlaceholders})`).run(...draftIds);
-      db.prepare(`DELETE FROM bom_drafts WHERE id IN (${draftPlaceholders})`).run(...draftIds);
-    }
-    db.prepare(`DELETE FROM bom_lines WHERE bom_header_id IN (SELECT id FROM bom_headers WHERE parent_submission_id IN (${placeholders}))`).run(
-      ...createdSubmissionIds
-    );
-    db.prepare(`DELETE FROM bom_headers WHERE parent_submission_id IN (${placeholders})`).run(...createdSubmissionIds);
-    db.prepare(`DELETE FROM file_references WHERE submission_id IN (${placeholders})`).run(...createdSubmissionIds);
-    db.prepare(`DELETE FROM submission_files WHERE submission_id IN (${placeholders})`).run(...createdSubmissionIds);
-  } finally {
-    db.close();
-  }
-}
-
 async function run() {
-  const engineerCookie = await login("engineer@example.com");
-  const managerCookie = await login("manager@example.com");
+  const engineerCookie = await login(principals[0].email);
+  const managerCookie = await login(principals[1].email);
 
-  const child = await createSubmission(engineerCookie, {
+  const child = createSubmission({
     drawingNumber: `BOMOBS-${token}-A`,
     partNumber: `P-BOMOBS-${token}-A`,
     partName: "QC BOM obsolete child",
@@ -107,7 +136,7 @@ async function run() {
   });
   markReleased(child.submissionId);
 
-  const parent = await createSubmission(engineerCookie, {
+  const parent = createSubmission({
     drawingNumber: `BOMOBS-${token}-ASM`,
     partNumber: `P-BOMOBS-${token}-ASM`,
     partName: "QC BOM obsolete assembly",
@@ -182,42 +211,62 @@ async function run() {
   }
 }
 
-run()
-  .then(() => {
-    cleanup();
-    console.log(
-      JSON.stringify(
-        {
-          checkedAt: new Date().toISOString(),
-          total: results.length,
-          passed: results.filter((result) => result.passed).length,
-          failed: results.filter((result) => !result.passed).length,
-          results
-        },
-        null,
-        2
-      )
+async function main() {
+  const runtime = createLifecycleQcRuntime({ root, suite: "lifecycle-bom-obsolete", principals });
+  let receipt = null;
+  let runError = null;
+  try {
+    const target = await runtime.start();
+    apiBaseUrl = target.baseUrl;
+    dbPath = target.databasePath;
+    record(
+      "Lifecycle BOM obsolete QC uses a disposable production-disconnected target",
+      target.productionConnected === false && target.productionWrites === false && apiBaseUrl !== "http://127.0.0.1:3000",
+      JSON.stringify(target)
     );
-  })
-  .catch((error) => {
+    await run();
+  } catch (error) {
+    runError = error;
+  } finally {
     try {
-      cleanup();
+      receipt = await runtime.cleanup({ createdSubmissionCount: createdSubmissionIds.length, runPassedBeforeCleanup: runError === null });
     } catch (cleanupError) {
-      results.push({ name: "Cleanup", passed: false, detail: cleanupError.message });
+      results.push({ name: "Disposable runtime cleanup", passed: false, detail: cleanupError.message });
+      if (!runError) runError = cleanupError;
     }
-    console.error(
-      JSON.stringify(
-        {
-          checkedAt: new Date().toISOString(),
-          total: results.length,
-          passed: results.filter((result) => result.passed).length,
-          failed: results.filter((result) => !result.passed).length || 1,
-          results,
-          error: error.message
-        },
-        null,
-        2
-      )
-    );
-    process.exit(1);
-  });
+  }
+
+  if (receipt) {
+    results.push({
+      name: "Disposable runtime cleanup is proven",
+      passed: receipt.cleanupStatus === "removed" && receipt.productionDataUnchanged === true,
+      detail: JSON.stringify(receipt)
+    });
+  }
+  const failed = results.filter((result) => !result.passed);
+  const report = {
+    checkedAt: new Date().toISOString(),
+    target: "local-isolated",
+    productionConnected: false,
+    productionWrites: false,
+    cleanupStatus: receipt?.cleanupStatus ?? "failed",
+    isolationReceipt: receipt ? path.join(runtime.evidenceDir, "isolation-receipt.json") : null,
+    total: results.length,
+    passed: results.length - failed.length,
+    failed: failed.length || (runError ? 1 : 0),
+    results,
+    ...(runError ? { error: runError.message } : {})
+  };
+  const serialized = JSON.stringify(report, null, 2);
+  if (runError || failed.length > 0) {
+    console.error(serialized);
+    process.exitCode = 1;
+  } else {
+    console.log(serialized);
+  }
+}
+
+main().catch((error) => {
+  console.error(JSON.stringify({ target: "local-isolated", productionConnected: false, productionWrites: false, error: error.message }, null, 2));
+  process.exit(1);
+});

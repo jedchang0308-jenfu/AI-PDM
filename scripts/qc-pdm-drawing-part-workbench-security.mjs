@@ -30,6 +30,8 @@ function assertFile(relativePath, label) {
 
 assertContains("db/schema.sql", "CREATE TABLE IF NOT EXISTS submission_snapshots", "snapshot table");
 assertContains("db/schema.sql", "CREATE TABLE IF NOT EXISTS submission_attempts", "attempt audit table");
+assertContains("db/schema.sql", "CREATE TABLE IF NOT EXISTS submission_part_scopes", "multi-part submission scope table");
+assertContains("db/schema.sql", "UNIQUE (submission_id, part_number_id)", "multi-part submission scope uniqueness");
 assertContains("db/schema.sql", "UNIQUE (company_id, actor_id, idempotency_key)", "attempt idempotency uniqueness");
 assertContains("db/schema.sql", "UNIQUE (submission_id, file_role, original_filename)", "duplicate filename DB guard");
 
@@ -44,6 +46,11 @@ assertContains("src/lib/drawing-submission-workbench.ts", "送審附件中有重
 assertContains("src/lib/drawing-submission-workbench.ts", "resolveRootSubmissionReadiness", "root readiness API service");
 assertContains("src/lib/drawing-submission-workbench.ts", "multiple_primary_drawings", "ambiguous primary drawing blocker");
 assertContains("src/lib/drawing-submission-workbench.ts", "multiple_primary_parts", "ambiguous primary part blocker");
+assertContains("src/lib/drawing-submission-workbench.ts", "explicit_multi_part_scope", "immutable multi-part snapshot basis");
+assertContains("src/lib/drawing-submission-workbench.ts", "partScopes: context.submissionParts.map", "multi-part scope persisted with submission");
+assertContains("src/lib/repositories/submission-status-async-repository.ts", 'part_resolution: scopedParts.length > 0 ? "submission_scope"', "multi-part atomic release path");
+assertContains("src/app/numbering/revisions/page.tsx", 'type="checkbox"', "multi-part UI uses checkboxes");
+assertContains("src/app/numbering/revisions/page.tsx", "建立送審（1 張圖・", "multi-part CTA exposes affected count");
 
 assertContains(
   "src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts",

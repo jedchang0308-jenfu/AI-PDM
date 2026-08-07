@@ -1,5 +1,7 @@
 # QA Validation Plan - P2 PLM Phase Gate
 
+Status: Superseded by `DEV-054` / `ADR-PDM-PROJECT-STATUS-BOUNDARY-001` on 2026-08-05. Historical reference only; this workflow must not exist in active PDM runtime.
+
 Date: 2026-05-27
 
 ## Scope

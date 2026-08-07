@@ -92,6 +92,7 @@ QC-owned fallback fixture:
 | FFF assessment creates reviewer task without selected files | Old endpoint remains primary UI path | Reviewer approves a drawing revision with no drawing files | QA-REVPKG-004 | P0 | Normal UI package submit requires selected attachment IDs |
 | Part/BOM incorrectly revise on no-impact drawing change | Domain coupling is too broad | Master data churn and false BOM versions | QA-REVPKG-006 | P0 | Assert part and BOM unchanged before release; reviewer confirms no BOM revision |
 | Assessment and submission are not linked | Transaction or API contract missing | Audit cannot prove which files were assessed | QA-REVPKG-005 | P0 | DB/API evidence for `drawing_revision_fff_assessments.submission_id` |
+| FFF review is approved but linked package remains misleadingly Pending | Read model ignores `review_confirmation_events` for ordinary revision packages | Reviewer disappears from inbox while drawing module still says `送審中` or exposes a second publish action | QA-REVPKG-005A | P0 | Effective-status projection, minor/major policy split, and submission-detail CTA sweep |
 | Confirmed-impact bypasses replacement draft | New package endpoint skips existing change-control guard | Wrong part remains in use after FFF impact | QA-REVPKG-008 | P0 | Confirmed-impact negative tests |
 | Same-revision duplicate package created | Idempotency/blocker mismatch | Duplicate Pending submissions and review confusion | QA-REVPKG-009 | P0 | Replay same/different idempotency key and count active records |
 | Prior-revision attachment appears in the new-revision work area | UI lists all drawing attachments together and only disables mismatched revision files | Operator mistakes old `0.1` drawing for a `0.2` candidate and cannot tell the next step | QA-REVPKG-013 | P1 | Primary list only shows target revision files; other revisions are collapsed read-only reference files with no checkbox |
@@ -118,6 +119,7 @@ QC-owned fallback fixture:
 | QA-REVPKG-003 | Workbench requires at least one eligible new-revision drawing file before `建立圖面進版送審` | Disabled state + visible Chinese reason |
 | QA-REVPKG-004 | Normal UI cannot create an actionable FFF review for a formal revision package without selected files | UI/API negative evidence |
 | QA-REVPKG-005 | Successful submit creates one Pending submission and one linked FFF assessment | API/DB evidence: `submissionId`, `assessmentId`, `submission_id` |
+| QA-REVPKG-005A | After FFF approval, minor packages show effective `ReviewApproved` / `研發受控`, physical package remains Pending, and no duplicate `核准發布` CTA is shown; major packages hand off to approval-step/release workflow | 3000 browser DOM/screenshot, package read model, audit evidence, no visible errors |
 | QA-REVPKG-006 | No-impact flow keeps part number and BOM unchanged while recording reviewer-required BOM no-revision confirmation | DB/API before/after + reviewer UI evidence |
 | QA-REVPKG-007 | Suspected-impact flow creates high-risk package and requires reviewer conclusion before final release | UI/API evidence |
 | QA-REVPKG-008 | Confirmed-impact flow blocks without replacement draft and matching drawing part-number value | Negative UI/API evidence |
@@ -567,6 +569,15 @@ Executed Phase 3 local evidence on 2026-07-05:
 - TC-REVPKG-016 duplicate same-revision lifecycle check passed in focused QC: duplicate formal same drawing + same revision remains blocked.
 - TC-REVPKG-017 suggestion/override static UI guard passed: the workbench keeps next-revision suggestion but shows lower/higher intent guidance instead of blocking by chronological order.
 - Static/API guard passed: product approve/retry-release/workflow paths do not contain the old chronological `revision_release_order_conflict` blocker, while duplicate same-revision release guard remains covered.
+
+Executed approval/status recovery regression on 2026-08-06:
+
+- `npm.cmd run qc:pdm-drawing-revision-package-model`: passed 63/63, including effective `ReviewApproved` projection for approved FFF minor revisions and submission-detail status exposure.
+- `npx.cmd tsc --noEmit --pretty false`: passed.
+- Scoped ESLint for approval platform, revision package/read model, attachment read model, status display and submission detail: passed.
+- Fixed 3000 read-only browser route `/numbering/drawings?view=all&detail=...&query=A0005`: A0005-M01 shows `研發受控`, revision `0.3`, and the drawer has no visible error.
+- Fixed 3000 read-only browser route `/submissions/SUB-20260806-32FAF9E9`: header/status show `研發受控（已核准）`, the next-step message says no further `核准發布`, no `核准發布` button is rendered, visible error sweep is empty, console error/warning count is 0, and body width 1265 equals the 1280 viewport content width.
+- No database write, direct repair, migration, deployment or release was executed. Existing `A0005` rows remain unchanged.
 
 Not yet executed:
 

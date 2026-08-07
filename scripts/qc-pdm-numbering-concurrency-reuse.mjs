@@ -114,7 +114,6 @@ async function createRecord(cookie, label, index, drawingRequested = true) {
       coreName: `QC ${label} root ${unique}-${index}`,
       partName: `QC ${label} part ${unique}-${index}`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested,
       drawingPurposeCode: drawingRequested ? "M" : undefined
     })
@@ -141,8 +140,8 @@ function assertDuplicateRootRejected(root, name) {
       db.prepare(
         `
         INSERT INTO part_roots (
-          id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 'manufactured', 'DVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, 'manufactured', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-concurrency-dup-root-${unique}-${name}`, root.rootCode, `QC duplicate root ${unique}`);
     }, "UNIQUE");
@@ -159,8 +158,8 @@ function assertDuplicatePartRejected(root, partNumber, name) {
         `
         INSERT INTO part_numbers (
           id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-          item_kind, is_universal, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 99, '099', ?, 'manufactured', 0, 'DVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          item_kind, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, 99, '099', ?, 'manufactured', 0, 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-concurrency-dup-part-${unique}-${name}`, root.id, partNumber, `QC duplicate part ${unique}`);
     }, "UNIQUE");
@@ -177,8 +176,8 @@ function assertDuplicateDrawingRejected(root, drawingNumber, name) {
         `
         INSERT INTO drawing_numbers (
           id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-          is_primary_manufacturing, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 'MA', ?, 99, 0, 'DVT', 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
+          is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, 'MA', ?, 99, 0, 'Draft', 'numbering-rule-v1', NULL, datetime('now'), datetime('now'))
       `
       ).run(`qc-concurrency-dup-drawing-${unique}-${name}`, root.id, drawingNumber, `QC duplicate drawing ${unique}`);
     }, "UNIQUE");
@@ -233,9 +232,9 @@ try {
   record("Concurrent drawing numbers are unique", uniqueValues(drawingNumbers).size === concurrentCount, JSON.stringify(drawingNumbers));
   record(
     "Concurrent codes keep expected numbering formats",
-    rootCodes.every((code) => /^\d{5}$/.test(code)) &&
-      partNumbers.every((code) => /^\d{5}-P\d{2}$/.test(code)) &&
-      drawingNumbers.every((code) => /^\d{5}-M\d{2}$/.test(code)),
+    rootCodes.every((code) => /^A\d{4}$/.test(code)) &&
+      partNumbers.every((code) => /^A\d{4}-P\d{2}$/.test(code)) &&
+      drawingNumbers.every((code) => /^A\d{4}-M\d{2}$/.test(code)),
     JSON.stringify({ rootCodes, partNumbers, drawingNumbers })
   );
   await assertDuplicateCheckBlocked(
@@ -252,7 +251,6 @@ try {
       coreName: `QC pending reuse root ${unique}`,
       partName: `QC pending reuse part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -264,7 +262,7 @@ try {
     "/api/numbering/approval-requests",
     adminCookie,
     {
-      actionCode: "dvt_missing_ma_override",
+      actionCode: "release",
       entityType: "part_number",
       entityId: pendingCase.partNumber.id,
       reason: `QC pending request keeps number reserved ${unique}`,
@@ -301,7 +299,6 @@ try {
       coreName: `QC rejected reuse root ${unique}`,
       partName: `QC rejected reuse part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },
@@ -313,7 +310,7 @@ try {
     "/api/numbering/approval-requests",
     adminCookie,
     {
-      actionCode: "dvt_missing_ma_override",
+      actionCode: "release",
       entityType: "part_number",
       entityId: rejectedCase.partNumber.id,
       reason: `QC rejected request keeps number reserved ${unique}`,
@@ -361,7 +358,6 @@ try {
       coreName: `QC obsolete reuse root ${unique}`,
       partName: `QC obsolete reuse part ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "DVT",
       drawingRequested: true,
       drawingPurposeCode: "M"
     },

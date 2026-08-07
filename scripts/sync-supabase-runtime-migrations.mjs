@@ -117,6 +117,26 @@ const sourceFiles = [
     source: "db/postgres/022_unified_drawing_workbench.sql",
     target: "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
     description: "Add DEV-053 source drawing and part context for candidate workspaces"
+  },
+  {
+    source: "db/postgres/023_remove_project_status_authority.sql",
+    target: "supabase/migrations/20260804030000_remove_project_status_authority.sql",
+    description: "Remove project-status authority while preserving PDM quality and change-control evidence"
+  },
+  {
+    source: "db/postgres/024_remove_submission_phase_gate.sql",
+    target: "supabase/migrations/20260805010000_remove_submission_phase_gate.sql",
+    description: "Remove the retired submission approval blocker workflow"
+  },
+  {
+    source: "db/postgres/025_submission_part_scope.sql",
+    target: "supabase/migrations/20260806010000_submission_part_scope.sql",
+    description: "Add immutable multi-part scope for one controlled drawing revision submission"
+  },
+  {
+    source: "db/postgres/026_drawing_revision_lifecycle_authority.sql",
+    target: "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql",
+    description: "Add DEV-053 Phase 1H drawing-revision lifecycle authority and guarded cleanup"
   }
 ];
 

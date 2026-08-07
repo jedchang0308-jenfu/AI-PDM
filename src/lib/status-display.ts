@@ -12,7 +12,6 @@ export type StatusDisplayContext =
   | "identityStatus"
   | "invitationStatus"
   | "reminderStatus"
-  | "developmentPhase"
   | "numberEffectiveness"
   | "task"
   | "importRow"
@@ -20,7 +19,6 @@ export type StatusDisplayContext =
   | "settingsLifecycle"
   | "jobStatus"
   | "restorePolicy"
-  | "dvtReadiness"
   | "fileSync"
   | "cost"
   | "notification"
@@ -100,13 +98,6 @@ const masterRecordStatuses: StatusDefinition[] = [
   },
   { keys: ["Merged", "merged"], label: "已合併", description: "資料已併入其他正式資料，保留追溯。", tone: "neutral", terminal: true },
   {
-    keys: ["EVTDisabled"],
-    label: "EVT 停用",
-    description: "此 EVT 資料已停用，不應再作為後續作業來源。",
-    tone: "critical",
-    terminal: true
-  },
-  {
     keys: ["PendingAdminConfirm", "admin_confirm"],
     label: "待管理員確認",
     description: "需要管理員確認後才能往下走。",
@@ -117,6 +108,13 @@ const masterRecordStatuses: StatusDefinition[] = [
 ];
 
 const submissionStatuses: StatusDefinition[] = [
+  {
+    keys: ["ReviewApproved"],
+    label: "研發受控",
+    description: "小數研發版已完成影響審核並受控；不代表量產正式 Released。",
+    tone: "success",
+    terminal: true
+  },
   { keys: ["Pending"], label: "審核中", description: "送審已建立，等待主管或指定審核者處理。", tone: "warning", actionable: true },
   { keys: ["Releasing"], label: "發行中", description: "審核已通過，系統正在建立正式發行紀錄。", tone: "warning" },
   { keys: ["Released"], label: "已發布", description: "已完成審核與正式發行。", tone: "success", terminal: true },
@@ -285,20 +283,6 @@ const restorePolicyStatuses: StatusDefinition[] = [
   { keys: ["reused", "recycled", "deleted"], label: "已回收或已重用", description: "相關編號或資料已被回收/重用，不能直接還原。", tone: "neutral", terminal: true }
 ];
 
-const dvtReadinessStatuses: StatusDefinition[] = [
-  { keys: ["ready"], label: "可送審", description: "DVT 送審條件已具備，可以送審 DVT 階段。", tone: "success", actionable: true },
-  { keys: ["needs_override"], label: "需補資料或 Override", description: "仍有缺漏；補齊資料或取得例外確認後才能送審。", tone: "warning", actionable: true },
-  { keys: ["blocked"], label: "阻擋", description: "目前條件不足，不能送審 DVT 階段。", tone: "critical", abnormal: true, actionable: true }
-];
-
-const developmentPhaseStatuses: StatusDefinition[] = [
-  { keys: ["EVT"], label: "EVT 工程樣", description: "工程驗證階段，資料仍在建立與初步確認。", tone: "warning", actionable: true },
-  { keys: ["DVT"], label: "DVT 設計驗證", description: "設計驗證階段，需確認設計符合需求。", tone: "warning", actionable: true },
-  { keys: ["PVT"], label: "PVT 試產", description: "試產驗證階段，需確認製程與量產準備狀態。", tone: "warning", actionable: true },
-  { keys: ["Release"], label: "正式階段", description: "資料已進入正式使用或量產交接階段。", tone: "success", terminal: true },
-  { keys: ["ECR"], label: "ECR 設變", description: "工程變更階段，需依設變流程處理。", tone: "warning", actionable: true }
-];
-
 const numberEffectivenessStatuses: StatusDefinition[] = [
   {
     keys: ["preview"],
@@ -373,7 +357,6 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   identityStatus: identityStatusStatuses,
   invitationStatus: invitationStatusStatuses,
   reminderStatus: reminderStatusStatuses,
-  developmentPhase: developmentPhaseStatuses,
   numberEffectiveness: numberEffectivenessStatuses,
   task: taskStatuses,
   importRow: importRowStatuses,
@@ -381,7 +364,6 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   settingsLifecycle: settingsLifecycleStatuses,
   jobStatus: jobStatuses,
   restorePolicy: restorePolicyStatuses,
-  dvtReadiness: dvtReadinessStatuses,
   fileSync: fileSyncStatuses,
   cost: costStatuses,
   notification: notificationStatuses,
@@ -404,8 +386,6 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
     ...settingsLifecycleStatuses,
     ...jobStatuses,
     ...restorePolicyStatuses,
-    ...dvtReadinessStatuses,
-    ...developmentPhaseStatuses,
     ...fileSyncStatuses,
     ...costStatuses
   ]
@@ -457,10 +437,6 @@ export function formatStatusForUser(rawStatus: unknown, context: StatusDisplayCo
   return getStatusDisplay(rawStatus, context).label;
 }
 
-export function formatDevelopmentPhaseForUser(rawPhase: unknown) {
-  return formatStatusForUser(rawPhase, "developmentPhase");
-}
-
 export function getStatusTone(rawStatus: unknown, context: StatusDisplayContext = "generic") {
   return getStatusDisplay(rawStatus, context).tone;
 }
@@ -492,7 +468,6 @@ export function formatStatusErrorForUser(value: unknown, context: StatusDisplayC
   if (text.includes("submission_not_pending")) return "只有審核中的送審可以核准。請重新整理清單，確認這筆送審目前是否已發布、已駁回或已取消。";
   if (text.includes("reviewer_already_decided")) return "你已經判定過這筆送審。現在請重新整理查看最新審核狀態。";
   if (text.includes("active_sandbox_branch")) return "此送審仍有進行中的設計分支。請先完成或關閉分支後再核准。";
-  if (text.includes("phase_gate_required")) return "此送審仍有必要檢查未完成，不能核准。請先完成審核關卡後再處理。";
   if (text.includes("release_failed")) return "核准已送出，但正式發布未完成。請開完整送審頁查看發布錯誤，修正後再重新發布或請 Admin 協助。";
   if (text.includes("duplicate_active_submission")) return "這版已有送審在處理。請先查看既有送審；若不送審了，請取消審核中送審後再重新建立。";
   if (text.includes("UNIQUE constraint failed: submission_files")) return "送審附件重複，請保留一份正確附件後再送出。";

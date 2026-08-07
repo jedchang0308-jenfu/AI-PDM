@@ -276,6 +276,8 @@ function lifecycleRepositoryError(error: unknown): never {
     APPROVAL_REQUEST_NOT_FOUND: ["approval_request_not_found", "Approval request was not found.", 404],
     WORKSPACE_VERSION_CONFLICT: ["workspace_version_stale", "Workspace changed. Refresh before continuing.", 409, true],
     CANDIDATE_REVISION_VERSION_CONFLICT: ["candidate_revision_version_stale", "Candidate revision changed. Refresh before continuing.", 409, true],
+    CANDIDATE_FILE_VERIFICATION_STALE: ["candidate_file_verification_stale", "檔案狀態已變更，請重新整理後再驗證。", 409, true],
+    CANDIDATE_FILE_EXISTING_VERIFICATION_NOT_AVAILABLE: ["candidate_file_existing_verification_not_available", "目前環境無法為既有檔案建立可信驗證證據；請改由受控儲存重新上傳。", 503],
     CANDIDATE_REVISION_LOCKED: ["candidate_revision_locked", "Candidate revision is locked by review or formalization.", 409],
     CANDIDATE_REVISION_ALREADY_EXISTS: ["candidate_revision_locked", "A candidate revision already exists for this drawing.", 409],
     CANDIDATE_REVISION_INVALID: ["candidate_revision_invalid", "Use a development revision such as 0.1 or 1.1.", 400],
@@ -470,6 +472,7 @@ export async function addNumberingCandidateRevisionFile(input: {
     }
   });
   const storageService = createFileStorageService();
+  const localDevelopmentEvidence = isLocalDevelopmentPublicationEvidenceEnabled();
   const cleanupTarget: { current: { key: string; provider: string } | null } = { current: null };
   let fileId = "";
   try {
@@ -490,7 +493,16 @@ export async function addNumberingCandidateRevisionFile(input: {
         const before = await storageService.getObjectMetadata(requestedKey);
         const stored = await storageService.putObject({ key: requestedKey, bytes, contentType: mimeType });
         if (!before && stored.key === requestedKey) cleanupTarget.current = { key: stored.key, provider: stored.provider };
-        const localFakeEvidence = process.env.PDM_PUBLICATION_EVIDENCE_MODE === "local_fake" && process.env.NODE_ENV !== "production";
+        if (localDevelopmentEvidence) {
+          const hashVerified = await storageService.verifyObjectHash(stored.key, stored.sha256);
+          if (!hashVerified) {
+            throw new NumberStateFlowError(
+              "candidate_file_verification_failed",
+              "檔案已收到，但完整性驗證未通過。請保留原檔並重新上傳。",
+              502
+            );
+          }
+        }
         const storage: CandidateFileStorageInput = {
           assetId,
           fileId,
@@ -498,7 +510,7 @@ export async function addNumberingCandidateRevisionFile(input: {
           originalPath: stored.provider === "local_repository" ? stored.localPath : null,
           storageBucket: stored.bucket ?? null,
           storageKey: stored.key,
-          storageGeneration: null,
+          storageGeneration: localDevelopmentEvidence ? `local-${stored.sha256.slice(0, 16)}` : null,
           fileName,
           fileExt,
           mimeType,
@@ -509,11 +521,11 @@ export async function addNumberingCandidateRevisionFile(input: {
           displayName,
           description,
           isPrimary,
-          publicationEvidence: localFakeEvidence ? {
+          publicationEvidence: localDevelopmentEvidence ? {
             id: `NPE-${crypto.randomUUID()}`,
-            bucket: process.env.PDM_GCS_BUCKET?.trim() || "local-fake-dev-052",
+            bucket: "local-development-validation",
             objectKey: stored.key,
-            generation: `local-${Date.now()}`,
+            generation: `local-${stored.sha256.slice(0, 16)}`,
             finalizedAt: new Date().toISOString()
           } : null
         };
@@ -535,6 +547,7 @@ export async function addNumberingCandidateRevisionFile(input: {
     });
     return {
       ...lifecycleResponse(execution.result),
+      localDevelopmentEvidence,
       receipt: lifecycleReceipt(commandName, idempotencyKey, execution.reusedFromCommandReceipt)
     };
   } catch (error) {
@@ -551,6 +564,132 @@ export async function addNumberingCandidateRevisionFile(input: {
         });
       }
     }
+    lifecycleRepositoryError(error);
+  }
+}
+
+export async function verifyExistingNumberingCandidateRevisionFile(input: {
+  metadata: PdmCommandMetadata;
+  workspaceId: string;
+  candidateRevisionId: string;
+  fileId: string;
+  expectedRowVersion: unknown;
+}) {
+  assertLifecycleV2Enabled();
+  const commandName = "pdm.numbering.verify_existing_candidate_revision_file";
+  const idempotencyKey = lifecycleIdempotencyKey(input.metadata.idempotencyKey);
+  const workspaceId = lifecycleRequiredText(input.workspaceId, "workspaceId", 200);
+  const candidateRevisionId = lifecycleRequiredText(input.candidateRevisionId, "candidateRevisionId", 200);
+  const fileId = lifecycleRequiredText(input.fileId, "fileId", 200);
+  const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
+  try {
+    const Repository = await lifecycleRepository();
+    const localDevelopmentEvidence = isLocalDevelopmentPublicationEvidenceEnabled();
+    const command = createPdmCommand({
+      commandName,
+      idempotencyKey,
+      actor: input.metadata.actor,
+      payload: { workspaceId, candidateRevisionId, fileId, expectedRowVersion }
+    });
+    const execution = await executePdmCommandWithOutbox({
+      client: getAsyncDatabaseClient(),
+      command,
+      idempotencyPayload: command.payload,
+      execute: async (client) => {
+        const repository = new Repository(client);
+        const source = await repository.candidateFileVerificationSource({
+          workspaceId,
+          companyId: input.metadata.actor.organizationId,
+          candidateRevisionId,
+          fileId,
+          expectedRowVersion
+        });
+        let evidence: {
+          id: string;
+          bucket: string;
+          objectKey: string;
+          generation: string;
+          mediaType: string;
+          finalizedAt: string;
+        } | null = null;
+        if (!source.publicationEvidenceId) {
+          if (!localDevelopmentEvidence) {
+            throw new NumberStateFlowError(
+              "candidate_file_existing_verification_not_available",
+              "目前環境無法驗證既有檔案。請由受控儲存重新上傳，或聯絡 PDM Admin。",
+              503
+            );
+          }
+          let pointer;
+          try {
+            pointer = storagePointerFromRecord({
+              storage_provider: source.storageProvider,
+              storage_bucket: source.storageBucket,
+              storage_key: source.storageKey,
+              original_path: source.originalPath
+            });
+          } catch {
+            throw new NumberStateFlowError(
+              "candidate_file_storage_missing",
+              `找不到「${source.fileName}」的受控儲存位置，請重新上傳原檔。`,
+              409
+            );
+          }
+          const storageService = createFileStorageServiceForPointer(pointer);
+          let verified = false;
+          try {
+            const metadata = await storageService.getObjectMetadata(pointer.key);
+            verified = Boolean(metadata) && metadata?.bytes === source.fileSize
+              && await storageService.verifyObjectHash(pointer.key, source.contentHash);
+          } catch {
+            throw new NumberStateFlowError(
+              "candidate_file_storage_missing",
+              `無法讀取「${source.fileName}」的已保存原檔，請確認儲存服務或重新上傳。`,
+              409,
+              true
+            );
+          }
+          if (!verified) {
+            throw new NumberStateFlowError(
+              "candidate_file_verification_failed",
+              `「${source.fileName}」與原上傳雜湊不一致，未建立送審證據；請重新上傳正確原檔。`,
+              409
+            );
+          }
+          evidence = {
+            id: `NPE-${crypto.randomUUID()}`,
+            bucket: "local-development-validation",
+            objectKey: pointer.key,
+            generation: `local-${source.contentHash.slice(0, 16)}`,
+            mediaType: source.mimeType || "application/octet-stream",
+            finalizedAt: new Date().toISOString()
+          };
+        }
+        return repository.verifyExistingCandidateFile({
+          workspaceId,
+          companyId: input.metadata.actor.organizationId,
+          candidateRevisionId,
+          fileId,
+          actorId: input.metadata.actor.pdmUserId,
+          expectedRowVersion,
+          expectedAssetId: source.assetId,
+          expectedContentHash: source.contentHash,
+          evidence
+        });
+      },
+      event: (workspace) => ({
+        aggregateType: "numbering_candidate_revision",
+        aggregateId: candidateRevisionId,
+        eventType: "pdm.numbering.candidate_revision.existing_file_verified.v1",
+        payload: { workspaceId, candidateRevisionId, fileId, companyId: workspace.companyId }
+      })
+    });
+    return {
+      ...lifecycleResponse(execution.result),
+      localDevelopmentEvidence,
+      receipt: lifecycleReceipt(commandName, idempotencyKey, execution.reusedFromCommandReceipt)
+    };
+  } catch (error) {
     lifecycleRepositoryError(error);
   }
 }
@@ -815,9 +954,15 @@ export async function retryNumberingCandidateBundleApply(input: {
 }
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { buildStorageKey, createFileStorageService } from "@/lib/file-storage";
+import {
+  buildStorageKey,
+  createFileStorageService,
+  createFileStorageServiceForPointer,
+  storagePointerFromRecord
+} from "@/lib/file-storage";
 import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow";
 import { isNumberLifecycleV2Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import { isLocalDevelopmentPublicationEvidenceEnabled } from "@/lib/publication-evidence";
 import type { CandidateFileStorageInput } from "@/lib/repositories/number-lifecycle-simplification-async-repository";

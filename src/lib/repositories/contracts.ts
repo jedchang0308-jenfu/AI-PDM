@@ -11,7 +11,6 @@ import type {
   ItemLock,
   ItemRevisionHistoryEntry,
   NotificationItem,
-  PhaseGateCheck,
   PdfMarkup,
   ReadonlyShare,
   ReleasePackage,
@@ -91,7 +90,6 @@ export interface ReviewRepository {
   listComments(submissionId: string): DiscussionComment[];
   createComment(input: { submissionId: string; fileId?: string | null; authorId: string; body: string }): DiscussionComment;
   listChangeRequests(submissionId: string): ChangeRequest[];
-  listPhaseGateChecks(submissionId: string): PhaseGateCheck[];
   listApprovalRequirements(submissionId: string): ApprovalMatrixRequirement[];
   listPdfMarkups(submissionId: string): PdfMarkup[];
 }

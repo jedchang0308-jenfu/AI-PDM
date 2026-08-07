@@ -1,6 +1,6 @@
 # ADR-PDM-DRAWING-PART-WORKBENCH-001 - 圖料模組資料 ownership 與送審 snapshot
 
-Status: Accepted
+Status: Accepted; amended 2026-08-06 for multi-part atomic submission scope
 Date: 2026-07-01
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
@@ -25,7 +25,7 @@ Adopt the following architecture rules:
 3. 料號資料 remains owned by part domain.
 4. 主根號與圖料關聯 remain owned by root/link domain.
 5. 圖料模組 may provide inline editing, but every write must route through the correct owner domain API, validation and audit.
-6. Submission creation must freeze an immutable snapshot of the drawing, part, attachment selection, revision, note and source ids.
+6. Submission creation must freeze an immutable snapshot of the drawing, complete selected-part scope, attachment selection, revision, note and source ids.
 7. Same `file_role + original_filename` attachment duplicates are not allowed in one submission package.
 8. Failed or blocked submit attempts must leave audit trail.
 9. The old generic `/upload` submission page is retired from the formal product flow.
@@ -99,14 +99,18 @@ RD review found that the first ADR version had the correct direction but left se
    - Part and variant fields go through part owner APIs.
    - Root/drawing/part relationships go through link owner APIs.
    - All writes require company scope, permission, version/ETag conflict handling and audit.
+   - 2026-08-06 user-approved amendment: the following item 3 rule for multiple primary parts replaces both the earlier blanket block and the interim single-part selector because one MA drawing revision may legitimately carry multiple part variants together.
 3. 主根號 is an aggregation anchor, not an authority that can guess ambiguous data.
    - A drawing linked to zero or multiple active roots blocks submission.
-   - Multiple primary drawings or multiple primary parts block submission.
-   - The system must show Chinese recovery messages instead of choosing one silently.
+   - Multiple primary drawings block submission because drawing ownership is ambiguous.
+   - Multiple primary parts may be a legitimate one-drawing-many-parts relationship. The UI defaults all candidates into one batch and permits an explicit non-empty subset; the server revalidates every selected candidate.
+   - The system must show the selected count/list and atomic-release consequence instead of choosing one silently or instructing the user to delete valid links.
 4. Submission snapshot is canonical evidence.
-   - Snapshot stores version, rules version, source route, captured actor/time, root, drawing, part, owner fields, selected attachments, readiness result and note.
+   - Snapshot stores version, rules version, source route, captured actor/time, root, drawing, selected part ids/numbers, owner fields, selected attachments, readiness result and note.
    - Snapshot hash is a lowercase SHA-256 of recursively key-sorted canonical JSON.
    - Later master-data changes must not mutate snapshot JSON or hash.
+   - `submission_part_scopes` is canonical for batch release; legacy scalar snapshot/item fields are compatibility anchors for submissions created before this amendment.
+   - Release master-status synchronization must validate every frozen relationship and update every scoped part in one transaction; it must not re-guess from current live links or permit partial release.
 5. Submission attempts are auditable.
    - Attempt state machine is `started -> blocked | failed | created`.
    - Same `company_id + actor_id + idempotency_key` is unique.

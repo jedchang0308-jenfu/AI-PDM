@@ -1,8 +1,16 @@
 # SPEC-PDM-STATUS-UX-003：狀態軸命名與資料頂部說明
 
-狀態：Phase 1A + Phase 1B Local Implementation + QC Passed；release / production 未授權
+狀態：Phase 1A + Phase 1B Historical Local Implementation；「開發階段」軸已由 DEV-054 取代
 更新日期：2026-07-16
 對應任務：`DEV-049` / `DEV-PDM-STATUS-UX-003`
+
+> 2026-08-04 Amendment：依使用者決策，AI PDM 不再管理專案狀態。`EVT / DVT / PVT` 與
+> `development_phase` 由 `SPEC-PDM-PROJECT-STATUS-BOUNDARY-001` 完整移除。本文件其餘資料、審核、
+> 發布、準備與任務狀態軸仍有效；所有「開發階段」要求均由新規格取代。
+
+> 2026-08-06 Amendment：`SPEC-PDM-STATUS-UX-004` 保留本文件的狀態軸、字典與 detail/help 用途，
+> 但取代總表與 drawer 第一層的多 badge 呈現。圖號、料號、圖料清單改由 domain projector 產生
+> 唯一 human status；狀態軸降層到 filter、收合明細與 audit，不再逐欄直接佔用清單。
 
 ## 1. Human Decision Brief
 
@@ -34,7 +42,6 @@
 
 - 這個號碼現在只是預覽、已為本申請保留，還是已正式生效？
 - 這筆資料現在能否使用，是否已發布或已作廢？
-- 這是 EVT、DVT、PVT、正式量產還是設變中？
 - 目前是編輯、送審、待補資料、核准、發布中，還是已完成？
 - 若不能繼續，應補資料、等待審核、重新發布，還是不用處理？
 
@@ -44,7 +51,6 @@
 | --- | --- | --- |
 | 號碼效力 | 這個號碼現在能否被其他申請取得，以及能否正式使用？ | 預覽、已保留、正式；已釋出只在歷史資料顯示 |
 | 資料狀態 | 這筆主資料是否可用、已發布或已終止？ | 未發布、待補資料、有效、審核中、已發布、已退回、已作廢、已合併、待管理確認、主圖失效 |
-| 開發階段 | 產品目前在哪一個工程成熟度階段？ | EVT 工程樣、DVT 設計驗證、PVT 製程驗證、正式量產、ECR 設變中 |
 | 申請狀態 | 領號申請本身走到哪裡？ | 編輯中、申請中、已取消、已轉正式資料、已失效 |
 | 審核狀態 | 誰還需要判定或補資料？ | 未送審、審核中、需補資料、已核准、已退回、已取消、已重送 |
 | 發布狀態 | 已核准資料是否已成功成為正式資料？ | 尚未可發布、可發布、發布中、已發布、發布失敗、已套用、套用失敗 |
@@ -59,7 +65,7 @@
 - backend enum、資料庫值、audit payload 與 API contract 暫不改名；本 DEV 只統一正常 UI 的顯示語言與說明結構。
 - 同一個 raw value 必須由明確 context 決定顯示名稱；不得用 `generic` 猜測重要狀態。
 - 「草稿」不作為主資料或領號流程的第一層狀態名稱。可編輯流程顯示「編輯中」，主資料顯示「未發布」。
-- 「狀態」不可同時包辦開發階段、提醒、成本、檔案與審核結果；表頭、篩選器與說明分組必須使用對應狀態軸名稱。
+- 「狀態」不可同時包辦提醒、成本、檔案與審核結果；表頭、篩選器與說明分組必須使用對應狀態軸名稱。
 
 ### 3.1 Phase 1A 號碼效力投影
 
@@ -170,10 +176,10 @@ Phase 1A 後續處理結果：
 | 資料範圍 | 頂部說明至少涵蓋 |
 | --- | --- |
 | Dashboard / 圖面資料庫 | 資料狀態、審核狀態、任務狀態；只顯示該區塊實際存在的組別 |
-| `/parts`、`/numbering/drawings`、`/numbering/search` | 號碼效力、資料狀態、開發階段、提醒 |
+| `/parts`、`/numbering/drawings`、`/numbering/search` | 號碼效力、資料狀態、提醒 |
 | `/numbering/request`、number-state workspace、`/numbering/part-drafts` | 申請狀態、號碼效力、審核狀態、發布狀態 |
 | `/numbering/tasks` | 任務狀態、審核狀態、資料狀態 |
-| `/numbering/dvt`、`/numbering/impact`、`/numbering/revisions` | 開發階段、準備狀態、資料狀態、審核狀態 |
+| `/numbering/impact`、`/numbering/revisions` | 準備狀態、資料狀態、審核狀態 |
 | `/upload`、`/submissions/[id]`、`/approvals` | 審核狀態、發布狀態、檔案狀態 |
 | `/numbering/imports` | 匯入列狀態、匯入批次狀態、還原狀態 |
 | `/numbering/reports` | 執行狀態 |
@@ -211,7 +217,7 @@ Phase 1A 後續處理結果：
 ### Phase 1B 已驗收
 
 - 使用者在任一相關資料範圍頂部，都能找到一致的「狀態說明」入口。
-- 使用者不需打開資料列，就能分辨號碼狀態、資料狀態、開發階段、申請狀態與審核/發布狀態不是同一件事。
+- 使用者不需打開資料列，就能分辨號碼狀態、資料狀態、申請狀態與審核/發布狀態不是同一件事。
 - 主資料 backend `Draft` 顯示「未發布」；領號流程的 editable/active 狀態顯示「編輯中」或「申請中」。
 - `正式料號` / `草稿` 頁籤分別改為「料號總表」/「領號申請」；`尚未保留` 改為「未取號」。
 - 頂部說明只列本區實際狀態；不得出現其他模組的狀態或完整 internal enum。

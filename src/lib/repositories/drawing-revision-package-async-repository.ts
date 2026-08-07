@@ -97,8 +97,29 @@ export class AsyncDrawingRevisionPackageRepository {
       SELECT package.*,
              CASE
                WHEN package.status = 'Pending'
-                AND companion.package_id = package.id
-                AND companion.snapshot_hash = candidate.review_snapshot_hash
+                AND (
+                  (
+                    companion.package_id = package.id
+                    AND companion.snapshot_hash = candidate.review_snapshot_hash
+                  )
+                  OR (
+                    instr(package.revision, '.') > 0
+                    AND EXISTS (
+                      SELECT 1
+                      FROM drawing_revision_fff_assessments fff
+                      JOIN review_confirmation_events rce
+                        ON rce.review_id = fff.id
+                       AND rce.company_id = fff.company_id
+                      WHERE fff.company_id = package.company_id
+                        AND fff.submission_id = package.source_submission_id
+                        AND rce.action IN (
+                          'confirm_bom_no_revision',
+                          'confirm_original_part_reuse',
+                          'approve_replacement_part_and_drawing_release'
+                        )
+                    )
+                  )
+                )
                THEN 'ReviewApproved'
                ELSE package.status
              END AS effective_status
@@ -573,8 +594,29 @@ export class AsyncDrawingRevisionPackageRepository {
       SELECT package.*,
              CASE
                WHEN package.status = 'Pending'
-                AND companion.package_id = package.id
-                AND companion.snapshot_hash = candidate.review_snapshot_hash
+                AND (
+                  (
+                    companion.package_id = package.id
+                    AND companion.snapshot_hash = candidate.review_snapshot_hash
+                  )
+                  OR (
+                    instr(package.revision, '.') > 0
+                    AND EXISTS (
+                      SELECT 1
+                      FROM drawing_revision_fff_assessments fff
+                      JOIN review_confirmation_events rce
+                        ON rce.review_id = fff.id
+                       AND rce.company_id = fff.company_id
+                      WHERE fff.company_id = package.company_id
+                        AND fff.submission_id = package.source_submission_id
+                        AND rce.action IN (
+                          'confirm_bom_no_revision',
+                          'confirm_original_part_reuse',
+                          'approve_replacement_part_and_drawing_release'
+                        )
+                    )
+                  )
+                )
                THEN 'ReviewApproved'
                ELSE package.status
              END AS effective_status

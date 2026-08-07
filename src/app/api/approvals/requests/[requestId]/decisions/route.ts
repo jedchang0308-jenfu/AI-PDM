@@ -17,6 +17,10 @@ import { decideTransferPackageReview } from "@/lib/transfer-package-phase1d";
 import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
 import { decideNumberingCandidateBundleReview } from "@/lib/number-lifecycle-simplification";
 import { numberStateFlowErrorResponse } from "@/lib/number-state-flow-api";
+import {
+  decideDrawingRevisionLifecycle,
+  drawingRevisionLifecycleErrorPayload
+} from "@/lib/drawing-revision-lifecycle";
 
 export const runtime = "nodejs";
 
@@ -118,6 +122,53 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
         return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
       }
       return approvalApiErrorResponse(error, "decision", request);
+    }
+  }
+
+  if (detail.actionCode === "numbering.drawing_revision_lifecycle_review") {
+    if (decision === "needs_info") {
+      return NextResponse.json(
+        { error: "DRAWING_LIFECYCLE_INVALID_COMMAND", code: "DRAWING_LIFECYCLE_INVALID_COMMAND", message: "此流程只提供核准或退回修改。" },
+        { status: 400 }
+      );
+    }
+    const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+    if (auth.response) return auth.response;
+    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? "";
+    try {
+      const lifecycle = await decideDrawingRevisionLifecycle({
+        requestId: decodedRequestId,
+        actorId: auth.user.id,
+        actorRole: auth.user.role,
+        decision: decision === "approved" ? "approved" : "returned_for_correction",
+        reason: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason),
+        idempotencyKey
+      });
+      if (!lifecycle) {
+        return NextResponse.json(
+          { error: "APPROVAL_REQUEST_GONE", code: "APPROVAL_REQUEST_GONE", canonicalHref: `/numbering/drawings?view=all` },
+          { status: 410 }
+        );
+      }
+      return NextResponse.json(
+        {
+          request: {
+            ...detail,
+            status: decision === "approved" ? "approved" : "rejected",
+            decisions: [],
+            events: [],
+            impactSnapshots: [],
+            applyStatus: "applied",
+            applyAttempts: 1,
+            applyError: null
+          },
+          lifecycle
+        },
+        { status: lifecycle.cleanupPending ? 202 : 200 }
+      );
+    } catch (error) {
+      const failure = drawingRevisionLifecycleErrorPayload(error);
+      return NextResponse.json(failure.body, { status: failure.status });
     }
   }
 

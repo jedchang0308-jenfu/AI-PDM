@@ -33,7 +33,6 @@ import type {
   DrawingModuleListRecord,
   GenerateMonthlyNumberingAuditReportInput,
   ListNumberingApprovalBatchesInput,
-  ListDvtPromotionCandidatesInput,
   ListNumberingExportJobsInput,
   ListNumberingImportBatchesInput,
   ListMonthlyNumberingAuditReportsInput,
@@ -64,8 +63,6 @@ import type {
   NumberingTaskRecord,
   NumberingUserRoleAssignmentRecord,
   DrawingNumberRecord,
-  DvtPromotionCandidateRecord,
-  DvtPromotionSubmissionRecord,
   ApprovalRuleEvaluation,
   EvaluateApprovalRuleInput,
   EvaluateNumberingGateInput,
@@ -81,7 +78,6 @@ import type {
   RevokeNumberingApprovalDelegationInput,
   RevokeNumberingUserRoleAssignmentInput,
   SaveNumberingRolePriorityInput,
-  SubmitDvtPromotionInput,
   UpsertNumberingAdminRoleInput,
   UpsertNumberingApprovalDelegationInput,
   UpsertNumberingApprovalRuleInput,
@@ -500,18 +496,6 @@ export async function evaluateNumberingGateAsync(input: EvaluateNumberingGateInp
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.evaluateNumberingGate(input);
-}
-
-export async function listDvtPromotionCandidatesAsync(input: ListDvtPromotionCandidatesInput = {}): Promise<DvtPromotionCandidateRecord[]> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.listDvtPromotionCandidates(input);
-}
-
-export async function submitDvtPromotionDecisionsAsync(input: SubmitDvtPromotionInput): Promise<DvtPromotionSubmissionRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.submitDvtPromotionDecisions(input);
 }
 
 export async function analyzeMainDrawingObsolescenceAsync(input: MainDrawingImpactInput): Promise<MainDrawingImpactAnalysis> {

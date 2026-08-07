@@ -17,7 +17,6 @@ const numberingRecordsRouteSource = read("src/app/api/numbering/records/route.ts
 const draftRecordRouteSource = read("src/app/api/numbering/records/[rootCode]/route.ts");
 const draftObsoleteRouteSource = read("src/app/api/numbering/records/[rootCode]/obsolete/route.ts");
 const overdueDraftRouteSource = read("src/app/api/numbering/drafts/overdue/route.ts");
-const dvtCandidatesRouteSource = read("src/app/api/numbering/dvt-candidates/route.ts");
 const numberingSearchRouteSource = read("src/app/api/numbering/search/route.ts");
 const numberingDrawingsRouteSource = read("src/app/api/numbering/drawings/route.ts");
 const numberingRootDetailRouteSource = read("src/app/api/numbering/roots/[rootCode]/route.ts");
@@ -43,7 +42,6 @@ const permissionGuardSource = read("src/lib/numbering-permission-guard.ts");
 const permissionCodesSource = read("src/lib/numbering-permission-codes.ts");
 const settingsPageSource = read("src/app/settings/page.tsx");
 const numberStateWorkspaceSource = read("src/components/number-state-workspace.tsx");
-const numberingDvtPageSource = read("src/app/numbering/dvt/page.tsx");
 const numberingApprovalPageSource = read("src/app/numbering/approvals/page.tsx");
 const approvalWorkbenchPageSource = read("src/app/approvals/page.tsx");
 const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-redirect.ts");
@@ -141,11 +139,6 @@ record(
   db.prepare("SELECT COUNT(*) AS count FROM approval_rules WHERE rule_version_id = 'numbering-rule-v1'").get().count >= 12,
   "approval_rules"
 );
-record(
-  "NUM-SCHEMA DVT promotion approval rule seeded",
-  Boolean(db.prepare("SELECT id FROM approval_rules WHERE action_code = 'dvt_promotion'").get()),
-  "approval_rules"
-);
 record("NUM-SCHEMA built-in roles seeded", db.prepare("SELECT COUNT(*) AS count FROM roles WHERE system_defined = 1").get().count >= 6, "roles");
 record(
   "NUM-SCHEMA default role page permissions seeded",
@@ -233,20 +226,20 @@ db.prepare(
   "INSERT INTO users (id, display_name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 ).run("manager-1", "Manager One", "manager@example.test", "R&D Manager", now, now);
 db.prepare(
-  "INSERT INTO part_roots (id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("root-1", "0001", "外殼", "manufactured", "EVT", "Draft", "numbering-rule-v1", now, now);
+  "INSERT INTO part_roots (id, root_code, core_name, item_kind, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+).run("root-1", "0001", "外殼", "manufactured", "Draft", "numbering-rule-v1", now, now);
 db.prepare(
-  "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("part-1", "root-1", "P-0001-001", 1, "001", "外殼_A", "manufactured", 0, "EVT", "Draft", "numbering-rule-v1", now, now);
+  "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+).run("part-1", "root-1", "P-0001-001", 1, "001", "外殼_A", "manufactured", 0, "Draft", "numbering-rule-v1", now, now);
 db.prepare(
-  "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("drawing-1", "root-1", "D-0001-MA1", "MA", "製造用圖", 1, 1, "EVT", "Draft", "numbering-rule-v1", now, now);
+  "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+).run("drawing-1", "root-1", "D-0001-MA1", "MA", "製造用圖", 1, 1, "Draft", "numbering-rule-v1", now, now);
 db.prepare(
   "INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_at) VALUES (?, ?, ?, ?, ?)"
 ).run("link-1", "drawing-1", "part-1", "primary_manufacturing", now);
 db.prepare(
-  "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("part-2", "root-1", "P-0001-002", 2, "002", "憭挺_B", "manufactured", 0, "EVT", "Draft", "numbering-rule-v1", now, now);
+  "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+).run("part-2", "root-1", "P-0001-002", 2, "002", "憭挺_B", "manufactured", 0, "Draft", "numbering-rule-v1", now, now);
 db.prepare(
   "INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_at) VALUES (?, ?, ?, ?, ?)"
 ).run("link-variant", "drawing-1", "part-2", "primary_manufacturing", now);
@@ -279,13 +272,13 @@ db.prepare(
 ).run("monthly-report-1", "numbering_master", "2026-06", "manual", "manager-1", "completed", "{\"counts\":{}}", now);
 db.prepare(
   "INSERT INTO approval_requests (id, request_type, action_code, entity_type, entity_id, request_status, reason, payload_json, requested_by, requested_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("approval-request-1", "numbering", "dvt_missing_ma_override", "part_number", "part-1", "pending", "No MA during EVT", "{}", "engineer-1", now, now, now);
+).run("approval-request-1", "numbering", "update_name", "part_number", "part-1", "pending", "Review part name update", "{}", "engineer-1", now, now, now);
 db.prepare(
   "INSERT INTO approval_decisions (id, approval_request_id, approver_role, approver_id, decision, comment, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
 ).run("approval-decision-1", "approval-request-1", "rd_manager", "manager-1", "approved", "ok", now);
 db.prepare(
   "INSERT INTO approval_batches (id, batch_code, request_type, project_code, action_code, batch_status, submitted_by, submitted_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-).run("approval-batch-1", "NB-QC-1", "numbering", "PRJ-QC", "dvt_missing_ma_override", "pending", "engineer-1", now, now, now);
+).run("approval-batch-1", "NB-QC-1", "numbering", "PRJ-QC", "update_name", "pending", "engineer-1", now, now, now);
 db.prepare(
   "INSERT INTO approval_batch_items (id, batch_id, approval_request_id, item_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 ).run("approval-batch-item-1", "approval-batch-1", "approval-request-1", "pending", now, now);
@@ -378,23 +371,23 @@ record(
 
 expectConstraint("NUM-CONSTRAINT duplicate root_code rejected", () => {
   db.prepare(
-    "INSERT INTO part_roots (id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run("root-dup", "0001", "外殼 duplicate", "manufactured", "EVT", "Draft", "numbering-rule-v1", now, now);
+    "INSERT INTO part_roots (id, root_code, core_name, item_kind, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("root-dup", "0001", "外殼 duplicate", "manufactured", "Draft", "numbering-rule-v1", now, now);
 });
 expectConstraint("NUM-CONSTRAINT duplicate part_number rejected", () => {
   db.prepare(
-    "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run("part-dup", "root-1", "P-0001-001", 2, "002", "外殼_B", "manufactured", 0, "EVT", "Draft", "numbering-rule-v1", now, now);
+    "INSERT INTO part_numbers (id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, is_universal, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("part-dup", "root-1", "P-0001-001", 2, "002", "外殼_B", "manufactured", 0, "Draft", "numbering-rule-v1", now, now);
 });
 expectConstraint("NUM-CONSTRAINT duplicate drawing_number rejected", () => {
   db.prepare(
-    "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run("drawing-dup", "root-1", "D-0001-MA1", "MA", "製造用圖", 2, 1, "EVT", "Draft", "numbering-rule-v1", now, now);
+    "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("drawing-dup", "root-1", "D-0001-MA1", "MA", "製造用圖", 2, 1, "Draft", "numbering-rule-v1", now, now);
 });
 expectConstraint("NUM-CONSTRAINT one primary manufacturing link per part", () => {
   db.prepare(
-    "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run("drawing-2", "root-1", "D-0001-MA2", "MA", "製造用圖", 2, 1, "EVT", "Draft", "numbering-rule-v1", now, now);
+    "INSERT INTO drawing_numbers (id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("drawing-2", "root-1", "D-0001-MA2", "MA", "製造用圖", 2, 1, "Draft", "numbering-rule-v1", now, now);
   db.prepare(
     "INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_at) VALUES (?, ?, ?, ?, ?)"
   ).run("link-2", "drawing-2", "part-1", "primary_manufacturing", now);
@@ -435,11 +428,8 @@ record("NUM-REPO enforces universal reason", repositorySource.includes("UNIVERSA
 record("NUM-REPO treats shared item kind as universal", repositorySource.includes('itemKind === "shared" || input.isUniversal'), "numbering-repository.ts");
 record("NUM-REPO links same-drawing variants", repositorySource.includes("export function linkPartNumberToDrawing"), "numbering-repository.ts");
 record("NUM-REPO requires same-drawing variant details", repositorySource.includes("SAME_DRAWING_VARIANT_REQUIRED"), "numbering-repository.ts");
-record("NUM-REPO evaluates DVT/Release MA gate", repositorySource.includes("export function evaluateNumberingGate"), "numbering-repository.ts");
+record("NUM-REPO evaluates technical-transfer and release data controls", repositorySource.includes("export function evaluateNumberingGate"), "numbering-repository.ts");
 record("NUM-REPO blocks missing primary MA at gate", repositorySource.includes("PRIMARY_MA_REQUIRED"), "numbering-repository.ts");
-record("NUM-REPO lists DVT promotion candidates", repositorySource.includes("export function listDvtPromotionCandidates"), "numbering-repository.ts");
-record("NUM-REPO submits DVT promotion decisions", repositorySource.includes("export function submitDvtPromotionDecisions"), "numbering-repository.ts");
-record("NUM-REPO DVT promotion uses approval batch", repositorySource.includes('actionCode: "dvt_promotion"') && repositorySource.includes("createNumberingApprovalBatchInDatabase"), "numbering-repository.ts");
 record(
   "NUM-REPO analyzes MA drawing obsolescence impact",
   repositorySource.includes("export function analyzeMainDrawingObsolescence") && repositorySource.includes("MainDrawingInvalid"),
@@ -576,11 +566,6 @@ record(
     repositorySource.includes("export function listDrawingModuleRecords"),
   "src/lib/db.ts"
 );
-record(
-  "NUM-REPO db.ts re-exports DVT promotion workflow",
-  dbExports.includes("listDvtPromotionCandidates") && dbExports.includes("submitDvtPromotionDecisions"),
-  "src/lib/db.ts"
-);
 record("NUM-REPO db.ts re-exports main drawing restore approval", dbExports.includes("requestMainDrawingRestoreApproval"), "src/lib/db.ts");
 record("NUM-API variant route calls linker", variantsRouteSource.includes("linkPartNumberToDrawing"), "variants/route.ts");
 record(
@@ -624,10 +609,8 @@ record(
 record("NUM-API numbering records route validates custom and shared inputs", numberingRecordsRouteSource.includes("customSpecification") && numberingRecordsRouteSource.includes("universalReason"), "records/route.ts");
 record("NUM-API numbering records route treats shared items as universal", numberingRecordsRouteSource.includes('itemKind === "shared"'), "records/route.ts");
 record(
-  "NUM-API numbering records route forces new numbering to EVT",
-  numberingRecordsRouteSource.includes('const initialDevelopmentPhase: NumberingPhase = "EVT"') &&
-    numberingRecordsRouteSource.includes("const developmentPhase = initialDevelopmentPhase") &&
-    !numberingRecordsRouteSource.includes("body.developmentPhase ?? body.development_phase"),
+  "NUM-API numbering records route validates current creation inputs",
+  numberingRecordsRouteSource.includes("itemKind is required") && numberingRecordsRouteSource.includes("drawingPurposeCode is required when drawingRequested is true"),
   "records/route.ts"
 );
 record(
@@ -645,15 +628,7 @@ record(
   overdueDraftRouteSource.includes("markOverdueDraftNumberingRecords") && overdueDraftRouteSource.includes("numbering.draft.admin_confirm"),
   "drafts/overdue/route.ts"
 );
-record(
-  "NUM-API DVT candidates route lists and submits decisions through guards",
-  dvtCandidatesRouteSource.includes("listDvtPromotionCandidates") &&
-    dvtCandidatesRouteSource.includes("submitDvtPromotionDecisions") &&
-    dvtCandidatesRouteSource.includes("numbering.dvt") &&
-    dvtCandidatesRouteSource.includes("numbering.dvt.submit"),
-  "dvt-candidates/route.ts"
-);
-record("NUM-API approval request route supports DVT promotion action", approvalRequestRouteSource.includes("dvt_promotion"), "approval-requests/route.ts");
+record("NUM-API approval request route supports numbering review requests", approvalRequestRouteSource.includes("requestNumberingApproval"), "approval-requests/route.ts");
 record(
   "NUM-API numbering search route calls search repository through page guard",
   numberingSearchRouteSource.includes("searchNumberingRecords") && numberingSearchRouteSource.includes("numbering.search"),
@@ -869,23 +844,9 @@ record(
   "components/number-state-workspace.tsx"
 );
 record(
-  "NUM-UI owner workspace does not offer a client-controlled development phase",
-  !numberStateWorkspaceSource.includes("setDevelopmentPhase") &&
-    !numberStateWorkspaceSource.includes('name="developmentPhase"'),
+  "NUM-UI owner workspace displays record status from the current lifecycle contract",
+  numberStateWorkspaceSource.includes("recordStatus: string"),
   "components/number-state-workspace.tsx"
-);
-record(
-  "NUM-UI DVT promotion page renders candidate workflow",
-  numberingDvtPageSource.includes("/api/numbering/dvt-candidates") &&
-    numberingDvtPageSource.includes("批次送審") &&
-    numberingDvtPageSource.includes("EVT 停用") &&
-    numberingDvtPageSource.includes("作廢"),
-  "numbering/dvt/page.tsx"
-);
-record(
-  "NUM-UI DVT promotion page supports ready and incomplete classification",
-  numberingDvtPageSource.includes("needs_override") && numberingDvtPageSource.includes("ready") && numberingDvtPageSource.includes("blocked"),
-  "numbering/dvt/page.tsx"
 );
 record(
   "NUM-UI formal-data legacy approval page redirects to workbench",
@@ -898,7 +859,6 @@ record(
   "NUM-UI approval workbench exposes numbering review filters",
   approvalWorkbenchPageSource.includes("<h1>審核工作台") &&
     approvalWorkbenchPageSource.includes("numbering.release") &&
-    approvalWorkbenchPageSource.includes("numbering.dvt_promotion") &&
     approvalWorkbenchPageSource.includes("numbering.obsolete_part_number") &&
     approvalWorkbenchPageSource.includes("numbering.obsolete_ma_drawing"),
   "approvals/page.tsx"
@@ -990,7 +950,7 @@ record(
     sidebarNavSource.includes('href: "/parts"'),
   "sidebar-nav.tsx"
 );
-record("NUM-UI sidebar links DVT promotion page", sidebarNavSource.includes("/numbering/dvt") && sidebarNavSource.includes("階段晉升"), "sidebar-nav.tsx");
+record("NUM-UI sidebar groups owner modules under drawing management", sidebarNavSource.includes('label: "圖料管理"'), "sidebar-nav.tsx");
 record(
   "NUM-UI sidebar links unified approval workbench",
   sidebarNavSource.includes("/approvals") && sidebarNavSource.includes("審核工作台") && sidebarNavSource.includes('badge: "approvalPending"'),
@@ -1086,11 +1046,6 @@ record(
 record(
   "NUM-QC package exposes qc:pdm-numbering-request-ui",
   packageJson.scripts?.["qc:pdm-numbering-request-ui"] === "node scripts/qc-pdm-numbering-request-ui.mjs",
-  "package.json"
-);
-record(
-  "NUM-QC package exposes qc:pdm-numbering-dvt-ui",
-  packageJson.scripts?.["qc:pdm-numbering-dvt-ui"] === "node scripts/qc-pdm-numbering-dvt-ui.mjs",
   "package.json"
 );
 record(

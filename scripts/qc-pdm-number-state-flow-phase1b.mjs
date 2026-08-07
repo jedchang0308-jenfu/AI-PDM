@@ -8,6 +8,7 @@ import {
   numberStateFlowV1ClientStatus
 } from "../src/lib/number-state-flow-feature.ts";
 import {
+  getProductionSliceState,
   isProductionSliceAllowedApiMutation,
   isProductionSliceOpenPagePath,
   shouldBlockProductionSlicePagePath
@@ -41,6 +42,18 @@ const productionDisabledEnv = {
   PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft",
   PDM_NUMBER_STATE_FLOW_V1: "false"
 };
+const localFullFunctionValidationEnv = {
+  NODE_ENV: "development",
+  PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+  PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft",
+  PDM_NUMBER_STATE_FLOW_V1: "true"
+};
+const productionCannotBypassSliceEnv = {
+  NODE_ENV: "production",
+  PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+  PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft",
+  PDM_NUMBER_STATE_FLOW_V1: "true"
+};
 
 record(
   "routes",
@@ -73,6 +86,15 @@ record(
     ["/upload", "/handoff"].every((pathname) => isProductionSliceOpenPagePath(pathname, productionDisabledEnv)) &&
     ["/upload", "/handoff"].every((pathname) => !shouldBlockProductionSlicePagePath(pathname, productionDisabledEnv)),
   "retired compatibility routes must remain guidance/redirect surfaces even when the rollback kill switch is off"
+);
+record(
+  "routes",
+  "NSF-UI-SLICE-local-full-function-boundary",
+  !getProductionSliceState(localFullFunctionValidationEnv).configured &&
+    getProductionSliceState(localFullFunctionValidationEnv).localFullFunctionValidation &&
+    getProductionSliceState(productionCannotBypassSliceEnv).configured &&
+    !getProductionSliceState(productionCannotBypassSliceEnv).localFullFunctionValidation,
+  "the fixed localhost 3000 entrypoint may disable the production slice only in NODE_ENV=development; production remains fail-closed"
 );
 
 const statusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
@@ -254,8 +276,8 @@ record(
     workspace.includes('data-label={moduleConfig.reservedCodeLabel}') &&
     workspace.includes('data-label="申請名稱"') &&
     workspace.includes('data-label="內容"') &&
-    workspace.includes('data-label="申請狀態 / 號碼效力"') &&
-    workspace.includes("<th>申請狀態 / 號碼效力</th>") &&
+    /data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態 \/ 號碼效力"\}/u.test(workspace) &&
+    /<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態 \/ 號碼效力"\}<\/th>/u.test(workspace) &&
     !workspace.includes("number-state-next-label") &&
     !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
     !workspace.includes('data-label="操作"') &&

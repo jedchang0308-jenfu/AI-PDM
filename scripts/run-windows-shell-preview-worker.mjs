@@ -37,57 +37,111 @@ if (!token.trim()) {
 
 const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
 const workerId = args.workerId || defaultWorkerId;
-const claim = await claimJob({ baseUrl, token, workerId, modelsOnly: args.modelsOnly === true });
-if (!claim) {
-  console.log(JSON.stringify({ workerId, claimed: false, message: "No queued preview job." }, null, 2));
-  process.exit(0);
+const watchMode = args.watch === true;
+const pollMs = readPositiveInt(args.pollMs, 2000);
+let idleReported = false;
+
+if (watchMode) {
+  console.log(JSON.stringify({ workerId, watching: true, modelsOnly: args.modelsOnly === true, pollMs }, null, 2));
 }
 
-try {
-  const sourcePath = resolveClaimSourcePath(claim);
-  const outputPath = path.join(os.tmpdir(), `ai-pdm-preview-${claim.jobId}.png`);
-  const extracted = await extractWindowsShellThumbnail(sourcePath, outputPath, readPositiveInt(args.size, 512));
-  const bytes = fs.readFileSync(outputPath);
-  assertPng(bytes, outputPath);
-  const quality = await analyzePngContent(bytes);
-  assertMeaningfulThumbnailQuality(quality, outputPath);
-  const dimensions = readPngDimensions(bytes);
-  const completion = await completeJob({
-    baseUrl,
-    token,
-    workerId,
-    job: claim,
-    derivative: {
-      kind: "thumbnail_png",
-      fileName: `${path.basename(sourcePath)}.preview.png`,
-      mimeType: "image/png",
-      contentBase64: bytes.toString("base64"),
-      width: dimensions.width,
-      height: dimensions.height,
-      generatorProfile: claim.generatorProfile,
-      generatorVersion: "windows-shell-ishellitemimagefactory-v1"
+while (true) {
+  let claim;
+  try {
+    claim = await claimJob({ baseUrl, token, workerId, modelsOnly: args.modelsOnly === true });
+  } catch (error) {
+    if (!watchMode || isWorkerConfigurationError(error)) throw error;
+    console.error(
+      JSON.stringify(
+        {
+          workerId,
+          watching: true,
+          status: "claim_retry",
+          error: "Preview API is temporarily unavailable; the worker will retry."
+        },
+        null,
+        2
+      )
+    );
+    await delay(pollMs);
+    continue;
+  }
+
+  if (!claim) {
+    if (!watchMode) {
+      console.log(JSON.stringify({ workerId, claimed: false, message: "No queued preview job." }, null, 2));
+      break;
     }
-  });
-  console.log(JSON.stringify({ workerId, claimed: true, jobId: claim.jobId, sourcePath, extracted, quality, completion }, null, 2));
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  const errorSummary = userFacingPreviewErrorSummary(error, message);
-  await failJob({ baseUrl, token, workerId, jobId: claim.jobId, errorSummary });
-  console.error(
-    JSON.stringify(
-      {
-        workerId,
-        claimed: true,
-        jobId: claim.jobId,
-        status: "failed",
-        errorCode: "windows_shell_thumbnail_failed",
-        errorSummary
-      },
-      null,
-      2
-    )
-  );
-  process.exitCode = 1;
+    if (!idleReported) {
+      console.log(JSON.stringify({ workerId, watching: true, claimed: false, message: "Waiting for preview jobs." }, null, 2));
+      idleReported = true;
+    }
+    await delay(pollMs);
+    continue;
+  }
+
+  idleReported = false;
+  const succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512) });
+  if (!watchMode) {
+    if (!succeeded) process.exitCode = 1;
+    break;
+  }
+}
+
+async function processClaim(input) {
+  try {
+    const sourcePath = resolveClaimSourcePath(input.claim);
+    const outputPath = path.join(os.tmpdir(), `ai-pdm-preview-${input.claim.jobId}.png`);
+    const extracted = await extractWindowsShellThumbnail(sourcePath, outputPath, input.size);
+    const bytes = fs.readFileSync(outputPath);
+    assertPng(bytes, outputPath);
+    const quality = await analyzePngContent(bytes);
+    assertMeaningfulThumbnailQuality(quality, outputPath);
+    const dimensions = readPngDimensions(bytes);
+    const completion = await completeJob({
+      baseUrl: input.baseUrl,
+      token: input.token,
+      workerId: input.workerId,
+      job: input.claim,
+      derivative: {
+        kind: "thumbnail_png",
+        fileName: `${path.basename(sourcePath)}.preview.png`,
+        mimeType: "image/png",
+        contentBase64: bytes.toString("base64"),
+        width: dimensions.width,
+        height: dimensions.height,
+        generatorProfile: input.claim.generatorProfile,
+        generatorVersion: "windows-shell-ishellitemimagefactory-v1"
+      }
+    });
+    console.log(
+      JSON.stringify(
+        { workerId: input.workerId, claimed: true, jobId: input.claim.jobId, sourcePath, extracted, quality, completion },
+        null,
+        2
+      )
+    );
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const errorSummary = userFacingPreviewErrorSummary(error, message);
+    await failJob({ baseUrl: input.baseUrl, token: input.token, workerId: input.workerId, jobId: input.claim.jobId, errorSummary });
+    console.error(
+      JSON.stringify(
+        {
+          workerId: input.workerId,
+          claimed: true,
+          jobId: input.claim.jobId,
+          status: "failed",
+          errorCode: "windows_shell_thumbnail_failed",
+          errorSummary
+        },
+        null,
+        2
+      )
+    );
+    return false;
+  }
 }
 
 async function claimJob(input) {
@@ -103,7 +157,11 @@ async function claimJob(input) {
       supportedExtensions: input.modelsOnly ? ["sldprt", "sldasm"] : ["sldprt", "sldasm", "slddrw"]
     })
   });
-  if (!response.ok) throw new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
+  if (!response.ok) {
+    const error = new Error(`Preview worker claim failed with HTTP ${response.status}: ${await response.text()}`);
+    if (response.status === 401 || response.status === 403 || response.status === 503) error.code = "PREVIEW_WORKER_CONFIGURATION_ERROR";
+    throw error;
+  }
   const body = await response.json();
   return body.job ?? null;
 }
@@ -285,6 +343,14 @@ function readPositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function isWorkerConfigurationError(error) {
+  return error && typeof error === "object" && error.code === "PREVIEW_WORKER_CONFIGURATION_ERROR";
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 function parseArgs(values) {
   const parsed = {};
   for (let index = 0; index < values.length; index += 1) {
@@ -297,6 +363,8 @@ function parseArgs(values) {
     else if (value === "--token") parsed.token = values[++index];
     else if (value === "--worker-id") parsed.workerId = values[++index];
     else if (value === "--models-only") parsed.modelsOnly = true;
+    else if (value === "--watch") parsed.watch = true;
+    else if (value === "--poll-ms") parsed.pollMs = values[++index];
   }
   return parsed;
 }
@@ -305,6 +373,7 @@ function printHelp() {
   console.log(`Usage:
   node scripts/run-windows-shell-preview-worker.mjs --source <file> --out <png>
   PDM_PREVIEW_WORKER_TOKEN=<token> node scripts/run-windows-shell-preview-worker.mjs
+  PDM_PREVIEW_WORKER_TOKEN=<token> node scripts/run-windows-shell-preview-worker.mjs --watch --models-only
 
 Environment:
   PDM_PREVIEW_WORKER_BASE_URL  Defaults to http://127.0.0.1:3000
@@ -313,6 +382,7 @@ Environment:
 
 Notes:
   API worker mode claims SLDPRT/SLDASM/SLDDRW by default. Use --models-only when
-  the workstation should leave SLDDRW jobs for a dedicated drawing renderer.
+  the workstation should leave SLDDRW jobs for a dedicated drawing renderer. Use
+  --watch to keep the worker running and --poll-ms to control the idle interval.
   The worker rejects PNGs that appear blank or non-informative before completing a job.`);
 }

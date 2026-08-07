@@ -6,6 +6,7 @@ Owner: RD
 Related Spec: `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
+Amended by: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
 ## Context
 
@@ -125,7 +126,7 @@ Phase 1B may expose numbering approvals through the unified inbox by adapter/rea
 - No production or live Supabase migration is authorized by this ADR.
 - Legacy approval routes may remain as friendly entrypoints, but new formal approvals must delegate to the platform or have an ADR exception.
 - Handler dispatch must fail closed for unknown action codes and missing handlers.
-- Decision history and platform events must be append-only.
+- Decision history and platform events must be append-only except for the explicit DEV-053 Phase 1H `lifecycle_only` retention class in ADR-003. Its guarded terminal cleanup must be additive, exact-workflow-scoped and limited to fresh or 8B adopted-active rows; completed/unknown and other-domain rows remain undeletable.
 - Impact snapshots must be immutable after submit.
 - Platform apply must be idempotent and domain-handler owned.
 

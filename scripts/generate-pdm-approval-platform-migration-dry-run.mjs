@@ -577,7 +577,7 @@ function runApplySelfTest() {
       .run(
         "qc-legacy-approval-001",
         DEFAULT_COMPANY_ID,
-        "dvt_promotion",
+        "release",
         "part_root",
         "qc-root-001",
         "pending",

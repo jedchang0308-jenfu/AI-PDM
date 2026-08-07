@@ -1,6 +1,6 @@
 -- Add DEV-053 source drawing and part context for candidate workspaces
 -- Source: db/postgres/022_unified_drawing_workbench.sql
--- Source SHA-256: e3d6e10549bde9b5f4cfb3a82531b91bf4da50927371671fe9d8fe0642bf8f90
+-- Source SHA-256: bb591af7db5e4750dcfc2349a2cc592e9296e8c1fa079a1a6acb8c01ead23e95
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- Add DEV-053 source drawing/part context to candidate workspaces.

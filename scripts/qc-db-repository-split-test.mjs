@@ -65,9 +65,6 @@ for (const symbol of [
   "listChangeRequests",
   "createChangeRequest",
   "decideChangeRequest",
-  "listPhaseGateChecks",
-  "initializePhaseGateChecks",
-  "decidePhaseGateCheck",
   "listPdfMarkups",
   "createPdfMarkup",
   "resolvePdfMarkup",
@@ -160,7 +157,7 @@ record("REPO-018 dashboard repository owns metrics query", /GROUP BY status/u.te
 record("REPO-019 system repository owns settings upsert", /ON CONFLICT\(key\)/u.test(systemRepository), repositories.system);
 record(
   "REPO-020 collaboration repository owns review workflow tables",
-  ["discussion_comments", "review_issues", "change_requests", "phase_gate_checks", "pdf_markups"].every((table) =>
+  ["discussion_comments", "review_issues", "change_requests", "pdf_markups"].every((table) =>
     collaborationRepository.includes(table)
   ),
   repositories.collaboration

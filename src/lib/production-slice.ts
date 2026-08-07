@@ -10,6 +10,7 @@ type ProductionSliceState = {
   configured: boolean;
   active: boolean;
   mode: string;
+  localFullFunctionValidation: boolean;
 };
 
 const openPagePaths = [
@@ -75,11 +76,15 @@ const numberStateFlowApiMutationMatchers: Array<{ method: string; pattern: RegEx
 ];
 
 export function getProductionSliceState(env: EnvLike = process.env): ProductionSliceState {
-  const mode = String(env.PDM_PRODUCTION_SLICE_MODE ?? "").trim();
+  const localFullFunctionValidation =
+    String(env.NODE_ENV ?? "").trim() === "development" &&
+    String(env.PDM_LOCAL_FULL_FUNCTION_VALIDATION ?? "").trim().toLowerCase() === "true";
+  const mode = localFullFunctionValidation ? "" : String(env.PDM_PRODUCTION_SLICE_MODE ?? "").trim();
   return {
     configured: mode.length > 0,
     active: mode === OFFICIAL_NUMBERING_DRAFT_SLICE,
-    mode
+    mode,
+    localFullFunctionValidation
   };
 }
 
@@ -141,6 +146,7 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     configured: state.configured,
     active: state.active,
     mode: state.mode,
+    localFullFunctionValidation: state.localFullFunctionValidation,
     expectedMode: OFFICIAL_NUMBERING_DRAFT_SLICE,
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,

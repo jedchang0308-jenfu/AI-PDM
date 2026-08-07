@@ -17,6 +17,7 @@ function record(name, passed, detail = "") {
 
 const searchPage = read("src/app/numbering/search/page.tsx");
 const drawingPage = read("src/app/numbering/drawings/page.tsx");
+const drawingWorkbench = read("src/components/drawing-workbench.tsx");
 const partPage = read("src/app/parts/page.tsx");
 const attachmentPanel = read("src/components/master-attachment-panel.tsx");
 const packageJson = JSON.parse(read("package.json"));
@@ -25,6 +26,16 @@ record(
   "DEV-039 package exposes focused QC script",
   packageJson.scripts?.["qc:pdm-entity-detail-drawer"] === "node scripts/qc-pdm-entity-detail-drawer.mjs",
   "package.json"
+);
+
+record(
+  "Search drawer reuses drawing module shell and inline close action",
+  searchPage.includes('import { PdmDetailDrawer }') &&
+    searchPage.includes('className="drawing-workbench-master-drawer"') &&
+    searchPage.includes('className="drawing-workbench-drawer-header"') &&
+    searchPage.includes('className="drawing-workbench-drawer-header-actions"') &&
+    !searchPage.includes("pdm-detail-drawer-floating-close"),
+  "src/app/numbering/search/page.tsx"
 );
 
 record(
@@ -39,8 +50,10 @@ record(
 
 record(
   "Search drawer has target-specific core sections",
-  searchPage.includes("function DetailTargetCoreSections") &&
-    searchPage.includes("function DetailTargetObjectHero") &&
+    searchPage.includes("function DetailTargetCoreSections") &&
+    searchPage.includes("function RootDetailHero") &&
+    searchPage.includes("DrawingDetailContent") &&
+    searchPage.includes("PartDetailPanel") &&
     searchPage.includes('data-entity-core-section="object-owner-hero"') &&
     searchPage.includes("function TargetDrawingCoreSections") &&
     searchPage.includes("function TargetPartCoreSections") &&
@@ -50,32 +63,27 @@ record(
     searchPage.includes('data-entity-core-section="part-attributes"') &&
     searchPage.includes('data-entity-core-section="part-linked-drawings"') &&
     searchPage.includes('data-entity-core-section="part-3d-baseline"') &&
-    searchPage.includes('data-entity-core-section="part-cost"') &&
-    searchPage.includes('data-entity-core-section="root-identity"'),
+    searchPage.includes('data-entity-core-section="part-cost"'),
   "src/app/numbering/search/page.tsx"
 );
 
 record(
   "Search drawer limits root aggregate sections to root target",
-  searchPage.includes('const isRootTarget = target.entityType === "part_root";') &&
+    searchPage.includes('const isRootTarget = target.entityType === "part_root";') &&
     searchPage.includes("isRootTarget ? (") &&
-    searchPage.includes('data-root-aggregate-section="summary-metrics"') &&
+    searchPage.includes("<RootDetailHero detail={detail} formalChildCount={formalChildCount} onChanged={onChanged} />") &&
     searchPage.includes('data-root-aggregate-section="part-list"') &&
     searchPage.includes('data-root-aggregate-section="drawing-list"') &&
-    searchPage.includes("<DetailTargetObjectHero detail={detail} target={target} onChanged={onChanged} />"),
+    searchPage.includes("showEntrypoints={false}"),
   "src/app/numbering/search/page.tsx"
 );
 
 record(
   "Non-root search drawer uses owner-style action surface",
-  searchPage.includes("drawing-detail-action-row") &&
-    searchPage.includes("/numbering/revisions?drawingNumber=${encodeURIComponent(drawingNumber.drawingNumber)}") &&
-    searchPage.includes("/drawings/${encodeURIComponent(drawingNumber.drawingNumber)}/submission-workbench") &&
-    searchPage.includes("/parts?detail=${encodeURIComponent(partNumber.partNumber)}") &&
-    searchPage.includes("送審製造圖") &&
-    searchPage.includes("3D 基準") &&
-    searchPage.includes('mode="drawing"') &&
-    searchPage.includes('mode="part"'),
+  searchPage.includes("DrawingDetailContent") &&
+    searchPage.includes("<PartDetailPanel") &&
+    searchPage.includes("/api/numbering/drawings/workbench/") &&
+    searchPage.includes("/api/parts/${encodeURIComponent(targetPartNumber)}"),
   "src/app/numbering/search/page.tsx"
 );
 
@@ -94,7 +102,7 @@ record(
 record(
   "Search drawer loads owner detail for part and drawing targets",
   searchPage.includes("/api/parts/${encodeURIComponent(targetPartNumber)}") &&
-    searchPage.includes("/api/numbering/drawings?${params.toString()}") &&
+    searchPage.includes("/api/numbering/drawings/workbench/") &&
     searchPage.includes("owner detail 載入失敗") &&
     searchPage.includes("目前先顯示圖料關係中的可用資料"),
   "src/app/numbering/search/page.tsx"
@@ -174,8 +182,8 @@ record(
     !drawingPage.includes("PendingApprovalPanel") &&
     !drawingPage.includes("待審焦點") &&
     drawingPage.includes("pendingRevisionReviews={drawing.pendingApproval") &&
-    searchPage.includes("approvalProjection") &&
-    searchPage.includes("pendingRevisionReviews={ownerDrawing?.pendingApproval") &&
+    drawingWorkbench.includes("pendingRevisionReviews={drawing.pendingApproval") &&
+    searchPage.includes("DrawingDetailContent") &&
     attachmentPanel.includes("pendingRevisionReviews") &&
     attachmentPanel.includes("approval-pending"),
   "drawing/search/master attachment pending projection"

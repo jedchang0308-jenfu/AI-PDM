@@ -64,32 +64,32 @@ function seedSearchData() {
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, 'manufactured', 'DVT', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
+        id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, 'manufactured', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
     ).run(`qc-search-root-${unique}`, rootCode, "QC 查詢支架", now, now);
     db.prepare(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v2', ?, ?)
+        item_kind, is_universal, record_status, rule_version_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, ?, 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-part-a-${unique}`, `qc-search-root-${unique}`, partNumberA, 1, "001", "QC 查詢主件", "Active", now, now);
     db.prepare(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, 'DVT', ?, 'numbering-rule-v2', ?, ?)
+        item_kind, is_universal, record_status, rule_version_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'manufactured', 0, ?, 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-part-b-${unique}`, `qc-search-root-${unique}`, partNumberB, 2, "002", "QC 查詢同圖件", "MainDrawingInvalid", now, now);
     db.prepare(
       `
       INSERT INTO drawing_numbers (
         id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-        is_primary_manufacturing, development_phase, record_status, rule_version_id, created_at, updated_at
-      ) VALUES (?, ?, ?, 'MA', 'QC 製造用圖', 1, 1, 'DVT', 'Released', 'numbering-rule-v2', ?, ?)
+        is_primary_manufacturing, record_status, rule_version_id, created_at, updated_at
+      ) VALUES (?, ?, ?, 'MA', 'QC 製造用圖', 1, 1, 'Released', 'numbering-rule-v2', ?, ?)
     `
     ).run(`qc-search-drawing-${unique}`, `qc-search-root-${unique}`, drawingNumber, now, now);
     for (const [id, partId] of [
@@ -131,7 +131,7 @@ async function verifyViewport(browser, viewport) {
   await page.goto(`${apiBaseUrl}/numbering/search`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
   await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
-  record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar", { hasText: "查詢條件" }).isVisible());
+  record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar").isVisible());
   record(`Relation view switch renders at ${viewport.width}px`, await page.getByRole("tab", { name: "關係樹" }).isVisible());
 
   await page.getByLabel("關鍵字").fill(rootCode);

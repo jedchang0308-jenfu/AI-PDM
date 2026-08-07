@@ -71,8 +71,7 @@ try {
   record(
     "Downstream UI uses semantic manufacturing helper",
     fileIncludes("src/app/numbering/drawings/page.tsx", ["isManufacturingDrawingPurpose(drawing.purposeCode)"]) &&
-      fileIncludes("src/app/numbering/search/page.tsx", ["isManufacturingDrawingPurpose(drawingNumber.purposeCode)"]) &&
-      fileIncludes("src/app/numbering/dvt/page.tsx", ["isManufacturingDrawingPurpose(drawing.purposeCode)"])
+      fileIncludes("src/app/numbering/search/page.tsx", ["isManufacturingDrawingPurpose(drawingNumber.purposeCode)"])
   );
   record(
     "Submission and shared 3D downstream queries include v1/v2 manufacturing purposes",
@@ -83,7 +82,6 @@ try {
     "Source no longer hard-codes MA-only purpose comparisons in app/lib",
     sourceDoesNotMatch("src/app/numbering/drawings/page.tsx", /purposeCode === "MA"/) &&
       sourceDoesNotMatch("src/app/numbering/search/page.tsx", /purposeCode === "MA"/) &&
-      sourceDoesNotMatch("src/app/numbering/dvt/page.tsx", /purposeCode === "MA"/) &&
       sourceDoesNotMatch("src/lib/shared-3d-baseline.ts", /drawingPurposeCode !== "MA"/)
   );
   record(

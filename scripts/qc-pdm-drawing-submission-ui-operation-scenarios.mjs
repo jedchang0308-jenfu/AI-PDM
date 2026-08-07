@@ -74,9 +74,9 @@ function ensureRealRouteFixture() {
       database
         .prepare(
           `INSERT OR IGNORE INTO part_roots (
-            id, company_id, root_code, core_name, item_kind, development_phase, record_status,
+            id, company_id, root_code, core_name, item_kind, record_status,
             rule_version_id, created_by, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           realRouteFixture.rootId,
@@ -84,7 +84,6 @@ function ensureRealRouteFixture() {
           realRouteFixture.rootCode,
           realRouteFixture.partName,
           "manufactured",
-          "Release",
           "Released",
           "numbering-rule-v1",
           "user-admin-demo",
@@ -95,8 +94,8 @@ function ensureRealRouteFixture() {
         .prepare(
           `INSERT OR IGNORE INTO part_numbers (
             id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-            item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           realRouteFixture.partId,
@@ -107,7 +106,6 @@ function ensureRealRouteFixture() {
           "001",
           realRouteFixture.partName,
           "manufactured",
-          "Release",
           "Released",
           "numbering-rule-v1",
           "user-admin-demo",
@@ -118,9 +116,9 @@ function ensureRealRouteFixture() {
         .prepare(
           `INSERT OR IGNORE INTO drawing_numbers (
             id, company_id, part_root_id, drawing_number, purpose_code, purpose_description,
-            sequence_no, is_primary_manufacturing, development_phase, record_status,
+            sequence_no, is_primary_manufacturing, record_status,
             rule_version_id, created_by, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           realRouteFixture.drawingId,
@@ -131,7 +129,6 @@ function ensureRealRouteFixture() {
           "MA 製造圖",
           1,
           1,
-          "Release",
           "Released",
           "numbering-rule-v1",
           "user-admin-demo",
@@ -447,7 +444,6 @@ function buildWorkbenchContext({
       purposeCode: "MA",
       purposeLabel: "MA 製造圖",
       recordStatus: "Draft",
-      developmentPhase: "EVT",
       coreName: partName
     },
     primaryPart: {

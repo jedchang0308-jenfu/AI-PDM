@@ -109,6 +109,23 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           AND candidate.formal_revision_package_id = p.id
           AND candidate.lifecycle_status = 'promoted'
           AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) OR (
+        p.status = 'Pending'
+        AND instr(p.revision, '.') > 0
+        AND EXISTS (
+          SELECT 1
+          FROM drawing_revision_fff_assessments fff
+          JOIN review_confirmation_events rce
+            ON rce.review_id = fff.id
+           AND rce.company_id = fff.company_id
+          WHERE fff.company_id = p.company_id
+            AND fff.submission_id = p.source_submission_id
+            AND rce.action IN (
+              'confirm_bom_no_revision',
+              'confirm_original_part_reuse',
+              'approve_replacement_part_and_drawing_release'
+            )
+        )
       ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
@@ -134,6 +151,23 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           AND candidate.formal_revision_package_id = p.id
           AND candidate.lifecycle_status = 'promoted'
           AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) OR (
+        p.status = 'Pending'
+        AND instr(p.revision, '.') > 0
+        AND EXISTS (
+          SELECT 1
+          FROM drawing_revision_fff_assessments fff
+          JOIN review_confirmation_events rce
+            ON rce.review_id = fff.id
+           AND rce.company_id = fff.company_id
+          WHERE fff.company_id = p.company_id
+            AND fff.submission_id = p.source_submission_id
+            AND rce.action IN (
+              'confirm_bom_no_revision',
+              'confirm_original_part_reuse',
+              'approve_replacement_part_and_drawing_release'
+            )
+        )
       ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
@@ -254,6 +288,23 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           AND candidate.formal_revision_package_id = p.id
           AND candidate.lifecycle_status = 'promoted'
           AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) OR (
+        p.status = 'Pending'
+        AND instr(p.revision, '.') > 0
+        AND EXISTS (
+          SELECT 1
+          FROM drawing_revision_fff_assessments fff
+          JOIN review_confirmation_events rce
+            ON rce.review_id = fff.id
+           AND rce.company_id = fff.company_id
+          WHERE fff.company_id = p.company_id
+            AND fff.submission_id = p.source_submission_id
+            AND rce.action IN (
+              'confirm_bom_no_revision',
+              'confirm_original_part_reuse',
+              'approve_replacement_part_and_drawing_release'
+            )
+        )
       ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,
@@ -279,6 +330,23 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           AND candidate.formal_revision_package_id = p.id
           AND candidate.lifecycle_status = 'promoted'
           AND candidate.review_snapshot_hash = companion.snapshot_hash
+      ) OR (
+        p.status = 'Pending'
+        AND instr(p.revision, '.') > 0
+        AND EXISTS (
+          SELECT 1
+          FROM drawing_revision_fff_assessments fff
+          JOIN review_confirmation_events rce
+            ON rce.review_id = fff.id
+           AND rce.company_id = fff.company_id
+          WHERE fff.company_id = p.company_id
+            AND fff.submission_id = p.source_submission_id
+            AND rce.action IN (
+              'confirm_bom_no_revision',
+              'confirm_original_part_reuse',
+              'approve_replacement_part_and_drawing_release'
+            )
+        )
       ) THEN 'ReviewApproved' ELSE p.status END AS package_effective_status,
       p.revision AS package_revision,
       p.source_submission_id AS package_source_submission_id,

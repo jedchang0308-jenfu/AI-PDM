@@ -59,10 +59,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   });
   const workflowIntent = String(body.workflowIntent ?? body.workflow_intent ?? revisionPolicySuggestion?.workflowIntent ?? "rd_workspace");
   const revisionOverrideReason = String(body["revisionOverrideReason"] ?? body["revision_override_reason"] ?? "").trim() || null;
+  const rawPartNumberIds = body.partNumberIds ?? body.part_number_ids;
   try {
     const result = await createDrawingSourceSubmission({
       company: companyResult.company,
       drawingNumber: decodedDrawingNumber,
+      currentPartNumberId: String(body.currentPartNumberId ?? body.current_part_number_id ?? "").trim() || null,
+      partNumberIds: Array.isArray(rawPartNumberIds)
+        ? rawPartNumberIds.map((value) => String(value).trim()).filter(Boolean)
+        : [],
       expectedRevision,
       workflowIntent,
       revisionPolicySuggestion,

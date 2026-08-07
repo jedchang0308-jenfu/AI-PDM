@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RefreshCcw, Search, Workflow, X } from "lucide-react";
-import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, FileText, Link2, RefreshCcw, Search, Workflow, X } from "lucide-react";
+import { MasterAttachmentPanel, type HistoricalRevisionBackfillRequest } from "@/components/master-attachment-panel";
+import { HumanStatusBadge } from "@/components/human-status-badge";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import {
   ConfirmDialog,
@@ -15,7 +16,7 @@ import {
 } from "@/components/number-state-workspace";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
+import { StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusForUser } from "@/lib/status-display";
 import type {
@@ -26,6 +27,7 @@ import type {
   DrawingWorkbenchStage,
   DrawingWorkbenchView
 } from "@/lib/drawing-workbench";
+import type { HumanStatusFilter } from "@/lib/human-status-projection";
 
 const stageOptions: Array<{ value: "" | DrawingWorkbenchStage; label: string }> = [
   { value: "", label: "全部工作狀態" },
@@ -36,22 +38,25 @@ const stageOptions: Array<{ value: "" | DrawingWorkbenchStage; label: string }> 
   { value: "auto_finalizing", label: "系統正式化中" },
   { value: "recovery_required", label: "需要處理" },
   { value: "official_controlled", label: "研發受控" },
+  { value: "correction_required", label: "需要修正" },
   { value: "revision_in_review", label: "新版審核中" },
   { value: "released", label: "已發布" },
   { value: "history_only", label: "歷史紀錄" }
 ];
 
-const usageLabels: Record<DrawingWorkbenchRow["usage"], string> = {
-  not_for_formal_use: "尚不可正式使用",
-  rd_controlled: "研發受控",
-  released: "可正式使用",
-  historical_only: "僅供查閱"
-};
-
-type DrawingDetail = NonNullable<DrawingWorkbenchDetailResponse["drawing"]>;
+export type DrawingDetail = NonNullable<DrawingWorkbenchDetailResponse["drawing"]>;
+export type DrawingWorkbenchCapabilities = DrawingWorkbenchDetailResponse["capabilities"];
 type DrawingPurposeFilter = NonNullable<DrawingWorkbenchRow["purposeCode"]>;
 type DrawingRecordStatusFilter = NonNullable<DrawingWorkbenchRow["recordStatus"]>;
-type ProductionSliceClientStatus = {
+const humanStatusFilters: Array<{ value: HumanStatusFilter; label: string }> = [
+  { value: "all", label: "全部狀態" },
+  { value: "needs_action", label: "待我處理" },
+  { value: "waiting", label: "等他人處理" },
+  { value: "system", label: "系統處理中" },
+  { value: "usable", label: "可使用" },
+  { value: "history", label: "歷史" }
+];
+export type ProductionSliceClientStatus = {
   configured: boolean;
   openPagePaths: string[];
   unopenedMessage: string;
@@ -75,7 +80,8 @@ function normalizeInitialLocation() {
   const params = new URLSearchParams(window.location.search);
   const legacyReserved = params.get("tab") === "reserved";
   const rawView = params.get("view");
-  const view: DrawingWorkbenchView = legacyReserved || rawView === "work" ? "work" : rawView === "all" ? "all" : "mine";
+  const view: DrawingWorkbenchView = legacyReserved || rawView === "work" ? "work" : rawView === "mine" ? "mine" : "all";
+  const includeHistory = params.get("history") === "include";
   const rawDetail = params.get("detail")?.trim() ?? "";
   const detail = rawDetail.includes(":") ? rawDetail : rawDetail.startsWith("draft-workspace-") ? `candidate:${rawDetail}` : "";
   const legacyDrawingCode = rawDetail && !detail ? rawDetail : "";
@@ -91,18 +97,22 @@ function normalizeInitialLocation() {
     seriesCode: params.get("seriesCode")?.trim() || "",
     purposeCode: (params.get("purposeCode")?.trim() || "") as "" | DrawingPurposeFilter,
     recordStatus: (params.get("recordStatus")?.trim() || "") as "" | DrawingRecordStatusFilter,
+    humanStatus: (params.get("humanStatus")?.trim() || "all") as HumanStatusFilter,
+    includeHistory,
     detail
   };
 }
 
 export function DrawingWorkbench() {
   const [initialized, setInitialized] = useState(false);
-  const [view, setView] = useState<DrawingWorkbenchView>("mine");
+  const [view, setView] = useState<DrawingWorkbenchView>("all");
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<"" | DrawingWorkbenchStage>("");
   const [seriesCode, setSeriesCode] = useState("");
   const [purposeCode, setPurposeCode] = useState<"" | DrawingPurposeFilter>("");
   const [recordStatus, setRecordStatus] = useState<"" | DrawingRecordStatusFilter>("");
+  const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
+  const [includeHistory, setIncludeHistory] = useState(false);
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [purposeCodeOptions, setPurposeCodeOptions] = useState<DrawingPurposeFilter[]>([]);
   const [recordStatusOptions, setRecordStatusOptions] = useState<DrawingRecordStatusFilter[]>([]);
@@ -122,6 +132,9 @@ export function DrawingWorkbench() {
   const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
   const initialDetailRef = useRef("");
   const detailRequestRef = useRef(0);
+  const listRequestRef = useRef(0);
+  const listAbortRef = useRef<AbortController | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const autoOpenedQueryRef = useRef("");
   const idempotencyKeys = useRef(new Map<string, string>());
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
@@ -138,6 +151,8 @@ export function DrawingWorkbench() {
     setSeriesCode(initial.seriesCode);
     setPurposeCode(initial.purposeCode);
     setRecordStatus(initial.recordStatus);
+    setHumanStatus(initial.humanStatus);
+    setIncludeHistory(initial.includeHistory);
     initialDetailRef.current = initial.detail;
     setInitialized(true);
   }, []);
@@ -153,26 +168,55 @@ export function DrawingWorkbench() {
     return () => { cancelled = true; };
   }, []);
 
+  const resetPagination = useCallback(() => {
+    setCursorHistory([""]);
+    setPageIndex(0);
+  }, []);
+
   const currentCursor = cursorHistory[pageIndex] ?? "";
   const loadRows = useCallback(async () => {
     if (!initialized) return;
+    const requestId = listRequestRef.current + 1;
+    listRequestRef.current = requestId;
+    listAbortRef.current?.abort();
+    const controller = new AbortController();
+    listAbortRef.current = controller;
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({ view, limit: "50" });
+    const params = new URLSearchParams({ view, limit: "50", history: includeHistory ? "include" : "exclude" });
     if (query.trim()) params.set("query", query.trim());
     if (stage) params.set("stage", stage);
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (purposeCode) params.set("purposeCode", purposeCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
+    if (humanStatus !== "all") params.set("humanStatus", humanStatus);
     if (currentCursor) params.set("cursor", currentCursor);
-    const response = await fetch(`/api/numbering/drawings/workbench?${params.toString()}`, { cache: "no-store" });
+    let response: Response;
+    try {
+      response = await fetch(`/api/numbering/drawings/workbench?${params.toString()}`, { cache: "no-store", signal: controller.signal });
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      if (listRequestRef.current === requestId) {
+        setLoading(false);
+        setRows([]);
+        setError(caught instanceof Error ? caught.message : "圖號工作台目前無法載入，請重新整理。");
+      }
+      return;
+    }
     const body = await readBody<DrawingWorkbenchListResponse>(response);
+    if (listRequestRef.current !== requestId) return;
     setLoading(false);
     if (response.status === 401) {
       window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     if (!response.ok) {
+      if (response.status === 400 && currentCursor) {
+        setCursorHistory([""]);
+        setPageIndex(0);
+        setNotice("清單內容已更新，已回到第一頁。");
+        return;
+      }
       setRows([]);
       setError(apiMessage(body, "圖號工作台目前無法載入，請重新整理。"));
       return;
@@ -182,16 +226,26 @@ export function DrawingWorkbench() {
     setSeriesCodeOptions(body.filters?.seriesCodeOptions ?? []);
     setPurposeCodeOptions(body.filters?.purposeCodeOptions ?? []);
     setRecordStatusOptions(body.filters?.recordStatusOptions ?? []);
-  }, [currentCursor, initialized, purposeCode, query, recordStatus, seriesCode, stage, view]);
+  }, [currentCursor, humanStatus, includeHistory, initialized, purposeCode, query, recordStatus, seriesCode, stage, view]);
 
   useEffect(() => {
     void loadRows();
+    return () => listAbortRef.current?.abort();
   }, [loadRows]);
 
-  const resetPagination = useCallback(() => {
-    setCursorHistory([""]);
-    setPageIndex(0);
-  }, []);
+  useEffect(() => {
+    if (!initialized) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", view);
+    includeHistory ? params.set("history", "include") : params.delete("history");
+    query.trim() ? params.set("query", query.trim()) : params.delete("query");
+    stage ? params.set("stage", stage) : params.delete("stage");
+    seriesCode ? params.set("seriesCode", seriesCode) : params.delete("seriesCode");
+    purposeCode ? params.set("purposeCode", purposeCode) : params.delete("purposeCode");
+    recordStatus ? params.set("recordStatus", recordStatus) : params.delete("recordStatus");
+    humanStatus !== "all" ? params.set("humanStatus", humanStatus) : params.delete("humanStatus");
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [humanStatus, includeHistory, initialized, purposeCode, query, recordStatus, seriesCode, stage, view]);
 
   const closeDetail = useCallback(() => {
     detailRequestRef.current += 1;
@@ -220,10 +274,16 @@ export function DrawingWorkbench() {
       return;
     }
     setDetail(body);
+    if (body.row.stage === "history_only" && !includeHistory) {
+      resetPagination();
+      setIncludeHistory(true);
+      setNotice("此筆為歷史紀錄，已自動開啟「包含歷史」。");
+    }
     const params = new URLSearchParams(window.location.search);
     params.set("detail", rowKey);
+    if (body.row.stage === "history_only") params.set("history", "include");
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  }, []);
+  }, [includeHistory, resetPagination]);
 
   useEffect(() => {
     if (!initialized || !initialDetailRef.current) return;
@@ -244,6 +304,55 @@ export function DrawingWorkbench() {
   }, [initialized, openDetail, query, rows, selectedKey]);
 
   const selectedRow = useMemo(() => rows.find((row) => row.rowKey === selectedKey) ?? detail?.row ?? null, [detail?.row, rows, selectedKey]);
+
+  useEffect(() => {
+    if (!selectedKey || !detail?.row || loading || detailLoading) return;
+    if (rows.some((row) => row.rowKey === selectedKey)) return;
+    if (detail.row.stage === "history_only" && !includeHistory) return;
+    closeDetail();
+    setNotice("目前篩選條件不包含原先開啟的資料，明細已關閉。");
+  }, [closeDetail, detail?.row, detailLoading, includeHistory, loading, rows, selectedKey]);
+
+  function handleRowKeyDown(event: ReactKeyboardEvent<HTMLTableRowElement>, row: DrawingWorkbenchRow, index: number) {
+    const target = event.target as HTMLElement;
+    if (target !== event.currentTarget && target.matches("button, a, input, select, textarea, [contenteditable='true']")) return;
+    const focusAt = (targetIndex: number) => {
+      const bounded = Math.max(0, Math.min(rows.length - 1, targetIndex));
+      rowRefs.current.get(rows[bounded]?.rowKey ?? "")?.focus();
+    };
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void openDetail(row.rowKey);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeDetail();
+      rowRefs.current.get(row.rowKey)?.focus();
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusAt(index + 1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusAt(index - 1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      focusAt(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      focusAt(rows.length - 1);
+    } else if (event.key === "PageDown") {
+      event.preventDefault();
+      focusAt(index + 10);
+    } else if (event.key === "PageUp") {
+      event.preventDefault();
+      focusAt(index - 10);
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "c") {
+      event.preventDefault();
+      void navigator.clipboard.writeText(row.displayCode).then(
+        () => setNotice(`已複製圖號 ${row.displayCode}。`),
+        () => setError("無法複製圖號，請手動選取圖號文字。")
+      );
+    }
+  }
 
   async function refreshDetailAndRows(workspaceId?: string) {
     const rowKey = workspaceId ? `candidate:${workspaceId}` : selectedKey;
@@ -350,12 +459,14 @@ export function DrawingWorkbench() {
             <span>搜尋</span>
             <div><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => { resetPagination(); setQuery(event.target.value); }} placeholder="圖號、品名、料號" /></div>
           </label>
-          <label><span>範圍</span><select value={view} onChange={(event) => { resetPagination(); setView(event.target.value as DrawingWorkbenchView); }}><option value="mine">我的待處理</option><option value="work">工作中</option><option value="all">全部</option></select></label>
+          <label><span>範圍</span><select value={view} onChange={(event) => { resetPagination(); setView(event.target.value as DrawingWorkbenchView); }}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
           <label><span>工作狀態</span><select value={stage} onChange={(event) => { resetPagination(); setStage(event.target.value as "" | DrawingWorkbenchStage); }}>{stageOptions.map((option) => <option value={option.value} key={option.value || "all"}>{option.label}</option>)}</select></label>
           <label><span>系列代號</span><select value={seriesCode} onChange={(event) => { resetPagination(); setSeriesCode(event.target.value); }}><option value="">全部系列</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>圖面用途</span><select value={purposeCode} onChange={(event) => { resetPagination(); setPurposeCode(event.target.value as "" | DrawingPurposeFilter); }}><option value="">全部用途</option>{purposeCodeOptions.map((option) => <option value={option} key={option}>{option} {displayDrawingPurposeLabel(option)}</option>)}</select></label>
           <label><span>資料狀態</span><select value={recordStatus} onChange={(event) => { resetPagination(); setRecordStatus(event.target.value as "" | DrawingRecordStatusFilter); }}><option value="">全部狀態</option>{recordStatusOptions.map((option) => <option value={option} key={option}>{formatStatusForUser(option, "masterRecord")}</option>)}</select></label>
+          <label><span>工作狀態</span><select value={humanStatus} onChange={(event) => { resetPagination(); setHumanStatus(event.target.value as HumanStatusFilter); }}>{humanStatusFilters.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
         </div>
+        <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={includeHistory} onChange={(event) => { resetPagination(); setIncludeHistory(event.target.checked); }} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
       </section>
 
       <section className="panel pdm-master-table-panel drawing-workbench-list-panel">
@@ -364,14 +475,22 @@ export function DrawingWorkbench() {
         {rows.length > 0 ? (
           <div className="table-wrap pdm-identity-scroll drawing-workbench-table-wrap" role="region" aria-label="圖號工作清單" tabIndex={0}>
             <table className="pdm-identity-table drawing-workbench-table">
-              <colgroup><col className="drawing-workbench-col-code" /><col className="drawing-workbench-col-name" /><col className="drawing-workbench-col-stage" /><col className="drawing-workbench-col-action" /></colgroup>
-              <thead><tr><th>圖號</th><th>品名</th><th>工作狀態</th><th>下一步</th></tr></thead>
-              <tbody>{rows.map((row) => (
-                <tr key={row.rowKey} className={selectedKey === row.rowKey ? "selected-row" : undefined} aria-selected={selectedKey === row.rowKey} onClick={() => void openDetail(row.rowKey)}>
+              <colgroup><col className="drawing-workbench-col-code" /><col className="drawing-workbench-col-name" /><col className="drawing-workbench-col-stage" /></colgroup>
+              <thead><tr><th>圖號</th><th>品名</th><th>工作狀態</th></tr></thead>
+              <tbody>{rows.map((row, index) => (
+                <tr
+                  key={row.rowKey}
+                  ref={(node) => { if (node) rowRefs.current.set(row.rowKey, node); else rowRefs.current.delete(row.rowKey); }}
+                  className={selectedKey === row.rowKey ? "selected-row" : undefined}
+                  aria-selected={selectedKey === row.rowKey}
+                  aria-keyshortcuts="Enter Escape ArrowUp ArrowDown Home End PageUp PageDown Control+C Meta+C"
+                  tabIndex={0}
+                  onKeyDown={(event) => handleRowKeyDown(event, row, index)}
+                  onClick={() => void openDetail(row.rowKey)}
+                >
                   <td data-label="圖號"><button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}>{row.displayCode}{row.additionalDrawingCount > 0 ? ` +${row.additionalDrawingCount}` : ""}</button></td>
-                  <td data-label="品名"><div className="pdm-identity-name">{row.displayName}</div>{row.relatedPartSummary ? <div className="pdm-identity-name-sub">料號：{row.relatedPartSummary}</div> : null}</td>
-                  <td data-label="工作狀態"><div className="drawing-workbench-stage"><span className={`drawing-workbench-stage-badge is-${row.stage}`}>{row.stageLabel}</span><small>{usageLabels[row.usage]}</small><WorkbenchRowSignals row={row} />{row.warning ? <span className="drawing-workbench-warning"><AlertTriangle size={14} />{row.warning.message}</span> : null}</div></td>
-                  <td data-label="下一步"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={openDetail} productionSlice={productionSlice} /></td>
+                  <td data-label="品名"><div className="pdm-identity-name">{row.displayName}</div>{row.purposeCode ? <div className="drawing-workbench-purpose-sub">{row.purposeCode} {displayDrawingPurposeLabel(row.purposeCode)}</div> : null}{row.relatedPartSummary ? <div className="pdm-identity-name-sub">料號：{row.relatedPartSummary}</div> : null}</td>
+                  <td data-label="工作狀態"><WorkbenchStatusCell row={row} /></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -406,7 +525,7 @@ export function DrawingWorkbench() {
           onClose={closeDetail}
         />
       ) : null}
-      {detail?.drawing ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} canReviewApprovals={detail.capabilities.canReviewApprovals} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
+      {detail?.drawing ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
       {confirmAction && detail?.candidate ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={actionBusy} lifecycleV2Enabled onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
     </>
   );
@@ -419,20 +538,25 @@ function PrimaryAction({ action, rowKey, onOpenDetail, productionSlice }: { acti
   }
   const samePageDetail = action.href?.startsWith("/numbering/drawings?") ?? false;
   if (samePageDetail || !action.href) {
-    return <button className="primary-button drawing-workbench-row-action" type="button" disabled={!action.enabled} title={action.disabledReason ?? action.label} onClick={(event) => { event.stopPropagation(); if (action.enabled) void onOpenDetail(rowKey); }}>{action.label}</button>;
+    return <div className="drawing-workbench-primary-action"><button className="primary-button drawing-workbench-row-action" type="button" disabled={!action.enabled} title={action.disabledReason ?? action.label} onClick={(event) => { event.stopPropagation(); if (action.enabled) void onOpenDetail(rowKey); }}>{action.label}</button><PermissionGuidance action={action} /></div>;
   }
-  return <Link className="primary-button drawing-workbench-row-action" aria-disabled={!action.enabled} tabIndex={action.enabled ? undefined : -1} href={action.enabled ? action.href : "#"} title={action.disabledReason ?? action.label} onClick={(event) => { event.stopPropagation(); if (!action.enabled) event.preventDefault(); }}>{action.label}</Link>;
+  return <div className="drawing-workbench-primary-action"><Link className="primary-button drawing-workbench-row-action" aria-disabled={!action.enabled} tabIndex={action.enabled ? undefined : -1} href={action.enabled ? action.href : "#"} title={action.disabledReason ?? action.label} onClick={(event) => { event.stopPropagation(); if (!action.enabled) event.preventDefault(); }}>{action.label}</Link><PermissionGuidance action={action} /></div>;
 }
 
-function WorkbenchRowSignals({ row }: { row: DrawingWorkbenchRow }) {
-  if (!row.recordStatus && row.pendingApprovalCount === 0 && !row.releaseStatusMismatch && row.warningCount === 0) return null;
+function PermissionGuidance({ action }: { action: DrawingWorkbenchPrimaryAction }) {
+  if (action.enabled || !action.disabledReason) return null;
   return (
-    <div className="pdm-meta-strip drawing-workbench-row-signals">
-      {row.recordStatus ? <StatusBadge status={row.recordStatus} context="masterRecord" /> : null}
-      {row.purposeCode ? <span className="pdm-meta-chip">{row.purposeCode} {displayDrawingPurposeLabel(row.purposeCode)}</span> : null}
-      {row.pendingApprovalCount > 0 ? <span className="pdm-meta-chip drawing-pending-approval-chip">待審 {row.pendingApprovalCount}</span> : null}
-      {row.releaseStatusMismatch ? <span className="pdm-meta-chip drawing-workbench-mismatch-chip">發布待同步</span> : null}
-      {row.warningCount > 0 ? <span className="pdm-meta-chip drawing-workbench-alert-chip"><AlertTriangle size={13} />警示 {row.warningCount}</span> : null}
+    <span className="drawing-workbench-permission-guidance">
+      <span>{action.disabledReason}</span>
+      {action.adminHref ? <Link href={action.adminHref} onClick={(event) => event.stopPropagation()}>前往權限設定</Link> : null}
+    </span>
+  );
+}
+
+function WorkbenchStatusCell({ row }: { row: DrawingWorkbenchRow }) {
+  return (
+    <div className="drawing-workbench-stage">
+      <HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />
     </div>
   );
 }
@@ -451,45 +575,129 @@ function WorkbenchActionLink({ href, label, icon, productionSlice, primary = fal
   return <Link className={className} href={href} data-capability={capability}>{icon}{label}</Link>;
 }
 
-function DrawingMasterDrawer({ drawing, row, canReviewApprovals, productionSlice, width, onStartResize, onDataChanged, onOpenDetail, onClose }: { drawing: DrawingDetail; row: DrawingWorkbenchRow; canReviewApprovals: boolean; productionSlice: ProductionSliceClientStatus | null; width: number; onStartResize: (clientX: number) => void; onDataChanged: () => Promise<void>; onOpenDetail: (rowKey: string) => Promise<void>; onClose: () => void }) {
+function buildDrawingRevisionHref({ drawingNumber, returnTo, historicalBackfill }: { drawingNumber: string; returnTo: string; historicalBackfill?: HistoricalRevisionBackfillRequest }) {
+  const params = new URLSearchParams({ drawingNumber, returnTo });
+  if (historicalBackfill) {
+    params.set("source", "historical_backfill");
+    params.set("revision", historicalBackfill.revision);
+    for (const attachmentId of historicalBackfill.attachmentIds) params.append("attachmentId", attachmentId);
+  }
+  return `/numbering/revisions?${params.toString()}`;
+}
+
+export function DrawingDetailContent({
+  drawing,
+  row,
+  capabilities,
+  productionSlice,
+  onDataChanged,
+  returnTo: returnToOverride,
+  embedded = false
+}: {
+  drawing: DrawingDetail;
+  row: DrawingWorkbenchRow;
+  capabilities: DrawingWorkbenchCapabilities;
+  productionSlice: ProductionSliceClientStatus | null;
+  onDataChanged: () => Promise<void>;
+  returnTo?: string;
+  embedded?: boolean;
+}) {
   const sourcePart = drawing.sameRootParts.find((part) => drawing.linkedPartNumbers.includes(part.partNumber)) ?? drawing.sameRootParts[0] ?? null;
-  const revisionHref = `/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
-  const submissionHref = `/drawings/${encodeURIComponent(drawing.drawingNumber)}/submission-workbench`;
-  const relationHref = `/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`;
-  const impactHref = `/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
-  const primaryIsRevision = row.primaryAction?.kind === "create_revision";
+  const returnTo = returnToOverride ?? `/numbering/drawings?view=all${row.stage === "history_only" ? "&history=include" : ""}&detail=${encodeURIComponent(row.rowKey)}`;
+  const relationHref = `/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number&returnTo=${encodeURIComponent(returnTo)}`;
+  const impactHref = `/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}&returnTo=${encodeURIComponent(returnTo)}`;
+  const revisionHref = buildDrawingRevisionHref({ drawingNumber: drawing.drawingNumber, returnTo });
+  const formalMutationBlocked = Boolean(productionSlice?.configured) || !capabilities.canCreateRevision;
+  const formalMutationBlockedReason = productionSlice?.configured
+    ? productionSlice.unopenedMessage ?? defaultProductionSliceUnopenedMessage
+    : `缺少「${capabilities.permissionRequirements.createRevision.label}」權限（${capabilities.permissionRequirements.createRevision.permissionCode}），請聯絡${capabilities.permissionRequirements.createRevision.contactRole}。`;
+  const formalMutationBlockedBadge = productionSlice?.configured ? "未開放" : !capabilities.canCreateRevision ? "權限不足" : null;
+  return (
+    <div className={embedded ? "drawing-detail-content" : "drawing-workbench-drawer-body"}>
+      {row.terminal ? <section className="drawing-workbench-terminal-panel" aria-label="歷史狀態說明"><strong>{row.terminal.reasonLabel}</strong><p>{row.terminal.nextStepLabel}</p></section> : null}
+      {row.warning ? <div className="drawing-workbench-header-warning"><AlertTriangle size={15} /><span>{row.warning.message}</span></div> : null}
+      <dl className="drawing-workbench-facts">
+        <div><dt>用途</dt><dd>{drawing.purposeCode} {displayDrawingPurposeLabel(drawing.purposeCode)}</dd></div>
+        <div title={drawing.linkedPartNumbers.join("、")}><dt>關聯</dt><dd>{drawing.linkedPartNumbers.length > 0 ? `${drawing.linkedPartNumbers.length} 個料號` : "尚未關聯"}</dd></div>
+        <div><dt>同根</dt><dd>{drawing.sameRootParts.length} 筆料號</dd></div>
+      </dl>
+      <section className="panel drawing-workbench-management-actions" aria-label="圖面資料管理" data-primary-action-policy="主要下一步只保留一個" data-secondary-action-policy="其他既有管理功能集中在這裡">
+        <div className="drawing-detail-action-row">
+          {formalMutationBlocked ? <button className="secondary-button" type="button" disabled title={formalMutationBlockedReason} data-capability="drawing-submission"><FileText size={16} />上傳與送審{formalMutationBlockedBadge ? <span className="drawing-workbench-inline-unopened">{formalMutationBlockedBadge}</span> : null}</button> : <Link className="secondary-button" href={revisionHref} title="前往圖面進版頁上傳版次檔案並送審" data-capability="drawing-submission"><FileText size={16} />上傳與送審</Link>}
+          <WorkbenchActionLink href={relationHref} label="圖料關係" icon={<Search size={16} />} productionSlice={productionSlice} capability="drawing-relations" />
+          {isManufacturingDrawingPurpose(drawing.purposeCode) ? <WorkbenchActionLink href={impactHref} label="製造影響" icon={<Workflow size={16} />} productionSlice={productionSlice} capability="manufacturing-impact" /> : null}
+        </div>
+      </section>
+      {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
+      {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} productionSlice={productionSlice} /> : null}
+      <MasterAttachmentPanel compact authorityMode="controlled_summary" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)} readOnly pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: capabilities.canReviewApprovals } : null} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
+      <MasterAttachmentPanel compact authorityMode="reference_manager" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={false} readOnly={!capabilities.canManageReferenceAttachments} onBackfillHistoricalRevision={formalMutationBlocked ? undefined : (request) => { window.location.assign(buildDrawingRevisionHref({ drawingNumber: drawing.drawingNumber, returnTo, historicalBackfill: request })); }} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
+      {!capabilities.canManageReferenceAttachments ? <PermissionRequirementCard requirement={capabilities.permissionRequirements.manageReferenceAttachments} /> : null}
+      <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={capabilities.canReviewApprovals} />
+      <SameRootPartPanel drawing={drawing} mutationsBlocked={Boolean(productionSlice?.configured)} blockedReason={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} onDataChanged={onDataChanged} />
+      <NumberingContextualEntrypoints
+        mode="drawing"
+        rootId={drawing.partRootId}
+        rootCode={drawing.rootCode}
+        coreName={drawing.coreName}
+        rootRecordStatus={drawing.recordStatus}
+        drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
+        part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}
+        onChanged={onDataChanged}
+      />
+    </div>
+  );
+}
+
+function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, width, onStartResize, onDataChanged, onOpenDetail, onClose }: { drawing: DrawingDetail; row: DrawingWorkbenchRow; capabilities: DrawingWorkbenchCapabilities; productionSlice: ProductionSliceClientStatus | null; width: number; onStartResize: (clientX: number) => void; onDataChanged: () => Promise<void>; onOpenDetail: (rowKey: string) => Promise<void>; onClose: () => void }) {
   return (
     <PdmDetailDrawer open width={width} ariaLabel="圖號明細" resizeLabel="調整圖號明細寬度" onClose={onClose} onStartResize={onStartResize} className="drawing-workbench-master-drawer">
-      <div className="drawing-workbench-drawer-header"><div><span>{row.stageLabel}</span><h2>{drawing.drawingNumber}</h2><p>{drawing.coreName}</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="關閉圖號明細"><X size={20} /></button></div>
-      <div className="drawing-workbench-drawer-body">
-        <section className="drawing-workbench-drawer-primary"><div><strong>{usageLabels[row.usage]}</strong>{row.warning ? <span>{row.warning.message}</span> : null}</div><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></section>
-        <dl className="drawing-workbench-facts"><div><dt>用途</dt><dd>{drawing.purposeCode} {displayDrawingPurposeLabel(drawing.purposeCode)}</dd></div><div><dt>關聯料號</dt><dd>{drawing.linkedPartNumbers.length > 0 ? drawing.linkedPartNumbers.join("、") : "尚未關聯"}</dd></div><div><dt>資料狀態</dt><dd><StatusBadge status={drawing.recordStatus} context="masterRecord" /></dd></div><div><dt>同根料號</dt><dd>{drawing.sameRootParts.length} 筆</dd></div></dl>
-        <section className="panel drawing-workbench-management-actions" aria-label="圖面資料管理">
-          <div className="panel-header"><div><h2>圖面資料管理</h2><p>主要下一步只保留一個；其他既有管理功能集中在這裡。</p></div></div>
-          <div className="drawing-detail-action-row">
-            {primaryIsRevision ? null : <WorkbenchActionLink href={revisionHref} label="圖面進版" icon={<GitBranch size={16} />} productionSlice={productionSlice} capability="drawing-revision" />}
-            <WorkbenchActionLink href={submissionHref} label="上傳與送審" icon={<FileText size={16} />} productionSlice={productionSlice} capability="drawing-submission" />
-            <WorkbenchActionLink href={relationHref} label="完整圖料關係" icon={<Search size={16} />} productionSlice={productionSlice} capability="drawing-relations" />
-            {isManufacturingDrawingPurpose(drawing.purposeCode) ? <WorkbenchActionLink href={impactHref} label="製造影響" icon={<Workflow size={16} />} productionSlice={productionSlice} capability="manufacturing-impact" /> : null}
-          </div>
-        </section>
-        {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
-        {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} productionSlice={productionSlice} /> : null}
-        <MasterAttachmentPanel entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)} readOnly pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: canReviewApprovals } : null} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
-        <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={canReviewApprovals} />
-        <SameRootPartPanel drawing={drawing} mutationsBlocked={Boolean(productionSlice?.configured)} blockedReason={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} onDataChanged={onDataChanged} />
-        <NumberingContextualEntrypoints
-          mode="drawing"
-          rootId={drawing.partRootId}
-          rootCode={drawing.rootCode}
-          coreName={drawing.coreName}
-          rootRecordStatus={drawing.recordStatus}
-          drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
-          part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}
-          onChanged={onDataChanged}
-        />
+      <div className="drawing-workbench-drawer-header">
+        <div className="drawing-workbench-drawer-identity"><HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /><div><h2>{drawing.drawingNumber}</h2><p>{drawing.coreName}</p></div></div>
+        <div className="drawing-workbench-drawer-header-actions"><div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>{row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}<button className="icon-button" type="button" onClick={onClose} aria-label="關閉圖號明細"><X size={20} /></button></div>
       </div>
+      <DrawingDetailContent drawing={drawing} row={row} capabilities={capabilities} productionSlice={productionSlice} onDataChanged={onDataChanged} />
     </PdmDetailDrawer>
+  );
+}
+
+function DrawingLifecycleSecondaryAction({ action, onDone }: { action: NonNullable<DrawingWorkbenchRow["secondaryAction"]>; onDone: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function execute() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    const response = await fetch(action.commandHref, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": `drawing-lifecycle-withdraw:${crypto.randomUUID()}`
+      },
+      body: "{}"
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      if (response.status === 410 && typeof body.canonicalHref === "string") {
+        window.location.assign(body.canonicalHref);
+        return;
+      }
+      setError(String(body.message ?? body.error ?? "撤回失敗，請重新整理後再試。"));
+      return;
+    }
+    await onDone();
+  }
+  return <span className="drawing-lifecycle-secondary-action"><button className="secondary-button" type="button" onClick={() => void execute()} disabled={busy}>{busy ? "撤回中" : action.label}</button>{error ? <small role="alert">{error}</small> : null}</span>;
+}
+
+function PermissionRequirementCard({ requirement }: { requirement: DrawingWorkbenchCapabilities["permissionRequirements"]["manageReferenceAttachments"] }) {
+  return (
+    <section className="drawing-workbench-permission-card" aria-label="權限需求">
+      <strong>目前只能查看參考附件</strong>
+      <p>缺少「{requirement.label}」權限（{requirement.permissionCode}），請聯絡{requirement.contactRole}。</p>
+      {requirement.adminHref ? <Link className="secondary-button" href={requirement.adminHref}>前往權限設定</Link> : null}
+    </section>
   );
 }
 
@@ -524,15 +732,16 @@ function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { d
   const incompleteParts = getIncompleteSameRootParts(drawing);
   const missingCostParts = drawing.sameRootParts.filter((part) => part.standardCostStatus === "missing");
   const pendingApproval = drawing.pendingApproval ?? null;
-  const hasOutstandingItems = incompleteParts.length > 0 || missingCostParts.length > 0 || Boolean(pendingApproval);
+  const hasOutstandingItems = incompleteParts.length > 0 || Boolean(pendingApproval);
+  const outstandingCount = incompleteParts.length + (pendingApproval?.count ?? 0);
   return (
-    <section className="panel drawing-prerequisite-panel" data-capability="submission-readiness">
-      <div className="panel-header"><h2>送審檢查</h2><strong>{hasOutstandingItems ? "需處理" : "可確認送審"}</strong></div>
+    <section className={`panel drawing-prerequisite-panel ${hasOutstandingItems ? "is-blocked" : "is-ready"}`} data-capability="submission-readiness">
+      <div className="drawing-prerequisite-summary"><span>送審檢查</span><strong>{hasOutstandingItems ? `${outstandingCount} 項待補` : "資料已備妥"}</strong></div>
       <div className="drawing-workbench-readiness-list">
-        <ReadinessChip icon={<FileText size={16} />} title="圖面附件" state="由受控檔案摘要確認" />
-        <ReadinessChip icon={<Link2 size={16} />} title="主資料" state={incompleteParts.length > 0 ? `${incompleteParts.length} 筆待補` : "完成"} tone={incompleteParts.length > 0 ? "danger" : "success"} />
-        <ReadinessChip icon={<Workflow size={16} />} title="標準成本" state={missingCostParts.length > 0 ? `${missingCostParts.length} 筆待補` : "完成"} tone={missingCostParts.length > 0 ? "danger" : "success"} />
-        {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={16} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆待審` : "等待主管"} tone="warning" /> : null}
+        {incompleteParts.length > 0 ? <ReadinessChip icon={<Link2 size={15} />} title="主資料" state={`${incompleteParts.length} 筆`} tone="danger" /> : null}
+        {missingCostParts.length > 0 ? <ReadinessChip icon={<DollarSign size={15} />} title="標準成本" state={`${missingCostParts.length} 筆未設定・選填`} /> : null}
+        {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={15} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆` : "等待主管"} tone="warning" /> : null}
+        {!hasOutstandingItems ? <ReadinessChip icon={<FileText size={15} />} title="附件與主資料" state="完成" tone="success" /> : null}
       </div>
     </section>
   );
@@ -555,16 +764,16 @@ function SameRootPartPanel({ drawing, mutationsBlocked, blockedReason, onDataCha
   return (
     <section className="panel same-root-part-panel" data-capability="same-root-part-management">
       <details className="same-root-part-details" open={!allReady}>
-        <summary><h2>同主根號料號</h2><strong>{allReady ? `已完成 · ${drawing.sameRootParts.length} 筆` : `${incompleteParts.length} 筆待補`}</strong></summary>
+        <summary><h2>同根料號</h2><strong>{allReady ? `已完成 · ${drawing.sameRootParts.length} 筆` : `${incompleteParts.length} 筆待補`}</strong></summary>
         <div className="drawing-workbench-part-list">
-          {drawing.sameRootParts.map((part) => <PartMasterDataCard key={part.id} part={part} mutationsBlocked={mutationsBlocked} blockedReason={blockedReason} onDataChanged={onDataChanged} />)}
+          {drawing.sameRootParts.map((part) => <PartMasterDataCard key={part.id} part={part} currentDrawingNumber={drawing.drawingNumber} mutationsBlocked={mutationsBlocked} blockedReason={blockedReason} onDataChanged={onDataChanged} />)}
         </div>
       </details>
     </section>
   );
 }
 
-function PartMasterDataCard({ part, mutationsBlocked, blockedReason, onDataChanged }: { part: SameRootPart; mutationsBlocked: boolean; blockedReason: string; onDataChanged: () => Promise<void> }) {
+function PartMasterDataCard({ part, currentDrawingNumber, mutationsBlocked, blockedReason, onDataChanged }: { part: SameRootPart; currentDrawingNumber: string; mutationsBlocked: boolean; blockedReason: string; onDataChanged: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -608,15 +817,18 @@ function PartMasterDataCard({ part, mutationsBlocked, blockedReason, onDataChang
       <div className="drawing-workbench-part-card-header">
         <div><strong>{part.partNumber}</strong><p>{part.partName}</p></div>
         <div className="drawing-workbench-part-card-actions">
-          {part.standardCostStatus === "missing" ? <Link className="secondary-button" href={partCostHref(part)} data-capability="standard-cost-maintenance"><DollarSign size={16} />補標準成本</Link> : null}
-          <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving || mutationsBlocked} title={mutationsBlocked ? blockedReason : undefined} data-capability="part-variant-maintenance">{editing ? "取消" : missingRequired ? "補主資料" : "編輯主資料"}{mutationsBlocked ? <span className="drawing-workbench-inline-unopened">未開放</span> : null}</button>
+          {part.standardCostStatus === "missing" ? <Link className="secondary-button" href={partCostHref(part)} data-capability="standard-cost-maintenance"><DollarSign size={15} />補成本</Link> : null}
+          <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving || mutationsBlocked} title={mutationsBlocked ? blockedReason : undefined} data-capability="part-variant-maintenance">{editing ? "取消" : missingRequired ? "補資料" : "編輯"}{mutationsBlocked ? <span className="drawing-workbench-inline-unopened">未開放</span> : null}</button>
         </div>
       </div>
-      <div className="pdm-meta-strip">
-        <StatusBadge status={part.recordStatus} context="masterRecord" />
-        <span className={`pdm-meta-chip ${part.standardCostStatus === "active" ? "is-success" : "is-danger"}`}>{standardCostLabel(part)}</span>
-        {missingRequired ? <span className="pdm-meta-chip is-danger">送審資料未完成</span> : null}
-      </div>
+      {!editing ? <div className="drawing-workbench-part-summary">
+        {part.materialLabel || part.materialCode ? <span>材質 {part.materialLabel || part.materialCode}</span> : <span className="is-missing">材質待補</span>}
+        {part.surfaceTreatment ? <span>表面處理 {part.surfaceTreatment}</span> : <span className="is-missing">表面處理待補</span>}
+        {part.colorLabel || part.colorCode ? <span>顏色 {part.colorLabel || part.colorCode}</span> : null}
+        {part.variantNote ? <span>變體 {part.variantNote}</span> : null}
+        {part.standardCostStatus === "missing" ? <span>標準成本未設定（選填）</span> : <span className="is-complete">標準成本完成</span>}
+        {part.primaryDrawingNumber && part.primaryDrawingNumber !== currentDrawingNumber ? <span>主要製造圖 {part.primaryDrawingNumber}</span> : null}
+      </div> : null}
       {editing ? (
         <div className="drawing-workbench-part-edit-grid">
           <label className="pdm-master-field"><span>材質</span><input value={draft.materialLabel} onChange={(event) => setDraft((current) => ({ ...current, materialLabel: event.target.value }))} /><small>送審必要。</small></label>
@@ -626,14 +838,7 @@ function PartMasterDataCard({ part, mutationsBlocked, blockedReason, onDataChang
           {message ? <p className="drawing-workbench-part-error">{message}</p> : null}
           <div className="drawing-workbench-part-edit-actions"><button className="primary-button" type="button" onClick={() => void savePartMasterData()} disabled={saving || missingRequired}>{saving ? "儲存中..." : "儲存主資料"}</button></div>
         </div>
-      ) : (
-        <div className="drawing-workbench-part-info-grid">
-          <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
-          <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
-          <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
-          <InfoBlock icon={<Link2 size={16} />} title="主要製造圖" value={part.primaryDrawingNumber ?? "未連結"} />
-        </div>
-      )}
+      ) : null}
     </article>
   );
 }
@@ -647,20 +852,6 @@ function partDraftFromRecord(part: SameRootPart) {
   };
 }
 
-function variantDescriptor(part: SameRootPart) {
-  const values = [part.surfaceTreatment, part.variantNote].filter(Boolean);
-  return values.length ? values.join(" / ") : "未填";
-}
-
-function standardCostLabel(part: SameRootPart) {
-  if (part.standardCostStatus === "missing") return "標準成本未設定";
-  return part.standardCostProfileName ? `標準成本 active / ${part.standardCostProfileName}` : "標準成本 active";
-}
-
 function partCostHref(part: SameRootPart) {
   return `/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`;
-}
-
-function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
-  return <div className="info-block"><span>{icon}</span><strong>{title}</strong><p>{value}</p></div>;
 }

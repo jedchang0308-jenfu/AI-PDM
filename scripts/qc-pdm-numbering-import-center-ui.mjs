@@ -39,8 +39,8 @@ function seedDuplicateRoot() {
     db.prepare(
       `
       INSERT INTO part_roots (
-        id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, 'QC duplicate root', 'manufactured', 'EVT', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
+        id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, ?, 'QC duplicate root', 'manufactured', 'Active', 'numbering-rule-v1', 'user-admin-demo', ?, ?)
     `
     ).run(`qc-import-root-${unique}`, duplicateRootCode, now, now);
   } finally {
@@ -127,10 +127,10 @@ async function verifyViewport(browser, viewport) {
   const confirmResponse = await confirmResponsePromise;
   record(`Admin confirm applies valid rows at ${viewport.width}px`, confirmResponse.ok(), `HTTP ${confirmResponse.status()}`);
   const confirmedBatchRow = page.locator('[data-import-batch-row="true"]').filter({ hasText: sourceFilename });
-  await confirmedBatchRow.getByText("正式", { exact: true }).waitFor({ timeout: 10_000 });
+  await confirmedBatchRow.getByText("已確認", { exact: true }).waitFor({ timeout: 10_000 });
   record(
-    `Confirmed batch renders with lifecycle stage label at ${viewport.width}px`,
-    (await confirmedBatchRow.getByText("正式", { exact: true }).count()) >= 1
+    `Confirmed batch renders with current batch-status label at ${viewport.width}px`,
+    (await confirmedBatchRow.getByText("已確認", { exact: true }).count()) >= 1
   );
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

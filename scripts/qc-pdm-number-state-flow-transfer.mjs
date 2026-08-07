@@ -499,7 +499,7 @@ try {
     expectedRowVersion: replayPackage.rowVersion
   });
   const officialEventsAfterReplay = db.prepare("SELECT count(*) count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.official_number_published.v1' AND aggregate_id = ?").get(workspaceA.id).count;
-  record("CON-006/EVT-006 second package validates published identity without re-event", replayPublish.publications.length === 1 && !replayPublish.publications[0].newlyPublished && officialEventsAfterReplay === officialEventsBeforeReplay, { officialEventsBeforeReplay, officialEventsAfterReplay });
+  record("CON-006/EVENT-006 second package validates published identity without re-event", replayPublish.publications.length === 1 && !replayPublish.publications[0].newlyPublished && officialEventsAfterReplay === officialEventsBeforeReplay, { officialEventsBeforeReplay, officialEventsAfterReplay });
 
   let immutableSnapshot = false;
   try {

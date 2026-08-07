@@ -149,7 +149,7 @@ function latestAssignmentAudit(roleCode) {
   }
 }
 
-async function verifySettingsUi(cookie, expectedRoleCode) {
+async function verifySettingsUi(cookie, expectedRoleLabel) {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const [viewportName, viewport] of [
@@ -159,17 +159,23 @@ async function verifySettingsUi(cookie, expectedRoleCode) {
       const context = await browser.newContext({ viewport });
       const consoleErrors = [];
       const page = await context.newPage();
+      await page.route("**/api/settings/gdrive/folders**", (route) => route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ folders: [] })
+      }));
       page.on("console", (message) => {
         if (message.type() === "error") consoleErrors.push(message.text());
       });
       page.on("pageerror", (error) => consoleErrors.push(error.message));
       await addCookie(context, cookie);
-      await page.goto(`${apiBaseUrl}/settings`, { waitUntil: "networkidle" });
+      await page.goto(`${apiBaseUrl}/settings/workflow`, { waitUntil: "networkidle" });
+      await page.locator('[data-testid="access-tab-user_access"]').click();
       await page.locator('[data-testid="role-assignment-user"]').waitFor({ timeout: 10_000 });
       await page.locator('[data-testid="role-assignment-role"]').waitFor({ timeout: 10_000 });
       await page.locator('[data-testid="role-assignment-reason"]').waitFor({ timeout: 10_000 });
-      const roleVisible = await page.getByText(expectedRoleCode).count();
-      record(`${viewportName} settings renders role assignment panel`, roleVisible > 0, `${expectedRoleCode} count=${roleVisible}`);
+      const roleVisible = await page.getByText(expectedRoleLabel).count();
+      record(`${viewportName} settings renders role assignment panel`, roleVisible > 0, `${expectedRoleLabel} count=${roleVisible}`);
       record(`${viewportName} settings role assignment panel has no console errors`, consoleErrors.length === 0, consoleErrors.join("\n"));
       await context.close();
     }
@@ -232,7 +238,6 @@ try {
       coreName: `QC cross-role denied ${unique}`,
       partName: `QC cross-role denied ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: false
     },
     403
@@ -261,7 +266,6 @@ try {
       coreName: `QC cross-role grant ${unique}`,
       partName: `QC cross-role grant ${unique}`,
       itemKind: "manufactured",
-      developmentPhase: "EVT",
       drawingRequested: false
     },
     201
@@ -283,7 +287,7 @@ try {
     JSON.stringify(audit)
   );
 
-  await verifySettingsUi(adminCookie, testRoleCode);
+  await verifySettingsUi(adminCookie, `QC Cross Role ${unique}`);
 
   const revoked = await patchMatrix(adminCookie, { operation: "revoke_role_assignment", id: assignment.id, reason: `QC revoke ${unique}` });
   record("Role assignment can be revoked", Boolean(revoked.assignment?.revokedAt), JSON.stringify(revoked.assignment));

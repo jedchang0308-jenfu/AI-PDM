@@ -1,11 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
 import { StatusScopeHelp } from "@/components/status-help-popover";
-import { AlertTriangle, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
 import {
   classifyRevisionPackageFiles,
   evaluateRevisionPackageCompleteness,
@@ -29,7 +29,6 @@ type ResolvedDrawing = {
   drawingNumber: string;
   purposeCode: string;
   purposeDescription: string;
-  developmentPhase: string;
   recordStatus: string;
   rootCode: string | null;
   coreName: string | null;
@@ -40,7 +39,6 @@ type ResolvedPart = {
   partNumber: string;
   partName: string;
   itemKind: string;
-  developmentPhase: string;
   recordStatus: string;
 };
 
@@ -119,7 +117,20 @@ type DrawingSubmissionContext = {
     reasonCodes: string[];
     generatedAt: string;
   };
+  lifecycle?: {
+    state: "preparing" | "in_review" | "correction_required" | "rd_controlled" | "released";
+    correctionReason: string | null;
+  } | null;
   blockers: DrawingSubmissionBlocker[];
+};
+
+type DrawingLifecycleNext = {
+  requestId: string | null;
+  displayStatus: string;
+  primaryAction: "open_exact_review" | "view_progress" | "continue_preparation" | "correct_and_resubmit" | "create_revision" | string;
+  secondaryActions: string[];
+  canonicalHref: string;
+  revision: string;
 };
 
 type ActionableError = {
@@ -141,7 +152,6 @@ const fffOptions: { value: FffState; label: string }[] = [
   { value: "confirmed_impact", label: "確認影響" }
 ];
 
-const reasonOptions = ["標註 / 文字修正", "尺寸 / 公差修正", "材質 / 製程修正", "BOM / 料件影響", "其他"];
 const documentCategoryOptions = [
   { value: "drawing_2d", label: "2D 圖面" },
   { value: "cad_3d", label: "3D CAD" },
@@ -159,16 +169,32 @@ export default function DrawingRevisionPage() {
   );
 }
 
-function DrawingRevisionWorkbench() {
+export type DrawingRevisionWorkbenchProps = {
+  initialDrawingNumber?: string;
+  initialRevision?: string;
+  initialAttachmentIds?: string[];
+  compact?: boolean;
+  initialFocus?: "revision" | "upload";
+  onSubmitted?: (submissionId: string) => void;
+  onClose?: () => void;
+};
+
+export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision, initialAttachmentIds, compact = false, initialFocus = "revision", onSubmitted, onClose }: DrawingRevisionWorkbenchProps = {}) {
   const searchParams = useSearchParams();
-  const initialLookup = getInitialLookup(searchParams);
+  const initialLookup = initialDrawingNumber?.trim()
+    ? { value: initialDrawingNumber.trim(), kind: "drawingNumber" as const }
+    : getInitialLookup(searchParams);
+  const initialRevisionValue = initialRevision?.trim() || getInitialRevision(searchParams);
+  const initialAttachmentIdValues = initialAttachmentIds?.length ? uniqueIds(initialAttachmentIds) : getInitialAttachmentIds(searchParams);
   const workflowIntent = getInitialWorkflowIntent(searchParams);
   const fromNumberStateWorkspace = searchParams.get("source") === "number_state_workspace";
+  const historicalBackfill = searchParams.get("source") === "historical_backfill";
+  const returnTo = getInitialReturnTo(searchParams);
   const [query, setQuery] = useState(initialLookup.value);
   const [lookupKind, setLookupKind] = useState<LookupKind>(initialLookup.kind);
   const [resolved, setResolved] = useState<ResolveResult | null>(null);
-  const [revision, setRevision] = useState("0.1");
-  const [reasonCategory, setReasonCategory] = useState(reasonOptions[0]);
+  const [selectedPartIds, setSelectedPartIds] = useState<string[]>([]);
+  const [revision, setRevision] = useState(initialRevisionValue);
   const [formState, setFormState] = useState<FffState>("no_impact");
   const [fitState, setFitState] = useState<FffState>("no_impact");
   const [functionState, setFunctionState] = useState<FffState>("no_impact");
@@ -182,13 +208,19 @@ function DrawingRevisionWorkbench() {
   const [error, setError] = useState("");
   const [errorGuidance, setErrorGuidance] = useState<ActionableError | null>(null);
   const [createdSubmissionId, setCreatedSubmissionId] = useState("");
+  const [lifecycleNext, setLifecycleNext] = useState<DrawingLifecycleNext | null>(null);
   const [submissionContext, setSubmissionContext] = useState<DrawingSubmissionContext | null>(null);
   const [submissionLoading, setSubmissionLoading] = useState(false);
-  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]);
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>(initialAttachmentIdValues);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<PendingRevisionUploadFile[]>([]);
   const [packageRoleByAttachmentId, setPackageRoleByAttachmentId] = useState<Record<string, RevisionPackageFileRole>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
-  const revisionManuallyEditedRef = useRef(false);
+  const revisionManuallyEditedRef = useRef(Boolean(initialRevisionValue));
+  const revisionIntentLockedRef = useRef(Boolean(initialRevisionValue));
+  const initialRevisionPrefillRef = useRef(initialRevisionValue);
+  const uploadSectionRef = useRef<HTMLElement | null>(null);
+  const submissionSectionRef = useRef<HTMLElement | null>(null);
+  const initialFocusAppliedRef = useRef(false);
 
   const outcome = useMemo(() => {
     if ([formState, fitState, functionState].includes("confirmed_impact")) return "confirmed_impact";
@@ -199,6 +231,7 @@ function DrawingRevisionWorkbench() {
   const comparedPartNumber = correctedPartNumber.trim() || detectedPartNumber.trim();
   const mismatch = replacementRequired && comparedPartNumber && replacementReservedPartNumber.trim() && comparedPartNumber !== replacementReservedPartNumber.trim();
   const changeDescriptionIssues = useMemo(() => validateRevisionChangeDescription(note), [note]);
+  const reasonCategory = useMemo(() => inferRevisionReasonCategory(note), [note]);
   const targetRevision = revision.trim();
   const revisionIntentNotice = useMemo(
     () => buildRevisionIntentNotice(targetRevision, resolved?.latestRevision ?? null, resolved?.suggestedRevision ?? null),
@@ -208,6 +241,13 @@ function DrawingRevisionWorkbench() {
     () => submissionContext?.attachments.filter((attachment) => selectedAttachmentIds.includes(attachment.id)) ?? [],
     [selectedAttachmentIds, submissionContext]
   );
+  const selectedParts = useMemo(
+    () => resolved?.primaryParts.filter((part) => selectedPartIds.includes(part.id)) ?? [],
+    [resolved, selectedPartIds]
+  );
+  const selectedCurrentPart = selectedParts[0] ?? resolved?.selectedPrimaryPart ?? null;
+  const primaryPartSelectionRequired = Boolean(resolved?.primaryParts.length && selectedParts.length === 0);
+  const multiPartReplacementUnsupported = replacementRequired && selectedParts.length > 1;
   const selectedPackageFiles = useMemo(
     () =>
       classifyRevisionPackageFiles(
@@ -257,15 +297,29 @@ function DrawingRevisionWorkbench() {
       return group === "submission_conflict" || group === "state_or_permission_blocked";
     }) ?? [];
   const visibleSubmissionBlockers =
-    submissionContext?.blockers.filter((blocker) => !isJustCreatedSubmissionBlocker(blocker, createdSubmissionId) && !(handledTargetAttachmentGap && blocker.code === "missing_attachment")) ?? [];
+    submissionContext?.blockers.filter(
+      (blocker) =>
+        !isJustCreatedSubmissionBlocker(blocker, createdSubmissionId) &&
+        !(handledTargetAttachmentGap && blocker.code === "missing_attachment") &&
+        !(resolved?.primaryParts.length && resolved.primaryParts.length > 1 && (blocker.code === "multiple_primary_parts" || blocker.code === "missing_primary_part"))
+    ) ?? [];
+  const uploadSubmissionBlockers = visibleSubmissionBlockers.filter(
+    (blocker) => submissionBlockerGroup(blocker) === "attachment_conflict"
+  );
+  const submitConditionBlockers = visibleSubmissionBlockers.filter(
+    (blocker) => submissionBlockerGroup(blocker) !== "attachment_conflict"
+  );
   const canUploadRevisionAttachment = Boolean(resolved?.drawing) && busy !== "submitting" && !submissionLoading && !attachmentBusy && hardSubmissionBlockers.length === 0;
   const canCreateRevisionSubmission =
     busy === "idle" &&
+    !lifecycleNext &&
     Boolean(resolved?.drawing) &&
     Boolean(submissionContext) &&
     Boolean(revision.trim()) &&
     !submissionLoading &&
     selectedAttachmentIds.length > 0 &&
+    !primaryPartSelectionRequired &&
+    !multiPartReplacementUnsupported &&
     (submissionContext?.blockers.length ?? 0) === 0 &&
     selectedReleaseConflicts.length === 0 &&
     !selectedRevisionMismatch &&
@@ -280,40 +334,28 @@ function DrawingRevisionWorkbench() {
   }, []);
 
   useEffect(() => {
-    const drawingNumber = resolved?.drawing?.drawingNumber;
-    const targetRevision = revision.trim();
-    if (!drawingNumber || !targetRevision) {
-      setSubmissionContext(null);
-      setSelectedAttachmentIds([]);
-      setPackageRoleByAttachmentId({});
-      setPendingUploadFiles([]);
-      setCreatedSubmissionId("");
-      return;
-    }
-    setCreatedSubmissionId("");
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      void loadSubmissionContext(drawingNumber, targetRevision, {
-        signal: controller.signal,
-        preserveSelection: true
-      });
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [resolved?.drawing?.drawingNumber, revision, workflowIntent]);
+    if (!compact || initialFocusAppliedRef.current || !resolved?.drawing) return;
+    initialFocusAppliedRef.current = true;
+    const target = initialFocus === "upload" ? uploadSectionRef.current : submissionSectionRef.current;
+    window.requestAnimationFrame(() => {
+      target?.scrollIntoView({ block: "start" });
+      target?.focus({ preventScroll: true });
+    });
+  }, [compact, initialFocus, resolved?.drawing]);
 
   async function resolveDrawing(nextQuery = query, nextLookupKind = lookupKind) {
     const text = nextQuery.trim();
     if (!text) return;
-    revisionManuallyEditedRef.current = false;
+    // React development mode may run the initial effect twice. Keep the
+    // explicit historical target locked for every resolve of the entry drawing.
+    const preserveInitialRevision = Boolean(initialRevisionPrefillRef.current) && text === initialLookup.value;
+    revisionManuallyEditedRef.current = preserveInitialRevision;
+    revisionIntentLockedRef.current = preserveInitialRevision;
     setBusy("resolving");
     setError("");
     setErrorGuidance(null);
     setMessage("");
+    setLifecycleNext(null);
     const params = new URLSearchParams({ limit: "8" });
     params.set(nextLookupKind, text);
     params.set("workflowIntent", workflowIntent);
@@ -325,17 +367,26 @@ function DrawingRevisionWorkbench() {
       setSubmissionContext(null);
       setSelectedAttachmentIds([]);
       setCreatedSubmissionId("");
+      setLifecycleNext(null);
       setErrorGuidance(null);
       setError(humanError(body.error ?? "drawing_resolve_failed"));
       return;
     }
     const nextResolved = body as ResolveResult;
     setResolved(nextResolved);
+    setSelectedPartIds(
+      nextResolved.primaryParts.length > 0
+        ? nextResolved.primaryParts.map((part) => part.id)
+        : nextResolved.selectedPrimaryPart
+          ? [nextResolved.selectedPrimaryPart.id]
+          : []
+    );
     if (nextResolved.suggestedRevision && !revisionManuallyEditedRef.current) setRevision(nextResolved.suggestedRevision);
     if (!nextResolved.drawing) {
       setSubmissionContext(null);
       setSelectedAttachmentIds([]);
       setCreatedSubmissionId("");
+      setLifecycleNext(null);
       setErrorGuidance(null);
       setError(resolveStatusMessage(nextResolved));
     }
@@ -347,13 +398,14 @@ function DrawingRevisionWorkbench() {
     await resolveDrawing(drawingNumber, "drawingNumber");
   }
 
-  async function loadSubmissionContext(
+  const loadSubmissionContext = useCallback(async function loadSubmissionContext(
     drawingNumber: string,
     targetRevision: string,
     options: { signal?: AbortSignal; preserveSelection?: boolean; selectAttachmentId?: string; selectAttachmentIds?: string[] } = {}
   ) {
     setSubmissionLoading(true);
     const params = new URLSearchParams({ revision: targetRevision, workflowIntent });
+    if (selectedPartIds.length > 0) params.set("partNumberIds", selectedPartIds.join(","));
     try {
       const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/submission-workbench?${params.toString()}`, {
         signal: options.signal
@@ -366,7 +418,7 @@ function DrawingRevisionWorkbench() {
       setSubmissionContext(nextContext);
       const serverSuggestedRevision =
         nextContext.revisionPolicySuggestion?.suggestedRevision ?? nextContext.suggestedRevision.policySuggestedRevision;
-      if (!revisionManuallyEditedRef.current && serverSuggestedRevision && serverSuggestedRevision !== targetRevision) {
+      if (!revisionManuallyEditedRef.current && !revisionIntentLockedRef.current && serverSuggestedRevision && serverSuggestedRevision !== targetRevision) {
         setRevision(serverSuggestedRevision);
       }
       setPackageRoleByAttachmentId((current) => {
@@ -401,10 +453,13 @@ function DrawingRevisionWorkbench() {
     } finally {
       if (!options.signal?.aborted) setSubmissionLoading(false);
     }
-  }
+  }, [selectedPartIds, workflowIntent]);
 
   async function uploadRevisionAttachment() {
     if (!resolved?.drawing || pendingUploadFiles.length === 0 || attachmentBusy) return;
+    // Selecting files for this target revision is an explicit user commitment;
+    // a post-upload context refresh must not advance it to the next suggestion.
+    revisionIntentLockedRef.current = true;
     setAttachmentBusy(true);
     setError("");
     setErrorGuidance(null);
@@ -514,6 +569,7 @@ function DrawingRevisionWorkbench() {
     setError("");
     setErrorGuidance(null);
     setMessage("");
+    setLifecycleNext(null);
     const response = await fetch("/api/numbering/drawing-revisions/submissions", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -536,7 +592,8 @@ function DrawingRevisionWorkbench() {
         replacementItemType,
         detectedPartNumber: detectedPartNumber.trim() || null,
         correctedPartNumber: correctedPartNumber.trim() || null,
-        currentPartNumberId: resolved.selectedPrimaryPart?.id ?? null,
+        currentPartNumberId: selectedCurrentPart?.id ?? null,
+        partNumberIds: selectedParts.map((part) => part.id),
         note: note.trim() || null,
         idempotencyKey: newSubmissionIdempotencyKey()
       })
@@ -550,45 +607,115 @@ function DrawingRevisionWorkbench() {
       setErrorGuidance(nextError);
       return;
     }
-    setMessage(
-      body.replacementDraft
-        ? `已建立送審 ${body.submissionId}，替代料號草稿 ${body.replacementDraft.reservedPartNumber}。`
-        : outcome === "suspected_impact"
-          ? `已建立圖面進版送審 ${body.submissionId}，目前審核中。`
+    if (body.lifecycle === true && typeof body.canonicalHref === "string") {
+      setLifecycleNext({
+        requestId: typeof body.requestId === "string" ? body.requestId : null,
+        displayStatus: String(body.displayStatus ?? "送審中"),
+        primaryAction: String(body.primaryAction ?? "view_progress"),
+        secondaryActions: Array.isArray(body.secondaryActions) ? body.secondaryActions.map(String) : [],
+        canonicalHref: body.canonicalHref,
+        revision: String(body.revision ?? revision)
+      });
+      setMessage("送審已建立。系統已整理好下一步。");
+    } else {
+      setMessage(
+        body.replacementDraft
+          ? `已建立送審 ${body.submissionId}，替代料號草稿 ${body.replacementDraft.reservedPartNumber}。`
           : `已建立圖面進版送審 ${body.submissionId}，目前審核中。`
-    );
-    setCreatedSubmissionId(typeof body.submissionId === "string" ? body.submissionId : "");
+      );
+    }
+    const submittedId = typeof body.submissionId === "string" ? body.submissionId : "";
+    setCreatedSubmissionId(submittedId);
+    if (submittedId) onSubmitted?.(submittedId);
     await loadSubmissionContext(resolved.drawing.drawingNumber, revision.trim(), { preserveSelection: true });
   }
 
+  useEffect(() => {
+    const drawingNumber = resolved?.drawing?.drawingNumber;
+    const targetRevision = revision.trim();
+    if (!drawingNumber || !targetRevision) {
+      setSubmissionContext(null);
+      setSelectedAttachmentIds([]);
+      setPackageRoleByAttachmentId({});
+      setPendingUploadFiles([]);
+      setCreatedSubmissionId("");
+      setLifecycleNext(null);
+      return;
+    }
+    setCreatedSubmissionId("");
+    setLifecycleNext(null);
+    setSubmissionLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      void loadSubmissionContext(drawingNumber, targetRevision, {
+        signal: controller.signal,
+        preserveSelection: true
+      });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [loadSubmissionContext, resolved?.drawing?.drawingNumber, revision]);
+
+  async function withdrawLifecycleReview() {
+    if (!lifecycleNext?.requestId || busy !== "idle") return;
+    setBusy("submitting");
+    setError("");
+    const response = await fetch(`/api/approvals/requests/${encodeURIComponent(lifecycleNext.requestId)}/withdraw`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": `drawing-lifecycle-withdraw:${lifecycleNext.requestId}:${crypto.randomUUID()}`
+      },
+      body: "{}"
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy("idle");
+    if (!response.ok || !body.lifecycle) {
+      setError(body.message ?? body.error ?? "撤回失敗，請重新整理後再試。");
+      return;
+    }
+    setLifecycleNext({
+      requestId: null,
+      displayStatus: String(body.lifecycle.displayStatus ?? "準備中"),
+      primaryAction: String(body.lifecycle.primaryAction ?? "continue_preparation"),
+      secondaryActions: [],
+      canonicalHref: String(body.lifecycle.canonicalHref ?? `/numbering/revisions?drawingNumber=${encodeURIComponent(resolved?.drawing?.drawingNumber ?? "")}`),
+      revision: String(body.lifecycle.revision ?? revision)
+    });
+    setMessage("已撤回；內容仍保留，可繼續修正後再送審。");
+  }
+
   return (
-    <>
-      <div className="topbar">
+    <div className={`drawing-revision-page${compact ? " is-compact" : ""}`}>
+      {!compact ? <div className="topbar">
         <div>
           <h1>圖面進版 <StatusScopeHelp scope="revisionSubmission" /></h1>
-          <p>{fromNumberStateWorkspace ? "已從保留號帶入正式圖號；請在此確認版次並建立首版圖面送審。" : "輸入正式圖號後上傳新版圖面，建立審核中送審並關聯 Form / Fit / Function 判定。"}</p>
+          <p>{historicalBackfill ? "補登舊版；核准後只進歷史，不取代最新版。" : fromNumberStateWorkspace ? "確認版次，建立首版送審。" : "定位圖號、上傳新版、完成 FFF 判定後送審。"}</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => window.location.reload()}>
-          <RotateCcw size={16} />
-          重新整理
-        </button>
-      </div>
+        <div className="drawing-revision-topbar-actions">
+          {returnTo ? <a className="secondary-button" href={returnTo}><ArrowLeft size={16} />返回圖號</a> : null}
+          <button className="secondary-button" type="button" onClick={() => window.location.reload()}>
+            <RotateCcw size={16} />
+            重新整理
+          </button>
+        </div>
+      </div> : onClose ? <div className="drawing-revision-embed-header"><div><strong>{initialRevisionValue ? `補登歷史版 ${initialRevisionValue}` : "圖面進版與送審"}</strong><span>{initialDrawingNumber}</span></div><button className="secondary-button" type="button" onClick={onClose}>收合</button></div> : null}
 
-      <section className="panel" style={workbenchHeroStyle}>
-        <div>
-          <span style={eyebrowStyle}>Drawing Revision Workbench</span>
-          <h2 style={heroTitleStyle}>先定位圖號，再建立受控進版送審</h2>
-          <p style={mutedTextStyle}>流程包含正式圖號查詢、新版圖面附件、FFF 判定、必要時建立替代料號草稿。</p>
-        </div>
+      {!compact ? <section className="drawing-revision-progress" aria-label="圖面進版流程">
+        <strong>進版流程</strong>
         <div style={stepStripStyle}>
-          <StepPill active={!resolved?.drawing} done={Boolean(resolved?.drawing)} label="1 圖號定位" />
-          <StepPill active={Boolean(resolved?.drawing)} done={selectedAttachmentIds.length > 0} label="2 新版圖面" />
-          <StepPill active={Boolean(resolved?.drawing && selectedAttachmentIds.length > 0)} done={false} label="3 FFF 判定" />
+          <StepPill active={!resolved?.drawing} done={Boolean(resolved?.drawing)} label="1 定位" />
+          <StepPill active={Boolean(resolved?.drawing)} done={selectedAttachmentIds.length > 0} label="2 新版" />
+          <StepPill active={Boolean(resolved?.drawing && selectedAttachmentIds.length > 0)} done={false} label="3 FFF" />
           <StepPill active={replacementRequired} done={false} label="4 替代料號" />
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel">
+      <section className="panel" ref={submissionSectionRef} tabIndex={-1}>
         <div className="panel-header">
           <div>
             <h2>圖號定位</h2>
@@ -605,16 +732,18 @@ function DrawingRevisionWorkbench() {
             解析圖號
           </button>
         </div>
-        <div style={resolveStateStyle(resolved?.status, Boolean(resolved?.drawing))}>
-          <strong>{resolved?.drawing ? "已定位圖號" : "尚未定位圖號"}</strong>
-          <span>{resolved?.drawing ? `${resolved.drawing.drawingNumber} 已載入，內部 ID 已由系統處理。` : "請輸入正式圖號或料號後按「解析圖號」，不要填 UUID。"}</span>
-        </div>
+        {!resolved?.drawing ? (
+          <div style={resolveStateStyle(resolved?.status, Boolean(resolved?.drawing))}>
+            <strong>{resolved?.drawing ? "已定位圖號" : "尚未定位圖號"}</strong>
+            <span>{resolved?.drawing ? resolved.drawing.drawingNumber : "輸入圖號或料號後解析"}</span>
+          </div>
+        ) : null}
         <div style={lookupGridStyle}>
           <label style={fieldStyle}>
             <span style={fieldLabelStyle}>正式圖號 / 料號</span>
             <input
               className="text-input"
-              placeholder="請輸入，例如 A0001-M01 或 A0001-P01"
+              placeholder="例如 A0001-M01 / A0001-P01"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -626,45 +755,46 @@ function DrawingRevisionWorkbench() {
             />
           </label>
           <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>新版次</span>
-            <input
-              className="text-input"
-              value={revision}
+              <span style={fieldLabelStyle}>新版次（自動建議，可修改）</span>
+              <input
+                className="text-input"
+                placeholder="系統自動帶入"
+                value={revision}
               onChange={(event) => {
                 revisionManuallyEditedRef.current = true;
+                revisionIntentLockedRef.current = true;
                 setRevision(event.target.value);
               }}
             />
           </label>
-          <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>變更原因</span>
-            <select className="dropdown-select" value={reasonCategory} onChange={(event) => setReasonCategory(event.target.value)}>
-              {reasonOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
-        {revisionIntentNotice ? (
+        {revisionIntentNotice?.tone === "history" ? (
           <div style={revisionIntentNoticeStyle(revisionIntentNotice.tone)}>
             <Info size={16} />
             <span>{revisionIntentNotice.text}</span>
           </div>
         ) : null}
-        {resolved?.drawing ? <ResolvedSummary result={resolved} /> : null}
+        {resolved?.drawing ? <ResolvedSummary result={resolved} selectedPartIds={selectedPartIds} /> : null}
+        {submissionContext?.lifecycle?.state === "correction_required" ? (
+          <div style={nextActionBoxStyle} data-drawing-correction-reason>
+            <strong>請修正後重新送審</strong>
+            <span>
+              {submissionContext.lifecycle.correctionReason?.trim()
+                ? `審核者說明：${submissionContext.lifecycle.correctionReason.trim()}`
+                : "審核者未填理由；請確認附件與變更內容後重新送審。"}
+            </span>
+          </div>
+        ) : null}
         {resolved?.status === "ambiguous_query" ? <CandidateList candidates={resolved.candidates} onPick={pickCandidate} /> : null}
         {resolved && !resolved.drawing && resolved.status !== "ambiguous_query" ? <p style={errorTextStyle}>{resolveStatusMessage(resolved)}</p> : null}
       </section>
 
-      <section className="panel">
+      <section className="panel" ref={uploadSectionRef} tabIndex={-1}>
         <div className="panel-header">
           <div>
-            <h2>新版圖面</h2>
+            <h2>{revisionIntentNotice?.tone === "history" ? "歷史版圖面" : "新版圖面"}</h2>
             <p style={mutedTextStyle}>本區只顯示版次 {revision.trim() || "-"} 可納入本次送審的檔案；其他版次只保留在參考區。</p>
           </div>
-          <span className="section-label">進版 {revision.trim() || "-"}</span>
         </div>
         {!resolved?.drawing ? (
           <p style={hintTextStyle}>
@@ -673,11 +803,11 @@ function DrawingRevisionWorkbench() {
           </p>
         ) : (
           <>
-            <div style={attachmentToolsGridStyle}>
+            <div className="drawing-revision-attachment-tools" style={attachmentToolsGridStyle}>
               <div style={attachmentDropzoneStyle}>
                 <FileDropzone
                   label="上傳版次檔案包"
-                  description={`版次 ${revision.trim() || "-"}，可一次加入 2D / 3D / PDF / DWG / DXF / STEP`}
+                  description="選擇本次送審檔案"
                   multiple
                   selectedFiles={pendingUploadFiles.map((item) => item.file)}
                   variant="compact"
@@ -715,9 +845,8 @@ function DrawingRevisionWorkbench() {
 
             {pendingUploadFiles.length > 0 ? (
               <div style={pendingFileListStyle}>
-                <div style={pendingFileListHeaderStyle}>
-                  <strong>待加入檔案 {pendingUploadFiles.length} 個</strong>
-                  <span style={mutedTextStyle}>系統已依副檔名分類；若判斷錯誤，請在加入附件庫前修正。</span>
+              <div style={pendingFileListHeaderStyle}>
+                  <strong>待加入 {pendingUploadFiles.length} 個</strong>
                 </div>
                 {pendingUploadFiles.map((pending) => (
                   <div key={pending.key} style={pendingFileRowStyle}>
@@ -755,9 +884,9 @@ function DrawingRevisionWorkbench() {
               </p>
             ) : null}
 
-            {visibleSubmissionBlockers.length ? (
+            {uploadSubmissionBlockers.length ? (
               <div style={blockerListStyle}>
-                {visibleSubmissionBlockers.map((blocker) => (
+                {uploadSubmissionBlockers.map((blocker) => (
                   <p key={`${blocker.code}-${blocker.message}`} style={warningTextStyle}>
                     <AlertTriangle size={16} />
                     {blocker.message}
@@ -785,7 +914,7 @@ function DrawingRevisionWorkbench() {
                   const packageFile = selectedPackageFileByAttachmentId.get(attachment.id);
                   const packageRole = packageRoleForAttachment(attachment, packageRoleByAttachmentId);
                   return (
-                    <div key={attachment.id} style={{ ...attachmentRowStyle, opacity: disabled && !selectedAttachmentIds.includes(attachment.id) ? 0.62 : 1 }}>
+                    <div className="drawing-revision-attachment-row" key={attachment.id} style={{ ...attachmentRowStyle, opacity: disabled && !selectedAttachmentIds.includes(attachment.id) ? 0.62 : 1 }}>
                       <input
                         type="checkbox"
                         aria-label={`選擇 ${attachment.displayName || attachment.fileName}`}
@@ -821,7 +950,7 @@ function DrawingRevisionWorkbench() {
                         </select>
                         {packageFile?.source === "user" ? <span style={mutedTextStyle}>已手動修正</span> : null}
                       </label>
-                      {selectedAttachmentIds.includes(attachment.id) ? <span style={selectedBadgeStyle}>本次送審</span> : null}
+                      {selectedAttachmentIds.includes(attachment.id) ? <span className="drawing-revision-selected-badge" style={selectedBadgeStyle}>本次送審</span> : null}
                     </div>
                   );
                 })}
@@ -857,15 +986,97 @@ function DrawingRevisionWorkbench() {
         )}
       </section>
 
+      {resolved?.drawing && resolved.primaryParts.length > 1 ? (
+        <section className="panel" aria-labelledby="current-part-selection-title">
+          <div className="panel-header">
+            <div>
+              <h2 id="current-part-selection-title">本次一起進版的料號</h2>
+              <p style={mutedTextStyle}>預設全選同圖料號；一筆送審共用附件與版次，核准時整批同步。</p>
+            </div>
+            <a className="secondary-button" href={`/numbering/drawings?query=${encodeURIComponent(resolved.drawing.drawingNumber)}`}>
+              查看圖料關係
+            </a>
+          </div>
+          <fieldset style={partSelectionFieldsetStyle}>
+            <legend style={fieldLabelStyle}>選擇受本次圖面版次影響的料號</legend>
+            <div style={partSelectionGridStyle}>
+              {resolved.primaryParts.map((part) => {
+                const checked = selectedPartIds.includes(part.id);
+                return (
+                  <label key={part.id} style={partSelectionOptionStyle(checked)}>
+                    <input
+                      type="checkbox"
+                      name="revision-part-scope"
+                      value={part.id}
+                      checked={checked}
+                      disabled={busy === "submitting" || submissionLoading}
+                      onChange={(event) => {
+                        setSelectedPartIds((current) =>
+                          event.target.checked
+                            ? Array.from(new Set([...current, part.id]))
+                            : current.filter((id) => id !== part.id)
+                        );
+                        setError("");
+                        setErrorGuidance(null);
+                        setMessage("");
+                      }}
+                    />
+                    <span style={attachmentInfoStyle}>
+                      <strong>{part.partNumber}</strong>
+                      <span style={mutedTextStyle}>{part.partName || "未填品名"}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          {primaryPartSelectionRequired ? (
+            <p style={selectionPromptStyle}>
+              <Info size={16} />
+              請至少保留一個料號；若三個料號都使用這張圖，應維持全選。
+            </p>
+          ) : (
+            <p style={selectionConfirmedStyle}>
+              <CheckCircle2 size={16} />
+              本次共 {selectedParts.length} 個料號：{selectedParts.map((part) => part.partNumber).join("、")}。核准時全成或全退。
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {submitConditionBlockers.length > 0 ? (
+        <section className="panel" aria-labelledby="submit-condition-title">
+          <div className="panel-header">
+            <div>
+              <h2 id="submit-condition-title">送審條件未完成</h2>
+              <p style={mutedTextStyle}>這些是建立送審前的必要條件，與檔案上傳本身無關。</p>
+            </div>
+          </div>
+          <div style={submitConditionListStyle} role="alert">
+            {submitConditionBlockers.map((blocker) => (
+              <div key={`${blocker.code}-${blocker.message}`} style={submitConditionRowStyle}>
+                <AlertTriangle size={16} />
+                <span>{blocker.message}</span>
+                {blocker.recoveryHref ? (
+                  <a className="secondary-button" href={blocker.recoveryHref}>
+                    前往處理
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="panel">
         <div className="panel-header">
           <div>
             <h2>FFF 判定</h2>
-            <p style={mutedTextStyle}>只要任一項為確認影響，就必須建立替代料號草稿並比對新版圖面上的料號讀值。</p>
+            <p style={mutedTextStyle}>此 FFF 判定套用本次選取的 {selectedParts.length || 0} 個料號；只要任一項為確認影響，就必須建立替代料號草稿。</p>
           </div>
           <button className={canCreateRevisionSubmission ? "primary-button" : "secondary-button"} type="button" onClick={submitAssessment} disabled={!canCreateRevisionSubmission} style={!canCreateRevisionSubmission ? disabledActionStyle : undefined}>
             {busy === "submitting" ? <Loader2 size={16} /> : <Send size={16} />}
-            建立圖面進版送審
+            建立送審（1 張圖・{selectedParts.length || 0} 個料號）
           </button>
         </div>
 
@@ -880,6 +1091,12 @@ function DrawingRevisionWorkbench() {
           <strong>{outcomeLabel(outcome)}</strong>
           <span style={mutedTextStyle}>{outcomeMessage(outcome)}</span>
         </div>
+        {multiPartReplacementUnsupported ? (
+          <p style={warningTextStyle} role="alert">
+            <AlertTriangle size={16} />
+            確認影響會產生替代料號；多個舊料號不能共用一個替代號。請先只保留一個料號完成替代流程。
+          </p>
+        ) : null}
       </section>
 
       {replacementRequired ? (
@@ -919,13 +1136,10 @@ function DrawingRevisionWorkbench() {
 
       <section className="panel">
         <label style={fieldStyle}>
-          <span style={fieldLabelStyle}>變更說明 / 備註（必填）</span>
-          <textarea className="text-input" rows={4} maxLength={100} value={note} onChange={(event) => setNote(event.target.value)} placeholder="請填 5 到 100 字，例如：修正尺寸標註，Form/Fit/Function 無影響。" />
+          <span style={fieldLabelStyle}>變更原因（必填，5–100 字）</span>
+          <textarea className="text-input" rows={3} maxLength={100} value={note} onChange={(event) => setNote(event.target.value)} placeholder="例如：修正尺寸標註，FFF 無影響。" />
         </label>
-        <p style={changeDescriptionIssues.length > 0 ? warningTextStyle : mutedTextStyle}>
-          {changeDescriptionIssues.length > 0 ? changeDescriptionIssues[0] : "請簡短寫明本次修改原因。"}
-        </p>
-        {changeDescriptionIssues.length > 0 ? <p style={mutedTextStyle}>下一步：請在此欄補上 5 到 100 字的變更說明，再建立圖面進版送審。</p> : null}
+        {changeDescriptionIssues.length > 0 ? <p style={warningTextStyle}>{changeDescriptionIssues[0]} 請補上後再送審。</p> : null}
         {!resolved?.drawing ? (
           <p style={hintTextStyle}>
             <Info size={16} />
@@ -947,7 +1161,31 @@ function DrawingRevisionWorkbench() {
           </p>
         ) : null}
         {message ? <p style={successTextStyle}>{message}</p> : null}
-        {createdSubmissionId ? (
+        {lifecycleNext ? (
+          <div style={nextActionBoxStyle} aria-live="polite" data-drawing-lifecycle-next>
+            <strong>{lifecycleNext.displayStatus}</strong>
+            <span>版次 {lifecycleNext.revision}。{lifecycleNext.displayStatus === "送審中" ? "等待審核；不需要另外到送審明細頁。" : "內容已保留，可從同一圖號繼續。"}</span>
+            <div className="next-step-inline-actions">
+              <a className="primary-button" href={lifecycleNext.canonicalHref}>
+                {lifecycleNext.primaryAction === "open_exact_review"
+                  ? "前往審核"
+                  : lifecycleNext.primaryAction === "view_progress"
+                    ? "查看進度"
+                    : lifecycleNext.primaryAction === "correct_and_resubmit"
+                      ? "繼續修正"
+                      : lifecycleNext.primaryAction === "create_revision"
+                        ? "建立新版"
+                        : "繼續準備"}
+              </a>
+              {lifecycleNext.secondaryActions.includes("withdraw_before_decision") && lifecycleNext.requestId ? (
+                <button className="secondary-button" type="button" onClick={() => void withdrawLifecycleReview()} disabled={busy !== "idle"}>
+                  撤回送審
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        {createdSubmissionId && !lifecycleNext ? (
           <div style={nextActionBoxStyle} aria-live="polite">
             <strong>送審已建立，下一步是進到審核頁處理。</strong>
             <span>版次 {revision.trim() || "-"} 目前是審核中，不是正式發布；附件庫只保留這次送審用檔案供比對。</span>
@@ -958,26 +1196,29 @@ function DrawingRevisionWorkbench() {
               <a className="secondary-button" href="/numbering/change-reviews">
                 查看圖面進版影響審核
               </a>
+              {returnTo ? <a className="secondary-button" href={returnTo}>返回圖號</a> : null}
             </div>
           </div>
         ) : null}
         {errorGuidance ? <ActionableErrorPanel error={errorGuidance} /> : error ? <p style={errorTextStyle}>{error}</p> : null}
       </section>
-    </>
+    </div>
   );
 }
 
-function ResolvedSummary({ result }: { result: ResolveResult }) {
+function ResolvedSummary({ result, selectedPartIds }: { result: ResolveResult; selectedPartIds: string[] }) {
   const drawing = result.drawing;
   if (!drawing) return null;
+  const selectedParts = result.primaryParts.filter((part) => selectedPartIds.includes(part.id));
+  const selectedPart = selectedParts[0] ?? result.selectedPrimaryPart;
   return (
     <div style={summaryGridStyle}>
-      <SummaryItem label="正式圖號" value={drawing.drawingNumber} />
-      <SummaryItem label="內部圖號 ID" value={drawing.id} />
-      <SummaryItem label="主料號" value={result.selectedPrimaryPart?.partNumber ?? primaryPartFallback(result)} />
-      <SummaryItem label="品名 / 根代碼" value={result.selectedPrimaryPart?.partName ?? drawing.coreName ?? drawing.rootCode ?? "-"} />
-      <SummaryItem label="最新送審版次" value={result.latestRevision ?? "尚無送審紀錄"} />
-      <SummaryItem label="建議新版次" value={result.suggestedRevision} />
+      <SummaryItem
+        label={selectedParts.length > 1 ? `本次料號（${selectedParts.length}）` : "本次料號"}
+        value={selectedParts.length > 1 ? selectedParts.map((part) => part.partNumber).join("、") : selectedPart?.partNumber ?? primaryPartFallback(result)}
+      />
+      <SummaryItem label="品名 / 根代碼" value={selectedPart?.partName ?? drawing.coreName ?? drawing.rootCode ?? "-"} />
+      <SummaryItem label="現有版次" value={result.latestRevision ?? "-"} />
     </div>
   );
 }
@@ -1063,7 +1304,7 @@ function RevisionPackageWarningPanel({ warnings, audience }: { warnings: Revisio
 }
 
 function primaryPartFallback(result: ResolveResult) {
-  if (result.status === "multiple_primary_parts") return `多筆主料號：${result.primaryParts.map((part) => part.partNumber).join(", ")}`;
+  if (result.status === "multiple_primary_parts") return `${result.primaryParts.length} 個關聯料號（待選擇）`;
   if (result.status === "resolved_with_missing_part") return "未建立主製造料號連結";
   return "-";
 }
@@ -1072,7 +1313,7 @@ function resolveStatusMessage(result: ResolveResult) {
   if (result.status === "not_found") return "找不到這個圖號或料號，請確認輸入的是正式編號。";
   if (result.status === "ambiguous_query") return "查到多筆圖號，請選擇正確圖號後再送出。";
   if (result.status === "resolved_with_missing_part") return "圖號已找到，但沒有主製造料號連結；確認影響時需先補齊料號連結。";
-  if (result.status === "multiple_primary_parts") return "圖號已找到，但有多筆主製造料號；確認影響前需先釐清主料號。";
+  if (result.status === "multiple_primary_parts") return "此圖號服務多個料號；請選擇本次送審要判定與同步的料號。";
   return "請輸入正式圖號或料號。";
 }
 
@@ -1097,7 +1338,13 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
     case "drawing_number_ambiguous":
       return "查到多筆可能圖號，請先在圖號定位區選定一筆。";
     case "primary_part_ambiguous":
-      return `此圖號連到多筆主料號，需先清理主料號連結：${detailList(details, "primaryParts")}`;
+      return `此圖號服務多個料號，請選擇本次送審料號：${detailList(details, "primaryParts")}`;
+    case "multiple_primary_parts":
+      return fallbackMessage || "此圖號服務多個料號，請先選擇本次送審料號。";
+    case "DRAWING_SUBMISSION_PRIMARY_PART_INVALID":
+      return "所選料號已不在此圖號的主要製造關聯中，請重新整理後再選擇。";
+    case "DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED":
+      return fallbackMessage || "確認影響時，多個舊料號不能共用一個替代料號。";
     case "replacement_part_number_required":
       return "確認影響時必須填替代料號草稿。";
     case "drawing_part_number_read_required":
@@ -1147,9 +1394,9 @@ function buildSubmissionErrorGuidance(codeValue: unknown, details: unknown, fall
   if (code === "DRAWING_SUBMISSION_VALIDATION_FAILED") {
     return {
       title,
-      reasons: reasons.length > 0 ? reasons : [fallbackReason || "送審必填資料或變更說明未通過檢查。"],
+      reasons: reasons.length > 0 ? reasons : [fallbackReason || "送審必填資料或變更原因未通過檢查。"],
       nextStep: reasons.some((reason) => reason.includes("變更原因"))
-        ? "請在「變更說明 / 備註」補上 5 到 100 字且可讓審核者理解的變更原因，再重新送審。"
+        ? "請在「變更原因」補上 5 到 100 字，再重新送審。"
         : "請依上列原因補齊主資料、附件或欄位內容後，再重新送審。",
       detail
     };
@@ -1181,6 +1428,8 @@ function nextStepForSubmissionError(code: string) {
       return "請先在「新版圖面」上傳並勾選本次版次的圖面附件。";
     case "DRAWING_SUBMISSION_REVISION_MISMATCH":
       return "請移除版次不一致的附件，或把本次新版次改成附件實際版次。";
+    case "DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED":
+      return "請只保留一個料號完成替代料號流程；其他料號另行判定後再送審。";
     case "same_revision_in_progress":
     case "duplicate_active_submission":
       return "請先查看既有送審；若不再送審，取消審核中送審後再重新建立。";
@@ -1245,19 +1494,28 @@ function revisionSubmissionDisabledReason(
   if (revisionMismatch) return "選取附件版次與本次進版版次不一致。";
   if (selectedAttachmentIds.length === 0 && context.attachments.length > 0 && referenceRevisionLabels.length > 0) return missingTargetRevisionAttachmentMessage(targetRevision, referenceRevisionLabels);
   if (selectedAttachmentIds.length === 0) return "請勾選至少一個新版圖面附件納入本次送審。";
-  if (changeDescriptionIssues.length > 0) return `${changeDescriptionIssues[0]} 請先補齊變更說明後再送出。`;
+  if (changeDescriptionIssues.length > 0) return `${changeDescriptionIssues[0]} 請先補齊變更原因後再送出。`;
   if (context.blockers.length > 0) return humanError(context.blockers[0].code, undefined, context.blockers[0].message);
   return "請確認 FFF 判定與替代料號資料。";
 }
 
 function validateRevisionChangeDescription(value: string) {
   const text = value.trim();
-  if (text.length < 5) return ["變更說明需為 5 到 100 個字。"];
-  if (text.length > 100) return ["變更說明最多 100 個字。"];
-  if (/^\d+$/.test(text)) return ["變更說明不可只有數字。"];
-  if (weakRevisionChangeDescriptions.has(text.toLowerCase())) return ["變更說明過於籠統，請描述本次圖面進版原因。"];
-  if (!/[A-Za-z\u4e00-\u9fff]/.test(text)) return ["變更說明需包含文字。"];
+  if (text.length < 5) return ["變更原因需為 5 到 100 個字。"];
+  if (text.length > 100) return ["變更原因最多 100 個字。"];
+  if (/^\d+$/.test(text)) return ["變更原因不可只有數字。"];
+  if (weakRevisionChangeDescriptions.has(text.toLowerCase())) return ["變更原因過於籠統，請描述本次圖面進版原因。"];
+  if (!/[A-Za-z\u4e00-\u9fff]/.test(text)) return ["變更原因需包含文字。"];
   return [];
+}
+
+function inferRevisionReasonCategory(value: string) {
+  const text = value.toLowerCase();
+  if (/標註|文字|註記|字詞/.test(text)) return "標註 / 文字修正";
+  if (/尺寸|公差|長度|厚度|孔徑/.test(text)) return "尺寸 / 公差修正";
+  if (/材質|製程|表面|熱處理/.test(text)) return "材質 / 製程修正";
+  if (/bom|料件|料號|零件/.test(text)) return "BOM / 料件影響";
+  return "其他";
 }
 
 function isTargetRevisionAttachment(attachment: DrawingSubmissionAttachment, targetRevision: string) {
@@ -1349,6 +1607,26 @@ function getInitialLookup(searchParams: ReturnType<typeof useSearchParams>): { v
   return { value: "", kind: "query" };
 }
 
+function getInitialRevision(searchParams: ReturnType<typeof useSearchParams>) {
+  return (searchParams.get("revision") ?? "").trim();
+}
+
+function getInitialReturnTo(searchParams: ReturnType<typeof useSearchParams>) {
+  const value = (searchParams.get("returnTo") ?? "").trim();
+  return value.startsWith("/") && !value.startsWith("//") ? value : "";
+}
+
+function getInitialAttachmentIds(searchParams: ReturnType<typeof useSearchParams>) {
+  return uniqueIds([
+    ...searchParams.getAll("attachmentId"),
+    ...searchParams.getAll("attachmentIds").flatMap((value) => value.split(","))
+  ]);
+}
+
+function uniqueIds(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
 function getInitialWorkflowIntent(searchParams: ReturnType<typeof useSearchParams>): RevisionWorkflowIntent {
   const value =
     searchParams.get("workflowIntent") ??
@@ -1405,25 +1683,6 @@ const actionableErrorNextStepStyle: CSSProperties = {
   color: "#7f1d1d",
   fontWeight: 800
 };
-const workbenchHeroStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "1rem",
-  background: "#f8fafc",
-  borderColor: "#bfd6e3"
-};
-const eyebrowStyle: CSSProperties = {
-  color: "#0f766e",
-  fontSize: "0.76rem",
-  fontWeight: 800,
-  textTransform: "uppercase"
-};
-const heroTitleStyle: CSSProperties = {
-  margin: "0.15rem 0",
-  color: "#0f172a",
-  fontSize: "1.1rem"
-};
 const stepStripStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
@@ -1451,11 +1710,71 @@ const fffGridStyle: CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "0.8rem"
 };
+const partSelectionFieldsetStyle: CSSProperties = {
+  border: 0,
+  margin: 0,
+  padding: 0
+};
+const partSelectionGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gap: "0.65rem",
+  marginTop: "0.45rem"
+};
+function partSelectionOptionStyle(selected: boolean): CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "auto minmax(0, 1fr)",
+    alignItems: "center",
+    gap: "0.65rem",
+    border: selected ? "2px solid #0f766e" : "1px solid #cbd5e1",
+    borderRadius: 8,
+    background: selected ? "#f0fdfa" : "#ffffff",
+    cursor: "pointer",
+    padding: "0.75rem"
+  };
+}
+const selectionPromptStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.45rem",
+  border: "1px solid #fed7aa",
+  borderRadius: 6,
+  background: "#fff7ed",
+  color: "#9a3412",
+  fontSize: "0.88rem",
+  fontWeight: 700,
+  margin: "0.75rem 0 0",
+  padding: "0.65rem 0.75rem"
+};
+const selectionConfirmedStyle: CSSProperties = {
+  ...selectionPromptStyle,
+  border: "1px solid #99f6e4",
+  background: "#f0fdfa",
+  color: "#115e59"
+};
+const submitConditionListStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.55rem"
+};
+const submitConditionRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "auto minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: "0.65rem",
+  border: "1px solid #fed7aa",
+  borderRadius: 6,
+  background: "#fff7ed",
+  color: "#9a3412",
+  fontSize: "0.88rem",
+  fontWeight: 700,
+  padding: "0.65rem 0.75rem"
+};
 const attachmentToolsGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr)",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
   gap: "0.75rem",
-  alignItems: "stretch"
+  alignItems: "center"
 };
 const attachmentDropzoneStyle: CSSProperties = {
   minWidth: 0
@@ -1511,7 +1830,7 @@ const nextActionBoxStyle: CSSProperties = {
 };
 const attachmentRowStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "auto minmax(0, 1fr)",
+  gridTemplateColumns: "auto minmax(0, 1fr) minmax(170px, 220px) auto",
   alignItems: "center",
   gap: "0.65rem",
   border: "1px solid #dbe4ef",

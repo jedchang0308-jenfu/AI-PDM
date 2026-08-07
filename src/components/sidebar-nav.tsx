@@ -17,12 +17,14 @@ import {
   KeyRound,
   ListTree,
   LogIn,
+  Menu,
   PackageSearch,
   Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
   UserCog,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NUMBERING_NAV_PERMISSION_BY_PATH } from "@/lib/numbering-permission-codes";
@@ -47,6 +49,10 @@ type ProductionSliceClientStatus = {
   unopenedMessage: string;
 };
 
+type SidebarUser = {
+  display_name: string;
+};
+
 const navSections: NavSection[] = [
   {
     label: "工作台",
@@ -56,7 +62,7 @@ const navSections: NavSection[] = [
     ]
   },
   {
-    label: "專案 / 圖料",
+    label: "圖料管理",
     items: [
       { href: "/numbering/search", label: "圖料模組", icon: Search },
       { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
@@ -74,7 +80,6 @@ const navSections: NavSection[] = [
     label: "變更 / 審核",
     items: [
       { href: "/numbering/revisions", label: "圖面進版", icon: GitPullRequestArrow },
-      { href: "/numbering/dvt", label: "階段晉升 EVT→DVT", icon: GitPullRequestArrow },
       { href: "/approvals", label: "審核工作台", icon: CircleCheckBig, badge: "approvalPending" },
       { href: "/numbering/impact", label: "製造圖影響分析", icon: ShieldAlert }
     ]
@@ -119,13 +124,19 @@ export function SidebarNav() {
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+  const [currentUser, setCurrentUser] = useState<SidebarUser | null>(null);
 
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (publicAuthPage) {
@@ -200,6 +211,25 @@ export function SidebarNav() {
   }, [publicAuthPage]);
 
   useEffect(() => {
+    if (publicAuthPage) {
+      setCurrentUser(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { user?: SidebarUser } | null) => {
+        if (!cancelled) setCurrentUser(body?.user?.display_name ? body.user : null);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicAuthPage]);
+
+  useEffect(() => {
     const saved = window.localStorage.getItem("ai-pdm-sidebar-collapsed");
     if (saved === "true") setCollapsed(true);
   }, []);
@@ -220,7 +250,7 @@ export function SidebarNav() {
         </span>
         <span className="brand-name">AI PDM</span>
         <button
-          className="sidebar-toggle"
+          className="sidebar-toggle sidebar-toggle-desktop"
           type="button"
           aria-label={collapsed ? "展開左側導覽" : "收合左側導覽"}
           title={collapsed ? "展開左側導覽" : "收合左側導覽"}
@@ -228,8 +258,19 @@ export function SidebarNav() {
         >
           {collapsed ? <ChevronRight size={17} aria-hidden="true" /> : <ChevronLeft size={17} aria-hidden="true" />}
         </button>
+        <button
+          className="sidebar-toggle sidebar-toggle-mobile"
+          type="button"
+          aria-controls="primary-navigation"
+          aria-expanded={mobileNavOpen}
+          aria-label={mobileNavOpen ? "收合主導覽" : "展開主導覽"}
+          title={mobileNavOpen ? "收合主導覽" : "展開主導覽"}
+          onClick={() => setMobileNavOpen((value) => !value)}
+        >
+          {mobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+        </button>
       </div>
-      <nav className="nav" aria-label="主導覽">
+      <nav id="primary-navigation" className={mobileNavOpen ? "nav mobile-open" : "nav"} aria-label="主導覽">
         {navSections.map((section) => {
           const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice));
           if (visibleItems.length === 0) return null;
@@ -240,16 +281,20 @@ export function SidebarNav() {
               <div className="nav-section-items">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
+                  const signedInEntry = item.href === "/login" && currentUser;
+                  const label = signedInEntry ? currentUser.display_name : item.label;
                   const active = hydrated && (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
                   const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
                   const hasBadge = typeof badgeCount === "number" && badgeCount > 0;
                   const unopened = !isOpenInProductionSlice(item, productionSlice);
                   const targetHref = unopened ? `/production-slice-blocked?from=${encodeURIComponent(item.href)}` : item.href;
                   const itemTitle = unopened
-                    ? `${item.label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
+                    ? `${label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
+                    : signedInEntry
+                      ? `${currentUser.display_name}，已登入`
                     : hasBadge
-                      ? `${item.label}，${badgeCount} 件待審`
-                      : item.label;
+                      ? `${label}，${badgeCount} 件待審`
+                      : label;
                   const className = [active ? "active" : "", unopened ? "nav-unopened" : ""].filter(Boolean).join(" ") || undefined;
 
                   return (
@@ -263,7 +308,8 @@ export function SidebarNav() {
                       key={item.href}
                     >
                       <Icon size={18} aria-hidden="true" />
-                      <span className="nav-link-label">{item.label}</span>
+                      <span className="nav-link-label">{label}</span>
+                      {signedInEntry ? <span className="nav-account-status">已登入</span> : null}
                       {unopened ? <span className="nav-unopened-badge">未開放</span> : null}
                       {hasBadge ? <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span> : null}
                     </Link>

@@ -11,10 +11,8 @@ import type { RequestNumberingApprovalInput } from "@/lib/repositories/numbering
 export const runtime = "nodejs";
 
 const allowedActionCodes = new Set([
-  "dvt_promotion",
   "release",
   "same_drawing_variant_after_release",
-  "dvt_missing_ma_override",
   "release_missing_ma_confirm",
   "main_drawing_restore",
   "obsolete_part_number",

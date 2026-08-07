@@ -3,14 +3,14 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow, X } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { DrawingWorkbench } from "@/components/drawing-workbench";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
-import { drawingRecordStatusFilterValues, formatDevelopmentPhaseForUser, formatStatusForUser } from "@/lib/status-display";
+import { drawingRecordStatusFilterValues, formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -22,10 +22,8 @@ type NumberingRecordStatus =
   | "Rejected"
   | "Obsolete"
   | "Merged"
-  | "EVTDisabled"
   | "PendingAdminConfirm"
   | "MainDrawingInvalid";
-type NumberingPhase = "EVT" | "DVT" | "PVT" | "Release" | "ECR";
 type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
 
 type DrawingLinkedPartRecord = {
@@ -64,7 +62,6 @@ type DrawingListRecord = {
   purposeDescription: string;
   sequenceNo: number;
   isPrimaryManufacturing: boolean;
-  developmentPhase: NumberingPhase;
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
   linkedPartCount: number;
@@ -82,7 +79,6 @@ type DrawingListRecord = {
 };
 
 const statuses = ["", ...drawingRecordStatusFilterValues] as const;
-const phases = ["", "EVT", "DVT", "PVT", "Release", "ECR"] as const;
 const purposeCodes = ["", "M", "R", "MA", "OT"] as const;
 const DRAWING_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
 const DRAWING_DRAWER_DEFAULT_WIDTH = 500;
@@ -143,7 +139,6 @@ export default function DrawingNumbersPage() {
   const [seriesCode, setSeriesCode] = useState("");
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [recordStatus, setRecordStatus] = useState("");
-  const [developmentPhase, setDevelopmentPhase] = useState("");
   const [purposeCode, setPurposeCode] = useState("");
   const [drawings, setDrawings] = useState<DrawingListRecord[]>([]);
   const [canReviewApprovals, setCanReviewApprovals] = useState(false);
@@ -157,6 +152,7 @@ export default function DrawingNumbersPage() {
   const [error, setError] = useState("");
 
   const selectedDrawing = drawings.find((drawing) => drawing.drawingNumber === selectedDrawingNumber) ?? null;
+  const selectedDrawingIndex = drawings.findIndex((drawing) => drawing.drawingNumber === selectedDrawingNumber);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -183,7 +179,6 @@ export default function DrawingNumbersPage() {
     if (query.trim()) params.set("query", query.trim());
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
-    if (developmentPhase) params.set("developmentPhase", developmentPhase);
     if (purposeCode) params.set("purposeCode", purposeCode);
     const response = await fetch(`/api/numbering/drawings?${params.toString()}`);
     setBusy(false);
@@ -207,7 +202,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [activeTab, developmentPhase, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);
+  }, [activeTab, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);
 
   useEffect(() => {
     void loadDrawings();
@@ -473,7 +468,6 @@ export default function DrawingNumbersPage() {
               <SelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
               <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
-              <SelectField label="開發階段" value={developmentPhase} onChange={setDevelopmentPhase} options={phases} formatOption={formatDevelopmentPhaseForUser} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadDrawings} disabled={busy}>
                 <Search size={16} />
                 查詢
@@ -503,7 +497,7 @@ export default function DrawingNumbersPage() {
                   ref={drawingListRef}
                   className="table-wrap pdm-identity-scroll"
                   role="region"
-                  aria-label="圖號清單"
+                  aria-label="圖號清單（可用上下鍵快速查閱）"
                   aria-keyshortcuts="ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C"
                   tabIndex={0}
                 >
@@ -517,10 +511,10 @@ export default function DrawingNumbersPage() {
                     <thead>
                       <tr>
                         <th>圖號</th>
-                        <th>品名</th>
-                        <th>料號</th>
+                        <th>名稱</th>
+                        <th>關聯摘要</th>
                         <th>
-                          <StatusColumnHeader label="資料狀態 / 開發階段 / 提醒" context="masterRecord" />
+                          <StatusColumnHeader label="資料狀態 / 提醒" context="masterRecord" />
                         </th>
                       </tr>
                     </thead>
@@ -546,12 +540,13 @@ export default function DrawingNumbersPage() {
                               {drawing.drawingNumber}
                             </button>
                           </td>
-                          <td data-label="品名">
+                          <td data-label="名稱">
                             <div className="pdm-identity-name" title={drawing.coreName}>
                               {drawing.coreName}
                             </div>
+                            <small className="pdm-identity-subline">{displayDrawingPurposeLabel(drawing.purposeCode)}</small>
                           </td>
-                          <td data-label="料號">
+                          <td data-label="關聯摘要">
                             {drawing.linkedPartCount > 0 ? (
                               <div className="pdm-meta-strip">
                                 {drawing.linkedPartNumbers.slice(0, 3).map((partNumber) => (
@@ -565,12 +560,11 @@ export default function DrawingNumbersPage() {
                               <span style={mutedStyle}>尚未關聯</span>
                             )}
                           </td>
-                          <td data-label="資料狀態 / 開發階段 / 提醒">
+                          <td data-label="資料狀態 / 提醒">
                             <div className="pdm-meta-strip">
                               <StatusBadge status={drawing.recordStatus} context="masterRecord" />
                               {drawing.pendingApproval ? <PendingApprovalBadge pending={drawing.pendingApproval} canReview={canReviewApprovals} /> : null}
                               {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
-                              <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
                               {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
                             </div>
                           </td>
@@ -586,6 +580,9 @@ export default function DrawingNumbersPage() {
             drawing={selectedDrawing}
             open={isDetailOpen}
             width={drawerWidth}
+            canNavigatePrevious={selectedDrawingIndex > 0}
+            canNavigateNext={selectedDrawingIndex >= 0 && selectedDrawingIndex < drawings.length - 1}
+            onNavigate={moveDrawingSelection}
             onStartResize={startDrawingDrawerResize}
             onDataChanged={loadDrawings}
             canReviewApprovals={canReviewApprovals}
@@ -662,7 +659,7 @@ function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord })
         <div>
           <h2>發布狀態待確認</h2>
           <p style={mutedStyle}>
-            系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, "masterRecord")} / {formatDevelopmentPhaseForUser(drawing.developmentPhase)}。
+            系統找到已發布的送審版次 {mismatch.revision}，但這筆圖號主資料目前仍是 {formatStatusForUser(drawing.recordStatus, "masterRecord")}。
           </p>
         </div>
         <Link className="secondary-button" href={`/submissions/${encodeURIComponent(mismatch.submissionId)}`}>
@@ -708,6 +705,9 @@ function DrawingDetailDrawer({
   drawing,
   open,
   width,
+  canNavigatePrevious,
+  canNavigateNext,
+  onNavigate,
   onStartResize,
   onDataChanged,
   canReviewApprovals,
@@ -716,6 +716,9 @@ function DrawingDetailDrawer({
   drawing: DrawingListRecord | null;
   open: boolean;
   width: number;
+  canNavigatePrevious: boolean;
+  canNavigateNext: boolean;
+  onNavigate: (delta: number) => void;
   onStartResize: (clientX: number) => void;
   onDataChanged: () => Promise<void>;
   canReviewApprovals: boolean;
@@ -752,13 +755,20 @@ function DrawingDetailDrawer({
               <div>
                 <h2>{drawing.drawingNumber}</h2>
               </div>
-              <button className="icon-button" type="button" aria-label="關閉圖號明細" onClick={onClose}>
-                <X size={16} />
-              </button>
+              <div className="pdm-drawer-quick-nav" aria-label="快速查閱">
+                <button className="icon-button" type="button" aria-label="上一筆圖號" title="上一筆（↑）" disabled={!canNavigatePrevious} onClick={() => onNavigate(-1)}>
+                  <ChevronUp size={16} />
+                </button>
+                <button className="icon-button" type="button" aria-label="下一筆圖號" title="下一筆（↓）" disabled={!canNavigateNext} onClick={() => onNavigate(1)}>
+                  <ChevronDown size={16} />
+                </button>
+                <button className="icon-button" type="button" aria-label="關閉圖號明細" onClick={onClose}>
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className="drawing-detail-hero-meta">
               <StatusBadge status={drawing.recordStatus} context="masterRecord" />
-              <span className="pdm-meta-chip">{formatDevelopmentPhaseForUser(drawing.developmentPhase)}</span>
             </div>
             <div className="drawing-detail-action-row">
               <Link className="primary-button" href={`/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`}>
@@ -788,7 +798,6 @@ function DrawingDetailDrawer({
           <MasterAttachmentPanel
             entityType="drawing_number"
             entityCode={drawing.drawingNumber}
-            developmentPhase={drawing.developmentPhase}
             processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}
             pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: canReviewApprovals } : null}
           />

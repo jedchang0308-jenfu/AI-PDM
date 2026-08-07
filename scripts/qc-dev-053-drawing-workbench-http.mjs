@@ -17,7 +17,10 @@ const routes = `${listRoute}\n${detailRoute}`;
 const contextual = read("src/components/numbering-contextual-entrypoints.tsx");
 const productionSlice = read("src/lib/production-slice.ts");
 const service = read("src/lib/drawing-workbench.ts");
+const lifecycleService = read("src/lib/number-lifecycle-simplification.ts");
 const repository = read("src/lib/repositories/drawing-workbench-async-repository.ts");
+const lifecycleRepository = read("src/lib/repositories/number-lifecycle-simplification-async-repository.ts");
+const existingFileVerificationRoute = read("src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts");
 
 record("DEV053-HTTP-001 exact GET-only workbench routes exist",
   fs.existsSync(path.join(root, listRoutePath)) && fs.existsSync(path.join(root, detailRoutePath)) &&
@@ -53,21 +56,24 @@ process.env.NODE_ENV = "test";
 process.env.PDM_AUTH_SECRET = "dev053-http-secret";
 try {
   const { normalizeDrawingWorkbenchQuery } = await import("@/lib/drawing-workbench");
+  const { isLocalDevelopmentPublicationEvidenceEnabled } = await import("@/lib/publication-evidence");
   const normalized = normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=work&stage=bundle_ready&limit=100&query=%20A005%20&purposeCode=M&recordStatus=Active"));
   let stageCode = "";
   let limitCode = "";
   let purposeCode = "";
   let recordStatusCode = "";
+  let historyCode = "";
   try { normalizeDrawingWorkbenchQuery(new URL("http://local.test/?stage=not-real")); } catch (error) { stageCode = error?.code ?? String(error); }
   try { normalizeDrawingWorkbenchQuery(new URL("http://local.test/?limit=101")); } catch (error) { limitCode = error?.code ?? String(error); }
   try { normalizeDrawingWorkbenchQuery(new URL("http://local.test/?purposeCode=INVALID")); } catch (error) { purposeCode = error?.code ?? String(error); }
   try { normalizeDrawingWorkbenchQuery(new URL("http://local.test/?recordStatus=INVALID")); } catch (error) { recordStatusCode = error?.code ?? String(error); }
+  try { normalizeDrawingWorkbenchQuery(new URL("http://local.test/?history=all")); } catch (error) { historyCode = error?.code ?? String(error); }
 record("DEV053-HTTP-008 query contract normalizes valid input and rejects invalid bounds",
     normalized.view === "work" && normalized.stage === "bundle_ready" && normalized.limit === 100 && normalized.query === "A005" &&
     normalized.purposeCode === "M" && normalized.recordStatus === "Active" &&
     stageCode === "workbench_invalid_stage" && limitCode === "workbench_invalid_limit" &&
-    purposeCode === "workbench_invalid_purpose" && recordStatusCode === "workbench_invalid_record_status",
-    JSON.stringify({ normalized, stageCode, limitCode, purposeCode, recordStatusCode }));
+    purposeCode === "workbench_invalid_purpose" && recordStatusCode === "workbench_invalid_record_status" && historyCode === "workbench_invalid_history",
+    JSON.stringify({ normalized, stageCode, limitCode, purposeCode, recordStatusCode, historyCode }));
   record("DEV053-HTTP-009 pagination is a bounded repository keyset before hydration",
     has(repository, [
       "async readListPage",
@@ -88,6 +94,50 @@ record("DEV053-HTTP-008 query contract normalizes valid input and rejects invali
       "recordStatus: query.recordStatus",
       "includeCandidates: actor.permissions.workspaceView && !query.purposeCode && !query.recordStatus"
     ]));
+  const defaultQuery = normalizeDrawingWorkbenchQuery(new URL("http://local.test/"));
+  const historyQuery = normalizeDrawingWorkbenchQuery(new URL("http://local.test/?history=include"));
+  record("DEV053-HTTP-011 default-all and explicit history contract are server normalized",
+    defaultQuery.view === "all" && defaultQuery.includeHistory === false && historyQuery.includeHistory === true &&
+    has(service, ['query.includeHistory || row.stage !== "history_only"', 'stage === "history_only" ? "&history=include" : ""']));
+  record("DEV053-HTTP-012 permission guidance is derived only from server permissions",
+    has(routes, [
+      'canUserUseNumberingActionAsync(auth.user, "numbering.draft.update")',
+      'canUserUseNumberingActionAsync(auth.user, "numbering.attachments.manage")',
+      'canUserUseNumberingActionAsync(auth.user, "settings.admin_matrix")'
+    ]) && has(service, ["permissionCode", "contactRole", "adminHref", '"/settings/workflow"']));
+  record("DEV053-HTTP-013 local evidence is enabled only for explicit non-production validation",
+    isLocalDevelopmentPublicationEvidenceEnabled({ NODE_ENV: "development", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true" }) === true &&
+    isLocalDevelopmentPublicationEvidenceEnabled({ NODE_ENV: "production", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true" }) === false &&
+    isLocalDevelopmentPublicationEvidenceEnabled({ NODE_ENV: "development" }) === false &&
+    has(lifecycleService, [
+      "verifyObjectHash(stored.key, stored.sha256)",
+      "candidate_file_verification_failed",
+      "local-development-validation",
+      "cleanupTarget.current",
+      "storageService.deleteObject(target.key)"
+    ]));
+  record("DEV053-HTTP-014 existing-file verification is target-only, idempotent, permission-gated and production fail-closed",
+    has(existingFileVerificationRoute, [
+      "export async function PATCH",
+      'requireNumberStateCommandAccessAsync(request, "numbering.draft.update", body)',
+      "validateNumberStateMutationRequest",
+      "requireIdempotency: true",
+      "verifyExistingNumberingCandidateRevisionFile"
+    ]) && has(lifecycleService, [
+      "candidateFileVerificationSource",
+      "storagePointerFromRecord",
+      "createFileStorageServiceForPointer",
+      "getObjectMetadata",
+      "verifyObjectHash(pointer.key, source.contentHash)",
+      "isLocalDevelopmentPublicationEvidenceEnabled()",
+      "candidate_file_existing_verification_not_available",
+      "numbering.candidate_revision.existing_file_verified.v1"
+    ]) && has(lifecycleRepository, [
+      "verifyExistingCandidateFile",
+      "publication_evidence_id IS NULL",
+      "pdm.numbering.verify_existing_candidate_revision_file",
+      "CANDIDATE_FILE_VERIFICATION_STALE"
+    ]) && !existingFileVerificationRoute.includes("companyId"));
 } catch (error) {
   record("DEV053-HTTP-runtime", false, error instanceof Error ? error.stack ?? error.message : String(error));
 }

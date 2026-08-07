@@ -79,6 +79,7 @@ record("SLICE-023 recycle route continues to use change-control service", recycl
 record("SLICE-024 void/recycle domain uses existing controlled-boundary predicate", changeControlDomain.includes("async assertPartNumberDraftIsRecyclable") && changeControlDomain.includes("const boundary = await this.assertPartNumberDraftIsRecyclable(input.draftId, input.actor);"));
 record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(allowedSection) && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
+record("SLICE-026A local full-function validation is explicit and development-only", helper.includes('env.NODE_ENV') && helper.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION') && envExample.includes("PDM_LOCAL_FULL_FUNCTION_VALIDATION=false"));
 record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
 record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 保留號 production slice 邊界封鎖"));
 

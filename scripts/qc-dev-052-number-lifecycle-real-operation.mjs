@@ -437,6 +437,7 @@ async function run() {
     PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
     PDM_NUMBER_STATE_FLOW_V1: "true",
     PDM_NUMBER_LIFECYCLE_V2: "true",
+    PDM_UNIFIED_DRAWING_WORKBENCH_V1: "false",
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_PUBLICATION_EVIDENCE_MODE: "local_fake",
     PDM_RELEASE_MODE: "local_stub",
@@ -580,9 +581,12 @@ async function run() {
   record(
     "RO-04 missing primary evidence prevents submit",
     await operatorPage.getByRole("button", { name: "送交審核", exact: true }).count() === 0 &&
-      (await operatorPage.getByRole("dialog").innerText()).includes("尚缺主要圖面檔案與 finalized 證據") &&
+      (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("下一步") &&
+      (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("主要受控檔") &&
+      (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("驗證") &&
+      await operatorPage.getByText("拖放或選擇首版圖面", { exact: true }).count() === 1 &&
       requestRowsForWorkspace(fixture.workspaceId).length === 0,
-    {}
+    { expectedNextAction: "select and verify a primary controlled file" }
   );
   await capture(operatorPage, "RO-04-missing-primary-evidence-1440x900.png");
 
@@ -617,10 +621,10 @@ async function run() {
   await mutation(
     operatorPage,
     (response) => response.request().method() === "POST" && response.url().includes(`/candidate-revisions/${candidateFacts[0].id}/files`),
-    () => operatorPage.getByRole("button", { name: "上傳主要檔案" }).click(),
+    () => operatorPage.locator('.candidate-revision-upload button[data-primary-action="complete-first-drawing"]').click(),
     "upload-primary-drawing"
   );
-  await operatorPage.getByText("證據已 finalized", { exact: false }).waitFor({ state: "visible" });
+  await operatorPage.locator(".candidate-revision-files li", { hasText: fixture.fileName }).getByText("已完成驗證", { exact: false }).waitFor({ state: "visible" });
   const fileFacts = database.prepare(`SELECT asset.file_name, file.is_primary, file.publication_evidence_id, file.removed_at
     FROM numbering_candidate_revision_files file
     JOIN numbering_candidate_revision_drafts candidate ON candidate.id = file.candidate_revision_id

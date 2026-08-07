@@ -6,9 +6,7 @@ import type { ListNumberingApprovalBatchesInput, NumberingApprovalActionCode } f
 
 export const runtime = "nodejs";
 
-const dvtReleaseActionCodes = new Set<NumberingApprovalActionCode>([
-  "dvt_promotion",
-  "dvt_missing_ma_override",
+const controlledApprovalActionCodes = new Set<NumberingApprovalActionCode>([
   "release",
   "release_missing_ma_confirm",
   "same_drawing_variant_after_release",
@@ -29,15 +27,15 @@ export async function GET(request: Request) {
   const statusValue = url.searchParams.get("status") ?? "active";
   const status = validBatchStatuses.has(statusValue) ? statusValue : "active";
   const actionParam = url.searchParams.get("actionCodes") ?? "";
-  const scope = url.searchParams.get("scope") ?? "dvt_release";
+  const scope = url.searchParams.get("scope") ?? "controlled";
   const actionCodes =
     actionParam.trim().length > 0
       ? actionParam
           .split(",")
           .map((item) => item.trim())
-          .filter((item): item is NumberingApprovalActionCode => dvtReleaseActionCodes.has(item as NumberingApprovalActionCode))
-      : scope === "dvt_release"
-        ? Array.from(dvtReleaseActionCodes)
+          .filter((item): item is NumberingApprovalActionCode => controlledApprovalActionCodes.has(item as NumberingApprovalActionCode))
+      : scope === "controlled"
+        ? Array.from(controlledApprovalActionCodes)
         : undefined;
 
   const batches = await listNumberingApprovalBatchesAsync({

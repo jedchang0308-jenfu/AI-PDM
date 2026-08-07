@@ -125,7 +125,6 @@ function createFixtureDb({ contaminated }) {
       root_code TEXT NOT NULL,
       core_name TEXT NOT NULL,
       item_kind TEXT NOT NULL,
-      development_phase TEXT NOT NULL,
       record_status TEXT NOT NULL,
       rule_version_id TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -157,7 +156,7 @@ function createFixtureDb({ contaminated }) {
     .run("company-jenfu:part_root:v2", contaminated ? 4 : 3, now);
   for (const code of roots) {
     db.prepare(
-      "INSERT INTO part_roots (id, company_id, root_code, core_name, item_kind, development_phase, record_status, rule_version_id, created_at, updated_at) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'EVT', 'Draft', 'numbering-rule-v2', ?, ?)"
+      "INSERT INTO part_roots (id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_at, updated_at) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Draft', 'numbering-rule-v2', ?, ?)"
     ).run(`root-${code}`, code, `Fixture ${code}`, now, now);
   }
   for (const code of auditRoots) {

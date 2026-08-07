@@ -5,8 +5,9 @@ import Database from "better-sqlite3";
 
 const baseUrl = process.env.PDM_BASE_URL ?? "http://127.0.0.1:3000";
 const root = process.cwd();
-const dbPath = path.join(root, "data", "ai-pdm.sqlite");
-const repositoryPath = path.join(root, "data", "repository");
+const dataDir = path.resolve(root, process.env.PDM_DATA_DIR?.trim() || "data");
+const dbPath = path.join(dataDir, "ai-pdm.sqlite");
+const repositoryPath = path.resolve(root, process.env.PDM_REPOSITORY_DIR?.trim() || path.join(dataDir, "repository"));
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 const qcStorageAuditRunId = `qc-api-${Date.now().toString(36)}`;
 const qcStorageAuditHeaderName = "x-ai-pdm-qc-storage-audit-run-id";
@@ -27,7 +28,37 @@ function ensureTestUser(input) {
   db.prepare(
     "INSERT OR IGNORE INTO users (id, display_name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
   ).run(input.id, input.displayName, input.email, input.role, now, now);
+  const normalizedEmail = input.email.trim().toLowerCase();
+  db.prepare(
+    `INSERT OR IGNORE INTO auth_identities (
+      id, user_id, provider, provider_subject, login_identifier, email_normalized,
+      verified_at, last_login_at, status, created_at, updated_at
+    ) VALUES (?, ?, 'local_password', ?, ?, ?, ?, NULL, 'active', ?, ?)`
+  ).run(`identity-local-${input.id}`, input.id, normalizedEmail, normalizedEmail, normalizedEmail, now, now, now);
   db.close();
+}
+
+async function ensureDisposableDatabaseInitialized() {
+  let lastError = null;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "qc-bootstrap@example.invalid", password: "not-a-real-password" })
+      });
+      if (fs.existsSync(dbPath)) {
+        const database = new Database(dbPath, { readonly: true, fileMustExist: true });
+        const ready = Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'users'").get());
+        database.close();
+        if (ready) return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Disposable runtime database did not initialize: ${lastError instanceof Error ? lastError.message : "users table missing"}`);
 }
 
 async function login(email) {
@@ -41,6 +72,8 @@ async function login(email) {
   }
   return response.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
+
+await ensureDisposableDatabaseInitialized();
 
 ensureTestUser({
   id: "user-engineer-qc-2",
@@ -154,7 +187,7 @@ function makeForm(overrides = {}, withFile = true) {
     drawing_number: `QC-${unique}`,
     part_number: `P-QC-${unique}`,
     part_name: "QC Test Part",
-    revision: "A",
+    revision: "1",
     material: "S45C",
     surface_finish: "Black Oxide",
     document_type: "Drawing",
@@ -179,19 +212,307 @@ function makeFormWithFile(file, overrides = {}) {
 
 async function postSubmission(overrides = {}, withFile = true, cookie = engineerCookie) {
   const { form, data } = makeForm(overrides, withFile);
-  const response = await fetch(`${baseUrl}/api/submissions`, { method: "POST", headers: { cookie }, body: form });
-  const body = await response.json().catch(() => ({}));
-  return { status: response.status, body, data };
+  const files = form.getAll("files").filter((entry) => entry instanceof File);
+  return createDisposableSubmissionFixture({ data, files, cookie });
 }
 
 async function postSubmissionWithFile(file, overrides = {}, cookie = engineerCookie, cadReferences = []) {
-  const { form, data } = makeFormWithFile(file, overrides);
-  if (cadReferences.length > 0) {
-    form.set("cad_references_json", JSON.stringify(cadReferences));
+  const { data } = makeFormWithFile(file, overrides);
+  return createDisposableSubmissionFixture({ data, files: [file], cookie, cadReferences });
+}
+
+function fixtureActorId(cookie) {
+  if (cookie === engineer2Cookie) return "user-engineer-qc-2";
+  if (cookie === adminCookie) return "user-admin-demo";
+  return "user-engineer-demo";
+}
+
+function fixtureFileRole(filename) {
+  const extension = path.extname(filename).slice(1).toLowerCase();
+  if (["sldprt", "sldasm", "slddrw", "pdf", "dwg"].includes(extension)) return extension;
+  return "other";
+}
+
+async function createDisposableSubmissionFixture({ data, files, cookie, cadReferences = [] }) {
+  const requiredFields = ["drawing_number", "part_number", "part_name", "revision", "material", "surface_finish", "document_type"];
+  if (requiredFields.some((field) => String(data[field] ?? "").trim() === "")) {
+    return { status: 400, body: { error: "invalid_fixture_metadata" }, data };
   }
-  const response = await fetch(`${baseUrl}/api/submissions`, { method: "POST", headers: { cookie }, body: form });
-  const body = await response.json().catch(() => ({}));
-  return { status: response.status, body, data };
+  if (!/[A-Za-z\u3400-\u9fff]/u.test(String(data.change_description ?? ""))) {
+    return { status: 400, body: { error: "invalid_fixture_change_description" }, data };
+  }
+  if (files.length === 0) return { status: 400, body: { error: "fixture_file_required" }, data };
+  const allowedExtensions = new Set([".sldprt", ".sldasm", ".slddrw", ".pdf", ".dwg"]);
+  if (files.some((file) => !allowedExtensions.has(path.extname(file.name).toLowerCase()))) {
+    return { status: 400, body: { error: "unsupported_fixture_file_type" }, data };
+  }
+  if (files.some((file) => file.size > 50 * 1024 * 1024)) {
+    return { status: 400, body: { error: "fixture_file_too_large" }, data };
+  }
+
+  const db = new Database(dbPath);
+  const duplicate = db.prepare(
+    `SELECT id FROM submissions
+     WHERE drawing_number = ? AND revision = ?
+       AND status IN ('Pending', 'Releasing', 'Released', 'Obsolete', 'ReleaseFailed')
+     LIMIT 1`
+  ).get(data.drawing_number, data.revision);
+  if (duplicate) {
+    db.close();
+    return { status: 409, body: { error: "duplicate_drawing_revision" }, data };
+  }
+
+  const now = new Date().toISOString();
+  const submissionId = `SUB-QC-${crypto.randomUUID().slice(0, 12).toUpperCase()}`;
+  const itemId = crypto.randomUUID();
+  const submittedBy = fixtureActorId(cookie);
+  const approvalRequired = Number(data.approval_required) === 2 ? 2 : 1;
+  const fixtureFolder = path.join(repositoryPath, "submissions", submissionId);
+  fs.mkdirSync(fixtureFolder, { recursive: true });
+  const preparedFiles = [];
+  for (const file of files) {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const originalFilename = path.basename(file.name);
+    const localPath = path.join(fixtureFolder, originalFilename);
+    fs.writeFileSync(localPath, bytes);
+    preparedFiles.push({
+      id: crypto.randomUUID(),
+      fileRole: fixtureFileRole(originalFilename),
+      originalFilename,
+      localPath,
+      sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
+      fileSize: bytes.length
+    });
+  }
+
+  const createFixture = db.transaction(() => {
+    const item = db.prepare(
+      `INSERT INTO items (id, company_id, part_number, part_name, current_revision, created_at, updated_at)
+       VALUES (?, 'company-jenfu', ?, ?, NULL, ?, ?)
+       ON CONFLICT(company_id, part_number) DO UPDATE SET
+         part_name = excluded.part_name,
+         updated_at = excluded.updated_at
+       RETURNING id`
+    ).get(itemId, data.part_number, data.part_name, now, now);
+
+    const ruleVersionId = db.prepare("SELECT id FROM numbering_rule_versions ORDER BY created_at ASC LIMIT 1").pluck().get();
+    if (!ruleVersionId) throw new Error("qc fixture requires numbering rule version");
+    let part = db.prepare(
+      "SELECT id, part_root_id FROM part_numbers WHERE company_id = 'company-jenfu' AND part_number = ? LIMIT 1"
+    ).get(data.part_number);
+    let root;
+    if (!part) {
+      const rootId = crypto.randomUUID();
+      const rootCode = `Q${crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+      db.prepare(
+        `INSERT INTO part_roots (
+          id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Active', ?, ?, ?, ?)`
+      ).run(rootId, rootCode, data.part_name, ruleVersionId, submittedBy, now, now);
+      const partNumberId = crypto.randomUUID();
+      db.prepare(
+        `INSERT INTO part_numbers (
+          id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
+          record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 1, '01', ?, 'manufactured', 'Active', ?, ?, ?, ?)`
+      ).run(partNumberId, rootId, data.part_number, data.part_name, ruleVersionId, submittedBy, now, now);
+      part = { id: partNumberId, part_root_id: rootId };
+    }
+    root = db.prepare("SELECT id, root_code FROM part_roots WHERE id = ?").get(part.part_root_id);
+    let drawing = db.prepare(
+      "SELECT id, drawing_number FROM drawing_numbers WHERE company_id = 'company-jenfu' AND drawing_number = ? LIMIT 1"
+    ).get(data.drawing_number);
+    if (!drawing) {
+      const drawingId = crypto.randomUUID();
+      const nextDrawingSequence = Number(
+        db.prepare("SELECT COALESCE(MAX(sequence_no), 0) + 1 FROM drawing_numbers WHERE part_root_id = ? AND purpose_code = 'R'").pluck().get(root.id)
+      );
+      db.prepare(
+        `INSERT INTO drawing_numbers (
+          id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
+          is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'R', 'QC reference drawing', ?, 0, 'Active', ?, ?, ?, ?)`
+      ).run(drawingId, root.id, data.drawing_number, nextDrawingSequence, ruleVersionId, submittedBy, now, now);
+      drawing = { id: drawingId, drawing_number: data.drawing_number };
+    }
+    db.prepare(
+      `INSERT OR IGNORE INTO drawing_part_links (
+        id, drawing_number_id, part_number_id, link_type, created_by, created_at
+      ) VALUES (?, ?, ?, 'reference', ?, ?)`
+    ).run(crypto.randomUUID(), drawing.id, part.id, submittedBy, now);
+
+    db.prepare(
+      `INSERT INTO submissions (
+        id, company_id, item_id, drawing_number, revision, product_line, customer, project_code, process_name,
+        machine, material, surface_finish, document_type, change_description, status, submitted_by,
+        approval_required, source_entity_type, source_entity_id, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 'drawing_number', ?, ?, ?)`
+    ).run(
+      submissionId,
+      item.id,
+      data.drawing_number,
+      data.revision,
+      String(data.product_line ?? ""),
+      String(data.customer ?? ""),
+      String(data.project_code ?? ""),
+      String(data.process_name ?? ""),
+      String(data.machine ?? ""),
+      data.material,
+      data.surface_finish,
+      data.document_type,
+      data.change_description,
+      submittedBy,
+      approvalRequired,
+      drawing.id,
+      now,
+      now
+    );
+
+    const snapshotJson = {
+      fixture_source: "qc_api_disposable_db",
+      root: { id: root.id, root_code: root.root_code },
+      drawing: { id: drawing.id, drawing_number: drawing.drawing_number },
+      part: { id: part.id, part_number: data.part_number },
+      revision_policy_snapshot: {
+        workflow_intent: "release_area",
+        suggested_revision: data.revision,
+        selected_revision: data.revision,
+        override_reason: null,
+        policy_version: "revision-policy-002.1",
+        suggestion_basis_hash: crypto.createHash("sha256").update(`${drawing.id}:${data.revision}`).digest("hex"),
+        suggestion_generated_at: now,
+        accepted_or_overridden_at: now
+      }
+    };
+    const snapshotText = JSON.stringify(snapshotJson);
+    db.prepare(
+      `INSERT INTO submission_snapshots (
+        id, submission_id, company_id, source_root_id, source_root_code,
+        source_drawing_number_id, source_drawing_number, source_part_number_id, source_part_number,
+        snapshot_version, rules_version, snapshot_hash, snapshot_json, captured_by, captured_at, created_at
+      ) VALUES (?, ?, 'company-jenfu', ?, ?, ?, ?, ?, ?, 'drawing_part_submission_v1', ?, ?, ?, ?, ?, ?)`
+    ).run(
+      crypto.randomUUID(),
+      submissionId,
+      root.id,
+      root.root_code,
+      drawing.id,
+      drawing.drawing_number,
+      part.id,
+      data.part_number,
+      ruleVersionId,
+      crypto.createHash("sha256").update(snapshotText).digest("hex"),
+      snapshotText,
+      submittedBy,
+      now,
+      now
+    );
+    db.prepare(
+      `INSERT INTO drawing_revision_packages (
+        id, company_id, drawing_number_id, drawing_number, revision, status, source_submission_id,
+        created_by, created_at, updated_at, submitted_at, snapshot_json
+      ) VALUES (?, 'company-jenfu', ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?)`
+    ).run(
+      `DRP-QC-${crypto.randomUUID()}`,
+      drawing.id,
+      drawing.drawing_number,
+      data.revision,
+      submissionId,
+      submittedBy,
+      now,
+      now,
+      now,
+      snapshotText
+    );
+
+    const insertFile = db.prepare(
+      `INSERT INTO submission_files (
+        id, submission_id, file_role, original_filename, local_path, storage_provider,
+        sha256, file_size, created_at
+      ) VALUES (?, ?, ?, ?, ?, 'local_repository', ?, ?, ?)`
+    );
+    for (const file of preparedFiles) {
+      insertFile.run(file.id, submissionId, file.fileRole, file.originalFilename, file.localPath, file.sha256, file.fileSize, now);
+    }
+
+    const fileByName = new Map(preparedFiles.map((file) => [file.originalFilename, file]));
+    const preparedReferences = cadReferences.map((reference) => ({
+      ...reference,
+      id: crypto.randomUUID(),
+      sourceFile: fileByName.get(path.basename(reference.sourceFilename))
+    }));
+    const insertReference = db.prepare(
+      `INSERT INTO file_references (
+        id, submission_id, source_file_id, source_filename, source_file_role,
+        referenced_filename, referenced_part_number, referenced_drawing_number,
+        referenced_revision, reference_type, quantity, extraction_method, confidence, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const reference of preparedReferences) {
+      insertReference.run(
+        reference.id,
+        submissionId,
+        reference.sourceFile?.id ?? null,
+        reference.sourceFilename,
+        reference.sourceFile?.fileRole ?? reference.sourceFileRole ?? "other",
+        reference.referencedFilename,
+        reference.referencedPartNumber ?? null,
+        reference.referencedDrawingNumber ?? null,
+        reference.referencedRevision ?? null,
+        reference.referenceType ?? "unknown",
+        reference.quantity ?? 1,
+        reference.extractionMethod ?? "qc_fixture",
+        reference.confidence ?? "high",
+        now
+      );
+    }
+
+    const bomReferences = preparedReferences.filter(
+      (reference) => reference.referenceType === "assembly_component" && String(reference.referencedPartNumber ?? "").trim() !== ""
+    );
+    if (bomReferences.length > 0) {
+      const bomHeaderId = crypto.randomUUID();
+      db.prepare(
+        `INSERT INTO bom_headers (
+          id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'Draft', 'cad_references', ?, ?, ?)`
+      ).run(bomHeaderId, item.id, submissionId, data.revision, bomReferences.length, now, now);
+      const insertBomLine = db.prepare(
+        `INSERT INTO bom_lines (
+          id, bom_header_id, line_no, child_part_number, child_revision, quantity,
+          source_file_id, source_reference_id, source_filename, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      bomReferences.forEach((reference, index) => {
+        insertBomLine.run(
+          crypto.randomUUID(),
+          bomHeaderId,
+          index + 1,
+          reference.referencedPartNumber,
+          reference.referencedRevision ?? null,
+          reference.quantity ?? 1,
+          reference.sourceFile?.id ?? null,
+          reference.id,
+          reference.sourceFilename,
+          now
+        );
+      });
+      db.prepare(
+        "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, NULL, 'BomDraftMaterialized', ?, ?)"
+      ).run(crypto.randomUUID(), submissionId, JSON.stringify({ source: "file_references", lineCount: bomReferences.length }), now);
+    }
+
+    db.prepare(
+      "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, ?, 'Submit', ?, ?)"
+    ).run(crypto.randomUUID(), submissionId, submittedBy, JSON.stringify({ fileCount: preparedFiles.length, fixtureSource: "qc_api_disposable_db" }), now);
+  });
+
+  try {
+    createFixture();
+    return { status: 201, body: { submissionId }, data };
+  } finally {
+    db.close();
+  }
 }
 
 async function approveSubmission(submissionId, cookie = managerCookie, comment = "QC approve") {
@@ -226,6 +547,25 @@ async function expectStatus(name, actual, expected) {
 }
 
 const results = [];
+
+const retiredGenericSubmissionPost = await fetch(`${baseUrl}/api/submissions`, {
+  method: "POST",
+  headers: { cookie: engineerCookie }
+});
+results.push(await expectStatus("API-RETIRED-001 generic submission factory stays retired", retiredGenericSubmissionPost.status, 410));
+
+const removedProjectGateSegment = "phase-gates";
+const removedProjectGateBase = `${baseUrl}/api/submissions/missing/${removedProjectGateSegment}`;
+for (const method of ["GET", "POST"]) {
+  const response = await fetch(removedProjectGateBase, { method });
+  results.push(await expectStatus(`DEV054-ROUTE-${method} removed project-gate collection returns 404`, response.status, 404));
+}
+const removedProjectGateDecision = await fetch(`${removedProjectGateBase}/missing`, {
+  method: "PATCH",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ status: "approved" })
+});
+results.push(await expectStatus("DEV054-ROUTE-PATCH removed project-gate decision returns 404", removedProjectGateDecision.status, 404));
 
 const unauthList = await fetch(`${baseUrl}/api/submissions?status=Pending`);
 results.push(await expectStatus("AUTH-001 unauthenticated submissions list returns 401", unauthList.status, 401));
@@ -334,7 +674,7 @@ results.push(
 
 const duplicateSeed = await postSubmission({
   drawing_number: `QC-DUP-${Date.now().toString().slice(-6)}`,
-  revision: "A"
+  revision: "1"
 });
 results.push(await expectStatus("API-001 positive submission returns 201", duplicateSeed.status, 201));
 
@@ -560,8 +900,8 @@ const sandboxPromotedApproveResponse = await fetch(`${baseUrl}/api/submissions/$
   body: JSON.stringify({ comment: "QC approve promoted sandbox" })
 });
 const sandboxPromotedApproveBody = await sandboxPromotedApproveResponse.json().catch(() => ({}));
-results.push(await expectStatus("SANDBOX-013 promoted sandbox can enter release flow", sandboxPromotedApproveResponse.status, 200));
-results.push(await expectStatus("SANDBOX-014 promoted sandbox reaches Released", sandboxPromotedApproveBody.status, "Released"));
+results.push(await expectStatus("SANDBOX-013 promoted sandbox revision remains release-policy controlled", sandboxPromotedApproveResponse.status, 409));
+results.push(await expectStatus("SANDBOX-014 sandbox branch revision returns policy blocker", sandboxPromotedApproveBody.code, "revision_format_invalid"));
 
 const duplicateSeedDetailResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}`, {
   headers: { cookie: engineerCookie }
@@ -882,79 +1222,6 @@ const otherChangeAsEngineer = await fetch(`${baseUrl}/api/submissions/${otherEng
   headers: { cookie: engineerCookie }
 });
 results.push(await expectStatus("CHANGE-017 Engineer cannot list other Engineer changes", otherChangeAsEngineer.status, 403));
-
-const phaseSeed = await postSubmission({
-  drawing_number: `QC-PHASE-${Date.now().toString().slice(-6)}`,
-  part_number: `P-QC-PHASE-${Date.now().toString().slice(-6)}`
-});
-results.push(await expectStatus("PHASE setup pending submission returns 201", phaseSeed.status, 201));
-
-const unauthPhaseList = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates`);
-results.push(await expectStatus("PHASE-001 unauthenticated phase gate list returns 401", unauthPhaseList.status, 401));
-
-const engineerPhaseInit = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates`, {
-  method: "POST",
-  headers: { cookie: engineerCookie }
-});
-results.push(await expectStatus("PHASE-002 Engineer cannot initialize phase gates", engineerPhaseInit.status, 403));
-
-const managerPhaseInit = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates`, {
-  method: "POST",
-  headers: { cookie: managerCookie }
-});
-const managerPhaseInitBody = await managerPhaseInit.json().catch(() => ({}));
-results.push(await expectStatus("PHASE-003 Manager initializes phase gates", managerPhaseInit.status, 201));
-results.push(await expectStatus("PHASE-004 default phase gate count", managerPhaseInitBody.checks?.length, 4));
-results.push(await expectStatus("PHASE-005 phase gates start with four open required checks", managerPhaseInitBody.summary?.open_required, 4));
-
-const phaseBlockedApprove = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/approve`, {
-  method: "POST",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ comment: "QC blocked by phase gates" })
-});
-results.push(await expectStatus("PHASE-006 open required phase gates block approval", phaseBlockedApprove.status, 409));
-
-const firstPhaseCheckId = managerPhaseInitBody.checks?.[0]?.id ?? "missing";
-const engineerPhaseDecision = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates/${firstPhaseCheckId}`, {
-  method: "PATCH",
-  headers: { "content-type": "application/json", cookie: engineerCookie },
-  body: JSON.stringify({ action: "complete", comment: "Engineer should not decide gate" })
-});
-results.push(await expectStatus("PHASE-007 Engineer cannot decide phase gate", engineerPhaseDecision.status, 403));
-
-for (const check of managerPhaseInitBody.checks ?? []) {
-  const action = check.gate_code === "release" ? "waive" : "complete";
-  const phaseDecisionResponse = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates/${check.id}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", cookie: managerCookie },
-    body: JSON.stringify({ action, comment: `QC ${action} ${check.gate_code}` })
-  });
-  results.push(await expectStatus(`PHASE decision ${check.gate_code} returns 200`, phaseDecisionResponse.status, 200));
-}
-
-const phaseListAfterDecision = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates`, {
-  headers: { cookie: managerCookie }
-});
-const phaseListAfterDecisionBody = await phaseListAfterDecision.json().catch(() => ({}));
-results.push(await expectStatus("PHASE-008 phase gate list after decisions returns 200", phaseListAfterDecision.status, 200));
-results.push(await expectStatus("PHASE-009 no required phase gates remain open", phaseListAfterDecisionBody.summary?.open_required, 0));
-results.push(await expectStatus("PHASE-010 phase gate summary is ready", phaseListAfterDecisionBody.summary?.ready_for_release, true));
-
-const duplicatePhaseDecision = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/phase-gates/${firstPhaseCheckId}`, {
-  method: "PATCH",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ action: "waive", comment: "Duplicate gate decision should fail" })
-});
-results.push(await expectStatus("PHASE-011 decided phase gate cannot be decided again", duplicatePhaseDecision.status, 409));
-
-const phaseReleasedApprove = await fetch(`${baseUrl}/api/submissions/${phaseSeed.body.submissionId}/approve`, {
-  method: "POST",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ comment: "QC approved after phase gates" })
-});
-const phaseReleasedApproveBody = await phaseReleasedApprove.json().catch(() => ({}));
-results.push(await expectStatus("PHASE-012 completed phase gates allow approval", phaseReleasedApprove.status, 200));
-results.push(await expectStatus("PHASE-013 completed phase gates release submission", phaseReleasedApproveBody.status, "Released"));
 
 const matrixSeed = await postSubmission({
   drawing_number: `QC-MATRIX-${Date.now().toString().slice(-6)}`,
@@ -1948,7 +2215,7 @@ results.push(await expectStatus("REL-004 duplicate Released filename returns 500
 results.push(
   await expectStatus(
     "REL-005 duplicate Released filename is blocked",
-    secondReleaseFilenameApproval.body.error?.includes("DUPLICATE_RELEASE_FILENAME") ?? false,
+    String(secondReleaseFilenameApproval.body.message ?? secondReleaseFilenameApproval.body.error ?? "").includes("DUPLICATE_RELEASE_FILENAME"),
     true
   )
 );

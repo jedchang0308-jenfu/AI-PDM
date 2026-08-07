@@ -112,6 +112,8 @@ assert(drawingDownloadRoute.includes("previewDerivative") && partDownloadRoute.i
 assert(windowsShellWorker.includes("/api/preview-jobs/claim") && windowsShellWorker.includes("/api/preview-jobs/") && windowsShellWorker.includes("/complete"), "Windows Shell worker uses claim/complete API contract");
 assert(windowsShellWorker.includes("windows-shell-ishellitemimagefactory-v1") && windowsShellWorker.includes("powershell.exe"), "Windows Shell worker records generator evidence and runs Windows PowerShell");
 assert(windowsShellWorker.includes('input.modelsOnly ? ["sldprt", "sldasm"] : ["sldprt", "sldasm", "slddrw"]'), "Windows Shell worker claims SLDDRW by default but supports model-only operation");
+assert(windowsShellWorker.includes("--watch") && windowsShellWorker.includes("Waiting for preview jobs."), "Windows Shell worker supports a persistent local watch mode");
+assert(windowsShellWorker.includes("PREVIEW_WORKER_CONFIGURATION_ERROR"), "Windows Shell worker exits on invalid local worker configuration instead of retrying forever");
 assert(windowsShellWorker.includes('import sharp from "sharp"') && windowsShellWorker.includes("assertMeaningfulThumbnailQuality"), "Windows Shell worker rejects blank or non-informative PNG output");
 assert(
     windowsShellWorker.includes("userFacingPreviewErrorSummary") &&
