@@ -897,6 +897,227 @@ export default function BomWorkbenchPage() {
   }
 
   return (
+    <BomWorkbenchPresentation
+      model={{
+        query,
+        submissions,
+        selectedSubmission,
+        workbench,
+        selectedDraft,
+        deletedDrafts,
+        deletedLoaded,
+        deletedLoading,
+        dirty,
+        loading,
+        message,
+        error,
+        openReconfirmationFlags,
+        isMutable,
+        rows,
+        flowNodes,
+        flowEdges,
+        history,
+        historyIndex,
+        isDetailOpen,
+        drawerWidth,
+        selectedLine,
+        xlsText,
+        reviewReason,
+        obsoleteReason,
+        compareDraftId,
+        comparison
+      }}
+      actions={{
+        setQuery,
+        setDraggedSubmissionId,
+        setError,
+        setMessage,
+        setIsDetailOpen,
+        setXlsText,
+        setReviewReason,
+        setObsoleteReason,
+        runSearch,
+        loadRecentSubmissions,
+        loadWorkbench,
+        startSubmissionDrag,
+        addSubmissionAsLine,
+        loadDraft,
+        createCadDraft,
+        importXlsFile,
+        loadDeletedDrafts,
+        restoreDeletedDraft,
+        saveDraft,
+        restoreHistory,
+        addGroup,
+        setActiveDraft,
+        cloneDraft,
+        deleteDraft,
+        handleFlowDragOver,
+        handleFlowDrop,
+        openLineDetail,
+        handleFlowNodeDragStop,
+        startDrawerResize,
+        moveLine,
+        indentLine,
+        outdentLine,
+        deleteLine,
+        updateLine,
+        importXlsText,
+        reconfirmReplacementFlags,
+        submitReview,
+        requestObsolete,
+        loadCompareDraft
+      }}
+    />
+  );
+}
+
+type BomWorkbenchPresentationProps = {
+  model: {
+    query: string;
+    submissions: SubmissionSummary[];
+    selectedSubmission: SubmissionSummary | null;
+    workbench: BomWorkbenchSummary | null;
+    selectedDraft: BomWorkbenchDraftDetail | null;
+    deletedDrafts: DeletedBomWorkbenchDraft[];
+    deletedLoaded: boolean;
+    deletedLoading: boolean;
+    dirty: boolean;
+    loading: boolean;
+    message: string;
+    error: string;
+    openReconfirmationFlags: BomReconfirmationFlag[];
+    isMutable: boolean;
+    rows: TreeRow[];
+    flowNodes: BomFlowNode[];
+    flowEdges: Edge[];
+    history: BomWorkbenchLine[][];
+    historyIndex: number;
+    isDetailOpen: boolean;
+    drawerWidth: number;
+    selectedLine: BomWorkbenchLine | null;
+    xlsText: string;
+    reviewReason: string;
+    obsoleteReason: string;
+    compareDraftId: string;
+    comparison: CompareRow[];
+  };
+  actions: {
+    setQuery: (value: string) => void;
+    setDraggedSubmissionId: (value: string | null) => void;
+    setError: (value: string) => void;
+    setMessage: (value: string) => void;
+    setIsDetailOpen: (value: boolean) => void;
+    setXlsText: (value: string) => void;
+    setReviewReason: (value: string) => void;
+    setObsoleteReason: (value: string) => void;
+    runSearch: () => void;
+    loadRecentSubmissions: () => void;
+    loadWorkbench: (submissionId: string) => void;
+    startSubmissionDrag: (event: ReactDragEvent<Element>, submissionId: string) => void;
+    addSubmissionAsLine: (submission: SubmissionSummary, parentLineId?: string | null) => void;
+    loadDraft: (draftId: string) => void;
+    createCadDraft: () => void;
+    importXlsFile: (file: File) => void;
+    loadDeletedDrafts: () => void;
+    restoreDeletedDraft: (deleted: DeletedBomWorkbenchDraft) => void;
+    saveDraft: () => void;
+    restoreHistory: (nextIndex: number) => void;
+    addGroup: () => void;
+    setActiveDraft: () => void;
+    cloneDraft: () => void;
+    deleteDraft: () => void;
+    handleFlowDragOver: (event: ReactDragEvent<HTMLDivElement>) => void;
+    handleFlowDrop: (event: ReactDragEvent<HTMLDivElement>) => void;
+    openLineDetail: (lineId: string) => void;
+    handleFlowNodeDragStop: OnNodeDrag<BomFlowNode>;
+    startDrawerResize: (clientX: number) => void;
+    moveLine: (lineId: string, direction: -1 | 1) => void;
+    indentLine: (lineId: string) => void;
+    outdentLine: (lineId: string) => void;
+    deleteLine: (lineId: string) => void;
+    updateLine: (lineId: string, patch: Partial<BomWorkbenchLine>) => void;
+    importXlsText: () => void;
+    reconfirmReplacementFlags: () => void;
+    submitReview: () => void;
+    requestObsolete: () => void;
+    loadCompareDraft: (draftId: string) => void;
+  };
+};
+
+function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationProps) {
+  const {
+    query,
+    submissions,
+    selectedSubmission,
+    workbench,
+    selectedDraft,
+    deletedDrafts,
+    deletedLoaded,
+    deletedLoading,
+    dirty,
+    loading,
+    message,
+    error,
+    openReconfirmationFlags,
+    isMutable,
+    rows,
+    flowNodes,
+    flowEdges,
+    history,
+    historyIndex,
+    isDetailOpen,
+    drawerWidth,
+    selectedLine,
+    xlsText,
+    reviewReason,
+    obsoleteReason,
+    compareDraftId,
+    comparison
+  } = model;
+  const {
+    setQuery,
+    setDraggedSubmissionId,
+    setError,
+    setMessage,
+    setIsDetailOpen,
+    setXlsText,
+    setReviewReason,
+    setObsoleteReason,
+    runSearch,
+    loadRecentSubmissions,
+    loadWorkbench,
+    startSubmissionDrag,
+    addSubmissionAsLine,
+    loadDraft,
+    createCadDraft,
+    importXlsFile,
+    loadDeletedDrafts,
+    restoreDeletedDraft,
+    saveDraft,
+    restoreHistory,
+    addGroup,
+    setActiveDraft,
+    cloneDraft,
+    deleteDraft,
+    handleFlowDragOver,
+    handleFlowDrop,
+    openLineDetail,
+    handleFlowNodeDragStop,
+    startDrawerResize,
+    moveLine,
+    indentLine,
+    outdentLine,
+    deleteLine,
+    updateLine,
+    importXlsText,
+    reconfirmReplacementFlags,
+    submitReview,
+    requestObsolete,
+    loadCompareDraft
+  } = actions;
+
+  return (
     <section className="bom-workbench-page" aria-label="BOM 工作台">
       <header className="bom-workbench-header">
         <div>
