@@ -185,7 +185,15 @@ export class AsyncNotificationRepository {
     const params = this.paramsFor(user);
     const items: NotificationItem[] = [];
 
-    for (const row of await this.client.query<NotificationRow>(SELECT_ASYNC_RELEASE_FAILED_NOTIFICATIONS_SQL, params)) {
+    const [releaseFailedRows, pendingReviewRows, uploadFailedRows, missingReleasePackageRows, activeLockRows] = await Promise.all([
+      this.client.query<NotificationRow>(SELECT_ASYNC_RELEASE_FAILED_NOTIFICATIONS_SQL, params),
+      this.client.query<NotificationRow>(SELECT_ASYNC_PENDING_REVIEW_NOTIFICATIONS_SQL, params),
+      this.client.query<NotificationRow>(SELECT_ASYNC_UPLOAD_FAILED_NOTIFICATIONS_SQL, params),
+      this.client.query<NotificationRow>(SELECT_ASYNC_MISSING_RELEASE_PACKAGE_NOTIFICATIONS_SQL, params),
+      this.client.query<NotificationRow>(SELECT_ASYNC_ACTIVE_LOCK_NOTIFICATIONS_SQL, params)
+    ]);
+
+    for (const row of releaseFailedRows) {
       items.push({
         id: `release_failed:${row.submission_id}`,
         kind: "release_failed",
@@ -196,7 +204,7 @@ export class AsyncNotificationRepository {
       });
     }
 
-    for (const row of await this.client.query<NotificationRow>(SELECT_ASYNC_PENDING_REVIEW_NOTIFICATIONS_SQL, params)) {
+    for (const row of pendingReviewRows) {
       const remaining = Math.max(1, Number.parseInt(row.detail ?? "1", 10) || 1);
       const isReviewer = user.role === "R&D Manager" || user.role === "Admin";
       items.push({
@@ -211,7 +219,7 @@ export class AsyncNotificationRepository {
       });
     }
 
-    for (const row of await this.client.query<NotificationRow>(SELECT_ASYNC_UPLOAD_FAILED_NOTIFICATIONS_SQL, params)) {
+    for (const row of uploadFailedRows) {
       items.push({
         id: `drive_upload_failed:${row.id}`,
         kind: "drive_upload_failed",
@@ -222,7 +230,7 @@ export class AsyncNotificationRepository {
       });
     }
 
-    for (const row of await this.client.query<NotificationRow>(SELECT_ASYNC_MISSING_RELEASE_PACKAGE_NOTIFICATIONS_SQL, params)) {
+    for (const row of missingReleasePackageRows) {
       items.push({
         id: `release_package_missing:${row.submission_id}`,
         kind: "release_package_missing",
@@ -233,7 +241,7 @@ export class AsyncNotificationRepository {
       });
     }
 
-    for (const row of await this.client.query<NotificationRow>(SELECT_ASYNC_ACTIVE_LOCK_NOTIFICATIONS_SQL, params)) {
+    for (const row of activeLockRows) {
       items.push({
         id: `active_lock:${row.id}`,
         kind: "active_lock",

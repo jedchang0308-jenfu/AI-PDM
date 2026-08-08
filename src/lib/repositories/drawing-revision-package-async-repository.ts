@@ -12,6 +12,7 @@ import {
   normalizeRevisionPackageFileRole,
   type RevisionPackageFileRole
 } from "@/lib/revision-package";
+import { chunkReadQueryInput } from "@/lib/repositories/read-query-batch";
 
 type SubmissionPackageSeedRow = {
   id: string;
@@ -663,23 +664,30 @@ export class AsyncDrawingRevisionPackageRepository {
 
   private async loadPackageFileAssets(pkg: DrawingRevisionPackageRow, fileIds: string[]) {
     const uniqueFileIds = Array.from(new Set(fileIds.map((id) => id.trim()).filter(Boolean)));
-    const rows: FileAssetRow[] = [];
-    for (const fileId of uniqueFileIds) {
-      const row = await this.client.queryOne<FileAssetRow>(
+    if (uniqueFileIds.length === 0) return [];
+    const batches = await Promise.all(chunkReadQueryInput(uniqueFileIds).map((ids) => {
+      const params: Record<string, unknown> = { drawingNumberId: pkg.drawing_number_id };
+      const placeholders = ids.map((fileId, index) => {
+        params[`fileId${index}`] = fileId;
+        return `:fileId${index}`;
+      });
+      return this.client.query<FileAssetRow>(
         `
         SELECT id, file_name, display_name, description, document_category, revision
         FROM file_assets
-        WHERE id = :fileId
+        WHERE id IN (${placeholders.join(", ")})
           AND linked_entity_type = 'drawing_number'
           AND linked_entity_id = :drawingNumberId
           AND deleted_at IS NULL
-        LIMIT 1
       `,
-        { fileId, drawingNumberId: pkg.drawing_number_id }
+        params
       );
-      if (row) rows.push(row);
-    }
-    return rows;
+    }));
+    const rowById = new Map(batches.flat().map((row) => [row.id, row]));
+    return uniqueFileIds.flatMap((fileId) => {
+      const row = rowById.get(fileId);
+      return row ? [row] : [];
+    });
   }
 }
 

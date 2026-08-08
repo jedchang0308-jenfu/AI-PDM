@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
+import { chunkReadQueryInput } from "@/lib/repositories/read-query-batch";
 import type { ProcurementSyncRun, ReadonlyShare, ReleasePackage, SupplierPortalResponse } from "@/lib/types";
 
 export const SELECT_ASYNC_RELEASE_PACKAGE_BY_SUBMISSION_SQL = `
@@ -44,6 +45,25 @@ export const SELECT_ASYNC_RELEASED_FILENAME_CONFLICT_SQL = `
   ORDER BY COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
   LIMIT 1
 `;
+
+function selectReleasedFilenameConflictsSql(predicates: string) {
+  return `
+    SELECT
+      s.id AS submission_id,
+      s.drawing_number,
+      s.revision,
+      f.file_role,
+      f.original_filename
+    FROM submission_files f
+    JOIN submissions s ON s.id = f.submission_id
+    JOIN submissions current_submission ON current_submission.id = :submissionId
+    WHERE s.status = 'Released'
+      AND s.id <> current_submission.id
+      AND s.item_id <> current_submission.item_id
+      AND (${predicates})
+    ORDER BY COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
+  `;
+}
 
 export const SELECT_ASYNC_PROCUREMENT_SYNC_RUNS_SQL = `
   SELECT
@@ -232,6 +252,10 @@ export type AsyncReleasedFilenameConflict = {
   original_filename: string;
 };
 
+function releasedFilenameKey(fileRole: string, originalFilename: string) {
+  return `${fileRole}\u0000${originalFilename.toLowerCase()}`;
+}
+
 export class AsyncReleaseRepository {
   constructor(
     private readonly client: AsyncDatabaseClient,
@@ -279,16 +303,26 @@ export class AsyncReleaseRepository {
     submissionId: string;
     files: Array<{ file_role: string; original_filename: string }>;
   }): Promise<AsyncReleasedFilenameConflict[]> {
-    const conflicts: AsyncReleasedFilenameConflict[] = [];
-    for (const file of input.files) {
-      const conflict = await this.client.queryOne<AsyncReleasedFilenameConflict>(SELECT_ASYNC_RELEASED_FILENAME_CONFLICT_SQL, {
-        submissionId: input.submissionId,
-        fileRole: file.file_role,
-        originalFilename: file.original_filename
+    if (input.files.length === 0) return [];
+
+    const batches = await Promise.all(chunkReadQueryInput(input.files).map((files) => {
+      const params: Record<string, unknown> = { submissionId: input.submissionId };
+      const predicates = files.map((file, index) => {
+        params[`fileRole${index}`] = file.file_role;
+        params[`originalFilename${index}`] = file.original_filename;
+        return `(f.file_role = :fileRole${index} AND lower(f.original_filename) = lower(:originalFilename${index}))`;
       });
-      if (conflict) conflicts.push(conflict);
+      return this.client.query<AsyncReleasedFilenameConflict>(selectReleasedFilenameConflictsSql(predicates.join(" OR ")), params);
+    }));
+    const conflictByKey = new Map<string, AsyncReleasedFilenameConflict>();
+    for (const conflict of batches.flat()) {
+      const key = releasedFilenameKey(conflict.file_role, conflict.original_filename);
+      if (!conflictByKey.has(key)) conflictByKey.set(key, conflict);
     }
-    return conflicts;
+    return input.files.flatMap((file) => {
+      const conflict = conflictByKey.get(releasedFilenameKey(file.file_role, file.original_filename));
+      return conflict ? [conflict] : [];
+    });
   }
 
   async listProcurementSyncRuns(input: {
