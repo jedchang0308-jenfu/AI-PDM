@@ -31,6 +31,8 @@ type PdmDetailDrawerProps = {
   dataSourceContext?: string;
   dataDetailTarget?: string;
   dataDetailCode?: string;
+  dataDetailFamily?: string;
+  dataDrawingDetailSkeleton?: boolean;
   drawerRef?: Ref<HTMLElement>;
 };
 
@@ -126,6 +128,8 @@ export function PdmDetailDrawer({
   dataSourceContext,
   dataDetailTarget,
   dataDetailCode,
+  dataDetailFamily,
+  dataDrawingDetailSkeleton,
   drawerRef
 }: PdmDetailDrawerProps) {
   useEffect(() => {
@@ -160,6 +164,8 @@ export function PdmDetailDrawer({
         data-source-context={dataSourceContext}
         data-detail-target={dataDetailTarget}
         data-detail-code={dataDetailCode}
+        data-detail-family={dataDetailFamily}
+        data-drawing-detail-skeleton={dataDrawingDetailSkeleton ? "true" : undefined}
       >
         <button
           className="pdm-detail-drawer-resize-handle"

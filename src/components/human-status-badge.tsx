@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle, Archive, Check, Clock3, Play } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { humanStatusDetail, humanStatusPrimaryLabel, type HumanStatusIcon, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 
@@ -16,8 +17,38 @@ const iconMap: Record<HumanStatusIcon, typeof AlertTriangle> = {
 export function HumanStatusBadge({ status, viewerStatus, availabilityScope, className = "" }: { status: HumanStatusProjection | null | undefined; viewerStatus?: ViewerHumanStatusProjection | null; availabilityScope?: AvailabilityScopeProjection | null; className?: string }) {
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ left: 12, top: 12 });
   const detailId = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
+  const popoverRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    function positionPopover() {
+      const anchor = anchorRef.current;
+      const popover = popoverRef.current;
+      if (!anchor || !popover) return;
+      const viewportPadding = 12;
+      const anchorRect = anchor.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      const maxLeft = Math.max(viewportPadding, window.innerWidth - popoverRect.width - viewportPadding);
+      const left = Math.min(Math.max(anchorRect.left, viewportPadding), maxLeft);
+      const below = anchorRect.bottom + 8;
+      const top = below + popoverRect.height <= window.innerHeight - viewportPadding
+        ? below
+        : Math.max(viewportPadding, anchorRect.top - popoverRect.height - 8);
+      setPopoverPosition((current) => current.left === left && current.top === top ? current : { left, top });
+    }
+
+    positionPopover();
+    window.addEventListener("resize", positionPopover);
+    window.addEventListener("scroll", positionPopover, true);
+    return () => {
+      window.removeEventListener("resize", positionPopover);
+      window.removeEventListener("scroll", positionPopover, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +123,13 @@ export function HumanStatusBadge({ status, viewerStatus, availabilityScope, clas
         <span>{primaryLabel}</span>
       </span>
       {open ? (
-        <span id={detailId} className="human-status-detail-popover" role="tooltip">
+        <span
+          ref={popoverRef}
+          id={detailId}
+          className="human-status-detail-popover"
+          role="tooltip"
+          style={{ left: popoverPosition.left, top: popoverPosition.top } as CSSProperties}
+        >
           <strong>{detail.title}</strong>
           <span>{detail.summary}</span>
           <span>{detail.actor}</span>

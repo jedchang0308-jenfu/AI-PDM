@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, FileText, Link2, RefreshCcw, Search, Workflow, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, FileText, Link2, MoreHorizontal, RefreshCcw, Search, Workflow, X } from "lucide-react";
 import { MasterAttachmentPanel, type HistoricalRevisionBackfillRequest } from "@/components/master-attachment-panel";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
@@ -15,8 +15,8 @@ import {
   type WorkspaceAction
 } from "@/components/number-state-workspace";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { DrawingWorkspaceDrawer } from "@/components/drawing-workspace-drawer";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusForUser } from "@/lib/status-display";
@@ -251,6 +251,8 @@ export function DrawingWorkbench() {
       setError(apiMessage(body, "這筆圖號工作已不存在或目前無法查看。"));
       return;
     }
+    const canonicalRow = body.row;
+    setRows((currentRows) => currentRows.map((row) => row.rowKey === canonicalRow.rowKey ? canonicalRow : row));
     setDetail(body);
     if (body.row.stage === "history_only" && !includeHistory) {
       resetPagination();
@@ -298,7 +300,7 @@ export function DrawingWorkbench() {
       const bounded = Math.max(0, Math.min(rows.length - 1, targetIndex));
       rowRefs.current.get(rows[bounded]?.rowKey ?? "")?.focus();
     };
-    if (event.key === "Enter") {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       void openDetail(row.rowKey);
     } else if (event.key === "Escape") {
@@ -461,12 +463,12 @@ export function DrawingWorkbench() {
                   ref={(node) => { if (node) rowRefs.current.set(row.rowKey, node); else rowRefs.current.delete(row.rowKey); }}
                   className={selectedKey === row.rowKey ? "selected-row" : undefined}
                   aria-selected={selectedKey === row.rowKey}
-                  aria-keyshortcuts="Enter Escape ArrowUp ArrowDown Home End PageUp PageDown Control+C Meta+C"
+                  aria-keyshortcuts="Enter Space Escape ArrowUp ArrowDown Home End PageUp PageDown Control+C Meta+C"
                   tabIndex={0}
                   onKeyDown={(event) => handleRowKeyDown(event, row, index)}
                   onClick={() => void openDetail(row.rowKey)}
                 >
-                  <td data-label="圖號"><button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}>{row.displayCode}{row.additionalDrawingCount > 0 ? ` +${row.additionalDrawingCount}` : ""}</button></td>
+                  <td data-label="圖號"><button className="link-button pdm-identity-code" type="button" onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); void openDetail(row.rowKey); } }} onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}>{row.displayCode}{row.additionalDrawingCount > 0 ? ` +${row.additionalDrawingCount}` : ""}</button></td>
                   <td data-label="品名"><div className="pdm-identity-name">{row.displayName}</div>{row.purposeCode ? <div className="drawing-workbench-purpose-sub">{row.purposeCode} {displayDrawingPurposeLabel(row.purposeCode)}</div> : null}{row.relatedPartSummary ? <div className="pdm-identity-name-sub">料號：{row.relatedPartSummary}</div> : null}</td>
                   <td data-label="工作狀態"><WorkbenchStatusCell row={row} /></td>
                 </tr>
@@ -564,7 +566,41 @@ function buildDrawingRevisionHref({ drawingNumber, returnTo, historicalBackfill 
   return `/numbering/revisions?${params.toString()}`;
 }
 
+function withDrawingReturnTo(href: string | null, returnTo: string) {
+  if (!href || !href.startsWith("/numbering/revisions")) return href;
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+}
+
 export function DrawingDetailContent({
+  drawing,
+  row,
+  capabilities,
+  productionSlice,
+  onDataChanged,
+  returnTo: returnToOverride,
+  embedded = false
+}: {
+  drawing: DrawingDetail;
+  row: DrawingWorkbenchRow;
+  capabilities: DrawingWorkbenchCapabilities;
+  productionSlice: ProductionSliceClientStatus | null;
+  onDataChanged: () => Promise<void>;
+  returnTo?: string;
+  embedded?: boolean;
+}) {
+  const slots = createDrawingDetailSlots({ drawing, row, capabilities, productionSlice, onDataChanged, returnTo: returnToOverride, embedded });
+  return (
+    <div className={embedded ? "drawing-detail-content" : "pdm-entity-drawer-body"} data-drawing-detail-content="true">
+      <section className="drawing-detail-section drawing-detail-overview" data-drawing-detail-section="drawing-overview" aria-label="圖號摘要">{slots.overview}</section>
+      {slots.body}
+      <div className="drawing-detail-section drawing-detail-pending" data-drawing-detail-section="drawing-pending">{slots.pending}</div>
+      <section className="drawing-detail-section drawing-detail-more" data-drawing-detail-section="drawing-more" aria-label="更多圖號資料">{slots.more}</section>
+    </div>
+  );
+}
+
+function createDrawingDetailSlots({
   drawing,
   row,
   capabilities,
@@ -585,59 +621,116 @@ export function DrawingDetailContent({
   const returnTo = returnToOverride ?? `/numbering/drawings?view=all${row.stage === "history_only" ? "&history=include" : ""}&detail=${encodeURIComponent(row.rowKey)}`;
   const relationHref = `/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number&returnTo=${encodeURIComponent(returnTo)}`;
   const impactHref = `/numbering/impact?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}&returnTo=${encodeURIComponent(returnTo)}`;
-  const revisionHref = buildDrawingRevisionHref({ drawingNumber: drawing.drawingNumber, returnTo });
   const formalMutationBlocked = Boolean(productionSlice?.configured) || !capabilities.canCreateRevision;
-  const formalMutationBlockedReason = productionSlice?.configured
-    ? productionSlice.unopenedMessage ?? defaultProductionSliceUnopenedMessage
-    : `缺少「${capabilities.permissionRequirements.createRevision.label}」權限（${capabilities.permissionRequirements.createRevision.permissionCode}），請聯絡${capabilities.permissionRequirements.createRevision.contactRole}。`;
-  const formalMutationBlockedBadge = productionSlice?.configured ? "未開放" : !capabilities.canCreateRevision ? "權限不足" : null;
-  return (
-    <div className={embedded ? "drawing-detail-content" : "pdm-entity-drawer-body"}>
-      {row.terminal ? <section className="drawing-workbench-terminal-panel" aria-label="歷史狀態說明"><strong>{row.terminal.reasonLabel}</strong><p>{row.terminal.nextStepLabel}</p></section> : null}
-      {row.warning ? <div className="drawing-workbench-header-warning"><AlertTriangle size={15} /><span>{row.warning.message}</span></div> : null}
-      <dl className="drawing-workbench-facts">
-        <div><dt>用途</dt><dd>{drawing.purposeCode} {displayDrawingPurposeLabel(drawing.purposeCode)}</dd></div>
-        <div title={drawing.linkedPartNumbers.join("、")}><dt>關聯</dt><dd>{drawing.linkedPartNumbers.length > 0 ? `${drawing.linkedPartNumbers.length} 個料號` : "尚未關聯"}</dd></div>
-        <div><dt>同根</dt><dd>{drawing.sameRootParts.length} 筆料號</dd></div>
-      </dl>
-      <section className="panel drawing-workbench-management-actions" aria-label="圖面資料管理" data-primary-action-policy="主要下一步只保留一個" data-secondary-action-policy="其他既有管理功能集中在這裡">
-        <div className="drawing-detail-action-row">
-          {formalMutationBlocked ? <button className="secondary-button" type="button" disabled title={formalMutationBlockedReason} data-capability="drawing-submission"><FileText size={16} />上傳與送審{formalMutationBlockedBadge ? <span className="drawing-workbench-inline-unopened">{formalMutationBlockedBadge}</span> : null}</button> : <Link className="secondary-button" href={revisionHref} title="前往圖面進版頁上傳版次檔案並送審" data-capability="drawing-submission"><FileText size={16} />上傳與送審</Link>}
-          <WorkbenchActionLink href={relationHref} label="圖料關係" icon={<Search size={16} />} productionSlice={productionSlice} capability="drawing-relations" />
-          {isManufacturingDrawingPurpose(drawing.purposeCode) ? <WorkbenchActionLink href={impactHref} label="製造影響" icon={<Workflow size={16} />} productionSlice={productionSlice} capability="manufacturing-impact" /> : null}
-        </div>
+  const embeddedPrimaryAction = embedded && row.primaryAction
+    ? { ...row.primaryAction, href: withDrawingReturnTo(row.primaryAction.href, returnTo) }
+    : row.primaryAction;
+  const openEmbeddedPrimaryAction = async () => {
+    if (embeddedPrimaryAction?.href) window.location.assign(embeddedPrimaryAction.href);
+  };
+  return {
+    overview: (
+        <dl className="drawing-workbench-facts">
+          <div><dt>用途</dt><dd>{drawing.purposeCode} {displayDrawingPurposeLabel(drawing.purposeCode)}</dd></div>
+          <div title={drawing.linkedPartNumbers.join("、")}><dt>關聯</dt><dd>{drawing.linkedPartNumbers.length > 0 ? `${drawing.linkedPartNumbers.length} 個料號` : "尚未關聯"}</dd></div>
+          <div><dt>同根</dt><dd>{drawing.sameRootParts.length} 筆料號</dd></div>
+        </dl>
+    ),
+    body: (
+      <section id="drawing-controlled-attachments" className="drawing-workbench-core-section drawing-detail-section" aria-label="版次檔案與預覽" data-drawing-detail-section="drawing-revision-files">
+        <MasterAttachmentPanel compact drawingDetailSkeleton authorityMode="controlled_summary" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)} readOnly pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: capabilities.canReviewApprovals } : null} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
       </section>
-      {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
-      {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} productionSlice={productionSlice} /> : null}
-      <MasterAttachmentPanel compact authorityMode="controlled_summary" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)} readOnly pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: capabilities.canReviewApprovals } : null} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
-      <MasterAttachmentPanel compact authorityMode="reference_manager" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={false} readOnly={!capabilities.canManageReferenceAttachments} onBackfillHistoricalRevision={formalMutationBlocked ? undefined : (request) => { window.location.assign(buildDrawingRevisionHref({ drawingNumber: drawing.drawingNumber, returnTo, historicalBackfill: request })); }} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
-      {!capabilities.canManageReferenceAttachments ? <PermissionRequirementCard requirement={capabilities.permissionRequirements.manageReferenceAttachments} /> : null}
-      <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={capabilities.canReviewApprovals} />
-      <SameRootPartPanel drawing={drawing} mutationsBlocked={Boolean(productionSlice?.configured)} blockedReason={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} onDataChanged={onDataChanged} />
-      <NumberingContextualEntrypoints
-        mode="drawing"
-        rootId={drawing.partRootId}
-        rootCode={drawing.rootCode}
-        coreName={drawing.coreName}
-        rootRecordStatus={drawing.recordStatus}
-        drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
-        part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}
-        onChanged={onDataChanged}
-      />
-    </div>
+    ),
+    pending: (
+      <>
+        {row.terminal ? <section className="drawing-workbench-terminal-panel" aria-label="歷史狀態說明"><strong>{row.terminal.reasonLabel}</strong><p>{row.terminal.nextStepLabel}</p></section> : null}
+        {row.warning ? <div className="drawing-workbench-header-warning"><AlertTriangle size={15} /><span>{row.warning.message}</span></div> : null}
+        {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
+        {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} productionSlice={productionSlice} /> : null}
+        <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={capabilities.canReviewApprovals} />
+      </>
+    ),
+    more: (
+      <>
+        <section className="panel drawing-workbench-management-actions" aria-label="圖面資料管理" data-primary-action-policy="主要下一步只保留一個" data-secondary-action-policy="其他既有管理功能集中在這裡">
+          <div className="drawing-detail-action-row">
+            {embedded ? <div data-capability="drawing-revision"><PrimaryAction action={embeddedPrimaryAction} rowKey={row.rowKey} onOpenDetail={openEmbeddedPrimaryAction} productionSlice={productionSlice} /></div> : null}
+            <DrawingMoreMenu drawing={drawing} row={row} productionSlice={productionSlice} relationHref={relationHref} impactHref={impactHref} />
+          </div>
+        </section>
+        <details id="drawing-reference-attachments" className="drawing-workbench-secondary-section">
+          <summary><span>附件管理</span><strong>參考附件與歷史補登</strong></summary>
+          <div className="drawing-workbench-secondary-section-body">
+            <MasterAttachmentPanel compact authorityMode="reference_manager" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={false} readOnly={!capabilities.canManageReferenceAttachments} onBackfillHistoricalRevision={formalMutationBlocked ? undefined : (request) => { window.location.assign(buildDrawingRevisionHref({ drawingNumber: drawing.drawingNumber, returnTo, historicalBackfill: request })); }} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
+            {!capabilities.canManageReferenceAttachments ? <PermissionRequirementCard requirement={capabilities.permissionRequirements.manageReferenceAttachments} /> : null}
+          </div>
+        </details>
+        <SameRootPartPanel drawing={drawing} mutationsBlocked={Boolean(productionSlice?.configured)} blockedReason={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} onDataChanged={onDataChanged} />
+        <details id="drawing-data-maintenance" className="drawing-workbench-secondary-section">
+          <summary><span>資料維護</span><strong>新增圖號、料號與作廢申請</strong></summary>
+          <div className="drawing-workbench-secondary-section-body">
+            <NumberingContextualEntrypoints
+              mode="drawing"
+              rootId={drawing.partRootId}
+              rootCode={drawing.rootCode}
+              coreName={drawing.coreName}
+              rootRecordStatus={drawing.recordStatus}
+              drawing={{ id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode, recordStatus: drawing.recordStatus, linkedPartNumbers: drawing.linkedPartNumbers }}
+              part={sourcePart ? { id: sourcePart.id, partNumber: sourcePart.partNumber, partName: sourcePart.partName, recordStatus: sourcePart.recordStatus } : undefined}
+              onChanged={onDataChanged}
+            />
+          </div>
+        </details>
+      </>
+    )
+  };
+}
+
+function DrawingMoreMenu({ drawing, row, productionSlice, relationHref, impactHref }: { drawing: DrawingDetail; row: DrawingWorkbenchRow; productionSlice: ProductionSliceClientStatus | null; relationHref: string; impactHref: string }) {
+  return (
+    <details className="drawing-workbench-more-menu">
+      <summary className="secondary-button"><MoreHorizontal size={16} />更多</summary>
+      <div className="drawing-workbench-more-panel">
+        <section>
+          <strong>關聯與影響</strong>
+          <div className="drawing-workbench-more-links">
+            <WorkbenchActionLink href={relationHref} label="圖料關係" icon={<Search size={16} />} productionSlice={productionSlice} capability="drawing-relations" />
+            {isManufacturingDrawingPurpose(drawing.purposeCode) ? <WorkbenchActionLink href={impactHref} label="製造圖影響分析" icon={<Workflow size={16} />} productionSlice={productionSlice} capability="manufacturing-impact" /> : null}
+          </div>
+        </section>
+        <section>
+          <strong>快速查看</strong>
+          <div className="drawing-workbench-more-links">
+            <a className="secondary-button" href="#drawing-controlled-attachments"><FileText size={16} />受控檔案</a>
+            <a className="secondary-button" href="#drawing-reference-attachments"><FileText size={16} />附件管理</a>
+            {row.releaseStatusMismatch ? <a className="secondary-button" href="#drawing-release-status-mismatch"><ClipboardCheck size={16} />送審明細</a> : null}
+          </div>
+        </section>
+        <section>
+          <strong>資料維護</strong>
+          <div className="drawing-workbench-more-links">
+            <a className="secondary-button" href="#drawing-same-root-parts"><Link2 size={16} />主資料與成本</a>
+            <a className="secondary-button" href="#drawing-data-maintenance"><MoreHorizontal size={16} />新增與作廢</a>
+          </div>
+        </section>
+      </div>
+    </details>
   );
 }
 
 function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, width, onStartResize, onDataChanged, onOpenDetail, onClose }: { drawing: DrawingDetail; row: DrawingWorkbenchRow; capabilities: DrawingWorkbenchCapabilities; productionSlice: ProductionSliceClientStatus | null; width: number; onStartResize: (clientX: number) => void; onDataChanged: () => Promise<void>; onOpenDetail: (rowKey: string) => Promise<void>; onClose: () => void }) {
+  const slots = createDrawingDetailSlots({ drawing, row, capabilities, productionSlice, onDataChanged });
   return (
-    <PdmEntityDetailDrawer
+    <DrawingWorkspaceDrawer
       open
       width={width}
       ariaLabel="圖號明細"
+      eyebrow="正式圖號"
       title={drawing.drawingNumber}
       subtitle={drawing.coreName}
       status={<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />}
-      actions={<><div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>{row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}</>}
+      primaryAction={<div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>}
+      secondaryActions={row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}
       entityType="drawing_number"
       entityCode={drawing.drawingNumber}
       sourceContext="numbering_drawings"
@@ -646,9 +739,13 @@ function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, widt
       onClose={onClose}
       onStartResize={onStartResize}
       keepOpenSelector="[data-drawing-workbench-row='true']"
-    >
-      <DrawingDetailContent drawing={drawing} row={row} capabilities={capabilities} productionSlice={productionSlice} onDataChanged={onDataChanged} />
-    </PdmEntityDetailDrawer>
+      overviewLabel="圖號摘要"
+      moreLabel="更多圖號資料"
+      overview={slots.overview}
+      body={slots.body}
+      pending={slots.pending}
+      more={slots.more}
+    />
   );
 }
 
@@ -707,7 +804,7 @@ function ReleaseStatusMismatchPanel({ drawing, productionSlice }: { drawing: Dra
   const mismatch = drawing.releaseStatusMismatch;
   if (!mismatch) return null;
   return (
-    <section className="panel drawing-workbench-risk-panel is-warning" data-capability="release-status-remediation">
+    <section id="drawing-release-status-mismatch" className="panel drawing-workbench-risk-panel is-warning" data-capability="release-status-remediation">
       <div className="panel-header">
         <div>
           <h2>發布狀態待確認</h2>
@@ -725,21 +822,21 @@ function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { d
   const pendingApproval = drawing.pendingApproval ?? null;
   const hasOutstandingItems = incompleteParts.length > 0 || Boolean(pendingApproval);
   const outstandingCount = incompleteParts.length + (pendingApproval?.count ?? 0);
+  if (!hasOutstandingItems) return null;
   return (
     <section className={`panel drawing-prerequisite-panel ${hasOutstandingItems ? "is-blocked" : "is-ready"}`} data-capability="submission-readiness">
       <div className="drawing-prerequisite-summary"><span>送審檢查</span><strong>{hasOutstandingItems ? `${outstandingCount} 項待補` : "資料已備妥"}</strong></div>
       <div className="drawing-workbench-readiness-list">
-        {incompleteParts.length > 0 ? <ReadinessChip icon={<Link2 size={15} />} title="主資料" state={`${incompleteParts.length} 筆`} tone="danger" /> : null}
-        {missingCostParts.length > 0 ? <ReadinessChip icon={<DollarSign size={15} />} title="標準成本" state={`${missingCostParts.length} 筆未設定・選填`} /> : null}
-        {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={15} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆` : "等待主管"} tone="warning" /> : null}
-        {!hasOutstandingItems ? <ReadinessChip icon={<FileText size={15} />} title="附件與主資料" state="完成" tone="success" /> : null}
+        {incompleteParts.length > 0 ? <ReadinessChip icon={<Link2 size={15} />} title="主資料" state={`${incompleteParts.length} 筆`} tone="danger" action={<a href="#drawing-same-root-parts">前往補資料</a>} /> : null}
+        {missingCostParts.length > 0 ? <ReadinessChip icon={<DollarSign size={15} />} title="標準成本" state={`${missingCostParts.length} 筆未設定・選填`} action={<Link href={`/parts?detail=${encodeURIComponent(missingCostParts[0].partNumber)}&focus=cost`}>前往補成本</Link>} /> : null}
+        {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={15} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆` : "等待主管"} tone="warning" action={canReviewApprovals ? <a href={pendingApproval.workbenchHref}>前往審核</a> : undefined} /> : null}
       </div>
     </section>
   );
 }
 
-function ReadinessChip({ icon, title, state, tone = "default" }: { icon: ReactNode; title: string; state: string; tone?: "default" | "success" | "danger" | "warning" }) {
-  return <div className={`drawing-workbench-readiness-chip is-${tone}`}><span>{icon}</span><span>{title}</span><strong>{state}</strong></div>;
+function ReadinessChip({ icon, title, state, tone = "default", action }: { icon: ReactNode; title: string; state: string; tone?: "default" | "success" | "danger" | "warning"; action?: ReactNode }) {
+  return <div className={`drawing-workbench-readiness-chip is-${tone}`}><span>{icon}</span><span>{title}</span><strong>{state}</strong>{action ? <span className="drawing-workbench-readiness-action">{action}</span> : null}</div>;
 }
 
 function getIncompleteSameRootParts(drawing: DrawingDetail) {
@@ -753,7 +850,7 @@ function SameRootPartPanel({ drawing, mutationsBlocked, blockedReason, onDataCha
   if (drawing.sameRootParts.length === 0) return null;
   const allReady = incompleteParts.length === 0;
   return (
-    <section className="panel same-root-part-panel" data-capability="same-root-part-management">
+    <section id="drawing-same-root-parts" className="panel same-root-part-panel" data-capability="same-root-part-management">
       <details className="same-root-part-details" open={!allReady}>
         <summary><h2>同根料號</h2><strong>{allReady ? `已完成 · ${drawing.sameRootParts.length} 筆` : `${incompleteParts.length} 筆待補`}</strong></summary>
         <div className="drawing-workbench-part-list">

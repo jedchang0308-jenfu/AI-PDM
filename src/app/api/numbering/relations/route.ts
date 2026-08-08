@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { getNumberingRootDetailAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
+import { getNumberingRootDetailAsync, listDrawingModuleRecordsByIdsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync, maintainDrawingPartRelationAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
-import { projectRelationHumanStatus } from "@/lib/drawing-part-relation-status";
+import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
+import { projectDrawingWorkbenchRecord, type DrawingWorkbenchActor, type DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusRoleCapabilities } from "@/lib/human-status-projection";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { canUserUseNumberingActionAsync, requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "@/lib/availability-scope";
 import type {
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
   const humanStatus = normalizeHumanStatusFilter(url.searchParams.get("humanStatus"));
   const requestedLimit = normalizeLimit(limit, 60);
 
-  const [matches, productSeriesOptions, seriesCodeOptions, viewerCapabilities] = await Promise.all([
+  const [matches, productSeriesOptions, seriesCodeOptions, viewerCapabilities, createRevisionPermission] = await Promise.all([
     searchNumberingRecordsAsync({
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
@@ -80,14 +81,27 @@ export async function GET(request: Request) {
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
     listSeriesCodeOptionsAsync(companyResult.company.companyId),
-    resolveHumanStatusRoleCapabilitiesAsync(auth.user)
+    resolveHumanStatusRoleCapabilitiesAsync(auth.user),
+    canUserUseNumberingActionAsync(auth.user, "post_release_change")
   ]);
   const rootCodes = Array.from(new Set(matches.map((match) => match.rootCode)));
   const details = (
     await Promise.all(rootCodes.map((rootCode) => getNumberingRootDetailAsync(rootCode, companyResult.company.companyId)))
   ).filter((detail): detail is NumberingRootDetailRecord => Boolean(detail));
+  const canonicalDrawingRecords = await listDrawingModuleRecordsByIdsAsync(
+    details.flatMap((detail) => detail.drawingNumbers.map((drawing) => drawing.id)),
+    companyResult.company.companyId
+  );
+  const projectionActor = relationDrawingProjectionActor(
+    auth.user.id,
+    companyResult.company.companyId,
+    createRevisionPermission.allowed
+  );
+  const canonicalDrawingRows = new Map(
+    canonicalDrawingRecords.map((drawing) => [drawing.id, projectDrawingWorkbenchRecord(drawing, projectionActor)])
+  );
   const roots = details
-    .map((detail) => mapRelationRoot(detail, viewerCapabilities))
+    .map((detail) => mapRelationRoot(detail, viewerCapabilities, canonicalDrawingRows))
     .filter((root) => viewerStatusMatchesFilter(root.viewerStatus, root.humanStatus, humanStatus))
     .slice(0, requestedLimit);
   const summary = {
@@ -142,18 +156,28 @@ export async function POST(request: Request) {
   }
 }
 
-function mapRelationRoot(detail: NumberingRootDetailRecord, viewerCapabilities: HumanStatusRoleCapabilities) {
+function mapRelationRoot(
+  detail: NumberingRootDetailRecord,
+  viewerCapabilities: HumanStatusRoleCapabilities,
+  canonicalDrawingRows: Map<string, DrawingWorkbenchRow>
+) {
   const drawingById = new Map(detail.drawingNumbers.map((drawing) => [drawing.id, drawing]));
   const linksByDrawing = groupLinksBy(detail.links, "drawingNumberId");
   const linksByPart = groupLinksBy(detail.links, "partNumberId");
   const manufacturingDrawings = detail.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode));
   const blockers = buildRelationBlockers(detail, drawingById, linksByDrawing, linksByPart, manufacturingDrawings);
-  const health = relationshipHealth(detail, blockers, manufacturingDrawings);
-  const humanStatus = projectRelationHumanStatus({ recordStatus: detail.root.recordStatus, relationshipHealth: health, blockerCount: blockers.length });
+  const rootStatus = projectNumberingRootStatus(detail);
+  const health = rootStatus.relationshipHealth;
+  const humanStatus = rootStatus.humanStatus;
   const dependencyReleaseReady = manufacturingDrawings.length > 0
     && manufacturingDrawings.every((drawing) => drawing.recordStatus === "Released")
     && detail.partNumbers.every((part) => part.recordStatus === "Released");
-  const availabilityScope = projectRelationRootAvailability({ recordStatus: detail.root.recordStatus, relationshipHealth: health, blockerCount: blockers.length, dependencyReleaseReady });
+  const availabilityScope = projectRelationRootAvailability({
+    recordStatus: detail.root.recordStatus,
+    relationshipHealth: health,
+    blockerCount: rootStatus.blockerCount,
+    dependencyReleaseReady
+  });
   return {
     rootId: detail.root.id,
     rootCode: detail.root.rootCode,
@@ -164,17 +188,28 @@ function mapRelationRoot(detail: NumberingRootDetailRecord, viewerCapabilities: 
     viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
     availabilityScope,
     nextStep: relationNextStep(health, blockers),
-    drawings: detail.drawingNumbers.map((drawing) => mapRelationDrawing(drawing, linksByDrawing.get(drawing.id) ?? [], viewerCapabilities)),
+    drawings: detail.drawingNumbers.map((drawing) => mapRelationDrawing(
+      drawing,
+      linksByDrawing.get(drawing.id) ?? [],
+      viewerCapabilities,
+      canonicalDrawingRows.get(drawing.id)
+    )),
     parts: detail.partNumbers.map((part) => mapRelationPart(part, linksByPart.get(part.id) ?? [], drawingById, viewerCapabilities)),
     matrix: buildRelationMatrix(detail.partNumbers, detail.drawingNumbers, detail.links, drawingById),
     blockers
   };
 }
 
-function mapRelationDrawing(drawing: DrawingNumberRecord, links: NumberingLinkRecord[], viewerCapabilities: HumanStatusRoleCapabilities) {
+function mapRelationDrawing(
+  drawing: DrawingNumberRecord,
+  links: NumberingLinkRecord[],
+  viewerCapabilities: HumanStatusRoleCapabilities,
+  canonicalRow?: DrawingWorkbenchRow
+) {
   const isManufacturing = isManufacturingDrawingPurpose(drawing.purposeCode);
   const isReferenceOnly = isReferenceDrawingPurpose(drawing.purposeCode);
-  const humanStatus = projectDrawingRecordHumanStatus(drawing);
+  const fallbackHumanStatus = projectDrawingRecordHumanStatus(drawing);
+  const humanStatus = canonicalRow?.humanStatus ?? fallbackHumanStatus;
   return {
     id: drawing.id,
     drawingNumber: drawing.drawingNumber,
@@ -185,10 +220,28 @@ function mapRelationDrawing(drawing: DrawingNumberRecord, links: NumberingLinkRe
     isReferenceOnly,
     recordStatus: drawing.recordStatus,
     humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
-    availabilityScope: projectDrawingRecordAvailability(drawing),
+    viewerStatus: canonicalRow?.viewerStatus ?? projectRoleViewerHumanStatus(fallbackHumanStatus, viewerCapabilities),
+    availabilityScope: canonicalRow?.availabilityScope ?? projectDrawingRecordAvailability(drawing),
     linkedPartNumbers: links.map((link) => link.partNumber),
     nextStep: isReferenceOnly ? "參考圖不可作為製造基準" : links.length === 0 ? "未關聯料號" : drawing.recordStatus === "Draft" ? "送審前確認" : "製造基準關聯待狀態確認"
+  };
+}
+
+function relationDrawingProjectionActor(userId: string, companyId: string, createRevision: boolean): DrawingWorkbenchActor {
+  return {
+    id: userId,
+    companyId,
+    permissions: {
+      workspaceView: false,
+      workspaceUpdate: false,
+      candidateSubmit: false,
+      candidateReview: false,
+      publish: false,
+      createRevision,
+      draftUpdate: false,
+      manageReferenceAttachments: false,
+      managePermissions: false
+    }
   };
 }
 
@@ -329,20 +382,6 @@ function buildRelationBlockers(
 
 function requiresManufacturingDrawing(itemKind: string) {
   return ["manufactured", "outsourced", "custom"].includes(itemKind);
-}
-
-function relationshipHealth(
-  detail: NumberingRootDetailRecord,
-  blockers: DrawingPartRelationBlocker[],
-  manufacturingDrawings: DrawingNumberRecord[]
-): DrawingPartRelationHealth {
-  if (["Obsolete", "Merged", "MainDrawingInvalid"].includes(detail.root.recordStatus)) return "blocked";
-  if (detail.partNumbers.length === 0) return "missing_part";
-  if (manufacturingDrawings.length === 0 || blockers.some((blocker) => blocker.code === "part_without_manufacturing_drawing")) return "missing_manufacturing_drawing";
-  if (blockers.some((blocker) => blocker.code === "reference_only")) return "blocked";
-  if (blockers.some((blocker) => blocker.code === "ambiguous_primary")) return "ambiguous";
-  if (detail.root.recordStatus === "Draft" || detail.root.recordStatus === "NeedInfo") return "draft";
-  return "complete";
 }
 
 function relationNextStep(health: DrawingPartRelationHealth, blockers: DrawingPartRelationBlocker[]) {

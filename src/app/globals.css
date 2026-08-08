@@ -8472,6 +8472,13 @@ select.dropdown-select {
   flex: 0 0 auto;
 }
 
+.pdm-entity-drawer-actions .pdm-entity-drawer-close {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
 .pdm-entity-drawer-actions .drawing-workbench-primary-action,
 .pdm-entity-drawer-actions .drawing-workbench-row-action,
 .drawing-workbench-drawer-header-actions .drawing-workbench-primary-action,
@@ -8759,6 +8766,94 @@ select.dropdown-select {
   gap: 6px;
 }
 
+.drawing-workbench-more-menu {
+  position: relative;
+}
+
+.drawing-workbench-more-menu > summary,
+.drawing-workbench-secondary-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.drawing-workbench-more-menu > summary::-webkit-details-marker,
+.drawing-workbench-secondary-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.drawing-workbench-more-menu > summary::after,
+.drawing-workbench-secondary-section > summary::after {
+  content: "⌄";
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.drawing-workbench-more-menu[open] > summary::after,
+.drawing-workbench-secondary-section[open] > summary::after {
+  content: "⌃";
+}
+
+.drawing-workbench-more-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.drawing-workbench-more-panel section {
+  display: grid;
+  gap: 6px;
+}
+
+.drawing-workbench-more-panel section + section {
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.drawing-workbench-more-panel strong,
+.drawing-workbench-secondary-section > summary strong {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.drawing-workbench-more-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.drawing-workbench-more-links .secondary-button {
+  min-height: 32px;
+  padding-inline: 0.65rem;
+}
+
+.drawing-workbench-secondary-section {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 11px;
+  background: #f8fafb;
+}
+
+.drawing-workbench-secondary-section-body {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.drawing-workbench-core-section {
+  min-width: 0;
+}
+
 .drawing-workbench-management-actions .panel-header,
 .drawing-workbench-risk-panel .panel-header,
 .drawing-prerequisite-panel .panel-header {
@@ -8843,6 +8938,15 @@ select.dropdown-select {
 .drawing-workbench-readiness-chip strong {
   color: inherit;
   font-size: inherit;
+}
+
+.drawing-workbench-readiness-action {
+  margin-left: 2px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
 .drawing-workbench-readiness-chip.is-success strong,
@@ -9759,6 +9863,74 @@ select.dropdown-select {
   min-width: 0;
   overflow-y: auto;
   padding: 0 var(--number-state-drawer-gutter);
+}
+
+.drawing-detail-section {
+  min-width: 0;
+}
+
+.drawing-detail-body-slot {
+  display: contents;
+}
+
+.number-state-drawer-body > .drawing-detail-overview {
+  padding-top: 11px;
+}
+
+.drawing-detail-pending,
+.drawing-detail-more {
+  display: grid;
+  gap: 9px;
+}
+
+.drawing-detail-pending:empty {
+  display: none;
+}
+
+.drawing-detail-availability-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.candidate-drawing-preview-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  color: var(--muted);
+}
+
+.candidate-drawing-preview-empty > div {
+  display: grid;
+  gap: 3px;
+}
+
+.candidate-drawing-preview-empty strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.candidate-drawing-preview-empty span {
+  font-size: 0.76rem;
+}
+
+.drawing-detail-more > .number-state-drawer-section {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.number-state-workspace-drawer .drawing-detail-more {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
 }
 
 .number-state-drawer-section {
@@ -13138,13 +13310,13 @@ select.dropdown-select:focus-visible,
 }
 
 .human-status-detail-popover {
-  position: absolute;
+  position: fixed;
   z-index: 80;
-  inset-inline-end: 0;
-  top: calc(100% + 8px);
   display: grid;
   gap: 5px;
   width: min(280px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   padding: 10px 12px;
   color: var(--text);
   background: var(--panel, #fff);

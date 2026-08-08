@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
@@ -18,6 +18,8 @@ type PdmEntityDetailDrawerProps = {
   entityType?: string;
   entityCode?: string;
   sourceContext?: string;
+  detailFamily?: string;
+  drawingDetailSkeleton?: boolean;
   resizeLabel?: string;
   resizeTitle?: string;
   closeLabel?: string;
@@ -45,6 +47,8 @@ export function PdmEntityDetailDrawer({
   entityType,
   entityCode,
   sourceContext,
+  detailFamily,
+  drawingDetailSkeleton,
   resizeLabel,
   resizeTitle,
   closeLabel = "關閉明細",
@@ -57,6 +61,13 @@ export function PdmEntityDetailDrawer({
   const generatedTitleId = useId();
   const titleId = `pdm-entity-drawer-${generatedTitleId.replace(/:/gu, "")}`;
   const drawerRef = useRef<HTMLElement>(null);
+
+  function closeFromKeyboard(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +106,8 @@ export function PdmEntityDetailDrawer({
       dataSourceContext={sourceContext}
       dataDetailTarget={entityType}
       dataDetailCode={entityCode}
+      dataDetailFamily={detailFamily}
+      dataDrawingDetailSkeleton={drawingDetailSkeleton}
       drawerRef={drawerRef}
     >
       <header className="pdm-entity-drawer-header">
@@ -108,7 +121,14 @@ export function PdmEntityDetailDrawer({
         </div>
         <div className="pdm-entity-drawer-actions">
           {actions}
-          <button className="icon-button" type="button" onClick={onClose} aria-label={closeLabel}>
+          <button
+            className="icon-button pdm-entity-drawer-close"
+            type="button"
+            onClick={onClose}
+            onKeyDown={closeFromKeyboard}
+            aria-label={closeLabel}
+            data-pdm-drawer-close="true"
+          >
             <X size={20} />
           </button>
         </div>

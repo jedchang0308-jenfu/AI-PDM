@@ -547,7 +547,7 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
     const href = `/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
     primaryAction = {
       kind: "create_revision",
-      label: stage === "correction_required" ? "繼續修正" : stage === "drawing_preparation" ? "繼續準備" : "圖面進版",
+      label: stage === "correction_required" ? "繼續修正並重送" : stage === "drawing_preparation" ? "繼續準備" : "建立新版次",
       enabled: actor.permissions.createRevision,
       disabledReason: actor.permissions.createRevision ? null : "缺少「建立正式圖面新版」權限（post_release_change），請聯絡研發主管或 PDM Admin。",
       href: actor.permissions.createRevision ? href : null,
@@ -625,6 +625,10 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
   };
   const humanStatus = projectDrawingHumanStatus(row);
   return { ...row, humanStatus, viewerStatus: drawingViewerStatus(drawing, row, actor, humanStatus), availabilityScope: projectDrawingAvailability(row) };
+}
+
+export function projectDrawingWorkbenchRecord(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchActor): DrawingWorkbenchRow {
+  return drawingRow(drawing, actor);
 }
 
 function rowInView(row: DrawingWorkbenchRow, source: NumberingDraftWorkspaceRecord | DrawingModuleListRecord, actor: DrawingWorkbenchActor, view: DrawingWorkbenchView) {

@@ -16,6 +16,8 @@ const attachment = read("src/components/master-attachment-panel.tsx");
 const contextual = read("src/components/numbering-contextual-entrypoints.tsx");
 const revisionWorkbench = read("src/app/numbering/revisions/page.tsx");
 const candidateEditor = read("src/components/numbering-candidate-revision-editor.tsx");
+const drawingWorkspaceDrawer = read("src/components/drawing-workspace-drawer.tsx");
+const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
 
@@ -33,7 +35,8 @@ record("DEV053-UI-003 legacy reserved deep link normalizes without mutation",
   !normalizer.includes("fetch(") && !normalizer.includes('method: "POST"'));
 record("DEV053-UI-004 server-derived next action is kept in the drawer, not repeated in list rows",
   (component.match(/<PrimaryAction action=\{row\.primaryAction\}/gu) ?? []).length === 1 &&
-  has(component, ["PdmEntityDetailDrawer", "actions=", "row.primaryAction", "disabledReason", "href"]) &&
+  has(component, ["DrawingWorkspaceDrawer", "primaryAction=", "row.primaryAction", "disabledReason", "href"]) &&
+  has(drawingWorkspaceDrawer, ['data-component="drawing-workspace-drawer"', 'data-drawing-primary-action-slot="true"']) &&
   !component.includes('data-label="下一步"') &&
   !component.includes("row.actions.map"));
 record("DEV053-UI-005 controlled revision files and reference attachments use separate authority views",
@@ -77,18 +80,19 @@ record("DEV053-UI-011 formal filters and linked-part identity remain visible on 
     "projectDrawingHumanStatus",
     "humanStatus"
   ]));
-record("DEV053-UI-012 revision, submission, relation and manufacturing-impact entrypoints are restored",
+record("DEV053-UI-012 state-driven primary action and secondary entrypoints are restored",
   has(component, [
     'capability="drawing-revision"',
-    'capability="drawing-submission"',
     'capability="drawing-relations"',
     'capability="manufacturing-impact"',
+    'data-primary-action-policy="主要下一步只保留一個"',
+    'data-secondary-action-policy="其他既有管理功能集中在這裡"',
     "buildDrawingRevisionHref",
-    "href={revisionHref}",
     "/numbering/search?query=",
     "/numbering/impact?drawingNumber=",
+    "withDrawingReturnTo",
     "returnTo="
-  ]) && !component.includes("<DrawingRevisionWorkbench") &&
+  ]) && !component.includes('capability="drawing-submission"') && !component.includes("<DrawingRevisionWorkbench") &&
   has(revisionWorkbench, ["export function DrawingRevisionWorkbench", "getInitialReturnTo", "返回圖號"]));
 record("DEV053-UI-013 release mismatch, title-block risk and submission readiness are restored",
   has(component, [
@@ -135,7 +139,7 @@ record("DEV053-UI-015 production-slice restrictions stay visible and fail closed
   ]) && has(css, [".drawing-workbench-unopened-action", ".drawing-workbench-inline-unopened"]));
 record("DEV053-UI-016 one server primary action remains while secondary tools route to shared work pages",
   !component.includes("row.actions.map") &&
-  has(component, ["<PrimaryAction action={row.primaryAction}", "主要下一步只保留一個", "其他既有管理功能集中在這裡", "revisionHref"]));
+  has(component, ["<PrimaryAction action={row.primaryAction}", "主要下一步只保留一個", "其他既有管理功能集中在這裡"]));
 record("DEV053-UI-017 default-all, explicit history and terminal guidance are visible",
   has(component, [
     'useState<DrawingWorkbenchView>("all")',
@@ -165,7 +169,13 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
     "上傳並完成驗證",
     "主要受控檔已完成，可送審",
     "recommendedFileWarnings"
-  ]));
+  ]) &&
+  has(numberStateWorkspace, [
+    "shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)",
+    '!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)',
+    "尚無可預覽圖面"
+  ]) &&
+  !numberStateWorkspace.includes("先在上方加入"));
 record("DEV053-UI-020 permission guidance names the missing permission and safe admin route",
   has(component, ["PermissionGuidance", "permissionCode", "contactRole", "前往權限設定", "canManageReferenceAttachments"]));
 record("DEV053-UI-021 legacy files expose one no-reupload recovery CTA",

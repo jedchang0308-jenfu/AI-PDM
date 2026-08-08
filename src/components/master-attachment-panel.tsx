@@ -180,6 +180,7 @@ export function MasterAttachmentPanel({
   readOnly = false,
   authorityMode = "combined_legacy",
   compact = false,
+  drawingDetailSkeleton = false,
   onBackfillHistoricalRevision,
   pendingRevisionReviews = null,
   productionSliceEnforced: productionSliceEnforcedOverride,
@@ -191,6 +192,7 @@ export function MasterAttachmentPanel({
   readOnly?: boolean;
   authorityMode?: MasterAttachmentAuthorityMode;
   compact?: boolean;
+  drawingDetailSkeleton?: boolean;
   onBackfillHistoricalRevision?: (request: HistoricalRevisionBackfillRequest) => void;
   pendingRevisionReviews?: PendingRevisionReviews | null;
   productionSliceEnforced?: boolean;
@@ -871,7 +873,7 @@ export function MasterAttachmentPanel({
 
   const drawingPreviewBoard =
     drawingPreviewSlots.length > 0 ? (
-      <section className="drawing-preview-board" aria-label="正式圖面預覽">
+      <section className="drawing-preview-board" aria-label="正式圖面預覽" data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined}>
         <div className="drawing-preview-board-header">
           <div>
             <h3>正式版{attachmentSections.currentRevision ? ` ${attachmentSections.currentRevision}` : ""}</h3>
@@ -884,11 +886,27 @@ export function MasterAttachmentPanel({
   const compactControlledSummary = compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? (
     <div className="master-attachment-compact-controlled">
       <div className="master-attachment-list">{attachmentSections.current.map((attachment) => renderAttachmentRow(attachment, { minimal: true }))}</div>
-        {drawingPreviewSlots.length > 0 ? <details className="master-attachment-preview-details" open>
+        {drawingPreviewSlots.length > 0 ? <details className="master-attachment-preview-details" data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined} open>
         <summary><span><Box size={16} />圖面預覽</span><strong>{drawingPreviewSlots.length} 類</strong></summary>
         <div className="drawing-preview-grid">{drawingPreviewSlots.map((slot) => renderPreviewCard(slot))}</div>
       </details> : null}
     </div>
+  ) : null;
+  const drawingPreviewEmpty = drawingDetailSkeleton && entityType === "drawing_number" && drawingPreviewSlots.length === 0 ? (
+    <section className="drawing-preview-board" aria-label="正式圖面預覽" data-drawing-detail-section="drawing-preview">
+      <div className="drawing-preview-board-header"><h3>圖面預覽</h3></div>
+      <div className="drawing-preview-grid">
+        <article className="drawing-preview-card two-d">
+          <div className="drawing-preview-frame placeholder-frame">
+            <div className="drawing-preview-placeholder missing" data-preview-state="missing">
+              <FileText className="drawing-preview-status-icon missing" size={34} aria-hidden="true" />
+              <strong>尚無可預覽圖面</strong>
+              <span>先完成版次檔案送審；正式檔案建立後會顯示在這裡。</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
   ) : null;
 
   return (
@@ -903,6 +921,7 @@ export function MasterAttachmentPanel({
 
       {compactControlledSummary}
       {entityType === "drawing_number" && !compactControlledSummary ? drawingPreviewBoard : null}
+      {drawingPreviewEmpty}
 
       {!effectiveReadOnly && productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
@@ -1306,8 +1325,8 @@ function attachmentPreviewPlaceholder(attachment: MasterAttachment, slot: Drawin
     return {
       tone: delayed ? "delayed" : "pending",
       icon: delayed ? "delayed" : "loading",
-      title: delayed ? "處理較久" : "產生中",
-      text: delayed ? `已等 ${formatPreviewElapsed(job)}，系統會自動接續` : "完成後自動更新",
+      title: delayed ? "等待預覽服務" : "產生中",
+      text: delayed ? "系統會自動接續" : "完成後自動更新",
       action: null
     };
   }
@@ -1325,9 +1344,9 @@ function attachmentPreviewPlaceholder(attachment: MasterAttachment, slot: Drawin
     return {
       tone: "failed",
       icon: "failed",
-      title: "無法預覽",
-      text: compactPreviewFailureText(job.errorSummary),
-      action: { label: "重試" }
+      title: slot.kind === "two-d" ? "2D 預覽尚未產生" : "3D 預覽尚未產生",
+      text: "可先下載原始檔查看；系統產生後重新整理即可。",
+      action: null
     };
   }
   if (jobMatchesSource && job.status === "skipped") {
@@ -1352,19 +1371,6 @@ function attachmentPreviewPlaceholder(attachment: MasterAttachment, slot: Drawin
     text: "請下載原檔",
     action: null
   };
-}
-
-function compactPreviewFailureText(summary: string | null | undefined) {
-  const text = String(summary ?? "").trim();
-  if (!text) return "預覽 worker 未完成，請確認來源檔案與 worker 狀態後重試。";
-  if (/Document Manager key|PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY|worker 可讀取/iu.test(text)) {
-    return "缺少 worker 可讀取的 Document Manager key。請設定 Vault 或 worker 環境變數。";
-  }
-  if (/Windows Shell 只回傳空白|低資訊縮圖/iu.test(text)) {
-    return "此工作站的 Shell 預覽不可用，請改用 Document Manager 或 eDrawings worker。";
-  }
-  if (text.length > 96) return `${text.slice(0, 92)}...`;
-  return text;
 }
 
 function isControlledRevisionAttachment(attachment: MasterAttachment) {

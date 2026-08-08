@@ -103,12 +103,14 @@ function recommendedFileWarnings(files: CandidateFile[]) {
 
 export function NumberingCandidateRevisionEditor({
   workspace,
+  primaryDrawingCode = null,
   disabled,
   onWorkspaceChange,
   onError,
   onNotice
 }: {
   workspace: CandidateRevisionWorkspace;
+  primaryDrawingCode?: string | null;
   disabled: boolean;
   onWorkspaceChange: (workspace: CandidateRevisionWorkspace) => void;
   onError: (message: string) => void;
@@ -354,22 +356,23 @@ export function NumberingCandidateRevisionEditor({
   return (
     <section className="number-state-drawer-section candidate-revision-editor" data-candidate-editor="true">
       <div className="number-state-section-heading">
-        <div><h3>候選首版圖面</h3><p>候選階段可準備內容，但尚不可正式使用。</p></div>
+        <div><h3>首版圖面／版次檔案</h3></div>
       </div>
       <div className="candidate-revision-editor-list">
         {workspace.drawings.map((drawing) => {
           const candidate = candidateByDrawing.get(drawing.id);
+          const drawingLabel = drawing.candidateCode === primaryDrawingCode ? `${drawing.purposeCode} 圖面` : drawing.candidateCode ?? "候選圖號尚未產生";
           if (!candidate) {
             return (
               <article className="candidate-revision-card is-empty" key={drawing.id}>
-                <div><strong>{drawing.candidateCode ?? "候選圖號尚未產生"}</strong><span>{drawing.purposeDescription || drawing.purposeCode} · 尚未建立首版</span></div>
+                <div><strong>{drawingLabel}</strong><span>{drawing.purposeDescription || drawing.purposeCode} · 尚未建立首版</span></div>
                 <button
                   className="primary-button"
                   type="button"
                   data-primary-action="complete-first-drawing"
                   disabled={disabled || Boolean(busyKey)}
                   onClick={() => void createCandidate(drawing.id)}
-                ><FilePlus2 size={16} />{busyKey === `create:${drawing.id}` ? "建立中..." : "完成首版圖面"}</button>
+                ><FilePlus2 size={16} />{busyKey === `create:${drawing.id}` ? "建立中..." : "建立首版"}</button>
               </article>
             );
           }
@@ -383,7 +386,7 @@ export function NumberingCandidateRevisionEditor({
           const fileWarnings = recommendedFileWarnings(activeFiles);
           return (
             <article className="candidate-revision-card" key={candidate.id} data-candidate-status={candidate.lifecycleStatus}>
-              <header><div><strong>{drawing.candidateCode ?? drawing.id}</strong><span>建議版次 {suggestion} · {locked ? "審核內容已鎖定" : "候選草稿"}</span></div><span className="number-state-badge qualification-candidate">尚不可正式使用</span></header>
+              <header><div><strong>{drawingLabel}</strong><span>建議版次 {suggestion} · {locked ? "審核內容已鎖定" : "候選草稿"}</span></div></header>
               <div className="candidate-revision-fields">
                 <label><span>研發版次</span><input value={revisionValue} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setRevisionDrafts((current) => ({ ...current, [candidate.id]: event.target.value }))} /></label>
                 {revisionValue.trim() !== suggestion ? <label><span>調整原因</span><input value={overrideReasons[candidate.id] ?? ""} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setOverrideReasons((current) => ({ ...current, [candidate.id]: event.target.value }))} placeholder="說明為何不採用建議版次" /></label> : null}

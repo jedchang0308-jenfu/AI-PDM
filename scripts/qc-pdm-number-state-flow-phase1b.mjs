@@ -189,6 +189,8 @@ record(
 );
 
 const workspace = read("src/components/number-state-workspace.tsx");
+const candidateRevisionEditor = read("src/components/numbering-candidate-revision-editor.tsx");
+const drawingWorkspaceDrawer = read("src/components/drawing-workspace-drawer.tsx");
 const partsPage = read("src/app/parts/page.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
@@ -238,23 +240,42 @@ record(
   "ui",
   "NSF-UI-004-server-projection",
   workspace.includes("NumberStateProjection") &&
-    workspace.includes("ProjectionBadges") &&
+    workspace.includes("WorkspaceHeaderStatus") &&
+    workspace.includes("workspaceHeaderPrimaryAction") &&
     workspace.includes("NowWhatPanel") &&
+    workspace.includes("LifecycleV2PendingPanel") &&
+    workspace.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&
+    workspace.includes('!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)') &&
+    drawingWorkspaceDrawer.includes('data-drawing-detail-section="drawing-pending"') &&
     workspace.includes("useNumberStateActionPermissions") &&
     workspace.includes('actionPermissions?.["numbering.workspace.create"] === true') &&
     workspace.includes("canAcquireCandidates: boolean") &&
     workspace.includes("workspace.capabilities.canCancel"),
-  "the client must render server projection/capabilities and one Now What panel"
+  "the client must render server projection/capabilities through one header status/action and one pending/Now What section"
 );
 record(
   "ui",
   "NSF-UI-005-candidate-safety",
-  workspace.includes("已保留，尚不可正式使用") &&
+    workspace.includes("候選圖號尚不可正式使用。") &&
+    candidateRevisionEditor.includes(': "建立首版"}</button>') &&
+    !workspace.includes("準備首版圖面") &&
+    !candidateRevisionEditor.includes("準備首版圖面") &&
+    !workspace.includes("完成首版圖面") &&
+    !candidateRevisionEditor.includes("完成首版圖面") &&
     workspace.includes('workspace.projection.numberQualification === "candidate"') &&
+    workspace.includes("<DrawingWorkspaceDrawer") &&
+    drawingWorkspaceDrawer.includes('detailFamily="drawing_number"') &&
+    drawingWorkspaceDrawer.includes("drawingDetailSkeleton") &&
+    workspace.includes("<NumberingCandidateRevisionEditor") &&
+    !workspace.includes('href="#candidate-revision-files"') &&
+    workspace.includes("尚無可預覽圖面") &&
+    !workspace.includes("先在上方加入") &&
+    candidateRevisionEditor.includes("下一步：加入至少一個主要受控檔；系統驗證完成後即可送審。") &&
+    !workspace.includes("number-state-candidate-watermark") &&
     workspace.includes("確認取消保留號") &&
     workspace.includes("確認正式發布") &&
     workspace.includes("正式發布"),
-  "reserved-number watermark must be state-scoped and destructive or publishing actions require explicit confirmation"
+  "candidate availability must be a concise overview hint while destructive or publishing actions retain explicit confirmation"
 );
 record(
   "ui",
@@ -283,9 +304,14 @@ record(
     !workspace.includes("number-state-next-label") &&
     !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
     !workspace.includes('data-label="操作"') &&
-    workspace.includes("PdmEntityDetailDrawer") &&
+    workspace.includes("DrawingWorkspaceDrawer") &&
+    drawingWorkspaceDrawer.includes('data-component="drawing-workspace-drawer"') &&
     workspace.includes('className="number-state-workspace-drawer"') &&
-    !workspace.slice(workspace.indexOf("export function WorkspaceDrawer"), workspace.indexOf("function ProjectionSummary")).includes("aria-modal=\"true\"") &&
+    workspace.includes('eyebrow="候選圖號"') &&
+    workspace.includes('title={drawingCode ?? "尚未產生圖號"}') &&
+    ["drawing-overview", "drawing-pending", "drawing-more"].every((key) => drawingWorkspaceDrawer.includes(`data-drawing-detail-section="${key}"`)) &&
+    ["drawing-revision-files", "drawing-preview"].every((key) => workspace.includes(`data-drawing-detail-section="${key}"`)) &&
+    !workspace.slice(workspace.indexOf("export function WorkspaceDrawer"), workspace.indexOf("function WorkspaceHeaderStatus")).includes("aria-modal=\"true\"") &&
     workspace.includes("useOverlayLifecycle") &&
     workspace.includes("aria-modal=\"true\"") &&
     workspace.includes("event.key !== \"Tab\"") &&
@@ -298,7 +324,7 @@ record(
   workspace.includes("useRememberedDrawerWidth") &&
     workspace.includes('NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width"') &&
     workspace.includes("defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH") &&
-    workspace.includes('resizeLabel="調整保留號明細寬度"') &&
+    workspace.includes('resizeLabel="調整候選圖號明細寬度"') &&
     entityDetailDrawer.includes("resizeLabel={resizeLabel}") &&
     detailDrawer.includes('className="pdm-detail-drawer-resize-handle"') &&
     detailDrawer.includes("onStartResize(event.clientX)") &&

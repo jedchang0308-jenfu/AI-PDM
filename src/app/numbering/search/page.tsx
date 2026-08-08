@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
 import { RiskHint } from "@/components/compact-hints";
@@ -15,10 +15,12 @@ import { HumanStatusBadge } from "@/components/human-status-badge";
 import { DrawingDetailContent, type DrawingDetail, type DrawingWorkbenchCapabilities } from "@/components/drawing-workbench";
 import { PartDetailPanel, type PartDetail } from "@/app/parts/page";
 import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
+import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
 import { StatusBadge } from "@/components/status-help-popover";
 import { HUMAN_STATUS_FILTER_OPTIONS, isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
+import { resolveNumberingSearchDetailTarget, shouldDeferNumberingSearchShortcut, type NumberingSearchDetailTarget } from "@/lib/numbering-search-target";
 import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -298,18 +300,47 @@ type DrawingPartRelationCell = {
 };
 
 type RelationMaintenanceOperation = "link" | "set_primary" | "set_reference" | "remove";
-type DetailTarget =
-  | { entityType: "part_root"; rootCode: string }
-  | { entityType: "drawing_number"; rootCode: string; drawingNumber: string }
-  | { entityType: "part_number"; rootCode: string; partNumber: string };
+type DetailTarget = NumberingSearchDetailTarget;
+
+type OwnerHeaderProjection = {
+  targetKey: string;
+  entityType: "drawing_number" | "part_number";
+  entityCode: string;
+  name: string;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  availabilityScope: AvailabilityScopeProjection;
+};
 
 const statusOptions = masterRecordStatusFilterValues;
 const SEARCH_DRAWER_WIDTH_STORAGE_KEY = "pdm-search-detail-drawer-width";
-function isEditableShortcutTarget(target: EventTarget | null) {
+function shouldDeferShortcutToFocusedControl(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
-  if (target.closest("input, textarea, select")) return true;
-  if (target instanceof HTMLElement && target.isContentEditable) return true;
-  return Boolean(target.closest("[contenteditable='true'], [contenteditable='']"));
+  const control = target.closest("input, textarea, select, button, a, [role='button'], [role='link'], [contenteditable='true'], [contenteditable='']");
+  if (!(control instanceof HTMLElement)) return false;
+  return shouldDeferNumberingSearchShortcut({
+    tagName: control.tagName,
+    role: control.getAttribute("role"),
+    isContentEditable: control.isContentEditable
+  });
+}
+
+function openDetailTargetFromKeyboard(
+  event: ReactKeyboardEvent<HTMLButtonElement>,
+  target: DetailTarget,
+  onOpenDetailTarget: (target: DetailTarget) => void
+) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  event.stopPropagation();
+  onOpenDetailTarget(target);
+}
+
+function activateSearchLinkFromKeyboard(event: ReactKeyboardEvent<HTMLAnchorElement>) {
+  if (!shouldActivateLinkFromKeyboard(event)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.click();
 }
 
 function hasSelectedText() {
@@ -354,6 +385,7 @@ export default function NumberingSearchPage() {
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null);
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [returnTo, setReturnTo] = useState("");
   const { drawerWidth, startDrawerResize: startDetailDrawerResize } = useRememberedDrawerWidth({
     storageKey: SEARCH_DRAWER_WIDTH_STORAGE_KEY
   });
@@ -365,15 +397,17 @@ export default function NumberingSearchPage() {
     const initialQuery = params.get("query")?.trim();
     const initialEntityType = params.get("entityType") as EntityType | null;
     const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
+    const initialReturnTo = params.get("returnTo")?.trim() ?? "";
     const detailRootCode = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
     if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
+    if (initialReturnTo.startsWith("/") && !initialReturnTo.startsWith("//")) setReturnTo(initialReturnTo);
     if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
 
   const loadDetail = useCallback(async (rootCode: string, target?: DetailTarget) => {
-    const nextTarget = target ?? { entityType: "part_root", rootCode };
+    const nextTarget = target ?? resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode });
     const isDifferentRoot = selectedRootCodeRef.current !== rootCode;
     setBusy("detail");
     setError("");
@@ -406,6 +440,19 @@ export default function NumberingSearchPage() {
     },
     [loadDetail]
   );
+
+  const syncCanonicalOwnerProjection = useCallback((projection: OwnerHeaderProjection) => {
+    const canonicalFields = {
+      humanStatus: projection.humanStatus,
+      viewerStatus: projection.viewerStatus,
+      availabilityScope: projection.availabilityScope
+    };
+    setRelationRoots((currentRoots) => currentRoots.map((root) => ({
+      ...root,
+      drawings: root.drawings.map((drawing) => projection.entityType === "drawing_number" && drawing.drawingNumber === projection.entityCode ? { ...drawing, ...canonicalFields } : drawing),
+      parts: root.parts.map((part) => projection.entityType === "part_number" && part.partNumber === projection.entityCode ? { ...part, partName: projection.name, ...canonicalFields } : part)
+    })));
+  }, []);
 
   const loadResults = useCallback(async () => {
     if (activeTab !== "official") return;
@@ -527,7 +574,7 @@ export default function NumberingSearchPage() {
     selectedRootCodeRef.current = root.rootCode;
     setSelectedRootCode(root.rootCode);
     setExpandedRootCodes((current) => new Set(current).add(root.rootCode));
-    void loadDetail(root.rootCode);
+    void loadDetail(root.rootCode, resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode: root.rootCode }));
     focusSearchList();
   }, [focusSearchList, loadDetail, relationRoots]);
 
@@ -542,7 +589,7 @@ export default function NumberingSearchPage() {
 
     function handleShortcut(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
-      if (isEditableShortcutTarget(event.target)) return;
+      if (shouldDeferShortcutToFocusedControl(event.target)) return;
 
       const target = event.target;
       const isListFocus = target instanceof Node && Boolean(searchListRef.current?.contains(target));
@@ -772,8 +819,10 @@ export default function NumberingSearchPage() {
             onAnalyzeImpact={analyzeImpact}
             onRelationChange={maintainRelation}
             onChanged={refreshCurrentRootDetail}
+            onCanonicalOwnerProjection={syncCanonicalOwnerProjection}
             onStartResize={startDetailDrawerResize}
             onClose={() => setIsDetailOpen(false)}
+            returnTo={returnTo}
           />
         </div>
       ) : null}
@@ -896,7 +945,7 @@ function RelationRootHeader({
   onToggleRoot: (rootCode: string) => void;
 }) {
   return (
-    <div className="pdm-relation-root-header" onClick={() => onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode })} role="button" tabIndex={-1}>
+    <div className="pdm-relation-root-header" onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode: root.rootCode }))} role="button" tabIndex={-1}>
       <button
         className="icon-button"
         type="button"
@@ -913,10 +962,16 @@ function RelationRootHeader({
           type="button"
           className="pdm-identity-code"
           style={linkButtonStyle}
+          aria-keyshortcuts="Enter Space"
           onClick={(event) => {
             event.stopPropagation();
-            onOpenDetailTarget({ entityType: "part_root", rootCode: root.rootCode });
+            onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode: root.rootCode }));
           }}
+          onKeyDown={(event) => openDetailTargetFromKeyboard(
+            event,
+            resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode: root.rootCode }),
+            onOpenDetailTarget
+          )}
         >
           {root.rootCode}
         </button>
@@ -947,7 +1002,13 @@ function RelationDrawingNode({
           className="pdm-identity-code"
           style={linkButtonStyle}
           type="button"
-          onClick={() => onOpenDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber })}
+          aria-keyshortcuts="Enter Space"
+          onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }))}
+          onKeyDown={(event) => openDetailTargetFromKeyboard(
+            event,
+            resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }),
+            onOpenDetailTarget
+          )}
         >
           {drawing.drawingNumber}
         </button>
@@ -967,7 +1028,13 @@ function RelationDrawingNode({
                   className={`pdm-relation-part-chip ${part.hasManufacturingDrawing ? "" : "missing"}${showRole ? " has-role" : ""}`}
                   title={showRole ? `${part.partNumber} / ${part.partName} / ${role}` : `${part.partNumber} / ${part.partName}`}
                   type="button"
-                  onClick={() => onOpenDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber })}
+                  aria-keyshortcuts="Enter Space"
+                  onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
+                  onKeyDown={(event) => openDetailTargetFromKeyboard(
+                    event,
+                    resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }),
+                    onOpenDetailTarget
+                  )}
                   key={part.id}
                 >
                   <span>{part.partNumber}</span>
@@ -997,7 +1064,13 @@ function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRe
           <button
             className="pdm-relation-part-chip missing"
             type="button"
-            onClick={() => onOpenDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber })}
+            aria-keyshortcuts="Enter Space"
+            onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
+            onKeyDown={(event) => openDetailTargetFromKeyboard(
+              event,
+              resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }),
+              onOpenDetailTarget
+            )}
             key={part.id}
           >
             <span>{part.partNumber}</span>
@@ -1066,7 +1139,13 @@ function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRel
                 <button
                   className="pdm-relation-matrix-identity"
                   type="button"
-                  onClick={() => onOpenDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber })}
+                  aria-keyshortcuts="Enter Space"
+                  onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }))}
+                  onKeyDown={(event) => openDetailTargetFromKeyboard(
+                    event,
+                    resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }),
+                    onOpenDetailTarget
+                  )}
                 >
                   <span>{drawing.drawingNumber}</span>
                   <small>{drawing.purposeLabel}</small>
@@ -1082,7 +1161,13 @@ function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRel
                 <button
                   className="pdm-relation-matrix-identity"
                   type="button"
-                  onClick={() => onOpenDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber })}
+                  aria-keyshortcuts="Enter Space"
+                  onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
+                  onKeyDown={(event) => openDetailTargetFromKeyboard(
+                    event,
+                    resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }),
+                    onOpenDetailTarget
+                  )}
                 >
                   <span>{part.partNumber}</span>
                   <small title={part.partName}>{part.partName}</small>
@@ -1130,8 +1215,10 @@ function RootDetailDrawer({
   onAnalyzeImpact,
   onRelationChange,
   onChanged,
+  onCanonicalOwnerProjection,
   onStartResize,
-  onClose
+  onClose,
+  returnTo
 }: {
   detail: RootDetail | null;
   detailTarget: DetailTarget | null;
@@ -1142,23 +1229,42 @@ function RootDetailDrawer({
   onAnalyzeImpact: (drawingNumber: string) => void;
   onRelationChange: (input: { operation: RelationMaintenanceOperation; drawingNumber: string; partNumber: string }) => Promise<void>;
   onChanged: () => Promise<void>;
+  onCanonicalOwnerProjection: (projection: OwnerHeaderProjection) => void;
   onStartResize: (clientX: number) => void;
   onClose: () => void;
+  returnTo: string;
 }) {
-  if (!open) return null;
   const target = detail ? resolveDetailTarget(detail, detailTarget) : detailTarget;
+  const targetKey = target ? detailTargetKey(target) : "";
+  const [ownerHeaderProjection, setOwnerHeaderProjection] = useState<OwnerHeaderProjection | null>(null);
+
+  useEffect(() => {
+    setOwnerHeaderProjection(null);
+  }, [targetKey]);
+
+  const handleOwnerHeaderProjection = useCallback((projection: OwnerHeaderProjection) => {
+    setOwnerHeaderProjection(projection);
+    onCanonicalOwnerProjection(projection);
+  }, [onCanonicalOwnerProjection]);
+
+  if (!open) return null;
   const header = detail && target ? detailTargetHeader(detail, target) : { code: "圖料明細", subtitle: "" };
   const headerStatus = detail && target ? detailTargetHumanStatus(detail, target) : null;
   const headerViewerStatus = detail && target ? detailTargetViewerStatus(detail, target) : null;
   const headerAvailabilityScope = detail && target ? detailTargetAvailabilityScope(detail, target) : null;
+  const isRootTarget = target?.entityType === "part_root";
+  const canonicalHeader = ownerHeaderProjection?.targetKey === targetKey ? ownerHeaderProjection : null;
+  const visibleHeaderStatus = isRootTarget ? headerStatus : canonicalHeader?.humanStatus;
+  const visibleHeaderViewerStatus = isRootTarget ? headerViewerStatus : canonicalHeader?.viewerStatus;
+  const visibleHeaderAvailabilityScope = isRootTarget ? headerAvailabilityScope : canonicalHeader?.availabilityScope;
   return (
     <PdmEntityDetailDrawer
       open
       width={width}
       ariaLabel="圖料明細"
       title={header.code}
-      subtitle={header.subtitle}
-      status={detail ? <HumanStatusBadge status={headerStatus ?? detail.humanStatus} viewerStatus={headerViewerStatus ?? detail.viewerStatus} availabilityScope={headerAvailabilityScope ?? detail.availabilityScope} /> : undefined}
+      subtitle={isRootTarget ? header.subtitle : canonicalHeader?.name}
+      status={detail && visibleHeaderStatus ? <HumanStatusBadge status={visibleHeaderStatus} viewerStatus={visibleHeaderViewerStatus} availabilityScope={visibleHeaderAvailabilityScope} /> : undefined}
       entityType={target?.entityType}
       entityCode={header.code}
       sourceContext="numbering_search"
@@ -1170,7 +1276,7 @@ function RootDetailDrawer({
       keepOpenSelector="[data-search-row='true']"
     >
       <div className="pdm-entity-drawer-body">
-        <RootDetailPanel detail={detail} detailTarget={detailTarget} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} />
+        <RootDetailPanel detail={detail} detailTarget={detailTarget} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} onOwnerHeaderProjection={handleOwnerHeaderProjection} returnTo={returnTo} />
       </div>
     </PdmEntityDetailDrawer>
   );
@@ -1183,7 +1289,9 @@ function RootDetailPanel({
   busy,
   onAnalyzeImpact,
   onRelationChange,
-  onChanged
+  onChanged,
+  onOwnerHeaderProjection,
+  returnTo
 }: {
   detail: RootDetail | null;
   detailTarget: DetailTarget | null;
@@ -1192,6 +1300,8 @@ function RootDetailPanel({
   onAnalyzeImpact: (drawingNumber: string) => void;
   onRelationChange: (input: { operation: RelationMaintenanceOperation; drawingNumber: string; partNumber: string }) => Promise<void>;
   onChanged: () => Promise<void>;
+  onOwnerHeaderProjection: (projection: OwnerHeaderProjection) => void;
+  returnTo: string;
 }) {
   if (!detail) {
     return (
@@ -1264,7 +1374,7 @@ function RootDetailPanel({
         </>
       ) : (
         <>
-          <DetailTargetCoreSections detail={detail} target={target} onChanged={onChanged} />
+          <DetailTargetCoreSections detail={detail} target={target} onChanged={onChanged} onOwnerHeaderProjection={onOwnerHeaderProjection} returnTo={returnTo} />
         </>
       )}
     </div>
@@ -1276,6 +1386,12 @@ function resolveDetailTarget(detail: RootDetail, target: DetailTarget | null): D
   if (target.entityType === "drawing_number" && detail.drawingNumbers.some((drawing) => drawing.drawingNumber === target.drawingNumber)) return target;
   if (target.entityType === "part_number" && detail.partNumbers.some((part) => part.partNumber === target.partNumber)) return target;
   return { entityType: "part_root", rootCode: detail.root.rootCode };
+}
+
+function detailTargetKey(target: DetailTarget) {
+  if (target.entityType === "drawing_number") return `drawing_number:${target.drawingNumber}`;
+  if (target.entityType === "part_number") return `part_number:${target.partNumber}`;
+  return `part_root:${target.rootCode}`;
 }
 
 function detailTargetHeader(detail: RootDetail, target: DetailTarget) {
@@ -1335,6 +1451,7 @@ function detailTargetAvailabilityScope(detail: RootDetail, target: DetailTarget)
 function RootDetailHero({ detail, formalChildCount, onChanged }: { detail: RootDetail; formalChildCount: number; onChanged: () => Promise<void> }) {
   const primaryDrawing = detail.drawingNumbers.find((drawing) => drawing.isPrimaryManufacturing) ?? detail.drawingNumbers[0] ?? null;
   const primaryActionLabel = detail.root.recordStatus === "Released" ? "檢查新版送審" : "檢查送審";
+  const visibleWarningCount = displayNumberingWarnings(detail.warnings).length;
   return (
     <section className="panel drawing-detail-hero" data-entity-core-section="object-owner-hero">
       <div className="drawing-detail-hero-meta">
@@ -1342,16 +1459,16 @@ function RootDetailHero({ detail, formalChildCount, onChanged }: { detail: RootD
         <span className="pdm-meta-chip">料號 {detail.summary.partCount}</span>
         <span className="pdm-meta-chip">圖號 {detail.summary.drawingCount}</span>
         {detail.summary.primaryManufacturingCount > 0 ? <span className="pdm-meta-chip">製造圖 {detail.summary.primaryManufacturingCount}</span> : null}
-        {detail.summary.warningCount > 0 ? <span className="pdm-meta-chip drawing-workbench-alert-chip">提醒 {detail.summary.warningCount}</span> : null}
+        {visibleWarningCount > 0 ? <span className="pdm-meta-chip drawing-workbench-alert-chip">提醒 {visibleWarningCount}</span> : null}
       </div>
       <div className="drawing-detail-action-row">
         {primaryDrawing ? (
-          <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawing.drawingNumber)}/submission-workbench`}>
+          <a className="primary-button" href={`/drawings/${encodeURIComponent(primaryDrawing.drawingNumber)}/submission-workbench`} onKeyDown={activateSearchLinkFromKeyboard}>
             <FileText size={16} />
             {primaryActionLabel}
           </a>
         ) : null}
-        <a className="secondary-button" href="/numbering/tasks">
+        <a className="secondary-button" href="/numbering/tasks" onKeyDown={activateSearchLinkFromKeyboard}>
           <ClipboardCheck size={16} />
           待辦
         </a>
@@ -1365,6 +1482,7 @@ function RootDetailHero({ detail, formalChildCount, onChanged }: { detail: RootD
         rootFormalChildCount={formalChildCount}
         rootPartCount={detail.summary.partCount}
         rootDrawingCount={detail.summary.drawingCount}
+        actionEmphasis="secondary"
         onChanged={onChanged}
       />
     </section>
@@ -1377,7 +1495,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
     if (!partNumber) return <DetailTargetLifecyclePanel detail={detail} target={{ entityType: "part_root", rootCode: detail.root.rootCode }} />;
     const links = detail.links.filter((link) => link.partNumberId === partNumber.id);
     const manufacturingLinks = links.filter((link) => link.linkType === "primary_manufacturing");
-    const warnings = detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id && !warning.acknowledgedAt);
+    const warnings = displayNumberingWarnings(detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id));
     const needsManufacturingDrawing = ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind) && manufacturingLinks.length === 0;
     const primaryDrawingNumber = manufacturingLinks[0]?.drawingNumber ?? links[0]?.drawingNumber ?? "";
     return (
@@ -1422,7 +1540,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
     const drawingNumber = detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber);
     if (!drawingNumber) return <DetailTargetLifecyclePanel detail={detail} target={{ entityType: "part_root", rootCode: detail.root.rootCode }} />;
     const links = detail.links.filter((link) => link.drawingNumberId === drawingNumber.id);
-    const warnings = detail.warnings.filter((warning) => warning.entityType === "drawing_number" && warning.entityId === drawingNumber.id && !warning.acknowledgedAt);
+    const warnings = displayNumberingWarnings(detail.warnings.filter((warning) => warning.entityType === "drawing_number" && warning.entityId === drawingNumber.id));
     return (
       <ObjectLifecycleStatusPanel
         title="這個圖號目前狀態"
@@ -1471,12 +1589,12 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         { label: "主根號", value: detail.root.rootCode },
         { label: "主要料號", value: primaryPart?.partNumber ?? "-" },
         { label: "主要圖號", value: primaryDrawing?.drawingNumber ?? "-" },
-        { label: "提醒", value: detail.summary.warningCount }
+        { label: "提醒", value: displayNumberingWarnings(detail.warnings).length }
       ]}
       blockers={[
         detail.root.recordStatus === "Draft" ? "已領號但尚未建立送審單" : "需確認送審、BOM 與審核關卡狀態",
         detail.summary.primaryManufacturingCount === 0 ? "尚未找到製造基準關聯" : "製造基準關聯可在下方圖號區檢查",
-        detail.summary.warningCount > 0 ? `仍有 ${detail.summary.warningCount} 則提醒未收斂` : "目前沒有未確認提醒"
+        displayNumberingWarnings(detail.warnings).length > 0 ? `仍有 ${displayNumberingWarnings(detail.warnings).length} 則提醒未收斂` : "目前沒有未確認提醒"
       ]}
       nextStep={detail.root.recordStatus === "Released" ? "若要改版，先進行 ECR / 影響分析，再建立新版送審。" : "RD 需接續送審或補齊缺口；主管核准後才會進入已發布。"}
       primaryAction={
@@ -1576,7 +1694,7 @@ function DetailTargetActionSection({
   );
 }
 
-function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootDetail; target: DetailTarget; onChanged: () => Promise<void> }) {
+function DetailTargetCoreSections({ detail, target, onChanged, onOwnerHeaderProjection, returnTo }: { detail: RootDetail; target: DetailTarget; onChanged: () => Promise<void>; onOwnerHeaderProjection: (projection: OwnerHeaderProjection) => void; returnTo: string }) {
   const targetDrawingNumber = target.entityType === "drawing_number" ? target.drawingNumber : "";
   const targetPartNumber = target.entityType === "part_number" ? target.partNumber : "";
   const [partDetail, setPartDetail] = useState<PartDetail | null>(null);
@@ -1609,18 +1727,43 @@ function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootD
       try {
         if (target.entityType === "part_number" && targetPartNumber) {
           const response = await fetch(`/api/parts/${encodeURIComponent(targetPartNumber)}`, { signal: controller.signal });
-          if (!response.ok) throw new Error(`料號 owner detail 載入失敗 (${response.status})`);
+          if (!response.ok) throw new Error(`料號明細載入失敗 (${response.status})`);
           const body = (await response.json()) as { part?: PartDetail };
-          if (!cancelled) setPartDetail(body.part ?? null);
+          if (!cancelled) {
+            const ownerPart = body.part ?? null;
+            setPartDetail(ownerPart);
+            if (ownerPart) {
+              onOwnerHeaderProjection({
+                targetKey: `part_number:${targetPartNumber}`,
+                entityType: "part_number",
+                entityCode: targetPartNumber,
+                name: ownerPart.partName,
+                humanStatus: ownerPart.humanStatus,
+                viewerStatus: ownerPart.viewerStatus,
+                availabilityScope: ownerPart.availabilityScope
+              });
+            }
+          }
         } else if (target.entityType === "drawing_number" && targetDrawingNumber) {
           const drawing = detail.drawingNumbers.find((item) => item.drawingNumber === targetDrawingNumber);
-          if (!drawing) throw new Error("圖號 owner detail 找不到");
+          if (!drawing) throw new Error("找不到圖號明細");
           const rowKey = `drawing:${drawing.id}`;
           const response = await fetch(`/api/numbering/drawings/workbench/${encodeURIComponent(rowKey)}`, { signal: controller.signal });
-          if (!response.ok) throw new Error(`圖號 owner detail 載入失敗 (${response.status})`);
+          if (!response.ok) throw new Error(`圖號明細載入失敗 (${response.status})`);
           const body = (await response.json()) as { drawing?: DrawingDetail; row?: DrawingWorkbenchRow; capabilities?: DrawingWorkbenchCapabilities };
           if (!cancelled) {
-            if (body.drawing && body.row && body.capabilities) setDrawingWorkbench({ drawing: body.drawing, row: body.row, capabilities: body.capabilities });
+            if (body.drawing && body.row && body.capabilities) {
+              setDrawingWorkbench({ drawing: body.drawing, row: body.row, capabilities: body.capabilities });
+              onOwnerHeaderProjection({
+                targetKey: `drawing_number:${targetDrawingNumber}`,
+                entityType: "drawing_number",
+                entityCode: targetDrawingNumber,
+                name: body.drawing.coreName,
+                humanStatus: body.row.humanStatus,
+                viewerStatus: body.row.viewerStatus,
+                availabilityScope: body.row.availabilityScope
+              });
+            }
           }
         }
         if (!cancelled) setLoadState("ready");
@@ -1628,7 +1771,7 @@ function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootD
         if ((error as { name?: string }).name === "AbortError") return;
         if (!cancelled) {
           setLoadState("error");
-          setLoadError(error instanceof Error ? error.message : "owner detail 載入失敗");
+          setLoadError(error instanceof Error ? error.message : "明細載入失敗");
         }
       }
     }
@@ -1639,7 +1782,7 @@ function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootD
       cancelled = true;
       controller.abort();
     };
-  }, [detail.drawingNumbers, target.entityType, targetDrawingNumber, targetPartNumber]);
+  }, [detail.drawingNumbers, onOwnerHeaderProjection, target.entityType, targetDrawingNumber, targetPartNumber]);
 
   if (target.entityType === "drawing_number") {
     const drawing = detail.drawingNumbers.find((item) => item.drawingNumber === target.drawingNumber);
@@ -1652,6 +1795,7 @@ function DetailTargetCoreSections({ detail, target, onChanged }: { detail: RootD
         loadState={loadState}
         loadError={loadError}
         onChanged={onChanged}
+        returnTo={returnTo}
       />
     );
   }
@@ -1687,7 +1831,8 @@ function TargetDrawingCoreSections({
   drawingWorkbench,
   loadState,
   loadError,
-  onChanged
+  onChanged,
+  returnTo
 }: {
   detail: RootDetail;
   drawing: DrawingNumber;
@@ -1699,6 +1844,7 @@ function TargetDrawingCoreSections({
   loadState: "idle" | "loading" | "ready" | "error";
   loadError: string;
   onChanged: () => Promise<void>;
+  returnTo: string;
 }) {
   if (drawingWorkbench && loadState === "ready") {
     return (
@@ -1709,7 +1855,7 @@ function TargetDrawingCoreSections({
         productionSlice={null}
         onDataChanged={onChanged}
         embedded
-        returnTo={`/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}
+        returnTo={returnTo || `/numbering/search?query=${encodeURIComponent(drawing.drawingNumber)}&entityType=drawing_number`}
       />
     );
   }
@@ -1864,7 +2010,7 @@ function TargetPartCoreSections({
           <TargetInfoBlock icon={<Link2 size={16} />} title="料號模組" value="開啟後可建立共用 3D 與製造基準包" />
         </div>
         <div style={actionGroupStyle}>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`}>
+          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`} onKeyDown={activateSearchLinkFromKeyboard}>
             <Workflow size={16} />
             開啟 3D 基準
           </a>
@@ -1880,11 +2026,11 @@ function TargetPartCoreSections({
           <TargetInfoBlock icon={<Link2 size={16} />} title="料號模組" value="同一 owner detail API" />
         </div>
         <div style={actionGroupStyle}>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`}>
+          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`} onKeyDown={activateSearchLinkFromKeyboard}>
             <DollarSign size={16} />
             補標準成本
           </a>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`}>
+          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`} onKeyDown={activateSearchLinkFromKeyboard}>
             <FileText size={16} />
             補主資料
           </a>
@@ -1895,7 +2041,7 @@ function TargetPartCoreSections({
 }
 
 function EntityDetailLoadNotice({ loadState, loadError, entityLabel }: { loadState: "idle" | "loading" | "ready" | "error"; loadError: string; entityLabel: string }) {
-  if (loadState === "loading") return <p style={mutedTextStyle}>正在同步{entityLabel} owner detail...</p>;
+  if (loadState === "loading") return <p style={mutedTextStyle}>正在載入{entityLabel}明細...</p>;
   if (loadState === "error") return <p style={dangerTextStyle}>{loadError}；目前先顯示圖料關係中的可用資料。</p>;
   return null;
 }
@@ -2073,7 +2219,7 @@ function PartNumberCard({
 }) {
   const links = detail.links.filter((link) => link.partNumberId === partNumber.id);
   const variants = detail.variants.filter((variant) => variant.partNumberId === partNumber.id);
-  const warnings = detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id && !warning.acknowledgedAt);
+  const warnings = displayNumberingWarnings(detail.warnings.filter((warning) => warning.entityType === "part_number" && warning.entityId === partNumber.id));
   const missingPrimaryMa = ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind) && !links.some((link) => link.linkType === "primary_manufacturing");
   return (
     <article style={selected ? selectedRecordCardStyle : recordCardStyle}>
@@ -2140,7 +2286,7 @@ function DrawingNumberCard({
 }) {
   const links = detail.links.filter((link) => link.drawingNumberId === drawingNumber.id);
   const variants = detail.variants.filter((variant) => variant.drawingNumberId === drawingNumber.id);
-  const warnings = detail.warnings.filter((warning) => warning.entityType === "drawing_number" && warning.entityId === drawingNumber.id && !warning.acknowledgedAt);
+  const warnings = displayNumberingWarnings(detail.warnings.filter((warning) => warning.entityType === "drawing_number" && warning.entityId === drawingNumber.id));
   return (
     <article style={selected ? selectedRecordCardStyle : recordCardStyle}>
       <div style={recordTitleStyle}>
@@ -2192,24 +2338,78 @@ function DrawingNumberCard({
 }
 
 function WarningsPanel({ warnings }: { warnings: NumberingWarning[] }) {
-  if (warnings.length === 0) return null;
+  const displayWarnings = displayNumberingWarnings(warnings);
+  if (displayWarnings.length === 0) return null;
   return (
     <section style={sectionStyle}>
       <h3 style={sectionHeadingStyle}>提醒</h3>
       <div style={cardListStyle}>
-        {warnings.map((warning) => (
-          <div style={recordCardStyle} key={warning.id}>
+        {displayWarnings.map((warning) => (
+          <div style={recordCardStyle} key={warning.key}>
             <div style={recordTitleStyle}>
               <strong>{warning.title}</strong>
               <span className="badge">{warningSeverityLabel(warning.severity)}</span>
             </div>
             <div style={mutedTextStyle}>{warning.message}</div>
-            <small style={mutedTextStyle}>{warning.warningCode}</small>
           </div>
         ))}
       </div>
     </section>
   );
+}
+
+type DisplayNumberingWarning = {
+  key: string;
+  severity: NumberingWarning["severity"];
+  title: string;
+  message: string;
+  count: number;
+};
+
+function displayNumberingWarnings(warnings: NumberingWarning[]): DisplayNumberingWarning[] {
+  const grouped = new Map<string, DisplayNumberingWarning>();
+  for (const warning of warnings) {
+    if (warning.acknowledgedAt) continue;
+    const presentation = warningPresentation(warning);
+    const current = grouped.get(presentation.key);
+    if (current) {
+      current.count += 1;
+      if (presentation.key === "similar-numbering") {
+        current.message = `系統找到 ${current.count} 筆可能相似的圖料號，建立前請確認是否為同一項目。`;
+      }
+      continue;
+    }
+    grouped.set(presentation.key, { ...presentation, count: 1 });
+  }
+  return [...grouped.values()];
+}
+
+function warningPresentation(warning: NumberingWarning): Omit<DisplayNumberingWarning, "count"> {
+  if (warning.warningCode === "HIGH_SIMILARITY_NUMBERING") {
+    return {
+      key: "similar-numbering",
+      severity: warning.severity,
+      title: "找到相似編號",
+      message: "系統找到可能相似的圖料號，建立前請確認是否為同一項目。"
+    };
+  }
+  if (warning.warningCode === "DUPLICATE_NUMBERING_BLOCKER") {
+    return {
+      key: "duplicate-numbering",
+      severity: "blocker",
+      title: "編號已存在",
+      message: "此編號與既有資料重複，請改用既有資料或調整編號。"
+    };
+  }
+
+  const hasHumanTitle = /[\u3400-\u9fff]/u.test(warning.title);
+  const hasHumanMessage = /[\u3400-\u9fff]/u.test(warning.message);
+  return {
+    key: warning.warningCode || warning.id,
+    severity: warning.severity,
+    title: hasHumanTitle ? warning.title : warning.severity === "blocker" ? "需先處理" : "請留意",
+    message: hasHumanMessage ? warning.message : "此筆資料有待確認事項，請確認關聯資料後再繼續。"
+  };
 }
 
 function warningSeverityLabel(severity: NumberingWarning["severity"]) {
@@ -2252,19 +2452,40 @@ function ImpactPanel({ impact }: { impact: ImpactAnalysis | null }) {
 
 function AuditPanel({ auditTrail }: { auditTrail: NumberingAudit[] }) {
   if (auditTrail.length === 0) return null;
+  const auditByLabel = new Map<string, NumberingAudit>();
+  for (const audit of auditTrail) {
+    const label = humanizeAuditAction(audit.action);
+    if (!auditByLabel.has(label)) auditByLabel.set(label, audit);
+  }
+  const visibleAudits = [...auditByLabel.values()].slice(0, 6);
   return (
     <section style={sectionStyle}>
       <h3 style={sectionHeadingStyle}>近期異動</h3>
       <div style={cardListStyle}>
-        {auditTrail.slice(0, 6).map((audit) => (
+        {visibleAudits.map((audit) => (
           <div style={auditRowStyle} key={audit.id}>
-            <span>{audit.action}</span>
+            <span>{humanizeAuditAction(audit.action)}</span>
             <small style={mutedTextStyle}>{new Date(audit.createdAt).toLocaleString()}</small>
           </div>
         ))}
       </div>
     </section>
   );
+}
+
+function humanizeAuditAction(action: string) {
+  const labels: Record<string, string> = {
+    "numbering.v3.cutover": "資料結構更新",
+    "numbering.v2.cutover": "資料結構更新",
+    "part_root.created": "建立主根號",
+    "part_number.created": "建立料號",
+    "drawing_number.created": "建立圖號",
+    "numbering.relation.created": "建立圖料關聯",
+    "numbering.relation.updated": "更新圖料關聯",
+    "numbering.relation.removed": "移除圖料關聯"
+  };
+  if (labels[action]) return labels[action];
+  return /[\u3400-\u9fff]/u.test(action) ? action : "系統更新";
 }
 
 function WarningDot({ title }: { title: string }) {

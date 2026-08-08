@@ -55,11 +55,18 @@ export default function NumberingImpactPage() {
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [busy, setBusy] = useState<"analyze" | "apply" | null>(null);
   const [error, setError] = useState("");
+  const [returnTo, setReturnTo] = useState("");
 
   useEffect(() => {
-    const initialDrawingNumber = new URLSearchParams(window.location.search).get("drawingNumber")?.trim();
+    const params = new URLSearchParams(window.location.search);
+    const initialDrawingNumber = params.get("drawingNumber")?.trim();
+    const initialReturnTo = params.get("returnTo")?.trim() ?? "";
     if (initialDrawingNumber) setDrawingNumber(initialDrawingNumber);
+    if (initialReturnTo.startsWith("/") && !initialReturnTo.startsWith("//")) setReturnTo(initialReturnTo);
   }, []);
+
+  const backHref = returnTo || "/numbering/search";
+  const backLabel = returnTo ? "返回圖號" : "回圖料模組";
 
   async function analyze(applyInvalidation = false) {
     setBusy(applyInvalidation ? "apply" : "analyze");
@@ -116,7 +123,7 @@ export default function NumberingImpactPage() {
         currentStep="影響分析"
         actions={[
           { href: "/numbering/tasks", label: "看影響待辦", variant: "primary" },
-          { href: "/numbering/search", label: "回圖料模組" }
+          { href: backHref, label: backLabel }
         ]}
       />
 
@@ -161,7 +168,7 @@ export default function NumberingImpactPage() {
           </div>
         </section>
 
-        <ImpactResult impact={impact} confirmed={confirmed} busy={busy} onConfirmedChange={setConfirmed} onApply={() => analyze(true)} />
+        <ImpactResult impact={impact} confirmed={confirmed} busy={busy} onConfirmedChange={setConfirmed} onApply={() => analyze(true)} backHref={backHref} backLabel={backLabel} />
       </div>
     </>
   );
@@ -172,13 +179,17 @@ function ImpactResult({
   confirmed,
   busy,
   onConfirmedChange,
-  onApply
+  onApply,
+  backHref,
+  backLabel
 }: {
   impact: ImpactAnalysis | null;
   confirmed: boolean;
   busy: "analyze" | "apply" | null;
   onConfirmedChange: (value: boolean) => void;
   onApply: () => void;
+  backHref: string;
+  backLabel: string;
 }) {
   if (!impact) {
     return (
@@ -188,7 +199,7 @@ function ImpactResult({
           title="尚未產生製造圖作廢影響分析"
           body="輸入製造圖圖號與作廢原因後先分析影響範圍；確認後才可套用失效。"
           actions={[
-            { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+            { href: backHref, label: backLabel, variant: "primary" },
             { href: "/numbering/tasks", label: "看待辦" }
           ]}
         />
@@ -226,7 +237,7 @@ function ImpactResult({
               eyebrow="沒有關聯"
               title="目前沒有主要製造圖關聯料號"
               body="可回圖料模組確認製造圖關聯，或改查另一張製造圖。"
-              actions={[{ href: "/numbering/search", label: "回圖料模組", variant: "primary" }]}
+              actions={[{ href: backHref, label: backLabel, variant: "primary" }]}
             />
           ) : (
             <div className="table-wrap">
@@ -291,7 +302,8 @@ function ImpactResult({
             title="製造圖作廢已完成"
             body="下一步回待辦確認進版文件，或到交接頁確認已發布資料不再被誤用。"
             actions={[
-              { href: "/numbering/tasks", label: "看待辦", variant: "primary" },
+              { href: backHref, label: backLabel, variant: "primary" },
+              { href: "/numbering/tasks", label: "看待辦" },
               { href: "/handoff", label: "看交接" }
             ]}
           />

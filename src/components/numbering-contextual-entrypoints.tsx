@@ -50,6 +50,7 @@ export function NumberingContextualEntrypoints({
   rootDrawingCount = 0,
   drawing,
   part,
+  actionEmphasis = "primary",
   onChanged
 }: {
   mode: ContextMode;
@@ -62,6 +63,7 @@ export function NumberingContextualEntrypoints({
   rootDrawingCount?: number;
   drawing?: { id?: string; drawingNumber: string; purposeCode: string; recordStatus: RecordStatus; linkedPartNumbers?: string[] };
   part?: { id?: string; partNumber: string; partName?: string | null; recordStatus: RecordStatus; linkedDrawingNumbers?: string[] };
+  actionEmphasis?: "primary" | "secondary";
   onChanged?: () => Promise<void> | void;
 }) {
   const [dialog, setDialog] = useState<DialogMode>(null);
@@ -135,6 +137,7 @@ export function NumberingContextualEntrypoints({
   const appendDisabled = Boolean(policy?.locked || busy || drawingWorkbenchEnabled === null);
   const canObsoleteRoot = Boolean(rootRecordStatus && isRootObsoleteCandidate(rootRecordStatus, rootFormalChildCount));
   const canDeleteDraftRoot = Boolean(rootRecordStatus && isDraftDeleteCandidate(rootRecordStatus) && rootFormalChildCount === 0);
+  const emphasizedActionClass = actionEmphasis === "secondary" ? "secondary-button" : "primary-button";
 
   function open(nextDialog: DialogMode) {
     if (nextDialog) window.dispatchEvent(new CustomEvent(CONTEXTUAL_DIALOG_OPEN_EVENT, { detail: { instanceId } }));
@@ -154,7 +157,7 @@ export function NumberingContextualEntrypoints({
       <div className="pdm-contextual-action-row" data-numbering-contextual-entrypoints={mode}>
         {mode === "root" ? (
           <>
-            <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
+            <button className={emphasizedActionClass} type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
               <FilePlus2 size={16} />
               新增圖號
             </button>
@@ -181,7 +184,7 @@ export function NumberingContextualEntrypoints({
               <FilePlus2 size={16} />
               新增同根圖號
             </button>
-            <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
+            <button className={emphasizedActionClass} type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
               <Plus size={16} />
               新增同圖料號
             </button>
@@ -195,11 +198,11 @@ export function NumberingContextualEntrypoints({
         ) : null}
         {mode === "part" && part ? (
           <>
-            {!drawingWorkbenchEnabled ? <button className="primary-button" type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
+            {!drawingWorkbenchEnabled ? <button className={emphasizedActionClass} type="button" disabled={appendDisabled} onClick={() => open("add_part")}>
               <Plus size={16} />
               以此料號新增同根料號
             </button> : null}
-            <button className={drawingWorkbenchEnabled ? "primary-button" : "secondary-button"} type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
+            <button className={drawingWorkbenchEnabled ? emphasizedActionClass : "secondary-button"} type="button" disabled={appendDisabled} onClick={() => open("add_drawing")}>
               <FilePlus2 size={16} />
               新增同根圖號
             </button>

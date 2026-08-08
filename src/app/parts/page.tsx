@@ -269,7 +269,9 @@ export default function PartsPage() {
     const body = await response.json().catch(() => ({}));
     if (selectedPartNumberRef.current !== partNumber) return;
     if (response.ok) {
-      setDetail(body.part);
+      const canonicalPart = body.part as PartDetail;
+      setDetail(canonicalPart);
+      setParts((currentParts) => currentParts.map((part) => part.partNumber === partNumber ? { ...part, ...canonicalPart } : part));
     } else {
       setError(formatStatusErrorForUser(body.error ?? "料號明細讀取失敗", "masterRecord"));
       setState("error");
@@ -604,6 +606,14 @@ function PartList({
                 className={selectedPartNumber === part.partNumber ? "selected-row" : undefined}
                 key={part.id}
                 onClick={() => onSelect(part.partNumber)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect(part.partNumber);
+                }}
+                aria-keyshortcuts="Enter Space"
+                tabIndex={0}
                 style={{ cursor: "pointer" }}
               >
                 <td data-label="料號">
@@ -686,6 +696,7 @@ function PartDetailDrawer({
             focusSection={focusSection}
             productionSliceEnforced={productionSliceEnforced}
             productionSliceUnopenedMessage={productionSliceUnopenedMessage}
+            showIdentityHeader={false}
             setBusy={setBusy}
             onUpdated={onUpdated}
           />

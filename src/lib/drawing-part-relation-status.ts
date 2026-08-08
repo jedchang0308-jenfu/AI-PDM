@@ -16,6 +16,12 @@ export type DrawingPartRelationStatusSource = {
   blockerCount: number;
 };
 
+export type NumberingRootStatusProjection = {
+  relationshipHealth: DrawingPartRelationHealth;
+  blockerCount: number;
+  humanStatus: HumanStatusProjection;
+};
+
 export function projectRelationHumanStatus(source: DrawingPartRelationStatusSource): HumanStatusProjection {
   if (source.recordStatus === "Obsolete") return createHumanStatus("obsolete", "terminal", "已作廢", "neutral", "archive");
   if (source.recordStatus === "Merged") return createHumanStatus("merged", "terminal", "已合併", "neutral", "archive");
@@ -52,7 +58,9 @@ export function projectRelationHumanStatus(source: DrawingPartRelationStatusSour
   return createHumanStatus("data_needs_review", "action_required", "資料需確認", "warning", "alert");
 }
 
-export function projectNumberingRootDetailHumanStatus(detail: Pick<NumberingRootDetailRecord, "root" | "partNumbers" | "drawingNumbers" | "links" | "summary">): HumanStatusProjection {
+export function projectNumberingRootStatus(
+  detail: Pick<NumberingRootDetailRecord, "root" | "partNumbers" | "drawingNumbers" | "links" | "summary">
+): NumberingRootStatusProjection {
   const manufacturingDrawingIds = new Set(
     detail.drawingNumbers.filter((drawing) => drawing.purposeCode === "M" || drawing.purposeCode === "MA").map((drawing) => drawing.id)
   );
@@ -62,10 +70,23 @@ export function projectNumberingRootDetailHumanStatus(detail: Pick<NumberingRoot
   });
   const relationshipHealth: DrawingPartRelationHealth = detail.summary.hasMainDrawingInvalid
     ? "blocked"
-    : hasMissingManufacturingDrawing
-      ? "missing_manufacturing_drawing"
-      : detail.summary.warningCount > 0
-        ? "ambiguous"
-        : "complete";
-  return projectRelationHumanStatus({ recordStatus: detail.root.recordStatus, relationshipHealth, blockerCount: detail.summary.warningCount });
+    : detail.partNumbers.length === 0
+      ? "missing_part"
+      : manufacturingDrawingIds.size === 0 || hasMissingManufacturingDrawing
+        ? "missing_manufacturing_drawing"
+        : detail.summary.warningCount > 0
+          ? "ambiguous"
+          : "complete";
+  const blockerCount = detail.summary.warningCount;
+  return {
+    relationshipHealth,
+    blockerCount,
+    humanStatus: projectRelationHumanStatus({ recordStatus: detail.root.recordStatus, relationshipHealth, blockerCount })
+  };
+}
+
+export function projectNumberingRootDetailHumanStatus(
+  detail: Pick<NumberingRootDetailRecord, "root" | "partNumbers" | "drawingNumbers" | "links" | "summary">
+): HumanStatusProjection {
+  return projectNumberingRootStatus(detail).humanStatus;
 }

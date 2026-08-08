@@ -620,6 +620,12 @@ export async function listDrawingModuleRecordsAsync(input: DrawingModuleListInpu
   return repository.listDrawingModuleRecords(input);
 }
 
+export async function listDrawingModuleRecordsByIdsAsync(drawingIds: string[], companyId?: string): Promise<DrawingModuleListRecord[]> {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncNumberingRepository(client);
+  return repository.listDrawingModuleRecordsByIds(drawingIds, companyId);
+}
+
 export async function listPartModuleRecordsAsync(input: PartModuleListInput = {}): Promise<PartModuleListRecord[]> {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);

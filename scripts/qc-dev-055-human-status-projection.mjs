@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { phaseMatchesFilter, projectRoleViewerHumanStatus, projectViewerHumanStatus, viewerStatusMatchesFilter } from "../src/lib/human-status-projection.ts";
 import { projectPartHumanStatus } from "../src/lib/part-human-status.ts";
-import { projectRelationHumanStatus } from "../src/lib/drawing-part-relation-status.ts";
+import { projectNumberingRootStatus, projectRelationHumanStatus } from "../src/lib/drawing-part-relation-status.ts";
 import { projectDrawingHumanStatus, projectDrawingRecordHumanStatus } from "../src/lib/drawing-workbench-status.ts";
 import { projectDrawingAvailability, projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "../src/lib/availability-scope.ts";
 
@@ -34,6 +34,37 @@ const relationCases = [
   ["HS-REL-06", { recordStatus: "PendingReview", relationshipHealth: "complete", blockerCount: 0 }, "waiting_review"]
 ];
 for (const [id, source, expected] of relationCases) check(id, projectRelationHumanStatus(source).key, expected);
+
+function rootStatusFixture({
+  recordStatus = "Active",
+  partNumbers = [{ id: "part-1", itemKind: "manufactured" }],
+  drawingNumbers = [{ id: "drawing-1", purposeCode: "M" }],
+  links = [{ partNumberId: "part-1", drawingNumberId: "drawing-1", linkType: "primary_manufacturing" }],
+  warningCount = 0,
+  hasMainDrawingInvalid = false
+} = {}) {
+  return {
+    root: { recordStatus },
+    partNumbers,
+    drawingNumbers,
+    links,
+    summary: { warningCount, hasMainDrawingInvalid }
+  };
+}
+
+const rootStatusCases = [
+  ["HS-ROOT-01-terminal", rootStatusFixture({ recordStatus: "Obsolete" }), "obsolete", "complete"],
+  ["HS-ROOT-02-record-action", rootStatusFixture({ recordStatus: "NeedInfo" }), "correction_required", "complete"],
+  ["HS-ROOT-03-missing-drawing", rootStatusFixture({ drawingNumbers: [], links: [] }), "missing_manufacturing_drawing", "missing_manufacturing_drawing"],
+  ["HS-ROOT-04-missing-part", rootStatusFixture({ partNumbers: [], links: [] }), "missing_part", "missing_part"],
+  ["HS-ROOT-05-summary-warning", rootStatusFixture({ warningCount: 1 }), "data_conflict", "ambiguous"],
+  ["HS-ROOT-06-complete", rootStatusFixture(), "relation_complete", "complete"]
+];
+for (const [id, fixture, expectedStatus, expectedHealth] of rootStatusCases) {
+  const projection = projectNumberingRootStatus(fixture);
+  check(`${id}-status`, projection.humanStatus.key, expectedStatus);
+  check(`${id}-health`, projection.relationshipHealth, expectedHealth);
+}
 
 const drawingBase = {
   rowKey: "drawing:A-M01",

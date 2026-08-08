@@ -42,7 +42,13 @@ assert.ok(read("src/app/numbering/search/page.tsx").includes("availabilityScope=
 assert.equal(read("src/app/parts/page.tsx").includes("pdm-detail-drawer-floating-actions"), false, "part drawer must reuse shared overlay shell without floating controls");
 assert.ok(read("src/app/api/parts/route.ts").indexOf(".filter((part) => viewerStatusMatchesFilter") < read("src/app/api/parts/route.ts").indexOf(".slice(0, requestedLimit)"), "part viewer filter must precede response limit");
 assert.ok(read("src/app/api/numbering/relations/route.ts").indexOf(".filter((root) => viewerStatusMatchesFilter") < read("src/app/api/numbering/relations/route.ts").indexOf(".slice(0, requestedLimit)"), "relation viewer filter must precede response limit");
-assert.ok(read("src/app/api/numbering/roots/[rootCode]/route.ts").includes("projectNumberingRootDetailHumanStatus"), "root detail must share relation projection");
+const relationRoute = read("src/app/api/numbering/relations/route.ts");
+const rootDetailRoute = read("src/app/api/numbering/roots/[rootCode]/route.ts");
+assert.ok(relationRoute.includes('import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status"'), "relation list must import the canonical root projector");
+assert.ok(rootDetailRoute.includes('import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status"'), "root detail must import the same canonical root projector");
+assert.ok(relationRoute.includes("const rootStatus = projectNumberingRootStatus(detail)"), "relation list must project each root before presentation");
+assert.ok(rootDetailRoute.includes("const rootStatus = projectNumberingRootStatus(detail)"), "root detail must project the root before presentation");
+assert.equal(relationRoute.includes("function relationshipHealth("), false, "relation route must not retain a competing private root health authority");
 assert.ok(["src/app/api/parts/route.ts", "src/app/api/parts/[partNumber]/route.ts", "src/app/api/numbering/relations/route.ts", "src/app/api/numbering/roots/[rootCode]/route.ts"].every((file) => read(file).includes('"cache-control": "private, no-store"')), "viewer-specific APIs must disable shared caching");
 
 console.log(JSON.stringify({ suite: "DEV-055 human status contract", passed: 13, failed: 0, sourceFiles }, null, 2));
