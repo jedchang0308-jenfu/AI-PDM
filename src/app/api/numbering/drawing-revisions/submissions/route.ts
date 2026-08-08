@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
 import { markDrawingRevisionPackageCancelledForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
-import { uploadFileToDrive } from "@/lib/gdrive";
-import { getFilesNeedingUploadAsync, updateFileGDriveStatusAsync } from "@/lib/submission-files-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { buildPdmChangeControlActor } from "@/lib/pdm-change-control-api";
@@ -16,6 +14,7 @@ import {
 import { normalizeRevisionPackageFileRole } from "@/lib/revision-package";
 import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
+import { triggerBackgroundUpload } from "@/lib/submission-background-upload";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
 import {
   drawingRevisionLifecycleErrorPayload,
@@ -293,23 +292,4 @@ function nullableText(value: unknown) {
 function normalizeTextArray(value: unknown) {
   if (!Array.isArray(value)) return [];
   return Array.from(new Set(value.map((entry) => String(entry ?? "").trim()).filter(Boolean)));
-}
-
-async function triggerBackgroundUpload(submissionId: string, folderId: string) {
-  const files = await getFilesNeedingUploadAsync(submissionId);
-
-  for (const file of files) {
-    try {
-      await updateFileGDriveStatusAsync(file.id, "uploading");
-      const gdriveFileId = await uploadFileToDrive({
-        localPath: file.local_path,
-        filename: file.original_filename,
-        targetFolderId: folderId
-      });
-      await updateFileGDriveStatusAsync(file.id, "uploaded", gdriveFileId);
-    } catch (error) {
-      console.error(`Failed to upload file ${file.id} to Drive:`, error);
-      await updateFileGDriveStatusAsync(file.id, "failed");
-    }
-  }
 }

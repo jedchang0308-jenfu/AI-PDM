@@ -27,6 +27,8 @@ import {
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
+import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
+import { normalizePartCostTiers, normalizePositiveInteger } from "@/lib/numbering-part-cost";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 export type NumberingRecordStatus =
@@ -3007,97 +3009,6 @@ function approvalRuleMatches(row: ApprovalRuleRow, input: EvaluateApprovalRuleIn
   if (row.item_kind && row.item_kind !== input.itemKind) return false;
   if (row.risk_flag && !riskFlags.has(row.risk_flag)) return false;
   return true;
-}
-
-function evaluateHardApprovalRules(input: EvaluateApprovalRuleInput, riskFlags: Set<string>): ApprovalHardRule[] {
-  const hardRules: ApprovalHardRule[] = [];
-  const addHardRule = (rule: ApprovalHardRule) => hardRules.push(rule);
-
-  if (riskFlags.has("duplicate_code")) {
-    addHardRule({
-      code: "DUPLICATE_CODE_HARD_BLOCK",
-      message: "Root code, part number, and drawing number uniqueness cannot be overridden.",
-      requiresApproval: false,
-      blocksUsage: true,
-      blocksRelease: true,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (riskFlags.has("multiple_primary_ma")) {
-    addHardRule({
-      code: "PRIMARY_MA_UNIQUENESS_HARD_BLOCK",
-      message: "A part number can have only one primary MA drawing.",
-      requiresApproval: false,
-      blocksUsage: true,
-      blocksRelease: true,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (riskFlags.has("released_document_unrevised") || riskFlags.has("released_document_blocker")) {
-    addHardRule({
-      code: "RELEASED_DOCUMENT_REVISION_REQUIRED",
-      message: "Released affected documents must be revised before this action can be released.",
-      requiresApproval: false,
-      blocksUsage: true,
-      blocksRelease: true,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (riskFlags.has("main_drawing_invalid")) {
-    addHardRule({
-      code: "MAIN_DRAWING_INVALID_REVIEW_REQUIRED",
-      message: "A MainDrawingInvalid part must pass restore approval before it becomes usable.",
-      requiresApproval: true,
-      blocksUsage: true,
-      blocksRelease: true,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (riskFlags.has("missing_primary_ma") && ["manufactured", "outsourced", "custom"].includes(input.itemKind ?? "")) {
-    addHardRule({
-      code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
-      message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
-      requiresApproval: true,
-      blocksUsage: true,
-      blocksRelease: true,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (input.actionCode.includes("override") || riskFlags.has("has_override")) {
-    addHardRule({
-      code: "OVERRIDE_AUDIT_MARKER_REQUIRED",
-      message: "Every override must be audited and marked in UI/export output.",
-      requiresApproval: input.actionCode.includes("override"),
-      blocksUsage: false,
-      blocksRelease: false,
-      showsWarning: true,
-      exportMarker: true
-    });
-  }
-
-  if (riskFlags.has("high_similarity")) {
-    addHardRule({
-      code: "HIGH_SIMILARITY_WARNING_ONLY",
-      message: "High-similarity numbering matches should warn users but not block numbering.",
-      requiresApproval: false,
-      blocksUsage: false,
-      blocksRelease: false,
-      showsWarning: true,
-      exportMarker: false
-    });
-  }
-
-  return hardRules;
 }
 
 function allocateSequence(database: SqliteDatabase, sequenceKey: string) {
@@ -6182,7 +6093,7 @@ export function evaluateApprovalRules(input: EvaluateApprovalRuleInput): Approva
     .prepare("SELECT * FROM approval_rules WHERE rule_version_id = ? AND action_code = ? ORDER BY created_at ASC, id ASC")
     .all(ruleVersionId, actionCode) as ApprovalRuleRow[];
   const matchedRules = rows.filter((row) => approvalRuleMatches(row, { ...input, actionCode, ruleVersionId }, riskFlags)).map(mapApprovalRule);
-  const hardRules = evaluateHardApprovalRules({ ...input, actionCode, ruleVersionId }, riskFlags);
+  const hardRules = evaluateHardApprovalRulesShared({ ...input, actionCode, ruleVersionId }, riskFlags);
   const requiredRoleSet = new Set(
     matchedRules
       .filter((rule) => rule.requiresApproval)
@@ -7044,45 +6955,6 @@ function normalizeCostProfileStatus(value: PartCostProfileStatus | undefined) {
   const allowed = new Set<PartCostProfileStatus>(["draft", "pending_review", "approved", "rejected", "retired"]);
   if (!allowed.has(status)) throw new Error(`INVALID_PART_COST_PROFILE_STATUS: ${status}`);
   return status;
-}
-
-function normalizePositiveInteger(value: number | null | undefined, fallback: number, errorCode: string) {
-  const normalized = Math.floor(value ?? fallback);
-  if (!Number.isFinite(normalized) || normalized < 1) throw new Error(errorCode);
-  return normalized;
-}
-
-function normalizePartCostTiers(input: CreatePartCostProfileInput["tiers"]) {
-  if (input.length === 0) throw new Error("PART_COST_PROFILE_REQUIRES_TIER");
-  const tiers = input
-    .map((tier, index) => {
-      const minQty = normalizePositiveInteger(tier.minQty, index === 0 ? 1 : index + 1, "INVALID_PART_COST_TIER_MIN_QTY");
-      const maxQty = tier.maxQty === null || tier.maxQty === undefined ? null : normalizePositiveInteger(tier.maxQty, minQty, "INVALID_PART_COST_TIER_MAX_QTY");
-      if (maxQty !== null && maxQty < minQty) throw new Error("INVALID_PART_COST_TIER_RANGE");
-      if (!Number.isFinite(tier.unitCost) || tier.unitCost < 0) throw new Error("INVALID_PART_COST_TIER_UNIT_COST");
-      const setupCost = tier.setupCost ?? 0;
-      if (!Number.isFinite(setupCost) || setupCost < 0) throw new Error("INVALID_PART_COST_TIER_SETUP_COST");
-      const leadTimeDays = tier.leadTimeDays === null || tier.leadTimeDays === undefined ? null : Math.floor(tier.leadTimeDays);
-      if (leadTimeDays !== null && (!Number.isFinite(leadTimeDays) || leadTimeDays < 0)) throw new Error("INVALID_PART_COST_TIER_LEAD_TIME");
-      return {
-        minQty,
-        maxQty,
-        unitCost: tier.unitCost,
-        setupCost,
-        leadTimeDays,
-        note: tier.note
-      };
-    })
-    .sort((a, b) => a.minQty - b.minQty);
-
-  let previousMax: number | null | "open" = null;
-  for (const tier of tiers) {
-    if (previousMax === "open") throw new Error("PART_COST_TIER_RANGE_OVERLAP");
-    if (previousMax !== null && tier.minQty <= previousMax) throw new Error("PART_COST_TIER_RANGE_OVERLAP");
-    if (tier.maxQty === null) previousMax = "open";
-    else previousMax = tier.maxQty;
-  }
-  return tiers;
 }
 
 function selectCostTierForQuantity(tiers: PartCostTierRecord[], quantity: number) {

@@ -168,6 +168,7 @@ type NativeRequestRow = {
 };
 
 type TargetRow = {
+  request_id: string;
   id: string;
   target_role: ApprovalPlatformTarget["role"];
   target_type: string;
@@ -308,6 +309,19 @@ function targetSummary(targets: ApprovalPlatformTarget[]) {
   const primary = targets.find((target) => target.role === "primary") ?? targets[0];
   if (!primary) return "未指定目標";
   return primary.code || primary.label || primary.targetId;
+}
+
+function mapTargetRow(row: TargetRow): ApprovalPlatformTarget {
+  return {
+    id: row.id,
+    role: row.target_role,
+    type: row.target_type,
+    targetId: row.target_id,
+    code: row.target_code,
+    label: row.target_label,
+    status: row.target_status,
+    snapshot: parseJsonObject(row.snapshot_json)
+  };
 }
 
 function firstMeaningfulText(...values: Array<string | null | undefined>) {
@@ -709,9 +723,27 @@ export class AsyncApprovalPlatformRepository {
     `,
       { companyId: input.companyId, actorId: input.actorId ?? null, limit: input.limit, ...statusClause.params }
     );
+    const requestIds = rows.map((row) => row.id);
+    const targetRows = requestIds.length
+      ? await this.client.query<TargetRow>(
+          `
+          SELECT *
+          FROM approval_platform_targets
+          WHERE request_id IN (${requestIds.map((_, index) => `:requestId${index}`).join(", ")})
+          ORDER BY request_id ASC, sort_order ASC, id ASC
+        `,
+          Object.fromEntries(requestIds.map((requestId, index) => [`requestId${index}`, requestId]))
+        )
+      : [];
+    const targetsByRequestId = new Map<string, ApprovalPlatformTarget[]>();
+    for (const targetRow of targetRows) {
+      const targets = targetsByRequestId.get(targetRow.request_id) ?? [];
+      targets.push(mapTargetRow(targetRow));
+      targetsByRequestId.set(targetRow.request_id, targets);
+    }
     const items: ApprovalPlatformInboxItem[] = [];
     for (const row of rows) {
-      const targets = await this.listTargets(row.id);
+      const targets = targetsByRequestId.get(row.id) ?? [];
       items.push({
         id: row.id,
         source: "platform",
@@ -777,16 +809,7 @@ export class AsyncApprovalPlatformRepository {
     `,
       { requestId }
     );
-    return rows.map((row) => ({
-      id: row.id,
-      role: row.target_role,
-      type: row.target_type,
-      targetId: row.target_id,
-      code: row.target_code,
-      label: row.target_label,
-      status: row.target_status,
-      snapshot: parseJsonObject(row.snapshot_json)
-    }));
+    return rows.map(mapTargetRow);
   }
 
   private async listImpactSnapshots(requestId: string): Promise<ApprovalPlatformRequestDetail["impactSnapshots"]> {

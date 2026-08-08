@@ -13,6 +13,8 @@ const itemLockAsyncSourcePath = path.join(root, "src", "lib", "repositories", "i
 const itemInsightSourcePath = path.join(root, "src", "lib", "repositories", "item-insight-async-repository.ts");
 const dashboardAsyncSourcePath = path.join(root, "src", "lib", "repositories", "dashboard-async-repository.ts");
 const submissionListAsyncSourcePath = path.join(root, "src", "lib", "repositories", "submission-list-async-repository.ts");
+const submissionSimilarityPath = path.join(root, "src", "lib", "submission-similarity.ts");
+const submissionRepositoryPath = path.join(root, "src", "lib", "repositories", "submission-repository.ts");
 const submissionWriteAsyncSourcePath = path.join(root, "src", "lib", "repositories", "submission-write-async-repository.ts");
 const submissionFileAsyncSourcePath = path.join(root, "src", "lib", "repositories", "submission-file-async-repository.ts");
 const bomAsyncSourcePath = path.join(root, "src", "lib", "repositories", "bom-async-repository.ts");
@@ -38,6 +40,23 @@ const sandboxAsyncPath = path.join(root, "src", "lib", "sandbox-async.ts");
 const numberingAsyncPath = path.join(root, "src", "lib", "numbering-async.ts");
 const masterAttachmentsAsyncPath = path.join(root, "src", "lib", "master-attachments-async.ts");
 const bomWorkbenchAsyncPath = path.join(root, "src", "lib", "bom-workbench-async.ts");
+const bomWorkbenchDiffPath = path.join(root, "src", "lib", "bom-workbench-diff.ts");
+const numberingHardApprovalRulesPath = path.join(root, "src", "lib", "numbering-hard-approval-rules.ts");
+const numberingPartCostPath = path.join(root, "src", "lib", "numbering-part-cost.ts");
+const bomReleaseGateQueryBudgetPath = path.join(root, "scripts", "qc-bom-release-gate-query-budget.mjs");
+const approvalPlatformAsyncSourcePath = path.join(root, "src", "lib", "repositories", "approval-platform-async-repository.ts");
+const approvalInboxQueryBudgetPath = path.join(root, "scripts", "qc-approval-inbox-query-budget.mjs");
+const numberingApprovalBatchesQueryBudgetPath = path.join(root, "scripts", "qc-numbering-approval-batches-query-budget.mjs");
+const numberingImportBatchesQueryBudgetPath = path.join(root, "scripts", "qc-numbering-import-batches-query-budget.mjs");
+const bomWorkbenchDiffQcPath = path.join(root, "scripts", "qc-bom-workbench-diff.mjs");
+const numberingHardApprovalRulesQcPath = path.join(root, "scripts", "qc-numbering-hard-approval-rules.mjs");
+const numberingPartCostQcPath = path.join(root, "scripts", "qc-numbering-part-cost.mjs");
+const drawingWorkbenchAsyncSourcePath = path.join(root, "src", "lib", "repositories", "drawing-workbench-async-repository.ts");
+const drawingWorkbenchQueryBudgetPath = path.join(root, "scripts", "qc-drawing-workbench-query-budget.mjs");
+const numberStateFlowQueryBudgetPath = path.join(root, "scripts", "qc-number-state-flow-query-budget.mjs");
+const numberStateFlowApprovalWriteBudgetPath = path.join(root, "scripts", "qc-number-state-flow-approval-write-budget.mjs");
+const dependencyCycleBaselinePath = path.join(root, "scripts", "qc-dependency-cycle-baseline.mjs");
+const duplicateFunctionBaselinePath = path.join(root, "scripts", "qc-duplicate-function-baseline.mjs");
 const collaborationAsyncPath = path.join(root, "src", "lib", "collaboration-async.ts");
 const approvalAsyncPath = path.join(root, "src", "lib", "approval-async.ts");
 const submissionStatusAsyncPath = path.join(root, "src", "lib", "submission-status-async.ts");
@@ -90,6 +109,28 @@ const bomReleaseExportRoutePath = path.join(root, "src", "app", "api", "bom", "r
 const submissionReuseCandidatesRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "reuse-candidates", "route.ts");
 const submissionDuplicateGeometryRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "duplicate-geometry", "route.ts");
 const submissionRetryUploadRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "retry-upload", "route.ts");
+const submissionBackgroundUploadPath = path.join(root, "src", "lib", "submission-background-upload.ts");
+const drawingRevisionSubmissionsRoutePath = path.join(
+  root,
+  "src",
+  "app",
+  "api",
+  "numbering",
+  "drawing-revisions",
+  "submissions",
+  "route.ts"
+);
+const numberingDrawingSubmissionsRoutePath = path.join(
+  root,
+  "src",
+  "app",
+  "api",
+  "numbering",
+  "drawings",
+  "[drawingNumber]",
+  "submissions",
+  "route.ts"
+);
 const submissionSandboxRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "sandbox", "route.ts");
 const submissionSandboxBranchRoutePath = path.join(root, "src", "app", "api", "submissions", "[id]", "sandbox", "[branchId]", "route.ts");
 const numberingDuplicateCheckRoutePath = path.join(root, "src", "app", "api", "numbering", "duplicate-check", "route.ts");
@@ -219,6 +260,8 @@ const itemLockAsyncSource = readProjectPath(itemLockAsyncSourcePath);
 const itemInsightSource = readProjectPath(itemInsightSourcePath);
 const dashboardAsyncSource = readProjectPath(dashboardAsyncSourcePath);
 const submissionListAsyncSource = readProjectPath(submissionListAsyncSourcePath);
+const submissionSimilaritySource = readProjectPath(submissionSimilarityPath);
+const submissionRepositorySource = readProjectPath(submissionRepositoryPath);
 const submissionWriteAsyncSource = readProjectPath(submissionWriteAsyncSourcePath);
 const submissionFileAsyncSource = readProjectPath(submissionFileAsyncSourcePath);
 const bomAsyncSource = readProjectPath(bomAsyncSourcePath);
@@ -226,6 +269,7 @@ const sandboxAsyncSource = readProjectPath(sandboxAsyncSourcePath);
 const numberingAsyncSource = readProjectPath(numberingAsyncSourcePath);
 const masterAttachmentAsyncSource = readProjectPath(masterAttachmentAsyncSourcePath);
 const bomWorkbenchAsyncSource = readProjectPath(bomWorkbenchAsyncSourcePath);
+const bomWorkbenchReleaseGateSource = bomWorkbenchAsyncSource.match(/private async evaluateReleaseGate[\s\S]*?(?=\n  private normalizeWorkbenchTreeLines)/)?.[0] ?? "";
 const collaborationAsyncSource = readProjectPath(collaborationAsyncSourcePath);
 const approvalAsyncSource = readProjectPath(approvalAsyncSourcePath);
 const submissionStatusAsyncSource = readProjectPath(submissionStatusAsyncSourcePath);
@@ -244,6 +288,25 @@ const sandboxAsyncHelperSource = readProjectPath(sandboxAsyncPath);
 const numberingAsyncHelperSource = readProjectPath(numberingAsyncPath);
 const masterAttachmentsAsyncHelperSource = readProjectPath(masterAttachmentsAsyncPath);
 const bomWorkbenchAsyncHelperSource = readProjectPath(bomWorkbenchAsyncPath);
+const bomWorkbenchDiffSource = readProjectPath(bomWorkbenchDiffPath);
+const numberingHardApprovalRulesSource = readProjectPath(numberingHardApprovalRulesPath);
+const numberingPartCostSource = readProjectPath(numberingPartCostPath);
+const bomReleaseGateQueryBudgetSource = readProjectPath(bomReleaseGateQueryBudgetPath);
+const approvalPlatformAsyncSource = readProjectPath(approvalPlatformAsyncSourcePath);
+const approvalInboxQueryBudgetSource = readProjectPath(approvalInboxQueryBudgetPath);
+const numberingApprovalBatchesQueryBudgetSource = readProjectPath(numberingApprovalBatchesQueryBudgetPath);
+const numberingImportBatchesQueryBudgetSource = readProjectPath(numberingImportBatchesQueryBudgetPath);
+const bomWorkbenchDiffQcSource = readProjectPath(bomWorkbenchDiffQcPath);
+const numberingHardApprovalRulesQcSource = readProjectPath(numberingHardApprovalRulesQcPath);
+const numberingPartCostQcSource = readProjectPath(numberingPartCostQcPath);
+const drawingWorkbenchAsyncSource = readProjectPath(drawingWorkbenchAsyncSourcePath);
+const drawingWorkbenchQueryBudgetSource = readProjectPath(drawingWorkbenchQueryBudgetPath);
+const numberStateFlowQueryBudgetSource = readProjectPath(numberStateFlowQueryBudgetPath);
+const numberStateFlowApprovalWriteBudgetSource = readProjectPath(numberStateFlowApprovalWriteBudgetPath);
+const dependencyCycleBaselineSource = readProjectPath(dependencyCycleBaselinePath);
+const duplicateFunctionBaselineSource = readProjectPath(duplicateFunctionBaselinePath);
+const drawingWorkbenchOverlaySource = drawingWorkbenchAsyncSource.match(/private async overlayLifecycle[\s\S]*?(?=\n  }\n})/)?.[0] ?? "";
+const approvalInboxSourceBlock = approvalPlatformAsyncSource.match(/private async listNativeInbox[\s\S]*?(?=\n  private statusWhereClause)/)?.[0] ?? "";
 const collaborationAsyncHelperSource = readProjectPath(collaborationAsyncPath);
 const approvalAsyncHelperSource = readProjectPath(approvalAsyncPath);
 const submissionStatusAsyncHelperSource = readProjectPath(submissionStatusAsyncPath);
@@ -296,6 +359,9 @@ const bomReleaseExportRouteSource = readProjectPath(bomReleaseExportRoutePath);
 const submissionReuseCandidatesRouteSource = readProjectPath(submissionReuseCandidatesRoutePath);
 const submissionDuplicateGeometryRouteSource = readProjectPath(submissionDuplicateGeometryRoutePath);
 const submissionRetryUploadRouteSource = readProjectPath(submissionRetryUploadRoutePath);
+const submissionBackgroundUploadSource = readProjectPath(submissionBackgroundUploadPath);
+const drawingRevisionSubmissionsRouteSource = readProjectPath(drawingRevisionSubmissionsRoutePath);
+const numberingDrawingSubmissionsRouteSource = readProjectPath(numberingDrawingSubmissionsRoutePath);
 const submissionSandboxRouteSource = readProjectPath(submissionSandboxRoutePath);
 const submissionSandboxBranchRouteSource = readProjectPath(submissionSandboxBranchRoutePath);
 const numberingDuplicateCheckRouteSource = readProjectPath(numberingDuplicateCheckRoutePath);
@@ -1125,6 +1191,20 @@ record(
   "submissions/[id]/ai-summary route.ts, submissions/[id]/ai-risks route.ts"
 );
 record(
+  "SUBMISSION-UPLOAD-001 shared background upload helper preserves route ownership and status transitions",
+  submissionBackgroundUploadSource.includes("export async function triggerBackgroundUpload") &&
+    ["getFilesNeedingUpload", "updateFileGDriveStatus", "uploadFile", '"uploading"', '"uploaded"', '"failed"'].every((token) =>
+      submissionBackgroundUploadSource.includes(token)
+    ) &&
+    [submissionsRouteSource, drawingRevisionSubmissionsRouteSource, numberingDrawingSubmissionsRouteSource].every(
+      (routeSource) =>
+        routeSource.includes('import { triggerBackgroundUpload } from "@/lib/submission-background-upload"') &&
+        !routeSource.includes("async function triggerBackgroundUpload") &&
+        !routeSource.includes("uploadFileToDrive")
+    ),
+  "submission-background-upload.ts and three submission routes"
+);
+record(
   "ROUTE-AUTH-ASYNC-018 submission list, create, and detail routes use async guards",
   submissionsRouteSource.includes("requireAuthAsync") &&
     submissionsRouteSource.includes("await requireAuthAsync(request)") &&
@@ -1140,8 +1220,6 @@ record(
       "saveUploadedFiles",
       "createSubmissionRecordAsync",
       "getSystemSettingAsync",
-      "getFilesNeedingUploadAsync",
-      "updateFileGDriveStatusAsync",
       "triggerBackgroundUpload"
     ].every((helper) => submissionsRouteSource.includes(helper)) &&
     submissionDetailRouteSource.includes("requireAuthAsync") &&
@@ -1904,6 +1982,17 @@ record(
     !submissionListAsyncSource.includes("getDb(") &&
     !submissionListAsyncSource.includes("better-sqlite3"),
   "submission-list-async-repository.ts, submissions-async.ts"
+);
+record(
+  "SUBMISSION-CANDIDATE-ASYNC-002 shared reuse scoring helper preserves pure boundary",
+  submissionSimilaritySource.includes("export function scoreDesignReuseCandidate") &&
+    !submissionSimilaritySource.includes("getDb(") &&
+    !submissionSimilaritySource.includes("query(") &&
+    submissionListAsyncSource.includes("scoreDesignReuseCandidate as scoreDesignReuseCandidateShared") &&
+    !submissionListAsyncSource.includes("function scoreDesignReuseCandidate(") &&
+    !submissionRepositorySource.includes("function scoreDesignReuseCandidate(") &&
+    submissionRepositorySource.includes("scoreDesignReuseCandidate as scoreDesignReuseCandidateShared"),
+  "submission-similarity.ts, submission-repository.ts, submission-list-async-repository.ts"
 );
 record(
   "ROUTE-AUTH-ASYNC-022 numbering approval batch detail route uses async guards",
@@ -2814,6 +2903,167 @@ record(
     !bomWorkbenchAsyncSource.includes("datetime(") &&
     !bomWorkbenchAsyncSource.includes("rowid"),
   "bom-workbench-async-repository.ts"
+);
+record(
+  "BOM-WORKBENCH-DIFF-ASYNC-001 shared diff helper preserves pure boundary",
+  bomWorkbenchDiffSource.includes("export function diffBomWorkbenchLines") &&
+    !bomWorkbenchDiffSource.includes("getDb(") &&
+    !bomWorkbenchDiffSource.includes("query(") &&
+    bomWorkbenchAsyncSource.includes("diffBomWorkbenchLines as diffBomWorkbenchLinesShared") &&
+    !bomWorkbenchAsyncSource.includes("function diffBomWorkbenchLines("),
+  "bom-workbench-diff.ts and bom-workbench-async-repository.ts"
+);
+record(
+  "NUMBERING-HARD-RULE-ASYNC-001 shared pure approval helper preserves repository boundary",
+  numberingHardApprovalRulesSource.includes("export function evaluateHardApprovalRules") &&
+    !numberingHardApprovalRulesSource.includes("getDb(") &&
+    !numberingHardApprovalRulesSource.includes("query(") &&
+    numberingAsyncSource.includes("evaluateHardApprovalRules as evaluateHardApprovalRulesShared") &&
+    !numberingAsyncSource.includes("function evaluateHardApprovalRules("),
+  "numbering-hard-approval-rules.ts and numbering-async-repository.ts"
+);
+record(
+  "NUMBERING-PART-COST-ASYNC-001 shared pure tier helper preserves repository boundary",
+  numberingPartCostSource.includes("export function normalizePartCostTiers") &&
+    numberingPartCostSource.includes("export function normalizePositiveInteger") &&
+    !numberingPartCostSource.includes("getDb(") &&
+    !numberingPartCostSource.includes("query(") &&
+    numberingAsyncSource.includes("normalizePartCostTiers, normalizePositiveInteger") &&
+    !numberingAsyncSource.includes("function normalizePartCostTiers("),
+  "numbering-part-cost.ts and numbering-async-repository.ts"
+);
+record(
+  "BOM-RELEASE-GATE-ASYNC-001 batch query budget has parity characterization",
+  bomReleaseGateQueryBudgetSource.includes("legacy 9 queries") === false &&
+    bomReleaseGateQueryBudgetSource.includes("assert.equal(legacyClient.queryCount, 9") &&
+    bomReleaseGateQueryBudgetSource.includes("assert.equal(batchedClient.queryCount, 2") &&
+    bomWorkbenchAsyncSource.includes("FROM items") &&
+    bomWorkbenchAsyncSource.includes("FROM submissions") &&
+    !bomWorkbenchReleaseGateSource.includes("queryOne"),
+  "qc-bom-release-gate-query-budget.mjs and bom-workbench-async-repository.ts"
+);
+record(
+  "APPROVAL-INBOX-ASYNC-001 native target query budget has parity characterization",
+  approvalInboxQueryBudgetSource.includes("assert.equal(legacyClient.queryCount, 3") &&
+    approvalInboxQueryBudgetSource.includes("assert.equal(batchedClient.queryCount, 2") &&
+    approvalInboxSourceBlock.includes("request_id IN") &&
+    !approvalInboxSourceBlock.includes("await this.listTargets("),
+  "qc-approval-inbox-query-budget.mjs and approval-platform-async-repository.ts"
+);
+record(
+  "NUMBERING-APPROVAL-BATCH-ASYNC-001 review mapper query budget has parity characterization",
+  numberingApprovalBatchesQueryBudgetSource.includes("assert.equal(legacyClient.queryCount, 20") &&
+    numberingApprovalBatchesQueryBudgetSource.includes("assert.equal(batchedClient.queryCount, 17") &&
+    numberingAsyncSource.includes("preloadApprovalReviewBatches") &&
+    numberingAsyncSource.includes("WHERE batch_id IN (${batchList.sql})") &&
+    numberingAsyncSource.includes("WHERE id IN (${requestList.sql})"),
+  "qc-numbering-approval-batches-query-budget.mjs and numbering-async-repository.ts"
+);
+record(
+  "NUMBERING-IMPORT-BATCH-ASYNC-001 list staging rows query budget has parity characterization",
+  numberingImportBatchesQueryBudgetSource.includes("assert.equal(legacyClient.queryCount, 4") &&
+    numberingImportBatchesQueryBudgetSource.includes("assert.equal(batchedClient.queryCount, 2") &&
+    numberingAsyncSource.includes("preloadImportBatchRows") &&
+    numberingAsyncSource.includes("WHERE import_batch_id IN (${batchListSql})"),
+  "qc-numbering-import-batches-query-budget.mjs and numbering-async-repository.ts"
+);
+record(
+  "QC-AST-001 BOM diff QC uses AST/export contract instead of source-string helper assertions",
+  bomWorkbenchDiffQcSource.includes('import * as ts from "typescript"') &&
+    bomWorkbenchDiffQcSource.includes("ts.createSourceFile") &&
+    bomWorkbenchDiffQcSource.includes("hasSharedHelperImport") &&
+    !bomWorkbenchDiffQcSource.includes("assert.match(helperSource"),
+  "qc-bom-workbench-diff.mjs"
+);
+record(
+  "QC-AST-002 numbering hard-rule QC uses AST/export contract instead of source-string helper assertions",
+  numberingHardApprovalRulesQcSource.includes('import * as ts from "typescript"') &&
+    numberingHardApprovalRulesQcSource.includes("ts.createSourceFile") &&
+    numberingHardApprovalRulesQcSource.includes("hasSharedHelperImport") &&
+    !numberingHardApprovalRulesQcSource.includes("assert.match(helperSource") &&
+    !numberingHardApprovalRulesQcSource.includes("assert.doesNotMatch(helperSource"),
+  "qc-numbering-hard-approval-rules.mjs"
+);
+record(
+  "QC-AST-003 numbering part-cost QC uses AST/export contract instead of source-string helper assertions",
+  numberingPartCostQcSource.includes('import * as ts from "typescript"') &&
+    numberingPartCostQcSource.includes("ts.createSourceFile") &&
+    numberingPartCostQcSource.includes("hasSharedHelperImport") &&
+    !numberingPartCostQcSource.includes("assert.match(helperSource") &&
+    !numberingPartCostQcSource.includes("assert.doesNotMatch(helperSource"),
+  "qc-numbering-part-cost.mjs"
+);
+record(
+  "QC-AST-004 numbering approval-batch query QC uses AST method/SQL contract instead of regex source slicing",
+  numberingApprovalBatchesQueryBudgetSource.includes('import * as ts from "typescript"') &&
+    numberingApprovalBatchesQueryBudgetSource.includes("findMethod") &&
+    numberingApprovalBatchesQueryBudgetSource.includes("hasSqlText") &&
+    !numberingApprovalBatchesQueryBudgetSource.includes("source.match(/async listNumberingApprovalBatches"),
+  "qc-numbering-approval-batches-query-budget.mjs"
+);
+record(
+  "QC-AST-005 numbering import-batch query QC uses AST method/SQL contract instead of regex source slicing",
+  numberingImportBatchesQueryBudgetSource.includes('import * as ts from "typescript"') &&
+    numberingImportBatchesQueryBudgetSource.includes("findMethod") &&
+    numberingImportBatchesQueryBudgetSource.includes("hasSqlText") &&
+    !numberingImportBatchesQueryBudgetSource.includes("source.match(/async listNumberingImportBatches"),
+  "qc-numbering-import-batches-query-budget.mjs"
+);
+record(
+  "QC-AST-006 drawing-workbench query QC uses AST method/SQL contract instead of regex source slicing",
+  drawingWorkbenchQueryBudgetSource.includes('import * as ts from "typescript"') &&
+    drawingWorkbenchQueryBudgetSource.includes("findMethod") &&
+    drawingWorkbenchQueryBudgetSource.includes("hasSqlText") &&
+    !drawingWorkbenchQueryBudgetSource.includes("source.match(/private async overlayLifecycle"),
+  "qc-drawing-workbench-query-budget.mjs"
+);
+record(
+  "NUMBER-STATE-BUDGET-001 query characterization uses isolated fixture and compares read growth per added item",
+  numberStateFlowQueryBudgetSource.includes("PDM_DATA_DIR") &&
+  numberStateFlowQueryBudgetSource.includes("smallReadQueries") &&
+    numberStateFlowQueryBudgetSource.includes("largeReadQueries") &&
+    numberStateFlowQueryBudgetSource.includes("readQueriesPerAdditionalItem") &&
+    numberStateFlowQueryBudgetSource.includes("NUMBER-STATE-BUDGET-002") &&
+    numberStateFlowQueryBudgetSource.includes("SQLITE_CONSTRAINT_UNIQUE") &&
+    numberStateFlowQueryBudgetSource.includes("collisionReadQueries") &&
+    numberStateFlowQueryBudgetSource.includes("fs.rmSync(fixtureRoot"),
+  "qc-number-state-flow-query-budget.mjs"
+);
+record(
+  "APPROVAL-WRITE-BUDGET-001 approval target/event write characterization preserves output and ordering",
+  numberStateFlowApprovalWriteBudgetSource.includes("APPROVAL-WRITE-BUDGET-001") &&
+    numberStateFlowApprovalWriteBudgetSource.includes("targetInsertCount") &&
+    numberStateFlowApprovalWriteBudgetSource.includes("candidateEventInsertCount") &&
+    numberStateFlowApprovalWriteBudgetSource.includes("APPROVAL-WRITE-BUDGET-002") &&
+    numberStateFlowApprovalWriteBudgetSource.includes("order preserved"),
+  "qc-number-state-flow-approval-write-budget.mjs"
+);
+record(
+  "ARCH-BASELINE-003 dependency cycle baseline analyzer keeps reproducible SCC guard",
+  dependencyCycleBaselineSource.includes("BASELINE_MAX_CYCLE_COUNT = 6") &&
+    dependencyCycleBaselineSource.includes("lowLinks") &&
+    dependencyCycleBaselineSource.includes("cycles.length <= BASELINE_MAX_CYCLE_COUNT") &&
+    dependencyCycleBaselineSource.includes("process.exitCode = report.failed === 0 ? 0 : 1"),
+  "qc-dependency-cycle-baseline.mjs"
+);
+record(
+  "ARCH-BASELINE-004 duplicate function baseline analyzer keeps AST body and non-increasing guard",
+  duplicateFunctionBaselineSource.includes("BASELINE_MAX_DUPLICATE_FUNCTION_GROUPS = 62") &&
+    duplicateFunctionBaselineSource.includes("BASELINE_MAX_DUPLICATE_FUNCTION_PAIRS = 60") &&
+    duplicateFunctionBaselineSource.includes("isFunctionLike") &&
+    duplicateFunctionBaselineSource.includes("duplicateFunctionGroupCount <= BASELINE_MAX_DUPLICATE_FUNCTION_GROUPS") &&
+    duplicateFunctionBaselineSource.includes("duplicateFunctionPairCount <= BASELINE_MAX_DUPLICATE_FUNCTION_PAIRS"),
+  "qc-duplicate-function-baseline.mjs"
+);
+record(
+  "DRAWING-WORKBENCH-ASYNC-001 lifecycle overlay query budget has parity characterization",
+  drawingWorkbenchQueryBudgetSource.includes("assert.equal(legacyClient.queryCount, 7") &&
+    drawingWorkbenchQueryBudgetSource.includes("assert.equal(batchedClient.queryCount, 3") &&
+    drawingWorkbenchOverlaySource.includes("drawing_number_id IN") &&
+    drawingWorkbenchOverlaySource.includes("workflow_id IN") &&
+    drawingWorkbenchOverlaySource.includes("request_id IN") &&
+    !drawingWorkbenchOverlaySource.includes("queryOne"),
+  "qc-drawing-workbench-query-budget.mjs and drawing-workbench-async-repository.ts"
 );
 record(
   "BOM-WORKBENCH-ASYNC-003 runtime helper exposes workbench reads through async provider selector",

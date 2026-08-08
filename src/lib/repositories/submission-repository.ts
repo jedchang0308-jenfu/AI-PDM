@@ -5,6 +5,7 @@ import { findOrCreateItem } from "@/lib/repositories/item-repository";
 import { getActiveItemLock } from "@/lib/repositories/item-lock-repository";
 import { getReleasePackageBySubmissionId } from "@/lib/repositories/release-repository";
 import { compareRevisionCodes } from "@/lib/revision-policy";
+import { scoreDesignReuseCandidate as scoreDesignReuseCandidateShared } from "@/lib/submission-similarity";
 import type {
   DesignReuseCandidate,
   DuplicateGeometryCandidate,
@@ -347,6 +348,15 @@ type DuplicateGeometryRow = SubmissionSummary & {
   file_fingerprints: string | null;
 };
 
+const reuseScoringDependencies = {
+  splitGroupConcat,
+  partFamily,
+  tokens,
+  tokenOverlap,
+  sameText,
+  filenameOverlap
+};
+
 export function listDesignReuseCandidates(input: { submissionId: string; submittedBy?: string; limit?: number }) {
   const source = getSubmission(input.submissionId);
   if (!source) return [];
@@ -383,7 +393,7 @@ export function listDesignReuseCandidates(input: { submissionId: string; submitt
 
   const sourceFiles = source.files.map((file) => file.original_filename);
   const candidates = rows
-    .map((row) => scoreDesignReuseCandidate(source, sourceFiles, row))
+    .map((row) => scoreDesignReuseCandidateShared(source, sourceFiles, row, reuseScoringDependencies))
     .filter((candidate): candidate is DesignReuseCandidate => Boolean(candidate))
     .sort((a, b) => b.score - a.score || Date.parse(b.created_at) - Date.parse(a.created_at));
 
@@ -436,67 +446,6 @@ export function listDuplicateGeometryCandidates(input: { submissionId: string; s
     .sort((a, b) => b.fingerprint_score - a.fingerprint_score || Date.parse(b.created_at) - Date.parse(a.created_at));
 
   return candidates.slice(0, Math.min(Math.max(input.limit ?? 6, 1), 20));
-}
-
-function scoreDesignReuseCandidate(source: SubmissionDetail, sourceFiles: string[], row: ReuseCandidateRow): DesignReuseCandidate | null {
-  let score = 0;
-  const reasons: string[] = [];
-  const candidateFiles = splitGroupConcat(row.file_names);
-  const matchedFiles: string[] = [];
-
-  if (partFamily(source.part_number) && partFamily(source.part_number) === partFamily(row.part_number)) {
-    score += 28;
-    reasons.push(`Same part family ${partFamily(row.part_number)}`);
-  } else {
-    const partOverlap = tokenOverlap(tokens(source.part_number), tokens(row.part_number));
-    if (partOverlap > 0) {
-      score += Math.min(18, partOverlap * 9);
-      reasons.push("Part number token match");
-    }
-  }
-
-  const nameOverlap = tokenOverlap(tokens(source.part_name), tokens(row.part_name));
-  if (nameOverlap > 0) {
-    score += Math.min(24, nameOverlap * 8);
-    reasons.push("Part name keyword match");
-  }
-
-  if (sameText(source.material, row.material)) {
-    score += 18;
-    reasons.push(`Same material ${row.material}`);
-  }
-
-  if (sameText(source.surface_finish, row.surface_finish)) {
-    score += 14;
-    reasons.push(`Same surface finish ${row.surface_finish}`);
-  }
-
-  if (sameText(source.document_type, row.document_type)) {
-    score += 6;
-    reasons.push(`Same document type ${row.document_type}`);
-  }
-
-  const fileOverlap = filenameOverlap(sourceFiles, candidateFiles);
-  if (fileOverlap.score > 0) {
-    score += fileOverlap.score;
-    reasons.push("Filename similarity");
-    matchedFiles.push(...fileOverlap.matchedFiles);
-  }
-
-  if (row.status === "Released") {
-    score += 4;
-    reasons.push("Released design");
-  }
-
-  if (score < 24 || reasons.length === 0) return null;
-  const { file_names: _fileNames, ...summary } = row;
-  void _fileNames;
-  return {
-    ...summary,
-    score,
-    match_reasons: reasons,
-    matched_files: matchedFiles
-  };
 }
 
 function scoreDuplicateGeometryCandidate(

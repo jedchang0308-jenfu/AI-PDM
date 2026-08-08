@@ -4,9 +4,8 @@ import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
 import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
 import { getDashboardMetricsAsync } from "@/lib/dashboard-metrics-async";
 import { removeSubmissionUploadFolder, saveUploadedFiles } from "@/lib/file-store";
-import { uploadFileToDrive } from "@/lib/gdrive";
 import { scopedSubmittedBy } from "@/lib/permissions";
-import { getFilesNeedingUploadAsync, updateFileGDriveStatusAsync } from "@/lib/submission-files-async";
+import { triggerBackgroundUpload } from "@/lib/submission-background-upload";
 import { createSubmissionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync } from "@/lib/submissions-async";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
 import { getActionableStorageUploadDecisions, getAlternateLargeFileIntakePackage, getStorageUploadPolicy } from "@/lib/storage-upload-policy";
@@ -169,23 +168,4 @@ function parseApprovalRequired(value: FormDataEntryValue | null): 1 | 2 | null {
   if (value === null || String(value).trim() === "") return 1;
   const parsed = Number.parseInt(String(value), 10);
   return parsed === 1 || parsed === 2 ? parsed : null;
-}
-
-async function triggerBackgroundUpload(submissionId: string, folderId: string) {
-  const files = await getFilesNeedingUploadAsync(submissionId);
-
-  for (const file of files) {
-    try {
-      await updateFileGDriveStatusAsync(file.id, "uploading");
-      const gdriveFileId = await uploadFileToDrive({
-        localPath: file.local_path,
-        filename: file.original_filename,
-        targetFolderId: folderId
-      });
-      await updateFileGDriveStatusAsync(file.id, "uploaded", gdriveFileId);
-    } catch (error) {
-      console.error(`Failed to upload file ${file.id} to Drive:`, error);
-      await updateFileGDriveStatusAsync(file.id, "failed");
-    }
-  }
 }

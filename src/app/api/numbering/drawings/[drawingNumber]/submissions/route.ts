@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireRoleAsync } from "@/lib/auth-async";
 import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
-import { uploadFileToDrive } from "@/lib/gdrive";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
 import { buildTransferPackageHref, normalizeSubmissionMode, resolveSubmissionReadiness } from "@/lib/submission-gate";
-import { getFilesNeedingUploadAsync, updateFileGDriveStatusAsync } from "@/lib/submission-files-async";
+import { triggerBackgroundUpload } from "@/lib/submission-background-upload";
 import { getSystemSettingAsync } from "@/lib/system-settings-async";
 
 export const runtime = "nodejs";
@@ -133,24 +132,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
       { error: "DRAWING_SUBMISSION_CREATE_FAILED", message: "送審建立失敗，請稍後重試或通知管理員。" },
       { status: 500 }
     );
-  }
-}
-
-async function triggerBackgroundUpload(submissionId: string, folderId: string) {
-  const files = await getFilesNeedingUploadAsync(submissionId);
-
-  for (const file of files) {
-    try {
-      await updateFileGDriveStatusAsync(file.id, "uploading");
-      const gdriveFileId = await uploadFileToDrive({
-        localPath: file.local_path,
-        filename: file.original_filename,
-        targetFolderId: folderId
-      });
-      await updateFileGDriveStatusAsync(file.id, "uploaded", gdriveFileId);
-    } catch (error) {
-      console.error(`Failed to upload file ${file.id} to Drive:`, error);
-      await updateFileGDriveStatusAsync(file.id, "failed");
-    }
   }
 }

@@ -14,6 +14,21 @@ type IdentityRow = {
   row_key: string;
 };
 
+type LifecycleOverlayRow = {
+  drawing_number_id: string;
+  revision: string;
+  lifecycle_state: NonNullable<DrawingModuleListRecord["lifecycle"]>["state"];
+  active_correction_reason: string | null;
+  updated_at: string;
+  request_id: string | null;
+  submitted_by: string | null;
+  workflow_id: string | null;
+  requested_at: string | null;
+};
+
+type LifecycleReviewerRow = { workflow_id: string; reviewer_id: string };
+type LifecycleDecisionCountRow = { request_id: string; value: number | string };
+
 export type DrawingWorkbenchIdentityCursor = {
   updatedAt: string;
   rowKey: string;
@@ -37,6 +52,16 @@ export type DrawingWorkbenchRepositoryQuery = {
 
 function searchPattern(value: string) {
   return `%${value.toLocaleLowerCase("zh-Hant")}%`;
+}
+
+function createNamedList(prefix: string, values: string[]) {
+  const params: Record<string, string> = {};
+  const placeholders = values.map((value, index) => {
+    const name = `${prefix}${index}`;
+    params[name] = value;
+    return `:${name}`;
+  });
+  return { sql: placeholders.join(", "), params };
 }
 
 export class DrawingWorkbenchAsyncRepository {
@@ -241,57 +266,73 @@ export class DrawingWorkbenchAsyncRepository {
   }
 
   private async overlayLifecycle(client: AsyncDatabaseClient, drawings: DrawingModuleListRecord[], companyId: string) {
-    const result: DrawingModuleListRecord[] = [];
-    for (const drawing of drawings) {
-      const row = await client.queryOne<{
-        revision: string;
-        lifecycle_state: NonNullable<DrawingModuleListRecord["lifecycle"]>["state"];
-        active_correction_reason: string | null;
-        updated_at: string;
-        request_id: string | null;
-        submitted_by: string | null;
-        workflow_id: string | null;
-        requested_at: string | null;
-      }>(
-        `SELECT
-           package.revision,
-           package.lifecycle_state,
-           package.active_correction_reason,
-           package.updated_at,
-           workflow.approval_request_id AS request_id,
-           workflow.submitted_by,
-           workflow.id AS workflow_id,
-           request.requested_at
-         FROM drawing_revision_packages package
-         LEFT JOIN drawing_revision_lifecycle_workflows workflow
-           ON workflow.package_id = package.id
-          AND workflow.state IN ('active', 'finalizing', 'cleanup_pending')
-         LEFT JOIN approval_platform_requests request ON request.id = workflow.approval_request_id
-         WHERE package.company_id = :companyId
-           AND package.drawing_number_id = :drawingNumberId
-           AND package.lifecycle_state IS NOT NULL
-         ORDER BY package.updated_at DESC, package.id DESC
-         LIMIT 1`,
-        { companyId, drawingNumberId: drawing.id }
-      );
-      if (!row) {
-        result.push(drawing);
-        continue;
-      }
-      const reviewers = row.workflow_id
-        ? await client.query<{ reviewer_id: string }>(
-            `SELECT reviewer_id FROM drawing_revision_lifecycle_reviewers
-             WHERE workflow_id = :workflowId ORDER BY required_order, reviewer_id`,
-            { workflowId: row.workflow_id }
-          )
-        : [];
-      const decisionCount = row.request_id
-        ? Number((await client.queryOne<{ value: number | string }>(
-            `SELECT COUNT(*) AS value FROM approval_platform_decisions WHERE request_id = :requestId`,
-            { requestId: row.request_id }
-          ))?.value ?? 0)
-        : 0;
-      result.push({
+    if (drawings.length === 0) return [];
+    const drawingIds = [...new Set(drawings.map((drawing) => drawing.id))];
+    const drawingList = createNamedList("drawingId", drawingIds);
+    const lifecycleRows = await client.query<LifecycleOverlayRow>(
+      `SELECT
+         package.drawing_number_id,
+         package.revision,
+         package.lifecycle_state,
+         package.active_correction_reason,
+         package.updated_at,
+         workflow.approval_request_id AS request_id,
+         workflow.submitted_by,
+         workflow.id AS workflow_id,
+         request.requested_at
+       FROM drawing_revision_packages package
+       LEFT JOIN drawing_revision_lifecycle_workflows workflow
+         ON workflow.package_id = package.id
+        AND workflow.state IN ('active', 'finalizing', 'cleanup_pending')
+       LEFT JOIN approval_platform_requests request ON request.id = workflow.approval_request_id
+       WHERE package.company_id = :companyId
+         AND package.drawing_number_id IN (${drawingList.sql})
+         AND package.lifecycle_state IS NOT NULL
+       ORDER BY package.drawing_number_id ASC, package.updated_at DESC, package.id DESC`,
+      { companyId, ...drawingList.params }
+    );
+    const latestByDrawingId = new Map<string, LifecycleOverlayRow>();
+    for (const row of lifecycleRows) {
+      if (!latestByDrawingId.has(row.drawing_number_id)) latestByDrawingId.set(row.drawing_number_id, row);
+    }
+
+    const workflowIds = [...new Set(lifecycleRows.map((row) => row.workflow_id).filter((id): id is string => Boolean(id)))];
+    const reviewerList = createNamedList("workflowId", workflowIds);
+    const reviewerRows = workflowIds.length
+      ? await client.query<LifecycleReviewerRow>(
+          `SELECT workflow_id, reviewer_id
+           FROM drawing_revision_lifecycle_reviewers
+           WHERE workflow_id IN (${reviewerList.sql})
+           ORDER BY workflow_id ASC, required_order ASC, reviewer_id ASC`,
+          reviewerList.params
+        )
+      : [];
+    const reviewersByWorkflowId = new Map<string, string[]>();
+    for (const reviewer of reviewerRows) {
+      const reviewers = reviewersByWorkflowId.get(reviewer.workflow_id) ?? [];
+      reviewers.push(reviewer.reviewer_id);
+      reviewersByWorkflowId.set(reviewer.workflow_id, reviewers);
+    }
+
+    const requestIds = [...new Set(lifecycleRows.map((row) => row.request_id).filter((id): id is string => Boolean(id)))];
+    const requestList = createNamedList("requestId", requestIds);
+    const decisionRows = requestIds.length
+      ? await client.query<LifecycleDecisionCountRow>(
+          `SELECT request_id, COUNT(*) AS value
+           FROM approval_platform_decisions
+           WHERE request_id IN (${requestList.sql})
+           GROUP BY request_id`,
+          requestList.params
+        )
+      : [];
+    const decisionCountByRequestId = new Map(decisionRows.map((row) => [row.request_id, Number(row.value)]));
+
+    return drawings.map((drawing) => {
+      const row = latestByDrawingId.get(drawing.id);
+      if (!row) return drawing;
+      const reviewerIds = row.workflow_id ? reviewersByWorkflowId.get(row.workflow_id) ?? [] : [];
+      const decisionCount = row.request_id ? decisionCountByRequestId.get(row.request_id) ?? 0 : 0;
+      return {
         ...drawing,
         lifecycle: {
           state: row.lifecycle_state,
@@ -299,7 +340,7 @@ export class DrawingWorkbenchAsyncRepository {
           requestId: row.request_id,
           submittedBy: row.submitted_by,
           decisionCount,
-          reviewerIds: reviewers.map((reviewer) => reviewer.reviewer_id),
+          reviewerIds,
           correctionReason: row.active_correction_reason
         },
         pendingApproval: row.lifecycle_state === "in_review" && row.request_id
@@ -312,8 +353,7 @@ export class DrawingWorkbenchAsyncRepository {
             }
           : null,
         updatedAt: row.updated_at > drawing.updatedAt ? row.updated_at : drawing.updatedAt
-      });
-    }
-    return result;
+      };
+    });
   }
 }

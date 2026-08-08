@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { diffBomWorkbenchLines as diffBomWorkbenchLinesShared } from "@/lib/bom-workbench-diff";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type {
   BomImportJob,
@@ -223,9 +224,13 @@ type SolidWorksBomParseResult = {
 };
 
 type AsyncBomReleaseGateSubmissionRow = {
+  item_id: string;
   id: string;
   revision: string;
   status: string;
+  released_at?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
 };
 
 type NormalizedWorkbenchTreeLine = {
@@ -810,7 +815,7 @@ export class AsyncBomWorkbenchRepository {
     if (!draft) return null;
 
     const baseSnapshot = await this.getLatestReleaseSnapshotForDraft(draft);
-    const changes = diffBomWorkbenchLines(baseSnapshot?.lines ?? [], draft.lines);
+    const changes = diffBomWorkbenchLinesShared(baseSnapshot?.lines ?? [], draft.lines);
     return {
       draft,
       base_snapshot: baseSnapshot,
@@ -1798,12 +1803,52 @@ export class AsyncBomWorkbenchRepository {
   }
 
   private async evaluateReleaseGate(lines: BomWorkbenchLine[]): Promise<BomReleaseGateIssue[]> {
+    const candidateLines = lines.filter(
+      (line): line is BomWorkbenchLine & { node_type: "item"; part_number: string } => line.node_type === "item" && Boolean(line.part_number)
+    );
+    if (candidateLines.length === 0) return [];
+
+    const partNumbers = [...new Set(candidateLines.map((line) => line.part_number))];
+    const partNumberParams = Object.fromEntries(partNumbers.map((partNumber, index) => [`partNumber${index}`, partNumber]));
+    const itemRows = await this.client.query<{ id: string; part_number: string }>(
+      `
+        SELECT id, part_number
+        FROM items
+        WHERE upper(part_number) IN (${partNumbers.map((_, index) => `:partNumber${index}`).join(", ")})
+      `,
+      partNumberParams
+    );
+    const itemByPartNumber = new Map(itemRows.map((row) => [row.part_number.toUpperCase(), row]));
+    const itemIds = [...new Set(itemRows.map((row) => row.id))];
+    const submissionRows = itemIds.length
+      ? await this.client.query<AsyncBomReleaseGateSubmissionRow>(
+          `
+            SELECT item_id, id, revision, status, released_at, updated_at, created_at
+            FROM submissions
+            WHERE item_id IN (${itemIds.map((_, index) => `:itemId${index}`).join(", ")})
+            ORDER BY
+              item_id ASC,
+              CASE WHEN status = 'Released' THEN 0 ELSE 1 END,
+              COALESCE(released_at, updated_at, created_at) DESC,
+              id DESC
+          `,
+          Object.fromEntries(itemIds.map((itemId, index) => [`itemId${index}`, itemId]))
+        )
+      : [];
+    const submissionsByItemId = new Map<string, AsyncBomReleaseGateSubmissionRow[]>();
+    const latestReleasedByItemId = new Map<string, AsyncBomReleaseGateSubmissionRow>();
+    for (const row of submissionRows) {
+      const rowsForItem = submissionsByItemId.get(row.item_id) ?? [];
+      rowsForItem.push(row);
+      submissionsByItemId.set(row.item_id, rowsForItem);
+      if (row.status === "Released" && !latestReleasedByItemId.has(row.item_id)) {
+        latestReleasedByItemId.set(row.item_id, row);
+      }
+    }
+
     const issues: BomReleaseGateIssue[] = [];
-    for (const line of lines) {
-      if (line.node_type !== "item" || !line.part_number) continue;
-      const item = await this.client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL, {
-        partNumber: line.part_number
-      });
+    for (const line of candidateLines) {
+      const item = itemByPartNumber.get(line.part_number.toUpperCase());
       if (!item) {
         issues.push({
           code: "missing_child_item",
@@ -1815,12 +1860,8 @@ export class AsyncBomWorkbenchRepository {
         continue;
       }
 
-      const childSubmission = await this.client.queryOne<AsyncBomReleaseGateSubmissionRow>(
-        SELECT_ASYNC_BOM_WORKBENCH_RELEASE_GATE_SUBMISSION_SQL,
-        {
-          itemId: item.id,
-          revision: line.revision
-        }
+      const childSubmission = (submissionsByItemId.get(item.id) ?? []).find(
+        (submission) => line.revision === null || submission.revision.toUpperCase() === line.revision.toUpperCase()
       );
       if (!childSubmission) {
         issues.push({
@@ -1845,9 +1886,7 @@ export class AsyncBomWorkbenchRepository {
         continue;
       }
 
-      const latest = await this.client.queryOne<{ revision: string }>(SELECT_ASYNC_BOM_WORKBENCH_LATEST_RELEASED_REVISION_SQL, {
-        itemId: item.id
-      });
+      const latest = latestReleasedByItemId.get(item.id);
       if (line.revision && latest?.revision && latest.revision.toUpperCase() !== line.revision.toUpperCase()) {
         issues.push({
           code: "child_outdated_revision",
@@ -2393,101 +2432,4 @@ function sortWorkbenchTreeLines(lines: NormalizedWorkbenchTreeLine[]) {
     return depth;
   };
   return [...lines].sort((a, b) => depthOf(a) - depthOf(b) || a.sequenceNo - b.sequenceNo || a.id.localeCompare(b.id));
-}
-
-function diffBomWorkbenchLines(baseLines: BomWorkbenchLine[], targetLines: BomWorkbenchLine[]): BomWorkbenchLineDiffChange[] {
-  const before = comparableLineMap(baseLines);
-  const after = comparableLineMap(targetLines);
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  const changes: BomWorkbenchLineDiffChange[] = [];
-
-  for (const key of keys) {
-    const previous = before.get(key) ?? null;
-    const next = after.get(key) ?? null;
-    if (!previous && next) {
-      changes.push({ key, change_type: "added", label: next.label, before: null, after: next, changed_fields: ["line"] });
-      continue;
-    }
-    if (previous && !next) {
-      changes.push({ key, change_type: "removed", label: previous.label, before: previous, after: null, changed_fields: ["line"] });
-      continue;
-    }
-    if (!previous || !next) continue;
-    const changedFields = changedComparableFields(previous, next);
-    changes.push({
-      key,
-      change_type: changedFields.length > 0 ? "changed" : "unchanged",
-      label: next.label,
-      before: previous,
-      after: next,
-      changed_fields: changedFields
-    });
-  }
-
-  return changes.sort((a, b) => diffSortWeight(a.change_type) - diffSortWeight(b.change_type) || a.label.localeCompare(b.label));
-}
-
-function comparableLineMap(lines: BomWorkbenchLine[]) {
-  const byId = new Map(lines.map((line) => [line.id, line]));
-  const occurrence = new Map<string, number>();
-  const comparable = new Map<string, BomWorkbenchComparableLine>();
-  const sorted = [...lines].sort((a, b) => a.sequence_no - b.sequence_no);
-
-  for (const line of sorted) {
-    const baseKey =
-      line.node_type === "group"
-        ? `group:${(line.group_name ?? "").trim().toUpperCase()}`
-        : `item:${(line.part_number ?? "").trim().toUpperCase()}`;
-    const count = (occurrence.get(baseKey) ?? 0) + 1;
-    occurrence.set(baseKey, count);
-    const key = `${baseKey}#${count}`;
-    const parentPath = buildParentPath(line, byId);
-    comparable.set(key, {
-      key,
-      node_type: line.node_type,
-      label: line.node_type === "group" ? line.group_name || "Group" : `${line.part_number ?? "-"} Rev ${line.revision ?? "-"}`,
-      part_number: line.part_number,
-      revision: line.revision,
-      group_name: line.group_name,
-      quantity: line.quantity,
-      parent_path: parentPath.path,
-      level: parentPath.level,
-      sequence_no: line.sequence_no
-    });
-  }
-
-  return comparable;
-}
-
-function buildParentPath(line: BomWorkbenchLine, byId: Map<string, BomWorkbenchLine>) {
-  const labels: string[] = [];
-  const visited = new Set<string>();
-  let currentParentId = line.parent_line_id;
-  while (currentParentId && !visited.has(currentParentId)) {
-    visited.add(currentParentId);
-    const parent = byId.get(currentParentId);
-    if (!parent) break;
-    labels.unshift(parent.node_type === "group" ? parent.group_name || "Group" : `${parent.part_number ?? "-"} Rev ${parent.revision ?? "-"}`);
-    currentParentId = parent.parent_line_id;
-  }
-  return {
-    path: labels.length > 0 ? labels.join(" / ") : "ROOT",
-    level: labels.length
-  };
-}
-
-function changedComparableFields(before: BomWorkbenchComparableLine, after: BomWorkbenchComparableLine) {
-  const fields: string[] = [];
-  if ((before.revision ?? "") !== (after.revision ?? "")) fields.push("revision");
-  if ((before.quantity ?? null) !== (after.quantity ?? null)) fields.push("quantity");
-  if (before.parent_path !== after.parent_path || before.level !== after.level) fields.push("hierarchy");
-  if (before.sequence_no !== after.sequence_no) fields.push("sequence");
-  return fields;
-}
-
-function diffSortWeight(changeType: BomWorkbenchLineDiffChange["change_type"]) {
-  if (changeType === "added") return 1;
-  if (changeType === "removed") return 2;
-  if (changeType === "changed") return 3;
-  return 4;
 }
