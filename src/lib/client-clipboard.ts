@@ -28,6 +28,15 @@ function copyWithLegacyCommand(text: string) {
   }
 }
 
+export async function copyTextToClipboardBestEffort(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    copyWithLegacyCommand(text);
+  }
+}
+
 export async function copyTextToClipboard(text: string): Promise<ClipboardCopyMethod> {
   if (!text) throw new Error("CLIPBOARD_TEXT_REQUIRED");
 

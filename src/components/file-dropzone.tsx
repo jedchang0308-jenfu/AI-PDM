@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useId, useRef, useState } from "react";
 import { UploadCloud, X } from "lucide-react";
+import { formatBytes } from "@/lib/format-file-size";
 
 export type FileDropzoneRejectReason = "single_file_only" | "disabled";
 
@@ -128,16 +129,4 @@ export function FileDropzone({
       />
     </label>
   );
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
 }

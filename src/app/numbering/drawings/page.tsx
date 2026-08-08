@@ -11,6 +11,7 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatStatusForUser } from "@/lib/status-display";
 
@@ -105,24 +106,6 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 
 function hasSelectedText() {
   return Boolean(window.getSelection()?.toString());
-}
-
-async function copyTextToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
 }
 
 export default function DrawingNumbersPage() {
@@ -257,7 +240,7 @@ export default function DrawingNumbersPage() {
   const copySelectedDrawingNumber = useCallback(async () => {
     const drawingNumber = selectedDrawingNumberRef.current;
     if (!drawingNumber) return;
-    await copyTextToClipboard(drawingNumber);
+    await copyTextToClipboardBestEffort(drawingNumber);
   }, []);
 
 

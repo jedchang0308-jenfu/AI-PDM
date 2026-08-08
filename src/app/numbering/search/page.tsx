@@ -14,6 +14,7 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { DrawingDetailContent, type DrawingDetail, type DrawingWorkbenchCapabilities } from "@/components/drawing-workbench";
 import { PartDetailPanel, type PartDetail } from "@/app/parts/page";
+import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
 import { StatusBadge } from "@/components/status-help-popover";
@@ -347,24 +348,6 @@ function hasSelectedText() {
   return Boolean(window.getSelection()?.toString());
 }
 
-async function copyTextToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
-}
-
 export default function NumberingSearchPage() {
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
@@ -581,7 +564,7 @@ export default function NumberingSearchPage() {
   const copySelectedRootCode = useCallback(async () => {
     const rootCode = selectedRootCodeRef.current;
     if (!rootCode) return;
-    await copyTextToClipboard(rootCode);
+    await copyTextToClipboardBestEffort(rootCode);
   }, []);
 
   useEffect(() => {

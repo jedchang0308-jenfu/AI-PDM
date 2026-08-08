@@ -961,7 +961,7 @@ export class AsyncBomWorkbenchRepository {
     const now = this.clock();
     const draftId = this.idFactory();
     const importJobId = this.idFactory();
-    const asset = saveBomImportOriginalFile({
+    const asset = await saveBomImportOriginalFile({
       importJobId,
       originalFilename,
       fileBuffer: input.fileBuffer,
@@ -2090,7 +2090,7 @@ function mergeAssemblyReferences(references: FileReference[]): AssemblyDraftLine
   return Array.from(byKey.values());
 }
 
-function saveBomImportOriginalFile(input: {
+async function saveBomImportOriginalFile(input: {
   importJobId: string;
   originalFilename: string;
   fileBuffer: Buffer;
@@ -2100,9 +2100,9 @@ function saveBomImportOriginalFile(input: {
   const repositoryDir = getRepositoryDir();
   const date = input.now.slice(0, 10).split("-");
   const targetDir = path.join(repositoryDir, "bom-imports", date[0] ?? "unknown", date[1] ?? "unknown", input.importJobId);
-  fs.mkdirSync(targetDir, { recursive: true });
+  await fs.promises.mkdir(targetDir, { recursive: true });
   const localPath = path.join(targetDir, input.originalFilename);
-  fs.writeFileSync(localPath, input.fileBuffer);
+  await fs.promises.writeFile(localPath, input.fileBuffer);
   const storageKey = path.relative(repositoryDir, localPath).replaceAll(path.sep, "/");
   return {
     id: crypto.randomUUID(),

@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useCallback } from "react";
+import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 
 export const LIST_KEYBOARD_SHORTCUTS = "ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C";
 
@@ -31,24 +32,6 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 
 function hasSelectedText() {
   return Boolean(window.getSelection()?.toString());
-}
-
-async function copyTextToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
 }
 
 export function useListKeyboardShortcuts<T>({
@@ -120,7 +103,7 @@ export function useListKeyboardShortcuts<T>({
         const item = currentItem();
         if (!item) return;
         event.preventDefault();
-        void copyTextToClipboard(getCopyText(item));
+        void copyTextToClipboardBestEffort(getCopyText(item));
         return;
       }
 

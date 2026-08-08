@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { AlertTriangle, ArrowLeft, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
+import { formatBytes } from "@/lib/format-file-size";
 import {
   classifyRevisionPackageFiles,
   evaluateRevisionPackageCompleteness,
@@ -1579,18 +1580,6 @@ function isJustCreatedSubmissionBlocker(blocker: DrawingSubmissionBlocker, creat
 
 function documentCategoryLabel(value: string) {
   return documentCategoryOptions.find((option) => option.value === value)?.label ?? value;
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
 }
 
 function newSubmissionIdempotencyKey() {

@@ -11,6 +11,7 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 import { HUMAN_STATUS_FILTER_OPTIONS, isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
@@ -150,24 +151,6 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 
 function hasSelectedText() {
   return Boolean(window.getSelection()?.toString());
-}
-
-async function copyTextToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
 }
 
 export default function PartsPage() {
@@ -382,7 +365,7 @@ export default function PartsPage() {
   const copySelectedPartNumber = useCallback(async () => {
     const partNumber = selectedPartNumberRef.current;
     if (!partNumber) return;
-    await copyTextToClipboard(partNumber);
+    await copyTextToClipboardBestEffort(partNumber);
   }, []);
 
   useEffect(() => {

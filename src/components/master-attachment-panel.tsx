@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Check, CircleAlert, Clock3, Download, ExternalLink, FileText, History, LoaderCircle, RefreshCw, RotateCcw, Trash2, UploadCloud, WifiOff, X } from "lucide-react";
 import { FileDropzone } from "@/components/file-dropzone";
+import { formatBytes } from "@/lib/format-file-size";
 import { compareRevisionCodes, suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
@@ -1623,18 +1624,6 @@ function supplementRoleFromAttachment(attachment: MasterAttachment) {
   if (attachment.documentCategory === "cad_3d") return "cad_3d";
   if (attachment.documentCategory === "drawing_2d") return "drawing_2d";
   return "other";
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
 }
 
 function formatDateTime(value: string) {
