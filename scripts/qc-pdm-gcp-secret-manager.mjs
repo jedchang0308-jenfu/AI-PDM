@@ -28,6 +28,7 @@ try {
   const workerRoute = readProjectFile(root, "src/app/api/preview-workers/solidworks-document-manager-key/route.ts");
   const worker = readProjectFile(root, "scripts/run-solidworks-document-manager-preview-worker.mjs");
   const settingsPage = readProjectFile(root, "src/app/settings/page.tsx");
+  const listRoute = readProjectFile(root, "src/app/api/settings/secrets/route.ts");
   const draftRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/draft/route.ts");
   const activateRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/activate/route.ts");
   const revokeRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/revoke/route.ts");
@@ -56,7 +57,7 @@ try {
   record("GSM-021 example config points to Google provider", includesAll(envExample, ["PDM_SETTINGS_SECRET_PROVIDER=google_secret_manager", "PDM_GCP_PROJECT_ID", "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID", "PDM_ENABLE_GCP_SECRET_READS"]));
   record("GSM-022 worker route is token-gated and no-store", includesAll(workerRoute, ["PDM_PREVIEW_WORKER_TOKEN", "authorization", "x-pdm-preview-worker-token", "resolveActiveSolidWorksDocumentManagerKey", "no-store", "timingSafeEqual"]));
   record("GSM-023 admin secret routes do not return raw reference", [draftRoute, activateRoute, revokeRoute].every((source) => includesAll(source, ["redactSettingsSecretReference", "requireRoleAsync", '["Admin"]'])));
-  record("GSM-024 test route remains Admin-only", includesAll(testRoute, ["testSettingsSecretReference", "requireRoleAsync", '["Admin"]']));
+  record("GSM-024 secret routes are Admin-only and no-store", [listRoute, draftRoute, testRoute, activateRoute, revokeRoute].every((source) => includesAll(source, ["requireRoleAsync", '["Admin"]', "private, no-store"])));
   record("GSM-025 worker keeps broker credential in memory", includesAll(worker, ["workerCredentialValue", "workerCredentialLoadedAt", "clearRouteLoadedCredential"]));
   record("GSM-026 worker refreshes after bounded interval", includesAll(worker, ["credentialRefreshMs", "Date.now() - workerCredentialLoadedAt >= credentialRefreshMs", "refresh: shouldRefreshCredential"]));
   record("GSM-027 worker clears cached credential after broker rejection", includesAll(worker, ["if (workerCredentialLoadedFromRoute) clearRouteLoadedCredential();", "response.status === 403", "response.status === 404"]));

@@ -76,6 +76,7 @@ try {
     ["revoke", revokeRoute]
   ]) {
     record(`SETTINGS-SECRET-011 ${name} route requires Admin`, source.includes("requireRoleAsync") && source.includes('["Admin"]'));
+    record(`SETTINGS-SECRET-011A ${name} route disables caching`, source.includes("private, no-store"));
   }
 
   record("SETTINGS-SECRET-012 UI uses password field and never displays secret value", settingsPage.includes('type="password"') && settingsPage.includes('autoComplete="new-password"') && !settingsPage.includes("solidworks_api_key"));

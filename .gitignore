@@ -14,7 +14,7 @@ artifacts/
 .env
 .env*.local
 !.env.example
-secrets/
+/secrets/
 tsconfig.tsbuildinfo
 .playwright-cli/
 .worktrees/
