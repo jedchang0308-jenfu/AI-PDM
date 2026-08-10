@@ -160,6 +160,10 @@ const read = (relativePath) => normalizeLf(readProjectFile(root, relativePath));
 
 function write(relativePath, content) {
   const absolutePath = projectPath(root, relativePath);
+  if (fs.existsSync(absolutePath)) {
+    const existing = fs.readFileSync(absolutePath, "utf8");
+    if (normalizeLf(existing) === normalizeLf(content)) return;
+  }
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
   fs.writeFileSync(absolutePath, content, "utf8");
 }
