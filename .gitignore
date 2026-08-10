@@ -23,6 +23,7 @@ output/playwright/
 output/**/*.sqlite
 output/dev-046-phase2a-preflight/
 output/dev-046-phase2b-preflight/
+output/dev-032-production-iac-terraform-validate/
 
 # Terraform working/state files. Reviewed dependency locks stay versioned.
 **/.terraform/*
