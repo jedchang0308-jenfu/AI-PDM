@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, PackageSearch, RefreshCcw, Search, X } from "lucide-react";
 import { HumanStatusBadge } from "@/components/human-status-badge";
@@ -119,8 +120,6 @@ function normalizeList(value: unknown) { return value as PartWorkbenchListRespon
 function normalizeDetail(value: unknown) { return value as PartWorkbenchDetailResponse; }
 function initialLocation() { return readLocation(true); }
 function currentLocation() { return readLocation(false); }
-function redirectLogin() { window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`); }
-
 async function readApiBody<T>(response: Response) {
   return response.json().catch(() => ({})) as Promise<T & ApiBody>;
 }
@@ -135,6 +134,10 @@ function idempotencyKey(action: string) {
 }
 
 export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (props: PartFormalDetailRendererProps) => ReactNode }) {
+  const router = useRouter();
+  const redirectLogin = useCallback(() => {
+    router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  }, [router]);
   const controller = usePdmWorkbenchController<PartWorkbenchRow, PartWorkbenchDetailResponse, PartWorkbenchQueryState, PartWorkbenchListResponse["filters"]>({
     initialQuery,
     initialLocation,

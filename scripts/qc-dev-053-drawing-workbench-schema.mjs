@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -13,9 +12,6 @@ const has = (source, fragments) => fragments.every((fragment) => source.includes
 
 const sqlite = read("db/schema.sql");
 const postgres = read("db/postgres/022_unified_drawing_workbench.sql");
-const mirror = read("supabase/migrations/20260804020000_unified_drawing_workbench.sql");
-const manifest = JSON.parse(read("supabase/migrations/manifest.json"));
-const sync = read("scripts/sync-supabase-runtime-migrations.mjs");
 const feature = read("src/lib/number-state-flow-feature.ts");
 const dbSource = read("src/lib/db.ts");
 const columns = ["source_drawing_number_id", "source_part_number_id", "source_link_type"];
@@ -33,14 +29,8 @@ record("DEV053-SCHEMA-004 provider-parity source constraints are present",
   has(sqlite, ["draft_mode = 'append_part'", "draft_mode = 'append_drawing'", "source_link_type IS NOT NULL"]) &&
   has(postgres, ["numbering_draft_workspaces_source_context_check", "draft_mode = 'append_part'", "draft_mode = 'append_drawing'"]));
 
-const hash = crypto.createHash("sha256").update(postgres).digest("hex");
-const manifestEntry = manifest.migrations?.find((entry) => entry.source === "db/postgres/022_unified_drawing_workbench.sql");
-record("DEV053-SCHEMA-005 Supabase mirror registry and source hash match",
-  mirror.includes(`-- Source SHA-256: ${hash}`) &&
-  sync.includes('source: "db/postgres/022_unified_drawing_workbench.sql"') &&
-  manifestEntry?.target === "supabase/migrations/20260804020000_unified_drawing_workbench.sql" &&
-  manifestEntry?.sourceSha256 === hash,
-  hash);
+record("DEV053-SCHEMA-005 Cloud SQL migration is the only active PostgreSQL source",
+  columns.every((column) => postgres.includes(column)) && !postgres.includes("supabase.co"));
 record("DEV053-SCHEMA-006 workbench flag is default-off and depends on lifecycle V2",
   has(feature, [
     'UNIFIED_DRAWING_WORKBENCH_V1_FLAG = "PDM_UNIFIED_DRAWING_WORKBENCH_V1"',

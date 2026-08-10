@@ -7,8 +7,8 @@ import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { buildStorageMetadataContext } from "./generate-file-storage-cost-report.mjs";
 
-const DEFAULT_TARGET_PROVIDER = "supabase_storage";
-const DEFAULT_TARGET_BUCKET = "pdm-hot";
+const DEFAULT_TARGET_PROVIDER = "google_cloud_storage";
+const DEFAULT_TARGET_BUCKET = "pdm-primary";
 const DEFAULT_TARGET_PREFIX = "ai-pdm";
 
 function sha256FileSync(filePath) {
@@ -108,6 +108,7 @@ function buildBusinessLinkInvariant(object) {
 export function buildStorageMigrationDryRun(options = {}) {
   const env = options.env ?? process.env;
   const targetProvider = options.targetProvider ?? env.PDM_STORAGE_DRY_RUN_TARGET_PROVIDER ?? DEFAULT_TARGET_PROVIDER;
+  if (targetProvider === "supabase_storage") throw new Error("SUPABASE_STORAGE_RETIRED_USE_GCS:migration_dry_run");
   const targetBucket = options.targetBucket ?? env.PDM_STORAGE_DRY_RUN_TARGET_BUCKET ?? DEFAULT_TARGET_BUCKET;
   const targetPrefix = options.targetPrefix ?? env.PDM_STORAGE_DRY_RUN_TARGET_PREFIX ?? DEFAULT_TARGET_PREFIX;
   const context = buildStorageMetadataContext(options);

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -19,8 +18,6 @@ function includesAll(source, values) {
 
 const sqliteSchema = read("db/schema.sql");
 const postgresMigration = read("db/postgres/021_number_lifecycle_simplification.sql");
-const supabaseMirror = read("supabase/migrations/20260804010000_number_lifecycle_simplification.sql");
-const syncSource = read("scripts/sync-supabase-runtime-migrations.mjs");
 const featureSource = read("src/lib/number-state-flow-feature.ts");
 const statusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
 const repositorySource = read("src/lib/repositories/number-state-flow-async-repository.ts");
@@ -85,17 +82,9 @@ record(
   "ReviewApproved must remain an effective companion projection"
 );
 
-// Migration mirrors are generated with LF line endings so that their integrity
-// hashes remain stable across Windows and Linux clean checkouts.
-const normalizedPostgresMigration = postgresMigration.replace(/\r\n/gu, "\n");
-const sourceHash = crypto.createHash("sha256").update(normalizedPostgresMigration).digest("hex");
 record(
-  "DEV052-SCHEMA-007 Supabase mirror hash and registry match migration 021",
-  supabaseMirror.includes("-- Source: db/postgres/021_number_lifecycle_simplification.sql") &&
-    supabaseMirror.includes(`-- Source SHA-256: ${sourceHash}`) &&
-    syncSource.includes('source: "db/postgres/021_number_lifecycle_simplification.sql"') &&
-    syncSource.includes('target: "supabase/migrations/20260804010000_number_lifecycle_simplification.sql"'),
-  sourceHash
+  "DEV052-SCHEMA-007 Cloud SQL migration is the only active PostgreSQL source",
+  postgresMigration.includes("numbering_candidate_revision_drafts") && !postgresMigration.includes("supabase.co")
 );
 record(
   "DEV052-SCHEMA-008 V2 is default-off and status response is additive",

@@ -1,0 +1,585 @@
+{
+  "runId": "DEV059-20260810-162052-isolated",
+  "baselineHash": "ac5c8dc7a04c6d6f942ceac1cecea1eee9f457dbb747d12d09487e095837836a",
+  "finalHash": "0b74a8e703dd807b537231d23e7271131f43f5e0a7591b11e4ef9cdfd5457841",
+  "mutationReadbacks": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary 2D plus 3D evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-fddc1859-b3e9-4a9e-a2ea-1210752d2440",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "0dff7647-db2b-44d2-99cf-ec3d540789c7",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "cb423281-9f3c-4444-80bd-5ceb0f8e543a",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "d69e9011-d313-4d66-92a8-4ec5dc0a0ece",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-30e324ef-47cc-4f19-af4f-9c4c2ce80b82",
+          "revision": "0.1",
+          "row_version": 3,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-12cee02c-eec5-41b5-af31-db277e9f901e",
+            "display_name": "qa-dev059-primary.sldprt",
+            "role": "cad_3d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-c7518670-0d77-4906-bdcd-a73b9ab87aaa",
+            "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+            "file_size": 29
+          },
+          {
+            "id": "NCRF-8bb5e44a-11a5-4a05-84e0-4e6c0340646c",
+            "display_name": "qa-dev059-primary.slddrw",
+            "role": "drawing_2d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-7515d850-d7cf-4681-a1f4-5b4552f153a2",
+            "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+            "file_size": 31
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    },
+    {
+      "id": "DEV059-WRITE-002 double activation creates one pending review request",
+      "passed": true,
+      "detail": {
+        "successSubmit": {
+          "status": 200,
+          "modalCount": 0
+        },
+        "successRequest": {
+          "id": "APR-d07c6d14-9fa9-4f55-9198-fd3bf2ebf1f6",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "submitRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-fddc1859-b3e9-4a9e-a2ea-1210752d2440",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "0dff7647-db2b-44d2-99cf-ec3d540789c7",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "cb423281-9f3c-4444-80bd-5ceb0f8e543a",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "d69e9011-d313-4d66-92a8-4ec5dc0a0ece",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-30e324ef-47cc-4f19-af4f-9c4c2ce80b82",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-12cee02c-eec5-41b5-af31-db277e9f901e",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-c7518670-0d77-4906-bdcd-a73b9ab87aaa",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-8bb5e44a-11a5-4a05-84e0-4e6c0340646c",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-7515d850-d7cf-4681-a1f4-5b4552f153a2",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-d07c6d14-9fa9-4f55-9198-fd3bf2ebf1f6",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-fddc1859-b3e9-4a9e-a2ea-1210752d2440",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "0dff7647-db2b-44d2-99cf-ec3d540789c7",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "cb423281-9f3c-4444-80bd-5ceb0f8e543a",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "d69e9011-d313-4d66-92a8-4ec5dc0a0ece",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-30e324ef-47cc-4f19-af4f-9c4c2ce80b82",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-12cee02c-eec5-41b5-af31-db277e9f901e",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-c7518670-0d77-4906-bdcd-a73b9ab87aaa",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-8bb5e44a-11a5-4a05-84e0-4e6c0340646c",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-7515d850-d7cf-4681-a1f4-5b4552f153a2",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-d07c6d14-9fa9-4f55-9198-fd3bf2ebf1f6",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-001 planned 503 remains locally recoverable",
+      "passed": false,
+      "detail": {
+        "status": 503,
+        "modalCount": 0,
+        "faultErrorVisible": false,
+        "faultRequest": null
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-9f66d145-15ec-4030-80af-a7f636deb84c",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "42d908f5-6459-4bf1-8d9d-541b7b2f978e",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "5863306a-da5d-449d-a6d6-5f28d0f52b2d",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "9cb85b45-3d53-444e-9640-04d1742762bf",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-fc708b12-abb8-4155-b61e-8c801996f169",
+            "revision": "0.1",
+            "row_version": 3,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-b075c079-4abb-4fba-b9cc-ace1557cbaed",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-b8d75de9-2494-4514-ae5d-4207c5ff0ed8",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-fa298e5d-feaf-4e03-abf1-e91c31abcd58",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a1dbdf3e-8142-4d27-8bdd-cf622f7212af",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-9f66d145-15ec-4030-80af-a7f636deb84c",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "42d908f5-6459-4bf1-8d9d-541b7b2f978e",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "5863306a-da5d-449d-a6d6-5f28d0f52b2d",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "9cb85b45-3d53-444e-9640-04d1742762bf",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-fc708b12-abb8-4155-b61e-8c801996f169",
+            "revision": "0.1",
+            "row_version": 3,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-b075c079-4abb-4fba-b9cc-ace1557cbaed",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-b8d75de9-2494-4514-ae5d-4207c5ff0ed8",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-fa298e5d-feaf-4e03-abf1-e91c31abcd58",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a1dbdf3e-8142-4d27-8bdd-cf622f7212af",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003 response loss keeps idempotency and readback finds one committed request",
+      "passed": false,
+      "detail": {
+        "modalCount": 0,
+        "lossMessageVisible": false,
+        "committedRequest": {
+          "id": "APR-f863dcd1-37f0-487a-9133-335b5fa29492",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "lossRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003R authoritative reload shows in-review state after lost response",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:60458/parts?view=work&detail=candidate%3Adraft-workspace-50238920-3762-4c13-947f-11414bec34a2",
+        "modalCount": 0
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-50238920-3762-4c13-947f-11414bec34a2",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "2af20a16-73fc-4396-9734-5778747d6351",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "93cd84e3-378a-492c-89d7-e163cd236569",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "a0dfeb8a-1812-4d15-86e3-a9711977a800",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b43cd30e-3f8c-4d41-9d4d-7ba1a8976a59",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-356bff39-5b45-46c7-9486-a395cc674371",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-931a52e5-f3f3-4b36-80ef-280240f5e3a5",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-d61def9b-a4d9-4691-86e4-8edd4be20009",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a1dbf104-2196-4961-898e-c28be99d90b9",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-f863dcd1-37f0-487a-9133-335b5fa29492",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-50238920-3762-4c13-947f-11414bec34a2",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "2af20a16-73fc-4396-9734-5778747d6351",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "93cd84e3-378a-492c-89d7-e163cd236569",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "a0dfeb8a-1812-4d15-86e3-a9711977a800",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b43cd30e-3f8c-4d41-9d4d-7ba1a8976a59",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-356bff39-5b45-46c7-9486-a395cc674371",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-931a52e5-f3f3-4b36-80ef-280240f5e3a5",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-d61def9b-a4d9-4691-86e4-8edd4be20009",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a1dbf104-2196-4961-898e-c28be99d90b9",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-f863dcd1-37f0-487a-9133-335b5fa29492",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-GATE-0 disposable run has no formal master pollution",
+      "passed": true,
+      "detail": {
+        "baselineHash": "ac5c8dc7a04c6d6f942ceac1cecea1eee9f457dbb747d12d09487e095837836a",
+        "finalHash": "0b74a8e703dd807b537231d23e7271131f43f5e0a7591b11e4ef9cdfd5457841"
+      }
+    }
+  ]
+}

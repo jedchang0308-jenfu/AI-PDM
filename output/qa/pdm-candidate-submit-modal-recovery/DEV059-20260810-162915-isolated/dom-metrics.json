@@ -1,0 +1,92 @@
+{
+  "runId": "DEV059-20260810-162915-isolated",
+  "viewportEvidence": [
+    {
+      "width": 1440,
+      "height": 900,
+      "box": {
+        "x": 460,
+        "y": 335.296875,
+        "width": 520,
+        "height": 229.390625
+      },
+      "metrics": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "clientHeight": 900,
+        "scrollHeight": 900
+      },
+      "modalCount": 1
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "box": {
+        "x": 252,
+        "y": 269.296875,
+        "width": 520,
+        "height": 229.390625
+      },
+      "metrics": {
+        "clientWidth": 1024,
+        "scrollWidth": 1024,
+        "clientHeight": 768,
+        "scrollHeight": 768
+      },
+      "modalCount": 1
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "box": {
+        "x": 0,
+        "y": 532.609375,
+        "width": 390,
+        "height": 311.390625
+      },
+      "metrics": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "clientHeight": 844,
+        "scrollHeight": 969
+      },
+      "modalCount": 1
+    }
+  ],
+  "modalCloseCase": {
+    "cases": [
+      {
+        "action": "X",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:62311/parts?view=work&detail=candidate%3Adraft-workspace-b5c2ffaf-6a60-47de-b2f2-b98de7134b79"
+      },
+      {
+        "action": "return",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:62311/parts?view=work&detail=candidate%3Adraft-workspace-b5c2ffaf-6a60-47de-b2f2-b98de7134b79"
+      },
+      {
+        "action": "escape",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:62311/parts?view=work&detail=candidate%3Adraft-workspace-b5c2ffaf-6a60-47de-b2f2-b98de7134b79"
+      },
+      {
+        "action": "coordinate",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:62311/parts?view=work&detail=candidate%3Adraft-workspace-b5c2ffaf-6a60-47de-b2f2-b98de7134b79"
+      },
+      {
+        "action": "double-click",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:62311/parts?view=work&detail=candidate%3Adraft-workspace-b5c2ffaf-6a60-47de-b2f2-b98de7134b79"
+      }
+    ],
+    "beforeHash": "dc05de5b4efd1e41f4206d5dd6507adc4a6747a856e5859f078a92f04b53e71f",
+    "afterHash": "dc05de5b4efd1e41f4206d5dd6507adc4a6747a856e5859f078a92f04b53e71f"
+  }
+}

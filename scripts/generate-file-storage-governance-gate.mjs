@@ -155,7 +155,7 @@ export async function buildStorageGovernanceGate(options = {}) {
       noMetadataPointersUpdated: true,
       noDatabaseConnection: true,
       noSqlApplied: true,
-      noSupabaseConnectorCalls: true,
+      noExternalProviderConnectorCalls: true,
       rawSignedUrlsNotReported: true
     },
     inputs: {

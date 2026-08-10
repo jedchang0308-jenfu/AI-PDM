@@ -360,7 +360,7 @@ export function buildDev047LocalInventory(root = process.cwd()) {
     .sort()
     .map((name) => `db/postgres/${name}`);
   const sqliteRelativePath = "db/schema.sql";
-  const manifestRelativePath = "supabase/migrations/manifest.json";
+  const manifestRelativePath = ".ai-doc/archived/legacy-supabase-migration-mirror/migrations/manifest.json";
   const catalogQueryRelativePath = "scripts/sql/dev-047-postgres-catalog-read-only.sql";
 
   const postgresSources = postgresRelativePaths.map((relativePath) => {

@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "generatedAt": "2026-08-10T17:04:05.320Z",
+  "targetProject": "jenfu-ai-pdm-prod",
+  "region": "asia-east1",
+  "expectedRunService": "ai-pdm-prod",
+  "expectedCloudSqlInstance": "ai-pdm-prod-postgres",
+  "productionActionPerformed": false,
+  "readOnly": true,
+  "releaseReady": false,
+  "status": "blocked_readonly_preflight",
+  "activeIdentity": {
+    "account": "info@jenfu.com.tw",
+    "project": "jenfu-ai-pdm-prod"
+  },
+  "project": null,
+  "providerConfig": {
+    "firebasercPath": ".firebaserc",
+    "firebaseJsonPath": null,
+    "firebaseProjects": {
+      "staging": "jenfu-ai-pdm-stg-361825",
+      "production": "jenfu-ai-pdm-prod"
+    },
+    "firebaseHostingSite": null,
+    "productionFirebaseHostingPath": "config/platform/firebase-hosting.production.json",
+    "productionFirebaseHostingSite": "jenfu-ai-pdm-prod",
+    "firebaseHasProductionAlias": true,
+    "firebaseProductionConfigReady": true,
+    "firebaseOnlyStaging": false
+  },
+  "productionTargetContract": {
+    "path": "config/platform/production-target.template.json",
+    "parseError": null,
+    "templateOnly": true,
+    "releaseReady": false,
+    "productionActionAllowed": false,
+    "publicBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+    "firebaseHostingGatewayAllowed": true,
+    "cloudRunIngress": "all",
+    "cloudRunDefaultUrlDisabled": false,
+    "requiredSecretIds": [
+      "pdm-session-signing-current",
+      "pdm-session-signing-previous"
+    ]
+  },
+  "envSources": [
+    {
+      "path": ".env.production",
+      "exists": false
+    },
+    {
+      "path": ".env.production.local",
+      "exists": true
+    },
+    {
+      "path": "infra/google-cloud/production/production.auto.tfvars.json",
+      "exists": true
+    }
+  ],
+  "cloudRun": {
+    "commandOk": false,
+    "serviceCount": null,
+    "expectedServiceFound": false,
+    "expectedService": null
+  },
+  "cloudSql": {
+    "commandOk": false,
+    "instanceCount": 0,
+    "expectedCloudSqlInstance": "ai-pdm-prod-postgres",
+    "expectedInstanceFound": false,
+    "instances": []
+  },
+  "secrets": {
+    "commandOk": false,
+    "secretCount": 0,
+    "requiredSecretIds": [
+      "pdm-session-signing-current",
+      "pdm-session-signing-previous"
+    ],
+    "missingRequiredSecretIds": [
+      "pdm-session-signing-current",
+      "pdm-session-signing-previous"
+    ],
+    "namesOnly": []
+  },
+  "releaseSource": {
+    "manifestPath": "output/dev-032-release-source/manifest.json",
+    "manifestStatus": "source_snapshot_manifested_not_release_ready",
+    "exactReleaseCommitExists": false,
+    "includedProductionSourceEntries": 58,
+    "unknownRiskEntries": 3,
+    "safeToBuildForProduction": false,
+    "blocker": "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
+  },
+  "blockers": [
+    {
+      "code": "PRODUCTION_PROJECT_UNAVAILABLE",
+      "message": "Production project is not readable by the active account or does not exist.",
+      "evidence": {
+        "targetProject": "jenfu-ai-pdm-prod",
+        "commandOk": false,
+        "stderr": "ERROR: (gcloud.projects.describe) There was a problem refreshing your current auth tokens: Reauthentication failed. cannot prompt during non-interactive execution.\r\nPlease run:\r\n\r\n  $ gcloud auth login\r\n\r\nto obtain new credentials.\r\n\r\nIf you have already logged in with a different account, run:\r\n\r\n  $ gcloud config set account ACCOUNT\r\n\r\nto select an already authenticated account to use."
+      }
+    },
+    {
+      "code": "PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN",
+      "message": "Expected production Cloud Run service was not proven readable.",
+      "evidence": {
+        "expectedRunService": "ai-pdm-prod",
+        "commandOk": false,
+        "serviceCount": null
+      }
+    },
+    {
+      "code": "PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN",
+      "message": "Expected production Cloud SQL instance metadata was not proven readable.",
+      "evidence": {
+        "expectedCloudSqlInstance": "ai-pdm-prod-postgres",
+        "commandOk": false,
+        "instanceCount": 0
+      }
+    },
+    {
+      "code": "PRODUCTION_SECRET_SOURCE_UNPROVEN",
+      "message": "Required production Secret Manager metadata was not proven readable; no secret values were requested.",
+      "evidence": {
+        "commandOk": false,
+        "requiredSecretIds": [
+          "pdm-session-signing-current",
+          "pdm-session-signing-previous"
+        ],
+        "visibleSecretIds": [],
+        "missingRequiredSecretIds": [
+          "pdm-session-signing-current",
+          "pdm-session-signing-previous"
+        ]
+      }
+    },
+    {
+      "code": "RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED",
+      "message": "Release-source manifest does not prove an exact release commit.",
+      "evidence": {
+        "manifestPath": "output/dev-032-release-source/manifest.json",
+        "exactReleaseCommitExists": false,
+        "includedProductionSourceEntries": 58,
+        "unknownRiskEntries": 3,
+        "safeToBuildForProduction": false,
+        "blocker": "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
+      }
+    },
+    {
+      "code": "LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE",
+      "message": "Production-like and post-deploy smoke cannot run until production runtime/database target is proven.",
+      "evidence": {
+        "level3Required": true,
+        "level4Required": true
+      }
+    }
+  ],
+  "commands": [
+    {
+      "name": "active-account",
+      "command": [
+        "gcloud",
+        "config",
+        "get-value",
+        "account"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "name": "active-project",
+      "command": [
+        "gcloud",
+        "config",
+        "get-value",
+        "project"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "name": "production-project-describe",
+      "command": [
+        "gcloud",
+        "projects",
+        "describe",
+        "jenfu-ai-pdm-prod",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": false,
+      "stderr": "ERROR: (gcloud.projects.describe) There was a problem refreshing your current auth tokens: Reauthentication failed. cannot prompt during non-interactive execution.\r\nPlease run:\r\n\r\n  $ gcloud auth login\r\n\r\nto obtain new credentials.\r\n\r\nIf you have already logged in with a different account, run:\r\n\r\n  $ gcloud config set account ACCOUNT\r\n\r\nto select an already authenticated account to use."
+    },
+    {
+      "name": "production-cloud-run-services",
+      "command": [
+        "gcloud",
+        "run",
+        "services",
+        "list",
+        "--project",
+        "jenfu-ai-pdm-prod",
+        "--region",
+        "asia-east1",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": false,
+      "stderr": "ERROR: (gcloud.run.services.list) There was a problem refreshing your current auth tokens: Reauthentication failed. cannot prompt during non-interactive execution.\r\nPlease run:\r\n\r\n  $ gcloud auth login\r\n\r\nto obtain new credentials.\r\n\r\nIf you have already logged in with a different account, run:\r\n\r\n  $ gcloud config set account ACCOUNT\r\n\r\nto select an already authenticated account to use."
+    },
+    {
+      "name": "production-cloud-sql-instances",
+      "command": [
+        "gcloud",
+        "sql",
+        "instances",
+        "list",
+        "--project",
+        "jenfu-ai-pdm-prod",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": false,
+      "stderr": "ERROR: (gcloud.sql.instances.list) There was a problem refreshing your current auth tokens: Reauthentication failed. cannot prompt during non-interactive execution.\r\nPlease run:\r\n\r\n  $ gcloud auth login\r\n\r\nto obtain new credentials.\r\n\r\nIf you have already logged in with a different account, run:\r\n\r\n  $ gcloud config set account ACCOUNT\r\n\r\nto select an already authenticated account to use."
+    },
+    {
+      "name": "production-secret-metadata",
+      "command": [
+        "gcloud",
+        "secrets",
+        "list",
+        "--project",
+        "jenfu-ai-pdm-prod",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": false,
+      "stderr": "ERROR: (gcloud.secrets.list) There was a problem refreshing your current auth tokens: Reauthentication failed. cannot prompt during non-interactive execution.\r\nPlease run:\r\n\r\n  $ gcloud auth login\r\n\r\nto obtain new credentials.\r\n\r\nIf you have already logged in with a different account, run:\r\n\r\n  $ gcloud config set account ACCOUNT\r\n\r\nto select an already authenticated account to use."
+    }
+  ],
+  "stopConditions": [
+    "This report is read-only discovery evidence only.",
+    "Do not apply Terraform, deploy, import SQL, execute migration jobs or create production resources from this report.",
+    "Do not print or persist secret values.",
+    "Do not proceed to production build/deploy until release source, production target, env/secret source, HD-8-4 restore/reconciliation, rollback and Level 3/4 smoke gates are closed."
+  ]
+}

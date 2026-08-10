@@ -71,7 +71,7 @@ export function buildDriveBackupPlanReport(options = {}) {
     reportType: "file-storage-drive-backup-plan",
     generatedAt: new Date().toISOString(),
     assumptions: {
-      supabaseAndPostgresAreCoreAuthority: true,
+      cloudSqlPostgresIsCoreAuthority: true,
       googleDriveIsBackupMirrorOnly: true,
       googleDriveDoesNotServeRuntimeReads: true,
       noDriveDeletesOrOverwritesInFirstVersion: true,
@@ -132,7 +132,7 @@ export function buildDriveBackupManifestFromPlan(plan, results = []) {
   return {
     schema: "ai-pdm-drive-backup-manifest.v1",
     generatedAt: new Date().toISOString(),
-    authority: "supabase_core",
+    authority: "cloud_sql_postgres",
     entries: plan
       .filter((item) => item.coverage !== "excluded")
       .map((item) => {

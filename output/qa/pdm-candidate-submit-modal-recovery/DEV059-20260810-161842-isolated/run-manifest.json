@@ -1,0 +1,30 @@
+{
+  "runId": "DEV059-20260810-161842-isolated",
+  "branch": "current local worktree (uncommitted)",
+  "head": null,
+  "dirtyBoundary": "only isolated runner output plus OS temporary runtime/data; no shared or production data",
+  "url": "http://127.0.0.1:56731",
+  "actor": "dev059-real-operator",
+  "provider": "isolated SQLite + local repository",
+  "fixtures": [
+    "qa-dev059-primary.slddrw",
+    "qa-dev059-primary.sldprt"
+  ],
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed"
+}

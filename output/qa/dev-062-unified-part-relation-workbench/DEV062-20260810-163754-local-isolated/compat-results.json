@@ -1,0 +1,38 @@
+{
+  "suite": "DEV-062 Compatibility",
+  "passed": true,
+  "checks": [
+    {
+      "id": "COMPAT-01 umbrella flag is off by default and dependency-bound",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-02 legacy Part URL canonicalizes only when flag is on",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-03 request URL preserves creation intent and rejects unsafe returnTo",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-04 workbench read endpoints are feature-gated and private",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-05 new GET surfaces do not introduce mutation handlers",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-06 flag-off pages keep legacy modules; flag-on pages use owner workbenches",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-07 opening formal Part detail keeps required-MA resolution read-only",
+      "passed": true
+    },
+    {
+      "id": "COMPAT-08 Relation deep link reconciles domain target from authoritative detail",
+      "passed": true
+    }
+  ]
+}

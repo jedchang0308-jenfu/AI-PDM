@@ -17,6 +17,7 @@ const routes = `${listRoute}\n${detailRoute}`;
 const contextual = read("src/components/numbering-contextual-entrypoints.tsx");
 const productionSlice = read("src/lib/production-slice.ts");
 const service = read("src/lib/drawing-workbench.ts");
+const cursorService = read("src/lib/pdm-workbench-cursor.ts");
 const lifecycleService = read("src/lib/number-lifecycle-simplification.ts");
 const repository = read("src/lib/repositories/drawing-workbench-async-repository.ts");
 const lifecycleRepository = read("src/lib/repositories/number-lifecycle-simplification-async-repository.ts");
@@ -33,8 +34,9 @@ record("DEV053-HTTP-003 tenant and candidate visibility are server-derived",
   has(routes, ["resolveNumberingCompanyContextAsync", "numbering.workspace.view", "companyResult.company.companyId"]) &&
   !routes.includes("request.nextUrl.searchParams.get(\"companyId\")"));
 record("DEV053-HTTP-004 responses are private no-store and errors are structured",
-  (routes.match(/cache-control": "private, no-store"/gu)?.length ?? 0) === 2 &&
-  has(service, ["drawingWorkbenchErrorResponse", "workbench_invalid_cursor"]));
+  (routes.match(/DRAWING_WORKBENCH_NO_STORE_HEADERS/gu)?.length ?? 0) >= 6 &&
+  has(service, ["drawingWorkbenchErrorResponse", "PdmWorkbenchCursorError", "headers: DRAWING_WORKBENCH_NO_STORE_HEADERS"]) &&
+  cursorService.includes('readonly code = "workbench_invalid_cursor"'));
 record("DEV053-HTTP-005 contextual create uses candidate API plus idempotency",
   (contextual.match(/fetch\("\/api\/numbering\/draft-workspaces"/gu)?.length ?? 0) >= 2 &&
   (contextual.match(/"Idempotency-Key": idempotencyKey/gu)?.length ?? 0) >= 2 &&

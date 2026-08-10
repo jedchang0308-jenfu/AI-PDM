@@ -20,23 +20,8 @@ const repositoryDir = path.join(dataDir, "repository");
 const databasePath = path.join(dataDir, "ai-pdm.sqlite");
 const distDirRelative = `.tmp/q53-${crypto.randomUUID().slice(0, 8)}`;
 const distDir = path.join(root, ...distDirRelative.split("/"));
-const fixturePdf = path.join(tempRoot, "dev053-primary-drawing.pdf");
-const existingFileFixtures = {
-  trusted: {
-    fileId: "dev053-real-existing-file",
-    assetId: "dev053-real-existing-asset",
-    fileName: "dev053-existing-primary.sldprt",
-    bytes: Buffer.from("DEV053 trusted legacy CAD payload\n", "utf8"),
-    contentHashOverride: null
-  },
-  mismatched: {
-    fileId: "dev053-real-mismatched-file",
-    assetId: "dev053-real-mismatched-asset",
-    fileName: "dev053-mismatched-primary.sldprt",
-    bytes: Buffer.from("DEV053 tampered legacy CAD payload\n", "utf8"),
-    contentHashOverride: "0".repeat(64)
-  }
-};
+const fixtureDrawing = path.join(tempRoot, "dev053-primary-drawing.slddrw");
+const fixtureModel = path.join(tempRoot, "dev053-primary-model.sldprt");
 const password = "DEV053-Real-Operation-2026";
 const fixture = {
   workspaceId: "dev053-real-candidate",
@@ -48,7 +33,8 @@ const fixture = {
   partCode: "Z3053-P01",
   drawingCode: "Z3053-M01",
   title: "DEV053 既有保留號",
-  fileName: "dev053-primary-drawing.pdf"
+  drawingFileName: "dev053-primary-drawing.slddrw",
+  modelFileName: "dev053-primary-model.sldprt"
 };
 const users = {
   operator: {
@@ -79,9 +65,7 @@ const sourceFiles = [
   "src/lib/repositories/number-lifecycle-simplification-async-repository.ts",
   "src/lib/repositories/master-attachment-async-repository.ts",
   "src/lib/repositories/master-attachment-repository.ts",
-  "db/postgres/022_unified_drawing_workbench.sql",
-  "supabase/migrations/20260804020000_unified_drawing_workbench.sql",
-  "scripts/qc-dev-053-drawing-workbench-real-operation.mjs"
+  "db/postgres/022_unified_drawing_workbench.sql",  "scripts/qc-dev-053-drawing-workbench-real-operation.mjs"
 ];
 const results = [];
 const screenshots = [];
@@ -97,11 +81,8 @@ let baseUrl = "";
 let cleanupStatus = "not_started";
 
 fs.mkdirSync(screenshotDir, { recursive: true });
-fs.writeFileSync(
-  fixturePdf,
-  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
-  "utf8"
-);
+fs.writeFileSync(fixtureDrawing, "DEV053 primary drawing payload\n", "utf8");
+fs.writeFileSync(fixtureModel, "DEV053 primary model payload\n", "utf8");
 const record = (id, passed, detail = {}) => results.push({ id, passed: Boolean(passed), detail });
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
 
@@ -184,45 +165,6 @@ function seedFixture() {
       ) VALUES ('dev053-real-master-link', 'dev053-real-master-drawing', 'dev053-real-master-part',
         'primary_manufacturing', ?, ?)` ).run(user.id, now);
   })();
-}
-
-function seedExistingCandidateFile(candidateId, fileFixture) {
-  const current = database.prepare(`SELECT row_version FROM numbering_candidate_revision_drafts
-    WHERE id = ? AND workspace_id = ?`).get(candidateId, fixture.workspaceId);
-  if (!current) throw new Error(`DEV053_EXISTING_FILE_CANDIDATE_NOT_FOUND:${candidateId}`);
-  const storageKey = ["candidate-revisions", "company-jenfu", candidateId, `${fileFixture.fileId}-${fileFixture.fileName}`].join("/");
-  const originalPath = path.join(repositoryDir, ...storageKey.split("/"));
-  fs.mkdirSync(path.dirname(originalPath), { recursive: true });
-  fs.writeFileSync(originalPath, fileFixture.bytes);
-  const actualHash = sha(fileFixture.bytes);
-  const contentHash = fileFixture.contentHashOverride ?? actualHash;
-  const now = new Date().toISOString();
-  database.transaction(() => {
-    database.prepare(`INSERT INTO file_assets (
-        id, storage_provider, original_path, storage_key, file_name, file_ext, mime_type, file_size,
-        content_hash, hash_algorithm, linked_entity_type, linked_entity_id, document_category,
-        display_name, description, revision, uploaded_by, gdrive_status, sync_status, created_at, updated_at
-      ) VALUES (?, 'local_repository', ?, ?, ?, '.sldprt', 'application/octet-stream', ?, ?, 'SHA-256',
-        'numbering_candidate_revision', ?, 'cad_3d', ?, '', '0.1', ?, 'none', 'migrated', ?, ?)`)
-      .run(fileFixture.assetId, originalPath, storageKey, fileFixture.fileName, fileFixture.bytes.byteLength,
-        contentHash, candidateId, fileFixture.fileName, user.id, now, now);
-    database.prepare(`INSERT INTO numbering_candidate_revision_files (
-        id, company_id, candidate_revision_id, source_file_asset_id, publication_evidence_id,
-        role, role_source, display_name, description, sort_order, is_primary, created_by, created_at, updated_at
-      ) VALUES (?, 'company-jenfu', ?, ?, NULL, 'cad_3d', 'migration', ?, '', 0, 1, ?, ?, ?)`)
-      .run(fileFixture.fileId, candidateId, fileFixture.assetId, fileFixture.fileName, user.id, now, now);
-    database.prepare(`UPDATE numbering_candidate_revision_drafts
-      SET row_version = row_version + 1, updated_at = ? WHERE id = ? AND row_version = ?`)
-      .run(now, candidateId, Number(current.row_version));
-  })();
-  return {
-    ...fileFixture,
-    originalPath,
-    storageKey,
-    actualHash,
-    contentHash,
-    expectedRowVersion: Number(current.row_version) + 1
-  };
 }
 
 async function capture(page, name) {
@@ -342,14 +284,13 @@ async function run() {
     PDM_DB_PROVIDER: "sqlite",
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
-    PDM_STORAGE_PROVIDER: "local_repository",
-    PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
-    PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+    PDM_STORAGE_PROVIDER: "local_repository",    PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
     PDM_PUBLICATION_EVIDENCE_MODE: "",
     PDM_RELEASE_MODE: "local_stub",
     PDM_NUMBER_STATE_FLOW_V1: "true",
     PDM_NUMBER_LIFECYCLE_V2: "true",
     PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
+    PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_NEXT_DIST_DIR: distDirRelative,
     PDM_QC_ISOLATED_TARGET: "1"
@@ -361,6 +302,7 @@ async function run() {
   await waitForNextAppReady(baseUrl, app.getOutput);
   for (const route of [
     "/numbering/drawings?view=work",
+    "/parts?view=work",
     "/approvals",
     "/api/numbering/drawings/workbench?view=work&limit=50",
     "/api/numbering/draft-workspaces/prewarm/candidate-revisions",
@@ -433,6 +375,8 @@ async function run() {
   database = new Database(databasePath);
   seedFixture();
   const beforeRead = businessHash();
+  const candidateDrawer = page.locator('[data-entity-type="candidate_bundle"]');
+  const formalMasterDrawer = page.locator('[data-entity-type="drawing_number"]');
 
   await page.goto(`${baseUrl}/numbering/drawings?tab=reserved`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible" });
@@ -448,42 +392,48 @@ async function run() {
   await searchWorkbench(page, search, "Z3053-M01");
   await page.getByRole("button", { name: "Z3053-M01", exact: true }).waitFor({ state: "visible" });
   const candidateRow = page.locator(".drawing-workbench-table tbody tr").filter({ has: page.getByRole("button", { name: "Z3053-M01", exact: true }) });
+  const candidateRowText = await candidateRow.innerText();
   record("DEV053-REAL-003 list row removes the repeated next-step action",
     await candidateRow.getByRole("button", { name: "完成首版", exact: true }).count() === 0 &&
-    (await candidateRow.innerText()).includes("尚不可正式使用"));
+    await candidateRow.locator(".drawing-workbench-row-action").count() === 0,
+    { candidateRowText });
+  const beforeCandidateHandoff = businessHash();
   await candidateRow.getByRole("button", { name: "Z3053-M01", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "visible" });
-  record("DEV053-REAL-004 candidate drawer exposes state risk and one next step",
-    (await page.getByRole("dialog").innerText()).includes("尚不可正式使用") &&
-    await page.getByRole("button", { name: "完成首版圖面", exact: true }).count() === 1);
-  await capture(page, "candidate-drawer-1440x900.png");
-  await page.getByRole("button", { name: "關閉保留號明細", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  const retiredCandidateNotice = page.getByRole("status").filter({ hasText: "候選圖號明細抽屜已暫停開發" });
+  await retiredCandidateNotice.waitFor({ state: "visible" });
+  const afterCandidateHandoff = businessHash();
+  record("DEV053-REAL-004 retired drawing candidate drawer fails closed and explains the owner-route handoff",
+    await candidateDrawer.count() === 0 &&
+    (await retiredCandidateNotice.innerText()).includes("目前僅保留正式圖號明細") &&
+    JSON.stringify(beforeCandidateHandoff) === JSON.stringify(afterCandidateHandoff),
+    { notice: await retiredCandidateNotice.innerText(), beforeCandidateHandoff, afterCandidateHandoff });
+  await capture(page, "candidate-owner-route-handoff-1440x900.png");
 
   await searchWorkbench(page, search, "Z4053-M01");
   await page.getByRole("button", { name: "Z4053-M01", exact: true }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Z4053-M01", exact: true }).click();
+  await formalMasterDrawer.waitFor({ state: "visible" });
   await page.locator('[data-attachment-authority="controlled_summary"]').waitFor({ state: "visible" });
-  await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalMasterRowText = await page.locator(".drawing-workbench-table tbody tr").innerText();
-  const formalMasterDrawer = page.getByRole("dialog", { name: "圖號明細" });
   const formalMasterDrawerText = await formalMasterDrawer.innerText();
   const initialControlledPanel = page.locator('[data-attachment-authority="controlled_summary"]');
-  const disabledRevisionButtons = formalMasterDrawer.getByRole("button", { name: /圖面進版|上傳與送審/u });
-  record("DEV053-REAL-005 formal master preserves management capabilities, authority split and permission guidance",
+  const disabledRevisionButtons = formalMasterDrawer.getByRole("button", { name: /建立新版次|圖面進版|上傳與送審/u });
+  record("DEV053-REAL-005 formal master keeps controlled files and streamlined maintenance guidance",
     await initialControlledPanel.getByRole("button", { name: /上傳|刪除/u }).count() === 0 &&
     formalMasterRowText.includes("Z4053-P01") &&
-    formalMasterDrawerText.includes("同主根號料號") && formalMasterDrawerText.includes("主要製造圖") &&
+    formalMasterDrawerText.includes("同根料號") && formalMasterDrawerText.includes("Z4053-P01") &&
     formalMasterDrawerText.includes("post_release_change") && formalMasterDrawerText.includes("研發主管或 PDM Admin") &&
-    await disabledRevisionButtons.count() >= 2 && await disabledRevisionButtons.evaluateAll((buttons) => buttons.every((button) => button.hasAttribute("disabled"))) &&
-    await formalMasterDrawer.getByRole("link", { name: "完整圖料關係", exact: true }).count() === 1 &&
-    await formalMasterDrawer.getByRole("link", { name: "製造影響", exact: true }).count() === 1 &&
-    await formalMasterDrawer.getByRole("link", { name: "補成本", exact: true }).count() === 1 &&
+    await disabledRevisionButtons.count() === 1 && await disabledRevisionButtons.evaluateAll((buttons) => buttons.every((button) => button.hasAttribute("disabled"))) &&
     formalMasterDrawerText.includes("標準成本未設定（選填）") &&
-    await formalMasterDrawer.getByRole("button", { name: "補主資料", exact: true }).count() === 1,
+    formalMasterDrawerText.includes("資料維護") &&
+    await formalMasterDrawer.getByRole("button", { name: "新增同根圖號", exact: true }).count() === 1 &&
+    await formalMasterDrawer.getByRole("button", { name: "新增同圖料號", exact: true }).count() === 1 &&
+    await formalMasterDrawer.getByText("參考附件", { exact: true }).count() === 0 &&
+    await formalMasterDrawer.getByText("附件管理", { exact: true }).count() === 0,
     { formalMasterRowText, formalMasterDrawerText });
   await capture(page, "master-read-only-drawer-1440x900.png");
   await page.getByRole("button", { name: "關閉圖號明細", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await formalMasterDrawer.waitFor({ state: "hidden" });
   await searchWorkbench(page, search, "");
 
   for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768], [390, 844]]) {
@@ -553,6 +503,8 @@ async function run() {
   const contextualSearch = page.getByPlaceholder("圖號、品名、料號");
   await searchWorkbench(page, contextualSearch, "Z4053-M01");
   await page.getByRole("button", { name: "Z4053-M01", exact: true }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Z4053-M01", exact: true }).click();
+  await formalMasterDrawer.waitFor({ state: "visible" });
   await page.getByRole("button", { name: "新增同圖料號", exact: true }).click();
   const appendDialog = page.locator('.pdm-contextual-dialog[role="dialog"][aria-label="新增同根料號"]');
   await appendDialog.waitFor({ state: "visible" });
@@ -601,149 +553,17 @@ async function run() {
       contextualWorkspace, contextualBefore, contextualAfter, url: page.url() });
   await capture(page, "same-drawing-add-result-1440x900.png");
 
-  await page.goto(`${baseUrl}/numbering/drawings?view=work`, { waitUntil: "networkidle" });
-  const fixtureSearch = page.getByPlaceholder("圖號、品名、料號");
-
-  await searchWorkbench(page, fixtureSearch, fixture.drawingCode);
-  await page.getByRole("button", { name: fixture.drawingCode, exact: true }).waitFor({ state: "visible" });
-  await page.getByRole("dialog").waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "完成首版圖面", exact: true }).click();
+  await page.goto(`${baseUrl}/parts?view=work&detail=${encodeURIComponent(`candidate:${fixture.workspaceId}`)}`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "料號工作台", exact: true }).waitFor({ state: "visible" });
+  await candidateDrawer.waitFor({ state: "visible" });
+  await candidateDrawer.getByRole("button", { name: "建立首版", exact: true }).click();
   await page.locator('[data-candidate-editor="true"] input[type="file"]').waitFor({ state: "attached" });
   const candidate = database.prepare("SELECT id, revision, lifecycle_status FROM numbering_candidate_revision_drafts WHERE workspace_id = ?").get(fixture.workspaceId);
-  record("DEV053-REAL-011 clicking the unified CTA creates one candidate revision and no formal master",
+  record("DEV053-REAL-011 owner-route candidate CTA creates one candidate revision and no formal master",
     candidate?.revision === "0.1" && candidate?.lifecycle_status === "draft" && formalFacts().drawings === 0,
     { candidate });
 
-  const trustedExisting = seedExistingCandidateFile(candidate.id, existingFileFixtures.trusted);
-  await page.reload({ waitUntil: "networkidle" });
-  await page.locator('[data-candidate-editor="true"]').waitFor({ state: "visible" });
-  const verifyExistingButton = page.getByRole("button", { name: "驗證既有檔案（1）", exact: true });
-  await verifyExistingButton.waitFor({ state: "visible" });
-  const trustedBefore = database.prepare(`SELECT asset.id AS asset_id, asset.original_path, asset.storage_key,
-      asset.file_name, asset.file_size, asset.content_hash, file.publication_evidence_id
-    FROM numbering_candidate_revision_files file
-    JOIN file_assets asset ON asset.id = file.source_file_asset_id
-    WHERE file.id = ?`).get(trustedExisting.fileId);
-  record("DEV053-REAL-011A legacy files show one no-reupload recovery action before submit",
-    await page.getByText("先驗證已保存的檔案，不用重新上傳。", { exact: true }).count() === 1 &&
-    await page.getByText("系統會逐檔核對內容完整性；原檔與編號都不會改變。", { exact: true }).count() === 1 &&
-    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 0,
-    { trustedBefore });
-
-  const verificationPath = `/api/numbering/draft-workspaces/${encodeURIComponent(fixture.workspaceId)}` +
-    `/candidate-revisions/${encodeURIComponent(candidate.id)}/files`;
-  const verificationIdempotencyKey = `dev053:verify-existing:${trustedExisting.fileId}:${trustedExisting.expectedRowVersion}`;
-  const verificationResponsePromise = page.waitForResponse((response) =>
-    response.request().method() === "PATCH" && new URL(response.url()).pathname === verificationPath,
-  { timeout: 30000 });
-  const [verificationResponse] = await Promise.all([verificationResponsePromise, verifyExistingButton.click()]);
-  const verificationBody = await verificationResponse.json().catch(() => ({}));
-  if (!verificationResponse.ok() || !verificationBody.workspace) {
-    throw new Error(`DEV053_EXISTING_VERIFICATION_FAILED:${verificationResponse.status()}:${JSON.stringify(verificationBody)}`);
-  }
-  await page.getByText("主要受控檔已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
-  const trustedAfter = database.prepare(`SELECT asset.id AS asset_id, asset.original_path, asset.storage_key,
-      asset.file_name, asset.file_size, asset.content_hash, file.publication_evidence_id,
-      evidence.bucket, evidence.object_key, evidence.generation, evidence.finalized_at
-    FROM numbering_candidate_revision_files file
-    JOIN file_assets asset ON asset.id = file.source_file_asset_id
-    LEFT JOIN numbering_publication_evidence evidence ON evidence.id = file.publication_evidence_id
-    WHERE file.id = ?`).get(trustedExisting.fileId);
-  const trustedCandidateAfter = database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id);
-  const verificationAudit = database.prepare(`SELECT action, detail_json FROM audit_logs
-    WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'
-      AND json_extract(detail_json, '$.candidateFileId') = ?`).get(trustedExisting.fileId);
-  record("DEV053-REAL-011B target-only verification preserves the existing asset and unlocks submit",
-    verificationBody.localDevelopmentEvidence === true &&
-    trustedBefore.asset_id === trustedAfter.asset_id && trustedBefore.original_path === trustedAfter.original_path &&
-    trustedBefore.storage_key === trustedAfter.storage_key && trustedBefore.file_name === trustedAfter.file_name &&
-    trustedBefore.file_size === trustedAfter.file_size && trustedBefore.content_hash === trustedAfter.content_hash &&
-    trustedAfter.content_hash === trustedExisting.actualHash && Boolean(trustedAfter.publication_evidence_id) &&
-    trustedAfter.bucket === "local-development-validation" && trustedAfter.object_key === trustedExisting.storageKey &&
-    String(trustedAfter.generation ?? "").startsWith("local-") && Boolean(trustedAfter.finalized_at) &&
-    trustedCandidateAfter.row_version === trustedExisting.expectedRowVersion + 1 && Boolean(verificationAudit) &&
-    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 1,
-    { verificationBody, trustedBefore, trustedAfter, trustedCandidateAfter, verificationAudit });
-  await capture(page, "candidate-ready-after-existing-file-verification-1440x900.png");
-
-  const beforeReplay = {
-    candidateVersion: database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id).row_version,
-    evidenceCount: database.prepare("SELECT count(*) AS count FROM numbering_publication_evidence WHERE object_key = ?").get(trustedExisting.storageKey).count,
-    auditCount: database.prepare("SELECT count(*) AS count FROM audit_logs WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'").get().count,
-    outboxCount: database.prepare("SELECT count(*) AS count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.candidate_revision.existing_file_verified.v1'").get().count
-  };
-  const replayResponse = await page.request.patch(`${baseUrl}${verificationPath}`, {
-    headers: { "content-type": "application/json", "Idempotency-Key": verificationIdempotencyKey },
-    data: { fileId: trustedExisting.fileId, expectedRowVersion: trustedExisting.expectedRowVersion }
-  });
-  const replayBody = await replayResponse.json().catch(() => ({}));
-  const afterReplay = {
-    candidateVersion: database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id).row_version,
-    evidenceCount: database.prepare("SELECT count(*) AS count FROM numbering_publication_evidence WHERE object_key = ?").get(trustedExisting.storageKey).count,
-    auditCount: database.prepare("SELECT count(*) AS count FROM audit_logs WHERE action = 'pdm.numbering.verify_existing_candidate_revision_file'").get().count,
-    outboxCount: database.prepare("SELECT count(*) AS count FROM platform_outbox_events WHERE event_type = 'pdm.numbering.candidate_revision.existing_file_verified.v1'").get().count
-  };
-  record("DEV053-REAL-011C identical verification replay is receipt-backed and produces no duplicate write",
-    replayResponse.ok() && replayBody.receipt?.idempotentReplay === true &&
-    JSON.stringify(beforeReplay) === JSON.stringify(afterReplay),
-    { status: replayResponse.status(), replayBody, beforeReplay, afterReplay });
-
-  const trustedRemoveResponsePromise = page.waitForResponse((response) =>
-    response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/${trustedExisting.fileId}/remove`),
-  { timeout: 30000 });
-  await Promise.all([
-    trustedRemoveResponsePromise,
-    page.getByRole("button", { name: `移除 ${trustedExisting.fileName}`, exact: true }).click()
-  ]);
-  await page.getByRole("button", { name: `移除 ${trustedExisting.fileName}`, exact: true }).waitFor({ state: "hidden" });
-
-  const mismatchedExisting = seedExistingCandidateFile(candidate.id, existingFileFixtures.mismatched);
-  await page.reload({ waitUntil: "networkidle" });
-  const mismatchedVerifyButton = page.getByRole("button", { name: "驗證既有檔案（1）", exact: true });
-  await mismatchedVerifyButton.waitFor({ state: "visible" });
-  const mismatchVerificationPath = `/api/numbering/draft-workspaces/${encodeURIComponent(fixture.workspaceId)}` +
-    `/candidate-revisions/${encodeURIComponent(candidate.id)}/files`;
-  const mismatchBrowserErrorStart = browserErrors.length;
-  const mismatchResponsePromise = page.waitForResponse((response) =>
-    response.request().method() === "PATCH" && new URL(response.url()).pathname === mismatchVerificationPath,
-  { timeout: 30000 });
-  const [mismatchResponse] = await Promise.all([mismatchResponsePromise, mismatchedVerifyButton.click()]);
-  const mismatchBody = await mismatchResponse.json().catch(() => ({}));
-  const mismatchAlert = page.getByRole("alert").filter({ hasText: "雜湊不一致" });
-  await mismatchAlert.waitFor({ state: "visible", timeout: 20000 });
-  await page.waitForTimeout(100);
-  const mismatchConsoleCandidates = browserErrors.splice(mismatchBrowserErrorStart);
-  const mismatchUnexpectedConsoleErrors = [];
-  for (const error of mismatchConsoleCandidates) {
-    let pathname = "";
-    try { pathname = error.url ? new URL(error.url).pathname : ""; } catch {}
-    const isExpected409 = error.actor === "operator" && error.type === "console" &&
-      error.text.includes("status of 409") && (!pathname || pathname === mismatchVerificationPath);
-    if (isExpected409) expectedBrowserErrors.push({ ...error, caseId: "DEV053-REAL-011D", expectedStatus: 409 });
-    else mismatchUnexpectedConsoleErrors.push(error);
-  }
-  browserErrors.push(...mismatchUnexpectedConsoleErrors);
-  const mismatchFile = database.prepare(`SELECT publication_evidence_id FROM numbering_candidate_revision_files WHERE id = ?`).get(mismatchedExisting.fileId);
-  const mismatchCandidate = database.prepare("SELECT row_version FROM numbering_candidate_revision_drafts WHERE id = ?").get(candidate.id);
-  record("DEV053-REAL-011D hash mismatch fails closed, leaves the file unchanged and explains recovery",
-    mismatchResponse.status() === 409 && mismatchBody.error?.code === "candidate_file_verification_failed" &&
-    mismatchFile.publication_evidence_id === null && mismatchCandidate.row_version === mismatchedExisting.expectedRowVersion &&
-    (await mismatchAlert.innerText()).includes("請重新上傳正確原檔") &&
-    mismatchUnexpectedConsoleErrors.length === 0 &&
-    await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).count() === 0,
-    { status: mismatchResponse.status(), mismatchBody, mismatchFile, mismatchCandidate,
-      expectedBrowserErrors: expectedBrowserErrors.filter((error) => error.caseId === "DEV053-REAL-011D"), mismatchUnexpectedConsoleErrors });
-  await capture(page, "candidate-existing-file-hash-mismatch-1440x900.png");
-  const mismatchRemoveResponsePromise = page.waitForResponse((response) =>
-    response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/${mismatchedExisting.fileId}/remove`),
-  { timeout: 30000 });
-  await Promise.all([
-    mismatchRemoveResponsePromise,
-    page.getByRole("button", { name: `移除 ${mismatchedExisting.fileName}`, exact: true }).click()
-  ]);
-  await page.getByRole("button", { name: `移除 ${mismatchedExisting.fileName}`, exact: true }).waitFor({ state: "hidden" });
-
-  await page.locator('[data-candidate-editor="true"] input[type="file"]').setInputFiles(fixturePdf);
+  await page.locator('[data-candidate-editor="true"] input[type="file"]').setInputFiles([fixtureDrawing, fixtureModel]);
   const uploadResponsePromise = page.waitForResponse((response) =>
     response.request().method() === "POST" &&
     response.url().endsWith(`/candidate-revisions/${encodeURIComponent(candidate.id)}/files`),
@@ -756,41 +576,47 @@ async function run() {
   if (!uploadResponse.ok() || !uploadBody.workspace) {
     throw new Error(`DEV053_REAL_UPLOAD_FAILED:${uploadResponse.status()}:${JSON.stringify(uploadBody)}`);
   }
-  await page.getByText("主要受控檔已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 20000 });
-  const uploaded = database.prepare(`SELECT asset.file_name, asset.original_path, asset.content_hash, file.is_primary,
+  await page.getByText("主要 2D 圖面與 3D 模型已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+  const uploaded = database.prepare(`SELECT asset.file_name, asset.original_path, asset.content_hash, file.role, file.is_primary,
       file.publication_evidence_id, evidence.bucket, evidence.generation, evidence.finalized_at
     FROM numbering_candidate_revision_files file
     JOIN file_assets asset ON asset.id = file.source_file_asset_id
     LEFT JOIN numbering_publication_evidence evidence ON evidence.id = file.publication_evidence_id
     JOIN numbering_candidate_revision_drafts candidate ON candidate.id = file.candidate_revision_id
     WHERE candidate.workspace_id = ? AND file.removed_at IS NULL`).all(fixture.workspaceId);
-  const uploadedPath = uploaded[0]?.original_path;
-  const storedHash = uploadedPath && fs.existsSync(uploadedPath) ? sha(fs.readFileSync(uploadedPath)) : "";
-  record("DEV053-REAL-012 normal local validation reads back storage and creates finalized primary evidence",
-    uploadBody.localDevelopmentEvidence === true && uploaded.length === 1 && uploaded[0].file_name === fixture.fileName &&
-    uploaded[0].is_primary === 1 && Boolean(uploaded[0].publication_evidence_id) && uploaded[0].bucket === "local-development-validation" &&
-    String(uploaded[0].generation ?? "").startsWith("local-") && Boolean(uploaded[0].finalized_at) && storedHash === uploaded[0].content_hash,
-    { localDevelopmentEvidence: uploadBody.localDevelopmentEvidence, uploaded, storedHash });
+  const storedHashes = uploaded.map((file) => ({
+    fileName: file.file_name,
+    hash: file.original_path && fs.existsSync(file.original_path) ? sha(fs.readFileSync(file.original_path)) : ""
+  }));
+  const uploadedNames = uploaded.map((file) => file.file_name).sort();
+  record("DEV053-REAL-012 local validation finalizes one primary 2D drawing and one primary 3D model",
+    uploadBody.localDevelopmentEvidence === true && uploaded.length === 2 &&
+    JSON.stringify(uploadedNames) === JSON.stringify([fixture.drawingFileName, fixture.modelFileName].sort()) &&
+    ["drawing_2d", "cad_3d"].every((role) => uploaded.some((file) => file.role === role && file.is_primary === 1)) &&
+    uploaded.every((file) => Boolean(file.publication_evidence_id) && file.bucket === "local-development-validation" &&
+      String(file.generation ?? "").startsWith("local-") && Boolean(file.finalized_at) &&
+      storedHashes.find((entry) => entry.fileName === file.file_name)?.hash === file.content_hash),
+    { localDevelopmentEvidence: uploadBody.localDevelopmentEvidence, uploaded, storedHashes });
   await capture(page, "candidate-ready-after-real-upload-1440x900.png");
 
-  await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).click();
+  await candidateDrawer.getByRole("button", { name: "送交審核", exact: true }).click();
   const confirmation = page.getByRole("alertdialog");
   await confirmation.waitFor({ state: "visible" });
   record("DEV053-REAL-013 submit confirmation explains automatic atomic formalization",
     (await confirmation.innerText()).includes("核准後由系統原子建立正式圖料號與受控研發首版"));
   await confirmation.getByRole("button", { name: "確認整包送審", exact: true }).click();
-  await page.getByRole("dialog").getByRole("link", { name: "查看審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
+  await candidateDrawer.getByRole("link", { name: "查看審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
   let request = requestForWorkspace();
   record("DEV053-REAL-014 real submit locks one review request",
     request?.request_status === "pending" && request?.apply_status === "pending", { request });
   await capture(page, "candidate-in-review-1440x900.png");
 
   const firstRequestId = request.id;
-  await page.getByRole("dialog").getByRole("button", { name: "撤回審核", exact: true }).click();
+  await candidateDrawer.getByRole("button", { name: "撤回審核", exact: true }).click();
   const withdrawConfirmation = page.getByRole("alertdialog", { name: "撤回整包審核" });
   await withdrawConfirmation.waitFor({ state: "visible" });
   await withdrawConfirmation.getByRole("button", { name: "確認撤回審核", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
+  await candidateDrawer.getByRole("button", { name: "送交審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
   const withdrawnRequest = database.prepare("SELECT id, request_status, apply_status FROM approval_platform_requests WHERE id = ?").get(firstRequestId);
   const unlockedReservations = database.prepare(`SELECT reservation_state, approval_request_id
     FROM number_candidate_reservations WHERE workspace_id = ? ORDER BY id`).all(fixture.workspaceId);
@@ -803,29 +629,37 @@ async function run() {
     { withdrawnRequest, unlockedReservations, withdrawnCandidate });
   await capture(page, "candidate-after-withdraw-1440x900.png");
 
-  await page.getByRole("dialog").getByRole("button", { name: "送交審核", exact: true }).click();
+  await candidateDrawer.getByRole("button", { name: "送交審核", exact: true }).click();
   await confirmation.waitFor({ state: "visible" });
   await confirmation.getByRole("button", { name: "確認整包送審", exact: true }).click();
-  await page.getByRole("dialog").getByRole("link", { name: "查看審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
+  await candidateDrawer.getByRole("link", { name: "查看審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
   request = requestForWorkspace();
   record("DEV053-REAL-016 withdrawn bundle can be resubmitted as a new pending request",
     request?.id !== firstRequestId && request?.request_status === "pending" && request?.apply_status === "pending",
     { firstRequestId, request });
 
-  await approverPage.goto(`${baseUrl}/approvals?requestId=${encodeURIComponent(request.id)}`, { waitUntil: "networkidle" });
-  await approverPage.getByRole("region", { name: "審核決策" }).waitFor({ state: "visible" });
-  await approverPage.getByPlaceholder("決策備註").fill("DEV-053 真實操作：圖料關係、首版與檔案證據均已確認");
-  await capture(approverPage, "reviewer-before-approval-1440x900.png");
-  await approverPage.getByRole("button", { name: "核准", exact: true }).click();
-  await approverPage.locator(".approval-message.success").getByText("已核准", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+  await approverPage.goto(`${baseUrl}/approvals?requestId=${encodeURIComponent(request.id)}&drawing=${encodeURIComponent(fixture.drawingCode)}`, { waitUntil: "networkidle" });
+  await approverPage.getByRole("heading", { name: "審核工作台", exact: false }).waitFor({ state: "visible" });
+  record("DEV053-REAL-016A retired approval drawer stays closed while the canonical decision API remains authoritative",
+    await approverPage.locator('[aria-label="審核決策"]').count() === 0 &&
+    await approverPage.getByRole("button", { name: "核准", exact: true }).count() === 0,
+    { url: approverPage.url() });
+  await capture(approverPage, "approval-inbox-with-retired-detail-drawer-1440x900.png");
+  const approvalResponse = await approverPage.request.post(`${baseUrl}/api/approvals/requests/${encodeURIComponent(request.id)}/decisions`, {
+    headers: { "content-type": "application/json", "Idempotency-Key": `dev053:approve:${request.id}` },
+    data: { decision: "approved", comment: "DEV-053 真實操作：圖料關係、首版與檔案證據均已確認" }
+  });
+  const approvalBody = await approvalResponse.json().catch(() => ({}));
+  if (!approvalResponse.ok() || !approvalBody.request) {
+    throw new Error(`DEV053_APPROVAL_API_FAILED:${approvalResponse.status()}:${JSON.stringify(approvalBody)}`);
+  }
   const finalized = formalFacts();
   record("DEV053-REAL-017 reviewer approval atomically formalizes one complete bundle",
     finalized.request?.request_status === "approved" && finalized.request?.apply_status === "applied" &&
     finalized.candidate?.lifecycle_status === "promoted" && finalized.promotedReservations === 3 &&
     finalized.roots === 1 && finalized.parts === 1 && finalized.drawings === 1 && finalized.links === 1 &&
-    finalized.packages === 1 && finalized.packageFiles === 1 && finalized.formalAttachmentAssets === 1 && finalized.reviewCompanions === 1,
-    finalized);
-  await capture(approverPage, "approval-and-formalization-complete-1440x900.png");
+    finalized.packages === 1 && finalized.packageFiles === 2 && finalized.formalAttachmentAssets === 2 && finalized.reviewCompanions === 1,
+    { ...finalized, approvalStatus: approvalResponse.status() });
 
   await page.goto(`${baseUrl}/numbering/drawings?view=all`, { waitUntil: "networkidle" });
   const finalSearch = page.getByPlaceholder("圖號、品名、料號");
@@ -833,32 +667,34 @@ async function run() {
   await page.getByRole("button", { name: fixture.drawingCode, exact: true }).waitFor({ state: "visible" });
   record("DEV053-REAL-018 candidate row becomes one formal canonical row after approval",
     await page.locator(".drawing-workbench-table tbody tr").count() === 1 &&
-    (await page.locator(".drawing-workbench-table tbody tr").innerText()).includes("研發受控") &&
+    (await page.locator(".drawing-workbench-table tbody tr").innerText()).includes("研發可用") &&
     await page.getByRole("button", { name: "完成首版", exact: true }).count() === 0);
+  await page.getByRole("button", { name: fixture.drawingCode, exact: true }).click();
+  await formalMasterDrawer.waitFor({ state: "visible" });
   await page.locator('[data-attachment-authority="controlled_summary"]').waitFor({ state: "visible" });
-  await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalAttachmentResponse = await page.request.get(
     `${baseUrl}/api/numbering/drawings/${encodeURIComponent(fixture.drawingCode)}/attachments`
   );
   const formalAttachmentBody = await formalAttachmentResponse.json().catch(() => ({}));
-  const finalizedFile = page.getByText(fixture.fileName, { exact: true }).first();
-  const finalizedFileVisible = await finalizedFile.waitFor({ state: "visible", timeout: 20000 }).then(() => true).catch(() => false);
+  const finalizedFilesVisible = await Promise.all([fixture.drawingFileName, fixture.modelFileName].map((fileName) =>
+    page.getByText(fileName, { exact: true }).first().waitFor({ state: "visible", timeout: 20000 }).then(() => true).catch(() => false)
+  ));
   const controlledPanel = page.locator('[data-attachment-authority="controlled_summary"]');
   const controlledUploadButtonCount = await controlledPanel.getByRole("button", { name: /上傳/u }).count();
   const controlledDeleteButtonCount = await controlledPanel.getByRole("button", { name: /刪除/u }).count();
   const effectiveStatuses = (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.revisionPackageEffectiveStatus);
-  const controlledLabelVisible = await page.getByText("研發受控", { exact: true }).count() > 0;
+  const controlledLabelVisible = await page.getByText("研發可用", { exact: true }).count() > 0;
   const misleadingPendingTextVisible = await page.getByText("待處理附件", { exact: true }).count() > 0 ||
     await page.getByText("尚未納入送審", { exact: false }).count() > 0;
-  record("DEV053-REAL-019 controlled revision files stay read-only and separate from reference attachments",
-    formalAttachmentResponse.ok() && formalAttachmentBody.attachments?.length === 1 && finalizedFileVisible &&
+  record("DEV053-REAL-019 controlled 2D and 3D files stay read-only without retired reference attachments",
+    formalAttachmentResponse.ok() && formalAttachmentBody.attachments?.length === 2 && finalizedFilesVisible.every(Boolean) &&
     controlledUploadButtonCount === 0 && controlledDeleteButtonCount === 0 && effectiveStatuses.every((status) => status === "ReviewApproved") &&
-    controlledLabelVisible && !misleadingPendingTextVisible,
+    controlledLabelVisible && !misleadingPendingTextVisible && await formalMasterDrawer.getByText("參考附件", { exact: true }).count() === 0,
     {
       apiStatus: formalAttachmentResponse.status(),
       apiFiles: (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.fileName),
       effectiveStatuses,
-      finalizedFileVisible,
+      finalizedFilesVisible,
       controlledUploadButtonCount,
       controlledDeleteButtonCount,
       controlledLabelVisible,
@@ -866,7 +702,7 @@ async function run() {
     });
   await capture(page, "formal-canonical-row-and-read-only-drawer-1440x900.png");
   await page.getByRole("button", { name: "關閉圖號明細", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await formalMasterDrawer.waitFor({ state: "hidden" });
 
   const aliasResults = [];
   for (const [kind, value] of [
@@ -887,7 +723,7 @@ async function run() {
 
   const deepLink = `drawing:${finalized.candidate.formal_drawing_number_id}`;
   await page.goto(`${baseUrl}/numbering/drawings?view=all&detail=${encodeURIComponent(deepLink)}`, { waitUntil: "networkidle" });
-  const deepLinkDrawer = page.getByRole("dialog", { name: "圖號明細" });
+  const deepLinkDrawer = page.locator('[data-entity-type="drawing_number"]');
   await deepLinkDrawer.waitFor({ state: "visible", timeout: 20000 });
   record("DEV053-REAL-021 canonical deep link reopens the formal detail safely",
     new URL(page.url()).searchParams.get("detail") === deepLink &&
@@ -901,9 +737,18 @@ async function run() {
   const afterReloads = businessHash();
   record("DEV053-REAL-022 repeated reload is idempotent after formalization",
     JSON.stringify(beforeReloads) === JSON.stringify(afterReloads), { beforeReloads, afterReloads });
+  const unexpectedBrowserErrors = [];
+  for (const error of browserErrors) {
+    const expectedPreviewNotReady = error.actor === "operator" && error.type === "console" &&
+      error.text.includes("status of 409") && String(error.url ?? "").includes("/candidate-revisions/") &&
+      String(error.url ?? "").includes("preview=1");
+    if (expectedPreviewNotReady) expectedBrowserErrors.push({ ...error, caseId: "DEV053-CANDIDATE-PREVIEW-NOT-READY", expectedStatus: 409 });
+    else unexpectedBrowserErrors.push(error);
+  }
+  browserErrors.splice(0, browserErrors.length, ...unexpectedBrowserErrors);
   await collectVisibleErrors(page, "operator");
   await collectVisibleErrors(approverPage, "approver");
-  record("DEV053-REAL-023 no console error, visible error or 5xx response",
+  record("DEV053-REAL-023 no unexpected console error, visible error or 5xx response",
     browserErrors.length === 0 && failedResponses.length === 0 && visibleErrors.length === 0,
     { browserErrors, expectedBrowserErrors, failedResponses, visibleErrors });
   await Promise.all([context.close(), approverContext.close()]);

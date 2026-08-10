@@ -143,44 +143,7 @@ class GoogleSecretManagerSecretProvider implements SecretProvider {
   }
 }
 
-class SupabaseVaultSecretProvider implements SecretProvider {
-  constructor(private readonly client: AsyncDatabaseClient) {}
-
-  async createSecret(input: { kind: SettingsSecretKind; value: string; displayName: string; actorId: string }): Promise<SecretStoreResult> {
-    if (this.client.kind !== "postgres" || process.env.PDM_ENABLE_SUPABASE_VAULT_WRITES !== "true") {
-      throw new SettingsSecretLifecycleError(
-        "SUPABASE_VAULT_LIVE_GATE_REQUIRED",
-        "Supabase Vault 寫入需要 Postgres runtime 與明確的 PDM_ENABLE_SUPABASE_VAULT_WRITES=true。",
-        409,
-        { provider: "supabase_vault" }
-      );
-    }
-
-    const secretName = `pdm/${input.kind}/${crypto.randomUUID()}`;
-    const row = await this.client.queryOne<{ vault_secret_id: string }>(
-      "SELECT vault.create_secret(:secretValue, :secretName, :description) AS vault_secret_id",
-      {
-        secretValue: input.value,
-        secretName,
-        description: `${input.displayName} managed by PDM settings center`
-      }
-    );
-
-    if (!row?.vault_secret_id) {
-      throw new SettingsSecretLifecycleError("SUPABASE_VAULT_WRITE_FAILED", "Supabase Vault 未回傳 secret reference。", 502);
-    }
-
-    return {
-      vaultProvider: "supabase_vault",
-      vaultSecretId: row.vault_secret_id,
-      maskedHint: maskSecret(input.value),
-      fingerprint: fingerprintSecret(input.value),
-      metadata: { secretName }
-    };
-  }
-}
-
-function resolveProvider(client: AsyncDatabaseClient): SecretProvider {
+function resolveProvider(): SecretProvider {
   const configuredProvider = String(process.env.PDM_SETTINGS_SECRET_PROVIDER ?? "").trim().toLowerCase();
   const provider = configuredProvider || (process.env.NODE_ENV === "production" ? "" : "local_test_double");
   if (provider === "google_secret_manager") return new GoogleSecretManagerSecretProvider();
@@ -325,15 +288,11 @@ function workerReadinessFor(client: AsyncDatabaseClient, active: SettingsSecretR
     };
   }
   if (active?.vaultProvider === "supabase_vault") {
-    const vaultReadReady = client.kind === "postgres" && process.env.PDM_ENABLE_SUPABASE_VAULT_READS === "true";
     return {
-      status: vaultReadReady && serviceTokenConfigured ? "ready" : "blocked",
+      status: "blocked",
       credentialSource: "supabase_vault",
       serviceTokenConfigured,
-      message:
-        vaultReadReady && serviceTokenConfigured
-          ? "歷史 Supabase Vault reference 與 worker service token 均已就緒，但不作為新正式 provider。"
-          : "歷史 Supabase Vault reference 不再作為新正式 provider，請建立 Google Secret Manager version。"
+      message: "歷史 Supabase Vault reference 已永久停用讀取，請建立 Google Secret Manager version。"
     };
   }
   return {
@@ -373,24 +332,6 @@ async function workerPresenceFor(client: AsyncDatabaseClient): Promise<SettingsS
     : { status: "unknown", lastSeenAt: null, message: "尚無 2D worker claim/heartbeat 證據；請由 worker 自動回報。" };
 }
 
-async function readSupabaseVaultSecret(client: AsyncDatabaseClient, vaultSecretId: string) {
-  if (client.kind !== "postgres" || process.env.PDM_ENABLE_SUPABASE_VAULT_READS !== "true") {
-    throw new SettingsSecretLifecycleError(
-      "SUPABASE_VAULT_LIVE_READ_GATE_REQUIRED",
-      "Supabase Vault 讀取需要 Postgres runtime 與明確的 PDM_ENABLE_SUPABASE_VAULT_READS=true。",
-      409,
-      { provider: "supabase_vault" }
-    );
-  }
-  const row = await client.queryOne<{ decrypted_secret: string | null }>(
-    "SELECT decrypted_secret FROM vault.decrypted_secrets WHERE id = :vaultSecretId",
-    { vaultSecretId }
-  );
-  const value = String(row?.decrypted_secret ?? "").trim();
-  if (!value) throw new SettingsSecretLifecycleError("SUPABASE_VAULT_SECRET_NOT_FOUND", "Supabase Vault 找不到可讀取的 active secret。", 404);
-  return value;
-}
-
 async function readGoogleSecretManagerSecret(client: AsyncDatabaseClient, versionName: string) {
   if (client.kind !== "postgres") {
     throw new SettingsSecretLifecycleError("GCP_SECRET_MANAGER_POSTGRES_REQUIRED", "Google Secret Manager 讀取需要 Cloud SQL/Postgres runtime。", 409);
@@ -415,9 +356,6 @@ export async function resolveActiveSolidWorksDocumentManagerKey() {
   if (active.vaultProvider === "google_secret_manager") {
     return { value: await readGoogleSecretManagerSecret(client, active.vaultSecretId), source: "google_secret_manager" as const };
   }
-  if (active.vaultProvider === "supabase_vault" && process.env.PDM_ENABLE_SUPABASE_VAULT_READS === "true") {
-    return { value: await readSupabaseVaultSecret(client, active.vaultSecretId), source: "supabase_vault" as const };
-  }
   return null;
 }
 
@@ -426,9 +364,6 @@ async function resolveSecretReferenceValue(client: AsyncDatabaseClient, referenc
   if (environmentSecret && workerEnvironmentFallbackAllowed()) return { value: environmentSecret, source: "worker_environment" as const };
   if (reference.vaultProvider === "google_secret_manager") {
     return { value: await readGoogleSecretManagerSecret(client, reference.vaultSecretId), source: "google_secret_manager" as const };
-  }
-  if (reference.vaultProvider === "supabase_vault" && process.env.PDM_ENABLE_SUPABASE_VAULT_READS === "true") {
-    return { value: await readSupabaseVaultSecret(client, reference.vaultSecretId), source: "supabase_vault" as const };
   }
   return null;
 }
@@ -509,7 +444,7 @@ export async function createSettingsSecretDraft(input: {
   }
 
   const client = getAsyncDatabaseClient();
-  const provider = resolveProvider(client);
+  const provider = resolveProvider();
   const repository = new AsyncSettingsSecretRepository(client);
   const now = new Date().toISOString();
   let stored: SecretStoreResult;
@@ -586,24 +521,20 @@ export async function testSettingsSecretReference(input: { secretReferenceId: st
       ? "Google Secret Manager exact version 已建立；仍需 server-side read probe。"
       : "歷史 Supabase Vault reference 不作為新的正式 provider。";
   let redactedError: string | null = isLocalDouble ? null : isGoogleSecretManager ? "GCP_SECRET_MANAGER_PROVIDER_PROBE_REQUIRED" : "SUPABASE_VAULT_PROVIDER_SUPERSEDED";
-  if (!isLocalDouble) {
+  if (!isLocalDouble && isGoogleSecretManager) {
     try {
       const resolved = await resolveSecretReferenceValue(client, reference);
       if (resolved?.value) {
         resultStatus = "passed";
-        summary = isGoogleSecretManager
-          ? "Google Secret Manager exact version 可由 server-side worker credential broker 讀取。"
-          : "歷史 Supabase Vault reference 可由 server-side route 讀取。";
+        summary = "Google Secret Manager exact version 可由 server-side worker credential broker 讀取。";
         redactedError = null;
       } else {
-        redactedError = isGoogleSecretManager ? "GCP_SECRET_MANAGER_SECRET_NOT_FOUND" : "SUPABASE_VAULT_SECRET_NOT_FOUND";
+        redactedError = "GCP_SECRET_MANAGER_SECRET_NOT_FOUND";
       }
     } catch (error) {
       resultStatus = "blocked";
-      redactedError = error instanceof SettingsSecretLifecycleError ? error.code : isGoogleSecretManager ? "GCP_SECRET_MANAGER_PROVIDER_PROBE_FAILED" : "SUPABASE_VAULT_PROVIDER_PROBE_FAILED";
-      summary = isGoogleSecretManager
-        ? "Google Secret Manager exact version 尚未能由 server-side worker credential broker 讀取。"
-        : "歷史 Supabase Vault reference 尚未能由 server-side route 讀取。";
+      redactedError = error instanceof SettingsSecretLifecycleError ? error.code : "GCP_SECRET_MANAGER_PROVIDER_PROBE_FAILED";
+      summary = "Google Secret Manager exact version 尚未能由 server-side worker credential broker 讀取。";
     }
   }
   const testRun: SettingsSecretTestRun = {

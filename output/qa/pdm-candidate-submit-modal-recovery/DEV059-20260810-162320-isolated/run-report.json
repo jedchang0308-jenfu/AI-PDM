@@ -1,0 +1,30 @@
+{
+  "runId": "DEV059-20260810-162320-isolated",
+  "startedAt": "2026-08-10T16:23:20.859Z",
+  "finishedAt": "2026-08-10T16:28:32.301Z",
+  "result": "failed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "DEV059-REAL-RUNNER",
+      "passed": false,
+      "detail": {
+        "message": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:59707\n- Network:       http://127.0.0.1:59707\n- Environments: .env.development.local, .env.local, .env\n✓ Ready in 781ms\n✓ Running next.config.mjs took 24ms\n\n  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.\n  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n\n  \t- include was updated to add '.tmp/q59-5de0ffe2/types/**/*.ts'\n  \t- include was updated to add '.tmp/q59-5de0ffe2/dev/types/**/*.ts'\n\nUNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\nUnhandled Rejection: Error: UNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\n    at ignore-listed frames {\n  errno: -4094,\n  code: 'UNKNOWN',\n  syscall: 'open',\n  path: 'C:\\\\VIBE CODING\\\\AI_PDM\\\\next-env.d.ts'\n}\n",
+        "stack": "Error: App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:59707\n- Network:       http://127.0.0.1:59707\n- Environments: .env.development.local, .env.local, .env\n✓ Ready in 781ms\n✓ Running next.config.mjs took 24ms\n\n  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.\n  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n\n  \t- include was updated to add '.tmp/q59-5de0ffe2/types/**/*.ts'\n  \t- include was updated to add '.tmp/q59-5de0ffe2/dev/types/**/*.ts'\n\nUNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\nUnhandled Rejection: Error: UNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\n    at ignore-listed frames {\n  errno: -4094,\n  code: 'UNKNOWN',\n  syscall: 'open',\n  path: 'C:\\\\VIBE CODING\\\\AI_PDM\\\\next-env.d.ts'\n}\n\n    at waitForNextAppReady (file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-next-app-runner.mjs:66:9)\n    at async run (file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs:396:3)\n    at async file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs:482:3",
+        "serverTail": "▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:59707\n- Network:       http://127.0.0.1:59707\n- Environments: .env.development.local, .env.local, .env\n✓ Ready in 781ms\n✓ Running next.config.mjs took 24ms\n\n  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.\n  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n\n  \t- include was updated to add '.tmp/q59-5de0ffe2/types/**/*.ts'\n  \t- include was updated to add '.tmp/q59-5de0ffe2/dev/types/**/*.ts'\n\nUNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\nUnhandled Rejection: Error: UNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\n    at ignore-listed frames {\n  errno: -4094,\n  code: 'UNKNOWN',\n  syscall: 'open',\n  path: 'C:\\\\VIBE CODING\\\\AI_PDM\\\\next-env.d.ts'\n}\n"
+      }
+    }
+  ],
+  "screenshots": [],
+  "observedRequests": [],
+  "browserErrors": [],
+  "expectedBrowserErrors": [],
+  "unexpectedBrowserErrors": [],
+  "plannedFaults": [],
+  "visibleErrors": []
+}

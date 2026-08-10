@@ -1,0 +1,79 @@
+{
+  "runId": "DEV059-20260810-161646-isolated",
+  "baselineHash": null,
+  "finalHash": null,
+  "mutationReadbacks": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary 2D plus 3D evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "8b67a1eb-d3a6-424b-b012-029340574f18",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "9b451fb0-e743-479e-8a7a-461887a372cb",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "c1e810b2-ebbc-423c-8bcf-928c42d42054",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b",
+          "revision": "0.1",
+          "row_version": 3,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-2686c50d-c147-4b19-9eff-4608d79bca33",
+            "display_name": "qa-dev059-primary.slddrw",
+            "role": "drawing_2d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-d383a832-0f63-47d5-9216-97d63c4688c3",
+            "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+            "file_size": 31
+          },
+          {
+            "id": "NCRF-4678649c-af7b-4d75-abe1-84656c0fce05",
+            "display_name": "qa-dev059-primary.sldprt",
+            "role": "cad_3d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-c85fefad-f482-4a32-bcb7-acf7f809d42f",
+            "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+            "file_size": 29
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    }
+  ]
+}

@@ -323,25 +323,21 @@ try {
 
   const registeredQcForbiddenTokens = /development_phase|developmentPhase|formatDevelopmentPhase|EVTDisabled|dvt_promotion|dvt_missing|numbering\.dvt|phase[-_]gates?|phase_gate_required|PLM 階段關卡|\bEVT\b|\bDVT\b|\bPVT\b/iu;
   const thisSuitePath = path.join(root, "scripts", "qc-dev-054-project-status-removal.mjs");
-  const migrationSyncPath = path.join(root, "scripts", "sync-supabase-runtime-migrations.mjs");
   const allowedRemovalMigrationLiterals = new Map([
     [
       "scripts/qc-api-test.mjs",
       ["phase-gates"]
     ],
     [
-      "scripts/qc-supabase-runtime-migrations.mjs",
-      ["supabase/migrations/20260805010000_remove_submission_phase_gate.sql"]
+      "scripts/qc-dev-053-phase1h-real-operation-full.mjs",
+      ["024_remove_submission_phase_gate", "20260805010000_remove_submission_phase_gate"]
     ],
     [
-      "scripts/sync-supabase-runtime-migrations.mjs",
-      [
-        "db/postgres/024_remove_submission_phase_gate.sql",
-        "supabase/migrations/20260805010000_remove_submission_phase_gate.sql"
-      ]
+      "scripts/qc-pdm-lifecycle-actions-git-boundary.mjs",
+      ["024_remove_submission_phase_gate", "20260805010000_remove_submission_phase_gate", "dvt", "development[_-]phase"]
     ]
   ]);
-  const registeredAndMigrationToolTargets = [...new Set([...collectRegisteredQcTargets(), migrationSyncPath])];
+  const registeredAndMigrationToolTargets = [...new Set(collectRegisteredQcTargets())];
   const missingRegisteredTargets = registeredAndMigrationToolTargets
     .filter((filePath) => !fs.existsSync(filePath))
     .map((filePath) => path.relative(root, filePath).replaceAll(path.sep, "/"));
@@ -351,11 +347,18 @@ try {
     .filter((filePath) => {
       const relativePath = path.relative(root, filePath).replaceAll(path.sep, "/");
       let classifiedSource = fs.readFileSync(filePath, "utf8");
-      for (const literal of allowedRemovalMigrationLiterals.get(relativePath) ?? []) {
+      for (const allowance of allowedRemovalMigrationLiterals.get(relativePath) ?? []) {
+        const { literal, expectedOccurrences } = typeof allowance === "string"
+          ? { literal: allowance, expectedOccurrences: 1 }
+          : allowance;
         assert.ok(classifiedSource.includes(literal), `${relativePath} must retain classified removal migration literal ${literal}`);
         const occurrenceCount = classifiedSource.split(literal).length - 1;
-        assert.equal(occurrenceCount, 1, `${relativePath} must contain exactly one classified negative/removal literal ${literal}`);
-        classifiedSource = classifiedSource.replace(literal, "");
+        assert.equal(
+          occurrenceCount,
+          expectedOccurrences,
+          `${relativePath} must contain exactly ${expectedOccurrences} classified negative/removal literal(s) ${literal}`
+        );
+        classifiedSource = classifiedSource.replaceAll(literal, "");
       }
       return registeredQcForbiddenTokens.test(classifiedSource);
     })
@@ -381,15 +384,21 @@ try {
   assert.match(actionRepository, /FROM approval_platform_actions\s+WHERE enabled = 1\s+ORDER BY/u, "normal action catalog must hide disabled legacy actions");
 
   const postgresMigration = fs.readFileSync(path.join(root, "db", "postgres", "023_remove_project_status_authority.sql"), "utf8");
-  const supabaseMigration = fs.readFileSync(path.join(root, "supabase", "migrations", "20260804030000_remove_project_status_authority.sql"), "utf8");
+  const supabaseMigration = fs.readFileSync(
+    path.join(root, ".ai-doc", "archived", "legacy-supabase-migration-mirror", "migrations", "20260804030000_remove_project_status_authority.sql"),
+    "utf8"
+  );
   const phaseGateMigration = fs.readFileSync(path.join(root, "db", "postgres", "024_remove_submission_phase_gate.sql"), "utf8");
-  const phaseGateSupabaseMigration = fs.readFileSync(path.join(root, "supabase", "migrations", "20260805010000_remove_submission_phase_gate.sql"), "utf8");
+  const phaseGateSupabaseMigration = fs.readFileSync(
+    path.join(root, ".ai-doc", "archived", "legacy-supabase-migration-mirror", "migrations", "20260805010000_remove_submission_phase_gate.sql"),
+    "utf8"
+  );
   assert.match(postgresMigration, /DROP COLUMN IF EXISTS development_phase/);
   assert.match(postgresMigration, /DROP COLUMN IF EXISTS phase/);
   assert.match(postgresMigration, /Historical approval requests and decisions keep their original action codes/);
-  assert.ok(supabaseMigration.endsWith(postgresMigration), "Supabase mirror must contain the canonical PostgreSQL migration unchanged");
+  assert.ok(supabaseMigration.endsWith(postgresMigration), "archived Supabase mirror must contain the canonical PostgreSQL migration unchanged");
   assert.match(phaseGateMigration, /DROP TABLE IF EXISTS public\.phase_gate_checks/);
-  assert.ok(phaseGateSupabaseMigration.endsWith(phaseGateMigration), "phase-gate removal mirror must contain migration 024 unchanged");
+  assert.ok(phaseGateSupabaseMigration.endsWith(phaseGateMigration), "archived phase-gate removal mirror must contain migration 024 unchanged");
 
   console.log(JSON.stringify({
     suite: "DEV-054 project-status authority removal",

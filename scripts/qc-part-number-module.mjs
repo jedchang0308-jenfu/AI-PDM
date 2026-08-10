@@ -147,8 +147,11 @@ assert(
   "drawing detail drawer keeps a compact drawing-first submission check"
 );
 assert(
-  drawingsPage.includes("補成本") && drawingsPage.includes("partCostHref") && drawingsPage.includes("focus=cost") && drawingsPage.includes('data-capability="standard-cost-maintenance"'),
-  "drawing linked part card provides a direct standard-cost remediation entry"
+  drawingsPage.includes("前往補成本") &&
+    drawingsPage.includes("missingCostParts[0].partNumber") &&
+    drawingsPage.includes("focus=cost") &&
+    drawingsPage.includes('data-capability="submission-readiness"'),
+  "drawing workbench provides an optional standard-cost remediation entry from submission readiness"
 );
 assert(
   partsPage.includes("PartDetailFocusSection") && partsPage.includes("focusSection === \"cost\"") && partsPage.includes("成本設定檔"),

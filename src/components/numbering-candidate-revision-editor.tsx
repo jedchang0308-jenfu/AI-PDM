@@ -45,6 +45,8 @@ type PendingCandidateFile = {
   error: string;
 };
 
+const requiredPrimaryRoles = ["drawing_2d", "cad_3d"] as const satisfies readonly CandidateFile["role"][];
+
 export type CandidateRevisionWorkspace = {
   id: string;
   rowVersion: number;
@@ -95,6 +97,16 @@ function recommendedFileWarnings(files: CandidateFile[]) {
   if (!roles.has("dwg_dxf")) missing.push("DWG／DXF");
   if (!roles.has("cad_3d")) missing.push("3D 原檔");
   return missing;
+}
+
+function hasRequiredPrimaryEvidence(files: CandidateFile[]) {
+  return requiredPrimaryRoles.every((role) =>
+    files.some((file) => !file.removedAt && file.role === role && file.isPrimary && file.publicationEvidenceId)
+  );
+}
+
+function isRequiredPrimaryRole(role: CandidateFile["role"]) {
+  return requiredPrimaryRoles.includes(role as (typeof requiredPrimaryRoles)[number]);
 }
 
 export function NumberingCandidateRevisionEditor({
@@ -190,19 +202,21 @@ export function NumberingCandidateRevisionEditor({
     setPendingFiles((current) => {
       const existing = current[candidate.id] ?? [];
       const fingerprints = new Set(existing.map((item) => `${item.file.name}:${item.file.size}:${item.file.lastModified}`));
-      const hasPrimary = candidate.files.some((file) => !file.removedAt && file.isPrimary)
-        || existing.some((item) => item.isPrimary);
-      let primaryAssigned = hasPrimary;
+      const assignedPrimaryRoles = new Set<CandidateFile["role"]>([
+        ...candidate.files.filter((file) => !file.removedAt && file.isPrimary).map((file) => file.role),
+        ...existing.filter((item) => item.isPrimary).map((item) => item.role)
+      ]);
       const added = files.flatMap((file) => {
         const fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
         if (fingerprints.has(fingerprint)) return [];
         fingerprints.add(fingerprint);
-        const isPrimary = !primaryAssigned;
-        primaryAssigned = true;
+        const role = fileRoleFor(file);
+        const isPrimary = requiredPrimaryRoles.includes(role as (typeof requiredPrimaryRoles)[number]) && !assignedPrimaryRoles.has(role);
+        if (isPrimary) assignedPrimaryRoles.add(role);
         return [{
           id: crypto.randomUUID(),
           file,
-          role: fileRoleFor(file),
+          role,
           displayName: file.name,
           description: "",
           isPrimary,
@@ -222,11 +236,39 @@ export function NumberingCandidateRevisionEditor({
     }));
   }
 
-  function makePendingPrimary(candidateId: string, fileId: string) {
+  function makePendingPrimary(candidateId: string, fileId: string, role: CandidateFile["role"]) {
     setPendingFiles((current) => ({
       ...current,
-      [candidateId]: (current[candidateId] ?? []).map((item) => ({ ...item, isPrimary: item.id === fileId }))
+      [candidateId]: (current[candidateId] ?? []).map((item) => ({
+        ...item,
+        isPrimary: item.role === role ? item.id === fileId : item.isPrimary
+      }))
     }));
+  }
+
+  function changePendingFileRole(candidate: CandidateRevision, fileId: string, role: CandidateFile["role"]) {
+    setPendingFiles((current) => {
+      const activePrimaryRoles = new Set(
+        candidate.files.filter((file) => !file.removedAt && file.isPrimary).map((file) => file.role)
+      );
+      const changed = (current[candidate.id] ?? []).map((item) => ({
+        ...item,
+        ...(item.id === fileId ? { role, isPrimary: false, status: "pending" as const, error: "" } : {})
+      }));
+      for (const requiredRole of requiredPrimaryRoles) {
+        const candidates = changed.filter((item) => item.role === requiredRole);
+        if (activePrimaryRoles.has(requiredRole)) {
+          for (const item of candidates) item.isPrimary = false;
+          continue;
+        }
+        const selected = candidates.find((item) => item.isPrimary) ?? candidates[0];
+        for (const item of candidates) item.isPrimary = item.id === selected?.id;
+      }
+      for (const item of changed) {
+        if (!requiredPrimaryRoles.includes(item.role as (typeof requiredPrimaryRoles)[number])) item.isPrimary = false;
+      }
+      return { ...current, [candidate.id]: changed };
+    });
   }
 
   function removePendingFile(candidateId: string, fileId: string) {
@@ -279,14 +321,16 @@ export function NumberingCandidateRevisionEditor({
     setBusyKey("");
     onWorkspaceChange(latestWorkspace);
     const latestCandidate = latestWorkspace.candidateRevisions.find((value) => value.id === candidate.id);
-    const verifiedPrimary = latestCandidate?.files.some((file) => !file.removedAt && file.isPrimary && file.publicationEvidenceId);
-    onNotice(verifiedPrimary
-      ? `已完成 ${uploadedCount} 個受控檔案驗證；現在可送交審核，其他建議格式缺漏只會提醒審核者。`
-      : `已加入 ${uploadedCount} 個檔案，但主要受控檔尚未完成驗證。請重新上傳驗證或移除失敗檔案。`);
+    const requiredEvidenceReady = latestCandidate ? hasRequiredPrimaryEvidence(latestCandidate.files) : false;
+    onNotice(requiredEvidenceReady
+      ? `已完成 ${uploadedCount} 個受控檔案驗證；主要 2D 圖面與 3D 模型都已就緒，現在可送交審核。`
+      : `已加入 ${uploadedCount} 個檔案，但主要 2D 圖面或 3D 模型尚未完成驗證。請補齊、重新驗證或移除失敗檔案。`);
   }
 
   async function verifyExistingFiles(candidate: CandidateRevision) {
-    const files = candidate.files.filter((file) => !file.removedAt && !file.publicationEvidenceId);
+    const files = candidate.files.filter((file) =>
+      !file.removedAt && !file.publicationEvidenceId && !isRequiredPrimaryRole(file.role)
+    );
     if (files.length === 0) return;
     const actionKey = `verify:${candidate.id}`;
     setBusyKey(actionKey);
@@ -321,10 +365,10 @@ export function NumberingCandidateRevisionEditor({
     setBusyKey("");
     onWorkspaceChange(latestWorkspace);
     const latestCandidate = latestWorkspace.candidateRevisions.find((value) => value.id === candidate.id);
-    const verifiedPrimary = latestCandidate?.files.some((file) => !file.removedAt && file.isPrimary && file.publicationEvidenceId);
-    onNotice(verifiedPrimary
-      ? `已驗證 ${verifiedCount} 個既有檔案，不需重新上傳；現在可送交審核。`
-      : `已驗證 ${verifiedCount} 個既有檔案；仍需指定或加入至少一個主要受控檔。`);
+    const requiredEvidenceReady = latestCandidate ? hasRequiredPrimaryEvidence(latestCandidate.files) : false;
+    onNotice(requiredEvidenceReady
+      ? `已驗證 ${verifiedCount} 個既有檔案，不需重新上傳；主要 2D 圖面與 3D 模型都已就緒，現在可送交審核。`
+      : `已驗證 ${verifiedCount} 個既有檔案；仍需補齊主要 2D 圖面與 3D 模型。`);
   }
 
   async function remove(candidate: CandidateRevision, file: CandidateFile) {
@@ -376,12 +420,17 @@ export function NumberingCandidateRevisionEditor({
             );
           }
           const activeFiles = candidate.files.filter((file) => !file.removedAt);
-          const unverifiedFiles = activeFiles.filter((file) => !file.publicationEvidenceId);
+          const unverifiedRequiredPrimaryFiles = activeFiles.filter((file) =>
+            !file.publicationEvidenceId && isRequiredPrimaryRole(file.role)
+          );
+          const verifiableExistingFiles = activeFiles.filter((file) =>
+            !file.publicationEvidenceId && !isRequiredPrimaryRole(file.role)
+          );
           const suggestion = suggestedRevision(candidate);
           const locked = candidate.lifecycleStatus !== "draft";
           const revisionValue = revisionDrafts[candidate.id] ?? candidate.revision;
           const queuedFiles = pendingFiles[candidate.id] ?? [];
-          const hasVerifiedPrimary = activeFiles.some((file) => file.isPrimary && file.publicationEvidenceId);
+          const requiredEvidenceReady = hasRequiredPrimaryEvidence(activeFiles);
           const fileWarnings = recommendedFileWarnings(activeFiles);
           return (
             <article className="candidate-revision-card" key={candidate.id} data-candidate-status={candidate.lifecycleStatus}>
@@ -401,8 +450,9 @@ export function NumberingCandidateRevisionEditor({
                   </button>
                 ) : null}
               />
-              {!locked && unverifiedFiles.length > 0 ? <div className="candidate-revision-existing-verification" aria-label="既有檔案驗證"><div><strong>先驗證已保存的檔案，不用重新上傳。</strong><span>系統會逐檔核對內容完整性；原檔與編號都不會改變。</span></div><button className="primary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void verifyExistingFiles(candidate)}><BadgeCheck size={16} />{busyKey === `verify:${candidate.id}` ? "驗證中..." : `驗證既有檔案（${unverifiedFiles.length}）`}</button></div> : null}
-              {hasVerifiedPrimary ? <div className="candidate-revision-readiness" role="status"><strong>主要受控檔已完成，可送審。</strong>{fileWarnings.length > 0 ? <span>審核提醒：尚未提供 {fileWarnings.join("、")}，但不阻擋送審。</span> : <span>建議格式均已提供。</span>}</div> : null}
+              {!locked && unverifiedRequiredPrimaryFiles.length > 0 ? <div className="candidate-revision-existing-verification" role="status"><div><strong>主要 2D 圖面與 3D 模型需重新上傳。</strong><span>本版不可沿用舊 primary 證據；請移除舊檔並上傳本次版次原檔。</span></div></div> : null}
+              {!locked && verifiableExistingFiles.length > 0 ? <div className="candidate-revision-existing-verification" aria-label="既有檔案驗證"><div><strong>可驗證已保存的非 primary 檔案，不用重新上傳。</strong><span>系統會逐檔核對內容完整性；原檔與編號都不會改變。</span></div><button className="primary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void verifyExistingFiles(candidate)}><BadgeCheck size={16} />{busyKey === `verify:${candidate.id}` ? "驗證中..." : `驗證既有檔案（${verifiableExistingFiles.length}）`}</button></div> : null}
+              {requiredEvidenceReady ? <div className="candidate-revision-readiness" role="status"><strong>主要 2D 圖面與 3D 模型已完成，可送審。</strong>{fileWarnings.length > 0 ? <span>審核提醒：尚未提供 {fileWarnings.join("、")}，但不阻擋送審。</span> : <span>建議格式均已提供。</span>}</div> : null}
               {!locked ? (
                 <div className="candidate-revision-upload">
                   <FileDropzone
@@ -419,20 +469,20 @@ export function NumberingCandidateRevisionEditor({
                     <div className="candidate-revision-pending-heading"><strong>{item.file.name}</strong><button className="icon-button" type="button" aria-label={`移除待上傳檔案 ${item.file.name}`} disabled={Boolean(busyKey)} onClick={() => removePendingFile(candidate.id, item.id)}><Trash2 size={14} /></button></div>
                     <div className="candidate-revision-pending-fields">
                       <label><span>顯示名稱</span><input value={item.displayName} disabled={Boolean(busyKey)} onChange={(event) => updatePendingFile(candidate.id, item.id, { displayName: event.target.value, status: "pending", error: "" })} /></label>
-                      <label><span>檔案類別</span><select value={item.role} disabled={Boolean(busyKey)} onChange={(event) => updatePendingFile(candidate.id, item.id, { role: event.target.value as CandidateFile["role"], status: "pending", error: "" })}><option value="cad_3d">3D 原檔</option><option value="drawing_2d">2D 工程原檔</option><option value="dwg_dxf">DWG／DXF</option><option value="pdf">PDF</option><option value="intermediate">中繼交換檔</option><option value="other">其他檔案</option></select></label>
-                      <label className="candidate-revision-primary-choice"><input type="radio" name={`candidate-primary-${candidate.id}`} checked={item.isPrimary} disabled={Boolean(busyKey)} onChange={() => makePendingPrimary(candidate.id, item.id)} /><span>設為這批主要受控檔</span></label>
+                      <label><span>檔案類別</span><select value={item.role} disabled={Boolean(busyKey)} onChange={(event) => changePendingFileRole(candidate, item.id, event.target.value as CandidateFile["role"])}><option value="cad_3d">3D 原檔</option><option value="drawing_2d">2D 工程原檔</option><option value="dwg_dxf">DWG／DXF</option><option value="pdf">PDF</option><option value="intermediate">中繼交換檔</option><option value="other">其他檔案</option></select></label>
+                      {requiredPrimaryRoles.includes(item.role as (typeof requiredPrimaryRoles)[number]) ? <label className="candidate-revision-primary-choice"><input type="radio" name={`candidate-primary-${candidate.id}-${item.role}`} checked={item.isPrimary} disabled={Boolean(busyKey)} onChange={() => makePendingPrimary(candidate.id, item.id, item.role)} /><span>設為此類別主要受控檔</span></label> : null}
                       <label className="candidate-revision-description"><span>說明（選填）</span><input value={item.description} disabled={Boolean(busyKey)} onChange={(event) => updatePendingFile(candidate.id, item.id, { description: event.target.value, status: "pending", error: "" })} placeholder="例如：供製造審查的2D圖" /></label>
                     </div>
                     {item.status === "uploading" ? <span className="candidate-revision-upload-state">正在驗證...</span> : null}
                     {item.error ? <span className="candidate-revision-upload-error">{item.error}</span> : null}
                   </article>)}</div> : null}
                   <button
-                    className={unverifiedFiles.length > 0 || hasVerifiedPrimary ? "secondary-button" : "primary-button"}
+                    className={verifiableExistingFiles.length > 0 || requiredEvidenceReady ? "secondary-button" : "primary-button"}
                     type="button"
-                    data-primary-action={hasVerifiedPrimary ? undefined : "complete-first-drawing"}
+                    data-primary-action={requiredEvidenceReady ? undefined : "complete-first-drawing"}
                     disabled={disabled || Boolean(busyKey) || queuedFiles.length === 0}
                     onClick={() => void upload(candidate)}
-                  ><UploadCloud size={16} />{busyKey === `upload:${candidate.id}` ? "逐檔上傳中..." : hasVerifiedPrimary ? "上傳受控檔案" : "上傳並完成驗證"}</button>
+                  ><UploadCloud size={16} />{busyKey === `upload:${candidate.id}` ? "逐檔上傳中..." : requiredEvidenceReady ? "上傳受控檔案" : "上傳並完成驗證"}</button>
                 </div>
               ) : null}
               {candidate.effectiveStatus === "ReviewApproved" ? <div className="candidate-revision-approved">研發版已核准（ReviewApproved）；實體 package 仍為 Pending。</div> : null}

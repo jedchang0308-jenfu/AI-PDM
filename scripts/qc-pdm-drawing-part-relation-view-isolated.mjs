@@ -11,6 +11,7 @@ const root = process.cwd();
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-relation-view-"));
 const distRelative = `.tmp/qc-relation-view-${crypto.randomUUID().slice(0, 8)}`;
 const distPath = path.join(root, ...distRelative.split("/"));
+const outputDir = path.join(root, "output", "playwright", "pdm-drawing-part-relation-view", path.basename(distRelative));
 const trackedFiles = new Map(["next-env.d.ts", "tsconfig.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
 let app = null;
 
@@ -42,13 +43,13 @@ try {
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
     PDM_STORAGE_PROVIDER: "local_repository",
-    PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
     PDM_RELEASE_MODE: "local_stub",
     PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "false",
     PDM_NEXT_DIST_DIR: distRelative,
     PDM_QC_ISOLATED_TARGET: "1",
-    PDM_BASE_URL: baseUrl
+    PDM_BASE_URL: baseUrl,
+    PDM_QC_OUTPUT_DIR: outputDir
   });
   app = startNextApp(root, "dev", port);
   await waitForNextAppReady(baseUrl, app.getOutput);

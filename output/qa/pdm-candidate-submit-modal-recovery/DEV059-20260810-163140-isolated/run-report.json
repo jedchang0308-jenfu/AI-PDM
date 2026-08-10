@@ -1,0 +1,1512 @@
+{
+  "runId": "DEV059-20260810-163140-isolated",
+  "startedAt": "2026-08-10T16:31:40.764Z",
+  "finishedAt": "2026-08-10T16:33:26.134Z",
+  "result": "passed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 11,
+  "failed": 0,
+  "results": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary 2D plus 3D evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "09765f02-a908-4646-9019-6e85272a5f72",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "3f8ff97f-11f9-4038-9932-7bf706bc7623",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "ac26c777-867c-4f7d-b7c6-fa270a03d0b2",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f",
+          "revision": "0.1",
+          "row_version": 3,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-c9879341-179b-4704-8611-de6792a71e3e",
+            "display_name": "qa-dev059-primary.slddrw",
+            "role": "drawing_2d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-216b2e09-0609-4bcf-9146-1d55eac6eef9",
+            "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+            "file_size": 31
+          },
+          {
+            "id": "NCRF-e8a443e7-c3e1-44be-8ecb-6e93ddc0c39e",
+            "display_name": "qa-dev059-primary.sldprt",
+            "role": "cad_3d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-2127e916-a59c-4d59-bb92-ad495354e72b",
+            "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+            "file_size": 29
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    },
+    {
+      "id": "DEV059-REAL-ROUTE close actions are independent, local and zero-write",
+      "passed": true,
+      "detail": {
+        "cases": [
+          {
+            "action": "X",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+          },
+          {
+            "action": "return",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+          },
+          {
+            "action": "escape",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+          },
+          {
+            "action": "coordinate",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+          },
+          {
+            "action": "double-click",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+          }
+        ],
+        "beforeHash": "fc695369e272c3dc6c4ba6bc57e56b2b4a57ddee6968948b3323e3c1c8a5d98f",
+        "afterHash": "fc695369e272c3dc6c4ba6bc57e56b2b4a57ddee6968948b3323e3c1c8a5d98f"
+      }
+    },
+    {
+      "id": "DEV059-VIEW three viewports show contained modal without page overflow",
+      "passed": true,
+      "detail": {
+        "evidence": [
+          {
+            "width": 1440,
+            "height": 900,
+            "box": {
+              "x": 460,
+              "y": 335.296875,
+              "width": 520,
+              "height": 229.390625
+            },
+            "metrics": {
+              "clientWidth": 1440,
+              "scrollWidth": 1440,
+              "clientHeight": 900,
+              "scrollHeight": 900
+            },
+            "modalCount": 1
+          },
+          {
+            "width": 1024,
+            "height": 768,
+            "box": {
+              "x": 252,
+              "y": 269.296875,
+              "width": 520,
+              "height": 229.390625
+            },
+            "metrics": {
+              "clientWidth": 1024,
+              "scrollWidth": 1024,
+              "clientHeight": 768,
+              "scrollHeight": 768
+            },
+            "modalCount": 1
+          },
+          {
+            "width": 390,
+            "height": 844,
+            "box": {
+              "x": 0,
+              "y": 532.609375,
+              "width": 390,
+              "height": 311.390625
+            },
+            "metrics": {
+              "clientWidth": 390,
+              "scrollWidth": 390,
+              "clientHeight": 844,
+              "scrollHeight": 969
+            },
+            "modalCount": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "DEV059-WRITE-002 double activation creates one pending review request",
+      "passed": true,
+      "detail": {
+        "successSubmit": {
+          "status": 200,
+          "modalCount": 0
+        },
+        "successRequest": {
+          "id": "APR-04b4360c-eb69-41d9-a5f3-5a632e4bb4b1",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "submitRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "09765f02-a908-4646-9019-6e85272a5f72",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "3f8ff97f-11f9-4038-9932-7bf706bc7623",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "ac26c777-867c-4f7d-b7c6-fa270a03d0b2",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-c9879341-179b-4704-8611-de6792a71e3e",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-216b2e09-0609-4bcf-9146-1d55eac6eef9",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            },
+            {
+              "id": "NCRF-e8a443e7-c3e1-44be-8ecb-6e93ddc0c39e",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-2127e916-a59c-4d59-bb92-ad495354e72b",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-04b4360c-eb69-41d9-a5f3-5a632e4bb4b1",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "09765f02-a908-4646-9019-6e85272a5f72",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "3f8ff97f-11f9-4038-9932-7bf706bc7623",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "ac26c777-867c-4f7d-b7c6-fa270a03d0b2",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-c9879341-179b-4704-8611-de6792a71e3e",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-216b2e09-0609-4bcf-9146-1d55eac6eef9",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            },
+            {
+              "id": "NCRF-e8a443e7-c3e1-44be-8ecb-6e93ddc0c39e",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-2127e916-a59c-4d59-bb92-ad495354e72b",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-04b4360c-eb69-41d9-a5f3-5a632e4bb4b1",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-001 planned 503 remains locally recoverable",
+      "passed": true,
+      "detail": {
+        "status": 503,
+        "modalCount": 0,
+        "faultErrorVisible": true,
+        "faultRequest": null
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "49e719f0-120a-4dc2-97ba-f6ff1d05c7a8",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "77505eef-0e63-40b5-b950-d27df2524327",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "7f067140-21d0-423d-af8e-73c7ab1e808d",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6",
+            "revision": "0.1",
+            "row_version": 3,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-4b7987b0-55df-4e0b-a518-c3439a8a91b4",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-f69e1e24-5536-43dc-af12-92dc7a0d205b",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-e0afe378-2ed9-4a61-81bd-65a30d9a96ab",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a4c6d253-aeba-449e-b358-bfdd73cf5d5d",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "49e719f0-120a-4dc2-97ba-f6ff1d05c7a8",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "77505eef-0e63-40b5-b950-d27df2524327",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "7f067140-21d0-423d-af8e-73c7ab1e808d",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6",
+            "revision": "0.1",
+            "row_version": 3,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-4b7987b0-55df-4e0b-a518-c3439a8a91b4",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-f69e1e24-5536-43dc-af12-92dc7a0d205b",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-e0afe378-2ed9-4a61-81bd-65a30d9a96ab",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-a4c6d253-aeba-449e-b358-bfdd73cf5d5d",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003 response loss keeps idempotency and readback finds one committed request",
+      "passed": true,
+      "detail": {
+        "modalCount": 0,
+        "lossMessageVisible": false,
+        "authoritativeReadbackVisible": true,
+        "committedRequest": {
+          "id": "APR-86e37263-f2dc-4711-8c7f-cc46709fcb31",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "lossRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003R authoritative reload shows in-review state after lost response",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+        "modalCount": 0
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "8ed7e05e-0442-49eb-bb91-e7df751e8448",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "a61b9511-9a95-450b-bda3-f95cf6d05328",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "e021e9b8-2c8e-4784-a37d-3073838feb2e",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-6b0079e5-79d3-4c90-ae33-e8c51f4ef5a1",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-0ee75cf9-a6f8-4516-a3c7-0e12c6550534",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-7764b0a1-1ad2-4415-a27a-c0920c9d5ada",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-f1686443-d660-4001-b807-1570e1988e12",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-86e37263-f2dc-4711-8c7f-cc46709fcb31",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "8ed7e05e-0442-49eb-bb91-e7df751e8448",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "a61b9511-9a95-450b-bda3-f95cf6d05328",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "e021e9b8-2c8e-4784-a37d-3073838feb2e",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907",
+            "revision": "0.1",
+            "row_version": 5,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-6b0079e5-79d3-4c90-ae33-e8c51f4ef5a1",
+              "display_name": "qa-dev059-primary.sldprt",
+              "role": "cad_3d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-0ee75cf9-a6f8-4516-a3c7-0e12c6550534",
+              "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+              "file_size": 29
+            },
+            {
+              "id": "NCRF-7764b0a1-1ad2-4415-a27a-c0920c9d5ada",
+              "display_name": "qa-dev059-primary.slddrw",
+              "role": "drawing_2d",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-f1686443-d660-4001-b807-1570e1988e12",
+              "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+              "file_size": 31
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-86e37263-f2dc-4711-8c7f-cc46709fcb31",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-GATE-0 disposable run has no formal master pollution",
+      "passed": true,
+      "detail": {
+        "baselineHash": "4872e39258a780125f2c1311e1997379b80e1d7be69b0147c1a19f47a0d15420",
+        "finalHash": "3b0a8e9be670c0e6f19e5f3d526fbab7d81fe7b922a56d3ebcabb007be21cacc"
+      }
+    }
+  ],
+  "screenshots": [
+    "screenshots/DEV059-modal-close-recovery-1440x900.png",
+    "screenshots/DEV059-modal-close-recovery-390x844.png",
+    "screenshots/DEV059-success-in-review-1440x900.png",
+    "screenshots/DEV059-planned-503-recovery-1440x900.png",
+    "screenshots/DEV059-final-cleanup-1440x900.png"
+  ],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:bf499fa1-1d9d-4450-86df-9449c7f72bea"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-15a83abb-8441-4021-a90b-92e0cf85189c:511003da-a7eb-4d8c-b04f-8dbacb91019f"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions/NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f:qa-dev059-primary.slddrw:31:1786379500767:a144884a-2b63-4140-b3ba-eb685e149482"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions/NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions/NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f:qa-dev059-primary.sldprt:29:1786379500767:98d064f6-3751-4955-9a96-c93a5676bf28"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/candidate-revisions/NCR-a4d276a1-1c03-47c0-ae08-f94da07b3e5f/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/submit-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev062:part:submit:2adf51a0-44ff-47ff-8736-176ab06de204"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/submit-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev062:part:withdraw:2659dabd-e776-4ad6-b9e3-6261eee0c165"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/cancel",
+      "fault": null,
+      "idempotencyKey": "dev062:part:cancel:91469585-9600-440a-bc79-fb6ce36b6ee7"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:237138c8-785c-46e3-a4cb-7d4f94de106e"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-57273993-7363-4f8f-8f8a-8c6130128f1d:9b8f222c-bc29-45ed-8d5f-37b64944ff28"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions/NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6:qa-dev059-primary.slddrw:31:1786379500767:7db14901-315d-455f-9185-69e951c98950"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions/NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions/NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6:qa-dev059-primary.sldprt:29:1786379500767:1d8ce67f-7428-4bc6-b4f6-fbbe7cfc3949"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/candidate-revisions/NCR-5164bc6f-d88f-4b7d-ac13-a444261c39c6/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/submit-bundle-review",
+      "fault": "503",
+      "idempotencyKey": "dev062:part:submit:c13315b9-3b81-4acc-97bb-cbb4bd9769fc"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/submit-bundle-review",
+      "status": 503,
+      "fault": "503"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/cancel",
+      "fault": null,
+      "idempotencyKey": "dev062:part:cancel:6d73b10e-a694-438f-a239-4ac51213530c"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:cafa409b-b0cf-4efe-955c-1be0ff63fa7a"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-f5f95f4b-5f5b-4cf5-8011-f7b03d121b59:3e489e32-7cd9-4912-b9b3-500bb2ef5c7d"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions/NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907:qa-dev059-primary.slddrw:31:1786379500767:a921cf8d-573b-4fe1-9e83-6b915b4bb53d"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions/NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions/NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907:qa-dev059-primary.sldprt:29:1786379500767:df349f38-3313-4989-8ae0-799313157b97"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/candidate-revisions/NCR-b8906d70-21e1-43e5-b0c7-a7eef0d1a907/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/submit-bundle-review",
+      "fault": "response-loss",
+      "idempotencyKey": "dev062:part:submit:5f1c66e2-d9a0-40c3-8643-2b91aa281314"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev062:part:withdraw:09f2d3d8-f080-4de9-9ddc-91329e6eea3a"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/cancel",
+      "fault": null,
+      "idempotencyKey": "dev062:part:cancel:4950c59c-517e-41f1-b95e-04b8f03c8f75"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/cancel",
+      "status": 200,
+      "fault": null
+    }
+  ],
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": "503"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": "503"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": "503"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: net::ERR_CONNECTION_CLOSED",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": "response-loss"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    }
+  ],
+  "expectedBrowserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4",
+      "fault": null
+    }
+  ],
+  "unexpectedBrowserErrors": [],
+  "plannedFaults": [
+    {
+      "mode": "503",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-0bf7784d-4e18-48b9-ac7f-9caaf1b8fc22/submit-bundle-review"
+    },
+    {
+      "mode": "response-loss",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e5c2bb14-b424-443a-8af1-93f4fed1a6f4/submit-bundle-review"
+    }
+  ],
+  "visibleErrors": []
+}

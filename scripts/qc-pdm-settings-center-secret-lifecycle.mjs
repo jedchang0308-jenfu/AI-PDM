@@ -54,16 +54,17 @@ try {
     includesAll(postgresSchema, ["CREATE TABLE IF NOT EXISTS secret_references", "CREATE TABLE IF NOT EXISTS setting_test_runs", "CREATE TABLE IF NOT EXISTS setting_activation_events"])
   );
   record("SETTINGS-SECRET-004 active secret uniqueness is enforced", schema.includes("idx_secret_references_kind_active_unique") && postgresSchema.includes("idx_secret_references_kind_active_unique"));
-  record("SETTINGS-SECRET-005 Supabase RLS plan includes secret metadata tables", includesAll(rlsPlan, ["secret_references", "setting_test_runs", "setting_activation_events"]));
+  record("SETTINGS-SECRET-005 deny-direct-access plan includes secret metadata tables", includesAll(rlsPlan, ["secret_references", "setting_test_runs", "setting_activation_events"]));
   record("SETTINGS-SECRET-006 runtime sqlite initializer ensures secret schema", includesAll(dbRuntime, ["ensureSettingsSecretLifecycleSchema", "secret_references", "idx_secret_references_kind_active_unique"]));
   record("SETTINGS-SECRET-006A settings route exposes secret management availability", settingsRoute.includes("secretManagementAvailable"));
 
   record("SETTINGS-SECRET-007 repository uses async provider only", repository.includes("AsyncDatabaseClient") && !repository.includes("getDb(") && !repository.includes("better-sqlite3"));
   record(
-    "SETTINGS-SECRET-008 lifecycle has local test double and live Vault gate",
-    includesAll(lifecycle, ["LocalTestDoubleSecretProvider", "SupabaseVaultSecretProvider", "SUPABASE_VAULT_LIVE_GATE_REQUIRED", "vault.create_secret"])
+    "SETTINGS-SECRET-008 lifecycle has local test double and retired Supabase boundary",
+    includesAll(lifecycle, ["LocalTestDoubleSecretProvider", "SUPABASE_VAULT_PROVIDER_SUPERSEDED", 'provider === "supabase_vault"']) &&
+      !includesAll(lifecycle, ["SupabaseVaultSecretProvider", "vault.create_secret"])
   );
-  record("SETTINGS-SECRET-008A lifecycle reads Vault only through server-side worker path", includesAll(lifecycle, ["vault.decrypted_secrets", "resolveActiveSolidWorksDocumentManagerKey", "workerReadiness"]));
+  record("SETTINGS-SECRET-008A lifecycle never reads historical Supabase Vault", !lifecycle.includes("vault.decrypted_secrets") && !lifecycle.includes("PDM_ENABLE_SUPABASE") && lifecycle.includes("resolveActiveSolidWorksDocumentManagerKey"));
   record("SETTINGS-SECRET-008B worker credential route is token-gated and no-store", includesAll(workerCredentialRoute, ["PDM_PREVIEW_WORKER_TOKEN", "resolveActiveSolidWorksDocumentManagerKey", "Cache-Control", "no-store"]));
   record("SETTINGS-SECRET-009 lifecycle stores fingerprint/masked hint, not legacy system_settings", !lifecycle.includes("setSystemSetting") && includesAll(lifecycle, ["maskedHint", "fingerprint"]));
   record("SETTINGS-SECRET-010 legacy settings route has no secret material fields", !/solidworks.*(?:api[_-]?key|secret)|secretValue|vault_secret_id/iu.test(settingsRoute));

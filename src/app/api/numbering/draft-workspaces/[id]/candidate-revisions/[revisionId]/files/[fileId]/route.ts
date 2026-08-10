@@ -31,7 +31,7 @@ export async function GET(
       SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
              asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
-             asset.company_id
+             file.company_id
       FROM numbering_candidate_revision_files file
       JOIN numbering_candidate_revision_drafts candidate
         ON candidate.id = file.candidate_revision_id
@@ -43,6 +43,7 @@ export async function GET(
         AND file.candidate_revision_id = :candidateRevisionId
         AND candidate.workspace_id = :workspaceId
         AND candidate.company_id = :companyId
+        AND file.company_id = :companyId
         AND file.removed_at IS NULL
         AND asset.deleted_at IS NULL
     `,

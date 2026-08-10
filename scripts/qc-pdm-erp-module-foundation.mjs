@@ -32,7 +32,7 @@ function sourceFiles(directory) {
 
 const schema = read("db/schema.sql");
 const postgresMigration = read("db/postgres/008_erp_module_foundation.sql");
-const supabaseMigration = read("supabase/migrations/20260712034956_erp_module_foundation.sql");
+const supabaseMigration = read(".ai-doc/archived/legacy-supabase-migration-mirror/migrations/20260712034956_erp_module_foundation.sql");
 const platformCommand = read("src/lib/platform-command.ts");
 const contextAdapter = read("src/lib/platform-command-context.ts");
 const commandService = read("src/lib/platform-command-service.ts");

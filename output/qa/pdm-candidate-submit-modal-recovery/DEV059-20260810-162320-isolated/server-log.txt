@@ -1,0 +1,21 @@
+▲ Next.js 16.3.0 (Turbopack)
+- Local:         http://127.0.0.1:59707
+- Network:       http://127.0.0.1:59707
+- Environments: .env.development.local, .env.local, .env
+✓ Ready in 781ms
+✓ Running next.config.mjs took 24ms
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+    - include was updated to add '.tmp/q59-5de0ffe2/types/**/*.ts'
+    - include was updated to add '.tmp/q59-5de0ffe2/dev/types/**/*.ts'
+
+UNKNOWN: unknown error, open 'C:\VIBE CODING\AI_PDM\next-env.d.ts'
+Unhandled Rejection: Error: UNKNOWN: unknown error, open 'C:\VIBE CODING\AI_PDM\next-env.d.ts'
+    at ignore-listed frames {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'
+}

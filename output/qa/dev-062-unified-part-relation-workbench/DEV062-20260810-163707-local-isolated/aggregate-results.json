@@ -1,0 +1,127 @@
+{
+  "task": "DEV-062 aggregate completion gate",
+  "runId": "DEV062-20260810-163707-local-isolated",
+  "startedAt": "2026-08-10T16:37:07.327Z",
+  "finishedAt": "2026-08-10T16:38:29.267Z",
+  "passed": false,
+  "completedCommands": 6,
+  "expectedCommands": 15,
+  "results": [
+    {
+      "id": "core",
+      "label": "Workbench Core",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:core"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 796,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:core\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-workbench-core.mjs\n\n{\n  \"passed\": 6,\n  \"failed\": 0,\n  \"checks\": [\n    {\n      \"id\": \"CORE-01 shared core stays mechanics-only\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-02 cursor is signed, deterministic and scope-bound\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-03 PostgreSQL snapshot is repeatable-read and read-only\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-04 SQLite uses one transaction and hydration failure is atomic\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-05 Part and Relation reuse controller, cursor and snapshot\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-06 routes and owner content keep bounded responsibilities\",\n      \"passed\": true\n    }\n  ]\n}\n",
+      "stderrTail": "(node:44108) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:44108) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    },
+    {
+      "id": "part",
+      "label": "Part workbench",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:part"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 3689,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:part\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-part-workbench.mjs\n\nQC DEV-062 Part workbench: PASS (candidate/formal, stable identity, legacy detail, permission/company, cursor, zero-write, cardinality-invariant queries list/candidate/formal=14/11/6)\n",
+      "stderrTail": "(node:38016) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:38016) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    },
+    {
+      "id": "relation",
+      "label": "Relation workbench",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:relation"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 4841,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:relation\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-relation-workbench.mjs\n\nQC DEV-062 Relation workbench: PASS (root unique, overlay, source-less, permission/company, zero-write, cardinality-invariant queries list/root/candidate=18/10/11)\n",
+      "stderrTail": "(node:28504) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:28504) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    },
+    {
+      "id": "compat",
+      "label": "Compatibility",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:compat"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 831,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:compat\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-compat.mjs\n\n{\n  \"passed\": 8,\n  \"failed\": 0,\n  \"checks\": [\n    {\n      \"id\": \"COMPAT-01 umbrella flag is off by default and dependency-bound\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-02 legacy Part URL canonicalizes only when flag is on\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-03 request URL preserves creation intent and rejects unsafe returnTo\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-04 workbench read endpoints are feature-gated and private\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-05 new GET surfaces do not introduce mutation handlers\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-06 flag-off pages keep legacy modules; flag-on pages use owner workbenches\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-07 opening formal Part detail keeps required-MA resolution read-only\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"COMPAT-08 Relation deep link reconciles domain target from authoritative detail\",\n      \"passed\": true\n    }\n  ]\n}\n",
+      "stderrTail": "(node:38340) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:38340) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    },
+    {
+      "id": "typecheck",
+      "label": "TypeScript",
+      "command": "npm",
+      "args": [
+        "run",
+        "typecheck"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 46789,
+      "stdoutTail": "\n> ai-pdm@0.1.0 typecheck\n> tsc --noEmit --pretty false\n\n",
+      "stderrTail": ""
+    },
+    {
+      "id": "affected_lint",
+      "label": "Affected-file ESLint",
+      "command": "npx",
+      "args": [
+        "eslint",
+        "--max-warnings=0",
+        "src/lib/pdm-workbench-contract.ts",
+        "src/lib/pdm-workbench-cursor.ts",
+        "src/lib/repositories/pdm-workbench-read-snapshot.ts",
+        "src/components/use-pdm-workbench-controller.ts",
+        "src/components/pdm-workbench-list.tsx",
+        "src/lib/drawing-workbench.ts",
+        "src/lib/repositories/drawing-workbench-async-repository.ts",
+        "src/components/drawing-workbench.tsx",
+        "src/lib/part-workbench.ts",
+        "src/lib/repositories/part-workbench-async-repository.ts",
+        "src/app/api/parts/workbench/route.ts",
+        "src/app/api/parts/workbench/[rowKey]/route.ts",
+        "src/components/part-workbench.tsx",
+        "src/components/part-detail-content.tsx",
+        "src/components/part-module.tsx",
+        "src/app/parts/page.tsx",
+        "src/lib/relation-workbench.ts",
+        "src/lib/repositories/relation-workbench-async-repository.ts",
+        "src/app/api/numbering/relations/route.ts",
+        "src/app/api/numbering/relations/[rowKey]/route.ts",
+        "src/components/relation-workbench.tsx",
+        "src/app/numbering/search/page.tsx",
+        "src/lib/number-state-flow-feature.ts",
+        "src/app/api/numbering/state-flow/status/route.ts",
+        "src/lib/number-state-flow-legacy-route.ts",
+        "src/middleware.ts",
+        "scripts/qc-dev-062-workbench-core.mjs",
+        "scripts/qc-dev-062-part-workbench.mjs",
+        "scripts/qc-dev-062-relation-workbench.mjs",
+        "scripts/qc-dev-062-compat.mjs",
+        "scripts/qc-dev-062-real-operation.mjs",
+        "scripts/qc-dev-062-aggregate.mjs"
+      ],
+      "passed": false,
+      "exitCode": 1,
+      "durationMs": 24986,
+      "stdoutTail": "\nC:\\VIBE CODING\\AI_PDM\\src\\components\\drawing-workbench.tsx\n  198:3  warning  Do not use `window.location.assign()` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination\n\nC:\\VIBE CODING\\AI_PDM\\src\\components\\part-workbench.tsx\n  122:28  warning  Do not use `window.location.assign()` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination\n\nC:\\VIBE CODING\\AI_PDM\\src\\components\\relation-workbench.tsx\n  136:28  warning  Do not use `window.location.assign()` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination\n\n✖ 3 problems (0 errors, 3 warnings)\n\n",
+      "stderrTail": "ESLint found too many warnings (maximum: 0).\n"
+    }
+  ]
+}

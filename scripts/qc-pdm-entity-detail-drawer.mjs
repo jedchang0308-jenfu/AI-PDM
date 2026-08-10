@@ -159,13 +159,12 @@ record(
     candidateDrawerSource.includes("subtitle={workspaceTitle(workspace)}") &&
     candidateDrawerSource.includes("status={<WorkspaceHeaderStatus") &&
     candidateDrawerSource.includes("primaryAction={primaryAction}") &&
-    drawingWorkbench.includes('eyebrow="正式圖號"') &&
     drawingWorkbench.includes("title={drawing.drawingNumber}") &&
     drawingWorkbench.includes("subtitle={drawing.coreName}") &&
     drawingWorkbench.includes("status={<HumanStatusBadge") &&
     drawingWorkbench.includes('primaryAction={<div data-capability="drawing-revision"') &&
     entityDrawer.includes('data-pdm-drawer-close="true"'),
-  "eyebrow, code, name, status, primary action, close"
+  "candidate context label, code, name, status, primary action, close"
 );
 
 record(
@@ -203,8 +202,8 @@ record(
 
 record(
   "Candidate missing-file guidance appears once beside the upload control",
-  candidateRevisionEditor.includes("仍需指定或加入至少一個主要受控檔") &&
-    candidateRevisionEditor.includes("主要受控檔已完成，可送審。") &&
+  candidateRevisionEditor.includes("主要 2D 圖面與 3D 模型需重新上傳。") &&
+    candidateRevisionEditor.includes("主要 2D 圖面與 3D 模型已完成，可送審。") &&
     sharedDetailPreview.includes("尚無可預覽圖面") &&
     !candidatePreviewSource.includes("先在上方加入") &&
     candidateDrawerSource.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&

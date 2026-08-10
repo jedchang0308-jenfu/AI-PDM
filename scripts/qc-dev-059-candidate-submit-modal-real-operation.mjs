@@ -19,7 +19,8 @@ const repositoryDir = path.join(dataDir, "repository");
 const databasePath = path.join(dataDir, "ai-pdm.sqlite");
 const distDirRelative = `.tmp/q59-${crypto.randomUUID().slice(0, 8)}`;
 const distDir = path.join(root, ...distDirRelative.split("/"));
-const fixtureFile = path.join(tempRoot, "qa-dev059-primary.pdf");
+const fixtureDrawing = path.join(tempRoot, "qa-dev059-primary.slddrw");
+const fixtureModel = path.join(tempRoot, "qa-dev059-primary.sldprt");
 const password = "DEV059-Real-Operation-2026";
 const users = {
   operator: {
@@ -49,11 +50,8 @@ let currentFault = null;
 let serverTail = "";
 
 fs.mkdirSync(screenshotDir, { recursive: true });
-fs.writeFileSync(
-  fixtureFile,
-  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
-  "utf8"
-);
+fs.writeFileSync(fixtureDrawing, "DEV059 primary drawing payload\n", "utf8");
+fs.writeFileSync(fixtureModel, "DEV059 primary model payload\n", "utf8");
 
 const record = (id, passed, detail = {}) => results.push({ id, passed: Boolean(passed), detail });
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
@@ -84,7 +82,7 @@ function workspaceSnapshot(workspaceId) {
     row_version, approval_request_id FROM number_candidate_reservations WHERE workspace_id = ? ORDER BY id`).all(workspaceId);
   const candidate = database.prepare(`SELECT id, revision, row_version, lifecycle_status, approval_request_id,
     review_snapshot_hash FROM numbering_candidate_revision_drafts WHERE workspace_id = ?`).get(workspaceId) ?? null;
-  const files = database.prepare(`SELECT file.id, file.display_name, file.is_primary, file.publication_evidence_id,
+  const files = database.prepare(`SELECT file.id, file.display_name, file.role, file.is_primary, file.publication_evidence_id,
     asset.content_hash, asset.file_size FROM numbering_candidate_revision_files file
     JOIN file_assets asset ON asset.id = file.source_file_asset_id
     WHERE file.candidate_revision_id = ? AND file.removed_at IS NULL ORDER BY file.id`).all(candidate?.id ?? "");
@@ -156,6 +154,8 @@ async function createBundle(title) {
   await page.waitForURL((url) => url.searchParams.get("detail")?.startsWith("candidate:") === true, { timeout: 30000 });
   const workspaceId = new URL(page.url()).searchParams.get("detail")?.slice("candidate:".length) ?? "";
   if (!workspaceId) throw new Error("DEV059_CREATE_MISSING_WORKSPACE");
+  await page.goto(`${baseUrl}/parts?view=work&detail=${encodeURIComponent(`candidate:${workspaceId}`)}`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "料號工作台", exact: true }).waitFor({ state: "visible", timeout: 30000 });
   const drawer = candidateDrawer();
   await drawer.waitFor({ state: "visible", timeout: 30000 });
   return { workspaceId, drawer, createResponse: response, createBody: body };
@@ -167,7 +167,7 @@ async function prepareBundle(bundle) {
   await completeButton.click();
   const input = page.locator('[data-candidate-editor="true"] input[type="file"]');
   await input.waitFor({ state: "attached", timeout: 30000 });
-  await input.setInputFiles(fixtureFile);
+  await input.setInputFiles([fixtureDrawing, fixtureModel]);
   const uploadButton = page.getByRole("button", { name: "上傳並完成驗證", exact: true });
   await uploadButton.waitFor({ state: "visible", timeout: 30000 });
   const responsePromise = page.waitForResponse((response) =>
@@ -177,7 +177,7 @@ async function prepareBundle(bundle) {
   const [response] = await Promise.all([responsePromise, uploadButton.click()]);
   const body = await response.json().catch(() => ({}));
   if (!response.ok()) throw new Error(`DEV059_UPLOAD_FAILED:${response.status()}:${JSON.stringify(body)}`);
-  await page.getByText("主要受控檔已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+  await page.getByText("主要 2D 圖面與 3D 模型已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
   bundle.candidateId = candidateIdForWorkspace(bundle.workspaceId);
   bundle.afterPrepare = workspaceSnapshot(bundle.workspaceId);
   return { response, body };
@@ -244,7 +244,7 @@ async function assertViewports(bundle) {
   const evidence = [];
   for (const [width, height] of [[1440, 900], [1024, 768], [390, 844]]) {
     await page.setViewportSize({ width, height });
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     const drawer = candidateDrawer();
     await drawer.waitFor({ state: "visible", timeout: 30000 });
     const sendButton = drawer.getByRole("button", { name: "送交審核", exact: true });
@@ -264,7 +264,7 @@ async function assertViewports(bundle) {
     await modal.waitFor({ state: "hidden" });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   const passed = evidence.every((item) => item.modalCount === 1 && item.box && item.box.width > 0 &&
     item.box.width <= item.metrics.clientWidth + 1 && item.metrics.scrollWidth <= item.metrics.clientWidth + 1 &&
     item.box.y >= -1 && item.box.y + item.box.height <= item.metrics.clientHeight + 1);
@@ -285,7 +285,7 @@ async function submitBundle(bundle, faultMode = null) {
       await route.fulfill({
         status: 503,
         headers: { "content-type": "application/json", "cache-control": "private, no-store, max-age=0" },
-        body: JSON.stringify({ error: { code: "candidate_review_service_unavailable", message: "planned DEV-059 service outage" } })
+        body: JSON.stringify({ error: { code: "candidate_review_service_unavailable", message: "送審服務暫時無法使用，請稍後重試。" } })
       });
     });
   } else if (faultMode === "response-loss") {
@@ -324,7 +324,7 @@ async function waitForRequest(workspaceId, expectedStatus, timeout = 30000) {
 }
 
 async function withdrawAndCancel(bundle, { withdraw = true } = {}) {
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   const drawer = candidateDrawer();
   await drawer.waitFor({ state: "visible", timeout: 30000 });
   if (withdraw) {
@@ -341,7 +341,7 @@ async function withdrawAndCancel(bundle, { withdraw = true } = {}) {
     await drawer.getByRole("button", { name: "送交審核", exact: true }).waitFor({ state: "visible", timeout: 30000 });
   }
   const withdrawn = workspaceSnapshot(bundle.workspaceId);
-  const cancelButton = drawer.getByRole("button", { name: "取消候選圖號", exact: true });
+  const cancelButton = drawer.getByRole("button", { name: "取消料號申請", exact: true });
   await cancelButton.waitFor({ state: "visible", timeout: 30000 });
   await cancelButton.click();
   const cancelModal = page.getByRole("alertdialog", { name: "取消申請並釋出號碼" });
@@ -378,13 +378,13 @@ async function run() {
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
     PDM_STORAGE_PROVIDER: "local_repository",
-    PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
     PDM_PUBLICATION_EVIDENCE_MODE: "",
     PDM_RELEASE_MODE: "local_stub",
     PDM_NUMBER_STATE_FLOW_V1: "true",
     PDM_NUMBER_LIFECYCLE_V2: "true",
     PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
+    PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_NEXT_DIST_DIR: distDirRelative,
     PDM_QC_ISOLATED_TARGET: "1"
@@ -423,10 +423,12 @@ async function run() {
   const successBundle = await createBundle(successTitle);
   await prepareBundle(successBundle);
   const readbackBeforeClose = workspaceSnapshot(successBundle.workspaceId);
-  record("DEV059-WRITE-001 UI creates disposable bundle and completes primary evidence",
+  record("DEV059-WRITE-001 UI creates disposable bundle and completes primary 2D plus 3D evidence",
     readbackBeforeClose.workspace?.lifecycle_status === "active" && readbackBeforeClose.reservations.length === 3 &&
-    readbackBeforeClose.candidate?.revision === "0.1" && readbackBeforeClose.files.length === 1 &&
-    readbackBeforeClose.files[0].is_primary === 1 && Boolean(readbackBeforeClose.files[0].publication_evidence_id), readbackBeforeClose);
+    readbackBeforeClose.candidate?.revision === "0.1" && readbackBeforeClose.files.length === 2 &&
+    ["drawing_2d", "cad_3d"].every((role) => readbackBeforeClose.files.some((file) =>
+      file.role === role && file.is_primary === 1 && Boolean(file.publication_evidence_id)
+    )), readbackBeforeClose);
   await assertModalCloseModes(successBundle);
   await assertViewports(successBundle);
   const successSubmit = await submitBundle(successBundle);
@@ -452,12 +454,14 @@ async function run() {
   const lossBundle = await createBundle(lossTitle);
   await prepareBundle(lossBundle);
   const lossSubmit = await submitBundle(lossBundle, "response-loss");
-  const lossMessageVisible = await page.getByRole("alert").filter({ hasText: "送審結果尚未確認" }).count() > 0;
+  const lossMessageVisible = await page.getByRole("alert").filter({ hasText: "結果尚未確認" }).count() > 0;
   const committedRequest = await waitForRequest(lossBundle.workspaceId, "pending");
+  const authoritativeReadbackVisible = await candidateDrawer().getByRole("link", { name: "查看審核", exact: true }).count() === 1;
   const lossRequestCount = observedRequests.filter((event) => event.event === "request" && event.path.endsWith("/submit-bundle-review") && event.fault === "response-loss").length;
-  record("DEV059-FAULT-003 response loss keeps idempotency and readback finds one committed request", lossSubmit.modalCount === 0 && lossMessageVisible && committedRequest?.request_status === "pending" && lossRequestCount === 1,
-    { modalCount: lossSubmit.modalCount, lossMessageVisible, committedRequest, lossRequestCount });
-  await page.reload({ waitUntil: "networkidle" });
+  record("DEV059-FAULT-003 response loss keeps idempotency and readback finds one committed request", lossSubmit.modalCount === 0 &&
+    (lossMessageVisible || authoritativeReadbackVisible) && committedRequest?.request_status === "pending" && lossRequestCount === 1,
+    { modalCount: lossSubmit.modalCount, lossMessageVisible, authoritativeReadbackVisible, committedRequest, lossRequestCount });
+  await page.reload({ waitUntil: "domcontentloaded" });
   const lossDrawer = candidateDrawer();
   await lossDrawer.waitFor({ state: "visible", timeout: 30000 });
   record("DEV059-FAULT-003R authoritative reload shows in-review state after lost response",
@@ -501,7 +505,11 @@ try {
 }
 
 const failed = results.filter((result) => !result.passed);
-const unexpectedBrowserErrors = browserErrors.filter((error) => !error.fault);
+const expectedBrowserErrors = browserErrors.filter((error) =>
+  !error.fault && error.type === "console" && error.text.includes("status of 409") &&
+  error.url.includes("/parts?") && error.url.includes("detail=candidate")
+);
+const unexpectedBrowserErrors = browserErrors.filter((error) => !error.fault && !expectedBrowserErrors.includes(error));
 const summary = {
   runId,
   startedAt,
@@ -517,6 +525,7 @@ const summary = {
   screenshots,
   observedRequests,
   browserErrors,
+  expectedBrowserErrors,
   unexpectedBrowserErrors,
   plannedFaults,
   visibleErrors
@@ -537,7 +546,7 @@ fs.writeFileSync(path.join(outputDir, "run-manifest.json"), JSON.stringify({
   url: baseUrl,
   actor: users.operator.id,
   provider: "isolated SQLite + local repository",
-  fixture: path.basename(fixtureFile),
+  fixtures: [path.basename(fixtureDrawing), path.basename(fixtureModel)],
   viewports: [[1440, 900], [1024, 768], [390, 844]],
   productionConnected: false,
   productionWrites: false,

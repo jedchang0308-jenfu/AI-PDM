@@ -1,0 +1,1 @@
+throw new Error("SUPABASE_TOOLING_RETIRED_USE_GCP");

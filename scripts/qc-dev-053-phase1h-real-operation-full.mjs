@@ -248,7 +248,7 @@ async function runUiJourneys() {
   Object.assign(process.env, {
     NODE_ENV: "development", PDM_AUTH_MODE: "managed", PDM_BOOTSTRAP_USERS: JSON.stringify(Object.values(users)), PDM_DEMO_USERS: "0",
     PDM_DATA_DIR: dataDir, PDM_REPOSITORY_DIR: repositoryDir, PDM_DB_PROVIDER: "sqlite", PDM_POSTGRES_URL: "", DATABASE_URL: "",
-    PDM_STORAGE_PROVIDER: "local_repository", PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+    PDM_STORAGE_PROVIDER: "local_repository", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
     PDM_RELEASE_MODE: "local_stub", PDM_NUMBER_STATE_FLOW_V1: "true", PDM_NUMBER_LIFECYCLE_V2: "true", PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
     PDM_DRAWING_REVISION_LIFECYCLE_MODE: "enforced", PDM_PRODUCTION_SLICE_MODE: "", PDM_NEXT_DIST_DIR: distDirRelative, PDM_QC_ISOLATED_TARGET: "1"
   });
@@ -516,9 +516,9 @@ async function run() {
   await runUiJourneys();
   const protectedHashes = {
     "db/postgres/023_remove_project_status_authority.sql": "047CBCBBC525CFD81369144B70F18A40CEACA38F59DC40850BF0D3FF9B30BCC0",
-    "supabase/migrations/20260804030000_remove_project_status_authority.sql": "2BE4C81D8007D3CB8957E07C96D95A466680BB15E7CCCF672D6375A5C8F78956",
+    ".ai-doc/archived/legacy-supabase-migration-mirror/migrations/20260804030000_remove_project_status_authority.sql": "2BE4C81D8007D3CB8957E07C96D95A466680BB15E7CCCF672D6375A5C8F78956",
     "db/postgres/024_remove_submission_phase_gate.sql": "2356B3512AA6A402DD449859EB18C75400936234FB354E0A4CF73A011BB997A6",
-    "supabase/migrations/20260805010000_remove_submission_phase_gate.sql": "29C1C71C87AEA05BDDD37A7E750AD6C057F8AEA18295FEF39B0EA701271B2146"
+    ".ai-doc/archived/legacy-supabase-migration-mirror/migrations/20260805010000_remove_submission_phase_gate.sql": "29C1C71C87AEA05BDDD37A7E750AD6C057F8AEA18295FEF39B0EA701271B2146"
   };
   const hashCheck = Object.fromEntries(Object.entries(protectedHashes).map(([file, expected]) => [file, sha(fs.readFileSync(path.join(root, file))).toUpperCase() === expected]));
   const expectedPermissionErrors = browserErrors.filter((item) =>

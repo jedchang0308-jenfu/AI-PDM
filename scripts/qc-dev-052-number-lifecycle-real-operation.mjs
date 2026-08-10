@@ -434,7 +434,6 @@ async function run() {
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
     PDM_STORAGE_PROVIDER: "local_repository",
-    PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
     PDM_NUMBER_STATE_FLOW_V1: "true",
     PDM_NUMBER_LIFECYCLE_V2: "true",
     PDM_UNIFIED_DRAWING_WORKBENCH_V1: "false",

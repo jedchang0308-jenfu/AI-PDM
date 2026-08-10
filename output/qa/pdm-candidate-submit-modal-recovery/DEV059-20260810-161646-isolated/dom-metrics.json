@@ -1,0 +1,40 @@
+{
+  "runId": "DEV059-20260810-161646-isolated",
+  "viewportEvidence": [],
+  "modalCloseCase": {
+    "cases": [
+      {
+        "action": "X",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+      },
+      {
+        "action": "return",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+      },
+      {
+        "action": "escape",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+      },
+      {
+        "action": "coordinate",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+      },
+      {
+        "action": "double-click",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+      }
+    ],
+    "beforeHash": "a431cacaf11680b7ac96429b9c31db19a88763b88792f1e7a2b95bfa3e14a3ea",
+    "afterHash": "a431cacaf11680b7ac96429b9c31db19a88763b88792f1e7a2b95bfa3e14a3ea"
+  }
+}

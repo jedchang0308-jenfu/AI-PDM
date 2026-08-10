@@ -208,7 +208,6 @@ function configureEnvironment(enabled, distDirRelative) {
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
     PDM_STORAGE_PROVIDER: "local_repository",
-    PDM_SUPABASE_STORAGE_LIVE_ENABLED: "0",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
     PDM_RELEASE_MODE: "local_stub",
     PDM_NUMBER_STATE_FLOW_V1: "true",

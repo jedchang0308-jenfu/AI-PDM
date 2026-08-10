@@ -48,8 +48,8 @@ const lifecycleQcInfrastructureFiles = [
 const protectedParallelTaskPatterns = [
   /(?:^|\/)db\/postgres\/023_remove_project_status_authority\.sql$/iu,
   /(?:^|\/)db\/postgres\/024_remove_submission_phase_gate\.sql$/iu,
-  /(?:^|\/)supabase\/migrations\/20260804030000_remove_project_status_authority\.sql$/iu,
-  /(?:^|\/)supabase\/migrations\/20260805010000_remove_submission_phase_gate\.sql$/iu,
+  /(?:^|\/)\.ai-doc\/archived\/legacy-supabase-migration-mirror\/migrations\/20260804030000_remove_project_status_authority\.sql$/iu,
+  /(?:^|\/)\.ai-doc\/archived\/legacy-supabase-migration-mirror\/migrations\/20260805010000_remove_submission_phase_gate\.sql$/iu,
   /(?:^|\/)(?:DEV-054|dev054)(?:\/|[-_.])/iu,
   /(?:^|\/)(?:dvt|development[_-]phase)(?:\/|[-_.])/iu
 ];

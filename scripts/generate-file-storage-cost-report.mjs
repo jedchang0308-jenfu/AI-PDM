@@ -486,7 +486,7 @@ function buildRecommendations(metadata, repositoryScan, storageIncludedGb, local
     recommendations.push("Large-file workflow is required for objects above 500 MB.");
   }
   if (!recommendations.length) {
-    recommendations.push("Proceed with FileStorageService abstraction before Supabase Storage or external provider cutover.");
+    recommendations.push("Proceed with FileStorageService abstraction before Google Cloud Storage cutover.");
   }
   return recommendations;
 }

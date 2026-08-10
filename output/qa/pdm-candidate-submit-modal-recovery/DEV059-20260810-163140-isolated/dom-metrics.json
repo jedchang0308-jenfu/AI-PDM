@@ -1,0 +1,92 @@
+{
+  "runId": "DEV059-20260810-163140-isolated",
+  "viewportEvidence": [
+    {
+      "width": 1440,
+      "height": 900,
+      "box": {
+        "x": 460,
+        "y": 335.296875,
+        "width": 520,
+        "height": 229.390625
+      },
+      "metrics": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "clientHeight": 900,
+        "scrollHeight": 900
+      },
+      "modalCount": 1
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "box": {
+        "x": 252,
+        "y": 269.296875,
+        "width": 520,
+        "height": 229.390625
+      },
+      "metrics": {
+        "clientWidth": 1024,
+        "scrollWidth": 1024,
+        "clientHeight": 768,
+        "scrollHeight": 768
+      },
+      "modalCount": 1
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "box": {
+        "x": 0,
+        "y": 532.609375,
+        "width": 390,
+        "height": 311.390625
+      },
+      "metrics": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "clientHeight": 844,
+        "scrollHeight": 969
+      },
+      "modalCount": 1
+    }
+  ],
+  "modalCloseCase": {
+    "cases": [
+      {
+        "action": "X",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+      },
+      {
+        "action": "return",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+      },
+      {
+        "action": "escape",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+      },
+      {
+        "action": "coordinate",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+      },
+      {
+        "action": "double-click",
+        "modal": 0,
+        "drawer": 1,
+        "url": "http://127.0.0.1:57987/parts?view=work&detail=candidate%3Adraft-workspace-f3a9d0a6-d941-4266-85d1-9218f0ef62cc"
+      }
+    ],
+    "beforeHash": "fc695369e272c3dc6c4ba6bc57e56b2b4a57ddee6968948b3323e3c1c8a5d98f",
+    "afterHash": "fc695369e272c3dc6c4ba6bc57e56b2b4a57ddee6968948b3323e3c1c8a5d98f"
+  }
+}

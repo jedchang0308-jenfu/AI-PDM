@@ -1,0 +1,30 @@
+{
+  "suite": "DEV-062 Workbench Core",
+  "passed": true,
+  "checks": [
+    {
+      "id": "CORE-01 shared core stays mechanics-only",
+      "passed": true
+    },
+    {
+      "id": "CORE-02 cursor is signed, deterministic and scope-bound",
+      "passed": true
+    },
+    {
+      "id": "CORE-03 PostgreSQL snapshot is repeatable-read and read-only",
+      "passed": true
+    },
+    {
+      "id": "CORE-04 SQLite uses one transaction and hydration failure is atomic",
+      "passed": true
+    },
+    {
+      "id": "CORE-05 Part and Relation reuse controller, cursor and snapshot",
+      "passed": true
+    },
+    {
+      "id": "CORE-06 routes and owner content keep bounded responsibilities",
+      "passed": true
+    }
+  ]
+}

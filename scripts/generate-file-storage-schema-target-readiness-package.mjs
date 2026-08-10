@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import "./retired-supabase-tooling-block.mjs";
+
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

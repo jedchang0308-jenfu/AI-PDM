@@ -22,7 +22,11 @@ const partP01 = `${rootCode}-P01`;
 const partP02 = `${rootCode}-P02`;
 const partP03 = `${rootCode}-P03`;
 const partP04 = `${rootCode}-P04`;
-const outputDir = path.join(root, "output", "playwright", "pdm-drawing-part-relation-view");
+const outputRoot = path.resolve(root, "output", "playwright", "pdm-drawing-part-relation-view");
+const outputDir = path.resolve(process.env.PDM_QC_OUTPUT_DIR ?? outputRoot);
+if (!(outputDir === outputRoot || outputDir.startsWith(`${outputRoot}${path.sep}`))) {
+  throw new Error(`Relation view QC output must stay inside ${outputRoot}`);
+}
 const results = [];
 
 function record(name, passed, detail = "") {
@@ -221,6 +225,12 @@ async function verifyRelationApi(sessionCookie) {
   record("Relation API read has no write side effect", Number(beforeCount) === Number(afterCount), JSON.stringify({ beforeCount, afterCount }));
 }
 
+async function closeRelationDetailDrawer(page) {
+  const drawer = page.getByRole("complementary", { name: "圖料明細" });
+  await page.getByRole("button", { name: "關閉圖料明細", exact: true }).click();
+  await drawer.waitFor({ state: "detached", timeout: 10_000 });
+}
+
 async function verifyViewport(browser, viewport, screenshotName) {
   const context = await browser.newContext({ viewport, isMobile: viewport.width < 600 });
   const consoleErrors = [];
@@ -298,12 +308,12 @@ async function verifyViewport(browser, viewport, screenshotName) {
     await page.getByRole("heading", { name: drawingM01, exact: true }).waitFor({ timeout: 10_000 });
     record("Drawing click opens drawing detail drawer", (await page.locator("[role='complementary'][data-detail-target='drawing_number'][data-detail-code='" + drawingM01 + "']").count()) === 1);
 
-    await page.getByLabel("關閉圖料明細").click();
+    await closeRelationDetailDrawer(page);
     await page.locator(".pdm-relation-node", { hasText: drawingM01 }).locator(".pdm-relation-part-chip", { hasText: partP03 }).click();
     await page.getByRole("heading", { name: partP03, exact: true }).waitFor({ timeout: 10_000 });
     record("Part click opens part detail drawer", (await page.locator("[role='complementary'][data-detail-target='part_number'][data-detail-code='" + partP03 + "']").count()) === 1);
 
-    await page.getByLabel("關閉圖料明細").click();
+    await closeRelationDetailDrawer(page);
     await page.getByRole("button", { name: rootCode, exact: true }).click();
     await page.getByRole("heading", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });
     await page.getByText("關係維護").waitFor({ timeout: 10_000 });

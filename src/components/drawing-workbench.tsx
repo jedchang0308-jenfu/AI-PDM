@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, Link2, RefreshCcw, Search, X } from "lucide-react";
@@ -194,11 +195,11 @@ function drawingWorkbenchCopyText(row: DrawingWorkbenchRow) {
   return row.displayCode;
 }
 
-function redirectDrawingWorkbenchLogin() {
-  window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-}
-
 export function DrawingWorkbench() {
+  const router = useRouter();
+  const redirectDrawingWorkbenchLogin = useCallback(() => {
+    router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  }, [router]);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [editing, setEditing] = useState(false);

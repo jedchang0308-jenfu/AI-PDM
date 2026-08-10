@@ -689,14 +689,25 @@ export class DrawingWorkbenchService {
   }
 }
 
+export const DRAWING_WORKBENCH_NO_STORE_HEADERS = { "cache-control": "private, no-store" } as const;
+
 export function drawingWorkbenchErrorResponse(error: unknown) {
   if (error instanceof PdmWorkbenchCursorError) {
-    return Response.json({ error: error.code, message: error.message }, { status: error.status });
+    return Response.json(
+      { error: error.code, message: error.message },
+      { status: error.status, headers: DRAWING_WORKBENCH_NO_STORE_HEADERS }
+    );
   }
   if (error instanceof DrawingWorkbenchError) {
-    return Response.json({ error: error.code, message: error.message }, { status: error.status });
+    return Response.json(
+      { error: error.code, message: error.message },
+      { status: error.status, headers: DRAWING_WORKBENCH_NO_STORE_HEADERS }
+    );
   }
   const code = error instanceof Error ? error.message.split(":", 1)[0] : String(error);
   console.error("Drawing workbench read failed", error);
-  return Response.json({ error: "drawing_workbench_read_failed", message: "圖號工作台目前無法載入，請重新整理。" }, { status: 500 });
+  return Response.json(
+    { error: "drawing_workbench_read_failed", message: "圖號工作台目前無法載入，請重新整理。" },
+    { status: 500, headers: DRAWING_WORKBENCH_NO_STORE_HEADERS }
+  );
 }

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -10,13 +9,9 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const results = [];
 const record = (id, passed, detail = "") => results.push({ id, passed: Boolean(passed), detail });
 const has = (source, fragments) => fragments.every((fragment) => source.includes(fragment));
-const hash = (source) => crypto.createHash("sha256").update(source).digest("hex");
 
 const sqlite = read("db/schema.sql");
 const postgres = read("db/postgres/026_drawing_revision_lifecycle_authority.sql");
-const mirror = read("supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql");
-const manifest = JSON.parse(read("supabase/migrations/manifest.json"));
-const sync = read("scripts/sync-supabase-runtime-migrations.mjs");
 const feature = read("src/lib/number-state-flow-feature.ts");
 const envExample = read(".env.example");
 const dbSource = read("src/lib/db.ts");
@@ -65,15 +60,8 @@ record("DEV053-1H-SCHEMA-011 existing SQLite package receives columns before ful
   dbSource.indexOf("ensureDrawingRevisionLifecycleAuthorityPreSchema(database)") < dbSource.indexOf("database.exec(schema)") &&
   has(dbSource, ["function ensureDrawingRevisionLifecycleAuthorityPreSchema", '"lifecycle_state"', '"active_correction_reason"']));
 
-const sourceHash = hash(postgres);
-const targetHash = hash(mirror);
-const manifestEntry = manifest.migrations.find((entry) => entry.source === "db/postgres/026_drawing_revision_lifecycle_authority.sql");
-record("DEV053-1H-SCHEMA-012 Supabase mirror and manifest match source",
-  mirror.includes(`-- Source SHA-256: ${sourceHash}`) && mirror.trim().endsWith(postgres.trim()) &&
-  manifestEntry?.target === "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql" &&
-  manifestEntry?.sourceSha256 === sourceHash && manifestEntry?.targetSha256 === targetHash &&
-  sync.includes('source: "db/postgres/026_drawing_revision_lifecycle_authority.sql"'),
-  JSON.stringify({ sourceHash, targetHash }));
+record("DEV053-1H-SCHEMA-012 Cloud SQL migration is the only active PostgreSQL source",
+  tables.every((table) => postgres.includes(`public.${table}`)) && !postgres.includes("supabase.co"));
 
 let database;
 try {

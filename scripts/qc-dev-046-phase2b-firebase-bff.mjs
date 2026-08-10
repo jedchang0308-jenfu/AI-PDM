@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { FirebaseAdminIdentityProvider } from "../src/lib/firebase-admin-identity-provider.ts";
 import { createFirebaseManagedInvitation } from "../src/lib/firebase-managed-invitations.ts";
 import { FirebasePlatformPrincipalRepository } from "../src/lib/firebase-platform-principal-repository.ts";
 import { exchangeFirebaseIdTokenForPlatformSession } from "../src/lib/platform-identity-contract.ts";
 import { getPlatformSessionKeyRing } from "../src/lib/platform-session-key-ring.ts";
 import { verifyPlatformSessionV2 } from "../src/lib/platform-session-v2.ts";
-import { buildPhase2BPreflight } from "./dev-046-phase2b-preflight.mjs";
 
 const results = [];
 const record = (name, passed, detail = "") => results.push({ name, passed: Boolean(passed), detail });
@@ -133,11 +134,28 @@ assert.throws(
 record("DEV046-2B-009 duplicate rotation key IDs are rejected", true);
 
 if (process.env.PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT !== "true") {
-  const preflight = buildPhase2BPreflight();
-  record("DEV046-2B-010 local Phase 2B contract passes", preflight.applicationContractPassed && preflight.summary.checksPassed === preflight.summary.checksTotal);
-  record("DEV046-2B-011 preflight remains externally blocked", preflight.result === "blocked_external" && preflight.safeToRunCredentialledPlan === false && preflight.safeToCreateResources === false);
-  record("DEV046-2B-012 resolved application blockers do not reappear", !preflight.blockers.includes("LIVE_FIREBASE_IDENTITY_ADAPTER_NOT_IMPLEMENTED") && !preflight.blockers.includes("PDM_AUTH_MODE_DOES_NOT_YET_ACCEPT_FIREBASE_BFF") && !preflight.blockers.includes("EMPLOYEE_LOGIN_ALIAS_MAPPING_NOT_IMPLEMENTED") && !preflight.blockers.includes("PRIVACY_NOTICE_UI_AND_ACKNOWLEDGEMENT_NOT_IMPLEMENTED"));
-  record("DEV046-2B-013 invitation, Firebase Web config and Google provider evidence are present while principal evidence remains blocked", !preflight.blockers.includes("FIREBASE_INVITATION_PROVIDER_NOT_IMPLEMENTED") && !preflight.blockers.includes("FIREBASE_WEB_APP_CONFIG_MISSING") && !preflight.blockers.includes("FIREBASE_GOOGLE_PROVIDER_CONFIG_MISSING") && preflight.blockers.includes("STAGING_PRINCIPAL_MAPPING_EVIDENCE_MISSING"));
+  const root = process.cwd();
+  const stagingManifestPath = path.join(root, "config/platform/staging-preflight.template.json");
+  const productionTarget = JSON.parse(fs.readFileSync(path.join(root, "config/platform/production-target.template.json"), "utf8"));
+  record("DEV046-2B-010 retired staging preflight contract is absent", !fs.existsSync(stagingManifestPath));
+  record(
+    "DEV046-2B-011 current production target remains fail-closed",
+    productionTarget.templateOnly === true && productionTarget.releaseReady === false && productionTarget.productionActionAllowed === false
+  );
+  record(
+    "DEV046-2B-012 Firebase Hosting delegates application authority to the reviewed Cloud Run service",
+    productionTarget.target?.projectId === "jenfu-ai-pdm-prod" &&
+      productionTarget.target?.runtimeService === "ai-pdm-prod" &&
+      productionTarget.edge?.type === "firebase-hosting-cloud-run-rewrite" &&
+      productionTarget.edge?.firebaseHostingOwnsBusinessLogic === false
+  );
+  record(
+    "DEV046-2B-013 production data authority is Cloud SQL and excludes Firebase data products",
+    productionTarget.database?.provider === "Cloud SQL for PostgreSQL" &&
+      productionTarget.identity?.firestoreAuthorityAllowed === false &&
+      productionTarget.identity?.firebaseStorageAuthorityAllowed === false &&
+      productionTarget.identity?.firebaseFunctionsAuthorityAllowed === false
+  );
 }
 
 function fakeInvitationClient(operations) {

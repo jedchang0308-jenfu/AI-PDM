@@ -82,9 +82,9 @@ try {
       fileIncludes("db/postgres/004_numbering_v2_compact_identity.sql", ["status = 'retired'", "status = 'active'"])
   );
   record(
-    "Supabase mirror documents compact v2 cutover migration",
-    fileIncludes("supabase/README.md", ["20260707000000_numbering_v2_compact_identity.sql", "db/postgres/004_numbering_v2_compact_identity.sql"]) &&
-      fileIncludes("supabase/migrations/20260707000000_numbering_v2_compact_identity.sql", ["status = 'retired'", "status = 'active'"])
+    "Cloud SQL source documents compact v2 cutover migration",
+    fileIncludes("db/postgres/README.md", ["Cloud SQL PostgreSQL", "db/postgres/*.sql"]) &&
+      fileIncludes("db/postgres/004_numbering_v2_compact_identity.sql", ["status = 'retired'", "status = 'active'"])
   );
   record(
     "Change-control replacement release no longer creates v1 REL roots",

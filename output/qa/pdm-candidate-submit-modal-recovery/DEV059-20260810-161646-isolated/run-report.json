@@ -1,0 +1,312 @@
+{
+  "runId": "DEV059-20260810-161646-isolated",
+  "startedAt": "2026-08-10T16:16:46.245Z",
+  "finishedAt": "2026-08-10T16:17:55.166Z",
+  "result": "failed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 2,
+  "failed": 1,
+  "results": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary 2D plus 3D evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "8b67a1eb-d3a6-424b-b012-029340574f18",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "9b451fb0-e743-479e-8a7a-461887a372cb",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "c1e810b2-ebbc-423c-8bcf-928c42d42054",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b",
+          "revision": "0.1",
+          "row_version": 3,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-2686c50d-c147-4b19-9eff-4608d79bca33",
+            "display_name": "qa-dev059-primary.slddrw",
+            "role": "drawing_2d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-d383a832-0f63-47d5-9216-97d63c4688c3",
+            "content_hash": "c5ebc3c03dafaa9acbdaf7c0ea71d2c59f0123a875b0e5585ecdb5e805be845c",
+            "file_size": 31
+          },
+          {
+            "id": "NCRF-4678649c-af7b-4d75-abe1-84656c0fce05",
+            "display_name": "qa-dev059-primary.sldprt",
+            "role": "cad_3d",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-c85fefad-f482-4a32-bcb7-acf7f809d42f",
+            "content_hash": "8b8d3765cbf9cffcea92137b709b4eb672b4dcc6c49b2117e3bb7139b69b113e",
+            "file_size": 29
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    },
+    {
+      "id": "DEV059-REAL-ROUTE close actions are independent, local and zero-write",
+      "passed": true,
+      "detail": {
+        "cases": [
+          {
+            "action": "X",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+          },
+          {
+            "action": "return",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+          },
+          {
+            "action": "escape",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+          },
+          {
+            "action": "coordinate",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+          },
+          {
+            "action": "double-click",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d"
+          }
+        ],
+        "beforeHash": "a431cacaf11680b7ac96429b9c31db19a88763b88792f1e7a2b95bfa3e14a3ea",
+        "afterHash": "a431cacaf11680b7ac96429b9c31db19a88763b88792f1e7a2b95bfa3e14a3ea"
+      }
+    },
+    {
+      "id": "DEV059-REAL-RUNNER",
+      "passed": false,
+      "detail": {
+        "message": "page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"networkidle\"\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d\"\u001b[22m\n",
+        "stack": "page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"networkidle\"\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d\"\u001b[22m\n\n    at assertViewports (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:247:16)\n    at async run (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:433:3)\n    at async file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs:482:3",
+        "serverTail": "358ms, proxy.ts: 25ms, application-code: 93ms)\n GET /api/production-slice/status 200 in 73ms (next.js: 21ms, proxy.ts: 19ms, application-code: 32ms)\n GET /api/numbering/permissions 200 in 192ms (next.js: 78ms, proxy.ts: 14ms, application-code: 101ms)\n GET /api/numbering/drawings/workbench?view=all&limit=50&history=exclude 200 in 766ms (next.js: 725ms, proxy.ts: 17ms, application-code: 24ms)\n GET /api/numbering/draft-workspaces/preview?purposeCode=M 200 in 483ms (next.js: 468ms, proxy.ts: 4ms, application-code: 11ms)\n POST /api/numbering/duplicate-check 200 in 311ms (next.js: 286ms, proxy.ts: 4ms, application-code: 21ms)\n POST /api/numbering/draft-workspaces 201 in 514ms (next.js: 450ms, proxy.ts: 3ms, application-code: 60ms)\n GET /numbering/drawings?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d 200 in 95ms (next.js: 11ms, proxy.ts: 4ms, application-code: 80ms)\n GET /api/numbering/permissions 200 in 167ms (next.js: 29ms, proxy.ts: 10ms, application-code: 128ms)\n GET /api/auth/me 200 in 212ms (next.js: 156ms, proxy.ts: 18ms, application-code: 38ms)\n GET /api/numbering/state-flow/status 200 in 248ms (next.js: 199ms, proxy.ts: 12ms, application-code: 37ms)\n GET /api/production-slice/status 200 in 299ms (next.js: 262ms, proxy.ts: 10ms, application-code: 27ms)\n GET /api/privacy/acknowledgements/current 200 in 310ms (next.js: 281ms, proxy.ts: 12ms, application-code: 17ms)\n GET /api/auth/me 200 in 71ms (next.js: 27ms, proxy.ts: 19ms, application-code: 25ms)\n GET /api/numbering/state-flow/status 200 in 86ms (next.js: 54ms, proxy.ts: 19ms, application-code: 12ms)\n GET /api/privacy/acknowledgements/current 200 in 101ms (next.js: 70ms, proxy.ts: 19ms, application-code: 11ms)\n GET /api/numbering/permissions 200 in 182ms (next.js: 84ms, proxy.ts: 20ms, application-code: 79ms)\n GET /api/production-slice/status 200 in 203ms (next.js: 167ms, proxy.ts: 17ms, application-code: 19ms)\n GET /api/auth/me 200 in 102ms (next.js: 45ms, proxy.ts: 25ms, application-code: 32ms)\n GET /api/numbering/state-flow/status 200 in 116ms (next.js: 70ms, proxy.ts: 35ms, application-code: 11ms)\n GET /api/auth/me 200 in 167ms (next.js: 84ms, proxy.ts: 29ms, application-code: 54ms)\n GET /api/numbering/state-flow/status 200 in 203ms (next.js: 138ms, proxy.ts: 33ms, application-code: 32ms)\n GET /api/numbering/permissions 200 in 295ms (next.js: 173ms, proxy.ts: 32ms, application-code: 89ms)\n GET /api/production-slice/status 200 in 263ms (next.js: 184ms, proxy.ts: 67ms, application-code: 12ms)\n GET /api/numbering/state-flow/status 200 in 281ms (next.js: 200ms, proxy.ts: 68ms, application-code: 13ms)\n GET /api/numbering/permissions 200 in 363ms (next.js: 217ms, proxy.ts: 69ms, application-code: 77ms)\n GET /api/production-slice/status 200 in 326ms (next.js: 272ms, proxy.ts: 40ms, application-code: 14ms)\n GET /api/numbering/state-flow/status 200 in 356ms (next.js: 183ms, proxy.ts: 151ms, application-code: 22ms)\n GET /parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d 200 in 1409ms (next.js: 958ms, proxy.ts: 6ms, application-code: 446ms)\n GET /api/production-slice/status 200 in 46ms (next.js: 29ms, proxy.ts: 9ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 91ms (next.js: 38ms, proxy.ts: 10ms, application-code: 43ms)\n GET /api/auth/me 200 in 110ms (next.js: 80ms, proxy.ts: 15ms, application-code: 16ms)\n GET /api/numbering/state-flow/status 200 in 114ms (next.js: 97ms, proxy.ts: 9ms, application-code: 8ms)\n GET /api/privacy/acknowledgements/current 200 in 128ms (next.js: 109ms, proxy.ts: 11ms, application-code: 9ms)\n GET /api/auth/me 200 in 142ms (next.js: 119ms, proxy.ts: 8ms, application-code: 15ms)\n GET /api/numbering/state-flow/status 200 in 69ms (next.js: 15ms, proxy.ts: 44ms, application-code: 10ms)\n GET /api/privacy/acknowledgements/current 200 in 81ms (next.js: 27ms, proxy.ts: 44ms, application-code: 10ms)\n GET /api/production-slice/status 200 in 61ms (next.js: 39ms, proxy.ts: 11ms, application-code: 10ms)\n GET /api/numbering/permissions 200 in 132ms (next.js: 52ms, proxy.ts: 12ms, application-code: 69ms)\n GET /api/production-slice/status 200 in 58ms (next.js: 29ms, proxy.ts: 17ms, application-code: 12ms)\n GET /api/auth/me 200 in 83ms (next.js: 45ms, proxy.ts: 17ms, application-code: 21ms)\n GET /api/numbering/state-flow/status 200 in 101ms (next.js: 71ms, proxy.ts: 18ms, application-code: 12ms)\n GET /api/auth/me 200 in 151ms (next.js: 89ms, proxy.ts: 22ms, application-code: 41ms)\n GET /api/numbering/state-flow/status 200 in 175ms (next.js: 137ms, proxy.ts: 22ms, application-code: 17ms)\n GET /api/numbering/permissions 200 in 311ms (next.js: 161ms, proxy.ts: 22ms, application-code: 128ms)\n GET /api/production-slice/status 200 in 58ms (next.js: 37ms, proxy.ts: 8ms, application-code: 13ms)\n GET /api/numbering/state-flow/status 200 in 83ms (next.js: 55ms, proxy.ts: 16ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 157ms (next.js: 76ms, proxy.ts: 15ms, application-code: 65ms)\n GET /api/numbering/state-flow/status 200 in 169ms (next.js: 145ms, proxy.ts: 15ms, application-code: 10ms)\n GET /api/production-slice/status 200 in 180ms (next.js: 156ms, proxy.ts: 15ms, application-code: 8ms)\n GET /api/numbering/state-flow/status 200 in 190ms (next.js: 165ms, proxy.ts: 17ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 228ms (next.js: 35ms, proxy.ts: 142ms, application-code: 51ms)\n GET /api/numbering/state-flow/status 200 in 113ms (next.js: 86ms, proxy.ts: 14ms, application-code: 12ms)\n GET /api/production-slice/status 200 in 126ms (next.js: 99ms, proxy.ts: 14ms, application-code: 13ms)\n GET /api/numbering/permissions 200 in 198ms (next.js: 114ms, proxy.ts: 15ms, application-code: 68ms)\n GET /api/parts/workbench?view=work&limit=50&history=exclude 200 in 624ms (next.js: 584ms, proxy.ts: 14ms, application-code: 26ms)\n GET /api/parts/workbench/candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d 200 in 1841ms (next.js: 1807ms, proxy.ts: 15ms, application-code: 19ms)\n POST /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions 201 in 1532ms (next.js: 1485ms, proxy.ts: 6ms, application-code: 41ms)\n POST /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files 201 in 1660ms (next.js: 1598ms, proxy.ts: 7ms, application-code: 55ms)\n POST /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files 201 in 69ms (next.js: 22ms, proxy.ts: 5ms, application-code: 43ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-4678649c-af7b-4d75-abe1-84656c0fce05?preview=1 409 in 2.2s (next.js: 2.2s, proxy.ts: 7ms, application-code: 29ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-2686c50d-c147-4b19-9eff-4608d79bca33?preview=1 409 in 2.2s (next.js: 2.2s, proxy.ts: 7ms, application-code: 29ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-4678649c-af7b-4d75-abe1-84656c0fce05?preview=1 409 in 41ms (next.js: 23ms, proxy.ts: 6ms, application-code: 12ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-2686c50d-c147-4b19-9eff-4608d79bca33?preview=1 409 in 55ms (next.js: 37ms, proxy.ts: 5ms, application-code: 13ms)\n GET /parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d 200 in 103ms (next.js: 9ms, proxy.ts: 4ms, application-code: 90ms)\n GET /api/production-slice/status 200 in 42ms (next.js: 26ms, proxy.ts: 8ms, application-code: 9ms)\n GET /api/numbering/permissions 200 in 124ms (next.js: 36ms, proxy.ts: 9ms, application-code: 80ms)\n GET /api/auth/me 200 in 144ms (next.js: 115ms, proxy.ts: 13ms, application-code: 17ms)\n GET /api/numbering/state-flow/status 200 in 151ms (next.js: 133ms, proxy.ts: 9ms, application-code: 9ms)\n GET /api/privacy/acknowledgements/current 200 in 162ms (next.js: 145ms, proxy.ts: 9ms, application-code: 8ms)\n GET /api/auth/me 200 in 183ms (next.js: 162ms, proxy.ts: 5ms, application-code: 17ms)\n GET /api/numbering/state-flow/status 200 in 59ms (next.js: 16ms, proxy.ts: 34ms, application-code: 10ms)\n GET /api/privacy/acknowledgements/current 200 in 71ms (next.js: 28ms, proxy.ts: 33ms, application-code: 10ms)\n GET /api/production-slice/status 200 in 82ms (next.js: 40ms, proxy.ts: 33ms, application-code: 9ms)\n GET /api/numbering/permissions 200 in 168ms (next.js: 56ms, proxy.ts: 33ms, application-code: 79ms)\n GET /api/production-slice/status 200 in 43ms (next.js: 19ms, proxy.ts: 15ms, application-code: 9ms)\n GET /api/auth/me 200 in 64ms (next.js: 31ms, proxy.ts: 14ms, application-code: 19ms)\n GET /api/numbering/state-flow/status 200 in 79ms (next.js: 55ms, proxy.ts: 13ms, application-code: 11ms)\n GET /api/auth/me 200 in 100ms (next.js: 70ms, proxy.ts: 12ms, application-code: 17ms)\n GET /api/numbering/state-flow/status 200 in 116ms (next.js: 93ms, proxy.ts: 12ms, application-code: 11ms)\n GET /api/numbering/permissions 200 in 197ms (next.js: 108ms, proxy.ts: 12ms, application-code: 77ms)\n GET /api/production-slice/status 200 in 50ms (next.js: 33ms, proxy.ts: 6ms, application-code: 11ms)\n GET /api/numbering/state-flow/status 200 in 70ms (next.js: 44ms, proxy.ts: 14ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 147ms (next.js: 59ms, proxy.ts: 14ms, application-code: 74ms)\n GET /api/numbering/state-flow/status 200 in 167ms (next.js: 140ms, proxy.ts: 13ms, application-code: 13ms)\n GET /api/production-slice/status 200 in 183ms (next.js: 161ms, proxy.ts: 12ms, application-code: 10ms)\n GET /api/numbering/state-flow/status 200 in 219ms (next.js: 182ms, proxy.ts: 11ms, application-code: 26ms)\n GET /api/numbering/permissions 200 in 339ms (next.js: 55ms, proxy.ts: 185ms, application-code: 99ms)\n GET /api/numbering/state-flow/status 200 in 189ms (next.js: 140ms, proxy.ts: 27ms, application-code: 22ms)\n GET /api/production-slice/status 200 in 215ms (next.js: 167ms, proxy.ts: 26ms, application-code: 21ms)\n GET /api/parts/workbench?view=work&limit=50&history=exclude 200 in 260ms (next.js: 201ms, proxy.ts: 25ms, application-code: 34ms)\n GET /api/numbering/permissions 200 in 371ms (next.js: 279ms, proxy.ts: 19ms, application-code: 73ms)\n GET /api/parts/workbench/candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d 200 in 428ms (next.js: 376ms, proxy.ts: 20ms, application-code: 31ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-4678649c-af7b-4d75-abe1-84656c0fce05?preview=1 409 in 122ms (next.js: 90ms, proxy.ts: 13ms, application-code: 19ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-2686c50d-c147-4b19-9eff-4608d79bca33?preview=1 409 in 139ms (next.js: 110ms, proxy.ts: 15ms, application-code: 15ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-4678649c-af7b-4d75-abe1-84656c0fce05?preview=1 409 in 51ms (next.js: 24ms, proxy.ts: 8ms, application-code: 19ms)\n GET /api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files/NCRF-2686c50d-c147-4b19-9eff-4608d79bca33?preview=1 409 in 72ms (next.js: 46ms, proxy.ts: 8ms, application-code: 18ms)\n"
+      }
+    }
+  ],
+  "screenshots": [
+    "screenshots/DEV059-modal-close-recovery-1440x900.png"
+  ],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:5e7b920e-2778-4118-99ec-84537f587a80"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-e8ede0b9-efb4-450c-afa5-59e167000eec:6b217861-017b-42ec-a04b-2607de8a0fbe"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b:qa-dev059-primary.slddrw:31:1786378606248:ea16c7dc-216f-45f3-a3ae-3f5e842a843b"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b:qa-dev059-primary.sldprt:29:1786378606249:1411aa36-3210-4bd1-a92c-9919af3d8669"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d/candidate-revisions/NCR-f5136841-3b30-415e-ae0b-b12a1135cb5b/files",
+      "status": 201,
+      "fault": null
+    }
+  ],
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    }
+  ],
+  "unexpectedBrowserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:56128/parts?view=work&detail=candidate%3Adraft-workspace-a4fc33ed-9870-4f88-b98d-4e720dcc2f2d",
+      "fault": null
+    }
+  ],
+  "plannedFaults": [],
+  "visibleErrors": []
+}

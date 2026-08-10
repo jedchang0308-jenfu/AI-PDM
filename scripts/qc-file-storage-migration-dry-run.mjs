@@ -145,8 +145,8 @@ async function main() {
     env: {
       PDM_DATA_DIR: dataDir,
       PDM_REPOSITORY_DIR: repositoryDir,
-      PDM_STORAGE_DRY_RUN_TARGET_PROVIDER: "supabase_storage",
-      PDM_STORAGE_DRY_RUN_TARGET_BUCKET: "pdm-hot",
+      PDM_STORAGE_DRY_RUN_TARGET_PROVIDER: "google_cloud_storage",
+      PDM_STORAGE_DRY_RUN_TARGET_BUCKET: "pdm-primary",
       PDM_STORAGE_DRY_RUN_TARGET_PREFIX: "qc"
     }
   });
@@ -162,7 +162,7 @@ async function main() {
   record("STORAGE-MIGRATION-DRY-RUN-009 non-local provider objects are skipped", report.summary.skippedCount === 1, String(report.summary.skippedCount));
   record(
     "STORAGE-MIGRATION-DRY-RUN-010 target keys are provider scoped",
-    report.planned.every((item) => item.targetProvider === "supabase_storage" && item.targetBucket === "pdm-hot" && item.targetKey.startsWith("qc/"))
+    report.planned.every((item) => item.targetProvider === "google_cloud_storage" && item.targetBucket === "pdm-primary" && item.targetKey.startsWith("qc/"))
   );
   record(
     "STORAGE-MIGRATION-DRY-RUN-011 pointer previews are included",

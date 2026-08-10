@@ -87,8 +87,7 @@ try {
   record(
     "Database schemas and runtime migration accept M/R while preserving MA/OT",
     fileIncludes("db/schema.sql", ["'numbering-rule-v2'", "CHECK (purpose_code IN ('MA', 'OT', 'M', 'R'))"]) &&
-      fileIncludes("db/postgres/004_numbering_v2_compact_identity.sql", ["numbering-rule-v2", "CHECK (purpose_code IN ('MA', 'OT', 'M', 'R'))"]) &&
-      fileIncludes("supabase/migrations/20260707000000_numbering_v2_compact_identity.sql", ["numbering-rule-v2", "CHECK (purpose_code IN ('MA', 'OT', 'M', 'R'))"])
+      fileIncludes("db/postgres/004_numbering_v2_compact_identity.sql", ["numbering-rule-v2", "CHECK (purpose_code IN ('MA', 'OT', 'M', 'R'))"])
   );
   record(
     "Package exposes compact identity and migration dry-run QC scripts",

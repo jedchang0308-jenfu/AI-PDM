@@ -26,14 +26,11 @@ const sqliteSchema = readProjectFile(root, "db/schema.sql");
 const postgresInitial = readProjectFile(root, "db/postgres/001_initial_schema.sql");
 const postgresPhase1a = readProjectFile(root, "db/postgres/012_number_state_flow_phase1a.sql");
 const postgresEquivalence = readProjectFile(root, "db/postgres/019_number_state_flow_request_equivalence.sql");
-const supabaseEquivalence = readProjectFile(root, "supabase/migrations/20260714020000_number_state_flow_request_equivalence.sql");
-const syncScript = readProjectFile(root, "scripts/sync-supabase-runtime-migrations.mjs");
-const supabaseQc = readProjectFile(root, "scripts/qc-supabase-runtime-migrations.mjs");
 const packageJson = readProjectJson(root, "package.json");
 
 record(
   "NSF-REQ-EQ-001 schema stores request-equivalence reasons",
-  [sqliteSchema, postgresInitial, postgresPhase1a, postgresEquivalence, supabaseEquivalence].every((source) =>
+  [sqliteSchema, postgresInitial, postgresPhase1a, postgresEquivalence].every((source) =>
     includesAll(source, ["numbering_draft_workspaces", "append_reason", "numbering_draft_parts", "universal_reason"])
   ),
   "append_reason and universal_reason must exist in fresh schemas and additive migration 019"
@@ -107,12 +104,11 @@ record(
 );
 
 record(
-  "NSF-REQ-EQ-006 Supabase mirror includes additive migration 019 and QC coverage",
-  syncScript.includes("019_number_state_flow_request_equivalence.sql") &&
-    syncScript.includes("20260714020000_number_state_flow_request_equivalence.sql") &&
-    supabaseQc.includes("request-equivalence migration embeds source hash") &&
+  "NSF-REQ-EQ-006 Cloud SQL migration 019 has active QC coverage",
+  postgresEquivalence.includes("numbering_draft_workspaces") &&
+    !postgresEquivalence.includes("supabase.co") &&
     packageJson.scripts?.["qc:pdm-number-state-flow-request-equivalence"] === "node scripts/qc-pdm-number-state-flow-request-equivalence.mjs",
-  "migration 019 must be synchronized, QC-checked, and exposed as an npm script"
+  "migration 019 must remain Cloud SQL compatible and exposed as an npm QC script"
 );
 
 record(

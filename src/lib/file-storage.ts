@@ -28,15 +28,6 @@ export type StorageObjectMetadata = {
   bytes: number;
 };
 
-export type SupabaseStorageConfig = {
-  url: string;
-  serviceRoleKey: string;
-  bucket: string;
-  liveEnabled: boolean;
-  signedUrlTtlSeconds: number;
-  signedUrlMaxTtlSeconds: number;
-};
-
 export type S3CompatibleStorageConfig = {
   endpoint: string;
   region: string;
@@ -197,120 +188,38 @@ export class LocalRepositoryStorageAdapter implements FileStorageService {
   }
 }
 
-export class SupabaseStorageAdapter implements FileStorageService {
+export class RetiredSupabaseStorageAdapter implements FileStorageService {
   readonly provider = "supabase_storage" as const;
 
-  constructor(private readonly config: SupabaseStorageConfig) {}
+  constructor(private readonly bucket: string | null = null) {}
 
-  async putObject(input: PutObjectInput): Promise<StoredObject> {
-    this.assertLiveEnabled("putObject");
-    const key = normalizeStorageKey(input.key);
-    const response = await this.request(`object/${this.config.bucket}/${encodeStorageKey(key)}`, {
-      method: "POST",
-      headers: {
-        "cache-control": input.cacheControl ?? "3600",
-        "content-type": input.contentType ?? "application/octet-stream",
-        "x-upsert": "false"
-      },
-      body: new Uint8Array(input.bytes)
-    });
-    if (!response.ok) await throwSupabaseStorageError("putObject", response);
-    return {
-      provider: this.provider,
-      key,
-      bucket: this.config.bucket,
-      localPath: this.toPointer(key),
-      bytes: input.bytes.byteLength,
-      sha256: sha256(input.bytes)
-    };
+  async putObject(): Promise<StoredObject> {
+    return this.unavailable("putObject");
   }
 
-  async getObjectMetadata(key: string): Promise<StorageObjectMetadata | null> {
-    this.assertLiveEnabled("getObjectMetadata");
-    const normalizedKey = normalizeStorageKey(key);
-    const response = await this.request(`object/authenticated/${this.config.bucket}/${encodeStorageKey(normalizedKey)}`, {
-      method: "HEAD"
-    });
-    if (response.status === 404) return null;
-    if (!response.ok) await throwSupabaseStorageError("getObjectMetadata", response);
-    return {
-      provider: this.provider,
-      key: normalizedKey,
-      bucket: this.config.bucket,
-      localPath: this.toPointer(normalizedKey),
-      bytes: Number(response.headers.get("content-length") ?? 0)
-    };
+  async getObjectMetadata(): Promise<StorageObjectMetadata | null> {
+    return this.unavailable("getObjectMetadata");
   }
 
-  async readObject(key: string): Promise<Buffer> {
-    this.assertLiveEnabled("readObject");
-    const normalizedKey = normalizeStorageKey(key);
-    const response = await this.request(`object/authenticated/${this.config.bucket}/${encodeStorageKey(normalizedKey)}`, {
-      method: "GET"
-    });
-    if (!response.ok) await throwSupabaseStorageError("readObject", response);
-    return Buffer.from(await response.arrayBuffer());
+  async readObject(): Promise<Buffer> {
+    return this.unavailable("readObject");
   }
 
-  async createDownloadUrl(input: CreateDownloadUrlInput): Promise<DownloadUrl> {
-    this.assertLiveEnabled("createDownloadUrl");
-    const key = normalizeStorageKey(input.key);
-    const expiresInSeconds = resolveDownloadUrlTtlSeconds(input.expiresInSeconds, this.config);
-    const response = await this.request(`object/sign/${this.config.bucket}/${encodeStorageKey(key)}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        expiresIn: expiresInSeconds,
-        ...(input.forceDownload ? { download: input.filename ?? true } : {})
-      })
-    });
-    if (!response.ok) await throwSupabaseStorageError("createDownloadUrl", response);
-    const payload = (await response.json()) as { signedURL?: string; signedUrl?: string };
-    const signedUrl = payload.signedUrl ?? payload.signedURL;
-    if (!signedUrl) throw new Error("Supabase Storage createDownloadUrl response did not include a signed URL");
-    return {
-      provider: this.provider,
-      key,
-      bucket: this.config.bucket,
-      mode: "signed_url",
-      url: absoluteSupabaseStorageUrl(this.config.url, signedUrl),
-      expiresInSeconds,
-      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
-      auditRequired: true,
-      authorizationHeaderRequired: false
-    };
+  async createDownloadUrl(): Promise<DownloadUrl> {
+    return this.unavailable("createDownloadUrl");
   }
 
   async deleteObject(): Promise<void> {
-    throw new Error("Supabase Storage delete is disabled until lifecycle and rollback gates are implemented");
+    return this.unavailable("deleteObject");
   }
 
-  async verifyObjectHash(key: string, expectedSha256: string): Promise<boolean> {
-    const bytes = await this.readObject(key);
-    return sha256(bytes) === expectedSha256.toLowerCase();
+  async verifyObjectHash(): Promise<boolean> {
+    return this.unavailable("verifyObjectHash");
   }
 
-  private request(pathname: string, init: RequestInit) {
-    return fetch(`${this.config.url}/storage/v1/${pathname}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${this.config.serviceRoleKey}`,
-        apikey: this.config.serviceRoleKey,
-        ...init.headers
-      }
-    });
-  }
-
-  private assertLiveEnabled(operation: string) {
-    if (!this.config.liveEnabled) {
-      throw new Error(`Supabase Storage ${operation} is disabled; set PDM_SUPABASE_STORAGE_LIVE_ENABLED=1 after staging QC`);
-    }
-  }
-
-  private toPointer(key: string) {
-    return `supabase://${this.config.bucket}/${key}`;
+  private unavailable(operation: string): never {
+    const bucket = this.bucket ? `:${this.bucket}` : "";
+    throw new Error(`SUPABASE_STORAGE_RETIRED_USE_GCS:${operation}${bucket}`);
   }
 }
 
@@ -404,7 +313,6 @@ export function createFileStorageService(): FileStorageService {
 export function createConfiguredFileStorageService(env: NodeJS.ProcessEnv = process.env): FileStorageService {
   const provider = resolveFileStorageProvider(env);
   if (provider === "local_repository") return new LocalRepositoryStorageAdapter();
-  if (provider === "supabase_storage") return new SupabaseStorageAdapter(resolveSupabaseStorageConfig(env));
   if (provider === "s3_compatible") return new S3CompatibleStorageAdapter(resolveS3CompatibleStorageConfig(env));
   return new GoogleCloudStorageDisabledAdapter(resolveGoogleCloudStorageDisabledConfig(env));
 }
@@ -415,11 +323,7 @@ export function createFileStorageServiceForPointer(
 ): FileStorageService {
   if (pointer.provider === "local_repository") return new LocalRepositoryStorageAdapter();
   if (pointer.provider === "supabase_storage") {
-    const config = resolveSupabaseStorageConfig(env);
-    return new SupabaseStorageAdapter({
-      ...config,
-      bucket: pointer.bucket?.trim() || config.bucket
-    });
+    return new RetiredSupabaseStorageAdapter(pointer.bucket?.trim() || null);
   }
   if (pointer.provider === "google_cloud_storage") {
     const config = resolveGoogleCloudStorageDisabledConfig(env);
@@ -438,12 +342,6 @@ export function createFileStorageServiceForPointer(
 export function createReleasePackageStorageService(env: NodeJS.ProcessEnv = process.env): FileStorageService {
   const provider = resolveFileStorageProvider(env);
   if (provider === "local_repository") return new LocalRepositoryStorageAdapter(getReleasePackageRoot());
-  if (provider === "supabase_storage") {
-    return new SupabaseStorageAdapter({
-      ...resolveSupabaseStorageConfig(env),
-      bucket: env.PDM_SUPABASE_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_SUPABASE_STORAGE_BUCKET?.trim() || "pdm-release"
-    });
-  }
   if (provider === "google_cloud_storage") {
     const config = resolveGoogleCloudStorageDisabledConfig(env);
     return new GoogleCloudStorageDisabledAdapter({
@@ -529,27 +427,9 @@ export function sha256(bytes: Buffer) {
 
 export function resolveFileStorageProvider(env: NodeJS.ProcessEnv = process.env): FileStorageProvider {
   const provider = env.PDM_STORAGE_PROVIDER?.trim() || "local_repository";
-  if (provider === "local_repository" || provider === "supabase_storage" || provider === "s3_compatible" || provider === "google_cloud_storage") return provider;
+  if (provider === "supabase_storage") throw new Error("SUPABASE_STORAGE_RETIRED_USE_GCS:configured_provider");
+  if (provider === "local_repository" || provider === "s3_compatible" || provider === "google_cloud_storage") return provider;
   throw new Error(`Unsupported file storage provider: ${provider}`);
-}
-
-export function resolveSupabaseStorageConfig(env: NodeJS.ProcessEnv = process.env): SupabaseStorageConfig {
-  if (env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY?.trim()) {
-    throw new Error("Supabase service role key must never be exposed through NEXT_PUBLIC_* variables");
-  }
-  const url = env.PDM_SUPABASE_URL?.trim();
-  const serviceRoleKey = env.PDM_SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !serviceRoleKey) {
-    throw new Error("Supabase Storage requires PDM_SUPABASE_URL and PDM_SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return {
-    url: url.replace(/\/+$/, ""),
-    serviceRoleKey,
-    bucket: env.PDM_SUPABASE_STORAGE_BUCKET?.trim() || "pdm-hot",
-    liveEnabled: env.PDM_SUPABASE_STORAGE_LIVE_ENABLED === "1",
-    signedUrlTtlSeconds: readPositiveIntEnv(env.PDM_SUPABASE_SIGNED_URL_TTL_SECONDS, 300),
-    signedUrlMaxTtlSeconds: readPositiveIntEnv(env.PDM_SUPABASE_SIGNED_URL_MAX_TTL_SECONDS, 3600)
-  };
 }
 
 export function resolveS3CompatibleStorageConfig(env: NodeJS.ProcessEnv = process.env): S3CompatibleStorageConfig {
@@ -647,10 +527,6 @@ function sanitizeStorageKeyPart(part: string) {
   return part.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim();
 }
 
-function encodeStorageKey(key: string) {
-  return normalizeStorageKey(key).split("/").map(encodeURIComponent).join("/");
-}
-
 async function listLocalRepositoryFiles(repositoryRoot: string) {
   try {
     const entries = await fs.readdir(repositoryRoot, { withFileTypes: true });
@@ -670,29 +546,8 @@ async function listLocalRepositoryFiles(repositoryRoot: string) {
   }
 }
 
-function resolveDownloadUrlTtlSeconds(requestedSeconds: number | undefined, config: SupabaseStorageConfig) {
-  const ttl = requestedSeconds && Number.isFinite(requestedSeconds) ? Math.floor(requestedSeconds) : config.signedUrlTtlSeconds;
-  return Math.max(1, Math.min(ttl, config.signedUrlMaxTtlSeconds));
-}
-
-function absoluteSupabaseStorageUrl(projectUrl: string, signedUrl: string) {
-  if (/^https?:\/\//i.test(signedUrl)) return signedUrl;
-  const pathPrefix = signedUrl.startsWith("/") ? "" : "/";
-  return `${projectUrl}/storage/v1${pathPrefix}${signedUrl}`;
-}
-
-function readPositiveIntEnv(value: string | undefined, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 function getRepositoryDir() {
   const configured = process.env.PDM_REPOSITORY_DIR?.trim();
   if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "repository");
   return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
-}
-
-async function throwSupabaseStorageError(operation: string, response: Response): Promise<never> {
-  const body = await response.text().catch(() => "");
-  throw new Error(`Supabase Storage ${operation} failed with ${response.status}${body ? `: ${body.slice(0, 500)}` : ""}`);
 }

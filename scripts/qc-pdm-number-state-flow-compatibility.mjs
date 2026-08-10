@@ -42,7 +42,7 @@ const transferCancelRoute = read("src/app/api/transfer-packages/[id]/cancel/rout
 const transferWorkbench = read("src/components/transfer-package-workbench.tsx");
 const schema = read("db/schema.sql");
 const postgres = read("db/postgres/017_number_state_flow_phase1d.sql");
-const supabase = read("supabase/migrations/20260713090000_number_state_flow_phase1d.sql");
+const supabase = read(".ai-doc/archived/legacy-supabase-migration-mirror/migrations/20260713090000_number_state_flow_phase1d.sql");
 
 record("CON-006 /handoff resolves to published technical transfer", all(legacyResolver, [
   'pathname === "/handoff"',

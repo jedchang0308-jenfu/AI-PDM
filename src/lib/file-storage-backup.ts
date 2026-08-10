@@ -165,7 +165,7 @@ export async function executeDriveBackupPlan(input: {
         targetFolderId: folderId,
         mimeType: item.candidate.mime_type ?? undefined,
         appProperties: {
-          Source: "AI_PDM_SUPABASE_CORE_BACKUP",
+          Source: "AI_PDM_CLOUD_SQL_CORE_BACKUP",
           CandidateId: item.candidate.id,
           SourceTable: item.candidate.source,
           Coverage: item.coverage,
@@ -242,7 +242,7 @@ export function buildDriveBackupManifest(plan: DriveBackupPlanItem[], results: D
   return {
     schema: "ai-pdm-drive-backup-manifest.v1",
     generatedAt: new Date().toISOString(),
-    authority: "supabase_core",
+    authority: "cloud_sql_postgres",
     entries: plan
       .filter((item) => item.coverage !== "excluded")
       .map((item) => {
@@ -423,7 +423,7 @@ async function uploadMetadataSnapshot(input: {
     targetFolderId: input.folderId,
     mimeType: "application/json",
     appProperties: {
-      Source: "AI_PDM_SUPABASE_CORE_BACKUP_METADATA",
+      Source: "AI_PDM_CLOUD_SQL_CORE_BACKUP_METADATA",
       CandidateId: input.item.candidate.id,
       SourceTable: input.item.candidate.source,
       Coverage: input.item.coverage,

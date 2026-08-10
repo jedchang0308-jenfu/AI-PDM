@@ -14,7 +14,6 @@ function read(relativePath) {
 function normalizeLf(value) {
   return value.replace(/\r\n?/gu, "\n");
 }
-
 const sqlite = new Database(":memory:");
 try {
   sqlite.exec(read("db/schema.sql"));
@@ -41,11 +40,12 @@ check("controlled-revision-upload", fs.existsSync(path.join(root, "src/app/api/n
 check("candidate-reupload-gate", read("src/lib/number-lifecycle-simplification.ts").includes("必須在本次版次重新上傳"), "candidate required source files cannot be verified from an old file");
 
 const sourceMigration = read("db/postgres/029_pdm_file_ownership_and_3d_reuse.sql");
-const targetMigration = read("supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql");
+const archivedMigration = read(".ai-doc/archived/legacy-supabase-migration-mirror/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql");
 check(
-  "migration-parity",
-  normalizeLf(targetMigration).endsWith(`${normalizeLf(sourceMigration).trim()}\n`),
-  "Supabase generated migration contains the normalized Postgres source without semantic drift"
+  "cloud-sql-migration-authority",
+  !fs.existsSync(path.join(root, "supabase"))
+    && normalizeLf(archivedMigration).endsWith(`${normalizeLf(sourceMigration).trim()}\n`),
+  "Cloud SQL PostgreSQL migration is active while the historical Supabase mirror remains archived and unchanged"
 );
 
 console.log(JSON.stringify({ script: "qc-dev-061-file-ownership", passed: checks.length, checks }, null, 2));

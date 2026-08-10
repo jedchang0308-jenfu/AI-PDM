@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Grid2X2, ListTree, RefreshCcw, Search, X } from "lucide-react";
 import { HumanStatusBadge } from "@/components/human-status-badge";
@@ -133,13 +134,16 @@ function normalizeList(value: unknown) { return value as RelationWorkbenchListRe
 function normalizeDetail(value: unknown) { return value as RelationWorkbenchDetailResponse; }
 function initialLocation() { return readLocation(true); }
 function currentLocation() { return readLocation(false); }
-function redirectLogin() { window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`); }
 function newIdempotencyKey(action: string) { return `dev062:relation:${action}:${crypto.randomUUID()}`; }
 
 async function readApi<T>(response: Response) { return response.json().catch(() => ({})) as Promise<T & ApiBody>; }
 function apiError(body: ApiBody, fallback: string) { return typeof body.error === "object" && body.error?.message ? body.error.message : body.message?.trim() || (typeof body.error === "string" ? body.error : fallback); }
 
 export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (props: RelationRootDetailRendererProps) => ReactNode }) {
+  const router = useRouter();
+  const redirectLogin = useCallback(() => {
+    router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  }, [router]);
   const controller = usePdmWorkbenchController<RelationWorkbenchRow, RelationWorkbenchDetailResponse, RelationQueryState, RelationWorkbenchListResponse["filters"]>({
     initialQuery, initialLocation, readLocation: currentLocation, writeLocation, buildListUrl: listUrl, buildDetailUrl: detailUrl,
     getRowKey: rowKey, normalizeResponse: normalizeList, normalizeDetail, detailRowKey: detailKey,

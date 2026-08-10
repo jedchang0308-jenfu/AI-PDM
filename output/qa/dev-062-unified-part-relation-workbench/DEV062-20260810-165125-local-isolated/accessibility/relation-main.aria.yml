@@ -1,0 +1,486 @@
+- main:
+  - heading "圖料工作台" [level=1]
+  - button "重新整理":
+    - img
+    - text: 重新整理
+  - button "建立保留號"
+  - text: 搜尋
+  - img
+  - textbox "搜尋":
+    - /placeholder: 主根號、料號、圖號、名稱
+  - text: 範圍
+  - combobox "範圍":
+    - option "全部" [selected]
+    - option "我的待處理"
+    - option "工作中"
+  - text: 工作狀態
+  - combobox "工作狀態":
+    - option "全部工作狀態" [selected]
+    - option "待你處理"
+    - option "等他人處理"
+    - option "系統處理中"
+    - option "生產可用"
+    - option "研發可用"
+    - option "可用範圍待確認"
+    - option "負責人待確認"
+    - option "歷史"
+  - text: 系列代號
+  - combobox "系列代號":
+    - option "全部系列" [selected]
+    - option "JF"
+  - text: 類型
+  - combobox "類型":
+    - option "全部" [selected]
+    - option "料件主根"
+    - option "料號"
+    - option "圖號"
+  - text: 資料狀態
+  - combobox "資料狀態":
+    - option "全部狀態" [selected]
+    - option "Draft"
+    - option "NeedInfo"
+    - option "Active"
+    - option "PendingReview"
+    - option "Released"
+    - option "Rejected"
+    - option "Obsolete"
+    - option "Merged"
+    - option "PendingAdminConfirm"
+    - option "MainDrawingInvalid"
+  - tablist "圖料關係顯示模式":
+    - tab "關係樹" [selected]:
+      - img
+      - text: 關係樹
+    - tab "矩陣":
+      - img
+      - text: 矩陣
+  - checkbox "包含歷史 顯示已取消、已作廢與已合併紀錄"
+  - text: 包含歷史 顯示已取消、已作廢與已合併紀錄
+  - region "圖料工作清單":
+    - article:
+      - button "展開關係":
+        - img
+      - button "Z2062-P01"
+      - strong: 候選泵浦
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 候選關係
+    - article:
+      - button "展開關係":
+        - img
+      - button "Z3062"
+      - strong: 正式泵浦
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0001"
+      - strong: 代表性料件 0001
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0002"
+      - strong: 代表性料件 0002
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0003"
+      - strong: 代表性料件 0003
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0004"
+      - strong: 代表性料件 0004
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0005"
+      - strong: 代表性料件 0005
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0006"
+      - strong: 代表性料件 0006
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0007"
+      - strong: 代表性料件 0007
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0008"
+      - strong: 代表性料件 0008
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0009"
+      - strong: 代表性料件 0009
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0010"
+      - strong: 代表性料件 0010
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0011"
+      - strong: 代表性料件 0011
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0012"
+      - strong: 代表性料件 0012
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0013"
+      - strong: 代表性料件 0013
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0014"
+      - strong: 代表性料件 0014
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0015"
+      - strong: 代表性料件 0015
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0016"
+      - strong: 代表性料件 0016
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0017"
+      - strong: 代表性料件 0017
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0018"
+      - strong: 代表性料件 0018
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0019"
+      - strong: 代表性料件 0019
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0020"
+      - strong: 代表性料件 0020
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0021"
+      - strong: 代表性料件 0021
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0022"
+      - strong: 代表性料件 0022
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0023"
+      - strong: 代表性料件 0023
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0024"
+      - strong: 代表性料件 0024
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0025"
+      - strong: 代表性料件 0025
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0026"
+      - strong: 代表性料件 0026
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0027"
+      - strong: 代表性料件 0027
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0028"
+      - strong: 代表性料件 0028
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0029"
+      - strong: 代表性料件 0029
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0030"
+      - strong: 代表性料件 0030
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0031"
+      - strong: 代表性料件 0031
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0032"
+      - strong: 代表性料件 0032
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0033"
+      - strong: 代表性料件 0033
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0034"
+      - strong: 代表性料件 0034
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0035"
+      - strong: 代表性料件 0035
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0036"
+      - strong: 代表性料件 0036
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0037"
+      - strong: 代表性料件 0037
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0038"
+      - strong: 代表性料件 0038
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0039"
+      - strong: 代表性料件 0039
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0040"
+      - strong: 代表性料件 0040
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0041"
+      - strong: 代表性料件 0041
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0042"
+      - strong: 代表性料件 0042
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0043"
+      - strong: 代表性料件 0043
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0044"
+      - strong: 代表性料件 0044
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0045"
+      - strong: 代表性料件 0045
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0046"
+      - strong: 代表性料件 0046
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0047"
+      - strong: 代表性料件 0047
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0048"
+      - strong: 代表性料件 0048
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0049"
+      - strong: 代表性料件 0049
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0050"
+      - strong: 代表性料件 0050
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0051"
+      - strong: 代表性料件 0051
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0052"
+      - strong: 代表性料件 0052
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0053"
+      - strong: 代表性料件 0053
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0054"
+      - strong: 代表性料件 0054
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0055"
+      - strong: 代表性料件 0055
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0056"
+      - strong: 代表性料件 0056
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0057"
+      - strong: 代表性料件 0057
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+    - article:
+      - button "展開關係":
+        - img
+      - button "Q0058"
+      - strong: 代表性料件 0058
+      - button "狀態：待你處理，查看說明": 待你處理
+      - text: 缺製造圖
+  - button "上一頁" [disabled]:
+    - img
+    - text: 上一頁
+  - text: 第 1 頁
+  - button "下一頁":
+    - text: 下一頁
+    - img

@@ -10,6 +10,7 @@ const record = (id, passed, detail = "") => results.push({ id, passed: Boolean(p
 const has = (source, fragments) => fragments.every((fragment) => source.includes(fragment));
 
 const component = read("src/components/drawing-workbench.tsx");
+const service = read("src/lib/drawing-workbench.ts");
 const humanStatusFilter = read("src/components/human-status-filter.tsx");
 const statusEngine = read("src/lib/drawing-workbench-status.ts");
 const page = read("src/app/numbering/drawings/page.tsx");
@@ -50,9 +51,10 @@ record("DEV053-UI-004 server-derived next action is kept in the drawer, not repe
   has(drawingWorkspaceDrawer, ['dataComponent="drawing-workspace-drawer"', 'data-drawing-primary-action-slot="true"']) &&
   !component.includes('data-label="下一步"') &&
   !component.includes("row.actions.map"));
-record("DEV053-UI-005 controlled revision files and reference attachments use separate authority views",
-  has(component, ['authorityMode="controlled_summary"', 'authorityMode="reference_manager"', "canManageReferenceAttachments"]) &&
-  has(attachment, ['"combined_legacy" | "controlled_summary" | "reference_manager"', "isControlledRevisionAttachment", "受控版次檔案", "參考附件", "effectiveReadOnly", "下載"]));
+record("DEV053-UI-005 controlled revision files remain the only drawing file authority",
+  has(component, ['authorityMode="controlled_summary"', "isManufacturingDrawingPurpose"]) &&
+  !component.includes('authorityMode="reference_manager"') &&
+  has(attachment, ['"combined_legacy" | "controlled_summary" | "reference_manager"', "isControlledRevisionAttachment", "受控版次檔案", "effectiveReadOnly", "下載", 'entityType === "drawing_number" && !effectiveReadOnly']));
 record("DEV053-UI-006 error, empty, busy and accessibility states are visible",
   has(component, ['role="alert"', 'role="status"', "目前沒有符合條件的圖號工作", "正在載入圖號工作", 'ariaLabel="圖號工作清單"']) &&
   has(component, ["useRememberedDrawerWidth", "aria-live=\"polite\""]) && has(sharedWorkbenchList, ["aria-selected", 'role="region"']));
@@ -95,19 +97,17 @@ record("DEV053-UI-011 formal filters and linked-part identity remain visible on 
     "projectDrawingHumanStatus",
     "humanStatus"
   ]));
-record("DEV053-UI-012 state-driven primary action and secondary entrypoints are restored",
+record("DEV053-UI-012 state-driven primary action and contextual maintenance entrypoints remain",
   has(component, [
     'capability="drawing-revision"',
-    'capability="drawing-relations"',
-    'capability="manufacturing-impact"',
-    'data-primary-action-policy="主要下一步只保留一個"',
-    'data-secondary-action-policy="其他既有管理功能集中在這裡"',
-    "buildDrawingRevisionHref",
-    "/numbering/search?query=",
-    "/numbering/impact?drawingNumber=",
+    "NumberingContextualEntrypoints",
+    'mode="drawing"',
     "withDrawingReturnTo",
     "returnTo="
-  ]) && !component.includes('capability="drawing-submission"') && !component.includes("<DrawingRevisionWorkbench") &&
+  ]) && !component.includes('capability="drawing-submission"') &&
+  !component.includes('capability="drawing-relations"') &&
+  !component.includes('capability="manufacturing-impact"') &&
+  !component.includes("<DrawingRevisionWorkbench") &&
   has(revisionWorkbench, ["export function DrawingRevisionWorkbench", "getInitialReturnTo", "返回圖號"]));
 record("DEV053-UI-013 release mismatch, title-block risk and submission readiness are restored",
   has(component, [
@@ -131,29 +131,30 @@ record("DEV053-UI-013A missing standard cost is optional and excluded from block
     "筆未設定（選填）",
     'tone={missingCostParts.length > 0 ? "default" : "success"}'
   ]));
-record("DEV053-UI-014 same-root part, variant, cost and primary-drawing management are restored",
+record("DEV053-UI-014 same-root part identity stays visible without duplicate inline mutation authority",
   has(component, [
     'data-capability="same-root-part-management"',
-    'data-capability="part-variant-maintenance"',
-    'data-capability="standard-cost-maintenance"',
-    '/api/parts/${encodeURIComponent(part.partNumber)}/variant',
+    "PartMasterDataCard",
     "材質",
     "顏色",
     "表面處理",
     "變體",
     "主要製造圖"
-  ]));
+  ]) &&
+  !component.includes('data-capability="part-variant-maintenance"') &&
+  !component.includes('/api/parts/${encodeURIComponent(part.partNumber)}/variant'));
 record("DEV053-UI-015 production-slice restrictions stay visible and fail closed",
   has(component, [
     "/api/production-slice/status",
     "routeIsUnopened",
     "drawing-workbench-unopened-action",
     "未開放",
-    "mutationsBlocked={Boolean(productionSlice?.configured)}"
+    "productionSliceEnforced={Boolean(productionSlice?.configured)}"
   ]) && has(css, [".drawing-workbench-unopened-action", ".drawing-workbench-inline-unopened"]));
 record("DEV053-UI-016 one server primary action remains while secondary tools route to shared work pages",
   !component.includes("row.actions.map") &&
-  has(component, ["<PrimaryAction action={row.primaryAction}", "主要下一步只保留一個", "其他既有管理功能集中在這裡"]));
+  has(component, ["<PrimaryAction action={row.primaryAction}", "row.primaryAction", "withDrawingReturnTo"]) &&
+  !component.includes("DrawingMoreMenu"));
 record("DEV053-UI-017 default-all, explicit history and terminal guidance are visible",
   has(component, [
     'view: "all"',
@@ -181,8 +182,11 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
     "queuedFiles.map",
     "idempotencyKey",
     "上傳並完成驗證",
-    "主要受控檔已完成，可送審",
-    "recommendedFileWarnings"
+    "主要 2D 圖面與 3D 模型已完成，可送審",
+    "recommendedFileWarnings",
+    "requiredPrimaryRoles",
+    "hasRequiredPrimaryEvidence",
+    'name={`candidate-primary-${candidate.id}-${item.role}`}'
   ]) &&
   has(numberStateWorkspace, [
     "shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)",
@@ -192,23 +196,27 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
   has(sharedPreview, ['data-component="drawing-detail-preview"', "3D 模型", "2D 圖面"]) &&
   !numberStateWorkspace.includes("先在上方加入"));
 record("DEV053-UI-020 permission guidance names the missing permission and safe admin route",
-  has(component, ["PermissionGuidance", "permissionCode", "contactRole", "前往權限設定", "canManageReferenceAttachments"]));
-record("DEV053-UI-021 legacy files expose one no-reupload recovery CTA",
+  has(component, ["PermissionGuidance", "action.disabledReason", "action.adminHref", "前往權限設定"]) &&
+  has(service, ["permissionCode", "contactRole", "adminHref"]));
+record("DEV053-UI-021 required primary files cannot use legacy verification while non-primary files keep recovery",
   has(candidateEditor, [
     "verifyExistingFiles",
     "/candidate-revisions/${encodeURIComponent(candidate.id)}/files",
     'method: "PATCH"',
     "fileId: file.id",
-    "驗證既有檔案（${unverifiedFiles.length}）",
-    "不用重新上傳",
+    "!isRequiredPrimaryRole(file.role)",
+    "主要 2D 圖面與 3D 模型需重新上傳",
+    "本版不可沿用舊 primary 證據",
+    "可驗證已保存的非 primary 檔案",
+    "驗證既有檔案（${verifiableExistingFiles.length}）",
     "原檔與編號都不會改變",
     "已成功驗證的檔案會保留",
     "expectedRowVersion = latestCandidate?.rowVersion"
   ]) && has(css, [
     ".candidate-revision-existing-verification",
     "@media (max-width: 760px)"
-  ]) && (candidateEditor.includes("需要先驗證，才能送審") || submissionResultComponent.includes("需要先驗證，才能送審")));
-record("DEV053-UI-022 old unsubmitted revisions route to the shared submission page without supplement confusion",
+  ]) && submissionResultComponent.includes("需要先驗證，才能送審"));
+record("DEV053-UI-022 historical backfill parser remains compatible without loose-attachment write UI",
   has(attachment, [
     "historicalBackfillGroups",
     "currentControlledRevision",
@@ -218,14 +226,7 @@ record("DEV053-UI-022 old unsubmitted revisions route to the shared submission p
     "核准後只進歷史",
     "補登 {group.revision} 歷史版",
     "onBackfillHistoricalRevision"
-  ]) && has(component, [
-    "buildDrawingRevisionHref",
-    'params.set("source", "historical_backfill")',
-    'params.set("revision", historicalBackfill.revision)',
-    'params.append("attachmentId", attachmentId)',
-    "window.location.assign(buildDrawingRevisionHref",
-    "onBackfillHistoricalRevision="
-  ]) && has(revisionWorkbench, [
+  ]) && !component.includes("onBackfillHistoricalRevision=") && has(revisionWorkbench, [
     "getInitialRevision(searchParams)",
     "getInitialAttachmentIds(searchParams)",
     'searchParams.get("source") === "historical_backfill"',
@@ -239,7 +240,7 @@ record("DEV053-UI-022 old unsubmitted revisions route to the shared submission p
     ".master-attachment-historical-backfill",
     ".master-attachment-historical-backfill-heading",
     ".drawing-revision-topbar-actions"
-  ]) && !component.includes("drawing-revision-embed"));
+  ]) && !component.includes("drawing-revision-embed") && !component.includes('authorityMode="reference_manager"'));
 
 record("DEV053-UI-023 candidate, formal and approval drawers use one content renderer",
   has(drawingWorkspaceDrawer, ["DrawingDetailContent", "content?: DrawingDetailContentModel"]) &&

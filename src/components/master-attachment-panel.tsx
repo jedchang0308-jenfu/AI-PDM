@@ -940,7 +940,7 @@ export function MasterAttachmentPanel({
         dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined}
       />
     ) : null;
-  const compactControlledUploadForm = compact && authorityMode === "controlled_summary" && entityType === "drawing_number" ? (
+  const compactControlledUploadForm = compact && authorityMode === "controlled_summary" && entityType === "drawing_number" && !effectiveReadOnly ? (
     <form className="master-attachment-inline-upload" onSubmit={uploadControlledDrawingAttachment} aria-label="上傳圖面資料">
       <FileDropzone
         label="上傳圖面資料"

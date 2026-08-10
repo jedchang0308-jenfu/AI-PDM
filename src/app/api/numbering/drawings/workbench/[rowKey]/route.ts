@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DrawingWorkbenchService, drawingWorkbenchErrorResponse } from "@/lib/drawing-workbench";
+import { DRAWING_WORKBENCH_NO_STORE_HEADERS, DrawingWorkbenchService, drawingWorkbenchErrorResponse } from "@/lib/drawing-workbench";
 import { isUnifiedDrawingWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
@@ -10,7 +10,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
   const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
   if (!isUnifiedDrawingWorkbenchV1Enabled()) {
-    return NextResponse.json({ error: "drawing_workbench_not_enabled" }, { status: 404 });
+    return NextResponse.json(
+      { error: "drawing_workbench_not_enabled" },
+      { status: 404, headers: DRAWING_WORKBENCH_NO_STORE_HEADERS }
+    );
   }
   const companyResult = await resolveNumberingCompanyContextAsync(
     auth.user.id,
@@ -45,9 +48,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
         managePermissions: managePermissions.allowed
       }
     });
-    if (!detail) return NextResponse.json({ error: "drawing_workbench_row_not_found" }, { status: 404 });
+    if (!detail) {
+      return NextResponse.json(
+        { error: "drawing_workbench_row_not_found" },
+        { status: 404, headers: DRAWING_WORKBENCH_NO_STORE_HEADERS }
+      );
+    }
     return NextResponse.json({ ...detail, pdmCompany: companyResult.company }, {
-      headers: { "cache-control": "private, no-store" }
+      headers: DRAWING_WORKBENCH_NO_STORE_HEADERS
     });
   } catch (error) {
     return drawingWorkbenchErrorResponse(error);
