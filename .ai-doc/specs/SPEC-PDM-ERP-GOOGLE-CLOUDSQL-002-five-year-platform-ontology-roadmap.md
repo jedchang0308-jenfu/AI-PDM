@@ -126,7 +126,7 @@ These decisions close the architecture questions only. Phase 1 still requires an
 
 ### Current implementation facts that constrain planning
 
-- The repository uses `next@16.2.6`, which aligns with the selected Next.js 16 major, but does not currently pin a Node runtime or provide the approved container/Cloud Run/Load Balancer configuration.
+- The repository uses `next@16.3.0`, which aligns with the selected Next.js 16 major and the current security baseline, together with the approved Node runtime and container/Cloud Run/Load Balancer configuration.
 - Firebase App Hosting currently designates Next.js 15.2.x active, but the Next.js support policy places 15.x in Maintenance LTS and allows essential fixes to land as semver-minor releases. Exact 15.2.x pinning therefore solves adapter compatibility only, not the five-year security-maintenance requirement.
 - No production `apphosting.yaml`, Cloud Build pipeline or infrastructure-as-code target is present in the reviewed repository state.
 - The selected Cloud Run release must consume an immutable container digest through the release gate; source push/merge cannot directly change production traffic. Base-image/Node/Next.js updates require staging build/start/regression evidence.
