@@ -338,7 +338,7 @@ record(
   JSON.stringify(manifest.migrations ?? [])
 );
 record(
-  "SUPA-MIG-009A manifest records CLI migration list readiness",
+  "SUPA-MIG-009A historical manifest records disabled CLI migration command",
   manifest.localMigrationList?.command === "supabase migration list" &&
     typeof manifest.localMigrationList.attempted === "boolean" &&
     typeof manifest.localMigrationList.passed === "boolean" &&
@@ -346,14 +346,13 @@ record(
   JSON.stringify(manifest.localMigrationList ?? null)
 );
 record(
-  "SUPA-MIG-009B absent Supabase CLI is explicit and non-blocking for mirror sync",
-  manifest.supabaseCli?.available === true
-    ? manifest.localMigrationList?.attempted === true
-    : manifest.localMigrationList?.attempted === false &&
-        [
-          "supabase CLI not found",
-          "supabase migration list skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
-        ].includes(manifest.localMigrationList?.reason),
+  "SUPA-MIG-009B retired Supabase live target is explicitly disabled",
+  manifest.supabaseCli?.available === false &&
+    manifest.supabaseCli?.error === "Supabase is retired; CLI detection is intentionally disabled" &&
+    manifest.localMigrationList?.attempted === false &&
+    manifest.localMigrationList?.reason === "Supabase is retired; live migration history is not a release target" &&
+    /Cloud SQL migrations/u.test(manifest.note ?? "") &&
+    /not a live deployment or release target/u.test(manifest.note ?? ""),
   JSON.stringify({ supabaseCli: manifest.supabaseCli, localMigrationList: manifest.localMigrationList })
 );
 record("SUPA-MIG-010 README documents CLI absence fallback", readme.includes("Supabase CLI") && readme.includes("supabase:migrations:sync"), "supabase/README.md");

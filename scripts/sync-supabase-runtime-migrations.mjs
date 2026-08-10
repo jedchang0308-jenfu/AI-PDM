@@ -3,7 +3,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { projectPath, readProjectFile } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
@@ -172,84 +171,24 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function detectSupabaseCli() {
-  if (process.env.PDM_SUPABASE_SKIP_MIGRATION_LIST === "true") {
-    return {
-      available: false,
-      version: "",
-      error: "supabase CLI detection skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
-    };
-  }
-
-  const result = spawnSync("supabase", ["--version"], {
-    cwd: root,
-    encoding: "utf8",
-    windowsHide: true
-  });
-  return {
-    available: result.status === 0,
-    version: result.status === 0 ? result.stdout.trim() : "",
-    error: result.status === 0 ? "" : (result.stderr || result.stdout || "supabase CLI not found").trim()
-  };
-}
-
-function redactCliOutput(value) {
-  return String(value ?? "")
-    .replace(/\bpostgres(?:ql)?:\/\/[^\s"'<>]+/gi, "[REDACTED_POSTGRES_URL]")
-    .replace(/\bsb_[a-z0-9_]+_[a-z0-9]{20,}\b/gi, "[REDACTED_SUPABASE_KEY]")
-    .trim();
-}
-
-function runSupabaseMigrationList(cli) {
-  const command = "supabase migration list";
-  if (process.env.PDM_SUPABASE_SKIP_MIGRATION_LIST === "true") {
-    return {
-      command,
-      attempted: false,
-      passed: false,
-      status: null,
-      stdout: "",
-      stderr: "",
-      reason: "supabase migration list skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
-    };
-  }
-
-  if (!cli.available) {
-    return {
-      command,
-      attempted: false,
-      passed: false,
-      status: null,
-      stdout: "",
-      stderr: "",
-      reason: "supabase CLI not found"
-    };
-  }
-
-  const result = spawnSync("supabase", ["migration", "list"], {
-    cwd: root,
-    encoding: "utf8",
-    windowsHide: true
-  });
-
-  return {
-    command,
-    attempted: true,
-    passed: result.status === 0,
-    status: result.status,
-    stdout: redactCliOutput(result.stdout),
-    stderr: redactCliOutput(result.stderr),
-    reason: result.status === 0 ? "" : "supabase migration list failed"
-  };
-}
-
-const cli = detectSupabaseCli();
 const manifest = {
   generatedAt: "deterministic",
   generatedBy: "scripts/sync-supabase-runtime-migrations.mjs",
-  supabaseCli: cli,
-  localMigrationList: runSupabaseMigrationList(cli),
-  note: "Generated mirror of db/postgres SQL for AI_PDM runtime migration planning. If Supabase CLI is available, validate migration history with `supabase migration list` before applying to a live project.",
+  supabaseCli: {
+    available: false,
+    version: "",
+    error: "Supabase is retired; CLI detection is intentionally disabled"
+  },
+  localMigrationList: {
+    command: "supabase migration list",
+    attempted: false,
+    passed: false,
+    status: null,
+    stdout: "",
+    stderr: "",
+    reason: "Supabase is retired; live migration history is not a release target"
+  },
+  note: "Deterministic historical compatibility mirror of the authoritative db/postgres Cloud SQL migrations. Supabase is not a live deployment or release target.",
   migrations: []
 };
 

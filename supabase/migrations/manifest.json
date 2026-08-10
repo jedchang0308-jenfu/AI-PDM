@@ -4,7 +4,7 @@
   "supabaseCli": {
     "available": false,
     "version": "",
-    "error": "supabase CLI not found"
+    "error": "Supabase is retired; CLI detection is intentionally disabled"
   },
   "localMigrationList": {
     "command": "supabase migration list",
@@ -13,9 +13,9 @@
     "status": null,
     "stdout": "",
     "stderr": "",
-    "reason": "supabase CLI not found"
+    "reason": "Supabase is retired; live migration history is not a release target"
   },
-  "note": "Generated mirror of db/postgres SQL for AI_PDM runtime migration planning. If Supabase CLI is available, validate migration history with `supabase migration list` before applying to a live project.",
+  "note": "Deterministic historical compatibility mirror of the authoritative db/postgres Cloud SQL migrations. Supabase is not a live deployment or release target.",
   "migrations": [
     {
       "source": "db/postgres/001_initial_schema.sql",
