@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "generatedAt": "2026-08-10T17:04:05.320Z",
+  "generatedAt": "2026-08-10T17:14:45.367Z",
   "targetProject": "jenfu-ai-pdm-prod",
   "region": "asia-east1",
   "expectedRunService": "ai-pdm-prod",
@@ -86,12 +86,12 @@
   },
   "releaseSource": {
     "manifestPath": "output/dev-032-release-source/manifest.json",
-    "manifestStatus": "source_snapshot_manifested_not_release_ready",
-    "exactReleaseCommitExists": false,
-    "includedProductionSourceEntries": 58,
-    "unknownRiskEntries": 3,
+    "manifestStatus": "release_source_committed_production_gate_blocked",
+    "exactReleaseCommitExists": true,
+    "includedProductionSourceEntries": 0,
+    "unknownRiskEntries": 0,
     "safeToBuildForProduction": false,
-    "blocker": "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
+    "blocker": "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
   },
   "blockers": [
     {
@@ -135,18 +135,6 @@
           "pdm-session-signing-current",
           "pdm-session-signing-previous"
         ]
-      }
-    },
-    {
-      "code": "RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED",
-      "message": "Release-source manifest does not prove an exact release commit.",
-      "evidence": {
-        "manifestPath": "output/dev-032-release-source/manifest.json",
-        "exactReleaseCommitExists": false,
-        "includedProductionSourceEntries": 58,
-        "unknownRiskEntries": 3,
-        "safeToBuildForProduction": false,
-        "blocker": "RELEASE_SOURCE_DECISION_OR_EXACT_COMMIT_MISSING"
       }
     },
     {

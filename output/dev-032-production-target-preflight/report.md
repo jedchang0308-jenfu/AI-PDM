@@ -1,6 +1,6 @@
 # DEV-032 Production Target Read-only Preflight
 
-Generated: 2026-08-10T17:04:05.320Z
+Generated: 2026-08-10T17:14:45.367Z
 Target project: `jenfu-ai-pdm-prod`
 Region: `asia-east1`
 Production action performed: `false`
@@ -8,7 +8,7 @@ Status: `blocked_readonly_preflight`
 
 ## Result
 
-Blocked by 6 read-only preflight blocker(s).
+Blocked by 5 read-only preflight blocker(s).
 
 ## Active Identity
 
@@ -30,7 +30,6 @@ Blocked by 6 read-only preflight blocker(s).
 - `PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN`: Expected production Cloud Run service was not proven readable.
 - `PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN`: Expected production Cloud SQL instance metadata was not proven readable.
 - `PRODUCTION_SECRET_SOURCE_UNPROVEN`: Required production Secret Manager metadata was not proven readable; no secret values were requested.
-- `RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED`: Release-source manifest does not prove an exact release commit.
 - `LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE`: Production-like and post-deploy smoke cannot run until production runtime/database target is proven.
 
 ## Read-only Commands

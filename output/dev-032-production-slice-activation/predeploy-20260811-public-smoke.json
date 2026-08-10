@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "ai-pdm-production-release-smoke/v1",
+  "generatedAt": "2026-08-10T17:17:25.683Z",
+  "kind": "canonical",
+  "target": "jenfu-ai-pdm-prod",
+  "baseUrl": "https://jenfu-ai-pdm-prod.web.app",
+  "directBaseUrl": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "revision": "ai-pdm-prod-00010-quc",
+  "imageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+  "sourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "passed": 13,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "canonical login entrypoint",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "shell": true,
+        "cacheControl": "private, no-store, max-age=0"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical auth mode",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "authMode": "firebase_bff",
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical production slice",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "configured": true,
+        "active": true,
+        "mode": "official-numbering-draft",
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical protected GET /api/numbering/permissions",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical protected GET /api/numbering/draft-workspaces",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical unopened page /upload",
+      "passed": true,
+      "actual": 200,
+      "expected": 200
+    },
+    {
+      "name": "canonical unopened page /approvals",
+      "passed": true,
+      "actual": 200,
+      "expected": 200
+    },
+    {
+      "name": "canonical legacy redirect /handoff",
+      "passed": true,
+      "actual": {
+        "status": 307,
+        "location": "/technical-transfer?tab=published&legacyFrom=%2Fhandoff"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical unopened mutation /api/files/upload",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical unopened mutation /api/cad/preview",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "canonical unopened mutation /api/bom/publish",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "direct run.app session exchange denied",
+      "passed": true,
+      "actual": 403,
+      "expected": 403
+    }
+  ]
+}
