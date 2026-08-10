@@ -28,7 +28,7 @@ Cold start / progressive-read rule:
 | Task-driven human status projection, viewer responsibility and R&D/production availability scope | `.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`; `.ai-doc/decisions/ADR-PDM-STATUS-UX-004-task-driven-human-status-projection.md`; `.ai-doc/qa/qa-pdm-human-status-projection-validation-plan-2026-08-06.md`; `.ai-doc/qc/qc-dev-055-human-status-projection-2026-08-06.md`; `.ai-doc/dev_task.md` (`DEV-055`). Status: `Local RD Implemented / QA-QC Passed / Production Release Gated`. Current executable boundary: Phase 1A～1D local projector、server projection/filter、viewer responsibility、availability scope、three lists/shared owner drawers and browser QA/QC; no schema/migration、production、deploy or release. |
 | Phase 1 native SolidWorks preview auto-orchestration follow-up | `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`; `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`; `.ai-doc/qa/qa-pdm-sw-native-preview-worker-validation-plan-2026-07-06.md`; `.ai-doc/dev_task.md` (`DEV-056`). Status: `Local RD / QA-QC Passed / Production Release Gated`. Scope completed: auto-enqueue on list/create, foreground auto-refresh, heartbeat, stale recovery, worker-owner guard and concise icon/tone/motion UI; no Phase 2 PDF, interactive 3D, production or real key rollout. |
 | Google Secret Manager authority and SolidWorks 2D worker credential integration | `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`; `.ai-doc/qa/qa-pdm-gcp-secret-manager-solidworks-worker-validation-plan-2026-08-07.md`; `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`; `.ai-doc/dev_task.md` (`DEV-058`). Status: `RD Implementation Ready / Human Confirmed / RD Not Started / Production Release Gated`. This intentionally replaces the old Supabase Vault provider direction while retaining generic settings lifecycle/redaction rules. Current executable boundary is local provider/schema/lifecycle/broker/readiness/QC only; live GCP resource/IAM/deploy/release is excluded. |
-| Simplified drawing detail workcard, shared `DrawingWorkspaceDrawer`, state-driven CTA hierarchy and discoverable secondary actions | `.ai-doc/dev_task.md` (`DEV-057`); authoritative UI contract `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`; QA/evidence `.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`, `output/qa/pdm-entity-detail-drawer-ai/20260808021459-single-workspace-recheck/`; related authority `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`, `.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`, `.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`. Status: `Local RD Implemented / QA-QC Reopened by DEV-059 / Release Not Authorized`. Candidate/formal共用同一工作元件與既有歷史證據保留，但 2026-08-09 current-route modal 現場截圖優先於舊 PASS；只有 `DEV-059` 真實 browser 重驗通過才可恢復 PASS。未改 schema、lifecycle authority、permission model、data、production、deploy或release。 |
+| Simplified drawing detail workcard, shared `DrawingWorkspaceDrawer`, state-driven CTA hierarchy and discoverable secondary actions | `.ai-doc/dev_task.md` (`DEV-057`); authoritative UI contract `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`; QA/evidence `.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`, `output/qa/pdm-entity-detail-drawer-ai/20260808021459-single-workspace-recheck/`; related authority `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`, `.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`, `.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`. Status: `Local RD Implemented / UI Replacement Requested / Release Not Authorized`. A0005 正式圖號抽屜保留為唯一現行視覺基準；候選與審核抽屜暫停掛載並待重新設計，API、資料與審核命令契約先保留。 |
 | Candidate bundle submit confirmation modal local-close, reload/history/bfcache/runtime recovery and AI real-operation validation | `.ai-doc/specs/SPEC-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001.md`; `.ai-doc/qa/qa-pdm-candidate-bundle-submit-modal-runtime-recovery-validation-plan-2026-08-09.md`; `.ai-doc/qa/DEV-059-real-operation-evidence-2026-08-09.md`; `.ai-doc/dev_task.md` (`DEV-059`, child development point of `DEV-057`). Status: `Local RD Implemented / Focused AI QA-QC Passed / Commit Pending / Production Release Gated`; parent `DEV-057` remains release-gated. Current evidence covers same-route dynamic root-cause reproduction, local UI lifecycle/recovery, focused regression, AI real browser and isolated flow/integration fault coverage. Shared-data mutation, cloud/production/deploy/release remain unauthorized; complete parent PASS still requires isolated disposable UI mutation run. |
 | Revision release gate, minor/major lifecycle policy and server-created suggested revision snapshot | `.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`; `.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026-07-17.md`; `.ai-doc/dev_task.md` (`DEV-050`) |
 | Reservation-to-first-drawing revision timing UX, rowVersion display, publication-gated first drawing CTA, implementation and QA/QC evidence | `.ai-doc/specs/SPEC-PDM-REVISION-TIMING-UX-001-reservation-first-drawing-revision-entry.md`; `.ai-doc/qa/qa-pdm-revision-timing-ux-validation-plan-2026-07-18.md`; `output/playwright/dev051-reservation-revision-timing-ux/`; `.ai-doc/dev_task.md` (`DEV-051`) |
@@ -138,6 +138,12 @@ Not executable without explicit approval:
 - `DEV-PDM-GOOGLE-IDENTITY-001` / `DEV-043`: 本地完成 / live provider 與 release 未執行。Google 初次綁定只能從有效 Admin 邀請進入，verified email 必須符合邀請；一般登入只依已綁定 Google `sub`，不做 email/domain 自動授權。OAuth 使用 server-side code flow、state、nonce、PKCE，token/secret 不落 DB/audit；`suspended` 等非 active 帳號會拒絕新登入與既有 session。未設定 credential 時 UI 保留停用按鈕與未開放提示。證據：`qc:pdm-google-identity` 19/19、`qc:pdm-account-invitations` 25/25、`qc:managed-auth` 21/21、migration QC、typecheck、lint、isolated build 與 desktop/mobile screenshots。讀 `.ai-doc/qa/qa-pdm-google-identity-validation-plan-2026-07-10.md`、`.ai-doc/qc/qc-pdm-google-identity-report-2026-07-10.md`。
 - `DEV-PDM-SUBMISSION-GATE-001` / `DEV-005`: Phase 1 local implementation passed on 2026-07-10. It owns the research/technical-transfer mode split, rule resolver, direct single-item technical-transfer fail-closed guard, parent package/readiness/sign-off/release policy and Parent Phase 2/4 contracts. Its Phase 1 completion remains valid; future transfer-package product delivery is no longer hidden beneath this completed DEV.
 - `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001` / `DEV-041`: child technical-transfer delivery created by user decision `3A`. Phase 3A-0 is locally implemented and QA-passed on 2026-07-13; Phase 3A-1 through 3C are `RD Contract Ready / Not Requested This Turn`. The implemented slice adds explicit idempotent Draft creation, stable package identity, shared create/detail workbench, scope/header maintenance, adapter summaries, blocker guidance, audit events and terminal cancellation. Q3-Q8 remain authoritative for later phases: linked delta packages, atomic multi-top approval, deterministic rules without AI authority, manager-approved formal `no_change` and canonical defer follow-up. Read the child SPEC/QA/QC, parent SPEC/ADR, BOM, approval, access-control, numbering-task and file-storage authorities before later-phase implementation.
+- `DEV-PDM-BOM-MODULE-ENTRY-001` / `DEV-060`: `Brief Ready / Human Confirmed / Implementation Not Requested`.
+  User selected Scheme B on 2026-08-10: expose `建立 BOM`, `BOM 工作台`, and `BOM 審核` under the BOM section.
+  Creation first resolves the owner assembly/item and revision, then reuses the CAD or SolidWorks BOM XLS path
+  to create a traceable Draft and hand it to the workbench. This Brief adds no blank-draft API, schema/lifecycle/
+  approval authority, product implementation, or release authorization. After an explicit implementation
+  request, complete Spec Impact Preflight in the same `DEV-060` and upgrade it to `RD Contract Ready`.
 - `DEV-PDM-NUMBERING-003`: Implemented / verification passed locally for Phase 1-3. New normal v3 creation uses `A0001-Z9999` alphanumeric roots and `A0001-P01`, `A0001-M01`, `A0001-R01`; root letters are capacity bands only; existing v1/v2 identities remain readable; v3 allocation reserves legacy numeric root ordinals and audit/control root evidence; `M` is category only and `R` cannot be manufacturing basis. Local/runtime master identities were converted from v2 numeric roots to v3 through scripted dry-run, backup, apply and independent check; historical audit/file/release evidence strings were retained. `I/O/Q` exclusion, production/Supabase migration, direct data repair/deletion outside the scripted local cutover boundary and release artifacts remain not authorized. Read `.ai-doc/specs/SPEC-PDM-NUMBERING-003-alphanumeric-root-identity.md`, `.ai-doc/decisions/ADR-PDM-NUMBERING-003-alphanumeric-root-identity.md` and `.ai-doc/qa/qa-pdm-numbering-003-alphanumeric-root-validation-plan-2026-07-07.md`.
 - `DEV-PDM-NUMBERING-SEQUENCE-CAPA-001` Phase 4 and any further data repair: Phase 1-3 local CAPA controls and the authorized local repair are implemented and verified. Production/Supabase rollout, visible formal-number renumbering, reset/reuse/backfill/voiding/deletion beyond the captured repair audit, merge, deploy, rollback and production smoke remain not executable without explicit human authorization. Runtime evidence is retained under `output/qc-pdm-numbering-sequence-integrity/` and `output/pdm-numbering-sequence-repair-runtime/`.
 - `DEV-PDM-NEXT-STEP-UX-001` Phase 2+: regression scanner/checklist hardening and production release are not authorized. DB/API/permission/state-machine changes, production deploy, direct data repair, historical cleanup, admin/debug raw payload full localization and full platform navigation redesign are excluded unless separately approved.
@@ -743,6 +749,41 @@ Stop if:
 
 - GET/open must create a package, owner logic must be duplicated, company/RLS boundary cannot be enforced, parser cannot stream/fail closed, a formal/top assembly can baseline without controlled identity, or transfer approval would directly release a master.
 - Development impact would stale formal configuration, formal defer could bypass its Gate, UI must expose separate normal defer/in-progress badges, multi-root approval cannot be atomic, or an approved package must be reopened.
+
+### DEV-PDM-BOM-MODULE-ENTRY-001
+
+Status: `DEV-060 Brief Ready / Human Confirmed / Implementation Not Requested`.
+
+Read:
+
+1. `.ai-doc/dev_task.md` entry `DEV-060`
+2. `.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`
+3. `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md` only when changing the BOM
+   review handoff
+
+Execution boundary:
+
+- Scheme B is the human-confirmed product direction: expose `建立 BOM`, `BOM 工作台`, and `BOM 審核` as three
+  understandable tasks under the BOM module.
+- A new Draft must have an authoritative parent assembly/item and revision before creation; orphan BOM lists
+  are forbidden.
+- The first slice reuses existing CAD-assembly and SolidWorks BOM XLS creation paths, then hands off to the
+  existing workbench. Blank-draft creation, schema/lifecycle changes, parser changes and a second BOM approval
+  authority are excluded.
+- This package is Brief Ready only. Product implementation, data mutation, deployment and release were not
+  requested or performed.
+
+Next step:
+
+- On an explicit implementation request, update the same `DEV-060` with route, permission,
+  idempotency/readback, production-slice allowlist and QA/QC contracts, then mark it `RD Contract Ready`;
+  do not create a duplicate BOM-entry spec.
+
+Stop if:
+
+- Creation can proceed without a parent identity, retries can create duplicate Drafts, implementation needs a
+  new blank-draft API or schema/lifecycle/permission authority, or BOM review would diverge from canonical
+  `/approvals`.
 
 ### DEV-PDM-DRAWING-PART-RELATION-VIEW-001
 

@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-08-09
+更新日期：2026-08-10
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -115,6 +115,7 @@ Owner：Dev PM
   - UI 收斂補強：`/approvals` 保留審核清單作為背景脈絡，選取案件改用同一 `DrawingWorkspaceDrawer` 覆蓋式抽屜與五段順序；審核證據、預覽／下載與決策按鈕由 adapter 提供，不再維護獨立 `approval-detail-panel`。
   - 內容層收斂：A0005 正式圖號的摘要密度與區塊標題成為唯一視覺基準；候選、正式、審核都把資料交給 `DrawingDetailContent`／`DrawingDetailContentModel`，不再各自繪製首層版面，adapter 只提供資料與操作權限。
   - 預覽層收斂：候選、正式、審核共用 `DrawingDetailPreview` 與同一套預覽解析規則，固定呈現 3D／2D 兩張卡；有媒體就載入實際預覽，尚未產生則顯示同一套可理解的等待／下載 fallback，不再由模式各自繪製預覽版面。
+  - 2026-08-10 使用者重新決策 UI 方向：目前只保留 A0005 正式圖號明細抽屜作為唯一視覺基準；候選圖號與審核明細抽屜暫停掛載並移除可進入入口，待重新設計後再開發。API、資料與審核命令契約先保留，不視為正式 release。
   - 父任務：`DEV-053`、`DEV-055`、`DEV-056`、`DEV-PDM-NEXT-STEP-UX-001`、`DEV-PDM-ENTITY-DETAIL-DRAWER-001`。
   - 下一步：`DEV-059` current-route recovery 與 isolated disposable UI mutation extended gate 均已通過；父點本機 QA/QC 恢復為 PASS。commit、merge、PR、deploy 與 release 仍須另行明確授權並走既有 gate。
   - 阻塞 / 恢復條件：目前無產品方向阻塞；若實作需要改 lifecycle/status authority、schema、權限、既有路由語意或刪除既有能力，停止並回 PM 做 Spec Impact Preflight 與範圍決策。
@@ -127,6 +128,17 @@ Owner：Dev PM
   - 驗收與證據：current-route X／返回／Escape／reload／back-forward／CUA 與 1440/1024/390 viewport 通過；`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、typecheck、affected-file ESLint 通過；`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` run `DEV059-20260809-161835-isolated` 11/11 PASS，覆蓋 disposable UI 建立與首版證據、單一送審 request、503、response-loss authoritative readback、撤回／取消 cleanup、正式主檔零污染，`productionConnected=false`、`productionWrites=false`、`cleanupStatus=removed`；另有 DEV-053 flow 7/7、approval integration 27/27、Phase 1C HTTP 11/11。
   - 下一步：DEV-059 extended gate 已完成並恢復父 `DEV-057` 本機 QA/QC PASS；commit、merge、PR、deploy、production 與 release 仍保持未授權。
   - 計入交付：否（`DEV-057` 的缺陷修復開發點，不另計新的產品交付點）。
+
+- BOM 建立入口：`○ DEV-060` `Brief Ready / Human Confirmed / Implementation Not Requested`。
+  - 目標：採方案 B，建立獨立且可辨識的「建立 BOM 清單」入口，讓使用者先選擇 BOM 所屬組合件／料號與版次，
+    再選擇既有建立來源，不必先進入工作台才猜測如何開始。
+  - 已確認決策：左側 `BOM` 分區呈現 `建立 BOM`、`BOM 工作台`、`BOM 審核` 三個任務入口；建立頁為主要入口，
+    工作台與審核維持各自 owner surface。
+  - 初始邊界：第一切片重用既有 CAD 組合件與 SolidWorks BOM XLS 建草稿能力；成功後交接既有工作台。
+    空白手建來源、BOM schema／生命週期／審核 authority、匯入解析器改造與 release 不在本 Brief。
+  - 下一步：等待使用者提出實作指令；屆時在同一 `DEV-060` 先完成 route、permission、draft idempotency 與
+    canonical BOM review handoff 的 Spec Impact Preflight，再升級為 `RD Contract Ready`，不得直接把 Brief 當成 RD 授權。
+  - 計入交付：是（BOM 模組建立入口與可完成的首次建草稿導引）。
 
 - Google Secret Manager 憑證整合：`✓ DEV-058` `RD Implemented / Local Phase 1A-1D QC Passed / Production Release Gated`。
   - 目標：以 Google Secret Manager 取代舊 Supabase Vault secret provider，讓 Cloud SQL 只保存 reference/lifecycle metadata，並讓可信任 Windows Document Manager worker 可透過 server broker 讀取 exact active version。
@@ -644,6 +656,50 @@ Owner：Dev PM
   - 相關文件：`.ai-doc/specs/SPEC-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001.md`、`.ai-doc/qa/qa-pdm-candidate-bundle-submit-modal-runtime-recovery-validation-plan-2026-08-09.md`、`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`。
   - 證據：`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` 11/11、`npm run typecheck` PASS、affected-file ESLint PASS、`npm run qc:dev-053:flow` 7/7、number-state Phase 1C approval integration 27/27、Phase 1C HTTP 11/11、AI browser current-route evidence 8 cases PASS；isolated artifact `output/qa/pdm-candidate-submit-modal-recovery/DEV059-20260809-161835-isolated/`。既有 `qc:dev-053:real-operation` 在 stale DEV-053 list assertion 前停止，未作 DEV-059 pass evidence。
   - 下一步：DEV-059 extended gate 已完成，父 `DEV-057` 本機 QA/QC 恢復 PASS；保留 commit、merge、PR、deploy、production 與 release gate，未執行上述動作。
+
+- ○ DEV-060 [交付點] [Brief Ready / Human Confirmed / Implementation Not Requested] [P1] BOM 模組入口與建立 BOM 清單
+  - 摘要：為 BOM 模組補上類似圖料領號的明確開始入口，將「建立、繼續整理、審核」分成三個可直接理解的任務，
+    並把新草稿安全交接至既有 BOM 工作台。
+  - 來源 ID：`DEV-PDM-BOM-MODULE-ENTRY-001`。
+  - 父任務：無；關聯 authority 為 `SPEC-BOM-WORKBENCH-001` 與 `DEV-PDM-APPROVAL-PLATFORM-001`。
+  - 原始需求邊界：使用者指出 BOM 工作台缺少「建立 BOM 清單」入口，要求提出方案後，於 2026-08-10 明確選擇
+    方案 B 並要求寫成開發文件；本輪只授權文件化，不授權產品實作、資料異動或 release。
+  - 問題與使用者價值：目前側欄只提供 `BOM 工作台`，使用者必須先進入編輯頁、選到父件後才看見建草稿方式，
+    無法在進入模組前分辨要新建、續作或審核。新入口應讓第一次使用者直接開始，同時讓熟悉系統者保留工作台與審核捷徑。
+  - 核心資料原則：BOM 不是可脫離產品主檔的自由清單。建立前必須先確定 owner 組合件／料號與版次
+    （或等價 submission identity），不得建立無 parent identity、之後才猜測歸屬的 orphan draft。
+  - 主流程：使用者由左側 `BOM > 建立 BOM` 進入建立頁，搜尋並選定父件與版次，選擇 `從 CAD 組合件建立` 或
+    `匯入 SolidWorks BOM XLS`，確認建立摘要後產生 Draft，最後帶著 parent、draft 與來源脈絡進入既有
+    `/bom/workbench` 繼續整理。
+  - 資訊架構：左側 `BOM` 分區保留三個直接入口：`建立 BOM`（方案 B 的預設開始頁）、`BOM 工作台`
+    （續作／查找既有 Draft）、`BOM 審核`（交接 canonical `/approvals` 的 BOM domain，不建立第二套審核 authority）。
+    建立頁只保留一個 primary CTA，不恢復已刪除的流程定位 strip。
+  - 初始範圍：新增 BOM 建立入口與路由；提供父件／版次搜尋選擇、來源選擇、建立前摘要、建立中／成功／失敗／
+    可重試狀態；重用既有 CAD 與 XLS 建草稿 API；成功後交接既有 BOM 工作台；補齊 desktop、tablet、mobile
+    導覽與 keyboard/focus 行為。
+  - 初始範圍外：空白 BOM／第三種 generic create API、人工拖拉編輯能力改造、BOM schema 或 migration、
+    生命週期／狀態／權限矩陣重定義、審核平台分流、CAD extractor 或 XLS parser 改造、既有草稿回填／修復、
+    production deploy、release、正式資料寫入。
+  - 驗收方向：三個 BOM 任務入口在展開／收合／mobile 導覽均可理解且可達；建立頁首屏可辨識唯一主要動作；
+    未選父件不得建立；兩種來源的必要條件與阻擋原因可見；建立成功只產生一份可追溯 Draft 並進入正確工作台；
+    逾時或重送不得產生重複草稿；`BOM 審核` 進入 canonical BOM filter；390、768、1440 px 無裁切、水平溢位或
+    操作遮擋，錯誤訊息不得洩漏 raw payload／secret。
+  - 人類已確認：採方案 B；保留建立、工作台、審核三個任務入口；本輪交付為開發文件。
+  - AI 假設：第一切片只曝光目前已有的 CAD／XLS 建草稿能力；`人工拖拉編輯` 仍是既有草稿內的編輯方式，
+    不等同新增空白草稿來源。BOM 審核沿用 `/approvals?domain=bom` authority；實際 route alias 與 active-nav 呈現
+    於 `RD Contract Ready` 階段確認。
+  - 風險等級：Medium / P1。主要風險是建立動作重送造成重複 Draft、父件／版次指向錯誤、側欄與
+    production-slice allowlist／permission 不一致，以及 legacy `/bom/reviews` redirect 形成雙 authority 誤解。
+  - Spec Impact Preflight：初判為 `Compatible extension`，符合既有規格的獨立 BOM 模組與多來源建立目標，
+    且不改 BOM persistence／release authority。若 RD 需要新增空白 draft API、改 parent identity、改 lifecycle／
+    permission／schema，停止並升級既有 `SPEC-BOM-WORKBENCH-001`，不得另建重複 spec。
+  - 下一步：維持 `Brief Ready`；使用者若要求實作，Dev PM 在同一 DEV 補齊 component／API boundary、QA plan、
+    QC evidence contract 與停止條件後升級成熟度，不自動開始 RD。
+  - 阻塞／恢復條件：Brief 無待決策阻塞；只有收到明確實作指令後才恢復。進入 RD 前需確認 route contract、
+    create permission、冪等 key／authoritative readback、XLS upload handoff 與 production-slice open-page policy。
+  - 相關文件：`.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`、
+    `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`、`.ai-doc/documentation_map.md`。
+  - 計入交付：是。
 
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
   - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。

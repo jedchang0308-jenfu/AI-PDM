@@ -5,17 +5,24 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, FileText, Link2, MoreHorizontal, RefreshCcw, Search, Workflow, X } from "lucide-react";
 import { MasterAttachmentPanel, type HistoricalRevisionBackfillRequest } from "@/components/master-attachment-panel";
+import {
+  DrawingDetailContent as SharedDrawingDetailContent,
+  DrawingDetailSummary
+} from "@/components/drawing-detail-content";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import {
-  ConfirmDialog,
   NumberStateOwnerCreateAction,
-  WorkspaceDrawer,
   type NumberingDraftWorkspace,
   type WorkspaceAction
 } from "@/components/number-state-workspace";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
-import { DrawingWorkspaceDrawer } from "@/components/drawing-workspace-drawer";
+import {
+  DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
+  DRAWING_DETAIL_DRAWER_MIN_WIDTH,
+  DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
+  DrawingWorkspaceDrawer
+} from "@/components/drawing-workspace-drawer";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
@@ -41,13 +48,22 @@ export type ProductionSliceClientStatus = {
 };
 
 const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+const candidateDrawerRetiredMessage = "候選圖號明細抽屜已暫停開發；目前僅保留正式圖號明細。";
+
+type ApiMessageBody = {
+  error?: string | { code?: string; message?: string };
+  message?: string;
+};
 
 function readBody<T>(response: Response) {
-  return response.json().catch(() => ({})) as Promise<T & { error?: string; message?: string }>;
+  return response.json().catch(() => ({})) as Promise<T & ApiMessageBody>;
 }
 
-function apiMessage(body: { error?: string; message?: string }, fallback: string) {
-  return body.message?.trim() || body.error?.trim() || fallback;
+function apiMessage(body: ApiMessageBody, fallback: string) {
+  const errorCode = typeof body.error === "object" ? body.error?.code : body.error;
+  const errorMessage = typeof body.error === "object" ? body.error?.message : body.error;
+  if (errorCode === "candidate_review_service_unavailable") return "送審服務目前不可用。表單已保留，請稍後重試。";
+  return body.message?.trim() || errorMessage?.trim() || fallback;
 }
 
 function createIdempotencyKey(action: string) {
@@ -116,9 +132,9 @@ export function DrawingWorkbench() {
   const autoOpenedQueryRef = useRef("");
   const idempotencyKeys = useRef(new Map<string, string>());
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
-    storageKey: "pdm-unified-drawing-workbench-drawer-width",
-    defaultWidth: 660,
-    minWidth: 420
+    storageKey: DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
+    defaultWidth: DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
+    minWidth: DRAWING_DETAIL_DRAWER_MIN_WIDTH
   });
 
   useEffect(() => {
@@ -237,6 +253,20 @@ export function DrawingWorkbench() {
   }, []);
 
   const openDetail = useCallback(async (rowKey: string) => {
+    const listedRow = rows.find((row) => row.rowKey === rowKey);
+    if (listedRow?.rowKind === "candidate_bundle") {
+      detailRequestRef.current += 1;
+      setSelectedKey("");
+      setDetail(null);
+      setDetailLoading(false);
+      setEditing(false);
+      setConfirmAction(null);
+      setNotice(candidateDrawerRetiredMessage);
+      const params = new URLSearchParams(window.location.search);
+      params.delete("detail");
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+      return;
+    }
     const requestId = detailRequestRef.current + 1;
     detailRequestRef.current = requestId;
     setSelectedKey(rowKey);
@@ -251,6 +281,18 @@ export function DrawingWorkbench() {
       setError(apiMessage(body, "這筆圖號工作已不存在或目前無法查看。"));
       return;
     }
+    if (body.row.rowKind === "candidate_bundle") {
+      setSelectedKey("");
+      setDetail(null);
+      setDetailLoading(false);
+      setEditing(false);
+      setConfirmAction(null);
+      setNotice(candidateDrawerRetiredMessage);
+      const params = new URLSearchParams(window.location.search);
+      params.delete("detail");
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+      return;
+    }
     const canonicalRow = body.row;
     setRows((currentRows) => currentRows.map((row) => row.rowKey === canonicalRow.rowKey ? canonicalRow : row));
     setDetail(body);
@@ -263,7 +305,7 @@ export function DrawingWorkbench() {
     params.set("detail", rowKey);
     if (body.row.stage === "history_only") params.set("history", "include");
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  }, [includeHistory, resetPagination]);
+  }, [includeHistory, resetPagination, rows]);
 
   useEffect(() => {
     if (!initialized || !initialDetailRef.current) return;
@@ -382,16 +424,31 @@ export function DrawingWorkbench() {
     idempotencyKeys.current.set(mapKey, idempotencyKey);
     setActionBusy(true);
     setError("");
-    const response = await fetch(`/api/numbering/draft-workspaces/${encodeURIComponent(workspace.id)}/${endpoint}`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({
-        ...(action === "cancel" ? { expectedRowVersion: workspace.rowVersion, reason: "user_cancelled_draft" } : {}),
-        ...(action === "submit" ? { expectedWorkspaceRowVersion: workspace.rowVersion, reason: "draft_owner_confirmed_candidate_bundle_review" } : {}),
-        ...(action === "withdraw" ? { expectedWorkspaceRowVersion: workspace.rowVersion, reason: "draft_owner_withdrew_candidate_bundle_review" } : {}),
-        ...(action === "publish" ? { expectedRowVersion: workspace.rowVersion } : {})
-      })
-    });
+    let response: Response;
+    try {
+      response = await fetch(`/api/numbering/draft-workspaces/${encodeURIComponent(workspace.id)}/${endpoint}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          ...(action === "cancel" ? { expectedRowVersion: workspace.rowVersion, reason: "user_cancelled_draft" } : {}),
+          ...(action === "submit" ? { expectedWorkspaceRowVersion: workspace.rowVersion, reason: "draft_owner_confirmed_candidate_bundle_review" } : {}),
+          ...(action === "withdraw" ? { expectedWorkspaceRowVersion: workspace.rowVersion, reason: "draft_owner_withdrew_candidate_bundle_review" } : {}),
+          ...(action === "publish" ? { expectedRowVersion: workspace.rowVersion } : {})
+        })
+      });
+    } catch {
+      setActionBusy(false);
+      setConfirmAction(null);
+      const unknownResultMessage = ({
+        cancel: "取消結果尚未確認；請重新整理狀態後再決定下一步。",
+        submit: "送審結果尚未確認；請重新整理狀態後再決定下一步。",
+        withdraw: "撤回結果尚未確認；請重新整理狀態後再決定下一步。",
+        publish: "正式發布結果尚未確認；請重新整理狀態後再決定下一步。"
+      } as const)[action];
+      try { await refreshDetailAndRows(workspace.id); } catch {}
+      setError(unknownResultMessage);
+      return;
+    }
     const body = await readBody<{ workspace?: NumberingDraftWorkspace }>(response);
     setActionBusy(false);
     setConfirmAction(null);
@@ -480,34 +537,7 @@ export function DrawingWorkbench() {
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate ? (
-        <WorkspaceDrawer
-          workspace={detail.candidate as NumberingDraftWorkspace}
-          busy={actionBusy}
-          editing={editing}
-          onEdit={() => setEditing(true)}
-          onCancelEdit={() => setEditing(false)}
-          onUpdate={(payload) => void updateWorkspace(payload)}
-          onSubmit={() => setConfirmAction("submit")}
-          onWithdraw={() => setConfirmAction("withdraw")}
-          onPublish={() => setConfirmAction("publish")}
-          onCancel={() => setConfirmAction("cancel")}
-          formalActionsUnopened={Boolean(productionSlice?.configured)}
-          unopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage}
-          canCreateDrawingRevision={false}
-          lifecycleV2Enabled
-          onV2WorkspaceChange={acceptCandidateWorkspace}
-          onV2Error={setError}
-          onV2Notice={setNotice}
-          seriesCodeOptions={seriesCodeOptions}
-          width={drawerWidth}
-          onStartResize={startDrawerResize}
-          keepOpenSelector="[data-drawing-workbench-row='true']"
-          onClose={closeDetail}
-        />
-      ) : null}
       {detail?.drawing ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
-      {confirmAction && detail?.candidate ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={actionBusy} lifecycleV2Enabled onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
     </>
   );
 }
@@ -591,12 +621,23 @@ export function DrawingDetailContent({
 }) {
   const slots = createDrawingDetailSlots({ drawing, row, capabilities, productionSlice, onDataChanged, returnTo: returnToOverride, embedded });
   return (
-    <div className={embedded ? "drawing-detail-content" : "pdm-entity-drawer-body"} data-drawing-detail-content="true">
-      <section className="drawing-detail-section drawing-detail-overview" data-drawing-detail-section="drawing-overview" aria-label="圖號摘要">{slots.overview}</section>
-      {slots.body}
-      <div className="drawing-detail-section drawing-detail-pending" data-drawing-detail-section="drawing-pending">{slots.pending}</div>
-      <section className="drawing-detail-section drawing-detail-more" data-drawing-detail-section="drawing-more" aria-label="更多圖號資料">{slots.more}</section>
-    </div>
+    <SharedDrawingDetailContent
+      model={{
+        overview: slots.overview,
+        body: slots.body,
+        pending: slots.pending,
+        more: slots.more,
+        bodyTitle: "圖面與附件",
+        bodyLabel: "圖面與附件",
+        pendingTitle: "目前狀態",
+        pendingLabel: "目前狀態",
+        moreTitle: "更多"
+      }}
+      overviewLabel="圖號摘要"
+      moreLabel="更多圖號資料"
+      bodyClassName={embedded ? "drawing-detail-content" : "pdm-entity-drawer-body"}
+      dataComponent="drawing-detail-content"
+    />
   );
 }
 
@@ -625,21 +666,27 @@ function createDrawingDetailSlots({
   const embeddedPrimaryAction = embedded && row.primaryAction
     ? { ...row.primaryAction, href: withDrawingReturnTo(row.primaryAction.href, returnTo) }
     : row.primaryAction;
+  const linkedPartCount = drawing.linkedPartNumbers.length;
+  const sameRootPartCount = drawing.sameRootParts.length;
+  const summaryFacts = [
+    { label: "用途", value: `${drawing.purposeCode} ${displayDrawingPurposeLabel(drawing.purposeCode)}` },
+    { label: "關聯料號", value: linkedPartCount > 0 ? `${linkedPartCount} 個` : "尚未關聯" },
+    ...(sameRootPartCount !== linkedPartCount ? [{ label: "同根料號", value: `${sameRootPartCount} 個` }] : [])
+  ];
   const openEmbeddedPrimaryAction = async () => {
     if (embeddedPrimaryAction?.href) window.location.assign(embeddedPrimaryAction.href);
   };
   return {
     overview: (
-        <dl className="drawing-workbench-facts">
-          <div><dt>用途</dt><dd>{drawing.purposeCode} {displayDrawingPurposeLabel(drawing.purposeCode)}</dd></div>
-          <div title={drawing.linkedPartNumbers.join("、")}><dt>關聯</dt><dd>{drawing.linkedPartNumbers.length > 0 ? `${drawing.linkedPartNumbers.length} 個料號` : "尚未關聯"}</dd></div>
-          <div><dt>同根</dt><dd>{drawing.sameRootParts.length} 筆料號</dd></div>
-        </dl>
+        <DrawingDetailSummary
+          facts={summaryFacts}
+          dataMode="controlled"
+        />
     ),
     body: (
-      <section id="drawing-controlled-attachments" className="drawing-workbench-core-section drawing-detail-section" aria-label="版次檔案與預覽" data-drawing-detail-section="drawing-revision-files">
+      <div id="drawing-controlled-attachments" className="drawing-workbench-core-section">
         <MasterAttachmentPanel compact drawingDetailSkeleton authorityMode="controlled_summary" entityType="drawing_number" entityCode={drawing.drawingNumber} processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)} readOnly pendingRevisionReviews={drawing.pendingApproval ? { ...drawing.pendingApproval, canReview: capabilities.canReviewApprovals } : null} productionSliceEnforced={Boolean(productionSlice?.configured)} productionSliceUnopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage} />
-      </section>
+      </div>
     ),
     pending: (
       <>
@@ -741,10 +788,17 @@ function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, widt
       keepOpenSelector="[data-drawing-workbench-row='true']"
       overviewLabel="圖號摘要"
       moreLabel="更多圖號資料"
-      overview={slots.overview}
-      body={slots.body}
-      pending={slots.pending}
-      more={slots.more}
+      content={{
+        overview: slots.overview,
+        body: slots.body,
+        pending: slots.pending,
+        more: slots.more,
+        bodyTitle: "圖面與附件",
+        bodyLabel: "圖面與附件",
+        pendingTitle: "目前狀態",
+        pendingLabel: "目前狀態",
+        moreTitle: "更多"
+      }}
     />
   );
 }
