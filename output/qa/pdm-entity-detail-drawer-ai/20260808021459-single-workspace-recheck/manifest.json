@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-08-08T02:14:59Z",
+  "browser": "Chrome existing signed-in session",
+  "route": "http://127.0.0.1:3000/numbering/drawings?view=all",
+  "fixtures": {"candidate": "A0006-M01", "formal": "A0005-M01"},
+  "finalArtifacts": [
+    "candidate-a0006-1440x900-final.png",
+    "candidate-a0006-390x844-final.png",
+    "formal-a0005-1440x900-final.png",
+    "recheck-metrics.json",
+    "qc-recheck-report.md"
+  ],
+  "mutationBoundary": "Read-only; no create, upload, save, submit, cancel, publish, or confirmation action was executed."
+}

@@ -103,7 +103,7 @@ export type NumberLifecycleProjectionInput = {
 
 export type CandidateRevisionReadiness = {
   ready: boolean;
-  missing: Array<"revision" | "primary_file" | "finalized_evidence">;
+  missing: Array<"revision" | "primary_file" | "drawing_2d" | "cad_3d" | "finalized_evidence">;
 };
 
 export function evaluateCandidateRevisionReadiness(
@@ -113,6 +113,8 @@ export function evaluateCandidateRevisionReadiness(
   const activeFiles = candidate.files.filter((file) => !file.removedAt);
   if (!candidate.revision.trim()) missing.push("revision");
   if (!activeFiles.some((file) => file.isPrimary)) missing.push("primary_file");
+  if (!activeFiles.some((file) => file.isPrimary && file.role === "drawing_2d")) missing.push("drawing_2d");
+  if (!activeFiles.some((file) => file.isPrimary && file.role === "cad_3d")) missing.push("cad_3d");
   if (!activeFiles.some((file) => file.isPrimary && file.publicationEvidenceId)) {
     missing.push("finalized_evidence");
   }
@@ -452,6 +454,14 @@ export async function addNumberingCandidateRevisionFile(input: {
   const displayName = lifecycleText(input.displayName, 300) || fileName;
   const description = lifecycleText(input.description, 2000);
   const fileExt = fileName.includes(".") ? fileName.split(".").pop()!.toLowerCase().slice(0, 30) : "";
+  const extensionRole = requiredDrawingRoleForExtension(fileName, fileExt);
+  if (extensionRole && role !== extensionRole) {
+    throw new NumberStateFlowError(
+      "candidate_revision_invalid",
+      `「${fileName}」的副檔名要求類別為 ${extensionRole === "drawing_2d" ? "2D 原始檔" : "3D CAD"}，不能改用其他類別。`,
+      400
+    );
+  }
   const bytes = Buffer.from(await input.file.arrayBuffer());
   const contentHash = crypto.createHash("sha256").update(bytes).digest("hex");
   const mimeType = input.file.type || "application/octet-stream";
@@ -482,17 +492,39 @@ export async function addNumberingCandidateRevisionFile(input: {
       command,
       idempotencyPayload: command.payload,
       execute: async (client) => {
-        const assetId = `FA-${crypto.randomUUID()}`;
         fileId = `NCRF-${crypto.randomUUID()}`;
+        const ownerRootId = role === "cad_3d"
+          ? await findOwnerPartRootForCandidate(client, {
+              companyId: input.metadata.actor.organizationId,
+              candidateRevisionId
+            })
+          : null;
+        const reusable = role === "cad_3d"
+          ? await findReusableCadAsset(client, {
+              companyId: input.metadata.actor.organizationId,
+              ownerId: ownerRootId,
+              contentHash,
+              fileSize: bytes.byteLength
+            })
+          : null;
         const requestedKey = buildStorageKey([
           "candidate-revisions",
           input.metadata.actor.organizationId,
           candidateRevisionId,
           `${fileId}-${fileName}`
         ]);
-        const before = await storageService.getObjectMetadata(requestedKey);
-        const stored = await storageService.putObject({ key: requestedKey, bytes, contentType: mimeType });
-        if (!before && stored.key === requestedKey) cleanupTarget.current = { key: stored.key, provider: stored.provider };
+        const before = reusable ? null : await storageService.getObjectMetadata(requestedKey);
+        const stored = reusable
+          ? {
+              provider: reusable.storage_provider,
+              localPath: reusable.original_path,
+              bucket: reusable.storage_bucket,
+              key: reusable.storage_key ?? "",
+              bytes: Number(reusable.file_size ?? bytes.byteLength),
+              sha256: reusable.content_hash ?? contentHash
+            }
+          : await storageService.putObject({ key: requestedKey, bytes, contentType: mimeType });
+        if (!reusable && !before && stored.key === requestedKey) cleanupTarget.current = { key: stored.key, provider: stored.provider };
         if (localDevelopmentEvidence) {
           const hashVerified = await storageService.verifyObjectHash(stored.key, stored.sha256);
           if (!hashVerified) {
@@ -504,7 +536,7 @@ export async function addNumberingCandidateRevisionFile(input: {
           }
         }
         const storage: CandidateFileStorageInput = {
-          assetId,
+          assetId: reusable?.id ?? `FA-${crypto.randomUUID()}`,
           fileId,
           storageProvider: stored.provider,
           originalPath: stored.provider === "local_repository" ? stored.localPath : null,
@@ -527,7 +559,11 @@ export async function addNumberingCandidateRevisionFile(input: {
             objectKey: stored.key,
             generation: `local-${stored.sha256.slice(0, 16)}`,
             finalizedAt: new Date().toISOString()
-          } : null
+          } : null,
+          reuseExistingAssetId: reusable?.id ?? null,
+          sharedModelOwner: ownerRootId
+            ? { partRootId: ownerRootId, modelRevision: "candidate" }
+            : null
         };
         return new Repository(client).addCandidateFile({
           workspaceId,
@@ -604,6 +640,13 @@ export async function verifyExistingNumberingCandidateRevisionFile(input: {
           fileId,
           expectedRowVersion
         });
+        if (source.role === "drawing_2d" || source.role === "cad_3d") {
+          throw new NumberStateFlowError(
+            "candidate_revision_invalid",
+            "2D 原始檔與 3D CAD 必須在本次版次重新上傳；不可只驗證舊檔。",
+            409
+          );
+        }
         let evidence: {
           id: string;
           bucket: string;
@@ -966,3 +1009,4 @@ import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-comman
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { isLocalDevelopmentPublicationEvidenceEnabled } from "@/lib/publication-evidence";
 import type { CandidateFileStorageInput } from "@/lib/repositories/number-lifecycle-simplification-async-repository";
+import { findOwnerPartRootForCandidate, findReusableCadAsset, requiredDrawingRoleForExtension } from "@/lib/pdm-file-ownership";

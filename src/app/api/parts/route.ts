@@ -63,7 +63,7 @@ export async function GET(request: Request) {
         availabilityScope: projectPartAvailability(part)
       };
     })
-    .filter((part) => viewerStatusMatchesFilter(part.viewerStatus, part.humanStatus, humanStatus))
+    .filter((part) => viewerStatusMatchesFilter(part.viewerStatus, part.humanStatus, humanStatus, part.availabilityScope))
     .slice(0, requestedLimit);
   return NextResponse.json({
     parts: projectedParts,

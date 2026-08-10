@@ -76,8 +76,8 @@ record("DEV053-H-UI-008 withdrawal remains a compact drawer-header secondary act
     "drawing.lifecycle.decisionCount === 0"
   ]) && has(workbench, [
     "DrawingLifecycleSecondaryAction",
-    "PdmEntityDetailDrawer",
-    "actions=",
+    "DrawingWorkspaceDrawer",
+    "secondaryActions=",
     "Idempotency-Key"
   ]));
 
@@ -102,7 +102,7 @@ record("DEV053-H-UI-011 cleanup retry is a separate, non-decision action",
     "cleanupPending",
     "/cleanup",
     "重試流程整理",
-    "不會重新審核、重新套用或建立第二筆送審"
+    "不會重新審核或建立第二筆送審"
   ]));
 
 record("DEV053-H-UI-012 approval deep-link first render is hydration-stable",

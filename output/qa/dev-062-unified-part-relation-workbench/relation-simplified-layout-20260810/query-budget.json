@@ -1,0 +1,7 @@
+{
+  "runId": "relation-simplified-layout-20260810",
+  "passed": false,
+  "cardinalityRule": "representative query count must equal baseline query count",
+  "part": null,
+  "relation": null
+}

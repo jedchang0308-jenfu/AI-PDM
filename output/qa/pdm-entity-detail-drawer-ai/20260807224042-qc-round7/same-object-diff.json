@@ -1,0 +1,84 @@
+{
+  "result": "FAIL due root same-surface status contradiction",
+  "drawing": {
+    "fixture": "A0007-M01",
+    "search": {
+      "identity": "A0007-M01",
+      "name": "馬達_JF_2HP_A",
+      "status": "等他人處理",
+      "sections": [
+        "A0007-M01",
+        "受控版次檔案",
+        "參考附件",
+        "同根料號"
+      ]
+    },
+    "owner": {
+      "identity": "A0007-M01",
+      "name": "馬達_JF_2HP_A",
+      "status": "等他人處理",
+      "sections": [
+        "A0007-M01",
+        "受控版次檔案",
+        "參考附件",
+        "同根料號"
+      ]
+    },
+    "result": "PASS"
+  },
+  "part": {
+    "fixture": "A0001-P01",
+    "search": {
+      "identity": "A0001-P01",
+      "name": "滑鼠_JF_A",
+      "status": "待你處理",
+      "sections": [
+        "A0001-P01",
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ],
+      "bodyIdentityCount": 0
+    },
+    "owner": {
+      "identity": "A0001-P01",
+      "name": "滑鼠_JF_A",
+      "status": "待你處理",
+      "sections": [
+        "A0001-P01",
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ],
+      "bodyIdentityCount": 0
+    },
+    "result": "PASS"
+  },
+  "root": {
+    "fixture": "A0007",
+    "list": {
+      "aria": "狀態：生產可用，查看說明",
+      "key": "relation_complete",
+      "primary": "生產可用",
+      "scope": "production",
+      "text": "生產可用"
+    },
+    "drawer": {
+      "aria": "狀態：待你處理，查看說明",
+      "key": "data_conflict",
+      "primary": "待你處理",
+      "scope": "none",
+      "text": "待你處理"
+    },
+    "simultaneous": true,
+    "result": "FAIL P0"
+  }
+}

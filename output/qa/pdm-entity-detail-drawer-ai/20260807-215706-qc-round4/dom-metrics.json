@@ -1,0 +1,27 @@
+{
+  "drawingStatus": {
+    "fixture": "A0007-M01",
+    "searchBeforeOpen": "等他人處理",
+    "searchAfterOpenList": "等他人處理",
+    "searchDrawer": {"entityType": "drawing_number", "entityCode": "A0007-M01", "status": "等他人處理"},
+    "ownerDrawer": {"entityType": "drawing_number", "entityCode": "A0007-M01", "status": "等他人處理", "subtitle": "馬達_JF_2HP_A"},
+    "passed": true
+  },
+  "searchPartKeyboard": {
+    "start": {"entityType": "part_number", "entityCode": "A0005-P01"},
+    "enter": {"target": "A0005-P02", "activeElement": "A0005-P02", "after3Seconds": {"entityType": "part_number", "entityCode": "A0005-P01"}},
+    "space": {"target": "A0005-P03", "activeElement": "A0005-P03", "after3Seconds": {"entityType": "part_number", "entityCode": "A0005-P01"}},
+    "mouseControl": {"target": "A0005-P02", "result": {"entityType": "part_number", "entityCode": "A0005-P02"}},
+    "targetSemantics": {"tag": "BUTTON", "type": "button", "disabled": false},
+    "passed": false
+  },
+  "preview": {
+    "text": "2D 預覽尚未產生。可先下載原始檔查看；系統產生後重新整理即可。",
+    "rawTerms": [],
+    "retryControlCount": 0,
+    "downloadLinkCount": 4,
+    "passed": true
+  },
+  "shellObserved": {"role": "complementary", "ariaModal": null, "inlineCloseCount": 1},
+  "currentPageOverflow": 0
+}

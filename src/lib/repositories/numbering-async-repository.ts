@@ -25,8 +25,14 @@ import {
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
+import {
+  canonicalImportedRootName,
+  importedDrawingSequence,
+  importedPartSequence
+} from "@/lib/numbering-import-normalization";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
 import { normalizePartCostTiers, normalizePositiveInteger } from "@/lib/numbering-part-cost";
+import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
@@ -3770,6 +3776,7 @@ function mapPartCostChangeRequest(row: PartCostChangeRequestRow): PartCostChange
 function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
   return {
     ...mapPartNumber(row),
+    updatedAt: row.updated_at ?? "",
     rootCode: row.root_code,
     coreName: row.core_name,
     primaryDrawingNumber: row.primary_drawing_number,
@@ -4114,34 +4121,6 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
   return "";
 }
 
-function canonicalImportedRootName(coreName: string, partName: string) {
-  const rootName = coreName.trim();
-  const candidatePartName = partName.trim();
-  if (!rootName) return candidatePartName;
-  if (!candidatePartName) return rootName;
-  if (candidatePartName === rootName) return rootName;
-  if (candidatePartName.startsWith(rootName) && candidatePartName.length > rootName.length) return candidatePartName;
-  return rootName;
-}
-
-function importedPartSequence(partNumber: string) {
-  const v3 = partNumber.match(/^[A-Z][0-9]{4}-P([0-9]{2})$/);
-  if (v3) return Number.parseInt(v3[1], 10);
-  const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
-  if (v2) return Number.parseInt(v2[1], 10);
-  const v1 = partNumber.match(/(\d{3})$/);
-  return v1 ? Number.parseInt(v1[1], 10) : 0;
-}
-
-function importedDrawingSequence(drawingNumber: string) {
-  const v3 = drawingNumber.match(/^[A-Z][0-9]{4}-[MR]([0-9]{2})$/);
-  if (v3) return Number.parseInt(v3[1], 10);
-  const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
-  if (v2) return Number.parseInt(v2[1], 10);
-  const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
-  return v1 ? Number.parseInt(v1[1], 10) : 1;
-}
-
 function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
   if (isV3RootCode(rootCode) || (partNumber && isV3PartNumber(partNumber)) || (drawingNumber && isV3DrawingNumber(drawingNumber))) {
     return NUMBERING_RULE_V3_ID;
@@ -4264,18 +4243,6 @@ function canAccessNumberingScope(context: NumberingAccessContext, projectCode: s
   if (context.projectScopes.size > 0 && (!projectCode || !context.projectScopes.has(projectCode))) return false;
   if (context.actionScopes.size > 0 && (!actionCode || !context.actionScopes.has(actionCode))) return false;
   return context.baseRoles.includes("rd_manager") || context.baseRoles.includes("pdm_admin") || delegatedAccessAllowed(context, "rd_manager", projectCode, actionCode);
-}
-
-function lowestAvailableSequence(usedValues: number[], maxValue: number, label: string) {
-  const used = [...new Set(usedValues.filter((value) => Number.isInteger(value) && value > 0 && value <= maxValue))].sort((a, b) => a - b);
-  let candidate = 1;
-  for (const value of used) {
-    if (value < candidate) continue;
-    if (value > candidate) break;
-    candidate += 1;
-  }
-  if (candidate > maxValue) throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
-  return candidate;
 }
 
 function createNamedList(prefix: string, values: string[]) {
@@ -6756,6 +6723,33 @@ export class AsyncNumberingRepository {
     return rows.map(mapPartModuleListRow);
   }
 
+  async listPartModuleRecordsByIds(partNumberIds: string[], companyId: string = DEFAULT_COMPANY_ID): Promise<PartModuleListRecord[]> {
+    const orderedIds = [...new Set(partNumberIds.filter(Boolean))];
+    if (orderedIds.length === 0) return [];
+    const rows: PartModuleListRow[] = [];
+    for (let offset = 0; offset < orderedIds.length; offset += 400) {
+      const chunk = orderedIds.slice(offset, offset + 400);
+      const bindings: Record<string, string> = { companyId };
+      const placeholders = chunk.map((id, index) => {
+        const key = `partNumberId${offset}_${index}`;
+        bindings[key] = id;
+        return `:${key}`;
+      }).join(", ");
+      rows.push(...await this.client.query<PartModuleListRow>(
+        `${SELECT_ASYNC_PART_MODULE_RECORDS_BASE_SQL}
+         WHERE p.company_id = :companyId
+           AND p.id IN (${placeholders})
+         ORDER BY r.root_code ASC, p.sequence_no ASC, p.part_number ASC`,
+        bindings
+      ));
+    }
+    const byId = new Map(rows.map((row) => [row.id, mapPartModuleListRow(row)]));
+    return orderedIds.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [row] : [];
+    });
+  }
+
   async getPartModuleDetail(partNumber: string, companyId: string = DEFAULT_COMPANY_ID): Promise<PartModuleDetailRecord | null> {
     return this.getPartModuleDetailWithClient(this.client, partNumber, companyId);
   }
@@ -7320,6 +7314,138 @@ export class AsyncNumberingRepository {
       drawings: await this.getMonthlyCount(client, SELECT_ASYNC_MONTHLY_AUDIT_COUNT_DRAWINGS_SQL, { companyId }),
       openTasks: await this.getMonthlyCount(client, SELECT_ASYNC_MONTHLY_AUDIT_COUNT_OPEN_TASKS_SQL, { companyId })
     };
+  }
+
+  async getNumberingRootDetailsByIds(
+    rootIds: string[],
+    companyId = DEFAULT_COMPANY_ID,
+    options: { includeAncillary?: boolean } = {}
+  ): Promise<NumberingRootDetailRecord[]> {
+    const orderedIds = [...new Set(rootIds.filter(Boolean))];
+    if (orderedIds.length === 0) return [];
+    const chunks = Array.from({ length: Math.ceil(orderedIds.length / 400) }, (_, index) => orderedIds.slice(index * 400, (index + 1) * 400));
+    const queryChunks = async <T>(sql: (placeholders: string) => string) => {
+      const batches = await Promise.all(chunks.map((chunk, chunkIndex) => {
+        const bindings: Record<string, string> = { companyId };
+        const placeholders = chunk.map((rootId, itemIndex) => {
+          const key = `rootId${chunkIndex}_${itemIndex}`;
+          bindings[key] = rootId;
+          return `:${key}`;
+        }).join(", ");
+        return this.client.query<T>(sql(placeholders), bindings);
+      }));
+      return batches.flat();
+    };
+    const includeAncillary = options.includeAncillary !== false;
+    const [rootRows, partRows, drawingRows, linkRows, variantRows] = await Promise.all([
+      queryChunks<PartRootRow>((ids) => `SELECT * FROM part_roots WHERE company_id = :companyId AND id IN (${ids})`),
+      queryChunks<PartNumberRow>((ids) => `SELECT * FROM part_numbers WHERE company_id = :companyId AND part_root_id IN (${ids}) ORDER BY part_root_id, sequence_no, part_number`),
+      queryChunks<DrawingNumberRow>((ids) => `SELECT * FROM drawing_numbers WHERE company_id = :companyId AND part_root_id IN (${ids}) ORDER BY part_root_id, purpose_code, sequence_no, drawing_number`),
+      queryChunks<NumberingLinkRow>((ids) => `SELECT l.id, l.drawing_number_id, l.part_number_id, d.drawing_number, p.part_number, l.link_type, l.created_at
+        FROM drawing_part_links l
+        JOIN drawing_numbers d ON d.id = l.drawing_number_id
+        JOIN part_numbers p ON p.id = l.part_number_id
+        WHERE d.company_id = :companyId AND p.company_id = :companyId
+          AND (d.part_root_id IN (${ids}) OR p.part_root_id IN (${ids}))
+        ORDER BY d.drawing_number, p.part_number, l.link_type`),
+      includeAncillary ? queryChunks<NumberingVariantRow>((ids) => `SELECT v.id, v.drawing_number_id, v.part_number_id, d.drawing_number, p.part_number, v.field_name, v.field_value, v.created_at
+        FROM same_drawing_variants v
+        JOIN drawing_numbers d ON d.id = v.drawing_number_id
+        JOIN part_numbers p ON p.id = v.part_number_id
+        WHERE d.company_id = :companyId AND p.company_id = :companyId
+          AND (d.part_root_id IN (${ids}) OR p.part_root_id IN (${ids}))
+        ORDER BY d.drawing_number, p.part_number, v.field_name`) : Promise.resolve([] as NumberingVariantRow[])
+    ]);
+    const entityIds = [...new Set([
+      ...rootRows.map((row) => row.id),
+      ...partRows.map((row) => row.id),
+      ...drawingRows.map((row) => row.id)
+    ])];
+    const warningRows: NumberingWarningRow[] = [];
+    for (let offset = 0; includeAncillary && offset < entityIds.length; offset += 400) {
+      const chunk = entityIds.slice(offset, offset + 400);
+      const bindings: Record<string, string> = {};
+      const placeholders = chunk.map((entityId, index) => {
+        const key = `warningEntityId${offset}_${index}`;
+        bindings[key] = entityId;
+        return `:${key}`;
+      }).join(", ");
+      warningRows.push(...await this.client.query<NumberingWarningRow>(
+        `${SELECT_ASYNC_NUMBERING_WARNINGS_BASE_SQL}
+         WHERE entity_id IN (${placeholders})
+         ORDER BY acknowledged_at IS NULL DESC, created_at DESC`,
+        bindings
+      ));
+    }
+    const rootsById = new Map(rootRows.map((row) => [row.id, mapPartRoot(row)]));
+    const partsByRoot = new Map<string, PartNumberRecord[]>();
+    for (const row of partRows) partsByRoot.set(row.part_root_id, [...(partsByRoot.get(row.part_root_id) ?? []), mapPartNumber(row)]);
+    const drawingsByRoot = new Map<string, DrawingNumberRecord[]>();
+    for (const row of drawingRows) drawingsByRoot.set(row.part_root_id, [...(drawingsByRoot.get(row.part_root_id) ?? []), mapDrawingNumber(row)]);
+    const rootIdByPartId = new Map(partRows.map((row) => [row.id, row.part_root_id]));
+    const rootIdByDrawingId = new Map(drawingRows.map((row) => [row.id, row.part_root_id]));
+    const linksByRoot = new Map<string, NumberingLinkRecord[]>();
+    for (const row of linkRows) {
+      const rootId = rootIdByDrawingId.get(row.drawing_number_id) ?? rootIdByPartId.get(row.part_number_id);
+      if (rootId) linksByRoot.set(rootId, [...(linksByRoot.get(rootId) ?? []), mapNumberingLink(row)]);
+    }
+    const variantsByRoot = new Map<string, NumberingVariantRecord[]>();
+    for (const row of variantRows) {
+      const rootId = rootIdByDrawingId.get(row.drawing_number_id) ?? rootIdByPartId.get(row.part_number_id);
+      if (rootId) variantsByRoot.set(rootId, [...(variantsByRoot.get(rootId) ?? []), mapNumberingVariant(row)]);
+    }
+    const warningsByEntityId = new Map<string, NumberingWarningRecord[]>();
+    for (const row of warningRows) {
+      if (!row.entity_id) continue;
+      warningsByEntityId.set(row.entity_id, [...(warningsByEntityId.get(row.entity_id) ?? []), mapNumberingWarning(row)]);
+    }
+    return orderedIds.flatMap((rootId) => {
+      const root = rootsById.get(rootId);
+      if (!root) return [];
+      const partNumbers = partsByRoot.get(rootId) ?? [];
+      const drawingNumbers = drawingsByRoot.get(rootId) ?? [];
+      const entityIdsForRoot = [rootId, ...partNumbers.map((part) => part.id), ...drawingNumbers.map((drawing) => drawing.id)];
+      const warnings = entityIdsForRoot.flatMap((entityId) => warningsByEntityId.get(entityId) ?? []);
+      return [{
+        root,
+        partNumbers,
+        drawingNumbers,
+        links: linksByRoot.get(rootId) ?? [],
+        variants: variantsByRoot.get(rootId) ?? [],
+        warnings,
+        auditTrail: [],
+        summary: {
+          partCount: partNumbers.length,
+          drawingCount: drawingNumbers.length,
+          primaryManufacturingCount: drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode) && drawing.isPrimaryManufacturing).length,
+          warningCount: warnings.filter((warning) => !warning.acknowledgedAt).length,
+          hasMainDrawingInvalid: root.recordStatus === "MainDrawingInvalid" || partNumbers.some((part) => part.recordStatus === "MainDrawingInvalid")
+        }
+      } satisfies NumberingRootDetailRecord];
+    });
+  }
+
+  async getNumberingRootDetailsByCodes(
+    rootCodes: string[],
+    companyId = DEFAULT_COMPANY_ID,
+    options: { includeAncillary?: boolean } = {}
+  ): Promise<NumberingRootDetailRecord[]> {
+    const orderedCodes = [...new Set(rootCodes.map((code) => code.trim()).filter(Boolean))];
+    if (orderedCodes.length === 0) return [];
+    const bindings: Record<string, string> = { companyId };
+    const placeholders = orderedCodes.map((code, index) => {
+      const key = `rootCode${index}`;
+      bindings[key] = code;
+      return `:${key}`;
+    }).join(", ");
+    const rows = await this.client.query<{ id: string; root_code: string }>(
+      `SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND root_code IN (${placeholders})`,
+      bindings
+    );
+    const idByCode = new Map(rows.map((row) => [row.root_code, row.id]));
+    const details = await this.getNumberingRootDetailsByIds(orderedCodes.flatMap((code) => idByCode.get(code) ?? []), companyId, options);
+    const detailByCode = new Map(details.map((detail) => [detail.root.rootCode, detail]));
+    return orderedCodes.flatMap((code) => detailByCode.get(code) ?? []);
   }
 
   private async buildMonthlyAuditDepartmentPages(client: AsyncDatabaseClient, counts: Record<string, number>, companyId: string) {

@@ -1,0 +1,624 @@
+{
+  "staticGate": {
+    "eslint": "PASS 0/0",
+    "entityDrawer": "PASS 33/33 + exact target runtime",
+    "dev053": "PASS 23/23",
+    "phase1h": "PASS 12/12",
+    "stateflow": "PASS 8/8",
+    "dev055": "PASS 13/13",
+    "typecheck": "PASS",
+    "diffCheck": "PASS; CRLF warnings only"
+  },
+  "tabs": {
+    "search": {
+      "initial": {
+        "url": "http://127.0.0.1:3000/numbering/search",
+        "official": {
+          "href": "/numbering/search",
+          "ariaCurrent": "page",
+          "className": "is-active"
+        },
+        "reserved": {
+          "href": "/numbering/search?tab=reserved",
+          "ariaCurrent": null,
+          "className": null
+        }
+      },
+      "reservedEnter": {
+        "url": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+        "ariaCurrent": "page"
+      },
+      "isolation": [
+        {
+          "key": "Space",
+          "before": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "after": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Shift+Enter",
+          "before": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "after": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Control+Enter",
+          "before": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "after": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Alt+Enter",
+          "before": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "after": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Meta+Enter",
+          "before": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "after": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        }
+      ],
+      "officialEnter": {
+        "url": "http://127.0.0.1:3000/numbering/search",
+        "ariaCurrent": "page"
+      },
+      "reservedMouse": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+      "officialMouse": "http://127.0.0.1:3000/numbering/search"
+    },
+    "parts": {
+      "initial": {
+        "url": "http://127.0.0.1:3000/parts",
+        "official": {
+          "href": "/parts",
+          "current": "page"
+        },
+        "draft": {
+          "href": "/parts?tab=drafts",
+          "current": null
+        }
+      },
+      "draftEnter": {
+        "url": "http://127.0.0.1:3000/parts?tab=drafts",
+        "current": "page"
+      },
+      "isolation": [
+        {
+          "key": "Space",
+          "before": "http://127.0.0.1:3000/parts?tab=drafts",
+          "after": "http://127.0.0.1:3000/parts?tab=drafts",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Shift+Enter",
+          "before": "http://127.0.0.1:3000/parts?tab=drafts",
+          "after": "http://127.0.0.1:3000/parts?tab=drafts",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Control+Enter",
+          "before": "http://127.0.0.1:3000/parts?tab=drafts",
+          "after": "http://127.0.0.1:3000/parts?tab=drafts",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Alt+Enter",
+          "before": "http://127.0.0.1:3000/parts?tab=drafts",
+          "after": "http://127.0.0.1:3000/parts?tab=drafts",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        },
+        {
+          "key": "Meta+Enter",
+          "before": "http://127.0.0.1:3000/parts?tab=drafts",
+          "after": "http://127.0.0.1:3000/parts?tab=drafts",
+          "beforeTabs": 1,
+          "afterTabs": 1
+        }
+      ],
+      "officialEnter": {
+        "url": "http://127.0.0.1:3000/parts",
+        "current": "page"
+      },
+      "draftMouse": "http://127.0.0.1:3000/parts?tab=drafts",
+      "officialMouse": "http://127.0.0.1:3000/parts"
+    },
+    "drawings": {
+      "result": "N/A live",
+      "reason": "Unified drawing workbench enabled; no visible owner tabs",
+      "legacyReservedUrlAfterNavigation": "http://127.0.0.1:3000/numbering/drawings?view=work",
+      "visibleOwnerTabs": 0
+    }
+  },
+  "keyboard": {
+    "rootPrimary": {
+      "href": "/drawings/A0007-M01/submission-workbench",
+      "url": "http://127.0.0.1:3000/drawings/A0007-M01/submission-workbench"
+    },
+    "tasks": {
+      "href": "/numbering/tasks",
+      "url": "http://127.0.0.1:3000/numbering/tasks"
+    },
+    "p02": {
+      "target": {
+        "active": {
+          "tag": "BUTTON",
+          "text": ""
+        },
+        "ancestors": [
+          {
+            "attrs": {},
+            "class": "pdm-relation-part-list",
+            "role": null,
+            "tag": "DIV"
+          },
+          {
+            "attrs": {},
+            "class": "pdm-relation-part-group",
+            "role": null,
+            "tag": "DIV"
+          },
+          {
+            "attrs": {},
+            "class": "pdm-relation-node manufacturing",
+            "role": null,
+            "tag": "SECTION"
+          },
+          {
+            "attrs": {},
+            "class": "pdm-relation-drawing-list",
+            "role": null,
+            "tag": "DIV"
+          },
+          {
+            "attrs": {},
+            "class": "pdm-relation-root-body",
+            "role": null,
+            "tag": "DIV"
+          },
+          {
+            "attrs": {
+              "data-row-index": "4",
+              "data-search-row": "true"
+            },
+            "class": "pdm-relation-root",
+            "role": null,
+            "tag": "ARTICLE"
+          }
+        ],
+        "attrs": {
+          "aria-keyshortcuts": "Enter Space",
+          "class": "pdm-relation-part-chip ",
+          "title": "A0005-P02 / 馬達_JF_2HP_B",
+          "type": "button"
+        },
+        "outerHTML": "<button class=\"pdm-relation-part-chip \" title=\"A0005-P02 / 馬達_JF_2HP_B\" type=\"button\" aria-keyshortcuts=\"Enter Space\"><span>A0005-P02</span><small title=\"馬達_JF_2HP_B\">馬達_JF_2HP_B</small><span class=\"human-status-badge-anchor\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"狀態：研發可用，查看說明\"><span class=\"human-status-badge is-success\" data-human-status-key=\"usable\" data-human-status-phase=\"usable\" data-human-status-label=\"可使用\" data-human-status-primary=\"研發可用\" data-viewer-status-category=\"usable\" data-viewer-status-basis=\"objective\" data-availability-scope=\"rd\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg><span>研發可用</span></span></span></button>",
+        "readyState": "complete",
+        "url": "http://127.0.0.1:3000/numbering/search"
+      },
+      "samples": [
+        {
+          "elapsedMs": 360,
+          "active": {
+            "tag": "BUTTON",
+            "text": "A0005-P02馬達_JF_2HP_B研發可用"
+          },
+          "drawers": [
+            {
+              "code": "A0005-P02",
+              "type": "part_number"
+            }
+          ],
+          "readyState": "complete",
+          "url": "http://127.0.0.1:3000/numbering/search"
+        }
+      ]
+    },
+    "p03": {
+      "code": "A0005-P03",
+      "type": "part_number"
+    },
+    "close": {
+      "enter": {
+        "box": {
+          "height": 44,
+          "width": 44,
+          "x": 1367.2000732421875,
+          "y": 25.80000114440918
+        },
+        "remaining": 0
+      },
+      "space": {
+        "box": {
+          "height": 44,
+          "width": 44,
+          "x": 1367.2000732421875,
+          "y": 25.80000114440918
+        },
+        "remaining": 0
+      }
+    },
+    "form": {
+      "input": {
+        "value": "A0007",
+        "url": "http://127.0.0.1:3000/numbering/search",
+        "drawerCount": 0,
+        "active": {
+          "tag": "INPUT",
+          "value": "A0007"
+        }
+      },
+      "select": {
+        "value": null,
+        "url": "http://127.0.0.1:3000/numbering/search",
+        "active": {
+          "tag": "SELECT",
+          "value": ""
+        }
+      },
+      "button": {
+        "url": "http://127.0.0.1:3000/numbering/search",
+        "drawerCount": 0,
+        "active": {
+          "tag": "BUTTON",
+          "text": "查詢"
+        }
+      }
+    }
+  },
+  "sameObject": {
+    "searchDrawing": {
+      "ariaModal": null,
+      "closeCount": 1,
+      "code": "A0007-M01",
+      "context": "numbering_search",
+      "downloadCount": 11,
+      "fakeRetryCount": 0,
+      "h2": "A0007-M01",
+      "headings": [
+        "A0007-M01",
+        "受控版次檔案",
+        "參考附件",
+        "同根料號"
+      ],
+      "primaryCount": 3,
+      "rawCount": 0,
+      "role": "complementary",
+      "status": "等他人處理",
+      "subtitle": "馬達_JF_2HP_A",
+      "type": "drawing_number"
+    },
+    "ownerDrawing": {
+      "ariaModal": null,
+      "closeCount": 1,
+      "code": "A0007-M01",
+      "context": "numbering_drawings",
+      "downloadCount": 11,
+      "fakeRetryCount": 0,
+      "h2": "A0007-M01",
+      "headings": [
+        "A0007-M01",
+        "受控版次檔案",
+        "參考附件",
+        "同根料號"
+      ],
+      "rawCount": 0,
+      "role": "complementary",
+      "scrollTop": 0,
+      "status": "等他人處理",
+      "subtitle": "馬達_JF_2HP_A",
+      "type": "drawing_number"
+    },
+    "searchPart": {
+      "ariaModal": null,
+      "bodyIdentityCount": 0,
+      "closeCount": 1,
+      "code": "A0001-P01",
+      "context": "numbering_search",
+      "fullIdentityCount": 1,
+      "h2": "A0001-P01",
+      "headings": [
+        "A0001-P01",
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ],
+      "rawCount": 0,
+      "role": "complementary",
+      "status": "待你處理",
+      "subtitle": "滑鼠_JF_A",
+      "topIdentityCount": 0,
+      "type": "part_number"
+    },
+    "ownerPart": {
+      "ariaModal": null,
+      "bodyIdentityCount": 0,
+      "bodyStart": "自製\n關聯圖號 1\n送審製造圖\n追溯\n3D 基準\n成本\n圖號關聯\n\nA0001-M01（製造基準關聯）\n\n變體差異\n\n未設定\n\n標準成本\n\n尚未設定標準成本\n\n同圖差異欄位\n\n無\n\n料號附件庫\n類別\n共用 3D CAD\n共用中繼模型\n型錄\n規格書\n供應商文件\n測試報告\n其他\n版次\n依 4.1，此工作區附件可不填版次；若需填寫，請使用 1、2、0.1 或 1.1，不要加 V。\n顯示名稱\n說明\n拖曳或選擇附件\n可一次上傳多個附件\n上傳附件\n尚未建立附件。現在請在上方選擇檔案並上傳；若只是查看資料，這裡不用處理。\n已刪除資料\n未載入\n料號完整度檢查\n製造圖關聯\n\n已建立製造基準關聯\n\n料號屬性\n\n材質或表面處理待補\n\n標準成本\n\n尚未設定標準成本\n\n成本審核\n\n目前無待審成本\n\n圖號關聯\n圖號\t關係\t處理\nA0001-M01\t製造基準關聯\t製造基準\n料號變體\n儲存\n材質\n顏色\n表面處理\n差異說明\n共用 3D / MA 製造基準\n重新整理\n已建模型\n\n0 個共用 3D model version\n\n必要 MA\n\n0 張，缺 0 張 Released package\n\n選定模型\n\n尚未選定\n\n來",
+      "closeCount": 1,
+      "code": "A0001-P01",
+      "context": "parts",
+      "fullIdentityCount": 1,
+      "h2": "A0001-P01",
+      "headings": [
+        "A0001-P01",
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ],
+      "rawCount": 0,
+      "role": "complementary",
+      "status": "待你處理",
+      "subtitle": "滑鼠_JF_A",
+      "topIdentityCount": 0,
+      "type": "part_number"
+    }
+  },
+  "root": {
+    "content": {
+      "ariaModal": null,
+      "closeCount": 1,
+      "code": "A0007",
+      "headings": [
+        "A0007",
+        "料號",
+        "圖號",
+        "關係維護",
+        "提醒",
+        "近期異動"
+      ],
+      "primaryCount": 1,
+      "primaryVisible": [
+        "檢查新版送審"
+      ],
+      "rawCount": 0,
+      "reminderBodyCount": 1,
+      "reminderTitleCount": 1,
+      "role": "complementary",
+      "status": "待你處理"
+    },
+    "statusContradiction": {
+      "drawer": {
+        "aria": "狀態：待你處理，查看說明",
+        "key": "data_conflict",
+        "primary": "待你處理",
+        "scope": "none",
+        "text": "待你處理"
+      },
+      "list": {
+        "aria": "狀態：生產可用，查看說明",
+        "key": "relation_complete",
+        "primary": "生產可用",
+        "scope": "production",
+        "text": "生產可用"
+      },
+      "simultaneous": true,
+      "url": "http://127.0.0.1:3000/numbering/search"
+    }
+  },
+  "shell": {
+    "mouseSwitch": {
+      "code": "A0007-M01",
+      "count": 1,
+      "scrollTop": 0,
+      "type": "drawing_number"
+    },
+    "keyboardSwitch": {
+      "code": "A0007-P01",
+      "count": 1,
+      "scrollTop": 0,
+      "type": "part_number"
+    },
+    "rootScrolled": 214.39999389648438,
+    "drawingScrolled": 46.400001525878906,
+    "outsideClose": 0,
+    "escapeClose": 0,
+    "mouseXClose": 0,
+    "resize": {
+      "before": 380,
+      "resized": 499,
+      "persisted": 499,
+      "restored": 380
+    },
+    "candidate": {
+      "before": {
+        "ariaModal": null,
+        "cancelButtons": 1,
+        "code": "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d",
+        "role": "complementary",
+        "type": "candidate_bundle"
+      },
+      "modalBefore": {
+        "ariaModal": "true",
+        "dialogCount": 1,
+        "drawerCode": "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d",
+        "drawerCount": 1,
+        "role": "alertdialog"
+      },
+      "modalAfter": {
+        "dialogCount": 0,
+        "drawerCode": "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d",
+        "drawerCount": 1
+      }
+    }
+  },
+  "viewports": {
+    "search1024": {
+      "bodyOverflow": 0,
+      "close": {
+        "height": 44,
+        "right": 980,
+        "width": 44,
+        "x": 936,
+        "y": 25.80000114440918
+      },
+      "drawer": {
+        "bottom": 756,
+        "height": 744,
+        "right": 996.7999877929688,
+        "width": 380,
+        "x": 616.7999877929688,
+        "y": 12
+      },
+      "pageOverflow": 0,
+      "viewport": {
+        "h": 768,
+        "w": 1024
+      }
+    },
+    "search390": {
+      "bodyOverflow": 0,
+      "bodyPageScrollTop": 0,
+      "bodyScroll": {
+        "height": 768,
+        "scrollHeight": 1107,
+        "top": 0
+      },
+      "close": {
+        "height": 44,
+        "right": 362.3999938964844,
+        "width": 44,
+        "x": 318.3999938964844,
+        "y": 17
+      },
+      "drawer": {
+        "bottom": 844,
+        "height": 844,
+        "right": 375.20001220703125,
+        "width": 375.20001220703125,
+        "x": 0,
+        "y": 0
+      },
+      "pageOverflow": 0,
+      "rootScrollTop": 0,
+      "viewport": {
+        "h": 844,
+        "w": 390
+      },
+      "windowScrollY": 0
+    },
+    "mobileScroll": {
+      "first": {
+        "body": 0,
+        "drawerTop": 338.3999938964844,
+        "max": 339,
+        "root": 0,
+        "windowY": 0
+      },
+      "second": {
+        "body": 0,
+        "drawerTop": 338.3999938964844,
+        "max": 339,
+        "root": 0,
+        "windowY": 0
+      }
+    },
+    "mobileTooltip": {
+      "bottom": 185.95000457763672,
+      "height": 130.0500030517578,
+      "right": 292,
+      "text": "檢查主圖\n資料之間有衝突，需要確認。\n你的角色可處理這一步\n需要人員完成\n下一步：維護圖料關係",
+      "width": 280,
+      "within": true,
+      "x": 12,
+      "y": 55.900001525878906
+    },
+    "drawings1024": {
+      "alerts": [],
+      "code": "A0007-M01",
+      "drawer": {
+        "height": 744,
+        "right": 1012,
+        "width": 420,
+        "x": 592
+      },
+      "drawerOverflow": 0,
+      "pageOverflow": 0,
+      "url": "http://127.0.0.1:3000/numbering/drawings?view=all&detail=drawing%3A5ad8984c-5492-4f22-8258-d1190c915200"
+    },
+    "parts1024": {
+      "alerts": [],
+      "code": "",
+      "drawer": {
+        "height": 744,
+        "right": 1012,
+        "width": 380,
+        "x": 632
+      },
+      "drawerOverflow": 0,
+      "pageOverflow": 0,
+      "url": "http://127.0.0.1:3000/parts"
+    },
+    "drawings390": {
+      "alerts": [],
+      "close": {
+        "height": 44,
+        "right": 362.3999938964844,
+        "width": 44,
+        "x": 318.3999938964844
+      },
+      "code": "A0007-M01",
+      "drawer": {
+        "height": 844,
+        "right": 375.20001220703125,
+        "width": 375.20001220703125,
+        "x": 0
+      },
+      "drawerOverflow": 0,
+      "pageOverflow": 0,
+      "url": "http://127.0.0.1:3000/numbering/drawings?view=all&detail=drawing%3A5ad8984c-5492-4f22-8258-d1190c915200"
+    },
+    "parts390": {
+      "alerts": [],
+      "close": {
+        "height": 44,
+        "right": 362.3999938964844,
+        "width": 44,
+        "x": 318.3999938964844
+      },
+      "code": "A0001-P01",
+      "drawer": {
+        "height": 844,
+        "right": 375.20001220703125,
+        "width": 375.20001220703125,
+        "x": 0
+      },
+      "drawerOverflow": 0,
+      "pageOverflow": 0,
+      "url": "http://127.0.0.1:3000/parts"
+    }
+  },
+  "visibleErrorSweep": {
+    "alerts": [],
+    "apiRoute": false,
+    "http4xx": false,
+    "http5xx": false,
+    "inlineErrors": [],
+    "internalServerError": false,
+    "notFound": false,
+    "pageOverflow": 0,
+    "referenceError": false,
+    "route": "http://127.0.0.1:3000/numbering/search",
+    "typeError": false,
+    "viewport": {
+      "height": 900,
+      "width": 1440
+    }
+  }
+}

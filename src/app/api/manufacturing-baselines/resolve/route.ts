@@ -4,19 +4,28 @@ import { resolveRequiredMaForBaselineAsync, Shared3dBaselineError } from "@/lib/
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+async function resolveForRequest(request: Request, ownerScope: unknown, ownerCode: unknown) {
   const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin", "Manufacturing"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   try {
     const result = await resolveRequiredMaForBaselineAsync({
-      ownerScope: body.ownerScope === "part_root" ? "part_root" : "part_number",
-      ownerCode: String(body.ownerCode ?? "")
+      ownerScope: ownerScope === "part_root" ? "part_root" : "part_number",
+      ownerCode: String(ownerCode ?? "")
     });
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return shared3dErrorResponse(error);
   }
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  return resolveForRequest(request, url.searchParams.get("ownerScope"), url.searchParams.get("ownerCode"));
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  return resolveForRequest(request, body.ownerScope, body.ownerCode);
 }
 
 function shared3dErrorResponse(error: unknown) {

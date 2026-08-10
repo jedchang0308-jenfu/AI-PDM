@@ -7,6 +7,10 @@ Related DEV: `DEV-PDM-SHARED-3D-MA-BASELINE-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SHARED-3D-MA-BASELINE-001-root-shared-model-and-manufacturing-baseline.md`
 Related QA: `.ai-doc/qa/qa-pdm-shared-3d-ma-baseline-validation-plan-2026-07-06.md`
 
+> **2026-08-10 DEV-061 Amendment**
+>
+> 新版次 3D 接收與共用規則改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理：使用者每次首版／進版都必須重新上傳 `.SLDPRT`／`.SLDASM`，系統以 company + owner scope + verified SHA-256/size 自動重用相同 canonical asset。新 write 不再允許 `two_d_only`／no-model-impact 例外；既有歷史列與已發布 baseline 保持可讀且不可改。本文衝突處只保留為歷史證據。
+
 Related authority:
 
 - `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`

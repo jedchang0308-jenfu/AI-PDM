@@ -1,0 +1,49 @@
+{
+  "shell": {
+    "role": "complementary",
+    "ariaModal": null,
+    "inlineCloseCount": 1,
+    "closeTarget": {"width": 44, "height": 44},
+    "closeKeyboard": {"Enter": true, "Space": true, "Escape": true, "mouse": true},
+    "outsideClickClosed": true,
+    "width": {"before": 420, "afterDrag": 542, "afterReload": 542, "restored": 421},
+    "mouseRowSwitch": {"from": "A0007-M01", "to": "A0005-M01", "drawerCount": 1, "scrollBefore": 132, "scrollAfter": 0},
+    "candidateModal": {"role": "alertdialog", "ariaModal": "true", "escapeClosedModal": true, "drawerRemainedOpen": true}
+  },
+  "drawingKeyboard": {"start": "A0007-M01", "afterEnter": "A0005-M01", "afterSpace": "A0007-M01", "inputEnterPreservedEntity": true},
+  "searchPartKeyboard": {"start": "A0005-P01", "pressedEnterOn": "A0005-P02", "afterEnter": "A0005", "pressedSpaceOn": "A0005-P03", "afterSpace": "A0005"},
+  "preview": {
+    "text": "2D 預覽尚未產生。可先下載原始檔查看，或稍後重試。",
+    "rawTerms": [],
+    "downloadDiscoverable": true,
+    "retryControlDiscoverable": false
+  },
+  "rootA0007": {
+    "rawTermCounts": {"High-similarity numbering candidate": 0, "Similar numbering records were found": 0, "HIGH_SIMILARITY_NUMBERING": 0, "numbering.v3.cutover": 0},
+    "humanReminderCount": 1,
+    "visibleEnabledPrimaryButtons": ["檢查新版送審"]
+  },
+  "mobile": {
+    "viewport": {"width": 390, "height": 844},
+    "drawerRect": {"x": 0, "right": 375.2, "width": 375.2, "height": 844},
+    "closeRect": {"x": 318.4, "right": 362.4, "width": 44, "height": 44},
+    "tooltipRect": {"x": 12, "right": 292, "width": 280, "y": 55.9, "bottom": 185.95},
+    "tooltipText": "檢查主圖｜資料之間有衝突，需要確認。｜你的角色可處理這一步｜需要人員完成｜下一步：維護圖料關係",
+    "bodyScrollBefore": 0,
+    "bodyScrollAfter": 0,
+    "drawerScrollBefore": 0,
+    "drawerScrollAfter": 338.4
+  },
+  "overflow": {
+    "drawings-1024x768": 0,
+    "drawings-390x844": 0,
+    "parts-1024x768": 0,
+    "parts-390x844": 0,
+    "search-1024x768": 0,
+    "search-390x844": 0,
+    "candidate-1440x900": 0,
+    "candidate-1024x768": 0,
+    "candidate-390x844": 0
+  },
+  "partFirstScreen": {"identityRepeated": false, "relationshipDiscoverable": true, "attributesDiscoverable": true, "costDiscoverable": true, "attachmentsDiscoverable": true}
+}

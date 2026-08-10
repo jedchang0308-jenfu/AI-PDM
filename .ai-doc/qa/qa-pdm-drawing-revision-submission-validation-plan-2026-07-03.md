@@ -5,6 +5,7 @@ Date: 2026-07-03
 Owner: Dev PM / QA
 Related DEV: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`
+Material identity authority: `.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`
 
 ## 1. Purpose
 
@@ -13,7 +14,7 @@ Validate that drawing revision is controlled by a formal submission/review/relea
 The validation target is the user-visible problem:
 
 ```text
-圖面 0.2 可以成立，但料號與 BOM 不一定進版；系統仍必須留下正式圖面 0.2 的受控送審證據。
+圖面 0.2 可以成立，Part Number identity 維持不變，BOM 也不一定需要升自己的 Revision；系統仍必須留下正式圖面 0.2 的受控送審證據。
 ```
 
 ## 2. Scope
@@ -44,7 +45,7 @@ Out of scope:
 - Direct data cleanup or historical repair.
 - CAD/OCR/SolidWorks automatic extraction as a required Phase 1 or Phase 2 dependency.
 - Automatic BOM version creation.
-- Automatic part-number revision for no-impact changes.
+- Any automatic Part Number Revision（Part Number 本身無 Revision）；只有物料身份條件改變時才建立 replacement Part Number。
 - Direct repair, deletion or migration of existing incorrect historical records.
 - Strict chronological approval order.
 - Duplicate formal records for the same drawing number and revision.

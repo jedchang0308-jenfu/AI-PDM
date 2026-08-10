@@ -110,7 +110,7 @@ try {
     all.rows.every((row) => row.stage && row.usage && (!row.primaryAction || row.primaryAction.label)) &&
     all.rows.find((row) => row.rowKey === "candidate:dev053-candidate")?.primaryAction?.kind === "complete_first_drawing" &&
     all.rows.find((row) => row.rowKey === "drawing:dev053-master-drawing")?.primaryAction?.kind === "create_revision" &&
-    all.rows.find((row) => row.rowKey === "drawing:dev053-master-drawing")?.primaryAction?.label === "圖面進版");
+    all.rows.find((row) => row.rowKey === "drawing:dev053-master-drawing")?.primaryAction?.label === "建立新版次");
 
   const filtered = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&query=Z1053-P01&seriesCode=JF")), actor);
   record("DEV053-READ-003 search and series filter include linked part identity", filtered.rows.length === 1 && filtered.rows[0].rowKey === "drawing:dev053-master-drawing");
@@ -168,7 +168,7 @@ try {
   record("DEV053-READ-009 default view is all active work while history remains explicit",
     defaultQuery.view === "all" && defaultQuery.includeHistory === false &&
     !historyExcluded.rows.some((row) => row.rowKey === "drawing:dev053-obsolete-drawing") &&
-    correctionRow?.stage === "correction_required" && correctionRow.primaryAction?.label === "建立修正版" &&
+    correctionRow?.stage === "correction_required" && correctionRow.primaryAction?.label === "繼續修正並重送" &&
     obsoleteRow?.stage === "history_only" && obsoleteRow.terminal?.kind === "obsolete" && obsoleteRow.primaryAction?.label === "查看作廢紀錄");
 
   const permissionActor = {

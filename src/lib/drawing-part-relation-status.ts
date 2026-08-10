@@ -22,6 +22,38 @@ export type NumberingRootStatusProjection = {
   humanStatus: HumanStatusProjection;
 };
 
+export function relationshipHealthLabel(health: DrawingPartRelationHealth) {
+  const labels: Record<DrawingPartRelationHealth, string> = {
+    complete: "關聯完整",
+    missing_manufacturing_drawing: "缺製造圖",
+    missing_part: "缺料號",
+    ambiguous: "需確認主圖料",
+    blocked: "關聯受阻",
+    draft: "關聯尚未完成"
+  };
+  return labels[health];
+}
+
+/**
+ * The root lifecycle can describe an in-flight change while its released
+ * children remain the effective production relationship. Keep the effective
+ * view based on the current master records, and expose the lifecycle change
+ * as a separate review detail.
+ */
+export function projectEffectiveRelationRecordStatus(
+  detail: Pick<NumberingRootDetailRecord, "root" | "partNumbers" | "drawingNumbers">,
+  relationshipHealth: DrawingPartRelationHealth,
+  blockerCount: number
+): NumberingRecordStatus {
+  if (relationshipHealth !== "complete" || blockerCount > 0) return detail.root.recordStatus;
+  const manufacturingDrawings = detail.drawingNumbers.filter((drawing) => drawing.purposeCode === "M" || drawing.purposeCode === "MA");
+  const effectiveRecords = [...manufacturingDrawings, ...detail.partNumbers];
+  if (effectiveRecords.length === 0) return detail.root.recordStatus;
+  if (effectiveRecords.every((record) => record.recordStatus === "Released")) return "Released";
+  if (effectiveRecords.every((record) => record.recordStatus === "Active" || record.recordStatus === "Released")) return "Active";
+  return detail.root.recordStatus;
+}
+
 export function projectRelationHumanStatus(source: DrawingPartRelationStatusSource): HumanStatusProjection {
   if (source.recordStatus === "Obsolete") return createHumanStatus("obsolete", "terminal", "已作廢", "neutral", "archive");
   if (source.recordStatus === "Merged") return createHumanStatus("merged", "terminal", "已合併", "neutral", "archive");

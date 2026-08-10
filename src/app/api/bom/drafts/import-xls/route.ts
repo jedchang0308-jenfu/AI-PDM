@@ -1,13 +1,26 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { canCreateBomDraftAsync, resolveBomOwnerAccessContextAsync } from "@/lib/bom-create-context";
 import { getSubmissionAsync } from "@/lib/submissions-async";
-import { BomXlsImportError, createBomWorkbenchDraftFromSolidWorksXlsAsync } from "@/lib/bom-workbench-async";
+import {
+  BomCreateIdempotencyConflictError,
+  BomRevisionConflictError,
+  BomXlsImportError,
+  createBomWorkbenchDraftFromSolidWorksXlsAsync,
+  createCanonicalBomDraftFromSolidWorksXlsAsync
+} from "@/lib/bom-workbench-async";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canReadBomDraftAsync } from "@/lib/permissions";
+import { validateRevisionCode } from "@/lib/revision-policy";
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 
 export const runtime = "nodejs";
 
 type ImportJsonBody = {
+  ownerPartNumberId?: unknown;
+  bomRevision?: unknown;
+  idempotencyKey?: unknown;
   submissionId?: unknown;
   draftName?: unknown;
   setActive?: unknown;
@@ -17,6 +30,9 @@ type ImportJsonBody = {
 };
 
 type ImportPayload = {
+  ownerPartNumberId?: string;
+  bomRevision?: string;
+  idempotencyKey?: string;
   submissionId: string;
   draftName?: string;
   setActive?: boolean;
@@ -47,6 +63,78 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.code, ...error.detail }, { status: error.status });
     }
     return NextResponse.json({ error: "BOM_XLS_PAYLOAD_INVALID" }, { status: 400 });
+  }
+
+  if (payload.ownerPartNumberId || payload.bomRevision) {
+    const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+    if (companyResult.response) return companyResult.response;
+    const ownerPartNumberId = payload.ownerPartNumberId ?? "";
+    const bomRevision = payload.bomRevision ?? "";
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim() || payload.idempotencyKey || "";
+    if (!ownerPartNumberId || !bomRevision || !idempotencyKey) {
+      return NextResponse.json({ error: "BOM_CREATE_FIELDS_REQUIRED" }, { status: 422 });
+    }
+    const revisionError = validateRevisionCode(bomRevision, { lifecycleStage: "release_area" });
+    if (revisionError) return NextResponse.json({ error: revisionError }, { status: 422 });
+    const accessInput = { user: auth.user, companyId: companyResult.company.companyId, ownerPartNumberId };
+    if (!(await canCreateBomDraftAsync(accessInput))) return forbidden();
+    const owner = await resolveBomOwnerAccessContextAsync(accessInput);
+    if (!owner) return NextResponse.json({ error: "BOM_OWNER_NOT_FOUND" }, { status: 404 });
+    const requestFingerprint = crypto
+      .createHash("sha256")
+      .update(
+        JSON.stringify({
+          ownerPartNumberId,
+          bomRevision,
+          source: "solidworks_xls",
+          draftName: payload.draftName ?? "",
+          filename: payload.originalFilename,
+          sha256: crypto.createHash("sha256").update(payload.fileBuffer).digest("hex")
+        })
+      )
+      .digest("hex");
+    try {
+      const result = await createCanonicalBomDraftFromSolidWorksXlsAsync({
+        companyId: owner.companyId,
+        ownerPartNumberId: owner.ownerPartNumberId,
+        ownerPartNumber: owner.partNumber,
+        legacyItemId: owner.legacyItemId,
+        bomRevision,
+        actorId: auth.user.id,
+        idempotencyKey,
+        requestFingerprint,
+        draftName: payload.draftName,
+        originalFilename: payload.originalFilename,
+        fileBuffer: payload.fileBuffer,
+        contentType: payload.contentType
+      });
+      return NextResponse.json(
+        {
+          ...result,
+          draftId: result.draft.id,
+          ownerPartNumberId: result.draft.owner_part_number_id,
+          bomRevision: result.draft.bom_revision,
+          source: result.draft.source,
+          receipt: { idempotencyKey, replayed: result.replayed },
+          workbenchUrl: `/bom/workbench?draftId=${encodeURIComponent(result.draft.id)}`
+        },
+        { status: result.replayed ? 200 : 201 }
+      );
+    } catch (error) {
+      if (error instanceof BomCreateIdempotencyConflictError) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      if (error instanceof BomRevisionConflictError) {
+        return NextResponse.json({ error: error.code }, { status: 409 });
+      }
+      if (error instanceof BomXlsImportError) {
+        return NextResponse.json(
+          { error: error.code, message: error.message },
+          { status: error.code === "BOM_XLS_FILE_TOO_LARGE" ? 413 : 400 }
+        );
+      }
+      return NextResponse.json({ error: error instanceof Error ? error.message : "BOM_XLS_IMPORT_FAILED" }, { status: 400 });
+    }
   }
 
   if (!payload.submissionId) {
@@ -92,6 +180,9 @@ async function readImportPayload(request: Request): Promise<ImportPayload> {
     const originalFilename = file.name || "solidworks-bom.xls";
     assertImportFileAllowed(originalFilename, file.size);
     return {
+      ownerPartNumberId: normalizeOptionalString(form.get("ownerPartNumberId") ?? form.get("owner_part_number_id")),
+      bomRevision: normalizeOptionalString(form.get("bomRevision") ?? form.get("bom_revision")),
+      idempotencyKey: normalizeOptionalString(form.get("idempotencyKey") ?? form.get("idempotency_key")),
       submissionId: String(form.get("submissionId") ?? form.get("submission_id") ?? "").trim(),
       draftName: normalizeOptionalString(form.get("draftName") ?? form.get("draft_name")),
       setActive: parseOptionalBoolean(form.get("setActive") ?? form.get("set_active")),
@@ -112,6 +203,9 @@ async function readImportPayload(request: Request): Promise<ImportPayload> {
     ? await decodeImportBase64(contentBase64, originalFilename)
     : encodeImportText(content, originalFilename);
   return {
+    ownerPartNumberId: typeof body.ownerPartNumberId === "string" ? body.ownerPartNumberId.trim() : undefined,
+    bomRevision: typeof body.bomRevision === "string" ? body.bomRevision.trim() : undefined,
+    idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim() : undefined,
     submissionId: typeof body.submissionId === "string" ? body.submissionId.trim() : "",
     draftName: typeof body.draftName === "string" ? body.draftName : undefined,
     setActive: typeof body.setActive === "boolean" ? body.setActive : undefined,

@@ -1,0 +1,23 @@
+{
+  "result": "PASS",
+  "root": {
+    "fixture": "A0007",
+    "hardReloadWaitMs": 2600,
+    "drawerWaitMs": 2200,
+    "list": {"primary":"待你處理","key":"data_conflict","scope":"none","aria":"狀態：待你處理，查看說明"},
+    "drawer": {"primary":"待你處理","key":"data_conflict","scope":"none","aria":"狀態：待你處理，查看說明"},
+    "result": "PASS"
+  },
+  "drawing": {
+    "fixture": "A0007-M01",
+    "search": {"identity":"A0007-M01","name":"馬達_JF_2HP_A","status":"等他人處理","key":"waiting_review","scope":"rd","sections":["受控版次檔案","參考附件","同根料號"]},
+    "owner": {"identity":"A0007-M01","name":"馬達_JF_2HP_A","status":"等他人處理","key":"waiting_review","scope":"rd","sections":["受控版次檔案","參考附件","同根料號"]},
+    "result": "PASS"
+  },
+  "part": {
+    "fixture": "A0001-P01",
+    "search": {"identity":"A0001-P01","name":"滑鼠_JF_A","status":"待你處理","key":"preparing","scope":"none","bodyIdentityCount":0,"sections":["料號附件庫","料號完整度檢查","圖號關聯","料號變體","共用 3D / MA 製造基準","成本設定檔","成本審核"]},
+    "owner": {"identity":"A0001-P01","name":"滑鼠_JF_A","status":"待你處理","key":"preparing","scope":"none","bodyIdentityCount":0,"sections":["料號附件庫","料號完整度檢查","圖號關聯","料號變體","共用 3D / MA 製造基準","成本設定檔","成本審核"]},
+    "result": "PASS"
+  }
+}

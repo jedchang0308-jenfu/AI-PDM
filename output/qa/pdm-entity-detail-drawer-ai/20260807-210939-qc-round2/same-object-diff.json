@@ -1,0 +1,20 @@
+{
+  "drawing": {
+    "code": "A0007-M01",
+    "owner": {"source": "numbering_drawings", "status": "等他人處理", "title": "A0007-M01", "subtitle": "馬達_JF_2HP_A"},
+    "search": {"source": "numbering_search", "status": "等他人處理", "title": "A0007-M01", "subtitle": "A0007 / 製造圖"},
+    "statusMatch": true,
+    "identitySubtitleMatch": false,
+    "samePageListStatus": "生產可用",
+    "samePageDrawerStatus": "等他人處理",
+    "samePageStatusMatch": false
+  },
+  "part": {
+    "code": "A0007-P01",
+    "owner": {"source": "parts", "status": "生產可用", "title": "A0007-P01", "subtitle": "馬達_JF_2HP_A"},
+    "search": {"source": "numbering_search", "status": "生產可用", "title": "A0007-P01", "subtitle": "A0007 / 馬達_JF_2HP_A"},
+    "statusMatch": true,
+    "identitySubtitleMatch": false,
+    "coreHeadingsMatch": true
+  }
+}

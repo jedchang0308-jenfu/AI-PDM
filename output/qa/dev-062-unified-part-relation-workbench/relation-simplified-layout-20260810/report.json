@@ -1,0 +1,811 @@
+{
+  "task": "DEV-062 unified Part and Relation workbenches",
+  "runId": "relation-simplified-layout-20260810",
+  "startedAt": "2026-08-10T14:18:29.667Z",
+  "finishedAt": "2026-08-10T14:19:55.503Z",
+  "productionConnected": false,
+  "productionWrites": false,
+  "passed": 33,
+  "failed": 0,
+  "coldInclusiveP95WorkbenchReadMs": 453,
+  "warmP95WorkbenchReadMs": 41,
+  "searchVisibleP95Ms": 159,
+  "readDurations": [
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 449,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 213,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/Z3062-P01",
+      "durationMs": 1246,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 180,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/candidate%3Adev062-real-candidate",
+      "durationMs": 248,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 199,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/part%3Adev062-real-part",
+      "durationMs": 5,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 453,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 181,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 189,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 195,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 269,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 210,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 172,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 175,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 185,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 182,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 186,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 223,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 224,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 176,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 11,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 11,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 9,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 21,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 14,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 23,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 191,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 12,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 14,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 10,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 23,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 11,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 27,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 184,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 117,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 10,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/part%3Adev062-perf-part-0001-01",
+      "durationMs": 108,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/part%3Adev062-perf-part-0001-01",
+      "durationMs": 7,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 544,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 318,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/part%3Adev062-real-part",
+      "durationMs": 408,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 13,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 28,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 7,
+      "status": 503
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 226,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 236,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench",
+      "durationMs": 226,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/parts/workbench/part%3Adev062-real-part",
+      "durationMs": 23,
+      "status": 200
+    },
+    {
+      "phase": "flag-on",
+      "path": "/api/numbering/relations",
+      "durationMs": 343,
+      "status": 200
+    }
+  ],
+  "warmReadDurations": [
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 22,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 21,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 22,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 27,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 41,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 33,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+      "durationMs": 36,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 39,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 36,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 34,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 38,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 32,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 28,
+      "status": 200
+    },
+    {
+      "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+      "durationMs": 39,
+      "status": 200
+    }
+  ],
+  "searchVisibleDurations": [
+    {
+      "pathname": "/parts?view=all",
+      "durationMs": 159
+    },
+    {
+      "pathname": "/parts?view=all",
+      "durationMs": 105
+    },
+    {
+      "pathname": "/parts?view=all",
+      "durationMs": 72
+    },
+    {
+      "pathname": "/numbering/search?view=all",
+      "durationMs": 155
+    },
+    {
+      "pathname": "/numbering/search?view=all",
+      "durationMs": 99
+    },
+    {
+      "pathname": "/numbering/search?view=all",
+      "durationMs": 76
+    }
+  ],
+  "results": [
+    {
+      "id": "DEV062-REAL-001 Part legacy tab enters one workbench",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/parts?view=work"
+      }
+    },
+    {
+      "id": "DEV062-REAL-002 Part legacy code resolves to stable row key",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/parts?detail=part%3Adev062-real-part&view=all"
+      }
+    },
+    {
+      "id": "DEV062-REAL-003 legacy Part draft redirect preserves safe context",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/parts?detail=candidate%3Adev062-real-candidate&returnTo=%2Fparts&view=work&legacyFrom=%2Fnumbering%2Fpart-drafts"
+      }
+    },
+    {
+      "id": "DEV062-REAL-004 shared keyboard opens and closes Part detail",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "id": "DEV062-REAL-005 Relation legacy tab enters one root workbench",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/numbering/search?view=work"
+      }
+    },
+    {
+      "id": "DEV062-REAL-006 Relation legacy root resolves to stable root key",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/numbering/search?detail=root%3Adev062-real-root&view=all",
+        "drawerText": "待你處理\nZ3062\n\n正式泵浦\n\n可作業\n料號 5\n圖號 3\n製造圖 1\n檢查送審\n待辦\n新增圖號\n申請主根作廢\n料號\nZ3062-P01\n可作業\n正式泵浦\n自製\n序號 01\nZ3062-M01\nZ3062-P02\n可作業\n正式泵浦 02\n自製\n序號 02\nZ3062-M02\nZ3062-P03\n可作業\n正式泵浦 03\n自製\n序號 03\nZ3062-M03\nZ3062-P04\n可作業\n正式泵浦 04\n自製\n序號 04\nZ3062-P05\n可作業\n正式泵浦 05\n自製\n序號 05\n圖號\nZ3062-M01\n可作業\nM 製造圖\n製造基準\nZ3062-P01\n影響範圍\nZ3062-M02\n可作業\n"
+      }
+    },
+    {
+      "id": "DEV062-REAL-007 tree and matrix share one canonical root",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "id": "DEV062-REAL-008 unsafe returnTo is removed without writing",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:57886/numbering/search?view=work&create=new_bundle&legacyFrom=%2Fnumbering%2Frequest"
+      }
+    },
+    {
+      "id": "DEV062-REAL-009 back-forward-reload keeps canonical location",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "id": "DEV062-REAL part 1440x900",
+      "passed": true,
+      "detail": {
+        "innerWidth": 1440,
+        "documentWidth": 1440,
+        "mainClientWidth": 1200,
+        "mainScrollWidth": 1200,
+        "screenshot": "screenshots/part-1440x900.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL part 1024x768",
+      "passed": true,
+      "detail": {
+        "innerWidth": 1024,
+        "documentWidth": 1024,
+        "mainClientWidth": 784,
+        "mainScrollWidth": 784,
+        "screenshot": "screenshots/part-1024x768.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL part 768x1024",
+      "passed": true,
+      "detail": {
+        "innerWidth": 768,
+        "documentWidth": 768,
+        "mainClientWidth": 528,
+        "mainScrollWidth": 528,
+        "screenshot": "screenshots/part-768x1024.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL part 390x844",
+      "passed": true,
+      "detail": {
+        "innerWidth": 390,
+        "documentWidth": 390,
+        "mainClientWidth": 390,
+        "mainScrollWidth": 390,
+        "screenshot": "screenshots/part-390x844.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL relation 1440x900",
+      "passed": true,
+      "detail": {
+        "innerWidth": 1440,
+        "documentWidth": 1440,
+        "mainClientWidth": 1200,
+        "mainScrollWidth": 1200,
+        "screenshot": "screenshots/relation-1440x900.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL relation 1024x768",
+      "passed": true,
+      "detail": {
+        "innerWidth": 1024,
+        "documentWidth": 1024,
+        "mainClientWidth": 784,
+        "mainScrollWidth": 784,
+        "screenshot": "screenshots/relation-1024x768.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL relation 768x1024",
+      "passed": true,
+      "detail": {
+        "innerWidth": 768,
+        "documentWidth": 768,
+        "mainClientWidth": 528,
+        "mainScrollWidth": 528,
+        "screenshot": "screenshots/relation-768x1024.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL relation 390x844",
+      "passed": true,
+      "detail": {
+        "innerWidth": 390,
+        "documentWidth": 390,
+        "mainClientWidth": 390,
+        "mainScrollWidth": 390,
+        "screenshot": "screenshots/relation-390x844.png"
+      }
+    },
+    {
+      "id": "DEV062-REAL-PERF-001 representative fixture is present",
+      "passed": true,
+      "detail": {
+        "partRows": 300,
+        "roots": 60,
+        "drawings": 180
+      }
+    },
+    {
+      "id": "DEV062-REAL-PERF-002 representative warm BFF p95 is within 500 ms",
+      "passed": true,
+      "detail": {
+        "p95Ms": 41,
+        "samples": [
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 22,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 21,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 22,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 27,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 41,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 33,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/parts/workbench?view=all&limit=50&history=exclude",
+            "durationMs": 36,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 39,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 36,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 34,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 38,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 32,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 28,
+            "status": 200
+          },
+          {
+            "endpoint": "/api/numbering/relations?projection=workbench_v1&view=all&limit=60&history=exclude&entityType=all",
+            "durationMs": 39,
+            "status": 200
+          }
+        ]
+      }
+    },
+    {
+      "id": "DEV062-REAL-PERF-003 browser search visible-update p95 is within 800 ms",
+      "passed": true,
+      "detail": {
+        "p95Ms": 159,
+        "samples": [
+          {
+            "pathname": "/parts?view=all",
+            "durationMs": 159
+          },
+          {
+            "pathname": "/parts?view=all",
+            "durationMs": 105
+          },
+          {
+            "pathname": "/parts?view=all",
+            "durationMs": 72
+          },
+          {
+            "pathname": "/numbering/search?view=all",
+            "durationMs": 155
+          },
+          {
+            "pathname": "/numbering/search?view=all",
+            "durationMs": 99
+          },
+          {
+            "pathname": "/numbering/search?view=all",
+            "durationMs": 76
+          }
+        ]
+      }
+    },
+    {
+      "id": "CORE-07/PART race list A→B→C commits only C",
+      "passed": true,
+      "detail": {
+        "delaysMs": {
+          "Z3062": 1000,
+          "Q0001": 500,
+          "Q0002": 100
+        },
+        "finalUrl": "http://127.0.0.1:57886/parts?view=all&query=Q0002"
+      }
+    },
+    {
+      "id": "CORE-07/PART detail A→B keeps B when A resolves late",
+      "passed": true,
+      "detail": {
+        "delaysMs": {
+          "part:dev062-real-part": 1000,
+          "part:dev062-perf-part-0001-01": 100
+        }
+      }
+    },
+    {
+      "id": "CORE-07/PART close-before-response prevents late reopen",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "id": "CORE-07/PART filtered-out selection closes authoritatively",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "id": "PART UX drawer state is actionable",
+      "passed": true,
+      "detail": {
+        "screenshot": "screenshots/drawer-part-formal.png"
+      }
+    },
+    {
+      "id": "PART UX empty state passes Now What",
+      "passed": true,
+      "detail": {
+        "screenshot": "screenshots/state-empty.png"
+      }
+    },
+    {
+      "id": "PART UX 5xx keeps last successful rows and exposes retry",
+      "passed": true,
+      "detail": {
+        "screenshot": "screenshots/state-error-retry.png"
+      }
+    },
+    {
+      "id": "PART UX history state is explicit and non-mutating",
+      "passed": true,
+      "detail": {
+        "screenshot": "screenshots/state-history.png"
+      }
+    },
+    {
+      "id": "REL UX blocked relationship gives status and next context",
+      "passed": true,
+      "detail": {
+        "screenshot": "screenshots/state-blocked-relation.png",
+        "visibleText": "Q0001\n代表性料件 0001\n待你處理\n缺製造圖"
+      }
+    },
+    {
+      "id": "CORE-09/PART/REL accessibility keyboard-focus-names-reduced-motion-zoom",
+      "passed": true,
+      "detail": {
+        "id": "CORE-09/PART/REL accessibility keyboard-focus-names-reduced-motion-zoom",
+        "passed": true,
+        "shortcuts": [
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+          "PageUp",
+          "PageDown",
+          "Enter",
+          "Escape",
+          "Control+C"
+        ],
+        "copiedPartCode": "Z3062-P01",
+        "copiedRootCode": "Q0058",
+        "partFocusReturned": true,
+        "relationFocusReturned": true,
+        "accessibleNames": {
+          "expand": 60,
+          "filters": 7,
+          "tabs": 2
+        },
+        "reducedMotion": "reduce",
+        "zoomMetrics": {
+          "zoom": "200%",
+          "hasVisibleAction": true
+        }
+      }
+    },
+    {
+      "id": "DEV062-REAL-010 read navigation is zero-write",
+      "passed": true,
+      "detail": {
+        "beforeHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+        "afterHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+        "unchanged": true,
+        "observedWrites": []
+      }
+    },
+    {
+      "id": "DEV062-REAL-011 flag-off rollback keeps legacy pages and hides new reads",
+      "passed": true,
+      "detail": {
+        "partStatus": 404,
+        "relationStatus": 404,
+        "partTabs": 1,
+        "relationTabs": 1
+      }
+    },
+    {
+      "id": "DEV062-REAL-012 no browser errors or 5xx responses",
+      "passed": true,
+      "detail": {
+        "browserErrors": [],
+        "failedResponses": []
+      }
+    }
+  ]
+}

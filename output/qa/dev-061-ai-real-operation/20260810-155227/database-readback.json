@@ -1,0 +1,60 @@
+{
+  "run": "20260810-155227",
+  "production": {
+    "connected": false,
+    "writes": false,
+    "runtime": "isolated SQLite + disposable repository"
+  },
+  "concurrency": {
+    "contentHash": "d51784fe6bbf430482ccb96b9b222951f58cd2346da62e43a9d878bc45e1c716",
+    "fileAssetCount": 2,
+    "sharedCadModelVersionCount": 1,
+    "uniqueStorageKeyCount": 1,
+    "physicalObjectCount": 1,
+    "storageKey": "master-attachments/drawing-number/A0005-M01/2026/08/fd3d011a-0766-4867-8c00-4ea7da60baf5-DEV061-CONCURRENT-1.1.SLDPRT",
+    "sourceAssetIds": [
+      "0e008213-52b1-4dbf-a971-cc483ecbbefb",
+      "76b02742-e0f9-4adb-bdfd-a56ce6541f68"
+    ],
+    "canonicalAssetId": "0e008213-52b1-4dbf-a971-cc483ecbbefb"
+  },
+  "formal": {
+    "submissionId": "SUB-20260810-62E18CA9",
+    "packageId": "DRP-916a9001-0096-4a48-9420-9a90fc697b62",
+    "revision": "9.1",
+    "status": "Pending",
+    "submissionFileCount": 2,
+    "packageFileCount": 2,
+    "pointerRoles": ["drawing_2d", "cad_3d"],
+    "downloadSha256Matches": {
+      "slddrw": true,
+      "sldprt": true
+    }
+  },
+  "ownerIsolation": {
+    "contentHash": "77d4ebe8950d8c191293111e2ae28924b8cc6d33aab79dabfceeb95886c0aa5e",
+    "canonicalRows": 2,
+    "ownerIds": [
+      "014f8d95-84df-4d9d-833a-7f22b10ffa59",
+      "part-root-52133bff-6626-4df5-9feb-6abd952b05c6"
+    ],
+    "reused": false
+  },
+  "candidate": {
+    "workspaceId": "draft-workspace-0342209c-7298-4eb5-b246-8a5ac2fbb098",
+    "candidateRevisionId": "NCR-c86414c3-a990-40bd-b914-ae4c21387b61",
+    "requiredRoles": ["drawing_2d", "cad_3d"],
+    "lifecycleStatus": "review_locked"
+  },
+  "cleanup": {
+    "dryRunCandidateCount": 13,
+    "protectedAssetCount": 4,
+    "protectedListedAsCandidate": []
+  },
+  "crossCompany": {
+    "company": "MAXIMA",
+    "drawing": "A0005-M01",
+    "status": 404,
+    "code": "drawing_number_not_found"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "staticGate": {
+    "eslint": "PASS 0/0",
+    "entityDrawer": "PASS 34/34 + exact target runtime",
+    "dev055Projection": "PASS 57/57",
+    "dev055Contract": "PASS 13/13",
+    "dev053": "PASS 23/23",
+    "phase1h": "PASS 12/12",
+    "stateflow": "PASS 8/8",
+    "typecheck": "PASS",
+    "diffCheck": "PASS; CRLF warnings only"
+  },
+  "rootStatus": {
+    "A0007": {
+      "list": {"text":"待你處理","aria":"狀態：待你處理，查看說明","key":"data_conflict","primary":"待你處理","scope":"none"},
+      "drawer": {"text":"待你處理","aria":"狀態：待你處理，查看說明","key":"data_conflict","primary":"待你處理","scope":"none"},
+      "equal": true
+    },
+    "relationCompleteSample": {
+      "code": "A0005",
+      "list": {"text":"研發可用","aria":"狀態：研發可用，查看說明","key":"relation_complete","primary":"研發可用","scope":"rd"},
+      "drawer": {"text":"研發可用","aria":"狀態：研發可用，查看說明","key":"relation_complete","primary":"研發可用","scope":"rd"},
+      "equal": true
+    },
+    "actionRequiredSample": {
+      "code": "A0061",
+      "fixtureKey": "preparing",
+      "list": {"text":"待你處理","aria":"狀態：待你處理，查看說明","key":"preparing","primary":"待你處理","scope":"none"},
+      "drawer": {"text":"待你處理","aria":"狀態：待你處理，查看說明","key":"preparing","primary":"待你處理","scope":"none"},
+      "equal": true
+    }
+  },
+  "sameObject": {
+    "drawing": {
+      "fixture": "A0007-M01",
+      "search": {"context":"numbering_search","status":"等他人處理","statusKey":"waiting_review","scope":"rd","subtitle":"馬達_JF_2HP_A","headings":["A0007-M01","受控版次檔案","參考附件","同根料號"]},
+      "owner": {"context":"numbering_drawings","status":"等他人處理","statusKey":"waiting_review","scope":"rd","subtitle":"馬達_JF_2HP_A","headings":["A0007-M01","受控版次檔案","參考附件","同根料號"]},
+      "equal": true
+    },
+    "part": {
+      "fixture": "A0001-P01",
+      "search": {"context":"numbering_search","status":"待你處理","statusKey":"preparing","scope":"none","subtitle":"滑鼠_JF_A","bodyIdentityCount":0,"headings":["A0001-P01","料號附件庫","料號完整度檢查","圖號關聯","料號變體","共用 3D / MA 製造基準","成本設定檔","成本審核"]},
+      "owner": {"context":"parts","status":"待你處理","statusKey":"preparing","scope":"none","subtitle":"滑鼠_JF_A","bodyIdentityCount":0,"headings":["A0001-P01","料號附件庫","料號完整度檢查","圖號關聯","料號變體","共用 3D / MA 製造基準","成本設定檔","成本審核"]},
+      "equal": true
+    }
+  },
+  "keyboard": {
+    "tabs": {
+      "searchReservedEnter": {"url":"http://127.0.0.1:3000/numbering/search?tab=reserved","ariaCurrent":"page"},
+      "searchOfficialEnter": {"url":"http://127.0.0.1:3000/numbering/search","ariaCurrent":"page"},
+      "partsDraftEnter": {"url":"http://127.0.0.1:3000/parts?tab=drafts","ariaCurrent":"page"},
+      "partsOfficialEnter": {"url":"http://127.0.0.1:3000/parts","ariaCurrent":"page"},
+      "drawings": {"visibleOwnerTabNavs":0,"legacyUrl":"http://127.0.0.1:3000/numbering/drawings?view=work"}
+    },
+    "rootPrimaryEnter": "http://127.0.0.1:3000/drawings/A0007-M01/submission-workbench",
+    "rootTasksEnter": "http://127.0.0.1:3000/numbering/tasks",
+    "exactTargets": {
+      "P02Enter": [{"code":"A0005-P02","type":"part_number"}],
+      "P03Space": [{"code":"A0005-P03","type":"part_number"}]
+    },
+    "close": {
+      "enter": {"remaining":0,"box":{"width":44,"height":44}},
+      "space": {"remaining":0,"box":{"width":44,"height":44}}
+    },
+    "formSemantics": {
+      "input": {"tag":"INPUT","placeholder":"主根號 / 料號 / 圖號 / 名稱","drawerCountAfterEnter":0},
+      "select": {"tag":"SELECT","firstOption":"全部系列代號"},
+      "queryButton": {"tag":"BUTTON","type":"button","drawerCountAfterEnter":0}
+    }
+  },
+  "preview": {
+    "fixture": "A0007-M01",
+    "rawRuntimeMatches": 0,
+    "apiHrefCount": 12,
+    "apiVisibleTextCount": 0,
+    "fakeRetryControls": 0,
+    "downloadFallbacks": 11,
+    "humanFallback": "2D 預覽尚未產生；可先下載原始檔查看；系統產生後重新整理即可。"
+  },
+  "rootNoise": {
+    "rawTerms": 0,
+    "reminderTitle": "找到相似編號",
+    "reminderTitleCount": 1,
+    "reminderBodyCount": 1,
+    "primaryVisible": ["檢查新版送審"],
+    "primaryCount": 1,
+    "closeCount": 1
+  },
+  "shell": {
+    "role": "complementary",
+    "ariaModal": null,
+    "mouseSwitch": {"code":"A0007-M01","type":"drawing_number","drawerCount":1,"scrollTop":0},
+    "keyboardSwitch": {"code":"A0007-P01","type":"part_number","drawerCount":1,"scrollTop":0},
+    "close": {"outside":0,"escape":0,"mouseX":0},
+    "resize": {"before":380,"resized":498.1875,"persistedAfterReloadAndReopen":498,"restored":380},
+    "candidateModal": {"drawerType":"candidate_bundle","drawerAriaModal":null,"dialogRole":"alertdialog","dialogAriaModal":"true","dialogCountAfterEscape":0,"drawerCountAfterEscape":1,"writes":0}
+  },
+  "responsive": {
+    "search": {
+      "1440x900": {"pageOverflow":false},
+      "1024x768": {"pageOverflow":false,"drawer":{"x":616.8,"right":996.8,"width":380},"drawerBody":{"scrollWidth":359,"clientWidth":359},"close":{"width":44,"height":44,"right":980}},
+      "390x844": {"pageOverflow":false,"drawer":{"x":0,"right":375.2,"width":375.2},"drawerBody":{"scrollWidth":359,"clientWidth":359},"close":{"width":44,"height":44,"right":362.4},"scroll":{"pageBefore":297.6,"pageAfter":297.6,"drawerBefore":0,"drawerAfter":338.4}}
+    },
+    "drawings": {
+      "1440x900": {"pageOverflow":false},
+      "1024x768": {"pageOverflow":false,"drawer":{"x":592,"right":1012,"width":420},"drawerBody":{"scrollWidth":399,"clientWidth":399}},
+      "390x844": {"pageOverflow":false,"drawer":{"x":0,"right":375.2,"width":375.2},"drawerBody":{"scrollWidth":359,"clientWidth":359},"close":{"width":44,"height":44,"right":362.4}}
+    },
+    "parts": {
+      "1440x900": {"pageOverflow":false},
+      "1024x768": {"pageOverflow":false,"drawer":{"x":632,"right":1012,"width":380},"drawerBody":{"scrollWidth":359,"clientWidth":359}},
+      "390x844": {"pageOverflow":false,"drawer":{"x":0,"right":375.2,"width":375.2},"drawerBody":{"scrollWidth":359,"clientWidth":359},"close":{"width":44,"height":44,"right":362.4}}
+    },
+    "mobileTooltip": {"role":"tooltip","x":12,"right":292,"y":55.9,"bottom":185.95,"width":280,"height":130.05,"withinViewport":true}
+  }
+}

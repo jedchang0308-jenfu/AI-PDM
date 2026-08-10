@@ -4,13 +4,190 @@
 > 呈現。counts 與用途可保留，但每列只顯示一個 human status；「草稿確認」退役。圖／料節點開啟
 > owner module 共用 overlay drawer，不建立圖料模組專用的第二套明細內容。
 
-Status: Implemented / local verification passed for Phase 1-3
+Status: `Phase 1-3 Implemented / DEV-062 Amendment Local QA-QC Passed / Release Gated`
 Date: 2026-07-07
 Owner: Dev PM
 Related DEV: `DEV-PDM-DRAWING-PART-RELATION-VIEW-001`
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
 Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-07-07.md`
+
+## 0. DEV-062 Amendment：圖料單頁工作台 RD Implementation Contract（2026-08-10）
+
+Status: `Local RD Implemented / QA-QC Passed / Release Gated`
+
+本 amendment compatible extension 本規格的 root-centric tree、matrix、relation health 與 owner drawer；intentional replacement `/numbering/search?tab=reserved` 的可見第二頁。正式 root、active candidate change 與 source-less candidate 在同一工作台投影，但 relation mutation 仍只有既有 owner APIs 與 `POST /api/numbering/relations`。共用 mechanics 以 `.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-controller-contract.md` 為準。
+
+### 0.1 Exact Relation row contract
+
+新增 `src/lib/relation-workbench.ts`：
+
+```ts
+export type RelationWorkbenchView = "mine" | "work" | "all";
+export type RelationWorkbenchRowKind = "root" | "candidate_root";
+export type RelationWorkbenchPrimaryActionKind =
+  | "continue_building" | "submit_bundle_review" | "view_review"
+  | "view_processing" | "retry_formalization"
+  | "remediate_relation" | "view_relation" | "view_history";
+
+export type RelationWorkbenchChangeOverlay = {
+  workspaceId: string;
+  displayCode: string;
+  statusLabel: string;
+  summary: string;
+  humanStatus: HumanStatusProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+  primaryAction: PdmWorkbenchAction | null;
+  drawings: RelationCandidateDrawingSummary[];
+  parts: RelationCandidatePartSummary[];
+};
+
+export type RelationWorkbenchRow = PdmWorkbenchRowBase<
+  RelationWorkbenchRowKind,
+  RelationWorkbenchPrimaryActionKind
+> & {
+  rootId: string | null;
+  workspaceId: string | null;
+  rootCode: string;
+  coreName: string;
+  itemKind: NumberingItemKind;
+  recordStatus: NumberingRecordStatus | null;
+  health: DrawingPartRelationHealth;
+  healthLabel: string;
+  nextStep: string;
+  blockers: DrawingPartRelationBlocker[];
+  drawings: RelationDrawingNode[];
+  parts: RelationPartNode[];
+  matrix: DrawingPartRelationCell[];
+  activeChanges: RelationWorkbenchChangeOverlay[];
+  formalAvailability: AvailabilityScopeProjection;
+};
+```
+
+Identity/de-duplication：
+
+- formal root row key=`root:{root.id}`，每 root 只出現一次。
+- `sourceRootId` 指向 formal root 的 active workspace 不建立第二 top-level row；投影到該 root 的 `activeChanges`。
+- 無 `sourceRootId` 且含 root/part/drawing candidate 的 active workspace 使用 `candidate:{workspace.id}` 與 `rowKind="candidate_root"`；其 `formalAvailability` 必須是不可正式／不可生產使用。
+- published workspace 不進 `activeChanges` 或 candidate row；cancelled candidate 只在 `history=include`。
+- 同一 source root 可有多個合法 active changes時，依 `updatedAt DESC, workspaceId ASC` 排列；不得覆蓋、合併 snapshot 或猜一筆為主。
+- 現有只在 review state 出現的「變更審查中」擴充為 `進行中的變更`，子狀態可為 `準備中／可送審／審查中／退回修改／正式化中`。這是為了讓保留號在移除第二頁後仍可達，不改 underlying lifecycle。
+
+### 0.2 Query/view/filter semantics
+
+```ts
+export type RelationWorkbenchQuery = {
+  query: string;
+  view: RelationWorkbenchView;
+  entityType: NumberingSearchEntityType;
+  productSeries: string;
+  seriesCode: string;
+  recordStatus: NumberingRecordStatus | "";
+  humanStatus: HumanStatusFilter;
+  includeHistory: boolean;
+  cursor: string;
+  limit: number;
+};
+```
+
+- query/entityType/productSeries/seriesCode/recordStatus 同時搜尋 formal root descendants 與 candidate typed items；符合任一 child 的 root 仍只回整個 root row。
+- `mine`：root/active change 的 viewer projection 指定 actor 有目前責任，或 actor 是 active candidate owner。
+- `work`：有 blockers、active changes、待處理/correction/recovery 的 root/candidate；健康且只有查閱用途的 formal root 不進 work。
+- `all`：目前非歷史 formal roots 與 source-less active candidates。
+- `history=include` 才納入 obsolete/merged formal roots 與 cancelled candidate；history row不得顯示 mutation CTA。
+- filter/status/view 必須在 cursor/limit 前由 server 套用；禁止 `searchNumberingRecords(limit)` 後才逐 root fetch/filter/slice。
+
+### 0.3 Formal truth and candidate overlay
+
+- formal tree與 `formalAvailability` 永遠由 `part_roots/drawing_numbers/part_numbers/drawing_part_links` canonical facts計算；candidate 不得覆蓋或讓尚未核准關係看似有效。
+- active candidate overlay明確標示「尚未正式生效」，其 draft drawings/parts/relations只出現在 `activeChanges` 或 candidate_root detail。
+- row 的單一 human status 可優先呈現 viewer 當前任務；formal relationship health仍以 `health/healthLabel/blockers/formalAvailability` 獨立顯示，不把 candidate readiness冒充 relation health。
+- primary action決定順序：actor 的 active-change task > actor 可處理的 formal blocker > `查看圖料關係`。此排序只選 CTA，不改 formal facts。
+- tree 第一層仍是 `Root → Drawing → linked Parts`；orphan drawing/part、reference relationship、ambiguity 與 blockers 依本規格既有語意。
+- matrix 是相同 response 的 secondary projection，不另 call 第二套 relation read authority。
+
+### 0.4 API projection and detail
+
+| Method / route | Contract |
+|---|---|
+| `GET /api/numbering/relations`（無 projection） | flag-off legacy response，回滾期間保留 |
+| `GET /api/numbering/relations?projection=workbench_v1` | new list envelope：`rows,nextCursor,generatedAt,filters,summary,pdmCompany` |
+| `GET /api/numbering/relations/[rowKey]` | new read-only detail BFF，接受 `root:{id}`、`candidate:{workspaceId}`；unprefixed rootCode only for legacy canonicalization |
+| `POST /api/numbering/relations` | payload、permission、transaction、error與response完全不變 |
+
+`projection` 非 `workbench_v1` 的未知值回 400，不 silent fallback。新 component 只能使用 `projection=workbench_v1`，不得同時呼叫 legacy response與workspace list自行 merge。
+
+Detail response：
+
+```ts
+type RelationWorkbenchDetailResponse = {
+  row: RelationWorkbenchRow;
+  focusedChangeWorkspaceId: string | null;
+  candidate: NumberingDraftWorkspaceRecord | null;
+  root: NumberingRootDetailRecord | null;
+  capabilities: {
+    canViewWorkspace: boolean;
+    canUpdateWorkspace: boolean;
+    canSubmitCandidate: boolean;
+    canReviewCandidate: boolean;
+    canMaintainRelation: boolean;
+    canCreateRevision: boolean;
+    permissionRequirements: Record<string, PdmWorkbenchPermissionRequirement>;
+  };
+};
+```
+
+- `detail=candidate:{id}` 且 candidate 有 source root時，detail BFF 回該 formal root row、`focusedChangeWorkspaceId` 與 candidate，UI展開/聚焦對應 `進行中的變更`；不建立 duplicate top-level row。
+- source-less candidate回 candidate_root row + candidate。
+- `detail=root:{id}` 回 formal root detail與同 snapshot active changes。
+- formal child drawing/part 點擊在同一 drawer shell載入 owner-domain `DrawingDetailContent`/`PartDetailContent`；relation page 不複製其欄位或 mutation form。owner component保留 source context與 safe `returnTo`。
+- relation link/set-primary/set-reference/remove 仍呼叫 `POST /api/numbering/relations`，成功後刷新同一 root row/detail；403/409/5xx 保留 drawer context並提供可行動復原。
+
+### 0.5 Repository and N+1 closure
+
+新增 `RelationWorkbenchAsyncRepository`，在共用 read snapshot 中：
+
+1. 一次 identity union query取得 formal root IDs與 source-less candidate IDs，完成 filter/keyset排序。
+2. 以 bounded `IN (...)` batch讀 roots、parts、drawings、links/warnings；不得 `rootCodes.map(getNumberingRootDetailAsync)`。
+3. 以 candidate IDs/sourceRootIds 批次讀 narrow workspace summaries；list 不為每個 workspace載完整 file/detail，detail才用 canonical workspace repository。
+4. drawing lifecycle/human status使用現有 batch projector；不得每 drawing query。
+5. 組合 formal root、activeChanges、matrix、health、availability、viewer status與 primary action後回 response。
+
+`limit=60`、每 root 3 drawings/5 parts、IDs <=400 時 list hard budget `<=18 queries`，且增加 root/drawing/part 數不得增加 query count。完整計數與 deep-equal fixture gate見 Workbench Core SPEC。
+
+### 0.6 Permission and information boundary
+
+- page/formal relation read需 `numbering.search`。
+- candidate overlay/row/detail只有 `numbering.workspace.view` 可見；無權限者仍可看被允許的 formal root，但 response 不回 candidate count、ID、code、status或存在提示。
+- relation mutation仍需原 `numbering.link_variant` action permission；read capability不得升權。
+- create revision、workspace update/submit/review各用既有 exact permission，不從 `Admin` 或 role label推定。
+- company由 server context解析；cursor actor/company bound；第二公司相同 root/candidate code回404或不可見。
+- response 不回 raw approval payload、cursor hash、workspace technical ID（rowKey/deep link之外不作 visible text）或被 redaction 的 Part cost。
+
+### 0.7 Create, compatibility and zero-write
+
+- `NumberStateOwnerCreateAction surface="search"` 成功導向 `/numbering/search?view=work&detail=candidate:{workspaceId}`，不依 drawing flag。
+- `/numbering/search?tab=reserved` → `?view=work`；有 unprefixed detail 時視為 workspace ID並 canonicalize `candidate:`。
+- `/numbering/request` → `/numbering/search?view=work&create=new_bundle&legacyFrom=/numbering/request`；只有使用者在 create dialog明確提交才可寫入。
+- legacy unprefixed `detail={rootCode}` 成功 lookup 後 replace為 `root:{rootId}`；找不到不猜 identity。
+- open/search/filter/detail/back/forward/reload/canonicalization 的 network log 必須只有 GET/HEAD；不得因掛載或 URL normalize建立 workspace/audit/event。
+
+### 0.8 Failure/recovery and UX contract
+
+- candidate hydrate失敗不得只回 formal tree；formal hydrate失敗不得只回 candidate。整個 response 5xx，client保留上次成功畫面與 retry。
+- invalid cursor 400回第一頁；stale detail 404關閉 drawer；409 relation mutation顯示「資料已更新」並 reload root，禁止 silent retry mutation。
+- active candidate在 formalization後消失時，refresh以 formal root/children取代；source-less candidate deep link若 server有 authoritative promoted target，可提供 canonical target handoff，client不猜 code。
+- 1440×900、1024×768、768×1024、390×844：root摘要、狀態、primary CTA不可裁切；窄版tree可垂直堆疊但不得水平頁面overflow，matrix可在自己的 labelled region內水平捲動。
+- keyboard使用共用 shortcuts：Arrow、Home/End、PageUp/Down移動 root rows；Enter開 drawer；Escape關閉並回到原 row；Ctrl/Cmd+C複製目前 display code。tree內部展開按鈕需有 accessible name，不攔截 input/editor快捷鍵。
+- 正常、empty、blocked、history、401/403/404/409/5xx 都通過 Now What Test；每個狀態只有一個主建議。
+
+### 0.9 Phase 1C acceptance
+
+1. formal root unique、source-root candidate overlay、source-less candidate_root、published/cancelled transition全數正確。
+2. formal tree/matrix/health/blockers/owner drawer/relation maintenance與既有 capability parity無缺項。
+3. new projection route無 N+1、無 browser merge、無平行 relation mutation authority。
+4. cross-role/cross-company、tampered cursor、rapid filter/detail race、responsive/keyboard/focus、zero-write legacy route通過。
+5. Phase 1C 單獨完成仍不算 DEV-062 結案；須再過 Phase 1D aggregate gate。
 
 ## Human Decision Brief
 
@@ -119,6 +296,28 @@ The view must separate:
 ### Default View: Root-Grouped Relationship Tree
 
 Each root appears once.
+
+The default tree is an effective-relationship view. It uses the latest current
+master records that are still usable for the relationship decision, so a root
+that has a released drawing/part relationship remains understandable while a
+new candidate is under review. A candidate drawing/part change must not replace
+the current `主根號 -> 圖號 -> 料號` nodes or make them look unavailable before
+the change is published.
+
+When an active candidate workspace or drawing revision review exists, show it
+only in a collapsed secondary section named `變更審查中`. When expanded, the
+section must render each review with the exact same `主根號 -> 圖號 -> 料號`
+tree structure, identity order, relation-role chips and node-level information
+as the formal released data. The only default presentation difference is that
+the review section is collapsed. The review status and workflow ownership may
+appear as secondary metadata on that same tree, but must not replace the tree
+with a summary list. A review node must not inherit the formal master's
+`生產可用` or `研發可用` label as if the candidate were already effective; it
+must show an explicit review-only state such as `審查中：不可供生產使用`.
+The formal master's availability may remain visible only in the primary tree,
+or with an explicit `正式版` prefix when contextualized. Elevate the review
+into the primary relationship layer only when the current relationship is
+actually blocked or its effective availability is unknown.
 
 Example:
 
@@ -281,6 +480,7 @@ Rules:
   - Direct `rootCode`, `drawingNumber` or `partNumber` query: expand matching root and highlight matching node.
   - Large result set: collapsed groups with counts and blockers visible.
 - Preserve existing status badge vocabulary through `formatStatusForUser` and `formatDevelopmentPhaseForUser`.
+- Keep relationship health and effective availability as the primary root/node signals; keep in-flight review ownership and workflow labels in the collapsed `變更審查中` secondary layer.
 - Do not create nested cards. Use full-width rows, tree indentation, compact chips and drawer details.
 - Mobile uses stacked root cards with expandable drawing sections; no page-level horizontal overflow.
 

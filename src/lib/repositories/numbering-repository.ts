@@ -27,8 +27,14 @@ import {
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
+import {
+  canonicalImportedRootName,
+  importedDrawingSequence,
+  importedPartSequence
+} from "@/lib/numbering-import-normalization";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
 import { normalizePartCostTiers, normalizePositiveInteger } from "@/lib/numbering-part-cost";
+import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 export type NumberingRecordStatus =
@@ -327,6 +333,7 @@ export type PartCostResolutionRecord = {
 };
 
 export type PartModuleListRecord = PartNumberRecord & {
+  updatedAt: string;
   rootCode: string;
   coreName: string;
   variant: PartVariantAttributesRecord | null;
@@ -1384,6 +1391,7 @@ type PartNumberRow = {
   record_status: NumberingRecordStatus;
   universal_reason: string | null;
   rule_version_id: string;
+  updated_at?: string;
 };
 
 type DrawingNumberRow = {
@@ -2269,6 +2277,7 @@ function mapPartCostChangeRequest(row: PartCostChangeRequestRow): PartCostChange
 function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
   return {
     ...mapPartNumber(row),
+    updatedAt: row.updated_at ?? "",
     rootCode: row.root_code,
     coreName: row.core_name,
     primaryDrawingNumber: row.primary_drawing_number,
@@ -3026,18 +3035,6 @@ function allocateSequence(database: SqliteDatabase, sequenceKey: string) {
     .prepare("UPDATE numbering_sequences SET next_value = ?, updated_at = ? WHERE sequence_key = ?")
     .run(row.next_value + 1, now, sequenceKey);
   return row.next_value;
-}
-
-function lowestAvailableSequence(usedValues: number[], maxValue: number, label: string) {
-  const used = [...new Set(usedValues.filter((value) => Number.isInteger(value) && value > 0 && value <= maxValue))].sort((a, b) => a - b);
-  let candidate = 1;
-  for (const value of used) {
-    if (value < candidate) continue;
-    if (value > candidate) break;
-    candidate += 1;
-  }
-  if (candidate > maxValue) throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
-  return candidate;
 }
 
 function normalizeRootCodeCandidate(value: unknown): string | null {
@@ -4665,34 +4662,6 @@ function importString(row: NumberingImportRowInput, ...keys: string[]) {
     if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
   return "";
-}
-
-function canonicalImportedRootName(coreName: string, partName: string) {
-  const rootName = coreName.trim();
-  const candidatePartName = partName.trim();
-  if (!rootName) return candidatePartName;
-  if (!candidatePartName) return rootName;
-  if (candidatePartName === rootName) return rootName;
-  if (candidatePartName.startsWith(rootName) && candidatePartName.length > rootName.length) return candidatePartName;
-  return rootName;
-}
-
-function importedPartSequence(partNumber: string) {
-  const v3 = partNumber.match(/^[A-Z][0-9]{4}-P([0-9]{2})$/);
-  if (v3) return Number.parseInt(v3[1], 10);
-  const v2 = partNumber.match(/^[0-9]{5}-P([0-9]{2})$/);
-  if (v2) return Number.parseInt(v2[1], 10);
-  const v1 = partNumber.match(/(\d{3})$/);
-  return v1 ? Number.parseInt(v1[1], 10) : 0;
-}
-
-function importedDrawingSequence(drawingNumber: string) {
-  const v3 = drawingNumber.match(/^[A-Z][0-9]{4}-[MR]([0-9]{2})$/);
-  if (v3) return Number.parseInt(v3[1], 10);
-  const v2 = drawingNumber.match(/^[0-9]{5}-[MR]([0-9]{2})$/);
-  if (v2) return Number.parseInt(v2[1], 10);
-  const v1 = drawingNumber.match(/(?:MA|OT)(\d)$/);
-  return v1 ? Number.parseInt(v1[1], 10) : 1;
 }
 
 function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {

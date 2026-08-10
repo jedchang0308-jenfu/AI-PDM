@@ -80,7 +80,7 @@ export function NumberingContextualEntrypoints({
     void (async () => {
       const response = await fetch("/api/numbering/state-flow/status", { cache: "no-store" });
       const body = await response.json().catch(() => ({}));
-      if (!cancelled) setDrawingWorkbenchEnabled(response.ok ? body.drawingWorkbench?.enabled === true : null);
+      if (!cancelled) setDrawingWorkbenchEnabled(response.ok ? body.drawingWorkbench?.enabled === true || body.partRelationWorkbench?.enabled === true : null);
     })();
     return () => { cancelled = true; };
   }, []);

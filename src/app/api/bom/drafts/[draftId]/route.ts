@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { getBomWorkbenchDraftByIdAsync, saveBomWorkbenchDraftTreeAsync } from "@/lib/bom-workbench-async";
-import { canReadBomDraftAsync } from "@/lib/permissions";
-import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
@@ -16,11 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draf
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  const submission = await getSubmissionAsync(draft.parent_submission_id);
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
-  }
-  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
+  if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
 
   return NextResponse.json({ draft });
 }
@@ -35,11 +30,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dr
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  const submission = await getSubmissionAsync(draft.parent_submission_id);
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
-  }
-  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
+  if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
 
   const body = (await request.json().catch(() => ({}))) as {
     lines?: unknown;
@@ -54,7 +45,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dr
       draftId,
       actorId: auth.user.id,
       reason: typeof body.reason === "string" ? body.reason : undefined,
-      lines: body.lines.map((line) => normalizeLineInput(line))
+      lines: body.lines.map((line) => ({
+        ...normalizeLineInput(line),
+        revision: draft.identity_authority === "canonical_part_number" ? null : normalizeLineInput(line).revision
+      }))
     });
     return NextResponse.json({ draft: updated });
   } catch (error) {

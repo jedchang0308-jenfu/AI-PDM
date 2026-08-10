@@ -1,0 +1,8 @@
+{
+  "writes": 0,
+  "createdCandidates": [],
+  "cancelledCandidates": [],
+  "cleanupRequired": false,
+  "writeLifecycle": "Not Executed (Safety Boundary)",
+  "note": "Only opened the existing candidate confirmation dialog and dismissed it with Escape. Confirmation was never activated."
+}

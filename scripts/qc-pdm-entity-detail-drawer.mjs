@@ -25,7 +25,12 @@ const drawingPartRelationStatus = read("src/lib/drawing-part-relation-status.ts"
 const keyboardLinkActivation = read("src/lib/keyboard-link-activation.ts");
 const numberingAsync = read("src/lib/numbering-async.ts");
 const numberingSearchTarget = read("src/lib/numbering-search-target.ts");
-const partPage = read("src/app/parts/page.tsx");
+const partPage = [
+  read("src/app/parts/page.tsx"),
+  read("src/components/part-module.tsx"),
+  read("src/components/part-workbench.tsx"),
+  read("src/components/part-detail-content.tsx")
+].join("\n");
 const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
 const candidateRevisionEditor = read("src/components/numbering-candidate-revision-editor.tsx");
 const drawingWorkspaceDrawer = read("src/components/drawing-workspace-drawer.tsx");
@@ -33,9 +38,14 @@ const entityDrawer = read("src/components/pdm-entity-detail-drawer.tsx");
 const detailDrawer = read("src/components/pdm-detail-drawer.tsx");
 const contextualEntrypoints = read("src/components/numbering-contextual-entrypoints.tsx");
 const humanStatusBadge = read("src/components/human-status-badge.tsx");
+const humanStatusFilter = read("src/components/human-status-filter.tsx");
 const humanStatusProjection = read("src/lib/human-status-projection.ts");
 const globalCss = read("src/app/globals.css");
 const attachmentPanel = read("src/components/master-attachment-panel.tsx");
+const sharedDetailContent = read("src/components/drawing-detail-content.tsx");
+const sharedDetailPreview = read("src/components/drawing-detail-preview.tsx");
+const workbenchController = read("src/components/use-pdm-workbench-controller.ts");
+const workbenchList = read("src/components/pdm-workbench-list.tsx");
 const packageJson = JSON.parse(read("package.json"));
 
 record(
@@ -51,8 +61,8 @@ record(
     partPage.includes('import { PdmEntityDetailDrawer }') &&
     drawingWorkspaceDrawer.includes('import { PdmEntityDetailDrawer }') &&
     [searchPage, partPage, drawingWorkspaceDrawer].every((source) => source.includes("<PdmEntityDetailDrawer")) &&
-    drawingWorkbench.includes('import { DrawingWorkspaceDrawer }') &&
-    numberStateWorkspace.includes('import { DrawingWorkspaceDrawer }') &&
+    drawingWorkbench.includes("DrawingWorkspaceDrawer") &&
+    numberStateWorkspace.includes("DrawingWorkspaceDrawer") &&
     [drawingWorkbench, numberStateWorkspace].every((source) => source.includes("<DrawingWorkspaceDrawer")) &&
     !drawingWorkbench.includes('import { PdmEntityDetailDrawer }') &&
     !numberStateWorkspace.includes('import { PdmEntityDetailDrawer }'),
@@ -61,7 +71,7 @@ record(
 
 record(
   "Candidate and formal drawings directly use one drawing workspace component",
-  drawingWorkspaceDrawer.includes('data-component="drawing-workspace-drawer"') &&
+  drawingWorkspaceDrawer.includes('dataComponent="drawing-workspace-drawer"') &&
     drawingWorkspaceDrawer.includes('data-drawing-primary-action-slot="true"') &&
     drawingWorkbench.includes("<DrawingWorkspaceDrawer") &&
     numberStateWorkspace.includes("<DrawingWorkspaceDrawer"),
@@ -84,7 +94,7 @@ record(
     entityDrawer.includes("target.closest(keepOpenSelector)") &&
     entityDrawer.includes('querySelector<HTMLElement>(".pdm-entity-drawer-body, .number-state-drawer-body")') &&
     entityDrawer.includes("scrollTo({ top: 0 })") &&
-    drawingWorkbench.includes('data-drawing-workbench-row="true"') &&
+    drawingWorkbench.includes('rowDataAttribute="data-drawing-workbench-row"') &&
     drawingWorkbench.includes('keepOpenSelector="[data-drawing-workbench-row=\'true\']"') &&
     partPage.includes('keepOpenSelector="[data-part-row=\'true\']"') &&
     searchPage.includes('keepOpenSelector="[data-search-row=\'true\']"') &&
@@ -104,7 +114,7 @@ record(
   "Candidate and formal drawing drawers declare one drawing detail family",
   numberStateWorkspace.includes('entityType="candidate_bundle"') &&
     drawingWorkbench.includes('entityType="drawing_number"') &&
-    drawingWorkspaceDrawer.includes('detailFamily="drawing_number"') &&
+    drawingWorkspaceDrawer.includes('detailFamily = "drawing_number"') &&
     drawingWorkspaceDrawer.includes("drawingDetailSkeleton") &&
     entityDrawer.includes("dataDetailFamily={detailFamily}") &&
     detailDrawer.includes('data-drawing-detail-skeleton={dataDrawingDetailSkeleton ? "true" : undefined}'),
@@ -117,27 +127,35 @@ const candidateDrawerSource = numberStateWorkspace.slice(candidateDrawerStart, c
 const candidatePreviewStart = numberStateWorkspace.indexOf("function CandidateDrawingPreview");
 const candidatePreviewEnd = numberStateWorkspace.indexOf("function shouldRenderLifecycleV2Pending", candidatePreviewStart);
 const candidatePreviewSource = numberStateWorkspace.slice(candidatePreviewStart, candidatePreviewEnd);
-const sharedSectionOrder = ["drawing-overview", "data-drawing-detail-body-slot", "drawing-pending", "drawing-more"].map((key) => drawingWorkspaceDrawer.indexOf(key));
+const sharedSectionOrder = [
+  sharedDetailContent.indexOf('data-drawing-detail-section="drawing-overview"'),
+  sharedDetailContent.indexOf('dataSection="drawing-revision-files"'),
+  sharedDetailContent.indexOf('dataSection="drawing-pending"'),
+  sharedDetailContent.indexOf('dataSection="drawing-more"')
+];
 const candidateBodyOrder = [candidateDrawerSource.indexOf('data-drawing-detail-section="drawing-revision-files"'), candidateDrawerSource.indexOf("<CandidateDrawingPreview")];
 const formalDetailStart = drawingWorkbench.indexOf("export function DrawingDetailContent");
 const formalDetailEnd = drawingWorkbench.indexOf("function DrawingMoreMenu", formalDetailStart);
 const formalDetailSource = drawingWorkbench.slice(formalDetailStart, formalDetailEnd);
 record(
-  "Candidate and formal drawings follow the same five-section DOM skeleton",
+  "Candidate and formal drawings follow the same shared detail skeleton",
   sharedSectionOrder.every((index) => index >= 0) &&
     sharedSectionOrder.every((index, position) => position === 0 || sharedSectionOrder[position - 1] < index) &&
     candidateBodyOrder.every((index) => index >= 0) && candidateBodyOrder[0] < candidateBodyOrder[1] &&
-    drawingWorkbench.includes("body={slots.body}") &&
+    drawingWorkbench.includes("content={{") &&
     formalDetailSource.includes("<MasterAttachmentPanel compact drawingDetailSkeleton") &&
-    attachmentPanel.includes('data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined}') &&
-    attachmentPanel.includes('data-drawing-detail-section="drawing-preview"'),
-  "drawing-overview -> drawing-revision-files -> drawing-preview -> drawing-pending -> drawing-more"
+    (attachmentPanel.includes('data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined}') ||
+      attachmentPanel.includes('dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined}')) &&
+    sharedDetailPreview.includes('dataSection = "drawing-preview"'),
+  "drawing-overview -> drawing-revision-files (contains shared 3D/2D preview) -> drawing-pending -> drawing-more"
 );
 
 record(
   "Candidate and formal drawers share the header identity contract",
-  candidateDrawerSource.includes('eyebrow="候選圖號"') &&
-    candidateDrawerSource.includes('title={drawingCode ?? "尚未產生圖號"}') &&
+  candidateDrawerSource.includes('const entityLabel = presentation?.entityLabel ?? "候選圖號"') &&
+    candidateDrawerSource.includes('const entityTitle = presentation?.title ?? drawingCode ?? "尚未產生圖號"') &&
+    candidateDrawerSource.includes("eyebrow={entityLabel}") &&
+    candidateDrawerSource.includes("title={entityTitle}") &&
     candidateDrawerSource.includes("subtitle={workspaceTitle(workspace)}") &&
     candidateDrawerSource.includes("status={<WorkspaceHeaderStatus") &&
     candidateDrawerSource.includes("primaryAction={primaryAction}") &&
@@ -174,7 +192,7 @@ record(
 record(
   "Candidate first-drawing action stays on the same page with one concise label",
   candidateDrawerSource.includes("<NumberingCandidateRevisionEditor") &&
-    candidateDrawerSource.includes("body={") &&
+    candidateDrawerSource.includes("content={{") &&
     !candidateDrawerSource.includes('href="#candidate-revision-files"') &&
     candidateRevisionEditor.includes(': "建立首版"}</button>') &&
     !numberStateWorkspace.includes("準備首版圖面") &&
@@ -185,13 +203,14 @@ record(
 
 record(
   "Candidate missing-file guidance appears once beside the upload control",
-  candidateRevisionEditor.includes("下一步：加入至少一個主要受控檔；系統驗證完成後即可送審。") &&
-    candidatePreviewSource.includes("尚無可預覽圖面") &&
+  candidateRevisionEditor.includes("仍需指定或加入至少一個主要受控檔") &&
+    candidateRevisionEditor.includes("主要受控檔已完成，可送審。") &&
+    sharedDetailPreview.includes("尚無可預覽圖面") &&
     !candidatePreviewSource.includes("先在上方加入") &&
     candidateDrawerSource.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&
     numberStateWorkspace.includes('!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)') &&
-    drawingWorkspaceDrawer.includes('data-drawing-detail-section="drawing-pending" hidden={!pending}'),
-  "preparation stages keep the five-section DOM contract while hiding the empty pending section"
+    sharedDetailContent.includes('dataSection="drawing-pending"'),
+  "preparation stages keep the shared detail contract and hide empty guidance"
 );
 
 record(
@@ -282,18 +301,19 @@ record(
     relationRoute.includes("canonicalDrawingRows.get(drawing.id)") &&
     relationRoute.includes("const humanStatus = canonicalRow?.humanStatus ?? fallbackHumanStatus") &&
     relationRoute.includes("canonicalRow?.viewerStatus ?? projectRoleViewerHumanStatus(fallbackHumanStatus, viewerCapabilities)") &&
-    relationRoute.includes("canonicalRow?.availabilityScope ?? projectDrawingRecordAvailability(drawing)") &&
+    relationRoute.includes("availabilityScope: projectDrawingRecordAvailability(drawing)") &&
+    relationRoute.includes("revision candidate may be in review") &&
     numberingAsync.includes("export async function listDrawingModuleRecordsByIdsAsync") &&
     drawingWorkbenchProjection.includes("export function projectDrawingWorkbenchRecord"),
-  "batch owner read model with explicit record-level fallback"
+  "batch owner read model with workflow overlay and effective master availability"
 );
 
 record(
   "Root list and drawer share one canonical first-layer status",
   drawingPartRelationStatus.includes("export function projectNumberingRootStatus(") &&
     drawingPartRelationStatus.includes("humanStatus: projectRelationHumanStatus") &&
-    relationRoute.includes('import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status"') &&
-    rootDetailRoute.includes('import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status"') &&
+    relationRoute.includes("projectNumberingRootStatus") &&
+    rootDetailRoute.includes("projectNumberingRootStatus") &&
     relationRoute.includes("const rootStatus = projectNumberingRootStatus(detail)") &&
     rootDetailRoute.includes("const rootStatus = projectNumberingRootStatus(detail)") &&
     relationRoute.includes("relationshipHealth: health") &&
@@ -304,10 +324,13 @@ record(
 
 record(
   "Owner lists adopt the same canonical projection returned to the drawer",
-  drawingWorkbench.includes("const canonicalRow = body.row") &&
-    drawingWorkbench.includes("row.rowKey === canonicalRow.rowKey ? canonicalRow : row") &&
+  workbenchController.includes("getRowKey(row) === canonicalKey") &&
+    workbenchController.includes('(body as { row?: Row }).row ?? row') &&
+    drawingWorkbench.includes("usePdmWorkbenchController") &&
     partPage.includes("const canonicalPart = body.part as PartDetail") &&
     partPage.includes("part.partNumber === partNumber ? { ...part, ...canonicalPart } : part") &&
+    partPage.includes("usePdmWorkbenchController") &&
+    read("src/components/relation-workbench.tsx").includes("usePdmWorkbenchController") &&
     searchPage.includes("const syncCanonicalOwnerProjection = useCallback") &&
     searchPage.includes("setRelationRoots((currentRoots)") &&
     searchPage.includes("onCanonicalOwnerProjection={syncCanonicalOwnerProjection}"),
@@ -326,8 +349,9 @@ record(
 record(
   "Focused owner-list records activate with Enter or Space",
   drawingWorkbench.includes('if (event.key === "Enter" || event.key === " ")') &&
-    drawingWorkbench.includes("void openDetail(row.rowKey)") &&
-    drawingWorkbench.includes('aria-keyshortcuts="Enter Space Escape') &&
+    drawingWorkbench.includes("onContainerKeyDown={listKeyboard.handleKeyDown}") &&
+    drawingWorkbench.includes("onOpenRow={(row) => void openDetail(row.rowKey)}") &&
+    workbenchList.includes("aria-keyshortcuts={rowAriaKeyShortcuts}") &&
     partPage.includes('event.key !== "Enter" && event.key !== " "') &&
     partPage.includes('aria-keyshortcuts="Enter Space"') &&
     partPage.includes("onSelect(part.partNumber)"),
@@ -527,9 +551,10 @@ record(
     partPage.includes("useRememberedDrawerWidth") &&
     !searchPage.includes("clampDetailDrawerWidth") &&
     !partPage.includes("clampDetailDrawerWidth") &&
-    searchPage.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
-    drawingWorkbench.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
-    partPage.includes("HUMAN_STATUS_FILTER_OPTIONS") &&
+    searchPage.includes("HumanStatusFilterSelect") &&
+    drawingWorkbench.includes("HumanStatusFilterSelect") &&
+    partPage.includes("HumanStatusFilterSelect") &&
+    humanStatusFilter.includes("export function HumanStatusFilterSelect") &&
     humanStatusProjection.includes("export const HUMAN_STATUS_FILTER_OPTIONS"),
   "shared width and status contracts"
 );

@@ -9,7 +9,7 @@ export const HUMAN_STATUS_PHASES = [
 export type HumanStatusPhase = (typeof HUMAN_STATUS_PHASES)[number];
 export type HumanStatusTone = "danger" | "warning" | "info" | "success" | "neutral";
 export type HumanStatusIcon = "alert" | "clock" | "play" | "check" | "archive";
-export type HumanStatusFilter = "all" | "needs_action" | "waiting" | "system" | "ready" | "usable" | "history";
+export type HumanStatusFilter = "all" | "needs_action" | "waiting" | "system" | "ready" | "production" | "rd" | "availability_unknown" | "needs_confirmation" | "history";
 
 export const HUMAN_STATUS_FILTER_VALUES: readonly HumanStatusFilter[] = [
   "all",
@@ -17,18 +17,37 @@ export const HUMAN_STATUS_FILTER_VALUES: readonly HumanStatusFilter[] = [
   "waiting",
   "system",
   "ready",
-  "usable",
+  "production",
+  "rd",
+  "availability_unknown",
+  "needs_confirmation",
   "history"
 ];
 
-/** Visible filter vocabulary. `ready` remains URL-compatible but is not a separate user-facing state. */
+export const HUMAN_STATUS_DISPLAY_LABELS = {
+  all: "全部工作狀態",
+  needs_action: "待你處理",
+  waiting: "等他人處理",
+  system: "系統處理中",
+  usable: "可使用",
+  production: "生產可用",
+  rd: "研發可用",
+  availability_unknown: "可用範圍待確認",
+  needs_confirmation: "負責人待確認",
+  history: "歷史"
+} as const;
+
+/** Visible filter vocabulary is sourced from the same display labels used by the work-status table. */
 export const HUMAN_STATUS_FILTER_OPTIONS: ReadonlyArray<{ value: HumanStatusFilter; label: string }> = [
-  { value: "all", label: "全部工作狀態" },
-  { value: "needs_action", label: "待你處理" },
-  { value: "waiting", label: "等他人處理" },
-  { value: "system", label: "系統處理中" },
-  { value: "usable", label: "可使用" },
-  { value: "history", label: "歷史" }
+  { value: "all", label: HUMAN_STATUS_DISPLAY_LABELS.all },
+  { value: "needs_action", label: HUMAN_STATUS_DISPLAY_LABELS.needs_action },
+  { value: "waiting", label: HUMAN_STATUS_DISPLAY_LABELS.waiting },
+  { value: "system", label: HUMAN_STATUS_DISPLAY_LABELS.system },
+  { value: "production", label: HUMAN_STATUS_DISPLAY_LABELS.production },
+  { value: "rd", label: HUMAN_STATUS_DISPLAY_LABELS.rd },
+  { value: "availability_unknown", label: HUMAN_STATUS_DISPLAY_LABELS.availability_unknown },
+  { value: "needs_confirmation", label: HUMAN_STATUS_DISPLAY_LABELS.needs_confirmation },
+  { value: "history", label: HUMAN_STATUS_DISPLAY_LABELS.history }
 ];
 
 export function isHumanStatusFilter(value: string | null | undefined): value is HumanStatusFilter {
@@ -133,12 +152,24 @@ export function humanStatusPrimaryCategory(phase: HumanStatusPhase): HumanStatus
 export function humanStatusPrimaryLabel(status: Pick<HumanStatusProjection, "phase">, viewerStatus?: ViewerHumanStatusProjection | null): string {
   if (viewerStatus) return viewerStatus.label;
   const labels: Record<HumanStatusPrimaryCategory, string> = {
-    action: "待處理",
-    waiting: "等待中",
-    usable: "可使用",
-    terminal: "已結束"
+    action: HUMAN_STATUS_DISPLAY_LABELS.needs_action,
+    waiting: HUMAN_STATUS_DISPLAY_LABELS.waiting,
+    usable: HUMAN_STATUS_DISPLAY_LABELS.usable,
+    terminal: HUMAN_STATUS_DISPLAY_LABELS.history
   };
   return labels[humanStatusPrimaryCategory(status.phase)];
+}
+
+export function humanStatusDisplayLabel(
+  status: Pick<HumanStatusProjection, "phase">,
+  viewerStatus?: ViewerHumanStatusProjection | null,
+  availabilityLabel?: string | null
+) {
+  if (status.phase === "usable") return availabilityLabel ?? HUMAN_STATUS_DISPLAY_LABELS.availability_unknown;
+  if (viewerStatus?.category === "usable" && availabilityLabel) return availabilityLabel;
+  if (viewerStatus?.category === "terminal") return HUMAN_STATUS_DISPLAY_LABELS.history;
+  if (viewerStatus?.category === "unknown") return HUMAN_STATUS_DISPLAY_LABELS.needs_confirmation;
+  return humanStatusPrimaryLabel(status, viewerStatus);
 }
 
 function humanStatusDetailSummary(status: HumanStatusProjection): string {
@@ -213,19 +244,24 @@ export function phaseMatchesFilter(phase: HumanStatusPhase, filter: HumanStatusF
   if (filter === "all") return true;
   if (filter === "needs_action") return phase === "action_required";
   if (filter === "history") return phase === "terminal";
+  if (["production", "rd", "availability_unknown", "needs_confirmation"].includes(filter)) return false;
   return phase === filter;
 }
 
 export function viewerStatusMatchesFilter(
   viewerStatus: ViewerHumanStatusProjection,
   objectiveStatus: Pick<HumanStatusProjection, "phase">,
-  filter: HumanStatusFilter
+  filter: HumanStatusFilter,
+  availabilityScope?: { scope: "none" | "rd" | "production" | "unknown" } | null
 ) {
   if (filter === "all") return true;
   if (filter === "needs_action") return viewerStatus.category === "current_user";
-  if (filter === "waiting") return viewerStatus.category === "other_user" || viewerStatus.category === "unknown";
+  if (filter === "waiting") return viewerStatus.category === "other_user";
   if (filter === "system") return viewerStatus.category === "system";
-  if (filter === "usable") return viewerStatus.category === "usable";
+  if (filter === "production") return viewerStatus.category === "usable" && availabilityScope?.scope === "production";
+  if (filter === "rd") return viewerStatus.category === "usable" && availabilityScope?.scope === "rd";
+  if (filter === "availability_unknown") return viewerStatus.category === "usable" && (!availabilityScope || availabilityScope.scope === "unknown" || availabilityScope.scope === "none");
+  if (filter === "needs_confirmation") return viewerStatus.category === "unknown";
   if (filter === "history") return viewerStatus.category === "terminal";
   // Backward-compatible URL support for the former `ready` filter.
   return viewerStatus.category === "current_user" && objectiveStatus.phase === "ready";
@@ -273,7 +309,7 @@ export function projectViewerHumanStatus(
   return {
     schemaVersion: 1,
     category: "unknown",
-    label: "待確認",
+    label: HUMAN_STATUS_DISPLAY_LABELS.needs_confirmation,
     tone: "warning",
     icon: "alert",
     basis: "unknown",

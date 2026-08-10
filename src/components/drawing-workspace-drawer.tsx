@@ -1,22 +1,28 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { DrawingDetailContent, type DrawingDetailContentModel } from "@/components/drawing-detail-content";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+
+export const DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
+export const DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH = 660;
+export const DRAWING_DETAIL_DRAWER_MIN_WIDTH = 420;
 
 type DrawingWorkspaceDrawerProps = {
   open: boolean;
   width: number;
   ariaLabel: string;
-  eyebrow: ReactNode;
+  eyebrow?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
   status?: ReactNode;
   primaryAction?: ReactNode;
   secondaryActions?: ReactNode;
   footer?: ReactNode;
-  entityType: "candidate_bundle" | "drawing_number";
+  entityType: "candidate_bundle" | "drawing_number" | "approval_request";
   entityCode: string;
   sourceContext: string;
+  detailFamily?: string;
   className?: string;
   bodyClassName?: string;
   resizeLabel?: string;
@@ -25,10 +31,11 @@ type DrawingWorkspaceDrawerProps = {
   keepOpenSelector?: string;
   overviewLabel: string;
   moreLabel: string;
-  overview: ReactNode;
-  body: ReactNode;
-  pending: ReactNode;
-  more: ReactNode;
+  content?: DrawingDetailContentModel;
+  overview?: ReactNode;
+  body?: ReactNode;
+  pending?: ReactNode;
+  more?: ReactNode;
   onClose: () => void;
   onStartResize: (clientX: number) => void;
 };
@@ -52,6 +59,7 @@ export function DrawingWorkspaceDrawer({
   entityType,
   entityCode,
   sourceContext,
+  detailFamily = "drawing_number",
   className,
   bodyClassName = "pdm-entity-drawer-body",
   resizeLabel,
@@ -60,6 +68,7 @@ export function DrawingWorkspaceDrawer({
   keepOpenSelector,
   overviewLabel,
   moreLabel,
+  content,
   overview,
   body,
   pending,
@@ -81,7 +90,7 @@ export function DrawingWorkspaceDrawer({
       entityType={entityType}
       entityCode={entityCode}
       sourceContext={sourceContext}
-      detailFamily="drawing_number"
+      detailFamily={detailFamily}
       drawingDetailSkeleton
       className={className}
       resizeLabel={resizeLabel}
@@ -91,12 +100,17 @@ export function DrawingWorkspaceDrawer({
       onClose={onClose}
       onStartResize={onStartResize}
     >
-      <div className={bodyClassName} data-component="drawing-workspace-drawer" data-drawing-detail-content="true">
-        <section className="drawing-detail-section drawing-detail-overview" data-drawing-detail-section="drawing-overview" aria-label={overviewLabel}>{overview}</section>
-        <div className="drawing-detail-body-slot" data-drawing-detail-body-slot="true">{body}</div>
-        <div className="drawing-detail-section drawing-detail-pending" data-drawing-detail-section="drawing-pending" hidden={!pending}>{pending}</div>
-        <section className="drawing-detail-section drawing-detail-more" data-drawing-detail-section="drawing-more" aria-label={moreLabel}>{more}</section>
-      </div>
+      {content ? (
+        <DrawingDetailContent model={content} overviewLabel={overviewLabel} moreLabel={moreLabel} bodyClassName={bodyClassName} dataComponent="drawing-workspace-drawer" />
+      ) : (
+        <DrawingDetailContent
+          model={{ overview: overview ?? null, body: body ?? null, pending: pending ?? null, more: more ?? null }}
+          overviewLabel={overviewLabel}
+          moreLabel={moreLabel}
+          bodyClassName={bodyClassName}
+          dataComponent="drawing-workspace-drawer"
+        />
+      )}
     </PdmEntityDetailDrawer>
   );
 }

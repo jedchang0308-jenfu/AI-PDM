@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalJsonStringify } from "@/lib/canonical-json";
 import {
   NUMBERING_RULE_V3_ID,
   assertPurposeAllowedForRule,
@@ -474,20 +475,8 @@ function parseJsonObject(value: string | Record<string, unknown>): Record<string
   }
 }
 
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonicalValue(nested)])
-    );
-  }
-  return value;
-}
-
 export function canonicalNumberStateJson(value: unknown) {
-  return JSON.stringify(canonicalValue(value));
+  return canonicalJsonStringify(value);
 }
 
 const canonicalJson = canonicalNumberStateJson;
@@ -1171,10 +1160,17 @@ export class AsyncNumberStateFlowRepository {
     return this.getWorkspace(input.id, input.companyId);
   }
 
-  async listWorkspaces(input: { companyId: string; ownerId?: string | null; lifecycleStatus?: NumberingDraftLifecycle | null; seriesCode?: string | null; limit?: number }) {
+  async listWorkspaces(input: {
+    companyId: string;
+    ownerId?: string | null;
+    lifecycleStatus?: NumberingDraftLifecycle | null;
+    sourceRootIds?: string[];
+    seriesCode?: string | null;
+    limit?: number;
+  }) {
     const limit = Math.min(Math.max(input.limit ?? 100, 1), 200);
     const where = ["company_id = :companyId"];
-    const params: { companyId: string; ownerId?: string; lifecycleStatus?: NumberingDraftLifecycle; seriesCode?: string } = { companyId: input.companyId };
+    const params: Record<string, string> = { companyId: input.companyId };
     if (input.ownerId) {
       where.push("owner_id = :ownerId");
       params.ownerId = input.ownerId;
@@ -1182,6 +1178,15 @@ export class AsyncNumberStateFlowRepository {
     if (input.lifecycleStatus) {
       where.push("lifecycle_status = :lifecycleStatus");
       params.lifecycleStatus = input.lifecycleStatus;
+    }
+    const sourceRootIds = [...new Set((input.sourceRootIds ?? []).filter(Boolean))];
+    if (sourceRootIds.length > 0) {
+      const sourceRootPlaceholders = sourceRootIds.map((sourceRootId, index) => {
+        const key = `sourceRootId${index}`;
+        params[key] = sourceRootId;
+        return `:${key}`;
+      });
+      where.push(`source_root_id IN (${sourceRootPlaceholders.join(", ")})`);
     }
     if (input.seriesCode) {
       where.push(`EXISTS (

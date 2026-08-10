@@ -150,6 +150,11 @@ export type BomWorkbenchNodeType = "item" | "group";
 
 export type BomWorkbenchDraftSummary = {
   id: string;
+  company_id: string | null;
+  owner_part_number_id: string | null;
+  bom_revision: string | null;
+  source_submission_id: string | null;
+  identity_authority: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
   parent_item_id: string;
   parent_submission_id: string;
   parent_revision: string;
@@ -163,6 +168,11 @@ export type BomWorkbenchDraftSummary = {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type BomWorkbenchListRecord = BomWorkbenchDraftSummary & {
+  parent_part_number: string;
+  parent_part_name: string;
 };
 
 export type BomReconfirmationFlag = {
@@ -220,6 +230,9 @@ export type BomImportProfile = {
 export type BomImportJob = {
   id: string;
   bom_draft_id: string | null;
+  owner_part_number_id: string | null;
+  bom_revision: string | null;
+  source_submission_id: string | null;
   parent_submission_id: string;
   import_profile_id: string;
   source_asset_id: string | null;
@@ -262,6 +275,10 @@ export type BomReleaseGateIssue = {
 export type BomReleaseSnapshotDetail = {
   id: string;
   bom_draft_id: string;
+  company_id: string | null;
+  owner_part_number_id: string | null;
+  bom_revision: string | null;
+  source_submission_id: string | null;
   parent_item_id: string;
   parent_submission_id: string;
   parent_revision: string;

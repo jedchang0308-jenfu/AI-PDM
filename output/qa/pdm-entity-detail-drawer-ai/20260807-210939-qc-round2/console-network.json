@@ -1,0 +1,12 @@
+{
+  "consoleErrors": [],
+  "consoleWarnings": [],
+  "visibleAlertTexts": [],
+  "visibleRuntimeFailures": [],
+  "failedRequests": "Browser API did not expose response status; no fetch failure appeared in console or visible UI.",
+  "knownPreviewFallback": {
+    "operatorFallbackPresent": true,
+    "runtimeCrash": false,
+    "textNoiseDefect": "The fallback exposes worker, Document Manager key, Vault and environment-variable terms."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "result": "PASS",
+  "browserConsoleErrors": [],
+  "browserConsoleWarnings": [],
+  "failedRequestInspection": {
+    "directNetworkEvents": "not exposed by the selected browser API",
+    "visibleRuntimeRecoveryEvidence": "all critical routes hard-loaded and rendered with expected fixture data",
+    "visibleHttpFailureTexts": []
+  },
+  "visibleErrorSweep": {
+    "numberingSearch": {"alertTexts":[],"visibleFailureTexts":[],"pageOverflow":false},
+    "numberingDrawings": {"alertTexts":[],"visibleFailureTexts":[],"pageOverflow":false},
+    "parts": {"alertTexts":[],"visibleFailureTexts":[],"pageOverflow":false}
+  },
+  "searchedVisiblePatterns": [
+    ".inline-error",
+    "non-empty [role=alert]",
+    "HTTP 4xx/5xx",
+    "Not Found",
+    "Internal Server Error",
+    "visible /api/ route text"
+  ]
+}

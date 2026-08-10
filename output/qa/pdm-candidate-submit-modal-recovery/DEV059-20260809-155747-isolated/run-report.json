@@ -1,0 +1,58 @@
+{
+  "runId": "DEV059-20260809-155747-isolated",
+  "startedAt": "2026-08-09T15:57:47.239Z",
+  "finishedAt": "2026-08-09T15:58:46.645Z",
+  "result": "failed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "DEV059-REAL-RUNNER",
+      "passed": false,
+      "detail": {
+        "message": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('aside[data-entity-type=\"candidate_bundle\"]').getByRole('button', { name: '完成首版圖面', exact: true }) to be visible\u001b[22m\n",
+        "stack": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('aside[data-entity-type=\"candidate_bundle\"]').getByRole('button', { name: '完成首版圖面', exact: true }) to be visible\u001b[22m\n\n    at prepareBundle (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:165:24)\n    at run (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:389:9)\n    at async file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs:444:3",
+        "serverTail": "▲ Next.js 16.2.6 (Turbopack)\n- Local:         http://127.0.0.1:53652\n- Network:       http://127.0.0.1:53652\n- Environments: .env.development.local, .env.local, .env\n✓ Ready in 1751ms\n\n  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.\n  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n\n  \t- include was updated to add '.tmp/q59-475f0590/types/**/*.ts'\n  \t- include was updated to add '.tmp/q59-475f0590/dev/types/**/*.ts'\n\n⚠ The \"middleware\" file convention is deprecated. Please use \"proxy\" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy\n\n GET /login 200 in 2.2s (next.js: 1869ms, proxy.ts: 62ms, application-code: 286ms)\n GET /login 200 in 94ms (next.js: 9ms, proxy.ts: 6ms, application-code: 78ms)\n GET /api/auth/mode 200 in 969ms (next.js: 943ms, proxy.ts: 6ms, application-code: 20ms)\n POST /api/auth/login 200 in 2.3s (next.js: 570ms, proxy.ts: 5ms, application-code: 1762ms)\n GET / 200 in 1003ms (next.js: 905ms, proxy.ts: 5ms, application-code: 93ms)\n GET /api/production-slice/status 200 in 398ms (next.js: 379ms, proxy.ts: 8ms, application-code: 12ms)\n GET /api/auth/me 200 in 581ms (next.js: 554ms, proxy.ts: 13ms, application-code: 13ms)\n GET /api/auth/me 200 in 589ms (next.js: 569ms, proxy.ts: 8ms, application-code: 12ms)\n GET /api/privacy/acknowledgements/current 200 in 644ms (next.js: 629ms, proxy.ts: 7ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 768ms (next.js: 718ms, proxy.ts: 8ms, application-code: 42ms)\n GET /api/production-slice/status 200 in 50ms (next.js: 15ms, proxy.ts: 23ms, application-code: 11ms)\n GET /api/auth/me 200 in 73ms (next.js: 30ms, proxy.ts: 23ms, application-code: 20ms)\n GET /api/auth/me 200 in 103ms (next.js: 52ms, proxy.ts: 24ms, application-code: 28ms)\n GET /api/auth/me 200 in 120ms (next.js: 85ms, proxy.ts: 23ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 142ms (next.js: 99ms, proxy.ts: 10ms, application-code: 33ms)\n GET /api/production-slice/status 200 in 21ms (next.js: 8ms, proxy.ts: 6ms, application-code: 7ms)\n GET /api/auth/me 200 in 35ms (next.js: 17ms, proxy.ts: 6ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 71ms (next.js: 32ms, proxy.ts: 5ms, application-code: 34ms)\n GET /api/notifications 200 in 525ms (next.js: 501ms, proxy.ts: 13ms, application-code: 11ms)\n GET /api/submissions?limit=100&offset=0 200 in 609ms (next.js: 583ms, proxy.ts: 14ms, application-code: 12ms)\n GET /api/numbering/search?recordStatus=Draft&limit=8 200 in 713ms (next.js: 690ms, proxy.ts: 11ms, application-code: 12ms)\n GET /api/lifecycle/controlled-history?limit=50 200 in 786ms (next.js: 766ms, proxy.ts: 11ms, application-code: 9ms)\n GET /api/notifications 200 in 27ms (next.js: 13ms, proxy.ts: 7ms, application-code: 7ms)\n GET /api/submissions?limit=100&offset=0 200 in 37ms (next.js: 23ms, proxy.ts: 6ms, application-code: 8ms)\n GET /api/numbering/search?recordStatus=Draft&limit=8 200 in 49ms (next.js: 32ms, proxy.ts: 8ms, application-code: 9ms)\n GET /api/lifecycle/controlled-history?limit=50 200 in 56ms (next.js: 42ms, proxy.ts: 6ms, application-code: 9ms)\n GET /numbering/drawings?view=all 200 in 710ms (next.js: 626ms, proxy.ts: 2ms, application-code: 83ms)\n GET /api/production-slice/status 200 in 27ms (next.js: 14ms, proxy.ts: 6ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 63ms (next.js: 23ms, proxy.ts: 6ms, application-code: 35ms)\n GET /api/auth/me 200 in 83ms (next.js: 60ms, proxy.ts: 9ms, application-code: 15ms)\n GET /api/privacy/acknowledgements/current 200 in 90ms (next.js: 76ms, proxy.ts: 5ms, application-code: 9ms)\n GET /api/numbering/state-flow/status 200 in 202ms (next.js: 190ms, proxy.ts: 5ms, application-code: 7ms)\n GET /api/production-slice/status 200 in 29ms (next.js: 13ms, proxy.ts: 10ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 59ms (next.js: 21ms, proxy.ts: 9ms, application-code: 30ms)\n GET /api/auth/me 200 in 78ms (next.js: 54ms, proxy.ts: 8ms, application-code: 16ms)\n GET /api/numbering/state-flow/status 200 in 86ms (next.js: 73ms, proxy.ts: 8ms, application-code: 6ms)\n GET /api/auth/me 200 in 100ms (next.js: 80ms, proxy.ts: 9ms, application-code: 11ms)\n GET /api/numbering/state-flow/status 200 in 109ms (next.js: 93ms, proxy.ts: 8ms, application-code: 7ms)\n GET /api/production-slice/status 200 in 49ms (next.js: 17ms, proxy.ts: 25ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 80ms (next.js: 25ms, proxy.ts: 24ms, application-code: 31ms)\n GET /api/numbering/state-flow/status 200 in 71ms (next.js: 58ms, proxy.ts: 8ms, application-code: 5ms)\n GET /api/numbering/permissions 200 in 105ms (next.js: 63ms, proxy.ts: 11ms, application-code: 30ms)\n GET /api/production-slice/status 200 in 111ms (next.js: 101ms, proxy.ts: 5ms, application-code: 5ms)\n GET /api/numbering/state-flow/status 200 in 118ms (next.js: 107ms, proxy.ts: 5ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 75ms (next.js: 9ms, proxy.ts: 23ms, application-code: 43ms)\n GET /api/production-slice/status 200 in 88ms (next.js: 54ms, proxy.ts: 24ms, application-code: 10ms)\n GET /api/numbering/drawings/workbench?view=all&limit=50&history=exclude 200 in 362ms (next.js: 325ms, proxy.ts: 23ms, application-code: 15ms)\n GET /api/numbering/draft-workspaces/preview?purposeCode=M 200 in 360ms (next.js: 348ms, proxy.ts: 4ms, application-code: 7ms)\n POST /api/numbering/duplicate-check 200 in 653ms (next.js: 524ms, proxy.ts: 4ms, application-code: 125ms)\n POST /api/numbering/draft-workspaces 201 in 375ms (next.js: 313ms, proxy.ts: 4ms, application-code: 58ms)\n GET /numbering/drawings?view=work&detail=candidate%3Adraft-workspace-b1f40f7d-fb60-4161-83af-164db099e18c 200 in 134ms (next.js: 10ms, proxy.ts: 15ms, application-code: 109ms)\n GET /api/production-slice/status 200 in 34ms (next.js: 18ms, proxy.ts: 8ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 75ms (next.js: 28ms, proxy.ts: 8ms, application-code: 39ms)\n GET /api/auth/me 200 in 93ms (next.js: 66ms, proxy.ts: 12ms, application-code: 16ms)\n GET /api/numbering/state-flow/status 200 in 102ms (next.js: 87ms, proxy.ts: 7ms, application-code: 9ms)\n GET /api/privacy/acknowledgements/current 200 in 112ms (next.js: 98ms, proxy.ts: 6ms, application-code: 8ms)\n GET /api/production-slice/status 200 in 58ms (next.js: 34ms, proxy.ts: 10ms, application-code: 13ms)\n GET /api/numbering/permissions 200 in 119ms (next.js: 51ms, proxy.ts: 11ms, application-code: 58ms)\n GET /api/auth/me 200 in 137ms (next.js: 105ms, proxy.ts: 17ms, application-code: 15ms)\n GET /api/numbering/state-flow/status 200 in 139ms (next.js: 122ms, proxy.ts: 11ms, application-code: 6ms)\n GET /api/auth/me 200 in 157ms (next.js: 130ms, proxy.ts: 11ms, application-code: 16ms)\n GET /api/numbering/state-flow/status 200 in 170ms (next.js: 146ms, proxy.ts: 14ms, application-code: 10ms)\n GET /api/production-slice/status 200 in 52ms (next.js: 28ms, proxy.ts: 16ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 157ms (next.js: 39ms, proxy.ts: 17ms, application-code: 101ms)\n GET /api/numbering/state-flow/status 200 in 174ms (next.js: 141ms, proxy.ts: 19ms, application-code: 14ms)\n GET /api/numbering/permissions 200 in 250ms (next.js: 158ms, proxy.ts: 19ms, application-code: 73ms)\n GET /api/production-slice/status 200 in 273ms (next.js: 238ms, proxy.ts: 19ms, application-code: 15ms)\n GET /api/numbering/state-flow/status 200 in 288ms (next.js: 257ms, proxy.ts: 19ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 103ms (next.js: 21ms, proxy.ts: 13ms, application-code: 70ms)\n GET /api/production-slice/status 200 in 117ms (next.js: 95ms, proxy.ts: 11ms, application-code: 10ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 147ms (next.js: 109ms, proxy.ts: 11ms, application-code: 27ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-b1f40f7d-fb60-4161-83af-164db099e18c 200 in 1617ms (next.js: 1591ms, proxy.ts: 11ms, application-code: 15ms)\n"
+      }
+    }
+  ],
+  "screenshots": [],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:e330cf09-f79f-4764-b706-4f87202e402b"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    }
+  ],
+  "browserErrors": [],
+  "unexpectedBrowserErrors": [],
+  "plannedFaults": [],
+  "visibleErrors": []
+}

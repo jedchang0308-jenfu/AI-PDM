@@ -23,6 +23,7 @@ import {
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { createSubmissionRecordAsync, getSubmissionAsync, listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
 import { normalizeFileRole, validateSubmissionInput } from "@/lib/validation";
+import { assertRequiredDrawingFiles, evaluateRequiredDrawingFiles } from "@/lib/pdm-file-ownership";
 
 export type DrawingSubmissionBlockerCode =
   | "drawing_number_not_found"
@@ -39,6 +40,12 @@ export type DrawingSubmissionBlockerCode =
   | "duplicate_attachment_filename"
   | "release_filename_conflict"
   | "missing_attachment"
+  | "DRAWING_2D_REQUIRED"
+  | "DRAWING_3D_REQUIRED"
+  | "DRAWING_2D_PRIMARY_REQUIRED"
+  | "DRAWING_3D_PRIMARY_REQUIRED"
+  | "DRAWING_ROLE_EXTENSION_MISMATCH"
+  | "DRAWING_REQUIRED_FILE_READINESS_FAILED"
   | "duplicate_active_submission"
   | "same_revision_in_progress"
   | "revision_policy_basis_stale"
@@ -228,19 +235,22 @@ type LinkedPartRow = {
 
 type AttachmentRow = {
   id: string;
+  storage_provider: string | null;
+  storage_bucket: string | null;
   storage_key: string | null;
   original_path: string | null;
   file_name: string;
   file_ext: string | null;
   file_size: number | string | null;
   content_hash: string | null;
+  gdrive_file_id: string | null;
   document_category: string;
   display_name: string;
   revision: string | null;
   created_at: string;
 };
 
-const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "x_t"]);
+const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"]);
 const blockedDrawingStatuses = new Set(["Obsolete", "Merged", "MainDrawingInvalid"]);
 const submittablePrimaryPartKinds = new Set(["manufactured", "outsourced", "custom"]);
 const snapshotRulesVersion = "drawing_part_submission_v1.2026-07-01";
@@ -846,6 +856,22 @@ export async function createDrawingSourceSubmission(input: {
       role: file.role
     }))
   });
+  try {
+    assertRequiredDrawingFiles(
+      selectedAttachments.map((attachment) => ({
+        id: attachment.id,
+        fileName: attachment.file_name,
+        fileExt: attachment.file_ext,
+        fileSize: attachment.file_size,
+        contentHash: attachment.content_hash,
+        role: packageFiles.find((file) => file.id === attachment.id)?.role ?? null,
+        isPrimary: true
+      }))
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "送審必須包含 1 個 2D 原始檔與 1 個 3D CAD。";
+    throw new DrawingSubmissionWorkbenchError("DRAWING_REQUIRED_FILE_READINESS_FAILED", message, 400, [message]);
+  }
   const existingRevisionSubmission = await findBlockingSubmissionByDrawingRevision(client, {
     companyId: input.company.companyId,
     drawingNumber: context.drawing.drawingNumber,
@@ -928,18 +954,25 @@ export async function createDrawingSourceSubmission(input: {
   });
 
   const capturedAt = new Date().toISOString();
-  const submissionFolderName = `SUB-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto
-    .randomUUID()
-    .slice(0, 8)
-    .toUpperCase()}`;
-  const files = await Promise.all(
-    selectedAttachments.map(async (attachment) => ({
-      filename: attachment.file_name,
-      bytes: await readAttachmentBytes(attachment),
-      sourceMasterAttachmentId: attachment.id
-    }))
-  );
-  const savedFiles = await saveSubmissionFileBuffers(submissionFolderName, files);
+  // The submission records the controlled asset pointer and receipt. It does
+  // not copy the same bytes into a second submission folder.
+  const savedFiles = selectedAttachments.map((attachment) => ({
+    fileRole: normalizeFileRole(attachment.file_name),
+    originalFilename: attachment.file_name,
+    // Keep the pointer contract usable with legacy SQLite rows where
+    // original_path may be empty; this is still a reference, never a copy.
+    localPath: attachment.original_path ?? attachment.storage_key ?? attachment.file_name,
+    storageProvider: (attachment.storage_provider === "supabase_storage" || attachment.storage_provider === "s3_compatible" || attachment.storage_provider === "google_cloud_storage"
+      ? attachment.storage_provider
+      : "local_repository") as "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage",
+    storageBucket: attachment.storage_bucket,
+    storageKey: attachment.storage_key,
+    gdriveFileId: attachment.gdrive_file_id,
+    sha256: attachment.content_hash ?? "",
+    fileSize: Number(attachment.file_size ?? 0),
+    sourceMasterAttachmentId: attachment.id,
+    sourceFileAssetId: attachment.id
+  }));
 
   let createdSubmissionId: string | null = null;
   try {
@@ -1020,8 +1053,6 @@ export async function createDrawingSourceSubmission(input: {
         actorId: input.submittedBy,
         reason: "版次附件包建立失敗，系統取消未完整送審。"
       }).catch(() => undefined);
-    } else {
-      await removeSubmissionUploadFolder(submissionFolderName);
     }
     if (isSubmissionRevisionUniqueError(error)) {
       const existingSubmission = await findBlockingSubmissionByDrawingRevision(client, {
@@ -1526,12 +1557,15 @@ async function listDrawingAttachments(client: AsyncDatabaseClient, drawingNumber
     `
     SELECT
       id,
+      storage_provider,
+      storage_bucket,
       storage_key,
       original_path,
       file_name,
       file_ext,
       file_size,
       content_hash,
+      gdrive_file_id,
       document_category,
       display_name,
       revision,
@@ -1934,16 +1968,26 @@ function buildBlockers(input: {
       }
     }
   }
-  const hasTargetRevisionAttachment = input.attachments.some(
+  const targetRevisionAttachments = input.attachments.filter(
     (attachment) => attachment.eligibleForSubmission && normalizeText(attachment.revision) === input.targetRevision
   );
-  if (!hasTargetRevisionAttachment) {
+  const requiredFileReadiness = evaluateRequiredDrawingFiles(
+    targetRevisionAttachments.map((attachment) => ({
+      id: attachment.id,
+      fileName: attachment.fileName,
+      fileExt: attachment.fileExt,
+      role: attachment.documentCategory,
+      isPrimary: true
+    }))
+  );
+  for (const blocker of requiredFileReadiness.blockers) {
     blockers.push(makeSubmissionBlocker({
-      code: "missing_attachment",
+      code: blocker.code,
       message: input.targetRevision
-        ? `此圖號目前沒有版次 ${input.targetRevision} 的可送審附件。請先上傳同版次新版圖面。`
-        : "此圖號尚無可送審的圖面/CAD/PDF/DWG 附件。請先在圖號附件庫上傳。",
-      recoveryHref
+        ? `${blocker.message} 請在圖面進版工作台上傳版次 ${input.targetRevision} 的新檔。`
+        : blocker.message,
+      recoveryHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(input.drawing.drawing_number)}&revision=${encodeURIComponent(input.targetRevision)}`,
+      recoveryLabel: "開啟圖面進版"
     }));
   }
   if (input.existingSubmission) {

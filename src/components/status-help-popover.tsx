@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { SearchHighlight } from "@/components/search-highlight";
 import { getStatusDisplay, getStatusHelpItems, type StatusDisplayContext } from "@/lib/status-display";
 import { getStatusScopeDefinition, getStatusScopeHelpGroups, type StatusScopeId } from "@/lib/status-scope-display";
 
@@ -21,6 +22,7 @@ type StatusBadgeProps = {
   status: unknown;
   context?: StatusDisplayContext;
   className?: string;
+  highlightQuery?: string;
 };
 
 type StatusScopeHelpProps = {
@@ -315,11 +317,11 @@ export function StatusScopeHelp({ scope, buttonLabel, className = "" }: StatusSc
   );
 }
 
-export function StatusBadge({ status, context = "generic", className = "" }: StatusBadgeProps) {
+export function StatusBadge({ status, context = "generic", className = "", highlightQuery = "" }: StatusBadgeProps) {
   const display = getStatusDisplay(status, context);
   return (
     <span className={`badge ${safeClassToken(display.raw)} status-badge ${display.tone} ${className}`.trim()} data-status-label={display.label}>
-      {display.label}
+      <SearchHighlight value={display.label} query={highlightQuery} />
     </span>
   );
 }

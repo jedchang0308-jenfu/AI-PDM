@@ -1,0 +1,17 @@
+{
+  "result": "PASS_NO_WRITES",
+  "productWrites": 0,
+  "createdCandidateIds": [],
+  "cancelledCandidateIds": [],
+  "existingFixtureMutations": 0,
+  "candidateModalOnly": {
+    "fixture": "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d",
+    "action": "opened cancel confirmation, then pressed Escape",
+    "dialogAfterEscape": 0,
+    "drawerAfterEscape": 1,
+    "confirmationSubmitted": false
+  },
+  "writeLifecycle": "Not Executed - Safety Boundary",
+  "residualData": "none created by QC",
+  "releaseAction": "not performed"
+}

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalJsonStringify } from "@/lib/canonical-json";
 
 export const PUBLICATION_EVIDENCE_RULE_VERSION = "numbering-publication-evidence-v1";
 
@@ -60,20 +61,8 @@ type EvidenceRow = {
   rule_version: string;
 };
 
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonicalValue(nested)])
-    );
-  }
-  return value;
-}
-
 function evidenceToken(value: unknown) {
-  return crypto.createHash("sha256").update(JSON.stringify(canonicalValue(value))).digest("hex");
+  return crypto.createHash("sha256").update(canonicalJsonStringify(value)).digest("hex");
 }
 
 function notReady(reason: string): PublicationEvidenceResult {

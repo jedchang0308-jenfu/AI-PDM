@@ -2,6 +2,7 @@ import { memo, type ReactNode, type RefObject } from "react";
 import { Bell, Eye, MessageSquare, Send, Star, X } from "lucide-react";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmDetailDrawer } from "@/components/pdm-detail-drawer";
+import { SearchHighlight } from "@/components/search-highlight";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import type { NotificationItem, NotificationSummary, SubmissionSummary } from "@/lib/types";
 
@@ -99,6 +100,7 @@ type VirtualSubmissionTable = {
 type SubmissionTableProps = {
   loading: boolean;
   visibleSubmissions: SubmissionSummary[];
+  highlightQuery: string;
   virtualTable: VirtualSubmissionTable;
   selectedId: string | null;
   favoriteDrawings: Array<{ id: string }>;
@@ -116,6 +118,7 @@ type SubmissionTableProps = {
 
 type SubmissionRowProps = {
   submission: SubmissionSummary;
+  highlightQuery: string;
   selected: boolean;
   favorite: boolean;
   formatFileAvailability: (submission: SubmissionSummary) => string;
@@ -126,6 +129,7 @@ type SubmissionRowProps = {
 
 const SubmissionRow = memo(function SubmissionRow({
   submission,
+  highlightQuery,
   selected,
   favorite,
   formatFileAvailability,
@@ -142,27 +146,27 @@ const SubmissionRow = memo(function SubmissionRow({
       onClick={() => onSelect(submission.id)}
     >
       <td>
-        <strong className="identity-primary">{submission.drawing_number}</strong>
+        <strong className="identity-primary"><SearchHighlight value={submission.drawing_number} query={highlightQuery} /></strong>
       </td>
       <td>
-        <span className="metadata-value">{submission.part_number}</span>
+        <span className="metadata-value"><SearchHighlight value={submission.part_number} query={highlightQuery} /></span>
       </td>
       <td>
-        <span className="metadata-value">{submission.part_name}</span>
+        <span className="metadata-value"><SearchHighlight value={submission.part_name} query={highlightQuery} /></span>
       </td>
       <td>
-        <span className="metadata-badge">Rev {submission.revision}</span>
+        <span className="metadata-badge">Rev <SearchHighlight value={submission.revision} query={highlightQuery} /></span>
       </td>
       <td>
-        <StatusBadge status={submission.status} context="submission" />
+        <StatusBadge status={submission.status} context="submission" highlightQuery={highlightQuery} />
       </td>
       <td>
-        <span className="metadata-badge">{formatFileAvailability(submission)}</span>
+        <span className="metadata-badge"><SearchHighlight value={formatFileAvailability(submission)} query={highlightQuery} /></span>
       </td>
       <td>
         <span className="metadata-pair">
           <span className="metadata-label">更新</span>
-          <span className="metadata-value">{new Date(latestActivityAt(submission)).toLocaleString()}</span>
+          <span className="metadata-value"><SearchHighlight value={new Date(latestActivityAt(submission)).toLocaleString()} query={highlightQuery} /></span>
         </span>
       </td>
       <td>
@@ -197,6 +201,7 @@ const SubmissionRow = memo(function SubmissionRow({
 export function SubmissionTable({
   loading,
   visibleSubmissions,
+  highlightQuery,
   virtualTable,
   selectedId,
   favoriteDrawings,
@@ -258,6 +263,7 @@ export function SubmissionTable({
                   <SubmissionRow
                     key={submission.id}
                     submission={submission}
+                    highlightQuery={highlightQuery}
                     selected={submission.id === selectedId}
                     favorite={favoriteDrawings.some((drawing) => drawing.id === submission.id)}
                     formatFileAvailability={formatFileAvailability}

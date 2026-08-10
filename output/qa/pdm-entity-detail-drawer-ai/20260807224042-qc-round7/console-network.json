@@ -1,0 +1,23 @@
+{
+  "consoleErrors": [],
+  "consoleWarnings": [],
+  "visibleRuntimeFailures": [],
+  "visibleErrorSweep": {
+    "alerts": [],
+    "apiRoute": false,
+    "http4xx": false,
+    "http5xx": false,
+    "inlineErrors": [],
+    "internalServerError": false,
+    "notFound": false,
+    "pageOverflow": 0,
+    "referenceError": false,
+    "route": "http://127.0.0.1:3000/numbering/search",
+    "typeError": false,
+    "viewport": {
+      "height": 900,
+      "width": 1440
+    }
+  },
+  "failedRequests": "Browser API did not expose response statuses; no fetch failure appeared in console or visible UI."
+}

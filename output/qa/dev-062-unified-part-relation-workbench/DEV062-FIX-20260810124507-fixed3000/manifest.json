@@ -1,0 +1,120 @@
+{
+  "runId": "DEV062-FIX-20260810124507-fixed3000",
+  "startedAt": "2026-08-10T12:45:07.000Z",
+  "finishedAt": "2026-08-10T12:48:15.5798493Z",
+  "source": {
+    "head": "b07b29366eeeac5c3f09d5c9794583c60d0fbd53",
+    "branch": "持續優化1",
+    "dirtyWorktree": true
+  },
+  "target": {
+    "kind": "fixed local Next.js runtime",
+    "url": "http://127.0.0.1:3000",
+    "processId": 7520,
+    "production": false,
+    "existingDataReadOnly": true,
+    "submittedMutations": 0
+  },
+  "flags": {
+    "PDM_NUMBER_STATE_FLOW_V1": true,
+    "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1": true
+  },
+  "uiLayoutEvidence": {
+    "route": "/numbering/search?view=all",
+    "viewport": "1920x799",
+    "screenshot": "screenshots/relation-ui-reference-layout-20260810.png",
+    "legacyTabs": 0,
+    "reservedLinks": 0,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false,
+    "drawingRows": 1,
+    "partChips": 1
+  },
+  "redlineRemovalEvidence": {
+    "route": "/numbering/search?view=all",
+    "viewport": "1920x799",
+    "expandedRoot": "A0005",
+    "screenshot": "screenshots/relation-redline-removed-20260810.png",
+    "removedTextPresent": false,
+    "drawingCode": "A0005-M01",
+    "partCodes": ["A0005-P01", "A0005-P02", "A0005-P03"]
+  },
+  "drawingPartVisualParity": {
+    "route": "/numbering/search",
+    "viewport": "1920x869",
+    "screenshot": "screenshots/relation-drawing-same-as-part-20260810.png",
+    "visualStyleMatch": true,
+    "drawingCode": "A0005-M01",
+    "partCode": "A0005-P01",
+    "style": {
+      "background": "rgb(255, 255, 255)",
+      "borderRadius": "8px",
+      "minHeight": "30px",
+      "padding": "4px 8px",
+      "fontWeight": "800"
+    },
+    "legacyTabs": 0,
+    "reservedLinks": 0,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "drawingDetailDisclosureEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshots": [
+      "drawing-non-history-always-open-20260810.png",
+      "drawing-non-history-always-open-management-20260810.png",
+      "drawing-non-history-always-open-lower-20260810.png"
+    ],
+    "nonHistoryDetails": 0,
+    "remainingHistoryDetails": 3,
+    "historyToggle": {
+      "opened": true,
+      "closed": false
+    },
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "drawingRedlineSimplificationEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshots": [
+      "drawing-redline-simplified-20260810.png",
+      "drawing-redline-simplified-lower-20260810.png",
+      "drawing-redline-simplified-maintenance-20260810.png"
+    ],
+    "removedText": ["更多", "關聯與影響", "快速查看", "附件管理", "參考附件與歷史補登", "已刪除資料", "補成本", "編輯", "新增圖號、料號與作廢申請"],
+    "removedTextPresent": false,
+    "keptText": ["圖面與附件", "歷史版本", "同根料號", "資料維護", "新增同根圖號", "新增同圖料號", "申請圖號作廢"],
+    "details": {
+      "total": 3,
+      "nonHistory": 0,
+      "history": 3
+    },
+    "historyToggle": {
+      "opened": true,
+      "closed": false,
+      "finalOpen": false
+    },
+    "visibleAlerts": 0,
+    "horizontalOverflow": false,
+    "browserProductErrors": 0
+  },
+  "drawingHeaderLayoutEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshot": "drawing-header-target-20260810.png",
+    "drawerClass": "drawing-workbench-inline-header",
+    "eyebrowPresent": false,
+    "inlineHeader": true,
+    "headerOrder": ["A0005-M01", "馬達_JF_2HP_B", "研發可用"],
+    "primaryAction": "建立新版次",
+    "closeLabel": "關閉圖號明細",
+    "details": 3,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  }
+}

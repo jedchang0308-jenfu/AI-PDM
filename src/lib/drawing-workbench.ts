@@ -1,5 +1,17 @@
-import crypto from "node:crypto";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  decodePdmWorkbenchCursor,
+  encodePdmWorkbenchCursor,
+  pdmWorkbenchFilterHash,
+  PdmWorkbenchCursorError
+} from "@/lib/pdm-workbench-cursor";
+import type {
+  PdmWorkbenchAction,
+  PdmWorkbenchListResponse,
+  PdmWorkbenchPermissionRequirement,
+  PdmWorkbenchRowBase,
+  PdmWorkbenchTerminalInfo
+} from "@/lib/pdm-workbench-contract";
 import { DrawingWorkbenchAsyncRepository } from "@/lib/repositories/drawing-workbench-async-repository";
 import { isHumanStatusFilter, projectViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import { projectDrawingAvailability, type AvailabilityScopeProjection } from "@/lib/availability-scope";
@@ -34,16 +46,7 @@ export type DrawingWorkbenchPrimaryActionKind =
   | "create_revision"
   | "view_history";
 
-export type DrawingWorkbenchPrimaryAction = {
-  kind: DrawingWorkbenchPrimaryActionKind;
-  label: string;
-  enabled: boolean;
-  disabledReason: string | null;
-  href: string | null;
-  permissionCode?: string | null;
-  contactRole?: string | null;
-  adminHref?: string | null;
-};
+export type DrawingWorkbenchPrimaryAction = PdmWorkbenchAction<DrawingWorkbenchPrimaryActionKind>;
 
 export type DrawingWorkbenchSecondaryAction = {
   kind: "withdraw_review";
@@ -51,20 +54,15 @@ export type DrawingWorkbenchSecondaryAction = {
   commandHref: string;
 };
 
-export type DrawingWorkbenchTerminalInfo = {
-  kind: "cancelled" | "obsolete" | "merged";
-  reasonLabel: string;
-  nextStepLabel: string;
-};
+export type DrawingWorkbenchTerminalInfo = PdmWorkbenchTerminalInfo;
 
-export type DrawingWorkbenchRow = {
-  rowKey: string;
-  rowKind: "candidate_bundle" | "drawing_master";
+export type DrawingWorkbenchRow = PdmWorkbenchRowBase<
+  "candidate_bundle" | "drawing_master",
+  DrawingWorkbenchPrimaryActionKind
+> & {
   workspaceId: string | null;
   drawingNumberId: string | null;
-  displayCode: string;
   additionalDrawingCount: number;
-  displayName: string;
   relatedPartSummary: string | null;
   purposeCode: DrawingPurposeCode | null;
   recordStatus: NumberingRecordStatus | null;
@@ -74,14 +72,8 @@ export type DrawingWorkbenchRow = {
   stage: DrawingWorkbenchStage;
   stageLabel: string;
   usage: "not_for_formal_use" | "rd_controlled" | "released" | "historical_only";
-  primaryAction: DrawingWorkbenchPrimaryAction | null;
   secondaryAction?: DrawingWorkbenchSecondaryAction | null;
   warning: { code: string; message: string } | null;
-  terminal: DrawingWorkbenchTerminalInfo | null;
-  updatedAt: string;
-  humanStatus: HumanStatusProjection;
-  viewerStatus: ViewerHumanStatusProjection;
-  availabilityScope: AvailabilityScopeProjection;
 };
 
 export type DrawingWorkbenchPermissions = {
@@ -102,16 +94,11 @@ export type DrawingWorkbenchActor = {
   permissions: DrawingWorkbenchPermissions;
 };
 
-export type DrawingWorkbenchListResponse = {
-  rows: DrawingWorkbenchRow[];
-  nextCursor: string | null;
-  generatedAt: string;
-  filters: {
-    seriesCodeOptions: string[];
-    purposeCodeOptions: DrawingPurposeCode[];
-    recordStatusOptions: NumberingRecordStatus[];
-  };
-};
+export type DrawingWorkbenchListResponse = PdmWorkbenchListResponse<DrawingWorkbenchRow, {
+  seriesCodeOptions: string[];
+  purposeCodeOptions: DrawingPurposeCode[];
+  recordStatusOptions: NumberingRecordStatus[];
+}>;
 
 export type DrawingWorkbenchDetailResponse = {
   row: DrawingWorkbenchRow;
@@ -134,12 +121,7 @@ export type DrawingWorkbenchDetailResponse = {
   };
 };
 
-export type DrawingWorkbenchPermissionRequirement = {
-  permissionCode: string;
-  label: string;
-  contactRole: string;
-  adminHref: string | null;
-};
+export type DrawingWorkbenchPermissionRequirement = PdmWorkbenchPermissionRequirement;
 
 export class DrawingWorkbenchError extends Error {
   constructor(
@@ -163,13 +145,6 @@ type NormalizedQuery = {
   cursor: string;
   limit: number;
   humanStatus: HumanStatusFilter;
-};
-
-type CursorPayload = {
-  version: 1;
-  filterHash: string;
-  updatedAt: string;
-  rowKey: string;
 };
 
 const stageLabels: Record<DrawingWorkbenchStage, string> = {
@@ -248,61 +223,22 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
   };
 }
 
-function workbenchSecret() {
-  const configured = process.env.PDM_AUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
-  if (configured) return configured;
-  if (process.env.NODE_ENV === "production") throw new Error("DRAWING_WORKBENCH_CURSOR_SECRET_REQUIRED");
-  return "ai-pdm-local-drawing-workbench-cursor-v1";
-}
-
 function filterHash(query: NormalizedQuery, actor: DrawingWorkbenchActor) {
-  return crypto.createHash("sha256").update(JSON.stringify({
-    query: query.query.toLocaleLowerCase("zh-Hant"),
-    view: query.view,
-    stage: query.stage,
-    seriesCode: query.seriesCode,
-    purposeCode: query.purposeCode,
-    recordStatus: query.recordStatus,
-    includeHistory: query.includeHistory,
-    humanStatus: query.humanStatus,
+  return pdmWorkbenchFilterHash({
+    namespace: "drawing-v1",
+    filters: {
+      query: query.query.toLocaleLowerCase("zh-Hant"),
+      view: query.view,
+      stage: query.stage,
+      seriesCode: query.seriesCode,
+      purposeCode: query.purposeCode,
+      recordStatus: query.recordStatus,
+      includeHistory: query.includeHistory,
+      humanStatus: query.humanStatus
+    },
     companyId: actor.companyId,
     actorId: actor.id
-  })).digest("hex");
-}
-
-function signCursor(encoded: string) {
-  return crypto.createHmac("sha256", workbenchSecret()).update(encoded).digest("base64url");
-}
-
-function encodeCursor(payload: CursorPayload) {
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  return `${encoded}.${signCursor(encoded)}`;
-}
-
-function decodeCursor(value: string, expectedFilterHash: string): CursorPayload {
-  const [encoded, providedSignature, extra] = value.split(".");
-  if (!encoded || !providedSignature || extra) {
-    throw new DrawingWorkbenchError("workbench_invalid_cursor", "這個清單位置已失效，請重新整理。", 400);
-  }
-  const expectedSignature = signCursor(encoded);
-  const left = Buffer.from(providedSignature);
-  const right = Buffer.from(expectedSignature);
-  if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
-    throw new DrawingWorkbenchError("workbench_invalid_cursor", "這個清單位置已失效，請重新整理。", 400);
-  }
-  let payload: CursorPayload;
-  try {
-    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as CursorPayload;
-  } catch {
-    throw new DrawingWorkbenchError("workbench_invalid_cursor", "這個清單位置已失效，請重新整理。", 400);
-  }
-  if (
-    payload.version !== 1 || payload.filterHash !== expectedFilterHash ||
-    !payload.updatedAt || !payload.rowKey
-  ) {
-    throw new DrawingWorkbenchError("workbench_invalid_cursor", "篩選條件已改變，請從第一頁重新查詢。", 400);
-  }
-  return payload;
+  });
 }
 
 function candidateStage(workspace: NumberingDraftWorkspaceRecord): DrawingWorkbenchStage {
@@ -443,6 +379,7 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWo
   const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
     rowKey: `candidate:${workspace.id}`,
     rowKind: "candidate_bundle",
+    sourceKind: "candidate",
     workspaceId: workspace.id,
     drawingNumberId: null,
     displayCode,
@@ -533,7 +470,7 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
     const href = `/numbering/revisions?drawingNumber=${encodeURIComponent(drawing.drawingNumber)}`;
     primaryAction = {
       kind: "create_revision",
-      label: "建立新版",
+      label: "建立新版次",
       enabled: actor.permissions.createRevision,
       disabledReason: actor.permissions.createRevision ? null : "缺少「建立正式圖面新版」權限（post_release_change），請聯絡研發主管或 PDM Admin。",
       href: actor.permissions.createRevision ? href : null,
@@ -570,6 +507,7 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
   const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
     rowKey: `drawing:${drawing.id}`,
     rowKind: "drawing_master",
+    sourceKind: "formal",
     workspaceId: null,
     drawingNumberId: drawing.id,
     displayCode: drawing.drawingNumber,
@@ -656,7 +594,7 @@ export class DrawingWorkbenchService {
 
   async list(query: NormalizedQuery, actor: DrawingWorkbenchActor): Promise<DrawingWorkbenchListResponse> {
     const currentFilterHash = filterHash(query, actor);
-    const cursor = query.cursor ? decodeCursor(query.cursor, currentFilterHash) : null;
+    const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
     const page = await this.repository.readListPage({
       companyId: actor.companyId,
       query: query.query,
@@ -674,14 +612,14 @@ export class DrawingWorkbenchService {
         .filter(({ row, source }) => rowInView(row, source, actor, query.view))
         .map(({ row }) => row)
         .filter((row) => !query.stage || row.stage === query.stage)
-        .filter((row) => viewerStatusMatchesFilter(row.viewerStatus, row.humanStatus, query.humanStatus));
+        .filter((row) => viewerStatusMatchesFilter(row.viewerStatus, row.humanStatus, query.humanStatus, row.availabilityScope));
     });
     const hasNext = page.rows.length > query.limit;
     const pageRows = page.rows.slice(0, query.limit);
     const last = pageRows.at(-1);
     return {
       rows: pageRows,
-      nextCursor: hasNext && last ? encodeCursor({
+      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({
         version: 1,
         filterHash: currentFilterHash,
         updatedAt: last.updatedAt,
@@ -752,6 +690,9 @@ export class DrawingWorkbenchService {
 }
 
 export function drawingWorkbenchErrorResponse(error: unknown) {
+  if (error instanceof PdmWorkbenchCursorError) {
+    return Response.json({ error: error.code, message: error.message }, { status: error.status });
+  }
   if (error instanceof DrawingWorkbenchError) {
     return Response.json({ error: error.code, message: error.message }, { status: error.status });
   }

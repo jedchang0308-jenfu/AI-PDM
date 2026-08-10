@@ -1,0 +1,47 @@
+{
+  "runId": "20260807224042-qc-round7",
+  "result": "FAIL",
+  "severity": "P0",
+  "startedAt": "2026-08-07T22:34:50+08:00",
+  "finishedAt": "2026-08-07T14:50:11.302Z",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "appActor": "張仕杰",
+  "gitActor": "Jed <jedchang0308@jenfu.com.tw>",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "dirtyCountAtStart": 61,
+  "dirtyCountAtFinish": 64,
+  "viewportsRequested": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "viewportsExecuted": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "fixtures": [
+    "A0007",
+    "A0007-M01",
+    "A0007-P01",
+    "A0001-P01",
+    "A0005-P02",
+    "A0005-P03",
+    "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d"
+  ],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
+  "stopReason": "P0 same-object visible status contradiction: A0007 list 生產可用 vs drawer 待你處理",
+  "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written.",
+  "note": "圖號模組的 PDM_UNIFIED_DRAWING_WORKBENCH_V1 實際介面為單一工作台，無 official/reserved tabs；shared tabs source/static contract 通過，但該 live tab 往返不適用。",
+  "scopedHashes": {
+    "package.json": "212839aab17789873cbdb1e412d25dac6881cd34fb3e184b733519537b135d6e",
+    "scripts/qc-pdm-entity-detail-drawer.mjs": "d6c4c055bd3d6485031d793a6d3f75f69bff7cc4b2e744055dd9dd8b36ffb9d9",
+    "scripts/qc-pdm-numbering-search-target-runtime.mjs": "3a6afb38caf8c7cecf751e89d4dfe60cc2d70dd407746f9f3d9ed43fc90b3f2a",
+    "src/app/numbering/search/page.tsx": "b845ffdc485b43b9221b5a87fc69adcf98e1e03adc7f417198899e4f17bfe7b5",
+    "src/components/pdm-entity-detail-drawer.tsx": "11167fcf001b2e8719774f4a2da780663793d2758c8e549e503175eac97c9d1d",
+    "src/components/human-status-badge.tsx": "dc65c46146e3b1d6e3148f19bdcaf88212299474af7ad2172222721ce87bddcc"
+  }
+}

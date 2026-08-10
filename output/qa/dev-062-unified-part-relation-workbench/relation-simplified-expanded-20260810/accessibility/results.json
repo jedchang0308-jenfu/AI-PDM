@@ -1,0 +1,34 @@
+{
+  "runId": "relation-simplified-expanded-20260810",
+  "results": [
+    {
+      "id": "CORE-09/PART/REL accessibility keyboard-focus-names-reduced-motion-zoom",
+      "passed": true,
+      "shortcuts": [
+        "ArrowUp",
+        "ArrowDown",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Enter",
+        "Escape",
+        "Control+C"
+      ],
+      "copiedPartCode": "Z3062-P01",
+      "copiedRootCode": "Q0058",
+      "partFocusReturned": true,
+      "relationFocusReturned": true,
+      "accessibleNames": {
+        "expand": 60,
+        "filters": 7,
+        "tabs": 2
+      },
+      "reducedMotion": "reduce",
+      "zoomMetrics": {
+        "zoom": "200%",
+        "hasVisibleAction": true
+      }
+    }
+  ]
+}

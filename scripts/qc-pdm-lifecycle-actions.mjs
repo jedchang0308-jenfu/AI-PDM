@@ -323,10 +323,9 @@ assert(bomWorkbenchPage.includes("deleteDraft"), "BOM workbench page exposes del
 assert(bomWorkbenchPage.includes("restoreDeletedDraft"), "BOM workbench page exposes restore action handler");
 assert(bomWorkbenchPage.includes("/delete"), "BOM workbench page calls delete subresource route");
 assert(bomWorkbenchPage.includes("/restore"), "BOM workbench page calls restore subresource route");
-assert(bomWorkbenchPage.includes("已刪除資料"), "BOM workbench page labels deleted-data surface in user vocabulary");
+assert(!bomWorkbenchPage.includes("已刪除資料"), "BOM editor does not expose the deleted-data recovery surface");
 assert(bomWorkbenchPage.includes("draftStageLabel"), "BOM workbench maps backend draft statuses to lifecycle stage labels");
 assert(bomWorkbenchPage.includes("刪除"), "BOM workbench page uses delete label for working BOM drafts");
-assert(bomWorkbenchPage.includes("還原"), "BOM workbench page uses restore label for deleted BOM drafts");
 assert(bomWorkbenchPage.includes("/obsolete-request"), "BOM workbench page can request formal obsolete review");
 assert(bomWorkbenchPage.includes('selectedDraft?.status === "Released"'), "BOM workbench page shows obsolete action only for released drafts");
 assert(bomWorkbenchPage.includes("作廢原因"), "BOM workbench page collects obsolete reason");

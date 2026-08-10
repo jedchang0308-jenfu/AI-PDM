@@ -1,0 +1,16 @@
+{
+  "drawing": {
+    "code": "A0007-M01",
+    "searchBeforeOpen": {"status": "等他人處理"},
+    "searchDrawer": {"status": "等他人處理", "title": "A0007-M01", "subtitle": "馬達_JF_2HP_A"},
+    "ownerDrawer": {"status": "等他人處理", "title": "A0007-M01", "subtitle": "馬達_JF_2HP_A"},
+    "identityMatch": true,
+    "statusMatch": true,
+    "stableListTruth": true
+  },
+  "part": {
+    "ownerSearchParity": "Not rerun after P0 stop",
+    "keyboardTargetTruth": false,
+    "failedTargets": ["A0005-P02", "A0005-P03"]
+  }
+}

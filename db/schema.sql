@@ -442,7 +442,7 @@ CREATE TABLE IF NOT EXISTS submission_files (
   submission_id TEXT NOT NULL,
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
-  local_path TEXT NOT NULL,
+  local_path TEXT,
   storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
@@ -453,8 +453,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   sha256 TEXT NOT NULL,
   file_size INTEGER NOT NULL,
   source_master_attachment_id TEXT,
+  source_file_asset_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  CHECK (source_file_asset_id IS NOT NULL OR local_path IS NOT NULL),
   UNIQUE (submission_id, file_role, original_filename)
 );
 
@@ -588,9 +591,14 @@ CREATE TABLE IF NOT EXISTS bom_lines (
 
 CREATE TABLE IF NOT EXISTS bom_drafts (
   id TEXT PRIMARY KEY,
-  parent_item_id TEXT NOT NULL,
-  parent_submission_id TEXT NOT NULL,
-  parent_revision TEXT NOT NULL,
+  company_id TEXT,
+  owner_part_number_id TEXT,
+  bom_revision TEXT,
+  source_submission_id TEXT,
+  identity_authority TEXT NOT NULL DEFAULT 'legacy_submission_bound' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
+  parent_item_id TEXT,
+  parent_submission_id TEXT,
+  parent_revision TEXT,
   draft_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
   source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
@@ -601,8 +609,11 @@ CREATE TABLE IF NOT EXISTS bom_drafts (
   updated_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE CASCADE,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -614,6 +625,14 @@ WHERE is_active = 1 AND status IN ('Draft', 'Rejected');
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_pending_review
 ON bom_drafts(parent_item_id, parent_revision)
 WHERE status = 'PendingReview';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_active
+ON bom_drafts(owner_part_number_id, bom_revision)
+WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND is_active = 1 AND status IN ('Draft', 'Rejected');
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_pending_review
+ON bom_drafts(owner_part_number_id, bom_revision)
+WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND status = 'PendingReview';
 
 CREATE TABLE IF NOT EXISTS bom_lines_tree (
   id TEXT PRIMARY KEY,
@@ -660,7 +679,10 @@ CREATE TABLE IF NOT EXISTS bom_import_profiles (
 CREATE TABLE IF NOT EXISTS bom_import_jobs (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT,
-  parent_submission_id TEXT NOT NULL,
+  owner_part_number_id TEXT,
+  bom_revision TEXT,
+  source_submission_id TEXT,
+  parent_submission_id TEXT,
   import_profile_id TEXT NOT NULL,
   source_asset_id TEXT,
   original_filename TEXT NOT NULL,
@@ -670,7 +692,9 @@ CREATE TABLE IF NOT EXISTS bom_import_jobs (
   created_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (import_profile_id) REFERENCES bom_import_profiles(id),
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -707,9 +731,13 @@ CREATE TABLE IF NOT EXISTS bom_review_requests (
 CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT NOT NULL,
-  parent_item_id TEXT NOT NULL,
-  parent_submission_id TEXT NOT NULL,
-  parent_revision TEXT NOT NULL,
+  company_id TEXT,
+  owner_part_number_id TEXT,
+  bom_revision TEXT,
+  source_submission_id TEXT,
+  parent_item_id TEXT,
+  parent_submission_id TEXT,
+  parent_revision TEXT,
   line_snapshot_json TEXT NOT NULL,
   line_count INTEGER NOT NULL DEFAULT 0,
   released_by TEXT NOT NULL,
@@ -717,10 +745,28 @@ CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   obsolete_at TEXT,
   obsolete_by TEXT,
   FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id),
-  FOREIGN KEY (parent_item_id) REFERENCES items(id),
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (released_by) REFERENCES users(id),
   FOREIGN KEY (obsolete_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS bom_create_effects (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  request_fingerprint TEXT NOT NULL,
+  draft_id TEXT NOT NULL,
+  outcome_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (actor_id) REFERENCES users(id),
+  FOREIGN KEY (draft_id) REFERENCES bom_drafts(id),
+  UNIQUE (company_id, actor_id, idempotency_key)
 );
 
 CREATE TABLE IF NOT EXISTS item_locks (
@@ -3126,11 +3172,20 @@ WHERE status = 'Released';
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_submission ON drawing_revision_packages(source_submission_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_package ON drawing_revision_package_files(package_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_source_asset ON drawing_revision_package_files(source_file_asset_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_package_files_primary_role
+ON drawing_revision_package_files(package_id, role)
+WHERE is_primary = 1;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplements_package_status ON drawing_revision_package_supplements(package_id, status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_supplement ON drawing_revision_package_supplement_files(supplement_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_source_asset ON drawing_revision_package_supplement_files(source_file_asset_id);
 CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_owner ON shared_cad_model_versions(company_id, owner_scope, owner_id, status, model_revision);
 CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_hash ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_cad_model_versions_active_owner_hash_unique
+ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash)
+WHERE status <> 'Obsolete';
+CREATE INDEX IF NOT EXISTS idx_file_assets_active_content_hash
+ON file_assets(content_hash, file_size, linked_entity_type, linked_entity_id)
+WHERE deleted_at IS NULL AND content_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_model_links_model ON drawing_revision_package_model_links(shared_model_version_id, review_status);
 CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_owner ON manufacturing_baselines(company_id, owner_scope, owner_id, status, baseline_revision);
 CREATE INDEX IF NOT EXISTS idx_manufacturing_baselines_model ON manufacturing_baselines(shared_model_version_id, status);

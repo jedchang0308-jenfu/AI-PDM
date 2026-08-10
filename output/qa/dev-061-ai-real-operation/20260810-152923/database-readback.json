@@ -1,0 +1,35 @@
+{
+  "formal": {
+    "submissionId": "SUB-20260810-3A60CC35",
+    "revision": "0.8",
+    "status": "Pending",
+    "submissionFiles": [
+      {
+        "fileRole": "slddrw",
+        "sourceFileAssetId": "f8448c53-bf94-4db3-b98f-4a47297fca27",
+        "sha256": "2bd92e954e02370b23c55afb578d1ead93148f88d20ba5491283bbf6b3388aae",
+        "downloadSha256Matches": true
+      },
+      {
+        "fileRole": "sldprt",
+        "sourceFileAssetId": "6478abf6-787a-4ec4-863a-180492989bc2",
+        "sha256": "38efe1f533beb9adc1599a75b84792dd82a3af93653ebd22cc843cd6781dc1ba",
+        "downloadSha256Matches": true
+      }
+    ],
+    "packagePrimaryRoles": ["cad_3d", "drawing_2d"]
+  },
+  "concurrentReuseFailure": {
+    "contentHash": "a76fb7c615da113dd7dcf1a4444bd7972d9f330b6f26e23e1714cf86ba1ca0a4",
+    "uploadRevisions": ["1.1", "1.2"],
+    "responses": [
+      {"status": 201, "reused": true, "canonicalAssetId": "b1e1ef83-61fb-4f4b-ba1e-fa8ad695786d"},
+      {"status": 201, "reused": false, "canonicalAssetId": "b1e1ef83-61fb-4f4b-ba1e-fa8ad695786d"}
+    ],
+    "fileAssetCount": 2,
+    "physicalObjectCount": 2,
+    "sharedCadModelVersionCount": 1,
+    "expectedPhysicalObjectCount": 1,
+    "status": "FAIL-P1"
+  }
+}

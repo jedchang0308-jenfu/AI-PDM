@@ -1,0 +1,46 @@
+{
+  "shell": {
+    "role": "complementary",
+    "ariaModal": null,
+    "inlineCloseCount": 1,
+    "closeKeyboard": {"Enter": true, "Space": true, "Escape": true, "mouse": true},
+    "rowSwitch": {"from": "A0007-M01", "to": "A0005-M01", "drawerCount": 1, "scrollTopAfter": 0},
+    "outsideClickClosed": true,
+    "width": {"before": 420, "afterDrag": 538.2, "afterReload": 538, "restored": 420},
+    "candidateModal": {"role": "alertdialog", "ariaModal": "true", "escapeClosedModal": true, "drawerRemainedOpen": true}
+  },
+  "rootA0007": {
+    "rawTermCounts": {"High-similarity numbering candidate": 0, "Similar numbering records were found": 0, "HIGH_SIMILARITY_NUMBERING": 0, "numbering.v3.cutover": 0},
+    "humanReminderCount": 1,
+    "visibleEnabledPrimaryCount": 1,
+    "primaryText": "檢查新版送審"
+  },
+  "mobile": {
+    "viewport": {"width": 390, "height": 844},
+    "drawerRect": {"x": 0, "right": 375.2, "width": 375.2, "height": 844},
+    "closeRect": {"x": 318.4, "y": 72.8, "width": 44, "height": 44, "right": 362.4},
+    "tooltipRect": {"x": 12, "y": 55.9, "width": 280, "height": 130.05, "right": 292, "bottom": 185.95},
+    "tooltipText": "待審核｜資料已送出，等待審核結果。｜等待指定審核人員處理｜需要人員完成｜下一步：查看審核進度",
+    "bodyScrollBefore": 0,
+    "bodyScrollAfter": 0,
+    "drawerScrollBefore": 0,
+    "drawerScrollAfter": 604.8
+  },
+  "overflow": {
+    "1440x900": {"drawings": "0 horizontal overflow", "search": "0 horizontal overflow", "parts": "0 horizontal overflow"},
+    "1024x768": {"drawings": "0 horizontal overflow", "search": "0 horizontal overflow", "parts": "0 horizontal overflow"},
+    "390x844": {"drawings": "0 horizontal overflow", "search": "0 horizontal overflow", "parts": "0 horizontal overflow"}
+  },
+  "partDiscovery": {
+    "identityRepeatedInFirstBodyBlock": false,
+    "sections": ["料號附件庫", "料號完整度檢查", "圖號關聯", "料號變體", "共用 3D / MA 製造基準", "成本設定檔", "成本審核"]
+  },
+  "keyboardRowActivation": {
+    "route": "/numbering/drawings?view=all",
+    "initialDrawerCode": "A0007-M01",
+    "focusedListButton": "A0005-M01",
+    "afterEnterDrawerCode": "A0007-M01",
+    "afterSpaceDrawerCode": "A0007-M01",
+    "afterMouseDrawerCode": "A0005-M01"
+  }
+}

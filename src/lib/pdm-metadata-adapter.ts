@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
 import type { PdmMetadata } from "@/lib/pdm-metadata";
+import { flattenMetadataObject, pickAliasedMetadataFields } from "@/lib/pdm-metadata-field-mapping";
 
 export type NativeMetadataExtraction = {
   metadata: Partial<PdmMetadata>;
@@ -116,42 +117,13 @@ function parseAdapterOutput(text: string): Partial<PdmMetadata> {
 
   const value = parsed as Record<string, unknown>;
   if (value.metadata && typeof value.metadata === "object" && !Array.isArray(value.metadata)) {
-    return pickKnownFields(flattenObject(value.metadata as Record<string, unknown>));
+    return pickKnownFields(flattenMetadataObject(value.metadata as Record<string, unknown>));
   }
-  return pickKnownFields(flattenObject(value));
+  return pickKnownFields(flattenMetadataObject(value));
 }
 
 function pickKnownFields(values: Record<string, unknown>): Partial<PdmMetadata> {
-  const result: Partial<PdmMetadata> = {};
-
-  for (const [rawKey, rawValue] of Object.entries(values)) {
-    const value = String(rawValue ?? "").trim();
-    if (!value) continue;
-
-    const normalized = normalizeKey(rawKey);
-    const field = (Object.keys(aliases) as Array<keyof PdmMetadata>).find((candidate) =>
-      aliases[candidate].some((alias) => normalizeKey(alias) === normalized || normalized.endsWith(`.${normalizeKey(alias)}`))
-    );
-
-    if (field && !result[field]) {
-      result[field] = value;
-    }
-  }
-
-  return result;
-}
-
-function flattenObject(input: Record<string, unknown>, prefix = "") {
-  const output: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      Object.assign(output, flattenObject(value as Record<string, unknown>, nextKey));
-    } else {
-      output[nextKey] = value;
-    }
-  }
-  return output;
+  return pickAliasedMetadataFields(values, aliases);
 }
 
 function hasMetadata(metadata: Partial<PdmMetadata>) {
@@ -162,14 +134,6 @@ function getFileExtension(filename: string) {
   const normalized = filename.trim().toLowerCase();
   const index = normalized.lastIndexOf(".");
   return index > 0 && index < normalized.length - 1 ? normalized.slice(index + 1) : "";
-}
-
-function normalizeKey(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[()[\]{}]/gu, "")
-    .replace(/[\s_-]+/gu, "");
 }
 
 function sanitizeFilename(filename: string) {

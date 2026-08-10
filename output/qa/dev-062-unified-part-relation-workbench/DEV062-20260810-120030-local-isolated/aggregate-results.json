@@ -1,0 +1,37 @@
+{
+  "task": "DEV-062 aggregate completion gate",
+  "runId": "DEV062-20260810-120030-local-isolated",
+  "startedAt": "2026-08-10T12:00:30.898Z",
+  "updatedAt": "2026-08-10T12:00:33.797Z",
+  "sourceHead": null,
+  "results": [
+    {
+      "id": "core",
+      "label": "Workbench Core",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:core"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 469,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:core\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-workbench-core.mjs\n\n{\n  \"passed\": 6,\n  \"failed\": 0,\n  \"checks\": [\n    {\n      \"id\": \"CORE-01 shared core stays mechanics-only\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-02 cursor is signed, deterministic and scope-bound\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-03 PostgreSQL snapshot is repeatable-read and read-only\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-04 SQLite uses one transaction and hydration failure is atomic\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-05 Part and Relation reuse controller, cursor and snapshot\",\n      \"passed\": true\n    },\n    {\n      \"id\": \"CORE-06 routes and owner content keep bounded responsibilities\",\n      \"passed\": true\n    }\n  ]\n}\n",
+      "stderrTail": "(node:33052) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:33052) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    },
+    {
+      "id": "part",
+      "label": "Part workbench",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:part"
+      ],
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 2426,
+      "stdoutTail": "\n> ai-pdm@0.1.0 qc:dev-062:part\n> node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-062-part-workbench.mjs\n\nQC DEV-062 Part workbench: PASS (candidate/formal, stable identity, legacy detail, permission/company, cursor, zero-write, cardinality-invariant queries list/candidate/formal=14/11/6)\n",
+      "stderrTail": "(node:34456) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:\n--import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/qc-ts-path-loader.mjs\", pathToFileURL(\"./\"));'\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:34456) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n"
+    }
+  ]
+}

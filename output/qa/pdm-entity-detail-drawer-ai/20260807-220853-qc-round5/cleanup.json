@@ -1,0 +1,14 @@
+{
+  "writes": 0,
+  "createdCandidates": [],
+  "cancelledCandidates": [],
+  "cleanupRequired": false,
+  "uiPreferenceRestored": {
+    "drawerWidthBefore": 527,
+    "drawerWidthAfter": 526.3875122070312,
+    "delta": 0.61248779296875
+  },
+  "writeLifecycle": "Not Executed (Safety Boundary)",
+  "protectedDbSuites": "Not Executed; safety guards not bypassed",
+  "note": "No create, cancel confirmation, publish, approve, obsolete, upload or data-edit action was invoked. Candidate cancel modal was opened then dismissed with Escape."
+}

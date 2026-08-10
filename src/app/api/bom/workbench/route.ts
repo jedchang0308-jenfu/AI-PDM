@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
-import { getBomWorkbenchBySubmissionIdAsync, listDeletedBomWorkbenchDraftsBySubmissionIdAsync } from "@/lib/bom-workbench-async";
+import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
+import {
+  getBomWorkbenchByDraftIdAsync,
+  getBomWorkbenchBySubmissionIdAsync,
+  getBomWorkbenchDraftByIdAsync,
+  listDeletedBomWorkbenchDraftsBySubmissionIdAsync
+} from "@/lib/bom-workbench-async";
 import { buildBomWorkbenchDraftLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { canReadBomDraftAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -12,6 +18,13 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);
+  const draftId = url.searchParams.get("draftId")?.trim();
+  if (draftId) {
+    const draft = await getBomWorkbenchDraftByIdAsync(draftId);
+    if (!draft) return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
+    if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
+    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId) });
+  }
   const submissionId = url.searchParams.get("submissionId")?.trim();
   if (!submissionId) {
     return NextResponse.json({ error: "submissionId is required" }, { status: 400 });

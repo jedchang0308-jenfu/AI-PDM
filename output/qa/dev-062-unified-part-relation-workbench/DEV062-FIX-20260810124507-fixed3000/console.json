@@ -1,0 +1,15 @@
+{
+  "runWindow": {
+    "startedAt": "2026-08-10T12:45:07.000Z",
+    "unexpectedAppErrorsOrWarnings": 0,
+    "entries": []
+  },
+  "preRunToolingNoise": {
+    "count": 4,
+    "classification": "Chrome extension message-channel noise without product stack or visible impact",
+    "includedInProductFailureCount": false
+  },
+  "serverTailSweep": {
+    "unexpectedErrorsOr5xx": 0
+  }
+}

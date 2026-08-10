@@ -1,5 +1,6 @@
 ﻿import type { ExtractorRuntimeProfile } from "@/lib/metadata-adapter-profile";
 import { extractNativeCadMetadata } from "@/lib/pdm-metadata-adapter";
+import { flattenMetadataObject, pickAliasedMetadataFields } from "@/lib/pdm-metadata-field-mapping";
 
 export type PdmMetadata = {
   drawing_number: string;
@@ -180,7 +181,7 @@ function parseJsonProperties(text: string): Partial<PdmMetadata> {
   const parsed = JSON.parse(text) as unknown;
   if (!parsed || typeof parsed !== "object") return {};
 
-  const flat = flattenObject(parsed as Record<string, unknown>);
+  const flat = flattenMetadataObject(parsed as Record<string, unknown>);
   return pickKnownFields(flat);
 }
 
@@ -199,37 +200,8 @@ function parseKeyValueProperties(text: string): Partial<PdmMetadata> {
   return pickKnownFields(values);
 }
 
-function flattenObject(input: Record<string, unknown>, prefix = "") {
-  const output: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      Object.assign(output, flattenObject(value as Record<string, unknown>, nextKey));
-    } else {
-      output[nextKey] = value;
-    }
-  }
-  return output;
-}
-
 function pickKnownFields(values: Record<string, unknown>): Partial<PdmMetadata> {
-  const result: Partial<PdmMetadata> = {};
-
-  for (const [rawKey, rawValue] of Object.entries(values)) {
-    const value = String(rawValue ?? "").trim();
-    if (!value) continue;
-
-    const normalized = normalizeKey(rawKey);
-    const field = (Object.keys(aliases) as Array<keyof PdmMetadata>).find((candidate) =>
-      aliases[candidate].some((alias) => normalizeKey(alias) === normalized || normalized.endsWith(`.${normalizeKey(alias)}`))
-    );
-
-    if (field && !result[field]) {
-      result[field] = value;
-    }
-  }
-
-  return result;
+  return pickAliasedMetadataFields(values, aliases);
 }
 
 function inferMetadataFromFilename(filename: string): Partial<PdmMetadata> {
@@ -311,12 +283,4 @@ function getFileExtension(filename: string) {
   const normalized = filename.trim().toLowerCase();
   const index = normalized.lastIndexOf(".");
   return index > 0 && index < normalized.length - 1 ? normalized.slice(index + 1) : "";
-}
-
-function normalizeKey(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[()\[\]{}]/gu, "")
-    .replace(/[\s_-]+/gu, "");
 }

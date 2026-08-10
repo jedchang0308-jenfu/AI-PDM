@@ -1,0 +1,57 @@
+{
+  "drawing": {
+    "search": {
+      "entityType": "drawing_number",
+      "entityCode": "A0007-M01",
+      "title": "A0007-M01",
+      "subtitle": "馬達_JF_2HP_A",
+      "status": "等他人處理"
+    },
+    "owner": {
+      "entityType": "drawing_number",
+      "entityCode": "A0007-M01",
+      "title": "A0007-M01",
+      "subtitle": "馬達_JF_2HP_A",
+      "status": "等他人處理"
+    },
+    "identityStatusMatch": true,
+    "searchInitialStatus": "等他人處理"
+  },
+  "part": {
+    "search": {
+      "entityType": "part_number",
+      "entityCode": "A0007-P01",
+      "title": "A0007-P01",
+      "subtitle": "馬達_JF_2HP_A",
+      "status": "生產可用",
+      "sections": [
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ]
+    },
+    "owner": {
+      "entityType": "part_number",
+      "entityCode": "A0007-P01",
+      "title": "A0007-P01",
+      "subtitle": "馬達_JF_2HP_A",
+      "status": "生產可用",
+      "sections": [
+        "料號附件庫",
+        "料號完整度檢查",
+        "圖號關聯",
+        "料號變體",
+        "共用 3D / MA 製造基準",
+        "成本設定檔",
+        "成本審核"
+      ]
+    },
+    "identityStatusMatch": true,
+    "sectionsMatch": true
+  },
+  "sourceContextOnly": true
+}

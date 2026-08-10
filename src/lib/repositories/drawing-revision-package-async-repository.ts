@@ -25,6 +25,7 @@ type SubmissionPackageSeedRow = {
   released_at: string | null;
   source_entity_id: string | null;
   source_drawing_number_id: string | null;
+  source_root_id: string | null;
   snapshot_json: string | null;
 };
 
@@ -35,6 +36,8 @@ type SubmissionPackageFileSeedRow = {
   display_name: string | null;
   description: string | null;
   document_category: string | null;
+  content_hash: string | null;
+  file_size: number | string | null;
 };
 
 type DrawingRevisionPackageRow = {
@@ -168,13 +171,15 @@ export class AsyncDrawingRevisionPackageRepository {
       `
       SELECT
         sf.id AS submission_file_id,
-        sf.source_master_attachment_id AS source_file_asset_id,
+        COALESCE(sf.source_file_asset_id, sf.source_master_attachment_id) AS source_file_asset_id,
         sf.original_filename,
         fa.display_name,
         fa.description,
-        fa.document_category
+        fa.document_category,
+        fa.content_hash,
+        fa.file_size
       FROM submission_files sf
-      LEFT JOIN file_assets fa ON fa.id = sf.source_master_attachment_id
+      LEFT JOIN file_assets fa ON fa.id = COALESCE(sf.source_file_asset_id, sf.source_master_attachment_id)
       WHERE sf.submission_id = :submissionId
       ORDER BY sf.created_at ASC, sf.id ASC
     `,
@@ -213,8 +218,62 @@ export class AsyncDrawingRevisionPackageRepository {
 
       for (const [index, file] of fileRows.entries()) {
         if (!file.source_file_asset_id) continue;
-        const snapshotRole = packageRoleBySourceId.get(file.source_file_asset_id);
+        const submittedSourceAssetId = file.source_file_asset_id;
         const inferredRole = inferRevisionPackageRole(file.original_filename, file.document_category);
+        let sourceFileAssetId = submittedSourceAssetId;
+        if (inferredRole === "cad_3d" && seed.source_root_id && file.content_hash) {
+          const reusable = await tx.queryOne<{ source_file_asset_id: string }>(
+            `
+            SELECT smv.source_file_asset_id
+            FROM shared_cad_model_versions smv
+            JOIN file_assets reusable_asset ON reusable_asset.id = smv.source_file_asset_id
+            WHERE smv.company_id = :companyId
+              AND smv.owner_scope = 'part_root'
+              AND smv.owner_id = :ownerId
+              AND smv.content_hash = :contentHash
+              AND smv.status <> 'Obsolete'
+              AND reusable_asset.deleted_at IS NULL
+              AND COALESCE(reusable_asset.file_size, -1) = :fileSize
+            ORDER BY CASE smv.status WHEN 'Released' THEN 0 WHEN 'Pending' THEN 1 ELSE 2 END,
+                     smv.created_at ASC,
+                     smv.id ASC
+            LIMIT 1
+            `,
+            {
+              companyId: seed.company_id,
+              ownerId: seed.source_root_id,
+              contentHash: file.content_hash,
+              fileSize: Number(file.file_size ?? 0)
+            }
+          );
+          if (reusable?.source_file_asset_id) {
+            sourceFileAssetId = reusable.source_file_asset_id;
+          } else {
+            await tx.execute(
+              `
+              INSERT INTO shared_cad_model_versions (
+                id, company_id, owner_scope, owner_id, part_root_id, source_file_asset_id,
+                model_revision, content_hash, hash_algorithm, status, created_by, created_at
+              ) VALUES (
+                :id, :companyId, 'part_root', :ownerId, :ownerId, :sourceFileAssetId,
+                :modelRevision, :contentHash, 'SHA-256', 'Pending', :createdBy, :createdAt
+              )
+              ON CONFLICT(company_id, owner_scope, owner_id, model_revision, content_hash) DO NOTHING
+              `,
+              {
+                id: `SMV-${this.idFactory()}`,
+                companyId: seed.company_id,
+                ownerId: seed.source_root_id,
+                sourceFileAssetId: submittedSourceAssetId,
+                modelRevision: seed.revision,
+                contentHash: file.content_hash,
+                createdBy: input.actorId,
+                createdAt: now
+              }
+            );
+          }
+        }
+        const snapshotRole = packageRoleBySourceId.get(submittedSourceAssetId);
         const role = normalizeRevisionPackageFileRole(snapshotRole?.role) ?? inferredRole;
         const roleSource = snapshotRole?.source === "user" ? "user" : snapshotRole ? "extension" : "system";
         await tx.execute(
@@ -224,7 +283,7 @@ export class AsyncDrawingRevisionPackageRepository {
             display_name, description, sort_order, is_primary, created_by, created_at
           ) VALUES (
             :id, :packageId, :sourceFileAssetId, :sourceSubmissionFileId, :role, :roleSource,
-            :displayName, :description, :sortOrder, 0, :createdBy, :createdAt
+            :displayName, :description, :sortOrder, :isPrimary, :createdBy, :createdAt
           )
           ON CONFLICT(package_id, source_file_asset_id) DO UPDATE SET
             source_submission_file_id = excluded.source_submission_file_id
@@ -232,13 +291,14 @@ export class AsyncDrawingRevisionPackageRepository {
           {
             id: this.idFactory(),
             packageId,
-            sourceFileAssetId: file.source_file_asset_id,
+            sourceFileAssetId,
             sourceSubmissionFileId: file.submission_file_id,
             role,
             roleSource,
             displayName: file.display_name || file.original_filename,
             description: file.description ?? "",
             sortOrder: index,
+            isPrimary: role === "drawing_2d" || role === "cad_3d" ? 1 : 0,
             createdBy: input.actorId,
             createdAt: now
           }
@@ -524,9 +584,11 @@ export class AsyncDrawingRevisionPackageRepository {
         s.released_at,
         s.source_entity_id,
         ss.source_drawing_number_id,
+        d.part_root_id AS source_root_id,
         ss.snapshot_json
       FROM submissions s
       LEFT JOIN submission_snapshots ss ON ss.submission_id = s.id
+      LEFT JOIN drawing_numbers d ON d.id = ss.source_drawing_number_id
       WHERE s.status IN ('Pending', 'Releasing', 'Released', 'Obsolete', 'Rejected', 'Cancelled')
       ORDER BY s.created_at ASC, s.id ASC
     `
@@ -575,9 +637,11 @@ export class AsyncDrawingRevisionPackageRepository {
         s.released_at,
         s.source_entity_id,
         ss.source_drawing_number_id,
+        d.part_root_id AS source_root_id,
         ss.snapshot_json
       FROM submissions s
       LEFT JOIN submission_snapshots ss ON ss.submission_id = s.id
+      LEFT JOIN drawing_numbers d ON d.id = ss.source_drawing_number_id
       WHERE s.id = :submissionId
       LIMIT 1
     `,

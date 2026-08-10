@@ -1,5 +1,9 @@
 # QC Fact Report: BOM Workbench Released Snapshot Export
 
+> Historical evidence note (2026-08-10)：本報告驗證的是 ADR 生效前的 legacy `child_revision` export。
+> `ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 已禁止把它解釋為 Part Number Revision；DEV-060 完成後必須依新 QA
+> 重新驗證 canonical owner、獨立 BOM Rev 與受控 definition reference。下列 PASS 不代表新 identity authority 已落地。
+
 ## Verdict
 
 Pass.

@@ -5,17 +5,32 @@ export type NumberStateLegacyRedirect = {
 
 export function resolveNumberStateLegacyRedirect(
   pathname: string,
-  searchParams: URLSearchParams
+  searchParams: URLSearchParams,
+  unifiedPartRelationWorkbenchEnabled = false
 ): NumberStateLegacyRedirect | null {
   const nextSearchParams = new URLSearchParams(searchParams);
+  const returnTo = nextSearchParams.get("returnTo");
+  if (returnTo && !isSafeSameOriginPath(returnTo)) nextSearchParams.delete("returnTo");
   let destinationPathname = "";
 
   if (pathname === "/numbering/part-drafts") {
     destinationPathname = "/parts";
-    nextSearchParams.set("tab", "drafts");
+    if (unifiedPartRelationWorkbenchEnabled) {
+      nextSearchParams.delete("tab");
+      nextSearchParams.set("view", "work");
+      const detail = nextSearchParams.get("detail")?.trim();
+      if (detail && !detail.includes(":")) nextSearchParams.set("detail", `candidate:${detail}`);
+    } else {
+      nextSearchParams.set("tab", "drafts");
+    }
   } else if (pathname === "/numbering/request") {
     destinationPathname = "/numbering/search";
-    nextSearchParams.set("tab", "reserved");
+    if (unifiedPartRelationWorkbenchEnabled) {
+      nextSearchParams.delete("tab");
+      nextSearchParams.set("view", "work");
+    } else {
+      nextSearchParams.set("tab", "reserved");
+    }
     nextSearchParams.set("create", "new_bundle");
   } else if (pathname === "/upload") {
     const drawingNumber = nextSearchParams.get("drawingNumber") ?? nextSearchParams.get("drawing_number");
@@ -30,4 +45,8 @@ export function resolveNumberStateLegacyRedirect(
 
   nextSearchParams.set("legacyFrom", pathname);
   return { pathname: destinationPathname, searchParams: nextSearchParams };
+}
+
+function isSafeSameOriginPath(value: string) {
+  return value.startsWith("/") && !value.startsWith("//") && !/[\u0000-\u001f\u007f]/u.test(value);
 }

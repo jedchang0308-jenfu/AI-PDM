@@ -22,12 +22,20 @@ import {
   Search,
   X
 } from "lucide-react";
-import { DrawingWorkspaceDrawer } from "@/components/drawing-workspace-drawer";
+import {
+  DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
+  DRAWING_DETAIL_DRAWER_MIN_WIDTH,
+  DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
+  DrawingWorkspaceDrawer
+} from "@/components/drawing-workspace-drawer";
+import { DrawingDetailPreview } from "@/components/drawing-detail-preview";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import {
   NumberingCandidateRevisionEditor,
   type CandidateRevisionWorkspace
 } from "@/components/numbering-candidate-revision-editor";
+import { NumberingSubmissionResult } from "@/components/numbering-submission-result";
+import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
 import { formatStatusForUser } from "@/lib/status-display";
@@ -45,15 +53,12 @@ type FeatureStatus = {
   phase: string;
   lifecycleV2?: { enabled: boolean; flag: string; phase: string };
   drawingWorkbench?: { enabled: boolean; requested: boolean; flag: string; dependency: string; phase: string };
+  partRelationWorkbench?: { enabled: boolean; requested: boolean; flag: string; dependency: string; phase: string };
 };
 type ProductionSliceStatus = { configured: boolean; unopenedMessage?: string };
 export type WorkspaceAction = "cancel" | "submit" | "withdraw" | "publish";
 
 const DEFAULT_PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次正式領號 / 保留號 production slice。";
-const NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width";
-const NUMBER_STATE_DRAWER_DEFAULT_WIDTH = 620;
-const NUMBER_STATE_DRAWER_MIN_WIDTH = 420;
-
 type NumberStateProjection = {
   numberQualification: NumberQualification;
   lifecycle: "draft" | "cancelled" | "published" | "obsolete";
@@ -682,7 +687,15 @@ export function NumberStateOwnerCreateAction({
           seriesCodeOptions={seriesCodeOptions}
           onClose={() => setOpen(false)}
           onCreated={(workspace) => {
-            if (feature?.drawingWorkbench?.enabled) {
+            if (feature?.partRelationWorkbench?.enabled && surface === "parts") {
+              window.location.assign(`/parts?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
+              return;
+            }
+            if (feature?.partRelationWorkbench?.enabled && surface === "search") {
+              window.location.assign(`/numbering/search?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
+              return;
+            }
+            if (feature?.drawingWorkbench?.enabled && surface === "drawings") {
               window.location.assign(`/numbering/drawings?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
               return;
             }
@@ -717,9 +730,9 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
   const [actionBusy, setActionBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
-    storageKey: NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY,
-    defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH,
-    minWidth: NUMBER_STATE_DRAWER_MIN_WIDTH
+    storageKey: DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
+    defaultWidth: DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
+    minWidth: DRAWING_DETAIL_DRAWER_MIN_WIDTH
   });
   const idempotencyKeys = useRef(new Map<string, string>());
   const initialQueryHandled = useRef(false);
@@ -846,24 +859,43 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
       withdraw: lifecycleV2Enabled ? "withdraw-bundle-review" : "withdraw-review",
       publish: "publish"
     } as const)[action];
-    const response = await fetch(
-      `/api/numbering/draft-workspaces/${encodeURIComponent(selected.id)}/${endpoint}`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": idempotencyKey(selected.id, action)
-        },
-        body: JSON.stringify({
-          ...(lifecycleV2Enabled && (action === "submit" || action === "withdraw")
-            ? { expectedWorkspaceRowVersion: selected.rowVersion }
-            : { expectedRowVersion: selected.rowVersion }),
-          ...(action === "cancel" ? { reason: "user_cancelled_draft" } : {}),
-          ...(action === "submit" ? { reason: lifecycleV2Enabled ? "draft_owner_confirmed_candidate_bundle_review" : "draft_owner_confirmed_candidate_publication_review" } : {}),
-          ...(action === "withdraw" && lifecycleV2Enabled ? { reason: "draft_owner_withdrew_candidate_bundle_review" } : {})
-        })
+    let response: Response;
+    try {
+      response = await fetch(
+        `/api/numbering/draft-workspaces/${encodeURIComponent(selected.id)}/${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "Idempotency-Key": idempotencyKey(selected.id, action)
+          },
+          body: JSON.stringify({
+            ...(lifecycleV2Enabled && (action === "submit" || action === "withdraw")
+              ? { expectedWorkspaceRowVersion: selected.rowVersion }
+              : { expectedRowVersion: selected.rowVersion }),
+            ...(action === "cancel" ? { reason: "user_cancelled_draft" } : {}),
+            ...(action === "submit" ? { reason: lifecycleV2Enabled ? "draft_owner_confirmed_candidate_bundle_review" : "draft_owner_confirmed_candidate_publication_review" } : {}),
+            ...(action === "withdraw" && lifecycleV2Enabled ? { reason: "draft_owner_withdrew_candidate_bundle_review" } : {})
+          })
+        }
+      );
+    } catch {
+      const unknownResultMessage = ({
+        cancel: "取消結果尚未確認；請重新整理狀態後再決定下一步。",
+        submit: "送審結果尚未確認；請重新整理狀態後再決定下一步。",
+        withdraw: "撤回結果尚未確認；請重新整理狀態後再決定下一步。",
+        publish: "正式發布結果尚未確認；請重新整理狀態後再決定下一步。"
+      } as const)[action];
+      setActionBusy(false);
+      setConfirmAction(null);
+      setError(unknownResultMessage);
+      try {
+        await refreshWorkspace(selected.id);
+      } catch {
+        // Keep the local recovery path usable even when the readback request is also unavailable.
       }
-    );
+      return;
+    }
     const body = await readApiBody<{ workspace?: NumberingDraftWorkspace; idempotentReplay?: boolean }>(response);
     setActionBusy(false);
     setConfirmAction(null);
@@ -1001,13 +1033,13 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
                           aria-label={`查看 ${workspaceTitle(workspace)} 明細`}
                           title={codes.length > 0 ? codes.join("、") : moduleConfig.emptyCodeLabel}
                         >
-                          {codes.length > 0 ? codes.join("、") : moduleConfig.emptyCodeLabel}
+                          <SearchHighlight value={codes.length > 0 ? codes.join("、") : moduleConfig.emptyCodeLabel} query={query} />
                         </button>
                       </td>
                       <td data-label="申請名稱">
-                        <div className="pdm-identity-name">{workspaceTitle(workspace)}</div>
+                        <div className="pdm-identity-name"><SearchHighlight value={workspaceTitle(workspace)} query={query} /></div>
                       </td>
-                      <td data-label="內容">{moduleContentSummary(workspace, module)}</td>
+                      <td data-label="內容"><SearchHighlight value={moduleContentSummary(workspace, module)} query={query} /></td>
                       <td data-label={lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態 / 號碼效力"}>
                         {lifecycleV2Enabled && workspace.lifecycleV2 ? <LifecycleV2Badge workspace={workspace} /> : <div className="pdm-meta-strip"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /><NumberEffectivenessBadge qualification={workspace.projection.numberQualification} /></div>}
                       </td>
@@ -1571,6 +1603,8 @@ export function WorkspaceDrawer({
   width,
   onStartResize,
   keepOpenSelector,
+  presentation,
+  overview,
   onClose
 }: {
   workspace: NumberingDraftWorkspace;
@@ -1594,35 +1628,46 @@ export function WorkspaceDrawer({
   width: number;
   onStartResize: (clientX: number) => void;
   keepOpenSelector?: string;
+  presentation?: {
+    entityLabel: string;
+    title: string;
+    sourceContext: string;
+    cancelLabel: string;
+    cancelTitle: string;
+  };
+  overview?: ReactNode;
   onClose: () => void;
 }) {
   const drawingCode = getPrimaryReservedDrawingCode(workspace);
+  const entityLabel = presentation?.entityLabel ?? "候選圖號";
+  const entityTitle = presentation?.title ?? drawingCode ?? "尚未產生圖號";
   const primaryAction = workspaceHeaderPrimaryAction({ workspace, busy, editing, lifecycleV2Enabled, formalActionsUnopened, unopenedMessage, onEdit, onSubmit, onPublish });
   return (
     <DrawingWorkspaceDrawer
       open
       width={width}
-      ariaLabel="候選圖號明細"
-      eyebrow="候選圖號"
-      title={drawingCode ?? "尚未產生圖號"}
+      ariaLabel={`${entityLabel}明細`}
+      eyebrow={entityLabel}
+      title={entityTitle}
       subtitle={workspaceTitle(workspace)}
       status={<WorkspaceHeaderStatus workspace={workspace} lifecycleV2Enabled={lifecycleV2Enabled} />}
       primaryAction={primaryAction}
       entityType="candidate_bundle"
       entityCode={workspace.id}
-      sourceContext="number_state_workspace"
+      sourceContext={presentation?.sourceContext ?? "number_state_workspace"}
       className="number-state-workspace-drawer"
       bodyClassName="number-state-drawer-body"
-      resizeLabel="調整候選圖號明細寬度"
-      resizeTitle="拖曳調整候選圖號明細寬度"
-      closeLabel="關閉候選圖號明細"
+      resizeLabel={`調整${entityLabel}明細寬度`}
+      resizeTitle={`拖曳調整${entityLabel}明細寬度`}
+      closeLabel={`關閉${entityLabel}明細`}
       onClose={onClose}
       onStartResize={onStartResize}
       keepOpenSelector={keepOpenSelector}
-      overviewLabel="候選圖號摘要"
-      moreLabel="更多候選圖號資料"
-      overview={<CandidateDrawingOverview workspace={workspace} />}
-      body={<>
+      overviewLabel={`${entityLabel}摘要`}
+      moreLabel={`更多${entityLabel}資料`}
+      content={{
+        overview: overview ?? <CandidateDrawingOverview workspace={workspace} />,
+        body: <>
           <div id="candidate-revision-files" className="drawing-detail-section" data-drawing-detail-section="drawing-revision-files">
             {lifecycleV2Enabled && workspace.lifecycleV2 ? (
               !["official_controlled", "history_only"].includes(workspace.lifecycleV2.stage) ? (
@@ -1642,14 +1687,13 @@ export function WorkspaceDrawer({
             />}
           </div>
           <CandidateDrawingPreview workspace={workspace} />
-        </>}
-      pending={lifecycleV2Enabled && workspace.lifecycleV2
+        </>,
+        pending: lifecycleV2Enabled && workspace.lifecycleV2
         ? shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)
           ? <LifecycleV2PendingPanel workspace={workspace} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
           : null
-        : <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} showAction={false} />}
-      more={<>
-            <div className="number-state-section-heading"><h3>更多</h3></div>
+        : <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} showAction={false} />,
+        more: <>
             {editing
               ? <WorkspaceEditForm workspace={workspace} busy={busy} seriesCodeOptions={seriesCodeOptions} onCancel={onCancelEdit} onSave={onUpdate} />
               : <WorkspaceRelationsDetails workspace={workspace} primaryDrawingCode={drawingCode} />}
@@ -1657,9 +1701,15 @@ export function WorkspaceDrawer({
               {workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯資料</button> : null}
               {workspace.capabilities.canWithdrawReview ? formalActionsUnopened ? <UnopenedAction label="撤回審核" reason={unopenedMessage}><RotateCcw size={15} /></UnopenedAction> : <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}
               {workspace.latestApproval?.status === "apply_failed" ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><RefreshCcw size={15} />重試審核套用</Link> : null}
-              <button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : "取消申請並釋出候選圖號"} onClick={onCancel}><Ban size={16} />取消候選圖號</button>
+              <button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : presentation?.cancelTitle ?? "取消申請並釋出候選圖號"} onClick={onCancel}><Ban size={16} />{presentation?.cancelLabel ?? "取消候選圖號"}</button>
             </div>
-          </>}
+          </>,
+        bodyTitle: "圖面與附件",
+        bodyLabel: "圖面與附件",
+        pendingTitle: "下一步",
+        pendingLabel: "下一步",
+        moreTitle: "更多"
+      }}
     />
   );
 }
@@ -1739,27 +1789,55 @@ function workspaceHeaderPrimaryAction({
 function CandidateDrawingOverview({ workspace }: { workspace: NumberingDraftWorkspace }) {
   const purpose = [...new Set(workspace.drawings.map((drawing) => purposeLabel(drawing.purposeCode)))].join("、") || "尚未設定";
   return (
-    <>
-      <dl className="drawing-workbench-facts">
-        <div><dt>用途</dt><dd>{purpose}</dd></div>
-        <div><dt>關聯</dt><dd>{workspace.parts.length > 0 ? `${workspace.parts.length} 個料號` : "尚未關聯"}</dd></div>
-        <div><dt>內容</dt><dd>{workspace.drawings.length} 圖號 · {workspace.parts.length} 料號</dd></div>
-      </dl>
-      {workspace.projection.numberQualification === "candidate" ? <p className="drawing-detail-availability-hint"><AlertTriangle size={15} />候選圖號尚不可正式使用。</p> : null}
-    </>
+    <NumberingSubmissionResult
+      mode="author"
+      showCandidates={false}
+      heading="建立結果"
+      subtitle="目前工作區資料"
+      facts={[
+        { label: "用途", value: purpose },
+        { label: "關聯", value: workspace.parts.length > 0 ? `${workspace.parts.length} 個料號` : "尚未關聯" },
+        { label: "內容", value: `${workspace.drawings.length} 圖號 · ${workspace.parts.length} 料號` },
+        { label: "使用效力", value: workspace.projection.numberQualification === "candidate" ? "候選圖號，尚不可正式使用" : "可依目前狀態使用" }
+      ]}
+    />
   );
 }
 
 function CandidateDrawingPreview({ workspace }: { workspace: NumberingDraftWorkspace }) {
-  const activeFiles = workspace.candidateRevisions.flatMap((candidate) => candidate.files.filter((file) => !file.removedAt));
+  const activeFiles = workspace.candidateRevisions.flatMap((candidate) => candidate.files.filter((file) => !file.removedAt).map((file) => ({ candidate, file })));
+  const threeD = activeFiles.find((entry) => entry.file.role === "cad_3d");
+  const twoD = activeFiles.find((entry) => ["drawing_2d", "pdf", "dwg_dxf"].includes(entry.file.role));
+  const previewMedia = (entry: typeof threeD) => entry ? {
+    href: `/api/numbering/draft-workspaces/${encodeURIComponent(workspace.id)}/candidate-revisions/${encodeURIComponent(entry.candidate.id)}/files/${encodeURIComponent(entry.file.id)}?preview=1`,
+    mode: entry.file.role === "cad_3d" ? "image" as const : "document" as const,
+    title: `${entry.file.displayName || "圖面附件"} 預覽`,
+    alt: `${entry.file.displayName || "圖面附件"} 預覽`
+  } : undefined;
   return (
-    <section className="number-state-drawer-section drawing-detail-section candidate-drawing-preview" data-drawing-detail-section="drawing-preview" aria-label="圖面預覽">
-      <div className="number-state-section-heading"><h3>圖面預覽</h3></div>
-      <div className="candidate-drawing-preview-empty">
-        <FileText size={24} aria-hidden="true" />
-        <div><strong>{activeFiles.length > 0 ? "預覽尚未建立" : "尚無可預覽圖面"}</strong>{activeFiles.length > 0 ? <span>正式圖號建立後，可在圖號明細查看預覽。</span> : null}</div>
-      </div>
-    </section>
+    <DrawingDetailPreview
+      className="number-state-drawer-section candidate-drawing-preview"
+      cards={[
+        {
+          kind: "three-d",
+          title: "3D 模型",
+          fileName: threeD?.file.displayName,
+          state: threeD ? "ready" : "missing",
+          stateTitle: threeD ? "候選檔案預覽" : "尚無 3D 檔案",
+          stateText: threeD ? "檔案與候選工作區同步；預覽完成後會直接顯示。" : "加入 3D 檔案後，預覽會顯示在這裡。",
+          media: previewMedia(threeD)
+        },
+        {
+          kind: "two-d",
+          title: "2D 圖面",
+          fileName: twoD?.file.displayName,
+          state: twoD ? "ready" : "missing",
+          stateTitle: twoD ? "候選檔案預覽" : "尚無 2D 檔案",
+          stateText: twoD ? "檔案與候選工作區同步；預覽完成後會直接顯示。" : "加入 2D 檔案後，預覽會顯示在這裡。",
+          media: previewMedia(twoD)
+        }
+      ]}
+    />
   );
 }
 
@@ -2031,9 +2109,46 @@ export function ConfirmDialog({ action, workspace, busy, lifecycleV2Enabled = fa
     }
   } as const)[action];
   const dialogRef = useRef<HTMLElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
   useOverlayLifecycle(dialogRef, onClose, busy);
+  useEffect(() => {
+    const backdrop = backdropRef.current;
+    if (!backdrop) return;
+
+    // The detail drawer owns a document-level pointerdown listener. Stop the
+    // event in native capture so a modal click cannot become an outside click
+    // on the underlying drawer before React's delegated handler receives it.
+    const stopUnderlyingDrawerPointer = (event: PointerEvent) => {
+      event.stopPropagation();
+    };
+    const closeFromNativeClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest("[data-number-state-modal-close='true']") || busy) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    backdrop.addEventListener("pointerdown", stopUnderlyingDrawerPointer, true);
+    backdrop.addEventListener("click", closeFromNativeClick, true);
+    return () => {
+      backdrop.removeEventListener("pointerdown", stopUnderlyingDrawerPointer, true);
+      backdrop.removeEventListener("click", closeFromNativeClick, true);
+    };
+  }, [busy, onClose]);
   return (
-    <div className="number-state-modal-backdrop" role="presentation"><section ref={dialogRef} className="number-state-modal number-state-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="number-state-confirm-title"><div className="number-state-modal-header"><div><h2 id="number-state-confirm-title">{content.title}</h2><p>{workspaceTitle(workspace)}</p></div><button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="關閉確認"><X size={20} /></button></div><div className={`number-state-confirm-summary${content.danger ? " is-danger" : ""}`}>{content.icon}<div><strong>{content.strong}</strong><p>{content.detail}</p></div></div><div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy} data-autofocus>返回檢查</button><button className={content.danger ? "danger-button" : "primary-button"} type="button" onClick={onConfirm} disabled={busy}>{action === "cancel" ? <Ban size={16} /> : action === "withdraw" ? <RotateCcw size={16} /> : <Check size={16} />}{busy ? "處理中..." : content.confirm}</button></div></section></div>
+    <div ref={backdropRef} className="number-state-modal-backdrop" role="presentation">
+      <section ref={dialogRef} className="number-state-modal number-state-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="number-state-confirm-title">
+        <div className="number-state-modal-header">
+          <div><h2 id="number-state-confirm-title">{content.title}</h2><p>{workspaceTitle(workspace)}</p></div>
+          <button className="icon-button" type="button" onClick={onClose} disabled={busy} data-number-state-modal-close="true" aria-label="關閉確認"><X size={20} /></button>
+        </div>
+        <div className={`number-state-confirm-summary${content.danger ? " is-danger" : ""}`}>{content.icon}<div><strong>{content.strong}</strong><p>{content.detail}</p></div></div>
+        <div className="number-state-modal-actions">
+          <button className="secondary-button" type="button" onClick={onClose} disabled={busy} data-number-state-modal-close="true" data-autofocus>返回檢查</button>
+          <button className={content.danger ? "danger-button" : "primary-button"} type="button" onClick={onConfirm} disabled={busy}>{action === "cancel" ? <Ban size={16} /> : action === "withdraw" ? <RotateCcw size={16} /> : <Check size={16} />}{busy ? "處理中..." : content.confirm}</button>
+        </div>
+      </section>
+    </div>
   );
 }
 

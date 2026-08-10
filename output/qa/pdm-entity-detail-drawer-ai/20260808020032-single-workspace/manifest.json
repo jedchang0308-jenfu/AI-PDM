@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-08-08T02:00:32Z",
+  "route": "http://127.0.0.1:3000/numbering/drawings?view=all",
+  "fixtures": {
+    "candidate": "A0006-M01",
+    "formal": "A0005-M01"
+  },
+  "artifacts": [
+    "candidate-a0006-1440x900.png",
+    "candidate-a0006-1024x768.png",
+    "candidate-a0006-390x844.png",
+    "candidate-cancel-confirmation-1440x900.png",
+    "formal-a0005-1440x900.png",
+    "formal-a0005-1024x768.png",
+    "formal-a0005-390x844.png",
+    "dom-metrics.json",
+    "qc-report.md"
+  ],
+  "mutationBoundary": "Read-only. Cancel confirmation was opened and dismissed with Escape; create, cancel, upload, submit and publish were not confirmed."
+}

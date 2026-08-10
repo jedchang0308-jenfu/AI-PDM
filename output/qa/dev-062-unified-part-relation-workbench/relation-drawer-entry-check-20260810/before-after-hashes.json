@@ -1,0 +1,16 @@
+{
+  "runId": "relation-drawer-entry-check-20260810",
+  "compatibility": {
+    "beforeHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "afterHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "unchanged": true,
+    "observedWrites": []
+  },
+  "disposable": null,
+  "cleanup": {
+    "completed": true,
+    "method": "isolated temporary target removed",
+    "targetKind": "OS temporary directory",
+    "targetPathHash": "9267570e89ae46987ca7a90be91e0281a2c347e671f5930b7a8bb7b500b85944"
+  }
+}

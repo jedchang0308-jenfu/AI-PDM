@@ -180,6 +180,7 @@ type TargetRow = {
 };
 
 type ImpactRow = {
+  request_id: string;
   id: string;
   snapshot_hash: string;
   snapshot_json: string;
@@ -305,7 +306,24 @@ function normalizeStatus(value: string): ApprovalPlatformStatus {
   return "pending";
 }
 
-function targetSummary(targets: ApprovalPlatformTarget[]) {
+function targetSummary(actionCode: string, targets: ApprovalPlatformTarget[], impactSnapshot?: Record<string, unknown>) {
+  if (actionCode === "numbering.candidate_bundle_review") {
+    const lockedReservations = Array.isArray(impactSnapshot?.lockedReservations)
+      ? impactSnapshot.lockedReservations
+      : [];
+    const candidateCodes = lockedReservations
+      .map((reservation) => {
+        if (!reservation || typeof reservation !== "object" || Array.isArray(reservation)) return null;
+        const code = (reservation as Record<string, unknown>).candidateCode;
+        return typeof code === "string" && code.trim() ? code.trim() : null;
+      })
+      .filter((code): code is string => Boolean(code));
+    const uniqueCandidateCodes = [...new Set(candidateCodes)];
+    const drawingCodes = uniqueCandidateCodes.filter((code) => /-(?:M|R)\d+$/u.test(code));
+    if (drawingCodes.length === 1) return drawingCodes[0];
+    if (drawingCodes.length > 1) return `${drawingCodes[0]} 等 ${drawingCodes.length} 個圖號`;
+    if (uniqueCandidateCodes.length > 0) return uniqueCandidateCodes[0];
+  }
   const primary = targets.find((target) => target.role === "primary") ?? targets[0];
   if (!primary) return "未指定目標";
   return primary.code || primary.label || primary.targetId;
@@ -569,7 +587,7 @@ export class AsyncApprovalPlatformRepository {
       packageId: row.package_id,
       packageCode: row.package_code,
       packageStatus: row.package_status,
-      targetSummary: targetSummary(targets),
+      targetSummary: targetSummary(row.action_code, targets, impactSnapshots[0]?.snapshot),
       impactSummary: impactSnapshots[0]?.snapshotHash ?? null,
       legacy: null,
       payload: parseJsonObject(row.payload_json),
@@ -735,11 +753,28 @@ export class AsyncApprovalPlatformRepository {
           Object.fromEntries(requestIds.map((requestId, index) => [`requestId${index}`, requestId]))
         )
       : [];
+    const impactRows = requestIds.length
+      ? await this.client.query<ImpactRow>(
+          `
+          SELECT request_id, id, snapshot_hash, snapshot_json, captured_by, captured_at
+          FROM approval_platform_impact_snapshots
+          WHERE request_id IN (${requestIds.map((_, index) => `:impactRequestId${index}`).join(", ")})
+          ORDER BY request_id ASC, captured_at DESC, id DESC
+        `,
+          Object.fromEntries(requestIds.map((requestId, index) => [`impactRequestId${index}`, requestId]))
+        )
+      : [];
     const targetsByRequestId = new Map<string, ApprovalPlatformTarget[]>();
     for (const targetRow of targetRows) {
       const targets = targetsByRequestId.get(targetRow.request_id) ?? [];
       targets.push(mapTargetRow(targetRow));
       targetsByRequestId.set(targetRow.request_id, targets);
+    }
+    const impactByRequestId = new Map<string, Record<string, unknown>>();
+    for (const impactRow of impactRows) {
+      if (!impactByRequestId.has(impactRow.request_id)) {
+        impactByRequestId.set(impactRow.request_id, parseJsonObject(impactRow.snapshot_json));
+      }
     }
     const items: ApprovalPlatformInboxItem[] = [];
     for (const row of rows) {
@@ -760,7 +795,7 @@ export class AsyncApprovalPlatformRepository {
         packageId: row.package_id,
         packageCode: row.package_code,
         packageStatus: row.package_status,
-        targetSummary: targetSummary(targets),
+        targetSummary: targetSummary(row.action_code, targets, impactByRequestId.get(row.id)),
         impactSummary: null,
         legacy: null
       });

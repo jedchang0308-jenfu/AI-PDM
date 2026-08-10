@@ -1,0 +1,99 @@
+import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { contentDispositionFilename } from "@/lib/file-response";
+import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
+import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
+import {
+  numberStateFlowJson,
+  requireNumberStateReadAccessAsync
+} from "@/lib/number-state-flow-api";
+
+export const runtime = "nodejs";
+
+type CandidatePreviewSourceRow = DrawingPreviewSource & {
+  company_id: string;
+  storage_generation: string | null;
+  file_size: number | string | null;
+  hash_algorithm: string;
+};
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string; revisionId: string; fileId: string }> }
+) {
+  const access = await requireNumberStateReadAccessAsync(request, "numbering.workspace.view");
+  if (access.response) return access.response;
+  const { id: workspaceId, revisionId: candidateRevisionId, fileId: rawFileId } = await params;
+  const fileId = decodeURIComponent(rawFileId);
+  const client = getAsyncDatabaseClient();
+  const source = await client.queryOne<CandidatePreviewSourceRow>(
+    `
+      SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
+             asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
+             asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+             asset.company_id
+      FROM numbering_candidate_revision_files file
+      JOIN numbering_candidate_revision_drafts candidate
+        ON candidate.id = file.candidate_revision_id
+      JOIN numbering_draft_workspaces workspace
+        ON workspace.id = candidate.workspace_id
+      JOIN file_assets asset
+        ON asset.id = file.source_file_asset_id
+      WHERE file.id = :fileId
+        AND file.candidate_revision_id = :candidateRevisionId
+        AND candidate.workspace_id = :workspaceId
+        AND candidate.company_id = :companyId
+        AND file.removed_at IS NULL
+        AND asset.deleted_at IS NULL
+    `,
+    { fileId, candidateRevisionId, workspaceId, companyId: access.company.companyId }
+  );
+  if (!source) return numberStateFlowJson({ error: { code: "candidate_file_not_found", message: "找不到候選圖面的檔案。", retryable: false } }, { status: 404 });
+
+  const url = new URL(request.url);
+  const wantsPreview = url.searchParams.get("preview") === "1";
+  try {
+    const resolved = wantsPreview
+      ? await resolveDrawingPreviewAsync(client, source, { allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" })
+      : {
+          record: source,
+          fileName: source.file_name || "候選圖面附件",
+          mimeType: source.mime_type || drawingPreviewMimeType(source.file_ext)
+        };
+    if (!resolved) {
+      if (wantsPreview) {
+        try {
+          await enqueuePreviewJobForSourceAsync(client, {
+            source: {
+              ...source,
+              storage_provider: source.storage_provider ?? "local_repository",
+              company_id: source.company_id,
+              linked_entity_type: "numbering_candidate_revision",
+              linked_entity_id: candidateRevisionId
+            },
+            actorUserId: access.user.id,
+            requestedKind: source.file_ext.trim().toLowerCase().replace(/^\./u, "") === "slddrw" ? "drawing_pdf" : "native_thumbnail_png",
+            generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
+            runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+          });
+        } catch {
+          // Keep the source downloadable even if preview preparation is unavailable.
+        }
+      }
+      return numberStateFlowJson({ error: { code: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。", retryable: true } }, { status: 409 });
+    }
+    const pointer = storagePointerFromRecord(resolved.record);
+    const bytes = await createFileStorageServiceForPointer(pointer).readObject(pointer.key);
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        "content-type": resolved.mimeType || "application/octet-stream",
+        "content-length": String(bytes.byteLength),
+        "content-disposition": `${wantsPreview ? "inline" : "attachment"}; filename="${contentDispositionFilename(resolved.fileName)}"`,
+        "x-content-type-options": "nosniff",
+        "cache-control": "private, no-store"
+      }
+    });
+  } catch {
+    return numberStateFlowJson({ error: { code: "CANDIDATE_FILE_UNAVAILABLE", message: "檔案目前無法讀取，請稍後再試。", retryable: true } }, { status: 503 });
+  }
+}

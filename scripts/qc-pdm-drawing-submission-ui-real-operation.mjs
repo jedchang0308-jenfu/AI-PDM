@@ -411,7 +411,7 @@ async function loginByUi(role, viewport = { width: 1440, height: 1024 }) {
   await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle" });
   await page.locator('input[type="email"]').fill(role.email);
   await page.locator('input[type="password"]').fill(bootstrapPassword);
-  await page.getByRole("button", { name: /登入/ }).click();
+  await page.getByRole("button", { name: "登入", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 15000 });
   await page.waitForLoadState("networkidle");
   return { context, page };

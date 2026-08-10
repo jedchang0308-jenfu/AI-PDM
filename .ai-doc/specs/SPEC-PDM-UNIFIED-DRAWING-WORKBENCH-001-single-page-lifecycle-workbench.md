@@ -9,6 +9,10 @@ Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08
 Related authority: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
+> **2026-08-10 DEV-061 Amendment**
+>
+> 圖號工作台的新檔案 UX 與 write authority 改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理。圖號只顯示受控 2D／3D 與版次檔案，不再提供參考附件、附件管理、已刪除資料或一般附件上傳；每次首版／進版 hard-require 本次上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`，相同 3D 由系統共用 canonical asset。預覽圖本身即為開啟預覽入口，不另設重複按鈕。本文的 controlled/reference 雙區、warning-only required files 與一般附件管理段落保留為 DEV-053 歷史證據，衝突處由 DEV-061 取代。
+
 Current execution boundary: DEV-053 Phase 1A～1G的本機實作與QC證據保留為歷史成果；Phase 1H已依`HD-053-1H-01..10`完成本機產品、schema/migration artifact、authority、projection/UI、cleanup、AI QA與獨立QC。未對固定3000、staging或production套migration／adoption／flag，未修改既有正式資料或DEV-054；commit、production activation、deploy與release仍是獨立邊界。
 
 2026-08-05 3000 runtime correction：使用者實際使用的固定本機入口曾同時載入`.env.local`的`PDM_PRODUCTION_SLICE_MODE=official-numbering-draft`，造成3000雖是完整測試環境，候選首版、正式進版、上傳送審與影響分析仍被production slice鎖住；原隔離QC以空白slice執行，未覆蓋這個設定差異。現行契約新增明確邊界：`npm run dev:local`／`dev:local:restart`只在`NODE_ENV=development`設定`PDM_LOCAL_FULL_FUNCTION_VALIDATION=true`，使3000提供完整本機驗證；`NODE_ENV=production`即使誤設同名flag也不得繞過production slice。production runtime、migration、資料與部署均未修改。

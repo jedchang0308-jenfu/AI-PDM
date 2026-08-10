@@ -1,0 +1,6 @@
+{
+  "1440x900": {"modal": {"x": 460, "y": 335.4, "width": 520, "height": 229.2}, "scrollWidth": 1440},
+  "1024x768": {"modal": {"x": 252, "y": 269.4, "width": 520, "height": 229.2}, "scrollWidth": 1024},
+  "390x844": {"modal": {"x": 0, "y": 532, "width": 390.4, "height": 312}, "scrollWidth": 390},
+  "roles": {"alertdialog": 1, "drawerAfterClose": 1}
+}

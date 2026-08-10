@@ -1,0 +1,17 @@
+{
+  "runId": "20260807-213324-qc-round3",
+  "result": "FAIL",
+  "startedAt": "2026-08-07T21:32:25.2321600+08:00",
+  "finishedAt": "2026-08-07T21:47:08.0768330+08:00",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "actor": "張仕杰",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "viewports": ["1440x900", "1024x768", "390x844"],
+  "fixtures": ["A0007", "A0007-M01", "A0007-P01", "A0005-M01", "A0005-P01", "A0005-P02", "A0005-P03", "existing candidate 外殼_JF_白鐵_A"],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
+  "scopedHashesStableDuringRun": true,
+  "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written."
+}

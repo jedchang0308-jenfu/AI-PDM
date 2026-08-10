@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { canReadBomReleaseSnapshotRecordAsync } from "@/lib/bom-create-context";
 import { getBomReleaseSnapshotByIdAsync } from "@/lib/bom-workbench-async";
-import { canReadBomReleasedSnapshotAsync } from "@/lib/permissions";
-import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { BomReleaseSnapshotDetail, BomWorkbenchLine } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -32,11 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rele
     return NextResponse.json({ error: "BOM release snapshot not found" }, { status: 404 });
   }
 
-  const submission = await getSubmissionAsync(snapshot.parent_submission_id);
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
-  }
-  if (!(await canReadBomReleasedSnapshotAsync(auth.user, submission))) return forbidden();
+  if (!(await canReadBomReleaseSnapshotRecordAsync(auth.user, snapshot))) return forbidden();
 
   const url = new URL(request.url);
   const format = parseFormat(url.searchParams.get("format"));
@@ -129,7 +124,8 @@ function buildReleaseRow(
 
 function buildExportFilename(snapshot: BomReleaseSnapshotDetail, format: ExportFormat) {
   const stamp = normalizeDateStamp(snapshot.released_at);
-  return `BOM_${sanitizeFilename(snapshot.parent_part_number)}_Rev${sanitizeFilename(snapshot.parent_revision)}_${stamp}.${format}`;
+  const bomRevision = snapshot.bom_revision || snapshot.parent_revision;
+  return `BOM_${sanitizeFilename(snapshot.parent_part_number)}_Rev${sanitizeFilename(bomRevision)}_${stamp}.${format}`;
 }
 
 function normalizeDateStamp(value: string) {

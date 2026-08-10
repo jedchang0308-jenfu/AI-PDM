@@ -137,6 +137,11 @@ const sourceFiles = [
     source: "db/postgres/026_drawing_revision_lifecycle_authority.sql",
     target: "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql",
     description: "Add DEV-053 Phase 1H drawing-revision lifecycle authority and guarded cleanup"
+  },
+  {
+    source: "db/postgres/028_bom_material_identity_revision.sql",
+    target: "supabase/migrations/20260810010000_bom_material_identity_revision.sql",
+    description: "Add DEV-060 canonical material-owned BOM revision and idempotent create effects"
   }
 ];
 

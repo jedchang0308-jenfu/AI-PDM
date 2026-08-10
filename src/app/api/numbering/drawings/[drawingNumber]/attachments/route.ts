@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
+import { listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
+import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 const noStoreHeaders = { "cache-control": "private, no-store" };
@@ -31,30 +30,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
-  if (auth.response) return auth.response;
-
   const { drawingNumber } = await params;
-  const form = await request.formData();
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "MASTER_ATTACHMENT_FILE_REQUIRED" }, { status: 400 });
-  }
-
-  try {
-    const attachment = await createMasterAttachmentAsync({
-      entityType: "drawing_number",
-      entityCode: decodeURIComponent(drawingNumber),
-      file,
-      documentCategory: String(form.get("document_category") ?? "other"),
-      displayName: String(form.get("display_name") ?? ""),
-      description: String(form.get("description") ?? ""),
-      revision: String(form.get("revision") ?? ""),
-      uploadedBy: auth.user.id
-    });
-    return NextResponse.json({ attachment }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_CREATE_FAILED";
-    return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
-  }
+  return NextResponse.json(
+    {
+      error: {
+        code: "DRAWING_REFERENCE_UPLOAD_RETIRED",
+        message: "圖號一般附件上傳已退役；請從圖面進版工作台上傳 2D 原始檔與 3D CAD。"
+      },
+      canonicalHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(decodeURIComponent(drawingNumber))}`
+    },
+    { status: 410 }
+  );
 }

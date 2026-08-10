@@ -1,0 +1,41 @@
+{
+  "runId": "20260807225318-qc-round8",
+  "result": "PASS_READ_ONLY_SCOPE",
+  "scope": "shared entity drawer UI, canonical status projection, keyboard, RWD and visible-error regression",
+  "qaPlan": ".ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md",
+  "startedAt": "2026-08-07T22:53:18+08:00",
+  "finishedAt": "2026-08-07T23:07:22+08:00",
+  "repository": {
+    "branch": "持續優化1",
+    "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+    "dirtyEntriesAtFinalBoundary": 68,
+    "diffCheck": "PASS; CRLF warnings only"
+  },
+  "runtime": {
+    "baseUrl": "http://127.0.0.1:3000",
+    "browser": "Codex In-app Browser",
+    "actor": "張仕杰",
+    "dataBoundary": "canonical local data; read-only",
+    "observedFeatureState": "unified drawing workbench enabled; legacy reserved URL normalizes to view=work"
+  },
+  "viewports": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "safety": {
+    "productWrites": 0,
+    "productionWrites": 0,
+    "writeLifecycle": "Not Executed - Safety Boundary",
+    "releaseAuthorized": false
+  },
+  "finalRelevantFileHashes": {
+    "src/app/numbering/search/page.tsx": "B845FFDC485B43B9221B5A87FC69ADCF98E1E03ADC7F417198899E4F17BFE7B5",
+    "src/components/pdm-entity-detail-drawer.tsx": "11167FCF001B2E8719774F4A2DA780663793D2758C8E549E503175EAC97C9D1D",
+    "src/components/human-status-badge.tsx": "DC65C46146E3B1D6E3148F19BDCAF88212299474AF7AD2172222721CE87BDDCC",
+    "src/components/drawing-workbench.tsx": "E57554A04A4221A4192BC011E0F5450F1397C7753D1059D201733FF2C1129D5B",
+    "src/app/parts/page.tsx": "AA8F78D4FA3DCECD7C189654BD0A16A81E07FE8FF1EB803ED3ECEB3D5F0E2135",
+    "scripts/qc-pdm-entity-detail-drawer.mjs": "C2005241D971F5B03D0D67BCE6B010373950287292C5C330400532BD6A4AFCEE",
+    "scripts/qc-dev-055-human-status-projection.mjs": "39936B9586E79782333F62785B4A49997CFF70A79EBAEF979B7E520FC400C50D"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "drawing": {
+    "code": "A0007-M01",
+    "owner": {"status": "等他人處理", "title": "A0007-M01", "subtitle": "馬達_JF_2HP_A"},
+    "searchDrawer": {"status": "等他人處理", "title": "A0007-M01", "subtitle": "馬達_JF_2HP_A"},
+    "ownerListStatus": "等他人處理",
+    "searchHardReloadBeforeOpen": "生產可用",
+    "searchAfterOpenListStatus": "等他人處理",
+    "identityMatch": true,
+    "drawerStatusMatch": true,
+    "stableListTruth": false
+  },
+  "part": {
+    "code": "A0007-P01",
+    "owner": {"status": "生產可用", "title": "A0007-P01", "subtitle": "馬達_JF_2HP_A"},
+    "search": {"status": "生產可用", "title": "A0007-P01", "subtitle": "馬達_JF_2HP_A"},
+    "identityMatch": true,
+    "statusMatch": true,
+    "coreSectionsDiscoverable": true
+  }
+}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent as ReactDragEvent } from "react";
+import Link from "next/link";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowLeft,
@@ -12,9 +14,8 @@ import {
   FileSpreadsheet,
   FolderPlus,
   GitBranch,
-  GripVertical,
-  History,
   ListTree,
+  PackagePlus,
   Redo2,
   RotateCcw,
   Save,
@@ -41,12 +42,13 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FileDropzone } from "@/components/file-dropzone";
-import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
+import { SearchHighlight } from "@/components/search-highlight";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
-import { WorkflowStrip } from "@/components/workflow-strip";
+import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatStatusForUser } from "@/lib/status-display";
+import type { BomWorkbenchListRecord } from "@/lib/types";
 
 type SubmissionSummary = {
   id: string;
@@ -88,6 +90,11 @@ type BomWorkbenchLine = {
 
 type BomWorkbenchDraftSummary = {
   id: string;
+  company_id?: string | null;
+  owner_part_number_id?: string | null;
+  bom_revision?: string | null;
+  source_submission_id?: string | null;
+  identity_authority?: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
   parent_item_id: string;
   parent_submission_id: string;
   parent_revision: string;
@@ -184,9 +191,6 @@ const SOURCE_LABELS: Record<BomWorkbenchSource, string> = {
   solidworks_xls: "SolidWorks XLS",
   manual: "手動"
 };
-const bomMutedTextStyle = { color: "var(--text-muted)", margin: "0.2rem 0 0" };
-const bomIssueTextStyle = { color: "var(--danger)", fontWeight: 700 };
-
 const bomNodeTypes = {
   bomNode: BomFlowNodeCard
 };
@@ -203,15 +207,24 @@ function BomFlowNodeCard({ id, data }: NodeProps<BomFlowNode>) {
         <strong>{data.label}</strong>
         {data.source ? <span className="bom-source-pill">{SOURCE_LABELS[data.source]}</span> : null}
       </div>
-      <span>{data.subtitle}</span>
-      <small>{data.meta}</small>
+      {data.subtitle ? <span>{data.subtitle}</span> : null}
+      {data.meta ? <small>{data.meta}</small> : null}
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
   );
 }
 
 export default function BomWorkbenchPage() {
+  const pathname = usePathname();
+  const routeParams = useParams<{ draftId?: string | string[] }>();
+  const router = useRouter();
+  const routeDraftId = Array.isArray(routeParams.draftId) ? routeParams.draftId[0] ?? "" : routeParams.draftId ?? "";
+  const isEditorSurface = pathname.startsWith("/bom/workbench/") && Boolean(routeDraftId);
   const [query, setQuery] = useState("");
+  const [bomListQuery, setBomListQuery] = useState("");
+  const [bomListStatus, setBomListStatus] = useState<"" | BomWorkbenchDraftStatus>("");
+  const [bomRecords, setBomRecords] = useState<BomWorkbenchListRecord[]>([]);
+  const [bomListLoading, setBomListLoading] = useState(false);
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionSummary | null>(null);
   const [workbench, setWorkbench] = useState<BomWorkbenchSummary | null>(null);
@@ -233,6 +246,7 @@ export default function BomWorkbenchPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isInsertItemOpen, setIsInsertItemOpen] = useState(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
     storageKey: BOM_DRAWER_WIDTH_STORAGE_KEY,
     defaultWidth: 520,
@@ -283,11 +297,26 @@ export default function BomWorkbenchPage() {
     return body as T;
   }, []);
 
+  const loadBomRecords = useCallback(async () => {
+    setBomListLoading(true);
+    try {
+      const params = new URLSearchParams({ surface: "work_list" });
+      if (bomListQuery.trim()) params.set("query", bomListQuery.trim());
+      if (bomListStatus) params.set("status", bomListStatus);
+      const body = await requestJson<{ drafts: BomWorkbenchListRecord[] }>(`/api/bom/drafts?${params.toString()}`);
+      setBomRecords(body.drafts ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 BOM 清單失敗");
+    } finally {
+      setBomListLoading(false);
+    }
+  }, [bomListQuery, bomListStatus, requestJson]);
+
   const loadDraft = useCallback(
     async (draftId: string) => {
+      setMessage("");
       const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${draftId}`);
       setDraftFromDetail(body.draft);
-      setMessage(`已載入草稿：${body.draft.draft_name}`);
     },
     [requestJson, setDraftFromDetail]
   );
@@ -313,6 +342,7 @@ export default function BomWorkbenchPage() {
     async (submissionId: string, preferredDraftId?: string) => {
       setLoading(true);
       setError("");
+      setMessage("");
       try {
         setDeletedDrafts([]);
         setDeletedLoaded(false);
@@ -346,7 +376,6 @@ export default function BomWorkbenchPage() {
         }
         if (nextWorkbench.active_draft?.id === nextDraftId) {
           setDraftFromDetail(nextWorkbench.active_draft);
-          setMessage(`已載入目前草稿：${nextWorkbench.active_draft.draft_name}`);
           return;
         }
         await loadDraft(nextDraftId);
@@ -372,12 +401,59 @@ export default function BomWorkbenchPage() {
     }
   }, [requestJson]);
 
+  const loadWorkbenchByDraft = useCallback(
+    async (draftId: string) => {
+      setLoading(true);
+      setError("");
+      setMessage("");
+      try {
+        const body = await requestJson<{ workbench: BomWorkbenchSummary }>(
+          `/api/bom/workbench?draftId=${encodeURIComponent(draftId)}`
+        );
+        if (!body.workbench) throw new Error("BOM 工作台資料不存在");
+        setWorkbench(body.workbench);
+        setSelectedSubmission(
+          body.workbench.parent_submission_id
+            ? {
+                id: body.workbench.parent_submission_id,
+                item_id: body.workbench.parent_item_id,
+                part_number: body.workbench.parent_part_number,
+                part_name: body.workbench.parent_part_name,
+                drawing_number: body.workbench.parent_drawing_number,
+                revision: "",
+                status: body.workbench.parent_status
+              }
+            : null
+        );
+        await loadDraft(draftId);
+        const nextUrl = `/bom/workbench/${encodeURIComponent(draftId)}`;
+        if (`${window.location.pathname}${window.location.search}` !== nextUrl) window.history.replaceState(null, "", nextUrl);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "載入 BOM 工作台失敗");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadDraft, requestJson]
+  );
+
   useEffect(() => {
-    loadRecentSubmissions();
+    if (isEditorSurface) {
+      if (routeDraftId) void loadWorkbenchByDraft(routeDraftId);
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
+    const draftId = params.get("draftId");
     const submissionId = params.get("submissionId");
-    if (submissionId) void loadWorkbench(submissionId);
-  }, [loadRecentSubmissions, loadWorkbench]);
+    if (draftId) router.replace(`/bom/workbench/${encodeURIComponent(draftId)}`);
+    else if (submissionId) void loadWorkbench(submissionId);
+  }, [isEditorSurface, loadWorkbench, loadWorkbenchByDraft, routeDraftId, router]);
+
+  useEffect(() => {
+    if (isEditorSurface) return;
+    const timer = window.setTimeout(() => void loadBomRecords(), 180);
+    return () => window.clearTimeout(timer);
+  }, [isEditorSurface, loadBomRecords]);
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
@@ -715,8 +791,21 @@ export default function BomWorkbenchPage() {
         })
       });
       setDraftFromDetail(body.draft);
+      setWorkbench((current) => {
+        if (!current) return current;
+        const hasDraft = current.drafts.some((draft) => draft.id === body.draft.id);
+        const drafts = hasDraft
+          ? current.drafts.map((draft) => draft.id === body.draft.id ? { ...draft, ...body.draft } : draft)
+          : [{ ...body.draft }, ...current.drafts];
+        return {
+          ...current,
+          drafts,
+          active_draft: current.active_draft?.id === body.draft.id ? body.draft : current.active_draft
+        };
+      });
       if (selectedSubmission) await loadWorkbench(selectedSubmission.id, body.draft.id);
-      setMessage("BOM 草稿已儲存");
+      await loadBomRecords();
+      setMessage(`已儲存：${workbench?.parent_part_number ?? body.draft.draft_name} / BOM Rev ${body.draft.bom_revision ?? body.draft.parent_revision} / ${body.draft.lines.length} 項`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -725,12 +814,13 @@ export default function BomWorkbenchPage() {
   }
 
   async function setActiveDraft() {
-    if (!selectedDraft || !selectedSubmission) return;
+    if (!selectedDraft) return;
     setLoading(true);
     setError("");
     try {
       const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${selectedDraft.id}/active`, { method: "POST" });
-      await loadWorkbench(selectedSubmission.id, body.draft.id);
+      await loadWorkbenchByDraft(body.draft.id);
+      await loadBomRecords();
       setMessage("已設為目前使用的 BOM 草稿");
     } catch (err) {
       setError(err instanceof Error ? err.message : "設為目前使用的 BOM 草稿失敗");
@@ -740,7 +830,7 @@ export default function BomWorkbenchPage() {
   }
 
   async function deleteDraft() {
-    if (!selectedDraft || !selectedSubmission) return;
+    if (!selectedDraft) return;
     if (dirty) {
       setError("刪除前請先儲存或放棄目前未儲存變更");
       return;
@@ -753,9 +843,15 @@ export default function BomWorkbenchPage() {
         body: JSON.stringify({ reason: "BOM Workbench UI delete" })
       });
       setDraftFromDetail(null);
-      await loadWorkbench(selectedSubmission.id);
-      if (deletedLoaded) await loadDeletedDrafts();
-      setMessage("BOM 草稿已刪除，可從已刪除資料還原。");
+      if (selectedSubmission) {
+        await loadWorkbench(selectedSubmission.id);
+        if (deletedLoaded) await loadDeletedDrafts();
+      } else {
+        setWorkbench(null);
+        window.history.replaceState(null, "", "/bom/workbench");
+      }
+      await loadBomRecords();
+      setMessage("BOM 草稿已刪除。");
     } catch (err) {
       setError(err instanceof Error ? err.message : "刪除 BOM 草稿失敗");
     } finally {
@@ -774,6 +870,7 @@ export default function BomWorkbenchPage() {
       });
       await loadWorkbench(selectedSubmission.id, body.draft.id);
       await loadDeletedDrafts();
+      await loadBomRecords();
       setMessage("BOM 草稿已還原。");
     } catch (err) {
       setError(err instanceof Error ? err.message : "還原 BOM 草稿失敗");
@@ -827,7 +924,8 @@ export default function BomWorkbenchPage() {
         method: "POST",
         body: JSON.stringify({ changeReason: reviewReason.trim() })
       });
-      if (selectedSubmission) await loadWorkbench(selectedSubmission.id, selectedDraft.id);
+      await loadWorkbenchByDraft(selectedDraft.id);
+      await loadBomRecords();
       setReviewReason("");
       setMessage("已送出研發主管審核");
     } catch (err) {
@@ -850,7 +948,8 @@ export default function BomWorkbenchPage() {
         method: "POST",
         body: JSON.stringify({ reason: obsoleteReason.trim() })
       });
-      if (selectedSubmission) await loadWorkbench(selectedSubmission.id, selectedDraft.id);
+      await loadWorkbenchByDraft(selectedDraft.id);
+      await loadBomRecords();
       setObsoleteReason("");
       setMessage("BOM 作廢申請已送出，等待主管審核。");
     } catch (err) {
@@ -900,6 +999,10 @@ export default function BomWorkbenchPage() {
     <BomWorkbenchPresentation
       model={{
         query,
+        bomListQuery,
+        bomListStatus,
+        bomRecords,
+        bomListLoading,
         submissions,
         selectedSubmission,
         workbench,
@@ -919,29 +1022,35 @@ export default function BomWorkbenchPage() {
         history,
         historyIndex,
         isDetailOpen,
+        isInsertItemOpen,
         drawerWidth,
         selectedLine,
         xlsText,
         reviewReason,
         obsoleteReason,
         compareDraftId,
-        comparison
+        comparison,
+        isEditorSurface
       }}
       actions={{
         setQuery,
+        setBomListQuery,
+        setBomListStatus,
         setDraggedSubmissionId,
         setError,
         setMessage,
         setIsDetailOpen,
+        setIsInsertItemOpen,
         setXlsText,
         setReviewReason,
         setObsoleteReason,
         runSearch,
         loadRecentSubmissions,
         loadWorkbench,
+        loadWorkbenchByDraft,
+        loadBomRecords,
         startSubmissionDrag,
         addSubmissionAsLine,
-        loadDraft,
         createCadDraft,
         importXlsFile,
         loadDeletedDrafts,
@@ -966,7 +1075,8 @@ export default function BomWorkbenchPage() {
         reconfirmReplacementFlags,
         submitReview,
         requestObsolete,
-        loadCompareDraft
+        loadCompareDraft,
+        openBomEditor: (draftId: string) => router.push(`/bom/workbench/${encodeURIComponent(draftId)}`)
       }}
     />
   );
@@ -975,6 +1085,10 @@ export default function BomWorkbenchPage() {
 type BomWorkbenchPresentationProps = {
   model: {
     query: string;
+    bomListQuery: string;
+    bomListStatus: "" | BomWorkbenchDraftStatus;
+    bomRecords: BomWorkbenchListRecord[];
+    bomListLoading: boolean;
     submissions: SubmissionSummary[];
     selectedSubmission: SubmissionSummary | null;
     workbench: BomWorkbenchSummary | null;
@@ -994,6 +1108,7 @@ type BomWorkbenchPresentationProps = {
     history: BomWorkbenchLine[][];
     historyIndex: number;
     isDetailOpen: boolean;
+    isInsertItemOpen: boolean;
     drawerWidth: number;
     selectedLine: BomWorkbenchLine | null;
     xlsText: string;
@@ -1001,22 +1116,27 @@ type BomWorkbenchPresentationProps = {
     obsoleteReason: string;
     compareDraftId: string;
     comparison: CompareRow[];
+    isEditorSurface: boolean;
   };
   actions: {
     setQuery: (value: string) => void;
+    setBomListQuery: (value: string) => void;
+    setBomListStatus: (value: "" | BomWorkbenchDraftStatus) => void;
     setDraggedSubmissionId: (value: string | null) => void;
     setError: (value: string) => void;
     setMessage: (value: string) => void;
     setIsDetailOpen: (value: boolean) => void;
+    setIsInsertItemOpen: (value: boolean) => void;
     setXlsText: (value: string) => void;
     setReviewReason: (value: string) => void;
     setObsoleteReason: (value: string) => void;
     runSearch: () => void;
     loadRecentSubmissions: () => void;
     loadWorkbench: (submissionId: string) => void;
+    loadWorkbenchByDraft: (draftId: string) => void;
+    loadBomRecords: () => void;
     startSubmissionDrag: (event: ReactDragEvent<Element>, submissionId: string) => void;
     addSubmissionAsLine: (submission: SubmissionSummary, parentLineId?: string | null) => void;
-    loadDraft: (draftId: string) => void;
     createCadDraft: () => void;
     importXlsFile: (file: File) => void;
     loadDeletedDrafts: () => void;
@@ -1042,19 +1162,21 @@ type BomWorkbenchPresentationProps = {
     submitReview: () => void;
     requestObsolete: () => void;
     loadCompareDraft: (draftId: string) => void;
+    openBomEditor: (draftId: string) => void;
   };
 };
 
 function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationProps) {
   const {
     query,
+    bomListQuery,
+    bomListStatus,
+    bomRecords,
+    bomListLoading,
     submissions,
     selectedSubmission,
     workbench,
     selectedDraft,
-    deletedDrafts,
-    deletedLoaded,
-    deletedLoading,
     dirty,
     loading,
     message,
@@ -1067,36 +1189,37 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     history,
     historyIndex,
     isDetailOpen,
+    isInsertItemOpen,
     drawerWidth,
     selectedLine,
     xlsText,
     reviewReason,
     obsoleteReason,
     compareDraftId,
-    comparison
+    comparison,
+    isEditorSurface
   } = model;
   const {
     setQuery,
-    setDraggedSubmissionId,
+    setBomListQuery,
+    setBomListStatus,
     setError,
     setMessage,
     setIsDetailOpen,
+    setIsInsertItemOpen,
     setXlsText,
     setReviewReason,
     setObsoleteReason,
-    runSearch,
+    loadWorkbenchByDraft,
     loadRecentSubmissions,
-    loadWorkbench,
-    startSubmissionDrag,
-    addSubmissionAsLine,
-    loadDraft,
+    loadBomRecords,
     createCadDraft,
     importXlsFile,
-    loadDeletedDrafts,
-    restoreDeletedDraft,
     saveDraft,
     restoreHistory,
     addGroup,
+    addSubmissionAsLine,
+    runSearch,
     setActiveDraft,
     cloneDraft,
     deleteDraft,
@@ -1114,46 +1237,39 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     reconfirmReplacementFlags,
     submitReview,
     requestObsolete,
-    loadCompareDraft
+    loadCompareDraft,
+    openBomEditor
   } = actions;
 
   return (
     <section className="bom-workbench-page" aria-label="BOM 工作台">
-      <header className="bom-workbench-header">
-        <div>
+      <header className={`bom-workbench-header ${isEditorSurface ? "editor" : ""}`}>
+        {!isEditorSurface ? <div>
           <p className="eyebrow">工程 BOM 管理</p>
           <h1>BOM 工作台 <StatusScopeHelp scope="bomWorkbench" /></h1>
-          <p>以同一個工作台管理 CAD 草稿、SolidWorks XLS 匯入與人工校正，送審前可完整調整階層、排序與數量。</p>
-        </div>
+          <p>搜尋並選擇要續作或查看的 BOM。</p>
+        </div> : null}
         <div className="bom-workbench-header-actions">
           <span className={dirty ? "badge warning" : "badge"}>{dirty ? "未儲存" : "已同步"}</span>
-          <button className="secondary-button" type="button" onClick={() => selectedSubmission && loadWorkbench(selectedSubmission.id)} disabled={!selectedSubmission || loading}>
+          {isEditorSurface ? (
+            <Link
+              className="secondary-button"
+              href="/bom/workbench"
+              onClick={(event) => {
+                if (!dirty) return;
+                event.preventDefault();
+                setError("返回 BOM 清單前請先儲存或復原未儲存變更");
+              }}
+            >
+              返回 BOM 清單
+            </Link>
+          ) : null}
+          <button className="secondary-button" type="button" onClick={() => isEditorSurface && selectedDraft ? loadWorkbenchByDraft(selectedDraft.id) : loadBomRecords()} disabled={loading || bomListLoading}>
             <RotateCcw size={16} aria-hidden="true" />
             重新整理
           </button>
         </div>
       </header>
-
-      <WorkflowStrip
-        title="BOM 建立與整理"
-        description="以主件為中心整理 BOM 草稿，送審前先保存並確認差異與來源。"
-        steps={["選主件", "編輯 BOM", "送審", "發行", "交接"]}
-        currentStep="編輯 BOM"
-        actions={[
-          { href: "/bom/reviews", label: "去 BOM 審核", variant: "primary" },
-          { href: "/handoff", label: "看交接輸出" }
-        ]}
-      />
-
-      <LifecycleStageGuidance
-        activeStage="bom"
-        metrics={[
-          { label: "BOM 狀態", value: selectedDraft ? draftStageLabel(selectedDraft.status) : "無草稿", tone: selectedDraft ? "neutral" : "warning" },
-          { label: "項目", value: selectedDraft?.lines.length ?? 0 },
-          { label: "未儲存", value: dirty ? "是" : "否", tone: dirty ? "warning" : "success" },
-          { label: "待確認", value: openReconfirmationFlags.length, tone: openReconfirmationFlags.length > 0 ? "warning" : "success" }
-        ]}
-      />
 
       {(message || error) && (
         <div className={error ? "bom-workbench-alert error" : "bom-workbench-alert"}>
@@ -1165,156 +1281,119 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
       )}
 
       <div className="bom-workbench-layout">
-        <aside className="panel bom-library-panel" aria-label="料號與圖面搜尋">
-          <div className="panel-header">
-            <h2>料號 / 圖面</h2>
-            <Search size={16} aria-hidden="true" />
-          </div>
-          <div className="bom-panel-body">
-            <label className="bom-field">
-              <span>搜尋</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === "Enter" && runSearch()} placeholder="料號、圖號、品名" />
-            </label>
-            <div className="bom-inline-actions">
-              <button className="primary-button" type="button" onClick={runSearch} disabled={loading}>
-                <Search size={16} aria-hidden="true" />
-                搜尋
-              </button>
-              <button className="secondary-button" type="button" onClick={loadRecentSubmissions} disabled={loading}>
-                最近資料
-              </button>
-            </div>
-            <div className="bom-search-list" aria-label="搜尋結果">
-              {submissions.map((submission) => (
-                <div
-                  className={submission.id === selectedSubmission?.id ? "bom-search-result active" : "bom-search-result"}
-                  draggable
-                  key={submission.id}
-                  onDragStart={(event) => startSubmissionDrag(event, submission.id)}
-                  onDragEnd={() => setDraggedSubmissionId(null)}
-                >
-                  <span
-                    className="bom-search-drag-handle"
-                    draggable
-                    title="拖曳加入 BOM"
-                    aria-label={`拖曳加入 ${submission.part_number}`}
-                    onDragStart={(event) => startSubmissionDrag(event, submission.id)}
-                  >
-                    <GripVertical size={15} aria-hidden="true" />
-                  </span>
-                  <button type="button" draggable onDragStart={(event) => startSubmissionDrag(event, submission.id)} onClick={() => loadWorkbench(submission.id)}>
-                    <strong>{submission.part_number}</strong>
-                    <span>{submission.drawing_number} Rev {submission.revision}</span>
-                    <small>{submission.part_name || "未填品名"} · {formatStatusForUser(submission.status, "submission")}</small>
-                  </button>
-                  <button className="icon-button" type="button" onClick={() => addSubmissionAsLine(submission)} disabled={!selectedDraft || !isMutable} aria-label={`加入 ${submission.part_number}`}>
-                    <ArrowRight size={15} aria-hidden="true" />
-                  </button>
+        <section className="panel bom-tree-panel" aria-label={isEditorSurface ? "BOM 編輯器" : "BOM 清單工作區"}>
+          {isEditorSurface ? (
+            <div className="bom-editor-context" aria-label="BOM 基本資料">
+              <h2>{workbench ? `${workbench.parent_part_number} · BOM Rev ${selectedDraft?.bom_revision ?? workbench.parent_revision}` : "正在載入 BOM"}</h2>
+              <dl>
+                <div>
+                  <dt>主件</dt>
+                  <dd>{workbench?.parent_part_name ?? "載入中"}</dd>
                 </div>
-              ))}
-              {submissions.length === 0 && (
-                <NextStepState
-                  compact
-                  eyebrow="沒有可加入項目"
-                  title="目前沒有可加入 BOM 的圖料"
-                  body="輸入至少 2 個字搜尋，或回圖料模組確認主件與子件資料。"
-                  actions={[
-                    { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
-                    { href: "/upload", label: "上傳送審" }
-                  ]}
-                />
-              )}
+                <div>
+                  <dt>圖號</dt>
+                  <dd>{workbench?.parent_drawing_number ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>BOM 數</dt>
+                  <dd>{workbench?.drafts.length ?? 0}</dd>
+                </div>
+              </dl>
+              <ListTree size={17} aria-hidden="true" />
             </div>
-          </div>
-        </aside>
-
-        <section className="panel bom-tree-panel" aria-label="BOM 樹狀結構">
-          <div className="panel-header">
-            <h2>{workbench ? `${workbench.parent_part_number} Rev ${workbench.parent_revision}` : "尚未選擇組合件"}</h2>
-            <ListTree size={17} aria-hidden="true" />
-          </div>
+          ) : (
+            <div className="panel-header">
+              <h2>BOM 清單</h2>
+              <ListTree size={17} aria-hidden="true" />
+            </div>
+          )}
           <div className="bom-panel-body">
-            <div className="bom-parent-summary">
-              <div>
-                <span>主件</span>
-                <strong>{workbench?.parent_part_name ?? "請先選擇料號或圖面"}</strong>
-              </div>
-              <div>
-                <span>圖號</span>
-                <strong>{workbench?.parent_drawing_number ?? "-"}</strong>
-              </div>
-              <div>
-                <span>草稿數</span>
-                <strong>{workbench?.drafts.length ?? 0}</strong>
-              </div>
-            </div>
-
-            <div className="bom-draft-toolbar">
-              <select value={selectedDraft?.id ?? ""} onChange={(event) => loadDraft(event.target.value)} disabled={!workbench?.drafts.length || dirty}>
-                <option value="">選擇 BOM 草稿</option>
-                {workbench?.drafts.map((draft) => (
-                  <option value={draft.id} key={draft.id}>
-                    {draft.is_active ? "* " : ""}
-                    {draft.draft_name} · {draftStageLabel(draft.status)} · {draft.line_count} 項
-                  </option>
-                ))}
-              </select>
-              <button className="secondary-button" type="button" onClick={createCadDraft} disabled={!selectedSubmission || loading}>
-                <GitBranch size={16} aria-hidden="true" />
-                CAD 草稿
+            {!isEditorSurface ? <>
+            <div className="bom-work-list-toolbar">
+              <label className="bom-field bom-work-list-search">
+                <span>搜尋 BOM</span>
+                <div>
+                  <Search size={16} aria-hidden="true" />
+                  <input value={bomListQuery} onChange={(event) => setBomListQuery(event.target.value)} placeholder="料號、品名、BOM Rev" />
+                </div>
+              </label>
+              <label className="bom-field">
+                <span>BOM 狀態</span>
+                <select value={bomListStatus} onChange={(event) => setBomListStatus(event.target.value as "" | BomWorkbenchDraftStatus)}>
+                  <option value="">全部狀態</option>
+                  <option value="Draft">草稿</option>
+                  <option value="PendingReview">審核中</option>
+                  <option value="Rejected">已退回</option>
+                  <option value="Released">已發布</option>
+                  <option value="Obsolete">已作廢</option>
+                </select>
+              </label>
+              <button className="secondary-button" type="button" onClick={loadBomRecords} disabled={bomListLoading}>
+                <RotateCcw size={16} aria-hidden="true" />
+                重新整理
               </button>
-              <FileDropzone
-                accept=".xls,.xlsx,.csv,.tsv,.txt,.html"
-                disabled={!selectedSubmission || loading}
-                icon={<UploadCloud size={18} aria-hidden="true" />}
-                label="拖曳或選擇 XLS"
-                description="匯入 SolidWorks BOM"
-                variant="compact"
-                onFilesSelected={(selected) => {
-                  if (selected[0]) void importXlsFile(selected[0]);
-                }}
-                onReject={(reason) => {
-                  if (reason === "single_file_only") setError("BOM XLS 匯入一次只能選擇一個檔案");
-                }}
-              />
+              <a className="secondary-button" href="/bom/new">建立 BOM</a>
             </div>
 
-            <div className="bom-draft-strip" aria-label="草稿清單">
-              {workbench?.drafts.map((draft) => (
-                <button className={draft.id === selectedDraft?.id ? "bom-draft-chip active" : "bom-draft-chip"} type="button" onClick={() => loadDraft(draft.id)} disabled={dirty} key={draft.id}>
-                  <span>{draft.draft_name}</span>
-                  <small>{SOURCE_LABELS[draft.source]} · {draftStageLabel(draft.status)}{draft.is_active ? " · 目前使用" : ""}</small>
-                </button>
-              ))}
-            </div>
-
-            <details
-              className="master-attachment-deleted"
-              onToggle={(event) => {
-                if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedDrafts();
+            <PdmWorkbenchList
+              rows={bomRecords}
+              getRowKey={(draft) => draft.id}
+              selectedKey={selectedDraft?.id}
+              ariaLabel="BOM 清單"
+              className="bom-draft-strip bom-workbench-list-scroll"
+              tableClassName="bom-workbench-list-table"
+              rowDataAttribute="data-bom-workbench-row"
+              rowAriaKeyShortcuts="Enter Space"
+              loading={bomListLoading}
+              loadingState={<div className="empty">正在載入 BOM 清單...</div>}
+              emptyState={<div className="empty"><strong>目前沒有符合條件的 BOM</strong><p>請調整搜尋或狀態條件，或建立一份 BOM。</p></div>}
+              onRowKeyDown={(event, draft) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                openBomEditor(draft.id);
               }}
-            >
-              <summary>
-                <span>
-                  <History size={16} aria-hidden="true" />
-                  已刪除資料
-                </span>
-                <strong>{deletedLoaded ? deletedDrafts.length : "未載入"}</strong>
-              </summary>
-              <div className="master-attachment-deleted-body">
-                <div className="master-attachment-deleted-toolbar">
-                  <p>這裡只放尚未送審或發行的 BOM 草稿；審核中與正式 BOM 不在此還原。</p>
-                  <button className="secondary-button" type="button" onClick={() => void loadDeletedDrafts()} disabled={deletedLoading || !selectedSubmission}>
-                    <RotateCcw size={16} aria-hidden="true" />
-                    重新整理
-                  </button>
-                </div>
-                <DeletedBomDraftTable deletedDrafts={deletedDrafts} loading={deletedLoading || loading} onRestore={restoreDeletedDraft} />
-                {deletedLoading ? <div className="empty">正在載入已刪除 BOM 草稿...</div> : null}
-                {deletedLoaded && deletedDrafts.length === 0 ? <div className="empty">目前沒有已刪除 BOM 草稿</div> : null}
-              </div>
-            </details>
+              onOpenRow={(draft) => {
+                openBomEditor(draft.id);
+              }}
+              columns={[
+                {
+                  key: "partNumber",
+                  header: "料號",
+                  dataLabel: "料號",
+                  className: "bom-workbench-col-part",
+                  render: (draft) => (
+                    <button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); openBomEditor(draft.id); }}>
+                      <SearchHighlight value={draft.parent_part_number} query={bomListQuery} />
+                    </button>
+                  )
+                },
+                {
+                  key: "name",
+                  header: "品名 / BOM",
+                  dataLabel: "品名 / BOM",
+                  className: "bom-workbench-col-name",
+                  render: (draft) => <div><div className="pdm-identity-name"><SearchHighlight value={draft.parent_part_name || "未填品名"} query={bomListQuery} /></div><small className="pdm-identity-subline"><SearchHighlight value={draft.draft_name} query={bomListQuery} /></small></div>
+                },
+                {
+                  key: "revision",
+                  header: "BOM 定義",
+                  dataLabel: "BOM 定義",
+                  className: "bom-workbench-col-revision",
+                  render: (draft) => <div className="pdm-meta-strip"><strong>BOM Rev {draft.bom_revision ?? draft.parent_revision}</strong><span className="pdm-meta-chip">{draft.line_count} 項</span></div>
+                },
+                { key: "spacer", header: null, className: "bom-workbench-layout-spacer pdm-identity-layout-spacer", cellClassName: "bom-workbench-layout-spacer pdm-identity-layout-spacer", ariaHidden: true },
+                {
+                  key: "status",
+                  header: "工作狀態",
+                  dataLabel: "工作狀態",
+                  className: "bom-workbench-col-status",
+                  render: (draft) => <div className="pdm-meta-strip"><StatusBadge status={draft.status} context="bomDraft" highlightQuery={bomListQuery} />{draft.is_active ? <span className="pdm-meta-chip">目前使用</span> : null}</div>
+                }
+              ]}
+            />
+            </> : null}
 
+            {isEditorSurface ? <>
             <div className="bom-tree-toolbar">
               <button className="primary-button" type="button" onClick={saveDraft} disabled={!selectedDraft || !dirty || loading}>
                 <Save size={16} aria-hidden="true" />
@@ -1331,6 +1410,20 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
               <button className="secondary-button" type="button" onClick={addGroup} disabled={!selectedDraft || !isMutable || loading}>
                 <FolderPlus size={16} aria-hidden="true" />
                 新增群組
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setIsInsertItemOpen(true);
+                  setIsDetailOpen(true);
+                  void loadRecentSubmissions();
+                }}
+                disabled={!selectedDraft || !isMutable || loading}
+              >
+                <PackagePlus size={16} aria-hidden="true" />
+                插入料件
               </button>
               <button className="secondary-button" type="button" onClick={setActiveDraft} disabled={!selectedDraft || selectedDraft.is_active === 1 || loading}>
                 <CheckCircle2 size={16} aria-hidden="true" />
@@ -1374,29 +1467,129 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                 </ReactFlowProvider>
               ) : null}
               {rows.length === 0 && (
-                <div className="bom-tree-dropzone">
-                  <ListTree size={24} aria-hidden="true" />
-                  <span>建立草稿後，可從左側搜尋結果拖入子件，或匯入 SolidWorks BOM XLS。</span>
+                <div className="bom-empty-draft-state">
+                  {selectedSubmission ? (
+                    <>
+                      <div className="bom-empty-draft-copy">
+                        <span className="section-label">現在要做什麼</span>
+                        <h3>先建立一份 BOM 草稿</h3>
+                        <p>這個主件目前還沒有草稿。選一種資料來源後，系統會把內容載入中央畫布，接著再整理階層、版次與數量。</p>
+                      </div>
+                      <div className="bom-empty-draft-options">
+                        <a className="primary-button" href="/bom/new">
+                          建立 BOM
+                          <ArrowRight size={17} aria-hidden="true" />
+                        </a>
+                      </div>
+                      <p className="bom-empty-draft-note">先選擇料號與 BOM Rev，再從 CAD、SolidWorks XLS 或空白草稿開始。</p>
+                    </>
+                  ) : (
+                    <NextStepState
+                      compact
+                      eyebrow="尚未選擇 BOM"
+                      title="先從上方 BOM 清單選擇要續作的項目"
+                      body="草稿、審核中與已發布 BOM 都在同一份清單，依狀態標示。"
+                      actions={[{ href: "/bom/new", label: "建立 BOM", variant: "primary" }]}
+                    />
+                  )}
                 </div>
               )}
             </div>
+            </> : null}
           </div>
         </section>
 
       </div>
       <PdmDetailDrawer
-        open={isDetailOpen}
+        open={isEditorSurface && (isDetailOpen || isInsertItemOpen)}
         width={drawerWidth}
-        ariaLabel="BOM 節點屬性"
+        ariaLabel={isInsertItemOpen ? "插入料件" : "BOM 節點屬性"}
         resizeLabel="調整 BOM 節點屬性寬度"
         resizeTitle="拖曳調整 BOM 節點屬性寬度"
-        onClose={() => setIsDetailOpen(false)}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setIsInsertItemOpen(false);
+        }}
         onStartResize={startDrawerResize}
         className="bom-node-detail-drawer"
       >
-        <button className="icon-button pdm-detail-drawer-floating-close" type="button" aria-label="關閉 BOM 節點屬性" onClick={() => setIsDetailOpen(false)}>
+        <button
+          className="icon-button pdm-detail-drawer-floating-close"
+          type="button"
+          aria-label={isInsertItemOpen ? "關閉插入料件" : "關閉 BOM 節點屬性"}
+          onClick={() => {
+            setIsDetailOpen(false);
+            setIsInsertItemOpen(false);
+          }}
+        >
           ×
         </button>
+        {isInsertItemOpen ? (
+          <section className="panel bom-properties-panel bom-insert-item-panel" aria-label="插入料件">
+            <div className="panel-header">
+              <div>
+                <h2>插入料件</h2>
+                <p>{selectedLine?.node_type === "group" ? `加入群組：${selectedLine.group_name ?? "未命名群組"}` : "加入主件"}</p>
+              </div>
+              <PackagePlus size={16} aria-hidden="true" />
+            </div>
+            <div className="bom-panel-body">
+              <form
+                className="bom-insert-item-search"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void runSearch();
+                }}
+              >
+                <label className="bom-field" htmlFor="bom-insert-item-query">
+                  <span>搜尋料件</span>
+                  <input
+                    id="bom-insert-item-query"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="輸入料號、品名或圖號"
+                    autoFocus
+                  />
+                </label>
+                <button className="secondary-button" type="submit" disabled={loading}>
+                  <Search size={16} aria-hidden="true" />
+                  搜尋
+                </button>
+              </form>
+              <div className="bom-insert-item-list" role="listbox" aria-label="可插入料件">
+                {submissions.length > 0 ? (
+                  submissions.map((submission) => (
+                    <button
+                      className="bom-insert-item-option"
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      key={submission.id}
+                      aria-label={`插入 ${submission.part_number}`}
+                      onClick={() => {
+                        addSubmissionAsLine(submission);
+                        setIsInsertItemOpen(false);
+                        setIsDetailOpen(false);
+                      }}
+                      disabled={loading}
+                    >
+                      <span>
+                        <strong>{submission.part_number}</strong>
+                        <small>{submission.part_name || "未填品名"} · {submission.drawing_number || "未關聯圖號"}</small>
+                      </span>
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </button>
+                  ))
+                ) : (
+                  <div className="empty">
+                    <strong>找不到可插入的料件</strong>
+                    <p>請調整搜尋條件，或先建立可用的料件資料。</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        ) : (
         <div className="pdm-master-detail-panel pdm-master-detail-stack bom-node-detail-stack">
           <section className="panel bom-properties-panel" aria-label="節點屬性與送審">
             <div className="panel-header">
@@ -1563,85 +1756,14 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
             </div>
           </section>
         </div>
+        )}
       </PdmDetailDrawer>
     </section>
   );
 }
 
-function DeletedBomDraftTable({
-  deletedDrafts,
-  loading,
-  onRestore
-}: {
-  deletedDrafts: DeletedBomWorkbenchDraft[];
-  loading: boolean;
-  onRestore: (deleted: DeletedBomWorkbenchDraft) => void;
-}) {
-  if (deletedDrafts.length === 0) return null;
-  return (
-    <div className="table-wrap">
-      <table style={{ minWidth: "760px" }}>
-        <thead>
-          <tr>
-            <th>草稿</th>
-            <th>
-              <StatusColumnHeader context="bomDraft" />
-            </th>
-            <th>內容</th>
-            <th>
-              <StatusColumnHeader label="還原狀態" context="restorePolicy" />
-            </th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {deletedDrafts.map((deleted) => {
-            const restoreState = deleted.policy.actions.restore;
-            const canRestore = restoreState?.allowed === true;
-            return (
-              <tr key={deleted.draft.id}>
-                <td>
-                  <strong>{deleted.draft.draft_name}</strong>
-                  <p style={bomMutedTextStyle}>{SOURCE_LABELS[deleted.draft.source]} · {formatBomDateTime(deleted.draft.updated_at)}</p>
-                </td>
-                <td>
-                  <StatusBadge status={deleted.draft.status} context="bomDraft" />
-                  <span className="badge Rejected">{deleted.policy.stageLabel}</span>
-                  {deleted.policy.detailTags.map((tag) => (
-                    <span className={`badge ${tag === "可還原" ? "Released" : "Rejected"}`} key={`${deleted.draft.id}-${tag}`}>
-                      {tag}
-                    </span>
-                  ))}
-                </td>
-                <td>{deleted.draft.line_count} 項</td>
-                <td>
-                  <StatusBadge status={canRestore ? "restore_allowed" : "restore_blocked"} context="restorePolicy" />
-                  <p style={canRestore ? bomMutedTextStyle : bomIssueTextStyle}>{canRestore ? "可還原到 BOM 工作台" : restoreState?.message ?? "不可還原"}</p>
-                </td>
-                <td>
-                  <button className="secondary-button" type="button" onClick={() => onRestore(deleted)} disabled={!canRestore || loading}>
-                    <RotateCcw size={16} aria-hidden="true" />
-                    還原
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function draftStageLabel(status: BomWorkbenchDraftStatus) {
   return formatStatusForUser(status, "bomDraft");
-}
-
-function formatBomDateTime(value?: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
 }
 
 function makeId() {
@@ -1701,7 +1823,7 @@ function buildFlowElements(
   mutable: boolean
 ): { nodes: BomFlowNode[]; edges: Edge[] } {
   const rootLabel = workbench?.parent_part_number ?? "主組合";
-  const rootSubtitle = workbench ? `${workbench.parent_part_name || "未填品名"} · Rev ${workbench.parent_revision}` : "請先選擇主件";
+  const rootSubtitle = workbench ? workbench.parent_part_name || "未填品名" : "請先選擇主件";
   const nodes: BomFlowNode[] = [
     {
       id: ROOT_FLOW_NODE_ID,
@@ -1725,8 +1847,8 @@ function buildFlowElements(
     const line = row.line;
     const isGroup = line.node_type === "group";
     const label = isGroup ? line.group_name ?? "未命名群組" : line.part_number ?? "未填料號";
-    const subtitle = isGroup ? "Virtual group" : `${line.part_name ?? "未填品名"} · Rev ${line.revision ?? "-"}`;
-    const meta = isGroup ? `Level ${row.depth + 1}` : `Qty ${line.quantity ?? 1} · Level ${row.depth + 1}`;
+    const subtitle = isGroup ? "" : line.part_name ?? "未填品名";
+    const meta = "";
     nodes.push({
       id: line.id,
       type: "bomNode",

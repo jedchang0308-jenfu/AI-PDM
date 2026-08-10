@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
+import { SearchHighlight } from "@/components/search-highlight";
 import AccountInvitationsPage from "../account-invitations/page";
 import { ApprovalMatrixSettings } from "../page";
 
@@ -392,12 +393,12 @@ function AccountManagementPanel() {
                   }}
                 >
                   <td>
-                    <strong>{account.displayName}</strong>
-                    <small>{account.email ?? account.id}</small>
+                    <strong><SearchHighlight value={account.displayName} query={query} /></strong>
+                    <small><SearchHighlight value={account.email ?? account.id} query={query} /></small>
                   </td>
-                  <td>{roleLabel(account.role)}</td>
+                  <td><SearchHighlight value={roleLabel(account.role)} query={query} /></td>
                   <td>
-                    <span className={`account-status-pill is-${account.accountStatus}`}>{statusLabel(account.accountStatus)}</span>
+                    <span className={`account-status-pill is-${account.accountStatus}`}><SearchHighlight value={statusLabel(account.accountStatus)} query={query} /></span>
                     {!account.systemRoleEnabled ? <small>系統角色已關閉</small> : null}
                   </td>
                   <td>{account.activeIdentityCount} 個可登入方式</td>

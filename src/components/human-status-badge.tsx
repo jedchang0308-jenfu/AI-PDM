@@ -3,7 +3,7 @@
 import { AlertTriangle, Archive, Check, Clock3, Play } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { humanStatusDetail, humanStatusPrimaryLabel, type HumanStatusIcon, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { humanStatusDetail, humanStatusDisplayLabel, type HumanStatusIcon, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 
 const iconMap: Record<HumanStatusIcon, typeof AlertTriangle> = {
@@ -65,8 +65,7 @@ export function HumanStatusBadge({ status, viewerStatus, availabilityScope, clas
   }, [open]);
 
   if (!status) return null;
-  const viewerLabel = humanStatusPrimaryLabel(status, viewerStatus);
-  const primaryLabel = viewerStatus?.category === "usable" && availabilityScope?.label ? availabilityScope.label : viewerLabel;
+  const primaryLabel = humanStatusDisplayLabel(status, viewerStatus, availabilityScope?.label);
   const detail = humanStatusDetail(status, viewerStatus);
   const availabilityNeedsReview = viewerStatus?.category === "usable" && availabilityScope?.scope === "unknown";
   const Icon = availabilityNeedsReview ? AlertTriangle : iconMap[viewerStatus?.icon ?? status.icon];

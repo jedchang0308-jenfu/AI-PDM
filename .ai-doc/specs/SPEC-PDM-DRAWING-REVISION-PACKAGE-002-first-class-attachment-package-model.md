@@ -8,6 +8,10 @@ Related DEV: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`
 Related ADR: `.ai-doc/decisions/ADR-PDM-DRAWING-REVISION-PACKAGE-001-first-class-package-and-supplement.md`
 Related QA: `.ai-doc/qa/qa-pdm-drawing-revision-package-model-validation-plan-2026-07-06.md`
 
+> **2026-08-10 DEV-061 Amendment**
+>
+> 新 package write 改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理：每個首版／進版必須有且只能有一個 primary `.SLDDRW` 與一個 primary `.SLDPRT`／`.SLDASM`，缺件不再只是 warning。每版仍須重新上傳 3D，內容完全相同時系統共用 canonical asset。停止新增圖號一般參考附件與 post-release supplement write；既有 Released package、已核准補件與歷史稽核維持唯讀可追溯。本文衝突段落保留為歷史決策，不再支配新 write。
+
 Related authority:
 
 - `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-SUBMISSION-001-controlled-revision-package.md`

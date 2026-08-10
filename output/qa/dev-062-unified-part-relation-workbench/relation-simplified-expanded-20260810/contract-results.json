@@ -1,0 +1,280 @@
+{
+  "runId": "relation-simplified-expanded-20260810",
+  "passed": false,
+  "summary": {
+    "total": 32,
+    "passed": 3,
+    "failed": 29
+  },
+  "cases": [
+    {
+      "id": "CORE-01",
+      "passed": false,
+      "evidence": [
+        "core-results.json"
+      ]
+    },
+    {
+      "id": "CORE-02",
+      "passed": false,
+      "evidence": [
+        "core-results.json",
+        "part-results.json",
+        "relation-results.json"
+      ]
+    },
+    {
+      "id": "CORE-03",
+      "passed": false,
+      "evidence": [
+        "core-results.json"
+      ]
+    },
+    {
+      "id": "CORE-04",
+      "passed": false,
+      "evidence": [
+        "core-results.json"
+      ]
+    },
+    {
+      "id": "CORE-05",
+      "passed": false,
+      "evidence": [
+        "aggregate-results.json: drawing_read"
+      ]
+    },
+    {
+      "id": "CORE-06",
+      "passed": false,
+      "evidence": [
+        "aggregate-results.json: drawing_ui"
+      ]
+    },
+    {
+      "id": "CORE-07",
+      "passed": true,
+      "evidence": [
+        "report.json: race cases",
+        "network.json"
+      ]
+    },
+    {
+      "id": "CORE-08",
+      "passed": true,
+      "evidence": [
+        "report.json",
+        "before-after-hashes.json"
+      ]
+    },
+    {
+      "id": "CORE-09",
+      "passed": true,
+      "evidence": [
+        "accessibility/results.json",
+        "accessibility/relation-main.aria.yml"
+      ]
+    },
+    {
+      "id": "CORE-10",
+      "passed": false,
+      "evidence": [
+        "aggregate-results.json: drawing_read"
+      ]
+    },
+    {
+      "id": "PART-01",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-02",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-03",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-04",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-05",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-06",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-07",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-08",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-09",
+      "passed": false,
+      "evidence": [
+        "part-results.json",
+        "capability-parity.md",
+        "report.json"
+      ]
+    },
+    {
+      "id": "PART-10",
+      "passed": false,
+      "evidence": [
+        "query-budget.json"
+      ]
+    },
+    {
+      "id": "REL-01",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-02",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-03",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-04",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-05",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-06",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-07",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-08",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-09",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-10",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-11",
+      "passed": false,
+      "evidence": [
+        "relation-results.json",
+        "capability-parity.md",
+        "aggregate-results.json: relation_regression"
+      ]
+    },
+    {
+      "id": "REL-12",
+      "passed": false,
+      "evidence": [
+        "query-budget.json"
+      ]
+    }
+  ]
+}

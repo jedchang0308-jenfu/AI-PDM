@@ -1,0 +1,482 @@
+{
+  "runId": "DEV059-20260809-160315-isolated",
+  "startedAt": "2026-08-09T16:03:15.488Z",
+  "finishedAt": "2026-08-09T16:04:25.245Z",
+  "result": "failed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 4,
+  "failed": 2,
+  "results": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "43bd8d11-6b36-4d9d-8d82-7147a5b2d1ab",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "76d91329-4a5a-4535-883b-9da5fbe9dc9c",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "9435174b-ac6a-4092-8195-29be218ac57e",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-44cc190d-13eb-490b-845b-d37147943b4c",
+          "revision": "0.1",
+          "row_version": 2,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-6980aa29-2fca-4896-ad78-675e813c04fd",
+            "display_name": "qa-dev059-primary.pdf",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-7ad05b55-fcb4-4aee-8813-c918e0c3ec8d",
+            "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+            "file_size": 118
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    },
+    {
+      "id": "DEV059-REAL-ROUTE close actions are independent, local and zero-write",
+      "passed": true,
+      "detail": {
+        "cases": [
+          {
+            "action": "X",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5"
+          },
+          {
+            "action": "return",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5"
+          },
+          {
+            "action": "escape",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5"
+          },
+          {
+            "action": "coordinate",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5"
+          },
+          {
+            "action": "double-click",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5"
+          }
+        ],
+        "beforeHash": "78c54af11b34965bf487db6708da3039c7e4288cc82ca139e320ffc636fe5a1b",
+        "afterHash": "78c54af11b34965bf487db6708da3039c7e4288cc82ca139e320ffc636fe5a1b"
+      }
+    },
+    {
+      "id": "DEV059-WRITE-002 double activation creates one pending review request",
+      "passed": true,
+      "detail": {
+        "successSubmit": {
+          "status": 200,
+          "modalCount": 0
+        },
+        "successRequest": {
+          "id": "APR-0ff0a8be-2754-4fe9-b662-33bceac02d55",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "submitRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "43bd8d11-6b36-4d9d-8d82-7147a5b2d1ab",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "76d91329-4a5a-4535-883b-9da5fbe9dc9c",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "9435174b-ac6a-4092-8195-29be218ac57e",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-44cc190d-13eb-490b-845b-d37147943b4c",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-6980aa29-2fca-4896-ad78-675e813c04fd",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-7ad05b55-fcb4-4aee-8813-c918e0c3ec8d",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-0ff0a8be-2754-4fe9-b662-33bceac02d55",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "43bd8d11-6b36-4d9d-8d82-7147a5b2d1ab",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "76d91329-4a5a-4535-883b-9da5fbe9dc9c",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "9435174b-ac6a-4092-8195-29be218ac57e",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-44cc190d-13eb-490b-845b-d37147943b4c",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-6980aa29-2fca-4896-ad78-675e813c04fd",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-7ad05b55-fcb4-4aee-8813-c918e0c3ec8d",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-0ff0a8be-2754-4fe9-b662-33bceac02d55",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-001 planned 503 remains locally recoverable",
+      "passed": false,
+      "detail": {
+        "status": 503,
+        "modalCount": 0,
+        "faultErrorVisible": false,
+        "faultRequest": null
+      }
+    },
+    {
+      "id": "DEV059-REAL-RUNNER",
+      "passed": false,
+      "detail": {
+        "message": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('aside[data-entity-type=\"candidate_bundle\"]').getByRole('button', { name: '撤回審核', exact: true }) to be visible\u001b[22m\n",
+        "stack": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('aside[data-entity-type=\"candidate_bundle\"]').getByRole('button', { name: '撤回審核', exact: true }) to be visible\u001b[22m\n\n    at withdrawAndCancel (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:298:24)\n    at async run (C:\\VIBE CODING\\AI_PDM\\scripts\\qc-dev-059-candidate-submit-modal-real-operation.mjs:413:3)\n    at async file:///C:/VIBE%20CODING/AI_PDM/scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs:444:3",
+        "serverTail": "ts: 6ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 58ms (next.js: 26ms, proxy.ts: 6ms, application-code: 27ms)\n GET /api/auth/me 200 in 72ms (next.js: 52ms, proxy.ts: 10ms, application-code: 11ms)\n GET /api/numbering/state-flow/status 200 in 77ms (next.js: 64ms, proxy.ts: 7ms, application-code: 7ms)\n GET /api/privacy/acknowledgements/current 200 in 84ms (next.js: 73ms, proxy.ts: 6ms, application-code: 5ms)\n GET /api/production-slice/status 200 in 62ms (next.js: 47ms, proxy.ts: 8ms, application-code: 8ms)\n GET /api/numbering/permissions 200 in 95ms (next.js: 57ms, proxy.ts: 7ms, application-code: 31ms)\n GET /api/auth/me 200 in 110ms (next.js: 85ms, proxy.ts: 12ms, application-code: 13ms)\n GET /api/numbering/state-flow/status 200 in 114ms (next.js: 100ms, proxy.ts: 9ms, application-code: 6ms)\n GET /api/auth/me 200 in 131ms (next.js: 108ms, proxy.ts: 8ms, application-code: 15ms)\n GET /api/numbering/state-flow/status 200 in 139ms (next.js: 125ms, proxy.ts: 8ms, application-code: 6ms)\n GET /api/production-slice/status 200 in 27ms (next.js: 12ms, proxy.ts: 9ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 59ms (next.js: 21ms, proxy.ts: 9ms, application-code: 29ms)\n GET /api/numbering/state-flow/status 200 in 70ms (next.js: 54ms, proxy.ts: 8ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 106ms (next.js: 65ms, proxy.ts: 8ms, application-code: 33ms)\n GET /api/production-slice/status 200 in 114ms (next.js: 100ms, proxy.ts: 8ms, application-code: 6ms)\n GET /api/numbering/state-flow/status 200 in 123ms (next.js: 109ms, proxy.ts: 8ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 51ms (next.js: 11ms, proxy.ts: 7ms, application-code: 33ms)\n GET /api/production-slice/status 200 in 60ms (next.js: 46ms, proxy.ts: 7ms, application-code: 6ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 75ms (next.js: 54ms, proxy.ts: 7ms, application-code: 14ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5 200 in 104ms (next.js: 81ms, proxy.ts: 7ms, application-code: 15ms)\n POST /api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/withdraw-bundle-review 200 in 1484ms (next.js: 1459ms, proxy.ts: 3ms, application-code: 22ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 20ms (next.js: 4ms, proxy.ts: 3ms, application-code: 13ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5 200 in 52ms (next.js: 30ms, proxy.ts: 4ms, application-code: 18ms)\n POST /api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/cancel 200 in 1188ms (next.js: 1158ms, proxy.ts: 3ms, application-code: 27ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 23ms (next.js: 4ms, proxy.ts: 4ms, application-code: 15ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5 200 in 52ms (next.js: 33ms, proxy.ts: 4ms, application-code: 15ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=include 200 in 21ms (next.js: 4ms, proxy.ts: 3ms, application-code: 14ms)\n GET /numbering/drawings?view=all 200 in 65ms (next.js: 7ms, proxy.ts: 3ms, application-code: 55ms)\n GET /api/numbering/permissions 200 in 49ms (next.js: 10ms, proxy.ts: 6ms, application-code: 33ms)\n GET /api/production-slice/status 200 in 60ms (next.js: 48ms, proxy.ts: 7ms, application-code: 6ms)\n GET /api/auth/me 200 in 73ms (next.js: 54ms, proxy.ts: 7ms, application-code: 12ms)\n GET /api/numbering/state-flow/status 200 in 78ms (next.js: 69ms, proxy.ts: 3ms, application-code: 6ms)\n GET /api/privacy/acknowledgements/current 200 in 86ms (next.js: 77ms, proxy.ts: 3ms, application-code: 6ms)\n GET /api/production-slice/status 200 in 30ms (next.js: 17ms, proxy.ts: 7ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 62ms (next.js: 26ms, proxy.ts: 6ms, application-code: 29ms)\n GET /api/auth/me 200 in 75ms (next.js: 54ms, proxy.ts: 9ms, application-code: 12ms)\n GET /api/numbering/state-flow/status 200 in 80ms (next.js: 68ms, proxy.ts: 6ms, application-code: 6ms)\n GET /api/auth/me 200 in 94ms (next.js: 76ms, proxy.ts: 6ms, application-code: 12ms)\n GET /api/numbering/state-flow/status 200 in 123ms (next.js: 110ms, proxy.ts: 6ms, application-code: 7ms)\n GET /api/production-slice/status 200 in 53ms (next.js: 22ms, proxy.ts: 24ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 83ms (next.js: 31ms, proxy.ts: 24ms, application-code: 28ms)\n GET /api/numbering/state-flow/status 200 in 107ms (next.js: 60ms, proxy.ts: 14ms, application-code: 32ms)\n GET /api/numbering/permissions 200 in 135ms (next.js: 94ms, proxy.ts: 15ms, application-code: 26ms)\n GET /api/production-slice/status 200 in 142ms (next.js: 122ms, proxy.ts: 15ms, application-code: 6ms)\n GET /api/numbering/state-flow/status 200 in 141ms (next.js: 133ms, proxy.ts: 4ms, application-code: 4ms)\n GET /api/numbering/permissions 200 in 48ms (next.js: 7ms, proxy.ts: 14ms, application-code: 27ms)\n GET /api/production-slice/status 200 in 55ms (next.js: 36ms, proxy.ts: 13ms, application-code: 6ms)\n GET /api/numbering/drawings/workbench?view=all&limit=50&history=exclude 200 in 70ms (next.js: 45ms, proxy.ts: 13ms, application-code: 13ms)\n GET /api/numbering/draft-workspaces/preview?purposeCode=M 200 in 20ms (next.js: 5ms, proxy.ts: 3ms, application-code: 12ms)\n GET /api/numbering/draft-workspaces/preview?purposeCode=M 200 in 19ms (next.js: 5ms, proxy.ts: 3ms, application-code: 11ms)\n POST /api/numbering/duplicate-check 200 in 22ms (next.js: 3ms, proxy.ts: 4ms, application-code: 15ms)\n POST /api/numbering/draft-workspaces 201 in 41ms (next.js: 4ms, proxy.ts: 3ms, application-code: 34ms)\n GET /numbering/drawings?view=work&detail=candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 57ms (next.js: 6ms, proxy.ts: 3ms, application-code: 48ms)\n GET /api/production-slice/status 200 in 28ms (next.js: 16ms, proxy.ts: 6ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 55ms (next.js: 24ms, proxy.ts: 6ms, application-code: 26ms)\n GET /api/auth/me 200 in 69ms (next.js: 49ms, proxy.ts: 9ms, application-code: 11ms)\n GET /api/numbering/state-flow/status 200 in 73ms (next.js: 62ms, proxy.ts: 5ms, application-code: 6ms)\n GET /api/privacy/acknowledgements/current 200 in 80ms (next.js: 70ms, proxy.ts: 5ms, application-code: 5ms)\n GET /api/production-slice/status 200 in 40ms (next.js: 23ms, proxy.ts: 9ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 110ms (next.js: 33ms, proxy.ts: 8ms, application-code: 69ms)\n GET /api/auth/me 200 in 139ms (next.js: 104ms, proxy.ts: 13ms, application-code: 23ms)\n GET /api/numbering/state-flow/status 200 in 153ms (next.js: 136ms, proxy.ts: 8ms, application-code: 9ms)\n GET /api/auth/me 200 in 179ms (next.js: 152ms, proxy.ts: 10ms, application-code: 17ms)\n GET /api/numbering/state-flow/status 200 in 183ms (next.js: 170ms, proxy.ts: 6ms, application-code: 8ms)\n GET /api/production-slice/status 200 in 82ms (next.js: 52ms, proxy.ts: 23ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 115ms (next.js: 61ms, proxy.ts: 21ms, application-code: 34ms)\n GET /api/numbering/state-flow/status 200 in 76ms (next.js: 61ms, proxy.ts: 8ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 107ms (next.js: 70ms, proxy.ts: 8ms, application-code: 29ms)\n GET /api/production-slice/status 200 in 114ms (next.js: 101ms, proxy.ts: 7ms, application-code: 5ms)\n GET /api/numbering/state-flow/status 200 in 121ms (next.js: 110ms, proxy.ts: 7ms, application-code: 5ms)\n GET /api/numbering/permissions 200 in 103ms (next.js: 71ms, proxy.ts: 4ms, application-code: 28ms)\n GET /api/production-slice/status 200 in 111ms (next.js: 52ms, proxy.ts: 54ms, application-code: 5ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 65ms (next.js: 48ms, proxy.ts: 5ms, application-code: 12ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 90ms (next.js: 72ms, proxy.ts: 4ms, application-code: 14ms)\n POST /api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions 201 in 36ms (next.js: 14ms, proxy.ts: 3ms, application-code: 19ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 22ms (next.js: 4ms, proxy.ts: 4ms, application-code: 14ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 44ms (next.js: 26ms, proxy.ts: 4ms, application-code: 14ms)\n POST /api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions/NCR-e98234b9-9244-427f-b75c-31dc2a014b00/files 201 in 46ms (next.js: 14ms, proxy.ts: 3ms, application-code: 29ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 26ms (next.js: 5ms, proxy.ts: 4ms, application-code: 17ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 75ms (next.js: 50ms, proxy.ts: 5ms, application-code: 20ms)\n[browser] ⨯ unhandledRejection: TypeError: body.error?.trim is not a function\n    at apiMessage (file://C:/VIBE CODING/AI_PDM/.tmp/q59-4773e8b5/dev/static/chunks/src_components_drawing-workbench_tsx_0m3wxo1._.js:57:48)\n    at runWorkspaceAction (file://C:/VIBE CODING/AI_PDM/.tmp/q59-4773e8b5/dev/static/chunks/src_components_drawing-workbench_tsx_0m3wxo1._.js:516:22)\n GET /numbering/drawings?view=work&detail=candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 64ms (next.js: 7ms, proxy.ts: 3ms, application-code: 55ms)\n GET /api/production-slice/status 200 in 28ms (next.js: 16ms, proxy.ts: 7ms, application-code: 5ms)\n GET /api/numbering/permissions 200 in 54ms (next.js: 21ms, proxy.ts: 8ms, application-code: 26ms)\n GET /api/auth/me 200 in 71ms (next.js: 46ms, proxy.ts: 11ms, application-code: 14ms)\n GET /api/numbering/state-flow/status 200 in 72ms (next.js: 62ms, proxy.ts: 6ms, application-code: 5ms)\n GET /api/privacy/acknowledgements/current 200 in 79ms (next.js: 69ms, proxy.ts: 5ms, application-code: 5ms)\n GET /api/production-slice/status 200 in 31ms (next.js: 17ms, proxy.ts: 8ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 62ms (next.js: 25ms, proxy.ts: 7ms, application-code: 31ms)\n GET /api/auth/me 200 in 79ms (next.js: 59ms, proxy.ts: 7ms, application-code: 13ms)\n GET /api/numbering/state-flow/status 200 in 88ms (next.js: 72ms, proxy.ts: 10ms, application-code: 6ms)\n GET /api/auth/me 200 in 101ms (next.js: 82ms, proxy.ts: 6ms, application-code: 13ms)\n GET /api/numbering/state-flow/status 200 in 111ms (next.js: 97ms, proxy.ts: 6ms, application-code: 8ms)\n GET /api/production-slice/status 200 in 59ms (next.js: 20ms, proxy.ts: 31ms, application-code: 7ms)\n GET /api/numbering/permissions 200 in 90ms (next.js: 29ms, proxy.ts: 31ms, application-code: 30ms)\n GET /api/numbering/state-flow/status 200 in 69ms (next.js: 55ms, proxy.ts: 7ms, application-code: 6ms)\n GET /api/numbering/permissions 200 in 99ms (next.js: 64ms, proxy.ts: 7ms, application-code: 29ms)\n GET /api/production-slice/status 200 in 107ms (next.js: 95ms, proxy.ts: 6ms, application-code: 5ms)\n GET /api/numbering/state-flow/status 200 in 118ms (next.js: 107ms, proxy.ts: 7ms, application-code: 4ms)\n GET /api/numbering/permissions 200 in 51ms (next.js: 9ms, proxy.ts: 15ms, application-code: 27ms)\n GET /api/production-slice/status 200 in 59ms (next.js: 41ms, proxy.ts: 13ms, application-code: 4ms)\n GET /api/numbering/drawings/workbench?view=work&limit=50&history=exclude 200 in 67ms (next.js: 48ms, proxy.ts: 6ms, application-code: 13ms)\n GET /api/numbering/drawings/workbench/candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c 200 in 95ms (next.js: 75ms, proxy.ts: 6ms, application-code: 15ms)\n"
+      }
+    }
+  ],
+  "screenshots": [
+    "screenshots/DEV059-modal-close-recovery-1440x900.png",
+    "screenshots/DEV059-success-in-review-1440x900.png",
+    "screenshots/DEV059-planned-503-recovery-1440x900.png"
+  ],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:3a7ccec8-a8b6-4f7d-a455-5b1e3eace63f"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-f3ed59bf-01df-4c27-be99-3988ddc56337:3cf6f08f-acd7-4dde-993d-4f99ddc91fdf"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/candidate-revisions/NCR-44cc190d-13eb-490b-845b-d37147943b4c/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-44cc190d-13eb-490b-845b-d37147943b4c:qa-dev059-primary.pdf:118:1786291395491:87e9f608-8369-449f-8810-2d9bc85a4efd"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/candidate-revisions/NCR-44cc190d-13eb-490b-845b-d37147943b4c/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/submit-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:submit:e7ca17fc-e743-45d3-a26d-82a5c830b00e"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/submit-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:40aace8c-a380-42c2-ac97-a08d32298abc"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:c68ab1bd-8f18-4202-9116-586511f445ef"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-69498fc0-9b9f-48f3-83a8-d675a6e42bf5/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:6b61d316-e3bf-4744-a0b6-7bfdb87000b8"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-fe6ab4ff-e59c-4d76-9d52-694fd091e008:94aed8e6-03f8-49ff-b6a7-da0b0f81c393"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions/NCR-e98234b9-9244-427f-b75c-31dc2a014b00/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-e98234b9-9244-427f-b75c-31dc2a014b00:qa-dev059-primary.pdf:118:1786291395491:9c9a4c1e-5c67-4977-850a-7811a1c682b7"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/candidate-revisions/NCR-e98234b9-9244-427f-b75c-31dc2a014b00/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/submit-bundle-review",
+      "fault": "503",
+      "idempotencyKey": "dev053:submit:f94f1367-a139-424a-ad1c-c4c64368db41"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/submit-bundle-review",
+      "status": 503,
+      "fault": "503"
+    }
+  ],
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c",
+      "fault": "503"
+    },
+    {
+      "type": "pageerror",
+      "text": "body.error?.trim is not a function",
+      "url": "http://127.0.0.1:57748/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-3f94f62d-e07f-48b2-8023-86370891674c",
+      "fault": "503"
+    }
+  ],
+  "unexpectedBrowserErrors": [],
+  "plannedFaults": [
+    {
+      "mode": "503",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-3f94f62d-e07f-48b2-8023-86370891674c/submit-bundle-review"
+    }
+  ],
+  "visibleErrors": []
+}

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalJsonStringify } from "@/lib/canonical-json";
 import type { PdmCommand } from "@/lib/platform-command";
 
 type CommandReceiptRow = {
@@ -54,20 +55,8 @@ type CommandReceiptEnvelope<TResult = unknown> = {
   result?: TResult;
 };
 
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonicalValue(nested)])
-    );
-  }
-  return value;
-}
-
 function idempotencyPayloadHash(payload: unknown) {
-  return crypto.createHash("sha256").update(JSON.stringify(canonicalValue(payload))).digest("hex");
+  return crypto.createHash("sha256").update(canonicalJsonStringify(payload)).digest("hex");
 }
 
 function receiptEnvelope<TResult>(value: unknown): CommandReceiptEnvelope<TResult> | null {

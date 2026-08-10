@@ -1,0 +1,56 @@
+{
+  "staticGates": {
+    "typecheck": "PASS",
+    "qc:pdm-entity-detail-drawer": "PASS 41/41",
+    "qc:pdm-number-state-flow-ui": "PASS 8/8",
+    "qc:dev-053:ui": "PASS 23/23",
+    "scopedEslint": "PASS 0 errors; 2 warnings in master-attachment-panel.tsx"
+  },
+  "sharedContract": {
+    "candidateComponentCount": 1,
+    "formalComponentCount": 1,
+    "componentSelector": "[data-component=\"drawing-workspace-drawer\"]",
+    "detailFamily": "drawing_number",
+    "sectionOrder": [
+      "drawing-overview",
+      "drawing-revision-files",
+      "drawing-preview",
+      "drawing-pending",
+      "drawing-more"
+    ],
+    "candidateEditorVisibleWithoutExtraNavigation": true,
+    "visiblePrepareFirstDrawingNavigationCount": 0,
+    "candidateHeaderPrimaryCount": 0,
+    "formalHeaderPrimaryCount": 1
+  },
+  "viewports": {
+    "1440x900": {
+      "candidate": {"horizontalOverflow": false, "visibleErrors": [], "scrollOwner": "number-state-drawer-body"},
+      "formal": {"horizontalOverflow": false, "visibleErrors": [], "scrollOwner": "pdm-entity-drawer-body"}
+    },
+    "1024x768": {
+      "candidate": {"horizontalOverflow": false, "visibleErrors": [], "scrollOwner": "number-state-drawer-body"},
+      "formal": {"horizontalOverflow": false, "visibleErrors": [], "scrollOwner": "pdm-entity-drawer-body"}
+    },
+    "390x844": {
+      "candidate": {"horizontalOverflow": false, "interactiveOutsideViewportX": 0, "visibleErrors": [], "editorVisible": true},
+      "formal": {"horizontalOverflow": false, "interactiveOutsideViewportX": 0, "visibleErrors": [], "headerPrimaryCount": 1}
+    }
+  },
+  "cancelSafety": {
+    "role": "alertdialog",
+    "impactSummaryVisible": true,
+    "buttons": ["關閉確認", "返回檢查", "確認取消保留號"],
+    "dismissedWithEscape": true,
+    "mutationConfirmed": false
+  },
+  "runtimeSweep": {
+    "inlineErrors": [],
+    "roleAlertText": [],
+    "visibleHttp4xx5xx": [],
+    "visibleApiRouteErrors": [],
+    "consoleErrorsOrWarnings": [],
+    "browserNetworkStatusCapture": "NOT SUFFICIENTLY VERIFIED: the in-app Browser surface did not expose response-status telemetry",
+    "unauthenticatedDirectProbe": "Protected endpoints returned 401 without the browser session and were excluded from product-failure findings"
+  }
+}

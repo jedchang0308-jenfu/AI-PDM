@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
+import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { AlertTriangle, ArrowLeft, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
 import { formatBytes } from "@/lib/format-file-size";
@@ -13,7 +14,6 @@ import {
   inferRevisionPackageRole,
   revisionPackageRoleLabel,
   revisionPackageRoleOptions,
-  revisionPackageRoleToDocumentCategory,
   type RevisionPackageFileRole,
   type RevisionPackageWarning
 } from "@/lib/revision-package";
@@ -471,11 +471,11 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     for (const pending of pendingUploadFiles) {
       const form = new FormData();
       form.append("file", pending.file);
-      form.append("document_category", revisionPackageRoleToDocumentCategory(pending.role));
+      form.append("role", pending.role);
       form.append("revision", revision.trim());
       form.append("display_name", pending.file.name);
       form.append("description", `從圖面進版工作台補上新版圖面附件；版次包類別：${revisionPackageRoleLabel(pending.role)}。`);
-      const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(resolved.drawing.drawingNumber)}/attachments`, {
+      const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(resolved.drawing.drawingNumber)}/revision-files`, {
         method: "POST",
         body: form
       });
@@ -496,7 +496,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         ...current,
         ...Object.fromEntries(uploaded.map((item) => [item.id, item.role]))
       }));
-      setMessage(`已將 ${uploaded.length} 個版次 ${revision.trim() || "-"} 檔案加入圖號附件庫，並選入本次進版送審。`);
+      setMessage(`已將 ${uploaded.length} 個版次 ${revision.trim() || "-"} 原始檔加入受控進版包，並選入本次送審。`);
       await loadSubmissionContext(resolved.drawing.drawingNumber, revision.trim(), {
         preserveSelection: true,
         selectAttachmentIds: uploaded.map((item) => item.id)
@@ -517,25 +517,28 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   function addPendingUploadFiles(files: File[]) {
     setError("");
     setErrorGuidance(null);
+    const uploadableRoles = new Set(["drawing_2d", "cad_3d", "intermediate", "pdf", "dwg_dxf"]);
+    const unsupported = files.filter((file) => !uploadableRoles.has(inferRevisionPackageRole(file.name)));
+    if (unsupported.length > 0) {
+      setError(`不支援的圖面格式：${unsupported.map((file) => file.name).join("、")}。可上傳 SLDDRW、SLDPRT、SLDASM、PDF、DWG/DXF、STEP/STP、IGES/IGS/IGF、X_T/X_B、SAT、STL 或 JT。`);
+    }
     setPendingUploadFiles((current) => {
       const seen = new Set(current.map((item) => item.key));
       const next = [...current];
       for (const file of files) {
+        const role = inferRevisionPackageRole(file.name);
+        if (!uploadableRoles.has(role)) continue;
         const key = pendingUploadFileKey(file);
         if (seen.has(key)) continue;
         seen.add(key);
         next.push({
           key,
           file,
-          role: inferRevisionPackageRole(file.name)
+          role
         });
       }
       return next;
     });
-  }
-
-  function updatePendingUploadRole(key: string, role: RevisionPackageFileRole) {
-    setPendingUploadFiles((current) => current.map((item) => (item.key === key ? { ...item, role } : item)));
   }
 
   function removePendingUploadFile(key: string) {
@@ -786,7 +789,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
             </span>
           </div>
         ) : null}
-        {resolved?.status === "ambiguous_query" ? <CandidateList candidates={resolved.candidates} onPick={pickCandidate} /> : null}
+        {resolved?.status === "ambiguous_query" ? <CandidateList candidates={resolved.candidates} query={query} onPick={pickCandidate} /> : null}
         {resolved && !resolved.drawing && resolved.status !== "ambiguous_query" ? <p style={errorTextStyle}>{resolveStatusMessage(resolved)}</p> : null}
       </section>
 
@@ -809,6 +812,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
                 <FileDropzone
                   label="上傳版次檔案包"
                   description="選擇本次送審檔案"
+                  accept=".SLDDRW,.SLDPRT,.SLDASM,.PDF,.DWG,.DXF,.STEP,.STP,.IGES,.IGS,.IGF,.X_T,.X_B,.SAT,.STL,.JT"
                   multiple
                   selectedFiles={pendingUploadFiles.map((item) => item.file)}
                   variant="compact"
@@ -840,7 +844,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
                 disabled={pendingUploadFiles.length === 0 || !canUploadRevisionAttachment}
               >
                 {attachmentBusy ? <Loader2 size={16} /> : <UploadCloud size={16} />}
-                加入附件庫
+                加入受控進版包
               </button>
             </div>
 
@@ -855,21 +859,10 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
                       <strong>{pending.file.name}</strong>
                       <span style={mutedTextStyle}>{formatBytes(pending.file.size)}</span>
                     </span>
-                    <label style={packageRoleControlStyle}>
-                      <span style={fieldLabelStyle}>類別</span>
-                      <select
-                        className="dropdown-select"
-                        value={pending.role}
-                        onChange={(event) => updatePendingUploadRole(pending.key, event.target.value as RevisionPackageFileRole)}
-                        disabled={attachmentBusy}
-                      >
-                        {revisionPackageRoleOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <span style={attachmentInfoStyle}>
+                      <strong>{revisionPackageRoleLabel(pending.role)}</strong>
+                      <span style={mutedTextStyle}>類別由副檔名判定，不可手動改類別</span>
+                    </span>
                     <button className="secondary-button" type="button" disabled={attachmentBusy} onClick={() => removePendingUploadFile(pending.key)}>
                       移除
                     </button>
@@ -1224,13 +1217,13 @@ function ResolvedSummary({ result, selectedPartIds }: { result: ResolveResult; s
   );
 }
 
-function CandidateList({ candidates, onPick }: { candidates: ResolvedDrawing[]; onPick: (drawingNumber: string) => void }) {
+function CandidateList({ candidates, query, onPick }: { candidates: ResolvedDrawing[]; query: string; onPick: (drawingNumber: string) => void }) {
   return (
     <div style={candidateListStyle}>
       <strong>找到多筆可能圖號，請選一筆：</strong>
       {candidates.map((candidate) => (
         <button className="secondary-button" key={candidate.id} type="button" onClick={() => onPick(candidate.drawingNumber)}>
-          {candidate.drawingNumber}
+          <SearchHighlight value={candidate.drawingNumber} query={query} />
         </button>
       ))}
     </div>

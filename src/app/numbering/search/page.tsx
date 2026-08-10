@@ -9,20 +9,24 @@ import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { SearchHighlight } from "@/components/search-highlight";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+import { RelationWorkbench } from "@/components/relation-workbench";
 import { HumanStatusBadge } from "@/components/human-status-badge";
+import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { DrawingDetailContent, type DrawingDetail, type DrawingWorkbenchCapabilities } from "@/components/drawing-workbench";
-import { PartDetailPanel, type PartDetail } from "@/app/parts/page";
+import { PartDetailPanel, type PartDetail } from "@/components/part-detail-content";
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
 import { StatusBadge } from "@/components/status-help-popover";
-import { HUMAN_STATUS_FILTER_OPTIONS, isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { resolveNumberingSearchDetailTarget, shouldDeferNumberingSearchShortcut, type NumberingSearchDetailTarget } from "@/lib/numbering-search-target";
 import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
+import type { RelationActiveChange } from "@/lib/relation-workbench";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type RelationViewMode = "tree" | "matrix";
@@ -257,11 +261,37 @@ type DrawingPartRelationRoot = {
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   relationshipHealth: "complete" | "missing_manufacturing_drawing" | "missing_part" | "ambiguous" | "blocked" | "draft";
+  relationshipLabel: string;
   nextStep: { label: string; target?: string; severity: RelationSeverity };
   drawings: DrawingPartRelationDrawing[];
   parts: DrawingPartRelationPart[];
   matrix: DrawingPartRelationCell[];
   blockers: Array<{ code: string; message: string; target: "root" | "drawing" | "part" | "relationship"; targetId?: string }>;
+  changeReviews: DrawingPartRelationChangeReview[];
+};
+
+type DrawingPartRelationChangeReview = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  summary: string;
+  drawings: Array<{
+    id: string;
+    drawingNumber: string;
+    purposeLabel: "製造圖" | "參考圖";
+    isReferenceOnly: boolean;
+    reviewAvailabilityLabel: string;
+    linkedPartNumbers: string[];
+    nextStep: string;
+  }>;
+  parts: Array<{
+    id: string;
+    partNumber: string;
+    partName: string;
+    role: string;
+    roleByDrawing: Record<string, string>;
+    hasManufacturingDrawing: boolean;
+  }>;
 };
 
 type DrawingPartRelationDrawing = {
@@ -349,6 +379,43 @@ function hasSelectedText() {
 }
 
 export default function NumberingSearchPage() {
+  const [workbenchEnabled, setWorkbenchEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/numbering/state-flow/status", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: { partRelationWorkbench?: { enabled?: boolean } }) => {
+        if (!cancelled) setWorkbenchEnabled(body.partRelationWorkbench?.enabled === true);
+      })
+      .catch(() => { if (!cancelled) setWorkbenchEnabled(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (workbenchEnabled === null) return <section className="panel"><div className="empty">正在確認圖料工作台狀態...</div></section>;
+  if (!workbenchEnabled) return <LegacyNumberingSearchPage />;
+  return <RelationWorkbench renderRootDetail={({ detail, detailTarget, activeChanges, onOpenChange, impact, busy, width, onAnalyzeImpact, onRelationChange, onChanged, onCanonicalOwnerProjection, onStartResize, onClose, returnTo }) => (
+    <RootDetailDrawer
+      detail={detail as RootDetail}
+      detailTarget={detailTarget}
+      activeChanges={activeChanges}
+      onOpenChange={onOpenChange}
+      impact={impact as ImpactAnalysis | null}
+      busy={busy}
+      open
+      width={width}
+      onAnalyzeImpact={onAnalyzeImpact}
+      onRelationChange={onRelationChange}
+      onChanged={onChanged}
+      onCanonicalOwnerProjection={onCanonicalOwnerProjection as (projection: OwnerHeaderProjection) => void}
+      onStartResize={onStartResize}
+      onClose={onClose}
+      returnTo={returnTo}
+    />
+  )} />;
+}
+
+function LegacyNumberingSearchPage() {
   const [activeTab, setActiveTab] = useState<"official" | "reserved" | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [query, setQuery] = useState("");
@@ -427,8 +494,7 @@ export default function NumberingSearchPage() {
   const syncCanonicalOwnerProjection = useCallback((projection: OwnerHeaderProjection) => {
     const canonicalFields = {
       humanStatus: projection.humanStatus,
-      viewerStatus: projection.viewerStatus,
-      availabilityScope: projection.availabilityScope
+      viewerStatus: projection.viewerStatus
     };
     setRelationRoots((currentRoots) => currentRoots.map((root) => ({
       ...root,
@@ -753,9 +819,7 @@ export default function NumberingSearchPage() {
               </label>
               <label className="pdm-master-field">
                 <span>工作狀態</span>
-                <select value={humanStatus} onChange={(event) => setHumanStatus(event.target.value as HumanStatusFilter)}>
-                  {HUMAN_STATUS_FILTER_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
-                </select>
+                <HumanStatusFilterSelect value={humanStatus} onChange={setHumanStatus} />
               </label>
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadResults} disabled={busy === "search"}>
                 <Search size={16} />
@@ -777,6 +841,7 @@ export default function NumberingSearchPage() {
           <div className="pdm-drawing-list-layout">
             <RelationResultsPanel
               roots={relationRoots}
+              query={query}
               viewMode={viewMode}
               selectedRootCode={selectedRootCode}
               expandedRootCodes={expandedRootCodes}
@@ -795,6 +860,8 @@ export default function NumberingSearchPage() {
           <RootDetailDrawer
             detail={detail}
             detailTarget={detailTarget}
+            activeChanges={[]}
+            onOpenChange={() => undefined}
             impact={impact}
             busy={busy}
             open={isDetailOpen}
@@ -815,6 +882,7 @@ export default function NumberingSearchPage() {
 
 function RelationResultsPanel({
   roots,
+  query,
   viewMode,
   selectedRootCode,
   expandedRootCodes,
@@ -823,6 +891,7 @@ function RelationResultsPanel({
   onToggleRoot
 }: {
   roots: DrawingPartRelationRoot[];
+  query: string;
   viewMode: RelationViewMode;
   selectedRootCode: string | null;
   expandedRootCodes: Set<string>;
@@ -861,6 +930,7 @@ function RelationResultsPanel({
             {roots.map((root, index) => (
               <RelationRootGroup
                 root={root}
+                query={query}
                 selected={selectedRootCode === root.rootCode}
                 expanded={expandedRootCodes.has(root.rootCode)}
                 onOpenDetailTarget={onOpenDetailTarget}
@@ -873,6 +943,7 @@ function RelationResultsPanel({
         ) : (
           <RelationMatrixView
             roots={roots}
+            query={query}
             selectedRootCode={selectedRootCode}
             expandedRootCodes={expandedRootCodes}
             onOpenDetailTarget={onOpenDetailTarget}
@@ -886,6 +957,7 @@ function RelationResultsPanel({
 
 function RelationRootGroup({
   root,
+  query,
   selected,
   expanded,
   rowIndex,
@@ -893,6 +965,7 @@ function RelationRootGroup({
   onToggleRoot
 }: {
   root: DrawingPartRelationRoot;
+  query: string;
   selected: boolean;
   expanded: boolean;
   rowIndex: number;
@@ -901,15 +974,16 @@ function RelationRootGroup({
 }) {
   return (
     <article className={`pdm-relation-root${selected ? " selected" : ""}`} data-search-row="true" data-row-index={rowIndex}>
-      <RelationRootHeader root={root} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
+      <RelationRootHeader root={root} query={query} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
       {expanded ? (
         <div className="pdm-relation-root-body">
           <div className="pdm-relation-drawing-list">
             {root.drawings.map((drawing) => (
-              <RelationDrawingNode drawing={drawing} root={root} onOpenDetailTarget={onOpenDetailTarget} key={drawing.id} />
+              <RelationDrawingNode drawing={drawing} root={root} query={query} onOpenDetailTarget={onOpenDetailTarget} key={drawing.id} />
             ))}
           </div>
-          <RelationOrphanParts root={root} onOpenDetailTarget={onOpenDetailTarget} />
+          <RelationOrphanParts root={root} query={query} onOpenDetailTarget={onOpenDetailTarget} />
+          <RelationChangeReviewDetails root={root} query={query} onOpenDetailTarget={onOpenDetailTarget} />
         </div>
       ) : null}
     </article>
@@ -918,11 +992,13 @@ function RelationRootGroup({
 
 function RelationRootHeader({
   root,
+  query,
   expanded,
   onOpenDetailTarget,
   onToggleRoot
 }: {
   root: DrawingPartRelationRoot;
+  query: string;
   expanded: boolean;
   onOpenDetailTarget: (target: DetailTarget) => void;
   onToggleRoot: (rootCode: string) => void;
@@ -956,13 +1032,14 @@ function RelationRootHeader({
             onOpenDetailTarget
           )}
         >
-          {root.rootCode}
+          <SearchHighlight value={root.rootCode} query={query} />
         </button>
-        <strong title={root.coreName || undefined}>{root.coreName || "-"}</strong>
+        <strong title={root.coreName || undefined}><SearchHighlight value={root.coreName || "-"} query={query} /></strong>
       </div>
       <div className="pdm-relation-root-meta">
         <span className="pdm-relation-root-summary">{root.drawings.length} 圖號・{root.parts.length} 料號</span>
-        <HumanStatusBadge status={root.humanStatus} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
+        <span className={`pdm-relation-health ${relationHealthTone(root.relationshipHealth)}`}>{root.relationshipLabel}</span>
+        {root.availabilityScope.label ? <span className="pdm-relation-availability">目前{root.availabilityScope.label}</span> : null}
       </div>
     </div>
   );
@@ -971,10 +1048,12 @@ function RelationRootHeader({
 function RelationDrawingNode({
   drawing,
   root,
+  query,
   onOpenDetailTarget
 }: {
   drawing: DrawingPartRelationDrawing;
   root: DrawingPartRelationRoot;
+  query: string;
   onOpenDetailTarget: (target: DetailTarget) => void;
 }) {
   const linkedParts = root.parts.filter((part) => drawing.linkedPartNumbers.includes(part.partNumber));
@@ -993,10 +1072,10 @@ function RelationDrawingNode({
             onOpenDetailTarget
           )}
         >
-          {drawing.drawingNumber}
+          <SearchHighlight value={drawing.drawingNumber} query={query} />
         </button>
-        <span className={drawing.isReferenceOnly ? "pdm-relation-purpose reference" : "pdm-relation-purpose manufacturing"}>{drawing.purposeLabel}</span>
-        <HumanStatusBadge status={drawing.humanStatus} viewerStatus={drawing.viewerStatus} availabilityScope={drawing.availabilityScope} />
+        <span className={drawing.isReferenceOnly ? "pdm-relation-purpose reference" : "pdm-relation-purpose manufacturing"}><SearchHighlight value={drawing.purposeLabel} query={query} /></span>
+        {drawing.availabilityScope.label ? <span className="pdm-relation-effective-status">現行：{drawing.availabilityScope.label}</span> : null}
         <span className="pdm-relation-node-step">{drawing.nextStep}</span>
       </div>
       {linkedParts.length > 0 ? (
@@ -1005,11 +1084,10 @@ function RelationDrawingNode({
             {linkedParts.map((part) => {
               const relationType = root.matrix.find((cell) => cell.drawingNumber === drawing.drawingNumber && cell.partNumber === part.partNumber)?.relationType ?? "pending";
               const role = relationCellLabel(relationType);
-              const showRole = role !== "製造依據";
               return (
                 <button
-                  className={`pdm-relation-part-chip ${part.hasManufacturingDrawing ? "" : "missing"}${showRole ? " has-role" : ""}`}
-                  title={showRole ? `${part.partNumber} / ${part.partName} / ${role}` : `${part.partNumber} / ${part.partName}`}
+                  className={`pdm-relation-part-chip ${part.hasManufacturingDrawing ? "" : "missing"} has-role`}
+                  title={`${part.partNumber} / ${part.partName} / ${role}`}
                   type="button"
                   aria-keyshortcuts="Enter Space"
                   onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
@@ -1020,10 +1098,9 @@ function RelationDrawingNode({
                   )}
                   key={part.id}
                 >
-                  <span>{part.partNumber}</span>
-                  <small title={part.partName}>{part.partName}</small>
-                  <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
-                  {showRole ? <strong>{role}</strong> : null}
+                  <span><SearchHighlight value={part.partNumber} query={query} /></span>
+                  <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
+                  <strong>{role}</strong>
                 </button>
               );
             })}
@@ -1036,7 +1113,7 @@ function RelationDrawingNode({
   );
 }
 
-function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRelationRoot; onOpenDetailTarget: (target: DetailTarget) => void }) {
+function RelationOrphanParts({ root, query, onOpenDetailTarget }: { root: DrawingPartRelationRoot; query: string; onOpenDetailTarget: (target: DetailTarget) => void }) {
   const orphanParts = root.parts.filter((part) => !part.hasManufacturingDrawing);
   if (orphanParts.length === 0) return null;
   return (
@@ -1056,9 +1133,9 @@ function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRe
             )}
             key={part.id}
           >
-            <span>{part.partNumber}</span>
-            <small title={part.partName}>{part.partName}</small>
-            <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
+            <span><SearchHighlight value={part.partNumber} query={query} /></span>
+            <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
+            <strong>待建立製造依據</strong>
           </button>
         ))}
       </div>
@@ -1066,14 +1143,188 @@ function RelationOrphanParts({ root, onOpenDetailTarget }: { root: DrawingPartRe
   );
 }
 
+function RelationChangeReviewDetails({ root, query, onOpenDetailTarget }: { root: DrawingPartRelationRoot; query: string; onOpenDetailTarget: (target: DetailTarget) => void }) {
+  if (root.changeReviews.length === 0) return null;
+  return (
+    <details className="pdm-relation-change-details">
+      <summary>變更審查中（{root.changeReviews.length}）</summary>
+      <div className="pdm-relation-review-list">
+        {root.changeReviews.map((review) => (
+          <RelationReviewRoot key={review.id} root={root} review={review} query={query} onOpenDetailTarget={onOpenDetailTarget} />
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function RelationReviewRoot({ root, review, query, onOpenDetailTarget }: {
+  root: DrawingPartRelationRoot;
+  review: DrawingPartRelationChangeReview;
+  query: string;
+  onOpenDetailTarget: (target: DetailTarget) => void;
+}) {
+  return (
+    <article className="pdm-relation-root pdm-relation-review-root" data-review-id={review.id} title={review.title}>
+      <div className="pdm-relation-root-header pdm-relation-review-root-header">
+        <span className="icon-button" aria-hidden="true"><ChevronDown size={16} /></span>
+        <div className="pdm-relation-root-main">
+          <span className="pdm-identity-code"><SearchHighlight value={root.rootCode} query={query} /></span>
+          <strong title={root.coreName || undefined}><SearchHighlight value={root.coreName || "-"} query={query} /></strong>
+        </div>
+        <div className="pdm-relation-root-meta">
+          <span className="pdm-relation-root-summary">{review.drawings.length} 圖號・{review.parts.length} 料號</span>
+          <span className="pdm-relation-health info">{review.statusLabel}</span>
+        </div>
+      </div>
+      <div className="pdm-relation-root-body">
+        <div className="pdm-relation-drawing-list">
+          {review.drawings.map((drawing) => (
+            <RelationReviewDrawingNode key={drawing.id} drawing={drawing} parts={review.parts} root={root} query={query} interactive={review.id.startsWith("drawing-review:")} onOpenDetailTarget={onOpenDetailTarget} />
+          ))}
+        </div>
+        <RelationReviewOrphanParts review={review} root={root} query={query} interactive={review.id.startsWith("drawing-review:")} onOpenDetailTarget={onOpenDetailTarget} />
+      </div>
+    </article>
+  );
+}
+
+function RelationReviewDrawingNode({ drawing, parts, root, query, interactive, onOpenDetailTarget }: {
+  drawing: DrawingPartRelationChangeReview["drawings"][number];
+  parts: DrawingPartRelationChangeReview["parts"];
+  root: DrawingPartRelationRoot;
+  query: string;
+  interactive: boolean;
+  onOpenDetailTarget: (target: DetailTarget) => void;
+}) {
+  const linkedParts = parts.filter((part) => drawing.linkedPartNumbers.includes(part.partNumber));
+  return (
+    <section className={`pdm-relation-node ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`}>
+      <div className="pdm-relation-node-header">
+        {interactive ? (
+          <button
+            className="pdm-identity-code"
+            style={linkButtonStyle}
+            type="button"
+            aria-keyshortcuts="Enter Space"
+            onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }))}
+            onKeyDown={(event) => openDetailTargetFromKeyboard(
+              event,
+              resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: root.rootCode, drawingNumber: drawing.drawingNumber }),
+              onOpenDetailTarget
+            )}
+          >
+            <SearchHighlight value={drawing.drawingNumber} query={query} />
+          </button>
+        ) : (
+          <span className="pdm-identity-code"><SearchHighlight value={drawing.drawingNumber} query={query} /></span>
+        )}
+        <span className={drawing.isReferenceOnly ? "pdm-relation-purpose reference" : "pdm-relation-purpose manufacturing"}><SearchHighlight value={drawing.purposeLabel} query={query} /></span>
+        <span className="pdm-relation-review-availability">{drawing.reviewAvailabilityLabel}</span>
+        <span className="pdm-relation-node-step">{drawing.nextStep}</span>
+      </div>
+      {linkedParts.length > 0 ? (
+        <div className="pdm-relation-part-group">
+          <div className="pdm-relation-part-list">
+            {linkedParts.map((part) => {
+              const role = part.roleByDrawing[drawing.drawingNumber] ?? part.role;
+              return interactive ? (
+                <button
+                  className={`pdm-relation-part-chip ${part.hasManufacturingDrawing ? "" : "missing"} has-role`}
+                  title={`${part.partNumber} / ${part.partName} / ${role}`}
+                  type="button"
+                  aria-keyshortcuts="Enter Space"
+                  onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
+                  onKeyDown={(event) => openDetailTargetFromKeyboard(
+                    event,
+                    resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }),
+                    onOpenDetailTarget
+                  )}
+                  key={part.id}
+                >
+                  <span><SearchHighlight value={part.partNumber} query={query} /></span>
+                  <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
+                  <strong>{role}</strong>
+                </button>
+              ) : (
+                <div className={`pdm-relation-part-chip ${part.hasManufacturingDrawing ? "" : "missing"} has-role`} title={`${part.partNumber} / ${part.partName} / ${role}`} key={part.id}>
+                  <span><SearchHighlight value={part.partNumber} query={query} /></span>
+                  <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
+                  <strong>{role}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="pdm-relation-empty-line">尚未關聯料號</div>
+      )}
+    </section>
+  );
+}
+
+function RelationReviewOrphanParts({ review, root, query, interactive, onOpenDetailTarget }: {
+  review: DrawingPartRelationChangeReview;
+  root: DrawingPartRelationRoot;
+  query: string;
+  interactive: boolean;
+  onOpenDetailTarget: (target: DetailTarget) => void;
+}) {
+  const linkedPartNumbers = new Set(review.drawings.flatMap((drawing) => drawing.linkedPartNumbers));
+  const orphanParts = review.parts.filter((part) => !linkedPartNumbers.has(part.partNumber) || !part.hasManufacturingDrawing);
+  if (orphanParts.length === 0) return null;
+  return (
+    <section className="pdm-relation-orphan">
+      <strong>未連製造圖料號</strong>
+      <div className="pdm-relation-part-list">
+        {orphanParts.map((part) => {
+          const content = (
+            <>
+              <span><SearchHighlight value={part.partNumber} query={query} /></span>
+              <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
+              <strong>{part.role}</strong>
+            </>
+          );
+          return interactive ? (
+            <button
+              className="pdm-relation-part-chip missing"
+              type="button"
+              aria-keyshortcuts="Enter Space"
+              onClick={() => onOpenDetailTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }))}
+              onKeyDown={(event) => openDetailTargetFromKeyboard(
+                event,
+                resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: root.rootCode, partNumber: part.partNumber }),
+                onOpenDetailTarget
+              )}
+              key={part.id}
+            >
+              {content}
+            </button>
+          ) : (
+            <div className="pdm-relation-part-chip missing" key={part.id}>{content}</div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function relationHealthTone(health: DrawingPartRelationRoot["relationshipHealth"]) {
+  if (health === "complete") return "ok";
+  if (health === "draft") return "info";
+  if (health === "missing_part" || health === "missing_manufacturing_drawing") return "warning";
+  return "blocked";
+}
+
 function RelationMatrixView({
   roots,
+  query,
   selectedRootCode,
   expandedRootCodes,
   onOpenDetailTarget,
   onToggleRoot
 }: {
   roots: DrawingPartRelationRoot[];
+  query: string;
   selectedRootCode: string | null;
   expandedRootCodes: Set<string>;
   onOpenDetailTarget: (target: DetailTarget) => void;
@@ -1090,14 +1341,15 @@ function RelationMatrixView({
             data-row-index={index}
             key={root.rootId}
           >
-            <RelationRootHeader root={root} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
+            <RelationRootHeader root={root} query={query} expanded={expanded} onOpenDetailTarget={onOpenDetailTarget} onToggleRoot={onToggleRoot} />
             {expanded ? (
               <div className="pdm-relation-root-body pdm-relation-matrix-body">
                 {root.drawings.length === 0 || root.parts.length === 0 ? (
                   <div className="pdm-relation-empty-line">{root.drawings.length === 0 ? "尚無圖號" : "尚無料號"}</div>
                 ) : (
-                  <RelationRootMatrix root={root} onOpenDetailTarget={onOpenDetailTarget} />
+                  <RelationRootMatrix root={root} query={query} onOpenDetailTarget={onOpenDetailTarget} />
                 )}
+                <RelationChangeReviewDetails root={root} query={query} onOpenDetailTarget={onOpenDetailTarget} />
               </div>
             ) : null}
           </article>
@@ -1107,7 +1359,7 @@ function RelationMatrixView({
   );
 }
 
-function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRelationRoot; onOpenDetailTarget: (target: DetailTarget) => void }) {
+function RelationRootMatrix({ root, query, onOpenDetailTarget }: { root: DrawingPartRelationRoot; query: string; onOpenDetailTarget: (target: DetailTarget) => void }) {
   return (
     <div className="pdm-relation-matrix-wrap">
       <table className="pdm-relation-matrix">
@@ -1130,8 +1382,8 @@ function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRel
                     onOpenDetailTarget
                   )}
                 >
-                  <span>{drawing.drawingNumber}</span>
-                  <small>{drawing.purposeLabel}</small>
+                  <span><SearchHighlight value={drawing.drawingNumber} query={query} /></span>
+                  <small><SearchHighlight value={drawing.purposeLabel} query={query} /></small>
                 </button>
               </th>
             ))}
@@ -1152,8 +1404,8 @@ function RelationRootMatrix({ root, onOpenDetailTarget }: { root: DrawingPartRel
                     onOpenDetailTarget
                   )}
                 >
-                  <span>{part.partNumber}</span>
-                  <small title={part.partName}>{part.partName}</small>
+                  <span><SearchHighlight value={part.partNumber} query={query} /></span>
+                  <small title={part.partName}><SearchHighlight value={part.partName} query={query} /></small>
                 </button>
               </th>
               {root.drawings.map((drawing) => {
@@ -1191,6 +1443,8 @@ function relationLinkTypeLabel(linkType: NumberingLink["linkType"]) {
 function RootDetailDrawer({
   detail,
   detailTarget,
+  activeChanges,
+  onOpenChange,
   impact,
   busy,
   open,
@@ -1205,6 +1459,8 @@ function RootDetailDrawer({
 }: {
   detail: RootDetail | null;
   detailTarget: DetailTarget | null;
+  activeChanges: RelationActiveChange[];
+  onOpenChange: (change: RelationActiveChange) => void;
   impact: ImpactAnalysis | null;
   busy: "search" | "detail" | "impact" | null;
   open: boolean;
@@ -1259,7 +1515,7 @@ function RootDetailDrawer({
       keepOpenSelector="[data-search-row='true']"
     >
       <div className="pdm-entity-drawer-body">
-        <RootDetailPanel detail={detail} detailTarget={detailTarget} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} onOwnerHeaderProjection={handleOwnerHeaderProjection} returnTo={returnTo} />
+        <RootDetailPanel detail={detail} detailTarget={detailTarget} activeChanges={activeChanges} onOpenChange={onOpenChange} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} onOwnerHeaderProjection={handleOwnerHeaderProjection} returnTo={returnTo} />
       </div>
     </PdmEntityDetailDrawer>
   );
@@ -1268,6 +1524,8 @@ function RootDetailDrawer({
 function RootDetailPanel({
   detail,
   detailTarget,
+  activeChanges,
+  onOpenChange,
   impact,
   busy,
   onAnalyzeImpact,
@@ -1278,6 +1536,8 @@ function RootDetailPanel({
 }: {
   detail: RootDetail | null;
   detailTarget: DetailTarget | null;
+  activeChanges: RelationActiveChange[];
+  onOpenChange: (change: RelationActiveChange) => void;
   impact: ImpactAnalysis | null;
   busy: "search" | "detail" | "impact" | null;
   onAnalyzeImpact: (drawingNumber: string) => void;
@@ -1314,6 +1574,7 @@ function RootDetailPanel({
     >
       {isRootTarget ? (
         <>
+          {activeChanges.length > 0 ? <section className="panel pdm-relation-change-review-list" aria-label="進行中的變更"><div className="panel-header"><h2>進行中的變更</h2></div><div className="drawing-detail-action-row">{activeChanges.map((change) => <button className="secondary-button" type="button" onClick={() => onOpenChange(change)} key={change.workspaceId}>{change.displayCode} · {change.stageLabel}</button>)}</div></section> : null}
           <RootDetailHero detail={detail} formalChildCount={formalChildCount} onChanged={onChanged} />
 
           <section style={sectionStyle} data-root-aggregate-section="part-list">

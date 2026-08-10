@@ -1,0 +1,24 @@
+{
+  "runId": "20260807-215706-qc-round4",
+  "result": "FAIL",
+  "startedAt": "2026-08-07T21:57:06+08:00",
+  "finishedAt": "2026-08-07T22:01:42+08:00",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "actor": "張仕杰",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "viewportsRequested": ["1440x900", "1024x768", "390x844"],
+  "viewportsExecuted": ["1440x900"],
+  "fixtures": ["A0007-M01", "A0005-P01", "A0005-P02", "A0005-P03"],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
+  "fullRegression": "Stopped immediately after confirmed P0 per QA gate",
+  "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written.",
+  "scopedHashesAtFailure": {
+    "package.json": "212839aab17789873cbdb1e412d25dac6881cd34fb3e184b733519537b135d6e",
+    "scripts/qc-pdm-entity-detail-drawer.mjs": "a5d9f87e34c127864ac532e838caaa418dcff7ca7080ee24fabc664787cbe16e",
+    "scripts/qc-pdm-numbering-search-target-runtime.mjs": "548f616ed05bd8822083cb47a0b57850e07a48b3ea1e35641f45a49194d37ae8",
+    "src/app/numbering/search/page.tsx": "9e117942c2a64e32af630a19675e4db4ee160aad2bb73695b2a48b4ea56845b9"
+  }
+}

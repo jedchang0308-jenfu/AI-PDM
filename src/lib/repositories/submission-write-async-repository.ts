@@ -47,10 +47,10 @@ export const INSERT_ASYNC_SUBMISSION_RECORD_SQL = `
 export const INSERT_ASYNC_SUBMISSION_FILE_SQL = `
   INSERT INTO submission_files (
     id, submission_id, file_role, original_filename, local_path, storage_provider, storage_bucket, storage_key, gdrive_file_id,
-    sha256, file_size, source_master_attachment_id, created_at
+    sha256, file_size, source_master_attachment_id, source_file_asset_id, created_at
   ) VALUES (
     :id, :submissionId, :fileRole, :originalFilename, :localPath, :storageProvider, :storageBucket, :storageKey, :gdriveFileId,
-    :sha256, :fileSize, :sourceMasterAttachmentId, :now
+    :sha256, :fileSize, :sourceMasterAttachmentId, :sourceFileAssetId, :now
   )
 `;
 
@@ -145,7 +145,7 @@ export type CreateSubmissionAsyncInput = {
   files: Array<{
     fileRole: string;
     originalFilename: string;
-    localPath: string;
+    localPath?: string | null;
     storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
     storageBucket?: string | null;
     storageKey?: string | null;
@@ -153,6 +153,7 @@ export type CreateSubmissionAsyncInput = {
     sha256: string;
     fileSize: number;
     sourceMasterAttachmentId?: string | null;
+    sourceFileAssetId?: string | null;
   }>;
   snapshot?: CreateSubmissionSnapshotInput;
   partScopes?: CreateSubmissionPartScopeInput[];
@@ -344,6 +345,7 @@ export class AsyncSubmissionWriteRepository {
           sha256: file.sha256,
           fileSize: file.fileSize,
           sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null,
+          sourceFileAssetId: file.sourceFileAssetId ?? null,
           now
         });
       }
@@ -354,6 +356,7 @@ export class AsyncSubmissionWriteRepository {
           submissionFileEntries: fileEntries.map((file) => ({
             submissionFileId: file.id,
             sourceMasterAttachmentId: file.sourceMasterAttachmentId ?? null,
+            sourceFileAssetId: file.sourceFileAssetId ?? null,
             fileRole: file.fileRole,
             originalFilename: file.originalFilename,
             localPath: file.localPath,
@@ -536,9 +539,10 @@ function buildSubmissionSnapshotJson(
     submissionFileEntries: Array<{
       submissionFileId: string;
       sourceMasterAttachmentId: string | null;
+      sourceFileAssetId: string | null;
       fileRole: string;
       originalFilename: string;
-      localPath: string;
+      localPath: string | null | undefined;
       storageProvider?: "local_repository" | "supabase_storage" | "s3_compatible" | "google_cloud_storage";
       storageBucket?: string | null;
       storageKey?: string | null;

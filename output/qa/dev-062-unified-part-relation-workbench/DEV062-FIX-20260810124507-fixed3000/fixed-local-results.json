@@ -1,0 +1,176 @@
+{
+  "passed": 10,
+  "failed": 0,
+  "checks": [
+    {
+      "id": "FIXED-001",
+      "name": "fixed local status requests and enables DEV-062",
+      "passed": true,
+      "detail": { "enabled": true, "requested": true }
+    },
+    {
+      "id": "FIXED-002",
+      "name": "dev:local:check treats unified workbench as a health requirement",
+      "passed": true,
+      "detail": { "exitCode": 0, "powerShellParseErrors": 0 }
+    },
+    {
+      "id": "FIXED-003",
+      "name": "Part hard reload renders one workbench without legacy tabs",
+      "passed": true,
+      "detail": { "heading": "料號工作台", "legacyTabs": 0, "reservedTabLinks": 0, "visibleAlerts": 0, "horizontalOverflow": false }
+    },
+    {
+      "id": "FIXED-004",
+      "name": "Relation hard reload renders one workbench without legacy tabs",
+      "passed": true,
+      "detail": { "heading": "圖料工作台", "legacyTabs": 0, "reservedTabLinks": 0, "visibleAlerts": 0, "horizontalOverflow": false }
+    },
+    {
+      "id": "FIXED-005",
+      "name": "Part formal and candidate facts share the same list",
+      "passed": true,
+      "detail": { "formalRows": 19, "candidateRows": 4 }
+    },
+    {
+      "id": "FIXED-006",
+      "name": "Relation formal and candidate signals share the same root list",
+      "passed": true,
+      "detail": { "rootRows": 19, "candidateSignals": 14 }
+    },
+    {
+      "id": "FIXED-007",
+      "name": "legacy Part reserved URL canonicalizes into the unified work view",
+      "passed": true,
+      "detail": { "url": "http://127.0.0.1:3000/parts?view=work", "legacyTabs": 0 }
+    },
+    {
+      "id": "FIXED-008",
+      "name": "legacy Relation reserved URL canonicalizes into the unified work view",
+      "passed": true,
+      "detail": { "url": "http://127.0.0.1:3000/numbering/search?view=work", "legacyTabs": 0 }
+    },
+    {
+      "id": "FIXED-009",
+      "name": "create reservation remains a same-page modal action",
+      "passed": true,
+      "detail": { "dialogBeforeClose": 1, "dialogAfterClose": 0, "submitted": false }
+    },
+    {
+      "id": "FIXED-010",
+      "name": "final visible error, app console and server error sweeps are clean",
+      "passed": true,
+      "detail": { "visibleAlerts": 0, "unexpectedAppConsole": 0, "unexpectedServerErrorsOr5xx": 0 }
+    }
+  ],
+  "focusedRegression": {
+    "core": "6/6",
+    "part": "PASS (14/11/6)",
+    "relation": "PASS (18/10/11)",
+    "compatibility": "8/8",
+    "typecheck": "PASS"
+  },
+  "uiLayoutEvidence": {
+    "route": "/numbering/search?view=all",
+    "viewport": "1920x799",
+    "screenshot": "screenshots/relation-ui-reference-layout-20260810.png",
+    "rootHeaderStatusInline": true,
+    "drawingRows": 1,
+    "partChips": 1,
+    "legacyTabs": 0,
+    "reservedLinks": 0,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "redlineRemovalEvidence": {
+    "route": "/numbering/search?view=all",
+    "viewport": "1920x799",
+    "expandedRoot": "A0005",
+    "screenshot": "screenshots/relation-redline-removed-20260810.png",
+    "drawingCode": "A0005-M01",
+    "partCodes": ["A0005-P01", "A0005-P02", "A0005-P03"],
+    "removedTextPresent": false,
+    "legacyTabs": 0,
+    "reservedLinks": 0,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "drawingPartVisualParity": {
+    "route": "/numbering/search",
+    "viewport": "1920x869",
+    "screenshot": "screenshots/relation-drawing-same-as-part-20260810.png",
+    "visualStyleMatch": true,
+    "drawingCode": "A0005-M01",
+    "partCode": "A0005-P01",
+    "style": {
+      "background": "rgb(255, 255, 255)",
+      "borderRadius": "8px",
+      "minHeight": "30px",
+      "padding": "4px 8px",
+      "fontWeight": "800"
+    },
+    "legacyTabs": 0,
+    "reservedLinks": 0,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "drawingDetailDisclosureEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshots": [
+      "drawing-non-history-always-open-20260810.png",
+      "drawing-non-history-always-open-management-20260810.png",
+      "drawing-non-history-always-open-lower-20260810.png"
+    ],
+    "nonHistoryDetails": 0,
+    "remainingHistoryDetails": 3,
+    "historyToggle": {
+      "opened": true,
+      "closed": false
+    },
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  },
+  "drawingRedlineSimplificationEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshots": [
+      "drawing-redline-simplified-20260810.png",
+      "drawing-redline-simplified-lower-20260810.png",
+      "drawing-redline-simplified-maintenance-20260810.png"
+    ],
+    "removedText": ["更多", "關聯與影響", "快速查看", "附件管理", "參考附件與歷史補登", "已刪除資料", "補成本", "編輯", "新增圖號、料號與作廢申請"],
+    "removedTextPresent": false,
+    "keptText": ["圖面與附件", "歷史版本", "同根料號", "資料維護", "新增同根圖號", "新增同圖料號", "申請圖號作廢"],
+    "details": {
+      "total": 3,
+      "nonHistory": 0,
+      "history": 3
+    },
+    "historyToggle": {
+      "opened": true,
+      "closed": false,
+      "finalOpen": false
+    },
+    "visibleAlerts": 0,
+    "horizontalOverflow": false,
+    "browserProductErrors": 0
+  },
+  "drawingHeaderLayoutEvidence": {
+    "route": "/numbering/drawings?view=all&detail=drawing%3Adrawing-number-a7353580-d21b-4290-823e-d77a4cca2a92",
+    "viewport": "1920x869",
+    "expandedDrawing": "A0005-M01",
+    "screenshot": "drawing-header-target-20260810.png",
+    "drawerClass": "drawing-workbench-inline-header",
+    "eyebrowPresent": false,
+    "inlineHeader": true,
+    "headerOrder": ["A0005-M01", "馬達_JF_2HP_B", "研發可用"],
+    "primaryAction": "建立新版次",
+    "closeLabel": "關閉圖號明細",
+    "details": 3,
+    "visibleAlerts": 0,
+    "horizontalOverflow": false
+  }
+}

@@ -1,13 +1,31 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncBomWorkbenchRepository } from "@/lib/repositories/bom-workbench-async-repository";
-export { BomReleaseGateError, BomXlsImportError } from "@/lib/repositories/bom-workbench-async-repository";
+export {
+  BomCreateIdempotencyConflictError,
+  BomReleaseGateError,
+  BomRevisionConflictError,
+  BomXlsImportError
+} from "@/lib/repositories/bom-workbench-async-repository";
 
 export async function getBomWorkbenchBySubmissionIdAsync(submissionId: string) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getWorkbenchBySubmissionId(submissionId);
 }
 
+export async function getBomWorkbenchByDraftIdAsync(draftId: string) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getWorkbenchByDraftId(draftId);
+}
+
 export async function listBomWorkbenchDraftsBySubmissionIdAsync(submissionId: string) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listDraftsBySubmissionId(submissionId);
+}
+
+export async function listBomWorkbenchRecordsAsync(input: {
+  companyId: string;
+  query?: string;
+  status?: "" | "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
+  limit?: number;
+}) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listWorkbenchRecords(input);
 }
 
 export async function listDeletedBomWorkbenchDraftsBySubmissionIdAsync(submissionId: string) {
@@ -61,6 +79,39 @@ export async function createBomWorkbenchDraftFromSolidWorksXlsAsync(input: {
   profileVersion?: string;
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createDraftFromSolidWorksXls(input);
+}
+
+export async function createCanonicalBomDraftAsync(input: {
+  companyId: string;
+  ownerPartNumberId: string;
+  ownerPartNumber: string;
+  legacyItemId: string | null;
+  bomRevision: string;
+  source: "manual" | "cad_reference";
+  sourceSubmissionId?: string | null;
+  actorId: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  draftName?: string;
+}) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createCanonicalDraft(input);
+}
+
+export async function createCanonicalBomDraftFromSolidWorksXlsAsync(input: {
+  companyId: string;
+  ownerPartNumberId: string;
+  ownerPartNumber: string;
+  legacyItemId: string | null;
+  bomRevision: string;
+  actorId: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  draftName?: string;
+  originalFilename: string;
+  fileBuffer: Buffer;
+  contentType?: string | null;
+}) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createCanonicalDraftFromSolidWorksXls(input);
 }
 
 export async function getBomReleaseSnapshotByIdAsync(snapshotId: string) {

@@ -1,6 +1,7 @@
 export const NUMBER_STATE_FLOW_V1_FLAG = "PDM_NUMBER_STATE_FLOW_V1";
 export const NUMBER_LIFECYCLE_V2_FLAG = "PDM_NUMBER_LIFECYCLE_V2";
 export const UNIFIED_DRAWING_WORKBENCH_V1_FLAG = "PDM_UNIFIED_DRAWING_WORKBENCH_V1";
+export const UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG = "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1";
 export const DRAWING_REVISION_LIFECYCLE_MODE_FLAG = "PDM_DRAWING_REVISION_LIFECYCLE_MODE";
 
 type EnvLike = Record<string, string | undefined>;
@@ -51,6 +52,26 @@ export function unifiedDrawingWorkbenchV1ClientStatus(env: EnvLike = process.env
     flag: UNIFIED_DRAWING_WORKBENCH_V1_FLAG,
     dependency: NUMBER_LIFECYCLE_V2_FLAG,
     phase: "DEV-053"
+  };
+}
+
+export function isUnifiedPartRelationWorkbenchV1Enabled(env: EnvLike = process.env) {
+  const requested = ["1", "true", "on", "enabled"].includes(
+    String(env[UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG] ?? "").trim().toLowerCase()
+  );
+  return requested && isNumberStateFlowV1Enabled(env);
+}
+
+export function unifiedPartRelationWorkbenchV1ClientStatus(env: EnvLike = process.env) {
+  const requested = ["1", "true", "on", "enabled"].includes(
+    String(env[UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG] ?? "").trim().toLowerCase()
+  );
+  return {
+    enabled: requested && isNumberStateFlowV1Enabled(env),
+    requested,
+    flag: UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG,
+    dependency: NUMBER_STATE_FLOW_V1_FLAG,
+    phase: "DEV-062"
   };
 }
 

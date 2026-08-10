@@ -1,0 +1,165 @@
+{
+  "task": "DEV-062 unified Part and Relation workbenches",
+  "runId": "relation-simplified-layout-20260810",
+  "startedAt": "2026-08-10T14:18:29.667Z",
+  "finishedAt": "2026-08-10T14:19:55.503Z",
+  "source": {
+    "gitHead": "b07b29366eeeac5c3f09d5c9794583c60d0fbd53",
+    "worktreeHash": "d687dc66bce337af303544d8b7fb09732b27a15cde43bb7a2f4d2840857f1f4e",
+    "files": [
+      {
+        "file": "src/lib/pdm-workbench-contract.ts",
+        "sha256": "b3626c5f51101278432c6da86aa9d9a88d2df45d71da1eb1c1fe22e42b3c1cef"
+      },
+      {
+        "file": "src/lib/pdm-workbench-cursor.ts",
+        "sha256": "dcdaa54672b096a335355d43ac3c761f44acd9ac2d0fe1c0efe6af9787cbfb8b"
+      },
+      {
+        "file": "src/lib/repositories/pdm-workbench-read-snapshot.ts",
+        "sha256": "ed55188f1aef129377484de419db688061869b4b656b1e2f33869ad91581f709"
+      },
+      {
+        "file": "src/components/use-pdm-workbench-controller.ts",
+        "sha256": "e2a9f5b8d9a1e595fb03e652f514509a7f17cfce8fd72c15eac3b9e3bd863967"
+      },
+      {
+        "file": "src/components/pdm-workbench-list.tsx",
+        "sha256": "3c8bd4411b56bcd97f0fe92075d42d86c59023ee98b4476cd4b74f25fcc465cc"
+      },
+      {
+        "file": "src/lib/drawing-workbench.ts",
+        "sha256": "068c14707d702b33a0d3144d5dc023562005e4fe1b1aa5c343f166c79bb54112"
+      },
+      {
+        "file": "src/lib/repositories/drawing-workbench-async-repository.ts",
+        "sha256": "fa71ab444bbf2f3990551f96f7ea7559cefd6f097d3dce099c92713e0da5aa8e"
+      },
+      {
+        "file": "src/components/drawing-workbench.tsx",
+        "sha256": "848ec331759bdfb713619124a0f1dc927f19b42140e206bb591069a3ab904241"
+      },
+      {
+        "file": "src/lib/part-workbench.ts",
+        "sha256": "813a528b3d1ffb4b62b00d3fff45e865f96060453db56b6d6d5f18809d4603d4"
+      },
+      {
+        "file": "src/lib/repositories/part-workbench-async-repository.ts",
+        "sha256": "f3767c27c5a237cb6c0388abf38edfe31f4a274f03768c0954fa2086ff442f88"
+      },
+      {
+        "file": "src/app/api/parts/workbench/route.ts",
+        "sha256": "de028ec3f8609f9b1eceecbe516c802a0910d60cdaae74f651249a2778adbb4f"
+      },
+      {
+        "file": "src/app/api/parts/workbench/[rowKey]/route.ts",
+        "sha256": "f5690b09d468ad2a7c44a6a5f65445c7023a2404ebd4ae1c48383b773f537759"
+      },
+      {
+        "file": "src/components/part-workbench.tsx",
+        "sha256": "3b6941ac8ba195fe07cb9803f5fe965187ccb677c780467c52f4e47d7c6c3a6b"
+      },
+      {
+        "file": "src/components/part-detail-content.tsx",
+        "sha256": "5c1dfd8f0060ab41e1497dadb7f176f2ab64b0e3ec047189b086a42b99b9cca0"
+      },
+      {
+        "file": "src/lib/relation-workbench.ts",
+        "sha256": "3bd4e69d3c573dc33a41f2cef722e4229081a2792a3654db41c20d51e2677a4d"
+      },
+      {
+        "file": "src/lib/repositories/relation-workbench-async-repository.ts",
+        "sha256": "5401bec75e96d9b669ceb798f8808ea6dbcf96420bc27fb2760db5f9b00ae5c8"
+      },
+      {
+        "file": "src/app/api/numbering/relations/route.ts",
+        "sha256": "4cddb16ef929dc9d2efaa803c49bb3e9ea00c215c4a8995729177e2daefc274a"
+      },
+      {
+        "file": "src/app/api/numbering/relations/[rowKey]/route.ts",
+        "sha256": "865bd641cb4c1cf3167a0a1a08b27d7772bb9b013885729246ae6bd88c550e6f"
+      },
+      {
+        "file": "src/components/relation-workbench.tsx",
+        "sha256": "2e3a69f371fcc845d595bc70cee7b9ae635e0636b13f0a3d36b529156472ecd3"
+      },
+      {
+        "file": "src/app/numbering/search/page.tsx",
+        "sha256": "7ac96160ed0c3e722efd932e4c77bbb3798c2fb9a5b05f0444820b114a0cb42e"
+      },
+      {
+        "file": "src/lib/number-state-flow-feature.ts",
+        "sha256": "49101b3995e9edadd6a0f7ea1547792beec234f6dd08b64dc27207135bec755e"
+      },
+      {
+        "file": "src/lib/number-state-flow-legacy-route.ts",
+        "sha256": "803dfc4f3feed594343c5bc051f7bd6f76a15722c84ea5fbc3032491a2473d93"
+      },
+      {
+        "file": "scripts/qc-dev-062-workbench-core.mjs",
+        "sha256": "28e6abf46fb4cf6f6fa67a2882ec40a1ec08b5a803e8f23309ee7e731faa4f99"
+      },
+      {
+        "file": "scripts/qc-dev-062-part-workbench.mjs",
+        "sha256": "6e7587142f9ef83e20ef941cf1378c7948711bf9680e661f6d13059d154cf172"
+      },
+      {
+        "file": "scripts/qc-dev-062-relation-workbench.mjs",
+        "sha256": "44feca6c68cda9118c1893a9b5a6018617b5db77044782129a3f00cdad5ae70e"
+      },
+      {
+        "file": "scripts/qc-dev-062-compat.mjs",
+        "sha256": "3edb029bf7045bb111be8bd0892f9db98521018fd802f6745e74026883f85a8d"
+      },
+      {
+        "file": "scripts/qc-dev-062-real-operation.mjs",
+        "sha256": "fd6baaacc86486b172ce95c2f058bc365b7c42d3617293e918700993eebb8c38"
+      },
+      {
+        "file": "scripts/qc-dev-062-aggregate.mjs",
+        "sha256": "0b4b7b7446aa7aff494d78363921e97a299f5c6a5cd641322a6c495f30d3e17a"
+      },
+      {
+        "file": "package.json",
+        "sha256": "8b5749259b25fe95dee4df5a2b2029d440ccace33ac56ae6cc142f5703a1d22d"
+      }
+    ]
+  },
+  "flags": {
+    "PDM_NUMBER_STATE_FLOW_V1": true,
+    "PDM_NUMBER_LIFECYCLE_V2": true,
+    "PDM_UNIFIED_DRAWING_WORKBENCH_V1": true,
+    "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1": {
+      "flagOnRun": true,
+      "rollbackRun": false
+    }
+  },
+  "target": {
+    "kind": "isolated SQLite + local Next.js",
+    "production": false,
+    "productionConnected": false,
+    "productionWrites": false
+  },
+  "accounts": [
+    {
+      "id": "dev062-real-owner",
+      "role": "R&D Manager",
+      "companyCodes": [
+        "JENFU"
+      ]
+    }
+  ],
+  "fixtureIds": {
+    "candidateWorkspace": "dev062-real-candidate",
+    "formalRoot": "dev062-real-root",
+    "formalPart": "dev062-real-part",
+    "historyRoot": "dev062-history-root",
+    "representativeRootPrefix": "dev062-perf-root-"
+  },
+  "cleanup": {
+    "completed": true,
+    "method": "isolated temporary target removed",
+    "targetKind": "OS temporary directory",
+    "targetPathHash": "f2db645ce1732c5d44799da6d34eb25463b93d110692cc6dbe28144e110e2ac3"
+  }
+}

@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, FilePlus2, Save, Trash2, UploadCloud } from "lucide-react";
+import { DrawingDetailSection } from "@/components/drawing-detail-content";
 import { FileDropzone } from "@/components/file-dropzone";
+import {
+  NumberingSubmissionResultFileList,
+  type NumberingSubmissionResultCandidate
+} from "@/components/numbering-submission-result";
 
 type CandidateFile = {
   id: string;
@@ -81,15 +86,6 @@ function fileRoleFor(file: File): CandidateFile["role"] {
   if (["dwg", "dxf"].includes(extension)) return "dwg_dxf";
   if (extension === "pdf") return "pdf";
   return "other";
-}
-
-function fileRoleLabel(role: CandidateFile["role"]) {
-  if (role === "cad_3d") return "3D 原檔";
-  if (role === "drawing_2d") return "2D 工程原檔";
-  if (role === "dwg_dxf") return "DWG／DXF";
-  if (role === "pdf") return "PDF";
-  if (role === "intermediate") return "中繼交換檔";
-  return "其他檔案";
 }
 
 function recommendedFileWarnings(files: CandidateFile[]) {
@@ -354,10 +350,13 @@ export function NumberingCandidateRevisionEditor({
   }
 
   return (
-    <section className="number-state-drawer-section candidate-revision-editor" data-candidate-editor="true">
-      <div className="number-state-section-heading">
-        <div><h3>首版圖面／版次檔案</h3></div>
-      </div>
+    <DrawingDetailSection
+      title="首版圖面／版次檔案"
+      className="number-state-drawer-section candidate-revision-editor"
+      dataSection="drawing-revision-files"
+      ariaLabel="首版圖面與版次檔案"
+      dataCandidateEditor
+    >
       <div className="candidate-revision-editor-list">
         {workspace.drawings.map((drawing) => {
           const candidate = candidateByDrawing.get(drawing.id);
@@ -392,7 +391,16 @@ export function NumberingCandidateRevisionEditor({
                 {revisionValue.trim() !== suggestion ? <label><span>調整原因</span><input value={overrideReasons[candidate.id] ?? ""} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setOverrideReasons((current) => ({ ...current, [candidate.id]: event.target.value }))} placeholder="說明為何不採用建議版次" /></label> : null}
                 {!locked ? <button className="secondary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void saveRevision(candidate)}><Save size={15} />{busyKey === `save:${candidate.id}` ? "儲存中..." : "儲存版次"}</button> : null}
               </div>
-              {activeFiles.length > 0 ? <ul className="candidate-revision-files">{activeFiles.map((file) => <li key={file.id}><div><strong>{file.displayName}</strong><span>{fileRoleLabel(file.role)} · {file.isPrimary ? "主要受控檔" : "受控附件"} · {file.publicationEvidenceId ? "已完成驗證" : "需要先驗證，才能送審"}</span>{file.description ? <small>{file.description}</small> : null}</div>{!locked ? <button className="icon-button" type="button" aria-label={`移除 ${file.displayName}`} disabled={disabled || Boolean(busyKey)} onClick={() => void remove(candidate, file)}><Trash2 size={15} /></button> : null}</li>)}</ul> : <p className="candidate-revision-missing">下一步：加入至少一個主要受控檔；系統驗證完成後即可送審。</p>}
+              <NumberingSubmissionResultFileList
+                candidate={{ id: candidate.id, drawingCode: drawing.candidateCode, revision: revisionValue, files: activeFiles } satisfies NumberingSubmissionResultCandidate}
+                files={activeFiles}
+                mode="author"
+                renderFileActions={(_, file) => !locked ? (
+                  <button className="icon-button" type="button" aria-label={`移除 ${file.displayName}`} disabled={disabled || Boolean(busyKey)} onClick={() => void remove(candidate, file as unknown as CandidateFile)}>
+                    <Trash2 size={15} />
+                  </button>
+                ) : null}
+              />
               {!locked && unverifiedFiles.length > 0 ? <div className="candidate-revision-existing-verification" aria-label="既有檔案驗證"><div><strong>先驗證已保存的檔案，不用重新上傳。</strong><span>系統會逐檔核對內容完整性；原檔與編號都不會改變。</span></div><button className="primary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void verifyExistingFiles(candidate)}><BadgeCheck size={16} />{busyKey === `verify:${candidate.id}` ? "驗證中..." : `驗證既有檔案（${unverifiedFiles.length}）`}</button></div> : null}
               {hasVerifiedPrimary ? <div className="candidate-revision-readiness" role="status"><strong>主要受控檔已完成，可送審。</strong>{fileWarnings.length > 0 ? <span>審核提醒：尚未提供 {fileWarnings.join("、")}，但不阻擋送審。</span> : <span>建議格式均已提供。</span>}</div> : null}
               {!locked ? (
@@ -432,6 +440,6 @@ export function NumberingCandidateRevisionEditor({
           );
         })}
       </div>
-    </section>
+    </DrawingDetailSection>
   );
 }

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { diffBomWorkbenchLines as diffBomWorkbenchLinesShared } from "@/lib/bom-workbench-diff";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { parseRevisionCode } from "@/lib/revision-policy";
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import type {
   BomImportJob,
@@ -11,6 +12,7 @@ import type {
   BomReleaseSnapshotDetail,
   BomReleaseGateIssue,
   BomWorkbenchDraftDetail,
+  BomWorkbenchListRecord,
   BomWorkbenchDraftSummary,
   BomWorkbenchLine,
   BomWorkbenchSummary,
@@ -20,6 +22,13 @@ import type {
 type BomWorkbenchParentRow = Omit<BomWorkbenchSummary, "drafts" | "active_draft">;
 type AsyncBomReleaseSnapshotRow = Omit<BomReleaseSnapshotDetail, "lines"> & { line_snapshot_json: string };
 export type BomWorkbenchLifecycleAction = "release" | "obsolete";
+
+export type ListBomWorkbenchRecordsInput = {
+  companyId: string;
+  query?: string;
+  status?: BomWorkbenchDraftSummary["status"] | "";
+  limit?: number;
+};
 
 export type BomWorkbenchComparableLine = {
   key: string;
@@ -201,6 +210,49 @@ export type CreateAsyncBomWorkbenchDraftFromSolidWorksXlsResult = {
   importJob: BomImportJob;
 };
 
+export type CreateCanonicalBomDraftInput = {
+  companyId: string;
+  ownerPartNumberId: string;
+  ownerPartNumber: string;
+  legacyItemId: string | null;
+  bomRevision: string;
+  source: "manual" | "cad_reference";
+  sourceSubmissionId?: string | null;
+  actorId: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  draftName?: string;
+};
+
+export type CreateCanonicalBomDraftFromSolidWorksXlsInput = Omit<
+  CreateCanonicalBomDraftInput,
+  "source" | "sourceSubmissionId"
+> & {
+  originalFilename: string;
+  fileBuffer: Buffer;
+  contentType?: string | null;
+  profileName?: string;
+  profileVersion?: string;
+};
+
+export type CreateCanonicalBomDraftResult = {
+  draft: BomWorkbenchDraftDetail;
+  replayed: boolean;
+  importJob?: BomImportJob;
+};
+
+export class BomCreateIdempotencyConflictError extends Error {
+  constructor() {
+    super("BOM_CREATE_IDEMPOTENCY_CONFLICT");
+  }
+}
+
+export class BomRevisionConflictError extends Error {
+  constructor(public readonly code: "BOM_REVISION_OCCUPIED" | "BOM_REVISION_NOT_FORWARD") {
+    super(code);
+  }
+}
+
 type AssemblyDraftLine = {
   childPartNumber: string;
   childRevision: string | null;
@@ -299,6 +351,53 @@ export const SELECT_ASYNC_BOM_WORKBENCH_PARENT_SQL = `
   WHERE s.id = :submissionId
 `;
 
+export const SELECT_ASYNC_CANONICAL_BOM_WORKBENCH_PARENT_SQL = `
+  SELECT
+    COALESCE(d.source_submission_id, d.parent_submission_id, '') AS parent_submission_id,
+    COALESCE(d.parent_item_id, '') AS parent_item_id,
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name,
+    COALESCE(s.drawing_number, '') AS parent_drawing_number,
+    COALESCE(d.bom_revision, d.parent_revision, '') AS parent_revision,
+    COALESCE(s.status, d.status) AS parent_status
+  FROM bom_drafts d
+  LEFT JOIN part_numbers pn ON pn.id = d.owner_part_number_id
+  LEFT JOIN items i ON i.id = d.parent_item_id
+  LEFT JOIN submissions s ON s.id = COALESCE(d.source_submission_id, d.parent_submission_id)
+  WHERE d.id = :draftId
+`;
+
+export const SELECT_ASYNC_CANONICAL_BOM_WORKBENCH_DRAFTS_SQL = `
+  SELECT *
+  FROM bom_drafts
+  WHERE owner_part_number_id = :ownerPartNumberId
+    AND status <> 'Archived'
+  ORDER BY is_active DESC, updated_at DESC, id DESC
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_RECORDS_SQL = `
+  SELECT
+    d.*,
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name
+  FROM bom_drafts d
+  LEFT JOIN part_numbers pn ON pn.id = d.owner_part_number_id
+  LEFT JOIN items i ON i.id = d.parent_item_id
+  LEFT JOIN submissions s ON s.id = COALESCE(d.source_submission_id, d.parent_submission_id)
+  WHERE COALESCE(d.company_id, s.company_id) = :companyId
+    AND d.status <> 'Archived'
+    AND (:status = '' OR d.status = :status)
+    AND (
+      :query = ''
+      OR upper(COALESCE(pn.part_number, i.part_number, '')) LIKE upper(:queryLike)
+      OR upper(COALESCE(pn.part_name, i.part_name, '')) LIKE upper(:queryLike)
+      OR upper(COALESCE(d.bom_revision, d.parent_revision, '')) LIKE upper(:queryLike)
+      OR upper(d.draft_name) LIKE upper(:queryLike)
+    )
+  ORDER BY d.updated_at DESC, d.id DESC
+  LIMIT :limit
+`;
+
 export const SELECT_ASYNC_BOM_WORKBENCH_DRAFTS_SQL = `
   SELECT *
   FROM bom_drafts
@@ -369,6 +468,16 @@ export const DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL = `
     AND status IN ('Draft', 'Rejected')
 `;
 
+export const DEACTIVATE_ASYNC_CANONICAL_BOM_ACTIVE_DRAFTS_SQL = `
+  UPDATE bom_drafts
+  SET is_active = 0,
+      updated_at = :updatedAt
+  WHERE owner_part_number_id = :ownerPartNumberId
+    AND upper(bom_revision) = upper(:bomRevision)
+    AND is_active = 1
+    AND status IN ('Draft', 'Rejected')
+`;
+
 export const ACTIVATE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
   UPDATE bom_drafts
   SET is_active = 1,
@@ -414,6 +523,34 @@ export const INSERT_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
   ) VALUES (
     :id, :parentItemId, :parentSubmissionId, :parentRevision, :draftName, :status, :source,
     :isActive, :lineCount, :reviewAttempt, :createdBy, :updatedBy, :createdAt, :updatedAt
+  )
+`;
+
+export const INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL = `
+  INSERT INTO bom_drafts (
+    id, company_id, owner_part_number_id, bom_revision, source_submission_id, identity_authority,
+    parent_item_id, parent_submission_id, parent_revision, draft_name, status, source,
+    is_active, line_count, review_attempt, created_by, updated_by, created_at, updated_at
+  ) VALUES (
+    :id, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, 'canonical_part_number',
+    :parentItemId, :parentSubmissionId, NULL, :draftName, 'Draft', :source,
+    1, :lineCount, 0, :createdBy, :updatedBy, :createdAt, :updatedAt
+  )
+`;
+
+export const SELECT_ASYNC_BOM_CREATE_EFFECT_SQL = `
+  SELECT id, request_fingerprint, draft_id, outcome_json, created_at
+  FROM bom_create_effects
+  WHERE company_id = :companyId
+    AND actor_id = :actorId
+    AND idempotency_key = :idempotencyKey
+`;
+
+export const INSERT_ASYNC_BOM_CREATE_EFFECT_SQL = `
+  INSERT INTO bom_create_effects (
+    id, company_id, actor_id, idempotency_key, request_fingerprint, draft_id, outcome_json, created_at
+  ) VALUES (
+    :id, :companyId, :actorId, :idempotencyKey, :requestFingerprint, :draftId, :outcomeJson, :createdAt
   )
 `;
 
@@ -469,6 +606,16 @@ export const INSERT_ASYNC_BOM_IMPORT_JOB_SQL = `
   )
 `;
 
+export const INSERT_ASYNC_CANONICAL_BOM_IMPORT_JOB_SQL = `
+  INSERT INTO bom_import_jobs (
+    id, bom_draft_id, owner_part_number_id, bom_revision, source_submission_id, parent_submission_id,
+    import_profile_id, source_asset_id, original_filename, status, row_count, error_json, created_by, created_at
+  ) VALUES (
+    :id, :draftId, :ownerPartNumberId, :bomRevision, NULL, NULL,
+    :importProfileId, :sourceAssetId, :originalFilename, :status, :rowCount, :errorJson, :createdBy, :createdAt
+  )
+`;
+
 export const INSERT_ASYNC_FILE_ASSET_SQL = `
   INSERT INTO file_assets (
     id, storage_provider, original_path, storage_key, file_name, file_ext, file_size,
@@ -491,15 +638,19 @@ export const UPDATE_ASYNC_BOM_WORKBENCH_DRAFT_AFTER_SAVE_SQL = `
 export const SELECT_ASYNC_BOM_WORKBENCH_LATEST_RELEASE_SNAPSHOT_SQL = `
   SELECT
     rs.*,
-    i.part_number AS parent_part_number,
-    i.part_name AS parent_part_name,
-    s.drawing_number AS parent_drawing_number,
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name,
+    COALESCE(s.drawing_number, '') AS parent_drawing_number,
     u.display_name AS released_by_name
   FROM bom_release_snapshots rs
-  JOIN items i ON i.id = rs.parent_item_id
-  JOIN submissions s ON s.id = rs.parent_submission_id
+  LEFT JOIN part_numbers pn ON pn.id = rs.owner_part_number_id
+  LEFT JOIN items i ON i.id = rs.parent_item_id
+  LEFT JOIN submissions s ON s.id = COALESCE(rs.source_submission_id, rs.parent_submission_id)
   LEFT JOIN users u ON u.id = rs.released_by
-  WHERE rs.parent_item_id = :parentItemId
+  WHERE (
+      (rs.owner_part_number_id IS NOT NULL AND rs.owner_part_number_id = :ownerPartNumberId)
+      OR (rs.owner_part_number_id IS NULL AND rs.parent_item_id = :parentItemId)
+    )
     AND rs.bom_draft_id <> :draftId
   ORDER BY
     CASE WHEN rs.obsolete_at IS NULL THEN 0 ELSE 1 END,
@@ -511,13 +662,14 @@ export const SELECT_ASYNC_BOM_WORKBENCH_LATEST_RELEASE_SNAPSHOT_SQL = `
 export const SELECT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
   SELECT
     rs.*,
-    i.part_number AS parent_part_number,
-    i.part_name AS parent_part_name,
-    s.drawing_number AS parent_drawing_number,
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name,
+    COALESCE(s.drawing_number, '') AS parent_drawing_number,
     u.display_name AS released_by_name
   FROM bom_release_snapshots rs
-  JOIN items i ON i.id = rs.parent_item_id
-  JOIN submissions s ON s.id = rs.parent_submission_id
+  LEFT JOIN part_numbers pn ON pn.id = rs.owner_part_number_id
+  LEFT JOIN items i ON i.id = rs.parent_item_id
+  LEFT JOIN submissions s ON s.id = COALESCE(rs.source_submission_id, rs.parent_submission_id)
   LEFT JOIN users u ON u.id = rs.released_by
   WHERE rs.id = :snapshotId
 `;
@@ -532,17 +684,18 @@ export const SELECT_ASYNC_BOM_WORKBENCH_PENDING_REVIEWS_SQL = `
     u.display_name AS submitted_by_name,
     rr.change_reason,
     rr.submitted_at,
-    d.parent_submission_id,
+    COALESCE(d.source_submission_id, d.parent_submission_id, '') AS parent_submission_id,
     d.draft_name,
     d.review_attempt,
-    i.part_number AS parent_part_number,
-    i.part_name AS parent_part_name,
-    s.drawing_number AS parent_drawing_number,
-    d.parent_revision
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name,
+    COALESCE(s.drawing_number, '') AS parent_drawing_number,
+    COALESCE(d.bom_revision, d.parent_revision, '') AS parent_revision
   FROM bom_review_requests rr
   JOIN bom_drafts d ON d.id = rr.bom_draft_id
-  JOIN items i ON i.id = d.parent_item_id
-  JOIN submissions s ON s.id = d.parent_submission_id
+  LEFT JOIN part_numbers pn ON pn.id = d.owner_part_number_id
+  LEFT JOIN items i ON i.id = d.parent_item_id
+  LEFT JOIN submissions s ON s.id = COALESCE(d.source_submission_id, d.parent_submission_id)
   LEFT JOIN users u ON u.id = rr.submitted_by
   WHERE rr.status = 'PendingReview'
     AND (
@@ -573,11 +726,11 @@ export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
     d.id AS bom_draft_id,
     d.draft_name,
     d.status AS draft_status,
-    d.parent_submission_id,
-    i.part_number AS parent_part_number,
-    i.part_name AS parent_part_name,
-    s.drawing_number AS parent_drawing_number,
-    d.parent_revision,
+    COALESCE(d.source_submission_id, d.parent_submission_id, '') AS parent_submission_id,
+    COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+    COALESCE(pn.part_name, i.part_name, '') AS parent_part_name,
+    COALESCE(s.drawing_number, '') AS parent_drawing_number,
+    COALESCE(d.bom_revision, d.parent_revision, '') AS parent_revision,
     COALESCE(rs.line_count, d.line_count) AS line_count,
     rr.id AS review_id,
     submitter.display_name AS submitted_by_name,
@@ -590,8 +743,9 @@ export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
     rs.released_at,
     rs.obsolete_at
   FROM bom_drafts d
-  JOIN submissions s ON s.id = d.parent_submission_id
-  JOIN items i ON i.id = d.parent_item_id
+  LEFT JOIN part_numbers pn ON pn.id = d.owner_part_number_id
+  LEFT JOIN submissions s ON s.id = COALESCE(d.source_submission_id, d.parent_submission_id)
+  LEFT JOIN items i ON i.id = d.parent_item_id
   LEFT JOIN bom_release_snapshots rs ON rs.bom_draft_id = d.id
   LEFT JOIN bom_review_requests rr
     ON rr.bom_draft_id = d.id
@@ -600,7 +754,7 @@ export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
   LEFT JOIN users submitter ON submitter.id = rr.submitted_by
   LEFT JOIN users reviewer ON reviewer.id = rr.reviewed_by
   WHERE d.status = 'Obsolete'
-    AND s.company_id = :companyId
+    AND COALESCE(d.company_id, s.company_id) = :companyId
   ORDER BY COALESCE(rs.obsolete_at, rr.reviewed_at, d.updated_at) DESC, d.id DESC
   LIMIT :limit
 `;
@@ -608,8 +762,10 @@ export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
 export const SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_REVIEW_SQL = `
   SELECT id
   FROM bom_drafts
-  WHERE parent_item_id = :parentItemId
-    AND upper(parent_revision) = upper(:parentRevision)
+  WHERE (
+      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
+      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+    )
     AND status = 'PendingReview'
     AND id <> :draftId
   LIMIT 1
@@ -683,8 +839,10 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOTS_SQL = `
   UPDATE bom_release_snapshots
   SET obsolete_at = :obsoleteAt,
       obsolete_by = :obsoleteBy
-  WHERE parent_item_id = :parentItemId
-    AND upper(parent_revision) = upper(:parentRevision)
+  WHERE (
+      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
+      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+    )
     AND obsolete_at IS NULL
 `;
 
@@ -696,8 +854,10 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASED_DRAFTS_SQL = `
   WHERE id IN (
     SELECT bom_draft_id
     FROM bom_release_snapshots
-    WHERE parent_item_id = :parentItemId
-      AND upper(parent_revision) = upper(:parentRevision)
+    WHERE (
+        (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
+        OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+      )
       AND id <> :snapshotId
   )
     AND status = 'Released'
@@ -722,10 +882,12 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
 
 export const INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
   INSERT INTO bom_release_snapshots (
-    id, bom_draft_id, parent_item_id, parent_submission_id, parent_revision,
+    id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id,
+    parent_item_id, parent_submission_id, parent_revision,
     line_snapshot_json, line_count, released_by, released_at
   ) VALUES (
-    :id, :draftId, :parentItemId, :parentSubmissionId, :parentRevision,
+    :id, :draftId, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId,
+    :parentItemId, :parentSubmissionId, :parentRevision,
     :lineSnapshotJson, :lineCount, :releasedBy, :releasedAt
   )
 `;
@@ -794,6 +956,37 @@ export class AsyncBomWorkbenchRepository {
     return rows.map(coerceDraftSummary);
   }
 
+  async listWorkbenchRecords(input: ListBomWorkbenchRecordsInput): Promise<BomWorkbenchListRecord[]> {
+    const query = input.query?.trim() ?? "";
+    const rows = await this.client.query<BomWorkbenchListRecord>(SELECT_ASYNC_BOM_WORKBENCH_RECORDS_SQL, {
+      companyId: input.companyId,
+      query,
+      queryLike: `%${query}%`,
+      status: input.status ?? "",
+      limit: Math.min(Math.max(Math.trunc(input.limit ?? 100), 1), 200)
+    });
+    return rows.map((row) => ({
+      ...coerceDraftSummary(row),
+      parent_part_number: row.parent_part_number,
+      parent_part_name: row.parent_part_name
+    }));
+  }
+
+  async getWorkbenchByDraftId(draftId: string): Promise<BomWorkbenchSummary | null> {
+    const draft = await this.getDraftById(draftId);
+    if (!draft) return null;
+    if (!draft.owner_part_number_id) {
+      return draft.parent_submission_id ? this.getWorkbenchBySubmissionId(draft.parent_submission_id) : null;
+    }
+    const parent = await this.client.queryOne<BomWorkbenchParentRow>(SELECT_ASYNC_CANONICAL_BOM_WORKBENCH_PARENT_SQL, { draftId });
+    if (!parent) return null;
+    const rows = await this.client.query<BomWorkbenchDraftSummary>(SELECT_ASYNC_CANONICAL_BOM_WORKBENCH_DRAFTS_SQL, {
+      ownerPartNumberId: draft.owner_part_number_id
+    });
+    const drafts = rows.map(coerceDraftSummary);
+    return { ...parent, drafts, active_draft: draft };
+  }
+
   async listDeletedDraftsBySubmissionId(submissionId: string): Promise<BomWorkbenchDraftSummary[]> {
     const rows = await this.client.query<BomWorkbenchDraftSummary>(SELECT_ASYNC_DELETED_BOM_WORKBENCH_DRAFTS_SQL, { submissionId });
     return rows.map(coerceDraftSummary);
@@ -846,6 +1039,352 @@ export class AsyncBomWorkbenchRepository {
       limit: Math.min(Math.max(Math.trunc(input.limit ?? 100), 1), 500)
     });
     return rows.map((row) => ({ ...row, line_count: numberValue(row.line_count) }));
+  }
+
+  async createCanonicalDraft(input: CreateCanonicalBomDraftInput): Promise<CreateCanonicalBomDraftResult> {
+    const replay = await this.getCanonicalCreateReplay(input);
+    if (replay) return replay;
+    await this.assertCanonicalRevisionAvailable(input);
+    if (input.source === "cad_reference" && !input.sourceSubmissionId) {
+      throw new Error("BOM_CAD_SOURCE_SUBMISSION_REQUIRED");
+    }
+
+    const references = input.sourceSubmissionId
+      ? await this.client.query<FileReference>(SELECT_ASYNC_BOM_WORKBENCH_ASSEMBLY_REFERENCES_SQL, {
+          submissionId: input.sourceSubmissionId
+        })
+      : [];
+    const lines = input.source === "cad_reference" ? mergeAssemblyReferences(references) : [];
+    const now = this.clock();
+    const draftId = this.idFactory();
+    const draftName = input.draftName?.trim() || `${input.ownerPartNumber} BOM Rev ${input.bomRevision}`;
+
+    const create = async (client: AsyncDatabaseClient) => {
+      const concurrentReplay = await this.getCanonicalCreateReplay(input, client);
+      if (concurrentReplay) return { draftId: concurrentReplay.draft.id, replayed: true };
+      await this.assertCanonicalRevisionAvailable(input, client);
+
+      await client.execute(DEACTIVATE_ASYNC_CANONICAL_BOM_ACTIVE_DRAFTS_SQL, {
+        ownerPartNumberId: input.ownerPartNumberId,
+        bomRevision: input.bomRevision,
+        updatedAt: now
+      });
+      await client.execute(INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL, {
+        id: draftId,
+        companyId: input.companyId,
+        ownerPartNumberId: input.ownerPartNumberId,
+        bomRevision: input.bomRevision,
+        sourceSubmissionId: input.sourceSubmissionId ?? null,
+        parentItemId: input.legacyItemId,
+        parentSubmissionId: input.sourceSubmissionId ?? null,
+        draftName,
+        source: input.source,
+        lineCount: lines.length,
+        createdBy: input.actorId,
+        updatedBy: input.actorId,
+        createdAt: now,
+        updatedAt: now
+      });
+
+      for (const [index, line] of lines.entries()) {
+        const childItem = await client.queryOne<{ id: string }>(
+          `SELECT id FROM items WHERE company_id = :companyId AND upper(part_number) = upper(:partNumber) LIMIT 1`,
+          { companyId: input.companyId, partNumber: line.childPartNumber }
+        );
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
+          id: this.idFactory(),
+          draftId,
+          parentLineId: null,
+          nodeType: "item",
+          itemId: childItem?.id ?? null,
+          partNumber: line.childPartNumber,
+          revision: null,
+          groupName: null,
+          quantity: line.quantity,
+          sequenceNo: index + 1,
+          source: input.source,
+          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY[input.source],
+          sourceRefId: line.sourceReferenceId,
+          sourceFilename: line.sourceFilename,
+          createdBy: input.actorId,
+          updatedBy: input.actorId,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId,
+        actorId: input.actorId,
+        eventType: input.source === "cad_reference" ? "create_from_assembly" : "create_manual",
+        beforeJson: null,
+        afterJson: JSON.stringify({
+          draftId,
+          ownerPartNumberId: input.ownerPartNumberId,
+          bomRevision: input.bomRevision,
+          source: input.source,
+          lineCount: lines.length
+        }),
+        reason: "Create canonical material-owned BOM draft",
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: input.sourceSubmissionId ?? null,
+        actorId: input.actorId,
+        action: "CanonicalBomDraftCreated",
+        detailJson: JSON.stringify({ draftId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision, source: input.source }),
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_CREATE_EFFECT_SQL, {
+        id: this.idFactory(),
+        companyId: input.companyId,
+        actorId: input.actorId,
+        idempotencyKey: input.idempotencyKey,
+        requestFingerprint: input.requestFingerprint,
+        draftId,
+        outcomeJson: JSON.stringify({ draftId, source: input.source }),
+        createdAt: now
+      });
+      return { draftId, replayed: false };
+    };
+
+    let result: { draftId: string; replayed: boolean };
+    try {
+      result = await this.client.transaction(create);
+    } catch (error) {
+      const replayAfterConcurrentCommit = await this.getCanonicalCreateReplay(input);
+      if (replayAfterConcurrentCommit) return replayAfterConcurrentCommit;
+      throw error;
+    }
+    const draft = await this.getDraftById(result.draftId);
+    if (!draft) throw new Error("BOM_CREATE_RESULT_NOT_FOUND");
+    return { draft, replayed: result.replayed };
+  }
+
+  async createCanonicalDraftFromSolidWorksXls(
+    input: CreateCanonicalBomDraftFromSolidWorksXlsInput
+  ): Promise<CreateCanonicalBomDraftResult> {
+    const replay = await this.getCanonicalCreateReplay(input);
+    if (replay) return replay;
+    await this.assertCanonicalRevisionAvailable(input);
+
+    const originalFilename = sanitizeFilename(input.originalFilename || "solidworks-bom.xls");
+    if (input.fileBuffer.byteLength === 0) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
+    const uploadValidation = validateStorageUploadFile(
+      { name: originalFilename, size: input.fileBuffer.byteLength },
+      getStorageUploadPolicy()
+    );
+    if (!uploadValidation.ok) throw new BomXlsImportError("BOM_XLS_FILE_TOO_LARGE");
+    const parsed = await parseSolidWorksBomImport(input.fileBuffer);
+    const now = this.clock();
+    const draftId = this.idFactory();
+    const importJobId = this.idFactory();
+    const asset = await saveBomImportOriginalFile({
+      importJobId,
+      originalFilename,
+      fileBuffer: input.fileBuffer,
+      parentSubmissionId: input.ownerPartNumberId,
+      now
+    });
+    const draftName = input.draftName?.trim() || `${input.ownerPartNumber} BOM Rev ${input.bomRevision}`;
+
+    const create = async (client: AsyncDatabaseClient) => {
+      const concurrentReplay = await this.getCanonicalCreateReplay(input, client);
+      if (concurrentReplay) return { draftId: concurrentReplay.draft.id, replayed: true, importJobId: null as string | null };
+      await this.assertCanonicalRevisionAvailable(input, client);
+      const profile = await this.ensureSolidWorksBomImportProfile(client, {
+        profileName: input.profileName,
+        profileVersion: input.profileVersion,
+        now
+      });
+      await client.execute(DEACTIVATE_ASYNC_CANONICAL_BOM_ACTIVE_DRAFTS_SQL, {
+        ownerPartNumberId: input.ownerPartNumberId,
+        bomRevision: input.bomRevision,
+        updatedAt: now
+      });
+      await client.execute(INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL, {
+        id: draftId,
+        companyId: input.companyId,
+        ownerPartNumberId: input.ownerPartNumberId,
+        bomRevision: input.bomRevision,
+        sourceSubmissionId: null,
+        parentItemId: input.legacyItemId,
+        parentSubmissionId: null,
+        draftName,
+        source: "solidworks_xls",
+        lineCount: parsed.lines.length,
+        createdBy: input.actorId,
+        updatedBy: input.actorId,
+        createdAt: now,
+        updatedAt: now
+      });
+      await client.execute(INSERT_ASYNC_FILE_ASSET_SQL, {
+        id: asset.id,
+        storageProvider: "external",
+        originalPath: asset.localPath,
+        storageKey: asset.storageKey,
+        fileName: originalFilename,
+        fileExt: path.extname(originalFilename).replace(".", "").toLowerCase(),
+        fileSize: input.fileBuffer.byteLength,
+        contentHash: asset.sha256,
+        hashAlgorithm: "SHA-256",
+        linkedEntityType: "bom_import_job",
+        linkedEntityId: importJobId,
+        revision: input.bomRevision,
+        syncStatus: "local_only",
+        createdAt: now,
+        updatedAt: now
+      });
+      for (const [index, line] of parsed.lines.entries()) {
+        const childItem = await client.queryOne<{ id: string }>(
+          `SELECT id FROM items WHERE company_id = :companyId AND upper(part_number) = upper(:partNumber) LIMIT 1`,
+          { companyId: input.companyId, partNumber: line.childPartNumber }
+        );
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
+          id: this.idFactory(),
+          draftId,
+          parentLineId: null,
+          nodeType: "item",
+          itemId: childItem?.id ?? null,
+          partNumber: line.childPartNumber,
+          revision: null,
+          groupName: null,
+          quantity: line.quantity,
+          sequenceNo: index + 1,
+          source: "solidworks_xls",
+          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY.solidworks_xls,
+          sourceRefId: line.sourceReferenceId,
+          sourceFilename: originalFilename,
+          createdBy: input.actorId,
+          updatedBy: input.actorId,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+      await client.execute(INSERT_ASYNC_CANONICAL_BOM_IMPORT_JOB_SQL, {
+        id: importJobId,
+        draftId,
+        ownerPartNumberId: input.ownerPartNumberId,
+        bomRevision: input.bomRevision,
+        importProfileId: profile.id,
+        sourceAssetId: asset.id,
+        originalFilename,
+        status: "Imported",
+        rowCount: parsed.rawRowCount,
+        errorJson: JSON.stringify({ format: parsed.format, sha256: asset.sha256, warnings: parsed.warnings }),
+        createdBy: input.actorId,
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
+        id: this.idFactory(),
+        draftId,
+        actorId: input.actorId,
+        eventType: "import_solidworks_xls",
+        beforeJson: null,
+        afterJson: JSON.stringify({ draftId, importJobId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision }),
+        reason: "Import canonical material-owned BOM draft from SolidWorks XLS",
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
+        id: this.idFactory(),
+        submissionId: null,
+        actorId: input.actorId,
+        action: "CanonicalBomDraftImported",
+        detailJson: JSON.stringify({ draftId, importJobId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision }),
+        createdAt: now
+      });
+      await client.execute(INSERT_ASYNC_BOM_CREATE_EFFECT_SQL, {
+        id: this.idFactory(),
+        companyId: input.companyId,
+        actorId: input.actorId,
+        idempotencyKey: input.idempotencyKey,
+        requestFingerprint: input.requestFingerprint,
+        draftId,
+        outcomeJson: JSON.stringify({ draftId, importJobId, source: "solidworks_xls" }),
+        createdAt: now
+      });
+      return { draftId, replayed: false, importJobId };
+    };
+
+    let result: { draftId: string; replayed: boolean; importJobId: string | null };
+    try {
+      result = await this.client.transaction(create);
+    } catch (error) {
+      await removeBomImportOriginalFile(asset);
+      const replayAfterConcurrentCommit = await this.getCanonicalCreateReplay(input);
+      if (replayAfterConcurrentCommit) return replayAfterConcurrentCommit;
+      throw error;
+    }
+    if (result.replayed) await removeBomImportOriginalFile(asset);
+    const draft = await this.getDraftById(result.draftId);
+    if (!draft) throw new Error("BOM_CREATE_RESULT_NOT_FOUND");
+    const importJob = result.importJobId
+      ? await this.client.queryOne<BomImportJob>(SELECT_ASYNC_BOM_IMPORT_JOB_SQL, { importJobId: result.importJobId })
+      : await this.client.queryOne<BomImportJob>(
+          `SELECT * FROM bom_import_jobs WHERE bom_draft_id = :draftId ORDER BY created_at DESC, id DESC LIMIT 1`,
+          { draftId: result.draftId }
+        );
+    return { draft, replayed: result.replayed, importJob: importJob ? coerceImportJob(importJob) : undefined };
+  }
+
+  private async getCanonicalCreateReplay(
+    input: Pick<CreateCanonicalBomDraftInput, "companyId" | "actorId" | "idempotencyKey" | "requestFingerprint">,
+    client: AsyncDatabaseClient = this.client
+  ): Promise<CreateCanonicalBomDraftResult | null> {
+    const effect = await client.queryOne<{ request_fingerprint: string; draft_id: string }>(SELECT_ASYNC_BOM_CREATE_EFFECT_SQL, {
+      companyId: input.companyId,
+      actorId: input.actorId,
+      idempotencyKey: input.idempotencyKey
+    });
+    if (!effect) return null;
+    if (effect.request_fingerprint !== input.requestFingerprint) throw new BomCreateIdempotencyConflictError();
+    const draft = await this.getDraftById(effect.draft_id);
+    if (!draft) throw new Error("BOM_CREATE_EFFECT_DRAFT_NOT_FOUND");
+    const importJob = await client.queryOne<BomImportJob>(
+      `SELECT * FROM bom_import_jobs WHERE bom_draft_id = :draftId ORDER BY created_at DESC, id DESC LIMIT 1`,
+      { draftId: effect.draft_id }
+    );
+    return { draft, replayed: true, importJob: importJob ? coerceImportJob(importJob) : undefined };
+  }
+
+  private async assertCanonicalRevisionAvailable(
+    input: Pick<CreateCanonicalBomDraftInput, "ownerPartNumberId" | "bomRevision">,
+    client: AsyncDatabaseClient = this.client
+  ) {
+    const history = await client.query<{ revision: string; status: string }>(
+      `
+        SELECT bom_revision AS revision, status
+        FROM bom_drafts
+        WHERE owner_part_number_id = :ownerPartNumberId
+          AND bom_revision IS NOT NULL
+          AND status <> 'Archived'
+        UNION ALL
+        SELECT bom_revision AS revision, 'Released' AS status
+        FROM bom_release_snapshots
+        WHERE owner_part_number_id = :ownerPartNumberId
+          AND bom_revision IS NOT NULL
+      `,
+      { ownerPartNumberId: input.ownerPartNumberId }
+    );
+    const requested = parseRevisionCode(input.bomRevision);
+    if (!requested || requested.kind !== "major") throw new BomRevisionConflictError("BOM_REVISION_NOT_FORWARD");
+    const parsedHistory = history
+      .map((row) => ({ row, parsed: parseRevisionCode(row.revision, { allowLegacy: true }) }))
+      .filter((entry): entry is { row: { revision: string; status: string }; parsed: NonNullable<ReturnType<typeof parseRevisionCode>> } =>
+        Boolean(entry.parsed)
+      );
+    if (parsedHistory.some((entry) => entry.parsed.kind === "major" && entry.parsed.major === requested.major)) {
+      throw new BomRevisionConflictError("BOM_REVISION_OCCUPIED");
+    }
+    const latestReleasedMajor = Math.max(
+      0,
+      ...parsedHistory
+        .filter((entry) => entry.row.status === "Released" && entry.parsed.kind === "major")
+        .map((entry) => entry.parsed.major)
+    );
+    if (requested.major <= latestReleasedMajor) throw new BomRevisionConflictError("BOM_REVISION_NOT_FORWARD");
   }
 
   async createDraftFromAssembly(input: CreateAsyncBomWorkbenchDraftFromAssemblyInput): Promise<BomWorkbenchDraftDetail | null> {
@@ -1227,7 +1766,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: before.parent_submission_id,
+        submissionId: auditSubmissionId(before),
         actorId: input.actorId,
         action: "BomWorkbenchDraftSaved",
         detailJson: JSON.stringify({
@@ -1261,6 +1800,8 @@ export class AsyncBomWorkbenchRepository {
     if (!changeReason) throw new Error("BOM_REVIEW_CHANGE_REASON_REQUIRED");
 
     const existingPendingReview = await this.client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_REVIEW_SQL, {
+      ownerPartNumberId: draft.owner_part_number_id,
+      bomRevision: draft.bom_revision,
       parentItemId: draft.parent_item_id,
       parentRevision: draft.parent_revision,
       draftId: input.draftId
@@ -1296,7 +1837,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: draft.parent_submission_id,
+        submissionId: auditSubmissionId(draft),
         actorId: input.actorId,
         action: "BomWorkbenchReviewSubmitted",
         detailJson: JSON.stringify({ draftId: input.draftId, reviewId, changeReason }),
@@ -1352,7 +1893,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: draft.parent_submission_id,
+        submissionId: auditSubmissionId(draft),
         actorId: input.actorId,
         action: "lifecycle.obsolete.requested",
         detailJson: JSON.stringify({
@@ -1402,7 +1943,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: draft.parent_submission_id,
+        submissionId: auditSubmissionId(draft),
         actorId: input.actorId,
         action: "BomWorkbenchReplacementPartsReconfirmed",
         detailJson: JSON.stringify({
@@ -1454,7 +1995,7 @@ export class AsyncBomWorkbenchRepository {
         });
         await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
           id: this.idFactory(),
-          submissionId: draft.parent_submission_id,
+          submissionId: auditSubmissionId(draft),
           actorId: input.actorId,
           action: "lifecycle.obsolete.rejected",
           detailJson: JSON.stringify({
@@ -1505,7 +2046,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: draft.parent_submission_id,
+        submissionId: auditSubmissionId(draft),
         actorId: input.actorId,
         action: "BomWorkbenchReviewRejected",
         detailJson: JSON.stringify({ draftId: draft.id, reviewId: input.reviewId, decisionReason: decisionReason || null }),
@@ -1566,7 +2107,7 @@ export class AsyncBomWorkbenchRepository {
         });
         await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
           id: this.idFactory(),
-          submissionId: draft.parent_submission_id,
+          submissionId: auditSubmissionId(draft),
           actorId: input.actorId,
           action: "lifecycle.obsolete.approved",
           detailJson: JSON.stringify({
@@ -1604,12 +2145,16 @@ export class AsyncBomWorkbenchRepository {
     const decisionReason = input.decisionReason?.trim() || "";
     const approve = async (client: AsyncDatabaseClient) => {
       await client.execute(OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOTS_SQL, {
+        ownerPartNumberId: draft.owner_part_number_id,
+        bomRevision: draft.bom_revision,
         parentItemId: draft.parent_item_id,
         parentRevision: draft.parent_revision,
         obsoleteAt: now,
         obsoleteBy: input.actorId
       });
       await client.execute(OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASED_DRAFTS_SQL, {
+        ownerPartNumberId: draft.owner_part_number_id,
+        bomRevision: draft.bom_revision,
         parentItemId: draft.parent_item_id,
         parentRevision: draft.parent_revision,
         snapshotId,
@@ -1619,9 +2164,13 @@ export class AsyncBomWorkbenchRepository {
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL, {
         id: snapshotId,
         draftId: draft.id,
+        companyId: draft.company_id,
+        ownerPartNumberId: draft.owner_part_number_id,
+        bomRevision: draft.bom_revision,
+        sourceSubmissionId: draft.source_submission_id,
         parentItemId: draft.parent_item_id,
-        parentSubmissionId: draft.parent_submission_id,
-        parentRevision: draft.parent_revision,
+        parentSubmissionId: draft.source_submission_id || draft.parent_submission_id || null,
+        parentRevision: draft.identity_authority === "canonical_part_number" ? null : draft.parent_revision,
         lineSnapshotJson: JSON.stringify(draft.lines),
         lineCount: draft.lines.length,
         releasedBy: input.actorId,
@@ -1650,7 +2199,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: draft.parent_submission_id,
+        submissionId: auditSubmissionId(draft),
         actorId: input.actorId,
         action: "BomWorkbenchReviewApproved",
         detailJson: JSON.stringify({
@@ -1683,11 +2232,19 @@ export class AsyncBomWorkbenchRepository {
 
     const now = this.clock();
     const activate = async (client: AsyncDatabaseClient) => {
-      await client.execute(DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL, {
-        parentItemId: before.parent_item_id,
-        parentRevision: before.parent_revision,
-        updatedAt: now
-      });
+      if (before.owner_part_number_id && before.bom_revision) {
+        await client.execute(DEACTIVATE_ASYNC_CANONICAL_BOM_ACTIVE_DRAFTS_SQL, {
+          ownerPartNumberId: before.owner_part_number_id,
+          bomRevision: before.bom_revision,
+          updatedAt: now
+        });
+      } else {
+        await client.execute(DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL, {
+          parentItemId: before.parent_item_id,
+          parentRevision: before.parent_revision,
+          updatedAt: now
+        });
+      }
       await client.execute(ACTIVATE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
         draftId: input.draftId,
         updatedBy: input.actorId,
@@ -1705,7 +2262,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: before.parent_submission_id,
+        submissionId: auditSubmissionId(before),
         actorId: input.actorId,
         action: "BomWorkbenchDraftActivated",
         detailJson: JSON.stringify({ draftId: input.draftId, previousActive: before.is_active }),
@@ -1748,7 +2305,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: before.parent_submission_id,
+        submissionId: auditSubmissionId(before),
         actorId: input.actorId,
         action: "BomWorkbenchDraftDeleted",
         detailJson: JSON.stringify({
@@ -1797,7 +2354,7 @@ export class AsyncBomWorkbenchRepository {
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: before.parent_submission_id,
+        submissionId: auditSubmissionId(before),
         actorId: input.actorId,
         action: "BomWorkbenchDraftRestored",
         detailJson: JSON.stringify({
@@ -1823,6 +2380,7 @@ export class AsyncBomWorkbenchRepository {
 
   private async getLatestReleaseSnapshotForDraft(draft: BomWorkbenchDraftDetail): Promise<BomReleaseSnapshotDetail | null> {
     const row = await this.client.queryOne<AsyncBomReleaseSnapshotRow>(SELECT_ASYNC_BOM_WORKBENCH_LATEST_RELEASE_SNAPSHOT_SQL, {
+      ownerPartNumberId: draft.owner_part_number_id,
       parentItemId: draft.parent_item_id,
       draftId: draft.id
     });
@@ -2054,6 +2612,14 @@ function nullableNumberValue(value: unknown): number | null {
 function coerceDraftSummary(row: BomWorkbenchDraftSummary): BomWorkbenchDraftSummary {
   return {
     ...row,
+    company_id: row.company_id ?? null,
+    owner_part_number_id: row.owner_part_number_id ?? null,
+    bom_revision: row.bom_revision ?? row.parent_revision ?? null,
+    source_submission_id: row.source_submission_id ?? row.parent_submission_id ?? null,
+    identity_authority: row.identity_authority ?? "legacy_submission_bound",
+    parent_item_id: row.parent_item_id ?? "",
+    parent_submission_id: row.parent_submission_id ?? row.source_submission_id ?? "",
+    parent_revision: row.parent_revision ?? row.bom_revision ?? "",
     is_active: numberValue(row.is_active),
     line_count: numberValue(row.line_count),
     review_attempt: numberValue(row.review_attempt)
@@ -2076,6 +2642,10 @@ function coerceImportJob(row: BomImportJob): BomImportJob {
   };
 }
 
+function auditSubmissionId(draft: BomWorkbenchDraftSummary) {
+  return draft.source_submission_id || draft.parent_submission_id || null;
+}
+
 function assertBomDraftMutable(status: BomWorkbenchDraftSummary["status"]) {
   if (status !== "Draft" && status !== "Rejected") {
     throw new Error("BOM_DRAFT_NOT_MUTABLE");
@@ -2092,7 +2662,18 @@ function parseReleaseSnapshot(row: AsyncBomReleaseSnapshotRow): BomReleaseSnapsh
   }
 
   const { line_snapshot_json: _lineSnapshotJson, ...snapshot } = row;
-  return { ...snapshot, lines };
+  return {
+    ...snapshot,
+    company_id: snapshot.company_id ?? null,
+    owner_part_number_id: snapshot.owner_part_number_id ?? null,
+    bom_revision: snapshot.bom_revision ?? snapshot.parent_revision ?? null,
+    source_submission_id: snapshot.source_submission_id ?? snapshot.parent_submission_id ?? null,
+    parent_item_id: snapshot.parent_item_id ?? "",
+    parent_submission_id: snapshot.parent_submission_id ?? snapshot.source_submission_id ?? "",
+    parent_revision: snapshot.parent_revision ?? snapshot.bom_revision ?? "",
+    line_count: numberValue(snapshot.line_count),
+    lines
+  };
 }
 
 function mergeAssemblyReferences(references: FileReference[]): AssemblyDraftLine[] {

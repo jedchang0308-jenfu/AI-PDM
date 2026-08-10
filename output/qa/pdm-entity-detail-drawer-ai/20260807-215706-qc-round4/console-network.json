@@ -1,0 +1,16 @@
+{
+  "consoleErrors": [],
+  "consoleWarnings": [],
+  "visibleRuntimeFailures": [],
+  "visibleErrorSweep": {
+    "inlineErrorOrAlertText": [],
+    "Internal Server Error": false,
+    "Not Found": false,
+    "HTTP 4xx": false,
+    "HTTP 5xx": false,
+    "/api/ route text": false,
+    "TypeError": false,
+    "ReferenceError": false
+  },
+  "failedRequests": "Browser API did not expose response statuses; no fetch failure appeared in console or visible UI."
+}

@@ -1,0 +1,64 @@
+{
+  "runId": "DEV059-20260809-160129-isolated",
+  "browserErrors": [],
+  "unexpectedBrowserErrors": [],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:af14dd7d-2091-4e07-ab22-a45d01cdaaf7"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-c804c8f7-fbe4-4497-94c2-1a9c322cd21c/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-4668c68a-7862-4e78-9d1d-7d41c7f9f53d:6ba2194e-dfe4-4a28-b424-5cd8ae365a50"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-c804c8f7-fbe4-4497-94c2-1a9c322cd21c/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-c804c8f7-fbe4-4497-94c2-1a9c322cd21c/candidate-revisions/NCR-15654918-a202-4406-b08b-6639e06f1837/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-15654918-a202-4406-b08b-6639e06f1837:qa-dev059-primary.pdf:118:1786291289718:b5d68827-db32-449d-b7a4-e6c5eface0a4"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-c804c8f7-fbe4-4497-94c2-1a9c322cd21c/candidate-revisions/NCR-15654918-a202-4406-b08b-6639e06f1837/files",
+      "status": 201,
+      "fault": null
+    }
+  ],
+  "plannedFaults": []
+}

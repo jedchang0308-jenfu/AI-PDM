@@ -1,0 +1,47 @@
+{
+  "runId": "DEV062-20260810-120112-local-isolated",
+  "passed": true,
+  "cardinalityRule": "representative query count must equal baseline query count",
+  "part": {
+    "list": {
+      "budget": 15,
+      "baseline": 14,
+      "representative": 14,
+      "rowCardinality": 50
+    },
+    "candidateDetail": {
+      "budget": 13,
+      "baseline": 11,
+      "representative": 11,
+      "childCardinality": 25
+    },
+    "formalDetail": {
+      "budget": 6,
+      "baseline": 6,
+      "representative": 6,
+      "childCardinality": 10
+    }
+  },
+  "relation": {
+    "list": {
+      "budget": 18,
+      "baseline": 18,
+      "representative": 18,
+      "rootCardinality": 60,
+      "rowCardinality": 60
+    },
+    "rootDetail": {
+      "budget": 10,
+      "baseline": 10,
+      "representative": 10,
+      "partCardinality": 5,
+      "drawingCardinality": 3
+    },
+    "candidateDetail": {
+      "budget": 13,
+      "baseline": 11,
+      "representative": 11,
+      "childCardinality": 5
+    }
+  }
+}

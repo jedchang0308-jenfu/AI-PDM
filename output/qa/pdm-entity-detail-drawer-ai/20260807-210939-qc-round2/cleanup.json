@@ -1,0 +1,7 @@
+{
+  "writes": 0,
+  "createdCandidates": [],
+  "cancelledCandidates": [],
+  "cleanupRequired": false,
+  "note": "Only opened the existing candidate confirmation dialog and dismissed it with Escape. The final confirmation was never activated."
+}

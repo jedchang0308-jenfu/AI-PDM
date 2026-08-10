@@ -198,6 +198,20 @@
       "description": "Add DEV-053 Phase 1H drawing-revision lifecycle authority and guarded cleanup",
       "sourceSha256": "29596ec10e2b9d877f3f3ef8228130969245b458e032f7ff6b211c5d8926666d",
       "targetSha256": "0482763515fa5b308ce08ed38ec7eb41d35b07293dfbdc84b20c4c0a214a6acd"
+    },
+    {
+      "source": "db/postgres/028_bom_material_identity_revision.sql",
+      "target": "supabase/migrations/20260810010000_bom_material_identity_revision.sql",
+      "description": "Add DEV-060 canonical material-owned BOM revision and idempotent create effects",
+      "sourceSha256": "d63b3a1b71732cebb0df448bd606ea9ebfd6fe85070f1c74784a89cecd27235c",
+      "targetSha256": "37aa66011acef73c0bb8e126e74c093b899f0662846a55e98368f308d70112df"
+    },
+    {
+      "source": "db/postgres/029_pdm_file_ownership_and_3d_reuse.sql",
+      "target": "supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql",
+      "description": "Add DEV-061 strict drawing source files, submission asset pointers, and scoped 3D reuse",
+      "sourceSha256": "44291ff54eb689bee641284c30b22666fb062ef815b82040cddf97fd136412f2",
+      "targetSha256": "44291ff54eb689bee641284c30b22666fb062ef815b82040cddf97fd136412f2"
     }
   ]
 }

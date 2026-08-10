@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { getBomWorkbenchDraftByIdAsync, getBomWorkbenchDraftDiffAsync } from "@/lib/bom-workbench-async";
-import { canReadBomDraftAsync } from "@/lib/permissions";
-import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
@@ -16,11 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draf
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  const submission = await getSubmissionAsync(draft.parent_submission_id);
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
-  }
-  if (!(await canReadBomDraftAsync(auth.user, submission))) return forbidden();
+  if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
 
   return NextResponse.json({ diff: await getBomWorkbenchDraftDiffAsync(draftId) });
 }

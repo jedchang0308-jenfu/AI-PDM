@@ -1,0 +1,44 @@
+{
+  "staticGates": {
+    "typecheck": "PASS",
+    "drawerQc": "PASS 42/42",
+    "numberStateUi": "PASS 8/8",
+    "dev053Ui": "PASS 23/23",
+    "scopedEslint": "PASS 0 errors; 2 warnings"
+  },
+  "candidate1440": {
+    "componentCount": 1,
+    "sections": ["drawing-overview", "drawing-revision-files", "drawing-preview", "drawing-pending", "drawing-more"],
+    "pending": {"exists": true, "hidden": true, "display": "none", "width": 0, "height": 0},
+    "numberStateNowWhatCount": 0,
+    "authoritativeMissingFilePromptCount": 1,
+    "previewText": "圖面預覽\n尚無可預覽圖面",
+    "visiblePrepareFirstDrawingCount": 0,
+    "horizontalOverflow": false,
+    "visibleErrors": []
+  },
+  "candidate390": {
+    "componentCount": 1,
+    "sections": ["drawing-overview", "drawing-revision-files", "drawing-preview", "drawing-pending", "drawing-more"],
+    "pending": {"hidden": true, "display": "none", "width": 0, "height": 0},
+    "documentOverflowX": false,
+    "drawerOverflowX": false,
+    "interactiveOutsideX": 0,
+    "visibleErrors": [],
+    "consoleErrorsOrWarnings": []
+  },
+  "formal1440": {
+    "componentCount": 1,
+    "sections": ["drawing-overview", "drawing-revision-files", "drawing-preview", "drawing-pending", "drawing-more"],
+    "headerPrimaryCount": 1,
+    "controlledFilesVisible": true,
+    "previewVisible": true,
+    "pendingAttachmentsVisible": true,
+    "visiblePrepareFirstDrawingCount": 0,
+    "documentOverflowX": false,
+    "drawerOverflowX": false,
+    "visibleErrors": [],
+    "consoleErrorsOrWarnings": []
+  },
+  "networkStatusTelemetry": "NOT SUFFICIENTLY VERIFIED; excluded from pass claim per prior note"
+}

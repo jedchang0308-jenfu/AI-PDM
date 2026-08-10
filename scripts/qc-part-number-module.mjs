@@ -14,12 +14,24 @@ function assert(condition, message) {
 const sqliteSchema = readProjectFile(root, "db/schema.sql");
 const postgresSchema = readProjectFile(root, "db/postgres/001_initial_schema.sql");
 const rlsPlan = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
-const repository = readProjectFile(root, "src/lib/repositories/numbering-repository.ts");
+const repository = [
+  readProjectFile(root, "src/lib/repositories/numbering-repository.ts"),
+  readProjectFile(root, "src/lib/numbering-part-cost.ts")
+].join("\n");
 const dbExports = readProjectFile(root, "src/lib/db.ts");
 const sidebar = readProjectFile(root, "src/components/sidebar-nav.tsx");
 const navPermissions = readProjectFile(root, "src/lib/numbering-permission-codes.ts");
-const partsPage = readProjectFile(root, "src/app/parts/page.tsx");
-const drawingsPage = readProjectFile(root, "src/app/numbering/drawings/page.tsx");
+const partsPage = [
+  readProjectFile(root, "src/app/parts/page.tsx"),
+  readProjectFile(root, "src/components/part-module.tsx"),
+  readProjectFile(root, "src/components/part-workbench.tsx"),
+  readProjectFile(root, "src/components/part-detail-content.tsx")
+].join("\n");
+const drawingsPage = [
+  readProjectFile(root, "src/app/numbering/drawings/page.tsx"),
+  readProjectFile(root, "src/components/drawing-workbench.tsx"),
+  readProjectFile(root, "src/components/drawing-detail-content.tsx")
+].join("\n");
 const drawingsRoute = readProjectFile(root, "src/app/api/numbering/drawings/route.ts");
 const itemRevisionsRoute = readProjectFile(root, "src/app/api/items/[partNumber]/revisions/route.ts");
 const itemInsightsAsync = readProjectFile(root, "src/lib/repositories/item-insight-async-repository.ts");
@@ -120,7 +132,7 @@ assert(
 );
 assert(partsPage.includes("成本審核") && partsPage.includes("decideCostRequest") && partsPage.includes("cost-change-requests"), "parts page exposes cost review actions");
 assert(drawingsRoute.includes("listDrawingModuleRecords"), "drawing API returns drawing module records");
-assert(drawingsPage.includes("同主根號料號") && drawingsPage.includes("Title block 變體風險"), "drawing page shows same-root part detail and title block warning");
+assert(drawingsPage.includes("SameRootPartPanel") && drawingsPage.includes("Title block 變體風險"), "drawing owner content keeps same-root part detail and title block warning");
 const drawingAttachmentPanelIndex = drawingsPage.indexOf("<MasterAttachmentPanel");
 const drawingPrerequisitePanelIndex = drawingsPage.indexOf("<DrawingSubmissionPrerequisitePanel");
 const drawingPartPanelIndex = drawingsPage.indexOf("<SameRootPartPanel");
@@ -135,7 +147,7 @@ assert(
   "drawing detail drawer keeps a compact drawing-first submission check"
 );
 assert(
-  drawingsPage.includes("補標準成本") && drawingsPage.includes("partCostHref") && drawingsPage.includes("focus=cost"),
+  drawingsPage.includes("補成本") && drawingsPage.includes("partCostHref") && drawingsPage.includes("focus=cost") && drawingsPage.includes('data-capability="standard-cost-maintenance"'),
   "drawing linked part card provides a direct standard-cost remediation entry"
 );
 assert(

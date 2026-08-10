@@ -7,8 +7,9 @@ import * as ts from "typescript";
 
 const root = process.cwd();
 const srcRoot = path.join(root, "src");
-const BASELINE_MAX_DUPLICATE_FUNCTION_GROUPS = 62;
-const BASELINE_MAX_DUPLICATE_FUNCTION_PAIRS = 60;
+const reportAllGroups = process.argv.includes("--all");
+const BASELINE_MAX_DUPLICATE_FUNCTION_GROUPS = 42;
+const BASELINE_MAX_DUPLICATE_FUNCTION_PAIRS = 41;
 const MIN_BODY_LENGTH = 240;
 const results = [];
 
@@ -105,7 +106,7 @@ const report = {
   baselineMaxDuplicateFunctionPairs: BASELINE_MAX_DUPLICATE_FUNCTION_PAIRS,
   duplicateFunctionGroupCount,
   duplicateFunctionPairCount,
-  topGroups: groups.slice(0, 12),
+  topGroups: groups.slice(0, reportAllGroups ? groups.length : 12),
   total: results.length,
   passed: results.filter((result) => result.passed).length,
   failed: results.filter((result) => !result.passed).length,

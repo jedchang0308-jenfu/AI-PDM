@@ -29,10 +29,12 @@ $DocumentManagerPreviewWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-document-ma
 $DocumentManagerPreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.out.log"
 $DocumentManagerPreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.err.log"
 $DocumentManagerPreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-solidworks-document-manager-preview-worker.mjs"
+$env:PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 = "true"
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
-  @{ Path = "/api/auth/me"; Expected = @(200, 401) }
+  @{ Path = "/api/auth/me"; Expected = @(200, 401) },
+  @{ Path = "/api/numbering/state-flow/status"; Expected = @(200); RequireUnifiedPartRelationWorkbench = $true }
 )
 
 function Ensure-RuntimeDir {
@@ -263,10 +265,12 @@ function Test-LocalHttpHealth {
     $routeUrl = "http://${HostName}:$Port$($check.Path)"
     $statusCode = 0
     $errorText = ""
+    $responseContent = ""
 
     try {
       $response = Invoke-WebRequest -Uri $routeUrl -UseBasicParsing -TimeoutSec 4
       $statusCode = [int]$response.StatusCode
+      $responseContent = [string]$response.Content
     }
     catch {
       if ($_.Exception.Response) {
@@ -282,6 +286,19 @@ function Test-LocalHttpHealth {
 
     $expected = @($check.Expected)
     $routeHealthy = $expected -contains $statusCode
+    if ($routeHealthy -and $check.RequireUnifiedPartRelationWorkbench) {
+      try {
+        $featureStatus = $responseContent | ConvertFrom-Json
+        $routeHealthy = $featureStatus.partRelationWorkbench.enabled -eq $true
+        if (-not $routeHealthy) {
+          $errorText = "DEV-062 unified Part/Relation workbench is not enabled on the fixed local runtime."
+        }
+      }
+      catch {
+        $routeHealthy = $false
+        $errorText = "DEV-062 feature status response is not valid JSON. $($_.Exception.Message)"
+      }
+    }
     if ($routeHealthy) {
       $errorText = ""
     }

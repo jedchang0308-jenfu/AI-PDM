@@ -1,0 +1,16 @@
+{
+  "runId": "relation-simplified-layout-20260810",
+  "compatibility": {
+    "beforeHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "afterHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "unchanged": true,
+    "observedWrites": []
+  },
+  "disposable": null,
+  "cleanup": {
+    "completed": true,
+    "method": "isolated temporary target removed",
+    "targetKind": "OS temporary directory",
+    "targetPathHash": "f2db645ce1732c5d44799da6d34eb25463b93d110692cc6dbe28144e110e2ac3"
+  }
+}

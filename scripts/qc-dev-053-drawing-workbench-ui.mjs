@@ -10,14 +10,21 @@ const record = (id, passed, detail = "") => results.push({ id, passed: Boolean(p
 const has = (source, fragments) => fragments.every((fragment) => source.includes(fragment));
 
 const component = read("src/components/drawing-workbench.tsx");
+const humanStatusFilter = read("src/components/human-status-filter.tsx");
 const statusEngine = read("src/lib/drawing-workbench-status.ts");
 const page = read("src/app/numbering/drawings/page.tsx");
 const attachment = read("src/components/master-attachment-panel.tsx");
 const contextual = read("src/components/numbering-contextual-entrypoints.tsx");
 const revisionWorkbench = read("src/app/numbering/revisions/page.tsx");
 const candidateEditor = read("src/components/numbering-candidate-revision-editor.tsx");
+const submissionResultComponent = read("src/components/numbering-submission-result.tsx");
 const drawingWorkspaceDrawer = read("src/components/drawing-workspace-drawer.tsx");
+const sharedWorkbenchList = read("src/components/pdm-workbench-list.tsx");
+const sharedWorkbenchController = read("src/components/use-pdm-workbench-controller.ts");
+const sharedListKeyboard = read("src/components/use-list-keyboard-shortcuts.ts");
 const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
+const sharedPreview = read("src/components/drawing-detail-preview.tsx");
+const approvalPage = read("src/app/approvals/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
 
@@ -25,26 +32,30 @@ record("DEV053-UI-001 enabled experience is one workbench without visible tabs",
   has(component, ["<h1>圖號工作台</h1>", "搜尋圖號工作、確認目前工作狀態，並執行唯一下一步。", "drawing-workbench-table"]) &&
   !component.includes("NumberStateModuleTabs") && !component.includes('role="tab"') &&
   page.includes("if (workbenchEnabled) return <DrawingWorkbench />;"));
-record("DEV053-UI-002 table exposes exactly three scan columns",
-  component.includes("<thead><tr><th>圖號</th><th>品名</th><th>工作狀態</th></tr></thead>") &&
+record("DEV053-UI-002 table exposes four scan columns with part number separated from name",
+  has(component, ['key: "code"', 'header: "圖號"', 'key: "name"', 'header: "品名"', 'key: "part"', 'header: "料號"', 'key: "status"', 'header: "工作狀態"']) &&
+  component.includes('className: "drawing-workbench-layout-spacer pdm-identity-layout-spacer"') &&
+  component.includes('<SearchHighlight value={row.displayName} query={query} />') &&
+  component.includes('<SearchHighlight value={row.relatedPartSummary} query={query} />') &&
+  has(sharedWorkbenchList, ["<thead>", "columns.map", "column.dataLabel"]) &&
   !component.includes('data-label="下一步"') &&
   !component.includes("<th>保留號</th>"));
-const normalizer = component.slice(component.indexOf("function normalizeInitialLocation"), component.indexOf("export function DrawingWorkbench"));
+const normalizer = component.slice(component.indexOf("function readDrawingWorkbenchLocation"), component.indexOf("export function DrawingWorkbench"));
 record("DEV053-UI-003 legacy reserved deep link normalizes without mutation",
-  has(normalizer, ['params.get("tab") === "reserved"', 'params.delete("tab")', 'params.set("view", view)', "window.history.replaceState"]) &&
+  has(normalizer, ['params.get("tab") === "reserved"', 'if (canonicalize)', 'params.delete("tab")', 'params.set("view", view)', "window.history.replaceState"]) &&
   !normalizer.includes("fetch(") && !normalizer.includes('method: "POST"'));
 record("DEV053-UI-004 server-derived next action is kept in the drawer, not repeated in list rows",
   (component.match(/<PrimaryAction action=\{row\.primaryAction\}/gu) ?? []).length === 1 &&
   has(component, ["DrawingWorkspaceDrawer", "primaryAction=", "row.primaryAction", "disabledReason", "href"]) &&
-  has(drawingWorkspaceDrawer, ['data-component="drawing-workspace-drawer"', 'data-drawing-primary-action-slot="true"']) &&
+  has(drawingWorkspaceDrawer, ['dataComponent="drawing-workspace-drawer"', 'data-drawing-primary-action-slot="true"']) &&
   !component.includes('data-label="下一步"') &&
   !component.includes("row.actions.map"));
 record("DEV053-UI-005 controlled revision files and reference attachments use separate authority views",
   has(component, ['authorityMode="controlled_summary"', 'authorityMode="reference_manager"', "canManageReferenceAttachments"]) &&
   has(attachment, ['"combined_legacy" | "controlled_summary" | "reference_manager"', "isControlledRevisionAttachment", "受控版次檔案", "參考附件", "effectiveReadOnly", "下載"]));
 record("DEV053-UI-006 error, empty, busy and accessibility states are visible",
-  has(component, ['role="alert"', 'role="status"', "目前沒有符合條件的圖號工作", "正在載入圖號工作", "aria-label=\"圖號工作清單\""]) &&
-  has(component, ["useRememberedDrawerWidth", "aria-selected", "aria-live=\"polite\""]));
+  has(component, ['role="alert"', 'role="status"', "目前沒有符合條件的圖號工作", "正在載入圖號工作", 'ariaLabel="圖號工作清單"']) &&
+  has(component, ["useRememberedDrawerWidth", "aria-live=\"polite\""]) && has(sharedWorkbenchList, ["aria-selected", 'role="region"']));
 record("DEV053-UI-007 contextual add operations enter candidate workflow when enabled",
   has(contextual, ["drawingWorkbenchEnabled", "建立圖號工作", "建立料號工作", "/api/numbering/draft-workspaces", "candidate:"]) &&
   has(contextual, ["新增同根圖號", "新增同圖料號"]));
@@ -61,20 +72,24 @@ record("DEV053-UI-009 responsive rules cover desktop, 1024 and mobile card layou
   ]));
 record("DEV053-UI-010 client pagination resets before filter state changes",
   has(component, [
-    "resetPagination(); setQuery",
-    "resetPagination(); setView",
-    "resetPagination(); setHumanStatus",
-    "resetPagination(); setSeriesCode",
-    "resetPagination(); setPurposeCode",
-    "resetPagination(); setRecordStatus"
-  ]));
+    "updateWorkbenchQuery({ query:",
+    "updateWorkbenchQuery({ view:",
+    "updateWorkbenchQuery({ humanStatus:",
+    "updateWorkbenchQuery({ seriesCode:",
+    "updateWorkbenchQuery({ purposeCode:",
+    "updateWorkbenchQuery({ recordStatus:"
+  ]) && has(sharedWorkbenchController, ["const setQuery = useCallback", "resetPagination();"]));
 record("DEV053-UI-011 formal filters and linked-part identity remain visible on the unified list",
   has(component, [
     "圖面用途",
     "資料狀態",
-    "料號：{row.relatedPartSummary}",
-    "HUMAN_STATUS_FILTER_OPTIONS.map",
+    'dataLabel: "料號"',
+    "row.relatedPartSummary",
+    "<HumanStatusFilterSelect value={humanStatus}",
     "<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />"
+  ]) && has(humanStatusFilter, [
+    "HUMAN_STATUS_FILTER_OPTIONS",
+    "export function HumanStatusFilterSelect"
   ]) && has(statusEngine, [
     "releaseStatusMismatch",
     "projectDrawingHumanStatus",
@@ -134,7 +149,6 @@ record("DEV053-UI-015 production-slice restrictions stay visible and fail closed
     "routeIsUnopened",
     "drawing-workbench-unopened-action",
     "未開放",
-    "formalActionsUnopened={Boolean(productionSlice?.configured)}",
     "mutationsBlocked={Boolean(productionSlice?.configured)}"
   ]) && has(css, [".drawing-workbench-unopened-action", ".drawing-workbench-inline-unopened"]));
 record("DEV053-UI-016 one server primary action remains while secondary tools route to shared work pages",
@@ -142,24 +156,24 @@ record("DEV053-UI-016 one server primary action remains while secondary tools ro
   has(component, ["<PrimaryAction action={row.primaryAction}", "主要下一步只保留一個", "其他既有管理功能集中在這裡"]));
 record("DEV053-UI-017 default-all, explicit history and terminal guidance are visible",
   has(component, [
-    'useState<DrawingWorkbenchView>("all")',
+    'view: "all"',
     'rawView === "mine" ? "mine" : "all"',
     "包含歷史",
-    'history: includeHistory ? "include" : "exclude"',
+    'history: query.includeHistory ? "include" : "exclude"',
     'row.stage === "history_only"',
     "row.terminal.reasonLabel",
     "row.terminal.nextStepLabel"
   ]));
 record("DEV053-UI-018 list concurrency, stale cursor and keyboard interaction are guarded",
-  has(component, [
+  has(component, ["usePdmWorkbenchController", "useListKeyboardShortcuts"]) && has(sharedWorkbenchController, [
     "listRequestRef",
     "listAbortRef.current?.abort()",
     "response.status === 400 && currentCursor",
-    "清單內容已更新，已回到第一頁",
-    "aria-keyshortcuts",
+    "清單內容已更新，已回到第一頁"
+  ]) && has(sharedListKeyboard, [
     'event.key === "ArrowDown"',
     'event.key === "Enter"',
-    "navigator.clipboard.writeText"
+    "copyTextToClipboardBestEffort"
   ]));
 record("DEV053-UI-019 candidate revision upload is multi-file, sequential and actionable",
   has(candidateEditor, [
@@ -173,8 +187,9 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
   has(numberStateWorkspace, [
     "shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)",
     '!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)',
-    "尚無可預覽圖面"
+    "DrawingDetailPreview"
   ]) &&
+  has(sharedPreview, ['data-component="drawing-detail-preview"', "3D 模型", "2D 圖面"]) &&
   !numberStateWorkspace.includes("先在上方加入"));
 record("DEV053-UI-020 permission guidance names the missing permission and safe admin route",
   has(component, ["PermissionGuidance", "permissionCode", "contactRole", "前往權限設定", "canManageReferenceAttachments"]));
@@ -187,13 +202,12 @@ record("DEV053-UI-021 legacy files expose one no-reupload recovery CTA",
     "驗證既有檔案（${unverifiedFiles.length}）",
     "不用重新上傳",
     "原檔與編號都不會改變",
-    "需要先驗證，才能送審",
     "已成功驗證的檔案會保留",
     "expectedRowVersion = latestCandidate?.rowVersion"
   ]) && has(css, [
     ".candidate-revision-existing-verification",
     "@media (max-width: 760px)"
-  ]));
+  ]) && (candidateEditor.includes("需要先驗證，才能送審") || submissionResultComponent.includes("需要先驗證，才能送審")));
 record("DEV053-UI-022 old unsubmitted revisions route to the shared submission page without supplement confusion",
   has(attachment, [
     "historicalBackfillGroups",
@@ -226,6 +240,14 @@ record("DEV053-UI-022 old unsubmitted revisions route to the shared submission p
     ".master-attachment-historical-backfill-heading",
     ".drawing-revision-topbar-actions"
   ]) && !component.includes("drawing-revision-embed"));
+
+record("DEV053-UI-023 candidate, formal and approval drawers use one content renderer",
+  has(drawingWorkspaceDrawer, ["DrawingDetailContent", "content?: DrawingDetailContentModel"]) &&
+  has(component, ["DrawingDetailContent as SharedDrawingDetailContent", "<SharedDrawingDetailContent", "bodyClassName={embedded ? \"drawing-detail-content\" : \"pdm-entity-drawer-body\"}"]) &&
+  has(component, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
+  has(numberStateWorkspace, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
+  has(approvalPage, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
+  has(sharedPreview, ["PreviewMedia", "預覽載入中", "預覽尚未就緒"]));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

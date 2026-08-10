@@ -1,0 +1,11 @@
+{
+  "result": "Not Executed After Immediate P2 Fail",
+  "round6EvidenceReused": false,
+  "searchInitialObservation": {
+    "fixture": "A0007-M01",
+    "status": "等他人處理"
+  },
+  "drawingOwnerSearchComparison": null,
+  "partOwnerSearchComparison": null,
+  "note": "Round 5 comparisons were read for orientation only. Round 6 stopped at the first newly reproduced P2 and does not claim same-object regression coverage."
+}

@@ -1,0 +1,25 @@
+{
+  "runId": "20260807-210939-qc-round2",
+  "result": "FAIL",
+  "startedAt": "2026-08-07T21:09:39.3311519+08:00",
+  "finishedAt": "2026-08-07T21:21:34.2376469+08:00",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "actor": "張仕杰",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "dirtyScopedFiles": [
+    "scripts/qc-pdm-entity-detail-drawer.mjs",
+    "src/app/globals.css",
+    "src/app/numbering/search/page.tsx",
+    "src/app/parts/page.tsx",
+    "src/components/drawing-workbench.tsx",
+    "src/components/human-status-badge.tsx",
+    "src/components/pdm-entity-detail-drawer.tsx"
+  ],
+  "scopedHashesStableDuringRun": true,
+  "viewports": ["1440x900", "1024x768", "390x844"],
+  "fixtures": ["A0007", "A0007-M01", "A0007-P01", "A0005-M01", "draft-workspace-a26e2620-8448-4b68-8de7-0d013f94f31d"],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)"
+}

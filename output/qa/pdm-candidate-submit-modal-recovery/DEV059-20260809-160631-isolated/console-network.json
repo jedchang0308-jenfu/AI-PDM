@@ -1,0 +1,309 @@
+{
+  "runId": "DEV059-20260809-160631-isolated",
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "url": "http://127.0.0.1:55121/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc",
+      "fault": "503"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: net::ERR_CONNECTION_CLOSED",
+      "url": "http://127.0.0.1:55121/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d",
+      "fault": "response-loss"
+    },
+    {
+      "type": "pageerror",
+      "text": "Failed to fetch",
+      "url": "http://127.0.0.1:55121/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d",
+      "fault": "response-loss"
+    }
+  ],
+  "unexpectedBrowserErrors": [],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:1c9cdcd4-c3b2-41a9-a7d6-b42562a7a47e"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-0d137f1e-c720-4312-b6f9-b275ccda8c7a:8f0b4726-8a4c-4f4c-b791-30b143c03290"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/candidate-revisions/NCR-2ac67ef9-db8e-4d10-9d64-f028d17955c9/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-2ac67ef9-db8e-4d10-9d64-f028d17955c9:qa-dev059-primary.pdf:118:1786291591543:7050858d-3282-41c0-b8ca-e7862538de4f"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/candidate-revisions/NCR-2ac67ef9-db8e-4d10-9d64-f028d17955c9/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/submit-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:submit:f37d53eb-5ad2-46ec-9e1e-f8bbd4ce37db"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/submit-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:97665b25-2263-4573-b942-594026592e9e"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:1d556bad-cfa6-4d3c-a542-17dea489279d"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-bace48a7-7573-400a-a145-5d52a010228c/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:c437563c-a328-4ede-a1d2-b0ad517b3788"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-d6acf242-4b9d-4ac7-acf1-52414426949b:90bfae37-9e25-4c56-b68b-37c280329071"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/candidate-revisions/NCR-3fd0a1bd-7aa0-43a1-b2a8-e962d3fa05ad/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-3fd0a1bd-7aa0-43a1-b2a8-e962d3fa05ad:qa-dev059-primary.pdf:118:1786291591543:fcce14b3-f354-4cd4-96e5-c3fb363e7d0b"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/candidate-revisions/NCR-3fd0a1bd-7aa0-43a1-b2a8-e962d3fa05ad/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/submit-bundle-review",
+      "fault": "503",
+      "idempotencyKey": "dev053:submit:3b28e2f5-4ba6-4411-8466-103d3c9ff6da"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/submit-bundle-review",
+      "status": 503,
+      "fault": "503"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:02783a60-52b4-4628-8711-2a74f2aea858"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:27c652df-becd-436a-91d6-f37873ce3a6d"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-6a5ddf45-7378-439e-a36d-0abedaf9972f:9b0e6547-83be-41a2-80c3-5c641509d3b4"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/candidate-revisions/NCR-d94c781d-37d4-451e-934b-11bceb887398/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-d94c781d-37d4-451e-934b-11bceb887398:qa-dev059-primary.pdf:118:1786291591543:2b1f803f-cbac-4102-b16f-0650af002538"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/candidate-revisions/NCR-d94c781d-37d4-451e-934b-11bceb887398/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/submit-bundle-review",
+      "fault": "response-loss",
+      "idempotencyKey": "dev053:submit:62d03d95-bbfd-4106-bbda-ddc645b0bc16"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:4e31640e-43ff-40d9-8d6a-9affd693ffba"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:d7db8653-73c7-46b3-8887-bf57693ad388"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/cancel",
+      "status": 200,
+      "fault": null
+    }
+  ],
+  "plannedFaults": [
+    {
+      "mode": "503",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4ea1889-90f4-433b-a2d5-6d50d9221ddc/submit-bundle-review"
+    },
+    {
+      "mode": "response-loss",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-19341b8f-a0d3-472a-971a-26a958b5b54d/submit-bundle-review"
+    }
+  ]
+}

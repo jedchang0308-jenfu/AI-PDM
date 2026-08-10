@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalJsonStringify } from "@/lib/canonical-json";
 import { PUBLICATION_EVIDENCE_RULE_VERSION } from "@/lib/publication-evidence";
+import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
 import {
   buildRevisionPolicySnapshot,
   createRevisionSuggestion,
@@ -144,6 +146,8 @@ type BundleSnapshot = {
       sourceFileAssetId: string;
       publicationEvidenceId: string;
       role: NumberingCandidateRevisionFileRecord["role"];
+      displayName: string;
+      description: string;
       isPrimary: boolean;
       provider: string;
       bucket: string;
@@ -177,6 +181,8 @@ export type CandidateFileStorageInput = {
   displayName: string;
   description: string;
   isPrimary: boolean;
+  reuseExistingAssetId?: string | null;
+  sharedModelOwner?: { partRootId: string; modelRevision: string } | null;
   publicationEvidence?: {
     id: string;
     bucket: string;
@@ -196,6 +202,7 @@ export type CandidateFileVerificationSource = {
   storageKey: string | null;
   storageGeneration: string | null;
   fileName: string;
+  role: NumberingCandidateRevisionFileRecord["role"];
   mimeType: string;
   fileSize: number;
   contentHash: string;
@@ -252,20 +259,8 @@ function environmentFaultInjector() {
   };
 }
 
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonicalValue(nested)])
-    );
-  }
-  return value;
-}
-
 export function canonicalNumberLifecycleJson(value: unknown) {
-  return JSON.stringify(canonicalValue(value));
+  return canonicalJsonStringify(value);
 }
 
 function sha256(value: string) {
@@ -522,8 +517,9 @@ export class AsyncNumberLifecycleSimplificationRepository {
     if (Number(candidate.row_version) !== input.expectedRowVersion) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
     const now = this.clock();
     const storageProvider = storageProviderForFileAsset(input.storage.storageProvider);
-    await this.client.execute(
-      `INSERT INTO file_assets (
+    if (!input.storage.reuseExistingAssetId) {
+      await this.client.execute(
+        `INSERT INTO file_assets (
          id, storage_provider, original_path, storage_bucket, storage_key, storage_generation,
          file_name, file_ext, mime_type, file_size, content_hash, hash_algorithm,
          linked_entity_type, linked_entity_id, document_category, display_name, description,
@@ -533,17 +529,42 @@ export class AsyncNumberLifecycleSimplificationRepository {
          :fileName, :fileExt, :mimeType, :fileSize, :contentHash, 'SHA-256',
          'numbering_candidate_revision', :candidateRevisionId, :role, :displayName, :description,
          :revision, :actorId, 'none', :syncStatus, :createdAt, :updatedAt
-       )`,
-      {
-        ...input,
-        ...input.storage,
-        storageProvider,
-        revision: candidate.revision,
-        syncStatus: storageProvider === "j_drive" ? "local_only" : "migrated",
-        createdAt: now,
-        updatedAt: now
+         )`,
+        {
+          ...input,
+          ...input.storage,
+          storageProvider,
+          revision: candidate.revision,
+          syncStatus: storageProvider === "j_drive" ? "local_only" : "migrated",
+          createdAt: now,
+          updatedAt: now
+        }
+      );
+      if (input.storage.sharedModelOwner && input.storage.role === "cad_3d") {
+        await this.client.execute(
+          `
+          INSERT INTO shared_cad_model_versions (
+            id, company_id, owner_scope, owner_id, part_root_id, source_file_asset_id,
+            model_revision, content_hash, hash_algorithm, status, created_by, created_at
+          ) VALUES (
+            :id, :companyId, 'part_root', :ownerId, :ownerId, :sourceFileAssetId,
+            :modelRevision, :contentHash, 'SHA-256', 'Pending', :actorId, :createdAt
+          )
+          ON CONFLICT(company_id, owner_scope, owner_id, model_revision, content_hash) DO NOTHING
+          `,
+          {
+            id: `SMV-${this.idFactory()}`,
+            companyId: input.companyId,
+            ownerId: input.storage.sharedModelOwner.partRootId,
+            sourceFileAssetId: input.storage.assetId,
+            modelRevision: input.storage.sharedModelOwner.modelRevision,
+            contentHash: input.storage.contentHash,
+            actorId: input.actorId,
+            createdAt: now
+          }
+        );
       }
-    );
+    }
     let publicationEvidenceId: string | null = null;
     if (input.storage.publicationEvidence) {
       publicationEvidenceId = input.storage.publicationEvidence.id;
@@ -609,6 +630,34 @@ export class AsyncNumberLifecycleSimplificationRepository {
          AND lifecycle_status = 'draft' AND row_version = :expectedRowVersion`,
       { ...input, updatedAt: now }
     );
+    try {
+      const extension = input.storage.fileExt.trim().toLowerCase().replace(/^\./u, "");
+      if (["sldprt", "sldasm", "slddrw"].includes(extension)) {
+        await enqueuePreviewJobForSourceAsync(this.client, {
+          source: {
+            id: input.storage.assetId,
+            company_id: input.companyId,
+            storage_provider: storageProvider,
+            storage_key: input.storage.storageKey,
+            original_path: input.storage.originalPath,
+            file_name: input.storage.fileName,
+            file_ext: input.storage.fileExt,
+            mime_type: input.storage.mimeType,
+            file_size: input.storage.fileSize,
+            content_hash: input.storage.contentHash,
+            hash_algorithm: "SHA-256",
+            linked_entity_type: "numbering_candidate_revision",
+            linked_entity_id: input.candidateRevisionId
+          },
+          actorUserId: input.actorId,
+          requestedKind: extension === "slddrw" ? "drawing_pdf" : "native_thumbnail_png",
+          generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
+          runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+        });
+      }
+    } catch {
+      // Preview generation is best effort; the source file and publication evidence remain authoritative.
+    }
     await this.audit(input.actorId, "pdm.numbering.add_candidate_revision_file", {
       companyId: input.companyId,
       workspaceId: input.workspaceId,
@@ -654,6 +703,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       storageKey: row.storage_key,
       storageGeneration: row.storage_generation,
       fileName: row.file_name,
+      role: row.role,
       mimeType: row.mime_type,
       fileSize: Number(row.file_size),
       contentHash: row.content_hash
@@ -820,6 +870,8 @@ export class AsyncNumberLifecycleSimplificationRepository {
       const activeFiles = await this.candidateFiles(candidate.id);
       if (!revisionIsValidForWorkspace(candidate.revision)) throw new Error("CANDIDATE_REVISION_INVALID");
       if (!activeFiles.some((file) => !file.removed_at && Number(file.is_primary) === 1)) throw new Error("BUNDLE_NOT_READY");
+      if (!activeFiles.some((file) => !file.removed_at && Number(file.is_primary) === 1 && file.role === "drawing_2d")) throw new Error("BUNDLE_NOT_READY");
+      if (!activeFiles.some((file) => !file.removed_at && Number(file.is_primary) === 1 && file.role === "cad_3d")) throw new Error("BUNDLE_NOT_READY");
       if (!files.some((file) => Number(file.is_primary) === 1)) throw new Error("PUBLICATION_EVIDENCE_NOT_READY");
       candidateFacts.push({
         id: candidate.id,
@@ -832,21 +884,26 @@ export class AsyncNumberLifecycleSimplificationRepository {
         rowVersion: Number(candidate.row_version) + 1,
         legacyBaselineRequestId: candidate.legacy_baseline_request_id,
         legacyBaselineSnapshotHash: candidate.legacy_baseline_snapshot_hash,
-        files: files.map((file) => ({
-          id: file.id,
-          sourceFileAssetId: file.source_file_asset_id,
-          publicationEvidenceId: file.publication_evidence_id,
-          role: file.role,
-          isPrimary: Number(file.is_primary) === 1,
-          provider: file.provider,
-          bucket: file.bucket,
-          objectKey: file.object_key,
-          generation: file.generation,
-          contentHash: file.content_hash,
-          mediaType: file.media_type,
-          finalizedAt: file.finalized_at,
-          ruleVersion: file.rule_version
-        }))
+        files: files.map((file) => {
+          const sourceFile = activeFiles.find((candidateFile) => candidateFile.publication_evidence_id === file.publication_evidence_id);
+          return {
+            id: file.id,
+            sourceFileAssetId: file.source_file_asset_id,
+            publicationEvidenceId: file.publication_evidence_id,
+            role: file.role,
+            displayName: sourceFile?.display_name ?? "",
+            description: sourceFile?.description ?? "",
+            isPrimary: Number(file.is_primary) === 1,
+            provider: file.provider,
+            bucket: file.bucket,
+            objectKey: file.object_key,
+            generation: file.generation,
+            contentHash: file.content_hash,
+            mediaType: file.media_type,
+            finalizedAt: file.finalized_at,
+            ruleVersion: file.rule_version
+          };
+        })
       });
     }
     const numberFacts = numberingCandidateSnapshotFacts(input.workspace);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Archive, Download, FileCheck2, FileDown, Printer, RefreshCcw, ShieldAlert } from "lucide-react";
 import { LifecycleStageGuidance } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
+import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { formatStatusErrorForUser } from "@/lib/status-display";
@@ -211,7 +212,7 @@ export default function ManufacturingHandoffPage() {
                 />
               </div>
             ) : (
-              filteredEntries.map((entry) => <HandoffCard entry={entry} key={entry.id} />)
+              filteredEntries.map((entry) => <HandoffCard entry={entry} query={query} key={entry.id} />)
             )}
           </section>
         </>
@@ -220,24 +221,24 @@ export default function ManufacturingHandoffPage() {
   );
 }
 
-function HandoffCard({ entry }: { entry: HandoffEntry }) {
+function HandoffCard({ entry, query }: { entry: HandoffEntry; query: string }) {
   return (
     <article className="panel handoff-card">
       <div className="handoff-card-header">
         <div>
           <span className="section-label">圖號</span>
           <h2>
-            <span className="identity-primary">{entry.drawing_number}</span>
-            <span className="metadata-badge">版次 {entry.revision}</span>
+            <span className="identity-primary"><SearchHighlight value={entry.drawing_number} query={query} /></span>
+            <span className="metadata-badge">版次 <SearchHighlight value={entry.revision} query={query} /></span>
           </h2>
           <div className="metadata-list">
             <span className="metadata-pair">
               <span className="metadata-label">料號</span>
-              <span className="metadata-value">{entry.part_number}</span>
+              <span className="metadata-value"><SearchHighlight value={entry.part_number} query={query} /></span>
             </span>
             <span className="metadata-pair">
               <span className="metadata-label">品名</span>
-              <span className="metadata-value">{entry.part_name}</span>
+              <span className="metadata-value"><SearchHighlight value={entry.part_name} query={query} /></span>
             </span>
           </div>
         </div>
@@ -258,15 +259,15 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
       </div>
 
       <div className="handoff-grid">
-        <Info label="發布時間" value={entry.released_at ? new Date(entry.released_at).toLocaleString() : "-"} />
-        <Info label="材質" value={entry.material} />
-        <Info label="表面處理" value={entry.surface_finish} />
-        <Info label="文件類型" value={entry.document_type} />
+        <Info label="發布時間" value={entry.released_at ? new Date(entry.released_at).toLocaleString() : "-"} query={query} />
+        <Info label="材質" value={entry.material} query={query} />
+        <Info label="表面處理" value={entry.surface_finish} query={query} />
+        <Info label="文件類型" value={entry.document_type} query={query} />
       </div>
 
       <div className="handoff-note">
         <span className="section-label">變更原因</span>
-        <p>{entry.change_description}</p>
+        <p><SearchHighlight value={entry.change_description} query={query} /></p>
       </div>
 
       {entry.package ? (
@@ -277,7 +278,7 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
               <span className="file-kind-badge" aria-label="檔案格式 ZIP">
                 ZIP
               </span>
-              <span className="file-name">{entry.package.filename}</span>
+              <span className="file-name"><SearchHighlight value={entry.package.filename} query={query} /></span>
             </strong>
             <div className="metadata-list">
               <span className="metadata-pair">
@@ -303,7 +304,7 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
                   <span className="file-kind-badge" aria-label={`檔案格式 ${file.role.toUpperCase()}`}>
                     {file.role.toUpperCase()}
                   </span>
-                  <span className="file-name">{file.filename}</span>
+                  <span className="file-name"><SearchHighlight value={file.filename} query={query} /></span>
                 </strong>
                 <div className="metadata-list">
                   <span className="metadata-pair">
@@ -324,9 +325,9 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
           <div className="handoff-file-list">
             {entry.approvals.map((approval) => (
               <div className="handoff-file" key={`${entry.id}-${approval.reviewer_name}-${approval.decided_at}`}>
-                <strong>{approval.reviewer_name}</strong>
+                <strong><SearchHighlight value={approval.reviewer_name} query={query} /></strong>
                 <div className="metadata-list">
-                  <span className="metadata-badge">{approval.decision}</span>
+                  <span className="metadata-badge"><SearchHighlight value={approval.decision} query={query} /></span>
                   <span className="metadata-pair">
                     <span className="metadata-label">時間</span>
                     <span className="metadata-value">{new Date(approval.decided_at).toLocaleString()}</span>
@@ -341,11 +342,11 @@ function HandoffCard({ entry }: { entry: HandoffEntry }) {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value, query }: { label: string; value: string; query?: string }) {
   return (
     <div className="handoff-info">
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong><SearchHighlight value={value} query={query} /></strong>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 # QC Fact Report - BOM Workbench SolidWorks BOM XLS Import
 
+> Historical evidence note (2026-08-10)：本報告的「同料號同版次」是 legacy 實作證據。
+> `ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 已改為同父層依 Part Number identity 合併，Part Number 本身無 Revision；
+> DEV-060 必須以新的 canonical owner／BOM Rev／XLS QA plan 重驗。下列 PASS 不可作為新治理規則的完成證據。
+
 Date: 2026-06-01
 
 ## 驗證結論

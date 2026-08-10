@@ -441,8 +441,8 @@ async function run() {
     await page.locator('[role="tab"]').count() === 0 && await page.locator(".number-state-tabs").count() === 0,
     { url: page.url() });
   const headers = await page.locator(".drawing-workbench-table thead th").allTextContents();
-  record("DEV053-REAL-002 rendered list has three scan columns",
-    JSON.stringify(headers.map((value) => value.trim())) === JSON.stringify(["圖號", "品名", "工作狀態"]), { headers });
+  record("DEV053-REAL-002 rendered list has four scan columns with part number after name",
+    JSON.stringify(headers.map((value) => value.trim()).filter(Boolean)) === JSON.stringify(["圖號", "品名", "料號", "工作狀態"]), { headers });
 
   const search = page.getByPlaceholder("圖號、品名、料號");
   await searchWorkbench(page, search, "Z3053-M01");
@@ -462,16 +462,16 @@ async function run() {
 
   await searchWorkbench(page, search, "Z4053-M01");
   await page.getByRole("button", { name: "Z4053-M01", exact: true }).waitFor({ state: "visible" });
-  await page.getByText("受控版次檔案", { exact: true }).waitFor({ state: "visible" });
+  await page.locator('[data-attachment-authority="controlled_summary"]').waitFor({ state: "visible" });
   await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalMasterRowText = await page.locator(".drawing-workbench-table tbody tr").innerText();
   const formalMasterDrawer = page.getByRole("dialog", { name: "圖號明細" });
   const formalMasterDrawerText = await formalMasterDrawer.innerText();
-  const initialControlledPanel = page.locator(".master-attachment-panel").filter({ has: page.getByText("受控版次檔案", { exact: true }) });
+  const initialControlledPanel = page.locator('[data-attachment-authority="controlled_summary"]');
   const disabledRevisionButtons = formalMasterDrawer.getByRole("button", { name: /圖面進版|上傳與送審/u });
   record("DEV053-REAL-005 formal master preserves management capabilities, authority split and permission guidance",
     await initialControlledPanel.getByRole("button", { name: /上傳|刪除/u }).count() === 0 &&
-    formalMasterRowText.includes("料號：Z4053-P01") &&
+    formalMasterRowText.includes("Z4053-P01") &&
     formalMasterDrawerText.includes("同主根號料號") && formalMasterDrawerText.includes("主要製造圖") &&
     formalMasterDrawerText.includes("post_release_change") && formalMasterDrawerText.includes("研發主管或 PDM Admin") &&
     await disabledRevisionButtons.count() >= 2 && await disabledRevisionButtons.evaluateAll((buttons) => buttons.every((button) => button.hasAttribute("disabled"))) &&
@@ -835,7 +835,7 @@ async function run() {
     await page.locator(".drawing-workbench-table tbody tr").count() === 1 &&
     (await page.locator(".drawing-workbench-table tbody tr").innerText()).includes("研發受控") &&
     await page.getByRole("button", { name: "完成首版", exact: true }).count() === 0);
-  await page.getByText("受控版次檔案", { exact: true }).waitFor({ state: "visible" });
+  await page.locator('[data-attachment-authority="controlled_summary"]').waitFor({ state: "visible" });
   await page.getByText("參考附件", { exact: true }).waitFor({ state: "visible" });
   const formalAttachmentResponse = await page.request.get(
     `${baseUrl}/api/numbering/drawings/${encodeURIComponent(fixture.drawingCode)}/attachments`
@@ -843,7 +843,7 @@ async function run() {
   const formalAttachmentBody = await formalAttachmentResponse.json().catch(() => ({}));
   const finalizedFile = page.getByText(fixture.fileName, { exact: true }).first();
   const finalizedFileVisible = await finalizedFile.waitFor({ state: "visible", timeout: 20000 }).then(() => true).catch(() => false);
-  const controlledPanel = page.locator(".master-attachment-panel").filter({ has: page.getByText("受控版次檔案", { exact: true }) });
+  const controlledPanel = page.locator('[data-attachment-authority="controlled_summary"]');
   const controlledUploadButtonCount = await controlledPanel.getByRole("button", { name: /上傳/u }).count();
   const controlledDeleteButtonCount = await controlledPanel.getByRole("button", { name: /刪除/u }).count();
   const effectiveStatuses = (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.revisionPackageEffectiveStatus);

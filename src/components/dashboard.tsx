@@ -33,9 +33,11 @@ import { AssistantPanel, FinderToolbar, NotificationDropdown, SubmissionDetailPa
 import { LifecycleMap, ObjectLifecycleStatusPanel, buildUploadPrefillHref, type LifecycleMetric, type LifecycleStageId } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { SearchHighlight } from "@/components/search-highlight";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { buildAdaptiveTaskFeed, type TaskSummary, type TaskSummarySeverity, type TaskSummarySource } from "@/lib/adaptive-task-feed";
+import { dedupeNumberingDraftsByRoot } from "@/lib/dedupe-numbering-drafts";
 import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type {
   ApprovalMatrixRequirement,
@@ -378,7 +380,7 @@ function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
 }
 
 function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] }) {
-  const uniqueDrafts = dedupeNumberingDrafts(drafts);
+  const uniqueDrafts = dedupeNumberingDraftsByRoot(drafts);
   if (uniqueDrafts.length === 0) return null;
   const firstDraft = uniqueDrafts[0];
   const firstDrawing = firstDraft.drawingNumber ?? firstDraft.primaryDrawingNumber;
@@ -562,21 +564,6 @@ function ControlledHistoryPanel({
 
 function formatNullableDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString() : "-";
-}
-
-function dedupeNumberingDrafts(drafts: NumberingDraftRecord[]) {
-  const byRoot = new Map<string, NumberingDraftRecord>();
-  for (const draft of drafts) {
-    const current = byRoot.get(draft.rootCode);
-    if (!current) {
-      byRoot.set(draft.rootCode, draft);
-      continue;
-    }
-    const currentScore = (current.partNumber ? 1 : 0) + (current.drawingNumber ?? current.primaryDrawingNumber ? 1 : 0);
-    const nextScore = (draft.partNumber ? 1 : 0) + (draft.drawingNumber ?? draft.primaryDrawingNumber ? 1 : 0);
-    if (nextScore > currentScore) byRoot.set(draft.rootCode, draft);
-  }
-  return Array.from(byRoot.values());
 }
 
 function parseFileRoles(submission: SubmissionSummary) {
@@ -2389,18 +2376,26 @@ export function Dashboard() {
               onClick={() => chooseSuggestion(submission)}
             >
               <strong className="identity-line">
-                <span className="identity-primary">{submission.drawing_number}</span>
-                <span className="metadata-badge">版次 {submission.revision}</span>
-                <StatusBadge status={submission.status} context="submission" />
+                <span className="identity-primary">
+                  <SearchHighlight value={submission.drawing_number} query={searchQuery} />
+                </span>
+                <span className="metadata-badge">
+                  版次 <SearchHighlight value={submission.revision} query={searchQuery} />
+                </span>
+                <StatusBadge status={submission.status} context="submission" highlightQuery={searchQuery} />
               </strong>
               <span className="metadata-list">
                 <span className="metadata-pair">
                   <span className="metadata-label">料號</span>
-                  <span className="metadata-value">{submission.part_number}</span>
+                  <span className="metadata-value">
+                    <SearchHighlight value={submission.part_number} query={searchQuery} />
+                  </span>
                 </span>
                 <span className="metadata-pair">
                   <span className="metadata-label">品名</span>
-                  <span className="metadata-value">{submission.part_name}</span>
+                  <span className="metadata-value">
+                    <SearchHighlight value={submission.part_name} query={searchQuery} />
+                  </span>
                 </span>
               </span>
             </button>
@@ -2610,6 +2605,7 @@ export function Dashboard() {
         <SubmissionTable
           loading={loading}
           visibleSubmissions={visibleSubmissions}
+          highlightQuery={debouncedSearchQuery}
           virtualTable={virtualTable}
           selectedId={selectedId}
           favoriteDrawings={favoriteDrawings}

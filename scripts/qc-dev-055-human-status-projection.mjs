@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { phaseMatchesFilter, projectRoleViewerHumanStatus, projectViewerHumanStatus, viewerStatusMatchesFilter } from "../src/lib/human-status-projection.ts";
+import { HUMAN_STATUS_FILTER_OPTIONS, humanStatusDisplayLabel, phaseMatchesFilter, projectRoleViewerHumanStatus, projectViewerHumanStatus, viewerStatusMatchesFilter } from "../src/lib/human-status-projection.ts";
 import { projectPartHumanStatus } from "../src/lib/part-human-status.ts";
-import { projectNumberingRootStatus, projectRelationHumanStatus } from "../src/lib/drawing-part-relation-status.ts";
+import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus, projectRelationHumanStatus, relationshipHealthLabel } from "../src/lib/drawing-part-relation-status.ts";
 import { projectDrawingHumanStatus, projectDrawingRecordHumanStatus } from "../src/lib/drawing-workbench-status.ts";
 import { projectDrawingAvailability, projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "../src/lib/availability-scope.ts";
 
@@ -66,6 +66,18 @@ for (const [id, fixture, expectedStatus, expectedHealth] of rootStatusCases) {
   check(`${id}-health`, projection.relationshipHealth, expectedHealth);
 }
 
+check("HS-REL-EFFECTIVE-01", projectEffectiveRelationRecordStatus({
+  root: { recordStatus: "PendingReview" },
+  partNumbers: [{ recordStatus: "Released", itemKind: "manufactured" }],
+  drawingNumbers: [{ purposeCode: "M", recordStatus: "Released" }]
+}, "complete", 0), "Released");
+check("HS-REL-EFFECTIVE-02", projectEffectiveRelationRecordStatus({
+  root: { recordStatus: "PendingReview" },
+  partNumbers: [{ recordStatus: "Active", itemKind: "manufactured" }],
+  drawingNumbers: [{ purposeCode: "M", recordStatus: "Active" }]
+}, "complete", 0), "Active");
+check("HS-REL-LABEL-01", relationshipHealthLabel("complete"), "關聯完整");
+
 const drawingBase = {
   rowKey: "drawing:A-M01",
   id: "drawing-1",
@@ -121,6 +133,19 @@ check("HS-VIEWER-FILTER-01", viewerStatusMatchesFilter(currentDraft, draftStatus
 check("HS-VIEWER-FILTER-02", viewerStatusMatchesFilter(otherDraft, draftStatus, "needs_action"), false);
 check("HS-VIEWER-FILTER-03", viewerStatusMatchesFilter(otherDraft, draftStatus, "waiting"), true);
 check("HS-VIEWER-FILTER-04", viewerStatusMatchesFilter(systemStatus, draftStatus, "system"), true);
+const usableViewer = projectRoleViewerHumanStatus(usableStatus, noCapabilities);
+check("HS-VIEWER-LABEL-AVAIL-01", humanStatusDisplayLabel(usableStatus, usableViewer, "生產可用"), "生產可用");
+check("HS-VIEWER-LABEL-AVAIL-02", humanStatusDisplayLabel(usableStatus, usableViewer, "研發可用"), "研發可用");
+check("HS-VIEWER-FILTER-05", viewerStatusMatchesFilter(usableViewer, usableStatus, "production", projectDrawingRecordAvailability({ recordStatus: "Released" })), true);
+check("HS-VIEWER-FILTER-06", viewerStatusMatchesFilter(usableViewer, usableStatus, "rd", projectDrawingRecordAvailability({ recordStatus: "Active" })), true);
+check("HS-VIEWER-FILTER-07", viewerStatusMatchesFilter(usableViewer, usableStatus, "production", projectDrawingRecordAvailability({ recordStatus: "Active" })), false);
+const unknownViewer = projectViewerHumanStatus(draftStatus, { responsibility: "unknown", basis: "unknown", canAct: false });
+check("HS-VIEWER-UNKNOWN-LABEL-01", unknownViewer.label, "負責人待確認");
+check("HS-VIEWER-UNKNOWN-LABEL-02", humanStatusDisplayLabel(draftStatus, unknownViewer), "負責人待確認");
+check("HS-FILTER-VOCAB-01", HUMAN_STATUS_FILTER_OPTIONS.some((option) => option.value === "usable"), false);
+check("HS-FILTER-VOCAB-02", HUMAN_STATUS_FILTER_OPTIONS.find((option) => option.value === "needs_confirmation")?.label, "負責人待確認");
+check("HS-FILTER-VOCAB-03", humanStatusDisplayLabel(usableStatus, usableViewer), "可用範圍待確認");
+check("HS-VIEWER-FILTER-08", viewerStatusMatchesFilter(usableViewer, usableStatus, "availability_unknown", { scope: "none" }), true);
 
 check("HS-AVAIL-01", projectDrawingAvailability({ stage: "official_controlled", usage: "rd_controlled" }).label, "研發可用");
 check("HS-AVAIL-02", projectDrawingAvailability({ stage: "released", usage: "released" }).label, "生產可用");

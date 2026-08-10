@@ -82,7 +82,9 @@ includesAll("src/app/approvals/page.tsx", [
   "numbering_approvals",
   "approval-platform-layout",
   "approval-inbox-panel",
-  "approval-detail-panel",
+  "ApprovalDetailDrawer",
+  "DrawingWorkspaceDrawer",
+  "DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY",
   "buildInboxUrl",
   "syncFilterQuery",
   "allowedDecisionsForDetail"
@@ -108,10 +110,12 @@ includesAll("src/app/numbering/reports/page.tsx", [
 
 includesAll("src/components/number-state-workspace.tsx", [
   "useRememberedDrawerWidth",
-  "pdm-number-state-detail-drawer-width",
-  "pdm-detail-drawer-resize-handle",
-  "--pdm-detail-drawer-width",
-  "onStartResize(event.clientX)"
+  "DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY",
+  "DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH",
+  "DRAWING_DETAIL_DRAWER_MIN_WIDTH",
+  "DrawingWorkspaceDrawer",
+  "keepOpenSelector",
+  "onStartResize={startDrawerResize}"
 ]);
 
 includesAll("scripts/qc-dashboard-detail-priority-test.mjs", [
@@ -141,7 +145,8 @@ record("Drawer backdrop stays transparent", globals.includes("background: transp
 record("Dashboard drawer panel CSS exists", globals.includes(".dashboard-detail-drawer-panel"));
 record("Approval workbench layout CSS exists", globals.includes(".approval-platform-layout"));
 record("Approval workbench inbox panel CSS exists", globals.includes(".approval-inbox-panel"));
-record("Approval workbench detail panel CSS exists", globals.includes(".approval-detail-panel"));
+record("Approval workbench shared drawer CSS exists", globals.includes(".approval-detail-drawer"));
+record("Approval workbench drawer footer CSS exists", globals.includes(".approval-drawer-footer-content"));
 record("Approval legacy redirect info CSS exists", globals.includes(".approval-message.info"));
 
 const drawerSpec = readProjectFile(root, ".ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md");

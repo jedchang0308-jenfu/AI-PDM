@@ -36,28 +36,31 @@ record(
 );
 record(
   "DEV052-UI-004 candidate editor reuses FileDropzone and never redirects to formal revision workbench",
-  has(editor, ["FileDropzone", "candidate-revisions", "尚不可正式使用", "publicationEvidenceId"]) && !editor.includes("/numbering/revisions"),
+  has(editor, ["FileDropzone", "candidate-revisions", "publicationEvidenceId"]) &&
+    workspace.includes("尚不可正式使用") &&
+    !editor.includes("/numbering/revisions"),
   "candidate aggregate is edited in the existing drawer"
 );
 record(
   "DEV052-UI-005 V2 normal lifecycle exposes one primary-action contract and no manual publish CTA",
-  has(workspace, ["LifecycleV2PrimaryAction", 'data-primary-action="submit-bundle-review"', 'data-primary-action="view-review"', 'data-primary-action="view-formal-drawing"']) &&
+  has(workspace, ["workspaceHeaderPrimaryAction", 'data-primary-action="submit-bundle-review"', 'data-primary-action="view-review"', 'data-primary-action="view-formal-drawing"']) &&
     workspace.includes("lifecycleV2Enabled ?") && workspace.includes("formalActionsUnopened"),
   "manual 正式發布 remains only inside V1 branch"
 );
 record(
   "DEV052-UI-006 Now What is exception-only for V2",
-  has(workspace, ['workspace.lifecycleV2.exceptionKind !== "none"', '"recovery_required"', '"history_only"', "LifecycleV2ExceptionPanel"]),
+  has(workspace, ["LifecycleV2PendingPanel", '"recovery_required"', '"history_only"', "shouldRenderLifecycleV2Pending"]),
   "legacy / recovery / transition / terminal"
 );
 record(
   "DEV052-UI-007 visible states distinguish ReviewApproved from Released",
-  has(editor, ["ReviewApproved", "實體 package 仍為 Pending"]) && has(workspace, ["小數研發版仍未正式發行", "研發版已核准"]),
+  has(editor, ["ReviewApproved", "實體 package 仍為 Pending", "研發版已核准"]) &&
+    has(workspace, ["official_controlled", "圖料號已正式建立"]),
   "effective design approval is not manufacturing release"
 );
 record(
   "DEV052-UI-008 keyboard, focus and responsive drawer/editor structure remain present",
-  has(workspace, ["useOverlayLifecycle", "aria-modal=\"true\"", "aria-label=\"關閉保留號明細\""]) &&
+  has(workspace, ["useOverlayLifecycle", "aria-modal=\"true\"", "closeLabel=\"關閉候選圖號明細\""]) &&
     has(css, ["@media (max-width: 720px)", ".candidate-revision-fields", "focus-visible", ".candidate-revision-upload"]),
   "focus trap + close label + mobile single-column editor"
 );
@@ -72,8 +75,8 @@ record(
     'action === "submit" || action === "withdraw"',
     "{ expectedWorkspaceRowVersion: selected.rowVersion }",
     "{ expectedRowVersion: selected.rowVersion }",
-    "onWithdraw={onWithdraw}",
-    "送審者仍可撤回補正"
+    "onClick={onWithdraw}",
+    "送審者可撤回後補正"
   ]),
   "bundle routes receive expectedWorkspaceRowVersion and the in-review UI exposes owner withdrawal"
 );

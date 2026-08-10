@@ -143,8 +143,11 @@ function staticChecks() {
   record("Relation matrix uses a diagonal drawing/part axis header", pageSource.includes("pdm-relation-axis-header") && cssSource.includes("linear-gradient(to top right"));
   record("Relation matrix sizes to fixed content-based columns", cssSource.includes("width: fit-content") && cssSource.includes("width: max-content") && cssSource.includes("min-width: 160px"));
   record(
-    "Relation tree suppresses repeated relation summaries and manufacturing-basis labels",
-    pageSource.includes('showRole = role !== "製造依據"') && !pageSource.includes("relationGroupLabel") && !pageSource.includes("summarizeRelationBlockers"),
+    "Relation tree uses one explicit per-link role without repeated summary blocks",
+    pageSource.includes("const role = relationCellLabel(relationType)") &&
+      pageSource.includes("<strong>{role}</strong>") &&
+      !pageSource.includes("relationGroupLabel") &&
+      !pageSource.includes("summarizeRelationBlockers"),
     "src/app/numbering/search/page.tsx"
   );
   record("Relation page exposes controlled maintenance panel", pageSource.includes("RelationMaintenancePanel") && pageSource.includes("onRelationChange"));
@@ -157,6 +160,24 @@ function staticChecks() {
   record("Relation repository protects locked statuses", repositorySource.includes("RELATION_MAINTENANCE_RECORD_LOCKED") && repositorySource.includes("Released") && repositorySource.includes("Obsolete"));
   record("Relation CSS defines tree/matrix containers", cssSource.includes(".pdm-relation-root") && cssSource.includes(".pdm-relation-matrix-wrap"));
   record("Relation CSS defines compact part grouping", cssSource.includes(".pdm-relation-part-group") && cssSource.includes(".pdm-relation-part-chip.has-role"), "src/app/globals.css");
+  record(
+    "Pending review reuses the formal relation-tree structure",
+    pageSource.includes("<RelationReviewRoot")
+      && pageSource.includes("<RelationReviewDrawingNode")
+      && pageSource.includes("<RelationReviewOrphanParts")
+      && pageSource.includes("pdm-relation-review-list")
+      && !pageSource.includes("pdm-relation-change-list")
+      && routeSource.includes("drawings:")
+      && routeSource.includes("parts:")
+  );
+  record("Pending review defaults to collapsed details", pageSource.includes('<details className="pdm-relation-change-details">') && pageSource.includes("<summary>變更審查中"));
+  record(
+    "Pending review separates candidate availability from formal availability",
+    routeSource.includes("reviewAvailabilityLabel")
+      && routeSource.includes("不可供生產使用")
+      && pageSource.includes("pdm-relation-review-availability")
+      && !pageSource.includes("drawing.availabilityLabel")
+  );
   record("Relation matrix horizontal scroll is contained", cssSource.includes(".pdm-relation-matrix-wrap") && cssSource.includes("overflow: auto"));
   record("Package exposes relation QC script", packageSource.includes('"qc:pdm-drawing-part-relation-view"'));
 }
@@ -270,21 +291,21 @@ async function verifyViewport(browser, viewport, screenshotName) {
   if (viewport.width === 1440) {
     await page.getByRole("tab", { name: "關係樹" }).click();
     await page.getByRole("button", { name: rootCode, exact: true }).click();
-    await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
-    record("Root click opens root detail drawer", (await page.locator(".pdm-master-detail-panel[data-detail-target='part_root'][data-detail-code='" + rootCode + "']").count()) === 1);
+    await page.getByRole("heading", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });
+    record("Root click opens root detail drawer", (await page.locator("[role='complementary'][data-detail-target='part_root'][data-detail-code='" + rootCode + "']").count()) === 1);
 
     await page.locator(".pdm-relation-node", { hasText: drawingM01 }).getByRole("button", { name: drawingM01 }).click();
-    await page.getByRole("heading", { name: `圖號明細 ${drawingM01}` }).waitFor({ timeout: 10_000 });
-    record("Drawing click opens drawing detail drawer", (await page.locator(".pdm-master-detail-panel[data-detail-target='drawing_number'][data-detail-code='" + drawingM01 + "']").count()) === 1);
+    await page.getByRole("heading", { name: drawingM01, exact: true }).waitFor({ timeout: 10_000 });
+    record("Drawing click opens drawing detail drawer", (await page.locator("[role='complementary'][data-detail-target='drawing_number'][data-detail-code='" + drawingM01 + "']").count()) === 1);
 
     await page.getByLabel("關閉圖料明細").click();
     await page.locator(".pdm-relation-node", { hasText: drawingM01 }).locator(".pdm-relation-part-chip", { hasText: partP03 }).click();
-    await page.getByRole("heading", { name: `料號明細 ${partP03}` }).waitFor({ timeout: 10_000 });
-    record("Part click opens part detail drawer", (await page.locator(".pdm-master-detail-panel[data-detail-target='part_number'][data-detail-code='" + partP03 + "']").count()) === 1);
+    await page.getByRole("heading", { name: partP03, exact: true }).waitFor({ timeout: 10_000 });
+    record("Part click opens part detail drawer", (await page.locator("[role='complementary'][data-detail-target='part_number'][data-detail-code='" + partP03 + "']").count()) === 1);
 
     await page.getByLabel("關閉圖料明細").click();
     await page.getByRole("button", { name: rootCode, exact: true }).click();
-    await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
+    await page.getByRole("heading", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });
     await page.getByText("關係維護").waitFor({ timeout: 10_000 });
     const maintenance = page.locator(".pdm-relation-maintenance-grid");
     await maintenance.locator("select").nth(0).selectOption(drawingM02);

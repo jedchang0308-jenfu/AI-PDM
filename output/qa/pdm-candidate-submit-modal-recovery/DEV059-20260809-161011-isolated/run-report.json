@@ -1,0 +1,869 @@
+{
+  "runId": "DEV059-20260809-161011-isolated",
+  "startedAt": "2026-08-09T16:10:11.874Z",
+  "finishedAt": "2026-08-09T16:11:30.275Z",
+  "result": "passed",
+  "scope": "isolated local SQLite + isolated Next.js + real Chromium UI",
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "removed",
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "id": "DEV059-WRITE-001 UI creates disposable bundle and completes primary evidence",
+      "passed": true,
+      "detail": {
+        "workspace": {
+          "id": "draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced",
+          "row_version": 3,
+          "lifecycle_status": "active",
+          "owner_id": "dev059-real-operator"
+        },
+        "reservations": [
+          {
+            "id": "2321d14c-03a0-430b-9ddc-74dab4aceb07",
+            "draft_item_type": "drawing",
+            "candidate_code": "A0001-M01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "7f6a4fae-255f-4a64-a97c-f8f59994ad4f",
+            "draft_item_type": "root",
+            "candidate_code": "A0001",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          },
+          {
+            "id": "a511b129-34be-410d-94e3-022060de85f2",
+            "draft_item_type": "part",
+            "candidate_code": "A0001-P01",
+            "reservation_state": "active",
+            "row_version": 1,
+            "approval_request_id": null
+          }
+        ],
+        "candidate": {
+          "id": "NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40",
+          "revision": "0.1",
+          "row_version": 2,
+          "lifecycle_status": "draft",
+          "approval_request_id": null,
+          "review_snapshot_hash": null
+        },
+        "files": [
+          {
+            "id": "NCRF-2831f476-f54c-4680-96ba-16f9506214cc",
+            "display_name": "qa-dev059-primary.pdf",
+            "is_primary": 1,
+            "publication_evidence_id": "NPE-ebac4b51-af54-4872-ac2b-cfa21aa48026",
+            "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+            "file_size": 118
+          }
+        ],
+        "requests": [],
+        "formal": {
+          "roots": 0,
+          "parts": 0,
+          "drawings": 0
+        }
+      }
+    },
+    {
+      "id": "DEV059-REAL-ROUTE close actions are independent, local and zero-write",
+      "passed": true,
+      "detail": {
+        "cases": [
+          {
+            "action": "X",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced"
+          },
+          {
+            "action": "return",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced"
+          },
+          {
+            "action": "escape",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced"
+          },
+          {
+            "action": "coordinate",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced"
+          },
+          {
+            "action": "double-click",
+            "modal": 0,
+            "drawer": 1,
+            "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced"
+          }
+        ],
+        "beforeHash": "c845d9dee0a64160f1151e638193bd5b8eb519aba34ad136ac64df2dc72b77da",
+        "afterHash": "c845d9dee0a64160f1151e638193bd5b8eb519aba34ad136ac64df2dc72b77da"
+      }
+    },
+    {
+      "id": "DEV059-WRITE-002 double activation creates one pending review request",
+      "passed": true,
+      "detail": {
+        "successSubmit": {
+          "status": 200,
+          "modalCount": 0
+        },
+        "successRequest": {
+          "id": "APR-57f8765f-761e-48f1-8a38-5a6b58dc3e08",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "submitRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "2321d14c-03a0-430b-9ddc-74dab4aceb07",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "7f6a4fae-255f-4a64-a97c-f8f59994ad4f",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "a511b129-34be-410d-94e3-022060de85f2",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-2831f476-f54c-4680-96ba-16f9506214cc",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-ebac4b51-af54-4872-ac2b-cfa21aa48026",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-57f8765f-761e-48f1-8a38-5a6b58dc3e08",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "2321d14c-03a0-430b-9ddc-74dab4aceb07",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "7f6a4fae-255f-4a64-a97c-f8f59994ad4f",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "a511b129-34be-410d-94e3-022060de85f2",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-2831f476-f54c-4680-96ba-16f9506214cc",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-ebac4b51-af54-4872-ac2b-cfa21aa48026",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-57f8765f-761e-48f1-8a38-5a6b58dc3e08",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-001 planned 503 remains locally recoverable",
+      "passed": true,
+      "detail": {
+        "status": 503,
+        "modalCount": 0,
+        "faultErrorVisible": true,
+        "faultRequest": null
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "216cc64b-7571-46ab-b111-008521c38415",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "a6bb70da-02cc-4d0c-bc3b-9f20e2dd0726",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            },
+            {
+              "id": "ca94631f-cb30-47d9-872d-c287147a7f95",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 1,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-dcc82481-800a-44c8-82a4-21122bc66748",
+            "revision": "0.1",
+            "row_version": 2,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-56835140-4945-492d-9852-328ddaef4df3",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-6fca5e0b-cc7a-4d5f-b7b1-0e2adc5b7685",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "216cc64b-7571-46ab-b111-008521c38415",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "a6bb70da-02cc-4d0c-bc3b-9f20e2dd0726",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            },
+            {
+              "id": "ca94631f-cb30-47d9-872d-c287147a7f95",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 2,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-dcc82481-800a-44c8-82a4-21122bc66748",
+            "revision": "0.1",
+            "row_version": 2,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-56835140-4945-492d-9852-328ddaef4df3",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-6fca5e0b-cc7a-4d5f-b7b1-0e2adc5b7685",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003 response loss keeps idempotency and readback finds one committed request",
+      "passed": true,
+      "detail": {
+        "modalCount": 0,
+        "lossMessageVisible": true,
+        "committedRequest": {
+          "id": "APR-7fd5dd42-c113-4783-9319-a25a893061f9",
+          "request_status": "pending",
+          "apply_status": "pending"
+        },
+        "lossRequestCount": 1
+      }
+    },
+    {
+      "id": "DEV059-FAULT-003R authoritative reload shows in-review state after lost response",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617",
+        "modalCount": 0
+      }
+    },
+    {
+      "id": "DEV059-WRITE cleanup withdraws and cancels disposable bundle without formal masters",
+      "passed": true,
+      "detail": {
+        "withdrawn": {
+          "workspace": {
+            "id": "draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617",
+            "row_version": 3,
+            "lifecycle_status": "active",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "3601b470-1251-46d7-95a8-e7c02a2bf7af",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "58172c06-c1ab-461a-82f2-44d5a028f2f5",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            },
+            {
+              "id": "c7462bb9-e629-4649-b758-1fe6377f20e7",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "active",
+              "row_version": 3,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-f4a3e497-72a3-44ea-a7da-b4b499ac2f6f",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-7eb47326-c612-4124-8e5c-bf147d093b4b",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-3ecb547b-7622-47d5-9bb4-4f3c9ebf9669",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-7fd5dd42-c113-4783-9319-a25a893061f9",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        },
+        "afterCancel": {
+          "workspace": {
+            "id": "draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617",
+            "row_version": 4,
+            "lifecycle_status": "cancelled",
+            "owner_id": "dev059-real-operator"
+          },
+          "reservations": [
+            {
+              "id": "3601b470-1251-46d7-95a8-e7c02a2bf7af",
+              "draft_item_type": "root",
+              "candidate_code": "A0001",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "58172c06-c1ab-461a-82f2-44d5a028f2f5",
+              "draft_item_type": "part",
+              "candidate_code": "A0001-P01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            },
+            {
+              "id": "c7462bb9-e629-4649-b758-1fe6377f20e7",
+              "draft_item_type": "drawing",
+              "candidate_code": "A0001-M01",
+              "reservation_state": "recycled",
+              "row_version": 4,
+              "approval_request_id": null
+            }
+          ],
+          "candidate": {
+            "id": "NCR-f4a3e497-72a3-44ea-a7da-b4b499ac2f6f",
+            "revision": "0.1",
+            "row_version": 4,
+            "lifecycle_status": "draft",
+            "approval_request_id": null,
+            "review_snapshot_hash": null
+          },
+          "files": [
+            {
+              "id": "NCRF-7eb47326-c612-4124-8e5c-bf147d093b4b",
+              "display_name": "qa-dev059-primary.pdf",
+              "is_primary": 1,
+              "publication_evidence_id": "NPE-3ecb547b-7622-47d5-9bb4-4f3c9ebf9669",
+              "content_hash": "7856c8e9ef203bbcac0d98630035fd1ced46f1bdd446c940d6411e183f6073ec",
+              "file_size": 118
+            }
+          ],
+          "requests": [
+            {
+              "id": "APR-7fd5dd42-c113-4783-9319-a25a893061f9",
+              "request_status": "cancelled",
+              "apply_status": "not_required"
+            }
+          ],
+          "formal": {
+            "roots": 0,
+            "parts": 0,
+            "drawings": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "DEV059-GATE-0 disposable run has no formal master pollution",
+      "passed": true,
+      "detail": {
+        "baselineHash": "dc256e43046de5310e951e74ecd87e572a452063d21e39cc71c629554b5388c1",
+        "finalHash": "87f4ed6d07d172610a2c08f533056280c9b50ae38b53a78d723aa1aff6b3882e"
+      }
+    }
+  ],
+  "screenshots": [
+    "screenshots/DEV059-modal-close-recovery-1440x900.png",
+    "screenshots/DEV059-success-in-review-1440x900.png",
+    "screenshots/DEV059-planned-503-recovery-1440x900.png",
+    "screenshots/DEV059-final-cleanup-1440x900.png"
+  ],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:b6857fb8-550a-460a-b377-c9b1be712066"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-8c2e073f-569d-43f1-bdb6-158eac1d7024:bcb2aaf2-682b-49a6-a453-b09d524fd37d"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/candidate-revisions/NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40:qa-dev059-primary.pdf:118:1786291811876:0278fdb5-87d5-4b28-ae6c-9e1c8fad74e0"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/candidate-revisions/NCR-b3f09b00-bf9d-4902-ae26-ef039dd68a40/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/submit-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:submit:c99c9cf9-5708-481a-ab4a-5b0c4f75dd99"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/submit-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:63f944cc-2184-47be-969d-9ba43d524c4b"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:eca0c67d-9748-445b-9358-fb5f0c5d42d5"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-6f50b18e-be59-49d7-bb04-2b1f8821dced/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:0bd89ff8-cc35-4fd4-ace0-4eea0fed27f2"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-83eb4110-e255-4540-94a1-6a39d77ec498:f7b2d9e4-0d7f-454f-bd6d-663652b3fb62"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/candidate-revisions/NCR-dcc82481-800a-44c8-82a4-21122bc66748/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-dcc82481-800a-44c8-82a4-21122bc66748:qa-dev059-primary.pdf:118:1786291811876:c0b3daa0-4aac-4bee-8e2b-d1b9ff150a84"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/candidate-revisions/NCR-dcc82481-800a-44c8-82a4-21122bc66748/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/submit-bundle-review",
+      "fault": "503",
+      "idempotencyKey": "dev053:submit:bf308bdb-1aae-44f6-b121-1940e3e35012"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/submit-bundle-review",
+      "status": 503,
+      "fault": "503"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:ef14e91e-aeac-4539-8c96-d372e6b046c9"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:71a47f77-8649-4ee4-ab7a-f6471b609e57"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-24d8a91f-ef98-468a-9555-3f9bc8e9cb9b:21073219-1bd7-4486-8bb3-68c309c8443c"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/candidate-revisions/NCR-f4a3e497-72a3-44ea-a7da-b4b499ac2f6f/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-f4a3e497-72a3-44ea-a7da-b4b499ac2f6f:qa-dev059-primary.pdf:118:1786291811876:1cc0c5e4-4e67-4b3d-b4a9-54c7c06244cb"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/candidate-revisions/NCR-f4a3e497-72a3-44ea-a7da-b4b499ac2f6f/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/submit-bundle-review",
+      "fault": "response-loss",
+      "idempotencyKey": "dev053:submit:a88735ef-2e3b-4262-ba5a-608f7d43d35e"
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:88bce654-3eba-4b40-8eb5-4ebeb0f98542"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:cd7bc8ae-4d06-429c-8881-67c519ae4c44"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/cancel",
+      "status": 200,
+      "fault": null
+    }
+  ],
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184",
+      "fault": "503"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: net::ERR_CONNECTION_CLOSED",
+      "url": "http://127.0.0.1:64406/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617",
+      "fault": "response-loss"
+    }
+  ],
+  "unexpectedBrowserErrors": [],
+  "plannedFaults": [
+    {
+      "mode": "503",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-f4bacfea-c0b9-4788-867b-ac35e928c184/submit-bundle-review"
+    },
+    {
+      "mode": "response-loss",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-2e10efa7-e3d0-40ef-a5e6-e6d70e4d0617/submit-bundle-review"
+    }
+  ],
+  "visibleErrors": []
+}

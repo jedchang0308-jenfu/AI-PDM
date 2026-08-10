@@ -8,6 +8,7 @@ import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { DrawingWorkbench } from "@/components/drawing-workbench";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+import { SearchHighlight } from "@/components/search-highlight";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
@@ -446,21 +447,21 @@ export default function DrawingNumbersPage() {
                                 openDrawingDetail(drawing.drawingNumber);
                               }}
                             >
-                              {drawing.drawingNumber}
+                              <SearchHighlight value={drawing.drawingNumber} query={query} />
                             </button>
                           </td>
                           <td data-label="名稱">
                             <div className="pdm-identity-name" title={drawing.coreName}>
-                              {drawing.coreName}
+                              <SearchHighlight value={drawing.coreName} query={query} />
                             </div>
-                            <small className="pdm-identity-subline">{displayDrawingPurposeLabel(drawing.purposeCode)}</small>
+                            <small className="pdm-identity-subline"><SearchHighlight value={displayDrawingPurposeLabel(drawing.purposeCode)} query={query} /></small>
                           </td>
                           <td data-label="關聯摘要">
                             {drawing.linkedPartCount > 0 ? (
                               <div className="pdm-meta-strip">
                                 {drawing.linkedPartNumbers.slice(0, 3).map((partNumber) => (
                                   <span className="pdm-meta-chip" key={partNumber}>
-                                    {partNumber}
+                                    <SearchHighlight value={partNumber} query={query} />
                                   </span>
                                 ))}
                                 {drawing.linkedPartCount > 3 ? <span className="pdm-meta-chip">+{drawing.linkedPartCount - 3}</span> : null}
@@ -471,7 +472,7 @@ export default function DrawingNumbersPage() {
                           </td>
                           <td data-label="資料狀態 / 提醒">
                             <div className="pdm-meta-strip">
-                              <StatusBadge status={drawing.recordStatus} context="masterRecord" />
+                              <StatusBadge status={drawing.recordStatus} context="masterRecord" highlightQuery={query} />
                               {drawing.pendingApproval ? <PendingApprovalBadge pending={drawing.pendingApproval} canReview={canReviewApprovals} /> : null}
                               {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
                               {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
@@ -679,7 +680,7 @@ function DrawingDetailDrawer({
 
           <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={canReviewApprovals} />
 
-          <SameRootPartPanel drawing={drawing} onDataChanged={onDataChanged} />
+          <SameRootPartPanel drawing={drawing} />
 
           <NumberingContextualEntrypoints
             mode="drawing"
@@ -718,7 +719,7 @@ function TitleBlockVariantWarning() {
 
 function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { drawing: DrawingListRecord; canReviewApprovals: boolean }) {
   const incompleteParts = getIncompleteSameRootParts(drawing);
-  const missingCostParts = drawing.sameRootParts.filter((part) => part.standardCostStatus === "missing");
+  const missingCostParts = getRelatedParts(drawing).filter((part) => part.standardCostStatus === "missing");
   const pendingApproval = drawing.pendingApproval ?? null;
   const hasOutstandingItems = incompleteParts.length > 0 || missingCostParts.length > 0 || Boolean(pendingApproval);
   return (
@@ -779,86 +780,45 @@ function ReadinessChip({
   );
 }
 
-function SameRootPartPanel({ drawing, onDataChanged }: { drawing: DrawingListRecord; onDataChanged: () => Promise<void> }) {
-  const incompleteParts = getIncompleteSameRootParts(drawing);
-  if (drawing.sameRootParts.length === 0) return null;
+function SameRootPartPanel({ drawing }: { drawing: DrawingListRecord }) {
+  const relatedParts = getRelatedParts(drawing);
+  const incompleteParts = relatedParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
+  if (relatedParts.length === 0) return null;
   const allReady = incompleteParts.length === 0;
   return (
     <section className="panel same-root-part-panel">
-      <details className="same-root-part-details" open={!allReady}>
-        <summary>
-          <h2>同主根號料號</h2>
-          <strong>{allReady ? "已完成" : `${incompleteParts.length} 筆待補`}</strong>
-        </summary>
-      <div style={sameRootPartListStyle}>
-        {drawing.sameRootParts.map((part) => (
-          <PartMasterDataCard key={part.id} part={part} onDataChanged={onDataChanged} />
+      <div className="same-root-part-details">
+        <div className="same-root-part-details-heading">
+          <h2>關聯料號</h2>
+          <strong>{allReady ? `已完成 · ${relatedParts.length} 筆` : `${incompleteParts.length} 筆待補`}</strong>
+        </div>
+        <div style={sameRootPartListStyle}>
+        {relatedParts.map((part) => (
+          <PartMasterDataCard key={part.id} part={part} />
         ))}
+        </div>
       </div>
-      </details>
     </section>
   );
 }
 
 function getIncompleteSameRootParts(drawing: DrawingListRecord) {
-  return drawing.sameRootParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
+  return getRelatedParts(drawing).filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
 }
 
-function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRecord; onDataChanged: () => Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [draft, setDraft] = useState(() => partDraftFromRecord(part));
-  const missingRequired = !draft.materialLabel.trim() || !draft.surfaceTreatment.trim();
+function getRelatedParts(drawing: Pick<DrawingListRecord, "linkedPartNumbers" | "sameRootParts">) {
+  const relatedPartNumbers = new Set(drawing.linkedPartNumbers);
+  return drawing.sameRootParts.filter((part) => relatedPartNumbers.has(part.partNumber));
+}
 
-  useEffect(() => {
-    if (editing) return;
-    setDraft(partDraftFromRecord(part));
-    setMessage("");
-  }, [editing, part]);
-
-  async function savePartMasterData() {
-    setSaving(true);
-    setMessage("");
-    const response = await fetch(`/api/parts/${encodeURIComponent(part.partNumber)}/variant`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        materialCode: part.materialCode,
-        materialLabel: draft.materialLabel,
-        colorCode: part.colorCode,
-        colorLabel: draft.colorLabel,
-        surfaceTreatment: draft.surfaceTreatment,
-        variantNote: draft.variantNote
-      })
-    });
-    const body = await response.json().catch(() => ({}));
-    setSaving(false);
-    if (!response.ok) {
-      setMessage(body.error ?? "主資料儲存失敗。");
-      return;
-    }
-    setEditing(false);
-    await onDataChanged();
-  }
-
+function PartMasterDataCard({ part }: { part: DrawingLinkedPartRecord }) {
+  const missingRequired = !(part.materialLabel || part.materialCode) || !part.surfaceTreatment;
   return (
     <article style={sameRootPartCardStyle}>
       <div style={partCardHeaderStyle}>
-        <div style={partCardTitleStyle}>
+        <div className="drawing-workbench-part-title">
           <strong>{part.partNumber}</strong>
           <p style={mutedStyle}>{part.partName}</p>
-        </div>
-        <div style={partCardActionsStyle}>
-          {part.standardCostStatus === "missing" ? (
-            <Link className="secondary-button" href={partCostHref(part)}>
-              <DollarSign size={16} />
-              補標準成本
-            </Link>
-          ) : null}
-          <button className="secondary-button" type="button" onClick={() => setEditing((current) => !current)} disabled={saving}>
-            {editing ? "取消" : missingRequired ? "補主資料" : "編輯主資料"}
-          </button>
         </div>
       </div>
       <div className="pdm-meta-strip">
@@ -869,52 +829,14 @@ function PartMasterDataCard({ part, onDataChanged }: { part: DrawingLinkedPartRe
         {missingRequired ? <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>送審資料未完成</span> : null}
       </div>
 
-      {editing ? (
-        <div style={partEditGridStyle}>
-          <label className="pdm-master-field">
-            <span>材質</span>
-            <input value={draft.materialLabel} onChange={(event) => setDraft((current) => ({ ...current, materialLabel: event.target.value }))} />
-            <small>送審必要；對應上傳送審頁的 PDM 屬性。</small>
-          </label>
-          <label className="pdm-master-field">
-            <span>表面處理</span>
-            <input value={draft.surfaceTreatment} onChange={(event) => setDraft((current) => ({ ...current, surfaceTreatment: event.target.value }))} />
-            <small>送審必要；未填會阻擋圖面送審。</small>
-          </label>
-          <label className="pdm-master-field">
-            <span>顏色</span>
-            <input value={draft.colorLabel} onChange={(event) => setDraft((current) => ({ ...current, colorLabel: event.target.value }))} />
-          </label>
-          <label className="pdm-master-field">
-            <span>變體</span>
-            <input value={draft.variantNote} onChange={(event) => setDraft((current) => ({ ...current, variantNote: event.target.value }))} />
-          </label>
-          {message ? <p style={{ ...mutedStyle, color: "var(--danger)", gridColumn: "1 / -1" }}>{message}</p> : null}
-          <div style={partEditActionsStyle}>
-            <button className="primary-button" type="button" onClick={savePartMasterData} disabled={saving || !draft.materialLabel.trim() || !draft.surfaceTreatment.trim()}>
-              {saving ? "儲存中..." : "儲存主資料"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div style={sameRootPartMetaGridStyle}>
-          <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
-          <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
-          <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
-          <InfoBlock icon={<Link2 size={16} />} title="主要製造圖" value={part.primaryDrawingNumber ?? "未連結"} />
-        </div>
-      )}
+      <div style={sameRootPartMetaGridStyle}>
+        <InfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} />
+        <InfoBlock icon={<FileText size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
+        <InfoBlock icon={<Workflow size={16} />} title="變體" value={variantDescriptor(part)} />
+        <InfoBlock icon={<Link2 size={16} />} title="主要製造圖" value={part.primaryDrawingNumber ?? "未連結"} />
+      </div>
     </article>
   );
-}
-
-function partDraftFromRecord(part: DrawingLinkedPartRecord) {
-  return {
-    materialLabel: part.materialLabel || part.materialCode || "",
-    colorLabel: part.colorLabel || part.colorCode || "",
-    surfaceTreatment: part.surfaceTreatment || "",
-    variantNote: part.variantNote || ""
-  };
 }
 
 function variantDescriptor(part: DrawingLinkedPartRecord) {
@@ -925,10 +847,6 @@ function variantDescriptor(part: DrawingLinkedPartRecord) {
 function standardCostLabel(part: DrawingLinkedPartRecord) {
   if (part.standardCostStatus === "missing") return "標準成本未設定";
   return part.standardCostProfileName ? `標準成本 active / ${part.standardCostProfileName}` : "標準成本 active";
-}
-
-function partCostHref(part: DrawingLinkedPartRecord) {
-  return `/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`;
 }
 
 function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
@@ -984,33 +902,10 @@ const partCardHeaderStyle: CSSProperties = {
   gap: "0.75rem"
 };
 
-const partCardTitleStyle: CSSProperties = {
-  minWidth: 0
-};
-
-const partCardActionsStyle: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  justifyContent: "flex-end",
-  gap: "0.5rem"
-};
-
 const sameRootPartMetaGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: "0.5rem"
-};
-
-const partEditGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "0.65rem"
-};
-
-const partEditActionsStyle: CSSProperties = {
-  gridColumn: "1 / -1",
-  display: "flex",
-  justifyContent: "flex-end"
 };
 
 function AccessPanel() {

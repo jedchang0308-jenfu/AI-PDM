@@ -13,7 +13,7 @@
 Phase 1 的產品結果固定為：
 
 - 圖號、料號、圖料清單的每個可選物件最多一個主要狀態。
-- 使用者不讀說明即可分辨五種 viewer 狀態：待你處理、等他人處理、系統處理中、可使用、已結束。
+- 使用者不讀說明即可分辨 viewer 狀態：待你處理、等他人處理、系統處理中、具體可用範圍、已結束；責任缺口必須明確標示為負責人待確認。
 - 使用者需要原因時，滑過、聚焦或點擊主狀態即可看到同一個人類語言說明層；說明層回答「現在發生什麼、誰要處理、會不會自動完成、下一步」。
 - 同一物件從 owner module 或圖料模組開啟時，狀態、主要 CTA 與 drawer 核心內容一致。
 - drawer 維持覆蓋式，開著時可連續點清單切換，不推擠清單。
@@ -35,7 +35,7 @@ Phase 1 的產品結果固定為：
 
 | 層級 | 顯示規則 | 例子 |
 |---|---|---|
-| 決策 | 一定顯示，且只有一個 viewer 分類 | 待你處理、等他人處理、系統處理中、可使用、已結束 |
+| 決策 | 一定顯示，且只有一個 viewer 分類 | 待你處理、等他人處理、系統處理中、生產可用／研發可用、已結束 |
 | 例外 | 只有發生時顯示，併入主要狀態或展開明細 | 發布失敗、資料衝突 |
 | 識別 | 跟名稱／編號放一起，非狀態 badge | M 製造圖、3D CAD、系列 |
 | 數量 | 低強度文字，不使用狀態色 | 1 圖號・3 料號 |
@@ -119,7 +119,7 @@ API DTO 在 `humanStatus` 旁新增 `viewerStatus: ViewerHumanStatusProjection`�
 type ViewerHumanStatusProjection = {
   schemaVersion: 1;
   category: "current_user" | "other_user" | "system" | "usable" | "terminal" | "unknown";
-  label: "待你處理" | "等他人處理" | "系統處理中" | "可使用" | "已結束" | "待確認";
+  label: "待你處理" | "等他人處理" | "系統處理中" | "可使用" | "已結束" | "負責人待確認";
   tone: HumanStatusTone;
   icon: HumanStatusIcon;
   basis: "assignee" | "reviewer" | "role_capability" | "system" | "objective" | "unknown";
@@ -135,8 +135,8 @@ type ViewerHumanStatusProjection = {
 2. 已知由他人負責 → `等他人處理`。
 3. 只有可證明為背景 job 的 `finalizing` → `系統處理中`；不得把人工工作包裝成系統等待。
 4. 無個人 assignment model 的 part/relation，以 `role_capability` 判定共享佇列：有權限者 `待你處理`，其他人 `等他人處理`。
-5. `usable/terminal` 只依客觀 evidence，分別為 `可使用/已結束`。
-6. 無法辨識責任時 fail closed 為 `待確認`，不得猜測姓名或責任。
+5. `usable/terminal` 只依客觀 evidence；使用者介面不以模糊的 `可使用` 作為獨立篩選或主要列表標籤，改顯示具體可用範圍或資格待確認。
+6. 無法辨識責任時 fail closed 為 `負責人待確認`，不得猜測姓名或責任。
 
 ### 5.3 Availability scope contract（2026-08-07 additive）
 
@@ -158,8 +158,9 @@ type AvailabilityScopeProjection = {
 2. `released` 且無發布衝突 → `production / 生產可用`。
 3. 料號只有在必要製造圖存在，且料號與主要製造圖都具正式發布證據時，才可輸出 `production`；圖料根號還要確認關聯料號與製造圖依賴全部正式發布。
 4. 圖料關係不完整、主要製造圖未正式發布或發布資料衝突時，不得顯示「生產可用」；輸出 `none` 或 `unknown`。
-5. `availabilityScope` 只在第一層主狀態為 `usable` 時改寫 badge 文案；其他狀態仍顯示 viewer responsibility label。
+5. `availabilityScope` 只在第一層主狀態為 `usable` 時改寫 badge 文案；若沒有具體範圍，顯示 `可用範圍待確認`，其他狀態仍顯示 viewer responsibility label。
 6. generic search 可顯示 `研發可用／生產可用`；詳細說明補一句人類語言，不新增第二個 badge。
+7. 工作狀態篩選器必須使用共用 `HumanStatusFilterSelect`，選項文字與總表 `HumanStatusBadge` 共用同一套 `humanStatusDisplayLabel`／display vocabulary；`可使用` 不得作為獨立篩選項，改由 `生產可用`、`研發可用` 與 `可用範圍待確認` 呈現可用範圍，責任未知則使用 `負責人待確認`。
 
 ### 5.4 Priority
 
@@ -254,14 +255,15 @@ relation drawing／part child node 必須使用 drawing／part owner projector�
 
 每個 `row` 新增客觀 `humanStatus`、登入者專屬 `viewerStatus` 與 `availabilityScope`。list/detail 對同一 `rowKey`、同一 actor 必須完全相同。
 
-list query：`humanStatus=all|needs_action|waiting|system|usable|history`；舊 `ready` URL 僅保留相容解析，不再作為第一層選項。
+list query：`humanStatus=all|needs_action|waiting|system|production|rd|availability_unknown|needs_confirmation|history`；舊 `usable`／`ready` URL 僅保留相容解析，不再作為第一層選項。
 
 映射：
 
 - `needs_action` → viewer `current_user`
 - `waiting` → viewer `other_user | unknown`
 - `system` → viewer `system`
-- `usable` → viewer `usable`
+- `production` / `rd` / `availability_unknown` → viewer `usable` 且依 `availabilityScope` 精確比對
+- `needs_confirmation` → viewer `unknown`，顯示 `負責人待確認`
 - `history` → viewer `terminal`
 
 `humanStatus` 必須加入 opaque cursor 的 `filterHash`。既有 `DrawingWorkbenchAsyncRepository.readListPage()` 已支援 scan → project → filter → fill page；把 phase filter放在 callback 內、slice 之前，不得只 filter 當頁。
@@ -302,11 +304,11 @@ drawing child 的 owner projection由 `DrawingWorkbenchService.projectDrawingsBy
 - 第一層只 render icon + 四分類主標籤，不能只靠顏色。
 - hover、focus、click 開啟同一個說明層；`Escape` 可關閉，click 不得觸發父列選取或導覽。
 - 說明層只使用人類語言，固定回答：`目前狀況`、`誰要處理`、`是否會自動完成`、`下一步`。
-- `usable` 狀態若有 scope，主標籤顯示 `研發可用` 或 `生產可用`；可用範圍細節只在同一說明層補充，不增加第二 badge。
+- `usable` 狀態主標籤顯示 `研發可用`、`生產可用` 或 `可用範圍待確認`；不得以模糊的 `可使用` 作為列表篩選項或主要 badge。
 - DOM 固定 `data-human-status-key`、`data-human-status-phase`，供 QC 讀取。
 - 不接受 raw status，不內建 label map，不呼叫 projector。
 
-主標籤投影固定為：`action_required/ready → 待處理`、`waiting → 等待中`、`usable → 可使用`、`terminal → 已結束`。原本的細分文案保留在投影資料與第二層說明，不在清單重複顯示。
+主標籤投影固定為：`action_required/ready → 待你處理`、`waiting → 等他人處理`、`usable → 依 availability scope 顯示生產可用／研發可用／可用範圍待確認`、`terminal → 歷史`；責任無法辨識時顯示 `負責人待確認`。原本的細分文案保留在投影資料與第二層說明，不在清單重複顯示。
 
 ### 8.2 Lists
 

@@ -1,0 +1,41 @@
+{
+  "runId": "20260807-220853-qc-round5",
+  "result": "FAIL",
+  "startedAt": "2026-08-07T22:08:53.4900422+08:00",
+  "finishedAt": "2026-08-07T22:20:13.9875257+08:00",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "actor": "張仕杰",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "dirtyCount": 61,
+  "viewportsRequested": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "viewportsExecuted": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "fixtures": [
+    "A0007",
+    "A0007-M01",
+    "A0007-P01",
+    "A0005-P01",
+    "A0005-P02",
+    "A0005-P03",
+    "candidate:外殼_JF_白鐵_A"
+  ],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
+  "stopReason": "P2 native link Enter was intercepted on /numbering/search root drawer",
+  "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written.",
+  "scopedHashes": {
+    "package.json": "212839aab17789873cbdb1e412d25dac6881cd34fb3e184b733519537b135d6e",
+    "scripts/qc-pdm-entity-detail-drawer.mjs": "3421b8426bc3edbd5ed15575962dc3626b99cc55a3843a94a017fe18b4f5f7f1",
+    "scripts/qc-pdm-numbering-search-target-runtime.mjs": "548f616ed05bd8822083cb47a0b57850e07a48b3ea1e35641f45a49194d37ae8",
+    "src/app/numbering/search/page.tsx": "73e6cf42917b75c3f409bb38e1e603912f44c56abc5493c26a1c74afbf0eaa65"
+  }
+}

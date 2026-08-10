@@ -3,11 +3,12 @@
 Status: Phase 3A-0 Local Implementation Complete / QA Passed 2026-07-13; Phase 3A-1 to 3C RD Contract Ready / Not Requested This Turn; Release Gate Required
 Owner: Dev PM
 Created: 2026-07-10
-Updated: 2026-07-13
+Updated: 2026-08-10 (material identity terminology amendment)
 Related DEV: `DEV-041` / `DEV-PDM-TRANSFER-PACKAGE-INTAKE-001`
 Parent DEV: `DEV-005` / `DEV-PDM-SUBMISSION-GATE-001`
 Parent SPEC: `.ai-doc/specs/SPEC-PDM-SUBMISSION-GATE-001-research-transfer-package-readiness.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SUBMISSION-GATE-001-transfer-package-and-exception-policy.md`
+Material identity authority: `.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`
 Related SPEC: `.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`
 Related QA: `.ai-doc/qa/qa-pdm-transfer-package-intake-pack-and-go-validation-plan-2026-07-10.md`
 Related QC: `.ai-doc/qc/qc-pdm-transfer-package-phase3a0-report-2026-07-13.md`
@@ -99,7 +100,7 @@ Success means:
 
 - RD does not maintain duplicate assembly relationships in PDM during exploration.
 - Technical transfer cannot proceed with missing formal identities, unresolved file conflicts or incomplete BOM.
-- A later part revision does not silently rewrite an existing assembly or baseline.
+- A later controlled Drawing/BOM definition revision for the same Part Number, or a replacement Part Number, does not silently rewrite an existing assembly or baseline. Part Number itself has no Revision.
 - The system never claims SolidWorks openability without native or real-machine evidence.
 - Users can complete transfer work from one package-centric task center while owner modules retain canonical logic.
 
@@ -216,7 +217,7 @@ Hard blockers:
 - resulting BOM/file closure is incomplete or inconsistent
 - the exact materialized candidate fails SolidWorks open or reports missing references
 
-For a one-part geometry change with unchanged filename/path/reference topology, RD uploads the new part revision only. AI-PDM inherits the unchanged assembly closure, creates a new complete candidate configuration for every affected top assembly, materializes it for verification and records the exact verified hash. If any prerequisite evidence is unavailable, the fallback is an affected-assembly or full Pack-and-Go re-upload, not a guessed merge.
+For a one-part geometry change with unchanged filename/path/reference topology and unchanged material identity, RD uploads the new controlled Drawing definition revision for the same Part Number. If FFF, interchangeability, regulatory/quality-control or another material-identity condition changes, RD creates a replacement Part Number and that new identity's BOM instead. AI-PDM inherits only evidence explicitly confirmed as unchanged, creates a new complete candidate configuration for every affected top assembly, materializes it for verification and records the exact verified hash. If any prerequisite evidence is unavailable, the fallback is an affected-assembly or full Pack-and-Go re-upload, not a guessed merge.
 
 All governed top assemblies approve atomically under confirmed decision `2A`. A blocked, deferred or failed root blocks package approval. RD must split roots into separate packages when they need different approval timing.
 

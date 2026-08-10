@@ -2,7 +2,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 
 const config = [
   {
-    ignores: [".next*/**", ".tmp/**", "tmp/**", "node_modules/**", "data/**", "output/**"]
+    ignores: [".next*/**", ".worktrees/**", ".tmp/**", "tmp/**", "node_modules/**", "data/**", "output/**"]
   },
   ...nextVitals,
   {

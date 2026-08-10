@@ -1,0 +1,35 @@
+{
+  "runId": "20260807-223545-qc-round6",
+  "result": "FAIL",
+  "startedAt": "2026-08-07T22:27:32.7542367+08:00",
+  "finishedAt": "2026-08-07T22:32:33.9531639+08:00",
+  "url": "http://127.0.0.1:3000",
+  "browser": "Codex In-app Browser",
+  "appActor": "張仕杰",
+  "gitActor": "Jed <jedchang0308@jenfu.com.tw>",
+  "branch": "持續優化1",
+  "head": "f4db2afb0ad7f6cd381de46d8c44597953c834dc",
+  "dirtyCount": 61,
+  "viewportsRequested": [
+    "1440x900",
+    "1024x768",
+    "390x844"
+  ],
+  "viewportsExecuted": [
+    "1440x900"
+  ],
+  "fixtures": [
+    "A0007",
+    "A0007-M01"
+  ],
+  "writes": 0,
+  "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
+  "stopReason": "P2 keyboard activation failure on the visible 保留號 anchor at /numbering/search",
+  "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written.",
+  "scopedHashes": {
+    "package.json": "212839aab17789873cbdb1e412d25dac6881cd34fb3e184b733519537b135d6e",
+    "scripts/qc-pdm-entity-detail-drawer.mjs": "f9632814f1f87190b562125d091770baf8ce57416b8c548342cd03b1b66aaf01",
+    "scripts/qc-pdm-numbering-search-target-runtime.mjs": "2c59342ae858fdecfd77f3f7e364820f3f5a3386b0e39defe4908b1b9f2c8d13",
+    "src/app/numbering/search/page.tsx": "135279f16df4b3eba24a7bbd27a10bd4b226f035d909aae8cd1047f1042e87a6"
+  }
+}

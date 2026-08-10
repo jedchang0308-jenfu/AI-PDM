@@ -7,6 +7,7 @@ import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
+import { dedupeNumberingDraftsByRoot } from "@/lib/dedupe-numbering-drafts";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 
 type TaskStatus = "open" | "handled" | "cancelled" | "all";
@@ -335,7 +336,7 @@ function TaskList({
 }
 
 function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
-  const uniqueDrafts = dedupeDrafts(drafts);
+  const uniqueDrafts = dedupeNumberingDraftsByRoot(drafts);
   if (uniqueDrafts.length === 0) return null;
   return (
     <section className="panel">
@@ -403,21 +404,6 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
       </div>
     </section>
   );
-}
-
-function dedupeDrafts(drafts: NumberingDraftRecord[]) {
-  const byRoot = new Map<string, NumberingDraftRecord>();
-  for (const draft of drafts) {
-    const current = byRoot.get(draft.rootCode);
-    if (!current) {
-      byRoot.set(draft.rootCode, draft);
-      continue;
-    }
-    const currentScore = (current.partNumber ? 1 : 0) + (current.drawingNumber ?? current.primaryDrawingNumber ? 1 : 0);
-    const nextScore = (draft.partNumber ? 1 : 0) + (draft.drawingNumber ?? draft.primaryDrawingNumber ? 1 : 0);
-    if (nextScore > currentScore) byRoot.set(draft.rootCode, draft);
-  }
-  return Array.from(byRoot.values());
 }
 
 function NotificationList({

@@ -912,7 +912,7 @@ CREATE TABLE IF NOT EXISTS submission_files (
   submission_id TEXT NOT NULL,
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
-  local_path TEXT NOT NULL,
+  local_path TEXT,
   storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
@@ -923,8 +923,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   sha256 TEXT NOT NULL,
   file_size BIGINT NOT NULL,
   source_master_attachment_id TEXT,
+  source_file_asset_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  CHECK (source_file_asset_id IS NOT NULL OR local_path IS NOT NULL),
   UNIQUE (submission_id, file_role, original_filename)
 );
 

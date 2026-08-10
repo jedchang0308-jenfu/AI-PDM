@@ -1,0 +1,319 @@
+{
+  "hardGate": {
+    "partKeyboardStart": {
+      "entityType": "part_number",
+      "entityCode": "A0005-P01"
+    },
+    "partKeyboard": [
+      {
+        "case": "P02 Enter",
+        "active": "A0005-P02馬達_JF_2HP_B研發可用",
+        "meta": {
+          "code": "A0005-P02",
+          "source": "numbering_search",
+          "target": "part_number",
+          "type": "part_number"
+        }
+      },
+      {
+        "case": "P03 Space",
+        "active": "A0005-P03馬達_JF_2HP_B研發可用",
+        "meta": {
+          "code": "A0005-P03",
+          "source": "numbering_search",
+          "target": "part_number",
+          "type": "part_number"
+        }
+      },
+      {
+        "case": "P02 Space",
+        "active": "A0005-P02馬達_JF_2HP_B研發可用",
+        "meta": {
+          "code": "A0005-P02",
+          "source": "numbering_search",
+          "target": "part_number",
+          "type": "part_number"
+        }
+      },
+      {
+        "case": "P03 Enter",
+        "active": "A0005-P03馬達_JF_2HP_B研發可用",
+        "meta": {
+          "code": "A0005-P03",
+          "source": "numbering_search",
+          "target": "part_number",
+          "type": "part_number"
+        }
+      }
+    ],
+    "drawingRootKeyboard": [
+      {
+        "case": "drawing Enter",
+        "meta": {
+          "code": "A0005-M01",
+          "source": "numbering_search",
+          "target": "drawing_number",
+          "type": "drawing_number"
+        }
+      },
+      {
+        "case": "root Space",
+        "meta": {
+          "code": "A0005",
+          "source": "numbering_search",
+          "target": "part_root",
+          "type": "part_root"
+        }
+      },
+      {
+        "case": "drawing Space",
+        "meta": {
+          "code": "A0005-M01",
+          "source": "numbering_search",
+          "target": "drawing_number",
+          "type": "drawing_number"
+        }
+      },
+      {
+        "case": "root Enter",
+        "meta": {
+          "code": "A0005",
+          "source": "numbering_search",
+          "target": "part_root",
+          "type": "part_root"
+        }
+      }
+    ],
+    "closeKeyboard": {
+      "enterDrawerCount": 0,
+      "spaceDrawerCount": 0,
+      "closeBox": {
+        "width": 44,
+        "height": 44
+      }
+    },
+    "nativeLinkEnter": {
+      "failure": {
+        "route": "http://127.0.0.1:3000/numbering/search",
+        "href": "/drawings/A0007-M01/submission-workbench",
+        "active": {
+          "href": "/drawings/A0007-M01/submission-workbench",
+          "tag": "A",
+          "text": "檢查新版送審"
+        },
+        "drawer": {
+          "count": 1,
+          "type": "part_root",
+          "code": "A0007"
+        }
+      },
+      "mouseControl": {
+        "route": "http://127.0.0.1:3000/drawings/A0007-M01/submission-workbench",
+        "navigated": true
+      }
+    }
+  },
+  "initialStatus": {
+    "fixture": "A0007-M01",
+    "hardReloadWaitMs": 5500,
+    "searchBeforeOpen": "等他人處理",
+    "searchAfterOpen": "等他人處理"
+  },
+  "shell": {
+    "closePaths": {
+      "mouseX": 0,
+      "escape": 0,
+      "outside": 0
+    },
+    "role": "complementary",
+    "ariaModal": null,
+    "resize": {
+      "baseline": 527,
+      "afterDrag": 614.2000122070312,
+      "afterReload": 614,
+      "persisted": true,
+      "restored": 526.3875122070312
+    },
+    "rowSwitch": {
+      "mouseScrollBefore": 46.4,
+      "mouseScrollAfter": 0
+    },
+    "candidateModal": {
+      "opened": {
+        "count": 1,
+        "ariaModal": "true",
+        "drawerCount": 1
+      },
+      "afterEscape": {
+        "alertCount": 0,
+        "drawerCount": 1
+      }
+    }
+  },
+  "viewport": {
+    "desktop1440": {
+      "ariaModal": null,
+      "bodyOverflow": 0,
+      "close": null,
+      "closeCount": 0,
+      "drawer": {
+        "h": 876,
+        "w": 420,
+        "x": 1008,
+        "y": 12
+      },
+      "drawerBodyOverflow": 0,
+      "pageOverflow": 0,
+      "role": "complementary",
+      "viewport": {
+        "h": 900,
+        "w": 1440
+      }
+    },
+    "laptop1024": {
+      "bodyOverflow": 0,
+      "close": {
+        "h": 44,
+        "w": 44,
+        "x": 951.2000122070312,
+        "y": 25.80000114440918
+      },
+      "drawer": {
+        "h": 744,
+        "w": 420,
+        "x": 592,
+        "y": 12
+      },
+      "drawerBodyOverflow": 0,
+      "headerOverflow": null,
+      "pageOverflow": 0,
+      "viewport": {
+        "h": 768,
+        "w": 1024
+      }
+    },
+    "mobileCandidate390": {
+      "bodyOverflow": 0,
+      "bodyScrollY": 0,
+      "close": {
+        "h": 44,
+        "right": 362.3999938964844,
+        "w": 44,
+        "x": 318.3999938964844,
+        "y": 17
+      },
+      "drawer": {
+        "h": 844,
+        "w": 375.20001220703125,
+        "x": 0,
+        "y": 0
+      },
+      "drawerBody": {
+        "clientHeight": 712,
+        "overflow": 0,
+        "scrollHeight": 713,
+        "scrollTop": 0
+      },
+      "pageOverflow": 0,
+      "viewport": {
+        "h": 844,
+        "w": 390
+      }
+    },
+    "mobilePart390": {
+      "body": {
+        "clientHeight": 768,
+        "h": 768.4000244140625,
+        "overflow": 0,
+        "overscroll": "contain",
+        "scrollHeight": 3159,
+        "scrollTop": 0,
+        "w": 374.3999938964844,
+        "x": 0,
+        "y": 74.80000305175781
+      },
+      "bodyOverflow": 0,
+      "close": {
+        "h": 44,
+        "right": 362.3999938964844,
+        "w": 44,
+        "x": 318.3999938964844,
+        "y": 17
+      },
+      "drawer": {
+        "h": 844,
+        "w": 375.20001220703125,
+        "x": 0,
+        "y": 0
+      },
+      "pageOverflow": 0,
+      "viewport": {
+        "h": 844,
+        "w": 390
+      },
+      "windowScrollY": 474.3999938964844
+    },
+    "mobileScroll": {
+      "beforeExtra": {
+        "bodyTop": 2390.39990234375,
+        "windowY": 474.3999938964844
+      },
+      "afterExtra": {
+        "bodyTop": 2390.39990234375,
+        "windowY": 474.3999938964844
+      },
+      "windowUnchanged": true
+    }
+  },
+  "mobileTooltip": {
+    "anchor": {
+      "h": 22,
+      "w": 82.5999984741211,
+      "x": 168.71250915527344,
+      "y": 747.7999877929688
+    },
+    "tooltips": [
+      {
+        "class": "human-status-detail-popover",
+        "rect": {
+          "bottom": 739.8000030517578,
+          "h": 125.05000305175781,
+          "right": 378,
+          "w": 280,
+          "x": 98,
+          "y": 614.75
+        },
+        "role": "tooltip",
+        "text": "關聯完整\n目前可以使用。\n目前可直接使用\n可用範圍：正式發布且圖料關係完整，可供生產使用。"
+      }
+    ],
+    "withinViewport": true
+  },
+  "content": {
+    "root": {
+      "rawTerms": [],
+      "reminderBadgeCount": 1,
+      "warningTitleCount": 1,
+      "primaryActions": [
+        {
+          "href": "/drawings/A0007-M01/submission-workbench",
+          "tag": "A",
+          "text": "檢查新版送審"
+        }
+      ]
+    },
+    "preview": {
+      "rawTerms": [],
+      "retryControls": [],
+      "downloadCount": 4,
+      "humanLines": [
+        "2D 預覽尚未產生",
+        "可先下載原始檔查看；系統產生後重新整理即可。"
+      ]
+    },
+    "partFirstBodyIdentityRepeat": {
+      "codeCount": 0,
+      "nameCount": 0
+    }
+  }
+}

@@ -36,7 +36,7 @@ export const revisionPackageRoleOptions: Array<{ value: RevisionPackageFileRole;
 const validRoles = new Set<RevisionPackageFileRole>(revisionPackageRoleOptions.map((option) => option.value));
 const cad3dExtensions = new Set(["sldprt", "sldasm"]);
 const drawing2dExtensions = new Set(["slddrw"]);
-const intermediateExtensions = new Set(["step", "stp", "iges", "igs", "x_t"]);
+const intermediateExtensions = new Set(["step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"]);
 const dwgDxfExtensions = new Set(["dwg", "dxf"]);
 
 export function normalizeRevisionPackageFileRole(value: unknown): RevisionPackageFileRole | null {

@@ -2,6 +2,8 @@
 
 > 2026-07-13 Amendment：本文件的 FFF、replacement、BOM reconfirmation 與既有 implementation evidence 保留；候選號正式化、送審鎖定、回收與固定 7 天冷卻語意由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。只有正式發布後的 official number 永久不可重用。
 
+> 2026-08-10 Identity Amendment：`ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 是「升 Rev 或換 Part Number」的跨模組 authority。料號代表物料身份且無 Revision；Drawing 與 BOM 各自獨立版控。FFF 之外，互換性、法規／品質管制或其他物料身份條件改變也必須建立新料號。
+
 狀態：Implemented locally / Evidence captured; production/Supabase cutover deferred
 日期：2026-06-24  
 適用系統：AI_PDM  
@@ -17,9 +19,10 @@
 本規格的核心目標：
 
 - 圖號以版次為主進行管制。
-- 料號無版次；若料件違反 FFF 原則，應取新料號。
+- 料號代表物料身份且無版次；若 FFF、互換性、法規／品質管制或其他物料身份條件改變，應取新料號。
 - BOM 本身有版次，但不強制記錄使用的圖號版次；預設引用最新版 released 圖面。
 - 圖面只做標註或文字修正、未違反 FFF 時，BOM 可不進版。
+- Drawing 與 BOM Revision 為兩條獨立軸；同一物料身份下，只提升實際受影響的受控定義，不得自動同步。
 - 讓 RD 可低摩擦建立草稿與新料號，但在進入受控邊界後留下必要稽核證據。
 
 ## 2. 核心原則
@@ -33,14 +36,16 @@
 
 ### 2.2 料號
 
-- 料號無版次。
-- 料件若確認違反 Form / Fit / Function，應取得新流水號形成新料號。
+- 料號是物料身份，無版次；系統與文件不得出現 Part Number Revision authority。
+- 料件若確認 Form / Fit / Function、互換性、法規／品質管制或其他物料身份條件改變，應取得新流水號形成新料號。
 - 舊料號可被新料號取代，但舊 BOM 仍可繼續使用舊料號。
 - 料號模組與圖號進版頁都可以建立新料號，但必須共用同一套「新料號草稿」流程。
+- 新料號必須建立自己的 BOM；可以複製舊 BOM 為起點，但不得把舊料號的 BOM 原地換 owner。
 
 ### 2.3 BOM
 
 - BOM 自身有版次。
+- BOM Revision 隸屬 owner Part Number，且與 Drawing Revision 獨立；Drawing 進版不自動推動 BOM 進版，反之亦然。
 - BOM 不直接記錄圖號版次；預設解析為最新版 released 圖面。
 - 已發行 BOM 不因新圖面或新料號自動變更。
 - 未發行 BOM 草稿若引用被取代料號，需重新確認後才能送審。
@@ -62,6 +67,9 @@
 | FFF 無影響 | RD 判定圖面變更不影響 Form / Fit / Function。 |
 | FFF 疑似影響 | RD 無法直接排除 FFF 影響，需審核者確認。 |
 | FFF 確認影響 | RD 確認變更影響 Form / Fit / Function，需新料號。 |
+| 物料身份條件改變 | FFF、互換性、法規／品質管制或其他已核准身份條件改變；必須建立新料號。 |
+| Drawing Revision | 同一受控圖面定義的版次，不是料號版次。 |
+| BOM Revision | 指定 owner Part Number 的產品結構定義版次，與 Drawing Revision 獨立。 |
 | 預留草稿號 | 尚未送審、未綁定受控圖面、未被 BOM 或替代關聯引用的料號草稿。 |
 | 受控料號 | 已送審、已綁定圖面、已被 BOM 引用或已建立替代關聯的料號。 |
 | 替代料號 | 取代來源料號的新料號。 |
@@ -431,6 +439,8 @@
 - FFF 全部無影響時，可沿用原料號，審核者必須確認 BOM 不進版。
 - 任一 FFF 疑似影響時，可送審但標記高風險，審核者必須做出明確結論。
 - 任一 FFF 確認影響時，未建立新料號與未完成圖面料號一致比對前不得送審。
+- 即使 FFF 未確認影響，若互換性、法規／品質管制或其他物料身份條件改變，仍不得沿用原料號。
+- 沿用原料號時，Drawing Revision 與 BOM Revision 只依各自實際變更提升，不得互相自動同步。
 
 ### 14.2 料號草稿
 
@@ -441,9 +451,11 @@
 
 ### 14.3 BOM
 
+- 新 BOM 必須由 canonical Part Number owner 與獨立 BOM Revision 識別，不得以 submission/drawing revision 代替。
 - 新料號發行後，未發行 BOM 草稿引用舊料號時自動標記需重新確認。
 - 已發行 BOM 不自動變更。
 - BOM 編輯使用被取代料號時需顯示警示並要求確認。
+- 新料號建立自己的 BOM；舊料號的 Released BOM 與 Where-used 不被靜默改寫。
 
 ### 14.4 稽核
 

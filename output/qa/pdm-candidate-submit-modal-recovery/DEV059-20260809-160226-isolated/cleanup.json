@@ -1,0 +1,7 @@
+{
+  "runId": "DEV059-20260809-160226-isolated",
+  "cleanupStatus": "removed",
+  "productionConnected": false,
+  "productionWrites": false,
+  "disposableOnly": true
+}

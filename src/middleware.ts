@@ -7,12 +7,14 @@ import {
   shouldBlockProductionSlicePagePath
 } from "@/lib/production-slice";
 import { resolveNumberStateLegacyRedirect } from "@/lib/number-state-flow-legacy-route";
+import { isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 
 function numberStateLegacyRedirect(request: NextRequest) {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const resolved = resolveNumberStateLegacyRedirect(
     request.nextUrl.pathname,
-    request.nextUrl.searchParams
+    request.nextUrl.searchParams,
+    isUnifiedPartRelationWorkbenchV1Enabled()
   );
   if (!resolved) return null;
   const url = request.nextUrl.clone();

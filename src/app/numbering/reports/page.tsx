@@ -7,6 +7,7 @@ import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-deta
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { formatStatusErrorForUser } from "@/lib/status-display";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
+import { downloadJsonFile as downloadJson } from "@/lib/client-json-download";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ExportMode = "no_audit" | "last_change_summary" | "full_change_summary";
@@ -613,18 +614,6 @@ function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-TW", { hour12: false });
-}
-
-function downloadJson(value: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 const mutedTextStyle = {

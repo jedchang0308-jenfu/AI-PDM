@@ -1,0 +1,401 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, PackageSearch, RefreshCcw, Search, X } from "lucide-react";
+import { HumanStatusBadge } from "@/components/human-status-badge";
+import { HumanStatusFilterSelect } from "@/components/human-status-filter";
+import { NumberStateOwnerCreateAction, WorkspaceDrawer, ConfirmDialog, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
+import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
+import { SearchHighlight } from "@/components/search-highlight";
+import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
+import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
+import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
+import type { HumanStatusFilter } from "@/lib/human-status-projection";
+import type { PartWorkbenchDetailResponse, PartWorkbenchListResponse, PartWorkbenchRow, PartWorkbenchStage, PartWorkbenchView } from "@/lib/part-workbench";
+import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+
+type PartWorkbenchQueryState = {
+  view: PartWorkbenchView;
+  query: string;
+  stage: "" | PartWorkbenchStage;
+  seriesCode: string;
+  itemKind: string;
+  recordStatus: "" | NumberingRecordStatus;
+  humanStatus: HumanStatusFilter;
+  includeHistory: boolean;
+};
+
+export type PartFormalDetailRendererProps = {
+  detail: NonNullable<PartWorkbenchDetailResponse["part"]>;
+  busy: boolean;
+  productionSliceEnforced: boolean;
+  productionSliceUnopenedMessage: string;
+  setBusy: (value: boolean) => void;
+  onUpdated: () => Promise<void>;
+};
+
+type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; partRelationWorkbench?: { enabled?: boolean } };
+type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
+type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
+
+const initialQuery: PartWorkbenchQueryState = {
+  view: "all",
+  query: "",
+  stage: "",
+  seriesCode: "",
+  itemKind: "",
+  recordStatus: "",
+  humanStatus: "all",
+  includeHistory: false
+};
+const defaultUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+
+function readLocation(canonicalize = false): PdmWorkbenchLocationState<PartWorkbenchQueryState> {
+  const params = new URLSearchParams(window.location.search);
+  const legacyReserved = params.get("tab") === "reserved" || params.get("tab") === "drafts";
+  const rawView = params.get("view");
+  const view: PartWorkbenchView = legacyReserved || rawView === "work" ? "work" : rawView === "mine" ? "mine" : "all";
+  const rawDetail = params.get("detail")?.trim() ?? "";
+  const detailKey = rawDetail
+    ? rawDetail.includes(":") ? rawDetail : legacyReserved ? `candidate:${rawDetail}` : rawDetail
+    : null;
+  if (canonicalize) {
+    params.delete("tab");
+    params.set("view", view);
+    if (detailKey && detailKey !== rawDetail) params.set("detail", detailKey);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }
+  return {
+    query: {
+      view,
+      query: params.get("query")?.trim() ?? "",
+      stage: (params.get("stage")?.trim() ?? "") as "" | PartWorkbenchStage,
+      seriesCode: params.get("seriesCode")?.trim() ?? "",
+      itemKind: params.get("itemKind")?.trim() ?? "",
+      recordStatus: (params.get("recordStatus")?.trim() ?? "") as "" | NumberingRecordStatus,
+      humanStatus: (params.get("humanStatus")?.trim() ?? "all") as HumanStatusFilter,
+      includeHistory: params.get("history") === "include"
+    },
+    detailKey,
+    legacyDetail: rawDetail && !rawDetail.includes(":") ? rawDetail : null
+  };
+}
+
+function writeLocation(state: PdmWorkbenchLocationState<PartWorkbenchQueryState>, mode: "replace" | "push") {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("tab");
+  params.set("view", state.query.view);
+  const setOptional = (key: string, value: string) => value ? params.set(key, value) : params.delete(key);
+  setOptional("query", state.query.query.trim());
+  setOptional("stage", state.query.stage);
+  setOptional("seriesCode", state.query.seriesCode);
+  setOptional("itemKind", state.query.itemKind);
+  setOptional("recordStatus", state.query.recordStatus);
+  setOptional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
+  state.query.includeHistory ? params.set("history", "include") : params.delete("history");
+  setOptional("detail", state.detailKey ?? "");
+  window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
+}
+
+function buildListUrl(query: PartWorkbenchQueryState, cursor: string | null) {
+  const params = new URLSearchParams({ view: query.view, limit: "50", history: query.includeHistory ? "include" : "exclude" });
+  if (query.query.trim()) params.set("query", query.query.trim());
+  if (query.stage) params.set("stage", query.stage);
+  if (query.seriesCode) params.set("seriesCode", query.seriesCode);
+  if (query.itemKind) params.set("itemKind", query.itemKind);
+  if (query.recordStatus) params.set("recordStatus", query.recordStatus);
+  if (query.humanStatus !== "all") params.set("humanStatus", query.humanStatus);
+  if (cursor) params.set("cursor", cursor);
+  return `/api/parts/workbench?${params.toString()}`;
+}
+
+function buildDetailUrl(rowKey: string) { return `/api/parts/workbench/${encodeURIComponent(rowKey)}`; }
+function getRowKey(row: PartWorkbenchRow) { return row.rowKey; }
+function getDetailKey(detail: PartWorkbenchDetailResponse) { return detail.row.rowKey; }
+function getCopyText(row: PartWorkbenchRow) { return row.displayCode; }
+function normalizeList(value: unknown) { return value as PartWorkbenchListResponse; }
+function normalizeDetail(value: unknown) { return value as PartWorkbenchDetailResponse; }
+function initialLocation() { return readLocation(true); }
+function currentLocation() { return readLocation(false); }
+function redirectLogin() { window.location.assign(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`); }
+
+async function readApiBody<T>(response: Response) {
+  return response.json().catch(() => ({})) as Promise<T & ApiBody>;
+}
+
+function errorMessage(body: ApiBody, fallback: string) {
+  if (typeof body.error === "object" && body.error?.message) return body.error.message;
+  return body.message?.trim() || (typeof body.error === "string" ? body.error : fallback);
+}
+
+function idempotencyKey(action: string) {
+  return `dev062:part:${action}:${crypto.randomUUID()}`;
+}
+
+export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (props: PartFormalDetailRendererProps) => ReactNode }) {
+  const controller = usePdmWorkbenchController<PartWorkbenchRow, PartWorkbenchDetailResponse, PartWorkbenchQueryState, PartWorkbenchListResponse["filters"]>({
+    initialQuery,
+    initialLocation,
+    readLocation: currentLocation,
+    writeLocation,
+    buildListUrl,
+    buildDetailUrl,
+    getRowKey,
+    normalizeResponse: normalizeList,
+    normalizeDetail,
+    detailRowKey: getDetailKey,
+    detailHistoryMode: "push",
+    listErrorMessage: "料號工作台目前無法載入，請重新整理。",
+    detailErrorMessage: "這筆料號工作已不存在或目前無法查看。",
+    onUnauthorized: redirectLogin
+  });
+  const {
+    rows, filters, loading, detailLoading, error, setError, notice, setNotice,
+    query, setQuery, selectedKey, setSelectedKey, detail, setDetail,
+    nextCursor, pageIndex, loadRows, goNext, goPrevious, openDetail: openControllerDetail,
+    closeDetail: closeControllerDetail
+  } = controller;
+  const [feature, setFeature] = useState<FeatureStatus | null>(null);
+  const [productionSlice, setProductionSlice] = useState<ProductionSliceStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
+  const idempotencyKeys = useRef(new Map<string, string>());
+  const listRef = useRef<HTMLDivElement>(null);
+  const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: "pdm-part-detail-drawer-width" });
+  const productionSliceEnforced = productionSlice?.configured === true;
+  const unopenedMessage = productionSlice?.unopenedMessage ?? defaultUnopenedMessage;
+
+  useEffect(() => {
+    void fetch("/api/numbering/state-flow/status", { cache: "no-store" }).then((response) => response.json()).then((body) => setFeature(body as FeatureStatus)).catch(() => setFeature({}));
+    void fetch("/api/production-slice/status", { cache: "no-store" }).then((response) => response.json()).then((body) => setProductionSlice(body as ProductionSliceStatus)).catch(() => setProductionSlice({}));
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setEditing(false);
+    setConfirmAction(null);
+    closeControllerDetail();
+  }, [closeControllerDetail]);
+
+  const openDetail = useCallback(async (rowKey: string) => {
+    const body = await openControllerDetail(rowKey);
+    if (body?.row.stage === "history_only" && !query.includeHistory) {
+      setQuery((current) => ({ ...current, includeHistory: true }));
+      setNotice("此筆為歷史紀錄，已自動開啟「包含歷史」。");
+    }
+    return body;
+  }, [openControllerDetail, query.includeHistory, setNotice, setQuery]);
+
+  const refresh = useCallback(async () => {
+    await Promise.all([loadRows(), selectedKey ? openControllerDetail(selectedKey, "replace") : Promise.resolve(null)]);
+  }, [loadRows, openControllerDetail, selectedKey]);
+
+  const handleSelect = useCallback((row: PartWorkbenchRow, options: { openDetail: boolean }) => {
+    setSelectedKey(row.rowKey);
+    if (options.openDetail) void openDetail(row.rowKey);
+  }, [openDetail, setSelectedKey]);
+  const handleOpen = useCallback((row: PartWorkbenchRow) => { void openDetail(row.rowKey); }, [openDetail]);
+  const keyboard = useListKeyboardShortcuts({
+    items: rows,
+    selectedKey,
+    listRef,
+    rowSelector: "[data-part-workbench-row]",
+    getKey: getRowKey,
+    getCopyText,
+    onSelect: handleSelect,
+    onOpenDetail: handleOpen,
+    onCloseDetail: closeDetail,
+    isDetailOpen: Boolean(detail) || detailLoading
+  });
+
+  const updateQuery = useCallback((patch: Partial<PartWorkbenchQueryState>) => setQuery((current) => ({ ...current, ...patch })), [setQuery]);
+
+  const acceptWorkspace = useCallback((workspace: NumberingDraftWorkspace | CandidateRevisionWorkspace) => {
+    const authoritativeWorkspace = workspace as unknown as NonNullable<PartWorkbenchDetailResponse["candidate"]>;
+    setDetail((current) => current?.candidate ? { ...current, candidate: authoritativeWorkspace } : current);
+  }, [setDetail]);
+
+  const refreshWorkspace = useCallback(async (workspaceId: string) => {
+    await Promise.all([loadRows(), openControllerDetail(`candidate:${workspaceId}`, "replace")]);
+  }, [loadRows, openControllerDetail]);
+
+  async function updateWorkspace(payload: Record<string, unknown>) {
+    const workspace = detail?.candidate as NumberingDraftWorkspace | null;
+    if (!workspace) return;
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/numbering/draft-workspaces/${encodeURIComponent(workspace.id)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...payload, expectedRowVersion: workspace.rowVersion })
+    });
+    const body = await readApiBody<{ workspace?: NumberingDraftWorkspace }>(response);
+    setBusy(false);
+    if (!response.ok || !body.workspace) {
+      setError(errorMessage(body, "申請內容儲存失敗，請重新整理後再試。"));
+      if (response.status === 409) await refreshWorkspace(workspace.id);
+      return;
+    }
+    setEditing(false);
+    setNotice("申請內容已更新。");
+    acceptWorkspace(body.workspace);
+    await refreshWorkspace(body.workspace.id);
+  }
+
+  async function runWorkspaceAction(action: WorkspaceAction) {
+    const workspace = detail?.candidate as NumberingDraftWorkspace | null;
+    if (!workspace) return;
+    if (productionSliceEnforced && action !== "cancel") {
+      setError(unopenedMessage);
+      setConfirmAction(null);
+      return;
+    }
+    const endpoint = ({ cancel: "cancel", submit: feature?.lifecycleV2?.enabled ? "submit-bundle-review" : "submit-review", withdraw: feature?.lifecycleV2?.enabled ? "withdraw-bundle-review" : "withdraw-review", publish: "publish" } as const)[action];
+    const key = `${workspace.id}:${action}`;
+    const requestKey = idempotencyKeys.current.get(key) ?? idempotencyKey(action);
+    idempotencyKeys.current.set(key, requestKey);
+    setBusy(true);
+    setError("");
+    let response: Response;
+    try {
+      response = await fetch(`/api/numbering/draft-workspaces/${encodeURIComponent(workspace.id)}/${endpoint}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": requestKey },
+        body: JSON.stringify({
+          ...(feature?.lifecycleV2?.enabled && (action === "submit" || action === "withdraw") ? { expectedWorkspaceRowVersion: workspace.rowVersion } : { expectedRowVersion: workspace.rowVersion }),
+          ...(action === "cancel" ? { reason: "user_cancelled_draft" } : {}),
+          ...(action === "submit" ? { reason: feature?.lifecycleV2?.enabled ? "draft_owner_confirmed_candidate_bundle_review" : "draft_owner_confirmed_candidate_publication_review" } : {}),
+          ...(action === "withdraw" && feature?.lifecycleV2?.enabled ? { reason: "draft_owner_withdrew_candidate_bundle_review" } : {})
+        })
+      });
+    } catch {
+      setBusy(false);
+      setConfirmAction(null);
+      setError("操作結果尚未確認；已重新讀取伺服器狀態，請確認後再決定下一步。");
+      await refreshWorkspace(workspace.id).catch(() => undefined);
+      return;
+    }
+    const body = await readApiBody<{ workspace?: NumberingDraftWorkspace }>(response);
+    setBusy(false);
+    setConfirmAction(null);
+    if (!response.ok || !body.workspace) {
+      setError(errorMessage(body, "操作未完成，請重新整理後再試。"));
+      if (response.status !== 503) idempotencyKeys.current.delete(key);
+      if (response.status === 409) await refreshWorkspace(workspace.id);
+      return;
+    }
+    idempotencyKeys.current.delete(key);
+    setNotice(({ cancel: "申請已取消。", submit: "整包內容已送交審核。", withdraw: "審核已撤回，可繼續補正。", publish: "圖料號已正式建立。" } as const)[action]);
+    acceptWorkspace(body.workspace);
+    if (action === "cancel" || action === "publish") closeDetail();
+    await loadRows();
+  }
+
+  const seriesCodeOptions = filters?.seriesCodeOptions ?? [];
+  const itemKindOptions = filters?.itemKindOptions ?? [];
+  const recordStatusOptions = filters?.recordStatusOptions ?? [];
+
+  return (
+    <>
+      <div className="topbar">
+        <div><h1>料號工作台</h1><p>候選與正式料號集中在同一清單，直接完成目前下一步。</p></div>
+        <div className="number-state-owner-actions">
+          <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}><RefreshCcw size={16} />重新整理</button>
+          <NumberStateOwnerCreateAction surface="parts" seriesCodeOptions={seriesCodeOptions} />
+        </div>
+      </div>
+      <div className="sr-only" aria-live="polite">{notice || error}</div>
+      {notice ? <div className="number-state-message is-success" role="status"><span>{notice}</span><button className="icon-button" type="button" onClick={() => setNotice("")} aria-label="關閉通知"><X size={16} /></button></div> : null}
+      {error ? <div className="number-state-message is-error" role="alert"><span>{error}</span><button className="secondary-button" type="button" onClick={() => void refresh()}>重新載入</button><button className="icon-button" type="button" onClick={() => setError("")} aria-label="關閉錯誤"><X size={16} /></button></div> : null}
+
+      <section className="panel drawing-workbench-toolbar">
+        <div className="drawing-workbench-filter-grid">
+          <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、主根號、名稱、材質、顏色" /></div></label>
+          <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as PartWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
+          <label><span>工作狀態</span><HumanStatusFilterSelect value={query.humanStatus} onChange={(humanStatus) => updateQuery({ humanStatus })} /></label>
+          <label><span>系列代號</span><select value={query.seriesCode} onChange={(event) => updateQuery({ seriesCode: event.target.value })}><option value="">全部系列</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+          <label><span>類型</span><select value={query.itemKind} onChange={(event) => updateQuery({ itemKind: event.target.value })}><option value="">全部類型</option>{itemKindOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+          <label><span>資料狀態</span><select value={query.recordStatus} onChange={(event) => updateQuery({ recordStatus: event.target.value as "" | NumberingRecordStatus })}><option value="">全部狀態</option>{recordStatusOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+        </div>
+        <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+      </section>
+
+      <section className="panel pdm-master-table-panel drawing-workbench-list-panel">
+        <PdmWorkbenchList
+          rows={rows}
+          getRowKey={getRowKey}
+          selectedKey={selectedKey}
+          ariaLabel="料號工作清單"
+          rowDataAttribute="data-part-workbench-row"
+          containerRef={listRef}
+          onContainerKeyDown={keyboard.handleKeyDown}
+          rowAriaKeyShortcuts={keyboard.shortcuts}
+          loading={loading}
+          loadingState={<div className="empty">正在載入料號工作...</div>}
+          emptyState={<div className="empty"><PackageSearch size={24} /><strong>目前沒有符合條件的料號工作</strong><p>請調整搜尋或篩選條件，或建立新的料號工作。</p></div>}
+          onOpenRow={(row) => void openDetail(row.rowKey)}
+          columns={[
+            { key: "code", header: "料號", dataLabel: "料號", className: "pdm-identity-col-code", render: (row) => <button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}><SearchHighlight value={row.displayCode} query={query.query} />{row.additionalPartCount > 0 ? ` +${row.additionalPartCount}` : ""}</button> },
+            { key: "name", header: "品名", dataLabel: "品名", className: "pdm-identity-col-name", render: (row) => <div className="pdm-identity-name"><SearchHighlight value={row.displayName} query={query.query} /></div> },
+            { key: "drawing", header: "圖號", dataLabel: "圖號", className: "pdm-identity-col-part", render: (row) => <div><span className="pdm-identity-code">{row.primaryDrawingNumber ?? "未關聯圖號"}</span>{row.drawingCount > 1 ? <small className="pdm-identity-subline">共 {row.drawingCount} 張圖號</small> : null}</div> },
+            { key: "spacer", header: null, className: "pdm-identity-layout-spacer", cellClassName: "pdm-identity-layout-spacer", ariaHidden: true },
+            { key: "status", header: "工作狀態", dataLabel: "工作狀態", className: "pdm-identity-col-meta", render: (row) => <div className="pdm-meta-strip"><HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /></div> }
+          ]}
+        />
+        {(pageIndex > 0 || nextCursor) ? <div className="number-state-pagination"><button className="secondary-button" type="button" onClick={goPrevious} disabled={pageIndex === 0 || loading}><ChevronLeft size={16} />上一頁</button><span>第 {pageIndex + 1} 頁</span><button className="secondary-button" type="button" onClick={goNext} disabled={!nextCursor || loading}>下一頁<ChevronRight size={16} /></button></div> : null}
+      </section>
+
+      {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
+      {detail?.candidate ? <WorkspaceDrawer
+        workspace={detail.candidate as NumberingDraftWorkspace}
+        busy={busy}
+        editing={editing}
+        onEdit={() => setEditing(true)}
+        onCancelEdit={() => setEditing(false)}
+        onUpdate={(payload) => void updateWorkspace(payload)}
+        onSubmit={() => setConfirmAction("submit")}
+        onWithdraw={() => setConfirmAction("withdraw")}
+        onPublish={() => setConfirmAction("publish")}
+        onCancel={() => setConfirmAction("cancel")}
+        formalActionsUnopened={productionSliceEnforced}
+        unopenedMessage={unopenedMessage}
+        canCreateDrawingRevision={false}
+        lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true}
+        onV2WorkspaceChange={acceptWorkspace}
+        onV2Error={setError}
+        onV2Notice={setNotice}
+        seriesCodeOptions={seriesCodeOptions}
+        width={drawerWidth}
+        onStartResize={startDrawerResize}
+        keepOpenSelector="[data-part-workbench-row='true']"
+        presentation={{
+          entityLabel: "候選料號",
+          title: detail.row.displayCode,
+          sourceContext: "part_workbench",
+          cancelLabel: "取消料號申請",
+          cancelTitle: "取消申請並釋出候選料號"
+        }}
+        onClose={closeDetail}
+      /> : null}
+      {detail?.candidate && confirmAction ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={busy} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
+      {detail?.part ? <PdmEntityDetailDrawer
+        open
+        width={drawerWidth}
+        ariaLabel="料號明細"
+        title={detail.part.partNumber}
+        subtitle={detail.part.partName}
+        status={<HumanStatusBadge status={detail.row.humanStatus} viewerStatus={detail.row.viewerStatus} availabilityScope={detail.row.availabilityScope} />}
+        entityType="part_number"
+        entityCode={detail.part.partNumber}
+        sourceContext="parts"
+        resizeLabel="調整料號明細寬度"
+        closeLabel="關閉料號明細"
+        onClose={closeDetail}
+        onStartResize={startDrawerResize}
+        keepOpenSelector="[data-part-workbench-row='true']"
+      ><div className="pdm-entity-drawer-body">{renderFormalDetail({ detail: detail.part, busy, productionSliceEnforced, productionSliceUnopenedMessage: unopenedMessage, setBusy, onUpdated: refresh })}</div></PdmEntityDetailDrawer> : null}
+    </>
+  );
+}

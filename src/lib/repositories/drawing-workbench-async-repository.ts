@@ -1,6 +1,7 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncNumberStateFlowRepository, type NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
+import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { DrawingModuleListRecord } from "@/lib/repositories/numbering-repository";
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 
@@ -66,15 +67,6 @@ function createNamedList(prefix: string, values: string[]) {
 
 export class DrawingWorkbenchAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
-
-  private async inReadSnapshot<T>(read: (client: AsyncDatabaseClient) => Promise<T>) {
-    return this.client.transaction(async (client) => {
-      if (client.kind === "postgres") {
-        await client.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      }
-      return read(client);
-    });
-  }
 
   private async identityPage(
     client: AsyncDatabaseClient,
@@ -195,7 +187,7 @@ export class DrawingWorkbenchAsyncRepository {
     input: DrawingWorkbenchRepositoryQuery,
     project: (candidates: NumberingDraftWorkspaceRecord[], drawings: DrawingModuleListRecord[]) => T[]
   ): Promise<DrawingWorkbenchReadPage<T>> {
-    return this.inReadSnapshot(async (client) => {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const stateRepository = new AsyncNumberStateFlowRepository(client);
       const numberingRepository = new AsyncNumberingRepository(client);
       const scanLimit = Math.min(MAX_IDENTITY_PAGE_SIZE, Math.max(MIN_IDENTITY_PAGE_SIZE, input.limit * 4));
@@ -227,7 +219,7 @@ export class DrawingWorkbenchAsyncRepository {
   }
 
   async readCandidateDetail(input: { workspaceId: string; companyId: string }) {
-    return this.inReadSnapshot(async (client) => {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const workspace = await new AsyncNumberStateFlowRepository(client)
         .getWorkspace(input.workspaceId, input.companyId)
         .catch((error) => {
@@ -240,7 +232,7 @@ export class DrawingWorkbenchAsyncRepository {
   }
 
   async readDrawingDetail(input: { drawingNumberId: string; companyId: string; includeSourceWorkspace: boolean }) {
-    return this.inReadSnapshot(async (client) => {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const drawing = (await new AsyncNumberingRepository(client)
         .listDrawingModuleRecordsByIds([input.drawingNumberId], input.companyId))[0] ?? null;
       if (!drawing) return null;

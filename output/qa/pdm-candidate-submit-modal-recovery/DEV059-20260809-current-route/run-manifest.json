@@ -1,0 +1,12 @@
+{
+  "runId": "DEV059-20260809-current-route",
+  "scope": "current local route read-only UI recovery",
+  "url": "http://127.0.0.1:3000/numbering/drawings?view=all&detail=candidate%3Adraft-workspace-285395c9-3b51-4837-acc1-103d13997f2c",
+  "actor": "Codex AI In-app Browser",
+  "fixture": "A0006-M01 / draft-workspace-285395c9-3b51-4837-acc1-103d13997f2c",
+  "viewports": [[1440, 900], [1024, 768], [390, 844]],
+  "productionConnected": false,
+  "productionWrites": false,
+  "sharedDataMutation": false,
+  "verdict": "focused-recovery-passed"
+}

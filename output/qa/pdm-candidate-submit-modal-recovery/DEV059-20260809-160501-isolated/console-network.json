@@ -1,0 +1,188 @@
+{
+  "runId": "DEV059-20260809-160501-isolated",
+  "browserErrors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+      "url": "http://127.0.0.1:63830/numbering/drawings?view=work&detail=candidate%3Adraft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d",
+      "fault": "503"
+    }
+  ],
+  "unexpectedBrowserErrors": [],
+  "observedRequests": [
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:62336b4f-4e42-40be-9660-dfe689dbb0c9"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-b9d95729-10a7-4a7f-9015-80a20e1453ce:1fa008f7-5738-4a3a-9082-39dcd94d5d65"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/candidate-revisions/NCR-3073e31f-405c-4110-b658-3d6147d13e14/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-3073e31f-405c-4110-b658-3d6147d13e14:qa-dev059-primary.pdf:118:1786291501106:95023bef-cb1d-4245-aaa1-79fa474fa893"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/candidate-revisions/NCR-3073e31f-405c-4110-b658-3d6147d13e14/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/submit-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:submit:974080af-d5a8-42af-a641-f6ba1ccdd6fd"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/submit-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/withdraw-bundle-review",
+      "fault": null,
+      "idempotencyKey": "dev053:withdraw:4d0bb910-b08e-4021-a9ed-99836678f413"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/withdraw-bundle-review",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/cancel",
+      "fault": null,
+      "idempotencyKey": "dev053:cancel:b5bcefd6-835f-40d1-bf0a-72a6522739b2"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-e493c3f6-2c3c-4c94-873a-2fdec7e5796a/cancel",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "fault": null,
+      "idempotencyKey": null
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/duplicate-check",
+      "status": 200,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "fault": null,
+      "idempotencyKey": "dev048:phase1c:create:b78606e6-a297-4917-863e-e299a4d5bec0"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/candidate-revisions",
+      "fault": null,
+      "idempotencyKey": "dev052:create:draft-drawing-0377c9b8-91e7-4355-a20d-fd3b8aefbc0a:f9555a26-355b-4f0b-bf2e-c97a7876666a"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/candidate-revisions",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/candidate-revisions/NCR-7d83d87e-86ca-46b1-97b6-e368f73d325d/files",
+      "fault": null,
+      "idempotencyKey": "dev052:upload:NCR-7d83d87e-86ca-46b1-97b6-e368f73d325d:qa-dev059-primary.pdf:118:1786291501106:7f5f5bd0-25b5-4e14-a8ed-2cb0fbc39efb"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/candidate-revisions/NCR-7d83d87e-86ca-46b1-97b6-e368f73d325d/files",
+      "status": 201,
+      "fault": null
+    },
+    {
+      "event": "request",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/submit-bundle-review",
+      "fault": "503",
+      "idempotencyKey": "dev053:submit:3bad46d5-fd74-4ea5-946f-ca539c2738f4"
+    },
+    {
+      "event": "response",
+      "method": "POST",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/submit-bundle-review",
+      "status": 503,
+      "fault": "503"
+    }
+  ],
+  "plannedFaults": [
+    {
+      "mode": "503",
+      "path": "/api/numbering/draft-workspaces/draft-workspace-9da04cb4-ea91-4476-ad80-f1f0d62eb86d/submit-bundle-review"
+    }
+  ]
+}

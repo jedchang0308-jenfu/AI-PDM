@@ -1,0 +1,10 @@
+{
+  "focusedRecoveryUnexpectedConsoleErrors": 0,
+  "focusedRecoveryUnexpectedFailedResponses": 0,
+  "staticUiQc": "7/7",
+  "typecheck": "passed",
+  "isolatedFlow": "7/7",
+  "approvalIntegration": "27/27",
+  "approvalHttp": "11/11",
+  "note": "Historical hot-reload compile diagnostics were cleared before final current-route verification; no current-route error remained."
+}

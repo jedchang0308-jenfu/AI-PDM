@@ -40,9 +40,25 @@
   }
 
   .bom-workbench-layout,
-  .bom-parent-summary,
   .bom-draft-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .bom-editor-context {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bom-editor-context dl {
+    width: 100%;
+  }
+
+  .bom-insert-item-search {
+    grid-template-columns: 1fr;
+  }
+
+  .bom-insert-item-search > button {
+    width: 100%;
   }
 
   .bom-flow-canvas {

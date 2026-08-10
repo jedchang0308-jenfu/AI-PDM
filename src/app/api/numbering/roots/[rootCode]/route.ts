@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getNumberingRootDetailAsync } from "@/lib/numbering-async";
-import { projectNumberingRootStatus } from "@/lib/drawing-part-relation-status";
+import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus } from "@/lib/drawing-part-relation-status";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
@@ -63,7 +63,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
   const rootStatus = projectNumberingRootStatus(detail);
   const humanStatus = rootStatus.humanStatus;
   const availabilityScope = projectRelationRootAvailability({
-    recordStatus: detail.root.recordStatus,
+    recordStatus: projectEffectiveRelationRecordStatus(detail, rootStatus.relationshipHealth, rootStatus.blockerCount),
     relationshipHealth: rootStatus.relationshipHealth,
     blockerCount: rootStatus.blockerCount,
     dependencyReleaseReady

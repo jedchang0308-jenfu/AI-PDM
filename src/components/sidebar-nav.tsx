@@ -16,6 +16,7 @@ import {
   GitPullRequestArrow,
   KeyRound,
   ListTree,
+  ListPlus,
   LogIn,
   Menu,
   PackageSearch,
@@ -73,7 +74,9 @@ const navSections: NavSection[] = [
   {
     label: "BOM",
     items: [
-      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
+      { href: "/bom/new", label: "建立 BOM", icon: ListPlus },
+      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree },
+      { href: "/approvals?domain=bom", label: "BOM 審核", icon: CircleCheckBig, badge: "approvalPending" }
     ]
   },
   {

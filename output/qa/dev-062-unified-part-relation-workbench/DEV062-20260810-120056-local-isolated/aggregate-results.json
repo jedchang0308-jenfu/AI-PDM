@@ -1,0 +1,25 @@
+{
+  "task": "DEV-062 aggregate completion gate",
+  "runId": "DEV062-20260810-120056-local-isolated",
+  "startedAt": "2026-08-10T12:00:56.650Z",
+  "finishedAt": "2026-08-10T12:00:56.693Z",
+  "passed": false,
+  "completedCommands": 1,
+  "expectedCommands": 15,
+  "results": [
+    {
+      "id": "core",
+      "label": "Workbench Core",
+      "command": "npm",
+      "args": [
+        "run",
+        "qc:dev-062:core"
+      ],
+      "passed": false,
+      "exitCode": 1,
+      "durationMs": 40,
+      "stdoutTail": "",
+      "stderrTail": "'\\\"npm\\\"' ���O�����Υ~���R�O�B�i���檺�{���Χ妸�ɡC\r\n"
+    }
+  ]
+}

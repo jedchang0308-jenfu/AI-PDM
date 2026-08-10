@@ -1,0 +1,8 @@
+{
+  "fixture": "existing shared A0006-M01",
+  "mutation": "none",
+  "cleanupStatus": "not_applicable_read_only_run",
+  "formalDataPollution": false,
+  "residualDisposableData": 0,
+  "extendedDisposableUiMutationRequired": true
+}

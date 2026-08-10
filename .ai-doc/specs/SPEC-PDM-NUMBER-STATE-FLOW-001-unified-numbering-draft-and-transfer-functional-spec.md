@@ -1,6 +1,6 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
-狀態：`Phase 1A-1D Local QC Passed / Release Gate Required`
+狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048`
@@ -9,6 +9,172 @@ RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
 
 2026-08-03 contract amendment：使用者已在 `DEV-052` 決定以整包圖料審核取代新流程的 number-only review + manual publication。所有非終結既有保留號將以 read-time compatibility projection 進入新流程，不做 bulk backfill；新 action `numbering.candidate_bundle_review` 核准後可在同一原子／冪等交易自動正式化。已存在的 `numbering.candidate_publication_review` request 仍維持本規格原 snapshot/apply 語意，不得用舊核准直接發布未審圖面。DEV-052 尚未實作或 release 前，本規格仍是 production runtime authority。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
+
+## 0. DEV-062 Amendment：料號單頁工作台 RD Implementation Contract（2026-08-10）
+
+Status: `Local RD Implemented / QA-QC Passed / Release Gated`
+
+本 amendment intentional replacement 本文件所有把 `/parts?tab=drafts`、`正式料號 / 草稿` 或 `總表 / 保留號` 描述成兩個可見頁籤的條款。候選 workspace、正式 Part master、candidate reservation、approval/publication、權限與 audit authority 不變；只把讀取、狀態理解與下一步導覽整併為 `/parts` 單一工作台。共用機制以 `.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-controller-contract.md` 為準。
+
+### 0.1 Outcome and visible behavior
+
+- `/parts` 不顯示 `料號總表／保留號`、`正式料號／草稿` 或任何來源型頁籤。
+- 同一 server-composed 清單顯示「含 Part 工作的 active candidate bundle」與 formal Part master；使用者用 `我的待處理／工作中／全部`、搜尋與篩選找工作。
+- 第一層每 row 只顯示 identity、品名、會影響判斷的摘要、一個 human status、一個 availability 與至多一個 primary CTA。
+- detail 使用同一 `PdmEntityDetailDrawer` shell。candidate 由 Part candidate content 呈現；formal 使用從 page layer 抽出的 `PartDetailContent`，並繼續支援料號屬性、精簡料號文件、關聯圖面、成本（含 redaction）、歷史與既有 owner actions。
+- candidate/formal 是 `sourceKind`，不是兩個使用者模組；UI 不顯示 workspace ID、raw lifecycle、cursor 或 Part Revision。
+
+### 0.2 Exact Part row and filters
+
+新增 `src/lib/part-workbench.ts`：
+
+```ts
+export type PartWorkbenchView = "mine" | "work" | "all";
+export type PartWorkbenchRowKind = "candidate_bundle" | "part_master";
+export type PartWorkbenchPrimaryActionKind =
+  | "continue_building" | "submit_bundle_review" | "view_review"
+  | "view_processing" | "retry_formalization" | "view_part" | "view_history";
+
+export type PartWorkbenchRow = PdmWorkbenchRowBase<
+  PartWorkbenchRowKind,
+  PartWorkbenchPrimaryActionKind
+> & {
+  workspaceId: string | null;
+  partNumberId: string | null;
+  rootCode: string;
+  itemKind: NumberingItemKind;
+  recordStatus: NumberingRecordStatus | null;
+  candidatePartCount: number;
+  primaryDrawingNumber: string | null;
+  drawingCount: number;
+  materialSummary: string | null;
+  standardCost: PartStandardCostRecord | null;
+  pendingCostRequestCount: number;
+  usage: "not_for_formal_use" | "rd_controlled" | "released" | "historical_only";
+};
+
+export type PartWorkbenchQuery = {
+  query: string;
+  view: PartWorkbenchView;
+  seriesCode: string;
+  itemKind: NumberingItemKind | "";
+  recordStatus: NumberingRecordStatus | "";
+  humanStatus: HumanStatusFilter;
+  includeHistory: boolean;
+  cursor: string;
+  limit: number;
+};
+```
+
+Projection：
+
+- candidate row key=`candidate:{workspace.id}`；只收 `lifecycleStatus !== "published"`、至少一筆 `workspace.parts`，active 預設可見，cancelled 只在 `history=include`。
+- 一個 workspace 即使含多個 Part candidate 也只顯示一 row；`candidatePartCount` 與 detail 顯示 typed items，不拆成多個看似獨立正式料號。
+- formal row key=`part:{part.id}`；Part master 是一料一 row。`Obsolete/Merged` 只在 `history=include`，其他 formal 依既有 record status/availability 投影。
+- 同 snapshot 若 workspace 已 published，candidate row 不出現；formalized 後下一次 read 顯示一或多個 formal Part rows。
+- `mine`：candidate owner 是 actor，或 viewer projection 指定 actor 有目前責任；formal 只收 viewer 有目前責任的 rows。
+- `work`：active candidate，或 formal viewer status 有待處理／blocked/correction task；純可查閱 formal 不進 `work`。
+- `all`：目前非歷史 candidate/formal；history 必須另由 `history=include` 明示加入。
+- 所有 query、view、status、history filter 必須在 identity query/cursor 之前由 server 套用；不得先抓 100 筆再由 browser filter。
+- cost 金額仍經 `canViewPartCostAmounts`/redaction；無 cost 權限時 row/detail 不得藉新 BFF 洩漏 amount、tier 或推算值。
+
+### 0.3 Primary action and lifecycle rules
+
+Candidate primary action沿用 canonical workspace projection，不新增平行 state machine：
+
+| Effective state | Primary action kind | Visible label |
+|---|---|---|
+| owner can edit / preparation incomplete | `continue_building` | `繼續準備料號` |
+| readiness complete and submit allowed | `submit_bundle_review` | `送出審核` |
+| current actor reviewer | `view_review` | `處理審核` |
+| waiting for another actor / auto-finalizing | `view_processing` | `查看進度` |
+| correction / failed formalization and actor can recover | `retry_formalization` or canonical correction action | server projection label |
+| cancelled history | `view_history` | `查看歷史` |
+
+Formal Part primary action固定由 owner capability projector決定；最低 contract 是 `view_part` → 同頁 formal drawer。既有 variant、cost、attachment、obsolete 等 mutations 只在 drawer 依原 permission/confirmation 顯示，不升格成多個 row primary CTAs。
+
+每 row 最多一個 primary action。disabled action 必須回 `disabledReason` 與 exact `permissionCode/contactRole/adminHref`（若適用），browser 不得從角色名稱猜權限。
+
+### 0.4 Part list/detail API
+
+| Method / route | Contract |
+|---|---|
+| `GET /api/parts/workbench` | `PartWorkbenchListResponse`；query=`view,query,seriesCode,itemKind,recordStatus,humanStatus,history,cursor,limit` |
+| `GET /api/parts/workbench/[rowKey]` | canonical `candidate:{workspaceId}` 或 `part:{partNumberId}`；unprefixed Part code only for legacy lookup/canonicalization |
+| existing `GET /api/parts` | flag-off legacy list；不得在新 page client 與 workspace list merge |
+| existing Part/workspace mutation routes | 不變；新 workbench route 嚴禁 POST/PATCH/PUT/DELETE |
+
+List response：
+
+```ts
+type PartWorkbenchListResponse = PdmWorkbenchListResponse<PartWorkbenchRow, {
+  seriesCodeOptions: string[];
+  itemKindOptions: NumberingItemKind[];
+  recordStatusOptions: NumberingRecordStatus[];
+}>;
+```
+
+Detail response：
+
+```ts
+type PartWorkbenchDetailResponse = {
+  row: PartWorkbenchRow;
+  candidate: NumberingDraftWorkspaceRecord | null;
+  part: PartModuleDetailRecord | null;
+  capabilities: {
+    canViewWorkspace: boolean;
+    canUpdateWorkspace: boolean;
+    canSubmitCandidate: boolean;
+    canReviewCandidate: boolean;
+    canPublish: boolean;
+    canUpdatePart: boolean;
+    canManagePartFiles: boolean;
+    canViewCostAmounts: boolean;
+    permissionRequirements: Record<string, PdmWorkbenchPermissionRequirement>;
+  };
+};
+```
+
+Permission：page/formal read 需 `numbering.search`；candidate rows 只有另具 `numbering.workspace.view` 才可被納入。candidate detail 對無 workspace 權限者回 404（不洩漏 existence），不是把資料回傳後由 client 隱藏。candidate mutation 仍逐 command 檢查原 permission。
+
+### 0.5 Candidate detail composition and capability parity
+
+新增 `PartCandidateDetailContent`，不得複製整個 `DrawingWorkspaceDrawer`：
+
+1. Part identities：候選料號、品名、item kind、series、root/source relation；一個 bundle 可列多筆 typed Part items。
+2. Human status / owner / availability / unique next step：全部使用 server projection。
+3. Editable Part facts：復用既有 workspace update command與 rowVersion/409 recovery；不得直接建立 formal Part。
+4. Relation/readiness：顯示 draft/source relationship 與 blockers；owner handoff保留 safe `returnTo`。
+5. 若 bundle 確實含 drawing first-revision/file obligation，嵌入既有 `NumberingCandidateRevisionEditor` 與同一 workspace command，不重建 Part 專用上傳 state machine；這不等同重新掛載 DEV-057 已暫停的 drawing workbench candidate drawer。
+6. submit/withdraw/correction/retry/publication actions 沿用既有 API、confirmation、idempotency、snapshot 與 audit；不得由新 BFF mutation。
+
+Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candidate view/edit/readiness/submit/progress/correction/history，在新 Part drawer 必須都有同等可執行入口；只保留 link 或顯示文字不算完成。
+
+### 0.6 Create and redirect ownership
+
+- `NumberStateOwnerCreateAction surface="parts"` 成功後一律導向 `/parts?view=work&detail=candidate:{workspaceId}`，不得再依 `drawingWorkbenchEnabled` 改送圖號頁。
+- `NumberStateOwnerCreateAction surface="search"` 成功後導向 `/numbering/search?view=work&detail=candidate:{workspaceId}`。
+- contextual `AddPartDialog` 建立 candidate 後導向 Part workbench；`AddDrawingDialog` 仍屬 Drawing owner route，不在 DEV-062 改 drawing drawer。
+- 新增 destination resolver（純函式）由 surface/created workspace 回傳 canonical URL；dialog 不直接拼接 owner route。
+- feature status 必須分開讀 `drawingWorkbench` 與 `partRelationWorkbench`，兩者不得互相作 enable 條件。
+
+### 0.7 Failure and recovery
+
+- list hydration 任一失敗整包 5xx；保留上次成功 rows、顯示 retry，不混入 partial candidate/formal。
+- invalid cursor 400：controller 清 page history 回第一頁；不寫 DB、不無限 retry。
+- detail 404：關閉 stale drawer，清 canonical detail query，清單仍可用。
+- workspace rowVersion 409：保留使用者未送出的 form value、重新載入 server facts、提示比較後重試；不得 silent overwrite。
+- formalization 後原 candidate deep link 回 404 時，若 response 提供 safe canonical formal targets，UI 顯示「已正式化」與前往新 Part rows，不以 display code猜測。
+- 401/403/5xx 與 network abort 依 core contract；abort 不顯示 error toast。
+
+### 0.8 Phase 1B acceptance
+
+1. candidate/formal 由同一 BFF/filter/cursor 讀取，無 browser merge、duplicate row 或 Part Revision。
+2. owner/cost/file/relation/lifecycle capabilities與 legacy parity matrix 全數通過。
+3. rapid query/filter/page、reload、back/forward、drawer close/reopen 只顯示最後有效資料。
+4. `/parts?tab=drafts|reserved` 與 `/numbering/part-drafts` zero-write canonicalization通過；flag off rollback parity通過。
+5. query budget、cross-company、cross-role、responsive、keyboard/focus、no raw status/ID 通過。
+6. Phase 1B 單獨完成不算 DEV-062 整體交付，也不得開 umbrella release flag。
 
 關聯規格：
 

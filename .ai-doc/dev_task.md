@@ -129,16 +129,30 @@ Owner：Dev PM
   - 下一步：DEV-059 extended gate 已完成並恢復父 `DEV-057` 本機 QA/QC PASS；commit、merge、PR、deploy、production 與 release 仍保持未授權。
   - 計入交付：否（`DEV-057` 的缺陷修復開發點，不另計新的產品交付點）。
 
-- BOM 建立入口：`○ DEV-060` `Brief Ready / Human Confirmed / Implementation Not Requested`。
-  - 目標：採方案 B，建立獨立且可辨識的「建立 BOM 清單」入口，讓使用者先選擇 BOM 所屬組合件／料號與版次，
-    再選擇既有建立來源，不必先進入工作台才猜測如何開始。
-  - 已確認決策：左側 `BOM` 分區呈現 `建立 BOM`、`BOM 工作台`、`BOM 審核` 三個任務入口；建立頁為主要入口，
-    工作台與審核維持各自 owner surface。
-  - 初始邊界：第一切片重用既有 CAD 組合件與 SolidWorks BOM XLS 建草稿能力；成功後交接既有工作台。
-    空白手建來源、BOM schema／生命週期／審核 authority、匯入解析器改造與 release 不在本 Brief。
-  - 下一步：等待使用者提出實作指令；屆時在同一 `DEV-060` 先完成 route、permission、draft idempotency 與
-    canonical BOM review handoff 的 Spec Impact Preflight，再升級為 `RD Contract Ready`，不得直接把 Brief 當成 RD 授權。
+- BOM 建立入口：`✓ DEV-060` `Local RD/QA/QC Passed / Commit Pending / Production Release Gated`。
+  - 目標：採方案 B 的獨立兩步驟 `/bom/new`，先選 `料號（物料身份，無版次）` 與獨立 `BOM Rev`，再由
+    CAD、SolidWorks XLS、空白人工三種來源建立一份可追溯 Draft，交接 `/bom/workbench/<draftId>`。
+  - 核心 authority：`ADR-PDM-MATERIAL-IDENTITY-REVISION-001`。Part Number 無 Revision；Drawing/BOM 各自版控。
+    同身份只升受影響定義 Rev；FFF、互換性、法規／品質或其他身份條件改變時換新 Part Number，並建立其 BOM。
+  - 實作結果：Phase 1A canonical owner/schema/migration、1B API/permission/idempotency、1C navigation/UI/handoff、
+    1D review/release/export/read integration 與 isolated QA/QC 均已完成；三來源真實 UI 與 3 viewport 通過。
+  - 下一步：維持 commit 與 production release gate；未執行 live migration、正式資料修復、stage/commit/deploy/release。
   - 計入交付：是（BOM 模組建立入口與可完成的首次建草稿導引）。
+
+- 圖號／料號檔案歸屬精簡：`✓ DEV-061` `Local RD Implemented / Focused QA-QC Passed / Production Release Gated`。
+  - 目標：圖號只保留受控版次檔；料號只保留物料層長期文件；移除圖號一般／參考附件、重複預覽與多重上傳窗口。
+  - 已確認：既有無引用圖號參考附件刪除；每次首版／進版一律重新上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`；相同 3D bytes 由系統自動共用 canonical asset，不重複占用容量。
+  - 執行邊界：可執行本機 Phase 1A～1D、additive migration artifact、disposable cleanup rehearsal 與 QA/QC；不得刪除正式資料、apply live migration、stage/commit/deploy/release。
+  - 實作結果：Phase 1A canonical ownership/readiness service、029 migration mirror、primary-role guard；Phase 1B candidate/formal required-role hard gate、3D SHA-256 scoped reuse、legacy drawing upload 410；Phase 1C immutable `source_file_asset_id` pointer、package canonical-link projection；Phase 1D drawing/part UI 收斂、compact non-collapsed file list、preview-image click target、isolated browser evidence 均已完成。
+  - 下一步：維持 production deletion、live migration、commit、deploy、release gate；若要實際清理 12 筆目前 dry-run candidates，須另取得受控 migration/cleanup approval，不以本機完成證據直接刪除。
+  - 計入交付：是（檔案 authority、容量去重與使用介面共同收斂）。
+
+- 料號／圖料單頁工作台：`✓ DEV-062` `Local RD Implemented / Fixed-3000 QA-QC Passed / Release Gated`。
+  - 目標：比照圖號模組的單一生命週期入口，取消料號與圖料模組各自的「總表／保留號」雙頁籤；使用者不必先判斷資料是候選或正式，便能在同一工作台找到工作、理解狀態並完成下一步。
+  - 架構決策：先建立小型共用 Workbench Core，集中 server projection、cursor／URL、權限、狀態與清單互動；料號與圖料保留各自 domain adapter。禁止建立大型萬用 workbench、core 內以 module 分支，或由各模組重做共用機制。
+  - 實作結果：Phase 1A 四個小型 core 單元與Drawing parity、Phase 1B Part candidate/formal單頁BFF、Phase 1C canonical Relation root/overlay/candidate_root、Phase 1D legacy/race/權限/RWD/a11y/aggregate均完成；fixed 3000 亦已啟用並通過使用者可見驗收。Evidence見runs `DEV062-20260810-121012-local-isolated`與`DEV062-FIX-20260810124507-fixed3000`。
+  - 下一步：維持default-off與production/deploy/release gate；若要開啟staging/production flag、執行smoke/rollback rehearsal或退役flag-off legacy branch，必須另以明確release指令進入deployment release gate。
+  - 計入交付：是（兩個模組皆完成單頁化才結案；單獨完成 core 或其中一個模組不計整體完成）。
 
 - Google Secret Manager 憑證整合：`✓ DEV-058` `RD Implemented / Local Phase 1A-1D QC Passed / Production Release Gated`。
   - 目標：以 Google Secret Manager 取代舊 Supabase Vault secret provider，讓 Cloud SQL 只保存 reference/lifecycle metadata，並讓可信任 Windows Document Manager worker 可透過 server broker 讀取 exact active version。
@@ -657,49 +671,146 @@ Owner：Dev PM
   - 證據：`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` 11/11、`npm run typecheck` PASS、affected-file ESLint PASS、`npm run qc:dev-053:flow` 7/7、number-state Phase 1C approval integration 27/27、Phase 1C HTTP 11/11、AI browser current-route evidence 8 cases PASS；isolated artifact `output/qa/pdm-candidate-submit-modal-recovery/DEV059-20260809-161835-isolated/`。既有 `qc:dev-053:real-operation` 在 stale DEV-053 list assertion 前停止，未作 DEV-059 pass evidence。
   - 下一步：DEV-059 extended gate 已完成，父 `DEV-057` 本機 QA/QC 恢復 PASS；保留 commit、merge、PR、deploy、production 與 release gate，未執行上述動作。
 
-- ○ DEV-060 [交付點] [Brief Ready / Human Confirmed / Implementation Not Requested] [P1] BOM 模組入口與建立 BOM 清單
-  - 摘要：為 BOM 模組補上類似圖料領號的明確開始入口，將「建立、繼續整理、審核」分成三個可直接理解的任務，
-    並把新草稿安全交接至既有 BOM 工作台。
-  - 來源 ID：`DEV-PDM-BOM-MODULE-ENTRY-001`。
-  - 父任務：無；關聯 authority 為 `SPEC-BOM-WORKBENCH-001` 與 `DEV-PDM-APPROVAL-PLATFORM-001`。
-  - 原始需求邊界：使用者指出 BOM 工作台缺少「建立 BOM 清單」入口，要求提出方案後，於 2026-08-10 明確選擇
-    方案 B 並要求寫成開發文件；本輪只授權文件化，不授權產品實作、資料異動或 release。
-  - 問題與使用者價值：目前側欄只提供 `BOM 工作台`，使用者必須先進入編輯頁、選到父件後才看見建草稿方式，
-    無法在進入模組前分辨要新建、續作或審核。新入口應讓第一次使用者直接開始，同時讓熟悉系統者保留工作台與審核捷徑。
-  - 核心資料原則：BOM 不是可脫離產品主檔的自由清單。建立前必須先確定 owner 組合件／料號與版次
-    （或等價 submission identity），不得建立無 parent identity、之後才猜測歸屬的 orphan draft。
-  - 主流程：使用者由左側 `BOM > 建立 BOM` 進入建立頁，搜尋並選定父件與版次，選擇 `從 CAD 組合件建立` 或
-    `匯入 SolidWorks BOM XLS`，確認建立摘要後產生 Draft，最後帶著 parent、draft 與來源脈絡進入既有
-    `/bom/workbench` 繼續整理。
-  - 資訊架構：左側 `BOM` 分區保留三個直接入口：`建立 BOM`（方案 B 的預設開始頁）、`BOM 工作台`
-    （續作／查找既有 Draft）、`BOM 審核`（交接 canonical `/approvals` 的 BOM domain，不建立第二套審核 authority）。
-    建立頁只保留一個 primary CTA，不恢復已刪除的流程定位 strip。
-  - 初始範圍：新增 BOM 建立入口與路由；提供父件／版次搜尋選擇、來源選擇、建立前摘要、建立中／成功／失敗／
-    可重試狀態；重用既有 CAD 與 XLS 建草稿 API；成功後交接既有 BOM 工作台；補齊 desktop、tablet、mobile
-    導覽與 keyboard/focus 行為。
-  - 初始範圍外：空白 BOM／第三種 generic create API、人工拖拉編輯能力改造、BOM schema 或 migration、
-    生命週期／狀態／權限矩陣重定義、審核平台分流、CAD extractor 或 XLS parser 改造、既有草稿回填／修復、
-    production deploy、release、正式資料寫入。
-  - 驗收方向：三個 BOM 任務入口在展開／收合／mobile 導覽均可理解且可達；建立頁首屏可辨識唯一主要動作；
-    未選父件不得建立；兩種來源的必要條件與阻擋原因可見；建立成功只產生一份可追溯 Draft 並進入正確工作台；
-    逾時或重送不得產生重複草稿；`BOM 審核` 進入 canonical BOM filter；390、768、1440 px 無裁切、水平溢位或
-    操作遮擋，錯誤訊息不得洩漏 raw payload／secret。
-  - 人類已確認：採方案 B；保留建立、工作台、審核三個任務入口；本輪交付為開發文件。
-  - AI 假設：第一切片只曝光目前已有的 CAD／XLS 建草稿能力；`人工拖拉編輯` 仍是既有草稿內的編輯方式，
-    不等同新增空白草稿來源。BOM 審核沿用 `/approvals?domain=bom` authority；實際 route alias 與 active-nav 呈現
-    於 `RD Contract Ready` 階段確認。
-  - 風險等級：Medium / P1。主要風險是建立動作重送造成重複 Draft、父件／版次指向錯誤、側欄與
-    production-slice allowlist／permission 不一致，以及 legacy `/bom/reviews` redirect 形成雙 authority 誤解。
-  - Spec Impact Preflight：初判為 `Compatible extension`，符合既有規格的獨立 BOM 模組與多來源建立目標，
-    且不改 BOM persistence／release authority。若 RD 需要新增空白 draft API、改 parent identity、改 lifecycle／
-    permission／schema，停止並升級既有 `SPEC-BOM-WORKBENCH-001`，不得另建重複 spec。
-  - 下一步：維持 `Brief Ready`；使用者若要求實作，Dev PM 在同一 DEV 補齊 component／API boundary、QA plan、
-    QC evidence contract 與停止條件後升級成熟度，不自動開始 RD。
-  - 阻塞／恢復條件：Brief 無待決策阻塞；只有收到明確實作指令後才恢復。進入 RD 前需確認 route contract、
-    create permission、冪等 key／authoritative readback、XLS upload handoff 與 production-slice open-page policy。
-  - 相關文件：`.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md`、
-    `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`、`.ai-doc/documentation_map.md`。
+- ✓ DEV-060 [交付點] [Local RD/QA/QC Passed] [P1] [Commit Pending / Production Release Gated] BOM 模組入口與建立 BOM 清單
+  - 摘要：採方案 B 建立獨立 `/bom/new` 兩步驟全頁流程，把 `建立 BOM`、`BOM 工作台`、`BOM 審核` 分成三個可理解任務；所有來源建立相同 canonical ownership 的 Draft，再以 `draftId` 交接工作台。
+  - 來源 ID：`DEV-PDM-BOM-MODULE-ENTRY-001`；關聯 approval authority：`DEV-PDM-APPROVAL-PLATFORM-001`。
+  - 人類已確認（2026-08-10）：`1A` 兩步驟全頁；`2` Part Number 代表物料身份且無 Revision，Drawing/BOM 為各自獨立版控的受控定義；`3B` 第一版同時支援 CAD、SolidWorks XLS、空白人工三種來源。
+  - 治理 authority：`.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`。同一物料身份只提升實際受影響的 Drawing/BOM Rev；FFF、互換性、法規／品質管制或其他物料身份條件改變時建立新 Part Number，並建立其自己的 BOM。任何未來 DEV 使用「料號升版」皆為 blocker。
+  - Spec Impact Preflight：`Intentional replacement + cross-spec convergence`。入口為 compatible extension；但既有 `bom_drafts.parent_revision = submissions.revision`、child revision 與 submission-bound ownership 違反新 identity authority，必須同 DEV additive migration，不能只加 UI。
+  - 產品流程：Step 1 搜尋 canonical `part_numbers` owner，畫面固定標示 `料號（物料身份，無版次）`，由 BOM history 建議獨立 `BOM Rev`；Step 2 三選一 CAD／XLS／空白人工，摘要分列 owner、BOM Rev、source，CAD 才另列 Drawing/Rev evidence；成功導向 `/bom/workbench/<draftId>` 獨立編輯頁。
+  - Navigation：`BOM > 建立 BOM` 指向 `/bom/new`；`BOM 工作台` 指向 `/bom/workbench`；`BOM 審核` 指向 canonical `/approvals?domain=bom`。建立頁每步一個 primary CTA，不恢復 `Current / Next / 5 steps` 流程雜訊。
+  - Work list convergence（2026-08-10 follow-up）：`BOM 工作台` 不新增第二份草稿清單／入口；Draft、PendingReview、Rejected、Released、Obsolete 均在同一 BOM 清單依 lifecycle 狀態辨識。抽出 `PdmWorkbenchList` 供「圖號模組」與 BOM 共用 table、selection、keyboard、loading／empty 與 RWD 骨架，兩者只替換欄位與 row content；Archived 不顯示於主清單或 BOM 編輯頁。依使用者紅筆刪除決策，移除常駐「料號／圖面搜尋」左欄，`/bom/workbench` 改為單欄全寬純清單；點選列才導向 `/bom/workbench/<draftId>` 獨立編輯頁。編輯頁不顯示重複頁名／副標、研發階段摘要、正常載入成功提示或「已刪除資料」區塊，並將 BOM 標題、主件、圖號、BOM 數整合成單一 `BOM 基本資料` 橫列，不用多張摘要卡分開佔版位；畫布節點只保留料號／群組名稱、品名與必要來源 badge，BOM Rev、子件 Rev、數量、Level 改由 Drawer 查閱；新增「插入料件」工具列動作，從右側選料 Drawer 搜尋並選擇料件後加入目前群組或主件，維持未儲存狀態，沿用既有 Drawer、搜尋與草稿復原能力；其餘保留操作工具列、畫布與 Drawer。owner/source 建立入口維持 `/bom/new`；舊 `?draftId=` 只作 redirect 相容。
+  - Data contract：新 write 以 `owner_part_number_id -> part_numbers.id` + `bom_revision` 為 authority；`source_submission_id` nullable 且只作來源證據。新增 `bom_create_effects`，unique `(company_id, actor_id, idempotency_key)`；Active/Pending uniqueness 改為 owner + BOM Rev。legacy `parent_*` 與 line revision 只相容讀取，新 line 不寫 Part Number Revision。
+  - Migration：新增 PostgreSQL `028_bom_material_identity_revision.sql` 與 Supabase `20260810010000_bom_material_identity_revision.sql` mirror/manifest，更新 SQLite schema/bootstrap。先以 company+part number deterministic crosswalk dry-run；唯一匹配才回填。歷史 `parent_revision` 只有序列無衝突時可一次性採認為初始 BOM Rev並留 audit；缺 identity／衝突列 `manual_review`、fail closed，Released history count/hash 不變。
+  - API：新增 `GET /api/bom/create-context`、`POST /api/bom/drafts`；更新 `POST /api/bom/drafts/import-xls` 接受 owner/BOM Rev/idempotency；`from-assembly` 只作 canonical adapter，缺 BOM Rev 回 422，不得沿用 Drawing Rev；workbench canonical selector 改 `draftId`。同 key 同 fingerprint 回同 receipt，key 重用不同 payload 回 409。
+  - Permission：Engineer 僅能為同 company 且本人建立／負責或有既有受控關聯的 owner 建 Draft，CAD source 仍須通過 submission visibility；R&D Manager/Admin 可處理其管理 company；Manufacturing/Procurement 只能讀 Released。新增 `canCreateBomDraftAsync`，API company fail closed，sidebar 不作唯一權限控制。
+  - Repo impact：`src/components/sidebar-nav.tsx`、新增 `src/app/bom/new/page.tsx` 與 `src/components/bom-create-workflow.tsx`、更新 `src/app/bom/workbench/page.tsx`；新增 create-context/generic create routes，更新現有 BOM routes；更新 async/sync repositories、permissions、revision policy、schema/migrations與 focused QC scripts。`src/lib/production-slice.ts` 維持 BOM 未開放，本 DEV 不改 production allowlist。
+  - [x] Phase 1A：canonical owner/schema/migration foundation、deterministic legacy crosswalk與 canonical adapter 已完成。
+  - [x] Phase 1B：create-context、generic create、XLS canonical input、permission、idempotent effect/authoritative readback、BOM Rev occupied/forward gate 已完成。
+  - [x] Phase 1C：三入口、兩步驟三來源 UI、`draftId` deep link、canonical approval handoff與 humanized recovery 已完成。
+  - [x] Phase 1D：review/release/export/read integration已改讀 canonical fields；canonical Released export、製造唯讀、null child revision release evidence、isolated real-operation與 cleanup 已通過。
+  - 驗收：三來源真實 UI 各成功一次；每筆 Draft owner/BOM Rev 正確且 manual submission=null；Drawing/BOM Rev 互不自動同步；身份改變走新料號；double click/retry/response loss effect count=1；角色/跨公司負向通過；1440×900、1024×768、390×844 無 overflow/裁切/假 affordance；無 raw error/secret。
+  - QA/QC：`npm.cmd run qc:dev-060-bom-create` 50/50 PASS；`npm.cmd run qc:bom-workbench-migration-path` 21/21 PASS；清單／獨立編輯頁 follow-up `npm.cmd run qc:pdm-lifecycle-bom-draft-ui` 37/37 PASS（左側常駐搜尋不存在、清單點選後進入獨立編輯頁、返回清單、舊 query URL 轉址、編輯頁不顯示重複頁名／研發摘要／正常載入提示／已刪除資料，BOM 基本資料橫列整合主件／圖號／BOM 數，流程節點文字降噪，插入料件抽屜可搜尋並加入節點、可復原未儲存變更，工具列、畫布與 1440px overflow 均通過）；TypeScript與 affected ESLint PASS。證據明示 `productionConnected=false`、`productionWrites=false`、`cleanupStatus=removed`，詳見 `.ai-doc/qc/qc-dev-060-bom-entry-material-identity-validation-report-2026-08-10.md`。
+  - Spec Drift Check：`Intentional replacement` 已完成且無未解 P0/P1 drift；舊 submission/drawing revision ownership 僅保留 legacy read compatibility，新 write、review、release、export與權限均使用 canonical owner/BOM Rev。
+  - 停止條件：只能以 submission 當 owner、需要猜測/覆寫/刪除 legacy Released history、三來源無法共用 atomic effect authority、API 無法 company fail closed、或需要改 approval authority／production slice／live migration／deploy/release時，停止回 PM。
+  - 執行邊界：本輪完成本機產品碼、SQLite isolated migration驗證與 forward PostgreSQL/Supabase migration artifacts；未 apply live migration、未修改 production資料、未 stage/commit/merge/PR/deploy/release。
+  - 相關文件：`.ai-doc/specs/SPEC-BOM-WORKBENCH-001-bom-workbench.md` 第 17 節、上述 ADR、上述 QA plan、`.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`、`.ai-doc/specs/SPEC-PDM-REVISION-POLICY-002-release-gate-and-suggestion-engine.md`、`.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`、`.ai-doc/documentation_map.md`。
   - 計入交付：是。
+
+- ✓ DEV-061 [交付點] [本機完成 / Local QA/QC Passed] [P1] [Production Deletion & Release Gated] 圖號／料號檔案歸屬精簡與 3D 共用
+  - 摘要：Human Confirmed `HD-061-01..03`：刪除經引用掃描證明無用的既有圖號一般／參考附件；每次候選首版與正式進版都必須由使用者重新上傳一個 primary `.SLDDRW` 與一個 primary `.SLDPRT`／`.SLDASM`，缺一 server hard-block；系統在 durable write 前依 `company + owner scope + verified SHA-256 + size` 判斷，與其他版本完全相同的 3D 共用 canonical `file_asset/shared_cad_model_version` 與實體物件，但仍保留本版 upload receipt、package 關聯與稽核。圖號 UI 只留受控圖面與一個建立／進版 CTA，不再顯示附件管理、參考附件、已刪除資料、重複檔案卡或獨立開啟預覽按鈕；點預覽圖即開啟。料號保留不收合的精簡 `料號文件` 清單。Spec Impact Preflight=`Intentional replacement`：DEV-053 controlled/reference 雙區、舊 package warning-only completeness、post-release supplement new write、shared-3D `two_d_only` 與 generic drawing attachment write authority 在新 write 上由 DEV-061 取代；歷史 Released package／補件／baseline／audit 維持唯讀可追溯。資料契約新增 submission canonical pointer、active owner/hash uniqueness、primary role uniqueness；新 3D upload 必須 concurrency-safe、idempotent 且不跨 company／owner 自動共用。清理 script 預設 dry-run，只刪除未被 package、candidate、supplement、shared model 或 submission 引用的 drawing loose assets，並以 two-phase external object/DB receipt 支援重跑與對帳。
+  - 來源 ID：`DEV-PDM-FILE-OWNERSHIP-001`；authority：`.ai-doc/decisions/ADR-PDM-FILE-OWNERSHIP-001-contextual-files-and-3d-content-reuse.md`、`.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md`、`.ai-doc/qa/qa-dev-061-pdm-file-ownership-and-3d-reuse-validation-plan-2026-08-10.md`。
+  - 父任務：`DEV-053`、`DEV-PDM-DRAWING-REVISION-SUBMISSION-001`、`DEV-PDM-DRAWING-REVISION-SUBMISSION-001-P4`、`DEV-PDM-SHARED-3D-MA-BASELINE-001`；關聯 file authority：`DEV-002`／`DEV-046`。本 DEV 不改 Part Number 無版次、Drawing/BOM 各自版控的 `ADR-PDM-MATERIAL-IDENTITY-REVISION-001`。
+  - 執行結果：
+    - [x] Phase 1A：canonical file ownership/readiness service、SQLite/PostgreSQL/Supabase schema mirror、`029_pdm_file_ownership_and_3d_reuse.sql`；legacy `two_d_only` 只讀，新 write 禁止。
+    - [x] Phase 1B：package-specific revision file API、候選與正式 required-role gate、SHA-256 company/owner scoped reuse；generic drawing attachment POST 已回 `410 DRAWING_REFERENCE_UPLOAD_RETIRED`，part document API 保持可用。
+    - [x] Phase 1C：submission 改存 `source_file_asset_id` immutable pointer；package projection 以 canonical 3D asset link 取代重複 bytes；legacy `local_path` 僅相容讀取。
+    - [x] Phase 1D：drawing/part UI 收斂、精簡且不收合檔案清單、預覽圖 click target、`qc-dev-061-cleanup-dry-run.mjs` dry-run guard、三 viewport 與真實操作證據。
+  - 阻塞／恢復：本機文件與 RD 派工無阻塞。若需要 production／正式 Drive／正式 bucket 刪除或 migration apply、無法 deterministic 建立 protected reference set、無法取得真實 storage object count/hash、需跨 company／owner 自動共用、需允許沿用歷史 3D 而不重新上傳、需恢復 `two_d_only`，或需改 material identity／approval authority，停止並回 Dev PM／release gate；只有人類確認新 authority 與可回復證據後才恢復。
+  - 證據：修正後 run `20260810-155227` 已通過並收錄於 `output/qa/dev-061-ai-real-operation/20260810-155227/verdict.md`：file ownership 14/14、UI contract 6/6、真實瀏覽器 14/14、並行同 hash 為 2 receipts／1 canonical／1 physical object、formal pointer/download、candidate required-role parity、跨 owner／company isolation、idempotency 與 cleanup protected scan 均通過；typecheck、affected ESLint 與 isolated build 通過。完整 production storage object count、不可逆 cleanup apply、live migration、commit、deploy、release 仍不在本輪授權內，詳見 `.ai-doc/qa/DEV-061-real-operation-evidence-2026-08-10.md` 與 run-specific verdict。
+  - 計入交付：是；本地 Phase 1A～1D 完成且 QA/QC 通過才可標 `Local RD Implemented`，production deletion、migration apply、commit、deploy 與 release 仍各自受 gate 管理。
+
+- ✓ DEV-062 [交付點] [本機完成 / Fixed-3000 QA-QC Passed] [P1] [Release Gated] 料號／圖料單頁工作台與共用 Workbench Core
+  - 摘要：將 `/parts` 與 `/numbering/search` 各自從「總表／保留號」雙頁籤整併為單一工作台；沿用 `DEV-053` 已驗證的 read-projection 方向，但不複製圖號模組的 domain implementation。共用層只承接跨模組不變量，料號與圖料仍各自投影正確的 row identity、detail 與動作。
+  - 來源 ID：`DEV-PDM-UNIFIED-PART-RELATION-WORKBENCH-001`。
+  - 父任務／關聯 authority：`DEV-048`、`DEV-053`、`DEV-055`、`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-PDM-NUMBER-STATE-FLOW-001`、`ADR-PDM-MATERIAL-IDENTITY-REVISION-001`。
+  - 原始需求與後續授權：先要求比照圖號模組完成單頁整併分析、資深架構 `#差距分析` 與 RD-ready 文件；後續要求補齊並完成本機開發。使用者以固定3000截圖重開QC後，已完成local flag／launcher health矯正、hard reload驗收與focused regression；仍未授權 schema、正式資料、stage/commit、部署或 release。
+  - 使用思考習慣：`#差距分析`、`#系統描繪`、`#第一性原理`、`#可驗證性`。
+
+  - 問題與使用者價值：
+    - 現況把「候選／保留」誤呈現成與「正式總表」平行的資訊架構，使用者必須先理解內部資料來源，才能找到同一件工作的下一步。
+    - 真正任務是依料號或主根脈絡找到工作、判斷目前效力、完成唯一主要下一步；候選與正式是生命週期／來源狀態，不是兩個使用者模組。
+    - 完成後，第一次進入 `料號工作台` 或 `圖料工作台`，應在 5 秒內知道「目前看到什麼、哪筆要處理、正式效力為何、下一步是什麼」，不必切換總表／保留號尋找同一物件。
+
+  - 現況基線與架構差距：
+    - `/numbering/drawings` 已使用 `drawing-workbench` read projection，能以候選與正式 row key、server-derived status／action、cursor 與 detail source context 支撐單頁；此為參考模式，不代表其元件可原封不動套用其他 domain。
+    - `/parts` 仍由 page-level `activeTab` 切換正式清單與 `NumberStateWorkspaceWorkbench module="parts"`；`/numbering/search` 也以 `activeTab` 切換正式關係視圖與 `module="search"`。雙頁籤只是 UI 分流，沒有解決跨來源一致讀取。
+    - `parts/page.tsx`、`search/page.tsx` 與 `number-state-workspace.tsx` 各自承擔搜尋、載入、選取、keyboard、drawer、URL 或 workspace lifecycle，形成頁面級巨石與重複控制流程；共用集中在 primitive UI，尚未集中到 application/workflow lifecycle。
+    - `search/page.tsx` 直接引用 `parts/page.tsx` 的 `PartDetailPanel`，代表 page layer 洩漏；detail 內容應由 owner-domain component export，而非跨 route page import。
+    - candidate 建立入口與 `drawingWorkbenchEnabled` 耦合，且建立後統一導向圖號工作台；這會讓料號／圖料單頁化受到錯誤 feature flag 與錯誤 owner route 控制。
+    - `/api/numbering/relations` 已是正式圖料關係聚合與維護 authority，現有逐 root 取得 detail 的路徑有 N+1 風險；新工作台應擴充同一 read authority 或由其 adapter 使用批次 projection，不得建立平行 relation endpoint。
+    - 多個 QC script 直接依賴 `number-state-workspace.tsx` 的文字與結構；拆分元件時必須把驗證轉向 public behavior／contract，不能以保留巨石檔案換取測試不動。
+
+  - 已確認產品與架構決策：
+    1. 料號與圖料各自只保留一個模組頁，不再顯示「總表／保留號」頁籤；舊 query 只作 zero-write 相容，不恢復第二套操作面。
+    2. 單頁化只合併讀取與任務導覽，不合併底層 master、candidate workspace、revision、approval 或 relation mutation authority。
+    3. 採「小型 Workbench Core + domain adapters + 共用 UI primitives」，不採三套平行 workbench service，也不採大型 `UnifiedWorkbench<T>`。
+    4. 共用 invariants，不共用 domain meaning：core 不得出現 `module === "parts"`／`"search"` 分支；domain adapter 不得重做 cursor、URL、權限、request sequencing、selection reconciliation 或 lifecycle action projection。
+    5. Part Number 是無版次的物料身份；候選／正式投影不得新增 `Part Revision`，Drawing 與 BOM 仍各自版控。
+    6. 圖料以 root-centric 關係樹為主，不改成扁平 object list；正式關係仍由 `/api/numbering/relations` 與既有 owner APIs 管理。
+    7. `DEV-057` 於 2026-08-10 暫停候選與審核 drawer 掛載；本 Brief 不把該暫停狀態複製成料號／圖料目標，也不重新開啟圖號候選 drawer。
+
+  - 目標架構與共用責任：
+
+    | Layer | 共用責任 | 明確不負責 |
+    |---|---|---|
+    | Workbench Core | actor/company/permission context、一致讀取 snapshot、canonical lifecycle/action projection、signed cursor、URL/deep-link 相容、request sequencing、selection reconciliation | 料號欄位、圖料樹、關係健康、domain-specific CTA 文案 |
+    | Shared UI / Controller | `usePdmWorkbenchController`、搜尋／篩選／換頁、keyboard/focus、loading/empty/error、單一 primary action slot、共用 detail drawer shell | 猜測權限／狀態、直接組 domain payload、以泛型條件渲染所有 domain |
+    | Part Adapter | candidate bundle／formal part row、料號 owner detail、料號文件與可執行動作投影 | Drawing/BOM revision、關係樹、共用 cursor/URL 邏輯 |
+    | Relation Adapter | root tree、candidate overlay、drawing-part links、關係健康／缺口、matrix projection、owner drawer handoff | Part/Drawing master mutation、第二套 relation authority、共用 lifecycle 重算 |
+    | Drawing Adapter | 作為 Phase 1A core 等價驗證 consumer；既有可見行為與 authority 不變 | 在本 DEV 重做圖號 UX 或重啟已暫停 drawer |
+
+  - Domain row 與投影方向：
+    - 料號工作台：正式料號使用穩定 `part:{partId}`；尚未正式化且含料號工作的 candidate bundle 使用 `candidate:{workspaceId}`，一個 bundle 只出現一次並在 detail 顯示其 typed items。清單排序、filter、status、capabilities 由 server projection 決定，browser 不拼接兩次 API 結果。
+    - 圖料工作台：既有正式 root 使用 `root:{rootId}` 且每個 root 只出現一次；有 source root 的 candidate／review 置於同一 root 的「變更審查中」overlay，不複製正式 root。尚無 source root 的新建 bundle 才使用 `candidate:{workspaceId}` 作為獨立準根節點，且不得冒充正式關係或生產可用。
+    - 所有 row 都包含穩定 row key、source kind、human status、availability、viewer responsibility、唯一 primary action、capabilities、detail reference；visible UI 不顯示 workspace ID、raw status、cursor 或其他技術識別碼。
+    - detail 由 row 的 source context 交給 Part／Drawing owner-domain component；圖料模組只提供關係脈絡與安全 handoff，不複製料號／圖號明細內容或 mutation form。
+
+  - UX Intent 與資訊分層：
+    - 料號工作台主要任務：找一個物料身份，判斷候選／正式效力並完成建立、補資料、送審或查看正式資料的下一步。
+    - 圖料工作台主要任務：由主根理解 `主根號 → 圖號 → 料號` 的正式關係、候選變更與缺口；正式樹永遠優先，candidate 不得覆蓋仍有效的正式關係。
+    - 第一層只顯示 identity、單一人類狀態、會改變判斷的摘要與一個 primary CTA；第二層 drawer 顯示詳細內容與次要操作；稽核／raw facts 降至明確展開區或專用頁。
+    - 正常、blocked、empty、error、history 狀態都必須通過 Now What Test；高風險送審、撤回、核准、刪除與關係修改沿用既有 permission／confirmation gate。
+
+  - Phase capsules：
+    - `1A Core extraction / Drawing parity`：從已運作的 drawing read path 抽出 core contracts、controller 與 primitives；圖號輸出、URL、cursor、權限與可見行為須等價，這一階段不算料號／圖料產品交付。
+    - `1B Part single workbench`：建立 server-composed part rows 與 Part Adapter，移除 `/parts` 雙頁籤；候選 bundle 與正式料號同一清單、同一 drawer shell、同一 lifecycle action contract。
+    - `1C Relation single workbench`：擴充既有 relation read authority 支援 candidate overlay／source-less candidate，移除 `/numbering/search` 雙頁籤；保留 root tree、matrix 與 owner drawer handoff。
+    - `1D Compatibility and convergence`：將 `?tab=drafts`、`?tab=reserved` 與既有 bookmarks canonicalize 到對應 view/filter/detail，讀取零寫入；移除不再使用的 page-level分流與跨 page import，將 QC 從 source string coupling 轉為 contract／real-operation evidence。
+
+  - RD exact dispatch contract：
+    - [x] `Phase 1A`：新增 `pdm-workbench-contract.ts`、server-only signed cursor、read snapshot helper、`usePdmWorkbenchController`，並讓 drawing repository/component改用 core；Drawing focused read/UI parity通過。
+    - [x] `Phase 1B`：完成 Part adapter/repository、read-only list/detail BFF、`PartWorkbench` 與 owner detail component；candidate/formal stable identity、同 snapshot、cost redaction、permission、cursor、zero-write與 legacy capability parity通過。
+    - [x] `Phase 1C`：完成 Relation adapter/repository/component與同 namespace detail BFF；`projection=workbench_v1`、formal root uniqueness、candidate overlay/source-less candidate、tree/matrix、owner handoff與 batch hydration通過，既有 relation POST不變。
+    - [x] `Phase 1D`：完成 default-off dependency-bound flag、status、legacy URL canonicalization、safe returnTo、flag-off rollback、race/back-forward/reload、query budget、zero-write、responsive/keyboard、real-operation與 focused aggregate regressions。
+
+  - Exact shared/public contracts：
+    - 共用base只含`rowKey/rowKind/sourceKind/display identity/updatedAt/humanStatus/viewerStatus/availability/primaryAction/terminal`；Part/Relation domain欄位不可上提到core。
+    - signed cursor固定`{version:1,filterHash,updatedAt,rowKey}`、HMAC格式沿用Drawing；filter hash綁domain namespace、normalized filters、actor與company，tampered/cross-context回400並從第一頁復原。
+    - controller只負責URL、AbortController/request sequence、cursor history、selection/detail reconciliation與popstate；Part表格使用`PdmWorkbenchList`，Relation保留domain tree renderer，兩者共用keyboard hook與`PdmEntityDetailDrawer` shell。
+    - API success皆`private, no-store`；list envelope=`rows,nextCursor,generatedAt,filters`；permission/company/capability由server推導。candidate無view權限時omit且detail 404，不洩漏existence。
+    - mutation ownership不變：Part/workspace owner routes、approval/publication commands與`POST /api/numbering/relations`是唯一命令authority；新workbench endpoints只允許GET。
+
+  - Query/performance hard gates（IDs<=400）：Part list<=15、candidate detail<=13、formal detail<=6；Relation list<=18、root detail<=10、candidate detail<=13；增加row/root/child數量不得增加query count。代表性local fixture的BFF p95<=500ms、debounced browser可見更新p95<=800ms；這是focused local gate，不宣稱production SLO。
+
+  - Exact affected-file boundary：
+    - 共用／Drawing：`src/lib/pdm-workbench-contract.ts`、`src/lib/pdm-workbench-cursor.ts`、`src/lib/repositories/pdm-workbench-read-snapshot.ts`、`src/components/use-pdm-workbench-controller.ts`、`src/components/pdm-workbench-list.tsx`、既有drawing workbench lib/repository/component與focused QC。
+    - Part：`src/lib/part-workbench.ts`、`src/lib/repositories/part-workbench-async-repository.ts`、`src/app/api/parts/workbench/**`、`src/components/part-workbench.tsx`、`src/components/part-detail-content.tsx`、`src/app/parts/page.tsx`、owner create/contextual entrypoints及batch read helper。
+    - Relation：`src/lib/relation-workbench.ts`、`src/lib/repositories/relation-workbench-async-repository.ts`、`src/app/api/numbering/relations/**`、`src/components/relation-workbench.tsx`、`src/app/numbering/search/page.tsx`與bounded repository batch reads。
+    - Compatibility/QC：feature/status、legacy route resolver、middleware、`.env.example`、`package.json`、DEV-048/053/055及Part/Relation/Drawer regressions。無schema/migration/data file邊界。
+
+  - 初始範圍：共用 read-model／controller／list/drawer shell；料號與圖料單頁 projection；legacy URL compatibility；owner-domain detail handoff；server filter／cursor／capability；desktop、tablet、mobile 與 keyboard/focus 行為；必要的 focused contract 與真實操作驗證。
+  - 初始範圍外：schema/migration、既有資料回填／重算／改號、Part Revision、新 lifecycle/status/permission、approval authority、關係 bulk mutation、新圖號 drawer 設計、production slice mutation allowlist 擴張、commit/merge/PR/deploy/release、正式資料寫入或清理。
+
+  - 驗收方向：
+    1. `/parts` 與 `/numbering/search` 不再顯示總表／保留號頁籤；candidate 與 formal 均能在單頁被搜尋、篩選、選取與 deep link。
+    2. 舊 `?tab=drafts`／`?tab=reserved` bookmark 導向同頁的等價 view/filter，保留安全 `returnTo`，且 open/search/filter/deep-link 全程零寫入。
+    3. 料號 candidate bundle 與 formal part 不重複、不產生 Part Revision；圖料正式 root 只出現一次，source-root candidate 疊在原 root，source-less candidate 不冒充正式 root。
+    4. row/list/drawer/filter 使用同一 server-derived human status、availability、viewer responsibility 與 capabilities；每個狀態最多一個 primary CTA，無 raw technical status／ID。
+    5. Part／Relation adapters 不能自行實作 cursor、URL、permission、request race 或 lifecycle projection；Workbench Core 不能出現 domain switch。靜態 architecture check 與 code review 可直接驗證。
+    6. 圖料 read projection 不新增平行 relation API，且以批次查詢消除按 root 逐筆 detail 的 N+1；代表性資料量下需在 RD Contract 定義 query count／latency budget。
+    7. 快速搜尋、切 filter、換頁、back/forward、reload、drawer close/reopen 只顯示最後一次有效結果；舊 response／cursor／selection 不得覆蓋新條件。
+    8. 1440×900、1024×768、768×1024、390×844 可完成主流程；無水平 overflow、CTA 裁切、drawer 遮擋，方向鍵、Home/End、PageUp/Down、Enter、Escape 與焦點返回符合共用契約。
+    9. 原料號主資料、料號文件、圖料 tree/matrix、關係維護 handoff、正式／候選動作與權限能力不得因單頁化消失；以 capability parity matrix 驗證，不以 route 或 link 存在冒充完成。
+
+  - 風險等級：Medium / P1。主要風險為單頁 replacement 遺失既有能力、candidate/formal projection 重複或效力誤標、抽象層過大、stale response、跨公司／權限洩漏、relation N+1 與 legacy route 形成第二套操作面。
+  - Spec Impact Preflight：`Intentional replacement`。本 DEV 明確取代 `DEV-048`、`SPEC-PDM-NUMBER-STATE-FLOW-001` 與 `SPEC-PDM-PRODUCTION-SLICE-001` 中把 `/parts?tab=drafts` 視為可見獨立頁籤的 UI 條款，以及圖料頁的 `?tab=reserved` 分流；只替換可見資訊架構與 read projection，不替換 workspace／publication／approval／relation mutation authority。與 `DEV-053` 的單頁、source-context、zero-write compatibility 原則及 `DEV-055` 單一 human status 為相容延伸；對 `SPEC-PDM-DRAWING-PART-RELATION-VIEW-001` 是相容擴充，保留正式 root tree 與「變更審查中」，只補上無 source root candidate 的可達性。與 material identity ADR 無衝突。若進入實作，應 amendment 既有 SPEC，不建立重複單頁 workbench SPEC。
+  - ADR 判定：已新增並接受 `ADR-PDM-WORKBENCH-CORE-001`。原因是RD-ready contract固定跨模組stable row identity、signed cursor、single snapshot與relation read authority邊界；這些是跨模組public read contract。ADR明確拒絕三套平行service、mega generic component、client merge與平行relation endpoint。
+  - AI 假設：第一版不需 schema；parts 可用新的 server read projection 組合既有 formal/candidate repositories，relations 以擴充現有 aggregation 完成。若 representative data 證明無法在既有 identity／query model 內正確投影，停止而不是在 client join 或 N+1 上妥協。
+  - 阻塞／恢復條件：本機 Phase 1A～1D 已完成，P0/P1=0。若需要schema/migration、new status/permission/approval/mutation authority、Part Revision、跨多source roots新aggregate、client join/partial read、existing data寫入/修復/刪除，立即停止回Dev PM/ADR；staging/production flag、deploy/release轉deployment release gate。
+  - QA/QC結果：isolated `qc:dev-062` aggregate 15/15、contract 40/40、real-operation 33/33；Part query 14/11/6、Relation 18/10/11，且query count不隨代表性cardinality成長。Fixed runtime run `DEV062-FIX-20260810124507-fixed3000`另為10/10：狀態flag enabled/requested、兩路由hard reload、舊頁籤DOM=0、formal/candidate同頁、舊URL正規化、同頁modal、visible alert／overflow／app console／server unexpected error或5xx=0；core 6/6、compat 8/8、Part／Relation focused與TypeScript均通過。Evidence見兩個run的`verdict.md`及`.ai-doc/qc/qc-dev-062-unified-part-relation-workbench-report-2026-08-10.md`。
+  - 相關文件：`.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-controller-contract.md`、`.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`、`.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`、`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`、`.ai-doc/specs/SPEC-PDM-NUMBER-STATE-FLOW-001-unified-numbering-draft-and-transfer-functional-spec.md`（DEV-062 amendment）、`.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`（DEV-062 amendment）、`.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`、`.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`、`.ai-doc/documentation_map.md`。
+  - 計入交付：是；Phase 1B 與 1C 都完成且通過整體 capability parity／real-operation gate 才可標示本地產品交付完成。
 
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
   - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
@@ -1289,6 +1400,9 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-10: 依使用者 `#引導模式` 明確確認 `HD-061-01..03` 後完成 `DEV-061` 本機 Phase 1A～1D。圖號只保留受控版次檔，料號保留精簡且不收合的文件清單；每次首版／進版 hard-require 本次上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`，相同 3D bytes 由系統在 company/owner scope 內共用 canonical asset；generic drawing attachment POST 退役為 410，預覽圖可直接點擊開啟。`qc:dev-061`、isolated real-operation 14/14、build、typecheck、affected lint與migration mirror通過；cleanup 只執行 dry-run，現有 12 筆候選未刪除。production deletion、live migration、commit、deploy、release仍各自受 gate 管理。
+- 2026-08-10: 依使用者明確指令完成`DEV-060` Phase 1A～1D本機RD/QA/QC。已落地canonical `part_numbers` owner、獨立`bom_revision`、SQLite compatibility migration與PostgreSQL 028/Supabase mirror、create-context/generic create/XLS/from-assembly canonical adapter、company/role permission、atomic idempotency receipt/readback、occupied/non-forward BOM Rev gate、`/bom/new`兩步驟三來源、`draftId`工作台交接、canonical review/release/export/read權限；頂部`Current/Next/5 steps`雜訊維持移除。`npm.cmd run qc:dev-060-bom-create` 50/50、migration baseline 21/21、TypeScript與affected ESLint通過；三來源真實UI、Engineer自有料號、R&D Manager、跨公司403、Manufacturing/Procurement唯讀、1440/1024/390 viewport、Released CSV與null child revision release均有證據，`productionConnected=false`、`productionWrites=false`、`cleanupStatus=removed`。未stage/commit、未apply live migration、未deploy/release。
+- 2026-08-10: 依使用者 HCS 引導決策 `1A / material identity rule / 3B`，將 `DEV-060` 從 Brief 升級為 `RD Implementation Ready / Human Confirmed / RD Not Started`。新增 `ADR-PDM-MATERIAL-IDENTITY-REVISION-001`，正式確立 Part Number 是無版次物料身份、Drawing/BOM 各自獨立版控；同身份只升實際受影響定義 Rev，FFF、互換性、法規／品質管制或其他身份條件改變時建立新 Part Number 與其自己的 BOM。BOM SPEC 第 17 節補齊方案 B 兩步驟全頁、CAD/XLS/空白人工三來源、canonical `part_numbers` owner、獨立 `bom_revision`、additive dry-run migration、generic create API、permission、idempotency/readback、error/recovery、逐檔 impact、Phase 1A～1D 與 stop conditions；新增 DEV-060 QA plan，並同步修正 change-control、drawing-submission、transfer-package與 documentation map 的料號版次舊語意。本輪只修改開發文件，未實作產品碼、未 apply migration／修改資料、未 stage/commit/merge/PR/deploy/release。
 - 2026-08-07: 完成`DEV-056 Phase 1 Preview Auto-Orchestration`。native attachment list/create自動enqueue、前景pending polling、5秒worker heartbeat、30秒stale recovery（最多3次）、current-worker completion/failure guard與icon/tone/motion狀態UI已落地；3D `.SLDPRT` worker完成後瀏覽器自動由`建立中`轉為PNG，無需手動重新整理，2D無可用worker時顯示`處理較久／系統會自動接續`。native QC 101/101、redaction 68/68、master-attachments 103/103、TypeScript、lint、local health與隔離browser visual QC通過；production、Document Manager key、Phase 2/3仍 gated。
 - 2026-08-07: 使用者授權`DEV-039 Phase 1B`本機執行。先建立checkpoint commit `4c98cd15`，再抽取非modal共用`PdmEntityDetailDrawer`，供drawing、part、relation-search及candidate/reservation details共用header、單一inline X、透明非阻塞overlay、resize/width persistence、outside/Escape close、row-to-row switching、scroll reset與entity metadata；domain body及modal confirm維持分離。同步集中human-status filters與drawer width來源。focused QC 19/19、23/23、12/12、8/8、13/13、TypeScript、scoped lint及authenticated browser smoke通過；未改schema/migration/正式資料，未deploy或release。
 - 2026-08-07: 依使用者決策刪除圖號工作台總表「下一步」欄與列內重複CTA，表格收斂為`圖號／品名／工作狀態`三欄；server primary action與權限說明仍保留於明細抽屜，不改API、domain lifecycle或寫入流程。同步更新DEV-053/055 contract、browser操作路徑與STATUS-UX-004 QA gate；`DEV053 UI 23/23`、`DEV055 contract 13/13`、TypeScript、scoped lint及隔離browser三viewport PASS。

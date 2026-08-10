@@ -6,8 +6,13 @@ Owner: Dev PM
 Related DEV: `DEV-PDM-DRAWING-REVISION-SUBMISSION-001`
 Related QA: `.ai-doc/qa/qa-pdm-drawing-revision-submission-validation-plan-2026-07-03.md`
 
+> **2026-08-10 DEV-061 Amendment**
+>
+> 新首版／進版的檔案歸屬與必填條件改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理。每次送審一律要求本次重新上傳一個 primary `.SLDDRW` 與一個 primary `.SLDPRT`／`.SLDASM`；相同 3D bytes 由系統自動重用 canonical asset，不得以歷史檔案取代本次上傳。圖號一般／參考附件的新寫入停止，submission 改保存 canonical asset pointer。本文中 warning-only completeness、drawing attachment staging/write authority 與其衍生流程僅保留為歷史證據，衝突處由 DEV-061 取代。
+
 Related authority:
 
+- `.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-implementation-contract.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-002-drawing-revision-workbench-ux-contract.md`
@@ -213,7 +218,7 @@ Attachment D-0007-MA1 rev 0.2 exists, but no controlled submission/review/releas
 - Link the FFF assessment to the created submission through `drawing_revision_fff_assessments.submission_id`.
 - Show a pre-submit preview that distinguishes:
   - drawing revision;
-  - part number revision/unchanged state;
+  - part number identity unchanged/replacement state（Part Number 本身無 Revision）;
   - BOM revision/unchanged state;
   - selected new drawing files;
   - reviewer-required confirmation.
@@ -876,7 +881,7 @@ Acceptance:
 | Duplicate formal records for the same drawing + revision | No Tracking | Rejected; same-revision data changes must attach to or correct the existing package. |
 | Turning optional package completeness warnings into hard blockers | Blocked Human Re-entry | Rejected for Phase 2 unless user/PM explicitly changes the business rule. |
 | Automatic BOM revision or released BOM mutation | No Tracking | Rejected by product rule; BOM remains unchanged for no-impact and only receives reconfirmation flags when replacement rules require. |
-| Automatic part-number revision for no-impact change | No Tracking | Rejected by product rule; part number remains unchanged unless FFF confirmed impact creates replacement part. |
+| Automatic part-number revision for no-impact change | No Tracking | Rejected by product rule; Part Number has no Revision. It remains unchanged unless FFF, interchangeability, regulatory/quality-control or another material-identity condition requires a replacement Part Number. |
 | Retiring drawing submission workbench | No Tracking | Rejected; workbench services should be reused, not removed. |
 | Dedicated mobile-phone UI | No Tracking | Rejected by current system setting; phones use the desktop/default surface. |
 

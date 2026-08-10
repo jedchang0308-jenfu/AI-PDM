@@ -1,0 +1,97 @@
+{
+  "hardGate": {
+    "rootPrimaryEnter": {
+      "entityType": "part_root",
+      "entityCode": "A0007",
+      "role": "complementary",
+      "ariaModal": null,
+      "href": "/drawings/A0007-M01/submission-workbench",
+      "destination": "http://127.0.0.1:3000/drawings/A0007-M01/submission-workbench",
+      "elapsedMs": 605,
+      "result": "PASS"
+    },
+    "rootPrimaryMouse": {
+      "destination": "http://127.0.0.1:3000/drawings/A0007-M01/submission-workbench",
+      "result": "PASS"
+    },
+    "rootPrimaryNonNativeCases": [
+      {
+        "key": "Space",
+        "urlBefore": "http://127.0.0.1:3000/numbering/search",
+        "urlAfter": "http://127.0.0.1:3000/numbering/search",
+        "controlledTabs": 1
+      },
+      {
+        "key": "Shift+Enter",
+        "urlBefore": "http://127.0.0.1:3000/numbering/search",
+        "urlAfter": "http://127.0.0.1:3000/numbering/search",
+        "controlledTabs": 1
+      },
+      {
+        "key": "Control+Enter",
+        "urlBefore": "http://127.0.0.1:3000/numbering/search",
+        "urlAfter": "http://127.0.0.1:3000/numbering/search",
+        "controlledTabs": 1
+      },
+      {
+        "key": "Alt+Enter",
+        "urlBefore": "http://127.0.0.1:3000/numbering/search",
+        "urlAfter": "http://127.0.0.1:3000/numbering/search",
+        "controlledTabs": 1
+      },
+      {
+        "key": "Meta+Enter",
+        "urlBefore": "http://127.0.0.1:3000/numbering/search",
+        "urlAfter": "http://127.0.0.1:3000/numbering/search",
+        "controlledTabs": 1
+      }
+    ],
+    "otherVisibleAnchors": {
+      "drawerTasks": {
+        "href": "/numbering/tasks",
+        "destination": "http://127.0.0.1:3000/numbering/tasks",
+        "result": "PASS"
+      },
+      "reservedTab": {
+        "href": "/numbering/search?tab=reserved",
+        "target": null,
+        "activeElement": {
+          "tag": "A",
+          "text": "保留號",
+          "href": "/numbering/search?tab=reserved"
+        },
+        "urlAfterEnter": "http://127.0.0.1:3000/numbering/search",
+        "urlAfterMouse": "http://127.0.0.1:3000/numbering/search?tab=reserved",
+        "waitAfterEnterMs": 1200,
+        "result": "FAIL"
+      }
+    }
+  },
+  "failureSurface": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "pageOverflow": 0,
+    "focusBox": {
+      "x": 336,
+      "y": 56,
+      "width": 71,
+      "height": 42
+    },
+    "focusStyle": {
+      "outline": "rgb(23, 32, 42) none 2.4px",
+      "boxShadow": "none",
+      "borderBottom": "2.4px solid rgba(0, 0, 0, 0)"
+    }
+  },
+  "notExecutedAfterImmediateFail": [
+    "P02/P03 exact part target",
+    "X Enter/Space",
+    "input/select/button isolation",
+    "same-object owner/search regression",
+    "preview/root content regression",
+    "resize and modal isolation",
+    "1024x768 and 390x844 viewport regression"
+  ]
+}

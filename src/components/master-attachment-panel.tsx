@@ -1,8 +1,9 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Check, CircleAlert, Clock3, Download, ExternalLink, FileText, History, LoaderCircle, RefreshCw, RotateCcw, Trash2, UploadCloud, WifiOff, X } from "lucide-react";
+import { Check, Download, ExternalLink, FileText, History, RefreshCw, RotateCcw, Trash2, UploadCloud, X } from "lucide-react";
+import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
 import { FileDropzone } from "@/components/file-dropzone";
 import { formatBytes } from "@/lib/format-file-size";
 import { compareRevisionCodes, suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
@@ -174,6 +175,15 @@ function formatAttachmentActionError(value: unknown, fallbackAction: string) {
   return formatStatusErrorForUser(text, "fileSync");
 }
 
+function inferReferenceAttachmentCategory(fileName: string) {
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (["sldprt", "sldasm", "step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"].includes(extension)) return "cad_3d";
+  if (extension === "slddrw") return "drawing_2d";
+  if (["dwg", "dxf"].includes(extension)) return "dwg";
+  if (extension === "pdf") return "pdf";
+  return "other";
+}
+
 export function MasterAttachmentPanel({
   entityType,
   entityCode,
@@ -182,6 +192,7 @@ export function MasterAttachmentPanel({
   authorityMode = "combined_legacy",
   compact = false,
   drawingDetailSkeleton = false,
+  alwaysExpandedExceptHistory = false,
   onBackfillHistoricalRevision,
   pendingRevisionReviews = null,
   productionSliceEnforced: productionSliceEnforcedOverride,
@@ -194,6 +205,8 @@ export function MasterAttachmentPanel({
   authorityMode?: MasterAttachmentAuthorityMode;
   compact?: boolean;
   drawingDetailSkeleton?: boolean;
+  /** Keep every attachment subsection open in the drawing detail drawer; history remains the only disclosure. */
+  alwaysExpandedExceptHistory?: boolean;
   onBackfillHistoricalRevision?: (request: HistoricalRevisionBackfillRequest) => void;
   pendingRevisionReviews?: PendingRevisionReviews | null;
   productionSliceEnforced?: boolean;
@@ -211,6 +224,8 @@ export function MasterAttachmentPanel({
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [controlledUploadFile, setControlledUploadFile] = useState<File | null>(null);
+  const [controlledUploadBusy, setControlledUploadBusy] = useState(false);
   const [supplementReason, setSupplementReason] = useState<SupplementReasonCode>("format_file");
   const [supplementNote, setSupplementNote] = useState("");
   const [selectedSupplementAttachmentIds, setSelectedSupplementAttachmentIds] = useState<string[]>([]);
@@ -281,9 +296,22 @@ export function MasterAttachmentPanel({
     () => attachmentSections.work.filter((attachment) => !historicalBackfillAttachmentIds.has(attachment.id)),
     [attachmentSections.work, historicalBackfillAttachmentIds]
   );
+  const compactControlledListAttachments = useMemo(() => {
+    if (entityType !== "drawing_number" || authorityMode !== "controlled_summary") return [];
+    const formalAttachments = attachments.filter(isFormalPackageAttachment);
+    const currentRevision = latestAttachmentRevision(formalAttachments);
+    return attachments
+      .filter((attachment) => {
+        if (!isSupportedDrawingUploadFile(attachment.fileName)) return false;
+        if (isFormalPackageAttachment(attachment)) return !currentRevision || sameAttachmentRevision(attachment, currentRevision);
+        return isWorkAttachment(attachment);
+      })
+      .sort(sortMasterAttachments);
+  }, [attachments, authorityMode, entityType]);
+  const currentAttachments = attachmentSections.current;
   const drawingPreviewSlots = useMemo(
-    () => (entityType === "drawing_number" ? buildDrawingPreviewSlots(attachmentSections.current) : []),
-    [attachmentSections.current, entityType]
+    () => (entityType === "drawing_number" ? buildDrawingPreviewSlots(currentAttachments) : []),
+    [currentAttachments, entityType]
   );
   const historyRevisionGroups = useMemo(() => groupHistoryAttachmentsByRevision(attachmentSections.history), [attachmentSections.history]);
   const currentReleasedRevisionPackageId = useMemo(
@@ -379,12 +407,18 @@ export function MasterAttachmentPanel({
     setDisplayName("");
     setDescription("");
     setFiles([]);
+    setControlledUploadFile(null);
     setSelectedSupplementAttachmentIds([]);
     setAttachments([]);
     setDeletedAttachments([]);
     setDeletedLoaded(false);
     void loadAttachments();
   }, [categories, entityCode, loadAttachments]);
+
+  useEffect(() => {
+    if (!alwaysExpandedExceptHistory || effectiveReadOnly || deletedLoaded || deletedLoading) return;
+    void loadDeletedAttachments({ clearMessage: false });
+  }, [alwaysExpandedExceptHistory, deletedLoaded, deletedLoading, effectiveReadOnly, loadDeletedAttachments]);
 
   useEffect(() => {
     if (!revisionStage) {
@@ -410,7 +444,7 @@ export function MasterAttachmentPanel({
       for (const selectedFile of files) {
         const form = new FormData();
         form.append("file", selectedFile);
-        form.append("document_category", category);
+        form.append("document_category", authorityMode === "reference_manager" ? inferReferenceAttachmentCategory(selectedFile.name) : category);
         form.append("revision", revision.trim());
         form.append("display_name", files.length === 1 ? displayName.trim() : "");
         form.append("description", description.trim());
@@ -610,13 +644,13 @@ export function MasterAttachmentPanel({
 
   function renderAttachmentRow(attachment: MasterAttachment, options?: { forceHistory?: boolean; compact?: boolean; minimal?: boolean }) {
     const downloadUrl = `${baseUrl}/${encodeURIComponent(attachment.id)}`;
-    const isPdf = attachment.fileExt.toLowerCase() === "pdf";
     const submissionState = attachmentSubmissionState(attachment, options);
     const traceSubmissionId = attachment.sourceSubmissionId || attachment.revisionPackageSourceSubmissionId;
     const isSupplement = isApprovedSupplementAttachment(attachment);
     const attachmentRevision = getAttachmentRevision(attachment);
     const revisionPendingReview = isRevisionPendingReview(attachmentRevision);
     const quiet = options?.compact || options?.minimal;
+    const compactWorkAttachment = options?.minimal && isWorkAttachment(attachment);
     return (
       <article className={`master-attachment-row${options?.forceHistory ? " history" : ""}${options?.compact ? " compact" : ""}${options?.minimal ? " minimal" : ""}`} key={attachment.id}>
         <div className={`master-attachment-icon${options?.forceHistory ? " history" : ""}`} aria-hidden="true">
@@ -625,6 +659,7 @@ export function MasterAttachmentPanel({
         <div className="master-attachment-main">
           <div className="master-attachment-title-row">
             <strong title={attachment.fileName}>{attachment.displayName || attachment.fileName}</strong>
+            {compactWorkAttachment ? <span className="master-attachment-status working">待處理</span> : null}
             {isSupplement ? <span className="master-attachment-status supplement">補件</span> : null}
             {revisionPendingReview ? <span className="master-attachment-status approval-pending">待審</span> : null}
             {!quiet ? <span className={`master-attachment-status ${submissionState.tone}`}>{submissionState.label}</span> : null}
@@ -658,11 +693,6 @@ export function MasterAttachmentPanel({
           {attachment.gdriveError ? <p className="master-attachment-error">{formatAttachmentActionError(attachment.gdriveError, "Google Drive 同步未完成")}</p> : null}
         </div>
         <div className="master-attachment-actions">
-          {isPdf ? (
-            <a className="icon-button" href={`${downloadUrl}?preview=1`} target="_blank" rel="noreferrer" title="預覽 PDF" aria-label="預覽 PDF">
-              <ExternalLink size={16} />
-            </a>
-          ) : null}
           <a className="icon-button" href={downloadUrl} title="下載附件" aria-label="下載附件">
             <Download size={16} />
           </a>
@@ -735,8 +765,9 @@ export function MasterAttachmentPanel({
     );
   }
 
-  function renderPreviewCard(slot: DrawingPreviewSlot) {
+  function buildPreviewCard(slot: DrawingPreviewSlot, options?: { includeDownload?: boolean }): DrawingDetailPreviewCard {
     const attachment = slot.attachment;
+    const includeDownload = options?.includeDownload ?? true;
     const downloadUrl = attachment ? `${baseUrl}/${encodeURIComponent(attachment.id)}` : "";
     const derivative = attachment ? findReadyPreviewDerivative(attachment, slot.kind) : null;
     const previewMode = derivative ? derivativePreviewMode(derivative) : attachment ? attachmentPreviewMode(attachment) : "none";
@@ -745,106 +776,134 @@ export function MasterAttachmentPanel({
       ? attachmentPreviewPlaceholder(attachment, slot)
       : { tone: "missing", icon: "missing", title: slot.emptyTitle, text: slot.emptyText, action: null };
 
-    return (
-      <article className={`drawing-preview-card ${slot.kind}`} key={slot.kind}>
-        <div className="drawing-preview-card-header">
-          <div>
-            <strong>{slot.title}</strong>
-          </div>
-        </div>
-        <div className={`drawing-preview-frame${previewMode === "none" ? " placeholder-frame" : ""}`}>
-          {previewMode === "pdf" ? <iframe title={`${slot.title} PDF 預覽`} src={previewUrl} /> : null}
-          {previewMode === "image" ? <img src={previewUrl} alt={`${slot.title} 預覽`} /> : null}
-          {previewMode === "drive" ? <iframe title={`${slot.title} Google Drive 預覽`} src={previewUrl} /> : null}
-          {previewMode === "none" ? (
-            <div className={`drawing-preview-placeholder ${previewPlaceholder.tone}`} data-preview-state={previewPlaceholder.tone}>
-              {renderPreviewStatusIcon(previewPlaceholder.icon, slot.kind)}
-              <strong>{previewPlaceholder.title}</strong>
-              <span>{previewPlaceholder.text}</span>
-              {!effectiveReadOnly && attachment && previewPlaceholder.action ? (
-                <button
-                  className={`secondary-button preview-generate-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-                  type="button"
-                  onClick={() => void generatePreview(attachment)}
-                  disabled={loading || productionSliceEnforced || previewPlaceholder.action.disabled}
-                  title={productionSliceEnforced ? productionSliceTitle : previewPlaceholder.action.label}
-                  aria-label={productionSliceEnforced ? `${slot.title}${productionSliceTitle}` : `${slot.title}${previewPlaceholder.action.label}`}
-                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-                >
-                  <RefreshCw size={15} />
-                  {previewPlaceholder.action.label}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        <div className="drawing-preview-footer">
-          <div>
-            <strong title={attachment?.fileName}>{attachment?.displayName || attachment?.fileName || "尚無正式檔案"}</strong>
-          </div>
-          {attachment ? (
-            <div className="drawing-preview-actions">
-              {previewMode !== "none" ? (
-                <a className="icon-button" href={previewUrl} target="_blank" rel="noreferrer" title="開啟預覽" aria-label={`開啟${slot.title}預覽`}>
-                  <ExternalLink size={16} />
-                </a>
-              ) : null}
-              {!effectiveReadOnly && isNativeSolidWorksAttachment(attachment) ? (
-                <button
-                  className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-                  type="button"
-                  onClick={() => void generatePreview(attachment)}
-                  disabled={loading || productionSliceEnforced}
-                  title={productionSliceEnforced ? productionSliceTitle : "重新產生預覽"}
-                  aria-label={productionSliceEnforced ? `重新產生${slot.title}預覽：${productionSliceTitle}` : `重新產生${slot.title}預覽`}
-                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-                >
-                  <RefreshCw size={16} />
-                </button>
-              ) : null}
-              <a className="icon-button" href={downloadUrl} title="下載附件" aria-label={`下載${slot.title}附件`}>
-                <Download size={16} />
-              </a>
-            </div>
-          ) : null}
-        </div>
-      </article>
-    );
+    const media = previewMode !== "none" && previewUrl ? {
+      href: previewUrl,
+      mode: previewMode === "image" ? "image" as const : "document" as const,
+      title: `${slot.title} 預覽`,
+      alt: `${slot.title} 預覽`
+    } : undefined;
+    const action = !effectiveReadOnly && attachment && previewPlaceholder.action ? (
+      <button
+        className={`secondary-button preview-generate-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+        type="button"
+        onClick={() => void generatePreview(attachment)}
+        disabled={loading || productionSliceEnforced || previewPlaceholder.action.disabled}
+        title={productionSliceEnforced ? productionSliceTitle : previewPlaceholder.action.label}
+        aria-label={productionSliceEnforced ? `${slot.title}${productionSliceTitle}` : `${slot.title}${previewPlaceholder.action.label}`}
+        data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+      >
+        <RefreshCw size={15} />
+        {previewPlaceholder.action.label}
+      </button>
+    ) : null;
+    const actions = attachment ? (
+      <>
+        {!effectiveReadOnly && isNativeSolidWorksAttachment(attachment) ? (
+          <button
+            className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+            type="button"
+            onClick={() => void generatePreview(attachment)}
+            disabled={loading || productionSliceEnforced}
+            title={productionSliceEnforced ? productionSliceTitle : "重新產生預覽"}
+            aria-label={productionSliceEnforced ? `重新產生${slot.title}預覽：${productionSliceTitle}` : `重新產生${slot.title}預覽`}
+            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+          >
+            <RefreshCw size={16} />
+          </button>
+        ) : null}
+        {includeDownload ? (
+          <a className="icon-button" href={downloadUrl} title="下載附件" aria-label={`下載${slot.title}附件`}>
+            <Download size={16} />
+          </a>
+        ) : null}
+      </>
+    ) : null;
+    return {
+      kind: slot.kind,
+      title: slot.title,
+      fileName: attachment?.displayName || attachment?.fileName,
+      state: previewMode === "none" ? previewPlaceholder.tone : "ready",
+      stateTitle: previewPlaceholder.title,
+      stateText: previewPlaceholder.text,
+      media,
+      action,
+      actions
+    };
   }
+
+  async function uploadControlledDrawingAttachment(event: FormEvent) {
+    event.preventDefault();
+    if (productionSliceEnforced) {
+      setMessage({ type: "error", text: productionSliceUnopenedMessage });
+      return;
+    }
+    if (!controlledUploadFile) {
+      setMessage({ type: "error", text: "請先拖曳或選擇一個圖面附件。" });
+      return;
+    }
+    setControlledUploadBusy(true);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.append("file", controlledUploadFile);
+      form.append("revision", revisionStage ? suggestedRevision : "");
+      form.append("display_name", controlledUploadFile.name);
+      form.append("description", "從圖號明細上傳圖面資料");
+      const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(entityCode)}/revision-files`, { method: "POST", body: form });
+      const body = await response.json().catch(() => ({}));
+      const errorValue = typeof body.error === "object" && body.error !== null ? body.error.message : body.message ?? body.error;
+      if (!response.ok) throw new Error(formatAttachmentActionError(errorValue, "圖面資料上傳未完成"));
+      const uploadedName = controlledUploadFile.name;
+      setControlledUploadFile(null);
+      setMessage({ type: "success", text: `${uploadedName} 已上傳。` });
+      await loadAttachments({ clearMessage: false });
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : formatAttachmentActionError(error, "圖面資料上傳未完成") });
+    } finally {
+      setControlledUploadBusy(false);
+    }
+  }
+
+  const drawingPreviewCards = drawingPreviewSlots.map((slot) => buildPreviewCard(slot));
+  const compactDrawingPreviewCards = drawingPreviewSlots.map((slot) => buildPreviewCard(slot, { includeDownload: false }));
 
   const uploadForm = (
     <form className="master-attachment-form" onSubmit={uploadAttachment}>
-      <label>
-        類別
-        <select className="dropdown-select" value={category} disabled={productionSliceEnforced} onChange={(event) => setCategory(event.target.value)}>
-          {categories.map((item) => (
-            <option value={item.value} key={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        版次
-        <input
-          value={revision}
-          disabled={productionSliceEnforced}
-          onChange={(event) => {
-            setRevisionTouched(true);
-            setRevision(event.target.value);
-          }}
-          placeholder={revisionStage ? suggestedRevision || "1 / 0.1" : "1 / 0.1"}
-        />
-        <small>{revisionHelpText(revisionStage, suggestedRevision)}</small>
-      </label>
-      <label>
-        顯示名稱
-        <input value={displayName} disabled={productionSliceEnforced} onChange={(event) => setDisplayName(event.target.value)} placeholder="未填則使用檔名" />
-      </label>
-      <label>
-        說明
-        <input value={description} disabled={productionSliceEnforced} onChange={(event) => setDescription(event.target.value)} placeholder="用途、來源或注意事項" />
-      </label>
+      {authorityMode !== "reference_manager" ? (
+        <>
+          <label>
+            類別
+            <select className="dropdown-select" value={category} disabled={productionSliceEnforced} onChange={(event) => setCategory(event.target.value)}>
+              {categories.map((item) => (
+                <option value={item.value} key={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            版次
+            <input
+              value={revision}
+              disabled={productionSliceEnforced}
+              onChange={(event) => {
+                setRevisionTouched(true);
+                setRevision(event.target.value);
+              }}
+              placeholder={revisionStage ? suggestedRevision || "1 / 0.1" : "1 / 0.1"}
+            />
+            <small>{revisionHelpText(revisionStage, suggestedRevision)}</small>
+          </label>
+          <label>
+            顯示名稱
+            <input value={displayName} disabled={productionSliceEnforced} onChange={(event) => setDisplayName(event.target.value)} placeholder="未填則使用檔名" />
+          </label>
+          <label>
+            說明
+            <input value={description} disabled={productionSliceEnforced} onChange={(event) => setDescription(event.target.value)} placeholder="用途、來源或注意事項" />
+          </label>
+        </>
+      ) : null}
       <div className="master-attachment-file">
         <FileDropzone
           label="拖曳或選擇附件"
@@ -874,86 +933,178 @@ export function MasterAttachmentPanel({
 
   const drawingPreviewBoard =
     drawingPreviewSlots.length > 0 ? (
-      <section className="drawing-preview-board" aria-label="正式圖面預覽" data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined}>
-        <div className="drawing-preview-board-header">
-          <div>
-            <h3>正式版{attachmentSections.currentRevision ? ` ${attachmentSections.currentRevision}` : ""}</h3>
-          </div>
-          <strong>{attachmentSections.current.length} 個檔案</strong>
-        </div>
-        <div className="drawing-preview-grid">{drawingPreviewSlots.map((slot) => renderPreviewCard(slot))}</div>
-      </section>
+      <DrawingDetailPreview
+        title={`正式版${attachmentSections.currentRevision ? ` ${attachmentSections.currentRevision}` : ""}`}
+        meta={`${attachmentSections.current.length} 個檔案`}
+        cards={drawingPreviewCards}
+        dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined}
+      />
     ) : null;
-  const compactControlledSummary = compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? (
+  const compactControlledUploadForm = compact && authorityMode === "controlled_summary" && entityType === "drawing_number" ? (
+    <form className="master-attachment-inline-upload" onSubmit={uploadControlledDrawingAttachment} aria-label="上傳圖面資料">
+      <FileDropzone
+        label="上傳圖面資料"
+        description="拖曳或選擇 1 個圖面、PDF、DWG 或常見中繼檔"
+        accept=".SLDDRW,.SLDPRT,.SLDASM,.PDF,.DWG,.DXF,.STEP,.STP,.IGES,.IGS,.IGF,.X_T,.X_B,.SAT,.STL,.JT"
+        selectedFile={controlledUploadFile}
+        variant="compact"
+        disabled={productionSliceEnforced || controlledUploadBusy}
+        onClearSelected={() => setControlledUploadFile(null)}
+        onFilesSelected={(selected) => {
+          const selectedFile = selected[0] ?? null;
+          if (selectedFile && !isSupportedDrawingUploadFile(selectedFile.name)) {
+            setControlledUploadFile(null);
+            setMessage({ type: "error", text: "只接受常見圖面與工程格式：PDF、DWG/DXF、STEP/STP、IGES/IGS/IGF、X_T/X_B、SAT、STL、JT，以及 SLDDRW、SLDPRT、SLDASM。" });
+            return;
+          }
+          setMessage(null);
+          setControlledUploadFile(selectedFile);
+        }}
+        onReject={(reason) => {
+          if (reason === "disabled" && productionSliceEnforced) setMessage({ type: "error", text: productionSliceUnopenedMessage });
+          if (reason === "single_file_only") setMessage({ type: "error", text: "一次只能上傳一個圖面附件。" });
+        }}
+      />
+      <button
+        className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+        type="submit"
+        disabled={productionSliceEnforced || controlledUploadBusy || !controlledUploadFile}
+        title={productionSliceEnforced ? productionSliceTitle : "上傳圖面資料"}
+        aria-label={productionSliceEnforced ? `上傳圖面資料：${productionSliceTitle}` : "上傳圖面資料"}
+        data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+      >
+        <UploadCloud size={15} />
+        {controlledUploadBusy ? "上傳中..." : "上傳"}
+        {productionSliceEnforced ? <span className="nav-unopened-badge">未開放</span> : null}
+      </button>
+    </form>
+  ) : null;
+  const compactControlledSummary = compact && authorityMode === "controlled_summary" && compactControlledListAttachments.length > 0 ? (
     <div className="master-attachment-compact-controlled">
-      <div className="master-attachment-list">{attachmentSections.current.map((attachment) => renderAttachmentRow(attachment, { minimal: true }))}</div>
-        {drawingPreviewSlots.length > 0 ? <details className="master-attachment-preview-details" data-drawing-detail-section={drawingDetailSkeleton ? "drawing-preview" : undefined} open>
-        <summary><span><Box size={16} />圖面預覽</span><strong>{drawingPreviewSlots.length} 類</strong></summary>
-        <div className="drawing-preview-grid">{drawingPreviewSlots.map((slot) => renderPreviewCard(slot))}</div>
-      </details> : null}
+      {drawingPreviewSlots.length > 0 ? <DrawingDetailPreview cards={compactDrawingPreviewCards} showHeader={false} showFileName={false} dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined} /> : null}
+      <section className="master-attachment-file-details" aria-label="檔案清單">
+        <div className="master-attachment-file-details-header">
+          <span><FileText size={16} />檔案清單</span>
+          <strong>{compactControlledListAttachments.length} 個</strong>
+        </div>
+        <div className="master-attachment-list">{compactControlledListAttachments.map((attachment) => renderAttachmentRow(attachment, { minimal: true }))}</div>
+        {compactControlledUploadForm}
+      </section>
     </div>
   ) : null;
+  const compactControlledUploadEmptyEntry = compact && authorityMode === "controlled_summary" && entityType === "drawing_number" && compactControlledListAttachments.length === 0 ? compactControlledUploadForm : null;
   const drawingPreviewEmpty = drawingDetailSkeleton && entityType === "drawing_number" && drawingPreviewSlots.length === 0 ? (
-    <section className="drawing-preview-board" aria-label="正式圖面預覽" data-drawing-detail-section="drawing-preview">
-      <div className="drawing-preview-board-header"><h3>圖面預覽</h3></div>
-      <div className="drawing-preview-grid">
-        <article className="drawing-preview-card two-d">
-          <div className="drawing-preview-frame placeholder-frame">
-            <div className="drawing-preview-placeholder missing" data-preview-state="missing">
-              <FileText className="drawing-preview-status-icon missing" size={34} aria-hidden="true" />
-              <strong>尚無可預覽圖面</strong>
-              <span>先完成版次檔案送審；正式檔案建立後會顯示在這裡。</span>
-            </div>
-          </div>
-        </article>
-      </div>
-    </section>
+    <DrawingDetailPreview
+      title="圖面預覽"
+      meta="0 類"
+      cards={[]}
+      dataSection="drawing-preview"
+    />
   ) : null;
+  const hideCompactControlledHeader = compact && authorityMode === "controlled_summary" && compactControlledListAttachments.length > 0;
+  const hideCompactReferenceManagerHeader = compact && authorityMode === "reference_manager";
+  const deletedAttachmentsBody = (
+    <div className="master-attachment-deleted-body">
+      <div className="master-attachment-deleted-toolbar">
+        <p>這裡只放可復原的附件刪除紀錄，受控歷史與作廢紀錄不在此處。</p>
+        <button className="secondary-button" type="button" onClick={() => void loadDeletedAttachments()} disabled={deletedLoading || loading}>
+          <RefreshCw size={16} />
+          重新整理
+        </button>
+      </div>
+      <div className="master-attachment-list" aria-live="polite">
+        {authorityDeletedAttachments.map((deleted) => {
+          const { attachment, policy } = deleted;
+          const restoreState = policy.actions.restore;
+          const canRestore = restoreState?.allowed === true;
+          return (
+            <article className="master-attachment-row deleted" key={attachment.id}>
+              <div className="master-attachment-icon history" aria-hidden="true">
+                <History size={18} />
+              </div>
+              <div className="master-attachment-main">
+                <div className="master-attachment-title-row">
+                  <strong title={attachment.fileName}>{attachment.displayName || attachment.fileName}</strong>
+                  <span className="master-attachment-status history">{policy.stageLabel}</span>
+                  {policy.detailTags.map((tag) => (
+                    <span className={`master-attachment-status ${tag === "可還原" ? "restorable" : "blocked"}`} key={`${attachment.id}-${tag}`}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="master-attachment-meta">
+                  <span>{categoryLabel(attachment.documentCategory)}</span>
+                  {attachment.revision ? <span>版次 {attachment.revision}</span> : null}
+                  <span>{attachment.fileExt.toUpperCase()}</span>
+                  <span>{formatBytes(attachment.fileSize)}</span>
+                  <span>{formatDateTime(attachment.createdAt)}</span>
+                </div>
+                {attachment.description ? <p>{attachment.description}</p> : null}
+                {!canRestore && restoreState?.message ? <p className="master-attachment-error">{formatAttachmentActionError(restoreState.message, "附件目前不可還原")}</p> : null}
+              </div>
+              <div className="master-attachment-actions">
+                <button
+                  className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
+                  type="button"
+                  onClick={() => void restoreAttachment(deleted)}
+                  disabled={productionSliceEnforced || loading || deletedLoading || !canRestore}
+                  title={productionSliceEnforced ? productionSliceTitle : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
+                  aria-label={productionSliceEnforced ? `還原附件：${productionSliceTitle}` : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
+                  data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </article>
+          );
+        })}
+        {deletedLoading ? <div className="empty">正在載入已刪除資料...</div> : null}
+        {deletedLoaded && authorityDeletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
+      </div>
+    </div>
+  );
 
   return (
-    <section className={`panel master-attachment-panel${compact ? " is-compact" : ""}`}>
-      <div className="panel-header">
+    <section className={`panel master-attachment-panel${compact ? " is-compact" : ""}`} data-attachment-authority={authorityMode}>
+      {!hideCompactControlledHeader && !hideCompactReferenceManagerHeader ? <div className="panel-header">
         <div>
           <h2>{authorityMode === "controlled_summary" ? "受控版次檔案" : authorityMode === "reference_manager" ? "參考附件" : effectiveReadOnly && entityType === "drawing_number" ? "受控檔案摘要" : entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
-          {compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? <span className="master-attachment-header-meta">版次 {attachmentSections.currentRevision ?? "-"} · {attachmentSections.current.length} 個</span> : null}
+          {compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? <span className="master-attachment-header-meta">正式版次 {attachmentSections.currentRevision ?? "-"}</span> : null}
           {!compact ? <p>{authorityMode === "controlled_summary" ? "此區只顯示候選首版或正式版次流程建立的受控檔案；變更內容請建立新版次。" : authorityMode === "reference_manager" ? "此區僅管理作業參考附件，不會取代受控版次檔案，也不會直接改變正式版次。" : effectiveReadOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p> : null}
         </div>
-      </div>
+      </div> : null}
 
       {compactControlledSummary}
       {entityType === "drawing_number" && !compactControlledSummary ? drawingPreviewBoard : null}
       {drawingPreviewEmpty}
+      {compactControlledUploadEmptyEntry}
 
       {!effectiveReadOnly && productionSliceEnforced ? <div className="master-attachment-message error">{productionSliceUnopenedMessage}</div> : null}
       {message ? <div className={`master-attachment-message ${message.type}`}>{message.text}</div> : null}
 
       {!effectiveReadOnly && entityType === "drawing_number" ? (
-        <details className="master-attachment-upload-panel">
-          <summary>
-            <span>
-              <UploadCloud size={16} />
-              新增附件
-            </span>
-          </summary>
+        <AttachmentDisclosure
+          alwaysExpanded={alwaysExpandedExceptHistory}
+          className="master-attachment-upload-panel"
+          ariaLabel="新增附件"
+          summary={<span><UploadCloud size={16} />新增附件</span>}
+        >
           {uploadForm}
-        </details>
+        </AttachmentDisclosure>
       ) : !effectiveReadOnly ? (
         uploadForm
       ) : null}
 
       <div className="master-attachment-sections" aria-live="polite">
         {attachmentSections.current.length > 0 && entityType === "drawing_number" && !compactControlledSummary ? (
-          <details className="master-attachment-current-details">
-            <summary>
-              <span>
-                <FileText size={16} />
-                檔案明細
-              </span>
-              <strong>{attachmentSections.current.length} 個</strong>
-            </summary>
-            <p>下載、同步或追溯時再展開。</p>
+          <AttachmentDisclosure
+            alwaysExpanded={alwaysExpandedExceptHistory}
+            className="master-attachment-current-details"
+            summary={<><span><FileText size={16} />檔案明細</span><strong>{attachmentSections.current.length} 個</strong></>}
+          >
+            <p>{alwaysExpandedExceptHistory ? "可直接下載、同步或追溯目前附件。" : "下載、同步或追溯時再展開。"}</p>
             <div className="master-attachment-list">{attachmentSections.current.map((attachment) => renderAttachmentRow(attachment, { compact: true }))}</div>
-          </details>
+          </AttachmentDisclosure>
         ) : null}
 
         {attachmentSections.current.length > 0 && entityType !== "drawing_number" ? (
@@ -1109,84 +1260,60 @@ export function MasterAttachmentPanel({
         </details>
       ) : null}
 
-      {!effectiveReadOnly ? <details
-        className="master-attachment-deleted"
-        onToggle={(event) => {
-          if (event.currentTarget.open && !deletedLoaded && !deletedLoading) void loadDeletedAttachments();
-        }}
-      >
-        <summary>
-          <span>
-            <History size={16} />
-            已刪除資料
-          </span>
-          <strong>{deletedLoaded ? authorityDeletedAttachments.length : "未載入"}</strong>
-        </summary>
-        <div className="master-attachment-deleted-body">
-          <div className="master-attachment-deleted-toolbar">
-            <p>這裡只放可復原的附件刪除紀錄，受控歷史與作廢紀錄不在此處。</p>
-            <button className="secondary-button" type="button" onClick={() => void loadDeletedAttachments()} disabled={deletedLoading || loading}>
-              <RefreshCw size={16} />
-              重新整理
-            </button>
-          </div>
-          <div className="master-attachment-list" aria-live="polite">
-            {authorityDeletedAttachments.map((deleted) => {
-              const { attachment, policy } = deleted;
-              const restoreState = policy.actions.restore;
-              const canRestore = restoreState?.allowed === true;
-              return (
-                <article className="master-attachment-row deleted" key={attachment.id}>
-                  <div className="master-attachment-icon history" aria-hidden="true">
-                    <History size={18} />
-                  </div>
-                  <div className="master-attachment-main">
-                    <div className="master-attachment-title-row">
-                      <strong title={attachment.fileName}>{attachment.displayName || attachment.fileName}</strong>
-                      <span className="master-attachment-status history">{policy.stageLabel}</span>
-                      {policy.detailTags.map((tag) => (
-                        <span className={`master-attachment-status ${tag === "可還原" ? "restorable" : "blocked"}`} key={`${attachment.id}-${tag}`}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="master-attachment-meta">
-                      <span>{categoryLabel(attachment.documentCategory)}</span>
-                      {attachment.revision ? <span>版次 {attachment.revision}</span> : null}
-                      <span>{attachment.fileExt.toUpperCase()}</span>
-                      <span>{formatBytes(attachment.fileSize)}</span>
-                      <span>{formatDateTime(attachment.createdAt)}</span>
-                    </div>
-                    {attachment.description ? <p>{attachment.description}</p> : null}
-                    {!canRestore && restoreState?.message ? <p className="master-attachment-error">{formatAttachmentActionError(restoreState.message, "附件目前不可還原")}</p> : null}
-                  </div>
-                  <div className="master-attachment-actions">
-                    <button
-                      className={`icon-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-                      type="button"
-                      onClick={() => void restoreAttachment(deleted)}
-                      disabled={productionSliceEnforced || loading || deletedLoading || !canRestore}
-                      title={productionSliceEnforced ? productionSliceTitle : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
-                      aria-label={productionSliceEnforced ? `還原附件：${productionSliceTitle}` : canRestore ? "還原附件" : restoreState?.message ? formatAttachmentActionError(restoreState.message, "附件目前不可還原") : "不可還原"}
-                      data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-                    >
-                      <RotateCcw size={16} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-            {deletedLoading ? <div className="empty">正在載入已刪除資料...</div> : null}
-            {deletedLoaded && authorityDeletedAttachments.length === 0 ? <div className="empty">目前沒有已刪除附件，不用處理。</div> : null}
-          </div>
-        </div>
-      </details> : null}
+      {!effectiveReadOnly ? (
+        <AttachmentDisclosure
+          alwaysExpanded={alwaysExpandedExceptHistory}
+          className="master-attachment-deleted"
+          summary={<><span><History size={16} />已刪除資料</span><strong>{deletedLoaded ? authorityDeletedAttachments.length : "未載入"}</strong></>}
+          onToggle={() => {
+            if (!alwaysExpandedExceptHistory && !deletedLoaded && !deletedLoading) void loadDeletedAttachments();
+          }}
+        >
+          {deletedAttachmentsBody}
+        </AttachmentDisclosure>
+      ) : null}
     </section>
+  );
+}
+
+function AttachmentDisclosure({
+  alwaysExpanded,
+  className,
+  ariaLabel,
+  summary,
+  onToggle,
+  children
+}: {
+  alwaysExpanded: boolean;
+  className: string;
+  ariaLabel?: string;
+  summary: ReactNode;
+  onToggle?: () => void;
+  children: ReactNode;
+}) {
+  if (alwaysExpanded) {
+    return (
+      <section className={`${className} is-always-open`} aria-label={ariaLabel}>
+        <div className="master-attachment-disclosure-summary">{summary}</div>
+        {children}
+      </section>
+    );
+  }
+  return (
+    <details className={className} onToggle={onToggle}>
+      <summary>{summary}</summary>
+      {children}
+    </details>
   );
 }
 
 function categoryLabel(value: string) {
   return [...drawingCategories, ...partCategories].find((item) => item.value === value)?.label ?? value;
+}
+
+function isSupportedDrawingUploadFile(fileName: string) {
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  return ["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"].includes(extension);
 }
 
 function buildDrawingPreviewSlots(attachments: MasterAttachment[]): DrawingPreviewSlot[] {
@@ -1232,7 +1359,7 @@ function previewPriority(attachment: MasterAttachment) {
 }
 
 function isThreeDimensionalAttachment(attachment: MasterAttachment) {
-  return attachment.documentCategory === "cad_3d" || ["sldprt", "sldasm", "step", "stp", "iges", "igs", "x_t"].includes(attachment.fileExt.toLowerCase());
+  return attachment.documentCategory === "cad_3d" || ["sldprt", "sldasm", "step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"].includes(attachment.fileExt.toLowerCase());
 }
 
 function isTwoDimensionalAttachment(attachment: MasterAttachment) {
@@ -1298,15 +1425,6 @@ function previewUrlForAttachment(attachment: MasterAttachment, downloadUrl: stri
 }
 
 const previewHeartbeatStaleAfterMs = 30_000;
-
-function renderPreviewStatusIcon(icon: PreviewPlaceholderState["icon"], slotKind: DrawingPreviewSlot["kind"]) {
-  if (icon === "loading") return <LoaderCircle className="drawing-preview-status-icon loading" size={36} aria-hidden="true" />;
-  if (icon === "delayed") return <Clock3 className="drawing-preview-status-icon delayed" size={36} aria-hidden="true" />;
-  if (icon === "failed") return <CircleAlert className="drawing-preview-status-icon failed" size={36} aria-hidden="true" />;
-  if (icon === "offline") return <WifiOff className="drawing-preview-status-icon unavailable" size={36} aria-hidden="true" />;
-  if (icon === "download") return <Download className="drawing-preview-status-icon unavailable" size={34} aria-hidden="true" />;
-  return slotKind === "three-d" ? <Box className="drawing-preview-status-icon missing" size={36} aria-hidden="true" /> : <FileText className="drawing-preview-status-icon missing" size={34} aria-hidden="true" />;
-}
 
 function previewJobIsStale(job: PreviewJob, now = Date.now()) {
   return now - new Date(job.updatedAt).getTime() > previewHeartbeatStaleAfterMs;

@@ -64,6 +64,8 @@ function startServer() {
       PDM_DATA_DIR: tempDir,
       PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
       PDM_RELEASE_MODE: "local_stub",
+      PDM_NUMBER_STATE_FLOW_V1: "true",
+      PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
       PDM_PUBLIC_BASE_URL: baseUrl,
       PDM_NEXT_DIST_DIR: distDirRelative
     },
@@ -151,7 +153,7 @@ try {
       assert.ok(statusFilterOptions.includes("待你處理"), `${route} must expose viewer-aware status filter; body=${body.slice(-500)}`);
       if (route === "/numbering/drawings") {
         const headers = await page.locator(".drawing-workbench-table thead th").allTextContents();
-        assert.deepEqual(headers.map((value) => value.trim()), ["圖號", "品名", "工作狀態"], "drawing list must expose only three scan columns");
+        assert.deepEqual(headers.map((value) => value.trim()).filter(Boolean), ["圖號", "品名", "料號", "工作狀態"], "drawing list must expose part number after name as a separate scan column");
         assert.equal(await page.locator('.drawing-workbench-table td[data-label="下一步"]').count(), 0, "drawing list must not repeat next-step actions");
       }
       fs.mkdirSync(outputDir, { recursive: true });
@@ -163,7 +165,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${appBaseUrl}/parts`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
-  const partRows = page.locator("[data-part-row='true']");
+  const partRows = page.locator("[data-part-workbench-row='true']");
   if (await partRows.count()) {
     await partRows.first().click();
     try {
@@ -192,7 +194,7 @@ try {
   assert.equal(await drawingStatusFilter.count(), 1, "drawing workbench must expose one work-status filter");
   assert.deepEqual(
     (await drawingStatusFilter.locator("option").allTextContents()).map((value) => value.trim()),
-    ["全部工作狀態", "待你處理", "等他人處理", "系統處理中", "可使用", "歷史"],
+    ["全部工作狀態", "待你處理", "等他人處理", "系統處理中", "生產可用", "研發可用", "可用範圍待確認", "負責人待確認", "歷史"],
     "drawing work-status filter must use the table's first-level viewer vocabulary"
   );
   await drawingStatusFilter.selectOption("waiting");
@@ -204,7 +206,7 @@ try {
 
   await page.goto(`${appBaseUrl}/numbering/search`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
-  const relationRows = page.locator("[data-search-row='true']");
+  const relationRows = page.locator("[data-relation-workbench-row='true']");
   if (await relationRows.count()) {
     assert.ok(await page.locator(".human-status-badge").count(), "relation list must show primary human status");
     await relationRows.first().locator("button.pdm-identity-code").first().click();
