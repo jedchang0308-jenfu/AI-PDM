@@ -1,6 +1,6 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
-Status: Phase 1 Local Implemented + Auto-Orchestration QC Passed / Windows Shell + Document Manager Worker Partial Evidence
+Status: Phase 1 Local Implemented + Auto-Orchestration QC Passed / Google Secret Manager credential integration pending DEV-058
 Date: 2026-07-06
 Owner: Dev PM
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
@@ -11,10 +11,15 @@ Related authority:
 
 - `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
 - `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`
+- `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`
 - `.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md`
 - `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`
 - `src/components/master-attachment-panel.tsx`
 - `scripts/probe-document-manager-extractor.mjs`
+
+## 2026-08-07 Credential Authority Amendment
+
+The native Windows worker and derivative boundary in this document remain authoritative. The active SolidWorks Document Manager key must now resolve from Google Secret Manager through `DEV-058`; Supabase Vault is not a current production target. A saved/active key proves credential metadata only and must not be presented as evidence that the Windows 2D worker is online.
 
 External reference:
 

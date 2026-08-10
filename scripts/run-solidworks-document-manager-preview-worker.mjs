@@ -58,13 +58,29 @@ const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
 const workerId = args.workerId || defaultWorkerId;
 const watchMode = args.watch === true;
 const pollMs = readPositiveInt(args.pollMs, 2000);
+const credentialRefreshMs = readPositiveInt(args.credentialRefreshMs, 60000);
 let idleReported = false;
+let workerCredentialLoadedFromRoute = false;
+let workerCredentialLoadedAt = 0;
+let workerCredentialValue = "";
 
 if (watchMode) {
-  console.log(JSON.stringify({ workerId, watching: true, pollMs }, null, 2));
+  console.log(JSON.stringify({ workerId, watching: true, pollMs, credentialRefreshMs }, null, 2));
 }
 
 while (true) {
+  if (watchMode) {
+    try {
+      const shouldRefreshCredential = workerCredentialLoadedFromRoute && Date.now() - workerCredentialLoadedAt >= credentialRefreshMs;
+      await ensureWorkerDocumentManagerKey({ baseUrl, token, refresh: shouldRefreshCredential });
+    } catch (error) {
+      if (isWorkerConfigurationError(error)) throw error;
+      console.error(JSON.stringify({ workerId, watching: true, status: "credential_retry", error: "Document Manager credential is not ready; the worker will retry." }, null, 2));
+      await delay(pollMs);
+      continue;
+    }
+  }
+
   let claim;
   try {
     claim = await claimJob({ baseUrl, token, workerId });
@@ -100,6 +116,7 @@ async function processClaim(input) {
   const { baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, claim } = input;
   const heartbeat = startJobHeartbeat({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId });
   try {
+    await ensureWorkerDocumentManagerKey({ baseUrl: claimBaseUrl, token: claimToken, refresh: false });
     const sourcePath = resolveClaimSourcePath(claim);
     const outputPath = path.join(os.tmpdir(), `ai-pdm-dm-preview-${claim.jobId}.png`);
     const extracted = await extractDocumentManagerPreview(sourcePath, outputPath);
@@ -200,6 +217,44 @@ async function claimJob(input) {
   return body.job ?? null;
 }
 
+async function ensureWorkerDocumentManagerKey(input) {
+  const now = Date.now();
+  if (workerCredentialLoadedFromRoute && workerCredentialValue && !input.refresh && now - workerCredentialLoadedAt < credentialRefreshMs) return;
+  if (!workerCredentialLoadedFromRoute && hasDocumentManagerLicenseKey() && !input.refresh) return;
+  if (input.refresh && workerCredentialLoadedFromRoute) clearRouteLoadedCredential();
+  const response = await fetch(`${input.baseUrl}/api/preview-workers/solidworks-document-manager-key`, {
+    method: "GET",
+    headers: {
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-preview-worker-token": input.token
+    }
+  });
+  if (!response.ok) {
+    if (workerCredentialLoadedFromRoute) clearRouteLoadedCredential();
+    const error = new Error(`Document Manager credential route returned HTTP ${response.status}`);
+    if (response.status === 401 || response.status === 403 || response.status === 503) error.code = "PREVIEW_WORKER_CONFIGURATION_ERROR";
+    if (response.status === 404) error.code = "DOCUMENT_MANAGER_LICENSE_KEY_MISSING";
+    throw error;
+  }
+  const body = await response.json();
+  const key = String(body.key ?? "").trim();
+  if (!key) {
+    const error = new Error("DOCUMENT_MANAGER_LICENSE_KEY_MISSING");
+    error.code = "DOCUMENT_MANAGER_LICENSE_KEY_MISSING";
+    throw error;
+  }
+  workerCredentialValue = key;
+  workerCredentialLoadedFromRoute = true;
+  workerCredentialLoadedAt = now;
+}
+
+function clearRouteLoadedCredential() {
+  workerCredentialValue = "";
+  workerCredentialLoadedFromRoute = false;
+  workerCredentialLoadedAt = 0;
+  delete process.env.PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY;
+}
+
 function isWorkerConfigurationError(error) {
   return error?.code === "PREVIEW_WORKER_CONFIGURATION_ERROR";
 }
@@ -266,7 +321,10 @@ async function extractDocumentManagerPreview(sourcePath, outputPath) {
   await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.promises.rm(outputPath, { force: true });
   const result = await spawnFileAsync(exporterExePath, [sourcePath, outputPath], {
-    env: process.env
+    env: {
+      ...process.env,
+      ...(workerCredentialValue ? { PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY: workerCredentialValue } : {})
+    }
   });
   if (result.status !== 0) {
     throw new Error([result.stdout, result.stderr].filter(Boolean).join("\n").trim() || `Document Manager exporter failed with exit code ${result.status}`);
@@ -276,6 +334,7 @@ async function extractDocumentManagerPreview(sourcePath, outputPath) {
 }
 
 function hasDocumentManagerLicenseKey() {
+  if (workerCredentialValue) return true;
   return [
     "PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY",
     "PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY",
@@ -380,7 +439,7 @@ function assertMeaningfulDrawingPreviewQuality(quality, outputPath) {
 
 function userFacingPreviewErrorSummary(message) {
   if (/DOCUMENT_MANAGER_LICENSE_KEY_MISSING/iu.test(message)) {
-    return "2D 圖面預覽需要 worker 可讀取的 SolidWorks Document Manager key；目前 UI 是 local test-double metadata，未提供 worker 可用的 secret。請改用 Supabase Vault live secret 或在 worker 主機設定 PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY。";
+    return "2D 圖面預覽需要 worker 可讀取的 SolidWorks Document Manager key；目前 UI 尚未提供可用的 Google Secret Manager exact version。請確認設定中心、worker token 與 2D worker readiness。";
   }
   if (/DOCUMENT_MANAGER_OPEN_FAILED:swDmDocumentOpenErrorNoLicense/iu.test(message)) {
     return "SolidWorks Document Manager key 無效或授權不包含此功能，無法開啟工程圖產生預覽。";
@@ -416,6 +475,7 @@ function parseArgs(values) {
     else if (value === "--worker-id") parsed.workerId = values[++index];
     else if (value === "--watch") parsed.watch = true;
     else if (value === "--poll-ms") parsed.pollMs = values[++index];
+    else if (value === "--credential-refresh-ms") parsed.credentialRefreshMs = values[++index];
     else if (value === "--compile-only") parsed.compileOnly = true;
   }
   return parsed;
@@ -435,9 +495,14 @@ Environment:
   PDM_SOLIDWORKS_INTEROP_DIR              Optional SolidWorks Interop DLL directory
   PDM_CSC_PATH                            Optional csc.exe path
 
+Options:
+  --credential-refresh-ms                 Refresh a Google Secret Manager-loaded key interval; defaults to 60000
+
 Notes:
   This worker only claims SLDDRW native_thumbnail_png jobs. It intentionally keeps
   the Document Manager key out of browser responses, DB metadata and command-line args.
+  A broker-loaded key is held in memory, refreshed on a bounded interval, and cleared
+  when the broker rejects the active version.
   --watch keeps the worker alive and polls for new drawing jobs.
   --poll-ms controls the watch interval and defaults to 2000.`);
 }

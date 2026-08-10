@@ -12,7 +12,7 @@ import {
   normalizeRevisionPackageFileRole,
   type RevisionPackageFileRole
 } from "@/lib/revision-package";
-import { chunkReadQueryInput } from "@/lib/repositories/read-query-batch";
+import { mapReadQueryBatches } from "@/lib/repositories/read-query-batch";
 
 type SubmissionPackageSeedRow = {
   id: string;
@@ -665,7 +665,7 @@ export class AsyncDrawingRevisionPackageRepository {
   private async loadPackageFileAssets(pkg: DrawingRevisionPackageRow, fileIds: string[]) {
     const uniqueFileIds = Array.from(new Set(fileIds.map((id) => id.trim()).filter(Boolean)));
     if (uniqueFileIds.length === 0) return [];
-    const batches = await Promise.all(chunkReadQueryInput(uniqueFileIds).map((ids) => {
+    const batches = await mapReadQueryBatches(uniqueFileIds, async (ids) => {
       const params: Record<string, unknown> = { drawingNumberId: pkg.drawing_number_id };
       const placeholders = ids.map((fileId, index) => {
         params[`fileId${index}`] = fileId;
@@ -682,7 +682,7 @@ export class AsyncDrawingRevisionPackageRepository {
       `,
         params
       );
-    }));
+    });
     const rowById = new Map(batches.flat().map((row) => [row.id, row]));
     return uniqueFileIds.flatMap((fileId) => {
       const row = rowById.get(fileId);

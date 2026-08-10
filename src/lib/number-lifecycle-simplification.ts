@@ -960,7 +960,7 @@ import {
   createFileStorageServiceForPointer,
   storagePointerFromRecord
 } from "@/lib/file-storage";
-import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow";
+import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
 import { isNumberLifecycleV2Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";

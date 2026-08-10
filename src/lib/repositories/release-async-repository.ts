@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
-import { chunkReadQueryInput } from "@/lib/repositories/read-query-batch";
+import { mapReadQueryBatches } from "@/lib/repositories/read-query-batch";
 import type { ProcurementSyncRun, ReadonlyShare, ReleasePackage, SupplierPortalResponse } from "@/lib/types";
 
 export const SELECT_ASYNC_RELEASE_PACKAGE_BY_SUBMISSION_SQL = `
@@ -305,7 +305,7 @@ export class AsyncReleaseRepository {
   }): Promise<AsyncReleasedFilenameConflict[]> {
     if (input.files.length === 0) return [];
 
-    const batches = await Promise.all(chunkReadQueryInput(input.files).map((files) => {
+    const batches = await mapReadQueryBatches(input.files, async (files) => {
       const params: Record<string, unknown> = { submissionId: input.submissionId };
       const predicates = files.map((file, index) => {
         params[`fileRole${index}`] = file.file_role;
@@ -313,7 +313,7 @@ export class AsyncReleaseRepository {
         return `(f.file_role = :fileRole${index} AND lower(f.original_filename) = lower(:originalFilename${index}))`;
       });
       return this.client.query<AsyncReleasedFilenameConflict>(selectReleasedFilenameConflictsSql(predicates.join(" OR ")), params);
-    }));
+    });
     const conflictByKey = new Map<string, AsyncReleasedFilenameConflict>();
     for (const conflict of batches.flat()) {
       const key = releasedFilenameKey(conflict.file_role, conflict.original_filename);

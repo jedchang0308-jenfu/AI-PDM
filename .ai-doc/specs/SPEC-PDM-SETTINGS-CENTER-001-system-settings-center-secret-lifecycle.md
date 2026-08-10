@@ -1,11 +1,23 @@
 # SPEC-PDM-SETTINGS-CENTER-001 - 系統設定中心與 Secret 生命週期治理
 
-Status: Phase 1-2 Implemented / Verification passed locally
+Status: Phase 1-2 Implemented / Generic lifecycle retained / Supabase provider superseded by DEV-058
 Date: 2026-07-06
 Owner: Dev PM
 Related DEV: `DEV-PDM-SETTINGS-CENTER-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`
 Related QA: `.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`
+
+## 2026-08-07 Authority Amendment
+
+The settings-center information architecture, Admin-only mutation, `draft -> tested -> active -> retired/revoked` lifecycle, masking, audit and browser redaction contracts remain authoritative.
+
+The Supabase Vault provider decision in this document is historical and is intentionally replaced by:
+
+- `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`
+- `DEV-058` / `DEV-PDM-GCP-SECRET-MANAGER-SW-WORKER-001`
+- `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
+
+Current authority is Google Secret Manager for secret material and Cloud SQL for metadata only. Provider-specific Supabase text below documents the 2026-07 implementation baseline and must not be used as a current staging/production target.
 
 External reference:
 
@@ -58,7 +70,7 @@ Confirmed product decisions:
   - `/settings/security` - secrets, keys and security-sensitive settings.
   - `/settings/workflow` - approval workflow, role matrix and high-risk process settings.
   - `/settings/system` - environment, runtime, database, release/backup and diagnostic status.
-- Supabase Vault is the authoritative secret store. PDM DB must not store secret plaintext.
+- Historical 2026-07 decision, superseded by DEV-058: Supabase Vault was selected as the secret store. The still-current rule is that PDM DB must not store secret plaintext.
 - Supabase DB stores only metadata, status, masked hints, lifecycle state, test evidence summary and audit links.
 - Google Workspace does not decide PDM roles. It can provide accounts/groups and Drive authority; PDM controls Admin/Manager/Reviewer/Engineer roles and approval matrix.
 - The browser never calls `vault.*`, `vault.decrypted_secrets` or any direct SQL surface. It only calls PDM server APIs.
@@ -196,6 +208,23 @@ Invariant:
 - `API` is the only PDM surface that may create/update Vault secrets.
 - `META` stores Vault secret IDs/references and redacted metadata only.
 - `PROBE` must redact request/response and persist only approved evidence.
+
+### 5.2 SolidWorks Worker Credential Readiness
+
+The SolidWorks Document Manager key follows this boundary:
+
+```text
+Admin UI -> settings lifecycle API -> Vault reference/metadata
+                         -> token-gated server-side worker credential route
+                         -> trusted Windows worker process memory only
+```
+
+- The browser never calls `vault.decrypted_secrets` and never receives the key.
+- The worker route requires `PDM_PREVIEW_WORKER_TOKEN`, returns `no-store`, and is not a browser/admin UI endpoint.
+- An active Supabase Vault reference is worker-readable only when the runtime is Postgres and `PDM_ENABLE_SUPABASE_VAULT_READS=true`.
+- `PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY` and equivalent worker environment variables remain a development/fallback path; they are not the formal settings-management surface.
+- The settings UI reports credential readiness and its next action; it does not claim that a worker process is alive merely because a secret reference exists.
+- `local_test_double` stores lifecycle metadata only and must remain blocked for real `.SLDDRW` generation.
 
 ## 5.1 Architecture Memory Capsule
 
@@ -449,7 +478,7 @@ Acceptance:
 | Phase | Document status | Purpose | Authorization boundary |
 |---|---|---|---|
 | Phase 0 - Architecture and long task | Spec Ready / Human Confirmed | Capture HCS decisions, ADR, QA and dev_task entry | Authorized by user request to write long task |
-| Phase 1 - SolidWorks secret vertical slice | Implemented / Verification passed locally | Prove secret draft, test-double Vault boundary, metadata, probe/test, activation, audit and work queue with SolidWorks provider | Supabase Vault live write/smoke remains gated |
+| Phase 1 - SolidWorks secret vertical slice | Historical local baseline / Verification passed | Prove secret draft, test-double boundary, metadata, probe/test, activation, audit and work queue | Original Supabase live gate is superseded; current provider gate is DEV-058 Google Secret Manager |
 | Phase 2 - Settings center IA shell | Implemented / Compatibility shell passed locally | Add `/settings`, integrations, security, workflow and system routes while preserving current Google Drive settings | Dedicated per-area pages may be deepened later |
 | Phase 3 - Google Workspace/Drive migration | RD Contract Ready / Not Authorized | Move current Drive folder verification into lifecycle metadata and add account-source status | Requires Google Workspace/Drive credential boundary confirmation |
 | Phase 4 - Supabase, LLM/OpenAI, release/backup high-risk settings | RD Contract Ready / Not Authorized | Generalize providers and high-risk activation/test evidence | Requires provider-specific test contracts and cost/credential approval |
@@ -524,7 +553,7 @@ Acceptance:
 - Active version appears in overview status and integration status.
 - Revoked/retired versions cannot be used.
 - UI has no visible raw API/HTTP error in required surfaces.
-- PDM DB stores lifecycle metadata only. Supabase Vault live storage is not claimed until a live target is approved and smoke-tested.
+- PDM DB stores lifecycle metadata only. The historical Supabase live-storage claim is superseded; current live evidence must use DEV-058 Google Secret Manager.
 
 Evidence required:
 
@@ -534,7 +563,7 @@ Evidence required:
 - Passed locally: `npm.cmd run qc:supabase-secret-boundary`
 - Passed locally: `npm.cmd run qc:gdrive-folder-tree-settings`
 - Passed locally for added metadata schema: `npm.cmd run qc:db-provider-contract`, `npm.cmd run qc:db-provider-postgres`, `npm.cmd run qc:supabase-current-change-impact`
-- Supabase Vault live probe remains a documented live-gate blocker.
+- The historical Supabase Vault live probe blocker is closed as superseded, not passed; DEV-058 defines the Google Secret Manager live gate.
 
 Stop conditions:
 
@@ -655,7 +684,7 @@ Minimum full DEV QA:
 - high-risk setting state machine tests.
 - role-based visibility tests.
 - RLS/grant/Data API exposure tests for metadata tables.
-- Supabase Vault live test or explicitly blocked live-evidence gate.
+- Current Google Secret Manager live test or explicitly blocked live-evidence gate under DEV-058.
 - existing `/settings` Google Drive behavior regression.
 
 ## 15. Deferred Scope Audit
@@ -664,7 +693,7 @@ Minimum full DEV QA:
 |---|---|---|
 | Remaining product implementation | Same Spec Phase 3-5 / Not Authorized | Phase 1 SolidWorks secret slice and Phase 2 route shell are implemented; provider expansion and workflow lifecycle remain gated |
 | Production deploy/cutover | Same Spec Phase 6 / Not Authorized | Requires deployment-release gate |
-| Supabase Vault live target | Blocked Human Re-entry if absent at RD time | Phase 1 must decide live target vs test double plus live blocker |
+| Historical Supabase Vault live target | Superseded, not passed | Use DEV-058 Google Secret Manager live target and keep test-double evidence explicitly local |
 | Two-person activation approval | No Tracking in first version | Explicitly not chosen; can become future DEV if required |
 | ERP/procurement settings | No Tracking in first version | First integration scope excludes it |
 | Google group direct role mapping | No Tracking / rejected | User selected Google as account source, PDM as authorization source |

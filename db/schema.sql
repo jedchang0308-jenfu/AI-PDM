@@ -324,7 +324,7 @@ CREATE TABLE IF NOT EXISTS secret_references (
   kind TEXT NOT NULL,
   provider TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
   vault_secret_id TEXT NOT NULL,
   masked_hint TEXT NOT NULL,
   fingerprint TEXT NOT NULL,

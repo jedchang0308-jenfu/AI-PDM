@@ -3,11 +3,11 @@
 Date: 2026-07-09
 Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`
-Status: Executed Locally for Phase 1A-1B / Release Not Authorized
+Status: Executed Locally through Phase 1C / Independent QC Passed / Release Not Authorized
 
 ## Validation Objective
 
-Verify that root, drawing and part detail drawers follow one object-detail contract across entry pages:
+Verify that root, drawing and part detail drawers follow one object-detail contract across entry pages, and that candidate/formal drawings render one `DrawingWorkspaceDrawer` without merging lifecycle write authority or adding a second preparation layer:
 
 ```text
 click root code -> root detail
@@ -23,6 +23,7 @@ In scope for Phase 1 validation:
 
 - `/numbering/search` relation tree and matrix click targets.
 - `/numbering/drawings` drawing drawer.
+- Candidate drawing workspace drawer (`candidate_bundle`) and formal drawing drawer (`drawing_number`) header/section parity.
 - `/parts` part drawer.
 - Shared drawer shell behavior: width, close, resize, loading/error states and `data-*` entity attributes.
 - Drawing detail consistency across `/numbering/search` and `/numbering/drawings`.
@@ -49,6 +50,8 @@ Use disposable local fixtures or stable demo data. Do not mutate production or S
 | `ENTITY-ROOT-001` | Root with at least one manufacturing drawing, one reference drawing and two parts |
 | `ENTITY-DRAWING-M` | Manufacturing drawing linked to at least one part and with attachment/readiness sections available |
 | `ENTITY-DRAWING-R` | Reference drawing linked as reference-only |
+| `ENTITY-CANDIDATE-CODED` | Candidate bundle with a primary reserved drawing code, product name and at least one first-revision file |
+| `ENTITY-CANDIDATE-UNNUMBERED` | Candidate bundle whose root/part may exist but no drawing reservation exists; title must remain `尚未產生圖號` |
 | `ENTITY-PART-LINKED` | Part linked to manufacturing and/or reference drawings, with material/color fields present or visibly missing |
 | `ENTITY-PART-COST` | Part with standard cost status and permission-sensitive amount visibility |
 | `ENTITY-NO-PERMISSION` | Actor lacking at least one write/action permission; read should still obey page permission |
@@ -85,6 +88,16 @@ Use disposable local fixtures or stable demo data. Do not mutate production or S
 | ENTITY-DRAW-002 | P0 | Reference drawing detail | Shows reference-only semantics and never labels it manufacturing basis |
 | ENTITY-DRAW-003 | P1 | Missing attachments/readiness blockers | First visible sentence tells user the next action |
 | ENTITY-DRAW-004 | P1 | Same-root part list | Shows same-root parts or a clear empty/blocked state |
+| ENTITY-DRAW-005 | P0 | Compare candidate and formal drawing drawers | Both expose `data-detail-family="drawing_number"`, `data-drawing-detail-skeleton="true"` and the same header slots |
+| ENTITY-DRAW-006 | P0 | Inspect section inventory in both variants | DOM order is `drawing-overview`, `drawing-revision-files`, `drawing-preview`, `drawing-pending`, `drawing-more` |
+| ENTITY-DRAW-007 | P0 | Candidate has no primary drawing reservation | Header shows `尚未產生圖號`; root code is not used as drawing identity |
+| ENTITY-DRAW-008 | P1 | Candidate preview data is unavailable | Preview shows a concise next step and does not fabricate a thumbnail or raw worker/API status |
+| ENTITY-DRAW-009 | P0 | Inspect candidate/formal write surfaces | Candidate uses first-revision candidate actions; formal controlled attachments stay read-only and route changes through formal revision workflow |
+| ENTITY-DRAW-010 | P1 | 5-second first-screen review | Reviewer can state drawing code, product name, status and next step without reading a duplicate identity/status card |
+| ENTITY-DRAW-011 | P0 | Inspect candidate/formal render paths | Both directly render `DrawingWorkspaceDrawer` and the DOM publishes exactly one `data-component="drawing-workspace-drawer"` |
+| ENTITY-DRAW-012 | P0 | Open an incomplete candidate | First-revision editor and missing requirements are available inline; no visible `準備首版圖面` navigation, duplicate CTA or extra `下一步` card exists |
+| ENTITY-DRAW-013 | P0 | Candidate becomes ready | Existing server-derived `送交審核` action becomes available in the same open drawer without route change or drawer replacement |
+| ENTITY-DRAW-014 | P0 | Compare incomplete/review/returned/controlled states | Same component stays mounted and each state exposes at most one primary CTA; lifecycle and permission authority remain unchanged |
 
 ### Part Detail Requirements
 
@@ -205,6 +218,16 @@ Pass:
 - Source context affects focus only.
 - No raw visible errors or critical layout failures.
 
+## Phase 1C Execution Result - 2026-08-08
+
+- Independent QC result: `PASS`, P0/P1/P2 = `0/0/0` after one Visible Text Noise finding was returned to RD and rechecked.
+- Candidate `A0006-M01` opens the inline first-revision editor with zero preparation navigation; visible `準備首版圖面` count is 0 and missing-file guidance appears once beside the upload work area.
+- Candidate and formal `A0005-M01` each expose exactly one `data-component="drawing-workspace-drawer"` and the same five-section DOM order. Empty candidate pending content remains a hidden 0×0 node so the contract is stable without creating layout space.
+- Final Chrome evidence covers candidate 1440×900 and 390×844 plus formal 1440×900; the earlier run covers both variants at 1024×768 and cancel-dialog isolation. Visible errors, console errors and horizontal overflow are 0.
+- Static gates: typecheck PASS; drawer QC 42/42; number-state UI 8/8; DEV-053 UI 23/23; scoped ESLint 0 errors.
+- Evidence: `output/qa/pdm-entity-detail-drawer-ai/20260808021459-single-workspace-recheck/`; initial finding and 1024/cancel evidence: `output/qa/pdm-entity-detail-drawer-ai/20260808020032-single-workspace/`.
+- Browser response-status telemetry remains `Not Sufficiently Verified`; successful rendered data, visible-error sweep and console sweep are supporting evidence, not a replacement for session-level network logs.
+
 ## AI 執行驗證計畫 - 2026-08-07
 
 ### QA 角色與判定邊界
@@ -248,7 +271,8 @@ Gate 2-5 必須在真實瀏覽器完成；只跑 Playwright source assertion 或
 | AI-REAL-002 | AI-REAL-001 drawer 開啟 | 先捲動 drawer，再直接點另一列 | 同一 drawer 更新，不先關閉重開；選取列與內容一致；新內容回到頂部 | 前後 entity code、drawer count、scrollTop、操作紀錄 |
 | AI-REAL-003 | 料號清單有資料 | 開 `/parts`，點 `A0001-P01` 或同等 fixture | `part_number` drawer 顯示身分、狀態、圖號關聯、屬性、成本與附件；單一 `X` | screenshot、DOM section inventory |
 | AI-REAL-004 | 圖料關係有 root/drawing/part | 開 `/numbering/search`，依序點 root、drawing、part | entity type 依點擊目標切換；drawing/part 核心內容與 owner module 一致；root 才顯示 aggregate | 三次 metadata、same-object comparison |
-| AI-REAL-005 | 正式圖號與 candidate 均可見 | 在圖號工作台各開一筆正式圖與 candidate | 兩者共用 shell/header/close/resize；domain body 可不同；不可出現第二個浮動 X | 對照截圖、header control count |
+| AI-REAL-005 | 正式圖號與 candidate 均可見 | 在圖號工作台各開一筆正式圖與 candidate | 兩者皆為一個 `DrawingWorkspaceDrawer`、共用 shell/header/close/resize及五段 skeleton；只允許 lifecycle action/mutation authority 不同 | 對照截圖、`data-component` count、header control count、section key/order inventory |
+| AI-REAL-005A | incomplete candidate 可見 | 開啟 candidate，不點任何準備入口 | 編輯器、缺項與檔案工作區已在同頁；可見文字沒有 `準備首版圖面` 導航或重複 CTA | 初始 drawer 截圖、可見文字掃描、URL/route、click count=0 |
 | AI-REAL-006 | drawer 開啟 | 點非 drawer 且非清單列位置，再以 `Escape` 關閉 | 兩種方式皆關閉；點清單列時只切換、不閃爍 | drawer count、URL、操作紀錄 |
 | AI-REAL-007 | drawer 開啟 | 拖曳寬度、reload、再次開啟 | 寬度 clamp 在 viewport，reload 後仍保留；清單仍可辨識 | width before/after/reload metrics |
 | AI-REAL-008 | drawer 開啟 | 用 `Tab`、`Shift+Tab`、`Enter`、`Escape` 操作 | close/action 可聚焦；無 focus trap；輸入欄位不被全域快捷鍵破壞 | focus order、active element、keyboard log |
@@ -276,6 +300,10 @@ Gate 2-5 必須在真實瀏覽器完成；只跑 Playwright source assertion 或
 | AI-GAP-010 | Data sanity | 預期有資料的清單、關係數與附件數不會意外全為 0 | fixture 明明有資料卻顯示空或全 0 |
 | AI-GAP-011 | Accessibility | heading、label、role、focus、contrast 與 keyboard path 可辨識 | icon-only 無 label、焦點不可見、Escape 行為衝突 |
 | AI-GAP-012 | Modal 隔離 | modal 維持 `aria-modal=true`；drawer 維持 `complementary`；modal Escape 不連帶關 drawer | drawer 被誤設 modal，或一次 Escape 關兩層 |
+| AI-GAP-013 | Drawing family 骨架 | candidate/formal 的 header hierarchy、五段 key/order相同；候選特有待辦/取消只在 pending/more | 兩者首屏重新分叉、candidate identity 重複、formal/candidate section order 不同 |
+| AI-GAP-014 | Candidate identity | 有圖號顯示主要候選圖號；無圖號固定 `尚未產生圖號` | 以主根號冒充圖號，或 header/body 同時重複同一主要 identity/status |
+| AI-GAP-015 | Single workspace | candidate/formal 各只有一個 `data-component="drawing-workspace-drawer"`；切換資料不產生第二 drawer/body | 候選/正式仍走不同 top-level 元件、重複 drawer 或二層頁面 |
+| AI-GAP-016 | Preparation friction | incomplete candidate 開啟即能補資料；首屏零次額外導航 | 必須先按「準備首版圖面」、錨點跳轉或進另一頁才可編輯 |
 
 ### 狀態覆蓋
 
@@ -437,3 +465,29 @@ Fail:
 - Core object sections diverge by source page.
 - Permission/redaction parity fails.
 - Drawer remains root-only for drawing/part clicks.
+
+## 2026-08-09 QA Reopen — Candidate Bundle Submit Modal
+
+Status: `QA-QC Reopened by DEV-059 / Historical PASS Retained as Baseline Only`.
+
+The user-provided current-route screenshot is first-class contradictory evidence: the candidate bundle-submit confirmation modal remains blocking and cannot be dismissed through the visible recovery actions. Therefore, the Phase 1B/1C PASS above must not be cited as proof that the current candidate submission surface is healthy.
+
+Focused authority:
+
+- SPEC: `.ai-doc/specs/SPEC-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001.md`
+- QA plan: `.ai-doc/qa/qa-pdm-candidate-bundle-submit-modal-runtime-recovery-validation-plan-2026-08-09.md`
+- Task: `.ai-doc/dev_task.md` (`DEV-059`)
+
+Re-entry condition for parent PASS:
+
+- AI operates the current route in a real browser and independently proves `X`, `返回檢查` and `Escape` close behavior with zero mutation.
+- Hard reload, back/forward, bfcache, candidate switching and drawer close/unmount do not restore or leak the modal state.
+- Runtime/API delay, server interruption, 503 and response-loss cases remain locally closable and provide safe retry/readback recovery.
+- A disposable `QA_DEV059_<runId>` workspace completes actual submit, duplicate-activation guard, readback, withdraw/cancel and cleanup with before/after data sanity.
+- Required desktop/tablet/mobile viewport evidence, console/network/server logs, screenshots/trace, click-through checks and visible-error sweep are present under `output/qa/pdm-candidate-submit-modal-recovery/<runId>/`.
+- P0/P1/P2 are 0, or any retained P2 has an explicit accepted disposition. Missing any real-operation or cleanup evidence means `未充分驗證`, not PASS.
+## 2026-08-09 QA Reopen — Candidate Bundle Submit Modal (DEV-059)
+
+Focused current-route recovery is now verified by AI in the browser. The candidate drawer remains open while `X`, `返回檢查`, and `Escape` each remove only the topmost confirmation modal; hard reload, back/forward, candidate switching, and 1440×900 / 1024×768 / 390×844 viewport checks do not resurrect the modal or produce horizontal overflow. Evidence: `.ai-doc/qa/DEV-059-real-operation-evidence-2026-08-09.md` and `npm run qc:dev-059:candidate-submit-modal-ui` (7/7).
+
+The parent delivery point remains release-gated because the shared candidate was intentionally not mutated. Isolated number-state flow/integration suites cover submit-lock, withdraw-unlock, rollback and idempotent replay; an isolated disposable UI mutation run is still required before restoring the parent `DEV-057` full QA/QC PASS.

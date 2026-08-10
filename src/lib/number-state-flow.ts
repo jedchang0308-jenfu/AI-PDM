@@ -5,6 +5,7 @@ import { createPdmCommand, type PdmCommandMetadata, type PlatformActorContext } 
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
+import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
 import {
   AsyncNumberStateFlowRepository,
   type NumberingDraftItemKind,
@@ -14,25 +15,8 @@ import {
   type NumberingDraftWorkspaceRecord
 } from "@/lib/repositories/number-state-flow-async-repository";
 
-export class NumberStateFlowError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly status: number,
-    public readonly retryable = false,
-    public readonly details?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = "NumberStateFlowError";
-  }
-}
-
-export type NumberStateActor = {
-  userId: string;
-  companyId: string;
-  role: string;
-  roles?: string[];
-};
+export { NumberStateFlowError };
+export type { NumberStateActor };
 
 const draftModes = new Set<NumberingDraftMode>(["new_bundle", "append_drawing", "append_part", "append_drawing_part"]);
 const itemKinds = new Set<NumberingDraftItemKind>(["purchased", "manufactured", "outsourced", "shared", "custom"]);

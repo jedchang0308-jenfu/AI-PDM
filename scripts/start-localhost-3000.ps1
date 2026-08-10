@@ -25,6 +25,10 @@ $PreviewWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.token"
 $PreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.out.log"
 $PreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.err.log"
 $PreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-windows-shell-preview-worker.mjs"
+$DocumentManagerPreviewWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.pid"
+$DocumentManagerPreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.out.log"
+$DocumentManagerPreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.err.log"
+$DocumentManagerPreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-solidworks-document-manager-preview-worker.mjs"
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
@@ -59,6 +63,24 @@ function Ensure-PreviewWorkerToken {
   $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
   Set-Content -LiteralPath $PreviewWorkerTokenFile -Value $token -Encoding ascii
   $env:PDM_PREVIEW_WORKER_TOKEN = $token
+}
+
+function Test-DocumentManagerPreviewKeyConfigured {
+  $keyCandidates = @(
+    $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY,
+    $env:PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY,
+    $env:SOLIDWORKS_DOCUMENT_MANAGER_KEY
+  )
+  foreach ($candidate in $keyCandidates) {
+    if ($candidate -and $candidate.Trim().Length -gt 0) {
+      return $true
+    }
+  }
+  return (($env:PDM_SETTINGS_SECRET_PROVIDER -eq "google_secret_manager" -and
+      $env:PDM_GCP_PROJECT_ID -and
+      $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID -and
+      $env:PDM_ENABLE_GCP_SECRET_READS -eq "true") -or
+    ($env:PDM_SETTINGS_SECRET_PROVIDER -eq "supabase_vault" -and $env:PDM_ENABLE_SUPABASE_VAULT_READS -eq "true"))
 }
 
 function Get-PreviewWorkerProcessInfo {
@@ -96,6 +118,7 @@ function Stop-PreviewWorker {
     Stop-Process -Id $processInfo.ProcessId -Force
   }
   Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+  Stop-DocumentManagerPreviewWorker
 }
 
 function Start-PreviewWorker {
@@ -108,7 +131,7 @@ function Start-PreviewWorker {
   Remove-Item -LiteralPath $PreviewWorkerStdoutLog, $PreviewWorkerStderrLog, $PreviewWorkerPidFile -ErrorAction SilentlyContinue
   $worker = Start-Process `
     -FilePath "node.exe" `
-    -ArgumentList @("`"$PreviewWorkerScript`"", "--watch", "--models-only") `
+    -ArgumentList @("`"$PreviewWorkerScript`"", "--watch", "--models-only", "--worker-id", "windows-shell-thumbnail-worker") `
     -WorkingDirectory $ProjectRoot `
     -WindowStyle Hidden `
     -PassThru `
@@ -126,6 +149,89 @@ function Start-PreviewWorker {
 
   Write-Host "Preview worker is running (PID $($worker.Id))."
   return Get-PreviewWorkerProcessInfo
+}
+
+function Get-DocumentManagerPreviewWorkerProcessInfo {
+  if (-not (Test-Path -LiteralPath $DocumentManagerPreviewWorkerPidFile)) {
+    return $null
+  }
+
+  try {
+    $workerProcessId = [int](Get-Content -LiteralPath $DocumentManagerPreviewWorkerPidFile -Raw).Trim()
+  }
+  catch {
+    Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $processInfo = Get-OwnerProcessInfo -OwnerProcessId $workerProcessId
+  if (-not $processInfo -or -not $processInfo.CommandLine) {
+    Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $commandLine = $processInfo.CommandLine.ToLowerInvariant()
+  if (-not $commandLine.Contains($ProjectRootLower) -or -not $commandLine.Contains("run-solidworks-document-manager-preview-worker.mjs")) {
+    Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  return $processInfo
+}
+
+function Stop-DocumentManagerPreviewWorker {
+  $processInfo = Get-DocumentManagerPreviewWorkerProcessInfo
+  if ($processInfo) {
+    Write-Host "Stopping AI_PDM 2D preview worker PID $($processInfo.ProcessId)."
+    Stop-Process -Id $processInfo.ProcessId -Force
+  }
+  Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+}
+
+function Start-DocumentManagerPreviewWorker {
+  $existing = Get-DocumentManagerPreviewWorkerProcessInfo
+  if ($existing) {
+    return $existing
+  }
+
+  Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+  if (-not (Test-DocumentManagerPreviewKeyConfigured)) {
+    Write-Host "2D preview worker is not configured: SolidWorks Document Manager key is unavailable to the worker."
+    return $null
+  }
+
+  Ensure-PreviewWorkerToken
+  Remove-Item -LiteralPath $DocumentManagerPreviewWorkerStdoutLog, $DocumentManagerPreviewWorkerStderrLog -ErrorAction SilentlyContinue
+  $worker = Start-Process `
+    -FilePath "node.exe" `
+    -ArgumentList @("`"$DocumentManagerPreviewWorkerScript`"", "--watch", "--poll-ms", "2000", "--worker-id", "solidworks-document-manager-preview-worker") `
+    -WorkingDirectory $ProjectRoot `
+    -WindowStyle Hidden `
+    -PassThru `
+    -RedirectStandardOutput $DocumentManagerPreviewWorkerStdoutLog `
+    -RedirectStandardError $DocumentManagerPreviewWorkerStderrLog
+
+  Set-Content -LiteralPath $DocumentManagerPreviewWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
+  Start-Sleep -Milliseconds 1500
+  if ($worker.HasExited) {
+    Write-Host "2D preview worker exited during startup."
+    Get-Content -LiteralPath $DocumentManagerPreviewWorkerStderrLog -ErrorAction SilentlyContinue | Select-Object -Last 20
+    Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  Write-Host "2D preview worker is running (PID $($worker.Id))."
+  return Get-DocumentManagerPreviewWorkerProcessInfo
+}
+
+function Get-DocumentManagerPreviewWorkerState {
+  if (Get-DocumentManagerPreviewWorkerProcessInfo) {
+    return "running"
+  }
+  if (Test-DocumentManagerPreviewKeyConfigured) {
+    return "not_running"
+  }
+  return "not_configured"
 }
 
 function Get-PortListeners {
@@ -214,6 +320,7 @@ function Write-RuntimeStatus {
 
   $commandLine = if ($PortOwnerProcessInfo -and $PortOwnerProcessInfo.CommandLine) { $PortOwnerProcessInfo.CommandLine } else { "" }
   $processName = if ($PortOwnerProcessInfo -and $PortOwnerProcessInfo.Name) { $PortOwnerProcessInfo.Name } else { "" }
+  $documentManagerPreviewWorker = Get-DocumentManagerPreviewWorkerProcessInfo
   $status = [ordered]@{
     app = "AI_PDM"
     port = $Port
@@ -225,6 +332,8 @@ function Write-RuntimeStatus {
     portOwnerCommandLine = $commandLine
     previewWorkerProcessId = $PreviewWorkerProcessId
     previewWorkerState = if ($PreviewWorkerProcessId -gt 0) { "running" } else { "not_running" }
+    documentManagerPreviewWorkerProcessId = if ($documentManagerPreviewWorker) { [int]$documentManagerPreviewWorker.ProcessId } else { 0 }
+    documentManagerPreviewWorkerState = Get-DocumentManagerPreviewWorkerState
     health = $Health
     message = $Message
     updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -320,24 +429,33 @@ if ($listeners.Count -gt 0) {
           Write-Error "AI_PDM website is healthy, but the 3D preview worker is not running. Run npm run dev:local:restart."
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview worker are healthy."
+        $documentManagerPreviewWorker = Get-DocumentManagerPreviewWorkerProcessInfo
+        if ((Test-DocumentManagerPreviewKeyConfigured) -and -not $documentManagerPreviewWorker) {
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website and 3D worker are healthy, but the configured 2D preview worker is not running."
+          Write-Error "AI_PDM website is healthy, but the configured 2D preview worker is not running. Run npm run dev:local:restart."
+          exit 1
+        }
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "AI_PDM is healthy."
         Write-Host "3D preview worker is running."
+        Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
         exit 0
       }
       if (-not $RestartProjectProcess) {
         try {
           $previewWorker = Start-PreviewWorker
+          $documentManagerPreviewWorker = Start-DocumentManagerPreviewWorker
         }
         catch {
           Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message $_.Exception.Message
           Write-Error $_.Exception.Message
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview worker are healthy."
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "AI_PDM is healthy."
         Write-Host "3D preview worker is running."
+        Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
         Open-LocalPage
         exit 0
@@ -439,15 +557,17 @@ do {
     $owner = Get-CurrentPortOwner
     try {
       $previewWorker = Start-PreviewWorker
+      $documentManagerPreviewWorker = Start-DocumentManagerPreviewWorker
     }
     catch {
       Write-RuntimeStatus -State "degraded_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message $_.Exception.Message
       Write-Error $_.Exception.Message
       exit 1
     }
-    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and 3D preview worker started; all health checks passed."
+    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and preview workers started; 2D worker state is $(Get-DocumentManagerPreviewWorkerState). All health checks passed."
     Write-Host "AI_PDM is healthy."
     Write-Host "3D preview worker is running."
+    Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
     Write-Host "Local URL: $Url"
     Open-LocalPage
     exit 0

@@ -131,6 +131,7 @@ const fakePreviewGeneratorProfile = "fake_preview_worker";
 const fakePreviewGeneratorVersion = "fake-local-pipeline";
 const realPreviewGeneratorProfile = "windows_solidworks_preview_worker";
 export const previewHeartbeatStaleAfterMs = 30_000;
+export const previewQueuedUnclaimedAfterMs = 120_000;
 export const previewMaxAttempts = 3;
 
 export function isNativeSolidWorksPreviewSource(extension: string) {
@@ -168,6 +169,29 @@ export async function enqueuePreviewJobForAttachmentAsync(
 ) {
   const source = await resolvePreviewSource(client, input);
   if (!source) throw new Error("MASTER_ATTACHMENT_NOT_FOUND");
+
+  return enqueuePreviewJobForSourceAsync(client, {
+    source,
+    actorUserId: input.actorUserId,
+    requestedKind: input.requestedKind,
+    generatorProfile: input.generatorProfile,
+    runFakeWorker: input.runFakeWorker,
+    forceRegenerate: input.forceRegenerate
+  });
+}
+
+export async function enqueuePreviewJobForSourceAsync(
+  client: AsyncDatabaseClient,
+  input: {
+    source: PreviewSourceRow;
+    actorUserId: string;
+    requestedKind?: PreviewRequestedKind;
+    generatorProfile?: string;
+    runFakeWorker?: boolean;
+    forceRegenerate?: boolean;
+  }
+) {
+  const source = input.source;
 
   const sourceExtension = normalizeExtension(source.file_ext);
   const requestedKind = input.requestedKind ?? "native_thumbnail_png";
@@ -357,7 +381,42 @@ export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient) 
     );
     recovered += 1;
   }
-  return { recovered };
+
+  const queuedRows = await client.query<Pick<PreviewJobRow, "id" | "updated_at">>(
+    `
+      SELECT id, updated_at
+      FROM preview_jobs
+      WHERE status = 'queued'
+    `
+  );
+  let queuedUnclaimed = 0;
+  for (const row of queuedRows) {
+    const updatedAt = Date.parse(row.updated_at);
+    if (!Number.isFinite(updatedAt) || now - updatedAt < previewQueuedUnclaimedAfterMs) continue;
+    await client.execute(
+      `
+        UPDATE preview_jobs
+        SET status = 'failed',
+            error_code = 'preview_worker_unavailable',
+            error_summary = '2D 預覽服務未接手，已停止等待，請確認服務後重試。',
+            locked_by = NULL,
+            locked_at = NULL,
+            updated_at = :now,
+            completed_at = :completedAt
+        WHERE id = :jobId
+          AND status = 'queued'
+          AND updated_at = :previousUpdatedAt
+      `,
+      {
+        jobId: row.id,
+        now: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        previousUpdatedAt: row.updated_at
+      }
+    );
+    queuedUnclaimed += 1;
+  }
+  return { recovered: recovered + queuedUnclaimed, queuedUnclaimed };
 }
 
 export async function completePreviewJobAsync(client: AsyncDatabaseClient, input: PreviewWorkerCompletionInput) {

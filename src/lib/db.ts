@@ -1411,13 +1411,77 @@ function ensureSubmissionStoragePointerSchema(database: SqliteDatabase) {
 }
 
 function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
+  const existingTable = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'secret_references'")
+    .get() as { sql?: string } | undefined;
+  if (existingTable && !existingTable.sql?.includes("'google_secret_manager'")) {
+    database.pragma("foreign_keys = OFF");
+    try {
+      database.exec("BEGIN IMMEDIATE");
+      database.exec(`
+        DROP TABLE IF EXISTS secret_references_google_secret_manager_migration;
+        CREATE TABLE secret_references_google_secret_manager_migration (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
+          vault_secret_id TEXT NOT NULL,
+          masked_hint TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('draft', 'tested', 'active', 'retired', 'revoked')),
+          version INTEGER NOT NULL CHECK (version > 0),
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          tested_at TEXT,
+          activated_by TEXT,
+          activated_at TEXT,
+          retired_by TEXT,
+          retired_at TEXT,
+          revoked_by TEXT,
+          revoked_at TEXT,
+          revoke_reason TEXT,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          FOREIGN KEY (created_by) REFERENCES users(id),
+          FOREIGN KEY (activated_by) REFERENCES users(id),
+          FOREIGN KEY (retired_by) REFERENCES users(id),
+          FOREIGN KEY (revoked_by) REFERENCES users(id),
+          UNIQUE (kind, version)
+        );
+        INSERT INTO secret_references_google_secret_manager_migration (
+          id, kind, provider, display_name, vault_provider, vault_secret_id, masked_hint, fingerprint,
+          lifecycle_status, version, created_by, created_at, tested_at, activated_by, activated_at,
+          retired_by, retired_at, revoked_by, revoked_at, revoke_reason, metadata_json
+        )
+        SELECT
+          id, kind, provider, display_name, vault_provider, vault_secret_id, masked_hint, fingerprint,
+          lifecycle_status, version, created_by, created_at, tested_at, activated_by, activated_at,
+          retired_by, retired_at, revoked_by, revoked_at, revoke_reason, metadata_json
+        FROM secret_references;
+        DROP TABLE secret_references;
+        ALTER TABLE secret_references_google_secret_manager_migration RENAME TO secret_references;
+        CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status
+          ON secret_references(kind, lifecycle_status, version DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+          ON secret_references(kind)
+          WHERE lifecycle_status = 'active';
+      `);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    } finally {
+      database.pragma("foreign_keys = ON");
+    }
+  }
+
   database.exec(`
     CREATE TABLE IF NOT EXISTS secret_references (
       id TEXT PRIMARY KEY,
       kind TEXT NOT NULL,
       provider TEXT NOT NULL,
       display_name TEXT NOT NULL,
-      vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+      vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
       vault_secret_id TEXT NOT NULL,
       masked_hint TEXT NOT NULL,
       fingerprint TEXT NOT NULL,

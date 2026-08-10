@@ -346,7 +346,7 @@ CREATE TABLE IF NOT EXISTS secret_references (
   kind TEXT NOT NULL,
   provider TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
   vault_secret_id TEXT NOT NULL,
   masked_hint TEXT NOT NULL,
   fingerprint TEXT NOT NULL,
@@ -2532,6 +2532,9 @@ CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submissi
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_submission_id ON audit_logs(submission_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status ON secret_references(kind, lifecycle_status, version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+ON secret_references(kind)
+WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status_phase ON part_roots(record_status, development_phase);

@@ -32,6 +32,8 @@ const windowsShellWorker = readRequired("scripts/run-windows-shell-preview-worke
 const windowsShellExtractor = readRequired("scripts/windows-shell-thumbnail-extractor.ps1");
 const documentManagerWorker = readRequired("scripts/run-solidworks-document-manager-preview-worker.mjs");
 const documentManagerExporter = readRequired("scripts/solidworks-document-manager-preview-exporter.cs");
+const startLocalhost = readRequired("scripts/start-localhost-3000.ps1");
+const workerCredentialRoute = readRequired("src/app/api/preview-workers/solidworks-document-manager-key/route.ts");
 const packageJson = readProjectJson(root, "package.json");
 
 for (const schema of [
@@ -126,9 +128,11 @@ assert(
 );
 assert(windowsShellExtractor.includes("IShellItemImageFactory") && windowsShellExtractor.includes("THUMBNAILONLY") && windowsShellExtractor.includes("ImageFormat.Png"), "Windows Shell extractor uses the OS thumbnail provider to create PNG derivatives");
 assert(documentManagerWorker.includes('supportedExtensions: ["slddrw"]'), "Document Manager worker only claims SLDDRW drawing jobs");
+assert(documentManagerWorker.includes("--watch") && documentManagerWorker.includes("Waiting for SLDDRW preview jobs."), "Document Manager worker supports a persistent drawing watch mode");
+assert(documentManagerWorker.includes("/api/preview-workers/solidworks-document-manager-key") && documentManagerWorker.includes("ensureWorkerDocumentManagerKey") && documentManagerWorker.includes("credentialRefreshMs"), "Document Manager worker resolves credentials through the server-side worker route with bounded refresh");
 assert(documentManagerWorker.includes("SolidWorksDocumentManagerPreviewExporter.exe") && documentManagerWorker.includes("solidworks-document-manager-preview-exporter.cs"), "Document Manager worker compiles the native exporter");
 assert(documentManagerWorker.includes("PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY") && documentManagerWorker.includes("PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY"), "Document Manager worker reads key only from worker environment variables");
-assert(documentManagerWorker.includes("DOCUMENT_MANAGER_LICENSE_KEY_MISSING") && documentManagerWorker.includes("local test-double metadata"), "Document Manager worker reports UI test-double secret boundary clearly");
+assert(documentManagerWorker.includes("DOCUMENT_MANAGER_LICENSE_KEY_MISSING") && documentManagerWorker.includes("Google Secret Manager exact version"), "Document Manager worker reports the Google Secret Manager credential boundary clearly");
 assert(documentManagerWorker.includes("solidworks-document-manager-preview-png-v1") && documentManagerWorker.includes("assertMeaningfulDrawingPreviewQuality"), "Document Manager worker records generator evidence and rejects blank drawing output");
 assert(documentManagerExporter.includes("GetPreviewPNGBitmapBytes") && documentManagerExporter.includes("ISwDMSheet2"), "Document Manager exporter reads sheet PNG preview bytes");
 assert(documentManagerExporter.includes("SwDocumentMgr.SwDMClassFactory") && documentManagerExporter.includes("SwDmDocumentType.swDmDocumentDrawing"), "Document Manager exporter opens SLDDRW through Document Manager");
@@ -142,13 +146,22 @@ assert(panel.includes("forceRegenerate: true"), "Attachment panel sends explicit
 assert(panel.includes("previewPollingNeeded") && panel.includes("setInterval") && panel.includes("background: true"), "Attachment panel polls preview state automatically without manual refresh");
 assert(!panel.includes("master-attachment-refresh") && !panel.includes("重新整理附件"), "Attachment panel removes manual refresh dependency");
 assert(panel.includes("LoaderCircle") && panel.includes("Clock3") && panel.includes("CircleAlert") && panel.includes("WifiOff"), "Attachment panel uses non-verbal preview state icons");
-assert(panel.includes("完成後自動更新") && panel.includes("處理較久") && panel.includes("系統仍在運作"), "Attachment panel communicates wait versus delayed states concisely");
+assert(panel.includes("完成後自動更新") && panel.includes("等待預覽服務") && panel.includes("處理較久") && panel.includes("系統仍在運作"), "Attachment panel communicates queue, wait and delayed states concisely");
 assert(panel.includes("tone: \"failed\"") && panel.includes("title: \"無法預覽\"") && panel.includes("text: \"請下載原檔\""), "Attachment panel renders failure and unavailable fallback states");
 assert(panel.includes("previewDerivative="), "Attachment panel opens derivative stream URLs");
-assert(previewService.includes("previewHeartbeatStaleAfterMs") && previewService.includes("recoverStalePreviewJobsAsync"), "Preview service has heartbeat timeout recovery");
+assert(previewService.includes("previewHeartbeatStaleAfterMs") && previewService.includes("previewQueuedUnclaimedAfterMs") && previewService.includes("recoverStalePreviewJobsAsync"), "Preview service has heartbeat and unclaimed-queue timeout recovery");
+assert(previewService.includes("preview_worker_unavailable") && previewService.includes("status = 'queued'"), "Preview service fails queued jobs that no worker claims");
 assert(previewService.includes("locked_by = :workerId") && previewService.includes("locked_at = :now"), "Preview service binds heartbeat and completion to worker ownership");
 assert(masterAsync.includes("actorUserId") && masterAsync.includes("recoverStalePreviewJobsAsync"), "Attachment list path auto-enqueues and recovers preview jobs");
 assert(windowsShellWorker.includes("startJobHeartbeat") && documentManagerWorker.includes("startJobHeartbeat"), "Native preview workers send heartbeats while processing");
+assert(
+  startLocalhost.includes("run-solidworks-document-manager-preview-worker.mjs") &&
+  startLocalhost.includes("Start-DocumentManagerPreviewWorker") &&
+  startLocalhost.includes("solidworks-document-manager-preview-worker") &&
+  startLocalhost.includes("windows-shell-thumbnail-worker"),
+  "Local launcher manages dedicated 2D and 3D preview workers with distinct identities"
+);
+assert(workerCredentialRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && workerCredentialRoute.includes("resolveActiveSolidWorksDocumentManagerKey") && workerCredentialRoute.includes("no-store"), "Worker credential route is token-gated and never cacheable");
 
 assert(packageJson.scripts["qc:pdm-sw-native-preview-worker"] === "node scripts/qc-pdm-sw-native-preview-worker.mjs", "package script qc:pdm-sw-native-preview-worker is registered");
 assert(packageJson.scripts["preview:worker:windows-shell"] === "node scripts/run-windows-shell-preview-worker.mjs", "package script preview:worker:windows-shell is registered");

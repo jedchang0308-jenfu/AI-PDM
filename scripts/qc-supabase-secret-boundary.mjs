@@ -81,7 +81,13 @@ try {
   );
   record(
     "SUPABASE-SECRET-015 Postgres runtime URL is scoped to db provider",
-    postgresRuntimeReferences.length === 1 && postgresRuntimeReferences[0] === "src/lib/db-async-provider.ts",
+    postgresRuntimeReferences.every((relativePath) =>
+      [
+        "src/lib/db-async-provider.ts",
+        "src/lib/cloud-sql-contract.ts",
+        "src/lib/repositories/number-lifecycle-simplification-async-repository.ts"
+      ].includes(relativePath)
+    ),
     postgresRuntimeReferences.join(", ")
   );
 

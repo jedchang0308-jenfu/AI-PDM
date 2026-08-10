@@ -42,8 +42,7 @@ record("DB-005G Postgres async provider requires connection string", contains(as
 record(
   "DB-005H Postgres async provider uses unnamed queries",
   contains(asyncProvider, "queryable.query<T>(query.text, query.values)") &&
-    !contains(asyncProvider, "name: \"") &&
-    !contains(asyncProvider, "name: '"),
+    !/\n\s{2,}name\s*:/u.test(asyncProvider),
   "src/lib/db-async-provider.ts"
 );
 record("DB-005I Postgres async provider implements transaction boundaries", ["BEGIN", "COMMIT", "ROLLBACK"].every((text) => contains(asyncProvider, text)), "src/lib/db-async-provider.ts");

@@ -1,9 +1,9 @@
 # SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 主根號統一物件詳情抽屜
 
-Status: Phase 1A-1B Implemented Locally / Release Not Authorized
+Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed / Release Not Authorized
 Date: 2026-07-09
 Owner: Dev PM
-Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`
+Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`; `DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001` / `DEV-057`
 Related QA: `.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`
 Extends: `.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md`
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
@@ -102,7 +102,9 @@ Shared drawer shell
 
 Entity panels
   RootNumberDetailPanel
-  DrawingNumberDetailPanel
+  Drawing detail family
+    DrawingNumberDetailPanel      formal lifecycle
+    CandidateDrawingDetailPanel   candidate lifecycle
   PartNumberDetailPanel
 
 Context adapters
@@ -190,6 +192,26 @@ Required sections:
 
 The drawing detail panel must be the same whether opened from `/numbering/drawings` or `/numbering/search`. The relation page may default-scroll to `同主根號料號` or `關係 / 影響`, but it cannot omit attachments or readiness sections.
 
+Candidate reservations that contain a drawing are members of the same `drawing_number` detail family, even though their canonical entity metadata remains `candidate_bundle`. Candidate and formal drawing drawers MUST therefore publish `data-detail-family="drawing_number"` and `data-drawing-detail-skeleton="true"`, and render this ordered section contract:
+
+1. `drawing-overview`: purpose, linked-part summary and same-root/content summary;
+2. `drawing-revision-files`: candidate first-revision editor or formal controlled revision files;
+3. `drawing-preview`: real preview content, or a concise human empty state with the next step;
+4. `drawing-pending`: review, missing-data, recovery or no-action guidance;
+5. `drawing-more`: reference attachments, relationship/data maintenance, edit/cancel and other secondary actions.
+
+Both lifecycle variants MUST render the same top-level React component, `DrawingWorkspaceDrawer`, and publish `data-component="drawing-workspace-drawer"`. Candidate and formal adapters may provide different data, commands and section content, but they may not own separate drawer bodies or second-layer work pages. The component owns the same header slots: eyebrow (`候選圖號` / `正式圖號`), drawing code, part/product name, one first-layer status, at most one primary action and the shared close/resize controls. A candidate without a reserved drawing code MUST show `尚未產生圖號`; a root code must never substitute for the drawing code.
+
+Candidate drawing preparation is an incomplete-data state inside the workspace, not a navigation destination. Opening a candidate MUST expose the existing first-revision editor, missing requirements and file work area inline. The visible UI MUST NOT render a `準備首版圖面` link/button that jumps to another layer, duplicate that action in header and body, or add a separate `下一步` card. When readiness becomes complete, the existing server-derived submit action becomes available in the same drawer; review, return and controlled states continue in the same component without a route change or drawer replacement.
+
+This is component/view-model convergence, not lifecycle-authority convergence. Candidate mutation stays in `NumberingCandidateRevisionEditor` and candidate review/cancel actions; formal controlled files remain read-only in `MasterAttachmentPanel` and changes continue through the formal revision workflow. Candidate preview data is not invented. No API, schema, permission or lifecycle-authority change is introduced by this contract.
+
+The content layer also has one visual source of truth. Candidate, formal and approval adapters MUST pass a `DrawingDetailContentModel` to the shared `DrawingDetailContent` renderer; they MUST use `DrawingDetailSummary` for first-layer facts and `DrawingDetailSection` for section headings/metadata rather than rebuilding the frame locally. The A0005 formal drawing arrangement is the canonical order and density: summary facts, controlled files/evidence, preview, pending guidance, then secondary details. Adapters may change labels, values, preview availability and mutation controls, but must not create a mode-specific summary grid or a second section-heading pattern. Future visual optimization should therefore be made in the shared content components and CSS first.
+
+Preview content is also a shared contract, not merely a shared shell. Candidate, formal and approval adapters MUST render `DrawingDetailPreview`. It always presents the same two cards—`3D 模型` and `2D 圖面`—in the same order and uses the adapter only for media, file identity, preview state and permitted actions. When a preview is unavailable, pending or missing, the same card remains visible with human-readable state and recovery guidance; a mode-specific preview grid or one-sided empty state is not permitted. Formal media may render directly, while candidate and approval may expose evidence preview/download actions, but the visual component and state vocabulary remain one source of truth.
+
+The canonical `/approvals` reviewer surface follows the same drawer contract. The approval inbox remains the entry list and stays visible beneath the overlay; selecting a request renders `DrawingWorkspaceDrawer` with `entityType="approval_request"` and the same ordered sections. The approval adapter supplies immutable review evidence, preview/download links and decision controls, while mutation authority remains in the existing approval commands. A separate approval detail panel or page-specific drawer body is not permitted; only capability and content adapters may differ.
+
 ### Part Detail Panel
 
 Required first screen:
@@ -224,7 +246,7 @@ The 2026-07-09 local implementation intentionally lands the user-visible parity 
 - Part targets load the existing part owner detail API for attributes, linked drawings and cost status.
 - `/numbering/drawings` and `/parts` keep their owner workbench UI, but publish the same `data-detail-*`, `data-entity-*` and `data-source-context` metadata as the relation drawer.
 - Phase 1B extracts `PdmEntityDetailDrawer` over the existing low-level `PdmDetailDrawer`. Drawing, part, relation-search and candidate/reservation details reuse the same non-modal shell, header, close control, width persistence, outside-click rule and entity metadata.
-- Object-specific drawing/part/root/candidate bodies remain domain components; the implementation intentionally avoids one giant conditional component.
+- Object-specific part/root bodies remain domain components. Candidate and formal drawing adapters both render `DrawingWorkspaceDrawer`; lifecycle-specific data and commands stay in adapters/child domain components so the shared workspace does not duplicate mutation authority.
 - Human-status filters and drawer-width behavior now have shared sources instead of page-local copies.
 
 ### Phase 1 Data Strategy
@@ -408,6 +430,8 @@ Implementation contract:
 - Page-local code may adapt existing payloads into shared view models.
 - Source context must not hide core sections required by the entity panel.
 - Drawing panel must include attachment/readiness/same-root part sections even when launched from relation tree.
+- Candidate and formal render paths must directly use `DrawingWorkspaceDrawer`, publish `data-component="drawing-workspace-drawer"`, and share the header hierarchy and ordered five-section skeleton while retaining separate lifecycle actions and mutation authority.
+- Candidate preparation must render inline; `準備首版圖面` cannot be a visible navigation CTA, duplicated action or second drawer/page.
 - Part panel must include attributes/relationships/cost status sections even when launched from relation tree.
 - Root panel must include relation health, child counts and contextual add/lifecycle action sections.
 
@@ -418,6 +442,10 @@ Acceptance:
 - Clicking `A0001` opens `part_root` detail, not drawing or part detail.
 - Relation matrix row/column clicks preserve entity type.
 - Source context changes only default expanded section/highlight.
+- Candidate title uses the primary reserved drawing code or `尚未產生圖號`; it never substitutes a root code.
+- Candidate and formal drawers expose `drawing-overview → drawing-revision-files → drawing-preview → drawing-pending → drawing-more` in DOM order; preview empty states state a human next step.
+- Both candidate and formal paths expose exactly one `data-component="drawing-workspace-drawer"`; candidate first-revision editing is present without an intermediate click.
+- The same drawer remains open while readiness/action state changes; each state exposes at most one primary CTA.
 - No page-level horizontal overflow or drawer text overlap at desktop/laptop/mobile widths.
 
 Evidence required:
@@ -475,7 +503,8 @@ Primary QA plan:
 
 Minimum gates:
 
-- 5-second object identity test: reviewer can identify whether drawer is root/drawing/part.
+- 5-second object identity test: reviewer can identify whether drawer is root/drawing/part/candidate, its name, current status and next step.
+- Drawing-family consistency test: candidate and formal variants share header/section grammar while candidate-only lifecycle work remains in `drawing-pending` / `drawing-more`.
 - Same-object consistency test: same drawing/part opened from two routes has same core sections.
 - Source-context test: only focus/highlight differs.
 - Visible error sweep.
@@ -554,3 +583,16 @@ Current authorization boundary:
 - Documentation is complete.
 - Product implementation is not authorized.
 - Merge, PR, deploy, rollback, production smoke and release reports are deferred until explicit release authorization.
+
+## 2026-08-09 Focused Amendment — DEV-059 QA-QC Reopen
+
+This section supersedes only the previous PASS interpretation for the candidate bundle-submit confirmation layer; it does not repeal the shared `DrawingWorkspaceDrawer`, entity ownership, lifecycle, permission, schema or API contracts above.
+
+- User field evidence on the current `/numbering/drawings` route shows `送交圖料與首版整包審核` cannot be dismissed by the visible `X`, `返回檢查` or re-entry, and the modal blocks the underlying workspace.
+- The earlier Phase 1C browser evidence remains a historical baseline, but it does not prove current-route hard reload, back/forward or bfcache restore, runtime interruption, click-through prevention, and each close mechanism as an independent case.
+- Parent status is therefore `Local RD Implemented / QA-QC Reopened by DEV-059 / Release Not Authorized` until focused AI real-operation evidence passes.
+- The focused compatible-exception contract is `.ai-doc/specs/SPEC-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001.md`; the executable validation authority is `.ai-doc/qa/qa-pdm-candidate-bundle-submit-modal-runtime-recovery-validation-plan-2026-08-09.md`.
+- `DEV-059` may change local modal state ownership, focus/keyboard handling, navigation/runtime recovery and visible status copy. It may not change lifecycle/API/schema/permission/formal data or release scope without a new Spec Impact Preflight.
+- No QA/QC PASS may be restored from static source inspection or old screenshots. The AI must operate the current route in a real browser, execute isolated fault cases and complete disposable mutation/readback/cleanup evidence.
+
+Focused result (2026-08-09): DEV-059 completed the current-route modal recovery portion with AI browser evidence for X, 返回檢查, Escape, physical click, hard reload, back/forward, candidate switching and 1440/1024/390 viewport checks. The parent full PASS remains gated because the shared candidate was intentionally not mutated; isolated flow/integration evidence covers submit/withdraw/fault behavior, while an isolated disposable UI mutation run remains an extended gate.

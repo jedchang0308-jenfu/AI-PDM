@@ -16,6 +16,9 @@ const { AsyncDrawingRevisionPackageRepository } = await import(
 const { AsyncNotificationRepository } = await import(
   pathToFileURL(path.join(root, "src", "lib", "repositories", "notification-async-repository.ts")).href
 );
+const { chunkReadQueryInput, mapReadQueryBatches, READ_QUERY_MAX_CONCURRENCY } = await import(
+  pathToFileURL(path.join(root, "src", "lib", "repositories", "read-query-batch.ts")).href
+);
 
 function databaseClient(overrides) {
   return {
@@ -124,6 +127,37 @@ assert.deepEqual(
 );
 assert.deepEqual(emptyReleaseTest.metrics, { query: 0, queryOne: 0 }, "empty release input performs no query");
 if (!baselineMode) {
+  for (const [inputSize, expectedQueries] of [[0, 0], [1, 1], [399, 1], [400, 1], [401, 2], [800, 2], [801, 3]]) {
+    assert.equal(chunkReadQueryInput(Array.from({ length: inputSize })).length, expectedQueries, `batch boundary ${inputSize}`);
+  }
+
+  const concurrencyMetrics = { inFlight: 0, maxInFlight: 0, calls: 0 };
+  const tenThousandResults = await mapReadQueryBatches(Array.from({ length: 10_000 }, (_, index) => index), async (batch) => {
+    concurrencyMetrics.calls += 1;
+    concurrencyMetrics.inFlight += 1;
+    concurrencyMetrics.maxInFlight = Math.max(concurrencyMetrics.maxInFlight, concurrencyMetrics.inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    concurrencyMetrics.inFlight -= 1;
+    return batch[0];
+  });
+  assert.equal(concurrencyMetrics.calls, 25, "10k read input stays at 25 bounded-size queries");
+  assert(concurrencyMetrics.maxInFlight <= READ_QUERY_MAX_CONCURRENCY, "10k read input respects the total query concurrency ceiling");
+  assert.deepEqual(tenThousandResults, Array.from({ length: 25 }, (_, index) => index * 400), "batch results preserve chunk order");
+
+  const originalBatchError = new Error("QC_READ_BATCH_FAILURE");
+  let startedAfterFailure = 0;
+  await assert.rejects(
+    () => mapReadQueryBatches(Array.from({ length: 2_400 }), async (_batch, index) => {
+      startedAfterFailure += 1;
+      if (index === 0) throw originalBatchError;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return index;
+    }),
+    (error) => error === originalBatchError,
+    "bounded batch mapper propagates the original query error"
+  );
+  assert(startedAfterFailure <= READ_QUERY_MAX_CONCURRENCY, "batch mapper stops launching new work after the first failure");
+
   const chunkedReleaseTest = releaseClient();
   const chunkedReleaseResult = await new AsyncReleaseRepository(chunkedReleaseTest.client).findReleasedFilenameConflicts({
     submissionId: "current-submission",

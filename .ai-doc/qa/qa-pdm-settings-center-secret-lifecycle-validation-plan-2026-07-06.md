@@ -1,10 +1,16 @@
 # QA-PDM-SETTINGS-CENTER-SECRET-LIFECYCLE - 系統設定中心與 Secret 生命週期驗證計畫
 
-Status: QA Plan Ready / Not Executed
+Status: Historical provider plan / Generic lifecycle regression retained / Google provider validation moved to DEV-058
 Date: 2026-07-06
 Owner: Dev PM / QA
 Related DEV: `DEV-PDM-SETTINGS-CENTER-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
+
+## 2026-08-07 Validation Amendment
+
+Reuse this plan for generic lifecycle, RBAC, redaction, audit and settings UI regression only. Supabase Vault-specific acceptance rows are historical and must not gate current staging/production readiness.
+
+Current Google Secret Manager and SolidWorks worker validation is defined by `.ai-doc/qa/qa-pdm-gcp-secret-manager-solidworks-worker-validation-plan-2026-08-07.md` under `DEV-058`.
 
 ## 1. Purpose
 
@@ -79,6 +85,9 @@ Out of scope:
 | QA-EVID-001 | Test runs store actor, time, setting version, result, summary and artifact path | repository/API test |
 | QA-EVID-002 | Test artifacts are redacted and do not contain API/license key material | artifact scan |
 | QA-REG-001 | Existing Google Drive folder verification flow remains operational or is explicitly blocked with next action | regression test |
+| QA-WORKER-001 | SolidWorks status reports worker credential readiness without exposing the key | settings QC / UI contract |
+| QA-WORKER-002 | Document Manager worker obtains the key only through env fallback or the token-gated server-side route | native preview QC / route contract |
+| QA-WORKER-003 | Active Supabase Vault reference is not reported ready unless Postgres and the explicit Vault read gate are enabled | settings lifecycle QC |
 
 ## 5. Required Evidence After Implementation
 
@@ -90,7 +99,13 @@ npm.cmd run lint -- --quiet
 npm.cmd run qc:pdm-settings-center-secret-lifecycle
 npm.cmd run qc:supabase-secret-boundary
 npm.cmd run qc:gdrive-folder-tree-settings
+npm.cmd run qc:pdm-sw-native-preview-worker
+npm.cmd run qc:master-attachments
+npm.cmd run qc:pdm-sw-native-preview-redaction
+npm.cmd run dev:local:check
 ```
+
+Local extension evidence on 2026-08-07: TypeScript, lint, settings lifecycle QC 28/28, native preview worker QC 106/106, master attachments QC 103/103, redaction QC 68/68 and local health passed. Live Supabase Vault write/read smoke remains pending an approved target and is not represented as passed by local QC.
 
 Additional evidence when metadata schema is added:
 
@@ -166,6 +181,6 @@ Regression expectations:
 
 | Evidence | Status | Recovery condition |
 |---|---|---|
-| Supabase Vault live write/read/delete-equivalent test | Blocked if no target exists | Provide disposable/staging Supabase target and credential boundary |
+| Historical Supabase Vault live write/read/delete-equivalent test | Superseded, not passed | Run the DEV-058 Google Secret Manager staging write/read gate instead; no automatic delete is allowed |
 | SolidWorks Document Manager real metadata probe | Blocked until component and sample CAD files exist | Complete `DEV-CAD-001` evidence path |
 | Production release smoke | Not authorized | Complete implementation, backup/rollback and deployment-release gate |

@@ -1,10 +1,22 @@
 # ADR-PDM-SETTINGS-CENTER-001 - 系統設定中心與 Secret 治理
 
-Status: Accepted / Phase 1 implemented locally
+Status: Accepted for generic settings governance / Supabase provider decision superseded by Google Secret Manager
 Date: 2026-07-06
 Owner: Dev PM
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
 Related DEV: `DEV-PDM-SETTINGS-CENTER-001`
+
+## 2026-08-07 Decision Amendment
+
+The settings-center governance model remains accepted. The provider-specific decision to use Supabase Vault is superseded by the Google production platform authority and `DEV-058`:
+
+- Secret material authority: Google Secret Manager.
+- Metadata authority: Cloud SQL PostgreSQL.
+- Access boundary: Cloud Run / Next.js BFF using Google Application Default Credentials.
+- Native consumer: trusted Windows worker through a token-gated, no-store broker route.
+- Implementation contract: `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`.
+
+All Supabase Vault statements below are retained as historical rationale only. The reusable lifecycle, Admin activation, redaction and audit decisions remain in force.
 
 ## Context
 
@@ -12,11 +24,11 @@ The current PDM settings page is Admin-only and already handles Google Drive fol
 
 Adding one `solidworks_api_key` field would be fast but unsafe. The same problem will recur for OpenAI/LLM keys, Supabase runtime secrets, release function tokens, backup targets and future external connectors.
 
-The user selected a settings center architecture and Supabase Vault as the secret store.
+Historical context: the user originally selected a settings center architecture and Supabase Vault as the secret store. The provider portion is superseded by the 2026-08-07 amendment above.
 
 ## Decision
 
-Adopt a settings center plus Supabase Vault architecture:
+Historical 2026-07 decision: adopt a settings center plus Supabase Vault architecture. Only the provider-neutral governance points remain current.
 
 1. `/settings` becomes a settings center overview and work queue.
 2. Settings are split by management task into integrations, security/keys, workflow/permissions and system status.

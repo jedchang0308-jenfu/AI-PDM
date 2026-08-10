@@ -1,7 +1,7 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 export type SettingsSecretLifecycleStatus = "draft" | "tested" | "active" | "retired" | "revoked";
-export type SettingsSecretVaultProvider = "local_test_double" | "supabase_vault";
+export type SettingsSecretVaultProvider = "local_test_double" | "google_secret_manager" | "supabase_vault";
 export type SettingsSecretTestStatus = "passed" | "failed" | "blocked";
 export type SettingsSecretActivationEventType = "created_draft" | "tested" | "activated" | "retired" | "revoked";
 

@@ -54,7 +54,8 @@ export async function GET(request: Request) {
       llmProvider: llmConfig.provider,
       openAiConfigured: Boolean(llmConfig.openAiApiKey),
       openAiModel: llmConfig.openAiModel,
-      serviceAccountConfigured: isGoogleDriveServiceConfigured()
+      serviceAccountConfigured: isGoogleDriveServiceConfigured(),
+      secretManagementAvailable: process.env.PDM_DISABLE_SECRET_MANAGEMENT !== "true"
     }
   });
 }

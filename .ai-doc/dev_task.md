@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-08-07
+更新日期：2026-08-09
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -110,12 +110,31 @@ Owner：Dev PM
   - 證據：focused native QC 101/101、redaction QC 68/68、master-attachments QC 103/103、TypeScript、lint、local health、Windows Shell `.SLDPRT` worker smoke 與隔離 1440px browser visual QC 均通過；console errors 0、API requests 200。
   - 下一步：本機切片完成；production rollout、真實 Document Manager key、Phase 2/3 仍走 release／外部 CAD evidence gate。
 
-- 精簡圖號明細工作卡：`○ DEV-057` `Brief Ready / Human Confirmed / RD Not Requested`。
-  - 目標：把圖號明細 Drawer 從「功能集合」收斂成「狀態導向工作卡」；首屏只保留目前狀態、唯一主要下一步、受控檔案與未完成例外，其餘能力移入可發現的「更多」分組。
+- 精簡圖號明細工作卡：`◇ DEV-057` `Local RD Implemented / QA-QC Passed by DEV-059 / Commit Pending / Release Not Authorized`。
+  - 目標：候選與正式圖號共用同一 `DrawingWorkspaceDrawer`；候選首版補資料、檔案與送審在同頁完成，不再經過「準備首版圖面」第二層入口。
+  - UI 收斂補強：`/approvals` 保留審核清單作為背景脈絡，選取案件改用同一 `DrawingWorkspaceDrawer` 覆蓋式抽屜與五段順序；審核證據、預覽／下載與決策按鈕由 adapter 提供，不再維護獨立 `approval-detail-panel`。
+  - 內容層收斂：A0005 正式圖號的摘要密度與區塊標題成為唯一視覺基準；候選、正式、審核都把資料交給 `DrawingDetailContent`／`DrawingDetailContentModel`，不再各自繪製首層版面，adapter 只提供資料與操作權限。
+  - 預覽層收斂：候選、正式、審核共用 `DrawingDetailPreview` 與同一套預覽解析規則，固定呈現 3D／2D 兩張卡；有媒體就載入實際預覽，尚未產生則顯示同一套可理解的等待／下載 fallback，不再由模式各自繪製預覽版面。
   - 父任務：`DEV-053`、`DEV-055`、`DEV-056`、`DEV-PDM-NEXT-STEP-UX-001`、`DEV-PDM-ENTITY-DETAIL-DRAWER-001`。
-  - 下一步：補至 `RD Contract Ready`，確認資訊分層、狀態 CTA matrix、回程上下文與 targeted UI/QC 邊界後，再進入本機 RD。
+  - 下一步：`DEV-059` current-route recovery 與 isolated disposable UI mutation extended gate 均已通過；父點本機 QA/QC 恢復為 PASS。commit、merge、PR、deploy 與 release 仍須另行明確授權並走既有 gate。
   - 阻塞 / 恢復條件：目前無產品方向阻塞；若實作需要改 lifecycle/status authority、schema、權限、既有路由語意或刪除既有能力，停止並回 PM 做 Spec Impact Preflight 與範圍決策。
   - 計入交付：是（首屏 UX 與狀態導向入口交付；production release 另走既有 release gate）。
+
+- 候選整包送審確認復原：`✓ DEV-059` `Local RD Implemented / AI QA-QC Passed / Commit Pending / Production Release Gated`。
+  - 目標：修正「送交圖料與首版整包審核」確認視窗無法由 `X`、`返回檢查` 或 `Escape` 關閉，並讓重整、上一頁／下一頁、bfcache、候選切換與 runtime 異常都能回到可理解、可恢復的工作狀態。
+  - 父任務：`DEV-057`；關聯 authority：`DEV-052`、`DEV-053`。
+  - 執行邊界：Medium / P0，本機 UI lifecycle、復原處理、focused checks 與 AI 真實瀏覽器驗證；共享 route 保持唯讀，可逆 mutation 僅限 disposable isolated runtime；不改 lifecycle/API/schema/permission/正式資料，不含 deploy/release。
+  - 驗收與證據：current-route X／返回／Escape／reload／back-forward／CUA 與 1440/1024/390 viewport 通過；`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、typecheck、affected-file ESLint 通過；`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` run `DEV059-20260809-161835-isolated` 11/11 PASS，覆蓋 disposable UI 建立與首版證據、單一送審 request、503、response-loss authoritative readback、撤回／取消 cleanup、正式主檔零污染，`productionConnected=false`、`productionWrites=false`、`cleanupStatus=removed`；另有 DEV-053 flow 7/7、approval integration 27/27、Phase 1C HTTP 11/11。
+  - 下一步：DEV-059 extended gate 已完成並恢復父 `DEV-057` 本機 QA/QC PASS；commit、merge、PR、deploy、production 與 release 仍保持未授權。
+  - 計入交付：否（`DEV-057` 的缺陷修復開發點，不另計新的產品交付點）。
+
+- Google Secret Manager 憑證整合：`✓ DEV-058` `RD Implemented / Local Phase 1A-1D QC Passed / Production Release Gated`。
+  - 目標：以 Google Secret Manager 取代舊 Supabase Vault secret provider，讓 Cloud SQL 只保存 reference/lifecycle metadata，並讓可信任 Windows Document Manager worker 可透過 server broker 讀取 exact active version。
+  - 父任務：`DEV-022`、`DEV-023`、`DEV-046`、`DEV-056`。
+  - 已確認決策：Google Cloud 是正式平台 authority；Supabase Vault 僅保留歷史相容脈絡，不再是 staging/production secret target。
+  - 派工邊界：可執行本機 provider、schema/migration artifact、lifecycle、worker broker、readiness UI 與 focused QA/QC；不得建立/修改 live GCP resource、IAM、deploy、production migration 或 release。
+  - 下一步：RD 依 `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md` 執行 Phase 1A～1D；live Secret Manager 與真實 `.SLDDRW` 證據另走 release gate。
+  - 計入交付：是（本機產品與安全邊界完成後）；2D native readiness 仍須 live Secret Manager + Windows worker L4 證據。
 
 - production 穩定後的技術治理：`DEV-047` bounded schema migration。
   - Phase A0 本機工具已完成；Phase A 需 production representative snapshot、read-only operator 與 evidence owner，不以固定觀察天數作 entry gate。
@@ -537,13 +556,13 @@ Owner：Dev PM
   - 停止條件：需要 production/外部 worker credential、live migration/data repair、Phase 2 PDF/Phase 3 interactive 3D，或無法取得真實 browser evidence；改列 gated，不以靜態檢查冒充 UI PASS。
   - 計入交付：是（本機範圍）；production release 另走 `DEV-032` gate。
 
-- ○ DEV-057 [交付點] [Brief Ready / Human Confirmed / RD Not Requested] [P1] [下一階段] 精簡圖號明細工作卡與狀態導向入口
+- ◇ DEV-057 [交付點] [Local RD Implemented / QA-QC Reopened by DEV-059 / Release Not Authorized] [P0] [本機驗證重啟] 精簡圖號明細工作卡與狀態導向入口
   - 摘要：保留圖號、版次、受控檔案、預覽下載、送審與主資料能力，但將 Drawer 首屏收斂為「目前狀態、誰負責、唯一主要下一步、必要例外」；關係、影響、參考附件、歷史與高風險維護移入「更多」分組，降低使用者的判斷與誤操作成本。
-  - 成熟度：`Brief Ready / Human Confirmed / RD Not Requested`。
+  - 成熟度：`Local RD Implemented / QA-QC Reopened by DEV-059 / Release Not Authorized`。
   - 來源 ID：`DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001`。
   - 父任務：`DEV-053`、`DEV-055`、`DEV-056`。
   - 是否計入產品交付：是。
-  - 原始需求邊界：使用者要求「保留最重要的東西，整體優化重新設計」，目前只建立可派工開發任務，不執行產品程式修改。
+  - 原始需求邊界：使用者要求「保留最重要的東西，整體優化重新設計」，本輪已完成基線 commit，現在進入本機產品實作；不涉及 schema、正式資料、production、deploy 或 release。
   - 任務目標：讓 RD、主管與審核者開啟圖號明細後，在 5 秒內辨識圖號身份、目前工作狀態、自己是否需要操作，以及下一個可執行動作。
   - 使用者成功條件：正常狀態首屏最多一個主要 CTA；等待他人處理時不再顯示會誘導重複送審的上傳入口；未完成項目可直接跳到修正位置；所有跨頁操作可返回原圖號上下文。
   - 風險等級：Medium。原因是會改變主要 UI flow、CTA 命名、資訊層級與跨頁返回行為，但本任務預設不改 schema、lifecycle authority、permission model 或正式資料。
@@ -561,12 +580,70 @@ Owner：Dev PM
   - Out of Scope：不刪除底層關係、影響、附件、歷史、成本、主資料、作廢或送審能力；不改 domain lifecycle、schema/migration、正式資料、權限模型、審核 authority、production deploy、release、mobile 專用版或新 provider 整合。
   - Spec Impact Preflight：暫判 `Compatible exception`；本任務調整 DEV-053/055 已確認的可見資訊層級與入口位置，保留 `2-1-1-0`、single lifecycle、single primary action 與既有 owner authority。進入 `RD Contract Ready` 前，須對照 `SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001`、`SPEC-PDM-NEXT-STEP-UX-001`、`SPEC-PDM-STATUS-UX-004` 與 entity drawer contract，若移動入口會改變既有驗收或權限語意，改列 `Intentional replacement` 並同步權威文件。
   - 初步驗收方向：A0005-M01的`等他人處理`首屏只顯示`查看審核進度`；六種主要狀態各有唯一且不誤導的CTA；受控檔案預覽／下載不退化；未完成主資料、成本或審核項目可直接進入修正或追蹤位置；「更多」仍能發現關係、影響、附件、歷史與高風險操作；1440、1024、390 viewport無CTA競爭、水平溢位、裁切、不可操作或visible raw error；既有送審、撤回、補登、附件下載與主資料維護流程仍可由新入口完成。
-  - RD Contract 下一步：補齊 component/route 影響清單、狀態與角色矩陣、More menu IA、returnTo contract、錯誤恢復、dangerous-action confirmation 與受影響既有 QA/QC mapping；完成前不得直接進入全頁重構。
+  - RD Implementation Contract：沿用 server-derived `row.primaryAction` 作為 Drawer 唯一主要 CTA；`DrawingDetailContent` 的首個操作區只提供狀態必要的次要撤回與 `更多` 分組，不重新推導 lifecycle 或 permission。`更多` 以 `關聯與影響`、`附件管理`、`資料維護`、`歷程與高風險` 分組，既有能力只改可見層級，不刪除 command authority。
+  - Component/route boundary：新增 `src/components/drawing-workspace-drawer.tsx` 作候選／正式唯一 owner drawer；`src/components/drawing-workbench.tsx` 與 `src/components/number-state-workspace.tsx` 只保留 adapter/slot 組裝，`src/components/numbering-candidate-revision-editor.tsx` 直接在候選 body 內運作。沿用 `src/components/master-attachment-panel.tsx`、`src/components/numbering-contextual-entrypoints.tsx` 與既有 `returnTo`；不改 domain mutation/API authority。
+  - State/role matrix：`revision_in_review + exact reviewer` 顯示 `前往審核`；`revision_in_review + other actor` 顯示 `查看審核進度`，僅申請人且 decision count 0 顯示 `撤回送審`；`correction_required` 顯示 `繼續修正並重送`；`rd_controlled/released` 顯示 `建立新版次`；`auto_finalizing/recovery_required/history_only` 沿用既有 system/recovery/history primary action，禁止競爭性上傳入口。
+  - Return contract：進版、關係、影響、歷史補登與從「更多」開啟的跨頁操作都攜帶原圖號安全路徑；`/numbering/revisions` 維持既有返回；`/numbering/search` 與 `/numbering/impact` 必須消費 `returnTo`，完成、阻擋、取消與錯誤狀態提供回原圖號或明確替代入口。
+  - Visible text budget：正常首屏最多一個 primary CTA；保留圖號身份、用途、狀態、責任提示、受控檔案摘要與未完成例外；Google Drive、刪除資料、完整 audit、參考附件 CRUD 與技術狀態降至更多／明細／例外狀態。
+  - Dangerous-action contract：作廢、撤回、移除、補件與同步維持原權限與 API guard；移入更多後仍須保留可見風險摘要、disabled reason、確認或恢復入口，不以簡化為由靜默隱藏。
+  - Spec Impact Preflight 結論：`Compatible exception`。本次只收斂資訊層級、入口分組與 return context，符合既有 single lifecycle、single primary action、owner authority 與 no raw error 契約；不修改 lifecycle、schema/migration、permission、資料或 API command authority。
+  - 2026-08-08 Intentional replacement：依使用者明確指示，candidate/formal 不再只共享骨架，而是必須直接渲染同一 `DrawingWorkspaceDrawer`。`準備首版圖面` 改為同頁 incomplete-data 狀態，不得再作為 header/body 導航 CTA；既有 candidate/formal adapter、mutation authority、permission、API、schema 與 lifecycle truth 維持不變。
+  - 實作停止條件：若必須修改狀態 authority、schema、migration、權限、資料清理、既有 API 相容契約，或無法安全分離 DEV-054 protected hunk，停止並回 PM。
   - 停止條件：需要新增或修改狀態、審核 authority、schema、migration、權限、資料清理、既有 API 相容契約或刪除既有使用者能力時，停止本任務並回 PM 重新定義 scope。
   - 相關文件：`.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`、`.ai-doc/specs/SPEC-PDM-NEXT-STEP-UX-001-actionable-state-guidance.md`、`.ai-doc/specs/SPEC-PDM-STATUS-UX-004-human-status-projection.md`、`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`、`.ai-doc/qa/qa-pdm-human-status-projection-validation-plan-2026-08-06.md`。
   - 候選受影響介面：`src/components/drawing-workbench.tsx`、`src/lib/drawing-workbench.ts`、`src/components/master-attachment-panel.tsx`、`src/components/numbering-contextual-entrypoints.tsx`、`src/app/numbering/revisions/page.tsx`、`src/app/numbering/search/page.tsx`、`src/app/numbering/impact/page.tsx`；實作前由 RD Contract 再確認，不預先視為全部必改。
-  - 證據要求：RD 完成後需有狀態矩陣 contract、affected-route UI/QC、至少 1440／1024／390 三 viewport 截圖或等效 browser evidence、visible-error sweep、returnTo 互動證據與既有流程回歸結果；本任務目前尚無實作證據。
-  - 下一步：等待 PM/RD 將 Brief 升級為 `RD Contract Ready`；本輪只建立任務文件，不修改產品、schema、資料、production、commit、deploy 或 release。
+  - 歷史證據：候選／正式 owner paths 直接使用同一 `DrawingWorkspaceDrawer`；候選開啟後 0 次額外導航即見首版 editor，visible `準備首版圖面` 為 0，缺檔提示只出現一次；正式受控檔案／預覽／待處理附件不退化。Typecheck、drawer QC 42/42、number-state UI 8/8、DEV-053 UI 23/23、scoped ESLint皆通過；當時獨立 QC P0/P1/P2=0，candidate 1440/390與formal 1440 evidence位於 `output/qa/pdm-entity-detail-drawer-ai/20260808021459-single-workspace-recheck/`。這些證據只保留為歷史基線。
+  - QA 重啟理由：2026-08-09 使用者在 current route 提供現場截圖，顯示候選整包送審確認視窗無法由可見關閉動作解除，重新進入仍被同一 modal 阻擋；舊證據未覆蓋 current-route hard reload、bfcache、runtime 中斷與三種關閉動作的獨立重驗，因此不得再代表現況 PASS。
+  - 下一步：執行 `DEV-059`；只有 focused regression、current-route AI 真實操作、故障注入、disposable mutation/cleanup 與資料前後核對全部通過，才可恢復本機 QA-QC PASS。commit/merge/PR/deploy/release 仍需另行明確授權。
+
+- ✓ DEV-058 [交付點] [RD Implemented / Local Phase 1A-1D QC Passed / Production Release Gated] [P0] [本機與 staging-ready 開發] Google Secret Manager 與 SolidWorks 2D Worker 憑證整合
+  - 摘要：將設定中心 secret material authority 從已過時的 Supabase Vault provider 改為 Google Secret Manager；Cloud SQL 只保存 exact version reference 與 lifecycle metadata，可信任 Windows worker 透過 token-gated BFF route 取得 active key，且 UI 分開呈現「憑證可用」與「worker 在線」。
+   - 成熟度：`RD Implemented / Local Phase 1A-1D QC Passed / Production Release Gated`。
+  - 來源 ID：`DEV-PDM-GCP-SECRET-MANAGER-SW-WORKER-001`。
+  - 父任務：`DEV-022` / `DEV-PDM-SETTINGS-CENTER-001`、`DEV-023` / `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`、`DEV-046`、`DEV-056`。
+  - 是否計入產品交付：是；本機實作與 QC 通過可計本地交付，production/native readiness 必須另有 live GCP 與真實 `.SLDDRW` 證據。
+  - 原始需求：使用者確認系統已移至 Google Cloud，要求不要再設定 Supabase，並要求新增 `google_secret_manager` provider、Cloud SQL metadata-only、Google Secret Manager key authority 與 worker readiness；本輪要求由 PM 寫成可派工開發文件。
+  - 任務目標：修正「UI 已啟用 key，但 2D worker 無可讀 secret」的 provider mismatch，使 Admin 設定、server secret access、Cloud SQL metadata 與 Windows native worker 形成一致閉環。
+  - 使用者成功條件：Admin 可在 UI 輸入、測試、啟用 key；key 不進 DB/瀏覽器/log；worker 可取得 exact active version；2D 預覽卡自動接續；UI 不把已存 key 誤報為 worker 已在線。
+  - 風險等級：High / P0。涉及 credential authority、跨環境 IAM、schema provider check、server-to-worker secret broker 與 production architecture replacement；任何 secret leakage、錯版讀取、授權繞過或錯誤 readiness 均為停止條件。
+  - Spec Impact Preflight：`Intentional replacement`。`ADR/SPEC-PDM-SETTINGS-CENTER-001` 的 settings center、Admin activation、redaction、audit 與 lifecycle 繼續有效；其中 Supabase Vault provider 決策由 Google platform authority 與本 DEV 明確取代。
+  - Authority contract：Google Secret Manager 保存 secret material；Cloud SQL 保存 provider、exact version resource reference、mask/fingerprint、lifecycle/test/audit metadata；Cloud Run BFF 使用 ADC 存取；Windows worker 不持有 Google service-account key。
+  - Provider contract：新增 `google_secret_manager`；staging/production 新 draft 僅允許此 provider；`local_test_double` 僅供 isolated test 且永遠不得回報 ready；`supabase_vault` 只保留歷史診斷，不得建立新的正式 draft。
+  - Version contract：Admin 建立 draft 時只對預先 provisioned secret 新增 immutable version；Cloud SQL pin exact `projects/.../versions/{n}`，禁止 runtime 使用 `latest`；test 通過才可 activate，前一 active metadata reference 原子 retired。
+  - Worker contract：沿用 `/api/preview-workers/solidworks-document-manager-key`，採獨立 bearer token、constant-time compare、private/no-store、redacted audit；只回傳給 trusted worker，key 僅存在 worker process memory。
+  - Readiness contract：`credential readiness` 與 `worker presence/job heartbeat` 分離；儲存或啟用 key 不能推論 Windows worker 在線，3D worker 正常也不能冒充 2D worker 正常。
+  - Schema contract：fresh SQLite/PostgreSQL provider check 加入 `google_secret_manager`；新增 `db/postgres/027_settings_secret_google_secret_manager.sql`；保留 legacy physical columns `vault_provider/vault_secret_id` 以避免 destructive rename，其中後者只存 exact GCP version resource reference。
+  - IAM contract：release IaC 預建單一環境 secret；Cloud Run runtime service account 僅在該 secret 取得 `roles/secretmanager.secretAccessor`，需要 UI 新增版本時另給 `roles/secretmanager.secretVersionAdder`；不得給 project-wide Admin 或 version destroy 權限。
+  - Component boundary：預期修改 `src/lib/google-secret-manager.ts`、`src/lib/settings-secret-lifecycle.ts`、`src/lib/repositories/settings-secret-async-repository.ts`、settings secret routes、worker credential route、settings readiness UI、Document Manager worker、SQLite/Postgres schema/migration 與 focused QC scripts。
+  - Out of Scope：live Secret Manager/IAM/Terraform、deploy、production migration/data repair、Supabase plaintext migration、secret disable/destroy/delete、worker service-account JSON、Cloud Run native CAD、`.SLDDRW -> PDF`、interactive 3D。
+   - Current-phase authorization：已完成本機 Phase 1A～1D RD、focused QC 與三 viewport browser evidence；Live GCP resource mutation、staging/production activation與 release 不因本地完成自動獲得授權。
+  - 驗收標準：exact-version write/read、metadata-only DB、Admin lifecycle/RBAC、worker broker auth/no-store、redaction sentinel、provider/schema migration、false-readiness negative cases、Google 403/404/429/5xx mapping、3D/PDF/image/Drive regression與三 viewport browser evidence全數通過。
+  - Release evidence：Secret Manager/IAM readback、live staging add/read、Cloud SQL metadata-only、真實 Windows `.SLDDRW` claim/heartbeat/PNG/browser auto-update與 revoke negative proof；缺一不得聲稱 2D production ready。
+  - Git boundary：DEV-058 使用獨立 focused commit；不得混入目前 DEV-057、numbering/drawing lifecycle、正式資料、generated output、worktree temp 或 release artifact。
+  - 停止條件：需要 live resource/IAM mutation、production deploy/migration、plaintext import/storage、Google credential 下放 worker、broader Admin/destroy permission、legacy metadata deletion或 native CAD execution boundary 變更時，停止並回 PM/release gate。
+   - 相關文件：`.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`、`.ai-doc/qa/qa-pdm-gcp-secret-manager-solidworks-worker-validation-plan-2026-08-07.md`、`.ai-doc/qc/qc-pdm-gcp-secret-manager-solidworks-worker-report-2026-08-07.md`、`.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`、`.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`。
+   - 下一步：進入 `DEV-032` release gate，先完成 staging Google Secret Manager/IAM、Cloud SQL metadata-only、真實 Windows `.SLDDRW` claim/heartbeat/PNG 與部署回滾證據；本地完成不等同 production ready。
+
+- ✓ DEV-059 [開發點] [Local RD Implemented / AI QA-QC Passed / Commit Pending / Production Release Gated] [P0] [本機已完成] 候選整包送審確認視窗與 runtime 復原
+  - 摘要：修正候選工作區送審確認 modal 被持續保留、所有可見關閉動作失效，以及重整／重新進入後仍阻擋工作的缺陷；同時把「資料是否齊全、為何仍是候選號、下一步會發生什麼」改成使用者可理解的單一狀態敘事。
+  - 成熟度：`Local RD Implemented / AI QA-QC Passed / Commit Pending / Production Release Gated`。
+  - 來源 ID：`DEV-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001`。
+  - 父任務：`DEV-057`；關聯規格：`DEV-052` lifecycle readiness、`DEV-053` unified drawing workbench。是否計入產品交付：否，為既有交付點的 P0 缺陷修復。
+  - 原始需求：使用者回報「不論按什麼鈕都無法消除彈出視窗，重新點進來仍卡住，也不知道缺什麼」，並要求寫成含 QA 驗證計畫、必須由 AI 真實操作驗證的開發文件。
+  - 事實基線：`A0006-M01` 的 revision、主要 3D、2D 圖面、finalized evidence、圖料關係與本機檔案 hash/size 已核對齊全；畫面卡住不是可接受的缺件提示。AI 已在同一路由動態重現：明細抽屜 document-level `pointerdown` outside-click listener 先於 React delegated click 處理彈窗按鈕，造成 close click 失效與 click-through 風險。
+  - 風險／優先級：Medium / P0。修改範圍預期為本機 modal lifecycle、focus/keyboard、navigation/runtime recovery 與狀態文案；但目前缺陷會完全阻斷主要送審工作，故缺陷優先級為 P0。
+  - Spec Impact Preflight：`Compatible exception`。保留 `DEV-052` 候選／整包送審／自動正式化 authority 與 `DEV-057` single workspace，只補齊確認層的 local close、清除、復原與資訊呈現；若根因要求改 API、schema、permission、lifecycle 或正式資料，停止並重新做 preflight。
+  - Phase 1A 根因重現：以截圖同一路由與 workspace 重現，蒐集 DOM/focus、React state 觸發源、URL/history、console、network、server log；分辨事件未觸發、state 立即重開、hydration/runtime mismatch、overlay click-through 或 navigation restore，不得只靠 source inspection。
+  - Phase 1B lifecycle/recovery：modal 只能由使用者明確點擊送審 CTA 開啟；`X`、`返回檢查`、`Escape` 各自只關閉最上層 modal，保留 drawer、候選與捲動／合理 focus；切換候選、關閉 detail、unmount、hard reload、back/forward、bfcache 不得還原確認 modal；runtime/API 失敗須可關閉、重試或安全 readback。
+  - Phase 1C 狀態文案：readiness 完成時顯示 `資料已齊，可以送審`、`目前仍是候選圖號；核准完成前不可正式使用`、`缺件 0` 及本次送審的圖號／料號／版次／檔案摘要；不得同時顯示「可送審」與令人誤解為缺件的警告。
+  - Phase 1D AI 真實操作：AI 已在真實瀏覽器完成 X、返回、Escape、CUA physical click、hard reload、back/forward、候選切換與 1440×900／1024×768／390×844 viewport；另以 `DEV059-20260809-161835-isolated` 在 disposable isolated runtime 由 UI 實際建立、送審、故障注入、readback、撤回／取消與 cleanup。結果記於 `.ai-doc/qa/DEV-059-real-operation-evidence-2026-08-09.md`；共享候選保持唯讀。
+  - 預期影響：`src/components/number-state-workspace.tsx`、`src/components/drawing-workbench.tsx`；只在 current evidence 證明共用層責任時修改 overlay lifecycle 與 mutation result recovery。新增 `scripts/qc-dev-059-candidate-submit-modal-ui.mjs`、`scripts/qc-dev-059-candidate-submit-modal-real-operation.mjs` 與兩個 package commands；不新增 schema、API、permission 或 lifecycle authority。
+  - 驗收：三種關閉動作 100% 可用且零 write；無背景 click-through；重整／history／候選切換不自動重開；三 viewport 無 overflow/裁切；focused static 9/9、typecheck、affected-file lint 與 AI current-route operation evidence 通過。isolated runner 11/11 PASS，覆蓋 submit-lock、單一 request、withdraw/cancel、planned 503、response-loss authoritative readback、idempotent replay、cleanup removed 與 formal master zero pollution；production connection/write false。
+  - 停止條件：無法取得同一路由真實 browser 證據、需要修改 lifecycle/API/schema/permission/正式資料、需要 live cloud/production mutation，或 fault injection 無法隔離時，標為 `Blocked/Insufficient Evidence`，不得以靜態測試或舊截圖宣稱 PASS。
+  - 證據要求：`output/qa/pdm-candidate-submit-modal-recovery/<runId>/` 必須包含 before/after screenshots、video/trace、DOM/focus、console/network、server logs、mutation/readback、data sanity、cleanup、defects 與 UX scorecard；缺任一關鍵證據只能判 `未充分驗證`。
+  - 相關文件：`.ai-doc/specs/SPEC-PDM-CANDIDATE-BUNDLE-SUBMIT-MODAL-RECOVERY-001.md`、`.ai-doc/qa/qa-pdm-candidate-bundle-submit-modal-runtime-recovery-validation-plan-2026-08-09.md`、`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`。
+  - 證據：`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` 11/11、`npm run typecheck` PASS、affected-file ESLint PASS、`npm run qc:dev-053:flow` 7/7、number-state Phase 1C approval integration 27/27、Phase 1C HTTP 11/11、AI browser current-route evidence 8 cases PASS；isolated artifact `output/qa/pdm-candidate-submit-modal-recovery/DEV059-20260809-161835-isolated/`。既有 `qc:dev-053:real-operation` 在 stale DEV-053 list assertion 前停止，未作 DEV-059 pass evidence。
+  - 下一步：DEV-059 extended gate 已完成，父 `DEV-057` 本機 QA/QC 恢復 PASS；保留 commit、merge、PR、deploy、production 與 release gate，未執行上述動作。
 
 - ✓ DEV-002 [交付點] [完成] [P1] [已歸檔] Supabase 核心檔案權威與 Google Drive 備份鏡像
   - 摘要：歷史上完成 Supabase Storage/Drive adapter、provider pointer、hash/manifest、migration guard 與 local fallback；2026-07-13 未執行的 production target 已由 `DEV-046` 改為 GCS binary authority + Shared Drive approved delivery/collaboration only，既有實作證據保留但不再代表終局 provider。
@@ -687,10 +764,10 @@ Owner：Dev PM
   - 計入交付：是
 
 - ✓ DEV-039 [交付點] [完成] [P1] [已歸檔] 圖號 / 料號 / 主根號統一物件詳情抽屜
-  - 摘要：統一 root/drawing/part detail drawer 契約，確保同一物件從不同入口打開時核心資訊與首屏密度一致。
+  - 摘要：統一 root/drawing/part detail drawer 契約；candidate 與正式圖號共用同一 drawing detail family、header 層級與五段資訊骨架，候選專屬生命週期動作只留在 pending/more。
   - 來源 ID：`DEV-PDM-ENTITY-DETAIL-DRAWER-001`
   - 父任務：`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`、`DEV-PDM-NUMBERING-004`、主資料工作台
-  - 證據：`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`、Phase 1B 共用 `PdmEntityDetailDrawer`、`qc:pdm-entity-detail-drawer` 19/19、authenticated browser smoke。
+  - 證據：`.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`、`.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`、Phase 1B 共用 `PdmEntityDetailDrawer`、`qc:pdm-entity-detail-drawer` 40/40、drawing-family browser QC `output/qa/pdm-entity-detail-drawer-ai/20260808091130-drawing-family/`。
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-039）
   - 批次發版：見 `DEV-032`；shared shell 已於 2026-08-07 本機完成，merge/PR/deploy/release 仍需走 release gate。
   - 計入交付：是
@@ -827,12 +904,12 @@ Owner：Dev PM
   - 計入交付：是
 
 - ✓ DEV-022 [交付點] [完成] [P2] [已歸檔] 系統設定中心與 Secret 生命週期治理
-  - 摘要：建立 settings center、五個管理區、server-only secret lifecycle API、secret metadata tables、redacted UI 與 local test double。
+  - 摘要：建立 settings center、五個管理區、server-only secret lifecycle API、secret metadata tables、redacted UI 與 local test double；原 Supabase Vault provider 選擇已由 `DEV-058` 的 Google Secret Manager authority 取代，通用 lifecycle 證據仍有效。
   - 來源 ID：`DEV-PDM-SETTINGS-CENTER-001`
   - 父任務：CAD、Supabase 與設定權威
   - 證據：`.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`、`.ai-doc/qa/qa-pdm-settings-center-secret-lifecycle-validation-plan-2026-07-06.md`、settings secret QC。
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-022）
-  - 批次發版：見 `DEV-032`；Supabase Vault live write/smoke、真實 CAD 證據與 production cutover 需走 release gate 或高風險確認。
+  - 批次發版：見 `DEV-032` 與 `DEV-058`；不得再以 Supabase Vault 作正式 target，Google Secret Manager live write/read、真實 CAD 證據與 production cutover 需走 release gate。
   - 計入交付：是
 
 - ✓ DEV-023 [交付點] [完成] [P1] [已歸檔] Windows SolidWorks 原檔預覽衍生檔
@@ -841,7 +918,7 @@ Owner：Dev PM
   - 父任務：設定中心、CAD 讀取器與附件預覽
   - 證據：`.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`、native-preview QC 90/90、redaction QC、master-attachments QC、API worker smoke。
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-023）
-  - 批次發版：見 `DEV-032`；真實 SLDDRW key、SLDASM evidence、Phase 2/3 與 production rollout 需走 release gate 或高風險確認。
+  - 批次發版：見 `DEV-032` 與 `DEV-058`；真實 SLDDRW key 必須由 Google Secret Manager authority 提供，SLDASM evidence、Phase 2/3 與 production rollout 需走 release gate。
   - 計入交付：是
 
 - ✓ DEV-024 [交付點] [完成] [P1] [已歸檔] 送審發行後主檔生命週期同步
@@ -1256,4 +1333,9 @@ QC 要求保留的 Supabase stop wording：
 - 2026-07-09: Resolved the system drawer QC false blocker for the approval platform legacy redirect and aligned adjacent active QC contracts. Evidence: `npm.cmd run qc:pdm-system-detail-drawer-ui` 72/72, `npm.cmd run qc:pdm-approval-platform` 106/106, `npm.cmd run qc:pdm-numbering-approval-review-ui` 10/10, `npm.cmd run qc:pdm-lifecycle-actions` 272/272, `npm.cmd run qc:pdm-lifecycle-obsolete` 115/115 and `npm.cmd run qc:pdm-numbering-core` 241/241 passed. No product UI, schema, data repair, merge, PR, deployment, rollback or release artifact was changed.
 - 2026-07-09: Completed `DEV-PDM-APPROVAL-PLATFORM-001` Phase 1C-C drawing object pending-review projection and APP redline cleanup. A0007-M01 pending drawing revision impact reviews remain as compact read-only cues on `/numbering/drawings`, `/numbering/search` drawing targets and attachment revision/history rows; the drawing detail `待審焦點` focus panel, preview-card file extension header labels and collapsed upload `建議版次` text were removed per screenshot redlines. Evidence: `npx.cmd tsc --noEmit --pretty false`, source-scoped lint, `npm.cmd run qc:pdm-approval-platform` 125/125, `npm.cmd run qc:pdm-entity-detail-drawer` 14/14, `npm.cmd run dev:local:check`, `qc:dev-task-evidence-sync` 13/13, and Playwright screenshots under `output/playwright/pdm-approval-projection/`. `npm.cmd run build` was blocked by the intentional local-dev guard because the healthy project-owned dev server was listening on port 3000; no bypass was used. No schema migration, lifecycle mutation, data repair, merge, PR, deployment, rollback or release artifact was changed.
 - 2026-07-09: 依新的 Dev PM canonical format 重構開頭總任務清單，並依使用者要求強制中文化。總任務清單使用狀態符號放在 `DEV-001` 到 `DEV-039` 短碼前方，且每個短碼都映射回既有語意來源 ID。
-- 2026-08-07: 依使用者要求建立 `DEV-057`「精簡圖號明細工作卡與狀態導向入口」。本任務採 `Brief Ready / Human Confirmed / RD Not Requested`，保留圖號、版次、受控檔案、預覽下載、送審與主資料能力，首屏收斂為狀態、唯一主要 CTA、受控檔案與必要例外；關係、影響、參考附件、歷史與高風險維護移入「更多」。本輪只修改 `.ai-doc/dev_task.md` 與 `.ai-doc/documentation_map.md`，未修改產品、schema、資料、production、commit、deploy 或 release。
+- 2026-08-07: 依使用者要求先建立 checkpoint commit `f4db2afb`，再執行 `DEV-057` 本機產品實作。圖號 Drawer 首屏改為沿用 server-derived `row.primaryAction` 的唯一主 CTA；`上傳與送審`、`圖料關係`、`製造圖影響分析` 不再並列競爭，關係／影響、受控檔案定位、附件管理、主資料／成本與新增／作廢入口改由「更多」及可折疊區承接；送審檢查補上直達修正／審核入口。`/numbering/search` 與 `/numbering/impact` 補安全 `returnTo` 消費，關係頁內嵌圖面也保留唯一主 CTA與進版返回上下文。authenticated browser 已驗證 A0005-M01 `等他人處理`、A0061-M01 `建立新版次`、關係／進版返回、行動版 Drawer 無水平溢位；`DEV053 UI 23/23`、TypeScript、affected-file ESLint 通過。實作變更目前留在 checkpoint 後的未提交工作樹，未改 schema、正式資料、production、deploy 或 release。
+- 2026-08-08: 完成 `DEV-057` single drawing workspace intentional replacement。新增共用 `DrawingWorkspaceDrawer`，candidate/formal 直接使用同一元件與五段 DOM；candidate 首版 editor 同頁呈現，移除「準備首版圖面」第二層導航，readiness 完成後沿用 server-derived primary action。初次 QC 發現缺檔指示重複三次，回送 RD 後只保留 upload 鄰近提示；空 pending wrapper以 hidden 0×0保留骨架。最終 independent QC P0/P1/P2=0，typecheck、drawer 42/42、number-state UI 8/8、DEV-053 UI 23/23、scoped ESLint及真實 Chrome candidate 1440/390、formal 1440通過；證據 `output/qa/pdm-entity-detail-drawer-ai/20260808021459-single-workspace-recheck/`。未改 API/schema/data/permission/lifecycle authority，未 stage/commit/deploy/release；network response-status telemetry未充分驗證。
+- 2026-08-07: 執行 2D SLDDRW 預覽卡住修正：Document Manager worker 支援常駐輪詢，本機啟動器分別管理 3D／2D worker；未被接手的 queued job 於 120 秒後自動轉為可重試的失敗狀態，UI 改以 `等待預覽服務` 與 `無法預覽` 清楚區分，不需手動重新整理。完成 tsc、lint、native preview QC 104/104、master attachments QC 103/103、redaction QC 68/68 與 local health；目前仍待設定 worker 可讀取的 SolidWorks Document Manager key 才能產生真實 2D 圖像。
+- 2026-08-07: 執行「管理員 UI + Supabase Vault + Worker readiness」落地：設定中心回傳 secret 管理可用性；SolidWorks secret status 顯示 2D worker credential readiness；Supabase Vault 讀取僅由 server-side、token-gated worker credential route 執行；Document Manager worker 啟動前取得 key 並只保留於 worker process memory；local test double 僅保留 metadata，不誤報為可產生真實 2D 預覽。補齊 Postgres active secret partial unique index。證據：TypeScript、lint、`qc:pdm-settings-center-secret-lifecycle` 28/28、`qc:pdm-sw-native-preview-worker` 106/106、`qc:master-attachments` 103/103、redaction 68/68 與 `dev:local:check` 通過；目前本機因未開啟 Vault read gate／未提供環境 key，2D worker readiness 仍為 blocked，未執行 live Vault 寫入或生產部署。
+- 2026-08-07: 建立 `DEV-058` Google Secret Manager 與 SolidWorks 2D worker 憑證整合開發合約。依現行 Google Cloud authority，正式取代前一筆 Supabase Vault provider 方向：Google Secret Manager 保存 key、Cloud SQL 只保存 exact version reference/lifecycle metadata、Cloud Run BFF 使用 ADC、Windows worker 透過 token-gated no-store broker 取得 active key。這筆紀錄代表開發前合約；後續本日已完成本機 Phase 1A～1D，live GCP、IAM、deploy 或 release 仍 gated。
+ - 2026-08-09: 使用者 current-route 截圖顯示候選整包送審確認視窗無法由任何可見關閉動作解除，重新進入仍阻擋工作；因此 `DEV-057` 舊 QA-QC PASS 改為歷史基線並重啟驗證。完成 `DEV-059` product fix：確認明細抽屜 document-level pointerdown outside-click listener 先於 React delegated click 處理 modal，新增 native capture shield/click bridge；AI 以固定 3000 current route 實際驗證 X、返回、Escape、CUA physical click、reload、back/forward、candidate switch 與 1440/1024/390 viewport，並以 `DEV059-20260809-161835-isolated` 真實 UI 執行 disposable 建立、送審單一 request、planned 503、response-loss readback、撤回／取消與 cleanup。DEV-059 UI contract 9/9、real-operation 11/11、typecheck、affected-file lint、isolated flow 7/7、approval integration 27/27、HTTP 11/11 通過；production connection/write false、cleanup removed、正式主檔零污染。共享候選仍未執行 mutation；父 `DEV-057` 本機 QA/QC 恢復 PASS，commit、merge、PR、deploy 與 release 仍未授權。

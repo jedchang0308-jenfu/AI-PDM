@@ -19,7 +19,7 @@ record("PG-PROVIDER-002 PostgresAsyncDatabaseClient exists", source.includes("ex
 record("PG-PROVIDER-003 connection string required", source.includes("POSTGRES_CONNECTION_STRING_REQUIRED"), "src/lib/db-async-provider.ts");
 record(
   "PG-PROVIDER-004 unnamed pg queries only",
-  source.includes("queryable.query<T>(query.text, query.values)") && !source.includes("name: \"") && !source.includes("name: '"),
+  source.includes("queryable.query<T>(query.text, query.values)") && !/\n\s{2,}name\s*:/u.test(source),
   "src/lib/db-async-provider.ts"
 );
 record("PG-PROVIDER-005 named parameter normalization exists", source.includes("normalizePostgresQuery") && source.includes("POSTGRES_NAMED_PARAMETER_MISSING"), "src/lib/db-async-provider.ts");

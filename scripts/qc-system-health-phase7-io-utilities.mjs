@@ -23,7 +23,7 @@ const byteFormatTargets = [
 ];
 
 const bomSource = read(bomPath);
-const saveFileBlock = bomSource.match(/(?:async )?function saveBomImportOriginalFile\([\s\S]*?(?=\nfunction parseSolidWorksBomImport)/u)?.[0] ?? "";
+const saveFileBlock = bomSource.match(/(?:async )?function saveBomImportOriginalFile\([\s\S]*?(?=\n(?:async )?function parseSolidWorksBomImport)/u)?.[0] ?? "";
 assert(saveFileBlock, "BOM import original-file helper exists");
 
 if (baselineMode) {
@@ -39,6 +39,10 @@ assert.match(bomSource, /const asset = await saveBomImportOriginalFile\(/u, "BOM
 assert.match(saveFileBlock, /^async function saveBomImportOriginalFile/u, "BOM original-file helper is asynchronous");
 assert.match(saveFileBlock, /await fs\.promises\.mkdir/u, "BOM directory creation is non-blocking");
 assert.match(saveFileBlock, /await fs\.promises\.writeFile/u, "BOM buffer persistence is non-blocking");
+assert.match(saveFileBlock, /flag: "wx"/u, "BOM original file uses exclusive temporary persistence");
+assert.match(saveFileBlock, /await fs\.promises\.rename/u, "BOM original file is atomically promoted");
+assert.match(saveFileBlock, /removeBomImportOriginalFile/u, "BOM database failure has filesystem compensation");
+assert.match(bomSource, /await this\.client\.transaction\(create\)/u, "BOM import uses the provider transaction for SQLite and Postgres");
 assert.doesNotMatch(saveFileBlock, /mkdirSync|writeFileSync/u, "BOM async helper has no synchronous filesystem operation");
 
 for (const file of clipboardTargets) {

@@ -343,7 +343,7 @@ function staticChecks() {
   );
   record("Settings route stores folder metadata snapshots", settingsRoute.includes("gdrive_pending_folder_name") && settingsRoute.includes("gdrive_released_folder_verified_at"));
   record("Settings route supports verified-save mode", settingsRoute.includes("gdrive_require_verified"));
-  record("Settings UI renders folder tree and manual fallback", settingsPage.includes("gdrive-folder-tree") && settingsPage.includes("進階：手動貼 Folder ID"));
+  record("Settings UI renders folder tree and manual fallback", settingsPage.includes("gdrive-folder-tree") && settingsPage.includes("進階：手動貼資料夾 ID"));
   record("Package script is registered", packageJson.includes('"qc:gdrive-folder-tree-settings"'));
 }
 

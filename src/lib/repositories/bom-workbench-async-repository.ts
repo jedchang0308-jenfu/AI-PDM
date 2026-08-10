@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { diffBomWorkbenchLines as diffBomWorkbenchLinesShared } from "@/lib/bom-workbench-diff";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import type {
   BomImportJob,
   BomImportProfile,
@@ -252,6 +253,9 @@ const BOM_WORKBENCH_SOURCE_PRIORITY = {
 
 const SOLIDWORKS_BOM_IMPORT_PROFILE_NAME = "solidworks_bom_default";
 const SOLIDWORKS_BOM_IMPORT_PROFILE_VERSION = "v1";
+const BOM_IMPORT_ROW_YIELD_INTERVAL = 250;
+const BOM_IMPORT_CHARACTER_YIELD_INTERVAL = 16 * 1024;
+const BOM_IMPORT_DELIMITER_SAMPLE_CHARACTERS = 64 * 1024;
 
 const SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING = {
   acceptedFormats: ["tsv", "csv", "excel_html", "spreadsheetml_xml"],
@@ -956,8 +960,18 @@ export class AsyncBomWorkbenchRepository {
 
     const originalFilename = sanitizeFilename(input.originalFilename || "solidworks-bom.xls");
     if (input.fileBuffer.byteLength === 0) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
+    const uploadValidation = validateStorageUploadFile(
+      { name: originalFilename, size: input.fileBuffer.byteLength },
+      getStorageUploadPolicy()
+    );
+    if (!uploadValidation.ok) {
+      throw new BomXlsImportError(
+        "BOM_XLS_FILE_TOO_LARGE",
+        `BOM import file exceeds the configured upload limit of ${uploadValidation.maxUploadFileBytes} bytes.`
+      );
+    }
 
-    const parsed = parseSolidWorksBomImport(input.fileBuffer);
+    const parsed = await parseSolidWorksBomImport(input.fileBuffer);
     const now = this.clock();
     const draftId = this.idFactory();
     const importJobId = this.idFactory();
@@ -968,6 +982,7 @@ export class AsyncBomWorkbenchRepository {
       parentSubmissionId: parent.parent_submission_id,
       now
     });
+    await yieldToEventLoop();
     const draftName = input.draftName?.trim() || `SolidWorks XLS ${now.slice(0, 10)}`;
     const setActive = input.setActive ?? true;
 
@@ -1020,8 +1035,10 @@ export class AsyncBomWorkbenchRepository {
         createdAt: now,
         updatedAt: now
       });
+      if (client.kind === "postgres") await yieldToEventLoop();
 
       for (const [index, line] of parsed.lines.entries()) {
+        if (client.kind === "postgres" && index > 0 && index % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
         const childItem = await client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL, {
           partNumber: line.childPartNumber
         });
@@ -1045,6 +1062,9 @@ export class AsyncBomWorkbenchRepository {
           createdAt: now,
           updatedAt: now
         });
+        if (client.kind === "postgres" && ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0 || index === parsed.lines.length - 1)) {
+          await yieldToEventLoop();
+        }
       }
 
       await client.execute(INSERT_ASYNC_BOM_IMPORT_JOB_SQL, {
@@ -1066,6 +1086,7 @@ export class AsyncBomWorkbenchRepository {
         createdBy: input.actorId,
         createdAt: now
       });
+      if (client.kind === "postgres") await yieldToEventLoop();
 
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
@@ -1087,6 +1108,7 @@ export class AsyncBomWorkbenchRepository {
         reason: "Import BOM workbench draft from SolidWorks BOM XLS",
         createdAt: now
       });
+      if (client.kind === "postgres") await yieldToEventLoop();
 
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
@@ -1109,11 +1131,17 @@ export class AsyncBomWorkbenchRepository {
       });
     };
 
-    if (this.client.kind === "postgres") {
+    try {
       await this.client.transaction(create);
-    } else {
-      await create(this.client);
+    } catch (error) {
+      try {
+        await removeBomImportOriginalFile(asset);
+      } catch (compensationError) {
+        throw new AggregateError([error, compensationError], "BOM_XLS_IMPORT_COMPENSATION_FAILED");
+      }
+      throw error;
     }
+    await yieldToEventLoop();
 
     const draft = await this.getDraftById(draftId);
     const importJob = await this.client.queryOne<BomImportJob>(SELECT_ASYNC_BOM_IMPORT_JOB_SQL, { importJobId });
@@ -2100,32 +2128,91 @@ async function saveBomImportOriginalFile(input: {
   const repositoryDir = getRepositoryDir();
   const date = input.now.slice(0, 10).split("-");
   const targetDir = path.join(repositoryDir, "bom-imports", date[0] ?? "unknown", date[1] ?? "unknown", input.importJobId);
-  await fs.promises.mkdir(targetDir, { recursive: true });
-  const localPath = path.join(targetDir, input.originalFilename);
-  await fs.promises.writeFile(localPath, input.fileBuffer);
+  const resolvedTargetDir = path.resolve(targetDir);
+  const localPath = path.resolve(resolvedTargetDir, input.originalFilename);
+  if (path.dirname(localPath) !== resolvedTargetDir) throw new BomXlsImportError("BOM_XLS_FILENAME_INVALID");
+  const sha256 = crypto.createHash("sha256").update(input.fileBuffer).digest("hex");
+
+  const temporaryPath = path.join(resolvedTargetDir, `.${crypto.randomUUID()}.tmp`);
+  let ownsTargetDirectory = false;
+  try {
+    await fs.promises.mkdir(path.dirname(resolvedTargetDir), { recursive: true });
+    await fs.promises.mkdir(resolvedTargetDir);
+    ownsTargetDirectory = true;
+    await fs.promises.writeFile(temporaryPath, input.fileBuffer, { flag: "wx" });
+    await fs.promises.rename(temporaryPath, localPath);
+  } catch (error) {
+    const cleanupErrors = await cleanupBomImportPaths({
+      localPath,
+      temporaryPath,
+      targetDir: ownsTargetDirectory ? resolvedTargetDir : null
+    });
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError([error, ...cleanupErrors], "BOM_XLS_FILE_PERSISTENCE_COMPENSATION_FAILED");
+    }
+    throw error;
+  }
+
   const storageKey = path.relative(repositoryDir, localPath).replaceAll(path.sep, "/");
   return {
     id: crypto.randomUUID(),
     localPath,
+    targetDir: resolvedTargetDir,
     storageKey,
-    sha256: crypto.createHash("sha256").update(input.fileBuffer).digest("hex"),
+    sha256,
     parentSubmissionId: input.parentSubmissionId
   };
 }
 
-function parseSolidWorksBomImport(fileBuffer: Buffer): SolidWorksBomParseResult {
+async function removeBomImportOriginalFile(asset: { localPath: string; targetDir: string }) {
+  const cleanupErrors = await cleanupBomImportPaths({ localPath: asset.localPath, targetDir: asset.targetDir });
+  if (cleanupErrors.length > 0) throw new AggregateError(cleanupErrors, "BOM_XLS_FILE_COMPENSATION_FAILED");
+}
+
+async function cleanupBomImportPaths(input: { localPath: string; temporaryPath?: string; targetDir: string | null }) {
+  const errors: unknown[] = [];
+  for (const filePath of [input.temporaryPath, input.localPath]) {
+    if (!filePath) continue;
+    try {
+      await fs.promises.rm(filePath, { force: true });
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (input.targetDir) {
+    try {
+      await fs.promises.rmdir(input.targetDir);
+    } catch (error) {
+      if (!isNodeErrorWithCode(error, "ENOENT")) errors.push(error);
+    }
+  }
+  return errors;
+}
+
+function isNodeErrorWithCode(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error && error.code === code;
+}
+
+async function parseSolidWorksBomImport(fileBuffer: Buffer): Promise<SolidWorksBomParseResult> {
   rejectUnsupportedBinaryXls(fileBuffer);
   const text = decodeImportBuffer(fileBuffer).trim();
   if (!text) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
+  await yieldToEventLoop();
 
   const lower = text.slice(0, 1000).toLowerCase();
   if (lower.includes("<html") || lower.includes("<table") || lower.includes("<tr")) {
-    return parseStructuredBomRows(extractHtmlTableRows(text), "html");
+    const rows = extractHtmlTableRows(text);
+    await yieldToEventLoop();
+    return parseStructuredBomRows(rows, "html");
   }
   if (lower.includes("<workbook") || lower.includes("<worksheet") || lower.includes("<row")) {
-    return parseStructuredBomRows(extractSpreadsheetMlRows(text), "spreadsheetml");
+    const rows = extractSpreadsheetMlRows(text);
+    await yieldToEventLoop();
+    return parseStructuredBomRows(rows, "spreadsheetml");
   }
-  return parseStructuredBomRows(parseDelimitedRows(text), "delimited");
+  const parsed = await parseStructuredBomRows(await parseDelimitedRows(text), "delimited");
+  await yieldToEventLoop();
+  return parsed;
 }
 
 function rejectUnsupportedBinaryXls(fileBuffer: Buffer) {
@@ -2139,8 +2226,12 @@ function rejectUnsupportedBinaryXls(fileBuffer: Buffer) {
     fileBuffer[5] === 0xb1 &&
     fileBuffer[6] === 0x1a &&
     fileBuffer[7] === 0xe1;
-  const nullByteCount = fileBuffer.subarray(0, Math.min(fileBuffer.length, 4096)).filter((value) => value === 0).length;
-  if (isOleBinary || nullByteCount > fileBuffer.length * 0.1) {
+  const sample = fileBuffer.subarray(0, Math.min(fileBuffer.length, 4096));
+  const nullByteCount = sample.filter((value) => value === 0).length;
+  const oddNullByteCount = sample.filter((value, index) => index % 2 === 1 && value === 0).length;
+  const isUtf16LeText =
+    (fileBuffer.length >= 2 && fileBuffer[0] === 0xff && fileBuffer[1] === 0xfe) || oddNullByteCount > sample.length / 4;
+  if (isOleBinary || (!isUtf16LeText && nullByteCount > sample.length * 0.1)) {
     throw new BomXlsImportError(
       "BOM_XLS_BINARY_UNSUPPORTED",
       "Binary .xls is not supported by the first SolidWorks BOM import profile. Export SolidWorks BOM as tab-delimited, CSV, Excel HTML, or SpreadsheetML."
@@ -2158,8 +2249,16 @@ function decodeImportBuffer(fileBuffer: Buffer) {
   return fileBuffer.toString("utf8");
 }
 
-function parseStructuredBomRows(rows: string[][], format: SolidWorksBomParseResult["format"]): SolidWorksBomParseResult {
-  const normalizedRows = rows.map((row) => row.map((cell) => normalizeCell(cell))).filter((row) => row.some(Boolean));
+async function parseStructuredBomRows(
+  rows: string[][],
+  format: SolidWorksBomParseResult["format"]
+): Promise<SolidWorksBomParseResult> {
+  const normalizedRows: string[][] = [];
+  for (const [index, row] of rows.entries()) {
+    const normalizedRow = row.map((cell) => normalizeCell(cell));
+    if (normalizedRow.some(Boolean)) normalizedRows.push(normalizedRow);
+    if ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
+  }
   const headerIndex = findHeaderRowIndex(normalizedRows);
   if (headerIndex < 0) throw new BomXlsImportError("BOM_XLS_HEADER_NOT_FOUND");
 
@@ -2178,10 +2277,11 @@ function parseStructuredBomRows(rows: string[][], format: SolidWorksBomParseResu
     rowNumber: number;
   }> = [];
 
-  normalizedRows.slice(headerIndex + 1).forEach((row, offset) => {
-    const rowNumber = headerIndex + offset + 2;
+  for (let index = headerIndex + 1; index < normalizedRows.length; index += 1) {
+    const row = normalizedRows[index];
+    const rowNumber = index + 1;
     const childPartNumber = row[partNumberIndex]?.trim();
-    if (!childPartNumber) return;
+    if (!childPartNumber) continue;
 
     const quantity = parseQuantity(row[quantityIndex]);
     if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -2194,10 +2294,11 @@ function parseStructuredBomRows(rows: string[][], format: SolidWorksBomParseResu
       quantity,
       rowNumber
     });
-  });
+    if ((index - headerIndex) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
+  }
 
   if (parsedLines.length === 0) throw new BomXlsImportError("BOM_XLS_NO_LINES");
-  const lines = mergeSolidWorksBomRows(parsedLines);
+  const lines = await mergeSolidWorksBomRows(parsedLines);
   if (lines.length < parsedLines.length) warnings.push("duplicate_part_revision_rows_merged");
 
   return {
@@ -2246,74 +2347,100 @@ function parseQuantity(value: string | undefined) {
   return match ? Number(match[0]) : Number.NaN;
 }
 
-function mergeSolidWorksBomRows(
+async function mergeSolidWorksBomRows(
   rows: Array<{ childPartNumber: string; childRevision: string | null; quantity: number; rowNumber: number }>
-): SolidWorksBomImportLine[] {
+): Promise<SolidWorksBomImportLine[]> {
   const byKey = new Map<string, SolidWorksBomImportLine>();
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const key = `${row.childPartNumber.toUpperCase()}::${(row.childRevision ?? "").toUpperCase()}`;
     const existing = byKey.get(key);
     if (existing) {
       existing.quantity += row.quantity;
       existing.rowNumbers.push(row.rowNumber);
       existing.sourceReferenceId = `solidworks_rows:${existing.rowNumbers.join(",")}`;
-      continue;
+    } else {
+      byKey.set(key, {
+        childPartNumber: row.childPartNumber,
+        childRevision: row.childRevision,
+        quantity: row.quantity,
+        rowNumbers: [row.rowNumber],
+        sourceReferenceId: `solidworks_rows:${row.rowNumber}`
+      });
     }
-    byKey.set(key, {
-      childPartNumber: row.childPartNumber,
-      childRevision: row.childRevision,
-      quantity: row.quantity,
-      rowNumbers: [row.rowNumber],
-      sourceReferenceId: `solidworks_rows:${row.rowNumber}`
-    });
+    if ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
   }
   return Array.from(byKey.values());
 }
 
-function parseDelimitedRows(text: string) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length === 0) return [];
-  const delimiter = detectDelimiter(lines);
-  return lines.map((line) => parseDelimitedLine(line, delimiter));
-}
-
-function detectDelimiter(lines: string[]) {
-  const candidates = ["\t", ",", ";"];
-  const sample = lines.slice(0, 5).join("\n");
-  return candidates
-    .map((delimiter) => ({ delimiter, count: countDelimiter(sample, delimiter) }))
-    .sort((a, b) => b.count - a.count)[0]?.delimiter ?? "\t";
-}
-
-function countDelimiter(value: string, delimiter: string) {
-  return value.split(delimiter).length - 1;
-}
-
-function parseDelimitedLine(line: string, delimiter: string) {
-  const cells: string[] = [];
-  let cell = "";
+async function parseDelimitedRows(text: string) {
+  if (!text) return [];
+  const delimiter = detectDelimiter(text);
+  const rows: string[][] = [];
+  let cells: string[] = [];
+  let cellParts: string[] = [];
+  let segmentStart = 0;
   let inQuotes = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const nextChar = line[index + 1];
+  let rowHasContent = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (index > 0 && index % BOM_IMPORT_CHARACTER_YIELD_INTERVAL === 0) await yieldToEventLoop();
+    const char = text[index];
+    const nextChar = text[index + 1];
+    if (!rowHasContent && char.trim()) rowHasContent = true;
     if (char === '"' && inQuotes && nextChar === '"') {
-      cell += '"';
+      cellParts.push(text.slice(segmentStart, index), '"');
       index += 1;
+      segmentStart = index + 1;
       continue;
     }
     if (char === '"') {
+      cellParts.push(text.slice(segmentStart, index));
       inQuotes = !inQuotes;
+      segmentStart = index + 1;
       continue;
     }
     if (char === delimiter && !inQuotes) {
-      cells.push(cell);
-      cell = "";
+      cellParts.push(text.slice(segmentStart, index));
+      cells.push(cellParts.join(""));
+      cellParts = [];
+      segmentStart = index + 1;
       continue;
     }
-    cell += char;
+    if (char === "\r" || char === "\n") {
+      cellParts.push(text.slice(segmentStart, index));
+      cells.push(cellParts.join(""));
+      if (rowHasContent) rows.push(cells);
+      cells = [];
+      cellParts = [];
+      inQuotes = false;
+      if (char === "\r" && nextChar === "\n") index += 1;
+      segmentStart = index + 1;
+      rowHasContent = false;
+    }
   }
-  cells.push(cell);
-  return cells;
+  cellParts.push(text.slice(segmentStart));
+  cells.push(cellParts.join(""));
+  if (rowHasContent) rows.push(cells);
+  return rows;
+}
+
+function detectDelimiter(text: string) {
+  const candidates = ["\t", ",", ";"];
+  const counts = new Map(candidates.map((delimiter) => [delimiter, 0]));
+  let lineCount = 1;
+  const sampleLength = Math.min(text.length, BOM_IMPORT_DELIMITER_SAMPLE_CHARACTERS);
+  for (let index = 0; index < sampleLength && lineCount <= 5; index += 1) {
+    const char = text[index];
+    if (counts.has(char)) counts.set(char, (counts.get(char) ?? 0) + 1);
+    if (char === "\n") lineCount += 1;
+  }
+  return candidates
+    .map((delimiter) => ({ delimiter, count: counts.get(delimiter) ?? 0 }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter ?? "\t";
+}
+
+function yieldToEventLoop() {
+  return new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 function extractHtmlTableRows(text: string) {
@@ -2356,7 +2483,9 @@ function decodeHtmlText(value: string) {
 }
 
 function sanitizeFilename(filename: string) {
-  return filename.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim() || "solidworks-bom.xls";
+  const sanitized = filename.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim();
+  if (!sanitized || sanitized === "." || sanitized === "..") return "solidworks-bom.xls";
+  return sanitized;
 }
 
 function getRepositoryDir() {

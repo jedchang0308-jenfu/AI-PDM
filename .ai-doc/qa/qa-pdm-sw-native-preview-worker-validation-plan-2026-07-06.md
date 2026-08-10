@@ -1,10 +1,16 @@
 # QA-PDM-SW-NATIVE-PREVIEW-WORKER - Windows SolidWorks Native Preview Worker Validation Plan
 
-Status: Phase 1 Auto Preview Orchestration QA Passed / Native Worker Partial Evidence
+Status: Phase 1 Auto Preview Orchestration QA Passed / Google Secret Manager native readiness pending DEV-058
 Date: 2026-08-07
 Owner: Dev PM / QA
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
+
+## 2026-08-07 Credential Validation Amendment
+
+Preview queue, derivative, heartbeat, stale recovery, source-hash and UI criteria remain active. Secret-provider and native-readiness evidence now follows `.ai-doc/qa/qa-pdm-gcp-secret-manager-solidworks-worker-validation-plan-2026-08-07.md`.
+
+Google Secret Manager live read plus a real Windows `.SLDDRW` success are required before claiming 2D native readiness. Historical Supabase Vault or worker-local environment fallback is not the formal production target.
 
 ## 1. Purpose
 
@@ -157,6 +163,13 @@ Phase 1 auto-orchestration follow-up evidence captured on 2026-08-07:
 - Browser console errors: 0. Observed preview/status API responses: HTTP 200. No manual refresh was used to observe the 3D completion.
 - Limitation: this evidence proves the PDM queue/metadata/storage/UI pipeline, one real Windows Shell `.SLDPRT` path, and the Document Manager SLDDRW worker compile/claim/fail-safe path. It does not prove successful SOLIDWORKS Document Manager/eDrawings/equivalent extraction for `.SLDASM` or `.SLDDRW` because the local settings secret provider is `local_test_double` metadata and no worker-readable key is available.
 
+Phase 1 2D stuck-state correction evidence captured on 2026-08-07:
+
+- The dedicated Document Manager worker now supports persistent `--watch` polling for `SLDDRW` jobs; the local launcher manages it separately from the model worker.
+- Queued jobs not claimed within 120 seconds are automatically failed with `preview_worker_unavailable`; the UI distinguishes `等待預覽服務` from an actively running but delayed job and never requires manual refresh.
+- `npm.cmd run qc:pdm-sw-native-preview-worker`: passed 104/104; `npm.cmd run qc:master-attachments`: passed 103/103; `npm.cmd run qc:pdm-sw-native-preview-redaction`: passed 68/68; TypeScript, lint and `npm.cmd run dev:local:check` passed.
+- Current local readiness is explicit: website and 3D worker are healthy, while the 2D worker is `not_configured` because no worker-readable SolidWorks Document Manager key is present. Successful `.SLDDRW` image generation remains gated on that secret.
+
 Required viewports:
 
 - Desktop: `1440x900`.
@@ -232,7 +245,7 @@ Regression expectations:
 
 | Evidence | Status | Recovery condition |
 |---|---|---|
-| Real Windows Document Manager PNG success | Worker implemented / blocked on worker-readable key and success evidence | Provide active credential through Supabase Vault live read or worker-local env var, then run sample `.SLDDRW` and `.SLDASM` evidence |
+| Real Windows Document Manager PNG success | Worker implemented / blocked on Google Secret Manager integration and success evidence | Provide an exact active credential through the DEV-058 Google Secret Manager broker, then run sample `.SLDDRW` and `.SLDASM` evidence |
 | `.SLDDRW -> PDF` renderer | Not authorized | Authorize Phase 2 and choose eDrawings/SOLIDWORKS/equivalent renderer |
 | Interactive 3D derivative | Not authorized | Authorize Phase 3 architecture/security review |
 | Production rollout/backfill | Not authorized | Complete implementation, storage policy, backup/rollback and deployment-release gate |

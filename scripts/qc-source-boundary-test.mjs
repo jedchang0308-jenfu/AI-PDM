@@ -6,6 +6,8 @@ import { projectFileExists, readProjectFile } from "./qc-project-file-utils.mjs"
 const root = process.cwd();
 const requiredIgnoredPaths = [
   ".next/",
+  ".next-dev052-qc/",
+  ".worktrees/",
   "node_modules/",
   "cloud-functions/release-handler/node_modules/",
   "sw-addin/bin/",

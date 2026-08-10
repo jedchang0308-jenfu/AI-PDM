@@ -2,10 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import * as ts from "typescript";
 
 const root = process.cwd();
 const srcRoot = path.join(root, "src");
-const BASELINE_MAX_CYCLE_COUNT = 6;
+const BASELINE_MAX_CYCLE_COUNT = 1;
 const results = [];
 
 function record(id, passed, detail = "") {
@@ -22,6 +23,65 @@ function walk(directory) {
 
 const files = walk(srcRoot).map(path.normalize);
 const fileSet = new Set(files);
+
+function runtimeModuleSpecifiers(source, file) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+  const specifiers = [];
+  for (const statement of sourceFile.statements) {
+    if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+      const clause = statement.importClause;
+      if (!clause) {
+        specifiers.push(statement.moduleSpecifier.text);
+        continue;
+      }
+      if (clause.isTypeOnly) continue;
+      if (clause.name || ts.isNamespaceImport(clause.namedBindings)) {
+        specifiers.push(statement.moduleSpecifier.text);
+        continue;
+      }
+      if (ts.isNamedImports(clause.namedBindings) && clause.namedBindings.elements.some((element) => !element.isTypeOnly)) {
+        specifiers.push(statement.moduleSpecifier.text);
+      }
+      continue;
+    }
+    if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+      if (statement.isTypeOnly) continue;
+      if (!statement.exportClause || ts.isNamespaceExport(statement.exportClause)) {
+        specifiers.push(statement.moduleSpecifier.text);
+        continue;
+      }
+      if (statement.exportClause.elements.some((element) => !element.isTypeOnly)) {
+        specifiers.push(statement.moduleSpecifier.text);
+      }
+    }
+  }
+  return specifiers;
+}
+
+const parserCharacterization = runtimeModuleSpecifiers([
+  'import type { A } from "./type-import";',
+  'import { type B } from "./inline-type-import";',
+  'import { runtimeValue, type RuntimeType } from "./mixed-import";',
+  'import "./side-effect-import";',
+  'export type { C } from "./type-export";',
+  'export { type D } from "./inline-type-export";',
+  'export { runtimeExport, type ExportType } from "./mixed-export";'
+].join("\n"), "cycle-parser-characterization.ts");
+record(
+  "ARCH-BASELINE-000 dependency parser excludes erased type-only edges",
+  JSON.stringify(parserCharacterization) === JSON.stringify([
+    "./mixed-import",
+    "./side-effect-import",
+    "./mixed-export"
+  ]),
+  JSON.stringify(parserCharacterization)
+);
 
 function resolveImport(fromFile, specifier) {
   if (!specifier.startsWith(".") && !specifier.startsWith("@/")) return null;
@@ -41,8 +101,7 @@ function resolveImport(fromFile, specifier) {
 const graph = new Map(files.map((file) => [file, []]));
 for (const file of files) {
   const source = fs.readFileSync(file, "utf8");
-  const specifiers = [...source.matchAll(/(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/gu)]
-    .map((match) => match[1]);
+  const specifiers = runtimeModuleSpecifiers(source, file);
   for (const specifier of specifiers) {
     const target = resolveImport(file, specifier);
     if (target) graph.get(file).push(target);

@@ -34,6 +34,7 @@ try {
   const testRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/test/route.ts");
   const activateRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/activate/route.ts");
   const revokeRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/revoke/route.ts");
+  const workerCredentialRoute = readProjectFile(root, "src/app/api/preview-workers/solidworks-document-manager-key/route.ts");
   const settingsPage = readProjectFile(root, "src/app/settings/page.tsx");
   const integrationsPage = readProjectFile(root, "src/app/settings/integrations/page.tsx");
   const securityPage = readProjectFile(root, "src/app/settings/security/page.tsx");
@@ -55,12 +56,15 @@ try {
   record("SETTINGS-SECRET-004 active secret uniqueness is enforced", schema.includes("idx_secret_references_kind_active_unique") && postgresSchema.includes("idx_secret_references_kind_active_unique"));
   record("SETTINGS-SECRET-005 Supabase RLS plan includes secret metadata tables", includesAll(rlsPlan, ["secret_references", "setting_test_runs", "setting_activation_events"]));
   record("SETTINGS-SECRET-006 runtime sqlite initializer ensures secret schema", includesAll(dbRuntime, ["ensureSettingsSecretLifecycleSchema", "secret_references", "idx_secret_references_kind_active_unique"]));
+  record("SETTINGS-SECRET-006A settings route exposes secret management availability", settingsRoute.includes("secretManagementAvailable"));
 
   record("SETTINGS-SECRET-007 repository uses async provider only", repository.includes("AsyncDatabaseClient") && !repository.includes("getDb(") && !repository.includes("better-sqlite3"));
   record(
     "SETTINGS-SECRET-008 lifecycle has local test double and live Vault gate",
     includesAll(lifecycle, ["LocalTestDoubleSecretProvider", "SupabaseVaultSecretProvider", "SUPABASE_VAULT_LIVE_GATE_REQUIRED", "vault.create_secret"])
   );
+  record("SETTINGS-SECRET-008A lifecycle reads Vault only through server-side worker path", includesAll(lifecycle, ["vault.decrypted_secrets", "resolveActiveSolidWorksDocumentManagerKey", "workerReadiness"]));
+  record("SETTINGS-SECRET-008B worker credential route is token-gated and no-store", includesAll(workerCredentialRoute, ["PDM_PREVIEW_WORKER_TOKEN", "resolveActiveSolidWorksDocumentManagerKey", "Cache-Control", "no-store"]));
   record("SETTINGS-SECRET-009 lifecycle stores fingerprint/masked hint, not legacy system_settings", !lifecycle.includes("setSystemSetting") && includesAll(lifecycle, ["maskedHint", "fingerprint"]));
   record("SETTINGS-SECRET-010 legacy settings route has no secret material fields", !/solidworks.*(?:api[_-]?key|secret)|secretValue|vault_secret_id/iu.test(settingsRoute));
 
@@ -75,6 +79,7 @@ try {
   }
 
   record("SETTINGS-SECRET-012 UI uses password field and never displays secret value", settingsPage.includes('type="password"') && settingsPage.includes('autoComplete="new-password"') && !settingsPage.includes("solidworks_api_key"));
+  record("SETTINGS-SECRET-012A UI displays worker readiness without secret material", settingsPage.includes("workerReadiness") && settingsPage.includes("workerReadinessLabel"));
   record("SETTINGS-SECRET-013 UI exposes settings center areas", includesAll(settingsPage, ["settings-overview", "settings-integrations", "settings-security", "settings-workflow", "settings-system"]));
   record(
     "SETTINGS-SECRET-014 settings subpage routes render their own area",

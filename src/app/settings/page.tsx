@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Info,
   KeyRound,
+  LoaderCircle,
   LockKeyhole,
   Play,
   Plus,
@@ -258,7 +259,7 @@ type RedactedSecretVersionSummary = {
   id: string;
   version: number;
   lifecycleStatus: SecretLifecycleStatus;
-  vaultProvider: "local_test_double" | "supabase_vault";
+  vaultProvider: "local_test_double" | "google_secret_manager" | "supabase_vault";
   maskedHint: string;
   fingerprint: string;
   createdAt: string;
@@ -287,8 +288,19 @@ type SettingsSecretStatus = {
   workQueueState: "missing" | "draft_needs_test" | "tested_needs_activation" | "ready" | "revoked";
   workQueueMessage: string;
   liveGate: {
-    provider: "local_test_double" | "supabase_vault";
+    provider: "local_test_double" | "google_secret_manager" | "supabase_vault";
     status: "mocked" | "blocked" | "ready";
+    message: string;
+  };
+  workerReadiness: {
+    status: "ready" | "blocked" | "unknown";
+    credentialSource: "worker_environment" | "google_secret_manager" | "supabase_vault" | "none";
+    serviceTokenConfigured: boolean;
+    message: string;
+  };
+  workerPresence: {
+    status: "online" | "offline" | "unknown";
+    lastSeenAt: string | null;
     message: string;
   };
 };
@@ -441,12 +453,13 @@ function SettingsPanel({
   const secretManagementAvailable = settings.secretManagementAvailable === true;
 
   useEffect(() => {
+    if (activeArea !== "integrations") return;
     if (settings.serviceAccountConfigured) {
       loadFolderChildren("root");
     } else {
       setChildrenByParent({ root: { status: "error", message: "Google Drive 服務帳號尚未設定" } });
     }
-  }, [settings.serviceAccountConfigured]);
+  }, [activeArea, settings.serviceAccountConfigured]);
 
   const loadSecretStatuses = useCallback(async () => {
     if (!secretManagementAvailable) return;
@@ -466,6 +479,12 @@ function SettingsPanel({
   useEffect(() => {
     void loadSecretStatuses();
   }, [loadSecretStatuses]);
+
+  useEffect(() => {
+    if (!secretManagementAvailable || activeArea !== "security") return;
+    const timer = window.setInterval(() => void loadSecretStatuses(), 10000);
+    return () => window.clearInterval(timer);
+  }, [activeArea, loadSecretStatuses, secretManagementAvailable]);
 
   async function createSolidWorksSecretDraft(e: React.FormEvent) {
     e.preventDefault();
@@ -683,7 +702,6 @@ function SettingsPanel({
             message={secretMessage}
             onSecretValueChange={setSolidWorksSecret}
             onCreateDraft={createSolidWorksSecretDraft}
-            onRefresh={loadSecretStatuses}
             onRunAction={runSecretAction}
           />
         ) : null}
@@ -908,9 +926,20 @@ function emptySolidWorksSecretStatus(available = true): SettingsSecretStatus {
     workQueueState: "missing",
     workQueueMessage: available ? "尚未建立 SolidWorks CAD 讀取金鑰草稿。" : "此功能尚未開放。",
     liveGate: {
-      provider: "local_test_double",
+      provider: "google_secret_manager",
       status: available ? "mocked" : "blocked",
-      message: available ? "目前使用本機測試替身；正式啟用前需補 Supabase Vault 實際連線驗證。" : "正式後端尚未提供機密管理能力。"
+      message: available ? "目前使用本機測試替身；正式啟用前需補 Google Secret Manager 實際連線驗證。" : "正式後端尚未提供機密管理能力。"
+    },
+    workerReadiness: {
+      status: "blocked",
+      credentialSource: "none",
+      serviceTokenConfigured: false,
+      message: available ? "尚未配置可供 2D worker 讀取的金鑰。" : "機密管理功能尚未開放。"
+    },
+    workerPresence: {
+      status: "unknown",
+      lastSeenAt: null,
+      message: available ? "尚無 2D worker claim/heartbeat 證據。" : "機密管理功能尚未開放。"
     }
   };
 }
@@ -976,7 +1005,7 @@ function SettingsCenterOverview({
 }: {
   solidWorksStatus: SettingsSecretStatus;
   googleDriveReady: boolean;
-  vaultProvider: "local_test_double" | "supabase_vault";
+  vaultProvider: "local_test_double" | "google_secret_manager" | "supabase_vault";
   secretManagementAvailable: boolean;
 }) {
   return (
@@ -991,8 +1020,8 @@ function SettingsCenterOverview({
         <SettingsStatusTile
           icon={solidWorksStatus.configured ? <CheckCircle2 size={18} /> : <KeyRound size={18} />}
           title="SolidWorks CAD 讀取器"
-          status={secretManagementAvailable ? settingWorkQueueLabel(solidWorksStatus.workQueueState) : "未開放"}
-          detail={solidWorksStatus.workQueueMessage}
+          status={secretManagementAvailable ? settingSolidWorksStatusLabel(solidWorksStatus) : "未開放"}
+          detail={solidWorksStatus.workerReadiness.status === "ready" ? solidWorksStatus.workQueueMessage : solidWorksStatus.workerReadiness.message}
           href="/settings/security"
           actionLabel="前往安全設定"
         />
@@ -1005,7 +1034,7 @@ function SettingsCenterOverview({
           actionLabel="管理整合設定"
         />
         <SettingsStatusTile
-          icon={vaultProvider === "supabase_vault" ? <LockKeyhole size={18} /> : <Ban size={18} />}
+          icon={vaultProvider === "google_secret_manager" ? <LockKeyhole size={18} /> : <Ban size={18} />}
           title="機密資料保管庫"
           status={secretManagementAvailable ? (solidWorksStatus.liveGate.status === "ready" ? "已連到保管庫" : "待正式驗證") : "未開放"}
           detail={solidWorksStatus.liveGate.message}
@@ -1059,7 +1088,6 @@ function SolidWorksSecretPanel({
   message,
   onSecretValueChange,
   onCreateDraft,
-  onRefresh,
   onRunAction
 }: {
   status: SettingsSecretStatus;
@@ -1070,7 +1098,6 @@ function SolidWorksSecretPanel({
   message: { type: "error" | "success"; text: string } | null;
   onSecretValueChange: (value: string) => void;
   onCreateDraft: (event: React.FormEvent) => void;
-  onRefresh: () => void;
   onRunAction: (secretReferenceId: string, action: "test" | "activate" | "revoke") => void;
 }) {
   const latest = status.latest;
@@ -1087,10 +1114,10 @@ function SolidWorksSecretPanel({
           <h2>安全設定</h2>
           <p>金鑰流程：建立草稿、測試、啟用、撤銷。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={onRefresh} disabled={busy || !available} title={unavailableTitle}>
-          <RefreshCw size={16} />
-          重新整理
-        </button>
+        <span className="settings-auto-status" title="狀態會自動更新" aria-label="狀態會自動更新">
+          <LoaderCircle size={16} aria-hidden="true" />
+          自動更新
+        </span>
       </div>
 
       <div className="settings-secret-layout">
@@ -1168,6 +1195,16 @@ function SolidWorksSecretPanel({
             <strong>{status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
             <small>{status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
           </div>
+          <div className="settings-secret-test-run">
+            <span>2D worker readiness</span>
+            <strong>{workerReadinessLabel(status.workerReadiness.status)}</strong>
+            <small>{status.workerReadiness.message}</small>
+          </div>
+          <div className="settings-secret-test-run">
+            <span>2D 預覽服務</span>
+            <strong>{workerPresenceLabel(status.workerPresence.status)}</strong>
+            <small>{status.workerPresence.message}</small>
+          </div>
         </div>
       </div>
     </section>
@@ -1189,7 +1226,7 @@ function SecretVersionDetails({
       <strong>{version ? `v${version.version} / ${secretLifecycleLabel(version.lifecycleStatus)}` : emptyText}</strong>
       <small>
         {version
-          ? `${version.vaultProvider === "supabase_vault" ? "Supabase Vault" : "本機測試替身"} / ${version.maskedHint} / ${formatDateTime(version.createdAt)}`
+          ? `${secretProviderLabel(version.vaultProvider)} / ${version.maskedHint} / ${formatDateTime(version.createdAt)}`
           : "未設定"}
       </small>
     </div>
@@ -1205,6 +1242,29 @@ function settingWorkQueueLabel(state: SettingsSecretStatus["workQueueState"]) {
     revoked: "已停用"
   };
   return labels[state];
+}
+
+function settingSolidWorksStatusLabel(status: SettingsSecretStatus) {
+  if (status.workQueueState === "ready" && status.workerReadiness.status !== "ready") return "worker 未就緒";
+  return settingWorkQueueLabel(status.workQueueState);
+}
+
+function workerReadinessLabel(status: SettingsSecretStatus["workerReadiness"]["status"]) {
+  if (status === "ready") return "可使用";
+  if (status === "unknown") return "待確認";
+  return "未就緒";
+}
+
+function workerPresenceLabel(status: SettingsSecretStatus["workerPresence"]["status"]) {
+  if (status === "online") return "在線";
+  if (status === "unknown") return "待回報";
+  return "未在線";
+}
+
+function secretProviderLabel(provider: RedactedSecretVersionSummary["vaultProvider"]) {
+  if (provider === "google_secret_manager") return "Google Secret Manager";
+  if (provider === "supabase_vault") return "歷史 Supabase Vault";
+  return "本機測試替身";
 }
 
 function secretLifecycleLabel(status: SecretLifecycleStatus) {
