@@ -85,7 +85,10 @@ record(
   "ReviewApproved must remain an effective companion projection"
 );
 
-const sourceHash = crypto.createHash("sha256").update(postgresMigration).digest("hex");
+// Migration mirrors are generated with LF line endings so that their integrity
+// hashes remain stable across Windows and Linux clean checkouts.
+const normalizedPostgresMigration = postgresMigration.replace(/\r\n/gu, "\n");
+const sourceHash = crypto.createHash("sha256").update(normalizedPostgresMigration).digest("hex");
 record(
   "DEV052-SCHEMA-007 Supabase mirror hash and registry match migration 021",
   supabaseMirror.includes("-- Source: db/postgres/021_number_lifecycle_simplification.sql") &&
