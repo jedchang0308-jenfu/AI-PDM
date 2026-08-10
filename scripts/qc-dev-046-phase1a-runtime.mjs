@@ -31,14 +31,42 @@ const nextConfig = read("next.config.mjs");
 const dockerfile = read("Dockerfile");
 const infraReadme = read("infra/google-cloud/README.md");
 
-record("DEV046-1A-001 Next.js is exact and lockfile-aligned", packageJson.dependencies.next === "16.2.6" && packageLock.packages[""].dependencies.next === "16.2.6");
+record(
+  "DEV046-1A-001 Next.js is exact and lockfile-aligned",
+  /^\d+\.\d+\.\d+$/u.test(packageJson.dependencies.next) &&
+    packageLock.packages[""].dependencies.next === packageJson.dependencies.next &&
+    packageLock.packages["node_modules/next"].version === packageJson.dependencies.next
+);
 record("DEV046-1A-002 Node 24 LTS support range is pinned", packageJson.engines.node === ">=24.11.0 <25" && support.node.major === 24 && support.node.releaseLine.includes("LTS"));
 record("DEV046-1A-003 standalone output is enabled", nextConfig.includes('output: "standalone"') && support.container.nextOutput === "standalone");
-record("DEV046-1A-004 base image is immutable and shared by all stages", isDigestPinned(support.container.baseImage) && dockerfile.includes(`ARG NODE_IMAGE=${support.container.baseImage}`) && (dockerfile.match(/FROM \$\{NODE_IMAGE\}/gu) ?? []).length === 3);
+record(
+  "DEV046-1A-004 base image is immutable and shared by all stages",
+  isDigestPinned(support.container.baseImage) &&
+    dockerfile.includes(`ARG NODE_IMAGE=${support.container.baseImage}`) &&
+    (dockerfile.match(/FROM \$\{NODE_IMAGE\}/gu) ?? []).length === 4 &&
+    ["dependencies", "builder", "migration-runner", "runner"].every((stage) => dockerfile.includes(`FROM \${NODE_IMAGE} AS ${stage}`))
+);
 record("DEV046-1A-005 runtime is non-root and listens on Cloud Run port", dockerfile.includes("USER nextjs") && dockerfile.includes("HOSTNAME=0.0.0.0") && dockerfile.includes("PORT=8080") && cloudRun.service.hostname === "0.0.0.0" && cloudRun.service.port === 8080);
 record("DEV046-1A-006 build has no private database dependency", dockerfile.includes("PDM_DB_PROVIDER=sqlite") && !/PDM_(?:POSTGRES_URL|CLOUD_SQL|SUPABASE_SERVICE_ROLE_KEY)/u.test(dockerfile));
-record("DEV046-1A-007 Cloud Run region, ingress and bounded scale are closed", cloudRun.service.region === "asia-east1" && cloudRun.service.ingress === "internal-and-cloud-load-balancing" && cloudRun.service.maxInstances === 5 && cloudRun.service.containerConcurrency === 20);
-record("DEV046-1A-008 ALB, serverless NEG and custom domain are required", cloudRun.edge.type === "external-application-load-balancer" && cloudRun.edge.backend === "serverless-neg" && cloudRun.edge.serverlessNegRegion === "asia-east1" && cloudRun.edge.customDomainRequired === true && cloudRun.edge.directRunAppUrlPublic === false);
+record(
+  "DEV046-1A-007 Cloud Run region, bounded scale and production ingress modes are explicit",
+  cloudRun.service.region === "asia-east1" &&
+    cloudRun.service.maxInstances === 5 &&
+    cloudRun.service.containerConcurrency === 20 &&
+    cloudRun.productionEdgeBaseline?.cloudRunIngress === "internal-and-cloud-load-balancing" &&
+    cloudRun.productionInternalPilotGateway?.cloudRunIngress === "all"
+);
+record(
+  "DEV046-1A-008 production ALB baseline and bounded Hosting pilot are both fail-closed",
+  cloudRun.edge.type === "external-application-load-balancer" &&
+    cloudRun.edge.backend === "serverless-neg" &&
+    cloudRun.edge.serverlessNegRegion === "asia-east1" &&
+    cloudRun.productionEdgeBaseline?.type === "external-application-load-balancer" &&
+    cloudRun.productionEdgeBaseline?.customDomainRequired === true &&
+    cloudRun.productionEdgeBaseline?.cloudRunDefaultUrlDisabled === true &&
+    cloudRun.productionInternalPilotGateway?.canonicalOrigin === "https://jenfu-ai-pdm-prod.web.app" &&
+    cloudRun.productionInternalPilotGateway?.directRunAppOriginSessionExchange === "denied-when-origin-is-run-app"
+);
 record("DEV046-1A-009 Cloud SQL proxy sidecar image is immutable", cloudRun.databaseSidecar.mode === "cloud-sql-auth-proxy" && isDigestPinned(cloudRun.databaseSidecar.image) && cloudRun.databaseSidecar.privateIp === true && cloudRun.databaseSidecar.automaticIamDatabaseAuthentication === true);
 record("DEV046-1A-010 release rejects source push and automatic traffic", cloudRun.release.sourceDeployAllowed === false && cloudRun.release.applicationImageDigestRequired === true && cloudRun.release.candidateReceivesTrafficOnDeploy === false && cloudRun.release.promotion === "manual-after-smoke" && infraReadme.includes("zero traffic"));
 record("DEV046-1A-011 CDN allowlist contains only hashed Next assets", cache.default === "bypass" && cache.allow.length === 1 && cache.allow[0].path === "/_next/static/**" && cache.allow[0].requiredResponseHeader.includes("immutable"));
