@@ -115,53 +115,86 @@ try {
     JSON.stringify({ workspaceVersion: created.rowVersion, candidateRevision: candidate?.revision })
   );
 
-  const added = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
+  const drawingAdded = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
     workspaceId: "dev052-flow",
     companyId: "company-jenfu",
     candidateRevisionId: candidate.id,
     actorId: "dev052-flow-user",
     expectedRowVersion: candidate.rowVersion,
     storage: {
-      assetId: "dev052-file-asset",
-      fileId: "dev052-candidate-file",
+      assetId: "dev052-drawing-file-asset",
+      fileId: "dev052-drawing-candidate-file",
       storageProvider: "local_repository",
       originalPath: null,
       storageBucket: null,
-      storageKey: "candidate-revisions/dev052-flow/first.pdf",
+      storageKey: "candidate-revisions/dev052-flow/first.slddrw",
       storageGeneration: null,
-      fileName: "first.pdf",
-      fileExt: "pdf",
-      mimeType: "application/pdf",
+      fileName: "first.slddrw",
+      fileExt: "slddrw",
+      mimeType: "application/octet-stream",
       fileSize: 12,
-      contentHash: crypto.createHash("sha256").update("DEV-052 PDF").digest("hex"),
-      role: "pdf",
+      contentHash: crypto.createHash("sha256").update("DEV-052 DRAWING").digest("hex"),
+      role: "drawing_2d",
       roleSource: "user",
-      displayName: "first.pdf",
+      displayName: "first.slddrw",
       description: "",
       isPrimary: true,
       publicationEvidence: {
-        id: "dev052-evidence",
+        id: "dev052-drawing-evidence",
         bucket: "dev052-local-fake",
-        objectKey: "candidate-revisions/dev052-flow/first.pdf",
+        objectKey: "candidate-revisions/dev052-flow/first.slddrw",
         generation: "1",
         finalizedAt: new Date().toISOString()
       }
     }
   }));
-  const storedAsset = database
-    .prepare("SELECT storage_provider, sync_status FROM file_assets WHERE id = 'dev052-file-asset'")
-    .get();
+  const added = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
+    workspaceId: "dev052-flow",
+    companyId: "company-jenfu",
+    candidateRevisionId: candidate.id,
+    actorId: "dev052-flow-user",
+    expectedRowVersion: drawingAdded.candidateRevisions[0].rowVersion,
+    storage: {
+      assetId: "dev052-model-file-asset",
+      fileId: "dev052-model-candidate-file",
+      storageProvider: "local_repository",
+      originalPath: null,
+      storageBucket: null,
+      storageKey: "candidate-revisions/dev052-flow/first.sldprt",
+      storageGeneration: null,
+      fileName: "first.sldprt",
+      fileExt: "sldprt",
+      mimeType: "application/octet-stream",
+      fileSize: 12,
+      contentHash: crypto.createHash("sha256").update("DEV-052 MODEL").digest("hex"),
+      role: "cad_3d",
+      roleSource: "user",
+      displayName: "first.sldprt",
+      description: "",
+      isPrimary: true,
+      publicationEvidence: {
+        id: "dev052-model-evidence",
+        bucket: "dev052-local-fake",
+        objectKey: "candidate-revisions/dev052-flow/first.sldprt",
+        generation: "1",
+        finalizedAt: new Date().toISOString()
+      }
+    }
+  }));
+  const storedAssets = database
+    .prepare("SELECT storage_provider, sync_status FROM file_assets WHERE id IN ('dev052-drawing-file-asset', 'dev052-model-file-asset') ORDER BY id")
+    .all();
+  const candidateFiles = added.candidateRevisions[0]?.files ?? [];
   record(
-    "DEV052-FLOW-002 primary file and finalized evidence make the bundle ready",
+    "DEV052-FLOW-002 primary 2D and 3D files with finalized evidence make the bundle ready",
     added.lifecycleV2?.stage === "bundle_ready" &&
-      added.candidateRevisions[0]?.files[0]?.publicationEvidenceId === "dev052-evidence" &&
-      storedAsset?.storage_provider === "j_drive" &&
-      storedAsset?.sync_status === "local_only",
+      ["drawing_2d", "cad_3d"].every((role) => candidateFiles.some((file) => file.role === role && file.isPrimary && file.publicationEvidenceId)) &&
+      storedAssets.length === 2 &&
+      storedAssets.every((asset) => asset.storage_provider === "j_drive" && asset.sync_status === "local_only"),
     JSON.stringify({
       stage: added.lifecycleV2?.stage,
-      evidence: added.candidateRevisions[0]?.files[0]?.publicationEvidenceId,
-      storageProvider: storedAsset?.storage_provider,
-      syncStatus: storedAsset?.sync_status
+      files: candidateFiles.map((file) => ({ role: file.role, evidence: file.publicationEvidenceId })),
+      storedAssets
     })
   );
 
@@ -298,34 +331,67 @@ try {
     expectedWorkspaceRowVersion: 1
   }));
   const legacyCandidate = legacyCreated.candidateRevisions[0];
-  const legacyAdded = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
+  const legacyDrawingAdded = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
     workspaceId: "dev052-legacy",
     companyId: "company-jenfu",
     candidateRevisionId: legacyCandidate.id,
     actorId: "dev052-flow-user",
     expectedRowVersion: legacyCandidate.rowVersion,
     storage: {
-      assetId: "dev052-legacy-file-asset",
-      fileId: "dev052-legacy-candidate-file",
+      assetId: "dev052-legacy-drawing-file-asset",
+      fileId: "dev052-legacy-drawing-candidate-file",
       storageProvider: "local_repository",
       originalPath: null,
       storageBucket: null,
-      storageKey: "candidate-revisions/dev052-legacy/first.pdf",
+      storageKey: "candidate-revisions/dev052-legacy/first.slddrw",
       storageGeneration: null,
-      fileName: "legacy-first.pdf",
-      fileExt: "pdf",
-      mimeType: "application/pdf",
+      fileName: "legacy-first.slddrw",
+      fileExt: "slddrw",
+      mimeType: "application/octet-stream",
       fileSize: 16,
-      contentHash: crypto.createHash("sha256").update("DEV-052 LEGACY PDF").digest("hex"),
-      role: "pdf",
+      contentHash: crypto.createHash("sha256").update("DEV-052 LEGACY DRAWING").digest("hex"),
+      role: "drawing_2d",
       roleSource: "user",
-      displayName: "legacy-first.pdf",
+      displayName: "legacy-first.slddrw",
       description: "",
       isPrimary: true,
       publicationEvidence: {
-        id: "dev052-legacy-evidence",
+        id: "dev052-legacy-drawing-evidence",
         bucket: "dev052-local-fake",
-        objectKey: "candidate-revisions/dev052-legacy/first.pdf",
+        objectKey: "candidate-revisions/dev052-legacy/first.slddrw",
+        generation: "1",
+        finalizedAt: new Date().toISOString()
+      }
+    }
+  }));
+  const legacyAdded = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).addCandidateFile({
+    workspaceId: "dev052-legacy",
+    companyId: "company-jenfu",
+    candidateRevisionId: legacyCandidate.id,
+    actorId: "dev052-flow-user",
+    expectedRowVersion: legacyDrawingAdded.candidateRevisions[0].rowVersion,
+    storage: {
+      assetId: "dev052-legacy-model-file-asset",
+      fileId: "dev052-legacy-model-candidate-file",
+      storageProvider: "local_repository",
+      originalPath: null,
+      storageBucket: null,
+      storageKey: "candidate-revisions/dev052-legacy/first.sldprt",
+      storageGeneration: null,
+      fileName: "legacy-first.sldprt",
+      fileExt: "sldprt",
+      mimeType: "application/octet-stream",
+      fileSize: 16,
+      contentHash: crypto.createHash("sha256").update("DEV-052 LEGACY MODEL").digest("hex"),
+      role: "cad_3d",
+      roleSource: "user",
+      displayName: "legacy-first.sldprt",
+      description: "",
+      isPrimary: true,
+      publicationEvidence: {
+        id: "dev052-legacy-model-evidence",
+        bucket: "dev052-local-fake",
+        objectKey: "candidate-revisions/dev052-legacy/first.sldprt",
         generation: "1",
         finalizedAt: new Date().toISOString()
       }
