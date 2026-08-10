@@ -1,22 +1,26 @@
-# AI_PDM Supabase Runtime Migrations
+# AI_PDM Historical Supabase Migration Mirror
 
-This directory contains the local Supabase migration mirror for `DEV-SUPABASE-DB-001`.
+Status: `Historical compatibility / audit only — not an active staging or production target`
+
+This directory retains the former `DEV-SUPABASE-DB-001` migration mirror for traceability, rollback analysis, and guards against accidentally reconnecting retired Supabase projects. The active platform authority is Google Cloud: Cloud SQL PostgreSQL, Cloud Run, Google Cloud Storage, Google Secret Manager, and the approved Firebase Hosting gateway. Current releases must use `db/postgres/*.sql` and the `DEV-032` GCP release lane.
+
+Do not run Supabase live migration, smoke, target-validation, or cutover commands for a current AI_PDM release. The historical live instructions below are retained only as archived evidence of the superseded platform phase.
 
 ## Current Status
 
-- The local machine does not currently have the Supabase CLI installed.
+- Supabase CLI availability is irrelevant to the current GCP release target.
 - The files in `supabase/migrations` are synchronized from `db/postgres/*.sql` by:
 
 ```powershell
 npm.cmd run supabase:migrations:sync
 ```
 
-- Before applying anything to a live Supabase project, validate the target and migration history again with the Supabase CLI or Supabase MCP tooling.
-- When the Supabase CLI is available, `npm.cmd run supabase:migrations:sync` records the result of `supabase migration list` in `supabase/migrations/manifest.json`. If the CLI is absent, the manifest records `localMigrationList.attempted=false` and no live history check is claimed.
+- This synchronization command is a static mirror-integrity check only. It does not authorize or prepare a Supabase deployment.
+- `supabase/migrations/manifest.json` remains a deterministic historical manifest; current deployment evidence comes from the Cloud SQL migration and GCP release gates.
 
-## Target Rules
+## Historical Target Safeguards (Non-operational)
 
-Only AI_PDM dedicated targets may be used:
+The following retired target names are documented only so old scripts fail closed:
 
 - `AI_PDM_STAGING`
 - `AI_PDM_PROD`
@@ -28,7 +32,7 @@ Do not apply these migrations to:
 - any non-empty public schema
 - any partial or non-AI_PDM public schema
 
-Set `PDM_SUPABASE_TARGET_NAME=AI_PDM_STAGING` or `AI_PDM_PROD` when running live validation so target guard output is explicit.
+Do not set `PDM_SUPABASE_TARGET_NAME` for a current release. Use the GCP production target contract instead.
 
 ## Migration Files
 

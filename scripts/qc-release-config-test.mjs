@@ -32,6 +32,7 @@ function startApp(port) {
     cwd: root,
     env: {
       ...process.env,
+      PDM_DB_PROVIDER: "sqlite",
       PDM_DATA_DIR: testRoot,
       PDM_REPOSITORY_DIR: path.join(testRoot, "repository"),
       PDM_RELEASE_MODE: "strict",
@@ -168,11 +169,11 @@ try {
   const baseUrl = `http://127.0.0.1:${appPort}`;
   app = startApp(appPort);
   await waitForApp(baseUrl, app.getOutput);
-  releasedFolderSnapshot = snapshotSetting("gdrive_released_folder_id");
-  writeSetting("gdrive_released_folder_id", "");
 
   const engineerCookie = await login(baseUrl, "engineer@example.com");
   const managerCookie = await login(baseUrl, "manager@example.com");
+  releasedFolderSnapshot = snapshotSetting("gdrive_released_folder_id");
+  writeSetting("gdrive_released_folder_id", "");
   const submissionId = await createSubmission(baseUrl, engineerCookie);
 
   const approvalResponse = await fetch(`${baseUrl}/api/submissions/${submissionId}/approve`, {
