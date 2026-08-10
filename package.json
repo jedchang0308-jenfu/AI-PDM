@@ -445,7 +445,7 @@
     "qc:field-test-handoff-package": "node scripts/qc-field-test-handoff-package.mjs",
     "qc:field-test-issue-intake": "node scripts/qc-field-test-issue-intake.mjs",
     "qc:submissions-pagination": "node scripts/qc-submissions-pagination-test.mjs",
-    "qc:release-config": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-release-config-test.mjs",
+    "qc:release-config": "node scripts/qc-release-config-test.mjs",
     "qc:release-folders": "node scripts/qc-release-folder-selection-test.mjs",
     "qc:release-failure": "node scripts/qc-release-failure-test.mjs",
     "qc:revision-lifecycle": "node scripts/qc-revision-lifecycle-test.mjs",
