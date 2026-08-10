@@ -31,6 +31,8 @@ const statusRoute = readRequired("src/app/api/production-slice/status/route.ts")
 const blockedPage = readRequired("src/app/production-slice-blocked/page.tsx");
 const sidebar = readRequired("src/components/sidebar-nav.tsx");
 const partsPage = readRequired("src/app/parts/page.tsx");
+const partWorkbench = readRequired("src/components/part-workbench.tsx");
+const partDetailContent = readRequired("src/components/part-detail-content.tsx");
 const masterAttachmentPanel = readRequired("src/components/master-attachment-panel.tsx");
 const numberStateWorkspace = readRequired("src/components/number-state-workspace.tsx");
 const globalCss = readRequired("src/app/globals.css");
@@ -63,13 +65,32 @@ record("SLICE-011 blocked page routes users to DEV-048 owner surfaces", blockedP
 record("SLICE-012 sidebar keeps roadmap visible and marks unopened routes", sidebar.includes("/api/production-slice/status") && sidebar.includes("nav-unopened") && sidebar.includes("nav-unopened-badge"));
 record("SLICE-013 sidebar sends unopened route clicks to blocked state", sidebar.includes("/production-slice-blocked?from="));
 record("SLICE-014 owner draft workspace reads production-slice status", numberStateWorkspace.includes("/api/production-slice/status") && numberStateWorkspace.includes("formalActionsUnopened"));
-record("SLICE-015 owner draft workspace submit-review UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="送交發布審核"') && numberStateWorkspace.includes('action !== "cancel"'));
+record("SLICE-015 owner draft workspace submit-review UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="送交審核"') && numberStateWorkspace.includes('action !== "cancel"'));
 record("SLICE-016 owner draft workspace withdraw UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="撤回審核"'));
 record("SLICE-017 owner draft workspace publish UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="正式發布"'));
 record("SLICE-018 unopened UI remains focusable with aria-disabled instead of native disabled only", numberStateWorkspace.includes('aria-disabled="true"') && numberStateWorkspace.includes('data-production-slice-unopened="true"'));
-record("SLICE-018A parts detail reads production-slice status", partsPage.includes("/api/production-slice/status") && partsPage.includes("productionSliceEnforced"));
-record("SLICE-018B parts detail disables unopened formal workflow actions", partsPage.includes("送審製造圖") && partsPage.includes("production-slice-unopened") && partsPage.includes("data-production-slice-unopened"));
-record("SLICE-018C parts detail does not call unopened 3D/MA mutations in production slice", partsPage.includes("if (productionSliceEnforced) return;") && partsPage.includes("setModels([])") && partsPage.includes("setResolver(null)"));
+record(
+  "SLICE-018A parts detail reads and propagates production-slice status",
+  partsPage.includes("<PartModule") &&
+    partWorkbench.includes("/api/production-slice/status") &&
+    partWorkbench.includes("const productionSliceEnforced = productionSlice?.configured === true") &&
+    partDetailContent.includes("<PartWorkbench renderFormalDetail") &&
+    partDetailContent.includes("productionSliceEnforced={productionSliceEnforced}")
+);
+record(
+  "SLICE-018B parts detail disables unopened formal workflow actions",
+  partDetailContent.includes("送審製造圖") &&
+    partDetailContent.includes("ProductionSliceUnopenedButton") &&
+    partDetailContent.includes("production-slice-unopened") &&
+    partDetailContent.includes("data-production-slice-unopened")
+);
+record(
+  "SLICE-018C parts detail does not call unopened 3D/MA mutations in production slice",
+  partDetailContent.includes("if (productionSliceEnforced) return;") &&
+    partDetailContent.includes("setModels([])") &&
+    partDetailContent.includes("setResolver(null)") &&
+    partDetailContent.includes("productionSliceEnforced={productionSliceEnforced}")
+);
 record("SLICE-018D master attachment panel disables unopened file workflow actions", masterAttachmentPanel.includes("productionSliceEnforced") && masterAttachmentPanel.includes("FileDropzone") && masterAttachmentPanel.includes("disabled={productionSliceEnforced}") && masterAttachmentPanel.includes("data-production-slice-unopened"));
 record("SLICE-019 submit-review route gates before domain mutation", submitReviewRoute.includes("isProductionSliceEnforced") && appearsBefore(submitReviewRoute, "isProductionSliceEnforced()", "submitPartNumberDraft("));
 record("SLICE-020 reconfirm route gates before domain mutation", reconfirmRoute.includes("isProductionSliceEnforced") && appearsBefore(reconfirmRoute, "isProductionSliceEnforced()", "reconfirmPartNumberDraft("));
