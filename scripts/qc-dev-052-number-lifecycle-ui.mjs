@@ -60,7 +60,7 @@ record(
 );
 record(
   "DEV052-UI-008 keyboard, focus and responsive drawer/editor structure remain present",
-  has(workspace, ["useOverlayLifecycle", "aria-modal=\"true\"", "closeLabel=\"關閉候選圖號明細\""]) &&
+  has(workspace, ["useOverlayLifecycle", "aria-modal=\"true\"", 'const entityLabel = presentation?.entityLabel ?? "候選圖號"', "closeLabel={`關閉${entityLabel}明細`}"]) &&
     has(css, ["@media (max-width: 720px)", ".candidate-revision-fields", "focus-visible", ".candidate-revision-upload"]),
   "focus trap + close label + mobile single-column editor"
 );
