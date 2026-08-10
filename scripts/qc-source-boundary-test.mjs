@@ -1954,7 +1954,8 @@ record(
 );
 record(
   "SOURCE-BOUNDARY Supabase runtime migrations QC uses shared hash utils",
-  supabaseRuntimeMigrationsQcSource.includes('import { sha256Bytes as sha256 } from "./qc-file-hash-utils.mjs"') &&
+  (supabaseRuntimeMigrationsQcSource.includes('import { sha256Bytes as sha256 } from "./qc-file-hash-utils.mjs"') ||
+    supabaseRuntimeMigrationsQcSource.includes('import { sha256Bytes } from "./qc-file-hash-utils.mjs"')) &&
     !supabaseRuntimeMigrationsQcSource.includes('import crypto from "node:crypto"') &&
     !supabaseRuntimeMigrationsQcSource.includes("crypto.createHash"),
   "scripts/qc-supabase-runtime-migrations.mjs"
