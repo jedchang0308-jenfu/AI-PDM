@@ -139,13 +139,24 @@ const sourceFiles = [
     description: "Add DEV-053 Phase 1H drawing-revision lifecycle authority and guarded cleanup"
   },
   {
+    source: "db/postgres/027_settings_secret_google_secret_manager.sql",
+    target: "supabase/migrations/20260807010000_settings_secret_google_secret_manager.sql",
+    description: "Allow exact-version Google Secret Manager references without migrating plaintext"
+  },
+  {
     source: "db/postgres/028_bom_material_identity_revision.sql",
     target: "supabase/migrations/20260810010000_bom_material_identity_revision.sql",
     description: "Add DEV-060 canonical material-owned BOM revision and idempotent create effects"
+  },
+  {
+    source: "db/postgres/029_pdm_file_ownership_and_3d_reuse.sql",
+    target: "supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql",
+    description: "Add DEV-061 strict drawing source files, submission asset pointers, and scoped 3D reuse"
   }
 ];
 
-const read = (relativePath) => readProjectFile(root, relativePath);
+const normalizeLf = (value) => value.replace(/\r\n?/gu, "\n");
+const read = (relativePath) => normalizeLf(readProjectFile(root, relativePath));
 
 function write(relativePath, content) {
   const absolutePath = projectPath(root, relativePath);

@@ -11,6 +11,9 @@ function check(id, ok, detail) {
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
+function normalizeLf(value) {
+  return value.replace(/\r\n?/gu, "\n");
+}
 
 const sqlite = new Database(":memory:");
 try {
@@ -39,6 +42,10 @@ check("candidate-reupload-gate", read("src/lib/number-lifecycle-simplification.t
 
 const sourceMigration = read("db/postgres/029_pdm_file_ownership_and_3d_reuse.sql");
 const targetMigration = read("supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql");
-check("migration-parity", sourceMigration === targetMigration, "Postgres source and Supabase mirror are byte-identical");
+check(
+  "migration-parity",
+  normalizeLf(targetMigration).endsWith(`${normalizeLf(sourceMigration).trim()}\n`),
+  "Supabase generated migration contains the normalized Postgres source without semantic drift"
+);
 
 console.log(JSON.stringify({ script: "qc-dev-061-file-ownership", passed: checks.length, checks }, null, 2));

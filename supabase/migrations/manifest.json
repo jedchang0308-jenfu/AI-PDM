@@ -21,8 +21,8 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "5e1bff1bc48e938adaee61fad9993b85ffe23b5b65c5b964515017b337e1faea",
-      "targetSha256": "4c44e4de1e355943647b4152d024c09d7c4884795d3b96cf663f7d606c3a2748"
+      "sourceSha256": "df4044d406b7f50ec56a0d59a12456a1e5c88dc0b94aa76ea565da62ffe70226",
+      "targetSha256": "93a91e5b3e95def971419e0f4601b726095f8e18ba9a0f499601ee28c41edaf4"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",
@@ -200,6 +200,13 @@
       "targetSha256": "0482763515fa5b308ce08ed38ec7eb41d35b07293dfbdc84b20c4c0a214a6acd"
     },
     {
+      "source": "db/postgres/027_settings_secret_google_secret_manager.sql",
+      "target": "supabase/migrations/20260807010000_settings_secret_google_secret_manager.sql",
+      "description": "Allow exact-version Google Secret Manager references without migrating plaintext",
+      "sourceSha256": "d6a34e44fd310f921c3df68a93da8f9605425f2b813b6073a5e307460ca6b4c5",
+      "targetSha256": "0f847112b9558be0ffe6936e8edf5630aa5fb86ca93e7b5c6ca6407e34189a91"
+    },
+    {
       "source": "db/postgres/028_bom_material_identity_revision.sql",
       "target": "supabase/migrations/20260810010000_bom_material_identity_revision.sql",
       "description": "Add DEV-060 canonical material-owned BOM revision and idempotent create effects",
@@ -210,8 +217,8 @@
       "source": "db/postgres/029_pdm_file_ownership_and_3d_reuse.sql",
       "target": "supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql",
       "description": "Add DEV-061 strict drawing source files, submission asset pointers, and scoped 3D reuse",
-      "sourceSha256": "44291ff54eb689bee641284c30b22666fb062ef815b82040cddf97fd136412f2",
-      "targetSha256": "44291ff54eb689bee641284c30b22666fb062ef815b82040cddf97fd136412f2"
+      "sourceSha256": "667f34068f1c2b8dc7c997f362c79fc6e9345e7d04c3d750a6e59ea83f6d498d",
+      "targetSha256": "57b57e589c6b7b52e02cd8d657208855560a39be4b10682b420fbe070664775a"
     }
   ]
 }

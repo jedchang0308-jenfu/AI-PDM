@@ -1,3 +1,8 @@
+-- Add DEV-061 strict drawing source files, submission asset pointers, and scoped 3D reuse
+-- Source: db/postgres/029_pdm_file_ownership_and_3d_reuse.sql
+-- Source SHA-256: 667f34068f1c2b8dc7c997f362c79fc6e9345e7d04c3d750a6e59ea83f6d498d
+-- This file is synchronized by npm.cmd run supabase:migrations:sync.
+
 -- DEV-061: contextual file ownership, strict drawing revision inputs, and
 -- content-level 3D reuse. Legacy loose drawing attachments remain readable;
 -- new revision writes use the controlled intake route.

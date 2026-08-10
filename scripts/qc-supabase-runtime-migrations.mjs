@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { sha256Bytes as sha256 } from "./qc-file-hash-utils.mjs";
+import { sha256Bytes } from "./qc-file-hash-utils.mjs";
 import { projectFileExists, readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const results = [];
+
+function sha256(value) {
+  const normalized = typeof value === "string" ? value.replace(/\r\n?/gu, "\n") : value;
+  return sha256Bytes(normalized);
+}
 
 function record(name, passed, detail = "") {
   results.push({ name, passed, detail });
@@ -56,7 +61,10 @@ const requiredMigrationFiles = [
   "supabase/migrations/20260804030000_remove_project_status_authority.sql",
   "supabase/migrations/20260805010000_remove_submission_phase_gate.sql",
   "supabase/migrations/20260806010000_submission_part_scope.sql",
-  "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql"
+  "supabase/migrations/20260806020000_drawing_revision_lifecycle_authority.sql",
+  "supabase/migrations/20260807010000_settings_secret_google_secret_manager.sql",
+  "supabase/migrations/20260810010000_bom_material_identity_revision.sql",
+  "supabase/migrations/20260810020000_pdm_file_ownership_and_3d_reuse.sql"
 ];
 const requiredFiles = [
   "supabase/README.md",
@@ -108,6 +116,8 @@ const migrationAccountSessionRecords = readProjectFile(root, "supabase/migration
 const migrationNumberLifecycleSimplification = readProjectFile(root, "supabase/migrations/20260804010000_number_lifecycle_simplification.sql");
 const submissionPartScope = readProjectFile(root, "db/postgres/025_submission_part_scope.sql");
 const migrationSubmissionPartScope = readProjectFile(root, "supabase/migrations/20260806010000_submission_part_scope.sql");
+const settingsSecretGoogle = readProjectFile(root, "db/postgres/027_settings_secret_google_secret_manager.sql");
+const migrationSettingsSecretGoogle = readProjectFile(root, "supabase/migrations/20260807010000_settings_secret_google_secret_manager.sql");
 const manifest = readProjectJson(root, "supabase/migrations/manifest.json");
 const readme = readProjectFile(root, "supabase/README.md");
 const envExample = readProjectFile(root, ".env.example");
@@ -294,6 +304,18 @@ record(
     migrationSubmissionPartScope.includes("ALTER TABLE public.submission_part_scopes FORCE ROW LEVEL SECURITY") &&
     migrationSubmissionPartScope.includes("REVOKE ALL ON TABLE public.submission_part_scopes FROM PUBLIC, anon, authenticated"),
   "DEV-053 batch scope uniqueness and Data API boundary"
+);
+record(
+  "SUPA-MIG-007ZH Google Secret Manager migration embeds source hash",
+  migrationSettingsSecretGoogle.includes(`Source SHA-256: ${sha256(settingsSecretGoogle)}`),
+  "DEV-058 Google Secret Manager source hash"
+);
+record(
+  "SUPA-MIG-007ZI Google Secret Manager migration is metadata-only",
+  migrationSettingsSecretGoogle.includes("google_secret_manager") &&
+    migrationSettingsSecretGoogle.includes("secret_references_vault_provider_check") &&
+    !/\b(?:INSERT|UPDATE)\b/iu.test(migrationSettingsSecretGoogle),
+  "DEV-058 provider constraint without plaintext or row mutation"
 );
 const manifestTargets = Array.isArray(manifest.migrations)
   ? manifest.migrations.map((migration) => migration.target)

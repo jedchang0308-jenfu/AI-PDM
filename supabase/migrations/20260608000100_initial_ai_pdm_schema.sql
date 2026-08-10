@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: 5e1bff1bc48e938adaee61fad9993b85ffe23b5b65c5b964515017b337e1faea
+-- Source SHA-256: df4044d406b7f50ec56a0d59a12456a1e5c88dc0b94aa76ea565da62ffe70226
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -351,7 +351,7 @@ CREATE TABLE IF NOT EXISTS secret_references (
   kind TEXT NOT NULL,
   provider TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'supabase_vault')),
+  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
   vault_secret_id TEXT NOT NULL,
   masked_hint TEXT NOT NULL,
   fingerprint TEXT NOT NULL,
@@ -917,7 +917,7 @@ CREATE TABLE IF NOT EXISTS submission_files (
   submission_id TEXT NOT NULL,
   file_role TEXT NOT NULL CHECK (file_role IN ('sldprt', 'sldasm', 'slddrw', 'pdf', 'dwg', 'other')),
   original_filename TEXT NOT NULL,
-  local_path TEXT NOT NULL,
+  local_path TEXT,
   storage_provider TEXT NOT NULL DEFAULT 'local_repository' CHECK (storage_provider IN ('local_repository', 'supabase_storage', 's3_compatible', 'google_cloud_storage')),
   storage_bucket TEXT,
   storage_key TEXT,
@@ -928,8 +928,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   sha256 TEXT NOT NULL,
   file_size BIGINT NOT NULL,
   source_master_attachment_id TEXT,
+  source_file_asset_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  CHECK (source_file_asset_id IS NOT NULL OR local_path IS NOT NULL),
   UNIQUE (submission_id, file_role, original_filename)
 );
 
@@ -2537,6 +2540,9 @@ CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submissi
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_submission_id ON audit_logs(submission_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status ON secret_references(kind, lifecycle_status, version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+ON secret_references(kind)
+WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status_phase ON part_roots(record_status, development_phase);
