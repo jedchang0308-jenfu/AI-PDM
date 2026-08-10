@@ -1,0 +1,4 @@
+# Keep migration sources and generated mirrors byte-stable across Windows and CI.
+db/postgres/*.sql text eol=lf
+supabase/migrations/*.sql text eol=lf
+supabase/migrations/manifest.json text eol=lf
