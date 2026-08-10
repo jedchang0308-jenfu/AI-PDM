@@ -4,7 +4,7 @@
   "supabaseCli": {
     "available": false,
     "version": "",
-    "error": "supabase CLI detection skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+    "error": "supabase CLI not found"
   },
   "localMigrationList": {
     "command": "supabase migration list",
@@ -13,7 +13,7 @@
     "status": null,
     "stdout": "",
     "stderr": "",
-    "reason": "supabase migration list skipped by PDM_SUPABASE_SKIP_MIGRATION_LIST"
+    "reason": "supabase CLI not found"
   },
   "note": "Generated mirror of db/postgres SQL for AI_PDM runtime migration planning. If Supabase CLI is available, validate migration history with `supabase migration list` before applying to a live project.",
   "migrations": [
@@ -21,8 +21,8 @@
       "source": "db/postgres/001_initial_schema.sql",
       "target": "supabase/migrations/20260608000100_initial_ai_pdm_schema.sql",
       "description": "Initial AI_PDM public schema converted from SQLite",
-      "sourceSha256": "828238306a66e6752088df394e7b878c920e06b7c82c88d86df0c771a87f31fc",
-      "targetSha256": "e0ef9863527fecb41df60d630e989a3906a17f88debccea0e4cdd87310c671ae"
+      "sourceSha256": "03f7a505688c25e13864e29619852597f2a901ea842b3d7b1e824d700a93fe81",
+      "targetSha256": "03c3b0df0e670281b1405d6c03a81e3f9ba47fb61e67efe6581b303b449c5f0c"
     },
     {
       "source": "db/postgres/002_supabase_rls_plan.sql",

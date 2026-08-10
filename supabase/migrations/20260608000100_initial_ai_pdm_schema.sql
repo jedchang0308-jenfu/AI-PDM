@@ -1,6 +1,6 @@
 -- Initial AI_PDM public schema converted from SQLite
 -- Source: db/postgres/001_initial_schema.sql
--- Source SHA-256: 828238306a66e6752088df394e7b878c920e06b7c82c88d86df0c771a87f31fc
+-- Source SHA-256: 03f7a505688c25e13864e29619852597f2a901ea842b3d7b1e824d700a93fe81
 -- This file is synchronized by npm.cmd run supabase:migrations:sync.
 
 -- AI PDM PostgreSQL / Supabase initial schema
@@ -2610,6 +2610,9 @@ CREATE INDEX IF NOT EXISTS idx_employee_login_rate_limits_expiry
   ON employee_login_rate_limits(blocked_until, updated_at);
 CREATE INDEX IF NOT EXISTS idx_privacy_notice_versions_company_status
   ON privacy_notice_versions(company_id, status, published_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_privacy_notice_versions_one_published
+  ON privacy_notice_versions(company_id)
+  WHERE status = 'published';
 CREATE INDEX IF NOT EXISTS idx_privacy_notice_acknowledgements_user
   ON privacy_notice_acknowledgements(user_id, acknowledged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submission_snapshots_root
@@ -2622,12 +2625,27 @@ CREATE INDEX IF NOT EXISTS idx_submission_part_scopes_submission
 ON submission_part_scopes(submission_id, part_number);
 CREATE INDEX IF NOT EXISTS idx_submission_attempts_source
 ON submission_attempts(company_id, source_root_code, source_drawing_number, source_revision, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_active
+ON bom_drafts(parent_item_id, parent_revision)
+WHERE is_active = 1 AND status IN ('Draft', 'Rejected');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_pending_review
+ON bom_drafts(parent_item_id, parent_revision)
+WHERE status = 'PendingReview';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_active
+ON bom_drafts(owner_part_number_id, bom_revision)
+WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND is_active = 1 AND status IN ('Draft', 'Rejected');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_pending_review
+ON bom_drafts(owner_part_number_id, bom_revision)
+WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND status = 'PendingReview';
 CREATE INDEX IF NOT EXISTS idx_platform_command_receipts_lookup
   ON platform_command_receipts(company_id, command_name, idempotency_key, command_status);
 CREATE INDEX IF NOT EXISTS idx_platform_outbox_delivery
   ON platform_outbox_events(delivery_status, next_attempt_at, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_platform_outbox_aggregate
   ON platform_outbox_events(company_id, aggregate_type, aggregate_id, occurred_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_number_drafts_active_number
+ON part_number_drafts(company_id, reserved_part_number)
+WHERE status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation');
 CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_part
 ON part_number_drafts(company_id, source_part_number_id, status);
 CREATE INDEX IF NOT EXISTS idx_part_number_drafts_source_drawing
@@ -2644,12 +2662,21 @@ CREATE INDEX IF NOT EXISTS idx_review_confirmation_events_review
 ON review_confirmation_events(company_id, review_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open
 ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_part_links_primary_per_part
+ON drawing_part_links(part_number_id)
+WHERE link_type = 'primary_manufacturing';
 CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_source_drawing
 ON numbering_draft_workspaces(company_id, source_drawing_number_id)
 WHERE source_drawing_number_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_source_part
 ON numbering_draft_workspaces(company_id, source_part_number_id)
 WHERE source_part_number_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_number_candidate_reservations_code_exclusive
+ON number_candidate_reservations(company_id, draft_item_type, candidate_code)
+WHERE reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_number_candidate_reservations_item_exclusive
+ON number_candidate_reservations(workspace_id, draft_item_type, draft_item_id)
+WHERE reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted');
 CREATE INDEX IF NOT EXISTS idx_number_candidate_reservations_scope
 ON number_candidate_reservations(company_id, sequence_scope_key, reservation_state, sequence_no);
 CREATE INDEX IF NOT EXISTS idx_numbering_draft_workspaces_company_owner
@@ -2666,6 +2693,9 @@ CREATE INDEX IF NOT EXISTS idx_numbering_draft_relations_workspace
 ON numbering_draft_relations(company_id, workspace_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_number_candidate_events_workspace
 ON number_candidate_events(company_id, workspace_id, occurred_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
+ON part_standard_costs(part_number_id)
+WHERE effective_to IS NULL;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_part
 ON drawing_revision_package_part_scopes(company_id, part_number_id, package_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_package
@@ -2683,6 +2713,9 @@ ON numbering_candidate_revision_drafts(company_id, approval_request_id)
 WHERE approval_request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_numbering_candidate_revision_files_candidate
 ON numbering_candidate_revision_files(company_id, candidate_revision_id, removed_at, sort_order, id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_numbering_candidate_revision_files_active_primary_role
+ON numbering_candidate_revision_files(candidate_revision_id, role)
+WHERE is_primary = 1 AND removed_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_review_approvals_scope
 ON drawing_revision_package_review_approvals(company_id, approved_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_status_created_at ON submissions(status, created_at DESC);
@@ -2691,18 +2724,33 @@ CREATE INDEX IF NOT EXISTS idx_submissions_submitted_created_at ON submissions(s
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_status_created_at ON submissions(submitted_by, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_item_created_at ON submissions(item_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_company_drawing_revision ON submissions(company_id, drawing_number, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_blocking_same_revision_unique
+ON submissions(company_id, drawing_number, revision)
+WHERE status IN ('Pending', 'Releasing', 'Released', 'Obsolete');
 CREATE INDEX IF NOT EXISTS idx_submissions_finder_fields ON submissions(product_line, customer, project_code, process_name, machine, material, surface_finish, status);
 CREATE INDEX IF NOT EXISTS idx_submission_files_submission_id ON submission_files(submission_id);
 CREATE INDEX IF NOT EXISTS idx_submission_files_original_filename ON submission_files(original_filename);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_drawing_revision ON drawing_revision_packages(company_id, drawing_number_id, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_lifecycle_unique
+ON drawing_revision_packages(company_id, drawing_number_id, revision)
+WHERE lifecycle_state IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_packages_released_unique
+ON drawing_revision_packages(company_id, drawing_number_id, revision)
+WHERE status = 'Released';
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_packages_submission ON drawing_revision_packages(source_submission_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_package ON drawing_revision_package_files(package_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_files_source_asset ON drawing_revision_package_files(source_file_asset_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_revision_package_files_primary_role
+ON drawing_revision_package_files(package_id, role)
+WHERE is_primary = 1;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplements_package_status ON drawing_revision_package_supplements(package_id, status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_supplement ON drawing_revision_package_supplement_files(supplement_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_supplement_files_source_asset ON drawing_revision_package_supplement_files(source_file_asset_id);
 CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_owner ON shared_cad_model_versions(company_id, owner_scope, owner_id, status, model_revision);
 CREATE INDEX IF NOT EXISTS idx_shared_cad_model_versions_hash ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_cad_model_versions_active_owner_hash_unique
+ON shared_cad_model_versions(company_id, owner_scope, owner_id, content_hash)
+WHERE status <> 'Obsolete';
 CREATE INDEX IF NOT EXISTS idx_file_assets_active_content_hash
 ON file_assets(content_hash, file_size, linked_entity_type, linked_entity_id)
 WHERE deleted_at IS NULL AND content_hash IS NOT NULL;
@@ -2746,6 +2794,9 @@ CREATE INDEX IF NOT EXISTS idx_pdf_markups_submission_id ON pdf_markups(submissi
 CREATE INDEX IF NOT EXISTS idx_pdf_markups_file_id ON pdf_markups(file_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_submission_id ON audit_logs(submission_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status ON secret_references(kind, lifecycle_status, version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
+ON secret_references(kind)
+WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status ON part_roots(record_status);
@@ -2787,6 +2838,12 @@ CREATE INDEX IF NOT EXISTS idx_approval_platform_package_items_package ON approv
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
 CREATE INDEX IF NOT EXISTS idx_role_scope_rules_role_kind ON role_scope_rules(role_id, scope_kind);
 CREATE INDEX IF NOT EXISTS idx_user_role_assignments_user_active ON user_role_assignments(user_id, revoked_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_role_assignments_active_unique
+  ON user_role_assignments(user_id, role_id)
+  WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_invitations_pending_email
+  ON account_invitations(email)
+  WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_account_invitations_status_expires ON account_invitations(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_account_status ON users(account_status, system_role_enabled);
 CREATE INDEX IF NOT EXISTS idx_account_recovery_requests_user_status ON account_recovery_requests(user_id, status, expires_at);

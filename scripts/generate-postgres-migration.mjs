@@ -114,7 +114,7 @@ function tablesWithUpdatedAt(tableStatements) {
 function buildInitialMigration(sqliteSchema) {
   const tableStatements = extractStatements(sqliteSchema, "CREATE TABLE IF NOT EXISTS");
   const sortedTableStatements = sortTableStatementsByDependencies(tableStatements);
-  const indexStatements = extractStatements(sqliteSchema, "CREATE INDEX IF NOT EXISTS");
+  const indexStatements = extractStatements(sqliteSchema, "CREATE (?:UNIQUE )?INDEX IF NOT EXISTS");
   const convertedTables = sortedTableStatements.map(toPostgresTable);
   const updatedAtTables = tablesWithUpdatedAt(sortedTableStatements);
   const triggers = updatedAtTables
