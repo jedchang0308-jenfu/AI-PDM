@@ -9,6 +9,18 @@ const outputDir = path.join(root, "db", "postgres");
 const initialSchemaPath = path.join(outputDir, "001_initial_schema.sql");
 const rlsPlanPath = path.join(outputDir, "002_supabase_rls_plan.sql");
 
+function normalizeLf(value) {
+  return value.replace(/\r\n?/gu, "\n");
+}
+
+function writeIfChanged(filePath, content) {
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, "utf8");
+    if (normalizeLf(existing) === normalizeLf(content)) return;
+  }
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
 function extractStatements(schema, startPattern) {
   const statements = [];
   const regex = new RegExp(`${startPattern}[\\s\\S]*?;`, "giu");
@@ -176,8 +188,8 @@ const initialMigration = buildInitialMigration(sqliteSchema);
 const rlsPlan = buildRlsPlan(tableNames);
 
 fs.mkdirSync(outputDir, { recursive: true });
-fs.writeFileSync(initialSchemaPath, initialMigration, "utf8");
-fs.writeFileSync(rlsPlanPath, rlsPlan, "utf8");
+writeIfChanged(initialSchemaPath, initialMigration);
+writeIfChanged(rlsPlanPath, rlsPlan);
 
 console.log(
   JSON.stringify(

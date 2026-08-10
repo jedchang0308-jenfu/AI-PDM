@@ -39,8 +39,17 @@ function extractReferencedTableNames(statement) {
   return [...statement.matchAll(/\bREFERENCES\s+([a-z0-9_]+)/giu)].map((match) => match[1]);
 }
 
+const normalizeLf = (value) => value.replace(/\r\n?/gu, "\n");
+const initialSchemaBeforeGeneration = readProjectFile(root, "db/postgres/001_initial_schema.sql");
+const rlsPlanBeforeGeneration = readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql");
 const generate = runNode("scripts/generate-postgres-migration.mjs");
 record("PG-001 migration generator exits successfully", generate.status === 0, generate.stderr || generate.stdout);
+record(
+  "PG-001A committed PostgreSQL mirror is generator-clean",
+  normalizeLf(initialSchemaBeforeGeneration) === normalizeLf(readProjectFile(root, "db/postgres/001_initial_schema.sql")) &&
+    normalizeLf(rlsPlanBeforeGeneration) === normalizeLf(readProjectFile(root, "db/postgres/002_supabase_rls_plan.sql")),
+  "db/postgres/001_initial_schema.sql + db/postgres/002_supabase_rls_plan.sql"
+);
 
 const compare = runNode("scripts/compare-sqlite-postgres-shadow.mjs", ["--no-write"]);
 record("PG-002 shadow compare exits successfully", compare.status === 0, compare.stderr || compare.stdout);

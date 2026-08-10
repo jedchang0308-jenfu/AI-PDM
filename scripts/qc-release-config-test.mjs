@@ -1,11 +1,14 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import { createServer } from "node:http";
+import os from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
 import path from "node:path";
 
 const root = process.cwd();
-const dbPath = path.join(root, "data", "ai-pdm.sqlite");
+const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-release-config-"));
+const dbPath = path.join(testRoot, "ai-pdm.sqlite");
 const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
 
 function getFreePort() {
@@ -29,6 +32,8 @@ function startApp(port) {
     cwd: root,
     env: {
       ...process.env,
+      PDM_DATA_DIR: testRoot,
+      PDM_REPOSITORY_DIR: path.join(testRoot, "repository"),
       PDM_RELEASE_MODE: "strict",
       RELEASE_FUNCTION_URL: "",
       RELEASE_FUNCTION_TOKEN: "",
@@ -156,15 +161,15 @@ function expect(name, actual, expected) {
 
 let app;
 const results = [];
-const releasedFolderSnapshot = snapshotSetting("gdrive_released_folder_id");
+let releasedFolderSnapshot = null;
 
 try {
-  writeSetting("gdrive_released_folder_id", "");
-
   const appPort = await getFreePort();
   const baseUrl = `http://127.0.0.1:${appPort}`;
   app = startApp(appPort);
   await waitForApp(baseUrl, app.getOutput);
+  releasedFolderSnapshot = snapshotSetting("gdrive_released_folder_id");
+  writeSetting("gdrive_released_folder_id", "");
 
   const engineerCookie = await login(baseUrl, "engineer@example.com");
   const managerCookie = await login(baseUrl, "manager@example.com");
@@ -204,5 +209,6 @@ try {
   process.exitCode = 1;
 } finally {
   if (app) await stopApp(app.child);
-  restoreSetting("gdrive_released_folder_id", releasedFolderSnapshot);
+  if (releasedFolderSnapshot) restoreSetting("gdrive_released_folder_id", releasedFolderSnapshot);
+  fs.rmSync(testRoot, { recursive: true, force: true });
 }
