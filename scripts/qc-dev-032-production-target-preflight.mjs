@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const reportPath = path.join(root, "output", "dev-032-production-target-preflight", "report.json");
+const markdownReportPath = path.join(root, "output", "dev-032-production-target-preflight", "report.md");
 const scriptPath = path.join(root, "scripts", "dev-032-production-target-preflight.mjs");
 const packagePath = path.join(root, "package.json");
 const results = [];
@@ -19,6 +20,7 @@ function readJson(filePath) {
 
 const reportExists = existsSync(reportPath);
 const report = reportExists ? readJson(reportPath) : null;
+const markdownReport = existsSync(markdownReportPath) ? readFileSync(markdownReportPath, "utf8") : null;
 const script = readFileSync(scriptPath, "utf8");
 const packageJson = readJson(packagePath);
 const commands = report?.commands ?? [];
@@ -55,6 +57,7 @@ record("DEV032-TARGET-012 commands are read-only discovery commands", commands.l
 record("DEV032-TARGET-013 script does not contain live mutation gcloud verbs", !/\bgcloud\b.*\b(apply|deploy|delete|create|update|import|execute)\b/u.test(script));
 record("DEV032-TARGET-014 report does not persist secret values", Array.isArray(report?.secrets?.namesOnly) && !JSON.stringify(report).match(/private_key|client_secret|SESSION_SIGNING|PASSWORD|DATABASE_URL/u));
 record("DEV032-TARGET-015 package exposes preflight and QC scripts", packageJson.scripts["preflight:dev-032-production-target"] === "node scripts/dev-032-production-target-preflight.mjs --allow-blocked" && packageJson.scripts["qc:dev-032-production-target-preflight"] === "node scripts/qc-dev-032-production-target-preflight.mjs");
+record("DEV032-TARGET-016 markdown report has one canonical final newline", typeof markdownReport === "string" && /[^\r\n]\r?\n$/u.test(markdownReport));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

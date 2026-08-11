@@ -1,3 +1,4 @@
+import { prepareDisposableSqliteRuntime } from "./qc-disposable-runtime.mjs";
 import { createGeneratedTypeReferenceGuard } from "./qc-generated-type-reference-guard.mjs";
 import { createNpmStepRunner } from "./qc-npm-step-runner.mjs";
 import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
@@ -14,6 +15,7 @@ const restoreGeneratedTypeReference = createGeneratedTypeReferenceGuard(root, re
 const { runNpmStep, runNpmCommandStep } = createNpmStepRunner(root, record, "qc:full");
 
 let app;
+let fullQcRuntime;
 
 try {
   await runNpmStep("lint", "lint");
@@ -33,6 +35,7 @@ try {
   await runNpmStep("openai provider integration", "qc:openai-provider");
   await runNpmStep("document manager probe redaction", "qc:document-manager-probe-redaction");
 
+  fullQcRuntime = await prepareDisposableSqliteRuntime(root, "ai-pdm-full-qc-");
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   console.log(`\n[qc:full] starting app at ${baseUrl}`);
@@ -40,7 +43,10 @@ try {
   await waitForNextAppReady(baseUrl, app.getOutput);
   record("start dev server", true, baseUrl);
 
-  const env = { PDM_BASE_URL: baseUrl };
+  const env = {
+    ...fullQcRuntime.env,
+    PDM_BASE_URL: baseUrl
+  };
   await runNpmStep("smoke", "smoke", { env });
   await runNpmStep("api regression", "qc:api", { env });
   await runNpmStep("ui e2e", "qc:ui", { env });
@@ -56,4 +62,5 @@ try {
 } finally {
   if (app) await stopNextApp(app.child);
   restoreGeneratedTypeReference();
+  fullQcRuntime?.cleanup();
 }

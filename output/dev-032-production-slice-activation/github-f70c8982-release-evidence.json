@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "ai-pdm-github-production-release-evidence/v1",
+  "capturedAt": "2026-08-11T02:15:00.000Z",
+  "readOnlyCapture": true,
+  "productionMutationPerformed": false,
+  "repository": "jedchang0308-jenfu/AI-PDM",
+  "workflowRun": {
+    "id": 29636150040,
+    "headBranch": "main",
+    "headSha": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "conclusion": "success",
+    "requiredJobsPassed": true
+  },
+  "workflowArtifact": {
+    "id": 8427222934,
+    "name": "production-release-f70c89821b717e6e98e3a6ef855af47e4b4a69dc-29636150040",
+    "digest": "sha256:c00f93f561d23ce9b16378e97840be5f748976fb9474faf59826aa4e952749d3",
+    "expiresAt": "2026-08-17T08:00:06Z"
+  },
+  "runtime": {
+    "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "previousTrafficRevision": "ai-pdm-prod-gh-053a672e-29581231622",
+    "ociProvenance": {
+      "source": "https://github.com/jedchang0308-jenfu/AI-PDM",
+      "revision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+      "version": "production-f70c89821b71",
+      "runtimeDigestIsLinuxAmd64Child": true
+    }
+  },
+  "candidateSmoke": {
+    "schemaVersion": "ai-pdm-production-release-smoke/v1",
+    "generatedAt": "2026-07-18T07:47:33.101Z",
+    "kind": "candidate",
+    "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "passed": 13,
+    "failed": 0
+  },
+  "trafficValidation": {
+    "schemaVersion": "ai-pdm-production-release-traffic/v1",
+    "generatedAt": "2026-07-18T07:47:35.018Z",
+    "mode": "validate",
+    "expectedLatestRevision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "rollbackRevision": "ai-pdm-prod-gh-053a672e-29581231622",
+    "validateOnlyAccepted": true,
+    "allChecksPassed": true
+  },
+  "trafficPromotion": {
+    "schemaVersion": "ai-pdm-production-release-traffic/v1",
+    "generatedAt": "2026-07-18T07:47:39.291Z",
+    "mode": "promote-latest",
+    "expectedLatestRevision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "trafficPercent": 100,
+    "allChecksPassed": true
+  },
+  "canonicalSmoke": {
+    "schemaVersion": "ai-pdm-production-release-smoke/v1",
+    "generatedAt": "2026-07-18T07:47:44.998Z",
+    "kind": "canonical",
+    "baseUrl": "https://jenfu-ai-pdm-prod.web.app",
+    "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "passed": 13,
+    "failed": 0
+  },
+  "allChecksPassed": true
+}

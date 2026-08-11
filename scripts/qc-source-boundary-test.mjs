@@ -48,7 +48,11 @@ function passesUsageDirToAppEnv(source) {
 }
 
 function verifiesUsageDirCleanup(source) {
-  return source.includes("function cleanupUsageDir") && source.includes("OPENAI-026 usage temp dir is removed");
+  return (
+    source.includes("function cleanupUsageDir") &&
+    source.includes("maxRetries: 20, retryDelay: 250") &&
+    source.includes("OPENAI-026 usage temp dir is removed")
+  );
 }
 
 function verifiesUsageDirUnderOsTemp(source) {
@@ -184,6 +188,15 @@ function fullGateScansProcessWarnings(source) {
   );
 }
 
+function fullGateUsesDisposableDatabase(source) {
+  return (
+    source.includes('import { prepareDisposableSqliteRuntime } from "./qc-disposable-runtime.mjs"') &&
+    source.includes('await prepareDisposableSqliteRuntime(root, "ai-pdm-full-qc-")') &&
+    source.includes("...fullQcRuntime.env") &&
+    source.includes("fullQcRuntime?.cleanup()")
+  );
+}
+
 function fullGateUsesSharedNpmStepRunner(source) {
   return (
     source.includes('import { createNpmStepRunner } from "./qc-npm-step-runner.mjs"') &&
@@ -198,7 +211,9 @@ function industrializationGateUsesQcOnlyListenerBudget(source) {
   return (
     source.includes('import { assertNoDisallowedProcessWarnings } from "./qc-process-warning-guard.mjs"') &&
     source.includes('import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs"') &&
-    source.includes('app = startNextApp(root, "start", port)')
+    source.includes('app = startNextApp(root, "start", port)') &&
+    source.includes('await prepareDisposableSqliteRuntime(root, "ai-pdm-industrialization-qc-")') &&
+    source.includes("industrializationRuntime?.cleanup()")
   );
 }
 
@@ -276,10 +291,10 @@ function generatedTypeReferenceGuardIsQcOnly(source) {
     source.includes('import fs from "node:fs"') &&
     source.includes('import { projectFileExists, projectPath, readProjectFile } from "./qc-project-file-utils.mjs"') &&
     source.includes("export function createGeneratedTypeReferenceGuard") &&
-    source.includes('const generatedTypeReferencePath = projectPath(root, "next-env.d.ts")') &&
-    source.includes("generatedTypeReferenceSnapshot") &&
+    source.includes('const guardedRelativePaths = ["next-env.d.ts", "tsconfig.json"]') &&
+    source.includes("const snapshots = guardedRelativePaths.map") &&
     source.includes("return function restoreGeneratedTypeReference()") &&
-    source.includes('record("restore generated type reference", true, "next-env.d.ts")') &&
+    source.includes('record("restore generated type reference", true, snapshot.relativePath)') &&
     !source.includes("process.env") &&
     !source.includes("next/server")
   );
@@ -416,8 +431,12 @@ function nextAppRunnerIsQcOnly(source) {
     source.includes("export function getFreePort") &&
     source.includes("export function startNextApp") &&
     source.includes('mode !== "dev" && mode !== "start"') &&
+    source.includes('path.join(root, ".next", "standalone", "server.js")') &&
+    source.includes('HOSTNAME: "127.0.0.1", PORT: String(port)') &&
+    source.includes("function prepareStandaloneAssets") &&
     source.includes("NODE_OPTIONS: appendNodeOptions(process.env.NODE_OPTIONS") &&
-    source.includes("--require ${qcListenerBudgetPreload}") &&
+    source.includes('path.resolve(root, qcListenerBudgetPreload).replaceAll("\\\\", "/")') &&
+    source.includes('--require="${listenerBudgetPreload}"') &&
     source.includes('PDM_RELEASE_MODE: "local_stub"') &&
     source.includes("export async function waitForNextAppReady") &&
     source.includes("export async function stopNextApp") &&
@@ -538,6 +557,8 @@ const swLicensePdmMetadataAdapterProfileQcSource = read("scripts/qc-sw-license-p
 const swLicensePdmGitBoundaryQcSource = read("scripts/qc-sw-license-pdm-git-boundary.mjs");
 const cleanNextSource = read("scripts/clean-next.mjs");
 const fullQcSource = read("scripts/qc-full-test.mjs");
+const smokeSource = read("scripts/smoke-test.mjs");
+const uiE2eSource = read("scripts/ui-e2e-test.mjs");
 const industrializationQcSource = read("scripts/qc-industrialization-test.mjs");
 const listenerBudgetPreloadSource = read("scripts/qc-node-listener-budget.cjs");
 const generatedTypeReferenceGuardSource = read("scripts/qc-generated-type-reference-guard.mjs");
@@ -557,6 +578,7 @@ const defectRegisterUtilsSource = read("scripts/defect-register-utils.mjs");
 const policyConfirmationUtilsSource = read("scripts/policy-confirmation-utils.mjs");
 const npmStepRunnerSource = read("scripts/qc-npm-step-runner.mjs");
 const nextAppRunnerSource = read("scripts/qc-next-app-runner.mjs");
+const disposableRuntimeSource = read("scripts/qc-disposable-runtime.mjs");
 const externalAssetVerifierSource = read("scripts/verify-external-assets.mjs");
 const externalBlockerClosureQcSource = read("scripts/qc-external-blocker-closure-package.mjs");
 const fieldTestIssueImporterSource = read("scripts/import-field-test-issues.mjs");
@@ -586,6 +608,11 @@ const bomWorkbenchReviewUiQcSource = read("scripts/qc-bom-workbench-review-ui.mj
 const pdmSystemDetailDrawerUiQcSource = read("scripts/qc-pdm-system-detail-drawer-ui.mjs");
 const uxAttributeHierarchyQcSource = read("scripts/qc-ux-attribute-hierarchy.mjs");
 const gdriveFolderTreeSettingsQcSource = read("scripts/qc-gdrive-folder-tree-settings.mjs");
+const gdriveIntegrationQcSource = read("scripts/qc-gdrive-integration-test.mjs");
+const localGdriveCompensationQcSource = read("scripts/qc-local-gdrive-compensation-test.mjs");
+const releaseFailureQcSource = read("scripts/qc-release-failure-test.mjs");
+const releaseFolderSelectionQcSource = read("scripts/qc-release-folder-selection-test.mjs");
+const managedAuthQcSource = read("scripts/qc-managed-auth-test.mjs");
 const revisionLifecycleQcSource = read("scripts/qc-revision-lifecycle-test.mjs");
 const dbProviderContractQcSource = read("scripts/qc-db-provider-contract-test.mjs");
 const dbProviderPostgresQcSource = read("scripts/qc-db-provider-postgres.mjs");
@@ -746,6 +773,28 @@ record(
   "SOURCE-BOUNDARY full gate restores generated type reference",
   gatePreservesGeneratedTypeReference(fullQcSource),
   "scripts/qc-full-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY full gate uses disposable database snapshot",
+  fullGateUsesDisposableDatabase(fullQcSource),
+  "scripts/qc-full-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY UI E2E follows isolated PDM_DATA_DIR",
+  uiE2eSource.includes('process.env.PDM_DATA_DIR?.trim() || "data"') &&
+    uiE2eSource.includes('const dbPath = path.join(dataDir, "ai-pdm.sqlite")') &&
+    uiE2eSource.includes('fixture_source: "ui_e2e_disposable_db"') &&
+    !uiE2eSource.includes('path.join(process.cwd(), "data", "ai-pdm.sqlite")') &&
+    !uiE2eSource.includes('fetch(`${apiBaseUrl}/api/submissions`,'),
+  "scripts/ui-e2e-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY smoke follows active numbering flow and asserts retired factory",
+  smokeSource.includes("GENERIC_SUBMISSION_RETIRED") &&
+    smokeSource.includes("/api/numbering/draft-workspaces/preview?purposeCode=M") &&
+    smokeSource.includes("/api/numbering/draft-workspaces?owner=mine&limit=5") &&
+    !smokeSource.includes('form.append("files"'),
+  "scripts/smoke-test.mjs"
 );
 record(
   "SOURCE-BOUNDARY clean next script uses explicit workspace rm",
@@ -1903,6 +1952,62 @@ record(
   "scripts/qc-gdrive-folder-tree-settings.mjs"
 );
 record(
+  "SOURCE-BOUNDARY disposable QC runtime snapshots and cleans isolated SQLite data",
+  disposableRuntimeSource.includes("await sourceDb.backup(fixtureDbPath)") &&
+    disposableRuntimeSource.includes("Object.assign(process.env, env)") &&
+    disposableRuntimeSource.includes("maxRetries: 20, retryDelay: 250") &&
+    disposableRuntimeSource.includes("PDM_LOCAL_FULL_FUNCTION_VALIDATION: \"true\"") &&
+    disposableRuntimeSource.includes("PDM_PRODUCTION_SLICE_MODE: \"\""),
+  "scripts/qc-disposable-runtime.mjs"
+);
+record(
+  "SOURCE-BOUNDARY GDrive adapter QC does not use the canonical application database",
+  gdriveIntegrationQcSource.includes('import("../src/lib/gdrive.ts")') &&
+    !gdriveIntegrationQcSource.includes("better-sqlite3") &&
+    !gdriveIntegrationQcSource.includes("PDM_DATA_DIR") &&
+    !gdriveIntegrationQcSource.includes("/api/submissions"),
+  "scripts/qc-gdrive-integration-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY local GDrive compensation QC uses an isolated disposable data root",
+  localGdriveCompensationQcSource.includes("mkdtempSync") &&
+    localGdriveCompensationQcSource.includes("process.env.PDM_DATA_DIR = tempDir") &&
+    localGdriveCompensationQcSource.includes('import("../src/lib/release-async.ts")') &&
+    localGdriveCompensationQcSource.includes("fs.rmSync(tempDir") &&
+    !localGdriveCompensationQcSource.includes("/api/submissions") &&
+    !localGdriveCompensationQcSource.includes('path.join(root, "data", "ai-pdm.sqlite")'),
+  "scripts/qc-local-gdrive-compensation-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY release failure QC uses the release adapter with an isolated disposable data root",
+  releaseFailureQcSource.includes("mkdtempSync") &&
+    releaseFailureQcSource.includes("process.env.PDM_DATA_DIR = tempDir") &&
+    releaseFailureQcSource.includes('import("../src/lib/release-async.ts")') &&
+    releaseFailureQcSource.includes("fs.rmSync(tempDir") &&
+    !releaseFailureQcSource.includes("/api/submissions") &&
+    !releaseFailureQcSource.includes('path.join(root, "data", "ai-pdm.sqlite")'),
+  "scripts/qc-release-failure-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY release folder selection QC uses the release adapter with an isolated disposable data root",
+  releaseFolderSelectionQcSource.includes("mkdtempSync") &&
+    releaseFolderSelectionQcSource.includes("process.env.PDM_DATA_DIR = tempDir") &&
+    releaseFolderSelectionQcSource.includes('import("../src/lib/release-async.ts")') &&
+    releaseFolderSelectionQcSource.includes("fs.rmSync(tempDir") &&
+    !releaseFolderSelectionQcSource.includes("/api/submissions") &&
+    !releaseFolderSelectionQcSource.includes('path.join(root, "data", "ai-pdm.sqlite")'),
+  "scripts/qc-release-folder-selection-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY managed auth QC explicitly enables full local validation in its disposable runtime",
+  managedAuthQcSource.includes("PDM_DATA_DIR: tempDir") &&
+    managedAuthQcSource.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true"') &&
+    managedAuthQcSource.includes('PDM_PRODUCTION_SLICE_MODE: ""') &&
+    managedAuthQcSource.includes("createGeneratedTypeReferenceGuard(root, () => {})") &&
+    managedAuthQcSource.includes("restoreGeneratedTypeReference()"),
+  "scripts/qc-managed-auth-test.mjs"
+);
+record(
   "SOURCE-BOUNDARY revision lifecycle QC uses project file utils",
   qcUsesProjectFileUtils(revisionLifecycleQcSource, ["readProjectFile"]),
   "scripts/qc-revision-lifecycle-test.mjs"
@@ -2206,6 +2311,13 @@ record(
 record(
   "SOURCE-BOUNDARY OpenAI QC app receives temp usage dir",
   passesUsageDirToAppEnv(openAiQcSource),
+  "scripts/qc-openai-provider-test.mjs"
+);
+record(
+  "SOURCE-BOUNDARY OpenAI QC app uses the same disposable root for runtime data",
+  openAiQcSource.includes('PDM_DATA_DIR: path.join(usageDir, "data")') &&
+    openAiQcSource.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true"') &&
+    !openAiQcSource.includes('path.join(root, "data", "ai-pdm.sqlite")'),
   "scripts/qc-openai-provider-test.mjs"
 );
 record(

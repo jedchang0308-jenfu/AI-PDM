@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "dev": "DEV-032",
-  "generatedAt": "2026-07-16T06:12:07.975Z",
+  "generatedAt": "2026-08-11T01:38:49.004Z",
   "generationReadOnly": true,
   "productionActionPerformed": true,
   "releaseReady": false,
@@ -14,22 +14,38 @@
     "database": "ai_pdm",
     "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
   },
-  "sourceCommit": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "sourceCommit": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
   "artifact": {
-    "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
-    "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-    "runtimeLinuxAmd64Digest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
+    "applicationSourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "applicationImageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "runtimeLinuxAmd64Digest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
     "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
     "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
   },
+  "currentRelease": {
+    "deploymentKind": "github-actions-keyless",
+    "repository": "jedchang0308-jenfu/AI-PDM",
+    "workflowRunId": 29636150040,
+    "workflowArtifactId": 8427222934,
+    "workflowArtifactDigest": "sha256:c00f93f561d23ce9b16378e97840be5f748976fb9474faf59826aa4e952749d3",
+    "workflowArtifactExpiresAt": "2026-08-17T08:00:06Z",
+    "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "previousTrafficRevision": "ai-pdm-prod-gh-053a672e-29581231622",
+    "evidencePath": "output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json",
+    "historicalInfrastructureClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
+    "authenticatedLevel4Status": "pending_current_release"
+  },
   "gateSummary": {
     "total": 10,
-    "passed": 9,
+    "passed": 8,
     "blocked": 0,
     "missingEvidence": 0,
-    "pendingHuman": 1,
-    "firstBlockedGate": "A9-wave0-go-no-go",
+    "pendingHuman": 2,
+    "firstBlockedGate": "A8-production-deploy-and-level4-smoke",
     "blockerCodes": [
+      "AUTHENTICATED_LEVEL4_CURRENT_RELEASE_PENDING",
       "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING"
     ]
   },
@@ -40,12 +56,14 @@
       "passed": true,
       "evidence": {
         "evidenceContractPath": "config/platform/production-activation-evidence.json",
-        "applicationSourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
-        "applicationImageDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-        "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
-        "hotfixId": "hotfix-1936e93d",
-        "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
+        "githubReleaseEvidencePath": "output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json",
+        "applicationSourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+        "applicationImageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+        "liveRuntimeImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+        "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+        "workflowRunId": 29636150040,
+        "workflowArtifactId": 8427222934,
+        "ociSourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
         "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274"
       },
       "blockers": []
@@ -68,7 +86,8 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "authEvidencePath": "output/dev-032-production-auth-activation/summary.json",
+        "historicalClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
+        "sanitizedReadbackPath": "output/dev-032-production-auth-activation/provider-readback-sanitized.json",
         "googleEnabled": true,
         "anonymousEnabled": false,
         "secretMetadataReadable": true,
@@ -83,7 +102,7 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "planEvidencePath": "output/dev-032-production-terraform-plan/review-summary.json",
+        "historicalClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
         "create": 53,
         "update": 5,
         "delete": 0,
@@ -99,11 +118,12 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "postApplyReadbackPath": "output/dev-032-production-terraform-plan/corrective/post-apply-readback.json",
+        "historicalClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
         "stateResourceCount": 58,
-        "terraformNoDrift": true,
-        "latestReadyRevision": "ai-pdm-prod-00010-quc",
-        "fileAuthorityBucketAbsent": true
+        "terraformNoDriftAtClosure": true,
+        "latestReadyRevision": "ai-pdm-prod-gh-f70c8982-29636150040",
+        "trafficPercent": 100,
+        "fileAuthorityBucketAbsentAtClosure": true
       },
       "blockers": []
     },
@@ -112,9 +132,8 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "bootstrapEvidencePath": "output/dev-032-live-migration/admin-bootstrap-summary.json",
-        "migrationEvidencePath": "output/dev-032-live-migration/migration-execution-retry-result.json",
-        "idempotenceEvidencePath": "output/dev-032-live-migration/migration-execution-idempotence-result.json",
+        "historicalClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
+        "liveReadbackPath": "output/dev-032-production-live-readback/report.json",
         "pdmUserId": "prod-pdm-admin-001",
         "roleCount": 9,
         "permissionCount": 237,
@@ -134,12 +153,12 @@
       "status": "passed",
       "passed": true,
       "evidence": {
+        "historicalClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
         "liveReadbackPath": "output/dev-032-production-live-readback/report.json",
         "backupId": "1784162806569",
         "restoreTarget": "ai-pdm-prod-restore-20260716a",
         "separateTarget": true,
-        "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57",
-        "rollbackClosurePath": "output/dev-032-rollback-drill/v2-api-closure.json"
+        "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57"
       },
       "blockers": []
     },
@@ -148,33 +167,35 @@
       "status": "passed",
       "passed": true,
       "evidence": {
-        "smokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
-        "passed": 16,
+        "githubReleaseEvidencePath": "output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json",
+        "schemaVersion": "ai-pdm-production-release-smoke/v1",
+        "kind": "candidate",
+        "passed": 13,
         "failed": 0,
-        "revision": "ai-pdm-prod-00010-quc",
-        "manifestDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef",
-        "runtimeDigest": "sha256:5a58aa18d88610abfde5e1813e92c7230e223a4fa89e3a8e8f7ade8682c48fef"
+        "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+        "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+        "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+        "trafficValidationPassed": true
       },
       "blockers": []
     },
     {
       "id": "A8-production-deploy-and-level4-smoke",
-      "status": "passed",
-      "passed": true,
+      "status": "pending_human",
+      "passed": false,
       "evidence": {
+        "githubReleaseEvidencePath": "output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json",
         "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
         "productionDeploymentObserved": true,
         "unauthenticatedProductionChecksPassed": true,
-        "authenticatedLevel4Status": "passed",
-        "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json",
-        "level4Passed": 7,
-        "level4Failed": 0,
-        "uiAcceptanceResult": {
-          "rootCode": "A0001",
-          "partNumber": "A0001-P01",
-          "drawingNumber": "A0001-M01",
-          "seriesCode": "DEV032-HF"
-        },
+        "canonicalSmokePassed": 13,
+        "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+        "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+        "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+        "authenticatedLevel4Status": "pending_current_release",
+        "authenticatedEvidenceCurrent": false,
+        "historicalLevel4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json",
+        "historicalLevel4SourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
         "requiredChecks": [
           "authenticated-ui-session",
           "permissions-by-successful-official-numbering",
@@ -184,7 +205,13 @@
           "file-cad-bom-fail-closed"
         ]
       },
-      "blockers": []
+      "blockers": [
+        {
+          "code": "AUTHENTICATED_LEVEL4_CURRENT_RELEASE_PENDING",
+          "message": "Authenticated Level 4 evidence must match the current source revision, Cloud Run revision and image digest; the retained hotfix evidence is historical only.",
+          "evidence": {}
+        }
+      ]
     },
     {
       "id": "A9-wave0-go-no-go",
@@ -205,13 +232,13 @@
       "blockers": [
         {
           "code": "WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING",
-          "message": "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.",
+          "message": "Wave 0 still needs current authenticated Level 4 evidence, 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.",
           "evidence": {}
         }
       ]
     }
   ],
-  "nextRequiredAction": "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate.",
+  "nextRequiredAction": "Capture authenticated Level 4 evidence for the current release f70c89821b717e6e98e3a6ef855af47e4b4a69dc at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then provide 3-5 explicitly named Wave 0 users and product-owner go/no-go.",
   "stopConditions": [
     "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",
     "Any production plan includes delete or replace.",

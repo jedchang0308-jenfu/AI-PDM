@@ -5,8 +5,10 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
+import { createGeneratedTypeReferenceGuard } from "./qc-generated-type-reference-guard.mjs";
 
 const root = process.cwd();
+const restoreGeneratedTypeReference = createGeneratedTypeReferenceGuard(root, () => {});
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-managed-auth-"));
 const bootstrapPassword = "Managed-QC-Password-2026";
 const expectedPersistentMaxAgeSeconds = 60 * 60 * 24 * 400;
@@ -62,6 +64,8 @@ function startApp(port) {
       PDM_DATA_DIR: tempDir,
       PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
       PDM_RELEASE_MODE: "local_stub",
+      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+      PDM_PRODUCTION_SLICE_MODE: "",
       PDM_NEXT_DIST_DIR: distDirRelative
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -257,6 +261,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (app) await stopApp(app.child);
+  restoreGeneratedTypeReference();
   if (app?.distDir) await removeTempDir(app.distDir);
   await removeTempDir(tempDir);
 }

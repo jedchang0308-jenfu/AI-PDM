@@ -360,8 +360,7 @@ function writeMarkdown(reportData) {
     "",
     "## Stop Conditions",
     "",
-    ...reportData.stopConditions.map((item) => `- ${item}`),
-    ""
+    ...reportData.stopConditions.map((item) => `- ${item}`)
   ];
   return `${lines.join("\n")}\n`;
 }

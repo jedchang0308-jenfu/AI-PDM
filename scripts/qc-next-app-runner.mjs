@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -24,12 +25,18 @@ export function startNextApp(root, mode, port) {
     throw new Error(`Unsupported Next.js app mode: ${mode}`);
   }
 
+  const standaloneServer = path.join(root, ".next", "standalone", "server.js");
+  const useStandalone = mode === "start" && fs.existsSync(standaloneServer);
+  if (useStandalone) prepareStandaloneAssets(root);
   const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
-  const child = spawn(process.execPath, [nextCli, mode, "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: root,
+  const commandArgs = useStandalone ? [standaloneServer] : [nextCli, mode, "--hostname", "127.0.0.1", "--port", String(port)];
+  const listenerBudgetPreload = path.resolve(root, qcListenerBudgetPreload).replaceAll("\\", "/");
+  const child = spawn(process.execPath, commandArgs, {
+    cwd: useStandalone ? path.dirname(standaloneServer) : root,
     env: {
       ...process.env,
-      NODE_OPTIONS: appendNodeOptions(process.env.NODE_OPTIONS, `--require ${qcListenerBudgetPreload}`),
+      ...(useStandalone ? { HOSTNAME: "127.0.0.1", PORT: String(port) } : {}),
+      NODE_OPTIONS: appendNodeOptions(process.env.NODE_OPTIONS, `--require="${listenerBudgetPreload}"`),
       PDM_RELEASE_MODE: "local_stub"
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -48,6 +55,17 @@ export function startNextApp(root, mode, port) {
   });
 
   return { child, getOutput: () => output };
+}
+
+function prepareStandaloneAssets(root) {
+  const standaloneDir = path.join(root, ".next", "standalone");
+  const staticSource = path.join(root, ".next", "static");
+  const staticTarget = path.join(standaloneDir, ".next", "static");
+  if (fs.existsSync(staticSource)) fs.cpSync(staticSource, staticTarget, { recursive: true, force: true });
+
+  const publicSource = path.join(root, "public");
+  const publicTarget = path.join(standaloneDir, "public");
+  if (fs.existsSync(publicSource)) fs.cpSync(publicSource, publicTarget, { recursive: true, force: true });
 }
 
 export async function waitForNextAppReady(baseUrl, getOutput) {

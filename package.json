@@ -115,7 +115,7 @@
     "qc:dev-task-evidence-sync": "node scripts/qc-dev-task-evidence-sync.mjs",
     "qc:dev-task-completion-audit": "node scripts/qc-dev-task-completion-audit.mjs",
     "qc:external-blocker-closure": "node scripts/qc-external-blocker-closure-package.mjs",
-    "qc:gdrive": "node scripts/qc-gdrive-integration-test.mjs",
+    "qc:gdrive": "node --experimental-strip-types scripts/qc-gdrive-integration-test.mjs",
     "qc:full": "node scripts/qc-full-test.mjs",
     "qc:file-hashes": "node scripts/verify-file-hashes.mjs",
     "qc:file-storage-contract": "node scripts/qc-file-storage-contract.mjs",
@@ -142,7 +142,7 @@
     "qc:file-storage-s3-compatible-dry-run": "node scripts/qc-file-storage-s3-compatible-dry-run.mjs",
     "qc:file-storage-archive-restore": "node scripts/qc-file-storage-archive-restore.mjs",
     "qc:field-test-preflight": "node scripts/field-test-preflight.mjs",
-    "qc:local-gdrive-compensation": "node scripts/qc-local-gdrive-compensation-test.mjs",
+    "qc:local-gdrive-compensation": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-local-gdrive-compensation-test.mjs",
     "qc:industrialization": "node scripts/qc-industrialization-test.mjs",
     "qc:list-summary-payload": "node scripts/qc-list-summary-payload-test.mjs",
     "qc:managed-auth": "node scripts/qc-managed-auth-test.mjs",
@@ -392,8 +392,8 @@
     "qc:field-test-issue-intake": "node scripts/qc-field-test-issue-intake.mjs",
     "qc:submissions-pagination": "node scripts/qc-submissions-pagination-test.mjs",
     "qc:release-config": "node scripts/qc-release-config-test.mjs",
-    "qc:release-folders": "node scripts/qc-release-folder-selection-test.mjs",
-    "qc:release-failure": "node scripts/qc-release-failure-test.mjs",
+    "qc:release-folders": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-release-folder-selection-test.mjs",
+    "qc:release-failure": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-release-failure-test.mjs",
     "qc:revision-lifecycle": "node scripts/qc-revision-lifecycle-test.mjs",
     "qc:search-indexes": "node scripts/qc-search-indexes-test.mjs",
     "qc:source-boundary": "node scripts/qc-source-boundary-test.mjs",
@@ -436,6 +436,7 @@
     "typescript": "^5.8.0"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "uuid": "11.1.1"
   }
 }

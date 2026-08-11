@@ -30,64 +30,58 @@ function passedOrBlocked(passed, missingCode, missingMessage) {
   return passed ? [] : [blocker(missingCode, missingMessage)];
 }
 
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.length > 0;
+}
+
 const sources = {
   checklist: readJson("config/platform/production-activation-checklist.template.json"),
   evidence: readJson("config/platform/production-activation-evidence.json"),
   live: readJson("output/dev-032-production-live-readback/report.json"),
-  terraformReview: readJson("output/dev-032-production-terraform-plan/review-summary.json"),
-  terraformReadback: readJson("output/dev-032-production-terraform-plan/corrective/post-apply-readback.json"),
-  auth: readJson("output/dev-032-production-auth-activation/summary.json"),
+  release: readJson("output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json"),
+  historicalClosure: readJson("output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json"),
   secretExposure: readJson("output/dev-032-production-auth-activation/secret-exposure-review.json"),
-  bootstrap: readJson("output/dev-032-live-migration/admin-bootstrap-summary.json"),
-  migration: readJson("output/dev-032-live-migration/migration-execution-retry-result.json"),
-  idempotence: readJson("output/dev-032-live-migration/migration-execution-idempotence-result.json"),
-  migrationProvenance: readJson("output/dev-032-live-migration/migration-runner-provenance.json"),
-  runtimeProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance.json"),
-  runtimeHotfixProvenance: readJson("output/dev-032-aal1-pilot-plan/runtime-manifest-provenance-hotfix-1936e93d.json"),
-  rollback: readJson("output/dev-032-rollback-drill/v2-api-closure.json"),
-  hosting: readJson("output/dev-032-production-hosting-plan/summary.json"),
-  slicePlan: readJson("output/dev-032-production-slice-activation/plan-review.json"),
-  level3: readJson("output/dev-032-production-slice-activation/level3-smoke.json"),
-  level3Current: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json"),
-  level4: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json")
+  sanitizedReadback: readJson("output/dev-032-production-auth-activation/provider-readback-sanitized.json"),
+  historicalLevel4: readJson("output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json")
 };
+
 const checklist = sources.checklist.parsed ?? {};
 const evidence = sources.evidence.parsed ?? {};
 const live = sources.live.parsed ?? {};
-const terraformReview = sources.terraformReview.parsed ?? {};
-const terraformReadback = sources.terraformReadback.parsed ?? {};
-const auth = sources.auth.parsed ?? {};
+const release = sources.release.parsed ?? {};
+const historicalClosure = sources.historicalClosure.parsed ?? {};
 const secretExposure = sources.secretExposure.parsed ?? {};
-const bootstrap = sources.bootstrap.parsed ?? {};
-const migration = sources.migration.parsed ?? {};
-const idempotence = sources.idempotence.parsed ?? {};
-const migrationProvenance = sources.migrationProvenance.parsed ?? {};
-const runtimeProvenance = sources.runtimeProvenance.parsed ?? {};
-const currentRuntimeProvenance = sources.runtimeHotfixProvenance.parsed ?? runtimeProvenance;
-const rollback = sources.rollback.parsed ?? {};
-const hosting = sources.hosting.parsed ?? {};
-const slicePlan = sources.slicePlan.parsed ?? {};
-const level3 = sources.level3Current.parsed ?? sources.level3.parsed ?? {};
-const level4 = sources.level4.parsed ?? {};
+const sanitizedReadback = sources.sanitizedReadback.parsed ?? {};
+const historicalLevel4 = sources.historicalLevel4.parsed ?? {};
+const currentRelease = evidence.currentRelease ?? {};
 const wave0 = evidence.wave0 ?? {};
-const level3ManifestDigest = level3.manifestDigest ?? level3.imageDigest ?? null;
-const level3RuntimeDigest = level3.runtimeDigest ?? level3.imageDigest ?? null;
-const hotfix = evidence.hotfix ?? {};
-const baseActivationSourceReady = hotfix.baseActivationSourceRevision
-  ? terraformReview.applicationSourceCommit === hotfix.baseActivationSourceRevision
-  : terraformReview.applicationSourceCommit === evidence.artifact?.applicationSourceRevision;
+const artifact = evidence.artifact ?? {};
+const releaseRuntime = release.runtime ?? {};
+const candidateSmoke = release.candidateSmoke ?? {};
+const canonicalSmoke = release.canonicalSmoke ?? {};
+const trafficValidation = release.trafficValidation ?? {};
+const trafficPromotion = release.trafficPromotion ?? {};
+const historicalGates = historicalClosure.gates ?? {};
+const historicalGatePassed = (id) => historicalGates[id]?.status === "passed";
 
 const sourceReady = sources.evidence.exists
+  && sources.release.exists
   && live.allChecksPassed === true
-  && baseActivationSourceReady
-  && live.artifact?.applicationSourceRevision === evidence.artifact?.applicationSourceRevision
-  && live.artifact?.applicationImageDigest === evidence.artifact?.applicationImageDigest
-  && live.artifact?.migrationSourceRevision === evidence.artifact?.migrationSourceRevision
-  && migrationProvenance.sourceRevision === evidence.artifact?.migrationSourceRevision
-  && migrationProvenance.registryDigestReadback === evidence.artifact?.migrationImageDigest
-  && currentRuntimeProvenance.indexDigest === evidence.artifact?.applicationImageDigest
-  && currentRuntimeProvenance.runtimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
-  && currentRuntimeProvenance.runtimeDigestIsLinuxAmd64Child === true;
+  && release.allChecksPassed === true
+  && currentRelease.sourceRevision === artifact.applicationSourceRevision
+  && currentRelease.imageDigest === artifact.applicationImageDigest
+  && currentRelease.revision === live.runtime?.latestReadyRevision
+  && releaseRuntime.sourceRevision === artifact.applicationSourceRevision
+  && releaseRuntime.revision === currentRelease.revision
+  && releaseRuntime.imageDigest === artifact.applicationImageDigest
+  && releaseRuntime.ociProvenance?.revision === artifact.applicationSourceRevision
+  && releaseRuntime.ociProvenance?.runtimeDigestIsLinuxAmd64Child === true
+  && live.artifact?.applicationSourceRevision === artifact.applicationSourceRevision
+  && live.artifact?.applicationImageDigest === artifact.applicationImageDigest
+  && live.artifact?.liveRuntimeImage?.endsWith(`@${artifact.applicationImageDigest}`)
+  && isNonEmptyString(artifact.migrationSourceRevision)
+  && isNonEmptyString(artifact.migrationImageDigest);
+
 const targetReady = live.allChecksPassed === true
   && live.target?.projectId === evidence.target?.projectId
   && live.target?.region === evidence.target?.region
@@ -95,66 +89,88 @@ const targetReady = live.allChecksPassed === true
   && live.runtime?.service === evidence.target?.runtimeService
   && live.checks?.sourceCloudSqlReady === true
   && live.checks?.runtimeReady === true;
-const providerReady = auth.deployPassed === true
-  && auth.readback?.googleEnabled === true
-  && auth.readback?.anonymousEnabled === false
-  && terraformReadback.checks?.sessionSecretMetadata === true
+
+const providerSecretExposureResolved = sources.secretExposure.exists
+  && secretExposure?.requiredResolution?.status === "resolved"
+  && sanitizedReadback?.assertions?.noSecretFieldsReturned === true
+  && sanitizedReadback?.google?.clientSecretRead === false;
+const providerReady = historicalGatePassed("A2-provider-and-env-readback")
+  && providerSecretExposureResolved
+  && historicalGates["A2-provider-and-env-readback"]?.googleEnabled === true
+  && historicalGates["A2-provider-and-env-readback"]?.anonymousEnabled === false
+  && historicalGates["A2-provider-and-env-readback"]?.secretMetadataReadable === true
   && live.runtime?.canonicalBaseUrl === evidence.target?.canonicalBaseUrl;
-const providerSecretExposureBlocked = sources.secretExposure.exists
-  && secretExposure?.impact?.releaseStopConditionMatched === true
-  && secretExposure?.requiredResolution?.status !== "resolved";
-const planReady = terraformReview.costGatePassed === true
-  && terraformReview.actions?.delete === 0
-  && terraformReview.actions?.replace === 0
-  && terraformReview.estimatedMonthlyCostUsd <= (checklist.costGate?.credentialledPlanReviewStopUsd ?? 240)
-  && Array.isArray(terraformReview.gcsFileAuthorityResources)
-  && terraformReview.gcsFileAuthorityResources.length === 0
-  && slicePlan.safeToApply === true
-  && slicePlan.delete === 0
-  && slicePlan.replace === 0
-  && slicePlan.imageDigestUnchanged === true;
-const applyReady = Array.isArray(terraformReadback.failed)
-  && terraformReadback.failed.length === 0
-  && terraformReadback.checks?.terraformNoDrift === true
-  && terraformReadback.checks?.cloudSqlRunnable === true
-  && terraformReadback.checks?.cloudRunReady === true
-  && terraformReadback.checks?.fileAuthorityBucketAbsent === true
-  && hosting.safeToApply === true
-  && hosting.stopConditions?.hasDelete === false
-  && hosting.stopConditions?.hasReplace === false
-  && live.runtime?.latestReadyRevision === level3.revision;
-const seedReady = bootstrap.bootstrapSucceeded === true
-  && bootstrap.readbackAssertionsSucceeded === true
-  && bootstrap.staticCredentialUsed === false
-  && migration.allExpectedApplied === true
-  && migration.schemaMigrationCount === 18
-  && idempotence.success === true
-  && idempotence.idempotenceVerified === true
-  && Array.isArray(idempotence.appliedVersions)
-  && idempotence.appliedVersions.length === 0
+
+const planClosure = historicalGates["A3-credentialled-terraform-plan-review"] ?? {};
+const planReady = historicalGatePassed("A3-credentialled-terraform-plan-review")
+  && planClosure.delete === 0
+  && planClosure.replace === 0
+  && planClosure.estimatedMonthlyCostUsd <= (checklist.costGate?.credentialledPlanReviewStopUsd ?? 240);
+
+const applyClosure = historicalGates["A4-production-resource-apply"] ?? {};
+const applyReady = historicalGatePassed("A4-production-resource-apply")
+  && applyClosure.terraformNoDrift === true
+  && applyClosure.fileAuthorityBucketAbsent === true
+  && live.checks?.runtimeReady === true
+  && live.runtime?.latestReadyRevision === currentRelease.revision
+  && live.runtime?.trafficPercent === 100;
+
+const seedClosure = historicalGates["A5-clean-seed-and-principal-bootstrap"] ?? {};
+const seedReady = historicalGatePassed("A5-clean-seed-and-principal-bootstrap")
   && live.principal?.passed === true
+  && live.principal?.pdmUserId === seedClosure.pdmUserId
+  && live.principal?.roleCount === seedClosure.roleCount
+  && live.principal?.permissionCount === seedClosure.permissionCount
+  && live.reconciliation?.migrationCount === seedClosure.migrationCount
   && live.reconciliation?.preCanaryPassed === true
   && Object.values(live.reconciliation?.counts ?? {}).every((count) => count === 0);
-const restoreReady = live.recovery?.backupStatus === "SUCCESSFUL"
+
+const restoreClosure = historicalGates["A6-hd84-restore-reconciliation"] ?? {};
+const restoreReady = historicalGatePassed("A6-hd84-restore-reconciliation")
+  && live.recovery?.backupStatus === "SUCCESSFUL"
+  && live.recovery?.backupId === restoreClosure.backupId
+  && live.recovery?.restoreTarget === restoreClosure.restoreTarget
   && live.recovery?.separateTarget === true
   && live.recovery?.privateOnly === true
   && live.reconciliation?.restorePassed === true
-  && live.checks?.numberingSnapshotMatched === true
-  && rollback.allChecksPassed === true
-  && rollback.rollbackApplied === true;
-const level3Ready = level3.passed >= 14
-  && level3.failed === 0
-  && level3.revision === live.runtime?.latestReadyRevision
-  && level3ManifestDigest === evidence.artifact?.applicationImageDigest
-  && level3RuntimeDigest === evidence.artifact?.runtimeLinuxAmd64Digest
+  && live.reconciliation?.sourceNumberingSnapshotSha256 === restoreClosure.numberingSnapshotSha256
+  && live.checks?.numberingSnapshotMatched === true;
+
+const level3Ready = candidateSmoke.schemaVersion === "ai-pdm-production-release-smoke/v1"
+  && candidateSmoke.kind === "candidate"
+  && candidateSmoke.passed >= 13
+  && candidateSmoke.failed === 0
+  && candidateSmoke.sourceRevision === artifact.applicationSourceRevision
+  && candidateSmoke.revision === currentRelease.revision
+  && candidateSmoke.imageDigest === artifact.applicationImageDigest
+  && trafficValidation.allChecksPassed === true
+  && trafficValidation.validateOnlyAccepted === true
+  && trafficValidation.expectedLatestRevision === currentRelease.revision
   && live.runtime?.productionSliceMode === "official-numbering-draft";
-const level4Ready = wave0.authenticatedLevel4Status === "passed"
-  && level4.failed === 0
-  && level4.revision === live.runtime?.latestReadyRevision
-  && level4.imageDigest === evidence.artifact?.applicationImageDigest
-  && level4.uiAcceptanceResult?.partNumber
-  && level4.uiAcceptanceResult?.drawingNumber
-  && level4.uiAcceptanceResult?.seriesCode;
+
+const canonicalReady = canonicalSmoke.schemaVersion === "ai-pdm-production-release-smoke/v1"
+  && canonicalSmoke.kind === "canonical"
+  && canonicalSmoke.passed >= 13
+  && canonicalSmoke.failed === 0
+  && canonicalSmoke.baseUrl === evidence.target?.canonicalBaseUrl
+  && canonicalSmoke.sourceRevision === artifact.applicationSourceRevision
+  && canonicalSmoke.revision === currentRelease.revision
+  && canonicalSmoke.imageDigest === artifact.applicationImageDigest
+  && trafficPromotion.allChecksPassed === true
+  && trafficPromotion.expectedLatestRevision === currentRelease.revision
+  && trafficPromotion.trafficPercent === 100;
+
+const authenticatedEvidenceCurrent = historicalLevel4.sourceRevision === artifact.applicationSourceRevision
+  && historicalLevel4.revision === currentRelease.revision
+  && historicalLevel4.imageDigest === artifact.applicationImageDigest;
+const level4Ready = canonicalReady
+  && currentRelease.authenticatedLevel4Status === "passed_current_release"
+  && wave0.authenticatedLevel4Status === "passed_current_release"
+  && authenticatedEvidenceCurrent
+  && historicalLevel4.failed === 0
+  && historicalLevel4.uiAcceptanceResult?.partNumber
+  && historicalLevel4.uiAcceptanceResult?.drawingNumber
+  && historicalLevel4.uiAcceptanceResult?.seriesCode;
 const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
 const wave0Ready = level4Ready
   && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
@@ -165,14 +181,16 @@ const wave0Ready = level4Ready
 const gates = [
   gate("A0-release-source", sourceReady ? "passed" : "missing_evidence", {
     evidenceContractPath: sources.evidence.path,
-    applicationSourceRevision: evidence.artifact?.applicationSourceRevision ?? null,
-    applicationImageDigest: live.artifact?.applicationImageDigest ?? null,
-    runtimeDigest: currentRuntimeProvenance.runtimeDigest ?? null,
-    baseActivationSourceRevision: hotfix.baseActivationSourceRevision ?? null,
-    hotfixId: hotfix.id ?? null,
-    cloudBuildId: hotfix.cloudBuildId ?? null,
-    migrationSourceRevision: live.artifact?.migrationSourceRevision ?? null
-  }, passedOrBlocked(sourceReady, "ARTIFACT_PROVENANCE_INCOMPLETE", "Application or migration artifact provenance does not match the release evidence contract.")),
+    githubReleaseEvidencePath: sources.release.path,
+    applicationSourceRevision: artifact.applicationSourceRevision ?? null,
+    applicationImageDigest: artifact.applicationImageDigest ?? null,
+    liveRuntimeImage: live.artifact?.liveRuntimeImage ?? null,
+    revision: currentRelease.revision ?? null,
+    workflowRunId: currentRelease.workflowRunId ?? null,
+    workflowArtifactId: currentRelease.workflowArtifactId ?? null,
+    ociSourceRevision: releaseRuntime.ociProvenance?.revision ?? null,
+    migrationSourceRevision: artifact.migrationSourceRevision ?? null
+  }, passedOrBlocked(sourceReady, "ARTIFACT_PROVENANCE_INCOMPLETE", "The live revision, GitHub release artifact, OCI provenance or activation contract is missing or inconsistent.")),
   gate("A1-production-target-readback", targetReady ? "passed" : "missing_evidence", {
     liveReadbackPath: sources.live.path,
     projectId: live.target?.projectId ?? null,
@@ -180,74 +198,77 @@ const gates = [
     runtimeService: live.runtime?.service ?? null,
     cloudSqlInstance: live.recovery?.sourceInstance ?? null
   }, passedOrBlocked(targetReady, "PRODUCTION_TARGET_READBACK_INCOMPLETE", "Live production target readback is missing or failed.")),
-  gate("A2-provider-and-env-readback", providerReady && !providerSecretExposureBlocked ? "passed" : providerSecretExposureBlocked ? "blocked" : "missing_evidence", {
-    authEvidencePath: sources.auth.path,
-    googleEnabled: auth.readback?.googleEnabled ?? null,
-    anonymousEnabled: auth.readback?.anonymousEnabled ?? null,
-    secretMetadataReadable: terraformReadback.checks?.sessionSecretMetadata ?? null,
+  gate("A2-provider-and-env-readback", providerReady ? "passed" : "blocked", {
+    historicalClosurePath: sources.historicalClosure.path,
+    sanitizedReadbackPath: sources.sanitizedReadback.path,
+    googleEnabled: historicalGates["A2-provider-and-env-readback"]?.googleEnabled ?? null,
+    anonymousEnabled: historicalGates["A2-provider-and-env-readback"]?.anonymousEnabled ?? null,
+    secretMetadataReadable: historicalGates["A2-provider-and-env-readback"]?.secretMetadataReadable ?? null,
     canonicalBaseUrl: live.runtime?.canonicalBaseUrl ?? null,
-    secretExposureReviewPath: sources.secretExposure.exists ? sources.secretExposure.path : null,
+    secretExposureReviewPath: sources.secretExposure.path,
     secretExposureStatus: secretExposure?.requiredResolution?.status ?? null
-  }, providerSecretExposureBlocked
-    ? [blocker("PROVIDER_SECRET_EXPOSURE_REVIEW_PENDING", "Provider config readback returned OAuth client secret material in command output; rotate the affected secret or explicitly accept the residual risk before release closure.", {
-      secretExposureReviewPath: sources.secretExposure.path,
-      plaintextStoredInWorkspace: secretExposure?.finding?.plaintextStoredInWorkspace ?? null
-    })]
-    : passedOrBlocked(providerReady, "PROVIDER_ENV_READBACK_INCOMPLETE", "Production provider, secret metadata or canonical runtime environment evidence is incomplete.")),
+  }, passedOrBlocked(providerReady, "PROVIDER_ENV_READBACK_INCOMPLETE", "The closed provider baseline, sanitized readback or canonical runtime environment evidence is incomplete.")),
   gate("A3-credentialled-terraform-plan-review", planReady ? "passed" : "blocked", {
-    planEvidencePath: sources.terraformReview.path,
-    create: terraformReview.actions?.create ?? null,
-    update: terraformReview.actions?.update ?? null,
-    delete: terraformReview.actions?.delete ?? null,
-    replace: terraformReview.actions?.replace ?? null,
-    estimatedMonthlyCostUsd: terraformReview.estimatedMonthlyCostUsd ?? null,
+    historicalClosurePath: sources.historicalClosure.path,
+    create: planClosure.create ?? null,
+    update: planClosure.update ?? null,
+    delete: planClosure.delete ?? null,
+    replace: planClosure.replace ?? null,
+    estimatedMonthlyCostUsd: planClosure.estimatedMonthlyCostUsd ?? null,
     stopUsd: checklist.costGate?.credentialledPlanReviewStopUsd ?? 240,
-    productionSlicePlanSha256: slicePlan.planSha256 ?? null
-  }, passedOrBlocked(planReady, "PRODUCTION_PLAN_GATE_FAILED", "Credentialled plan exceeds a safety boundary or lacks required review evidence.")),
+    productionSlicePlanSha256: planClosure.productionSlicePlanSha256 ?? null
+  }, passedOrBlocked(planReady, "PRODUCTION_PLAN_GATE_FAILED", "The archived credentialled infrastructure plan closure exceeds a safety boundary or is incomplete.")),
   gate("A4-production-resource-apply", applyReady ? "passed" : "blocked", {
-    postApplyReadbackPath: sources.terraformReadback.path,
-    stateResourceCount: terraformReadback.stateResourceCount ?? null,
-    terraformNoDrift: terraformReadback.checks?.terraformNoDrift ?? null,
+    historicalClosurePath: sources.historicalClosure.path,
+    stateResourceCount: applyClosure.stateResourceCount ?? null,
+    terraformNoDriftAtClosure: applyClosure.terraformNoDrift ?? null,
     latestReadyRevision: live.runtime?.latestReadyRevision ?? null,
-    fileAuthorityBucketAbsent: terraformReadback.checks?.fileAuthorityBucketAbsent ?? null
-  }, passedOrBlocked(applyReady, "PRODUCTION_APPLY_READBACK_FAILED", "Production apply readback, no-drift or file-authority boundary failed.")),
+    trafficPercent: live.runtime?.trafficPercent ?? null,
+    fileAuthorityBucketAbsentAtClosure: applyClosure.fileAuthorityBucketAbsent ?? null
+  }, passedOrBlocked(applyReady, "PRODUCTION_APPLY_READBACK_FAILED", "The archived infrastructure closure or current live runtime readback failed.")),
   gate("A5-clean-seed-and-principal-bootstrap", seedReady ? "passed" : "blocked", {
-    bootstrapEvidencePath: sources.bootstrap.path,
-    migrationEvidencePath: sources.migration.path,
-    idempotenceEvidencePath: sources.idempotence.path,
+    historicalClosurePath: sources.historicalClosure.path,
+    liveReadbackPath: sources.live.path,
     pdmUserId: live.principal?.pdmUserId ?? null,
     roleCount: live.principal?.roleCount ?? null,
     permissionCount: live.principal?.permissionCount ?? null,
     migrationCount: live.reconciliation?.migrationCount ?? null,
     businessObjectCounts: live.reconciliation?.counts ?? null
-  }, passedOrBlocked(seedReady, "CLEAN_SEED_BOOTSTRAP_FAILED", "Clean seed, principal bootstrap, migration or idempotence evidence failed.")),
+  }, passedOrBlocked(seedReady, "CLEAN_SEED_BOOTSTRAP_FAILED", "The archived bootstrap closure no longer matches current principal or reconciliation readback.")),
   gate("A6-hd84-restore-reconciliation", restoreReady ? "passed" : "blocked", {
+    historicalClosurePath: sources.historicalClosure.path,
     liveReadbackPath: sources.live.path,
     backupId: live.recovery?.backupId ?? null,
     restoreTarget: live.recovery?.restoreTarget ?? null,
     separateTarget: live.recovery?.separateTarget ?? null,
-    numberingSnapshotSha256: live.reconciliation?.sourceNumberingSnapshotSha256 ?? null,
-    rollbackClosurePath: sources.rollback.path
-  }, passedOrBlocked(restoreReady, "HD84_RESTORE_RECONCILIATION_FAILED", "Separate-target restore, numbering reconciliation or rollback evidence failed.")),
+    numberingSnapshotSha256: live.reconciliation?.sourceNumberingSnapshotSha256 ?? null
+  }, passedOrBlocked(restoreReady, "HD84_RESTORE_RECONCILIATION_FAILED", "The archived restore closure no longer matches the current separate-target recovery readback.")),
   gate("A7-level3-production-like-smoke", level3Ready ? "passed" : "blocked", {
-    smokePath: sources.level3Current.exists ? sources.level3Current.path : sources.level3.path,
-    passed: level3.passed ?? null,
-    failed: level3.failed ?? null,
-    revision: level3.revision ?? null,
-    manifestDigest: level3ManifestDigest,
-    runtimeDigest: level3RuntimeDigest
-  }, passedOrBlocked(level3Ready, "LEVEL3_PRODUCTION_LIKE_SMOKE_FAILED", "Level 3 production-like smoke is missing, stale or failed.")),
+    githubReleaseEvidencePath: sources.release.path,
+    schemaVersion: candidateSmoke.schemaVersion ?? null,
+    kind: candidateSmoke.kind ?? null,
+    passed: candidateSmoke.passed ?? null,
+    failed: candidateSmoke.failed ?? null,
+    sourceRevision: candidateSmoke.sourceRevision ?? null,
+    revision: candidateSmoke.revision ?? null,
+    imageDigest: candidateSmoke.imageDigest ?? null,
+    trafficValidationPassed: trafficValidation.allChecksPassed ?? null
+  }, passedOrBlocked(level3Ready, "LEVEL3_PRODUCTION_LIKE_SMOKE_FAILED", "Current GitHub candidate smoke, traffic validation or provenance evidence is missing, stale or failed.")),
   gate("A8-production-deploy-and-level4-smoke", level4Ready ? "passed" : "pending_human", {
+    githubReleaseEvidencePath: sources.release.path,
     canonicalBaseUrl: evidence.target?.canonicalBaseUrl ?? null,
-    productionDeploymentObserved: live.checks?.runtimeReady === true && level3.passed >= 14,
-    unauthenticatedProductionChecksPassed: level3.failed === 0,
-    authenticatedLevel4Status: wave0.authenticatedLevel4Status ?? "missing_evidence",
-    level4EvidencePath: sources.level4.path,
-    level4Passed: level4.passed ?? null,
-    level4Failed: level4.failed ?? null,
-    uiAcceptanceResult: level4.uiAcceptanceResult ?? null,
+    productionDeploymentObserved: canonicalReady,
+    unauthenticatedProductionChecksPassed: canonicalSmoke.failed === 0,
+    canonicalSmokePassed: canonicalSmoke.passed ?? null,
+    sourceRevision: canonicalSmoke.sourceRevision ?? null,
+    revision: canonicalSmoke.revision ?? null,
+    imageDigest: canonicalSmoke.imageDigest ?? null,
+    authenticatedLevel4Status: currentRelease.authenticatedLevel4Status ?? "missing_evidence",
+    authenticatedEvidenceCurrent,
+    historicalLevel4EvidencePath: sources.historicalLevel4.path,
+    historicalLevel4SourceRevision: historicalLevel4.sourceRevision ?? null,
     requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-cad-bom-fail-closed"]
-  }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_PENDING", "A human must complete the production Google account chooser before authenticated Level 4 can run.")]),
+  }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_CURRENT_RELEASE_PENDING", "Authenticated Level 4 evidence must match the current source revision, Cloud Run revision and image digest; the retained hotfix evidence is historical only.")]),
   gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
     allowlistMode: wave0.allowlistMode ?? null,
     failClosed: wave0.failClosed ?? null,
@@ -257,7 +278,7 @@ const gates = [
     namedUserCount: namedUsers.length,
     productOwnerDecision: wave0.productOwnerDecision ?? "pending",
     fixedFiveBusinessDayObservationCancelled: evidence.decisions?.fixedFiveBusinessDayObservationCancelled === true
-  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", "Wave 0 still needs 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.")])
+  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", "Wave 0 still needs current authenticated Level 4 evidence, 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.")])
 ];
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
@@ -269,7 +290,7 @@ const status = releaseReady
     ? "pending_human_activation_readiness"
     : "blocked_activation_readiness";
 const report = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   dev: "DEV-032",
   generatedAt: new Date().toISOString(),
   generationReadOnly: true,
@@ -277,8 +298,9 @@ const report = {
   releaseReady,
   status,
   target: evidence.target ?? checklist.target ?? {},
-  sourceCommit: evidence.artifact?.applicationSourceRevision ?? null,
-  artifact: evidence.artifact ?? {},
+  sourceCommit: artifact.applicationSourceRevision ?? null,
+  artifact,
+  currentRelease,
   gateSummary: {
     total: gates.length,
     passed: gates.filter((item) => item.passed).length,
@@ -291,13 +313,11 @@ const report = {
   gates,
   nextRequiredAction: releaseReady
     ? "Record final release closure and preserve the evidence package."
-    : firstBlockedGate?.id === "A2-provider-and-env-readback"
-      ? "Resolve the provider secret exposure review by rotating the affected OAuth client secret or recording explicit product-owner residual-risk acceptance, then regenerate readiness."
     : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
-      ? "Complete the production Google account chooser for jedchang0308@jenfu.com.tw, then run authenticated Level 4. Provide the remaining explicitly named Wave 0 users and product-owner go/no-go in the same closure response."
+      ? `Capture authenticated Level 4 evidence for the current release ${artifact.applicationSourceRevision ?? "unknown"} at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then provide 3-5 explicitly named Wave 0 users and product-owner go/no-go.`
       : firstBlockedGate?.id === "A9-wave0-go-no-go"
         ? "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
-      : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
+        : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };
 

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "dev-032-historical-activation-closure/v1",
+  "capturedAt": "2026-07-16T06:12:07.975Z",
+  "sourceReportSha256": "db9acfe038e0d912bcf1d24343a71858cc7f00b03b95f49116c2a4b8aef7a532",
+  "sourceRevision": "1936e93dfcd81be9ee308b1cf3d0249a282fb0be",
+  "revision": "ai-pdm-prod-00010-quc",
+  "scope": "Historical infrastructure, provider, bootstrap and recovery closure reused only where the current live readback still proves the corresponding invariant.",
+  "gates": {
+    "A1-production-target-readback": {
+      "status": "passed"
+    },
+    "A2-provider-and-env-readback": {
+      "status": "passed",
+      "googleEnabled": true,
+      "anonymousEnabled": false,
+      "secretMetadataReadable": true
+    },
+    "A3-credentialled-terraform-plan-review": {
+      "status": "passed",
+      "create": 53,
+      "update": 5,
+      "delete": 0,
+      "replace": 0,
+      "estimatedMonthlyCostUsd": 210,
+      "productionSlicePlanSha256": "25f6f28a74d27e988e13301793488cf736fe0fedcc8ec72779cfc90b9497221e"
+    },
+    "A4-production-resource-apply": {
+      "status": "passed",
+      "stateResourceCount": 58,
+      "terraformNoDrift": true,
+      "fileAuthorityBucketAbsent": true
+    },
+    "A5-clean-seed-and-principal-bootstrap": {
+      "status": "passed",
+      "pdmUserId": "prod-pdm-admin-001",
+      "roleCount": 9,
+      "permissionCount": 237,
+      "migrationCount": 18
+    },
+    "A6-hd84-restore-reconciliation": {
+      "status": "passed",
+      "backupId": "1784162806569",
+      "restoreTarget": "ai-pdm-prod-restore-20260716a",
+      "separateTarget": true,
+      "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57"
+    }
+  }
+}

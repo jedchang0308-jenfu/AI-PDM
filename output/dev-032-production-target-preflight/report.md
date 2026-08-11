@@ -1,18 +1,18 @@
 # DEV-032 Production Target Read-only Preflight
 
-Generated: 2026-08-10T17:14:45.367Z
+Generated: 2026-08-11T01:22:39.426Z
 Target project: `jenfu-ai-pdm-prod`
 Region: `asia-east1`
 Production action performed: `false`
-Status: `blocked_readonly_preflight`
+Status: `preflight_readonly_passed_release_still_requires_approval`
 
 ## Result
 
-Blocked by 5 read-only preflight blocker(s).
+Read-only target discovery did not find target-level blockers, but release still requires separate approval and post-deploy smoke.
 
 ## Active Identity
 
-- Account: `info@jenfu.com.tw`
+- Account: `jedchang0308@jenfu.com.tw`
 - Active project: `jenfu-ai-pdm-prod`
 
 ## Production Target Contract
@@ -26,20 +26,15 @@ Blocked by 5 read-only preflight blocker(s).
 
 ## Blockers
 
-- `PRODUCTION_PROJECT_UNAVAILABLE`: Production project is not readable by the active account or does not exist.
-- `PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN`: Expected production Cloud Run service was not proven readable.
-- `PRODUCTION_CLOUD_SQL_INSTANCE_UNPROVEN`: Expected production Cloud SQL instance metadata was not proven readable.
-- `PRODUCTION_SECRET_SOURCE_UNPROVEN`: Required production Secret Manager metadata was not proven readable; no secret values were requested.
-- `LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE`: Production-like and post-deploy smoke cannot run until production runtime/database target is proven.
 
 ## Read-only Commands
 
 - PASS `gcloud config get-value account`
 - PASS `gcloud config get-value project`
-- BLOCKED `gcloud projects describe jenfu-ai-pdm-prod --format=json`
-- BLOCKED `gcloud run services list --project jenfu-ai-pdm-prod --region asia-east1 --format=json`
-- BLOCKED `gcloud sql instances list --project jenfu-ai-pdm-prod --format=json`
-- BLOCKED `gcloud secrets list --project jenfu-ai-pdm-prod --format=json`
+- PASS `gcloud projects describe jenfu-ai-pdm-prod --format=json`
+- PASS `gcloud run services list --project jenfu-ai-pdm-prod --region asia-east1 --format=json`
+- PASS `gcloud sql instances list --project jenfu-ai-pdm-prod --format=json`
+- PASS `gcloud secrets list --project jenfu-ai-pdm-prod --format=json`
 
 ## Stop Conditions
 

@@ -89,7 +89,15 @@ function startApp(port, openAiBaseUrl, usageDir) {
       OPENAI_RATE_LIMIT_PER_MINUTE: "10",
       OPENAI_MAX_CONTEXT_CHARS: "12000",
       PDM_AI_USAGE_DIR: usageDir,
-      PDM_AI_USAGE_LOG: "on"
+      PDM_AI_USAGE_LOG: "on",
+      PDM_AUTH_MODE: "demo",
+      PDM_DB_PROVIDER: "sqlite",
+      PDM_DATA_DIR: path.join(usageDir, "data"),
+      PDM_REPOSITORY_DIR: path.join(usageDir, "repository"),
+      PDM_POSTGRES_URL: "",
+      DATABASE_URL: "",
+      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
+      PDM_PRODUCTION_SLICE_MODE: ""
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -107,13 +115,22 @@ function startApp(port, openAiBaseUrl, usageDir) {
 
 async function stopProcess(child) {
   if (child.exitCode !== null) return;
+
+  const waitForExit = () => {
+    if (child.exitCode !== null) return Promise.resolve();
+    return new Promise((resolve) => child.once("exit", resolve));
+  };
+
   child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(3000).then(() => {
-      if (child.exitCode === null) child.kill("SIGTERM");
-    })
-  ]);
+  await Promise.race([waitForExit(), delay(3000)]);
+  if (child.exitCode !== null) return;
+
+  child.kill("SIGTERM");
+  await Promise.race([waitForExit(), delay(3000)]);
+  if (child.exitCode !== null) return;
+
+  child.kill("SIGKILL");
+  await Promise.race([waitForExit(), delay(1000)]);
 }
 
 async function waitForApp(baseUrl, getOutput) {
@@ -246,7 +263,7 @@ async function readUsageEvents(usageDir) {
 }
 
 function cleanupUsageDir(usageDir) {
-  fs.rmSync(usageDir, { recursive: true, force: true });
+  fs.rmSync(usageDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   return !fs.existsSync(usageDir);
 }
 

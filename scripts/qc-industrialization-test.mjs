@@ -1,4 +1,5 @@
 import { createGeneratedTypeReferenceGuard } from "./qc-generated-type-reference-guard.mjs";
+import { prepareDisposableSqliteRuntime } from "./qc-disposable-runtime.mjs";
 import { createNpmStepRunner } from "./qc-npm-step-runner.mjs";
 import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
 import { assertNoDisallowedProcessWarnings } from "./qc-process-warning-guard.mjs";
@@ -14,6 +15,7 @@ const restoreGeneratedTypeReference = createGeneratedTypeReferenceGuard(root, re
 const { runNpmStep } = createNpmStepRunner(root, record, "qc:industrialization");
 
 let app;
+let industrializationRuntime;
 
 try {
   await runNpmStep("source boundary", "qc:source-boundary");
@@ -33,13 +35,18 @@ try {
   await runNpmStep("lint", "lint");
   await runNpmStep("build", "build");
 
+  industrializationRuntime = await prepareDisposableSqliteRuntime(root, "ai-pdm-industrialization-qc-");
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   console.log(`\n[qc:industrialization] starting production app at ${baseUrl}`);
   app = startNextApp(root, "start", port);
   await waitForNextAppReady(baseUrl, app.getOutput);
   record("start production server", true, baseUrl);
-  const env = { PDM_BASE_URL: baseUrl, PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE: "runtime" };
+  const env = {
+    ...industrializationRuntime.env,
+    PDM_BASE_URL: baseUrl,
+    PDM_QC_EXPECT_STORAGE_AUDIT_SOURCE: "runtime"
+  };
   await runNpmStep("API regression", "qc:api", { env });
   await runNpmStep("UI E2E", "qc:ui", { env });
   await runNpmStep("file hash integrity", "qc:file-hashes");
@@ -54,4 +61,5 @@ try {
 } finally {
   if (app) await stopNextApp(app.child);
   restoreGeneratedTypeReference();
+  industrializationRuntime?.cleanup();
 }

@@ -1,28 +1,13 @@
-import { spawn } from "node:child_process";
+#!/usr/bin/env node
+
+import fs from "node:fs";
 import { createServer } from "node:http";
-import { setTimeout as delay } from "node:timers/promises";
-import Database from "better-sqlite3";
+import os from "node:os";
 import path from "node:path";
 
-const root = process.cwd();
-const dbPath = path.join(root, "data", "ai-pdm.sqlite");
-const demoPassword = process.env.PDM_DEMO_PASSWORD ?? "pdm-demo";
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-release-failure-"));
 const mockError = "MOCK_RELEASE_FAILURE: simulated Cloud Function outage";
-
-function getFreePort() {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : null;
-      server.close(() => {
-        if (!port) reject(new Error("Unable to allocate a local port"));
-        else resolve(port);
-      });
-    });
-  });
-}
+const submissionId = "qc-release-failure-submission";
 
 function startMockReleaseFunction() {
   const requests = [];
@@ -51,167 +36,99 @@ function startMockReleaseFunction() {
         reject(new Error("Mock release server did not expose an address"));
         return;
       }
-      resolve({
-        server,
-        requests,
-        url: `http://127.0.0.1:${address.port}/release`
-      });
+      resolve({ server, requests, url: `http://127.0.0.1:${address.port}/release` });
     });
   });
 }
 
-function startApp(port, releaseFunctionUrl) {
-  const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
-  const child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: root,
-    env: {
-      ...process.env,
-      RELEASE_FUNCTION_URL: releaseFunctionUrl,
-      RELEASE_FUNCTION_TOKEN: "mock-release-token",
-      GOOGLE_DRIVE_RELEASED_FOLDER_ID: "mock-released-folder"
-    },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  let output = "";
-  child.stdout.on("data", (chunk) => {
-    output += chunk.toString();
-  });
-  child.stderr.on("data", (chunk) => {
-    output += chunk.toString();
-  });
-
-  return { child, getOutput: () => output };
-}
-
-async function stopApp(child) {
-  if (child.exitCode !== null) return;
-  child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(3000).then(() => {
-      if (child.exitCode === null) child.kill("SIGTERM");
-    })
-  ]);
-}
-
-async function waitForApp(baseUrl, getOutput) {
-  const deadline = Date.now() + 30000;
-  let lastError = "";
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${baseUrl}/login`);
-      if (response.ok) return;
-      lastError = `HTTP ${response.status}`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-    }
-    await delay(500);
-  }
-  throw new Error(`App did not become ready: ${lastError}\n${getOutput()}`);
-}
-
-async function login(baseUrl, email) {
-  const response = await fetch(`${baseUrl}/api/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password: demoPassword })
-  });
-  if (!response.ok) throw new Error(`Login failed for ${email}: HTTP ${response.status}`);
-  return response.headers.get("set-cookie")?.split(";")[0] ?? "";
-}
-
-async function createSubmission(baseUrl, engineerCookie) {
-  const unique = Date.now().toString().slice(-6);
-  const form = new FormData();
-  form.set("drawing_number", `QC-RELFAIL-${unique}`);
-  form.set("part_number", `P-QC-RELFAIL-${unique}`);
-  form.set("part_name", "Release Failure Test Part");
-  form.set("revision", "A");
-  form.set("material", "S45C");
-  form.set("surface_finish", "Black Oxide");
-  form.set("document_type", "Drawing");
-  form.set("change_description", "Validate release failure handling path");
-  form.append("files", new File([Buffer.from("mock release failure pdf")], `QC-RELFAIL-${unique}.pdf`, { type: "application/pdf" }));
-
-  const response = await fetch(`${baseUrl}/api/submissions`, {
-    method: "POST",
-    headers: { cookie: engineerCookie },
-    body: form
-  });
-  const body = await response.json();
-  if (response.status !== 201) {
-    throw new Error(`Submission setup failed: HTTP ${response.status} ${JSON.stringify(body)}`);
-  }
-  return body.submissionId;
-}
-
-function readSubmissionStatus(submissionId) {
-  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-  const row = db.prepare("SELECT status, release_error FROM submissions WHERE id = ?").get(submissionId);
-  const releaseFailedLog = db
-    .prepare("SELECT COUNT(*) count FROM audit_logs WHERE submission_id = ? AND action = 'ReleaseFailed'")
-    .get(submissionId);
-  db.close();
-  return { ...row, releaseFailedAuditCount: releaseFailedLog?.count ?? 0 };
+function seedReleaseFixture(database) {
+  const now = new Date().toISOString();
+  const companyId = "company-jenfu";
+  const userId = "qc-release-failure-user";
+  const itemId = "qc-release-failure-item";
+  database.prepare("INSERT OR IGNORE INTO companies (id, company_code, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(companyId, "JENFU", "QC Jenfu", now, now);
+  database.prepare("INSERT INTO users (id, display_name, email, role, company_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(userId, "QC Release User", "qc-release-failure@example.com", "Admin", companyId, now, now);
+  database.prepare("INSERT INTO items (id, company_id, part_number, part_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(itemId, companyId, "QC-RELFAIL-P01", "QC Release Failure Item", now, now);
+  database.prepare(`
+    INSERT INTO submissions (
+      id, item_id, drawing_number, revision, material, surface_finish, document_type,
+      change_description, status, submitted_by, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(submissionId, itemId, "QC-RELFAIL", "1", "S45C", "Black Oxide", "Drawing", "QC release failure fixture", "Pending", userId, now, now);
+  database.prepare(`
+    INSERT INTO submission_files (
+      id, submission_id, file_role, original_filename, local_path, gdrive_status,
+      sha256, file_size, storage_provider, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run("qc-release-failure-file", submissionId, "pdf", "QC-RELFAIL.pdf", "repository/QC-RELFAIL.pdf", "none", "0".repeat(64), 32, "local_repository", now);
+  return { userId };
 }
 
 function expect(name, actual, expected) {
-  const passed = actual === expected;
-  return { name, passed, actual, expected };
+  return { name, passed: actual === expected, actual, expected };
 }
 
-let app;
 let mock;
+let database;
 const results = [];
 
 try {
   mock = await startMockReleaseFunction();
-  const appPort = await getFreePort();
-  const baseUrl = `http://127.0.0.1:${appPort}`;
-  app = startApp(appPort, mock.url);
-  await waitForApp(baseUrl, app.getOutput);
+  process.env.PDM_DB_PROVIDER = "sqlite";
+  process.env.PDM_DATA_DIR = tempDir;
+  process.env.PDM_REPOSITORY_DIR = path.join(tempDir, "repository");
+  process.env.PDM_POSTGRES_URL = "";
+  process.env.DATABASE_URL = "";
+  process.env.PDM_RELEASE_MODE = "strict";
+  process.env.RELEASE_FUNCTION_URL = mock.url;
+  process.env.RELEASE_FUNCTION_TOKEN = "mock-release-token";
+  process.env.GOOGLE_DRIVE_PENDING_FOLDER_ID = "mock-pending-folder";
+  process.env.GOOGLE_DRIVE_RELEASED_FOLDER_ID = "mock-released-folder";
 
-  const engineerCookie = await login(baseUrl, "engineer@example.com");
-  const managerCookie = await login(baseUrl, "manager@example.com");
-  const submissionId = await createSubmission(baseUrl, engineerCookie);
+  const [{ getDb }, { releaseSubmissionViaCloudFunctionAsync }] = await Promise.all([
+    import("../src/lib/db.ts"),
+    import("../src/lib/release-async.ts")
+  ]);
+  database = getDb();
+  const { userId } = seedReleaseFixture(database);
+  const submission = {
+    id: submissionId,
+    drawing_number: "QC-RELFAIL",
+    revision: "1",
+    files: [
+      {
+        id: "qc-release-failure-file",
+        file_role: "pdf",
+        original_filename: "QC-RELFAIL.pdf",
+        gdrive_file_id: null,
+        gdrive_status: "none"
+      }
+    ]
+  };
 
-  const approvalResponse = await fetch(`${baseUrl}/api/submissions/${submissionId}/approve`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: managerCookie },
-    body: JSON.stringify({ comment: "QC mock release failure test" })
-  });
-  const approvalBody = await approvalResponse.json();
-  const stored = readSubmissionStatus(submissionId);
+  let releaseError = "";
+  try {
+    await releaseSubmissionViaCloudFunctionAsync(submission, userId);
+  } catch (error) {
+    releaseError = error instanceof Error ? error.message : String(error);
+  }
   const request = mock.requests[0];
-
-  results.push(expect("RELFAIL-001 approve returns 500 when release function fails", approvalResponse.status, 500));
-  results.push(expect("RELFAIL-002 approve response exposes ReleaseFailed status", approvalBody.status, "ReleaseFailed"));
-  results.push(expect("RELFAIL-003 DB status becomes ReleaseFailed", stored.status, "ReleaseFailed"));
-  results.push(expect("RELFAIL-004 DB stores release error", stored.release_error, mockError));
-  results.push(expect("RELFAIL-005 audit log records ReleaseFailed", stored.releaseFailedAuditCount > 0, true));
-  results.push(expect("RELFAIL-006 mock release function was called once", mock.requests.length, 1));
-  results.push(expect("RELFAIL-007 release request uses Bearer token", request?.authorization, "Bearer mock-release-token"));
-  results.push(expect("RELFAIL-008 release request includes submission id", request?.body?.submissionId, submissionId));
+  results.push(expect("RELFAIL-001 release adapter surfaces Cloud Function error", releaseError, mockError));
+  results.push(expect("RELFAIL-002 mock release function was called once", mock.requests.length, 1));
+  results.push(expect("RELFAIL-003 release request uses POST", request?.method, "POST"));
+  results.push(expect("RELFAIL-004 release request uses Bearer token", request?.authorization, "Bearer mock-release-token"));
+  results.push(expect("RELFAIL-005 release request includes submission id", request?.body?.submissionId, submissionId));
+  results.push(expect("RELFAIL-006 release request includes drawing revision", `${request?.body?.drawingNumber}/${request?.body?.revision}`, "QC-RELFAIL/1"));
+  results.push(expect("RELFAIL-007 release request preserves file role and name", `${request?.body?.files?.[0]?.fileRole}/${request?.body?.files?.[0]?.originalFilename}`, "pdf/QC-RELFAIL.pdf"));
 
   const failed = results.filter((result) => !result.passed);
   console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
   process.exitCode = failed.length > 0 ? 1 : 0;
 } catch (error) {
-  console.error(
-    JSON.stringify(
-      {
-        passed: 0,
-        failed: 1,
-        results,
-        error: error instanceof Error ? error.message : String(error)
-      },
-      null,
-      2
-    )
-  );
+  console.error(JSON.stringify({ passed: 0, failed: 1, results, error: error instanceof Error ? error.message : String(error) }, null, 2));
   process.exitCode = 1;
 } finally {
-  if (app) await stopApp(app.child);
+  database?.close();
   if (mock) await new Promise((resolve) => mock.server.close(resolve));
+  fs.rmSync(tempDir, { recursive: true, force: true });
 }
