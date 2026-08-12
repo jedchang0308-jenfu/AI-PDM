@@ -93,6 +93,7 @@ record("DEV069-015 machine-readable plan allowlist covers both edge chains and f
 const validationPath = path.join(root, "output", "dev-069-iac-terraform-validate", "report.json");
 const validation = existsSync(validationPath) ? JSON.parse(readFileSync(validationPath, "utf8")) : null;
 record("DEV069-016 dual-environment Terraform static validation passed", validation?.dev === "DEV-069" && validation?.status === "terraform_static_validate_passed_no_plan_no_apply" && validation?.productionActionPerformed === false && validation?.results?.length === 2 && validation.results.every((item) => item.passed === true && item.backendDisabled === true && item.planExecuted === false && item.applyExecuted === false));
+record("DEV069-017 application and Cloud SQL proxy startup CPU boost stay explicit", [prod.runtime, staging.runtime].every((text) => (text.match(/startup_cpu_boost\s*=\s*true/gu) || []).length === 2));
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
