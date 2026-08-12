@@ -1,10 +1,10 @@
 resource "google_artifact_registry_repository" "pdm" {
   count = local.create_resources ? 1 : 0
 
-  project       = var.production_project_id
+  project       = var.staging_project_id
   location      = var.region
   repository_id = "ai-pdm"
-  description   = "Immutable AI PDM production images"
+  description   = "Immutable AI PDM staging images"
   format        = "DOCKER"
   labels        = var.labels
 
@@ -16,10 +16,12 @@ resource "google_artifact_registry_repository" "pdm" {
 resource "google_cloud_run_v2_service" "pdm" {
   count = local.create_resources ? 1 : 0
 
-  project              = var.production_project_id
-  name                 = local.name_prefix
-  location             = var.region
-  ingress              = var.enable_firebase_hosting_gateway ? "INGRESS_TRAFFIC_ALL" : "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  project  = var.staging_project_id
+  name     = local.name_prefix
+  location = var.region
+  ingress = var.enable_firebase_hosting_gateway ? (
+    "INGRESS_TRAFFIC_ALL"
+  ) : "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   default_uri_disabled = !var.enable_firebase_hosting_gateway
   invoker_iam_disabled = true
   deletion_protection  = true
@@ -47,7 +49,7 @@ resource "google_cloud_run_v2_service" "pdm" {
       network_interfaces {
         network    = google_compute_network.pdm[0].name
         subnetwork = google_compute_subnetwork.runtime[0].name
-        tags       = ["ai-pdm-production-runtime"]
+        tags       = ["ai-pdm-staging-runtime"]
       }
     }
 
@@ -88,16 +90,6 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
-        name  = "PDM_AUTH_MODE"
-        value = "firebase_bff"
-      }
-
-      env {
-        name  = "PDM_PRODUCTION_SLICE_MODE"
-        value = "official-numbering-draft"
-      }
-
-      env {
         name  = "PDM_DB_PROVIDER"
         value = "cloud_sql_postgres"
       }
@@ -133,6 +125,31 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
+        name  = "PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS"
+        value = "10000"
+      }
+
+      env {
+        name  = "PDM_CLOUD_SQL_IDLE_TIMEOUT_MS"
+        value = "600000"
+      }
+
+      env {
+        name  = "PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS"
+        value = "30000"
+      }
+
+      env {
+        name  = "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS"
+        value = "35000"
+      }
+
+      env {
+        name  = "PDM_AUTH_MODE"
+        value = "firebase_bff"
+      }
+
+      env {
         name  = "PDM_PUBLIC_BASE_URL"
         value = var.runtime_public_base_url
       }
@@ -154,7 +171,7 @@ resource "google_cloud_run_v2_service" "pdm" {
 
       env {
         name  = "PDM_FIREBASE_PROJECT_ID"
-        value = var.production_project_id
+        value = var.staging_project_id
       }
 
       env {
@@ -257,8 +274,6 @@ resource "google_cloud_run_v2_service" "pdm" {
 
   lifecycle {
     prevent_destroy = true
-    # Terraform owns service configuration; the reviewed GitHub release workflow owns only the ingress image revision.
-    ignore_changes = [template[0].containers[0].image]
   }
 
   depends_on = [

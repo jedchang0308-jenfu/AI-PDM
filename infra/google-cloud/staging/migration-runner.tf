@@ -1,7 +1,7 @@
 resource "google_cloud_run_v2_job" "migration_runner" {
   count = local.create_resources && local.migration_runner_job_ready ? 1 : 0
 
-  project             = var.production_project_id
+  project             = var.staging_project_id
   name                = "${local.name_prefix}-migration-runner"
   location            = var.region
   deletion_protection = true
@@ -23,24 +23,15 @@ resource "google_cloud_run_v2_job" "migration_runner" {
         network_interfaces {
           network    = google_compute_network.pdm[0].name
           subnetwork = google_compute_subnetwork.runtime[0].name
-          tags       = ["ai-pdm-production-migration-runner"]
+          tags       = ["ai-pdm-staging-migration-runner"]
         }
       }
 
       containers {
-        name    = "ai-pdm-migration-runner"
-        image   = var.migration_runner_image
-        command = ["node"]
-        args = var.reconciliation_execution ? [
-          "scripts/run-dev-032-production-reconciliation.mjs",
-          "--execute"
-          ] : var.principal_bootstrap_execution ? [
-          "scripts/run-dev-032-production-principal-bootstrap.mjs",
-          "--execute"
-          ] : concat(
-          ["scripts/run-dev-046-cloudsql-migrations.mjs"],
-          var.migration_live_execution ? ["--execute"] : []
-        )
+        name       = "ai-pdm-migration-runner"
+        image      = var.migration_runner_image
+        command    = ["node"]
+        args       = ["scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
         depends_on = ["cloud-sql-proxy"]
 
         resources {
@@ -56,18 +47,13 @@ resource "google_cloud_run_v2_job" "migration_runner" {
         }
 
         env {
-          name  = "PDM_MIGRATION_PACKAGE_TARGET"
-          value = "production"
-        }
-
-        env {
           name  = "PDM_DB_PROVIDER"
           value = "cloud_sql_postgres"
         }
 
         env {
           name  = "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME"
-          value = var.reconciliation_execution ? local.reconciliation_connection_name : google_sql_database_instance.pdm[0].connection_name
+          value = google_sql_database_instance.pdm[0].connection_name
         }
 
         env {
@@ -114,48 +100,6 @@ resource "google_cloud_run_v2_job" "migration_runner" {
           name  = "PDM_CLOUD_SQL_QUERY_TIMEOUT_MS"
           value = "35000"
         }
-
-        dynamic "env" {
-          for_each = var.migration_live_execution ? toset([
-            "DEV032_CLOUDSQL_MIGRATION_APPROVAL",
-            "DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"
-          ]) : toset([])
-
-          content {
-            name  = env.value
-            value = local.migration_live_acknowledgement
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.reconciliation_execution ? {
-            DEV032_PRODUCTION_RECONCILIATION_APPROVAL = local.reconciliation_acknowledgement
-            DEV032_RECONCILIATION_MODE                = var.reconciliation_mode
-            DEV032_PRODUCTION_PROJECT_ID              = var.production_project_id
-            DEV032_PRODUCTION_REGION                  = var.region
-            DEV032_EXPECTED_SOURCE_REVISION           = var.migration_runner_source_revision
-          } : {}
-
-          content {
-            name  = env.key
-            value = env.value
-          }
-        }
-
-        dynamic "env" {
-          for_each = var.principal_bootstrap_execution ? {
-            DEV032_PRODUCTION_PRINCIPAL_BOOTSTRAP_APPROVAL = local.principal_bootstrap_acknowledgement
-            DEV032_PRODUCTION_FIREBASE_UID                 = var.production_principal_firebase_uid
-            DEV032_PRODUCTION_PROJECT_ID                   = var.production_project_id
-            DEV032_PRODUCTION_REGION                       = var.region
-            DEV032_EXPECTED_SOURCE_REVISION                = var.migration_runner_source_revision
-          } : {}
-
-          content {
-            name  = env.key
-            value = env.value
-          }
-        }
       }
 
       containers {
@@ -169,7 +113,7 @@ resource "google_cloud_run_v2_job" "migration_runner" {
           "--lazy-refresh",
           "--structured-logs",
           "--max-connections=2",
-          var.reconciliation_execution ? local.reconciliation_connection_name : google_sql_database_instance.pdm[0].connection_name
+          google_sql_database_instance.pdm[0].connection_name
         ]
 
         resources {

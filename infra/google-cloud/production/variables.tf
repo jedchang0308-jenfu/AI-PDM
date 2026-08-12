@@ -167,6 +167,12 @@ variable "enable_firebase_hosting_gateway" {
   default     = false
 }
 
+variable "enable_external_load_balancer" {
+  description = "Creates the deferred custom-domain external Application Load Balancer. Keep false during the Firebase Hosting prelaunch phase."
+  type        = bool
+  default     = false
+}
+
 variable "firebase_hosting_gateway_acknowledgement" {
   description = "Exact acknowledgement required before the production Firebase Hosting pilot gateway can be enabled."
   type        = string
@@ -323,9 +329,42 @@ variable "cloud_sql_proxy_image" {
 }
 
 variable "database_tier" {
-  description = "Initial production Cloud SQL tier; right-size by reviewed plan and measured run-rate."
+  description = "Prelaunch Cloud SQL tier. db-f1-micro has no SLA and must be upsized before general availability."
   type        = string
-  default     = "db-custom-1-3840"
+  default     = "db-f1-micro"
+}
+
+variable "database_availability_type" {
+  description = "Prelaunch Cloud SQL availability. ZONAL has no HA SLA and must be reviewed before general availability."
+  type        = string
+  default     = "ZONAL"
+
+  validation {
+    condition     = contains(["ZONAL", "REGIONAL"], var.database_availability_type)
+    error_message = "database_availability_type must be ZONAL or REGIONAL."
+  }
+}
+
+variable "cloud_run_max_instances" {
+  description = "Maximum instances per Cloud Run revision during the prelaunch phase."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.cloud_run_max_instances >= 1 && var.cloud_run_max_instances <= 5
+    error_message = "cloud_run_max_instances must remain between 1 and 5."
+  }
+}
+
+variable "cloud_sql_pool_max" {
+  description = "Maximum application PostgreSQL pool size per Cloud Run instance."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.cloud_sql_pool_max >= 1 && var.cloud_sql_pool_max <= 5
+    error_message = "cloud_sql_pool_max must remain between 1 and 5."
+  }
 }
 
 variable "monthly_budget_usd" {

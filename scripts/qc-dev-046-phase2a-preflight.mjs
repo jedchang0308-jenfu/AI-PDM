@@ -27,7 +27,7 @@ record("DEV046-2A-005 all modeled Google resources are guarded", report.summary.
 record("DEV046-2A-006 default tfvars cannot create resources", tfvars.includes("enable_resource_creation       = false") && tfvars.includes("enable_secret_container_bootstrap = false") && tfvars.includes('phase2_apply_acknowledgement   = ""'));
 record("DEV046-2A-007 no auto tfvars or state is committed", !fs.readdirSync(path.join(root, "infra/google-cloud/staging")).some((name) => /(?:\.auto\.tfvars|\.tfstate)/u.test(name)));
 record("DEV046-2A-008 backend has no embedded state bucket", allTf.includes('backend "gcs" {}') && !allTf.includes("ASSIGN_EXISTING_STAGING_TERRAFORM_STATE_BUCKET"));
-record("DEV046-2A-009 private single-zone staging Cloud SQL gate exists", allTf.includes('availability_type           = "ZONAL"') && allTf.includes("point_in_time_recovery_enabled = true") && allTf.includes("ipv4_enabled                                  = false") && manifest.costGuard.productionAvailabilityType === "REGIONAL");
+record("DEV046-2A-009 private single-zone prelaunch Cloud SQL gate exists", allTf.includes('availability_type           = "ZONAL"') && allTf.includes("point_in_time_recovery_enabled = true") && allTf.includes("ipv4_enabled                                  = false") && manifest.costGuard.productionAvailabilityType === "ZONAL");
 record("DEV046-2A-010 runtime and migration identities are separate", allTf.includes('account_id   = "pdm-runtime-stg"') && allTf.includes('account_id   = "pdm-migration-stg"'));
 record("DEV046-2A-011 automatic IAM DB auth has both required roles", allTf.includes('"roles/cloudsql.client"') && allTf.includes('"roles/cloudsql.instanceUser"') && allTf.includes("--auto-iam-authn"));
 record("DEV046-2A-012 app and API traffic cannot be CDN cached", allTf.includes('enable_cdn            = false') && allTf.includes('paths   = ["/_next/static/*"]'));
@@ -38,7 +38,7 @@ record("DEV046-2A-016 privacy v1.0 approval and local acknowledgement implementa
 record("DEV046-2A-017 provider paths, controlled non-Google account and non-authenticating employee alias boundary remain visible", manifest.testAccounts.googleWorkspaceUsers.length > 0 && manifest.testAccounts.controlledNonGoogleUser === "nokai520@hotmail.com" && manifest.testAccounts.controlledNonGoogleUserEvidenceSource === "explicit-user-provided-test-account" && !report.blockers.includes("CONTROLLED_NON_GOOGLE_TEST_ACCOUNT_MISSING") && manifest.identityLogin.employeeLoginAliasEnabled === true && manifest.identityLogin.employeeLoginAliasAuthenticatesUser === false && manifest.identityLogin.applicationPasswordStorageAllowed === false && !report.blockers.includes("EMPLOYEE_LOGIN_ALIAS_MAPPING_NOT_IMPLEMENTED"));
 record("DEV046-2A-018 _Default sink import evidence is recorded", manifest.phase2Bootstrap.defaultLogSinkImported === true && !report.blockers.includes("DEFAULT_LOG_SINK_IMPORT_EVIDENCE_MISSING") && readme.includes("has been imported"));
 record(
-  "DEV046-2A-019 approved single-zone staging forecast clears cost stop while remaining gates keep apply disabled",
+  "DEV046-2A-019 approved DEV-069 low-cost forecast clears cost stop while remaining gates keep apply disabled",
   manifest.approvals.paymentActivationApproved === true &&
     manifest.approvals.resourceCreationApproved === true &&
     manifest.approvals.changeTicket === "CHG-DEV046-PHASE2B-20260714" &&
@@ -64,7 +64,7 @@ record(
     report.blockers.includes("STAGING_APPLICATION_ARTIFACT_PROVENANCE_AND_DRIFT_EVIDENCE_MISSING") &&
     !report.blockers.includes("STAGING_DNS_A_RECORD_AND_MANAGED_TLS_EVIDENCE_MISSING") &&
     !report.blockers.includes("COST_FORECAST_EXCEEDS_PLAN_REVIEW_STOP") &&
-    costBudget.currentForecast.estimatedMonthlyUsd === 210 &&
+    costBudget.currentForecast.estimatedMonthlyUsd === 30 &&
     costBudget.currentForecast.stopTriggered === false &&
     manifest.phase2Bootstrap.remoteStateAccessVerified === true &&
     (report.tooling.docker.installed === true || report.tooling.terraform.installed === true || Boolean(manifest.phase2Bootstrap.terraformExecutor)) &&

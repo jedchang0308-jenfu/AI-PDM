@@ -1,7 +1,7 @@
 resource "google_compute_region_network_endpoint_group" "pdm" {
   count = local.create_edge_resources ? 1 : 0
 
-  project               = var.production_project_id
+  project               = var.staging_project_id
   name                  = "${local.name_prefix}-neg"
   region                = var.region
   network_endpoint_type = "SERVERLESS"
@@ -14,7 +14,7 @@ resource "google_compute_region_network_endpoint_group" "pdm" {
 resource "google_compute_backend_service" "application" {
   count = local.create_edge_resources ? 1 : 0
 
-  project               = var.production_project_id
+  project               = var.staging_project_id
   name                  = "${local.name_prefix}-app"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
@@ -33,7 +33,7 @@ resource "google_compute_backend_service" "application" {
 resource "google_compute_backend_service" "immutable_static" {
   count = local.create_edge_resources ? 1 : 0
 
-  project               = var.production_project_id
+  project               = var.staging_project_id
   name                  = "${local.name_prefix}-immutable-static"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
@@ -64,12 +64,12 @@ resource "google_compute_backend_service" "immutable_static" {
 resource "google_compute_url_map" "https" {
   count = local.create_edge_resources ? 1 : 0
 
-  project         = var.production_project_id
+  project         = var.staging_project_id
   name            = "${local.name_prefix}-https"
   default_service = google_compute_backend_service.application[0].id
 
   host_rule {
-    hosts        = [var.production_domain]
+    hosts        = [var.staging_domain]
     path_matcher = "pdm"
   }
 
@@ -87,7 +87,7 @@ resource "google_compute_url_map" "https" {
 resource "google_compute_url_map" "http_redirect" {
   count = local.create_edge_resources ? 1 : 0
 
-  project = var.production_project_id
+  project = var.staging_project_id
   name    = "${local.name_prefix}-http-redirect"
 
   default_url_redirect {
@@ -99,11 +99,11 @@ resource "google_compute_url_map" "http_redirect" {
 resource "google_compute_managed_ssl_certificate" "pdm" {
   count = local.create_edge_resources ? 1 : 0
 
-  project = var.production_project_id
+  project = var.staging_project_id
   name    = "${local.name_prefix}-managed-tls"
 
   managed {
-    domains = [var.production_domain]
+    domains = [var.staging_domain]
   }
 
   lifecycle {
@@ -114,7 +114,7 @@ resource "google_compute_managed_ssl_certificate" "pdm" {
 resource "google_compute_global_address" "pdm" {
   count = local.create_edge_resources ? 1 : 0
 
-  project      = var.production_project_id
+  project      = var.staging_project_id
   name         = "${local.name_prefix}-ipv4"
   address_type = "EXTERNAL"
   ip_version   = "IPV4"
@@ -123,7 +123,7 @@ resource "google_compute_global_address" "pdm" {
 resource "google_compute_target_https_proxy" "pdm" {
   count = local.create_edge_resources ? 1 : 0
 
-  project          = var.production_project_id
+  project          = var.staging_project_id
   name             = "${local.name_prefix}-https"
   url_map          = google_compute_url_map.https[0].id
   ssl_certificates = [google_compute_managed_ssl_certificate.pdm[0].id]
@@ -132,7 +132,7 @@ resource "google_compute_target_https_proxy" "pdm" {
 resource "google_compute_target_http_proxy" "redirect" {
   count = local.create_edge_resources ? 1 : 0
 
-  project = var.production_project_id
+  project = var.staging_project_id
   name    = "${local.name_prefix}-http-redirect"
   url_map = google_compute_url_map.http_redirect[0].id
 }
@@ -140,7 +140,7 @@ resource "google_compute_target_http_proxy" "redirect" {
 resource "google_compute_global_forwarding_rule" "https" {
   count = local.create_edge_resources ? 1 : 0
 
-  project               = var.production_project_id
+  project               = var.staging_project_id
   name                  = "${local.name_prefix}-https"
   target                = google_compute_target_https_proxy.pdm[0].id
   ip_address            = google_compute_global_address.pdm[0].id
@@ -151,7 +151,7 @@ resource "google_compute_global_forwarding_rule" "https" {
 resource "google_compute_global_forwarding_rule" "http" {
   count = local.create_edge_resources ? 1 : 0
 
-  project               = var.production_project_id
+  project               = var.staging_project_id
   name                  = "${local.name_prefix}-http"
   target                = google_compute_target_http_proxy.redirect[0].id
   ip_address            = google_compute_global_address.pdm[0].id

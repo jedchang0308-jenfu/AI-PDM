@@ -55,7 +55,7 @@ export function buildPhase2APreflight() {
   const tfEntries = terraformSources(iacDirectory);
   const tf = tfEntries.map((entry) => entry.source).join("\n");
   const resourceCount = (tf.match(/^resource\s+"google_/gmu) ?? []).length;
-  const guardedResourceCount = (tf.match(/^\s*(?:count|for_each)\s*=.*local\.create_resources.*\?/gmu) ?? []).length;
+  const guardedResourceCount = (tf.match(/^\s*(?:count|for_each)\s*=.*local\.create_(?:resources|edge_resources).*\?/gmu) ?? []).length;
   const terraform = commandVersion("terraform", ["version"]);
   const docker = commandVersion("docker", ["version", "--format", "{{.Server.Version}}"]);
   const gcloud = commandVersion("gcloud", ["version", "--format=value(core.sdk_version)"]);
@@ -97,7 +97,7 @@ export function buildPhase2APreflight() {
     check("P2A-LOCAL-002", manifest.executionMode === "local-static-only" && manifest.resourceCreationEnabled === false && manifest.credentialAccessAllowed === false, "local/no-credential execution boundary"),
     check("P2A-LOCAL-003", manifest.terraformApplyAllowed === false && manifest.billingMutationAllowed === false && manifest.dnsMutationAllowed === false, "apply/billing/DNS mutations disabled"),
     check("P2A-IAC-001", tfEntries.length >= 10 && resourceCount >= 25, `${tfEntries.length} Terraform files, ${resourceCount} Google resources modeled`),
-    check("P2A-IAC-002", resourceCount === guardedResourceCount, `${guardedResourceCount}/${resourceCount} Google resources use local.create_resources`),
+    check("P2A-IAC-002", resourceCount === guardedResourceCount, `${guardedResourceCount}/${resourceCount} Google resources use the base or narrower edge creation gate`),
     check("P2A-IAC-003", tf.includes('required_version = "~> 1.14.0"') && tf.includes('version = "7.39.0"') && tf.includes('backend "gcs" {}'), "Terraform/provider/backend contract pinned"),
     check("P2A-IAC-004", tf.includes("enable_resource_creation") && tf.includes("DEV-046-PHASE-2B-APPROVED") && tf.includes("phase2_resource_creation_guard"), "multi-factor apply guard present"),
     check("P2A-IAC-005", tf.includes('availability_type           = "ZONAL"') && tf.includes("point_in_time_recovery_enabled = true") && tf.includes("deletion_protection = true") && tf.includes("deletion_protection_enabled = true"), "single-zone staging, PITR and deletion protection encoded"),
@@ -108,7 +108,7 @@ export function buildPhase2APreflight() {
     check("P2A-IAC-010", tf.includes('enable_cdn            = false') && tf.includes('paths   = ["/_next/static/*"]') && tf.includes('cache_mode        = "USE_ORIGIN_HEADERS"') && tf.includes("serve_while_stale = 0"), "CDN limited to reviewed immutable Next assets"),
     check("P2A-IAC-011", tf.includes('name                   = "_Default"') && tf.includes('location       = var.region') && tf.includes('bucket_id      = "pdm-application"'), "regional application log target and _Default import contract encoded"),
     check("P2A-IAC-012", tf.includes('resource "google_identity_platform_config"') && tf.includes('password_required = false') && tf.includes('totp_provider_config') && !tf.includes("google_identity_platform_default_supported_idp_config"), "Identity Platform/TOTP without OAuth secret in state"),
-    check("P2A-IAC-013", tf.includes('default     = "db-custom-1-3840"') && tf.includes('default     = "TWD"') && tf.includes("threshold_percent = 0.5") && tf.includes("threshold_percent = 0.8") && tf.includes("threshold_percent = 1") && manifest.costGuard.stagingAvailabilityType === "ZONAL" && manifest.costGuard.productionAvailabilityType === "REGIONAL" && manifest.costGuard.monthlyBudgetUsd === 300 && manifest.costGuard.cloudBillingBudgetCurrency === "TWD" && manifest.costGuard.cloudBillingBudgetUnits === 9600 && manifest.costGuard.credentialledPlanReviewStopUsd === 240, "single-zone staging, regional-HA production boundary, TWD billing budget under USD 300 cap and 50/80/100 thresholds encoded"),
+    check("P2A-IAC-013", tf.includes('default     = "db-f1-micro"') && tf.includes('default     = "TWD"') && tf.includes("threshold_percent = 0.5") && tf.includes("threshold_percent = 0.8") && tf.includes("threshold_percent = 1") && manifest.costGuard.stagingAvailabilityType === "ZONAL" && manifest.costGuard.productionAvailabilityType === "ZONAL" && manifest.costGuard.monthlyBudgetUsd === 300 && manifest.costGuard.cloudBillingBudgetCurrency === "TWD" && manifest.costGuard.cloudBillingBudgetUnits === 9600 && manifest.costGuard.credentialledPlanReviewStopUsd === 240, "DEV-069 micro/zonal prelaunch boundary, TWD billing budget under USD 300 cap and 50/80/100 thresholds encoded"),
     check("P2A-IAC-014", !/(?:password\s*=|client_secret\s*=|service_account_key|credentials\s*=)/iu.test(tf), "no static password, OAuth secret or credential in IaC"),
     check("P2A-IAC-015", !/(?:google_firestore|firebase_storage|google_cloudfunctions|google_storage_bucket)/iu.test(tf), "no Firestore/Firebase Storage/Functions/formal GCS file scope"),
     check("P2A-IAC-016", !/(?:terraform\s+(?:apply|destroy|import)|gcloud\s+(?:run|sql|compute|projects|billing)\s+)/iu.test(tf), "Terraform source contains no imperative cloud command"),

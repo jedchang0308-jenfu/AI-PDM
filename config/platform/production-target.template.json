@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "phase": "DEV-046-Phase-3A.0-production-slice",
+  "phase": "DEV-069-prelaunch-low-cost-production",
   "templateOnly": true,
   "releaseReady": false,
   "productionActionAllowed": false,
@@ -32,13 +32,17 @@
     "directRunAppResidualRiskAccepted": true,
     "privateResponseCacheAllowed": false,
     "immutableAssetCdnOnly": true,
-    "futureEdgeBaseline": "external-application-load-balancer-managed-tls-custom-domain"
+    "externalApplicationLoadBalancerProvisioned": false,
+    "futureEdgeBaseline": "re-entry-only-after-custom-domain-and-sla-approval"
   },
   "database": {
     "provider": "Cloud SQL for PostgreSQL",
     "version": "POSTGRES_17",
-    "availabilityType": "REGIONAL",
+    "tier": "db-f1-micro",
+    "availabilityType": "ZONAL",
     "edition": "ENTERPRISE",
+    "serviceLevelAgreement": false,
+    "expectedMaxConnections": 25,
     "privateIpRequired": true,
     "automaticIamDatabaseAuthenticationRequired": true,
     "staticDatabasePasswordAllowed": false,

@@ -13,6 +13,11 @@ output "production_review_target" {
     create_resources         = local.create_resources
     production_action        = false
     firebase_hosting_used    = var.enable_firebase_hosting_gateway
+    external_load_balancer   = local.create_edge_resources
+    database_tier            = var.database_tier
+    database_availability    = var.database_availability_type
+    cloud_run_max_instances  = var.cloud_run_max_instances
+    cloud_sql_pool_max       = var.cloud_sql_pool_max
     direct_run_app_reachable = var.enable_firebase_hosting_gateway
     phase3a_gcs_authority    = false
   }

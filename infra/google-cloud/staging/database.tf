@@ -1,15 +1,16 @@
 resource "google_sql_database_instance" "pdm" {
   count = local.create_resources ? 1 : 0
 
-  project             = var.production_project_id
-  name                = local.cloud_sql_instance_name
+  project             = var.staging_project_id
+  name                = "${local.name_prefix}-postgres"
   region              = var.region
-  database_version    = "POSTGRES_17"
+  database_version    = var.database_version
   deletion_protection = true
 
   settings {
     tier                        = var.database_tier
-    availability_type           = var.database_availability_type
+    availability_type           = "ZONAL"
+    activation_policy           = var.database_activation_policy
     disk_type                   = "PD_SSD"
     disk_size                   = 20
     disk_autoresize             = true
@@ -61,7 +62,7 @@ resource "google_sql_database_instance" "pdm" {
 resource "google_sql_database" "pdm" {
   count = local.create_resources ? 1 : 0
 
-  project  = var.production_project_id
+  project  = var.staging_project_id
   name     = local.database
   instance = google_sql_database_instance.pdm[0].name
 }
@@ -69,7 +70,7 @@ resource "google_sql_database" "pdm" {
 resource "google_sql_user" "runtime_iam" {
   count = local.create_resources ? 1 : 0
 
-  project  = var.production_project_id
+  project  = var.staging_project_id
   name     = trimsuffix(google_service_account.runtime[0].email, ".gserviceaccount.com")
   instance = google_sql_database_instance.pdm[0].name
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
@@ -78,7 +79,7 @@ resource "google_sql_user" "runtime_iam" {
 resource "google_sql_user" "migration_iam" {
   count = local.create_resources ? 1 : 0
 
-  project  = var.production_project_id
+  project  = var.staging_project_id
   name     = trimsuffix(google_service_account.migration[0].email, ".gserviceaccount.com")
   instance = google_sql_database_instance.pdm[0].name
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
