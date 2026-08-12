@@ -4,7 +4,8 @@
 角色：QC（獨立事實驗證）
 Repo：`C:\VIBE CODING\AI_PDM\.worktrees\AI_PDM\DEV-069`
 Branch：`codex/dev-069-cost-optimization`
-Commit：`c5c0c85ebc22ecaa10bd2349e6ead577758d440a`
+Baseline evidence commit：`c5c0c85ebc22ecaa10bd2349e6ead577758d440a`
+RD fix commit：`d4d1b01a`
 執行時間：2026-08-12 20:52～21:34（UTC+8）
 
 ## 1. QC 結論
