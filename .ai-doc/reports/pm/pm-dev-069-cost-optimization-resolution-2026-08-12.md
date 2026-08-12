@@ -151,3 +151,4 @@
 - `qc:dev-069-gcp-cost-optimization`：17/17。
 - `typecheck`、`build`：exit 0。
 - `dev-032:cloudsql-migration-package`：candidate schema files 31，proposal-only，未執行 live migration。
+- `qc:dev-046-cloudsql-migration-package`：MIG-001～009 passed；MIG-010 fail-closed，因 live migration/runtime evidence 尚未存在；已修正 README authority contract 檢查，未繞過 live gate。

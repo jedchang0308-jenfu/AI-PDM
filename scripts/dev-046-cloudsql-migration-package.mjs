@@ -510,7 +510,10 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     },
     sourceInventory: {
       postgresDirectory: "db/postgres",
-      postgresReadmeDeclaresSupabaseUpgrade: read("db/postgres/README.md").includes("future SQLite-to-Supabase upgrade"),
+      postgresReadmeDeclaresCloudSqlAuthority:
+        read("db/postgres/README.md").includes("authoritative PostgreSQL migration source") &&
+        read("db/postgres/README.md").includes("approved production database is Google Cloud SQL for PostgreSQL") &&
+        read("db/postgres/README.md").includes("Supabase is retired"),
       postgresSqlFileCount: migrations.length,
       cloudSqlGrantFile: grantsFile,
       cloudSqlGrantFileSha256: sha256(grantSql),

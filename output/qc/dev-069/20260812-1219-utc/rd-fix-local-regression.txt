@@ -25,3 +25,10 @@ Runtime canonical reuse assertion
 
 Remaining gate
 - Deploy current immutable image and reviewed migration 033 to Staging, then rerun named-user create/read/update/read/cleanup and stop.
+
+Follow-up package-contract revalidation
+- `npm.cmd run typecheck`: PASS
+- `npm.cmd run qc:dev-069-jsonb-like-regression`: PASS 3/3
+- `npm.cmd run qc:pdm-number-state-flow-runtime`: PASS 8/8
+- `npm.cmd run qc:dev-046-cloudsql-migration-package`: FAIL CLOSED at MIG-010 because live migration/runtime evidence is absent; MIG-001 through MIG-009 pass, including the corrected Cloud SQL README authority contract.
+- No credentials, Cloud SQL connections, migration apply, Cloud Run deploy, or Firebase deploy were executed.

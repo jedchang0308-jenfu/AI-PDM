@@ -112,6 +112,7 @@ RD fix commit：`d4d1b01a`
 
 `npm.cmd run qc:dev-069-gcp-cost-optimization`：17/17 passed。Terraform static validation 改用本機官方 Terraform 1.14.5，未依賴 Docker。
 `npm.cmd run typecheck`、`npm.cmd run build`、`npm.cmd run dev-032:cloudsql-migration-package` 均 exit 0；migration package 仍為 proposal-only，未執行 live apply。
+Staging package contract revalidation：`DEV046-CLOUDSQL-MIG-001～009` passed；`MIG-010` fail-closed，因目前 worktree 沒有 live migration/runtime evidence。原本檢查已同步修正為現行 Cloud SQL authority README 契約，未放寬 live gate。
 
 ## 5. 已知阻塞、風險與後續驗證條件
 
