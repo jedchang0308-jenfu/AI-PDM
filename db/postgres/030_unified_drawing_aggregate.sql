@@ -298,8 +298,10 @@ JOIN drawing_revisions revision ON revision.source_revision_package_id = file.pa
 ON CONFLICT (drawing_revision_id, source_file_asset_id) DO UPDATE SET
   source_package_file_id = EXCLUDED.source_package_file_id;
 
-UPDATE drawing_revisions revision
-SET lifecycle_state = CASE
+WITH revision_projection AS (
+  SELECT
+    revision.id,
+    CASE
       WHEN candidate.lifecycle_status = 'review_locked' THEN 'in_review'
       WHEN candidate.lifecycle_status = 'cancelled' THEN 'cancelled'
       WHEN package.lifecycle_state = 'released' OR package.status = 'Released' THEN 'released'
@@ -308,13 +310,18 @@ SET lifecycle_state = CASE
       WHEN package.lifecycle_state = 'in_review' OR package.status = 'Pending' THEN 'in_review'
       WHEN package.status = 'Cancelled' THEN 'cancelled'
       ELSE 'preparing'
-    END
-FROM drawings drawing
-LEFT JOIN numbering_candidate_revision_drafts candidate
-  ON candidate.id = revision.source_candidate_revision_id
-LEFT JOIN drawing_revision_packages package
-  ON package.id = revision.source_revision_package_id
-WHERE drawing.id = revision.drawing_id;
+    END AS lifecycle_state
+  FROM drawing_revisions revision
+  JOIN drawings drawing ON drawing.id = revision.drawing_id
+  LEFT JOIN numbering_candidate_revision_drafts candidate
+    ON candidate.id = revision.source_candidate_revision_id
+  LEFT JOIN drawing_revision_packages package
+    ON package.id = revision.source_revision_package_id
+)
+UPDATE drawing_revisions target
+SET lifecycle_state = revision_projection.lifecycle_state
+FROM revision_projection
+WHERE target.id = revision_projection.id;
 
 WITH latest_revision AS (
   SELECT DISTINCT ON (item.drawing_id)
