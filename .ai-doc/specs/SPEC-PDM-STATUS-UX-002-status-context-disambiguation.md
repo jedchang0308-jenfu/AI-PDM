@@ -64,13 +64,11 @@ Re-entry triggers:
 
 - 新增或調整 UI presentation contexts：
   - `task`：待辦處理狀態。
-  - `importRow`：匯入列檢查狀態。
-  - `importBatch`：匯入批次生命週期。
   - `settingsLifecycle`：設定版本、規則版本與管理範圍生命週期。
   - `jobStatus`：報表/匯出 job 執行狀態。
   - `restorePolicy`：已刪除資料的還原可行性。
   - `dvtReadiness`：DVT 階段送審條件。
-- 將 `workflow` context 限縮回真正的審核/流程判斷，不再被設定、報表、匯入批次與還原政策濫用。
+- 將 `workflow` context 限縮回真正的審核/流程判斷，不再被設定、報表與還原政策濫用。
 - 發行審核頁維持精簡 5 項說明，並統一 `待補件` / `待補資料`。
 - 對「其他」欄或混合欄調整欄名或視覺分組，使 `?` 的說明範圍不誤導。
 - 擴充 QC scanner，檢查 `StatusColumnHeader` context 與鄰近 `StatusBadge` context 是否一致；例外必須明確標註。
@@ -111,8 +109,6 @@ flowchart LR
 | Area | Current issue | Target contract |
 |---|---|---|
 | `/numbering/tasks` 待辦 | `task` 共用 `workflow`，頁籤與 badge 用語不一致 | 專用 `task` context：`待處理 / 已處理 / 已取消`；通知欄拆成 `讀取狀態` 與 `處理狀態` 或移除不準的 status help |
-| `/numbering/imports` 匯入列 | 表頭 `fileSync`，列 badge 使用本地 mapping，說明不一致 | `importRow` context：`待檢查 / 可匯入 / 待補資料 / 待管理員確認 / 衝突 / 保留既有` |
-| `/numbering/imports` 匯入批次 | 批次 status 用 `workflow`，但顯示草稿/正式/已刪除 | `importBatch` context：`暫存中 / 已確認 / 已排除`；避免用審核說明 |
 | `/settings` 設定版本/範圍 | 設定 lifecycle 使用 `workflow` 說明，會出現審核語言 | `settingsLifecycle` context 或移除 `?`；用 `啟用中 / 已退役 / 內建預設 / 停用` |
 | `/numbering/reports` 報表與匯出 | job status 用 `fileSync`，會混入匯入/檔案同步語意 | `jobStatus` context：`等待中 / 執行中 / 已完成 / 失敗` |
 | `/numbering/approvals` 發行審核 | 說明已精簡，但 filter 尚有 `待補件` 與 `待補資料` 不一致 | 統一 `待補資料`；`部分核准` 保留為批次例外，但只在該筆資料旁提示需看明細 |
@@ -129,8 +125,6 @@ flowchart LR
 ```ts
 type StatusDisplayContext =
   | "task"
-  | "importRow"
-  | "importBatch"
   | "settingsLifecycle"
   | "jobStatus"
   | "restorePolicy"
@@ -158,10 +152,6 @@ type StatusDisplayContext =
 - `/numbering/tasks`
   - 拆待辦 `task` help，不再繼承 workflow 五項審核說明。
   - 通知中心欄位避免用通用 `狀態` 混合 `已讀/未讀` 與 `已處理/未處理`。
-- `/numbering/imports`
-  - 匯入列使用 `importRow`。
-  - 匯入批次使用 `importBatch`。
-  - 批次 `staged` 不再顯示為泛用「草稿」，改為 `暫存中`。
 - `/settings`
   - 管理設定版本與範圍改 `settingsLifecycle`，或表頭改成無 `?` 的明確欄名。
   - 規則模擬器中的「狀態」改為「主檔狀態」。
@@ -204,7 +194,7 @@ QC 必須驗證：
 - Static scan：`StatusColumnHeader` context 與主要 `StatusBadge` context 一致。
 - Static scan：禁止 `task: workflowStatuses` 這類 alias。
 - Static scan：報表 job 不使用 `fileSync` 說明。
-- Browser check：`/numbering/tasks`、`/numbering/imports`、`/settings`、`/numbering/reports`、`/numbering/approvals`、`/numbering/dvt`。
+- Browser check：`/numbering/tasks`、`/settings`、`/numbering/reports`、`/numbering/approvals`、`/numbering/dvt`。
 - Browser check：popover 仍為 fixed/body overlay，不被表格裁切。
 - Browser check：無 visible raw enum / SQL / API code。
 - Viewport：桌面 1440 或 1680；必要時 390px sanity check，因目前系統無 dedicated phone UI。
@@ -331,7 +321,7 @@ Verification:
 - `npx.cmd tsc --noEmit --pretty false`: passed.
 - `npm.cmd run lint -- --quiet`: passed.
 - `npm.cmd run qc:pdm-status-ui-vocabulary`: passed 81/81.
-- Browser status-context check: passed 73/73 for `/numbering/tasks`, `/numbering/imports`, `/settings`, `/numbering/reports`, `/numbering/approvals`.
+- Browser status-context check: passed 73/73 for `/numbering/tasks`, `/settings`, `/numbering/reports`, `/numbering/approvals`.
 - Browser DVT status-context check with QC-owned temporary fixture: passed 11/11.
 - Browser 390px task status popover sanity: passed 4/4.
 - Screenshots: `output/playwright/status-context-disambiguation/`.

@@ -1,10 +1,12 @@
 # SPEC-PDM-PART-COST-001：主根號關聯圖號料號與料號成本模組
 
-狀態：Draft / Backlog
+狀態：Retired / Superseded by `ADR-PDM-PART-COST-RETIREMENT-001`
 日期：2026-06-03
 適用系統：AI_PDM
 關聯任務：`DEV-PDM-PART-COST-001`
 延伸規格：`SPEC-PDM-NUMBERING-001`
+
+> 2026-08-11 退役決策：使用者明確要求移除料號／製造成本產品功能、後端契約與既有成本資料表。本文件保留原始設計供歷史追溯，不得再作為現行開發、API、schema 或驗收依據。請以 `.ai-doc/decisions/ADR-PDM-PART-COST-RETIREMENT-001.md` 為現行權威。
 
 ## 1. 文件目的
 

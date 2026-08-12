@@ -1,7 +1,7 @@
 # SPEC-PDM-STATUS-UX-003：狀態軸命名與資料頂部說明
 
-狀態：Phase 1A + Phase 1B Historical Local Implementation；「開發階段」軸已由 DEV-054 取代
-更新日期：2026-07-16
+狀態：Phase 1A + Phase 1B Historical Local Implementation；DEV-063 current vocabulary amendment；「開發階段」軸已由 DEV-054 取代
+更新日期：2026-08-11
 對應任務：`DEV-049` / `DEV-PDM-STATUS-UX-003`
 
 > 2026-08-04 Amendment：依使用者決策，AI PDM 不再管理專案狀態。`EVT / DVT / PVT` 與
@@ -11,6 +11,15 @@
 > 2026-08-06 Amendment：`SPEC-PDM-STATUS-UX-004` 保留本文件的狀態軸、字典與 detail/help 用途，
 > 但取代總表與 drawer 第一層的多 badge 呈現。圖號、料號、圖料清單改由 domain projector 產生
 > 唯一 human status；狀態軸降層到 filter、收合明細與 audit，不再逐欄直接佔用清單。
+
+> 2026-08-11 DEV-063 Amendment：本 phase 依使用者決策 `1C / 2C / 3B / 4A / 5C`
+> 取代本文件先前的號碼效力顯示、候選使用者詞彙與「不改歷史／audit raw value」邊界。
+> 正常 UI 不再顯示 `預覽／已保留／正式／已釋出` 號碼效力軸，也不顯示「候選」或生命週期型物件前綴；
+> 物件只使用「編號／主根號／料號／圖號」，流程狀態保留 `編輯中／申請中／送審中／審核中／已發布／已取消`。
+> 本 phase 尚無稽核要求，5C 允許改寫歷史與可變儲存內容中的人類可讀 label／description／reason，
+> 並以顯示投影呈現 audit／snapshot 的改寫；raw audit／hash-bound snapshot 不覆寫。
+> 不改 ID、enum、machine code、hash、timestamp、狀態機、權限、API payload shape 或 authority。
+> 本段為現行權威；前述 Phase 1A 號碼效力段落保留作歷史基線，不再作 DEV-063 的驗收契約。
 
 ## 1. Human Decision Brief
 
@@ -181,7 +190,6 @@ Phase 1A 後續處理結果：
 | `/numbering/tasks` | 任務狀態、審核狀態、資料狀態 |
 | `/numbering/impact`、`/numbering/revisions` | 準備狀態、資料狀態、審核狀態 |
 | `/upload`、`/submissions/[id]`、`/approvals` | 審核狀態、發布狀態、檔案狀態 |
-| `/numbering/imports` | 匯入列狀態、匯入批次狀態、還原狀態 |
 | `/numbering/reports` | 執行狀態 |
 | `/bom/workbench` | BOM 資料狀態、審核狀態、發布狀態、還原狀態 |
 | `/settings`、`/settings/accounts`、`/settings/account-invitations` | 設定狀態、帳號狀態、身分狀態、邀請狀態 |
@@ -315,7 +323,7 @@ C. 只改 scanner 能證明有重複或 raw status 的位置。
 | 領號 / 草稿 | `src/components/number-state-workspace.tsx`、`src/app/numbering/request/page.tsx`、`src/app/numbering/part-drafts/page.tsx` | 保留 Phase 1A 號碼效力；補申請狀態、審核狀態、發布狀態、還原狀態的資料頂部說明 |
 | 審核 / 送審 | `src/app/approvals/page.tsx`、`src/app/upload/page.tsx`、`src/app/submissions/[id]/page.tsx`、`src/components/dashboard/layout-parts.tsx` | 拆分審核狀態、發布狀態、檔案狀態；避免只顯示 generic `狀態` |
 | BOM / 技轉 | `src/app/bom/workbench/page.tsx`、`src/app/handoff/page.tsx`、`src/components/transfer-package-workbench.tsx` | 補 BOM 資料狀態、審核狀態、發布/還原狀態的 scope-level help |
-| 報表 / 匯入 / 任務 | `src/app/numbering/imports/page.tsx`、`src/app/numbering/reports/page.tsx`、`src/app/numbering/tasks/page.tsx` | 補匯入列、批次、還原、執行、任務狀態的資料頂部說明 |
+| 報表 / 任務 | `src/app/numbering/reports/page.tsx`、`src/app/numbering/tasks/page.tsx` | 補執行、任務狀態的資料頂部說明 |
 | 設定 / 帳號 | `src/app/settings/page.tsx`、`src/app/settings/accounts/page.tsx`、`src/app/settings/account-invitations/page.tsx` | 修正已知 `qc:pdm-status-ui-vocabulary` failure；補設定狀態、帳號狀態、身分狀態、邀請狀態說明 |
 | QC scripts | `scripts/qc-pdm-status-ui-vocabulary.mjs`、新增 `scripts/qc-pdm-status-scope-coverage.mjs`、新增 browser QC script | scanner、coverage、raw status、duplicated help、RWD/a11y、visible-error gate |
 
@@ -392,3 +400,30 @@ Artifact：
 - `output/dev-049-status-scope-inventory/status-scope-inventory.md`
 - `output/playwright/dev-049-status-scope/status-scope-browser-metrics.json`
 - `output/playwright/dev-049-number-effectiveness/number-effectiveness-metrics.json`
+
+## 12. DEV-063 Current Amendment Contract
+
+本節是 DEV-063 的現行 implementation authority；第 3.1、3.2、3.3、4、7、11 節中與本節衝突的號碼效力、
+候選詞彙、歷史／audit raw value 保護條款，對 DEV-063 僅保留為歷史基線。
+
+### 12.1 User-facing vocabulary
+
+- identity：`編號／主根號／料號／圖號`。
+- create CTA：依 context 使用 `建立編號／建立圖號／建立料號／建立圖號與料號`。
+- removed terms：`保留號`、`候選`、`已保留`、`正式`、`已釋出` 及其號碼效力複合詞；純檔案操作的「預覽」不在移除範圍。
+- workflow status：`編輯中／申請中／送審中／審核中／已發布／已取消`。
+- restricted guidance：使用白話限制與 disabled CTA，不建立號碼效力 badge 或 filter。
+
+### 12.2 Stored human-readable rewrite
+
+5C 允許在本 phase local rewrite 中改寫 history 與可變資料的人類可讀 label、description、title、reason；
+audit／snapshot 以顯示投影改寫，raw append-only audit／hash-bound snapshot 保持不變。不得改寫 ID、enum、machine code、hash、
+timestamp、state value、permission、API payload key、repository identifier 或 approval/publication authority。
+RD 必須以 exact field mapping 執行，不得使用未分流的全文 replace。
+
+### 12.3 Compatibility and execution boundary
+
+- `reserved`、`candidate`、`official` 與 `?tab=reserved`／`?tab=drafts` 保持 machine compatibility 與 zero-write URL normalization。
+- local rewrite 必須 dry-run、transaction、idempotency/version、count reconciliation 與 mismatch fail-closed。
+- 本節不授權 production data、正式 migration、deploy、release、merge 或 PR。
+- 若未來出現稽核、法規、品質追溯或 immutable evidence 要求，必須重開 DEV/ADR；不得以本節推論可覆寫新證據。

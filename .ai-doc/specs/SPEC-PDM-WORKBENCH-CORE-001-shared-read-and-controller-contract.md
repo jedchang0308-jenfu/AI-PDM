@@ -3,11 +3,27 @@
 Status: `Local RD Implemented / QA-QC Passed / Release Gated`
 Date: 2026-08-10
 Owner: Dev PM
-Related DEV: `DEV-062`
-Related ADR: `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`
-Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`
+Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related ADR: `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
+Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 
 本規格只治理跨模組「機制」，不重複定義 Part／Relation 產品行為。料號單頁行為以 `SPEC-PDM-NUMBER-STATE-FLOW-001` 的 DEV-062 amendment 為準；圖料單頁行為以 `SPEC-PDM-DRAWING-PART-RELATION-VIEW-001` 的 DEV-062 amendment 為準。
+
+## 0. DEV-067 Compatibility Amendment：Detail Composer 仍採 shared mechanics + domain adapters（2026-08-12）
+
+Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release gated`.
+
+`UnifiedPdmEntityDetailDrawer`是本架構原則在detail surface的延伸，不是跨domain business service或巨型domain component：
+
+- Core新增的責任只包含shared identity/status header、fixed projection slot order、overlay geometry、single scroll owner、focus/Escape、safe return、projection registry與single context action bar。
+- `DrawingProjection`、`PartProjection`、`RelationProjection`是domain adapters；其model、preview/read authority、permission與commands不得進入core base type成為domain union欄位。
+- Server `DetailSurfacePolicy`可共用policy envelope與`none/summary/full`語法，但每個domain允許欄位與hydrate規則由domain adapter提供。Client不得fetch all後hide。
+- 多projection aggregate必須使用同一bounded read snapshot或等價一致性邊界；query budget與partial failure contract在`DEV-067`升級RD Contract Ready時定義。禁止projection component mount後各自發N+1 request。
+- `ContextActionBar`只組合server-derived action descriptors；core不重寫candidate、Drawing revision、Part、Relation或approval command policy。
+
+Spec Impact Preflight：`Compatible extension` ADR-PDM-WORKBENCH-CORE-001。它仍選擇shared mechanics + domain adapters，明確拒絕「one React component renders every domain」。若RD設計要求core理解domain status/fields、擁有跨domain mutation或建立新的cross-domain data owner，屬`Unresolved conflict`，必須停止並回Dev PM/ADR。
+
+RD readiness update：shared core新增純型別`PdmEntityDetailResponse`、fixed registry、request race guard與single action bar mechanics；domain fields仍不進core。`PdmEntityDetailService`擁有一個`withPdmWorkbenchReadSnapshot`，各repository提供`...InClient` reader，不得nested transaction或component mount後自行fetch detail。Hard budgets為Drawing/Part `<=16`、Relation `<=24`、review `<=28`，且1/20/50 child/target query count不成長；required projection failure整體fail closed。
 
 ## 1. Goal and Non-goals
 

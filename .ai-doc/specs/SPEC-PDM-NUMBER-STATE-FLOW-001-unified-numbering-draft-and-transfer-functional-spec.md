@@ -1,14 +1,37 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
-狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / Release Gate Required`
+狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 RD Implementation Ready / Human Confirmed / RD not started / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
-Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048`
+Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` / `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
 Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/compatibility、Phase 1C approval/publication及Phase 1D transfer integration均已完成RD與獨立QC。Live provider、正式資料、staging、deployment與release artifact仍未執行。
 RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
 
 2026-08-03 contract amendment：使用者已在 `DEV-052` 決定以整包圖料審核取代新流程的 number-only review + manual publication。所有非終結既有保留號將以 read-time compatibility projection 進入新流程，不做 bulk backfill；新 action `numbering.candidate_bundle_review` 核准後可在同一原子／冪等交易自動正式化。已存在的 `numbering.candidate_publication_review` request 仍維持本規格原 snapshot/apply 語意，不得用舊核准直接發布未審圖面。DEV-052 尚未實作或 release 前，本規格仍是 production runtime authority。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
+
+## 0A. DEV-067 Amendment：審核明細共用 owner module 與同資料鎖定（2026-08-12）
+
+Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release gated`.
+
+本 amendment 對與既有條款衝突之處具有優先權：`/approvals` 仍是唯一 reviewer inbox 與 decision authority，但不再是圖號、料號、圖料關係的明細 UI owner。審核者由總表前往canonical owner route；三工作台所有covered狀態／角色都開啟相同`UnifiedPdmEntityDetailDrawer`，由server policy組合domain-owned projections；不得另組approval-only detail或preview。
+
+- 圖號：`/numbering/drawings` + canonical drawing/workspace detail key。
+- 料號：`/parts` + canonical part/workspace detail key。
+- 圖料關係：`/numbering/search` + canonical relation/workspace detail key。
+- action adapter/server resolver 回傳 owner href；browser 不可只靠 action code、顯示文字或第一個 target 猜路由。多 target 必須回送審者原本使用的 owner aggregate；若不存在 canonical owner aggregate，RD Contract 必須先回 PM 定義，不得用 approval detail 補洞。
+- 一般圖號surface回Drawing full、Part/Relation summary；一般料號surface回Part full、Drawing/Relation summary且Drawing不得含圖面檔案/版次；圖料surface回Drawing/Part/Relation full。未授權projection不得由API回傳後再靠client隱藏。
+- exact assigned active reviewer可在request target/company scope內取得Drawing/Part/Relation full與`ReviewContextProjection`；此能力不由client role label推定，terminal/unassigned/tampered/cross-company context不得升權。
+- owner module 的同一份資料在 active review 期間受 server-side lock。受審欄位、關係、版次內容與 scope 內附件不得修改、刪除、替換或新增；若要變更，先撤回／退回，再修改並重送。
+- approval snapshot/hash 繼續用於決策完整性、冪等或必要technical evidence。`ApprovalSnapshotProjection`只顯示scope/target/hash/diff/check結果，不從snapshot組Drawing/Part/Relation第二份畫面；drift時fail closed。
+- owner module 原有 3D/2D preview derivative、自動排程、polling、ready/error/retry 行為原樣共用；審核者不能走不同 preview path。
+- 圖號既有六區detail行為收進`DrawingProjection`；Part與Relation各自維持domain projection ownership。candidate/formal/history adapter只能改projection model、capability、disabled reason與command，不得換drawer或另做section順序。
+- reviewer decision descriptor進入唯一`ContextActionBar`；request/eligibility/decision/audit仍由approval platform驗證與寫入，不另建approval footer owner。
+- owner href 攜帶 same-origin、company-safe 的 `returnTo`；關閉、Back 或完成決策後回到原 `/approvals` filter/query/selection，遵守「哪裡來，哪裡去」。
+
+Spec Impact Preflight：`Intentional replacement`。本 amendment 取代本文件中「decision UI只能存在`/approvals`」、「三domain各自組owner detail」、「reviewer與一般owner surface章節完全相同」及「凍結後仍允許scope/版次/BOM/附件變更再使檢查失效」之相衝突描述；保留單一reviewer inbox、domain data/command authority、server permission、separation of duties、approval decision authority、snapshot integrity與atomic publication。外部依賴若不屬於owner lock範圍而發生變化，既有stale snapshot/fail-closed規則仍適用。
+
+2026-08-12 readiness update：同一`DEV-067`已補齊上述契約並達`RD Implementation Ready`，本機可依主SPEC Phase 1A～1D實作。Active-review guard必須在既有mutation transaction內執行；`pending`與`apply_failed`受審scope保持鎖定，退回/needs-info/rejected/cancelled只有在domain command原子切回editable state後解鎖，approved/applied則繼續受controlled/released immutability治理。完整command matrix與`UDD-032..036` evidence見主SPEC/QA plan。BOM與其他approval domains仍不在首批範圍。
 
 ## 0. DEV-062 Amendment：料號單頁工作台 RD Implementation Contract（2026-08-10）
 
@@ -414,7 +437,6 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 - 圖料模組
 - 圖號模組
 - 料號模組
-- 圖號總表匯入
 
 `發行 / 交接`：
 

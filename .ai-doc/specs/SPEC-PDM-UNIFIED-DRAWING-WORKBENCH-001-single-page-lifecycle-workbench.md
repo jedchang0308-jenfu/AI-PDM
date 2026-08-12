@@ -9,6 +9,10 @@ Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08
 Related authority: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
+> **2026-08-11 Part-cost retirement amendment**
+>
+> The product part-cost capability is retired by `ADR-PDM-PART-COST-RETIREMENT-001`. Any historical standard-cost optionality, cost chip, cost maintenance entry or cost acceptance case in this document is superseded and must not be restored.
+
 > **2026-08-10 DEV-061 Amendment**
 >
 > 圖號工作台的新檔案 UX 與 write authority 改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理。圖號只顯示受控 2D／3D 與版次檔案，不再提供參考附件、附件管理、已刪除資料或一般附件上傳；每次首版／進版 hard-require 本次上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`，相同 3D 由系統共用 canonical asset。預覽圖本身即為開啟預覽入口，不另設重複按鈕。本文的 controlled/reference 雙區、warning-only required files 與一般附件管理段落保留為 DEV-053 歷史證據，衝突處由 DEV-061 取代。

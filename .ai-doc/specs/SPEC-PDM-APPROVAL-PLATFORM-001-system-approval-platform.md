@@ -1,12 +1,60 @@
 # SPEC-PDM-APPROVAL-PLATFORM-001 - System-wide approval platform
 
-Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench entrypoint consolidation implemented and locally verified; Phase 1C-B legacy reviewer page convergence implemented and locally verified; Phase 1C-C low-noise drawing object pending-review projection implemented and locally verified; Phase 2-4 transitional adapters present; Phase 5 guarded dry-run/apply tooling present; Phase 6 release/live migration not authorized
+Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench entrypoint consolidation implemented and locally verified; Phase 1C-B legacy reviewer page convergence implemented and locally verified; Phase 1C-C low-noise drawing object pending-review projection implemented and locally verified; Phase 1C-D / DEV-067 native owner-module review detail reuse and scoped full projections are `RD Implementation Ready / Human Confirmed / RD not started`; Phase 2-4 transitional adapters present; Phase 5 guarded dry-run/apply tooling present; Phase 6 release/live migration not authorized
 Date: 2026-07-08
 Owner: Dev PM
-Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
-Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
-Related QA: `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`
+Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
+Related QA: `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYCLE-ACTIONS-001`, numbering approval flows, submission lifecycle requests, BOM review requests, part cost change requests and drawing revision supplement approvals.
+
+> **2026-08-11 Part-cost retirement amendment**
+>
+> Part cost change requests are retired from the current product scope by `ADR-PDM-PART-COST-RETIREMENT-001`. The approval platform must not expose, recreate or require a part-cost adapter, inbox item, table or migration. The remaining approval domains retain their existing authority.
+
+## 2026-08-12 Human Decision Amendment - Native owner-module review and scoped full projections (`DEV-067`)
+
+Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release not authorized`.
+
+This amendment is an **Intentional replacement** of older clauses that place the actual visible review detail only inside `/approvals`, compose an approval-specific detail body, or use an approval snapshot as a separate reviewer-facing detail source. It does not replace approval request, reviewer eligibility, decision, idempotency, audit or integrity-snapshot authority.
+
+Confirmed product rules:
+
+1. `/approvals` remains the single reviewer inbox and owns the total list, pending count, search/filter state and request selection context. It is not the owner of drawing, part or relation detail UI.
+2. Selecting an in-scope review item resolves a server-authorized canonical owner href and navigates to the same owner module used by the submitter:
+   - drawing -> `/numbering/drawings` with its canonical drawing/workspace `detail` key;
+   - part -> `/parts` with its canonical part/workspace `detail` key;
+   - root/drawing/part relation -> `/numbering/search` with its canonical relation/workspace `detail` key.
+3. The owner route mounts the same `UnifiedPdmEntityDetailDrawer` and domain-owned projection components used by normal owner surfaces. Covered flows must not fork, copy or recompose the body in `ApprovalDetailDrawer`, `ApprovalDrawingPreview` or another approval-only equivalent.
+4. The visible drawing/part/relation facts, controlled attachments and 3D/2D preview are read from the same locked owner-module authority. The latest human decision intentionally replaces the earlier strict claim that reviewer and submitter must receive an identical visible section set: components and owner data remain shared, while an exact assigned reviewer receives a server-scoped full Drawing/Part/Relation projection set for the active request.
+5. Submission locks the exact in-scope owner data for the active review. Submitter and reviewer read that same locked data. Server commands must reject edits to reviewed fields, target relationships, revision content and in-scope attachment upload/delete/replace until the request is withdrawn, returned for correction or reaches the next lifecycle state that explicitly permits change. A requested content change therefore follows `withdraw/return -> edit owner module -> resubmit`; it must not silently invalidate a review while allowing the write.
+6. Native preview behavior is identical to the submitter view. If a 3D/2D derivative is queued or running, the existing owner preview orchestration continues automatic refresh/polling and visibly reports progress; the reviewer is not given a separate manual preview path.
+7. `ReviewContextProjection` may show request status, exact target scope, reviewer responsibility, decision reason/history and integrity evidence. Its `ApprovalSnapshotProjection` may show target IDs, hash/diff/check and mismatch status only; it must not duplicate Drawing/Part/Relation facts, attachments or relationships. Snapshot drift fails closed and never causes snapshot data to replace owner data.
+8. Reviewer full visibility is an ephemeral server-derived capability bound to active request, exact target membership, reviewer eligibility and company. It is not granted by a client role label and does not survive terminal/unassigned/tampered context. If any decision-required projection cannot be authorized or hydrated, decision actions are unavailable and the recovery owner is explicit.
+9. Approve/return/reject controls are contributed to the single `ContextActionBar`; approval context must not create another sticky footer or primary CTA owner.
+10. Navigation obeys **`哪裡來，哪裡去`**. The owner href carries a validated internal `returnTo` that preserves the `/approvals` filter/query/selection state. Closing the review, using Back, or completing a decision returns to that exact workbench context and refreshes the affected row. External, protocol-relative or cross-company return targets are rejected.
+11. Owner-route authorization, company scope and reviewer eligibility are checked server-side. A safe return path must remain available for 401/403/404/stale-target failures without exposing hidden entity existence.
+
+Unified owner-detail prerequisite confirmed on 2026-08-12:
+
+- Sharing the current drawer shells is insufficient because Drawing candidate/formal preview, Part candidate/formal content and Relation root/target composition still diverge.
+- Drawing, Part and Relation first converge on one `UnifiedPdmEntityDetailDrawer` composer with domain-owned projections and server-derived `none/summary/full` policy, as defined by `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` and `ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001`.
+- Normal Drawing and Part surfaces receive task-focused reductions; Relation is the full relationship surface. Assigned active review receives full projections only for the reviewed aggregate/scope.
+- This is not a giant cross-entity conditional component. The composer owns mechanics and ordering; each domain owns its projection and commands.
+
+Initial delivery scope is drawing, part and root/drawing/part relation approvals because those three owner workbenches already share the single-page workbench/detail pattern. BOM and other approval domains remain outside `DEV-067`; when adopted later they must follow the same owner-surface rule and must not create a new approval-specific domain detail.
+
+Acceptance direction:
+
+- Given the same entity and active review, submitter and reviewer receive the same domain projection components and locked owner data version. The submitter keeps the normal surface projection levels; the assigned reviewer receives the server-authorized full reviewed aggregate plus review context.
+- Automatic preview state, image and failure/retry wording match the owner module. A reviewer must not see `預覽尚未就緒` merely because an approval-only preview path failed to reuse the owner orchestration.
+- In-scope write APIs fail closed during active review. UI disabling alone is insufficient.
+- Browser history and explicit close/decision return to the originating `/approvals` list with filters and selected request preserved.
+- No approval-only drawing/part/relation detail or preview component is mounted for covered actions.
+- Network evidence proves unassigned/terminal/cross-company/tampered review contexts do not receive full projection payloads; hidden DOM alone is insufficient.
+- Multi-target review identifies every target in scope, provides stable target/section anchors and retains one atomic decision boundary. If no canonical aggregate exists, the request is not actionable until the contract is resolved.
+
+2026-08-12 readiness update: the same `DEV-067` is now `RD Implementation Ready` for local Phase 1A～1D. Exact projection models, unified read API, one-snapshot boundary, scoped-review receipt, action-to-owner resolver, multi-target ambiguity handling, transaction lock matrix, preview/return contract, file list, phases and `UDD-001..050` QA evidence IDs are authoritative in `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` and `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`. Product implementation may begin locally; schema/migration, production/staging data, deployment, release, merge and PR remain unauthorized.
 
 ## Human Decision Brief
 
@@ -448,7 +496,7 @@ The UI must make approval feel like one system without hiding domain context:
 - Domain creation, analysis or preparation pages may remain in domain navigation only when their primary job is not reviewer decision-making, for example creating a drawing revision package or analyzing impact before a request exists.
 - Legacy approval pages may remain reachable during compatibility phases through workbench filters, row actions or deep links; they should not compete as the default reviewer start point.
 - Domain detail pages keep contextual CTAs, for example `申請主根作廢`, `送審`, `補件審核`.
-- Each approval detail shows:
+- For Phase 1C-D-covered domains, the visible detail is `UnifiedPdmEntityDetailDrawer` with server-scoped owner projections and one `ContextActionBar`; no approval-specific body or second footer may be composed. `ReviewContextProjection` contributes:
   - request title,
   - domain,
   - target identifiers,
@@ -461,7 +509,7 @@ The UI must make approval feel like one system without hiding domain context:
 - Domain-specific copy remains in Chinese user language.
 - Dangerous lifecycle actions must show impact before submit.
 - The UI must distinguish `申請作廢`, `刪除草稿`, `取消申請`, `退回補資料` and `拒絕`.
-- Long-term navigation target: when the approval workbench reaches feature parity and deep links are preserved, legacy reviewer decision page routes should redirect into the equivalent workbench filter/detail state. This long-term redirect is not part of the first badge-only slice.
+- Long-term navigation target: legacy reviewer inbox routes redirect into the equivalent `/approvals` filter state; selecting a covered request then opens the canonical owner-module detail with a safe `returnTo` to that workbench state.
 
 ## Permission Contract
 
@@ -512,6 +560,7 @@ Not allowed without separate authorization:
 | Phase 1C-A - Reviewer entrypoint consolidation | Local implementation complete | Make `/approvals` the only primary reviewer approval entrypoint and add a pending-review count badge | Local QC, lint, typecheck and browser evidence passed; release/live migration not authorized |
 | Phase 1C-B - Legacy reviewer page convergence | Local implementation complete | Redirect legacy reviewer decision pages into workbench filters/details after parity and deep-link QC | Local QC/typecheck/source-lint and route redirect smoke passed; release/live migration not authorized |
 | Phase 1C-C - Drawing object pending-review projection | Local implementation complete | Reflect approval workbench pending drawing revision impact reviews on the affected drawing object and revision attachments with low-noise status cues | Local QC/typecheck/source-lint, entity drawer QC and browser smoke passed; release/live migration not authorized |
+| Phase 1C-D - Unified owner projections and scoped review full view | RD Implementation Ready / Human Confirmed / RD not started | Keep `/approvals` as the single inbox; owner routes mount the same composer/projections over locked data; assigned reviewers receive full Drawing/Part/Relation only inside exact request/company scope plus review context, one action bar and safe return | Local Phase 1A～1D eligible under DEV-067; production/schema/release gated |
 | Phase 2 - Numbering/root integration | Transitional adapter present | Migrate current numbering approvals and `DEV-PDM-NUMBERING-004` root/drawing/part obsolete to platform | Numbering adapter exists; full root aggregate obsolete flow remains tied to `DEV-PDM-NUMBERING-004` |
 | Phase 3 - Submission and BOM formal lifecycle | Transitional adapter present | Integrate submission release/obsolete and BOM review lifecycle into platform; launch blocker per `2B` | Submission/BOM adapter decision delegation exists; friendly routes delegate through platform |
 | Phase 4 - Cost and supplement adapters | Adapter implemented | Transitional unified inbox/history adapters for cost change and drawing package supplement approvals | Adapter is transitional and not final launch readiness |
@@ -607,7 +656,7 @@ RD must deliver:
 - Keep the projection read-only and separate from formal drawing lifecycle status such as `已發布`, `Draft` or `Released`.
 - Show compact pending context on `/numbering/drawings` list rows, drawing detail drawer, `/numbering/search` drawing-target detail and drawing attachment revision/history rows.
 - Gate reviewer action links with the same `R&D Manager` / `Admin` boundary used by `/api/approvals/inbox`; non-reviewers may see waiting status without a decision link.
-- Use deep links into `/approvals` for the actual decision workflow instead of duplicating inbox details inside drawing pages.
+- Historical Phase 1C-C behavior used deep links into `/approvals` for the actual decision workflow. For `DEV-067`-covered domains, Phase 1C-D intentionally supersedes that placement: `/approvals` remains the inbox, while the native owner route hosts the shared detail and reviewer decision slot without duplicating the inbox.
 - Preserve information hierarchy: compact object-level pending cues and small revision-level badges only where they identify the affected version. Do not duplicate a full pending-review focus panel in the drawing detail drawer.
 
 Out of scope for Phase 1C-C:

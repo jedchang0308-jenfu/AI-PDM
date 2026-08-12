@@ -17,7 +17,6 @@
 納入本次：
 
 - 首頁 / 工作台的圖面送審明細。
-- `/numbering/imports` 的匯入批次 / staging 檢查明細。
 - `/numbering/reports` 的月報明細。
 - 已採用圖號模組 drawer 行為的 `/numbering/search`、`/numbering/drawings`、`/parts` 作為模板與驗證基準。
 - `/parts?tab=drafts`、`/numbering/drawings?tab=reserved`、`/numbering/search?tab=reserved` 共用的保留號明細。

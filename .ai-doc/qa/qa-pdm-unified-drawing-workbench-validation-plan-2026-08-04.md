@@ -1,5 +1,7 @@
 # QA Plan：DEV-053 單一圖號工作台（由 AI 執行的真實操作驗證計畫）
 
+> **2026-08-11 scope amendment**：料號／製造成本已由 `ADR-PDM-PART-COST-RETIREMENT-001` 退役。本計畫中 `COST-OPT-*` 案例與成本維護入口描述屬歷史驗收，不得再作為現行產品通過條件；現行成本退役驗證改用 `npm.cmd run qc:pdm-part-cost-retirement`。
+
 Status: `Phase 1H Focused AI QA + Independent QC Passed / Full AI Real-Operation Revalidation Ready / Production Release Gated`
 Date: 2026-08-05
 Owner: QA

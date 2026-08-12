@@ -7,10 +7,28 @@
 Status: `Phase 1-3 Implemented / DEV-062 Amendment Local QA-QC Passed / Release Gated`
 Date: 2026-07-07
 Owner: Dev PM
-Related DEV: `DEV-PDM-DRAWING-PART-RELATION-VIEW-001`
+Related DEV: `DEV-PDM-DRAWING-PART-RELATION-VIEW-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
-Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-07-07.md`
+Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-07-07.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
+
+## 0A. DEV-067 Amendment：圖料完整投影與共用實體明細 Composer（2026-08-12）
+
+Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release gated`.
+
+`/numbering/search`保留root-centric tree、matrix、relation health與整體關係查核任務，但其右側明細不再由root/candidate/child target各自組裝不同top-level body。所有covered target mount同一`UnifiedPdmEntityDetailDrawer`，圖料surface由server policy提供`DrawingProjection=full`、`PartProjection=full`、`RelationProjection=full`，並維持固定相對順序。
+
+- `RelationProjection`只擁有root/drawing/part topology、matrix、health、blockers與traceability；Drawing檔案/版次/preview由`DrawingProjection`呈現，Part屬性/文件由`PartProjection`呈現，relation page不得複製其欄位或mutation form。
+- Formal root、source-root candidate overlay、source-less candidate與formal child都使用相同composer。Context可改default focus/expanded projection，但不可換另一個drawer body。
+- 三個full projections可以收合並提供只列present sections的章節錨點；`full`表示可達，不表示全部預設展開。決策必要與relation blocker優先，避免長抽屜把主要判斷推離viewport。
+- 所有projection由同一server-authorized read snapshot/aggregate hydrate；不得在每個projection內各自fetch造成N+1、時間點不一致或partial truth。任一required full projection失敗時整體顯示可復原錯誤，不得只顯示剩餘部分冒充完整圖料關係。
+- Relation mutation仍由既有relation API/permission驗證；Drawing/Part commands仍回各自domain authority。唯一`ContextActionBar`依當前focus與capability決定一個primary CTA。
+- Assigned active review可沿用同一full aggregate並加入`ReviewContextProjection`；其read elevation只限exact request targets、reviewer eligibility與company，不能把圖料full surface當成跨案件reviewer全域讀權限。
+
+Spec Impact Preflight：`Intentional replacement`。本amendment取代第0.4節只要求formal child載入owner content以及root/candidate仍可自組body的較寬鬆解讀；不改root/relation data authority、tree/matrix語意、mutation API、permission或candidate/formal truth boundary。完整composer與projection policy以`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`和`ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001`為準。
+
+RD readiness update：圖料 full aggregate 固定使用 `root:{id}` 或 `candidate:{workspaceId}`，由 `PdmEntityDetailService` 在一個 read snapshot 中批次 hydrate Drawing/Part/Relation full projections；hard budget `<=24 queries`，assigned review `<=28`，1/20/50 targets不得成長。跨兩個root且沒有共同 aggregate 的 request 回 `PDM_REVIEW_AGGREGATE_AMBIGUOUS` 並禁止決策，不得猜第一個target。實作與 `UDD-*` evidence依 DEV-067主SPEC/QA plan。
 
 ## 0. DEV-062 Amendment：圖料單頁工作台 RD Implementation Contract（2026-08-10）
 
