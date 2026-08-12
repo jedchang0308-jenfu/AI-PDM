@@ -4,7 +4,7 @@
 
 角色：QA（定義風險、驗證門檻與證據契約；不修改產品碼、Terraform state 或 GCP 資源）
 
-文件狀態：`QA Plan Ready / RD Fix Locally Revalidated / Live Staging Revalidation Pending / Billing Removed From Current QC Scope`
+文件狀態：`QA Plan Ready / Live Platform Revalidated / Authenticated UI Blocked By Staging Auth Configuration / Production Canary Pending / Billing Removed From Current QC Scope`
 
 本文件將需求中的「FEAM」依品質工程慣例解讀為 `FMEA`（Failure Mode and Effects Analysis，失效模式與效應分析）。先完成 FMEA，再由風險反推驗證案例。既有 QC 報告的核心實作 PASS 可作為證據來源，但不能取代本版新增的登入後主流程、Staging 寫讀閉環與 Billing 歸因驗證。
 
@@ -318,3 +318,35 @@ QC 應依 `G0 → G1 → G2 → G3 → G4 → G5 → G6` 執行並做獨立事�
 - 新發現並修正 canonical reuse defect：取消 projection 保留 immutable `drawing_number`，但 active unique namespace 排除 `cancelled`；PostgreSQL 以 migration 033 落地，SQLite bootstrap／backfill 同步。
 - Local evidence：runtime 8/8、HTTP 21/21、unified aggregate 7/7、JSONB 3/3、DEV-069 17/17、typecheck/build exit 0。
 - QA 判定：`LOCAL RD FIX PASS / LIVE STAGING REVALIDATION OPEN`。必須以 current immutable image 與 reviewed migration 033 完成 Staging start → migration → named-user create/read/update/read/cleanup → stop，才可改判 `QA069-018 PASS`。
+
+## 7. QC execution addendum (2026-08-13)
+
+本節記錄 GCP authentication 恢復後的續行驗證；不覆寫 2026-08-12 的歷史執行紀錄。
+
+### 7.1 已完成且可重現的 live evidence
+
+- Migration image 使用 immutable digest `sha256:6f9ba17310054eb9c43bcd56f4c72ccd3c607e0690ab066318a89c23142d85d3`；app image 使用 immutable digest `sha256:d7f2d799888ffcce121176022e8d9e9479db714a58fd5924cb474186ac1aea78`。
+- Migration dry-run execution `b4p6w` 成功；target 為 `jenfu-ai-pdm-stg-361825 / ai_pdm`，migration count 31，涵蓋 `001`～`033`，未建立 DB connection。
+- Migration apply execution `m7587` 成功；runner log 顯示 `connectionAttempted=true`，本輪套用 `021`～`033`，含 reviewed migration `033`。
+- Idempotence execution `x5s9d` 成功；`appliedVersions=[]`。
+- Ledger read-only execution `dph4b` 成功；31 筆 ledger、無缺號、無重複、無 checksum drift；既有 v001 歷史 checksum 由 Staging-only allowlist 明確控管。
+- Named-user bootstrap execution `ai-pdm-stg-migration-runner-5582g` 成功；`stg-pdm-admin-001`、canonical role count 9、permission count 216、`allChecksPassed=true`。
+- Migration Job 已恢復為 `node scripts/run-dev-046-cloudsql-migrations.mjs --dry-run`，無 approval environment variables。
+- Staging Cloud SQL 最終為 `STOPPED / NEVER / db-f1-micro / ZONAL`；private IP、backup enabled、PITR enabled、14 retained backups 與 deletion protection 保留。Staging Cloud Run 為 `Ready=True`、min 0、max 2。
+- Canonical HTTP smoke：`/login=200`、`/api/auth/mode=200`、未登入 `/api/auth/me=401`、未登入 `/api/numbering/permissions=401`。
+- Browser RWD smoke：1440×900 與 390×844 均可載入 `/login`；browser session 已清理，viewport 已 reset。
+- Staging forwarding rules 為 0；temporary Cloud Build Compute Service Account grants 在 project IAM 與 Cloud Build bucket IAM 均查無殘留。Production 未變更。
+
+### 7.2 未通過／外部阻塞
+
+- `QA069-018`：`BLOCKED-EXTERNAL-CREDENTIAL`，不是把 bootstrap mapping 當作 UI authenticated PASS。Staging login 顯示 Google OAuth「未開放：Google OAuth 憑證尚未完成設定」；password login 需要未提供的應用程式密碼。未輸入或保存密碼、OTP、token，也未繞過登入。
+- 因 authenticated session 不可取得，尚未完成 UI/API 的 named-user permissions、disposable draft/candidate create → read → update → read → cleanup；不得宣稱 Staging authenticated operability 通過。
+- `QA069-011`、`QA069-013`：Production named-user canary／10 分鐘 soak 仍未執行；此為 Production release gate 缺證據，不是本輪 Production 變更。
+- `QA069-021`：已完成停庫後 canonical endpoint 與 SQL STOPPED readback，但未宣稱完整 post-stop soak PASS。
+- 本機 Docker shadow QC 未執行；Docker Desktop engine 不可用且使用者已指定不使用 Docker。Cloud Run VPC live evidence 取代其環境檢查，但不把 local shadow 標為 PASS。
+
+### 7.3 本輪判定
+
+`TOPOLOGY PASS / MIGRATION AND PLATFORM OPERABILITY PASS / AUTHENTICATED STAGING UI BLOCKED / PRODUCTION OPERABILITY INCOMPLETE / COST BENEFIT OUT OF SCOPE`。
+
+本輪不得標記 `FINAL PASS`。下一輪只需在 Staging 提供已核准的 Google OAuth configuration 或測試用 password credential，完成 authenticated write-read-cleanup；完成後再次執行 stop readback，再由 QC 重判 `QA069-018`。不需重做已通過的 migration ledger、immutable artifact 或 topology evidence，除非資源或 digest 改變。
