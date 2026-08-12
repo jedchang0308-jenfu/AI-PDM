@@ -23,7 +23,7 @@ Region：`asia-east1`
 | Named-user bootstrap | PASS | `ai-pdm-stg-migration-runner-5582g` 建立／讀回 `stg-pdm-admin-001`，9 roles、216 permissions，`allChecksPassed=true`。 |
 | Runtime／entrypoint／unauth boundary | PASS | canonical `/login=200`、`/api/auth/mode=200`、`/api/auth/me=401`、`/api/numbering/permissions=401`；RWD 1440×900、390×844 均可載入。 |
 | Staging stop／cost guard | PASS | Cloud SQL `STOPPED / NEVER`，backup/PITR/deletion protection 保留；Cloud Run min 0/max 2；forwarding rules 0；temporary IAM grants 0。 |
-| Authenticated Staging UI CRUD | BLOCKED-EXTERNAL-CREDENTIAL | Google OAuth 未完成設定；password login 需要未提供 credential。沒有把 bootstrap 或 unauth smoke 冒充 authenticated PASS。 |
+| Authenticated Staging UI CRUD | BLOCKED-EXTERNAL-CREDENTIAL | `/api/auth/mode` 穩定回報 `googleOAuth.enabled=true`，但 browser click 後沒有可取得的 Google account-selection tab／既有 session；password login 需要未提供 credential。沒有把 bootstrap 或 unauth smoke 冒充 authenticated PASS。 |
 | Production canary／soak | NOT EXECUTED | 本輪沒有 Production named-user、主要流程或 10 分鐘 soak，Production 未變更。 |
 | Billing | OUT OF SCOPE | 依使用者指示刪除本輪 QC acceptance，不判定 T+24/T+48/T+72 節費。 |
 
@@ -49,7 +49,7 @@ Region：`asia-east1`
 
 ### 3.3 Authentication boundary
 
-- UI login page 可開啟；Google button 回報「Google OAuth 憑證尚未完成設定」並維持 disabled state。
+- UI login page 可開啟；穩定載入後 Google button 為 enabled，`/api/auth/mode` 回報 `googleOAuth.enabled=true`。點擊後進入「等待 Google 帳號選擇」，但 browser session 沒有可取得的 account-selection tab／既有登入狀態。
 - 未登入 API：`/api/auth/me=401`、`/api/numbering/permissions=401`。
 - password login 需要應用程式 credential；QC 未取得、未猜測、未建立或修改使用者密碼。
 - 因此 `named-user create/read/update/read/cleanup` 尚無瀏覽器 authenticated evidence；本報告將它列為 external credential/config blocker。
@@ -65,7 +65,7 @@ Region：`asia-east1`
 
 ## 5. 下一個可驗收動作
 
-1. 由環境 owner 完成 Staging Google OAuth 設定，或提供已核准的測試用 password credential；QC 不自行建立或修改真實 named-user 密碼。
+1. 由環境 owner 提供可用的 Google account-selection session，或提供已核准的測試用 password credential；QC 不自行建立或修改真實 named-user 密碼。OAuth configuration 本身已由 `/api/auth/mode` 驗證為 enabled。
 2. 在 Staging 重新執行 authenticated login → permissions → disposable draft/candidate create → read → update → read → cleanup。
 3. 取得零 active residue 證據後停止 Cloud SQL，重做 `STOPPED / NEVER` readback。
 4. 若要宣稱整體 `FINAL PASS`，另補 Production named-user canary 與 10 分鐘 soak；本輪不執行 Production 變更。
