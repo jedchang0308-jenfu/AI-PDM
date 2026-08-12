@@ -1,0 +1,12 @@
+DEV-069 Terraform static validation
+
+Executor: local official HashiCorp Terraform 1.14.5
+Environment variable: DEV069_TERRAFORM_EXECUTABLE
+Command: npm.cmd run dev-069:iac-terraform-validate
+Production: fmt/init-backend=false/validate PASS, valid=true, errors=0, warnings=0
+Staging: fmt/init-backend=false/validate PASS, valid=true, errors=0, warnings=0
+planExecuted=false
+applyExecuted=false
+destroyExecuted=false
+
+Focused QC: npm.cmd run qc:dev-069-gcp-cost-optimization → 17/17 passed

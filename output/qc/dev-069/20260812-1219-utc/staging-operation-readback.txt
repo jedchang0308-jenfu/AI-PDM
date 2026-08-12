@@ -1,0 +1,11 @@
+DEV-069 QC Staging controlled operation readback
+
+Instance: ai-pdm-stg-postgres
+Project: jenfu-ai-pdm-stg-361825
+Start operation: 2026-08-12 20:32:12 → 20:40:17 (UTC+8), 更新已完成
+Start readback: 可運作 / RUNNABLE
+Hosting smoke: correct staging web.app 200/200/401
+Stop operation: 2026-08-12 20:48:10 → 20:49:14 (UTC+8), 更新已完成
+Final readback: 已停止 / STOPPED / NEVER
+
+No duplicate start or stop request was submitted.

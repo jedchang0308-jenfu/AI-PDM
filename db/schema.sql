@@ -2864,9 +2864,14 @@ CREATE TABLE IF NOT EXISTS drawings (
   FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT,
   FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id) ON DELETE RESTRICT,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
-  UNIQUE (company_id, drawing_number)
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+  -- Cancelled candidate projections retain their immutable historical number,
+  -- but do not block a new reservation from reusing that provisional code.
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_drawings_active_company_number
+ON drawings(company_id, drawing_number)
+WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled';
 
 CREATE INDEX IF NOT EXISTS idx_drawings_company_lifecycle
 ON drawings(company_id, lifecycle_state, drawing_number, id);

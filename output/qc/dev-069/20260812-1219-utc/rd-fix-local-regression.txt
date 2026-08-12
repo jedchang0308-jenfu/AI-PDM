@@ -1,0 +1,27 @@
+DEV-069 RD fix local regression evidence
+Run window: 2026-08-12 14:03-14:05 UTC (22:03-22:05 UTC+8)
+Branch: codex/dev-069-cost-optimization
+Live mutation: none
+
+Root cause fixed
+- Staging JSONB error is not present in current source; JSONB audit search casts to TEXT before LIKE.
+- Cancelled canonical drawing projections retain immutable drawing_number, while active unique namespace excludes lifecycle_state=cancelled.
+- PostgreSQL migration: db/postgres/033_allow_recycled_candidate_drawing_codes.sql
+
+Results
+- npm.cmd run qc:pdm-number-state-flow-runtime: PASS 8/8
+- npm.cmd run qc:pdm-number-state-flow-http: PASS 21/21
+- npm.cmd run qc:dev-064-unified-drawing-aggregate: PASS 7/7
+- npm.cmd run qc:dev-069-jsonb-like-regression: PASS 3/3
+- npm.cmd run qc:dev-069-gcp-cost-optimization: PASS 17/17
+- npm.cmd run typecheck: PASS
+- npm.cmd run build: PASS
+- npm.cmd run dev-032:cloudsql-migration-package: PASS; proposal-only, no live apply
+
+Runtime canonical reuse assertion
+- cancelled drawing history: A0001-M01 retained as immutable code
+- new drawing_preparation projection: A0001-M01
+- reservation IDs: distinct
+
+Remaining gate
+- Deploy current immutable image and reviewed migration 033 to Staging, then rerun named-user create/read/update/read/cleanup and stop.

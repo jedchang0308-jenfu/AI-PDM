@@ -29,9 +29,14 @@ CREATE TABLE IF NOT EXISTS drawings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   controlled_at TIMESTAMPTZ,
   released_at TIMESTAMPTZ,
-  terminal_at TIMESTAMPTZ,
-  UNIQUE (company_id, drawing_number)
+  terminal_at TIMESTAMPTZ
+  -- Cancelled candidate projections retain their immutable historical number,
+  -- but do not block a new reservation from reusing that provisional code.
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_drawings_active_company_number
+  ON drawings(company_id, drawing_number)
+  WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled';
 
 CREATE INDEX IF NOT EXISTS idx_drawings_company_lifecycle
   ON drawings(company_id, lifecycle_state, drawing_number, id);
@@ -164,7 +169,9 @@ LEFT JOIN number_candidate_reservations reservation
   ON reservation.company_id = formal.company_id
  AND reservation.promoted_master_type = 'drawing_number'
  AND reservation.promoted_master_id = formal.id
-ON CONFLICT (company_id, drawing_number) DO UPDATE SET
+ON CONFLICT (company_id, drawing_number)
+  WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'
+DO UPDATE SET
   formal_drawing_number_id = EXCLUDED.formal_drawing_number_id,
   part_root_id = EXCLUDED.part_root_id,
   purpose_code = EXCLUDED.purpose_code,
