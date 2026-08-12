@@ -30,7 +30,7 @@ budget_notification_channel_ids = []
 alert_notification_channel_ids  = []
 
 # Immutable staging image pushed from the reviewed Phase 2B local container smoke.
-application_image = "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:cf36fa4f6bc68a59db7f632dd9c7df3e81b84ac28cf7c5a5a11034408d7920c3"
+application_image = "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b"
 
 # Placeholder only. Keep disabled until a reviewed migration-runner image digest exists
 # and the runner job has separate explicit approval.

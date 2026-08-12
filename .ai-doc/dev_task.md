@@ -54,6 +54,11 @@ Owner：Dev PM
   - 整併來源：`DEV-030` 轉為 032B/032C database 子關卡；`DEV-031` 轉為 032C data-continuity QC 子關卡；兩者保留來源 ID，不再獨立派工。
   - release scope：`DEV-040` 領號／草稿、`DEV-042/043/045` 身分與帳號治理、`DEV-048` 圖料號／草稿入口；GCS file workflow、CAD、BOM 與完整 PDM 不在第一版。
 
+- P0 預上線成本最佳化：`✓ DEV-069` Production Micro／Zonal、低成本按需 Staging、Restore 清理與兩套 ALB 拆除。
+  - 狀態：`Live Implementation Complete / RD-QA-QC Passed / Billing Measurement Pending 24-72h`。
+  - 結果：Production SQL=`db-f1-micro/ZONAL/RUNNABLE`；Staging SQL=`db-f1-micro/ZONAL/STOPPED`；兩環境 ALB chain=0；Restore target absent；Cloud Run max/pool=`2/2`。
+  - 帳務：預估月費由約 NT$4,300 降至約 NT$550，每月約省 NT$3,749、年化約 NT$44,988；實際帳單須待 Google Billing 24～72 小時入帳後確認，不以估算冒充 invoice evidence。
+
 - 下一個產品候選：`DEV-041` Phase 3A-1 Pack-and-Go Intake。
   - 恢復條件：使用者明確提出產品實作指令；不得自動跨到 mapping/BOM/baseline 或 release。
 
@@ -1119,6 +1124,16 @@ Owner：Dev PM
   - 歸檔：`.ai-doc/archived/completed-dev-index-2026-07.md`（DEV-003）
   - 批次發版：見 `DEV-032`；無 Google 帳號邀請/首次密碼設定已由 `DEV-042` 完成，Google 身分/provider-neutral identity 已由 `DEV-043` 完成本地切片；完整帳號生命週期、完整路由權限盤點、live provider 與 Supabase migration 仍未進入 release 執行邊界。
   - 計入交付：是
+
+- ✓ DEV-069 [交付點] [Live Implementation Complete / Billing Measurement Pending 24-72h] [P0] AI-PDM 預上線 GCP 降本與低成本 Staging
+  - 摘要：Production Cloud SQL 已由 Regional custom 降為 `db-f1-micro`／`ZONAL`；Staging 已改為 Micro／Zonal／按需啟停，且完成啟動、migration dry-run、Hosting smoke、停止的發布驗證閉環。Production／Staging 未使用 external ALB 完整鏈均已移除；`ai-pdm-prod-restore-20260716a` 已刪除。
+  - 來源 ID：`DEV-PDM-GCP-PRELAUNCH-COST-OPTIMIZATION-001`；父任務：`DEV-032`、`DEV-046`。
+  - 安全控制：兩個主資料庫仍為 private-IP-only、backup／PITR／deletion protection enabled；Production on-demand backup `1786527874220` 成功後才變更；正式 SQL readback 為 `max_connections=25`、migration count=19、last migration=`032`。
+  - 容量：Cloud Run max instances/revision=2、pool max=2，最壞 `4 × 2 + 2 = 10 <= floor(25 × 0.70) = 17`。
+  - 終態：Production 與 Staging DEV-069 targeted Terraform plan 均 `No changes`／exit 0；兩環境 Hosting smoke `/login=200`、`/api/auth/mode=200`、未登入 permissions=`401`；Production 近 30 分鐘 Cloud Run error=0。Staging 停庫後 proxy 產生一筆預期 `invalidState` cert refresh 訊息，不是 HTTP 5xx，按需啟動時消失。
+  - 證據：`.ai-doc/specs/SPEC-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-runtime-topology.md`、`.ai-doc/decisions/ADR-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-firebase-hosting-zonal-micro.md`、`.ai-doc/qa/qa-dev-069-gcp-cost-optimization-validation-plan-2026-08-12.md`、`.ai-doc/qc/qc-dev-069-gcp-cost-optimization-report-2026-08-12.md`、`config/platform/dev-069-gcp-cost-optimization.json`。
+  - 後續量測：24～72 小時後檢查 Billing SKU 是否停止新增 ALB、Restore 與 Regional CPU/RAM 費用；偏差超過 20% 時另立改善 DEV，不回滾已驗證的低成本 topology。
+  - 計入交付：核心開發與 live release 已完成；帳務 observation 是 provider-latency follow-up，不得提前宣稱實際發票已降至預估值。
 
 - ✓ DEV-042 [交付點] [本地完成] [P0] 內部帳號邀請與首次密碼設定
   - 摘要：在不引入 Google OAuth 或完整 IAM 的前提下，讓 Admin 建立一次性邀請連結，受邀者自行設定密碼並登入。
