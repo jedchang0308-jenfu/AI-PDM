@@ -260,6 +260,18 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     }
   ];
 
+  const historyCompatibility = json("config/platform/cloudsql-migration-history-compatibility.json");
+  const compatibilityEntries = historyCompatibility.entries
+    .filter((entry) => entry.targetProjectId === target.projectId)
+    .map((entry) => ({ ...entry, acceptedExistingChecksums: [...entry.acceptedExistingChecksums] }));
+  const compatibilityByVersion = new Map(compatibilityEntries.map((entry) => [entry.version, entry]));
+  const orderedSchemaMigrations = schemaFiles.map((file) => {
+    const compatibility = compatibilityByVersion.get(file.version);
+    return compatibility
+      ? { ...file, acceptedExistingChecksums: compatibility.acceptedExistingChecksums }
+      : file;
+  });
+
   const orderedManifest = {
     schemaVersion: 1,
     packageVersion: DEV046_CLOUDSQL_MIGRATION_PACKAGE_VERSION,
@@ -274,7 +286,11 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       excludesPublicIpDatabaseAccess: true
     },
     supportFiles: supportFiles.map(({ sql: _sql, ...file }) => file),
-    orderedSchemaMigrations: schemaFiles.map(({ sql: _sql, ...file }) => file),
+    orderedSchemaMigrations: orderedSchemaMigrations.map(({ sql: _sql, ...file }) => file),
+    migrationHistoryCompatibility: {
+      policy: historyCompatibility.policy,
+      entries: compatibilityEntries
+    },
     excludedFiles,
     transformations: {
       removedTransactionWrappers,
@@ -291,7 +307,8 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     readyForPackageReview: true,
     liveApplyAllowed: false,
     supportFiles,
-    schemaFiles,
+    schemaFiles: orderedSchemaMigrations,
+    historyCompatibility: orderedManifest.migrationHistoryCompatibility,
     orderedManifest,
     excludedFiles,
     transformations: orderedManifest.transformations

@@ -8,6 +8,7 @@ export interface GuardedMigration {
   name: string;
   sql: string;
   checksum: string;
+  acceptedExistingChecksums?: string[];
 }
 
 export function migrationChecksum(sql: string) {
@@ -25,6 +26,9 @@ export function validateGuardedMigrations(migrations: GuardedMigration[]) {
     if (versions.has(migration.version)) throw new Error(`MIGRATION_VERSION_DUPLICATE:${migration.version}`);
     versions.add(migration.version);
     if (migrationChecksum(migration.sql) !== migration.checksum) throw new Error(`MIGRATION_CHECKSUM_INVALID:${migration.version}`);
+    if ((migration.acceptedExistingChecksums ?? []).some((checksum) => !/^[a-f0-9]{64}$/iu.test(checksum))) {
+      throw new Error(`MIGRATION_COMPATIBILITY_CHECKSUM_INVALID:${migration.version}`);
+    }
     if (/\bCREATE\s+INDEX\s+CONCURRENTLY\b/iu.test(migration.sql)) throw new Error(`MIGRATION_NON_TRANSACTIONAL_DDL_FORBIDDEN:${migration.version}`);
   }
 }
@@ -53,7 +57,8 @@ export async function runSingletonMigrations(client: AsyncDatabaseClient, migrat
     const appliedNow: string[] = [];
     for (const migration of migrations) {
       const existingChecksum = appliedByVersion.get(migration.version);
-      if (existingChecksum && existingChecksum !== migration.checksum) throw new Error(`MIGRATION_HISTORY_CHECKSUM_MISMATCH:${migration.version}`);
+      const acceptedExistingChecksums = new Set([migration.checksum, ...(migration.acceptedExistingChecksums ?? [])]);
+      if (existingChecksum && !acceptedExistingChecksums.has(existingChecksum)) throw new Error(`MIGRATION_HISTORY_CHECKSUM_MISMATCH:${migration.version}`);
       if (existingChecksum) continue;
       await transaction.execute(migration.sql);
       await transaction.execute(

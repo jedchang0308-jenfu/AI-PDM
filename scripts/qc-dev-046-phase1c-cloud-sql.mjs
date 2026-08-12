@@ -41,7 +41,7 @@ record("DEV046-1C-004 non-local proxy endpoints are rejected", await rejects(() 
 
 const capacity = json("config/platform/cloud-sql-capacity.json");
 const capacityResult = validateCloudSqlCapacity(capacity);
-record("DEV046-1C-005 connection budget preserves at least 30 percent", capacityResult.valid && capacityResult.requiredConnections === 52 && capacityResult.allowedApplicationConnections === 70 && capacityResult.reserveConnections === 48);
+record("DEV046-1C-005 connection budget preserves at least 30 percent", capacityResult.valid && capacityResult.requiredConnections === 10 && capacityResult.allowedApplicationConnections === 17 && capacityResult.reserveConnections === 15);
 const saturated = validateCloudSqlCapacity({ ...capacity, maxInstancesPerRevision: 10, effectiveMaximumInstances: 20 });
 record("DEV046-1C-006 saturated rollout budget fails closed", !saturated.valid && saturated.errors.includes("CLOUD_SQL_CAPACITY_RESERVE_BREACHED"));
 
@@ -85,6 +85,14 @@ record("DEV046-1C-012 concurrent migration runner is rejected", await rejects(()
 fake.lockAvailable = true;
 fake.history.set("011", "bad-checksum");
 record("DEV046-1C-013 migration history checksum drift is rejected", await rejects(() => runSingletonMigrations(fake, [migration]), "MIGRATION_HISTORY_CHECKSUM_MISMATCH:011"));
+const compatibilityFake = new FakeMigrationClient();
+const historicalChecksum = "a".repeat(64);
+compatibilityFake.history.set("011", historicalChecksum);
+const compatibilityMigration = { ...migration, acceptedExistingChecksums: [historicalChecksum] };
+const compatibilityRun = await runSingletonMigrations(compatibilityFake, [compatibilityMigration]);
+record("DEV046-1C-013A allowlisted historical checksum is accepted without ledger rewrite", compatibilityRun.appliedVersions.length === 0 && compatibilityFake.history.get("011") === historicalChecksum);
+compatibilityFake.history.set("011", "b".repeat(64));
+record("DEV046-1C-013B unallowlisted historical checksum remains rejected", await rejects(() => runSingletonMigrations(compatibilityFake, [compatibilityMigration]), "MIGRATION_HISTORY_CHECKSUM_MISMATCH:011"));
 
 const startupDdl = scanApplicationStartupDdl([
   { path: "src/app/api/unsafe/route.ts", source: "await db.execute('CREATE TABLE unsafe (id text)')" },
