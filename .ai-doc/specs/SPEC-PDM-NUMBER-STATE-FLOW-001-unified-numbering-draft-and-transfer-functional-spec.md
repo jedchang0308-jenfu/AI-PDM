@@ -1,6 +1,6 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
-狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 RD Implementation Ready / Human Confirmed / RD not started / Release Gate Required`
+狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 Local RD Implemented / Local QA-QC Passed / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` / `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`

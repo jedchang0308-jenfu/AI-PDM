@@ -24,6 +24,7 @@ import {
   type NumberingCandidateRevisionRecord
 } from "@/lib/number-lifecycle-simplification";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { assertPdmReviewScopeWritableAsync, lockPdmDraftWorkspaceScopeAsync } from "@/lib/pdm-review-lock";
 
 export const MAX_CANDIDATE_ALLOCATION_ATTEMPTS = 3;
 
@@ -721,6 +722,29 @@ export function numberingCandidateSnapshotFacts(workspace: NumberingDraftWorkspa
 }
 
 const candidateSnapshotFacts = numberingCandidateSnapshotFacts;
+
+export function numberingCandidateReviewSnapshotHash(workspace: NumberingDraftWorkspaceRecord) {
+  const facts = candidateSnapshotFacts(workspace);
+  const factsHash = sha256(canonicalJson(facts));
+  const snapshot = {
+    snapshotVersion: "numbering-candidate-publication-review-v1",
+    factsHash,
+    facts,
+    lockedReservations: workspace.reservations
+      .filter((reservation) => reservation.state !== "recycled")
+      .map((reservation) => ({
+        id: reservation.id,
+        itemType: reservation.itemType,
+        itemId: reservation.itemId,
+        candidateCode: reservation.candidateCode,
+        sequenceScopeKey: reservation.sequenceScopeKey,
+        sequenceNo: reservation.sequenceNo,
+        rowVersion: reservation.rowVersion
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id))
+  };
+  return sha256(canonicalJson(snapshot));
+}
 
 function buildCandidateSnapshot(workspace: NumberingDraftWorkspaceRecord) {
   const facts = candidateSnapshotFacts(workspace);
@@ -1441,8 +1465,14 @@ export class AsyncNumberStateFlowRepository {
   async updateWorkspace(input: UpdateNumberingDraftWorkspaceData) {
     return this.client.transaction(async (client) => {
       const repository = new AsyncNumberStateFlowRepository(client, this.clock, this.idFactory);
+      await lockPdmDraftWorkspaceScopeAsync(client, input);
       const workspace = await repository.workspaceRow(input.workspaceId, input.companyId, true);
       if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
+      await assertPdmReviewScopeWritableAsync(client, {
+        companyId: input.companyId,
+        targetIds: [input.workspaceId],
+        targetRefs: [{ type: "numbering_draft_workspace", id: input.workspaceId }]
+      });
       if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
       if (Number(workspace.row_version) !== input.expectedRowVersion) throw new Error("WORKSPACE_VERSION_CONFLICT");
       const locked = await client.queryOne<{ count: number | string }>(
@@ -1673,6 +1703,7 @@ export class AsyncNumberStateFlowRepository {
   }
 
   async acquireCandidates(input: { workspaceId: string; companyId: string; actorId: string; expectedRowVersion: number }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -1747,6 +1778,7 @@ export class AsyncNumberStateFlowRepository {
     expectedRowVersion: number;
     reason: string;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -1819,6 +1851,7 @@ export class AsyncNumberStateFlowRepository {
     expectedRowVersion: number;
     reason: string;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -2001,6 +2034,7 @@ export class AsyncNumberStateFlowRepository {
     actorId: string;
     expectedRowVersion: number;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -2295,6 +2329,7 @@ export class AsyncNumberStateFlowRepository {
       reservationVersionOffset: number;
     };
   }): Promise<NumberingPublicationResult> {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status === "published") throw new Error("WORKSPACE_ALREADY_PUBLISHED");

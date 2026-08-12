@@ -15,7 +15,7 @@ Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-0
 
 ## 0A. DEV-067 Amendment：圖料完整投影與共用實體明細 Composer（2026-08-12）
 
-Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release gated`.
+Status: `Local RD Implemented / Local QA-QC Passed / Release gated`.
 
 `/numbering/search`保留root-centric tree、matrix、relation health與整體關係查核任務，但其右側明細不再由root/candidate/child target各自組裝不同top-level body。所有covered target mount同一`UnifiedPdmEntityDetailDrawer`，圖料surface由server policy提供`DrawingProjection=full`、`PartProjection=full`、`RelationProjection=full`，並維持固定相對順序。
 

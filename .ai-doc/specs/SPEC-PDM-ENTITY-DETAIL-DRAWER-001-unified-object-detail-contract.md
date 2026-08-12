@@ -1,6 +1,6 @@
 # SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 主根號統一物件詳情抽屜
 
-Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed; `DEV-067 UnifiedPdmEntityDetailDrawer RD Implementation Ready / Human Confirmed / RD not started`; Local implementation eligible; Release Not Authorized
+Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed; `DEV-067 UnifiedPdmEntityDetailDrawer Local RD Implemented / Local QA-QC Passed`; Production Release Gated
 Date: 2026-07-09
 Owner: Dev PM
 Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`; `DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001` / `DEV-057`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
@@ -17,7 +17,7 @@ Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-en
 
 ## 2026-08-12 DEV-067 Amendment - `UnifiedPdmEntityDetailDrawer`
 
-Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Production release gated`.
+Status: `Local RD Implemented / Local QA-QC Passed / Production release gated`.
 
 ### Fact finding and gap classification
 
@@ -897,7 +897,7 @@ No drawer may show raw SQL, stack trace, `Internal Server Error`, route text, un
 | Phase 0 - Development documents | Complete | Capture UX decision, architecture, RD contract, QA and PM control entry | Authorized by user request to write development documents |
 | Phase 1A - Target-aware parity implementation | Implemented locally / Release Not Authorized | Unify visible root/drawing/part detail behavior across `/numbering/search`, `/numbering/drawings` and `/parts` using existing APIs and drawer metadata | Authorized by user `完成DEV-039開發 /goal`; release not authorized |
 | Phase 1B - Shared shell extraction | Implemented locally / Release Not Authorized | Reuse one non-modal shell and shared interaction/metadata contracts while preserving domain-specific panels | Authorized by user instruction on 2026-08-07; release not authorized |
-| DEV-067 - Unified entity composer/projections | RD Implementation Ready / Human Confirmed / RD not started | One composer, domain-owned projections, server `none/summary/full`, scoped review full view, one action bar and lock/return parity | Local Phase 1A～1D eligible; production/schema/release gated |
+| DEV-067 - Unified entity composer/projections | Local RD Implemented / Local QA-QC Passed | One composer, domain-owned projections, server `none/summary/full`, scoped review full view, one action bar and lock/return parity | Local Phase 1A～1D complete; production/schema/release gated |
 | Historical Phase 2 - optional detail facade | Superseded by DEV-067 | Previous optional normalized read API | Replaced by required DEV-067 unified facade |
 | Phase 3 - Release / production | Release Authorization Required | Merge/deploy/production smoke/rollback | Requires explicit release authorization and deployment-release-gate |
 
@@ -1034,7 +1034,7 @@ Stop and return to PM/user if:
 | Deferred scope | Classification | Handling |
 |---|---|---|
 | Product implementation | Same Spec Phase 1 / Implemented Locally | Phase 1A parity and Phase 1B shared shell are implemented and locally verified; production release remains gated. |
-| DEV-067 composer/projection implementation | Current Phase / RD Implementation Ready / Local implementation eligible | Execute Phase 1A～1D under the exact contract above and QA `UDD-001..050`; no new product decision is required. |
+| DEV-067 composer/projection implementation | Current Phase / Local RD Implemented / Local QA-QC Passed | Phase 1A～1D and focused QA/QC evidence completed under the exact contract above; no new product decision is required. |
 | Optional read-only detail facade | Same Spec Phase 2 / Not Authorized | Implement only if Phase 1 leaves unsafe duplication. |
 | Merging the three modules/pages | No Tracking | Rejected because entry pages serve different user tasks. |
 | Schema/RLS migration | Blocked Human Re-entry | Not expected; requires explicit authorization if discovered. |
@@ -1049,7 +1049,7 @@ Stop and return to PM/user if:
 |---|---|---|---|---|---|---|---|
 | Phase 0 / docs | Authorized | Complete | SPEC, QA, dev_task, documentation_map | product implementation | user asked `寫成開發文件` | files created and indexed | git diff / file review |
 | Phase 1 / shared drawer | Authorized locally | Implemented Locally / Release Not Authorized | shared shell, canonical root/drawing/part/candidate panels, source context, QC | schema/RLS, page merge, release | user instruction on 2026-08-07 | same object from multiple entry points shows same core sections and one non-modal interaction contract | tsc, lint, focused QC, authenticated browser evidence |
-| DEV-067 / unified entity composer | Local Phase 1A～1D authorized | RD Implementation Ready / Human Confirmed / RD not started | Drawing/Part/Relation projections, server visibility, scoped review full view, lock/action/return parity | schema/RLS, production/staging, merge/PR/deploy/release | current exact contract and clean phase entry | one composer; no parallel body; no hidden restricted payload; review scope fail closed | `UDD-001..050`, focused contract/network/DB/query/multi-viewport browser |
+| DEV-067 / unified entity composer | Local Phase 1A～1D authorized | Local RD Implemented / Local QA-QC Passed | Drawing/Part/Relation projections, server visibility, scoped review full view, lock/action/return parity | schema/RLS, production/staging, merge/PR/deploy/release | current exact contract and clean phase entry | one composer; no parallel body; no hidden restricted payload; review scope fail closed | focused contract/network/DB/query/PostgreSQL/multi-viewport browser evidence |
 | Historical Phase 2 / optional detail facade | Superseded | Replaced by DEV-067 Phase 1A | historical read-only option | current implementation | none | do not implement separately | DEV-067 evidence applies |
 | Phase 3 / release | Not authorized | Release Authorization Required | merge/deploy/production smoke/rollback | unapproved production work | explicit release authorization | deployment-release-gate pass | release gate evidence |
 
@@ -1070,7 +1070,7 @@ DEV-067 P0/P1 readiness:
 - QA/QC: FMEA and `UDD-001..050` contract/network/DB/browser plan are defined.
 - Release: not authorized; release artifacts deferred.
 
-Result: historical Phase 1A-1B remains `Implemented Locally / Release Not Authorized`; DEV-067 is `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible` with no open P0/P1 readiness gap.
+Result: historical Phase 1A-1B remains `Implemented Locally / Release Not Authorized`; DEV-067 is `Local RD Implemented / Local QA-QC Passed / Production Release Gated` with no open P0/P1 local implementation gap.
 
 ## Spec Governance
 

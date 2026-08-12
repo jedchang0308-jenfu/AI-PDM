@@ -273,6 +273,7 @@ function lifecycleRepositoryError(error: unknown): never {
     CANDIDATE_FILE_VERIFICATION_STALE: ["candidate_file_verification_stale", "檔案狀態已變更，請重新整理後再驗證。", 409, true],
     CANDIDATE_FILE_EXISTING_VERIFICATION_NOT_AVAILABLE: ["candidate_file_existing_verification_not_available", "目前環境無法為既有檔案建立可信驗證證據；請改由受控儲存重新上傳。", 503],
     CANDIDATE_REVISION_LOCKED: ["candidate_revision_locked", "Candidate revision is locked by review or formalization.", 409],
+    CANDIDATE_REVIEW_LOCKED: ["candidate_revision_locked", "Candidate revision is locked by review or formalization.", 409],
     CANDIDATE_REVISION_ALREADY_EXISTS: ["candidate_revision_locked", "A candidate revision already exists for this drawing.", 409],
     CANDIDATE_REVISION_INVALID: ["candidate_revision_invalid", "Use a development revision such as 0.1 or 1.1.", 400],
     OVERRIDE_REASON_REQUIRED: ["override_reason_required", "Explain why the suggested revision is being overridden.", 400],

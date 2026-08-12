@@ -1,10 +1,12 @@
 # SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002 - Five-year Google Cloud ERP platform and ontology roadmap
 
 Date: 2026-07-13
-Status: `HD-8-1..4` closed; Phase 1A-1E, Phase 2A preflight/IaC and Phase 2B local application/IaC readiness implemented and locally QC-accepted on 2026-07-13; Phase 2B staging infrastructure, migration, Firebase Hosting default-domain entrypoint and runtime smoke complete; principal mapping plus exact-source artifact provenance/drift remain gated
+Status: `HD-8-1..4` closed; Phase 1A-1E and Phase 2 staging evidence retained; pre-launch runtime/cost topology intentionally amended by `DEV-069` / `SPEC-PDM-GCP-COST-OPTIMIZATION-001`; live GCP changes remain release gated
 DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Authority: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.md`
+
+> 2026-08-12 amendment：`SPEC-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-runtime-topology.md` is authoritative for the pre-launch machine tier、availability、active edge and on-demand Staging posture. Historical requirements below for mandatory Production Regional HA and retained ALB resources remain architecture history and future re-entry context, not current pre-launch acceptance. Cloud SQL／Firebase／Cloud Run authority、Taiwan region、private IP、IAM DB auth、backup／PITR、clean seed and numbering integrity are unchanged.
 
 ## Human Decision Brief
 

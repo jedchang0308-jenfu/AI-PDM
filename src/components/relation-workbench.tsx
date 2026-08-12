@@ -8,6 +8,7 @@ import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { ConfirmDialog, NumberStateOwnerCreateAction, WorkspaceDrawer, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
+import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
@@ -26,6 +27,7 @@ import type {
 } from "@/lib/relation-workbench";
 import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
 import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
+import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 
 type RelationQueryState = {
   view: RelationWorkbenchView;
@@ -71,7 +73,7 @@ export type RelationRootDetailRendererProps = {
   returnTo: string;
 };
 
-type FeatureStatus = { lifecycleV2?: { enabled?: boolean } };
+type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; entityDetail?: { enabled?: boolean } };
 type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
 type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
 
@@ -119,6 +121,8 @@ function writeLocation(state: PdmWorkbenchLocationState<RelationQueryState>, mod
   optional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
   optional("sortDirection", state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? "" : state.query.sortDirection);
   state.query.includeHistory ? params.set("history", "include") : params.delete("history");
+  const reviewRequestId = new URLSearchParams(window.location.search).get("reviewRequestId");
+  reviewRequestId ? params.set("reviewRequestId", reviewRequestId) : params.delete("reviewRequestId");
   optional("detail", state.detailKey ?? "");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
@@ -142,6 +146,8 @@ function normalizeDetail(value: unknown) { return value as RelationWorkbenchDeta
 function initialLocation() { return readLocation(true); }
 function currentLocation() { return readLocation(false); }
 function newIdempotencyKey(action: string) { return `dev062:relation:${action}:${crypto.randomUUID()}`; }
+function shouldSkipUnifiedReviewDetail(unifiedEnabled: boolean) { return unifiedEnabled && Boolean(new URLSearchParams(window.location.search).get("reviewRequestId")); }
+function reviewReturnTo() { const value = new URLSearchParams(window.location.search).get("returnTo") ?? ""; return normalizePdmApprovalReturnTo(value); }
 
 async function readApi<T>(response: Response) { return response.json().catch(() => ({})) as Promise<T & ApiBody>; }
 function apiError(body: ApiBody, fallback: string) { return typeof body.error === "object" && body.error?.message ? body.error.message : body.message?.trim() || (typeof body.error === "string" ? body.error : fallback); }
@@ -151,10 +157,16 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
   const redirectLogin = useCallback(() => {
     router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
   }, [router]);
+  const [feature, setFeature] = useState<FeatureStatus | null>(null);
+  const unifiedEntityDetailEnabled = feature?.entityDetail?.enabled === true;
+  const skipUnifiedReviewDetail = useCallback(
+    () => shouldSkipUnifiedReviewDetail(unifiedEntityDetailEnabled),
+    [unifiedEntityDetailEnabled]
+  );
   const controller = usePdmWorkbenchController<RelationWorkbenchRow, RelationWorkbenchDetailResponse, RelationQueryState, RelationWorkbenchListResponse["filters"]>({
     initialQuery, initialLocation, readLocation: currentLocation, writeLocation, buildListUrl: listUrl, buildDetailUrl: detailUrl,
     getRowKey: rowKey, normalizeResponse: normalizeList, normalizeDetail, detailRowKey: detailKey,
-    detailHistoryMode: "push", listErrorMessage: "圖料工作台目前無法載入，請重新整理。", detailErrorMessage: "這筆圖料工作已不存在或目前無法查看。", onUnauthorized: redirectLogin
+    detailHistoryMode: "push", shouldSkipDetailFetch: skipUnifiedReviewDetail, listErrorMessage: "圖料工作台目前無法載入，請重新整理。", detailErrorMessage: "這筆圖料工作已不存在或目前無法查看。", onUnauthorized: redirectLogin
   });
   const {
     rows, filters, loading, detailLoading, error, setError, notice, setNotice,
@@ -167,8 +179,9 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
   const [detailTarget, setDetailTarget] = useState<NumberingSearchDetailTarget | null>(null);
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [operationBusy, setOperationBusy] = useState<"search" | "detail" | "impact" | null>(null);
-  const [feature, setFeature] = useState<FeatureStatus | null>(null);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceStatus | null>(null);
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
+  useEffect(() => { setReviewRequestId(new URLSearchParams(window.location.search).get("reviewRequestId")); }, []);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
@@ -334,9 +347,10 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
         <PdmWorkbenchPagination pageIndex={pageIndex} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate ? <WorkspaceDrawer workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} editing={editing} onEdit={() => setEditing(true)} onCancelEdit={() => setEditing(false)} onUpdate={(payload) => void updateWorkspace(payload)} onSubmit={() => setConfirmAction("submit")} onWithdraw={() => setConfirmAction("withdraw")} onPublish={() => setConfirmAction("publish")} onCancel={() => setConfirmAction("cancel")} formalActionsUnopened={productionSliceEnforced} unopenedMessage={unopenedMessage} canCreateDrawingRevision={false} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onV2WorkspaceChange={acceptWorkspace} onV2Error={setError} onV2Notice={setNotice} seriesCodeOptions={seriesOptions} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench", cancelLabel: "取消圖料變更", cancelTitle: "取消圖料申請" }} onClose={closeDetail} /> : null}
+      {detail?.candidate && !unifiedEntityDetailEnabled ? <WorkspaceDrawer workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} editing={editing} onEdit={() => setEditing(true)} onCancelEdit={() => setEditing(false)} onUpdate={(payload) => void updateWorkspace(payload)} onSubmit={() => setConfirmAction("submit")} onWithdraw={() => setConfirmAction("withdraw")} onPublish={() => setConfirmAction("publish")} onCancel={() => setConfirmAction("cancel")} formalActionsUnopened={productionSliceEnforced} unopenedMessage={unopenedMessage} canCreateDrawingRevision={false} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onV2WorkspaceChange={acceptWorkspace} onV2Error={setError} onV2Notice={setNotice} seriesCodeOptions={seriesOptions} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench", cancelLabel: "取消圖料變更", cancelTitle: "取消圖料申請" }} onClose={closeDetail} /> : null}
       {detail?.candidate && confirmAction ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
-      {detail?.rootDetail && detailTarget ? renderRootDetail({ detail: detail.rootDetail, detailTarget, activeChanges: detail.row.activeChanges, onOpenChange: (change) => void openDetail(change.rowKey), impact, busy: operationBusy, width: drawerWidth, onAnalyzeImpact: (drawingNumber) => void analyzeImpact(drawingNumber), onRelationChange: maintainRelation, onChanged: refresh, onCanonicalOwnerProjection: () => undefined, onStartResize: startDrawerResize, onClose: closeDetail, returnTo: window.location.pathname + window.location.search }) : null}
+      {detail?.rootDetail && detailTarget && !unifiedEntityDetailEnabled ? renderRootDetail({ detail: detail.rootDetail, detailTarget, activeChanges: detail.row.activeChanges, onOpenChange: (change) => void openDetail(change.rowKey), impact, busy: operationBusy, width: drawerWidth, onAnalyzeImpact: (drawingNumber) => void analyzeImpact(drawingNumber), onRelationChange: maintainRelation, onChanged: refresh, onCanonicalOwnerProjection: () => undefined, onStartResize: startDrawerResize, onClose: closeDetail, returnTo: window.location.pathname + window.location.search }) : null}
+      {unifiedEntityDetailEnabled && selectedKey ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="relation" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }

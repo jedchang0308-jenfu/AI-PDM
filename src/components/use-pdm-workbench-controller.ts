@@ -23,6 +23,7 @@ export type UsePdmWorkbenchControllerOptions<Row, Detail, QueryState, Filters> =
   normalizeDetail: (value: unknown) => Detail;
   detailRowKey: (detail: Detail) => string;
   detailHistoryMode?: "replace" | "push";
+  shouldSkipDetailFetch?: (rowKey: string) => boolean;
   listErrorMessage?: string;
   detailErrorMessage?: string;
   invalidCursorMessage?: string;
@@ -55,6 +56,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
   normalizeDetail,
   detailRowKey,
   detailHistoryMode = "push",
+  shouldSkipDetailFetch,
   listErrorMessage = "工作清單目前無法載入，請重新整理。",
   detailErrorMessage = "這筆工作已不存在或目前無法查看。",
   invalidCursorMessage = "清單內容已更新，已回到第一頁。",
@@ -173,6 +175,13 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     const controller = new AbortController();
     detailAbortRef.current = controller;
     setSelectedKey(rowKey);
+    if (shouldSkipDetailFetch?.(rowKey)) {
+      setDetail(null);
+      setDetailLoading(false);
+      setError("");
+      writeCurrentLocation(queryRef.current, rowKey, mode);
+      return null;
+    }
     setDetailLoading(true);
     setError("");
     let response: Response;
@@ -209,7 +218,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
       : row));
     writeCurrentLocation(queryRef.current, canonicalKey, mode);
     return body;
-  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, writeCurrentLocation]);
+  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, shouldSkipDetailFetch, writeCurrentLocation]);
 
   const goNext = useCallback(() => {
     if (!nextCursor) return;

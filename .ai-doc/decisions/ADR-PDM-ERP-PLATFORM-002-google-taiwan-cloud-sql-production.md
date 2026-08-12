@@ -1,10 +1,14 @@
 # ADR-PDM-ERP-PLATFORM-002 - Google Taiwan Cloud SQL production platform
 
 Date: 2026-07-13
-Status: `HD-8-1..4`, `HD-9-1` and `HD-10-1` closed; staging cost posture amended; core data/file/business/runtime/continuity decisions accepted; provider and release remain gated
+Status: `HD-8-1..4`, `HD-9-1` and `HD-10-1` closed; amended for pre-launch cost topology by `ADR-PDM-GCP-COST-OPTIMIZATION-001`; provider and release remain gated
 Owner: ERP Platform RD
 Related DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Supersedes: production-provider, data-placement and 18-month provider-decision sections of `ADR-PDM-ERP-PLATFORM-001`
+
+## 2026-08-12 Pre-launch Cost Optimization Amendment
+
+`ADR-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-firebase-hosting-zonal-micro.md` intentionally replaces this ADR's pre-launch requirement to retain Production Regional HA and unused Production／Staging external ALB resources. During the approved pre-launch phase, Production is `db-f1-micro`／`ZONAL`, Staging is `db-f1-micro`／`ZONAL` and on-demand, both canonical browser entrypoints are Firebase Hosting `web.app`, and unused ALB chains are removed. Backup／PITR、private IP、IAM database authentication、Taiwan region、Cloud SQL authority、clean-seed、numbering integrity and Production HSM remain unchanged. Any return to Regional HA or custom-domain ALB follows the new ADR's re-entry triggers.
 
 ## Decision Source
 

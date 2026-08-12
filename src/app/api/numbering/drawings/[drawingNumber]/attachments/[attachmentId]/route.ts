@@ -6,18 +6,43 @@ import {
   softDeleteMasterAttachmentAsync,
   syncMasterAttachmentToDriveAsync
 } from "@/lib/master-attachments-async";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { buildMasterAttachmentFileResponse, masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 import { contentDispositionHeader } from "@/lib/file-response";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
+import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string; attachmentId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
+  const reviewRequestId = new URL(request.url).searchParams.get("reviewRequestId");
+  const auth = reviewRequestId ? await requireAuthAsync(request) : await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
 
   const { drawingNumber, attachmentId } = await params;
   try {
+    if (reviewRequestId) {
+      const company = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+      if (company.response) return company.response;
+      const decodedDrawingNumber = decodeURIComponent(drawingNumber);
+      const drawing = await getAsyncDatabaseClient().queryOne<{ id: string }>(
+        `SELECT id FROM drawing_numbers WHERE company_id = :companyId AND drawing_number = :drawingNumber`,
+        { companyId: company.company.companyId, drawingNumber: decodedDrawingNumber }
+      );
+      const scope = drawing ? await resolvePdmReviewScopeReceiptAsync({
+        client: getAsyncDatabaseClient(),
+        requestId: reviewRequestId,
+        companyId: company.company.companyId,
+        actorId: auth.user.id,
+        entityKey: `drawing:${drawing.id}` as PdmEntityKey,
+        targetTypes: ["drawing_number", "numbering_draft_drawing", "drawing_revision_package", "drawing_revision"],
+        targetIds: [drawing.id, decodedDrawingNumber]
+      }) : null;
+      if (!scope) return NextResponse.json({ error: "PDM_REVIEW_SCOPE_NOT_FOUND" }, { status: 404 });
+    }
     const searchParams = new URL(request.url).searchParams;
     const derivativeId = searchParams.get("previewDerivative");
     if (derivativeId) {

@@ -36,6 +36,8 @@ type ApprovalInboxItem = {
   targetSummary: string;
   impactSummary: string | null;
   legacy: { table: string; id: string } | null;
+  primaryTarget?: { type: string; targetId: string; code: string | null; label: string };
+  ownerHref?: string;
 };
 
 type ApprovalDetail = ApprovalInboxItem & {
@@ -136,6 +138,7 @@ const domainText: Record<string, string> = {
   bom: "BOM",
   drawing_package: "圖面包"
 };
+type FeatureStatusResponse = { entityDetail?: { enabled?: boolean } };
 
 const legacyRedirectMessages: Record<string, string> = {
   numbering_approvals: "已從舊的發行審核入口轉到審核工作台；目前已套用圖料審核篩選。",
@@ -143,9 +146,7 @@ const legacyRedirectMessages: Record<string, string> = {
   numbering_change_reviews: "已從舊的圖面進版影響審核入口轉到審核工作台；目前已套用圖面進版影響審核篩選。"
 };
 
-// The approval drawer is intentionally retired while the drawer family is being redesigned.
-// Keep the inbox and API contracts available for the replacement UI.
-const APPROVAL_DETAIL_DRAWER_ENABLED = false;
+const APPROVAL_DETAIL_DRAWER_ENABLED = true;
 
 export default function ApprovalPlatformPage() {
   const [state, setState] = useState<LoadState>("loading");
@@ -165,6 +166,7 @@ export default function ApprovalPlatformPage() {
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [unifiedEntityDetailEnabled, setUnifiedEntityDetailEnabled] = useState(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
     storageKey: DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
     defaultWidth: DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
@@ -180,6 +182,15 @@ export default function ApprovalPlatformPage() {
     setFiltersReady(true);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/numbering/state-flow/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<FeatureStatusResponse> : null)
+      .then((status) => { if (!cancelled) setUnifiedEntityDetailEnabled(status?.entityDetail?.enabled === true); })
+      .catch(() => { if (!cancelled) setUnifiedEntityDetailEnabled(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   const visibleActionFilters = useMemo(
     () =>
       actionFilters.filter(
@@ -188,6 +199,11 @@ export default function ApprovalPlatformPage() {
     [domainFilter]
   );
   const showInboxAction = useMemo(() => new Set(items.map((item) => item.actionCode)).size > 1, [items]);
+  const ownerReviewHref = useCallback((item: ApprovalInboxItem) => {
+    return unifiedEntityDetailEnabled ? item.ownerHref ?? null : null;
+  }, [unifiedEntityDetailEnabled]);
+  const selectedItem = items.find((item) => item.id === selectedId) ?? null;
+  const legacyDetailFallback = !unifiedEntityDetailEnabled || Boolean(selectedItem && !selectedItem.ownerHref);
   const loadInbox = useCallback(async (options?: { preserveFeedback?: boolean; preserveSelection?: boolean }) => {
     setBusy("reload");
     setError("");
@@ -213,16 +229,16 @@ export default function ApprovalPlatformPage() {
     const deepLinkedItem = deepLinkedRequestId ? nextItems.find((item) => item.id === deepLinkedRequestId) : null;
     setItems(nextItems);
     setSelectedId((current) => {
-      if (!APPROVAL_DETAIL_DRAWER_ENABLED) return null;
       if (deepLinkedItem) return deepLinkedItem.id;
       if (deepLinkedRequestId) return deepLinkedRequestId;
+      if (!unifiedEntityDetailEnabled && !APPROVAL_DETAIL_DRAWER_ENABLED) return null;
       if (current && nextItems.some((item) => item.id === current)) return current;
       if (options?.preserveSelection && current) return current;
       return nextItems[0]?.id ?? null;
     });
     deepLinkedRequestRef.current = null;
     setState("ready");
-  }, [actionFilter, domainFilter, statusFilter]);
+  }, [actionFilter, domainFilter, statusFilter, unifiedEntityDetailEnabled]);
 
   const loadDetail = useCallback(async (requestId: string) => {
     setBusy("detail");
@@ -252,16 +268,15 @@ export default function ApprovalPlatformPage() {
   }, [actionFilter, domainFilter, filtersReady, loadInbox, statusFilter]);
 
   useEffect(() => {
-    if (!APPROVAL_DETAIL_DRAWER_ENABLED) {
-      setDetail(null);
-      return;
-    }
-    if (selectedId) {
-      loadDetail(selectedId);
-    } else {
-      setDetail(null);
-    }
-  }, [loadDetail, selectedId]);
+    if (!legacyDetailFallback) return;
+    if (selectedId) void loadDetail(selectedId);
+    else setDetail(null);
+  }, [legacyDetailFallback, loadDetail, selectedId]);
+
+  useEffect(() => {
+    setDetail(null);
+    setComment("");
+  }, [selectedId]);
 
   async function decide(decision: ApprovalDecision) {
     if (!detail) return;
@@ -368,7 +383,6 @@ export default function ApprovalPlatformPage() {
       </header>
 
       {legacyRedirectMessage ? <div className="approval-message info">{legacyRedirectMessage}</div> : null}
-      {!APPROVAL_DETAIL_DRAWER_ENABLED ? <div className="approval-message info">審核明細抽屜已暫停開發；目前保留審核清單，待後續重新設計。</div> : null}
 
       <section className="approval-filter-bar" aria-label="審核篩選">
         <label className="approval-filter-field">
@@ -438,9 +452,11 @@ export default function ApprovalPlatformPage() {
                 type="button"
                 className={item.id === selectedId ? "approval-inbox-item active" : "approval-inbox-item"}
                 onClick={() => {
-                  if (APPROVAL_DETAIL_DRAWER_ENABLED) setSelectedId(item.id);
+                  const href = ownerReviewHref(item);
+                  if (href) window.location.assign(href);
+                  else if (APPROVAL_DETAIL_DRAWER_ENABLED) setSelectedId(item.id);
                 }}
-                aria-disabled={!APPROVAL_DETAIL_DRAWER_ENABLED}
+                aria-disabled={!ownerReviewHref(item) && !APPROVAL_DETAIL_DRAWER_ENABLED}
                 aria-current={item.id === selectedId ? "true" : undefined}
                 aria-label={`${item.targetSummary || item.title}，${item.actionTitle}，${statusText[item.status] ?? item.status}，${item.requestedByName ?? item.requestedBy ?? "未知申請者"}`}
                 key={item.id}
@@ -459,7 +475,7 @@ export default function ApprovalPlatformPage() {
             {state === "ready" && items.length === 0 ? <div className="approval-empty">目前沒有待處理審核。</div> : null}
           </div>
         </section>
-        {/* ApprovalDetailDrawer is intentionally not mounted during the redesign. */}
+        {legacyDetailFallback && detail ? <ApprovalDetailDrawer detail={detail} busy={busy} comment={comment} message={message} error={error} drawerWidth={drawerWidth} onStartResize={startDrawerResize} onClose={closeDetail} onCommentChange={setComment} onDecide={decide} onRetryCleanup={retryCleanup} onRetryApply={retryApply} /> : null}
       </div>
     </div>
   );

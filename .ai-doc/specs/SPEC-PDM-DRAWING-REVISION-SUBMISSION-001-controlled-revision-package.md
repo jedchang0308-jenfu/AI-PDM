@@ -816,6 +816,10 @@ Acceptance:
 
 Authorization: RD Contract Ready / Not Authorized.
 
+> **2026-08-12 DEV-068 Amendment**
+>
+> Phase 5 的 Current Phase 權威契約已擴充為 `.ai-doc/specs/SPEC-PDM-DRAWING-RECOGNITION-001-candidate-review-and-formalization.md`：OCR／CAD／檔名／圖面文字均先進可追溯候選層，在同一審核頁由人類確認後才原子正式化。此擴充不讓 extraction 成為 revision package blocker，也不取代人工修正、package/file authority 或 release lifecycle。
+
 Purpose:
 
 - Reduce manual drawing part-number reading without making CAD/OCR a blocker for the package model.

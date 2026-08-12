@@ -1,6 +1,6 @@
 # QA-DEV-067：PDM 統一實體明細、審核全景與送審鎖定驗證計畫
 
-Status: `Ready for RD execution / QA plan approved by contract / Implementation evidence not yet captured / Production release gated`
+Status: `Local RD Implemented / Local QA-QC Passed / Global repository typecheck blocked by pre-existing dirty generated snapshots / Production release gated`
 Date: 2026-08-12
 Owner: QA
 Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
@@ -270,6 +270,19 @@ npm.cmd run build:isolated
 
 Run affected lint against actual modified product/scripts rather than accepting unrelated repository-wide dirty failures. Any known unrelated failure is captured separately with command, timestamp and scope proof; it does not convert an unrun DEV-067 case to PASS.
 
+## 12A. Current RD evidence (2026-08-12)
+
+- `npm run qc:dev-067:query` PASS: isolated SQLite fixture measured candidate/formal-drawing/part/relation as `11/13/10/6`; adding 20 children did not increase reads and stayed within `16/16/16/24` budgets.
+- `npm run qc:dev-067:lock` PASS: canonical entity order, seven-family workspace lock order and active-review write rejection were recorded by the fake PostgreSQL barrier client.
+- `npm run qc:dev-067:postgres` PASS: disposable PostgreSQL verified row-lock blocking, canonical-order no-deadlock with reversed input order and active-review write rejection inside the transaction.
+- `npm run qc:dev-067` aggregate PASS: contract/policy/query/UI/preview/review/lock/disposable PostgreSQL/navigation/authenticated Chromium all passed; `npm run build:isolated` PASS with 125/125 generated routes; affected ESLint and `git diff --check` PASS.
+- Review scope now maps inactive/not-assigned/ambiguous cases to explicit 409/403; legacy approval rows do not receive native owner deep-links until a legacy scope receipt adapter exists and therefore retain the old detail fallback.
+- Authenticated browser matrix is now captured by `scripts/qc-dev-067-browser.mjs` on a disposable SQLite fixture with real Chromium: 4 viewport × Drawing/Part/Relation owner entrypoints, review owner route, one canonical drawer/composer, policy-driven summary/full preview visibility, shared `DrawingDetailPreview`, 18/18 focus/keyboard/return cases, flag on/off, console/network/5xx sweep and stored screenshots/manifest. The exact latest aggregate run is `DEV067-20260812T075344Z-39e3be5e` under `output/playwright/dev-067-unified-entity-detail/`; no production/staging data was touched. The browser evidence, combined with contract/policy/query/lock/build evidence above, closes the local DEV-067 QA/QC gate; production release remains gated.
+- Global `npm run typecheck` remains a repository-level blocked check because the dirty worktree already contains `.next-demo`, many `.tmp/next-*` generated validator paths and `tmp/ui-verify-*` snapshots referencing retired/missing import and part-cost modules. The focused DEV-067 ESLint plus `build:isolated` TypeScript stage passed; this global blocker is recorded, not silently converted to PASS.
+- Adjacent regression evidence is separated from the DEV-067 gate: `qc:dev-061:file-ownership`, `qc:dev-061:cleanup-dry-run`, and `qc:dev-061:ui` each passed, while the aggregate `qc:dev-061` stops at that same pre-existing repository typecheck failure. DEV-062 core checks passed after removing the duplicate Part-workbench `popstate` listener; the aggregate `qc:dev-062` is likewise blocked only when its isolated typecheck reaches the same dirty generated snapshots. Neither result is counted as a hidden DEV-067 PASS, and neither reveals a DEV-067 product-code failure.
+- Two broader legacy/runtime checks remain outside the DEV-067 product slice: `qc:dev-053` timed out while waiting for its demo-login page load during real-operation setup, and `qc:pdm-approval-platform` still asserts the retired primary-sidebar `BOM 審核` item. These are retained as release-gate follow-ups rather than changed to PASS or silently fixed in this DEV.
+- After the Part-workbench controller correction, a fresh `npm run qc:dev-067` rerun reached the PostgreSQL step and stopped because the local Docker Desktop Linux daemon was unavailable. The prior disposable PostgreSQL run remains the valid concurrency evidence; the post-change authenticated browser rerun independently passed 18/18 with zero browser errors or failed responses.
+
 ## 13. Evidence package
 
 Write artifacts under:
@@ -310,4 +323,4 @@ Stop and return to Dev PM if implementation needs schema/RLS/global reviewer per
 
 ## 15. Current result
 
-`PLANNED`. The specification and case matrix are ready for RD execution. No product implementation or `UDD-*` runtime/browser evidence has been claimed in this documentation turn.
+`LOCAL QA/QC PASSED / PRODUCTION RELEASE GATED`. DEV-067 product code includes the shared transaction lock helper and connected review/write boundaries; contract/policy UI, SQLite query-budget fixture, disposable PostgreSQL lock interleavings, focused TypeScript/build, affected ESLint, isolated build and authenticated Chromium matrix passed. The Chromium evidence is 18/18 cases across four viewports plus flag on/off, focus restore, keyboard open/close, review returnTo and console/network/5xx monitoring. Global `npm run typecheck` is separately `BLOCKED` by pre-existing dirty generated snapshots and retired/missing module references outside the DEV-067 slice; the focused build TypeScript stage passed. Evidence uses a disposable local fixture and is stored under `output/playwright/dev-067-unified-entity-detail/`; no production/staging data, migration, deploy or release is claimed.

@@ -8261,6 +8261,163 @@ select.dropdown-select {
   background: #fff;
 }
 
+.unified-pdm-entity-detail-body {
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.unified-pdm-projection {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  background: #fff;
+}
+
+.unified-pdm-projection-heading,
+.unified-pdm-action-bar,
+.unified-pdm-action-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.unified-pdm-projection-heading h3,
+.unified-pdm-subsection h4,
+.unified-pdm-projection p {
+  margin: 0;
+}
+
+.unified-pdm-projection-heading h3 {
+  font-size: 1rem;
+}
+
+.unified-pdm-section-kicker {
+  display: block;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.unified-pdm-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unified-pdm-fact-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-radius: 7px;
+  padding: 8px;
+  background: #f8fafc;
+}
+
+.unified-pdm-fact-grid span,
+.unified-pdm-preview-card span,
+.unified-pdm-preview-card small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.unified-pdm-fact-grid strong {
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.unified-pdm-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unified-pdm-preview-card {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 11px;
+  color: var(--muted);
+}
+
+.unified-pdm-preview-card strong { color: var(--foreground); }
+.unified-pdm-preview-card .secondary-button { margin-top: 4px; }
+
+.unified-pdm-subsection {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.unified-pdm-subsection h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+}
+
+.unified-pdm-subsection ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unified-pdm-subsection li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.unified-pdm-blockers,
+.unified-pdm-error {
+  display: grid;
+  gap: 5px;
+  border-radius: 7px;
+  padding: 9px;
+  background: #fff4f4;
+  color: #b42318;
+  font-size: 0.8rem;
+}
+
+.unified-pdm-health {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eef2f7;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.unified-pdm-health.is-complete { background: #e8f7ef; color: #087443; }
+.unified-pdm-loading { padding: 18px 8px; color: var(--muted); text-align: center; }
+.unified-pdm-review-note { color: var(--muted); font-size: 0.8rem; }
+
+.unified-pdm-action-bar { width: 100%; }
+.unified-pdm-action-primary,
+.unified-pdm-action-secondary { display: flex; align-items: center; gap: 8px; }
+.unified-pdm-action-secondary { justify-content: flex-end; }
+
+@media (max-width: 620px) {
+  .unified-pdm-fact-grid,
+  .unified-pdm-preview-grid { grid-template-columns: minmax(0, 1fr); }
+  .unified-pdm-action-bar { align-items: stretch; flex-direction: column; }
+  .unified-pdm-action-primary,
+  .unified-pdm-action-secondary { width: 100%; }
+  .unified-pdm-action-primary > *,
+  .unified-pdm-action-secondary > * { width: 100%; }
+}
+
 .number-state-workspace-drawer {
   --number-state-drawer-gutter: 16px;
 }

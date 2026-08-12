@@ -7,6 +7,10 @@ import {
   numberStateFlowJson,
   requireNumberStateReadAccessAsync
 } from "@/lib/number-state-flow-api";
+import { requireAuthAsync } from "@/lib/auth-async";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
+import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
+import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 
 export const runtime = "nodejs";
 
@@ -21,11 +25,29 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; revisionId: string; fileId: string }> }
 ) {
-  const access = await requireNumberStateReadAccessAsync(request, "numbering.workspace.view");
-  if (access.response) return access.response;
+  const reviewRequestId = new URL(request.url).searchParams.get("reviewRequestId");
+  let actorId: string;
+  let companyId: string;
+  if (reviewRequestId) {
+    const authenticated = await requireAuthAsync(request);
+    if (authenticated.response) return authenticated.response;
+    const company = await resolveNumberingCompanyContextAsync(authenticated.user.id, requestedNumberingCompanyCodeFromRequest(request));
+    if (company.response) return company.response;
+    actorId = authenticated.user.id;
+    companyId = company.company.companyId;
+  } else {
+    const access = await requireNumberStateReadAccessAsync(request, "numbering.workspace.view");
+    if (access.response) return access.response;
+    actorId = access.user.id;
+    companyId = access.company.companyId;
+  }
   const { id: workspaceId, revisionId: candidateRevisionId, fileId: rawFileId } = await params;
   const fileId = decodeURIComponent(rawFileId);
   const client = getAsyncDatabaseClient();
+  if (reviewRequestId) {
+    const scope = await resolvePdmReviewScopeReceiptAsync({ client, requestId: reviewRequestId, companyId, actorId, entityKey: `candidate:${workspaceId}` as PdmEntityKey, targetTypes: ["numbering_draft_workspace"], targetIds: [workspaceId] });
+    if (!scope) return numberStateFlowJson({ error: { code: "PDM_REVIEW_SCOPE_NOT_FOUND", message: "找不到這筆審核範圍。", retryable: false } }, { status: 404 });
+  }
   const source = await client.queryOne<CandidatePreviewSourceRow>(
     `
       SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
@@ -47,7 +69,7 @@ export async function GET(
         AND file.removed_at IS NULL
         AND asset.deleted_at IS NULL
     `,
-    { fileId, candidateRevisionId, workspaceId, companyId: access.company.companyId }
+    { fileId, candidateRevisionId, workspaceId, companyId }
   );
   if (!source) return numberStateFlowJson({ error: { code: "candidate_file_not_found", message: "找不到圖面的檔案。", retryable: false } }, { status: 404 });
 
@@ -72,7 +94,7 @@ export async function GET(
               linked_entity_type: "numbering_candidate_revision",
               linked_entity_id: candidateRevisionId
             },
-            actorUserId: access.user.id,
+            actorUserId: actorId,
             requestedKind: source.file_ext.trim().toLowerCase().replace(/^\./u, "") === "slddrw" ? "drawing_pdf" : "native_thumbnail_png",
             generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
             runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"

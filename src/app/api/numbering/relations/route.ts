@@ -233,7 +233,7 @@ export async function POST(request: Request) {
         : message.includes("REQUIRED")
           ? 400
           : 422;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message === "CANDIDATE_REVIEW_LOCKED" ? "PDM_REVIEW_LOCKED" : message }, { status });
   }
 }
 

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { assertPdmReviewScopeWritableAsync, lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
 import {
   NUMBERING_RULE_V1_ID,
@@ -7515,11 +7516,39 @@ export class AsyncNumberingRepository {
     input: LinkPartNumberToDrawingInput & { approvedAfterRelease?: boolean }
   ): Promise<{ drawing: DrawingNumberRecord; partNumber: PartNumberRecord; linkType: string; variants: Array<{ fieldName: string; fieldValue: string }> }> {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+    const lockRows = await client.query<{ id: string; part_root_id: string }>(
+      `SELECT id, part_root_id FROM part_numbers WHERE part_number = :partNumber AND company_id = :companyId
+       UNION ALL
+       SELECT id, part_root_id FROM drawing_numbers WHERE drawing_number = :drawingNumber AND company_id = :companyId`,
+      { partNumber: input.partNumber, drawingNumber: input.drawingNumber, companyId }
+    );
+    const rootId = lockRows[0]?.part_root_id;
+    await lockPdmEntityScopeAsync(client, [
+      ...(rootId ? [{ type: "part_root", id: rootId, companyId }] : []),
+      ...lockRows.map((row) => ({ type: row.id === lockRows[0]?.id ? "part_number" : "drawing_number", id: row.id, companyId }))
+    ]);
     const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: input.partNumber, companyId });
     if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
     const drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber: input.drawingNumber, companyId });
     if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${input.drawingNumber}`);
     if (partRow.part_root_id !== drawingRow.part_root_id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
+
+    const rootRow = await client.queryOne<PartRootRow>("SELECT * FROM part_roots WHERE id = :rootId AND company_id = :companyId", {
+      rootId: partRow.part_root_id,
+      companyId
+    });
+    if (!rootRow) throw new Error("PART_ROOT_NOT_FOUND");
+    if (!input.approvedAfterRelease) {
+      await assertPdmReviewScopeWritableAsync(client, {
+        companyId,
+        targetIds: [partRow.id, drawingRow.id, rootRow.id],
+        targetRefs: [
+          { type: "part_root", id: rootRow.id, companyId },
+          { type: "drawing_number", id: drawingRow.id, companyId },
+          { type: "part_number", id: partRow.id, companyId }
+        ]
+      });
+    }
 
     const part = mapPartNumber(partRow);
     const drawing = mapDrawingNumber(drawingRow);
@@ -7584,19 +7613,44 @@ export class AsyncNumberingRepository {
     if (!drawingNumber) throw new Error("DRAWING_NUMBER_REQUIRED");
     if (!partNumberValue) throw new Error("PART_NUMBER_REQUIRED");
 
+    const partIdentity = await client.queryOne<{ id: string; part_root_id: string }>(
+      `SELECT id, part_root_id FROM part_numbers WHERE part_number = :partNumber AND company_id = :companyId`,
+      { partNumber: partNumberValue, companyId }
+    );
+    if (!partIdentity) throw new Error(`PART_NUMBER_NOT_FOUND: ${partNumberValue}`);
+    const drawingIdentity = await client.queryOne<{ id: string; part_root_id: string }>(
+      `SELECT id, part_root_id FROM drawing_numbers WHERE drawing_number = :drawingNumber AND company_id = :companyId`,
+      { drawingNumber, companyId }
+    );
+    if (!drawingIdentity) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
+    if (partIdentity.part_root_id !== drawingIdentity.part_root_id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
+
+    await lockPdmEntityScopeAsync(client, [
+      { type: "part_root", id: partIdentity.part_root_id, companyId },
+      { type: "drawing_number", id: drawingIdentity.id, companyId },
+      { type: "part_number", id: partIdentity.id, companyId }
+    ]);
+
     const [partRow, drawingRow] = await Promise.all([
       client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber: partNumberValue, companyId }),
       client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId })
     ]);
-    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${partNumberValue}`);
-    if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
+    if (!partRow || !drawingRow) throw new Error("PDM_RELATION_SCOPE_CHANGED");
     if (partRow.part_root_id !== drawingRow.part_root_id) throw new Error("DRAWING_PART_ROOT_MISMATCH");
-
     const rootRow = await client.queryOne<PartRootRow>("SELECT * FROM part_roots WHERE id = :rootId AND company_id = :companyId", {
       rootId: partRow.part_root_id,
       companyId
     });
     if (!rootRow) throw new Error("PART_ROOT_NOT_FOUND");
+    await assertPdmReviewScopeWritableAsync(client, {
+      companyId,
+      targetIds: [partRow.id, drawingRow.id, rootRow.id],
+      targetRefs: [
+        { type: "part_root", id: rootRow.id, companyId },
+        { type: "drawing_number", id: drawingRow.id, companyId },
+        { type: "part_number", id: partRow.id, companyId }
+      ]
+    });
 
     const lockedStatuses: NumberingRecordStatus[] = ["PendingReview", "Released", "Obsolete", "Merged"];
     const lockedRecord = [

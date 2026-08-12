@@ -561,6 +561,7 @@ Cross-spec handling:
 
 - This spec amends `SPEC-PDM-DRAWING-REVISION-SUBMISSION-001` by replacing the previous Phase 4 CAD/OCR slot with first-class package modeling.
 - CAD/OCR extraction is moved to a later phase and remains optional.
+- 2026-08-12 起，Phase 5 的全項候選、同頁人工審核與正式化契約由 `.ai-doc/specs/SPEC-PDM-DRAWING-RECOGNITION-001-candidate-review-and-formalization.md` 管理；辨識 session 只引用 canonical package/file assets，不改變本 spec 的 package identity、immutability 或 completeness rules。
 - This spec extends the drawing submission snapshot ADR; snapshots remain evidence, but no longer substitute for a package model.
 
 ADR decision:

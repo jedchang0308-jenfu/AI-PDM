@@ -10,6 +10,29 @@ const trackedGeneratedFiles = ["next-env.d.ts", "tsconfig.json"];
 const snapshots = new Map(trackedGeneratedFiles.map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
 const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
 
+const isolatedTsconfig = {
+  compilerOptions: {
+    target: "ES2022",
+    lib: ["dom", "dom.iterable", "es2022"],
+    allowJs: false,
+    skipLibCheck: true,
+    strict: true,
+    noEmit: true,
+    esModuleInterop: true,
+    module: "esnext",
+    moduleResolution: "bundler",
+    allowImportingTsExtensions: true,
+    resolveJsonModule: true,
+    isolatedModules: true,
+    jsx: "react-jsx",
+    incremental: true,
+    plugins: [{ name: "next" }],
+    paths: { "@/*": ["./src/*"] }
+  },
+  include: ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx"],
+  exclude: ["node_modules", "output", ".tmp", ".next*", "backups"]
+};
+
 function restoreTrackedGeneratedFiles() {
   for (const [file, content] of snapshots) fs.writeFileSync(path.join(root, file), content, "utf8");
 }
@@ -20,6 +43,7 @@ function delay(ms) {
 
 let exitCode = 1;
 try {
+  fs.writeFileSync(path.join(root, "tsconfig.json"), `${JSON.stringify(isolatedTsconfig, null, 2)}\n`, "utf8");
   exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [nextCli, "build"], {
       cwd: root,

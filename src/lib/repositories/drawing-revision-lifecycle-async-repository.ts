@@ -3,6 +3,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { inferRevisionPackageRole, normalizeRevisionPackageFileRole, type RevisionPackageFileRole } from "@/lib/revision-package";
 import { parseRevisionCode } from "@/lib/revision-policy";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 
 export const DRAWING_REVISION_LIFECYCLE_ACTION = "numbering.drawing_revision_lifecycle_review";
 
@@ -121,6 +122,15 @@ export class AsyncDrawingRevisionLifecycleRepository {
         );
       }
 
+      await lockPdmEntityScopeAsync(tx, [
+        { type: "drawing_number", id: input.drawingNumberId, companyId: input.companyId },
+        ...input.parts.map((part) => ({ type: "part_number", id: part.partNumberId, companyId: input.companyId })),
+        ...input.files.map((file) => ({ type: "attachment", id: file.assetId, companyId: input.companyId })),
+        ...((input.snapshot.root && typeof input.snapshot.root === "object" && "id" in input.snapshot.root)
+          ? [{ type: "part_root", id: String((input.snapshot.root as { id: unknown }).id), companyId: input.companyId }]
+          : [])
+      ]);
+      await this.assertSubmitScopeStable(tx, input);
       const existingProjection = await this.findProjectionByDrawingRevision(tx, {
         companyId: input.companyId,
         drawingNumberId: input.drawingNumberId,
@@ -128,6 +138,9 @@ export class AsyncDrawingRevisionLifecycleRepository {
       });
       if (token && existingProjection) {
         return { projection: existingProjection, idempotentReplay: true };
+      }
+      if (existingProjection) {
+        await lockPdmEntityScopeAsync(tx, [{ type: "drawing_revision_package", id: existingProjection.packageId, companyId: input.companyId }]);
       }
       if (existingProjection?.lifecycleState === "in_review") {
         throw new DrawingRevisionLifecycleRepositoryError(
@@ -461,6 +474,17 @@ export class AsyncDrawingRevisionLifecycleRepository {
         if (token) return { projection: null, cleanupPending: false, idempotentReplay: true };
         throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_WORKFLOW_NOT_FOUND", "此審核案已完成或不存在。", 404);
       }
+      const packageIdentity = await tx.queryOne<{ id: string; drawing_number_id: string; company_id: string }>(
+        `SELECT id, drawing_number_id, company_id
+           FROM drawing_revision_packages
+          WHERE id = :packageId AND company_id = :companyId`,
+        { packageId: workflow.package_id, companyId: workflow.company_id }
+      );
+      if (!packageIdentity) throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_STATE_CONFLICT", "版次資料已更新，請重新整理。", 409);
+      await lockPdmEntityScopeAsync(tx, [
+        { type: "drawing_number", id: packageIdentity.drawing_number_id, companyId: packageIdentity.company_id },
+        { type: "drawing_revision_package", id: packageIdentity.id, companyId: packageIdentity.company_id }
+      ]);
       const assigned = await tx.queryOne<{ value: number }>(
         `SELECT 1 AS value FROM drawing_revision_lifecycle_reviewers
          WHERE workflow_id = :workflowId AND reviewer_id = :reviewerId LIMIT 1`,
@@ -892,6 +916,34 @@ export class AsyncDrawingRevisionLifecycleRepository {
       input
     );
     return row ? this.mapProjection(client, row) : null;
+  }
+
+  private async assertSubmitScopeStable(client: AsyncDatabaseClient, input: DrawingRevisionLifecycleSubmitRecord) {
+    const drawing = await client.queryOne<{ id: string; drawing_number: string; company_id: string }>(
+      `SELECT id, drawing_number, company_id FROM drawing_numbers WHERE id = :drawingNumberId`,
+      { drawingNumberId: input.drawingNumberId }
+    );
+    if (!drawing || drawing.company_id !== input.companyId || drawing.drawing_number !== input.drawingNumber) {
+      throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_SNAPSHOT_STALE", "圖面資料在送審期間已變更，請重新整理後再送審。", 409);
+    }
+    const expectedPartIds = [...new Set(input.parts.map((part) => part.partNumberId))];
+    const parts = expectedPartIds.length === 0 ? [] : await client.query<{ id: string; part_number: string; part_name: string }>(
+      `SELECT id, part_number, part_name FROM part_numbers WHERE company_id = :companyId AND id IN (${expectedPartIds.map((_, index) => `:partId${index}`).join(", ")})`,
+      Object.fromEntries([["companyId", input.companyId], ...expectedPartIds.map((id, index) => [`partId${index}`, id])])
+    );
+    const partById = new Map(parts.map((part) => [part.id, part]));
+    if (parts.length !== expectedPartIds.length || input.parts.some((part) => part.partNumber !== partById.get(part.partNumberId)?.part_number || part.partName !== partById.get(part.partNumberId)?.part_name)) {
+      throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_SNAPSHOT_STALE", "關聯料號在送審期間已變更，請重新整理後再送審。", 409);
+    }
+    const expectedFileIds = [...new Set(input.files.map((file) => file.assetId))];
+    const files = expectedFileIds.length === 0 ? [] : await client.query<{ id: string; file_name: string }>(
+      `SELECT id, file_name FROM file_assets WHERE id IN (${expectedFileIds.map((_, index) => `:assetId${index}`).join(", ")}) AND deleted_at IS NULL`,
+      Object.fromEntries(expectedFileIds.map((id, index) => [`assetId${index}`, id]))
+    );
+    const fileById = new Map(files.map((file) => [file.id, file]));
+    if (files.length !== expectedFileIds.length || input.files.some((file) => file.filename !== fileById.get(file.assetId)?.file_name)) {
+      throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_SNAPSHOT_STALE", "送審檔案在送審期間已變更，請重新整理後再送審。", 409);
+    }
   }
 
   private async findProjectionByPackage(client: AsyncDatabaseClient, packageId: string) {

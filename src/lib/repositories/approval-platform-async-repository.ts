@@ -84,6 +84,8 @@ export type ApprovalPlatformInboxItem = {
   targetSummary: string;
   impactSummary: string | null;
   legacy: { table: string; id: string } | null;
+  primaryTarget?: { type: string; targetId: string; code: string | null; label: string };
+  ownerHref?: string;
 };
 
 export type ApprovalPlatformRequestDetail = ApprovalPlatformInboxItem & {
@@ -796,7 +798,11 @@ export class AsyncApprovalPlatformRepository {
         packageStatus: row.package_status,
         targetSummary: targetSummary(row.action_code, targets, impactByRequestId.get(row.id)),
         impactSummary: null,
-        legacy: null
+        legacy: null,
+        primaryTarget: (() => {
+          const target = targets.find((item) => item.role === "primary") ?? targets[0];
+          return target ? { type: target.type, targetId: target.targetId, code: target.code, label: target.label } : undefined;
+        })()
       });
     }
     return items;
@@ -1003,7 +1009,8 @@ export class AsyncApprovalPlatformRepository {
       packageStatus: row.batch_status,
       targetSummary: row.target_code ?? row.entity_id,
       impactSummary: firstMeaningfulText(row.target_status, row.entity_type),
-      legacy: { table: "approval_requests", id: row.id }
+      legacy: { table: "approval_requests", id: row.id },
+      primaryTarget: { type: row.entity_type, targetId: row.entity_id, code: row.target_code, label: row.target_label ?? row.entity_type }
     }));
   }
 

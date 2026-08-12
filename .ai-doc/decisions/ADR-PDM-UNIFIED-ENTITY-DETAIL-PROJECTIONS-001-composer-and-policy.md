@@ -1,6 +1,6 @@
 # ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001：共用明細 Composer、Domain Projection 與 Server Policy
 
-Status: `Accepted / Human Confirmed / RD Implementation Ready / Implementation Not Started / Production Release Gated`
+Status: `Accepted / Human Confirmed / Local RD Implemented / Local QA-QC Passed / Production Release Gated`
 Date: 2026-08-12
 Owner: Dev PM
 Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`

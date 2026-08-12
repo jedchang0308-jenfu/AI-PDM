@@ -36,8 +36,10 @@ import {
 } from "@/components/drawing-workspace-drawer";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { StatusScopeHelp } from "@/components/status-help-popover";
+import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { formatStatusForUser } from "@/lib/status-display";
+import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 import type {
   DrawingWorkbenchDetailResponse,
   DrawingWorkbenchListResponse,
@@ -69,7 +71,7 @@ export type ProductionSliceClientStatus = {
   openPagePaths: string[];
   unopenedMessage: string;
 };
-type DrawingFeatureStatus = { previewGallery?: { drawingEnabled?: boolean } };
+type DrawingFeatureStatus = { previewGallery?: { drawingEnabled?: boolean }; entityDetail?: { enabled?: boolean } };
 const DRAWING_LAYOUT_STORAGE_KEY = "pdm:drawing-workbench:layout:v1";
 
 function validLayout(value: string | null): value is PdmWorkbenchLayout { return value === "list" || value === "preview"; }
@@ -163,6 +165,8 @@ function writeDrawingWorkbenchLocation(
   state.query.recordStatus ? params.set("recordStatus", state.query.recordStatus) : params.delete("recordStatus");
   state.query.humanStatus !== "all" ? params.set("humanStatus", state.query.humanStatus) : params.delete("humanStatus");
   state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? params.delete("sortDirection") : params.set("sortDirection", state.query.sortDirection);
+  const reviewRequestId = new URLSearchParams(window.location.search).get("reviewRequestId");
+  reviewRequestId ? params.set("reviewRequestId", reviewRequestId) : params.delete("reviewRequestId");
   state.detailKey ? params.set("detail", state.detailKey) : params.delete("detail");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
@@ -216,6 +220,15 @@ function drawingWorkbenchCopyText(row: DrawingWorkbenchRow) {
   return row.displayCode;
 }
 
+function shouldSkipUnifiedReviewDetail(unifiedEnabled: boolean) {
+  return unifiedEnabled && Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
+}
+
+function reviewReturnTo() {
+  const value = new URLSearchParams(window.location.search).get("returnTo") ?? "";
+  return normalizePdmApprovalReturnTo(value);
+}
+
 export function DrawingWorkbench() {
   const router = useRouter();
   const redirectDrawingWorkbenchLogin = useCallback(() => {
@@ -226,6 +239,11 @@ export function DrawingWorkbench() {
   const [layout, setLayout] = useState<PdmWorkbenchLayout>("list");
   const [actionBusy, setActionBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const unifiedEntityDetailEnabled = featureStatus?.entityDetail?.enabled === true;
+  const skipUnifiedReviewDetail = useCallback(
+    () => shouldSkipUnifiedReviewDetail(unifiedEntityDetailEnabled),
+    [unifiedEntityDetailEnabled]
+  );
   const listRef = useRef<HTMLDivElement>(null);
   const autoOpenedQueryRef = useRef("");
   const idempotencyKeys = useRef(new Map<string, string>());
@@ -246,6 +264,7 @@ export function DrawingWorkbench() {
     normalizeDetail: normalizeDrawingWorkbenchDetail,
     detailRowKey: drawingWorkbenchDetailRowKey,
     detailHistoryMode: "replace",
+    shouldSkipDetailFetch: skipUnifiedReviewDetail,
     listErrorMessage: "圖號工作台目前無法載入，請重新整理。",
     detailErrorMessage: "這筆圖號工作已不存在或目前無法查看。",
     onUnauthorized: redirectDrawingWorkbenchLogin
@@ -296,6 +315,8 @@ export function DrawingWorkbench() {
   }, []);
 
   const previewEnabled = featureStatus?.previewGallery?.drawingEnabled === true;
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
+  useEffect(() => { setReviewRequestId(new URLSearchParams(window.location.search).get("reviewRequestId")); }, []);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/numbering/state-flow/status", { cache: "no-store" })
@@ -569,7 +590,7 @@ export function DrawingWorkbench() {
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate ? (
+      {detail?.candidate && !unifiedEntityDetailEnabled ? (
         <WorkspaceDrawer
           workspace={detail.candidate as NumberingDraftWorkspace}
           busy={actionBusy}
@@ -614,7 +635,8 @@ export function DrawingWorkbench() {
           onClose={closeDetail}
         />
       ) : null}
-      {detail?.drawing ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
+      {detail?.drawing && !unifiedEntityDetailEnabled ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
+      {unifiedEntityDetailEnabled && selectedKey ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="drawing" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }

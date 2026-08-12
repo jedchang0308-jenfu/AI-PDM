@@ -63,8 +63,7 @@ export async function createMasterAttachmentAsync(input: {
   uploadedBy: string;
 }) {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncMasterAttachmentRepository(client);
-  const attachment = await repository.createMasterAttachment(input);
+  const attachment = await client.transaction((transactionClient) => new AsyncMasterAttachmentRepository(transactionClient).createMasterAttachment(input));
   if (!attachment) throw new Error("MASTER_ATTACHMENT_CREATE_FAILED");
   if (isNativeSolidWorksPreviewSource(attachment.fileExt)) {
     try {
@@ -143,8 +142,7 @@ export function softDeleteMasterAttachmentAsync(input: {
   reason?: string | null;
 }) {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.softDeleteMasterAttachment(input);
+  return client.transaction((transactionClient) => new AsyncMasterAttachmentRepository(transactionClient).softDeleteMasterAttachment(input));
 }
 
 export function restoreMasterAttachmentAsync(input: {
@@ -155,8 +153,7 @@ export function restoreMasterAttachmentAsync(input: {
   reason?: string | null;
 }) {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncMasterAttachmentRepository(client);
-  return repository.restoreMasterAttachment(input);
+  return client.transaction((transactionClient) => new AsyncMasterAttachmentRepository(transactionClient).restoreMasterAttachment(input));
 }
 
 export async function syncMasterAttachmentToDriveAsync(input: { attachmentId: string; actorId?: string | null }) {

@@ -488,8 +488,12 @@
 
 - 用途類型的第一版固定選項是否採 `FFF 變更 / 材料替代 / 客戶版本 / 供應商替代 / 其他`。
 - 料號管理員的角色權限是否沿用既有 PDM Admin，或新增 Part Number Manager。
-- 圖面料號讀取以 SolidWorks 屬性、檔名、PDF/OCR 哪個來源為第一優先。
 - `需重新確認` 的 UI 呈現要放在草稿清單、BOM 編輯頁、或待辦中心。
+
+### 17.1 2026-08-12 DEV-068 來源優先序決議
+
+- Current Phase 不設 SolidWorks 屬性、檔名或 PDF/OCR 的固定第一優先序；各來源先形成可追溯候選，一致值可聚合、衝突值須並列，人工確認前不得覆寫正式資料。
+- 權威契約：`.ai-doc/specs/SPEC-PDM-DRAWING-RECOGNITION-001-candidate-review-and-formalization.md`。
 
 ## 18. QA 驗證方向
 

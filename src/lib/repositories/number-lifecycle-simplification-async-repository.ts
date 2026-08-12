@@ -18,6 +18,7 @@ import {
 } from "@/lib/repositories/number-state-flow-async-repository";
 import type { NumberingCandidateRevisionFileRecord } from "@/lib/number-lifecycle-simplification";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { assertPdmReviewScopeWritableAsync, lockPdmDraftWorkspaceScopeAsync } from "@/lib/pdm-review-lock";
 
 type WorkspaceRow = {
   id: string;
@@ -355,6 +356,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     actorId: string;
     expectedWorkspaceRowVersion: number;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.drawingDraftId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_draft_drawing", id: input.drawingDraftId }
+      ]
+    });
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -464,6 +473,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     revision: string;
     overrideReason: string | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const row = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!row) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (row.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -518,6 +535,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedRowVersion: number;
     storage: CandidateFileStorageInput;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -686,6 +711,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     fileId: string;
     expectedRowVersion: number;
   }): Promise<CandidateFileVerificationSource> {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -736,6 +769,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
       finalizedAt: string;
     } | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -819,6 +860,15 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedRowVersion: number;
     reason: string | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId, input.fileId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId },
+        { type: "numbering_candidate_revision_file", id: input.fileId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -948,6 +998,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedWorkspaceRowVersion: number;
     reason: string | null;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const row = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!row) throw new Error("WORKSPACE_NOT_FOUND");
     if (row.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
